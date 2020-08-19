@@ -189,7 +189,7 @@ def main():
 
 
 class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
-    def __init__(self, file, single_data_element_shape, transform=None, target_transform=None):
+    def __init__(self, file, single_data_element_shape, transforms=None):
         names = ["images", "metadata"]
         """
         file notes
@@ -217,13 +217,12 @@ class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
             file,
             single_data_element_shape,
             dataset_names=names,
-            transform=transform,
-            target_transform=target_transform,
+            transforms=transforms,
             np_buffer=True,
             np_buffer_dataset_names=names[0],
         )
         # self.getitem_conversion = [self.load_item_transform, None]
-        self.transform_list = [transform, None]
+        # self.transforms = [transform, None]
 
     # def load_item_transform(self, index):
     #     shape = (int(self.metadata[index][0].item()), int(self.metadata[index][1].item()), 3)
@@ -351,15 +350,18 @@ def main_worker(gpu, ngpus_per_node, args):
     train_dataset = ImagenetDataset(
         train_file,
         single_data_element_shape=(3, 224, 224),
-        transform=transforms.Compose(
-            [
-                transforms.ToPILImage(),
-                transforms.RandomResizedCrop(224),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                normalize,
-            ]
-        ),
+        transforms=[
+            transforms.Compose(
+                [
+                    transforms.ToPILImage(),
+                    transforms.RandomResizedCrop(224),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    normalize,
+                ]
+            ),
+            None,
+        ],
     )
     train_loader = ht.utils.data.datatools.DataLoader(
         lcl_dataset=train_dataset, batch_size=args.batch_size, pin_memory=True
@@ -367,15 +369,18 @@ def main_worker(gpu, ngpus_per_node, args):
     val_dataset = ImagenetDataset(
         val_file,
         single_data_element_shape=(3, 224, 224),
-        transform=transforms.Compose(
-            [
-                transforms.ToPILImage(),
-                transforms.Resize(256),
-                transforms.CenterCrop(224),
-                transforms.ToTensor(),
-                normalize,
-            ]
-        ),
+        transforms=[
+            transforms.Compose(
+                [
+                    transforms.ToPILImage(),
+                    transforms.Resize(256),
+                    transforms.CenterCrop(224),
+                    transforms.ToTensor(),
+                    normalize,
+                ]
+            ),
+            None,
+        ],
     )
     val_loader = ht.utils.data.datatools.DataLoader(
         lcl_dataset=val_dataset, batch_size=args.batch_size, pin_memory=True
