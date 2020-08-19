@@ -40,31 +40,3 @@ som = FixedSOM(
 som.fit_batch(X, 1)
 
 print(som.umatrix(), "batch")
-
-dist = ht.spatial.cdist(X, som.network)
-row_min = ht.argmin(dist, axis=1)
-row_min_2d = som.get_2d_network(row_min)
-print(row_min_2d, Y, "labels into batch")
-
-som = FixedSOM(
-    10,
-    10,
-    4,
-    initial_learning_rate=0.1,
-    target_learning_rate=0.01,
-    initial_radius=8,
-    target_radius=2,
-    max_epoch=400,
-    batch_size=5,
-    seed=1,
-    data_split=0,
-)
-som.fit_iterative(X)
-
-print(som.umatrix(), "iterative")
-
-dist = ht.spatial.cdist(X, som.network)
-row_min = ht.argmin(dist, axis=1)
-row_min_2d = som.get_2d_network(row_min)
-
-print(row_min_2d, Y, "labels into batch")

@@ -88,24 +88,16 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         self.radius = self.initial_radius
         self.learning_rate = self.initial_learning_rate
 
-        self.distances = ht.resplit(self.distances, axis=0)
-
         for epoch in range(1, self.max_epoch + 1):
             distances = ht.spatial.cdist(X, self.network)
-            row_min = ht.argmin(distances, axis=1)
+            row_min = ht.min(distances, axis=1, keepdim=True)
 
             scalars = self.in_radius()
-            scalars = scalars[row_min]
-            scalars.balance_()
-            weights = ht.expand_dims(X, axis=1)
-            scalars = ht.expand_dims(scalars, axis=2)
-            scaled_weights = weights * scalars
-
-            weight_sum = ht.sum(scaled_weights, axis=0)
-            scalar_sum = ht.sum(scalars, axis=0)
-
-            new_network = weight_sum / scalar_sum
-
+            distances = ht.where(distances == row_min, 1, 0)
+            scalars = ht.matmul(distances, scalars)
+            scaled_weights = ht.matmul(X.T, scalars)
+            scalar_sum = ht.sum(scalars, axis=0, keepdim=True)
+            new_network = scaled_weights.T / scalar_sum.T
             dist = ht.sum(ht.spatial.cdist(self.network, new_network))
 
             self.network = new_network
