@@ -8,7 +8,7 @@ from typing import Callable, List, Iterator, Union
 
 from ...core import dndarray
 from ...core.communication import MPICommunication
-from . import parallel_datatools
+from . import partial_dataset
 
 __all__ = ["DataLoader", "Dataset", "dataset_shuffle"]
 
@@ -75,7 +75,7 @@ class DataLoader:
         drop_last: bool = False,
         timeout: Union[int, float] = 0,
         worker_init_fn: Callable = None,
-        lcl_dataset: Union[torch_data.Dataset, parallel_datatools.PartialDataset] = None,
+        lcl_dataset: Union[torch_data.Dataset, partial_dataset.PartialDataset] = None,
         transform: Callable = None,
     ):
         if isinstance(data, dndarray.DNDarray) and lcl_dataset is not None:
@@ -87,7 +87,7 @@ class DataLoader:
                 f"data must be a DNDarray or lcl_dataset must be given, data is currently: {type(data)}"
             )
         self.ishuffle = self.dataset.ishuffle
-        if isinstance(self.dataset, parallel_datatools.PartialDataset):
+        if isinstance(self.dataset, partial_dataset.PartialDataset):
             drop_last = True
         # this is effectively setting ``shuffle`` to True
         # rand_sampler = torch_data.RandomSampler(self.dataset)
@@ -116,13 +116,13 @@ class DataLoader:
         # todo: do the loading of the next groups here
         # self.dataset.loads_remaining = self.dataset.loads_required
         # need to start the first loader
-        self.dataset.load_next_group()
+        # self.dataset.load_next_group()
         # print(self.dataset.loads_required)
         # iters = [
         #    parallel_datatools.LoadingDataLoaderIter(self).__iter__()
         #    for _ in range(self.dataset.loads_required)
         # ]
-        return parallel_datatools.LoadingDataLoaderIter(self)
+        return partial_dataset.LoadingDataLoaderIter(self)
 
     def __len__(self) -> int:
         return len(self.DataLoader)

@@ -133,7 +133,9 @@ parser.add_argument(
 )
 parser.add_argument("--dist-backend", default="nccl", type=str, help="distributed backend")
 parser.add_argument("--seed", default=None, type=int, help="seed for initializing training. ")
-parser.add_argument("--gpu", default=ht.MPI_WORLD.rank % torch.cuda.device_count(), type=int, help="GPU id to use.")
+parser.add_argument(
+    "--gpu", default=ht.MPI_WORLD.rank % torch.cuda.device_count(), type=int, help="GPU id to use."
+)
 parser.add_argument(
     "--multiprocessing-distributed",
     action="store_true",
@@ -161,7 +163,7 @@ def main():
             "from checkpoints."
         )
 
-    #if args.gpu is not None:
+    # if args.gpu is not None:
     #    warnings.warn(
     #        "You have chosen a specific GPU. This will completely " "disable data parallelism."
     #    )
@@ -169,9 +171,9 @@ def main():
     if args.dist_url == "env://" and args.world_size == -1:
         args.world_size = int(os.environ["WORLD_SIZE"])
 
-    args.distributed = None #args.world_size > 1 or args.multiprocessing_distributed
+    args.distributed = None  # args.world_size > 1 or args.multiprocessing_distributed
 
-    ngpus_per_node = 1 #torch.cuda.device_count()
+    ngpus_per_node = 1  # torch.cuda.device_count()
     # todo: multi GPU / pr --------------------------------------------------
     # if args.multiprocessing_distributed:
     #     # Since we have ngpus_per_node processes per node, the total world_size
@@ -186,7 +188,7 @@ def main():
     # todo: -----------------------------------------------------------------
 
 
-class ImagenetDataset(ht.utils.data.parallel_datatools.PartialDataset):
+class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
     def __init__(self, file, single_data_element_shape, transform=None, target_transform=None):
         names = ["images", "metadata"]
         """
@@ -220,18 +222,21 @@ class ImagenetDataset(ht.utils.data.parallel_datatools.PartialDataset):
             np_buffer=True,
             np_buffer_dataset_names=names[0],
         )
-        self.getitem_conversion = [self.load_item_transform, None]
+        # self.getitem_conversion = [self.load_item_transform, None]
         self.transform_list = [transform, None]
 
-    def load_item_transform(self, index):
-        shape = (int(self.metadata[index][0].item()), int(self.metadata[index][1].item()), 3)
-        str_repr = base64.binascii.a2b_base64(self.images[index])
-        img = np.frombuffer(str_repr, dtype=np.uint8).reshape(shape)
-        return img
+    # def load_item_transform(self, index):
+    #     shape = (int(self.metadata[index][0].item()), int(self.metadata[index][1].item()), 3)
+    #     str_repr = base64.binascii.a2b_base64(self.images[index])
+    #     img = np.frombuffer(str_repr, dtype=np.uint8).reshape(shape)
+    #     return img
 
     def __getitem__(self, index):
         # todo: move this to the loading function?
-        img = self.images[index]
+        # img = self.images[index]
+        shape = (int(self.metadata[index][0].item()), int(self.metadata[index][1].item()), 3)
+        str_repr = base64.binascii.a2b_base64(self.images[index])
+        img = np.frombuffer(str_repr, dtype=np.uint8).reshape(shape)
         target = torch.as_tensor(self.metadata[index][3], dtype=torch.long).to(self.torch_device)
 
         return img, target
@@ -243,11 +248,6 @@ def main_worker(gpu, ngpus_per_node, args):
 
     # if args.gpu is not None:
     #     print("Use GPU: {} for training".format(args.gpu))
-    if torch.cuda.is_available():
-        # self.torch_device = torch.device("cuda")
-        torch.cuda.set_device(ht.MPI_WORLD.rank % torch.cuda.device_count())
-        gpu_num = ht.MPI_WORLD.rank % torch.cuda.device_count()
-    print("gpu numbers", gpu, gpu_num)
 
     # todo: multi GPU / pr --------------------------------------------------
     # if args.distributed:
@@ -340,10 +340,9 @@ def main_worker(gpu, ngpus_per_node, args):
     #         print("=> no checkpoint found at '{}'".format(args.resume))
 
     # cudnn.benchmark = True
+    pass
 
     # Data loading code
-    # traindir = os.path.join(args.data, 'train')
-    # valdir = os.path.join(args.data, 'val')
     train_file = "/p/project/haf/data/imagenet_merged.h5"
     val_file = "/p/project/haf/data/imagenet_merged_validation.h5"
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -362,27 +361,9 @@ def main_worker(gpu, ngpus_per_node, args):
             ]
         ),
     )
-    # train_dataset = datasets.ImageFolder(
-    #     traindir,
-    #     vision_transforms.Compose([
-    #         vision_transforms.RandomResizedCrop(224),
-    #         vision_transforms.RandomHorizontalFlip(),
-    #         vision_transforms.ToTensor(),
-    #         normalize,
-    #     ]))
-
-    # if args.distributed:
-    #     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    # else:
-    #     train_sampler = None
-
-    # train_loader = torch.utils.data.DataLoader(
-    #     train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
-    #     num_workers=args.workers, pin_memory=True, sampler=train_sampler)
     train_loader = ht.utils.data.datatools.DataLoader(
         lcl_dataset=train_dataset, batch_size=args.batch_size, pin_memory=True
     )
-
     val_dataset = ImagenetDataset(
         val_file,
         single_data_element_shape=(3, 224, 224),
@@ -399,19 +380,12 @@ def main_worker(gpu, ngpus_per_node, args):
     val_loader = ht.utils.data.datatools.DataLoader(
         lcl_dataset=val_dataset, batch_size=args.batch_size, pin_memory=True
     )
-    # val_loader = torch.utils.data.DataLoader(
-    #     datasets.ImageFolder(valdir, vision_transforms.Compose([
-    #         vision_transforms.Resize(256),
-    #         vision_transforms.CenterCrop(224),
-    #         vision_transforms.ToTensor(),
-    #         normalize,
-    #     ])),
-    #     batch_size=args.batch_size, shuffle=False,
-    #     num_workers=args.workers, pin_memory=True)
 
-    #if torch.cuda.is_available():
-    #    torch.cuda.empty_cache()
-    #    model.cuda()
+    if torch.cuda.is_available():
+        # self.torch_device = torch.device("cuda")
+        torch.cuda.set_device(ht.MPI_WORLD.rank % torch.cuda.device_count())
+        # gpu_num = ht.MPI_WORLD.rank % torch.cuda.device_count()
+        model.cuda(device=train_dataset.torch_device)
 
     if args.evaluate:
         validate(val_loader, model, criterion, args)
