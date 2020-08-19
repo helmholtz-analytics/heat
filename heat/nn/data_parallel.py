@@ -222,7 +222,7 @@ class DataParallel(tnn.Module):
             if layer_name not in self._active_layers:
                 return
             # iterate over layer's parameters/associated wait handles
-            for (_, param_name, wait_handle) in reversed(self._layer_wait_handles[layer_name]):
+            for (_, param_name, wait_handle) in self._layer_wait_handles[layer_name]:
                 # get internal index of selected parameter
                 param_idx = self._param_indices[param_name]
                 # synchronize, get parameter's global gradient
