@@ -189,7 +189,7 @@ def main():
 
 
 class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
-    def __init__(self, file, single_data_element_shape, transforms=None):
+    def __init__(self, file, transforms=None):
         names = ["images", "metadata"]
         """
         file notes
@@ -215,7 +215,6 @@ class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
         """
         super(ImagenetDataset, self).__init__(
             file,
-            single_data_element_shape,
             dataset_names=names,
             transforms=transforms,
             np_buffer=True,
@@ -349,7 +348,6 @@ def main_worker(gpu, ngpus_per_node, args):
     # todo: point to the correct file, add transform for data
     train_dataset = ImagenetDataset(
         train_file,
-        single_data_element_shape=(3, 224, 224),
         transforms=[
             transforms.Compose(
                 [
@@ -368,7 +366,6 @@ def main_worker(gpu, ngpus_per_node, args):
     )
     val_dataset = ImagenetDataset(
         val_file,
-        single_data_element_shape=(3, 224, 224),
         transforms=[
             transforms.Compose(
                 [

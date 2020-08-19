@@ -15,6 +15,7 @@ from ...core import dndarray
 from ...core import io
 from ...core.communication import MPICommunication
 from ...core.communication import MPI_WORLD
+from ...core.communication import MPI
 from . import datatools
 
 
@@ -123,13 +124,11 @@ class PartialDataset(torch_data.Dataset):
         self.loading_queue = queue.Queue()
         self.loading_condition = threading.Condition()
         self.loading_thread = threading.Thread(
-            target=queue_thread, args=[self.loading_queue, self.loading_condition], daemon=True
+            target=queue_thread, args=[self.loading_queue], daemon=True
         ).start()
         self.convert_queue = queue.Queue()
         # self.convert_condition = threading.Condition()
-        threading.Thread(
-            target=queue_thread, args=[self.convert_queue, self.loading_condition], daemon=True
-        ).start()
+        threading.Thread(target=queue_thread, args=[self.convert_queue], daemon=True).start()
 
     # end init ================================================================================
 
@@ -332,7 +331,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
         self._num_yielded = 0
         self.batch_size = loader.DataLoader.batch_size
         self.comm = self.dataset.comm
-        rand_samp_list = torch.randperm(len(self.dataset)).tolist()
+        rand_samp_list = torch.randperm(len(self.dataset.load_initial)).tolist()
 
         # todo: support other samplers: for now its only random!!!
         if isinstance(self.dataset, PartialDataset) and self.dataset.partial_dataset:
@@ -427,7 +426,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             #     data = _utils.pin_memory.pin_memory(data)
             return data
         # else:
-        while len(self.ready_batches) < 0:
+        while len(self.ready_batches) < 1:
             time.wait(0.2)
         return self.ready_batches.pop(0)
 
@@ -497,7 +496,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             if self.dataset.next_start + self.comm.size >= self.dataset.total_size:
                 self.dataset.next_start = 0
             # load dataset for next epoch
-            self.dataset.load_end = self.dataset.load_start + self.dataset.initial_load
+            self.dataset.load_end = self.dataset.load_start + self.dataset.load_initial
             for d in self.dataset.dataset_names:
                 if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
                     hld = torch.tensor(f[d][self.dataset.load_start : self.dataset.load_end])
