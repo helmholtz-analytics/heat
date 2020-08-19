@@ -65,12 +65,6 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         batch_count = int(X.gshape[0] / self.batch_size)
         offset = 0
         batches = []
-        indices = [i for i in range(X.shape[0])]
-
-        if self.batch_size < X.shape[0]:
-            random.shuffle(indices)
-            X = X[indices]
-            X.balance_()
 
         for count in range(1, batch_count + 1):
             batches.append(X[offset : count * self.batch_size])
@@ -89,8 +83,6 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
                 self.update_learning_rate(epoch)
                 self.update_radius(epoch)
 
-                random.shuffle(batch)
-
     def fit_batch(self, X, c):
 
         self.radius = self.initial_radius
@@ -104,6 +96,7 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
 
             scalars = self.in_radius()
             scalars = scalars[row_min]
+            scalars.balance_()
             weights = ht.expand_dims(X, axis=1)
             scalars = ht.expand_dims(scalars, axis=2)
             scaled_weights = weights * scalars
