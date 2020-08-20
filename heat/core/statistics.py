@@ -118,6 +118,9 @@ def argmax(x, axis=None, out=None, **kwargs):
             if not kwargs.get("keepdim"):
                 reduced_result = reduced_result.squeeze(axis=0)
 
+    if not reduced_result.is_distributed():
+        reduced_result._DNDarray__split = None
+
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
         if out.shape != reduced_result.shape:
@@ -126,6 +129,7 @@ def argmax(x, axis=None, out=None, **kwargs):
                     reduced_result.shape, out.shape
                 )
             )
+        out._DNDarray__split = reduced_result.split
         out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
         out._DNDarray__array = out._DNDarray__array.type(torch.int64)
         out._DNDarray__dtype = types.int64
@@ -218,7 +222,9 @@ def argmin(x, axis=None, out=None, **kwargs):
             reduced_result._DNDarray__gshape = (1,) + reduced_result._DNDarray__gshape
             if not kwargs.get("keepdim"):
                 reduced_result = reduced_result.squeeze(axis=0)
-
+    # split correction for not distributed
+    if not reduced_result.is_distributed():
+        reduced_result._DNDarray__split = None
     # set out parameter correctly, i.e. set the storage correctly
     if out is not None:
         if out.shape != reduced_result.shape:
@@ -227,6 +233,7 @@ def argmin(x, axis=None, out=None, **kwargs):
                     reduced_result.shape, out.shape
                 )
             )
+        out._DNDarray__split = reduced_result.split
         out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
         out._DNDarray__array = out._DNDarray__array.type(torch.int64)
         out._DNDarray__dtype = types.int64
@@ -1184,8 +1191,14 @@ def mpi_argmax(a, b, _):
     rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
 
     # extract the values and minimal indices from the buffers (first half are values, second are indices)
-    values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0]), dim=1)
-    indices = torch.stack((lhs.chunk(2)[1], rhs.chunk(2)[1]), dim=1)
+    idx_l, idx_r = lhs.chunk(2)[1], rhs.chunk(2)[1]
+
+    if idx_l[0] < idx_r[0]:
+        values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0]), dim=1)
+        indices = torch.stack((idx_l, idx_r), dim=1)
+    else:
+        values = torch.stack((rhs.chunk(2)[0], lhs.chunk(2)[0]), dim=1)
+        indices = torch.stack((idx_r, idx_l), dim=1)
 
     # determine the minimum value and select the indices accordingly
     max, max_indices = torch.max(values, dim=1)
@@ -1201,8 +1214,14 @@ def mpi_argmin(a, b, _):
     lhs = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
     rhs = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
     # extract the values and minimal indices from the buffers (first half are values, second are indices)
-    values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0]), dim=1)
-    indices = torch.stack((lhs.chunk(2)[1], rhs.chunk(2)[1]), dim=1)
+    idx_l, idx_r = lhs.chunk(2)[1], rhs.chunk(2)[1]
+
+    if idx_l[0] < idx_r[0]:
+        values = torch.stack((lhs.chunk(2)[0], rhs.chunk(2)[0]), dim=1)
+        indices = torch.stack((idx_l, idx_r), dim=1)
+    else:
+        values = torch.stack((rhs.chunk(2)[0], lhs.chunk(2)[0]), dim=1)
+        indices = torch.stack((idx_r, idx_l), dim=1)
 
     # determine the minimum value and select the indices accordingly
     min, min_indices = torch.min(values, dim=1)
