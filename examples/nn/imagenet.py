@@ -441,7 +441,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
 
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
-        print("train loop", i, images.device)
+        print("\ttrain loop", i, images.device)
         # measure data loading time
         # data_time.update(time.time() - end)
 
@@ -469,7 +469,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
 
         # measure elapsed time
         batch_time.update(time.time() - end)
-        print(time.time() - end)
+        #print(time.time() - end)
         end = time.time()
         gc.collect()
 
