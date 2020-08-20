@@ -17,3 +17,4 @@ repos:
     rev: 5.0.1  # pick a git hash / tag to point to
     hooks:
     -   id: pydocstyle
+        exclude: 'heat/core/tests/'
