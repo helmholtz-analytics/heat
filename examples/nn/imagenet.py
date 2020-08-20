@@ -445,12 +445,6 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
         # measure data loading time
         # data_time.update(time.time() - end)
 
-        # todo: GPUs
-        # if args.gpu is not None:
-        #     images = images.cuda(args.gpu, non_blocking=True)
-        # if torch.cuda.is_available():
-        #     target = target.cuda(args.gpu, non_blocking=True)
-
         # compute output
         output = model(images)
 
@@ -469,7 +463,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
 
         # measure elapsed time
         batch_time.update(time.time() - end)
-        #print(time.time() - end)
+        # print(time.time() - end)
         end = time.time()
         gc.collect()
 
