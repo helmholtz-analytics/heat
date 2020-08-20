@@ -393,7 +393,9 @@ def heat_type_is_inexact(ht_dtype: Type[datatype]) -> bool:
     return ht_dtype in _inexact
 
 
-def heat_type_of(obj: Union[str, Type[datatype], Any, Iterable[str, Type[datatype], Any]]) -> Type[datatype]:
+def heat_type_of(
+    obj: Union[str, Type[datatype], Any, Iterable[str, Type[datatype], Any]]
+) -> Type[datatype]:
     """
     Returns the corresponding HeAT data type of given object, i.e. scalar, array or iterable. Attempts to determine the
     canonical data type based on the following priority list:
@@ -490,7 +492,9 @@ __cast_kinds = ["no", "safe", "same_kind", "unsafe", "intuitive"]
 
 
 def can_cast(
-    from_: Union[str, Type[datatype], Any], to: Union[str, Type[datatype], Any], casting: str = "intuitive"
+    from_: Union[str, Type[datatype], Any],
+    to: Union[str, Type[datatype], Any],
+    casting: str = "intuitive",
 ) -> bool:
     """
     Returns True if cast between data types can occur according to the casting rule. If from is a scalar or array
@@ -580,7 +584,9 @@ for i, operand_a in enumerate(__type_codes.keys()):
                 break
 
 
-def promote_types(type1: Union[str, Type[datatype], Any], type2: Union[str, Type[datatype], Any]) -> Type[datatype]:
+def promote_types(
+    type1: Union[str, Type[datatype], Any], type2: Union[str, Type[datatype], Any]
+) -> Type[datatype]:
     """
     Returns the data type with the smallest size and smallest scalar kind to which both ``type1`` and ``type2`` may be
     intuitively cast to, where intuitive casting refers to maintaining the same bit length if possible. This function

@@ -10,7 +10,9 @@ from . import types
 __all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "modf", "round", "trunc"]
 
 
-def abs(x: DNDarray, out: Optional[DNDarray] = None, dtype: Optional[Type[datatype]] = None) -> DNDarray:
+def abs(
+    x: DNDarray, out: Optional[DNDarray] = None, dtype: Optional[Type[datatype]] = None
+) -> DNDarray:
     """
     Calculate the absolute value element-wise.
 
@@ -232,7 +234,10 @@ DNDarray.modf.__doc__ = modf.__doc__
 
 
 def round(
-    x: DNDarray, decimals: int = 0, out: Optional[DNDarray] = None, dtype: Optional[Type[datatype]] = None
+    x: DNDarray,
+    decimals: int = 0,
+    out: Optional[DNDarray] = None,
+    dtype: Optional[Type[datatype]] = None,
 ) -> DNDarray:
     """
     Calculate the rounded value element-wise.

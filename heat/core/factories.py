@@ -35,7 +35,7 @@ def arange(
     *args: Union[int, float],
     dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
-    device: Optional[Union[str,Device]] = None,
+    device: Optional[Union[str, Device]] = None,
     comm: Optional[Communication] = None
 ) -> DNDarray:
     """
