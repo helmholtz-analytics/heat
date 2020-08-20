@@ -274,7 +274,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             #     data = _utils.pin_memory.pin_memory(data)
             return data
         # else:
-        while len(self.ready_batches) < 1:
+        while len(self.ready_batches) == 0:
             time.sleep(0.2)
         return self.ready_batches.pop(0)
 
@@ -314,6 +314,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
         self.dataset.loading_condition.acquire()
 
         converted_items = []
+        h = 0
         for ind in index_list:
             single_item = list(self.dataset[ind])
             # have the item, need to convert from numpy to torch
@@ -324,11 +325,12 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                     single_item[ii] = self.dataset.transforms[ii](single_item[ii])
             converted_items.append(single_item)
             self.used_indices.append(ind)
+            #print('converted items len', len(converted_items))
             if len(converted_items) == self.batch_size:
-                print(len(self.used_indices), self.dataset.load_len)
+                #print(len(self.used_indices), self.dataset.load_len)
                 notify_wait = False
                 if len(self.used_indices) == self.dataset.load_len:
-                    print("in release in conversion")
+                    #print("in release in conversion")
                     notify_wait = True
                     self.dataset.loading_condition.notify_all()
                     self.dataset.loading_condition.release()
@@ -337,12 +339,14 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 for b in range(len(batch)):
                     batch[b] = batch[b].to(self.dataset.torch_device)
                 self.ready_batches.append(batch)
+                h += 1
                 converted_items = []
 
                 if notify_wait:
-                    print("waiting")
+                    #print("waiting")
                     # wait for the *from* the loading thread
                     self.dataset.loading_condition.acquire()
+        print('conv items len', len(converted_items), h)
         self.dataset.loading_condition.release()
         self.loading_lock.release()
 
@@ -350,7 +354,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
         f = h5py.File(self.dataset.file, "r", driver="mpio", comm=self.comm.handle)
 
         while self.dataset.load_start < self.dataset.local_data_end:
-            print("start loading", self.dataset.load_start, self.dataset.load_end)
+            #print("start loading", self.dataset.load_start, self.dataset.load_end)
             for d in self.dataset.dataset_names:
                 # this should set the dataset attributes like data, by getting the data from the file
                 #   up to the local data length
@@ -365,19 +369,19 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
 
             # wait for lock1 *from* convert thread
             with self.dataset.loading_condition:
-                print("in loading condition")
+                #print("in loading condition")
                 for d in self.dataset.dataset_names:
                     new = self.__getattribute__("hold" + d)
                     dset = self.dataset.__getattribute__(d)
                     # if isinstance(dset, torch.Tensor) and str(dset.device)[:3] == "gpu":
                     #     new.to(dset.device)
-                    print("dset stuff", len(self.used_indices), new.shape)
+                    #print("dset stuff", len(self.used_indices), new.shape)
                     dset[self.used_indices] = new[: len(self.used_indices)]
                     self.dataset.__setattr__(d, dset)
                 # todo: give up lock / notify convert thread
                 self.used_indices = []
-            time.sleep(0.5)
-            print("end of converted batches")
+            #time.sleep(0.5)
+            #print("end of converted batches")
 
         with self.loading_lock:
             # wrap at end of file
