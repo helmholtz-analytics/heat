@@ -329,7 +329,7 @@ def diff(a, n=1, axis=-1, prepend=None, append=None):
                     p_el = factories.full(
                         pend_shape,
                         p_el,
-                        dtype=types.promote_types(a.dtype, type(p_el)),
+                        dtype=types.canonical_heat_type(torch.tensor(p_el).dtype),
                         split=a.split,
                         device=a.device,
                         comm=a.comm,
