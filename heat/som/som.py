@@ -71,17 +71,15 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
             offset = count * self.batch_size
         for batch in batches:
             batch.balance_()
-            print(batch.shape)
         del X
 
         for epoch in range(1, self.max_epoch):
             for count in range(batch_count):
                 batch = batches[count]
                 distances = ht.spatial.cdist(batch, self.network)
-                row_min = ht.min(distances, axis=1, keepdim=True)
-                min_distances = ht.where(distances == row_min, 1, 0)
+                row_min = ht.argmin(distances, axis=1)
 
-                self.update_weights(min_distances, batch)
+                self.update_weights(row_min.flatten(), batch)
 
                 self.update_learning_rate(epoch)
                 self.update_radius(epoch)
@@ -100,7 +98,6 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
             offset = count * self.batch_size
         for batch in batches:
             batch.balance_()
-            print(batch.shape)
         del X
 
         for epoch in range(1, self.max_epoch + 1):
@@ -146,12 +143,13 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         return dist
 
     def precompute_distances(self,):
-        return ht.resplit(ht.spatial.cdist(self.network_indices, self.network_indices), axis=1)
+        return ht.spatial.cdist(self.network_indices, self.network_indices)
 
     def update_weights(self, winner_cells, weights):
         scalars = self.learning_rate * self.in_radius()
         scalars = ht.where(self.distances <= self.radius, scalars, 0)
-        scalars = ht.matmul(winner_cells, scalars)
+        scalars = scalars[winner_cells]
+        scalars.balance_()
         weights = ht.expand_dims(weights, 1)
         distances = ht.sub(weights, self.network)
         scalars = ht.expand_dims(scalars, 2)
