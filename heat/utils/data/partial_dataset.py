@@ -312,7 +312,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
     def thread_convert_all(self, index_list):
         if isinstance(index_list, int):
             index_list = [index_list]
-        self.dataset.loading_condition.acquire()
+        # self.dataset.loading_condition.acquire()
 
         converted_items = []
         h = 0
@@ -331,11 +331,13 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 print(len(self.used_indices), self.dataset.load_len)
                 if len(self.used_indices) == self.dataset.load_len:
                     # print("in release in conversion")
-                    self.notify_overwrite = True
-                    with self.dataset.loading_condition as cv:
-                        cv.notify()
+                    # self.notify_overwrite = True
+                    with self.dataset.loading_condition:
+                        self.dataset.loading_condition.notify()
+                        self.dataset.loading_condition.wait()
+                    print('after wait batch')
                     # self.dataset.loading_condition.notify()
-                    self.dataset.loading_condition.release()
+                    # self.dataset.loading_condition.release()
 
                 batch = self._collate_fn(converted_items)
                 for b in range(len(batch)):
@@ -344,13 +346,17 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 h += 1
                 converted_items = []
 
-                if self.notify_overwrite:
-                    # print("waiting")
-                    # wait for the *from* the loading thread
-                    self.notify_overwrite = False
-                    # self.dataset.loading_condition.acquire()
+                #if self.notify_overwrite:
+                #    # print("waiting")
+                #    with self.dataset.loading_condition:
+                #        # print("waiting batches")
+                #        self.dataset.loading_condition.wait()
+                #    print("after wait batch")
+                #    # wait for the *from* the loading thread
+                #    self.notify_overwrite = False
+                #    # self.dataset.loading_condition.acquire()
 
-        self.dataset.loading_condition.release()
+        # self.dataset.loading_condition.release()
 
     def thread_replace_converted_batches(self):
 
@@ -372,9 +378,11 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             # todo: efficiency?? wait for lock1 *from* convert thread
             # with self.dataset.loading_condition:
             # print("in loading condition")
-            self.dataset.loading_condition.acquire()
-            with self.dataset.loading_condition as cond:
-                cond.wait()
+            #self.dataset.loading_condition.acquire()
+            with self.dataset.loading_condition:
+                # print("waiting replace")
+                self.dataset.loading_condition.wait()
+                # print("waiting replace")
                 for d in self.dataset.dataset_names:
                     new = self.__getattribute__("hold" + d)
                     dset = self.dataset.__getattribute__(d)
@@ -385,6 +393,8 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                     self.dataset.__setattr__(d, dset)
                 # todo: give up lock / notify convert thread
                 self.used_indices = []
+                self.dataset.loading_condition.notify()
+            print("after replace batch")
             # self.dataset.loading_condition.release()
             # time.sleep(0.5)
             # print("end of converted batches")
