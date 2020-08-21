@@ -332,6 +332,8 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 if len(self.used_indices) == self.dataset.load_len:
                     # print("in release in conversion")
                     self.notify_overwrite = True
+                    with self.dataset.loading_condition as cv:
+                        cv.notify()
                     # self.dataset.loading_condition.notify()
                     self.dataset.loading_condition.release()
 
@@ -346,7 +348,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                     # print("waiting")
                     # wait for the *from* the loading thread
                     self.notify_overwrite = False
-                    self.dataset.loading_condition.acquire()
+                    # self.dataset.loading_condition.acquire()
 
         self.dataset.loading_condition.release()
 
@@ -371,17 +373,19 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             # with self.dataset.loading_condition:
             # print("in loading condition")
             self.dataset.loading_condition.acquire()
-            for d in self.dataset.dataset_names:
-                new = self.__getattribute__("hold" + d)
-                dset = self.dataset.__getattribute__(d)
-                # if isinstance(dset, torch.Tensor) and str(dset.device)[:3] == "gpu":
-                #     new.to(dset.device)
-                print("dset stuff", len(self.used_indices), new.shape)
-                dset[self.used_indices] = new[: len(self.used_indices)]
-                self.dataset.__setattr__(d, dset)
-            # todo: give up lock / notify convert thread
-            self.used_indices = []
-            self.dataset.loading_condition.release()
+            with self.dataset.loading_condition as cond:
+                cond.wait()
+                for d in self.dataset.dataset_names:
+                    new = self.__getattribute__("hold" + d)
+                    dset = self.dataset.__getattribute__(d)
+                    # if isinstance(dset, torch.Tensor) and str(dset.device)[:3] == "gpu":
+                    #     new.to(dset.device)
+                    print("dset stuff", len(self.used_indices), new.shape)
+                    dset[self.used_indices] = new[: len(self.used_indices)]
+                    self.dataset.__setattr__(d, dset)
+                # todo: give up lock / notify convert thread
+                self.used_indices = []
+            # self.dataset.loading_condition.release()
             # time.sleep(0.5)
             # print("end of converted batches")
 
