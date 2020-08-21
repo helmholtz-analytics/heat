@@ -68,8 +68,11 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
 
         for count in range(1, batch_count + 1):
             batches.append(X[offset : count * self.batch_size])
-            batches[-1].balance_()
             offset = count * self.batch_size
+        for batch in batches:
+            batch.balance_()
+            print(batch.shape)
+        del X
 
         for epoch in range(1, self.max_epoch):
             for count in range(batch_count):
@@ -88,25 +91,38 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         self.radius = self.initial_radius
         self.learning_rate = self.initial_learning_rate
 
+        batches = []
+        offset = 0
+        batch_count = int(X.gshape[0] / self.batch_size)
+
+        for count in range(1, batch_count + 1):
+            batches.append(X[offset : count * self.batch_size])
+            offset = count * self.batch_size
+        for batch in batches:
+            batch.balance_()
+            print(batch.shape)
+        del X
+
         for epoch in range(1, self.max_epoch + 1):
-            distances = ht.spatial.cdist(X, self.network)
-            row_min = ht.min(distances, axis=1, keepdim=True)
+            for batch in batches:
+                distances = ht.spatial.cdist(batch, self.network)
+                row_min = ht.min(distances, axis=1, keepdim=True)
 
-            scalars = self.in_radius()
-            distances = ht.where(distances == row_min, 1, 0)
-            scalars = ht.matmul(distances, scalars)
-            scaled_weights = ht.matmul(X.T, scalars)
-            scalar_sum = ht.sum(scalars, axis=0, keepdim=True)
-            new_network = scaled_weights.T / scalar_sum.T
-            dist = ht.sum(ht.spatial.cdist(self.network, new_network))
+                scalars = self.in_radius()
+                distances = ht.where(distances == row_min, 1, 0)
+                scalars = ht.matmul(distances, scalars)
+                scaled_weights = ht.matmul(batch.T, scalars)
+                scalar_sum = ht.sum(scalars, axis=0, keepdim=True)
+                new_network = scaled_weights.T / scalar_sum.T
+                dist = ht.sum(ht.spatial.cdist(self.network, new_network))
 
-            self.network = new_network
+                if dist <= c:
+                    break
+
+                self.network = new_network
 
             self.update_learning_rate(epoch)
             self.update_radius(epoch)
-
-            if dist <= c:
-                break
 
     def predict(self, X):
         distances = ht.spatial.cdist(X, self.network)
