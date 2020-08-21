@@ -235,7 +235,14 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             # start the conversion
             self.dataset.convert_queue.put((self.thread_convert_all, index_list))
             self.length = len(index_list) // self.batch_size - 1
-            print("length", self.length, len(index_list), self.batch_size, self.dataset.load_len, len(self.used_indices))
+            print(
+                "length",
+                self.length,
+                len(index_list),
+                self.batch_size,
+                self.dataset.load_len,
+                len(self.used_indices),
+            )
 
             if not self._drop_last and len(index_list) % self.batch_size != 0:
                 # todo: implement drop last!
@@ -266,7 +273,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             return data
         # else:
         if self._num_yielded == self.__len__():
-            # self.f.close()
+            self.dataset.loading_queue.put(self.thread_load_next_dataset)
             raise StopIteration
         # print('next_data', len(self.ready_batches), self._num_yielded)
         while len(self.ready_batches) < 1:
@@ -325,7 +332,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 if len(self.used_indices) == self.dataset.load_len:
                     # print("in release in conversion")
                     self.notify_overwrite = True
-                    #self.dataset.loading_condition.notify()
+                    # self.dataset.loading_condition.notify()
                     self.dataset.loading_condition.release()
 
                 batch = self._collate_fn(converted_items)
@@ -340,32 +347,17 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                     # wait for the *from* the loading thread
                     self.notify_overwrite = False
                     self.dataset.loading_condition.acquire()
-                    #self.dataset.loading_condition.wait()
 
         self.dataset.loading_condition.release()
-        # del self.used_indices
-        print("loading next dataset")
-        # f = h5py.File(self.dataset.file, "r", driver="mpio", comm=self.comm.handle)
-        # wrap at end of file (max difference is the number of processes)
-        if self.dataset.load_start + self.comm.size >= self.dataset.total_size:
-            self.dataset.load_start = 0
-        # load dataset for next epoch
-        self.dataset.load_end = self.dataset.load_start + self.dataset.load_initial
-        for d in self.dataset.dataset_names:
-            if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
-                hld = torch.tensor(self.f[d][self.dataset.load_start : self.dataset.load_end])
-                self.__setattr__(d, hld)
-            else:
-                self.__setattr__(d, self.f[d][self.dataset.load_start : self.dataset.load_end])
-        print("finised loading next dataset")
-        self.dataset.load_start = self.dataset.load_end
-        self.dataset.load_end += self.dataset.load_len
-        self.f.close()
 
     def thread_replace_converted_batches(self):
 
         while self.dataset.load_end + self.comm.size < self.dataset.local_data_end:
-            print('\t\tload batches', self.dataset.load_end + self.comm.size, self.dataset.local_data_end)
+            print(
+                "\t\tload batches",
+                self.dataset.load_end + self.comm.size,
+                self.dataset.local_data_end,
+            )
             for d in self.dataset.dataset_names:
                 if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
                     hld = torch.tensor(self.f[d][self.dataset.load_start : self.dataset.load_end])
@@ -379,7 +371,6 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             # with self.dataset.loading_condition:
             # print("in loading condition")
             self.dataset.loading_condition.acquire()
-            #self.dataset.loading_condition.wait()
             for d in self.dataset.dataset_names:
                 new = self.__getattribute__("hold" + d)
                 dset = self.dataset.__getattribute__(d)
@@ -390,7 +381,24 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 self.dataset.__setattr__(d, dset)
             # todo: give up lock / notify convert thread
             self.used_indices = []
-            #self.dataset.loading_condition.notify()
             self.dataset.loading_condition.release()
             # time.sleep(0.5)
             # print("end of converted batches")
+
+    def thread_load_next_dataset(self):
+        # print("loading next dataset")
+        # f = h5py.File(self.dataset.file, "r", driver="mpio", comm=self.comm.handle)
+        # wrap at end of file (max difference is the number of processes)
+        if self.dataset.load_start + self.comm.size >= self.dataset.total_size:
+            self.dataset.load_start = 0
+        # load dataset for next epoch
+        self.dataset.load_end = self.dataset.load_start + self.dataset.load_initial
+        for d in self.dataset.dataset_names:
+            if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
+                hld = torch.tensor(self.f[d][self.dataset.load_start : self.dataset.load_end])
+                self.__setattr__(d, hld)
+            else:
+                self.__setattr__(d, self.f[d][self.dataset.load_start : self.dataset.load_end])
+        self.dataset.load_start = self.dataset.load_end
+        self.dataset.load_end += self.dataset.load_len
+        self.f.close()
