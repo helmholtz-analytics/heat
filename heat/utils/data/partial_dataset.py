@@ -87,10 +87,11 @@ class PartialDataset(torch_data.Dataset):
         # temp values for small scale testing
         self.load_initial = 5000
         self.load_len = 1000  # int(local_data_end / 3)
+        self.loads_needed = math.ceil((self.lcl_full_sz - self.load_initial) / self.load_len)
+        self.loads_remaining = self.loads_needed
 
         self.load_start = self.local_data_start
         self.load_end = self.local_data_start + self.load_initial
-        self.next_start = self.load_end
 
         # data being loaded from dataset_names parameter
         if isinstance(dataset_names, str):
@@ -243,6 +244,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 self.dataset.load_len,
                 len(self.used_indices),
             )
+            self.loads_left = self.dataset.loads_required
 
             if not self._drop_last and len(index_list) % self.batch_size != 0:
                 # todo: implement drop last!
@@ -329,15 +331,13 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             # print('converted items len', len(converted_items))
             if len(converted_items) == self.batch_size:
                 print(len(self.used_indices), self.dataset.load_len)
-                if len(self.used_indices) == self.dataset.load_len:
+                if len(self.used_indices) == self.dataset.load_len and self.loads_left > 0:
                     # print("in release in conversion")
                     # self.notify_overwrite = True
                     with self.dataset.loading_condition:
                         self.dataset.loading_condition.notify()
                         self.dataset.loading_condition.wait()
-                    print('after wait batch')
-                    # self.dataset.loading_condition.notify()
-                    # self.dataset.loading_condition.release()
+                    print("after wait batch")
 
                 batch = self._collate_fn(converted_items)
                 for b in range(len(batch)):
@@ -346,21 +346,11 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 h += 1
                 converted_items = []
 
-                #if self.notify_overwrite:
-                #    # print("waiting")
-                #    with self.dataset.loading_condition:
-                #        # print("waiting batches")
-                #        self.dataset.loading_condition.wait()
-                #    print("after wait batch")
-                #    # wait for the *from* the loading thread
-                #    self.notify_overwrite = False
-                #    # self.dataset.loading_condition.acquire()
-
-        # self.dataset.loading_condition.release()
-
     def thread_replace_converted_batches(self):
 
-        while self.dataset.load_end + self.comm.size < self.dataset.local_data_end:
+        # while self.dataset.load_end + self.comm.size < self.dataset.local_data_end:
+        ll = self.loads_left
+        for _ in range(ll):
             print(
                 "\t\tload batches",
                 self.dataset.load_end + self.comm.size,
@@ -378,7 +368,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             # todo: efficiency?? wait for lock1 *from* convert thread
             # with self.dataset.loading_condition:
             # print("in loading condition")
-            #self.dataset.loading_condition.acquire()
+            # self.dataset.loading_condition.acquire()
             with self.dataset.loading_condition:
                 # print("waiting replace")
                 self.dataset.loading_condition.wait()
@@ -395,6 +385,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 self.used_indices = []
                 self.dataset.loading_condition.notify()
             print("after replace batch")
+            self.loads_left -= 1
             # self.dataset.loading_condition.release()
             # time.sleep(0.5)
             # print("end of converted batches")
