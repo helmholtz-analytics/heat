@@ -219,7 +219,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
 
         # todo: support other samplers: for now its only random!!!
         if isinstance(self.dataset, PartialDataset) and self.dataset.partial_dataset:
-            # self.f =
+            self.f = h5py.File(self.dataset.file, "r", driver="mpio", comm=self.comm.handle)
             self.used_indices = []
             self.ready_batches = []
             self.loading_lock = threading.Condition()
@@ -275,7 +275,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             return data
         # else:
         if self._num_yielded == self.__len__():
-            self.dataset.loading_queue.put(self.thread_load_next_dataset)
+            # self.dataset.loading_queue.put(self.thread_load_next_dataset)
             raise StopIteration
         # print('next_data', len(self.ready_batches), self._num_yielded)
         while len(self.ready_batches) < 1:
@@ -331,7 +331,8 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             # print('converted items len', len(converted_items))
             if len(converted_items) == self.batch_size:
                 print(len(self.used_indices), self.dataset.load_len, self.loads_left)
-                if len(self.used_indices) == self.dataset.load_len and self.loads_left > 0:
+                # if len(self.used_indices) == self.dataset.load_len and self.loads_left > 0:
+                if self.loads_left > 0:
                     # print("before batch wait")
                     # self.notify_overwrite = True
                     with self.dataset.loading_condition:
@@ -356,31 +357,31 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             #     self.dataset.load_end + self.comm.size,
             #     self.dataset.local_data_end,
             # )
-            with h5py.File(self.dataset.file, "r", driver="mpio", comm=self.comm.handle) as f:
-                for d in self.dataset.dataset_names:
-                    if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
-                        hld = torch.tensor(f[d][self.dataset.load_start : self.dataset.load_end])
-                    else:
-                        hld = f[d][self.dataset.load_start : self.dataset.load_end]
-                    self.__setattr__("hold" + d, hld)
+            for d in self.dataset.dataset_names:
+                if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
+                    hld = torch.tensor(self.f[d][self.dataset.load_start : self.dataset.load_end])
+                else:
+                    hld = self.f[d][self.dataset.load_start : self.dataset.load_end]
+                self.__setattr__("hold" + d, hld)
             self.dataset.load_start = self.dataset.load_end
             self.dataset.load_end += self.dataset.load_len
 
             # todo: efficiency?? wait for lock1 *from* convert thread
             # with self.dataset.loading_condition:
-            with self.dataset.loading_condition:
-                self.dataset.loading_condition.wait()
-                for d in self.dataset.dataset_names:
-                    new = self.__getattribute__("hold" + d)
-                    dset = self.dataset.__getattribute__(d)
-                    # if isinstance(dset, torch.Tensor) and str(dset.device)[:3] == "gpu":
-                    #     new.to(dset.device)
-                    # print("dset stuff", len(self.used_indices), new.shape)
-                    dset[self.used_indices] = new[: len(self.used_indices)]
-                    self.dataset.__setattr__(d, dset)
-                # todo: give up lock / notify convert thread
-                self.used_indices = []
-                self.dataset.loading_condition.notify()
+            while self.__getattribute__("hold" + d).__len__() > 0:
+                with self.dataset.loading_condition:
+                    self.dataset.loading_condition.wait()
+                    for d in self.dataset.dataset_names:
+                        new = self.__getattribute__("hold" + d)
+                        dset = self.dataset.__getattribute__(d)
+                        # if isinstance(dset, torch.Tensor) and str(dset.device)[:3] == "gpu":
+                        #     new.to(dset.device)
+                        # print("dset stuff", len(self.used_indices), new.shape)
+                        dset[self.used_indices] = new[: len(self.used_indices)]
+                        self.dataset.__setattr__(d, dset)
+                    # todo: give up lock / notify convert thread
+                    self.used_indices = []
+                    self.dataset.loading_condition.notify()
             # print("after replace batch")
             self.loads_left -= 1
 
@@ -392,12 +393,13 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             self.dataset.load_start = 0
         # load dataset for next epoch
         self.dataset.load_end = self.dataset.load_start + self.dataset.load_initial
-        with h5py.File(self.dataset.file, "r", driver="mpio", comm=self.comm.handle) as f:
-            for d in self.dataset.dataset_names:
-                if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
-                    hld = torch.tensor(f[d][self.dataset.load_start : self.dataset.load_end])
-                    self.__setattr__(d, hld)
-                else:
-                    self.__setattr__(d, f[d][self.dataset.load_start : self.dataset.load_end])
+        # with h5py.File(self.dataset.file, "r", driver="mpio", comm=self.comm.handle) as f:
+        for d in self.dataset.dataset_names:
+            if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
+                hld = torch.tensor(self.f[d][self.dataset.load_start : self.dataset.load_end])
+                self.__setattr__(d, hld)
+            else:
+                self.__setattr__(d, self.f[d][self.dataset.load_start : self.dataset.load_end])
         self.dataset.load_start = self.dataset.load_end
         self.dataset.load_end += self.dataset.load_len
+        # f.close()
