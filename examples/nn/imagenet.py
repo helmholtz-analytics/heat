@@ -23,6 +23,7 @@ import torch.multiprocessing as mp
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
+import torchvision.transforms.functional as torchF
 
 # import torchvision.models as models
 
@@ -50,7 +51,7 @@ parser.add_argument(
     "-a",
     "--arch",
     metavar="ARCH",
-    default="resnet50",
+    default="resnet50",  # 101",
     choices=model_names,
     help="model architecture: " + " | ".join(model_names) + " (default: resnet18)",
 )
@@ -234,9 +235,9 @@ class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
         # img = self.images[index]
         shape = (int(self.metadata[index][0].item()), int(self.metadata[index][1].item()), 3)
         str_repr = base64.binascii.a2b_base64(self.images[index])
-        img = np.frombuffer(str_repr, dtype=np.uint8).reshape(shape)
-        target = torch.as_tensor(self.metadata[index][3], dtype=torch.long).to(self.torch_device)
-
+        img = torchF.to_pil_image(np.frombuffer(str_repr, dtype=np.uint8).reshape(shape))
+        target = torch.as_tensor(self.metadata[index][3], dtype=torch.long)
+        # int('getitem devices', img.device, target.device)
         return img, target
 
 
@@ -351,7 +352,7 @@ def main_worker(gpu, ngpus_per_node, args):
         transforms=[
             transforms.Compose(
                 [
-                    transforms.ToPILImage(),
+                    # transforms.ToPILImage(),
                     transforms.RandomResizedCrop(224),
                     transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
@@ -369,7 +370,7 @@ def main_worker(gpu, ngpus_per_node, args):
         transforms=[
             transforms.Compose(
                 [
-                    transforms.ToPILImage(),
+                    # transforms.ToPILImage(),
                     transforms.Resize(256),
                     transforms.CenterCrop(224),
                     transforms.ToTensor(),
@@ -388,11 +389,12 @@ def main_worker(gpu, ngpus_per_node, args):
         torch.cuda.set_device(ht.MPI_WORLD.rank % torch.cuda.device_count())
         # gpu_num = ht.MPI_WORLD.rank % torch.cuda.device_count()
         model.cuda(device=train_dataset.torch_device)
+    model = ht.nn.DataParallel(model, ht.MPI_WORLD, dp_optimizer, blocking_parameter_updates=False)
 
     if args.evaluate:
         validate(val_loader, model, criterion, args)
         return
-
+    ttime0 = time.perf_counter()
     for epoch in range(args.start_epoch, args.epochs):
         # if args.distributed:
         #     todo: what is this? do we need to do this?
@@ -423,6 +425,8 @@ def main_worker(gpu, ngpus_per_node, args):
                 },
                 is_best,
             )
+        torch.cuda.empty_cache()
+    print("full time", time.perf_counter() - ttime0)
 
 
 def train(train_loader, model, criterion, dp_optimizer, epoch, args):
@@ -441,6 +445,9 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
     model.train()
 
     end = time.time()
+    print('train')
+    ttt = []
+    ips = []
     for i, (images, target) in enumerate(train_loader):
         print("\ttrain loop", i, images.device)
         # measure data loading time
@@ -448,7 +455,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
 
         # compute output
         output = model(images)
-
+        print('forward time', time.time() - end)
         loss = criterion(output, target)
 
         # measure accuracy and record loss
@@ -461,16 +468,18 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
         dp_optimizer.zero_grad()
         loss.backward()
         dp_optimizer.step()
-
+        print("step time", time.time() - end)
         # measure elapsed time
         batch_time.update(time.time() - end)
-        print(time.time() - end)
+        ttt.append(time.time() - end)
+        ips.append(args.batch_size / (time.time() - end))
+        print(ttt[-1], ips[-1])
         end = time.time()
-        gc.collect()
+        # gc.collect()
 
         # if i % args.print_freq == 0:
         #    progress.display(i)
-    print()
+    print(sum(ttt), sum(ips) / len(ips))
 
 
 def validate(val_loader, model, criterion, args):
@@ -482,11 +491,13 @@ def validate(val_loader, model, criterion, args):
 
     # switch to evaluate mode
     model.eval()
-
+    print('val')
+    ttt = []
+    ips = []
     with torch.no_grad():
         end = time.time()
         for i, (images, target) in enumerate(val_loader):
-            print("val loop", i)
+            # print("val loop", i)
             # if args.gpu is not None:
             #    images = images.cuda(args.gpu, non_blocking=True)
             # if torch.cuda.is_available():
@@ -505,16 +516,17 @@ def validate(val_loader, model, criterion, args):
             # measure elapsed time
             batch_time.update(time.time() - end)
             # end = time.time()
-            print("val time:", time.time() - end)
+            ttt.append(time.time() - end)
+            ips.append(args.batch_size / (time.time() - end))
             end = time.time()
 
             # if i % args.print_freq == 0:
             #    progress.display(i)
 
         # TODO: this should also be done with the ProgressMeter
-        # print(" * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
+        print(" * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
 
-    print()
+    print(sum(ttt), sum(ips) / len(ips))
 
     return top1.avg
 

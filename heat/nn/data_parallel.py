@@ -119,9 +119,9 @@ class DataParallel(tnn.Module):
             dp_optimizer.blocking_parameter_updates = self.blocking_parameter_updates
 
         # unify parameters across nodes by unifying the random seed and resetting parameters
-        seed = torch.tensor([torch.random.seed() >> 1])
-        comm.Bcast(seed)
-        torch.random.manual_seed(seed.item())
+        #seed = torch.tensor([torch.random.seed()])
+        #comm.Bcast(seed)
+        #torch.random.manual_seed(seed.item())
         self.module.apply(self._reset_parameters)
 
         # get parameter indexing and slices
@@ -153,12 +153,12 @@ class DataParallel(tnn.Module):
     def forward(self, *inputs: tuple, **kwargs: dict) -> torch.Tensor:
         data = inputs[0]
 
-        if isinstance(data, dndarray.DNDarray):
-            lcl_data = data._DNDarray__array
-        elif isinstance(data, torch.Tensor):
-            lcl_data = data
-        else:
-            lcl_data = torch.tensor(data)
+        # if isinstance(data, dndarray.DNDarray):
+        #    lcl_data = data._DNDarray__array
+        # elif isinstance(data, torch.Tensor):
+        #     lcl_data = data
+        # else:
+        #     lcl_data = torch.tensor(data)
 
         # check if non-blocking and training
         if not self.blocking_parameter_updates and self.module.training:
@@ -171,7 +171,7 @@ class DataParallel(tnn.Module):
                     self._fwd_hook_handles.append(hook_handle)
 
         # perform forward pass
-        ret = self.module(lcl_data, *inputs[1:], **kwargs)
+        ret = self.module(data, *inputs[1:], **kwargs)
 
         # finalize potentially remaining wait handles and update corresponding params (if
         # computation graph has changed between previous backward and this forward)
@@ -182,8 +182,8 @@ class DataParallel(tnn.Module):
                 self._forward_hook(layer_name)(None, None)
 
         # reset optimizer flag
-        for dp_optimizer in self._dp_optimizers:
-            dp_optimizer.update_next = False
+        for ldp_optimizer in self._dp_optimizers:
+            ldp_optimizer.update_next = False
         # clear dictionary after all wait handles are used up (dynamic computation graph)
         self._layer_wait_handles.clear()
         # remove forward hooks (dynamic computation graph)

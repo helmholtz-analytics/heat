@@ -74,8 +74,8 @@ class PartialDataset(torch_data.Dataset):
                 raise ValueError(f"all datasets in {file} must be the same length")
         self.total_size = sz
         # how many indices will go onto each process (len)
-        # self.lcl_full_sz = sz // comm.size
-        self.lcl_full_sz = 7000
+        self.lcl_full_sz = sz // comm.size
+        # self.lcl_full_sz = 7000
         # load data that is half of of the available memory
         self.local_data_start = comm.rank * self.lcl_full_sz
         # self.local_data_end = (
@@ -85,9 +85,10 @@ class PartialDataset(torch_data.Dataset):
         self.local_length = self.local_data_end - self.local_data_start
 
         # temp values for small scale testing
-        self.load_initial = 2000
+        self.load_initial = 3000
         self.load_len = 1000  # int(local_data_end / 3)
-        self.loads_needed = math.ceil((self.lcl_full_sz - self.load_initial) / self.load_len)
+        # self.loads_needed = math.ceil((self.lcl_full_sz - self.load_initial) / self.load_len)
+        self.loads_needed = math.ceil(self.lcl_full_sz / self.load_len)
         self.loads_remaining = self.loads_needed
 
         self.load_start = self.local_data_start
@@ -106,11 +107,11 @@ class PartialDataset(torch_data.Dataset):
         self.dataset_order = []
         for d in dataset_names:
             # load datasets from file
-            if not np_buffer or d not in np_buffer_dataset_names:
-                hld = torch.tensor(f[d][self.load_start : self.load_end])
-            else:
-                # this is loading the data to a np buffer
-                hld = f[d][self.load_start : self.load_end]
+            #if not np_buffer or d not in np_buffer_dataset_names:
+            #    hld = torch.tensor(f[d][self.load_start : self.load_end])
+            #else:
+            #    # this is loading the data to a np buffer
+            hld = f[d][self.load_start : self.load_end]
             self.__setattr__(d, hld)
         self.load_start = self.load_end
         self.load_end += self.load_len
@@ -232,18 +233,20 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             index_list = []
             idx_repeats = math.ceil(self.dataset.lcl_full_sz / self.dataset.load_initial)
             for _ in range(idx_repeats):
-                index_list.extend(rand_samp_list)
+                # index_list.extend(rand_samp_list)
+                index_list.extend(torch.randperm(self.dataset.load_initial).tolist())
             # start the conversion
             self.dataset.convert_queue.put((self.thread_convert_all, index_list))
+            # time.sleep(1.0)
             self.length = len(index_list) // self.batch_size - 1
-            print(
-                "length",
-                self.length,
-                len(index_list),
-                self.batch_size,
-                self.dataset.load_len,
-                len(self.used_indices),
-            )
+            #print(
+            #    "length",
+            #    self.length,
+            #    len(index_list),
+            #    self.batch_size,
+            #    self.dataset.load_len,
+            #    len(self.used_indices),
+            #)
             self.loads_left = self.dataset.loads_required
 
             if not self._drop_last and len(index_list) % self.batch_size != 0:
@@ -278,10 +281,12 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             # self.dataset.loading_queue.put(self.thread_load_next_dataset)
             raise StopIteration
         # print('next_data', len(self.ready_batches), self._num_yielded)
+        asd = 0
         while len(self.ready_batches) < 1:
             # print('\t', len(self.ready_batches), self._num_yielded)
-            time.sleep(0.2)
-        # print("next data after wait", len(self.ready_batches), self._num_yielded)
+            time.sleep(0.1)
+            asd += 1
+        # print("next data after wait", self._num_yielded, asd * 0.1)
         # return self.ready_batches[self._num_yielded]
         return self.ready_batches.pop(0)
 
@@ -318,32 +323,38 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
 
         converted_items = []
         h = 0
+        time1 = time.perf_counter()
         for ind in index_list:
             single_item = list(self.dataset[ind])
             # have the item, need to convert from numpy to torch
             for ii in range(len(single_item)):
                 # have all torch stuff here
+                # single_item[ii] = single_item[ii].to(self.dataset.torch_device)
                 # do transforms
                 if self.dataset.transforms[ii] is not None:
                     single_item[ii] = self.dataset.transforms[ii](single_item[ii])
+                # single_item[ii] = single_item[ii].to(self.dataset.torch_device)
             converted_items.append(single_item)
             self.used_indices.append(ind)
             # print('converted items len', len(converted_items))
             if len(converted_items) == self.batch_size:
-                print(len(self.used_indices), self.dataset.load_len, self.loads_left)
-                # if len(self.used_indices) == self.dataset.load_len and self.loads_left > 0:
-                if self.loads_left > 0:
+                # print(len(self.used_indices), self.dataset.load_len, self.loads_left)
+                if len(self.used_indices) == self.dataset.load_len and self.loads_left > 0:
+                # if self.loads_left > 0:
                     # print("before batch wait")
                     # self.notify_overwrite = True
                     with self.dataset.loading_condition:
                         self.dataset.loading_condition.notify()
                         self.dataset.loading_condition.wait()
                     # print("after wait batch")
-
+                time2 = time.perf_counter()
                 batch = self._collate_fn(converted_items)
                 for b in range(len(batch)):
                     batch[b] = batch[b].to(self.dataset.torch_device)
                 self.ready_batches.append(batch)
+                time3 = time.perf_counter()
+                # print("list building:", time2 - time1, "collate", time3 - time2, h)
+                time1 = time.perf_counter()
                 h += 1
                 converted_items = []
 
@@ -358,18 +369,19 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             #     self.dataset.local_data_end,
             # )
             for d in self.dataset.dataset_names:
-                if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
-                    hld = torch.tensor(self.f[d][self.dataset.load_start : self.dataset.load_end])
-                else:
-                    hld = self.f[d][self.dataset.load_start : self.dataset.load_end]
+                #if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
+                #    hld = torch.tensor(self.f[d][self.dataset.load_start : self.dataset.load_end])
+                #else:
+                hld = self.f[d][self.dataset.load_start : self.dataset.load_end]
                 self.__setattr__("hold" + d, hld)
             self.dataset.load_start = self.dataset.load_end
             self.dataset.load_end += self.dataset.load_len
 
             # todo: efficiency?? wait for lock1 *from* convert thread
             # with self.dataset.loading_condition:
-            while self.__getattribute__("hold" + d).__len__() > 0:
+            while self.__getattribute__("hold" + self.dataset.dataset_names[0]).__len__() > 0:
                 with self.dataset.loading_condition:
+                    # time1 = time.perf_counter()
                     self.dataset.loading_condition.wait()
                     for d in self.dataset.dataset_names:
                         new = self.__getattribute__("hold" + d)
@@ -377,11 +389,16 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                         # if isinstance(dset, torch.Tensor) and str(dset.device)[:3] == "gpu":
                         #     new.to(dset.device)
                         # print("dset stuff", len(self.used_indices), new.shape)
-                        dset[self.used_indices] = new[: len(self.used_indices)]
+                        # dset[self.used_indices] = new[: len(self.used_indices)]
+                        new_top = new[:len(self.used_indices)]
+                        lnew = len(new_top)
+                        dset[self.used_indices][:lnew] = new_top
                         self.dataset.__setattr__(d, dset)
+                        self.dataset.__setattr__("hold" + d, new[lnew:])
                     # todo: give up lock / notify convert thread
                     self.used_indices = []
                     self.dataset.loading_condition.notify()
+                    # print("overwrite time", time.perf_counter() - time1)
             # print("after replace batch")
             self.loads_left -= 1
 
@@ -399,7 +416,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                 hld = torch.tensor(self.f[d][self.dataset.load_start : self.dataset.load_end])
                 self.__setattr__(d, hld)
             else:
-                self.__setattr__(d, self.f[d][self.dataset.load_start : self.dataset.load_end])
+               self.__setattr__(d, self.f[d][self.dataset.load_start : self.dataset.load_end])
         self.dataset.load_start = self.dataset.load_end
         self.dataset.load_end += self.dataset.load_len
         # f.close()
