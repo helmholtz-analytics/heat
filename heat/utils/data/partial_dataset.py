@@ -107,10 +107,10 @@ class PartialDataset(torch_data.Dataset):
         self.dataset_order = []
         for d in dataset_names:
             # load datasets from file
-            #if not np_buffer or d not in np_buffer_dataset_names:
-            #    hld = torch.tensor(f[d][self.load_start : self.load_end])
-            #else:
-            #    # this is loading the data to a np buffer
+            # if not np_buffer or d not in np_buffer_dataset_names:
+            #     hld = torch.tensor(f[d][self.load_start : self.load_end])
+            # else:
+            #     # this is loading the data to a np buffer
             hld = f[d][self.load_start : self.load_end]
             self.__setattr__(d, hld)
         self.load_start = self.load_end
@@ -141,51 +141,6 @@ class PartialDataset(torch_data.Dataset):
         receiving the new data, shuffle the local tensor.
         """
         datatools.dataset_ishuffle(dataset=self, attrs=self.shuffle_list)
-
-    def getitem_index_helper(self, index):
-        # function for adding the indexes given to the getitem function to the next indices stuff.
-        # once this equals the load_len then
-        if not self.partial_dataset:
-            return
-
-        if isinstance(index, torch.Tensor):
-            # todo: abstract this
-            rem = self._test_remander_getitem(index)
-            self.getitem_num += len(index)
-        elif isinstance(index, list):
-            rem = self._test_remander_getitem(index)
-            self.getitem_num += len(index)
-        elif isinstance(index, slice):
-            rng = list(range(start=index.start, stop=index.stop, step=index.step))
-            rem = self._test_remander_getitem(rng)
-            self.getitem_num += len(rng)
-        elif isinstance(index, int):
-            self.next_indices.add(index)
-            self.getitem_num += 1
-            rem = 0
-        else:
-            raise TypeError(f"index must be int, slice, list, or torch.Tensor, not {type(index)}")
-
-        if self.getitem_num >= self.load_len:
-            # trigger the receive function and the next load
-            self.insert_group(self.getitem_num, self.next_indices.copy())
-            self.load_next_group()
-            # reset getitem_num
-            self.getitem_num = rem
-
-            self.next_indices = self.next_indices_overflow.copy()
-            self.next_indices_overflow = set()
-            # self.next_indices[:rem] = self.next_indices_overflow[:rem]
-
-    def _test_remander_getitem(self, index):
-        rem = self.getitem_num + len(index) - self.load_len
-        if rem > 0:
-            # need to add the remainder to the overflow
-            self.next_indices_overflow.update(index[-1 * rem :])
-        else:
-            rem = 0
-        self.next_indices.update(index[: -1 * rem] if rem > 0 else index)
-        return rem
 
     def __getitem__(self, index: Union[int, slice, List[int], torch.Tensor]) -> torch.Tensor:
         # this function needs to be designed such that the data is in the 0th dimension and the indexes called
@@ -239,18 +194,18 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             self.dataset.convert_queue.put((self.thread_convert_all, index_list))
             # time.sleep(1.0)
             self.length = len(index_list) // self.batch_size - 1
-            #print(
-            #    "length",
-            #    self.length,
-            #    len(index_list),
-            #    self.batch_size,
-            #    self.dataset.load_len,
-            #    len(self.used_indices),
-            #)
+            # print(
+            #     "length",
+            #     self.length,
+            #     len(index_list),
+            #     self.batch_size,
+            #     self.dataset.load_len,
+            #     len(self.used_indices),
+            # )
             self.loads_left = self.dataset.loads_required
 
             if not self._drop_last and len(index_list) % self.batch_size != 0:
-                # todo: implement drop last!
+                # todo: implement drop last
                 self.length += 1
             self.dataset.loading_queue.put(self.thread_replace_converted_batches)
             self.notify_overwrite = False
@@ -279,6 +234,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
         # else:
         if self._num_yielded == self.__len__():
             # self.dataset.loading_queue.put(self.thread_load_next_dataset)
+            self.f.close()
             raise StopIteration
         # print('next_data', len(self.ready_batches), self._num_yielded)
         asd = 0
@@ -340,7 +296,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             if len(converted_items) == self.batch_size:
                 # print(len(self.used_indices), self.dataset.load_len, self.loads_left)
                 if len(self.used_indices) == self.dataset.load_len and self.loads_left > 0:
-                # if self.loads_left > 0:
+                    # if self.loads_left > 0:
                     # print("before batch wait")
                     # self.notify_overwrite = True
                     with self.dataset.loading_condition:
@@ -369,9 +325,9 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             #     self.dataset.local_data_end,
             # )
             for d in self.dataset.dataset_names:
-                #if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
+                # if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
                 #    hld = torch.tensor(self.f[d][self.dataset.load_start : self.dataset.load_end])
-                #else:
+                # else:
                 hld = self.f[d][self.dataset.load_start : self.dataset.load_end]
                 self.__setattr__("hold" + d, hld)
             self.dataset.load_start = self.dataset.load_end
@@ -390,7 +346,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                         #     new.to(dset.device)
                         # print("dset stuff", len(self.used_indices), new.shape)
                         # dset[self.used_indices] = new[: len(self.used_indices)]
-                        new_top = new[:len(self.used_indices)]
+                        new_top = new[: len(self.used_indices)]
                         lnew = len(new_top)
                         dset[self.used_indices][:lnew] = new_top
                         self.dataset.__setattr__(d, dset)
@@ -412,11 +368,11 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
         self.dataset.load_end = self.dataset.load_start + self.dataset.load_initial
         # with h5py.File(self.dataset.file, "r", driver="mpio", comm=self.comm.handle) as f:
         for d in self.dataset.dataset_names:
-            if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
-                hld = torch.tensor(self.f[d][self.dataset.load_start : self.dataset.load_end])
-                self.__setattr__(d, hld)
-            else:
-               self.__setattr__(d, self.f[d][self.dataset.load_start : self.dataset.load_end])
+            # if not self.dataset.np_buff_flag or d not in self.dataset.np_datasets:
+            #     hld = torch.tensor(self.f[d][self.dataset.load_start : self.dataset.load_end])
+            #     self.__setattr__(d, hld)
+            # else:
+            self.__setattr__(d, self.f[d][self.dataset.load_start : self.dataset.load_end])
         self.dataset.load_start = self.dataset.load_end
         self.dataset.load_end += self.dataset.load_len
         # f.close()

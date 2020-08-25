@@ -235,9 +235,14 @@ class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
         # img = self.images[index]
         shape = (int(self.metadata[index][0].item()), int(self.metadata[index][1].item()), 3)
         str_repr = base64.binascii.a2b_base64(self.images[index])
-        img = torchF.to_pil_image(np.frombuffer(str_repr, dtype=np.uint8).reshape(shape))
-        target = torch.as_tensor(self.metadata[index][3], dtype=torch.long)
-        # int('getitem devices', img.device, target.device)
+        img = np.frombuffer(str_repr, dtype=np.uint8).reshape(shape)
+        # img = torch.tensor(img, device=torch.device("cpu"))
+        target = torch.as_tensor(
+            self.metadata[index][3], dtype=torch.long, device=torch.device("cpu")
+        )
+        # todo: send to gpu?
+        # .to(self.torch_device)
+
         return img, target
 
 
@@ -352,7 +357,7 @@ def main_worker(gpu, ngpus_per_node, args):
         transforms=[
             transforms.Compose(
                 [
-                    # transforms.ToPILImage(),
+                    transforms.ToPILImage(),
                     transforms.RandomResizedCrop(224),
                     transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
@@ -370,7 +375,7 @@ def main_worker(gpu, ngpus_per_node, args):
         transforms=[
             transforms.Compose(
                 [
-                    # transforms.ToPILImage(),
+                    transforms.ToPILImage(),
                     transforms.Resize(256),
                     transforms.CenterCrop(224),
                     transforms.ToTensor(),
@@ -390,6 +395,7 @@ def main_worker(gpu, ngpus_per_node, args):
         # gpu_num = ht.MPI_WORLD.rank % torch.cuda.device_count()
         model.cuda(device=train_dataset.torch_device)
     model = ht.nn.DataParallel(model, ht.MPI_WORLD, dp_optimizer, blocking_parameter_updates=False)
+    model.blocking_parameter_updates = True
 
     if args.evaluate:
         validate(val_loader, model, criterion, args)
@@ -399,7 +405,7 @@ def main_worker(gpu, ngpus_per_node, args):
         # if args.distributed:
         #     todo: what is this? do we need to do this?
         #     train_sampler.set_epoch(epoch)
-        print('begin epoch:', epoch)
+        print("begin epoch:", epoch)
         adjust_learning_rate(dp_optimizer, epoch, args)
 
         # train for one epoch
@@ -445,7 +451,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
     model.train()
 
     end = time.time()
-    print('train')
+    print("train")
     ttt = []
     ips = []
     for i, (images, target) in enumerate(train_loader):
@@ -455,7 +461,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
 
         # compute output
         output = model(images)
-        print('forward time', time.time() - end)
+        print("forward time", time.time() - end)
         loss = criterion(output, target)
 
         # measure accuracy and record loss
@@ -491,7 +497,7 @@ def validate(val_loader, model, criterion, args):
 
     # switch to evaluate mode
     model.eval()
-    print('val')
+    print("val")
     ttt = []
     ips = []
     with torch.no_grad():
