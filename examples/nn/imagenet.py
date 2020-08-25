@@ -190,7 +190,7 @@ def main():
 
 
 class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
-    def __init__(self, file, transforms=None):
+    def __init__(self, file, transforms=None, validate_set=False):
         names = ["images", "metadata"]
         """
         file notes
@@ -220,6 +220,7 @@ class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
             transforms=transforms,
             np_buffer=True,
             np_buffer_dataset_names=names[0],
+            validate_set=validate_set,
         )
         # self.getitem_conversion = [self.load_item_transform, None]
         # self.transforms = [transform, None]
@@ -384,6 +385,7 @@ def main_worker(gpu, ngpus_per_node, args):
             ),
             None,
         ],
+        validate_set=True,
     )
     val_loader = ht.utils.data.datatools.DataLoader(
         lcl_dataset=val_dataset, batch_size=args.batch_size, pin_memory=True
