@@ -147,6 +147,12 @@ def matmul(a, b, allow_resplit=False):
 
     # determine if a larger type is needed for c
     c_type = types.promote_types(a.dtype, b.dtype)
+    if str(a.device)[:3] == "gpu":
+        if c_type in [types.uint8, types.int8, types.int16, types.int32]:
+            c_type = types.float32
+        elif c_type == types.int64:
+            c_type = types.float64
+
     if a.dtype != c_type:
         a = c_type(a, device=a.device)
     if b.dtype != c_type:
