@@ -51,7 +51,7 @@ parser.add_argument(
     "-a",
     "--arch",
     metavar="ARCH",
-    default="resnet50",  # 101",
+    default="resnet101",
     choices=model_names,
     help="model architecture: " + " | ".join(model_names) + " (default: resnet18)",
 )
@@ -455,13 +455,14 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
     ttt = []
     ips = []
     for i, (images, target) in enumerate(train_loader):
-        print("\ttrain loop", i, images.device)
+        # print("\ttrain loop", i, images.device)
         # measure data loading time
         # data_time.update(time.time() - end)
 
         # compute output
+        time1 = time.time()
         output = model(images)
-        print("forward time", time.time() - end)
+        # print('forward time', time1 - end)
         loss = criterion(output, target)
 
         # measure accuracy and record loss
@@ -471,15 +472,16 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
         top5.update(acc5[0], images.size(0))
 
         # compute gradient and do SGD step
+        time1 = time.time()
         dp_optimizer.zero_grad()
         loss.backward()
         dp_optimizer.step()
-        print("step time", time.time() - end)
+        # print("step time", time1 - end)
         # measure elapsed time
         batch_time.update(time.time() - end)
         ttt.append(time.time() - end)
         ips.append(args.batch_size / (time.time() - end))
-        print(ttt[-1], ips[-1])
+        # print(ttt[-1], ips[-1])
         end = time.time()
         # gc.collect()
 

@@ -46,6 +46,7 @@ class PartialDataset(torch_data.Dataset):
         np_buffer: bool = True,
         np_buffer_dataset_names: Union[str, List[str]] = "data",
         use_gpu: bool = True,
+        validate_set: bool = False,
         # folder=None,
     ):
         super(PartialDataset, self).__init__()
@@ -82,10 +83,17 @@ class PartialDataset(torch_data.Dataset):
         #    (comm.rank + 1) * self.lcl_full_sz if comm.rank != comm.size - 1 else self.total_size
         # )
         self.local_data_end = (comm.rank + 1) * self.lcl_full_sz
+
+        if validate_set:
+            # if its the validation set then load the whole dataset for each process
+            self.lcl_full_sz = sz
+            self.local_data_start = 0
+            self.local_data_end = sz
+
         self.local_length = self.local_data_end - self.local_data_start
 
         # temp values for small scale testing
-        self.load_initial = 3000
+        self.load_initial = 7000 if 7000 <= self.lcl_full_sz else self.lcl_full_sz - 1000
         self.load_len = 1000  # int(local_data_end / 3)
         # self.loads_needed = math.ceil((self.lcl_full_sz - self.load_initial) / self.load_len)
         self.loads_needed = math.ceil(self.lcl_full_sz / self.load_len)
@@ -244,7 +252,16 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
             asd += 1
         # print("next data after wait", self._num_yielded, asd * 0.1)
         # return self.ready_batches[self._num_yielded]
-        return self.ready_batches.pop(0)
+        batch = self.ready_batches.pop(0)
+        # if len(self.ready_batches) == 0:
+        for b in range(len(batch)):
+            if batch[b].device != self.dataset.torch_device:
+                batch[b] = batch[b].to(self.dataset.torch_device)
+        # if len(self.ready_batches) > 0:
+        #    for b in range(len(batch)):
+        #        self.ready_batches[0][b] = self.ready_batches[0][b].to(self.dataset.torch_device)
+        # print(batch[0].device)
+        return batch
 
     def __next__(self):
         # shamelessly stolen from torch
@@ -305,8 +322,19 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                     # print("after wait batch")
                 time2 = time.perf_counter()
                 batch = self._collate_fn(converted_items)
-                for b in range(len(batch)):
-                    batch[b] = batch[b].to(self.dataset.torch_device)
+                try:
+                    for b in range(len(batch)):
+                        self.ready_batches[0][b] = self.ready_batches[0][b].to(
+                            self.dataset.torch_device
+                        )
+                except IndexError:
+                    pass
+                # if len(self.ready_batches) == 0:
+                #    for b in range(len(batch)):
+                #        batch[b] = batch[b].to(self.dataset.torch_device)
+                # elif len(self.ready_batches) > 0:
+                #    for b in range(len(batch)):
+                #        self.ready_batches[0][b] = self.ready_batches[0][b].to(self.dataset.torch_device)
                 self.ready_batches.append(batch)
                 time3 = time.perf_counter()
                 # print("list building:", time2 - time1, "collate", time3 - time2, h)
