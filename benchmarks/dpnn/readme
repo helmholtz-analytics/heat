@@ -1,0 +1,4 @@
+Execute benchmark.sh to start benchmark.
+In benchmark.sh, nodes can be configured.
+In grad_perf_eval.sh, batch sizes and neural networks can be configured.
+Results are stored in grad_perf_eval.csv.

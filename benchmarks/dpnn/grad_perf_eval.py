@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from __future__ import print_function
 import argparse
 import csv
@@ -9,6 +11,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.models as models
 import sys
+
+sys.path.append("../../")
 
 import heat as ht
 from heat.utils.data.datatools import Dataset, DataLoader
