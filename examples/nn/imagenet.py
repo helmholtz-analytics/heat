@@ -165,7 +165,6 @@ class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
 
 def main_worker(ngpus_per_node, args):
     global best_acc1
-    #args.gpu = gpu
 
     # create model
     # use pretrained?
@@ -178,13 +177,12 @@ def main_worker(ngpus_per_node, args):
 
     if not torch.cuda.is_available():
         print("using CPU, this will be slow")
+        criterion = torch.nn.CrossEntropyLoss()
     else:
         dev_id = ht.MPI_WORLD.rank % torch.cuda.device_count()
         torch.cuda.set_device(ht.MPI_WORLD.rank % torch.cuda.device_count())
         model.cuda(device=torch.device("cuda:" + str(dev_id)))
-
-    # define loss function (criterion) and optimizer
-    criterion = torch.nn.CrossEntropyLoss().cuda(args.gpu)
+        criterion = torch.nn.CrossEntropyLoss().cuda(device=torch.device("cuda:" + str(dev_id)))
 
     optimizer = torch.optim.SGD(
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
