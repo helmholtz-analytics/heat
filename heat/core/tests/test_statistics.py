@@ -57,7 +57,7 @@ class TestStatistics(TestCase):
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4,))
-        self.assertEqual(result.split, 0)
+        self.assertEqual(result.split, 0 if ht.MPI_WORLD.size > 1 else None)
         self.assertTrue((result._DNDarray__array == expected).all())
 
         # 2D split tensor, across the axis
@@ -65,6 +65,7 @@ class TestStatistics(TestCase):
         data = ht.tril(ht.ones((size, size), split=0), k=-1)
 
         result = ht.argmax(data, axis=0)
+        expected = torch.tensor(np.argmax(data.numpy(), axis=0))
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
@@ -73,7 +74,7 @@ class TestStatistics(TestCase):
         self.assertEqual(result.split, None)
         # skip test on gpu; argmax works different
         if not (torch.cuda.is_available() and result.device == ht.gpu):
-            self.assertTrue((result._DNDarray__array != 0).all())
+            self.assertTrue((result._DNDarray__array == expected).all())
 
         # 2D split tensor, across the axis, output tensor
         size = ht.MPI_WORLD.size * 2
@@ -81,7 +82,7 @@ class TestStatistics(TestCase):
 
         output = ht.empty((size,))
         result = ht.argmax(data, axis=0, out=output)
-
+        expected = torch.tensor(np.argmax(data.numpy(), axis=0))
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(output.dtype, ht.int64)
         self.assertEqual(output._DNDarray__array.dtype, torch.int64)
@@ -89,8 +90,8 @@ class TestStatistics(TestCase):
         self.assertEqual(output.lshape, (size,))
         self.assertEqual(output.split, None)
         # skip test on gpu; argmax works different
-        if not (torch.cuda.is_available() and output.device == ht.gpu):
-            self.assertTrue((output._DNDarray__array != 0).all())
+        if not (torch.cuda.is_available() and result.device == ht.gpu):
+            self.assertTrue((output._DNDarray__array == expected).all())
 
         # check exceptions
         with self.assertRaises(TypeError):
@@ -147,7 +148,7 @@ class TestStatistics(TestCase):
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4,))
-        self.assertEqual(result.split, 0)
+        self.assertEqual(result.split, 0 if ht.MPI_WORLD.size > 1 else None)
         self.assertTrue((result._DNDarray__array == expected).all())
 
         # 2D split tensor, across the axis
@@ -155,6 +156,7 @@ class TestStatistics(TestCase):
         data = ht.triu(ht.ones((size, size), split=0), k=1)
 
         result = ht.argmin(data, axis=0)
+        expected = torch.tensor(np.argmin(data.numpy(), axis=0))
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result._DNDarray__array.dtype, torch.int64)
@@ -163,7 +165,7 @@ class TestStatistics(TestCase):
         self.assertEqual(result.split, None)
         # skip test on gpu; argmin works different
         if not (torch.cuda.is_available() and result.device == ht.gpu):
-            self.assertTrue((result._DNDarray__array != 0).all())
+            self.assertTrue((result._DNDarray__array == expected).all())
 
         # 2D split tensor, across the axis, output tensor
         size = ht.MPI_WORLD.size * 2
@@ -171,7 +173,7 @@ class TestStatistics(TestCase):
 
         output = ht.empty((size,))
         result = ht.argmin(data, axis=0, out=output)
-
+        expected = torch.tensor(np.argmin(data.numpy(), axis=0))
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(output.dtype, ht.int64)
         self.assertEqual(output._DNDarray__array.dtype, torch.int64)
@@ -179,8 +181,8 @@ class TestStatistics(TestCase):
         self.assertEqual(output.lshape, (size,))
         self.assertEqual(output.split, None)
         # skip test on gpu; argmin works different
-        if not (torch.cuda.is_available() and output.device == ht.gpu):
-            self.assertTrue((output._DNDarray__array != 0).all())
+        if not (torch.cuda.is_available() and result.device == ht.gpu):
+            self.assertTrue((output._DNDarray__array == expected).all())
 
         # check exceptions
         with self.assertRaises(TypeError):

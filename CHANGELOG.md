@@ -4,6 +4,19 @@
 - [#569](https://github.com/helmholtz-analytics/heat/pull/569) New feature: percentile() and median()
 - [#573](https://github.com/helmholtz-analytics/heat/pull/573) Bugfix: matmul fixes: early out for 2 vectors, remainders not added if inner block is 1 for split 10 case
 - [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: Binary operations use proper type casting
+- [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: ``where()`` and ``cov()`` convert ints to floats when given as parameters
+- [#577](https://github.com/helmholtz-analytics/heat/pull/577) Add ``DNDarray.ndim`` property
+- [#578](https://github.com/helmholtz-analytics/heat/pull/578) Bugfix: Bad variable in ``reshape()``
+- [#580](https://github.com/helmholtz-analytics/heat/pull/580) New feature: ``fliplr()``
+- [#581](https://github.com/helmholtz-analytics/heat/pull/581) New Feature: ``DNDarray.tolist()``
+- [#583](https://github.com/helmholtz-analytics/heat/pull/583) New feature: ``rot90()``
+- [#593](https://github.com/helmholtz-analytics/heat/pull/593) New feature ``arctan2()``
+- [#594](https://github.com/helmholtz-analytics/heat/pull/594) New feature: Advanced indexing
+- [#594](https://github.com/helmholtz-analytics/heat/pull/594) Bugfix: ``__getitem__`` and ``__setitem__`` memory consumption heavily reduced
+- [#596](https://github.com/helmholtz-analytics/heat/pull/596) New feature: ``outer()``
+- [#598](https://github.com/helmholtz-analytics/heat/pull/598) Type casting changed to PyTorch style casting (i.e. intuitive casting) instead of safe casting
+- [#600](https://github.com/helmholtz-analytics/heat/pull/600) New feature: ``shape()``
+- [#608](https://github.com/helmholtz-analytics/heat/pull/608) New features: ``stack()``, ``column_stack()``, ``row_stack()``
 - [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: `where` and `cov` convert ints to floats when given as parameters
 - [#577](https://github.com/helmholtz-analytics/heat/pull/577) Add `ndim` property in dndarray
 - [#578](https://github.com/helmholtz-analytics/heat/pull/578) Bugfix: Bad variable in reshape
@@ -29,6 +42,16 @@
 - [#620](https://github.com/helmholtz-analytics/heat/pull/620) New feature: KNN
 - [#624](https://github.com/helmholtz-analytics/heat/pull/624) Bugfix: distributed median() indexing and casting
 - [#629](https://github.com/helmholtz-analytics/heat/pull/629) New features: `asin`, `acos`, `atan`, `atan2`
+- [#634](https://github.com/helmholtz-analytics/heat/pull/634) New features: `kmedians`, `kmedoids`, `manhattan`
+- [#633](https://github.com/helmholtz-analytics/heat/pull/633) Documentation: updated contributing.md
+- [#635](https://github.com/helmholtz-analytics/heat/pull/635) `DNDarray.__getitem__` balances and resplits the given key to None if the key is a DNDarray
+- [#638](https://github.com/helmholtz-analytics/heat/pull/638) Fix: arange returns float32 with single input of type float & update skipped device tests
+- [#639](https://github.com/helmholtz-analytics/heat/pull/639) Bugfix: balanced array in demo_knn, changed behaviour of knn
+- [#648](https://github.com/helmholtz-analytics/heat/pull/648) Bugfix: tensor printing with PyTorch 1.6.0
+- [#651](https://github.com/helmholtz-analytics/heat/pull/651) Bugfix: `NotImplemented` is now `NotImplmentedError` in `core.communication.Communication` base class
+- [#652](https://github.com/helmholtz-analytics/heat/pull/652) Feature: benchmark scripts and jobscript generation
+- [#653](https://github.com/helmholtz-analytics/heat/pull/653) Printing above threshold gathers the data without a buffer now
+- [#653](https://github.com/helmholtz-analytics/heat/pull/653) Bugfixes: Update unittests argmax & argmin + force index order in mpi_argmax & mpi_argmin. Add device parameter for tensor creation in dndarray.get_halo().
 
 # v0.4.0
 
