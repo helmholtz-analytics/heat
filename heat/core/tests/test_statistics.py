@@ -884,57 +884,38 @@ class TestStatistics(TestCase):
         self.assertTrue((minimum._DNDarray__array == torch.min(comparison1, comparison2)).all())
 
         # check minimum over float elements of split 3d tensors
-        # TODO: add check for uneven distribution of dimensions (see Issue #273)
-        size = ht.MPI_WORLD.size
         torch.manual_seed(1)
-        random_volume_1 = ht.random.randn(12 * size, 3, 3, split=0)
-        random_volume_2 = ht.random.randn(12 * size, 1, 3, split=0)
+        random_volume_1 = ht.random.randn(6, 3, 3, split=0)
+        random_volume_2 = ht.random.randn(6, 1, 3, split=0)
         minimum_volume = ht.minimum(random_volume_1, random_volume_2)
+        np_minimum = np.minimum(random_volume_1.numpy(), random_volume_2.numpy())
 
         self.assertIsInstance(minimum_volume, ht.DNDarray)
-        self.assertEqual(minimum_volume.shape, (size * 12, 3, 3))
-        self.assertEqual(minimum_volume.lshape, (size * 12, 3, 3))
+        self.assertEqual(minimum_volume.shape, (6, 3, 3))
         self.assertEqual(minimum_volume.dtype, ht.float32)
         self.assertEqual(minimum_volume._DNDarray__array.dtype, torch.float32)
         self.assertEqual(minimum_volume.split, random_volume_1.split)
+        self.assertTrue((minimum_volume.numpy() == np_minimum).all())
 
-        # check minimum over float elements of split 3d tensors with different split axis
-        torch.manual_seed(1)
-        random_volume_1_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=0)
-        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
-        minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
-        self.assertIsInstance(minimum_volume_splitdiff, ht.DNDarray)
-        self.assertEqual(minimum_volume_splitdiff.shape, (size * 3, size * 3, 4))
-        self.assertEqual(minimum_volume_splitdiff.lshape, (size * 3, size * 3, 4))
-        self.assertEqual(minimum_volume_splitdiff.dtype, ht.float32)
-        self.assertEqual(minimum_volume_splitdiff._DNDarray__array.dtype, torch.float32)
-        self.assertEqual(minimum_volume_splitdiff.split, 0)
-
-        random_volume_1_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
-        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=0)
-        minimum_volume_splitdiff = ht.minimum(random_volume_1_splitdiff, random_volume_2_splitdiff)
-        self.assertEqual(minimum_volume_splitdiff.split, 0)
-
-        random_volume_1_split_none = ht.random.randn(size * 3, size * 3, 4, split=None)
-        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=1)
+        # check minimum against scalar
+        random_volume_1_split_none = ht.random.randn(1, split=None)
+        random_volume_2_splitdiff = ht.random.randn(3, 3, 4, split=1)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 1)
 
-        random_volume_1_split_none = ht.random.randn(size * 3, size * 3, 4, split=0)
-        random_volume_2_splitdiff = ht.random.randn(size * 3, size * 3, 4, split=None)
+        random_volume_1_split_none = ht.random.randn(3, 3, 4, split=0)
+        random_volume_2_splitdiff = ht.random.randn(1, split=None)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
 
         # check output buffer
         out_shape = ht.stride_tricks.broadcast_shape(random_volume_1.gshape, random_volume_2.gshape)
-        output = ht.empty(out_shape)
+        output = ht.empty(out_shape, split=0, dtype=ht.float32)
         ht.minimum(random_volume_1, random_volume_2, out=output)
         self.assertIsInstance(output, ht.DNDarray)
-        self.assertEqual(output.shape, (ht.MPI_WORLD.size * 12, 3, 3))
-        self.assertEqual(output.lshape, (ht.MPI_WORLD.size * 12, 3, 3))
+        self.assertEqual(output.shape, (6, 3, 3))
         self.assertEqual(output.dtype, ht.float32)
         self.assertEqual(output._DNDarray__array.dtype, torch.float32)
-        self.assertEqual(output.split, random_volume_1.split)
 
         # check exceptions
         random_volume_3 = ht.random.randn(4, 2, 3, split=0)
