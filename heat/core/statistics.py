@@ -1043,77 +1043,62 @@ def minimum(x1, x2, out=None):
     >>> ht.minimum(a,d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
-    # perform sanitation
+    # sanitize input
+    if isinstance(x1, (int, float)):
+        x1 = factories.array([x1], dtype=types.canonical_heat_type(type(x1)), split=None)
+    if isinstance(x2, (int, float)):
+        x2 = factories.array([x2], dtype=types.canonical_heat_type(type(x2)), split=None)
+
     if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
         raise TypeError(
             "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(type(x1), type(x2))
         )
-    if out is not None and not isinstance(out, dndarray.DNDarray):
-        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
-    # apply split semantics
-    if x1.split is not None or x2.split is not None:
-        if x1.split is None:
-            x1.resplit_(x2.split)
-        if x2.split is None:
-            x2.resplit_(x1.split)
-        if x1.split != x2.split:
-            if np.prod(x1.gshape) < np.prod(x2.gshape):
-                x1.resplit_(x2.split)
-            if np.prod(x2.gshape) < np.prod(x1.gshape):
-                x2.resplit_(x1.split)
-            else:
-                if x1.split < x2.split:
-                    x2.resplit_(x1.split)
-                else:
-                    x1.resplit_(x2.split)
-        split = x1.split
+    # sanitize split axes and shapes
+    split1, size1, shape1, comm1 = x1.split, x1.size, x1.gshape, x1.comm
+    split2, size2, shape2, comm2 = x2.split, x2.size, x2.gshape, x2.comm
+    output_gshape = stride_tricks.broadcast_shape(shape1, shape2)
+
+    if split1 is not None or split2 is not None:
+        if split1 is None and size1 > 1 or split2 is None and size2 > 1:
+            raise ValueError(
+                "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
+                    split1, split2
+                )
+            )
+        else:
+            split = split1 if split1 is not None else split2
+            comm = comm1 if split1 is not None else comm2
     else:
         split = None
+        comm = comm1
 
-    # locally: apply torch.min(x1, x2)
-    output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
-    lresult = factories.empty(output_lshape, dtype=x1.dtype)
-    lresult._DNDarray__array = torch.min(x1._DNDarray__array, x2._DNDarray__array)
-    lresult._DNDarray__dtype = types.promote_types(x1.dtype, x2.dtype)
-    lresult._DNDarray__split = split
-    if x1.split is not None or x2.split is not None:
-        if x1.comm.is_distributed():  # assuming x1.comm = x2.comm
-            output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
-            result = factories.empty(output_gshape, dtype=x1.dtype)
-            x1.comm.Allgather(lresult, result)
-            # TODO: adopt Allgatherv() as soon as it is fixed, Issue #233
-            result._DNDarray__dtype = lresult._DNDarray__dtype
-            result._DNDarray__split = split
-
-            if out is not None:
-                if out.shape != output_gshape:
-                    raise ValueError(
-                        "Expecting output buffer of shape {}, got {}".format(
-                            output_gshape, out.shape
-                        )
-                    )
-                out._DNDarray__array = result._DNDarray__array
-                out._DNDarray__dtype = result._DNDarray__dtype
-                out._DNDarray__split = split
-                out._DNDarray__device = x1.device
-                out._DNDarray__comm = x1.comm
-
-                return out
-            return result
-
+    # sanitize out
     if out is not None:
-        if out.shape != output_lshape:
-            raise ValueError(
-                "Expecting output buffer of shape {}, got {}".format(output_lshape, out.shape)
+        if not isinstance(out, dndarray.DNDarray):
+            raise TypeError(
+                "expected out to be None or an ht.DNDarray, but was {}".format(type(out))
             )
-        out._DNDarray__array = lresult._DNDarray__array
-        out._DNDarray__dtype = lresult._DNDarray__dtype
-        out._DNDarray__split = split
-        out._DNDarray__device = x1.device
-        out._DNDarray__comm = x1.comm
+        if out.gshape != output_gshape:
+            raise ValueError(
+                "Expecting output buffer of shape {}, got {}".format(output_gshape, out.shape)
+            )
+        if out.split is not split:
+            raise ValueError("Split axis of output buffer does not match input.")
 
-    return lresult
+    # calculate process-local element-wise minimum
+    lresult = torch.min(x1._DNDarray__array, x2._DNDarray__array)
+
+    result = factories.array(
+        lresult, dtype=types.canonical_heat_type(lresult.dtype), is_split=split, comm=comm
+    )
+    if out is not None:
+        if out.dtype != result.dtype:
+            raise TypeError("Expecting output buffer {}, got {}".format(result.dtype, out.dtype))
+        out._DNDarray__array = result._DNDarray__array
+        out._DNDarray__comm = comm
+        return out
+    return result
 
 
 def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None, Fischer=None):
