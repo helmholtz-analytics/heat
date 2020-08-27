@@ -898,10 +898,11 @@ class TestStatistics(TestCase):
         self.assertTrue((minimum_volume.numpy() == np_minimum).all())
 
         # check minimum against scalar
-        random_volume_1_split_none = ht.random.randn(1, split=None)
+        random_volume_1_split_none = ht.random.randn(1, split=None, dtype=ht.float64)
         random_volume_2_splitdiff = ht.random.randn(3, 3, 4, split=1)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 1)
+        self.assertEqual(minimum_volume_splitdiff.dtype, ht.float64)
 
         random_volume_1_split_none = ht.random.randn(3, 3, 4, split=0)
         random_volume_2_splitdiff = ht.random.randn(1, split=None)
