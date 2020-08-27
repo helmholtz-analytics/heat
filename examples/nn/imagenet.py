@@ -192,7 +192,6 @@ def main_worker(ngpus_per_node, args):
 
     # create DP model:
     model = ht.nn.DataParallel(model, ht.MPI_WORLD, dp_optimizer, blocking_parameter_updates=False)
-    model.blocking_parameter_updates = True
 
     # Data loading code
     train_file = "/p/project/haf/data/imagenet_merged.h5"

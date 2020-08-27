@@ -7,7 +7,7 @@ import torch
 import torch.nn as tnn
 
 from collections import OrderedDict
-from typing import Callable, List
+from typing import Callable, List, Union, Tuple
 from ..core.communication import MPICommunication
 from ..core.communication import MPI
 from ..core import dndarray
@@ -68,7 +68,7 @@ class DataParallel(tnn.Module):
         self,
         module: torch.nn.Module,
         comm: MPICommunication,
-        dp_optimizers,
+        dp_optimizers: Union[optim.dp_optimizer, List, Tuple],
         blocking_parameter_updates: bool = True,
     ):
         super(DataParallel, self).__init__()
@@ -87,6 +87,8 @@ class DataParallel(tnn.Module):
         self._param_indices = dict()
 
         # raise error if no DP optimizer is given
+        if not isinstance(dp_optimizers, (list, tuple)):
+            dp_optimizers = [dp_optimizers]
         if len(dp_optimizers) == 0:
             raise ValueError("You have to pass at least one DataParallelOptimizer.")
 
@@ -119,9 +121,7 @@ class DataParallel(tnn.Module):
             dp_optimizer.blocking_parameter_updates = self.blocking_parameter_updates
 
         # unify parameters across nodes by unifying the random seed and resetting parameters
-        # seed = torch.tensor([torch.random.seed() >> 1])
-        # comm.Bcast(seed)
-        # torch.random.manual_seed(seed.item())
+        torch.random.manual_seed(99999999)
         self.module.apply(self._reset_parameters)
 
         # get parameter indexing and slices
