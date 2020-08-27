@@ -1087,10 +1087,13 @@ def minimum(x1, x2, out=None):
             raise ValueError("Split axis of output buffer does not match input.")
 
     # calculate process-local element-wise minimum
-    lresult = torch.min(x1._DNDarray__array, x2._DNDarray__array)
+    t_x1 = x1._DNDarray__array
+    t_x2 = x2._DNDarray__array
+    t_dtype = torch.promote_types(t_x1.dtype, t_x2.dtype)
+    t_result = torch.min(t_x1.type(t_dtype), t_x2.type(t_dtype))
 
     result = factories.array(
-        lresult, dtype=types.canonical_heat_type(lresult.dtype), is_split=split, comm=comm
+        t_result, dtype=types.canonical_heat_type(t_dtype), is_split=split, comm=comm
     )
     if out is not None:
         if out.dtype != result.dtype:
