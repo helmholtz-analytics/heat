@@ -220,8 +220,8 @@ class DataParallel(tnn.Module):
                 # check if shapes are matching
                 if dp_optimizer.params_ref[param_idx].grad.data.shape != wait_handle.tensor.shape:
                     raise ValueError("Shapes must be equal.")
-                # set parameter's global gradient
-                dp_optimizer.params_ref[param_idx].grad.data = wait_handle.tensor
+                # accumulate parameter's global gradient
+                dp_optimizer.params_ref[param_idx].grad.data += wait_handle.tensor
                 # remove layer from set of active layers, if present
                 self._active_layers.discard(layer_name)
         # if desired, perform actual parameter update
@@ -275,7 +275,8 @@ class DataParallel(tnn.Module):
             )
             # TODO: is sorting faster? or is there any difference?
             # self._layer_wait_handles[layer_name].append((grad_loc.numel(), param_name, wait_handle))
-            return grad_loc
+            # don't return grad_loc, otherwise gradient is doubled
+            return torch.zeros(*grad_loc.size())
 
         return _hook
 
