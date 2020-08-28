@@ -2,6 +2,7 @@ import torch
 
 
 def func_getattr(name):
+    # call through to the torch.nn.functional module
     try:
         return torch.nn.functional.__getattribute__(name)
     except AttributeError:

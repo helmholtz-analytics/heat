@@ -35,6 +35,8 @@ class PartialDataset(torch_data.Dataset):
         np_buffer_dataset_names: Union[str, List[str]] = "data",
         use_gpu: bool = True,
         validate_set: bool = False,
+        initial_load: int = 7000,
+        load_length: int = 1000,
     ):
         import h5py
 
@@ -53,7 +55,6 @@ class PartialDataset(torch_data.Dataset):
         self.partial_dataset = True
         f = h5py.File(file, "r", driver="mpio", comm=comm.handle)
         # too much data for the process
-        # todo: supporting h5...
         fkeys = list(f.keys())
 
         sz = f[fkeys[0]].len()
@@ -68,19 +69,21 @@ class PartialDataset(torch_data.Dataset):
         self.local_data_start = comm.rank * self.lcl_full_sz
         self.local_data_end = (comm.rank + 1) * self.lcl_full_sz
 
-        if validate_set:
+        if validate_set or initial_load > self.lcl_full_sz:
             # if its the validation set then load the whole dataset for each process
+            # todo: create data pipeline for piping in data
             self.lcl_full_sz = sz
             self.local_data_start = 0
             self.local_data_end = sz
-
-        self.local_length = self.local_data_end - self.local_data_start
-
-        # temp values for small scale testing
-        self.load_initial = 7000 if 7000 <= self.lcl_full_sz else self.lcl_full_sz - 1000
-        self.load_len = 1000  # int(local_data_end / 3)
-        self.loads_needed = math.ceil(self.lcl_full_sz / self.load_len)
-        self.loads_left = self.loads_needed
+            self.load_initial = sz
+            self.partial_dataset = False
+        else:
+            self.local_length = self.local_data_end - self.local_data_start
+            # temp values for small scale testing
+            self.load_initial = initial_load
+            self.load_len = load_length  # int(local_data_end / 3)
+            self.loads_needed = math.ceil(self.lcl_full_sz / self.load_len)
+            self.loads_left = self.loads_needed
 
         self.load_start = self.local_data_start
         self.load_end = self.local_data_start + self.load_initial
@@ -227,8 +230,8 @@ class LoadingDataLoaderIter(object):
         if not self.dataset.partial_dataset:
             index = next(self._sampler_iter)  # may raise StopIteration
             data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
-            # if self._pin_memory:
-            #     data = _utils.pin_memory.pin_memory(data)
+            if self._pin_memory:
+                data = torch_data._utils.pin_memory.pin_memory(data)
             return data
         if self._num_yielded == self.__len__():
             raise StopIteration

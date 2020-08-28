@@ -53,8 +53,8 @@ class PartialDataset(torch_data.Dataset):
             dev_id = MPI_WORLD.rank % torch.cuda.device_count()
             self.torch_device = torch.device("cuda:" + str(dev_id))
             torch.cuda.set_device(MPI_WORLD.rank % torch.cuda.device_count())
-            #elf.torch_device = torch.device("cuda")
-            #orch.cuda.set_device(MPI_WORLD.rank % torch.cuda.device_count())
+            # elf.torch_device = torch.device("cuda")
+            # orch.cuda.set_device(MPI_WORLD.rank % torch.cuda.device_count())
 
         # doing the file stuff first, folder to come later?
         # file_size = os.path.getsize(file)
@@ -490,7 +490,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
                         batch[b][bi] = dataset.transform_list[bi](batch[b][bi])
                     if torch.cuda.is_available():
                         batch[b][bi] = batch[b][bi].cuda(dataset.torch_device)
-                    #print(batch[b][bi].device, dataset.torch_device)
+                    # print(batch[b][bi].device, dataset.torch_device)
             elif isinstance(batch[b], torch.Tensor):
                 if len(dataset.transform_list) == 1:
                     batch[b] = dataset.transform_list[0](batch[b])
@@ -504,7 +504,7 @@ class LoadingDataLoaderIter(object):  # torch_data.dataloader._BaseDataLoaderIte
         # collate fn and put it on the target device
         dataset.transformed_batches[target_batch] = collate_func(batch)
         print(
-            "created", target_batch, " in transformed batches", dataset.transformed_batches.keys(),
+            "created", target_batch, " in transformed batches", dataset.transformed_batches.keys()
         )
         del dataset.converted_batches[target_batch]
 
