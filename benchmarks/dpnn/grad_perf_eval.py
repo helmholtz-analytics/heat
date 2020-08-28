@@ -53,6 +53,7 @@ def save_results(
     repetitions,
     img_size,
     epochs,
+    batch_cnt,
     avg_duration,
     raw_durations,
 ):
@@ -77,6 +78,7 @@ def save_results(
             "repetitions",
             "img_size",
             "epochs",
+            "batch_cnt",
             "avg_duration",
             "raw_durations",
         ]
@@ -98,6 +100,7 @@ def save_results(
                 repetitions,
                 img_size,
                 epochs,
+                batch_cnt,
                 avg_duration,
                 raw_durations,
             ]
@@ -175,11 +178,11 @@ def main():
         help="input batch size for training (default: 32)",
     )
     parser.add_argument(
-        "--classes",
+        "--batch-cnt",
         type=int,
         default=4,
         metavar="N",
-        help="number of different classes for synthetic data, should be divisor of batch size (default: 4)",
+        help="number of batches being performed, determines number of different classes for synthetic data as well (default: 4)",
     )
     parser.add_argument(
         "--epochs", type=int, default=1, metavar="N", help="number of epochs to train (default: 1)"
@@ -249,12 +252,14 @@ def main():
             args.img_size,
             ", Epochs =",
             args.epochs,
+            ", Batch_count =",
+            args.batch_cnt
         )
 
     # create synthetic data
-    mu = np.arange(args.classes) * 25.5
+    mu = np.arange(args.batch_cnt) * 25.5
     data, targets = generate_synthetic_data(
-        mu, args.batch_size // len(mu), args.img_size, node_cnt, args.strong_scaling
+        mu, args.batch_size, args.img_size, node_cnt, args.strong_scaling
     )
     dataset = LabeledDataset(data, targets)
     if rank == 0:
@@ -308,6 +313,7 @@ def main():
             args.repetitions,
             args.img_size,
             args.epochs,
+            args.batch_cnt,
             avg_glo_duration,
             glo_durations,
         )

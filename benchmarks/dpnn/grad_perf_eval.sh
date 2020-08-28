@@ -3,7 +3,7 @@
 #SBATCH --exclusive
 #SBATCH -A haf
 #SBATCH --cpus-per-task 6
-#SBATCH -t 04:00:00
+#SBATCH -t 08:00:00
 #SBATCH -J Heat_DPNN_Benchmark
 #SBATCH -o bench_heat_%j.out
 
@@ -28,7 +28,7 @@ function runbenchmark()
 }
 
 
-for bs in 32 64 128
+for bs in 32 128
 do 
 	for nn in 1 2 3
 	do
