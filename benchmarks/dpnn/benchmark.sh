@@ -1,4 +1,4 @@
-#!/bin/bash
+!/bin/bash
 
 for t in 1 2 4
 do  

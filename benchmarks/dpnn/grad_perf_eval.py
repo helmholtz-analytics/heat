@@ -38,7 +38,7 @@ class LabeledDataset(Dataset):
         self.targets = targets
 
     def __getitem__(self, index):
-        img, target = self.data[index], int(self.targets[index])
+        img, target = self.htdata._DNDarray__array[index], int(self.targets._DNDarray__array[index])
 
         return img, target
 
@@ -173,9 +173,9 @@ def main():
     parser.add_argument(
         "--batch-cnt",
         type=int,
-        default=4,
+        default=3,
         metavar="N",
-        help="number of batches being performed, determines number of different classes for synthetic data as well (default: 4)",
+        help="number of batches being performed (default: 3)",
     )
     parser.add_argument(
         "--epochs", type=int, default=1, metavar="N", help="number of epochs to train (default: 1)"
@@ -197,9 +197,9 @@ def main():
     parser.add_argument(
         "--repetitions",
         type=int,
-        default=10,
+        default=5,
         metavar="N",
-        help="number of execution repetitions for training (default: 10)",
+        help="number of execution repetitions for training (default: 5)",
     )
     parser.add_argument(
         "--strong-scaling",
