@@ -3,8 +3,8 @@
 from __future__ import print_function
 import argparse
 import csv
+
 from mpi4py import MPI
-import numpy as np
 import timeit
 import torch
 import torch.optim as optim
@@ -117,21 +117,14 @@ def timeit_wrapper(func, *args, **kwargs):
 
 # creates synthetic dataset with len(mu) classes
 # dataset has shape len(mu)*sample_cnt x 3 x img_size x img_size
-def generate_synthetic_data(mu, sample_cnt, img_size, node_cnt, strong_scaling):
+def generate_synthetic_data(sample_cnt, img_size, node_cnt, strong_scaling):
     if not strong_scaling:
         sample_cnt *= node_cnt
 
-    data = ht.zeros((len(mu) * sample_cnt, 3, img_size, img_size), dtype=ht.float32)
-    target = ht.zeros((len(mu) * sample_cnt, 1), dtype=ht.float32)
+    data = ht.clip(ht.random.randn(sample_cnt, 3, img_size, img_size, split=0), 0, 255) / 255.0
+    target = ht.random.randint(0, 10, (sample_cnt, 1), split=0)
 
-    for i in range(len(mu)):
-        data[sample_cnt * i : sample_cnt * (i + 1), :] = (
-            ht.clip(ht.random.randn(sample_cnt, 3, img_size, img_size) + mu[i], 0, 255) / 255
-        )
-        target[sample_cnt * i : sample_cnt * (i + 1), :] = ht.ones((sample_cnt, 1)) * i
-
-    permutation = np.random.permutation(data.shape[0])
-    return ht.array(data[permutation], ndmin=4, split=0), ht.array(target[permutation])
+    return data, target
 
 
 def train_epoch(args, model, device, train_loader, optimizer):
@@ -253,14 +246,14 @@ def main():
             ", Epochs =",
             args.epochs,
             ", Batch_count =",
-            args.batch_cnt
+            args.batch_cnt,
         )
 
     # create synthetic data
-    mu = np.arange(args.batch_cnt) * 25.5
     data, targets = generate_synthetic_data(
-        mu, args.batch_size, args.img_size, node_cnt, args.strong_scaling
+        args.batch_cnt * args.batch_size, args.img_size, node_cnt, args.strong_scaling
     )
+
     dataset = LabeledDataset(data, targets)
     if rank == 0:
         print("Synthetic data has been generated. Benchmark will begin in a few moments...")
@@ -277,9 +270,7 @@ def main():
 
     # setup dp_nn and dp_optimizer
     dp_optim = DataParallelOptimizer(optimizer)
-    model = DataParallel(
-        tmodel, data.comm, dp_optim, blocking_parameter_updates=args.blocking
-    )
+    model = DataParallel(tmodel, data.comm, dp_optim, blocking_parameter_updates=args.blocking)
 
     # setup data loader
     train_loader = DataLoader(dataset.data, lcl_dataset=dataset, **kwargs)
