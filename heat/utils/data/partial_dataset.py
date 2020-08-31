@@ -93,7 +93,7 @@ class PartialH5Dataset(torch_data.Dataset):
             self.torch_device = torch.device("cuda:" + str(dev_id))
             torch.cuda.set_device(dev_id)
 
-        f = h5py.File(file, "r", driver="mpio", comm=comm.handle)
+        f = h5py.File(file, "r")
         # too much data for the process
         fkeys = list(f.keys())
 
@@ -187,7 +187,7 @@ class PartialH5Dataset(torch_data.Dataset):
 
         self.loads_left = self.loads_needed
         ll = self.loads_left
-        with h5py.File(self.file, "r", driver="mpio", comm=self.comm.handle) as f:
+        with h5py.File(self.file, "r") as f:
             for _ in range(ll):
                 for d in self.dataset_names:
                     hld = f[d][self.load_start : self.load_end]
