@@ -44,6 +44,9 @@ class TestDataParallel(unittest.TestCase):
         # create model and move it to GPU with id rank
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
+        with self.assertRaises(TypeError):
+            ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, "asdf")
+        dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, True)
 
         ht.random.seed(1)
         torch.random.manual_seed(1)
@@ -51,17 +54,20 @@ class TestDataParallel(unittest.TestCase):
         labels = torch.randn(10, device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
         dataset = ht.utils.data.datatools.Dataset(data)
-        dataloader = ht.utils.data.datatools.DataLoader(lcl_dataset=dataset, batch_size=2)
-        ht_model = ht.nn.DataParallel(model, data.comm, optimizer, blocking=True)
+        dataloader = ht.utils.data.datatools.DataLoader(dataset=dataset, batch_size=2)
+        ht_model = ht.nn.DataParallel(
+            model, data.comm, dp_optimizer, blocking_parameter_updates=True
+        )
 
         loss_fn = torch.nn.MSELoss()
         for _ in range(2):
             for data in dataloader:
                 self.assertEqual(data.shape[0], 2)
-                optimizer.zero_grad()
+                dp_optimizer.zero_grad()
                 ht_outputs = ht_model(data)
                 loss_fn(ht_outputs, labels).backward()
-                ht_model.update()
+                dp_optimizer.step()
+
             for p in ht_model.parameters():
                 p0dim = p.shape[0]
                 hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
@@ -71,6 +77,7 @@ class TestDataParallel(unittest.TestCase):
 
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
+        dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, False)
 
         ht.random.seed(1)
         torch.random.manual_seed(1)
@@ -78,17 +85,19 @@ class TestDataParallel(unittest.TestCase):
         labels = torch.randn(10, device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
         dataset = ht.utils.data.datatools.Dataset(data)
-        dataloader = ht.utils.data.datatools.DataLoader(lcl_dataset=dataset, batch_size=2)
-        ht_model = ht.nn.DataParallel(model, data.comm, optimizer, blocking=False)
+        dataloader = ht.utils.data.datatools.DataLoader(dataset=dataset, batch_size=2)
+        ht_model = ht.nn.DataParallel(
+            model, data.comm, dp_optimizer, blocking_parameter_updates=False
+        )
 
         loss_fn = torch.nn.MSELoss()
         for _ in range(2):
             for data in dataloader:
                 self.assertEqual(data.shape[0], 2)
-                optimizer.zero_grad()
+                dp_optimizer.zero_grad()
                 ht_outputs = ht_model(data)
                 loss_fn(ht_outputs, labels).backward()
-                ht_model.update()
+                dp_optimizer.step()
             for p in ht_model.parameters():
                 p0dim = p.shape[0]
                 hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array

@@ -10,7 +10,7 @@ from heat.classification.knn import KNN
 
 class TestKNN(TestCase):
     def test_split_none(self):
-        X = ht.load_hdf5("heat/datasets/data/iris.h5", dataset="data")
+        X = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
         # Generate keys for the iris.h5 dataset
         keys = []
@@ -32,7 +32,7 @@ class TestKNN(TestCase):
         self.assertEqual(result.shape, Y.shape)
 
     def test_split_zero(self):
-        X = ht.load_hdf5("heat/datasets/data/iris.h5", dataset="data", split=0)
+        X = ht.load_hdf5("heat/datasets/iris.h5", dataset="data", split=0)
 
         # Generate keys for the iris.h5 dataset
         keys = []
@@ -83,7 +83,7 @@ class TestKNN(TestCase):
         self.assertTrue((one_hot == b).all())
 
     def test_fit_one_hot(self,):
-        X = ht.load_hdf5("heat/datasets/data/iris.h5", dataset="data")
+        X = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
         # Keys as label array
         keys = []

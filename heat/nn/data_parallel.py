@@ -207,7 +207,7 @@ class DataParallel(tnn.Module):
             param_slice
         ]
         # iterate over layers
-        for layer_name in layer_names:
+        for layer_name in reversed(layer_names):
             # only perform update, if all given layers hold unfinalized wait handles (important for layer reuse)
             if layer_name not in self._active_layers:
                 return

@@ -143,12 +143,7 @@ class ImagenetDataset(ht.utils.data.partial_dataset.PartialH5Dataset):
                     3. "image/class/text"
         """
         super(ImagenetDataset, self).__init__(
-            file,
-            dataset_names=names,
-            transforms=transforms,
-            np_buffer=True,
-            np_buffer_dataset_names=names[0],
-            validate_set=validate_set,
+            file, dataset_names=names, transforms=transforms, validate_set=validate_set
         )
 
     def __getitem__(self, index):

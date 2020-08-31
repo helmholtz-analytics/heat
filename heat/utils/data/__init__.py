@@ -1,4 +1,4 @@
-from . import datatools
+from .datatools import *
 from . import matrixgallery
 from . import mnist
-from . import partial_dataset
+from .partial_dataset import *

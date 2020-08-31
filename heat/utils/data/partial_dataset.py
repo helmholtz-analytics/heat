@@ -74,7 +74,6 @@ class PartialH5Dataset(torch_data.Dataset):
         comm: MPICommunication = MPI_WORLD,
         dataset_names: Union[str, List[str]] = "data",
         transforms: List[Callable] = None,
-        # list of transform operations for what will be returned by getitem
         use_gpu: bool = True,
         validate_set: bool = False,
         initial_load: int = 7000,
@@ -86,13 +85,13 @@ class PartialH5Dataset(torch_data.Dataset):
         self.ishuffle = False
         self.file = file
         self.comm = comm
-        self.transforms = transforms
+        self.transforms = transforms if isinstance(transforms, (list, tuple)) else [transforms]
         self.gpu = True if torch.cuda.device_count() > 0 and use_gpu else False
         self.torch_device = "cpu"
         if torch.cuda.is_available() and use_gpu:
             dev_id = MPI_WORLD.rank % torch.cuda.device_count()
             self.torch_device = torch.device("cuda:" + str(dev_id))
-            torch.cuda.set_device(MPI_WORLD.rank % torch.cuda.device_count())
+            torch.cuda.set_device(dev_id)
 
         f = h5py.File(file, "r", driver="mpio", comm=comm.handle)
         # too much data for the process
@@ -112,7 +111,6 @@ class PartialH5Dataset(torch_data.Dataset):
 
         if validate_set or initial_load > self.lcl_full_sz:
             # if its the validation set then load the whole dataset for each process
-            # todo: create data pipeline for piping in data
             self.lcl_full_sz = sz
             self.local_data_start = 0
             self.local_data_end = sz
@@ -120,11 +118,11 @@ class PartialH5Dataset(torch_data.Dataset):
             self.partial_dataset = False
         else:
             self.local_length = self.local_data_end - self.local_data_start
-            # temp values for small scale testing
             self.load_initial = initial_load
             self.load_len = load_length  # int(local_data_end / 3)
             self.loads_needed = math.ceil(self.lcl_full_sz / self.load_len)
             self.loads_left = self.loads_needed
+            self.partial_dataset = True
 
         self.load_start = self.local_data_start
         self.load_end = self.local_data_start + self.load_initial
@@ -194,6 +192,8 @@ class PartialH5Dataset(torch_data.Dataset):
                 for d in self.dataset_names:
                     hld = f[d][self.load_start : self.load_end]
                     self.__setattr__("hold" + d, hld)
+                if self.load_end + self.comm.size > self.total_size:
+                    self.load_end = 0
                 self.load_start = self.load_end
                 self.load_end += self.load_len
 
@@ -205,7 +205,7 @@ class PartialH5Dataset(torch_data.Dataset):
                         dset = self.__getattribute__(d)
                         new_top = new[: len(self.used_indices)]
                         lnew = len(new_top)
-                        dset[self.used_indices][:lnew] = new_top
+                        dset[self.used_indices[:lnew]] = new_top
                         self.__setattr__(d, dset)
                         self.__setattr__("hold" + d, new[lnew:])
                     # give up lock / notify convert thread
@@ -240,8 +240,14 @@ class PartialH5DataLoaderIter(object):
         self.comm = self.dataset.comm
         rand_samp_list = torch.randperm(self.dataset.load_initial).tolist()
 
-        # todo: support other samplers: for now its only random!!!
-        if isinstance(self.dataset, PartialH5Dataset) and self.dataset.partial_dataset:
+        if not isinstance(self.dataset, PartialH5Dataset):
+            raise TypeError(
+                f"PartialH5DataLoaderIter is to be used with the PartialH5Dataset, "
+                f"not {type(self.dataset)}"
+            )
+
+        # todo: support other samplers: for now its only random
+        if self.dataset.partial_dataset:
             self.ready_batches = []
             mod_batch = self.dataset.load_len % self.batch_size
             if mod_batch != 0:
@@ -255,7 +261,7 @@ class PartialH5DataLoaderIter(object):
             # start the conversion
             self.dataset.convert_queue.put((self.__thread_convert_all, index_list))
 
-            self.length = len(index_list) // self.batch_size - 1
+            self.length = len(index_list) // self.batch_size
             if not self._drop_last and len(index_list) % self.batch_size != 0:
                 # todo: implement drop last
                 self.length += 1
@@ -296,23 +302,8 @@ class PartialH5DataLoaderIter(object):
     def __next__(self):
         # shamelessly taken from torch
         data = self._next_data()
-        self._num_yielded += 1
-        if (
-            self._dataset_kind == torch_data.dataloader._DatasetKind.Iterable
-            and self._IterableDataset_len_called is not None
-            and self._num_yielded > self._IterableDataset_len_called
-        ):
-            warn_msg = (
-                "Length of IterableDataset {} was reported to be {} (when accessing len(dataloader)), but {} "
-                "samples have been fetched. "
-            ).format(self._dataset, self._IterableDataset_len_called, self._num_yielded)
-            if self._num_workers > 0:
-                warn_msg += (
-                    "For multiprocessing data-loading, this could be caused by not properly configuring the "
-                    "IterableDataset replica at each worker. Please see "
-                    "https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset for examples."
-                )
-            warnings.warn(warn_msg)
+        # note: the warnings raised by torch for iterable datasets were removed here, look for these in
+        #       the base class of the single process iterator
         return data
 
     def __iter__(self):
@@ -328,11 +319,15 @@ class PartialH5DataLoaderIter(object):
 
         for ind in index_list:
             # get the desired image/target/... to begin composing a batch
-            single_item = list(self.dataset[ind])
-            for ii in range(len(single_item)):
-                # do transforms (have all torch stuff here)
-                if self.dataset.transforms[ii] is not None:
-                    single_item[ii] = self.dataset.transforms[ii](single_item[ii])
+            single_item = self.dataset[ind]
+            if not isinstance(single_item, tuple) and self.dataset.transforms[0] is not None:
+                single_item = self.dataset.transforms[0](single_item)
+            if isinstance(single_item, tuple):
+                single_item = list(single_item)
+                for ii in range(len(single_item)):
+                    # do transforms (have all torch stuff here)
+                    if self.dataset.transforms[ii] is not None:
+                        single_item[ii] = self.dataset.transforms[ii](single_item[ii])
             converted_items.append(single_item)
             self.dataset.used_indices.append(ind)
             if len(converted_items) == self.batch_size:

@@ -42,7 +42,7 @@ class DataLoader:
         worker_init_fn : callable, optional
             If not ``None``, this will be called on each worker subprocess with the worker id
             (an int in ``[0, num_workers - 1]``) as input, after seeding and before data loading. (default: ``None``)
-        local_dataset : torch.Dataset, optional
+        dataset : torch.Dataset, partial_dataset.PartialH5Dataset, optional
             A torch dataset from which the data will be returned by the created iterator
         transform : Callable, optional
             Transform to be given to ``Dataset`` :class:`Dataset` creation if a Dataset is created
@@ -63,7 +63,7 @@ class DataLoader:
     def __init__(
         self,
         data=None,
-        local_dataset: Union[torch_data.Dataset, partial_dataset.PartialDataset] = None,
+        dataset: Union[torch_data.Dataset, partial_dataset.PartialH5Dataset] = None,
         batch_size: int = 1,
         num_workers: int = 0,
         collate_fn: Callable = None,
@@ -73,10 +73,10 @@ class DataLoader:
         worker_init_fn: Callable = None,
         transforms: Union[List, Callable] = None,
     ):
-        if isinstance(data, DNDarray) and local_dataset is not None:
+        if isinstance(data, DNDarray) and dataset is not None:
             self.dataset = Dataset(array=data, transforms=transforms)
-        elif local_dataset:
-            self.dataset = local_dataset
+        elif dataset:
+            self.dataset = dataset
         else:
             raise TypeError(
                 f"data must be a DNDarray or lcl_dataset must be given, data is currently: {type(data)}"
