@@ -117,7 +117,7 @@ def main():
     return main_worker(args)
 
 
-class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
+class ImagenetDataset(ht.utils.data.partial_dataset.PartialH5Dataset):
     def __init__(self, file, transforms=None, validate_set=False):
         names = ["images", "metadata"]
         """

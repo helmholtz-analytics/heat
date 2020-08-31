@@ -82,7 +82,7 @@ class DataLoader:
                 f"data must be a DNDarray or lcl_dataset must be given, data is currently: {type(data)}"
             )
         self.ishuffle = self.dataset.ishuffle
-        if isinstance(self.dataset, partial_dataset.PartialDataset):
+        if isinstance(self.dataset, partial_dataset.PartialH5Dataset):
             drop_last = True
 
         self.DataLoader = torch_data.DataLoader(
@@ -101,12 +101,20 @@ class DataLoader:
         self.last_epoch = False
 
     def __iter__(self) -> Iterator:
-        # a new iterator is created at the top of each epoch
-        if not self.dataset.partial_dataset:
+        if isinstance(self.dataset, partial_dataset.PartialH5Dataset):
+            return partial_dataset.PartialH5DataLoaderIter(self)
+        try:
+            # if it is a normal dataset then this would be defined
             self._full_dataset_shuffle_iter()
             return self.DataLoader.__iter__()
-        # if it is a partial dataset:
-        return partial_dataset.LoadingDataLoaderIter(self)
+        except AttributeError():
+            if isinstance(self.dataset, torch_data.Dataset):
+                return self.DataLoader.__iter__()
+            else:
+                raise TypeError(
+                    f"Dataset must be either a torch or heat dataset, "
+                    f"currently is {type(self.dataset)}"
+                )
 
     def __len__(self) -> int:
         return len(self.DataLoader)
@@ -189,7 +197,6 @@ class Dataset(torch_data.Dataset):
         ishuffle: Optional[bool] = False,
         test_set: Optional[bool] = False,
     ):
-        self.partial_dataset = False
         self.htdata = array
         self.comm = array.comm
         self.test_set = test_set

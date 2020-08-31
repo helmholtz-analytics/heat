@@ -106,9 +106,8 @@ class PartialDataset(torch_data.Dataset):
                 raise ValueError(f"all datasets in {file} must be the same length")
         self.length = sz
         # print("lcl_full_sz original", sz //comm.size)
-        self.lcl_full_sz = (
-            3000
-        )  # sz // comm.size  # how many indices will go onto each process (len)
+        self.lcl_full_sz = 3000
+        # sz // comm.size  # how many indices will go onto each process (len)
         # self.lcl_full_sz = 100000
         # load data that is half of of the available memory
         self.local_data_start = comm.rank * self.lcl_full_sz
@@ -281,7 +280,6 @@ class PartialDataset(torch_data.Dataset):
                 else:
                     nxt = np.concatenate((nxt, nxt2), axis=0)
                     del nxt2
-                # print("wraping")
             self.__setattr__("next_" + d, nxt)
             del nxt
         self.next_group_ready = True
