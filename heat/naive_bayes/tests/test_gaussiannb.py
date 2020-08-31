@@ -24,16 +24,12 @@ class TestGaussianNB(TestCase):
 
     def test_fit_iris(self):
         # load sklearn train/test sets and resulting probabilities
-        X_train = ht.load("heat/utils/data/datasets/iris_X_train.csv", sep=";", dtype=ht.float64)
-        X_test = ht.load("heat/utils/data/datasets/iris_X_test.csv", sep=";", dtype=ht.float64)
-        y_train = ht.load(
-            "heat/utils/data/datasets/iris_y_train.csv", sep=";", dtype=ht.int64
-        ).squeeze()
-        y_test = ht.load(
-            "heat/utils/data/datasets/iris_y_test.csv", sep=";", dtype=ht.int64
-        ).squeeze()
+        X_train = ht.load("heat/datasets/iris_X_train.csv", sep=";", dtype=ht.float64)
+        X_test = ht.load("heat/datasets/iris_X_test.csv", sep=";", dtype=ht.float64)
+        y_train = ht.load("heat/datasets/iris_y_train.csv", sep=";", dtype=ht.int64).squeeze()
+        y_test = ht.load("heat/datasets/iris_y_test.csv", sep=";", dtype=ht.int64).squeeze()
         y_pred_proba_sklearn = ht.load(
-            "heat/utils/data/datasets/iris_y_pred_proba.csv", sep=";", dtype=ht.float64
+            "heat/datasets/iris_y_pred_proba.csv", sep=";", dtype=ht.float64
         )
 
         # test ht.GaussianNB

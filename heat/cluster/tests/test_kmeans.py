@@ -77,7 +77,7 @@ class TestKMeans(TestCase):
     def test_fit_iris_unsplit(self):
         for split in [None, 0]:
             # get some test data
-            iris = ht.load("heat/utils/data/datasets/iris.csv", sep=";", split=split)
+            iris = ht.load("heat/datasets/iris.csv", sep=";", split=split)
 
             # fit the clusters
             k = 3
@@ -97,7 +97,7 @@ class TestKMeans(TestCase):
 
     def test_exceptions(self):
         # get some test data
-        iris_split = ht.load("heat/utils/data/datasets/iris.csv", sep=";", split=1)
+        iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=1)
 
         # build a clusterer
         k = 3

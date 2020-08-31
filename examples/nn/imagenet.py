@@ -1,6 +1,5 @@
 import argparse
 import base64
-import os
 import random
 import shutil
 import sys
@@ -90,7 +89,7 @@ parser.add_argument(
 parser.add_argument("--seed", default=None, type=int, help="seed for initializing training. ")
 # todo: what to rename the following??
 parser.add_argument(
-    "--multiprocessing-distributed",
+    "--checkpointing",
     action="store_true",
     help="Use multi-processing distributed training to launch "
     "N processes per node, which has N GPUs. This is the "
@@ -115,11 +114,10 @@ def main():
             "from checkpoints."
         )
 
-    ngpus_per_node = 1
-    main_worker(ngpus_per_node, args)
+    return main_worker(args)
 
 
-class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
+class ImagenetDataset(ht.utils.data.partial_dataset.PartialH5Dataset):
     def __init__(self, file, transforms=None, validate_set=False):
         names = ["images", "metadata"]
         """
@@ -145,12 +143,7 @@ class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
                     3. "image/class/text"
         """
         super(ImagenetDataset, self).__init__(
-            file,
-            dataset_names=names,
-            transforms=transforms,
-            np_buffer=True,
-            np_buffer_dataset_names=names[0],
-            validate_set=validate_set,
+            file, dataset_names=names, transforms=transforms, validate_set=validate_set
         )
 
     def __getitem__(self, index):
@@ -163,22 +156,23 @@ class ImagenetDataset(ht.utils.data.partial_dataset.PartialDataset):
         return img, target
 
 
-def main_worker(ngpus_per_node, args):
+def main_worker(args):
     global best_acc1
 
-    # create model
-    # use pretrained?
+    # create model:
     if args.pretrained:
-        print("=> using pre-trained model '{}'".format(args.arch))
+        # use pretrained?
+        print(f"=> using pre-trained model '{args.arch}'")
         model = models.__dict__[args.arch](pretrained=True)
     else:
-        print("=> creating model '{}'".format(args.arch))
+        print(f"=> creating model '{args.arch}'")
         model = models.__dict__[args.arch]()
 
     if not torch.cuda.is_available():
         print("using CPU, this will be slow")
         criterion = torch.nn.CrossEntropyLoss()
     else:
+        # if cuda is available, then use the GPUs which are there
         dev_id = ht.MPI_WORLD.rank % torch.cuda.device_count()
         torch.cuda.set_device(ht.MPI_WORLD.rank % torch.cuda.device_count())
         model.cuda(device=torch.device("cuda:" + str(dev_id)))
@@ -187,12 +181,13 @@ def main_worker(ngpus_per_node, args):
     optimizer = torch.optim.SGD(
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
-    dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer)
-    dp_optimizer.blocking_parameter_updates = False
 
-    # create DP model:
-    model = ht.nn.DataParallel(model, ht.MPI_WORLD, dp_optimizer, blocking_parameter_updates=False)
-    model.blocking_parameter_updates = True
+    # create DP optimizer and model:
+    blocking = False  # choose blocking or non-blocking parameter updates
+    dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
+    model = ht.nn.DataParallel(
+        model, ht.MPI_WORLD, dp_optimizer, blocking_parameter_updates=blocking
+    )
 
     # Data loading code
     train_file = "/p/project/haf/data/imagenet_merged.h5"
@@ -209,7 +204,7 @@ def main_worker(ngpus_per_node, args):
     )
     train_dataset = ImagenetDataset(train_file, transforms=[train_img_transform, None])
     train_loader = ht.utils.data.datatools.DataLoader(
-        lcl_dataset=train_dataset, batch_size=args.batch_size, pin_memory=True
+        lcl_dataset=train_dataset, batch_size=args.batch_size, pin_memory=False
     )
 
     val_img_transforms = transforms.Compose(
@@ -231,15 +226,12 @@ def main_worker(ngpus_per_node, args):
     if args.evaluate:
         validate(val_loader, model, criterion, args)
         return
-    ttime0 = time.perf_counter()
-    images = len(train_dataset)
-    times = []
+
     for epoch in range(args.start_epoch, args.epochs):
         adjust_learning_rate(dp_optimizer, epoch, args)
 
         # train for one epoch
-        train_time = train(train_loader, model, criterion, dp_optimizer, epoch, args)
-        times.append(train_time)
+        train(train_loader, model, criterion, dp_optimizer, epoch, args)
         # evaluate on validation set
         acc1 = validate(val_loader, model, criterion, args)
 
@@ -247,9 +239,7 @@ def main_worker(ngpus_per_node, args):
         is_best = acc1 > best_acc1
         best_acc1 = max(acc1, best_acc1)
 
-        if not args.multiprocessing_distributed or (
-            args.multiprocessing_distributed and args.rank % ngpus_per_node == 0
-        ):
+        if args.checkpointing:
             save_checkpoint(
                 {
                     "epoch": epoch + 1,
@@ -260,9 +250,7 @@ def main_worker(ngpus_per_node, args):
                 },
                 is_best,
             )
-        torch.cuda.empty_cache()
-    total_time = time.perf_counter() - ttime0
-    print("time", total_time, "img/s best + worst", images / min(times), images / max(times))
+    return (len(train_dataset) + len(val_dataset)) * (args.epochs - args.start_epoch)
 
 
 def train(train_loader, model, criterion, dp_optimizer, epoch, args):
@@ -272,16 +260,13 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
     top1 = AverageMeter("Acc@1", ":6.2f")
     top5 = AverageMeter("Acc@5", ":6.2f")
     progress = ProgressMeter(
-        len(train_loader),
-        [batch_time, data_time, losses, top1, top5],
-        prefix="Epoch: [{}]".format(epoch),
+        len(train_loader), [batch_time, data_time, losses, top1, top5], prefix=f"Epoch: [{epoch}]"
     )
 
     # switch to train mode
     model.train()
 
     end = time.time()
-    st = end
     for i, (images, target) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
@@ -307,7 +292,6 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
 
         if i % args.print_freq == 0:
             progress.display(i)
-    return time.time() - st
 
 
 def validate(val_loader, model, criterion, args):
@@ -418,4 +402,9 @@ def accuracy(output, target, topk=(1,)):
 
 
 if __name__ == "__main__":
-    main()
+    time0 = time.perf_counter()
+    total_images = main()
+    total_time = time.perf_counter() - time0
+    ipspr = total_images / total_time
+    ipst = ht.MPI_WORLD.allreduce(ipspr, ht.MPI.SUM)
+    print(f"Total time {total_time}, images/sec/process: {ipspr}, Total images/sec: {ipst}")

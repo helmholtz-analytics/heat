@@ -1,6 +1,5 @@
 import torch
 
-from PIL import Image
 from torchvision import datasets
 from typing import Callable, Union
 
@@ -19,21 +18,24 @@ class MNISTDataset(datasets.MNIST):
     Parameters
     ----------
     root : str
-        directory containing the MNIST dataset
+        Directory containing the MNIST dataset
     train : bool, optional
-        if the data is the training dataset or not, default is True
+        If the data is the training dataset or not, default is True
     transform : Callable, optional
-        transform to be applied to the data dataset in the ``__getitem__`` function, default is None
+        Transform to be applied to the data dataset in the ``__getitem__`` function, default is ``None``
     target_transform : Callable, optional
-        transform to be applied to the target dataset in the ``__getitem__`` function, default is None
+        Transform to be applied to the target dataset in the ``__getitem__`` function, default is ``None``
     download : bool, optional
-        if the data does not exist in the directory, download it if True (default)
+        If the data does not exist in the directory, download it if True (default)
     split : int, optional
-        on which access to split the data when it is loaded into a DNDarray
-    ishuffle : bool (optional)
-        flag indicating whether to use non-blocking communications for shuffling the data between epochs
+        On which access to split the data when it is loaded into a ``DNDarray``
+    ishuffle : bool, optional
+        Flag indicating whether to use non-blocking communications for shuffling the data between epochs
         Note: if True, the ``Ishuffle()`` function must be defined within the class
-        Default: False
+        Default: ``False``
+    test_set : bool, optional
+        If this dataset is the testing set then keep all of the data local
+        Default: ``False``
 
     Attributes
     ----------
@@ -53,6 +55,8 @@ class MNISTDataset(datasets.MNIST):
         the local targets on a process
     ishuffle : bool
         flag indicating if non-blocking communications are used for shuffling the data between epochs
+    test_set : bool
+        if this dataset is the testing set then keep all of the data local
 
     For other attributes see :class:`torchvision.datasets.MNIST`.
     """
@@ -66,6 +70,7 @@ class MNISTDataset(datasets.MNIST):
         download: bool = True,
         split: int = 0,
         ishuffle: bool = False,
+        test_set: bool = False,
     ):
         super().__init__(
             root,
@@ -76,8 +81,10 @@ class MNISTDataset(datasets.MNIST):
         )
         if split != 0 and split is not None:
             raise ValueError("split must be 0 or None")
+        split = split if not test_set else None
         array = factories.array(self.data, split=split)
         targets = factories.array(self.targets, split=split)
+        self.test_set = test_set
         self.partial_dataset = False
         self.comm = array.comm
         self.htdata = array
@@ -94,41 +101,17 @@ class MNISTDataset(datasets.MNIST):
             self._cut_slice = None
             self.lcl_half = array.gshape[0] // 2
             self.data = array._DNDarray__array
-
             self.targets = targets._DNDarray__array
-
-    # def __getitem__(self, index):
-    #     """
-    #     Args:
-    #         index (int): Index
-    #
-    #     Returns:
-    #         tuple: (image, target) where target is index of the target class.
-    #     """
-    #     print(index)
-    #     img, target = self.data[index], int(self.targets[index])
-    #
-    #     # doing this so that it is consistent with all other datasets
-    #     # to return a PIL Image
-    #     img = Image.fromarray(img.numpy(), mode='L')
-    #
-    #     if self.transform is not None:
-    #         img = self.transform(img)
-    #
-    #     if self.target_transform is not None:
-    #         target = self.target_transform(target)
-    #
-    #     return img, target
+        # getitem and len are defined by torch's MNIST class
 
     def Shuffle(self):
-        """
-        Blocking shuffle to send half of the local data to the next process in a ring (``self.comm.rank + 1`` or ``0``)
-        """
-        datatools.dataset_shuffle(
-            dataset=self, attrs=[["htdata", "data"], ["httargets", "targets"]]
-        )
+        if not self.test_set:
+            datatools.dataset_shuffle(
+                dataset=self, attrs=[["data", "htdata"], ["targets", "httargets"]]
+            )
 
     def Ishuffle(self):
-        datatools.dataset_ishuffle(
-            dataset=self, attrs=[["htdata", "data"], ["httargets", "targets"]]
-        )
+        if not self.test_set:
+            datatools.dataset_ishuffle(
+                dataset=self, attrs=[["data", "htdata"], ["targets", "httargets"]]
+            )

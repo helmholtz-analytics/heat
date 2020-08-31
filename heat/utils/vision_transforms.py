@@ -1,8 +1,4 @@
-# import base64
-# import torch
 import torchvision.transforms
-
-# __all__ = ["ImagenetStringToTensorReshape"]
 
 
 def __getattr__(name):

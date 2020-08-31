@@ -11,10 +11,7 @@ from heat.optim.lr_scheduler import StepLR
 from heat.utils import vision_transforms
 from heat.utils.data.mnist import MNISTDataset
 
-import time
-
 """
-
 This file is an example script for how to use the HeAT DataParallel class to train a network on the MNIST dataset.
 To run this file execute:
 mpirun -np N python mnist.py
@@ -58,15 +55,10 @@ def train(args, model, device, train_loader, optimizer, epoch):
         loss.backward()
         optimizer.step()
         if batch_idx % args.log_interval == 0:
-            # print(
-            #     "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
-            #         epoch,
-            #         batch_idx * len(data),
-            #         len(train_loader.dataset),
-            #         100.0 * batch_idx / len(train_loader),
-            #         loss.item(),
-            #     )
-            # )
+            print(
+                f"Train Epoch: {epoch} [{batch_idx * len(data)}/{len(train_loader.dataset)} "
+                f"({100.0 * batch_idx / len(train_loader):.0f}%)]\tLoss: {loss.item():.6f}"
+            )
             if args.dry_run:
                 break
 
@@ -84,9 +76,8 @@ def test(model, device, test_loader):
             correct += pred.eq(target.view_as(pred)).sum().item()
     test_loss /= len(test_loader.dataset)
     print(
-        "\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n".format(
-            test_loss, correct, len(test_loader.dataset), 100.0 * correct / len(test_loader.dataset)
-        )
+        f"\nTest set: Average loss: {test_loss:.4f}, Accuracy: {correct}/{len(test_loader.dataset)}"
+        f" ({100.0 * correct / len(test_loader.dataset):.0f}%)\n"
     )
 
 
@@ -155,20 +146,30 @@ def main():
         "../../heat/utils/data/datasets", train=True, transform=transform, ishuffle=False
     )
     dataset2 = MNISTDataset(
-        "../../heat/utils/data/datasets", train=False, transform=transform, ishuffle=False
+        "../../heat/utils/data/datasets",
+        train=False,
+        transform=transform,
+        ishuffle=False,
+        test_set=True,
     )
 
-    train_loader = ht.utils.data.datatools.DataLoader(dataset1.data, lcl_dataset=dataset1, **kwargs)
-    test_loader = ht.utils.data.datatools.DataLoader(dataset2.data, lcl_dataset=dataset2, **kwargs)
-    tmodel = Net().to(device)
-    optimizer = optim.Adadelta(tmodel.parameters(), lr=args.lr)
+    train_loader = ht.utils.data.datatools.DataLoader(
+        dataset1.data, local_dataset=dataset1, **kwargs
+    )
+    test_loader = ht.utils.data.datatools.DataLoader(
+        dataset2.data, local_dataset=dataset2, **kwargs
+    )
+    model = Net().to(device)
+    optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
     dp_optim = ht.optim.DataParallelOptimizer(optimizer)
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
-    model = ht.nn.DataParallel(tmodel, comm=dataset1.comm, optimizer=dp_optim)
+    dp_model = ht.nn.DataParallel(
+        model, comm=dataset1.comm, optimizer=dp_optim, blocking_parameter_updates=False
+    )
 
     for epoch in range(1, args.epochs + 1):
-        train(args, model, device, train_loader, optimizer, epoch)
-        test(model, device, test_loader)
+        train(args, dp_model, device, train_loader, dp_optim, epoch)
+        test(dp_model, device, test_loader)
         scheduler.step()
         if epoch + 1 == args.epochs:
             train_loader.last_epoch = True
