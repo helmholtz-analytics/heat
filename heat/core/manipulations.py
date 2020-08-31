@@ -2580,12 +2580,16 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         if dim == a.split:
             offset, _, _ = a.comm.chunk(shape, a.split)
             indices = indices.clone()
-            indices += torch.tensor(offset * a.comm.rank, dtype=indices.dtype)
+            indices += torch.tensor(
+                offset * a.comm.rank, dtype=indices.dtype, device=indices.device
+            )
 
         local_shape = list(result.shape)
         local_shape_len = len(shape)
 
-        metadata = torch.tensor([k, dim, largest, sorted, local_shape_len, *local_shape])
+        metadata = torch.tensor(
+            [k, dim, largest, sorted, local_shape_len, *local_shape], device=indices.device
+        )
         send_buffer = torch.cat(
             (metadata.double(), result.double().flatten(), indices.flatten().double())
         )

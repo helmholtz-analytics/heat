@@ -66,7 +66,7 @@ Tagged releases are made available on the
 [Python Package Index (PyPI)](https://pypi.org/project/heat/). You can typically
 install the latest version with
 
-> $ pip install heat[hdf5, netcdf]
+> $ pip install heat[hdf5,netcdf]
 
 where the part in brackets is a list of optional dependencies. You can omit
 it, if you do not need HDF5 or NetCDF support.
@@ -80,7 +80,7 @@ If you want to work with the development version, you can check out the sources 
 
 The installation can then be done from the checked-out sources with
 
-> $ pip install .[hdf5, netcdf, dev]
+> $ pip install .[hdf5,netcdf,dev]
 
 We welcome contributions from the community, please check out our [Contribution Guidelines](contributing.md) before getting started!
 
