@@ -240,11 +240,11 @@ class PartialH5DataLoaderIter(object):
         self.comm = self.dataset.comm
         rand_samp_list = torch.randperm(self.dataset.load_initial).tolist()
 
-        if not isinstance(self.dataset, PartialH5Dataset):
-            raise TypeError(
-                f"PartialH5DataLoaderIter is to be used with the PartialH5Dataset, "
-                f"not {type(self.dataset)}"
-            )
+        # if not isinstance(self.dataset, PartialH5Dataset):
+        #     raise TypeError(
+        #         f"PartialH5DataLoaderIter is to be used with the PartialH5Dataset, "
+        #         f"not {type(self.dataset)}"
+        #     )
 
         # todo: support other samplers: for now its only random
         if self.dataset.partial_dataset:
@@ -302,6 +302,7 @@ class PartialH5DataLoaderIter(object):
     def __next__(self):
         # shamelessly taken from torch
         data = self._next_data()
+        self._num_yielded += 1
         # note: the warnings raised by torch for iterable datasets were removed here, look for these in
         #       the base class of the single process iterator
         return data
