@@ -53,7 +53,7 @@ class TestDataParallel(unittest.TestCase):
 
         labels = torch.randn(10, device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
-        dataset = ht.utils.data.datatools.Dataset(data)
+        dataset = ht.utils.data.datatools.Dataset(data, ishuffle=False)
         dataloader = ht.utils.data.datatools.DataLoader(dataset=dataset, batch_size=2)
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=True
@@ -84,11 +84,14 @@ class TestDataParallel(unittest.TestCase):
 
         labels = torch.randn(10, device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
-        dataset = ht.utils.data.datatools.Dataset(data)
+        dataset = ht.utils.data.datatools.Dataset(data, ishuffle=True)
         dataloader = ht.utils.data.datatools.DataLoader(dataset=dataset, batch_size=2)
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=False
         )
+
+        with self.assertRaises(TypeError):
+            ht.nn.DataParallel(model, data.comm, "asdf")
 
         loss_fn = torch.nn.MSELoss()
         for _ in range(2):

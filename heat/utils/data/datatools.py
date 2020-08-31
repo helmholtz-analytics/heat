@@ -73,7 +73,7 @@ class DataLoader:
         worker_init_fn: Callable = None,
         transforms: Union[List, Callable] = None,
     ):
-        if isinstance(data, DNDarray) and dataset is not None:
+        if isinstance(data, DNDarray) and dataset is None:
             self.dataset = Dataset(array=data, transforms=transforms)
         elif dataset:
             self.dataset = dataset
