@@ -229,7 +229,7 @@ def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
         "image/object/bbox/label",
     ]
 
-    train_lcl_file["metadata"].attrs["column_names"] = [feature_list[l] for l in img_list]
-    train_lcl_file["file_info"].attrs["column_names"] = [feature_list[l] for l in file_list]
-    val_lcl_file["metadata"].attrs["column_names"] = [feature_list[l] for l in img_list]
-    val_lcl_file["file_info"].attrs["column_names"] = [feature_list[l] for l in file_list]
+    train_lcl_file["metadata"].attrs["column_names"] = [feature_list[im] for im in img_list]
+    train_lcl_file["file_info"].attrs["column_names"] = [feature_list[im] for im in file_list]
+    val_lcl_file["metadata"].attrs["column_names"] = [feature_list[im] for im in img_list]
+    val_lcl_file["file_info"].attrs["column_names"] = [feature_list[im] for im in file_list]
