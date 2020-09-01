@@ -20,6 +20,7 @@ __all__ = [
     "logspace",
     "ones",
     "ones_like",
+    "repeat",
     "zeros",
     "zeros_like",
 ]
@@ -946,6 +947,80 @@ def ones_like(a, dtype=None, split=None, device=None, comm=None, order="C"):
             [1., 1., 1.]])
     """
     return __factory_like(a, dtype, split, ones, device, comm, order=order)
+
+
+def repeat(a, repeats, axis=None):
+    """
+    Creates a new array by repeating elements of array a.
+
+    Parameters
+    ----------
+    a : array_like (i.e. int, float, tuple, list, ht.DNDarray)
+        Array containing the particular elements to be repeated.
+    repeats : int or array of ints
+        The number of repetitions for each element, repeats is broadcasted to fit the shape of the given axis.
+    axis: int, optional
+        The axis along which to repeat values. By default, use the flattened input array and return a flat output
+        array.
+
+
+    Returns
+    -------
+    repeated_array : ht.DNDarray
+        Output array which has the same shape as a, except along the given axis.
+
+    Examples
+    --------
+    >>> ht.repeat(3, 4)
+    tensor([3, 3, 3, 3])
+
+    >>> x = ht.array([[1,2],[3,4]])
+    >>> ht.repeat(x, 2)
+    tensor([1, 1, 2, 2, 3, 3, 4, 4])
+
+    >>> ht.repeat(x, [1,2], axis=0)
+    tensor([[1, 2],
+            [3, 4],
+            [3, 4]])
+    """
+    if axis is not None and not isinstance(axis, int):
+        raise TypeError("axis must be an integer or None, currently: {}".format(type(axis)))
+
+    if not isinstance(a, dndarray.DNDarray):
+        if isinstance(a, (int, float)):
+            a = array([a])
+        elif isinstance(a, (tuple, list)):
+            a = array(a)
+        else:
+            raise TypeError(
+                "a must be a ht.DNDarray, list, tuple, integer, or float, currently: {}".format(
+                    type(a)
+                )
+            )
+
+    if isinstance(repeats, dndarray.DNDarray):  # TODO check dtype of elements inside
+        repeated_array_torch = torch.repeat_interleave(
+            a._DNDarray__array, repeats._DNDarray__array, axis
+        )
+    elif isinstance(repeats, int):
+        repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
+    elif isinstance(repeats, (list, tuple)):  # Todo check dtype of elements inside
+        repeated_array_torch = torch.repeat_interleave(
+            a._DNDarray__array, torch.tensor(repeats), axis
+        )
+    else:
+        raise TypeError(
+            "repeats must be a ht.DNDarray, integer or sequence of integers, currently: {}".format(
+                type(repeats)
+            )
+        )
+
+    repeated_array = array(
+        repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+    )
+    repeated_array.balance_()
+
+    return repeated_array
 
 
 def zeros(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
