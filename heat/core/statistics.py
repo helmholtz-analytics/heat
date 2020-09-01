@@ -687,10 +687,10 @@ def maximum(x1, x2, out=None):
         t_result, dtype=types.canonical_heat_type(t_dtype), is_split=split, comm=comm
     )
     if out is not None:
-        if out.dtype != result.dtype:
-            raise TypeError("Expecting output buffer {}, got {}".format(result.dtype, out.dtype))
+        out_dtype = out.dtype
         out._DNDarray__array = result._DNDarray__array
         out._DNDarray__comm = comm
+        out = out.astype(out_dtype)
         return out
     return result
 
@@ -1100,10 +1100,10 @@ def minimum(x1, x2, out=None):
         t_result, dtype=types.canonical_heat_type(t_dtype), is_split=split, comm=comm
     )
     if out is not None:
-        if out.dtype != result.dtype:
-            raise TypeError("Expecting output buffer {}, got {}".format(result.dtype, out.dtype))
+        out_dtype = out.dtype
         out._DNDarray__array = result._DNDarray__array
         out._DNDarray__comm = comm
+        out = out.astype(out_dtype)
         return out
     return result
 
