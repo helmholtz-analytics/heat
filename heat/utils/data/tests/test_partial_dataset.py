@@ -19,7 +19,7 @@ class TestPartialDataset(unittest.TestCase):
                 return self.data[item]
 
         partial_dset = TestDataset("heat/datasets/iris.h5", full_data.comm, 30, 20)
-        dl = ht.utils.data.DataLoader(dataset=partial_dset, batch_size=6)
+        dl = ht.utils.data.DataLoader(dataset=partial_dset, batch_size=7)
         first_epoch = None
         second_epoch = None
         for epoch in range(2):
@@ -29,7 +29,7 @@ class TestPartialDataset(unittest.TestCase):
                 elems += batch.shape[0]
                 if last_batch is not None:
                     self.assertFalse(torch.allclose(last_batch, batch))
-                self.assertEqual(batch.shape, (6, 4))
+                self.assertEqual(batch.shape, (7, 4))
                 last_batch = batch
                 if epoch == 0:
                     if first_epoch is None:
@@ -41,5 +41,5 @@ class TestPartialDataset(unittest.TestCase):
                         second_epoch = batch
                     else:
                         second_epoch = torch.cat((second_epoch, batch), dim=0)
-            self.assertTrue(elems >= target_shape[0] / full_data.comm.size)
+            self.assertTrue(elems >= (target_shape[0] - 7) / full_data.comm.size)
         self.assertFalse(torch.allclose(first_epoch, second_epoch))

@@ -5,7 +5,7 @@ from typing import Callable, List, Iterator, Union, Optional
 from ...core.dndarray import DNDarray
 from . import partial_dataset
 
-__all__ = ["DataLoader", "Dataset", "dataset_shuffle"]
+__all__ = ["DataLoader", "Dataset", "dataset_shuffle", "dataset_ishuffle"]
 
 
 class DataLoader:

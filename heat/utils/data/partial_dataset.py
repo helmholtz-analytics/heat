@@ -189,31 +189,30 @@ class PartialH5Dataset(torch_data.Dataset):
 
         self.loads_left = self.loads_needed
         ll = self.loads_left
-        with h5py.File(self.file, "r") as f:
-            for _ in range(ll):
+        for _ in range(ll):
+            with h5py.File(self.file, "r") as f:
                 for d in self.dataset_names:
                     hld = f[d][self.load_start : self.load_end]
                     self.__setattr__("hold" + d, hld)
-                if self.load_end + self.comm.size > self.total_size:
-                    self.load_end = 0
-                self.load_start = self.load_end
-                self.load_end += self.load_len
+            if self.load_end + self.comm.size > self.total_size:
+                self.load_end = 0
+            self.load_start = self.load_end
+            self.load_end += self.load_len
 
-                # wait for lock1 *from* convert thread
-                with self.loading_condition:
-                    self.loading_condition.wait()
-                    for d in self.dataset_names:
-                        new = self.__getattribute__("hold" + d)
-                        dset = self.__getattribute__(d)
-                        new_top = new[: len(self.used_indices)]
-                        lnew = len(new_top)
-                        dset[self.used_indices[:lnew]] = new_top
-                        self.__setattr__(d, dset)
-                        self.__setattr__("hold" + d, new[lnew:])
-                    # give up lock / notify convert thread
-                    self.used_indices = []
-                    self.loading_condition.notify()
-                self.loads_left -= 1
+            # wait for lock1 *from* convert thread
+            with self.loading_condition:
+                self.loading_condition.wait()
+                for d in self.dataset_names:
+                    new = self.__getattribute__("hold" + d)
+                    dset = self.__getattribute__(d)
+                    new_top = new[: len(self.used_indices)]
+                    lnew = len(new_top)
+                    dset[self.used_indices[:lnew]] = new_top
+                    self.__setattr__(d, dset)
+                    self.__setattr__("hold" + d, new[lnew:])
+                # give up lock / notify convert thread
+                self.used_indices = []
+            self.loads_left -= 1
 
 
 class PartialH5DataLoaderIter(object):
@@ -258,9 +257,6 @@ class PartialH5DataLoaderIter(object):
             self.dataset.convert_queue.put((self.__thread_convert_all, index_list))
 
             self.length = len(index_list) // self.batch_size
-            if not self._drop_last and len(index_list) % self.batch_size != 0:
-                # todo: implement drop last
-                self.length += 1
             self.dataset.loading_queue.put(self.dataset.thread_replace_converted_batches)
         else:
             self.rand_samp_list = rand_samp_list
@@ -331,7 +327,6 @@ class PartialH5DataLoaderIter(object):
                 ):
                     with self.dataset.loading_condition:
                         self.dataset.loading_condition.notify()
-                        self.dataset.loading_condition.wait()
                 batch = self._collate_fn(converted_items)
                 try:
                     for bb in range(2):
