@@ -642,6 +642,14 @@ def maximum(x1, x2, out=None):
     split2, size2, shape2, comm2 = x2.split, x2.size, x2.gshape, x2.comm
     output_gshape = stride_tricks.broadcast_shape(shape1, shape2)
 
+    # DNDarrays must be distributed along same axis
+    if split1 is not None and split2 is not None and split1 != split2:
+        raise ValueError(
+            "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
+                split1, split2
+            )
+        )
+    # Exception: split axes can differ if one of the DNDarrays is a scalar
     if split1 is not None or split2 is not None:
         if split1 is None and size1 > 1 or split2 is None and size2 > 1:
             raise ValueError(
@@ -1047,6 +1055,14 @@ def minimum(x1, x2, out=None):
     split2, size2, shape2, comm2 = x2.split, x2.size, x2.gshape, x2.comm
     output_gshape = stride_tricks.broadcast_shape(shape1, shape2)
 
+    # DNDarrays must be distributed along same axis
+    if split1 is not None and split2 is not None and split1 != split2:
+        raise ValueError(
+            "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
+                split1, split2
+            )
+        )
+    # Exception: split axes can differ if one of the DNDarrays is a scalar
     if split1 is not None or split2 is not None:
         if split1 is None and size1 > 1 or split2 is None and size2 > 1:
             raise ValueError(
