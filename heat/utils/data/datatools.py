@@ -355,7 +355,7 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
     -----
     ``dataset.comm`` must be defined for this function to work.
     """
-    setattr(dataset, "shuffle_prm", torch.randperm(dataset.htdata._DNDarray__array.shape[0]))
+    setattr(dataset, "shuffle_prm", torch.randperm(dataset.data.shape[0]))
     rcv_list = getattr(dataset, "rcv_list")
     prm = getattr(dataset, "shuffle_prm")
     for rcv in rcv_list:
