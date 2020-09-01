@@ -632,7 +632,7 @@ class TestStatistics(TestCase):
         self.assertEqual(maximum_volume.split, random_volume_1.split)
         self.assertTrue((maximum_volume.numpy() == np_maximum).all())
 
-        # check maximum against scalar
+        # check maximum against size-1 array
         random_volume_1_split_none = ht.random.randn(1, split=None, dtype=ht.float64)
         random_volume_2_splitdiff = ht.random.randn(3, 3, 4, split=1)
         maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
@@ -643,6 +643,18 @@ class TestStatistics(TestCase):
         random_volume_2_splitdiff = ht.random.randn(1, split=None)
         maximum_volume_splitdiff = ht.maximum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(maximum_volume_splitdiff.split, 0)
+
+        # check maximum against scalar
+        scalar = 5
+        random_volume_2_splitdiff = ht.random.randn(3, 3, 4, split=1)
+        maximum_volume_splitdiff = ht.maximum(scalar, random_volume_2_splitdiff)
+        self.assertEqual(maximum_volume_splitdiff.split, 1)
+        self.assertEqual(maximum_volume_splitdiff.dtype, ht.float32)
+
+        scalar = 5.0
+        maximum_volume_splitdiff = ht.maximum(random_volume_2_splitdiff, scalar)
+        self.assertEqual(maximum_volume_splitdiff.split, 1)
+        self.assertEqual(maximum_volume_splitdiff.dtype, ht.float32)
 
         # check output buffer
         out_shape = ht.stride_tricks.broadcast_shape(random_volume_1.gshape, random_volume_2.gshape)
@@ -888,7 +900,7 @@ class TestStatistics(TestCase):
         self.assertEqual(minimum_volume.split, random_volume_1.split)
         self.assertTrue((minimum_volume.numpy() == np_minimum).all())
 
-        # check minimum against scalar
+        # check minimum against size-1 array
         random_volume_1_split_none = ht.random.randn(1, split=None, dtype=ht.float64)
         random_volume_2_splitdiff = ht.random.randn(3, 3, 4, split=1)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
@@ -899,6 +911,18 @@ class TestStatistics(TestCase):
         random_volume_2_splitdiff = ht.random.randn(1, split=None)
         minimum_volume_splitdiff = ht.minimum(random_volume_1_split_none, random_volume_2_splitdiff)
         self.assertEqual(minimum_volume_splitdiff.split, 0)
+
+        # check minimum against scalar
+        scalar = 5
+        random_volume_2_splitdiff = ht.random.randn(3, 3, 4, split=1)
+        minimum_volume_splitdiff = ht.minimum(scalar, random_volume_2_splitdiff)
+        self.assertEqual(minimum_volume_splitdiff.split, 1)
+        self.assertEqual(minimum_volume_splitdiff.dtype, ht.float32)
+
+        scalar = 5.0
+        minimum_volume_splitdiff = ht.minimum(random_volume_2_splitdiff, scalar)
+        self.assertEqual(minimum_volume_splitdiff.split, 1)
+        self.assertEqual(minimum_volume_splitdiff.dtype, ht.float32)
 
         # check output buffer
         out_shape = ht.stride_tricks.broadcast_shape(random_volume_1.gshape, random_volume_2.gshape)

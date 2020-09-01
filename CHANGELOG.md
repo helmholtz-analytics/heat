@@ -49,6 +49,7 @@
 - [#664](https://github.com/helmholtz-analytics/heat/pull/664) New feature / enhancement: `random.random_sample`, `random.random`, `random.sample`, `random.ranf`, `random.random_integer`
 - [#666](https://github.com/helmholtz-analytics/heat/pull/666) New feature: distributed prepend/append for diff().
 - [#667](https://github.com/helmholtz-analytics/heat/pull/667) Enhancement `reshape`: rename axis parameter
+- [#662](https://github.com/helmholtz-analytics/heat/pull/662) Bugfixes: minimum() and maximum() split semantics, scalar input, different input dtype
 
 # v0.4.0
 
