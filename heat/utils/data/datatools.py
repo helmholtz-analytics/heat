@@ -5,7 +5,7 @@ from typing import Callable, List, Iterator, Union, Optional
 from ...core.dndarray import DNDarray
 from . import partial_dataset
 
-__all__ = ["DataLoader", "Dataset", "dataset_shuffle"]
+__all__ = ["DataLoader", "Dataset", "dataset_shuffle", "dataset_ishuffle"]
 
 
 class DataLoader:
@@ -73,7 +73,7 @@ class DataLoader:
         worker_init_fn: Callable = None,
         transforms: Union[List, Callable] = None,
     ):
-        if isinstance(data, DNDarray) and dataset is not None:
+        if isinstance(data, DNDarray) and dataset is None:
             self.dataset = Dataset(array=data, transforms=transforms)
         elif dataset:
             self.dataset = dataset
@@ -355,7 +355,7 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
     -----
     ``dataset.comm`` must be defined for this function to work.
     """
-    setattr(dataset, "shuffle_prm", torch.randperm(dataset.htdata._DNDarray__array.shape[0]))
+    setattr(dataset, "shuffle_prm", torch.randperm(dataset.data.shape[0]))
     rcv_list = getattr(dataset, "rcv_list")
     prm = getattr(dataset, "shuffle_prm")
     for rcv in rcv_list:

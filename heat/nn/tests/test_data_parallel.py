@@ -41,6 +41,21 @@ class TestDataParallel(unittest.TestCase):
                     num_features *= s
                 return num_features
 
+        class TestDataset(ht.utils.data.Dataset):
+            def __init__(self, array, ishuffle):
+                super(TestDataset, self).__init__(array, ishuffle=ishuffle)
+
+            def __getitem__(self, item):
+                return self.data[item]
+
+            def Ishuffle(self):
+                if not self.test_set:
+                    ht.utils.data.dataset_ishuffle(self, attrs=[["data", None]])
+
+            def Shuffle(self):
+                if not self.test_set:
+                    ht.utils.data.dataset_shuffle(self, attrs=[["data", None]])
+
         # create model and move it to GPU with id rank
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
@@ -53,7 +68,7 @@ class TestDataParallel(unittest.TestCase):
 
         labels = torch.randn(10, device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
-        dataset = ht.utils.data.datatools.Dataset(data)
+        dataset = TestDataset(data, ishuffle=True)
         dataloader = ht.utils.data.datatools.DataLoader(dataset=dataset, batch_size=2)
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=True
@@ -78,17 +93,16 @@ class TestDataParallel(unittest.TestCase):
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
         dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, False)
-
-        ht.random.seed(1)
-        torch.random.manual_seed(1)
-
         labels = torch.randn(10, device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
-        dataset = ht.utils.data.datatools.Dataset(data)
+        dataset = ht.utils.data.Dataset(data, ishuffle=False)
         dataloader = ht.utils.data.datatools.DataLoader(dataset=dataset, batch_size=2)
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=False
         )
+
+        with self.assertRaises(TypeError):
+            ht.nn.DataParallel(model, data.comm, "asdf")
 
         loss_fn = torch.nn.MSELoss()
         for _ in range(2):
@@ -104,3 +118,32 @@ class TestDataParallel(unittest.TestCase):
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
                     self.assertTrue(torch.all(hld_list[0] == hld_list[i]))
+
+        model = TestModel()
+        optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
+        dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, False)
+        labels = torch.randn(10, device=ht.get_device().torch_device)
+        data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
+        dataset = ht.utils.data.Dataset(data, ishuffle=True)
+        dataloader = ht.utils.data.datatools.DataLoader(dataset=dataset, batch_size=2)
+        ht_model = ht.nn.DataParallel(
+            model, data.comm, dp_optimizer, blocking_parameter_updates=False
+        )
+        for _ in range(2):
+            for data in dataloader:
+                self.assertEqual(data.shape[0], 2)
+                dp_optimizer.zero_grad()
+                ht_outputs = ht_model(data)
+                loss_fn(ht_outputs, labels).backward()
+                dp_optimizer.step()
+            for p in ht_model.parameters():
+                p0dim = p.shape[0]
+                hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
+                hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
+                for i in range(1, len(hld_list)):
+                    self.assertTrue(torch.all(hld_list[0] == hld_list[i]))
+
+        ht_model = ht.nn.DataParallel(
+            model, ht.MPI_WORLD, [dp_optimizer, dp_optimizer], blocking_parameter_updates=False
+        )
+        self.assertTrue(ht_model.blocking_parameter_updates)

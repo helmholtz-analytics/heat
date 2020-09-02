@@ -116,14 +116,16 @@ class PartialH5Dataset(torch_data.Dataset):
             self.local_data_end = sz
             self.load_initial = sz
             self.partial_dataset = False
+            self.load_len = 0
+            self.loads_needed = 0
         else:
             self.local_length = self.local_data_end - self.local_data_start
             self.load_initial = initial_load
             self.load_len = load_length  # int(local_data_end / 3)
             self.loads_needed = math.ceil(self.lcl_full_sz / self.load_len)
-            self.loads_left = self.loads_needed
             self.partial_dataset = True
 
+        self.loads_left = self.loads_needed
         self.load_start = self.local_data_start
         self.load_end = self.local_data_start + self.load_initial
 
@@ -187,31 +189,30 @@ class PartialH5Dataset(torch_data.Dataset):
 
         self.loads_left = self.loads_needed
         ll = self.loads_left
-        with h5py.File(self.file, "r") as f:
-            for _ in range(ll):
+        for _ in range(ll):
+            with h5py.File(self.file, "r") as f:
                 for d in self.dataset_names:
                     hld = f[d][self.load_start : self.load_end]
                     self.__setattr__("hold" + d, hld)
-                if self.load_end + self.comm.size > self.total_size:
-                    self.load_end = 0
-                self.load_start = self.load_end
-                self.load_end += self.load_len
+            if self.load_end + self.comm.size > self.total_size:
+                self.load_end = 0
+            self.load_start = self.load_end
+            self.load_end += self.load_len
 
-                # wait for lock1 *from* convert thread
-                with self.loading_condition:
-                    self.loading_condition.wait()
-                    for d in self.dataset_names:
-                        new = self.__getattribute__("hold" + d)
-                        dset = self.__getattribute__(d)
-                        new_top = new[: len(self.used_indices)]
-                        lnew = len(new_top)
-                        dset[self.used_indices[:lnew]] = new_top
-                        self.__setattr__(d, dset)
-                        self.__setattr__("hold" + d, new[lnew:])
-                    # give up lock / notify convert thread
-                    self.used_indices = []
-                    self.loading_condition.notify()
-                self.loads_left -= 1
+            # wait for lock1 *from* convert thread
+            with self.loading_condition:
+                self.loading_condition.wait()
+                for d in self.dataset_names:
+                    new = self.__getattribute__("hold" + d)
+                    dset = self.__getattribute__(d)
+                    new_top = new[: len(self.used_indices)]
+                    lnew = len(new_top)
+                    dset[self.used_indices[:lnew]] = new_top
+                    self.__setattr__(d, dset)
+                    self.__setattr__("hold" + d, new[lnew:])
+                # give up lock / notify convert thread
+                self.used_indices = []
+            self.loads_left -= 1
 
 
 class PartialH5DataLoaderIter(object):
@@ -240,12 +241,6 @@ class PartialH5DataLoaderIter(object):
         self.comm = self.dataset.comm
         rand_samp_list = torch.randperm(self.dataset.load_initial).tolist()
 
-        # if not isinstance(self.dataset, PartialH5Dataset):
-        #     raise TypeError(
-        #         f"PartialH5DataLoaderIter is to be used with the PartialH5Dataset, "
-        #         f"not {type(self.dataset)}"
-        #     )
-
         # todo: support other samplers: for now its only random
         if self.dataset.partial_dataset:
             self.ready_batches = []
@@ -262,13 +257,10 @@ class PartialH5DataLoaderIter(object):
             self.dataset.convert_queue.put((self.__thread_convert_all, index_list))
 
             self.length = len(index_list) // self.batch_size
-            if not self._drop_last and len(index_list) % self.batch_size != 0:
-                # todo: implement drop last
-                self.length += 1
             self.dataset.loading_queue.put(self.dataset.thread_replace_converted_batches)
         else:
             self.rand_samp_list = rand_samp_list
-            self.length = len(self._sampler_iter)
+            self.length = len(self._index_sampler)
 
         self._dataset_fetcher = torch_data.dataloader._DatasetKind.create_fetcher(
             self._dataset_kind,
@@ -314,10 +306,7 @@ class PartialH5DataLoaderIter(object):
         # convert all of the elements, collate them into batches, and send the batches to the correct device
         # this function als communicates with the data loading thread from the PartialH5Dataset to notify it
         # when it has the correct amount of data to write.
-        if isinstance(index_list, int):
-            index_list = [index_list]
         converted_items = []
-
         for ind in index_list:
             # get the desired image/target/... to begin composing a batch
             single_item = self.dataset[ind]
@@ -338,7 +327,6 @@ class PartialH5DataLoaderIter(object):
                 ):
                     with self.dataset.loading_condition:
                         self.dataset.loading_condition.notify()
-                        self.dataset.loading_condition.wait()
                 batch = self._collate_fn(converted_items)
                 try:
                     for bb in range(2):

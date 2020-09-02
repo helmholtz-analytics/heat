@@ -87,28 +87,24 @@ class DataParallel(tnn.Module):
         # raise error if no DP optimizer is given
         if not isinstance(optimizer, (list, tuple)):
             optimizer = [optimizer]
-        if len(optimizer) == 0:
-            raise ValueError("You have to pass at least one DataParallelOptimizer.")
+        for i in optimizer:
+            if not isinstance(i, optim.DataParallelOptimizer):
+                raise TypeError("optimizers must be optim.DataParallelOptimizer")
 
         # current implementation of non-blocking communication during parameter updates has some limitations that cause
         # fallback onto blocking in case of overstepping them
         if not self.blocking_parameter_updates:
-            # usage of multiple optimizers isn't supported
-            if len(optimizer) > 1:
+            # usage of multiple optimizers isn't supported nor is the
+            # usage of optimizer with parameters being unequal to model's parameters
+            if (
+                len(optimizer) > 1
+                or list(module.parameters())
+                != optimizer[0].torch_optimizer.param_groups[0]["params"]
+            ):
                 self.blocking_parameter_updates = True
                 warnings.warn(
                     "Usage of more than one DataParallelOptimizer causes fallback on blocking MPI "
                     "communication during parameter updates.",
-                    stacklevel=2,
-                )
-            # usage of optimizer with parameters being unequal to model's parameters isn't supported
-            elif (
-                list(module.parameters()) != optimizer[0].torch_optimizer.param_groups[0]["params"]
-            ):
-                self.blocking_parameter_updates = True
-                warnings.warn(
-                    "Usage of optimizer whose parameters differ from module's parameters causes fallback on blocking "
-                    "MPI communication during parameter updates.",
                     stacklevel=2,
                 )
 
