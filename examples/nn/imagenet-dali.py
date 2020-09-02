@@ -359,6 +359,12 @@ def main():
     #     # delay_allreduce delays all communication to the end of the backward pass.
     #     model = DDP(model, delay_allreduce=True)
     # todo: ht model and optimizer
+    # create DP optimizer and model:
+    blocking = False  # choose blocking or non-blocking parameter updates
+    dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
+    htmodel = ht.nn.DataParallel(
+        model, ht.MPI_WORLD, dp_optimizer, blocking_parameter_updates=blocking
+    )
 
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
@@ -374,7 +380,7 @@ def main():
                 )
                 args.start_epoch = checkpoint["epoch"]
                 # best_prec1 = checkpoint["best_prec1"]
-                model.load_state_dict(checkpoint["state_dict"])
+                htmodel.load_state_dict(checkpoint["state_dict"])
                 optimizer.load_state_dict(checkpoint["optimizer"])
                 print(
                     "=> loaded checkpoint '{}' (epoch {})".format(args.resume, checkpoint["epoch"])
@@ -427,19 +433,19 @@ def main():
     val_loader = DALIClassificationIterator(pipe, reader_name="Reader", fill_last_batch=False)
 
     if args.evaluate:
-        validate(val_loader, model, criterion)
+        validate(val_loader, htmodel, criterion)
         return
 
     total_time = AverageMeter()
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
-        avg_train_time = train(train_loader, model, criterion, optimizer, epoch)
+        avg_train_time = train(train_loader, htmodel, criterion, optimizer, epoch)
         total_time.update(avg_train_time)
         if args.test:
             break
 
         # evaluate on validation set
-        [prec1, prec5] = validate(val_loader, model, criterion)
+        [prec1, prec5] = validate(val_loader, htmodel, criterion)
 
         # remember best prec@1 and save checkpoint
         if args.local_rank == 0:
@@ -449,7 +455,7 @@ def main():
                 {
                     "epoch": epoch + 1,
                     "arch": args.arch,
-                    "state_dict": model.state_dict(),
+                    "state_dict": htmodel.state_dict(),
                     "best_prec1": best_prec1,
                     "optimizer": optimizer.state_dict(),
                 },
