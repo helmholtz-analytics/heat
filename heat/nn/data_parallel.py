@@ -272,7 +272,7 @@ class DataParallel(tnn.Module):
             # TODO: is sorting faster? or is there any difference?
             # self._layer_wait_handles[layer_name].append((grad_loc.numel(), param_name, wait_handle))
             # don't return grad_loc, otherwise gradient is doubled
-            return torch.zeros(*grad_loc.size())
+            return torch.zeros(*grad_loc.size(), device=grad_loc.device)
 
         return _hook
 
