@@ -25,8 +25,9 @@ import heat as ht
 try:
     from nvidia.dali.plugin.pytorch import DALIClassificationIterator
     from nvidia.dali.pipeline import Pipeline
+    import nvidia.dali as dali
     import nvidia.dali.ops as ops
-    import nvidia.dali.types as types
+    import nvidia.dali.tfrecord as tfrec
 except ImportError:
     raise ImportError(
         "Please install DALI from https://www.github.com/NVIDIA/DALI to run this example."
@@ -156,51 +157,80 @@ def to_python_float(t):
         return t[0]
 
 
-class HybridTrainPipe(Pipeline):
+class HybridPipe(Pipeline):
     def __init__(
         self,
         batch_size,
         num_threads,
         device_id,
         data_dir,
+        label_dir,
         crop,
         shard_id,
         num_shards,
         dali_cpu=False,
+        training=True,
     ):
-        super(HybridTrainPipe, self).__init__(
-            batch_size, num_threads, device_id, seed=12 + device_id
-        )
-        self.input = ops.FileReader(
-            file_root=data_dir,
-            shard_id=ht.MPI_WORLD.rank,  # args.local_rank,
-            num_shards=ht.MPI_WORLD.size,  # args.world_size,
-            random_shuffle=True,
-            pad_last_batch=True,
+        super(HybridPipe, self).__init__(batch_size, num_threads, device_id, seed=12 + device_id)
+        # todo: use TFRecords instead
+        # need to have the input return the images and the labels
+        # self.input = ops.FileReader(
+        #     file_root=data_dir,
+        #     shard_id=ht.MPI_WORLD.rank,  # args.local_rank,
+        #     num_shards=ht.MPI_WORLD.size,  # args.world_size,
+        #     random_shuffle=True,
+        #     pad_last_batch=True,
+        # )
+        self.input = dali.ops.TFRecordReader(
+            path=data_dir,
+            index_path=label_dir,
+            random_shuffle=True if training else False,
+            shard_id=ht.MPI_WORLD.rank,  # todo: multi GPU/node
+            num_shards=ht.MPI_WORLD.size,
+            initial_fill=10000,
+            features={
+                "image/encoded": dali.tfrecord.FixedLenFeature((), dali.tfrecord.string, ""),
+                "image/class/label": dali.tfrecord.FixedLenFeature([1], dali.tfrecord.int64, -1),
+                "image/class/text": dali.tfrecord.FixedLenFeature([], dali.tfrecord.string, ""),
+                "image/object/bbox/xmin": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
+                "image/object/bbox/ymin": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
+                "image/object/bbox/xmax": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
+                "image/object/bbox/ymax": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
+            },
         )
         # let user decide which pipeline works him bets for RN version he runs
         dali_device = "cpu" if dali_cpu else "gpu"
         decoder_device = "cpu" if dali_cpu else "mixed"
-        # This padding sets the size of the internal nvJPEG buffers to be able to handle all images from full-sized ImageNet
-        # without additional reallocations
+        # This padding sets the size of the internal nvJPEG buffers to be able to
+        # handle all images from full-sized ImageNet without additional reallocations
         device_memory_padding = 211025920 if decoder_device == "mixed" else 0
         host_memory_padding = 140544512 if decoder_device == "mixed" else 0
-        self.decode = ops.ImageDecoderRandomCrop(
-            device=decoder_device,
-            output_type=types.RGB,
-            device_memory_padding=device_memory_padding,
-            host_memory_padding=host_memory_padding,
-            random_aspect_ratio=[0.8, 1.25],
-            random_area=[0.1, 1.0],
-            num_attempts=100,
-        )
-        self.res = ops.Resize(
-            device=dali_device, resize_x=crop, resize_y=crop, interp_type=types.INTERP_TRIANGULAR
-        )
+        if training:
+            self.decode = ops.ImageDecoderRandomCrop(
+                device=decoder_device,
+                output_type=dali.types.RGB,
+                device_memory_padding=device_memory_padding,
+                host_memory_padding=host_memory_padding,
+                random_aspect_ratio=[0.75, 1.33],
+                random_area=[0.05, 1.0],
+                num_attempts=100,
+            )
+            self.res = ops.Resize(
+                device=dali_device,
+                resize_x=crop,
+                resize_y=crop,
+                interp_type=dali.types.INTERP_TRIANGULAR,
+            )
+        else:
+            self.decode = dali.ops.ImageDecoder(device="mixed", output_type=dali.types.RGB)
+            self.res = ops.Resize(
+                device="gpu", resize_shorter=crop, interp_type=dali.types.INTERP_TRIANGULAR
+            )
+        # should this be CPU or GPU? -> if prefetching then do it on CPU before sending
         self.cmnp = ops.CropMirrorNormalize(
-            device="gpu",
-            dtype=types.FLOAT,
-            output_layout=types.NCHW,
+            device="cpu" if training else "gpu",
+            dtype=dali.types.FLOAT,
+            output_layout=dali.types.NCHW,
             crop=(crop, crop),
             mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
             std=[0.229 * 255, 0.224 * 255, 0.225 * 255],
@@ -209,45 +239,49 @@ class HybridTrainPipe(Pipeline):
         print('DALI "{0}" variant'.format(dali_device))
 
     def define_graph(self):
-        rng = self.coin()
-        self.jpegs, self.labels = self.input(name="Reader")
-        images = self.decode(self.jpegs)
-        images = self.res(images)
-        output = self.cmnp(images.gpu(), mirror=rng)
-        return [output, self.labels]
+        inputs = self.input(name="Reader")
+        images = inputs["image/encoded"]
+        labels = inputs["image/class/label"].gpu() - 1
+        images = self.decode(images)
+        images = self.resize(images)
+        if self.training:
+            images = self.normalize(images.gpu(), mirror=self.coin())
+        else:
+            images = self.normalize(images.gpu())
+        return images, labels
 
 
-class HybridValPipe(Pipeline):
-    def __init__(
-        self, batch_size, num_threads, device_id, data_dir, crop, size, shard_id, num_shards
-    ):
-        super(HybridValPipe, self).__init__(batch_size, num_threads, device_id, seed=12 + device_id)
-        self.input = ops.FileReader(
-            file_root=data_dir,
-            shard_id=ht.MPI_WORLD.rank,  # args.local_rank,
-            num_shards=ht.MPI_WORLD.size,  # args.world_size,
-            random_shuffle=False,
-            pad_last_batch=True,
-        )
-        self.decode = ops.ImageDecoder(device="mixed", output_type=types.RGB)
-        self.res = ops.Resize(
-            device="gpu", resize_shorter=size, interp_type=types.INTERP_TRIANGULAR
-        )
-        self.cmnp = ops.CropMirrorNormalize(
-            device="gpu",
-            dtype=types.FLOAT,
-            output_layout=types.NCHW,
-            crop=(crop, crop),
-            mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
-            std=[0.229 * 255, 0.224 * 255, 0.225 * 255],
-        )
-
-    def define_graph(self):
-        self.jpegs, self.labels = self.input(name="Reader")
-        images = self.decode(self.jpegs)
-        images = self.res(images)
-        output = self.cmnp(images)
-        return [output, self.labels]
+# class HybridValPipe(Pipeline):
+# def __init__(
+#     self, batch_size, num_threads, device_id, data_dir, crop, size, shard_id, num_shards
+# ):
+#     super(HybridValPipe, self).__init__(batch_size, num_threads, device_id, seed=12 + device_id)
+#     self.input = ops.FileReader(
+#         file_root=data_dir,
+#         shard_id=ht.MPI_WORLD.rank,  # args.local_rank,
+#         num_shards=ht.MPI_WORLD.size,  # args.world_size,
+#         random_shuffle=False,
+#         pad_last_batch=True,
+#     )
+#     self.decode = ops.ImageDecoder(device="mixed", output_type=dali.types.RGB)
+#     self.res = ops.Resize(
+#         device="gpu", resize_shorter=size, interp_type=dali.types.INTERP_TRIANGULAR
+#     )
+#     self.cmnp = ops.CropMirrorNormalize(
+#         device="gpu",
+#         dtype=dali.types.FLOAT,
+#         output_layout=dali.types.NCHW,
+#         crop=(crop, crop),
+#         mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
+#         std=[0.229 * 255, 0.224 * 255, 0.225 * 255],
+#     )
+#
+# def define_graph(self):
+#     self.jpegs, self.labels = self.input(name="Reader")
+#     images = self.decode(self.jpegs)
+#     images = self.res(images)
+#     output = self.cmnp(images)
+#     return [output, self.labels]
 
 
 def main():
@@ -291,6 +325,11 @@ def main():
     print("loss_scale = {}".format(args.loss_scale), type(args.loss_scale))
 
     print("\nCUDNN VERSION: {}\n".format(torch.backends.cudnn.version()))
+
+    if torch.cuda.is_available():
+        dev_id = ht.MPI_WORLD.rank % torch.cuda.device_count()
+        # torch_device = torch.device("cuda:" + str(dev_id))
+        torch.cuda.set_device(dev_id)
 
     cudnn.benchmark = True
     best_prec1 = 0
@@ -398,36 +437,64 @@ def main():
         traindir = args.data[0]
         valdir = args.data[1]
 
+    tlabeldir = ""
+    vlabeldir = ""
+
     if args.arch == "inception_v3":
         raise RuntimeError("Currently, inception_v3 is not supported by this example.")
         # crop_size = 299
         # val_size = 320 # I chose this value arbitrarily, we can adjust.
     else:
-        crop_size = 224
+        crop_size = 224  # should this be 256?
         val_size = 256
 
-    pipe = HybridTrainPipe(
+    pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
         device_id=args.local_rank,
         data_dir=traindir,
+        label_dir=tlabeldir,
         crop=crop_size,
         dali_cpu=args.dali_cpu,
         shard_id=args.local_rank,
         num_shards=args.world_size,
+        training=True,
     )
+
+    # pipe = HybridTrainPipe(
+    #     batch_size=args.batch_size,
+    #     num_threads=args.workers,
+    #     device_id=args.local_rank,
+    #     data_dir=traindir,
+    #     crop=crop_size,
+    #     dali_cpu=args.dali_cpu,
+    #     shard_id=args.local_rank,
+    #     num_shards=args.world_size,
+    # )
     pipe.build()
     train_loader = DALIClassificationIterator(pipe, reader_name="Reader", fill_last_batch=False)
 
-    pipe = HybridValPipe(
+    # pipe = HybridValPipe(
+    #     batch_size=args.batch_size,
+    #     num_threads=args.workers,
+    #     device_id=args.local_rank,
+    #     data_dir=valdir,
+    #     crop=crop_size,
+    #     size=val_size,
+    #     shard_id=args.local_rank,
+    #     num_shards=args.world_size,
+    # )
+    pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
         device_id=args.local_rank,
         data_dir=valdir,
-        crop=crop_size,
-        size=val_size,
+        label_dir=vlabeldir,
+        crop=val_size,
+        dali_cpu=args.dali_cpu,
         shard_id=args.local_rank,
         num_shards=args.world_size,
+        training=False,
     )
     pipe.build()
     val_loader = DALIClassificationIterator(pipe, reader_name="Reader", fill_last_batch=False)
