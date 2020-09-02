@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 import heat as ht
@@ -749,6 +750,69 @@ class TestFactories(TestCase):
             ht.ones_like(zeros, dtype="abc")
         with self.assertRaises(TypeError):
             ht.ones_like(zeros, split="axis")
+
+    def test_repeat(self):  # TODO
+        # TODO randomize repeats?
+
+        # undistributed case
+        # -------------------
+        a = ht.arange(12).reshape((2, 2, 3))
+        a_np = a.numpy()
+        repeats = 2
+
+        # repeats = scalar
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (a.size * repeats,))
+        self.assert_array_equal(result, comparison)
+
+        # repeats = list
+        repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+
+        # repeats = tuple
+        repeats = (1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3)
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+
+        # repeats = np.array
+        # repeats = np.array(
+        #     [
+        #         1, 2, 0, 0, 1, 3,
+        #         2, 5, 1, 0, 2, 3
+        #     ])
+        # result = ht.repeat(a, repeats)
+        # comparison = np.repeat(a_np, repeats)
+        #
+        # self.assertIsInstance(result, ht.DNDarray)
+        # self.assertEqual(result.shape, (sum(repeats),))
+        # self.assert_array_equal(result, comparison)
+
+        # repeats = undistributed ht.DNDarray
+        # repeats = ht.array(
+        #             [
+        #                 1, 2, 0, 0, 1, 3,
+        #                 2, 5, 1, 0, 2, 3
+        #             ])
+        # result = ht.repeat(a, repeats)
+        # comparison = np.repeat(a_np, repeats.numpy())
+        #
+        # self.assertIsInstance(result, ht.DNDarray)
+        # self.assertEqual(result.shape, (sum(repeats),))
+        # self.assert_array_equal(result, comparison)
+
+        # repeats = distributed DNDarray
 
     def test_zeros(self):
         # scalar input

@@ -955,9 +955,9 @@ def repeat(a, repeats, axis=None):
 
     Parameters
     ----------
-    a : array_like (i.e. int, float, or tuple/ list/ np.array/ ht.DNDarray of ints/floats)
+    a : array_like (i.e. int, float, or tuple/ list/ np.ndarray/ ht.DNDarray of ints/floats)
         Array containing the elements or particular element to be repeated.
-    repeats : int, or ht.DNDarray/list/tuple of ints
+    repeats : int, or ht.DNDarray/ np.ndarray/ list/ tuple of ints
         The number of repetitions for each element, repeats is broadcasted to fit the shape of the given axis
          if it is composed of 1 element.
         Otherwise, its length must be the same as a in the specified axis. To put it differently, the
@@ -968,8 +968,9 @@ def repeat(a, repeats, axis=None):
 
     Returns
     -------
-    repeated_array : ht.DNDarray
+    repeated_array : DNDarray
         Output DNDarray which has the same shape as a, except along the given axis.
+        If no axis is given, repeated_array will be a flattened DNDarray.
 
     Examples
     --------
@@ -985,7 +986,11 @@ def repeat(a, repeats, axis=None):
             [3, 4],
             [3, 4]])
     """
-    print("a: ", a._DNDarray__array)
+    # print("Current a: ", a)
+    # TODO change later on (distribution)
+    # a is empty, no data to repeat
+    if 0 in a.lshape:
+        return a
 
     if axis is not None and not isinstance(axis, int):
         raise TypeError("axis must be an integer or None, currently: {}".format(type(axis)))
@@ -993,11 +998,11 @@ def repeat(a, repeats, axis=None):
     if not isinstance(a, dndarray.DNDarray):
         if isinstance(a, (int, float)):
             a = array([a])
-        elif isinstance(a, (tuple, list, np.array)):
+        elif isinstance(a, (tuple, list, np.ndarray)):
             a = array(a)
         else:
             raise TypeError(
-                "a must be a ht.DNDarray, np.array, list, tuple, integer, or float, currently: {}".format(
+                "a must be a ht.DNDarray, np.ndarray, list, tuple, integer, or float, currently: {}".format(
                     type(a)
                 )
             )
@@ -1005,13 +1010,15 @@ def repeat(a, repeats, axis=None):
     if axis is not None and (axis >= len(a.shape) or axis < 0):
         raise ValueError(
             "Invalid input for axis. Value has to be either None or between 0 and {}, not {}.".format(
-                len(a.shape), axis
+                len(a.shape) - 1, axis
             )
         )
 
     if isinstance(repeats, int):
         repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
-    elif isinstance(repeats, (dndarray.DNDarray, list, tuple, np.array)):
+    elif isinstance(repeats, (dndarray.DNDarray, list, tuple, np.ndarray)):
+        # TODO check np.ndarray und dndarray.DNDarray dtype only once, currently not working
+
         if not all(isinstance(r, int) for r in repeats):
             raise TypeError(
                 "Invalid type within repeats. All components of repeats must be integers."
@@ -1045,7 +1052,7 @@ def repeat(a, repeats, axis=None):
         )
     else:
         raise TypeError(
-            "repeats must be a an integer, list, tuple, np.array or ht.DNDarray of integers, currently: {}".format(
+            "repeats must be a an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
                 type(repeats)
             )
         )
