@@ -985,6 +985,7 @@ def repeat(a, repeats, axis=None):
             [3, 4],
             [3, 4]])
     """
+    print("a: ", a._DNDarray__array)
 
     if axis is not None and not isinstance(axis, int):
         raise TypeError("axis must be an integer or None, currently: {}".format(type(axis)))
@@ -1008,18 +1009,15 @@ def repeat(a, repeats, axis=None):
             )
         )
 
-    if isinstance(repeats, dndarray.DNDarray):
-        repeated_array_torch = torch.repeat_interleave(
-            a._DNDarray__array, repeats._DNDarray__array, axis
-        )
-    elif isinstance(repeats, int):
+    if isinstance(repeats, int):
         repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
-    elif isinstance(repeats, (list, tuple, np.array)):
+    elif isinstance(repeats, (dndarray.DNDarray, list, tuple, np.array)):
         if not all(isinstance(r, int) for r in repeats):
             raise TypeError(
                 "Invalid type within repeats. All components of repeats must be integers."
             )
-        repeats = array(repeats)
+        if not isinstance(repeats, dndarray.DNDarray):
+            repeats = array(repeats)
 
         # check whether repeats consists of 1 value (--> broadcast) or the size of a in the specified axis
         # equals the size of repeats
