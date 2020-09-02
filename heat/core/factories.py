@@ -985,6 +985,7 @@ def repeat(a, repeats, axis=None):
             [3, 4],
             [3, 4]])
     """
+
     if axis is not None and not isinstance(axis, int):
         raise TypeError("axis must be an integer or None, currently: {}".format(type(axis)))
 
@@ -1000,6 +1001,13 @@ def repeat(a, repeats, axis=None):
                 )
             )
 
+    if axis is not None and (axis >= len(a.shape) or axis < 0):
+        raise ValueError(
+            "Invalid input for axis. Value has to be either None or between 0 and {}".format(
+                len(a.shape)
+            )
+        )
+
     if isinstance(repeats, dndarray.DNDarray):
         repeated_array_torch = torch.repeat_interleave(
             a._DNDarray__array, repeats._DNDarray__array, axis
@@ -1007,11 +1015,32 @@ def repeat(a, repeats, axis=None):
     elif isinstance(repeats, int):
         repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
     elif isinstance(repeats, (list, tuple, np.array)):
-        if not all(isinstance(repeat_elem, int) for repeat_elem in repeats):
+        if not all(isinstance(r, int) for r in repeats):  # TODO not working yet
             raise TypeError(
                 "Invalid type within repeats. All components of repeats must be integers"
             )
         repeats = torch.tensor(repeats)
+
+        # check whether repeats consists of 1 value (broadcast) or the amount of elements in the specified axis
+        # of a and the length of repeats are the same
+
+        if len(repeats) != 1:
+            if axis is not None and len(repeats) != a.shape[axis]:
+                raise ValueError(
+                    "Wrong input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
+                    "are not the same. Please define repetition extension for"
+                    "all elements or replace repeats with a single scalar".format(
+                        len(repeats), a.shape[axis]
+                    )
+                )
+            if axis is None and len(a.flatten()) != len(repeats):
+                raise ValueError(
+                    "Wrong input. Amount of elements of repeats ({}) and the flattened input ({}) are"
+                    "not the same. Please define repetition extension for"
+                    "all elements or replace repeats with a single scalar".format(
+                        len(repeats), len(a.shape)
+                    )
+                )
 
         repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
     else:
