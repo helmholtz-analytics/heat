@@ -1,4 +1,5 @@
 from .lr_scheduler import *
+from .dp_optimizer import *
 from . import dp_optimizer
 import torch
 import unittest
