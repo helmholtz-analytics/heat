@@ -755,12 +755,13 @@ class TestFactories(TestCase):
         # TODO randomize repeats?
         # -------------------
         # undistributed case
+        # axis = None
         # -------------------
         a = ht.arange(12).reshape((2, 2, 3))
         a_np = a.numpy()
-        repeats = 2
 
         # repeats = scalar
+        repeats = 2
         result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats)
 
@@ -809,7 +810,63 @@ class TestFactories(TestCase):
         self.assert_array_equal(result, comparison)
         self.assertEqual(result.split, None)
 
-        # repeats = distributed DNDarray
+        # exceptions
+        # repeats = distributed ht.DNDarray
+        with self.assertRaises(ValueError):
+            repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)
+            ht.repeat(a, repeats)
+        with self.assertRaises(TypeError):
+            ht.repeat(a, repeats, axis="0")
+        with self.assertRaises(TypeError):
+            ht.repeat("[1, 2, 3]", repeats)
+        with self.assertRaises(ValueError):
+            ht.repeat(a, repeats, axis=-1)
+        with self.assertRaises(ValueError):
+            ht.repeat(a, repeats, axis=len(a.shape))
+        # TODO - not raised (float type is presumably a subclass of int in np and ht) line 1025 and 1032
+        # with self.assertRaises(TypeError):
+        #     repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], dtype=ht.float32)
+        #     ht.repeat(a, repeats)
+        # with self.assertRaises(TypeError):
+        #     repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], dtype=np.float32)
+        #     ht.repeat(a, repeats)
+        with self.assertRaises(TypeError):
+            repeats = [1, 2, 0, 0, 1, "3", 2, 5, 1, 0, 2, 3]
+            ht.repeat(a, repeats)
+        with self.assertRaises(TypeError):
+            repeats = [1, 2.4, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
+            ht.repeat(a, repeats)
+        with self.assertRaises(ValueError):
+            repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2]
+            ht.repeat(a, repeats)
+        with self.assertRaises(ValueError):
+            repeats = [1, 2]
+            ht.repeat(a, repeats, axis=2)
+        with self.assertRaises(TypeError):
+            repeats = "[1, 2, 3]"
+            ht.repeat(a, repeats, axis=2)
+
+        # -------------------
+        # distributed case
+        # -------------------
+        a = ht.arange(12, split=0).reshape((2, 2, 3))
+        a_np = a.numpy()
+
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (a.size * repeats,))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            a = ht.arange(12, split=1).reshape((2, 2, 3))
+            repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)
+            ht.repeat(a, repeats)
 
     def test_zeros(self):
         # scalar input
