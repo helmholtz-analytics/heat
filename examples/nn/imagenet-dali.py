@@ -514,7 +514,7 @@ def main():
     total_time = AverageMeter()
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
-        avg_train_time = train(train_loader, htmodel, criterion, optimizer, epoch, dev_id)
+        avg_train_time = train(train_loader, htmodel, criterion, dp_optimizer, epoch, dev_id)
         total_time.update(avg_train_time)
         if args.test:
             break
@@ -558,7 +558,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device_id):
     end = time.time()
 
     for i, data in enumerate(train_loader):
-        print(i)
+        # print(i)
         input = data[0]["data"].cuda(device_id)
         target = data[0]["label"].squeeze().cuda(device_id).long()
         train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
@@ -617,7 +617,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device_id):
             top5.update(to_python_float(prec5), input.size(0))
 
             # todo: is this needed?
-            torch.cuda.synchronize()
+            # torch.cuda.synchronize()
             batch_time.update((time.time() - end) / args.print_freq)
             end = time.time()
 
@@ -648,7 +648,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device_id):
         #     print("Profiling ended at iteration {}".format(i))
         #     torch.cuda.cudart().cudaProfilerStop()
         #     quit()
-        print('end batch')
+        # print('end batch')
 
     return batch_time.avg
 
@@ -756,7 +756,7 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch):
     if epoch < 5:
         lr = lr * float(1 + step + epoch * len_epoch) / (5.0 * len_epoch)
 
-    for param_group in optimizer.param_groups:
+    for param_group in optimizer.torch_optimizer.param_groups:
         param_group["lr"] = lr
 
 
