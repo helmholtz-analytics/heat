@@ -42,14 +42,14 @@ def parse():
     )
     # torch args
     parser = argparse.ArgumentParser(description="PyTorch ImageNet Training")
-    parser.add_argument(
-        "data",
-        metavar="DIR",
-        nargs="*",
-        help="path(s) to dataset (if one path is provided, it is assumed\n"
-        + 'to have subdirectories named "train" and "val"; alternatively,\n'
-        + "train and val paths can be specified directly by providing both paths as arguments)",
-    )
+    #parser.add_argument(
+    #    "data",
+    #    metavar="DIR",
+    #    nargs="*",
+    #    help="path(s) to dataset (if one path is provided, it is assumed\n"
+    #    + 'to have subdirectories named "train" and "val"; alternatively,\n'
+    #    + "train and val paths can be specified directly by providing both paths as arguments)",
+    #)
     parser.add_argument(
         "--arch",
         "-a",
@@ -181,9 +181,15 @@ class HybridPipe(Pipeline):
         #     random_shuffle=True,
         #     pad_last_batch=True,
         # )
+        #print(data_dir, label_dir)
+        data_dir_list = os.listdir(data_dir)
+        data_dir_list = [data_dir + d for d in data_dir_list]
+        # print(data_dir_list)
+        label_dir_list = os.listdir(label_dir)
+        label_dir_list = [label_dir + d for d in label_dir_list]
         self.input = dali.ops.TFRecordReader(
-            path=data_dir,
-            index_path=label_dir,
+            path=data_dir_list,
+            index_path=label_dir_list,
             random_shuffle=True if training else False,
             shard_id=ht.MPI_WORLD.rank,  # todo: multi GPU/node
             num_shards=ht.MPI_WORLD.size,
@@ -199,15 +205,15 @@ class HybridPipe(Pipeline):
             },
         )
         # let user decide which pipeline works him bets for RN version he runs
-        dali_device = "cpu" if dali_cpu else "gpu"
-        decoder_device = "cpu" if dali_cpu else "mixed"
+        dali_device = "cpu" # if dali_cpu else "gpu"
+        decoder_device = "cpu" # if dali_cpu else "mixed"
         # This padding sets the size of the internal nvJPEG buffers to be able to
         # handle all images from full-sized ImageNet without additional reallocations
         device_memory_padding = 211025920 if decoder_device == "mixed" else 0
         host_memory_padding = 140544512 if decoder_device == "mixed" else 0
         if training:
             self.decode = ops.ImageDecoderRandomCrop(
-                device=decoder_device,
+                device="cpu",  # decoder_device,
                 output_type=dali.types.RGB,
                 device_memory_padding=device_memory_padding,
                 host_memory_padding=host_memory_padding,
@@ -215,28 +221,29 @@ class HybridPipe(Pipeline):
                 random_area=[0.05, 1.0],
                 num_attempts=100,
             )
-            self.res = ops.Resize(
-                device=dali_device,
+            self.resize = ops.Resize(
+                device="cpu",  # dali_device,
                 resize_x=crop,
                 resize_y=crop,
                 interp_type=dali.types.INTERP_TRIANGULAR,
             )
         else:
-            self.decode = dali.ops.ImageDecoder(device="mixed", output_type=dali.types.RGB)
-            self.res = ops.Resize(
-                device="gpu", resize_shorter=crop, interp_type=dali.types.INTERP_TRIANGULAR
+            self.decode = dali.ops.ImageDecoder(device="cpu", output_type=dali.types.RGB)
+            self.resize = ops.Resize(
+                device="cpu", resize_shorter=crop, interp_type=dali.types.INTERP_TRIANGULAR
             )
         # should this be CPU or GPU? -> if prefetching then do it on CPU before sending
-        self.cmnp = ops.CropMirrorNormalize(
-            device="cpu" if training else "gpu",
-            dtype=dali.types.FLOAT,
+        self.normalize = ops.CropMirrorNormalize(
+            device="cpu",  # if training else "gpu",
+            # dtype=dali.types.FLOAT,
             output_layout=dali.types.NCHW,
             crop=(crop, crop),
             mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
             std=[0.229 * 255, 0.224 * 255, 0.225 * 255],
         )
         self.coin = ops.CoinFlip(probability=0.5)
-        print('DALI "{0}" variant'.format(dali_device))
+        self.training = training
+        print(f"DALI '{dali_device}' variant, training set:{training}")
 
     def define_graph(self):
         inputs = self.input(name="Reader")
@@ -245,9 +252,9 @@ class HybridPipe(Pipeline):
         images = self.decode(images)
         images = self.resize(images)
         if self.training:
-            images = self.normalize(images.gpu(), mirror=self.coin())
+            images = self.normalize(images, mirror=self.coin()).gpu()
         else:
-            images = self.normalize(images.gpu())
+            images = self.normalize(images).gpu()
         return images, labels
 
 
@@ -298,12 +305,12 @@ def main():
         args.batch_size = 64
         args.data = []
         # args.sync_bn = False
-        args.data.append("/data/imagenet/train-jpeg/")
-        args.data.append("/data/imagenet/val-jpeg/")
+        #args.data.append("/data/imagenet/train-jpeg/")
+        #args.data.append("/data/imagenet/val-jpeg/")
         print("Test mode - no DDP, no apex, RN50, 10 iterations")
 
-    if not len(args.data):
-        raise Exception("error: No data set provided")
+    #if not len(args.data):
+    #    raise Exception("error: No data set provided")
 
     args.distributed = True if ht.MPI_WORLD.size > 1 else False
     # if 'WORLD_SIZE' in os.environ:
@@ -340,13 +347,13 @@ def main():
         torch.set_printoptions(precision=10)
 
     args.gpu = 0
-    args.world_size = 1
+    args.world_size = ht.MPI_WORLD.size
 
-    if args.distributed:
-        args.gpu = args.local_rank
-        torch.cuda.set_device(args.gpu)
-        torch.distributed.init_process_group(backend="nccl", init_method="env://")
-        args.world_size = torch.distributed.get_world_size()
+    #if args.distributed:
+    #    args.gpu = args.local_rank
+    #    torch.cuda.set_device(args.gpu)
+    #    torch.distributed.init_process_group(backend="nccl", init_method="env://")
+    #    args.world_size = torch.distributed.get_world_size()
 
     args.total_batch_size = args.world_size * args.batch_size
     assert torch.backends.cudnn.enabled, "Amp requires cudnn backend to be enabled."
@@ -430,15 +437,16 @@ def main():
         resume()
 
     # Data loading code
-    if len(args.data) == 1:
-        traindir = os.path.join(args.data[0], "train")
-        valdir = os.path.join(args.data[0], "val")
-    else:
-        traindir = args.data[0]
-        valdir = args.data[1]
-
-    tlabeldir = ""
-    vlabeldir = ""
+    #if len(args.data) == 1:
+    #    traindir = os.path.join(args.data[0], "train")
+    #    valdir = os.path.join(args.data[0], "val")
+    #else:
+    #    traindir = args.data[0]
+    #    valdir = args.data[1]
+    traindir = '/p/project/haf/data/imagenet/train/'
+    valdir = '/p/project/haf/data/imagenet/val/'
+    t_labeldir = "/p/project/haf/data/imagenet/train-idx/"
+    v_labeldir = "/p/project/haf/data/imagenet/val-idx/"
 
     if args.arch == "inception_v3":
         raise RuntimeError("Currently, inception_v3 is not supported by this example.")
@@ -453,7 +461,7 @@ def main():
         num_threads=args.workers,
         device_id=args.local_rank,
         data_dir=traindir,
-        label_dir=tlabeldir,
+        label_dir=t_labeldir,
         crop=crop_size,
         dali_cpu=args.dali_cpu,
         shard_id=args.local_rank,
@@ -489,7 +497,7 @@ def main():
         num_threads=args.workers,
         device_id=args.local_rank,
         data_dir=valdir,
-        label_dir=vlabeldir,
+        label_dir=v_labeldir,
         crop=val_size,
         dali_cpu=args.dali_cpu,
         shard_id=args.local_rank,
@@ -550,6 +558,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
     end = time.time()
 
     for i, data in enumerate(train_loader):
+        print(i)
         input = data[0]["data"]
         target = data[0]["label"].squeeze().cuda().long()
         train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
@@ -639,6 +648,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         #     print("Profiling ended at iteration {}".format(i))
         #     torch.cuda.cudart().cudaProfilerStop()
         #     quit()
+        print('end batch')
 
     return batch_time.avg
 
