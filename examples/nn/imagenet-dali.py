@@ -248,14 +248,14 @@ class HybridPipe(Pipeline):
     def define_graph(self):
         inputs = self.input(name="Reader")
         images = inputs["image/encoded"]
-        labels = inputs["image/class/label"].gpu() - 1
+        labels = inputs["image/class/label"] - 1
         images = self.decode(images)
         images = self.resize(images)
         if self.training:
-            images = self.normalize(images, mirror=self.coin()).gpu()
+            images = self.normalize(images, mirror=self.coin())  # .gpu()
         else:
-            images = self.normalize(images).gpu()
-        return images, labels
+            images = self.normalize(images)  # .gpu()      
+        return images, labels  # .gpu()
 
 
 # class HybridValPipe(Pipeline):
@@ -375,9 +375,9 @@ def main():
             memory_format = torch.channels_last
         else:
             memory_format = torch.contiguous_format
-        model = model.cuda().to(memory_format=memory_format)
+        model = model.cuda(dev_id).to(memory_format=memory_format)
     else:
-        model = model.cuda()
+        model = model.cuda(dev_id)
 
     # Scale learning rate based on global batch size
     args.lr = args.lr * float(args.batch_size * ht.MPI_WORLD.size) / 256.0
@@ -514,7 +514,7 @@ def main():
     total_time = AverageMeter()
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
-        avg_train_time = train(train_loader, htmodel, criterion, optimizer, epoch)
+        avg_train_time = train(train_loader, htmodel, criterion, optimizer, epoch, dev_id)
         total_time.update(avg_train_time)
         if args.test:
             break
@@ -547,7 +547,7 @@ def main():
         val_loader.reset()
 
 
-def train(train_loader, model, criterion, optimizer, epoch):
+def train(train_loader, model, criterion, optimizer, epoch, device_id):
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
@@ -559,10 +559,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
     for i, data in enumerate(train_loader):
         print(i)
-        input = data[0]["data"]
-        target = data[0]["label"].squeeze().cuda().long()
+        input = data[0]["data"].cuda(device_id)
+        target = data[0]["label"].squeeze().cuda(device_id).long()
         train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
-
+        
         # if args.prof >= 0 and i == args.prof:
         #     print("Profiling begun at iteration {}".format(i))
         #     torch.cuda.cudart().cudaProfilerStart()
