@@ -823,13 +823,12 @@ class TestFactories(TestCase):
             ht.repeat(a, repeats, axis=-1)
         with self.assertRaises(ValueError):
             ht.repeat(a, repeats, axis=len(a.shape))
-        # TODO - not raised (float type is presumably a subclass of int in np and ht) line 1025 and 1032
-        # with self.assertRaises(TypeError):
-        #     repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], dtype=ht.float32)
-        #     ht.repeat(a, repeats)
-        # with self.assertRaises(TypeError):
-        #     repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], dtype=np.float32)
-        #     ht.repeat(a, repeats)
+        with self.assertRaises(TypeError):
+            repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], dtype=ht.float32)
+            ht.repeat(a, repeats)
+        with self.assertRaises(TypeError):
+            repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], dtype=np.float32)
+            ht.repeat(a, repeats)
         with self.assertRaises(TypeError):
             repeats = [1, 2, 0, 0, 1, "3", 2, 5, 1, 0, 2, 3]
             ht.repeat(a, repeats)

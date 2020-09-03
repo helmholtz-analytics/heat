@@ -1022,13 +1022,16 @@ def repeat(a, repeats, axis=None):
         # check whether everything inside repeats is int
         elif isinstance(repeats, (dndarray.DNDarray, list, tuple, np.ndarray)):
             if isinstance(repeats, dndarray.DNDarray):
-                if not isinstance(repeats.dtype, type(types.integer)):
+                if (
+                    types.heat_type_of(repeats) != types.int32
+                    and types.heat_type_of(repeats) != types.int64
+                ):
                     raise TypeError(
                         "Invalid dtype for DNDarray 'repeats'. Has to be integer,"
                         " but was {}".format(repeats.dtype)
                     )
             elif isinstance(repeats, np.ndarray):
-                if not isinstance(repeats.dtype.type, type(np.int)):
+                if repeats.dtype.kind != "i" and repeats.dtype.kind != "u":
                     raise TypeError(
                         "Invalid dtype for np.ndarray 'repeats'. Has to be integer,"
                         " but was {}".format(repeats.dtype.type)
