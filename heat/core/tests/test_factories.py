@@ -753,7 +753,7 @@ class TestFactories(TestCase):
 
     def test_repeat(self):  # TODO
         # TODO randomize repeats?
-
+        # -------------------
         # undistributed case
         # -------------------
         a = ht.arange(12).reshape((2, 2, 3))
@@ -767,6 +767,7 @@ class TestFactories(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (a.size * repeats,))
         self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
 
         # repeats = list
         repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
@@ -776,6 +777,7 @@ class TestFactories(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (sum(repeats),))
         self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
 
         # repeats = tuple
         repeats = (1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3)
@@ -785,32 +787,27 @@ class TestFactories(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (sum(repeats),))
         self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
 
-        # repeats = np.array
-        # repeats = np.array(
-        #     [
-        #         1, 2, 0, 0, 1, 3,
-        #         2, 5, 1, 0, 2, 3
-        #     ])
-        # result = ht.repeat(a, repeats)
-        # comparison = np.repeat(a_np, repeats)
-        #
-        # self.assertIsInstance(result, ht.DNDarray)
-        # self.assertEqual(result.shape, (sum(repeats),))
-        # self.assert_array_equal(result, comparison)
+        # repeats = np.ndarray
+        repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
 
         # repeats = undistributed ht.DNDarray
-        # repeats = ht.array(
-        #             [
-        #                 1, 2, 0, 0, 1, 3,
-        #                 2, 5, 1, 0, 2, 3
-        #             ])
-        # result = ht.repeat(a, repeats)
-        # comparison = np.repeat(a_np, repeats.numpy())
-        #
-        # self.assertIsInstance(result, ht.DNDarray)
-        # self.assertEqual(result.shape, (sum(repeats),))
-        # self.assert_array_equal(result, comparison)
+        repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats.numpy())
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
 
         # repeats = distributed DNDarray
 

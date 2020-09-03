@@ -986,7 +986,6 @@ def repeat(a, repeats, axis=None):
             [3, 4],
             [3, 4]])
     """
-    # print("Current a: ", a)
     # TODO change later on (distribution)
     # a is empty, no data to repeat
     if 0 in a.lshape:
@@ -1016,10 +1015,21 @@ def repeat(a, repeats, axis=None):
 
     if isinstance(repeats, int):
         repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
+    # check whether everything inside repeats is int
     elif isinstance(repeats, (dndarray.DNDarray, list, tuple, np.ndarray)):
-        # TODO check np.ndarray und dndarray.DNDarray dtype only once, currently not working
-
-        if not all(isinstance(r, int) for r in repeats):
+        if isinstance(repeats, dndarray.DNDarray):
+            if not isinstance(repeats.dtype, type(types.integer)):
+                raise TypeError(
+                    "Invalid dtype for DNDarray 'repeats'. Has to be integer,"
+                    " but was {}".format(repeats.dtype)
+                )
+        elif isinstance(repeats, np.ndarray):
+            if not isinstance(repeats.dtype.type, type(np.int)):
+                raise TypeError(
+                    "Invalid dtype for np.ndarray 'repeats'. Has to be integer,"
+                    " but was {}".format(repeats.dtype.type)
+                )
+        elif not all(isinstance(r, int) for r in repeats):
             raise TypeError(
                 "Invalid type within repeats. All components of repeats must be integers."
             )
