@@ -641,7 +641,7 @@ def maximum(x1, x2, out=None):
             in_x[i] = x
         if not isinstance(x, dndarray.DNDarray):
             raise TypeError(
-                "expected x1 and x2 to be a ht.DNDarray, but x{} was {} ".format(i, type(x))
+                "expected x1 and x2 to be a ht.DNDarray, but x{} was {} ".format(i + 1, type(x))
             )
         splits.append(x.split)
         shapes.append(x.gshape)
@@ -1076,7 +1076,7 @@ def minimum(x1, x2, out=None):
             in_x[i] = x
         if not isinstance(x, dndarray.DNDarray):
             raise TypeError(
-                "expected x1 and x2 to be a ht.DNDarray, but x{} was {} ".format(i, type(x))
+                "expected x1 and x2 to be a ht.DNDarray, but x{} was {} ".format(i + 1, type(x))
             )
         splits.append(x.split)
         shapes.append(x.gshape)
