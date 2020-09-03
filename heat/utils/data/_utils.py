@@ -1,7 +1,42 @@
-import base64
-import os
+# this file contains standalone utilities for data preparations
 
-import numpy as np
+
+def dali_tfrecord2idx(train_dir, train_idx_dir, val_dir, val_idx_dir):
+    """
+    prepare TFRecords indexes for use with DALI. It will produce indexes for all files in the
+    given ``train_dir`` and ``val_dir`` directories
+    """
+    import struct
+    import os
+
+    for tv in [train_dir, val_dir]:
+        dir_list = os.listdir(tv)
+        out = train_idx_dir if tv == train_dir else val_idx_dir
+        for file in dir_list:
+            f = open(file, "rb")
+            idx = open(out + file, "w")
+
+            while True:
+                current = f.tell()
+                try:
+                    # length
+                    byte_len = f.read(8)
+                    if len(byte_len) == 0:
+                        break
+                    # crc
+                    f.read(4)
+                    proto_len = struct.unpack("q", byte_len)[0]
+                    # proto
+                    f.read(proto_len)
+                    # crc
+                    f.read(4)
+                    idx.write(str(current) + " " + str(f.tell() - current) + "\n")
+                except Exception:
+                    print("Not a valid TFRecord file")
+                    break
+
+            f.close()
+            idx.close()
 
 
 def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
@@ -53,6 +88,9 @@ def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
         https://github.com/tensorflow/models/blob/master/research/inception/inception/data/download_and_preprocess_imagenet.sh
 
     """
+    import base64
+    import os
+    import numpy as np
     import tensorflow as tf
     import h5py
 
