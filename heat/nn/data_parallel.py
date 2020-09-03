@@ -1,6 +1,6 @@
 import bisect
 import warnings
-
+import numpy as np
 import torch
 import torch.nn as tnn
 
@@ -11,6 +11,21 @@ from ..core.communication import MPI
 from .. import optim
 
 __all__ = ["DataParallel"]
+
+
+mpi_float16 = MPI.BYTE.Create_contiguous(2).Commit()
+MPI._typedict["e"] = mpi_float16
+
+
+def sum_f16_cb(buffer_a, buffer_b, t):
+    assert t == mpi_float16
+    array_a = np.frombuffer(buffer_a, dtype="float16")
+    array_b = np.frombuffer(buffer_b, dtype="float16")
+    array_b += array_a
+
+
+# create new OP
+mpi_sum_f16 = MPI.Op.Create(sum_f16_cb, commute=True)
 
 
 class DataParallel(tnn.Module):
@@ -208,16 +223,19 @@ class DataParallel(tnn.Module):
             if layer_name not in self._active_layers:
                 return
             # iterate over layer's parameters/associated wait handles
-            for (_, param_name, wait_handle) in self._layer_wait_handles[layer_name]:
+            for (param_name, wait_handle, dtp, tens) in self._layer_wait_handles[layer_name]:
                 # get internal index of selected parameter
                 param_idx = self._param_indices[param_name]
                 # synchronize, get parameter's global gradient
                 wait_handle.wait()
                 # check if shapes are matching
-                if dp_optimizer.params_ref[param_idx].grad.data.shape != wait_handle.tensor.shape:
+                if (
+                    dp_optimizer.params_ref[param_idx].grad.data.shape != tens.shape
+                ):  # wait_handle.tensor.shape:
                     raise ValueError("Shapes must be equal.")
                 # accumulate parameter's global gradient
-                dp_optimizer.params_ref[param_idx].grad.data += wait_handle.tensor
+                # print(tens.dtype, dtp)
+                dp_optimizer.params_ref[param_idx].grad.data += tens.to(dtp)  # wait_handle.tensor
                 # remove layer from set of active layers, if present
                 self._active_layers.discard(layer_name)
         # if desired, perform actual parameter update
@@ -237,11 +255,15 @@ class DataParallel(tnn.Module):
         ----------
         [1] (cf. https://pytorch.org/docs/stable/tensors.html#torch.Tensor.register_hook).
         """
+        wrk = grad_loc.clone().detach().numpy().astype(np.float16)
         # average local gradients
-        grad_loc *= 1 / float(self.comm.size)
+        wrk *= 1 / float(self.comm.size)
+        out = np.zeros_like(wrk)
         # perform MPI Allreduce to compute global gradient
-        self.comm.Allreduce(MPI.IN_PLACE, grad_loc, MPI.SUM)
-        return grad_loc
+        print("hook")
+        self.comm.Allreduce(wrk, out, mpi_sum_f16)
+        del wrk
+        return torch.tensor(out, dtype=grad_loc.dtype, device=grad_loc.device)
 
     def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
         """
@@ -256,23 +278,30 @@ class DataParallel(tnn.Module):
         """
         # hook function for blocking gradient data exchange
         def _hook(grad_loc: torch.Tensor) -> torch.Tensor:
+            with torch.no_grad():
+                wrk = torch.zeros_like(grad_loc)
+                wrk += grad_loc
+                # wrk = wrk.to(torch.float64)
+                wrk = wrk.to(torch.float64)
             # counterbalance local gradient averaging
-            grad_loc *= 1 / float(self.comm.size)
+            wrk *= 1 / float(self.comm.size)
             # perform MPI IAllreduce to compute global gradient, returns wait handle
-            wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, grad_loc, MPI.SUM)
+            wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, wrk, mpi_sum_f16)
             # if layer wait handle dict does not contain the layer, add it -> automatically tracks reversed layer order
             if layer_name not in self._layer_wait_handles:
                 self._layer_wait_handles[layer_name] = list()
             # add layer to set of active layers
             self._active_layers.add(layer_name)
             # assign wait handle to its layer, layer-internal sorting by size
-            bisect.insort(
-                self._layer_wait_handles[layer_name], (grad_loc.numel(), param_name, wait_handle)
-            )
+            # bisect.insort(
+            #     self._layer_wait_handles[layer_name], (wrk.numel(), param_name, wait_handle)
+            # )
             # TODO: is sorting faster? or is there any difference?
-            # self._layer_wait_handles[layer_name].append((grad_loc.numel(), param_name, wait_handle))
+            self._layer_wait_handles[layer_name].append(
+                (param_name, wait_handle, grad_loc.dtype, wrk)
+            )
             # don't return grad_loc, otherwise gradient is doubled
-            return torch.zeros(*grad_loc.size(), device=grad_loc.device)
+            return torch.zeros(*wrk.size(), device=grad_loc.device)
 
         return _hook
 
