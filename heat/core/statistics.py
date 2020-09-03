@@ -627,43 +627,65 @@ def maximum(x1, x2, out=None):
     >>> ht.maximum(a, d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
+    # TODO: move all of this to __binary_op
     # sanitize input
-    if isinstance(x1, (int, float)):
-        x1 = factories.array([x1], dtype=types.canonical_heat_type(type(x1)), split=None)
-    if isinstance(x2, (int, float)):
-        x2 = factories.array([x2], dtype=types.canonical_heat_type(type(x2)), split=None)
-
-    if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
-        raise TypeError(
-            "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(type(x1), type(x2))
-        )
-
-    # sanitize split axes and shapes
-    split1, size1, shape1, comm1 = x1.split, x1.size, x1.gshape, x1.comm
-    split2, size2, shape2, comm2 = x2.split, x2.size, x2.gshape, x2.comm
-    output_gshape = stride_tricks.broadcast_shape(shape1, shape2)
-
-    # DNDarrays must be distributed along same axis
-    if split1 is not None and split2 is not None and split1 != split2:
-        raise ValueError(
-            "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
-                split1, split2
+    in_x = [x1, x2]
+    splits = []
+    shapes = []
+    comms = []
+    devices = []
+    t_x = []
+    for i, x in enumerate(in_x):
+        if isinstance(x, (int, float)):
+            x = factories.array([x], dtype=types.canonical_heat_type(type(x)), split=None)
+            in_x[i] = x
+        if not isinstance(x, dndarray.DNDarray):
+            raise TypeError(
+                "expected x1 and x2 to be a ht.DNDarray, but x{} was {} ".format(i, type(x))
             )
-        )
-    # Exception: split axes can differ if one of the DNDarrays is a scalar
-    if split1 is not None or split2 is not None:
-        if split1 is None and size1 > 1 or split2 is None and size2 > 1:
-            raise ValueError(
-                "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
-                    split1, split2
+        splits.append(x.split)
+        shapes.append(x.gshape)
+        comms.append(x.comm)
+        t_x.append(x._DNDarray__array)
+
+    # sanitize devices
+    if devices.count("gpu") == 1:
+        not_on_gpu = abs(devices.index("gpu") - 1)
+        # move to gpu
+        in_x[not_on_gpu] = in_x[not_on_gpu].gpu()
+
+    # sanitize shapes
+    output_gshape = stride_tricks.broadcast_shape(shapes[0], shapes[1])
+
+    # sanitize splits
+    if not splits.count(None) == 2:
+        # DNDarrays must be distributed along same axis
+        if splits.count(None) == 0:
+            if splits.count(splits[0]) == len(splits):
+                split = splits[0]
+                comm = comms[0]
+            else:
+                raise ValueError(
+                    "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
+                        splits[0], splits[1]
+                    )
                 )
-            )
-        else:
-            split = split1 if split1 is not None else split2
-            comm = comm1 if split1 is not None else comm2
+        elif splits.count(None) == 1:
+            # one DNDarray non-distributed, OK only for split along broadcastable axis
+            split_none = splits.index(None)
+            split_not_none = abs(split_none - 1)
+            if in_x[split_none].size > 1 and shapes[split_none][splits[split_not_none]] != 1:
+                raise ValueError(
+                    "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
+                        splits[0], splits[1]
+                    )
+                )
+            else:
+                split = splits[split_not_none]
+                comm = comms[split_not_none]
     else:
         split = None
-        comm = comm1
+        comm = comms[0]
 
     # sanitize out
     if out is not None:
@@ -679,10 +701,8 @@ def maximum(x1, x2, out=None):
             raise ValueError("Split axis of output buffer does not match input.")
 
     # calculate process-local element-wise minimum
-    t_x1 = x1._DNDarray__array
-    t_x2 = x2._DNDarray__array
-    t_dtype = torch.promote_types(t_x1.dtype, t_x2.dtype)
-    t_result = torch.max(t_x1.type(t_dtype), t_x2.type(t_dtype))
+    t_dtype = torch.promote_types(t_x[0].dtype, t_x[1].dtype)
+    t_result = torch.max(t_x[0].type(t_dtype), t_x[1].type(t_dtype))
 
     result = factories.array(
         t_result, dtype=types.canonical_heat_type(t_dtype), is_split=split, comm=comm
@@ -1042,43 +1062,66 @@ def minimum(x1, x2, out=None):
     >>> ht.minimum(a,d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
+    # TODO: move all of this to __binary_op
     # sanitize input
-    if isinstance(x1, (int, float)):
-        x1 = factories.array([x1], dtype=types.canonical_heat_type(type(x1)), split=None)
-    if isinstance(x2, (int, float)):
-        x2 = factories.array([x2], dtype=types.canonical_heat_type(type(x2)), split=None)
-
-    if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
-        raise TypeError(
-            "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(type(x1), type(x2))
-        )
-
-    # sanitize split axes and shapes
-    split1, size1, shape1, comm1 = x1.split, x1.size, x1.gshape, x1.comm
-    split2, size2, shape2, comm2 = x2.split, x2.size, x2.gshape, x2.comm
-    output_gshape = stride_tricks.broadcast_shape(shape1, shape2)
-
-    # DNDarrays must be distributed along same axis
-    if split1 is not None and split2 is not None and split1 != split2:
-        raise ValueError(
-            "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
-                split1, split2
+    in_x = [x1, x2]
+    splits = []
+    shapes = []
+    comms = []
+    devices = []
+    t_x = []
+    for i, x in enumerate(in_x):
+        if isinstance(x, (int, float)):
+            x = factories.array([x], dtype=types.canonical_heat_type(type(x)), split=None)
+            in_x[i] = x
+        if not isinstance(x, dndarray.DNDarray):
+            raise TypeError(
+                "expected x1 and x2 to be a ht.DNDarray, but x{} was {} ".format(i, type(x))
             )
-        )
-    # Exception: split axes can differ if one of the DNDarrays is a scalar
-    if split1 is not None or split2 is not None:
-        if split1 is None and size1 > 1 or split2 is None and size2 > 1:
-            raise ValueError(
-                "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
-                    split1, split2
+        splits.append(x.split)
+        shapes.append(x.gshape)
+        comms.append(x.comm)
+        devices.append(x.device.device_type)
+        t_x.append(x._DNDarray__array)
+
+    # sanitize devices
+    if devices.count("gpu") == 1:
+        not_on_gpu = abs(devices.index("gpu") - 1)
+        # move to gpu
+        in_x[not_on_gpu] = in_x[not_on_gpu].gpu()
+
+    # sanitize shapes
+    output_gshape = stride_tricks.broadcast_shape(shapes[0], shapes[1])
+
+    # sanitize splits
+    if not splits.count(None) == 2:
+        # DNDarrays must be distributed along same axis
+        if splits.count(None) == 0:
+            if splits.count(splits[0]) == len(splits):
+                split = splits[0]
+                comm = comms[0]
+            else:
+                raise ValueError(
+                    "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
+                        splits[0], splits[1]
+                    )
                 )
-            )
-        else:
-            split = split1 if split1 is not None else split2
-            comm = comm1 if split1 is not None else comm2
+        elif splits.count(None) == 1:
+            # one DNDarray non-distributed, OK only for split along broadcastable axis
+            split_none = splits.index(None)
+            split_not_none = abs(split_none - 1)
+            if in_x[split_none].size > 1 and shapes[split_none][splits[split_not_none]] != 1:
+                raise ValueError(
+                    "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
+                        splits[0], splits[1]
+                    )
+                )
+            else:
+                split = splits[split_not_none]
+                comm = comms[split_not_none]
     else:
         split = None
-        comm = comm1
+        comm = comms[0]
 
     # sanitize out
     if out is not None:
@@ -1094,10 +1137,8 @@ def minimum(x1, x2, out=None):
             raise ValueError("Split axis of output buffer does not match input.")
 
     # calculate process-local element-wise minimum
-    t_x1 = x1._DNDarray__array
-    t_x2 = x2._DNDarray__array
-    t_dtype = torch.promote_types(t_x1.dtype, t_x2.dtype)
-    t_result = torch.min(t_x1.type(t_dtype), t_x2.type(t_dtype))
+    t_dtype = torch.promote_types(t_x[0].dtype, t_x[1].dtype)
+    t_result = torch.min(t_x[0].type(t_dtype), t_x[1].type(t_dtype))
 
     result = factories.array(
         t_result, dtype=types.canonical_heat_type(t_dtype), is_split=split, comm=comm
