@@ -988,16 +988,21 @@ def repeat(a, repeats, axis=None):
             [3, 4],
             [3, 4]])
     """
+    # TODO always split `repeats` on axis 0? (as always a linear array?)
 
     # a is empty, no data to repeat
     if isinstance(a, dndarray.DNDarray) and 0 in a.lshape:
-        repeated_array_torch = torch.empty(a.lshape, dtype=a.dtype)
-    elif isinstance(a, np.ndarray) and 0 in a.shape:
-        repeated_array_torch = torch.empty(a.shape, dtype=a.dtype)
+        # repeated_array_torch = torch.tensor(a._DNDarray__array)
+        repeated_array_torch = torch.tensor([])
+    elif (isinstance(a, np.ndarray) and 0 in a.shape) or (
+        isinstance(a, (tuple, list)) and len(a) == 0
+    ):
+        # repeated_array_torch = torch.tensor(a)
+        repeated_array_torch = torch.tensor([])
     else:
         if axis is not None and not isinstance(axis, int):
             raise TypeError("axis must be an integer or None, currently: {}".format(type(axis)))
-
+        # sanitation a
         if not isinstance(a, dndarray.DNDarray):
             if isinstance(a, (int, float)):
                 a = array([a])
@@ -1009,14 +1014,14 @@ def repeat(a, repeats, axis=None):
                         type(a)
                     )
                 )
-
+        # sanitation axis
         if axis is not None and (axis >= len(a.shape) or axis < 0):
             raise ValueError(
                 "Invalid input for axis. Value has to be either None or between 0 and {}, not {}.".format(
                     len(a.shape) - 1, axis
                 )
             )
-
+        # sanitation repeats
         if isinstance(repeats, int):
             repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
         # check whether everything inside repeats is int
@@ -1027,7 +1032,7 @@ def repeat(a, repeats, axis=None):
                     and types.heat_type_of(repeats) != types.int64
                 ):
                     raise TypeError(
-                        "Invalid dtype for DNDarray 'repeats'. Has to be integer,"
+                        "Invalid dtype for DNDarray 'repeats'. Has to be integer (ht.int32 or ht.int64),"
                         " but was {}".format(repeats.dtype)
                     )
             elif isinstance(repeats, np.ndarray):
@@ -1040,10 +1045,10 @@ def repeat(a, repeats, axis=None):
                 raise TypeError(
                     "Invalid type within repeats. All components of repeats must be integers."
                 )
-
+            # assure repeats is a DNDarray (cast it otherwise)
             if not isinstance(repeats, dndarray.DNDarray):
                 repeats = array(
-                    repeats, dtype=types.int64, is_split=a.split, device=a.device, comm=a.comm
+                    repeats, dtype=types.int64, split=a.split, device=a.device, comm=a.comm
                 )
             elif a.split != repeats.split:
                 raise ValueError(
@@ -1053,7 +1058,8 @@ def repeat(a, repeats, axis=None):
                     )
                 )
             # torch requires a long tensor for repeats -> ht.int64 DNDarray needed
-            elif isinstance(repeats.dtype, type(types.int32)):
+            elif types.heat_type_of(repeats) == types.int32:
+                # TODO is split or split - cast function to change dtype only?
                 repeats = array(
                     repeats, dtype=types.int64, is_split=a.split, device=a.device, comm=a.comm
                 )
@@ -1063,6 +1069,7 @@ def repeat(a, repeats, axis=None):
 
             if repeats.size != 1:
                 if axis is None:
+                    # if a.flatten().lnumel != repeats.lnumel:
                     if a.flatten().size != repeats.size:
                         raise ValueError(
                             "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
@@ -1071,6 +1078,7 @@ def repeat(a, repeats, axis=None):
                             " scalar.".format(a.flatten().size, repeats.size)
                         )
                 # axis is not None
+                # elif repeats.lnumel != a.lshape[axis]:
                 elif repeats.size != a.shape[axis]:
                     raise ValueError(
                         "Invalid input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
@@ -1088,10 +1096,13 @@ def repeat(a, repeats, axis=None):
                     type(repeats)
                 )
             )
+    if isinstance(a, dndarray.DNDarray):
+        repeated_array = array(
+            repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+        )
 
-    repeated_array = array(
-        repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
-    )
+    else:
+        repeated_array = array(repeated_array_torch)
 
     repeated_array.balance_()
 

@@ -752,9 +752,9 @@ class TestFactories(TestCase):
             ht.ones_like(zeros, split="axis")
 
     def test_repeat(self):  # TODO
-        # TODO randomize repeats?
         # -------------------
         # undistributed case
+        # -------------------
         # axis = None
         # -------------------
         a = ht.arange(12).reshape((2, 2, 3))
@@ -858,6 +858,52 @@ class TestFactories(TestCase):
 
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (a.size * repeats,))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # TODO until here not working
+        # repeats = list
+        repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+
+        if a.comm.rank == 0:
+            print("\nResult:\n", result)
+            print("Comparison:\n", comparison)
+
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # repeats = tuple
+        repeats = (1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3)
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # repeats = np.ndarray
+        repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # repeats = distributed ht.DNDarray
+        repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=a.split)
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats.numpy())
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
         self.assert_array_equal(result, comparison)
         self.assertEqual(result.split, a.split)
 
