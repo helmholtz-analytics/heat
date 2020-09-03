@@ -3,7 +3,6 @@ import queue
 import threading
 import torch
 import time
-import warnings
 from torch.utils import data as torch_data
 from typing import Callable, List, Iterator, Union
 
