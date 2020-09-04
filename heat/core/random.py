@@ -7,6 +7,7 @@ from . import devices
 from . import dndarray
 from . import stride_tricks
 from . import types
+from typing import Type, List, Optional, Tuple
 
 
 # introduce the global random state variables, will be correctly initialized at the end of file
@@ -374,6 +375,10 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     return dndarray.DNDarray(values, shape, dtype, split, device, comm)
 
 
+# alias
+random_integer = randint
+
+
 def randn(*args, dtype=types.float32, split=None, device=None, comm=None):
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.
@@ -420,6 +425,43 @@ def randn(*args, dtype=types.float32, split=None, device=None, comm=None):
     normal_tensor._DNDarray__array = __kundu_transform(normal_tensor._DNDarray__array)
 
     return normal_tensor
+
+
+def random(
+    shape: Optional[Tuple[int]] = None,
+    dtype=types.float32,
+    split: Optional[int] = None,
+    device: Optional[str] = None,
+    comm=None,
+):
+    """
+    Random values in a given shape.
+    Create a :class:`~heat.core.dndarray.DNDarray`  of the given shape and populate it with random samples from a
+    uniform distribution over [0, 1).
+    Parameters
+    ----------
+    shape : Tuple[int]
+        The shape of the returned array, should all be positive. If no argument is given a single random sample is
+        generated.
+    dtype: Type[datatype], optional
+        The datatype of the returned values. Has to be one of
+        [:class:`~heat.core.types.float32, :class:`~heat.core.types.float64`].
+    split: int, optional
+        The axis along which the array is split and distributed, defaults to no distribution.
+    device : str, optional
+        Specifies the :class:`~heat.core.devices.Device`  the array shall be allocated on, defaults to globally
+        set default device.
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+    """
+    if not shape:
+        shape = (1,)
+    shape = stride_tricks.sanitize_shape(shape)
+    return rand(*shape, dtype=dtype, split=split, device=device, comm=comm)
+
+
+# aliases
+random_sample = ranf = sample = random
 
 
 def seed(seed=None):
