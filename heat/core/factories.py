@@ -1028,8 +1028,8 @@ def repeat(a, repeats, axis=None):
                         " but was {}".format(repeats.dtype.type)
                     )
                 repeats = array(
-                    repeats, dtype=types.int64, split=None
-                )  # TODO define device, comm... of a?
+                    repeats, dtype=types.int64, split=None, device=a.device, comm=a.comm
+                )
             # invalid list/tuple
             elif not all(isinstance(r, int) for r in repeats):
                 raise TypeError(
@@ -1038,8 +1038,8 @@ def repeat(a, repeats, axis=None):
             # valid list/tuple
             else:
                 repeats = array(
-                    repeats, dtype=types.int64, split=None
-                )  # TODO define device, comm... of a?
+                    repeats, dtype=types.int64, split=None, device=a.device, comm=a.comm
+                )
 
             if len(repeats.shape) != 1:
                 raise ValueError(
@@ -1047,11 +1047,11 @@ def repeat(a, repeats, axis=None):
                     "was {}-dimensional.".format(len(repeats.shape))
                 )
 
-            # check whether repeats consists of 1 value (--> broadcast) or the size of a in the specified axis
-            # equals the size of repeats
+            # check whether repeats consists of 1 value (--> broadcast) or a is not distributed
+            # otherwise, distribute repeats if the parameter combination/implied shapes requires it
 
             if repeats.size != 1 or a.split is None:
-                # CASE 1.1: repeats has to be distributed (to fit shape)
+                # CASE 1.1: repeats has to be distributed (along axis 0)
                 if a.split == 0 and (axis is None or axis == 0):
                     repeats = array(
                         repeats,
@@ -1061,7 +1061,7 @@ def repeat(a, repeats, axis=None):
                         device=repeats.device,
                     )
 
-                # CASE 1.2: repeats has to be distributed (to fit shape) - including reshape & flatten
+                # CASE 1.2: repeats has to be distributed (along axis a.split), reshaped & flattened
                 if axis is None and a.split != 0:
                     repeats = repeats.reshape(a.gshape)
                     repeats = array(
@@ -1098,9 +1098,15 @@ def repeat(a, repeats, axis=None):
                     type(repeats)
                 )
             )
-    repeated_array = array(
-        repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
-    )
+    # split always = 0 (1d-array) or None
+    if a.split is None:
+        repeated_array = array(
+            repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+        )
+    else:
+        repeated_array = array(
+            repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
+        )
 
     repeated_array.balance_()
 
