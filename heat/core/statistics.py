@@ -640,12 +640,13 @@ def maximum(x1, x2, out=None):
             x = factories.array([x], dtype=types.canonical_heat_type(type(x)), split=None)
             in_x[i] = x
         if not isinstance(x, dndarray.DNDarray):
-            raise TypeError(
-                "expected x1 and x2 to be a ht.DNDarray, but x{} was {} ".format(i + 1, type(x))
-            )
+            raise TypeError("expected two DNDarrays, but array {} was {} ".format(i, type(x)))
+        if x.size == 0:
+            raise ValueError("operation not possible, array {} contains no data".format(i))
         splits.append(x.split)
         shapes.append(x.gshape)
         comms.append(x.comm)
+        devices.append(x.device.device_type)
         t_x.append(x._DNDarray__array)
 
     # sanitize devices
@@ -666,7 +667,7 @@ def maximum(x1, x2, out=None):
                 comm = comms[0]
             else:
                 raise ValueError(
-                    "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
+                    "input DNDarrays must be distributed along the same axis, currently x1.split is {}, x2.split is {}".format(
                         splits[0], splits[1]
                     )
                 )
@@ -676,7 +677,7 @@ def maximum(x1, x2, out=None):
             split_not_none = abs(split_none - 1)
             if in_x[split_none].size > 1 and shapes[split_none][splits[split_not_none]] != 1:
                 raise ValueError(
-                    "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
+                    "input DNDarrays must be distributed along the same axis, currently x1.split is {}, x2.split is {}".format(
                         splits[0], splits[1]
                     )
                 )
@@ -690,15 +691,15 @@ def maximum(x1, x2, out=None):
     # sanitize out
     if out is not None:
         if not isinstance(out, dndarray.DNDarray):
-            raise TypeError(
-                "expected out to be None or an ht.DNDarray, but was {}".format(type(out))
-            )
+            raise TypeError("expected `out` to be None or a DNDarray, but was {}".format(type(out)))
         if out.gshape != output_gshape:
             raise ValueError(
                 "Expecting output buffer of shape {}, got {}".format(output_gshape, out.shape)
             )
         if out.split is not split:
-            raise ValueError("Split axis of output buffer does not match input.")
+            raise ValueError(
+                "Split axis of output buffer is inconsistent with split semantics (see documentation)."
+            )
 
     # calculate process-local element-wise minimum
     t_dtype = torch.promote_types(t_x[0].dtype, t_x[1].dtype)
@@ -1075,9 +1076,9 @@ def minimum(x1, x2, out=None):
             x = factories.array([x], dtype=types.canonical_heat_type(type(x)), split=None)
             in_x[i] = x
         if not isinstance(x, dndarray.DNDarray):
-            raise TypeError(
-                "expected x1 and x2 to be a ht.DNDarray, but x{} was {} ".format(i + 1, type(x))
-            )
+            raise TypeError("expected two DNDarrays, but array {} was {} ".format(i, type(x)))
+        if x.size == 0:
+            raise ValueError("operation not possible, array {} contains no data".format(i))
         splits.append(x.split)
         shapes.append(x.gshape)
         comms.append(x.comm)
@@ -1102,7 +1103,7 @@ def minimum(x1, x2, out=None):
                 comm = comms[0]
             else:
                 raise ValueError(
-                    "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
+                    "input DNDarrays must be distributed along the same axis, currently x1.split is {}, x2.split is {}".format(
                         splits[0], splits[1]
                     )
                 )
@@ -1112,7 +1113,7 @@ def minimum(x1, x2, out=None):
             split_not_none = abs(split_none - 1)
             if in_x[split_none].size > 1 and shapes[split_none][splits[split_not_none]] != 1:
                 raise ValueError(
-                    "x1 and x2 must be distributed along the same axis, but x1.split is {}, x2.split is {}".format(
+                    "input DNDarrays must be distributed along the same axis, currently x1.split is {}, x2.split is {}".format(
                         splits[0], splits[1]
                     )
                 )
@@ -1126,15 +1127,15 @@ def minimum(x1, x2, out=None):
     # sanitize out
     if out is not None:
         if not isinstance(out, dndarray.DNDarray):
-            raise TypeError(
-                "expected out to be None or an ht.DNDarray, but was {}".format(type(out))
-            )
+            raise TypeError("expected `out` to be None or a DNDarray, but was {}".format(type(out)))
         if out.gshape != output_gshape:
             raise ValueError(
                 "Expecting output buffer of shape {}, got {}".format(output_gshape, out.shape)
             )
         if out.split is not split:
-            raise ValueError("Split axis of output buffer does not match input.")
+            raise ValueError(
+                "Split axis of output buffer is inconsistent with split semantics (see documentation)."
+            )
 
     # calculate process-local element-wise minimum
     t_dtype = torch.promote_types(t_x[0].dtype, t_x[1].dtype)

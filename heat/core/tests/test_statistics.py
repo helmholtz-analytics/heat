@@ -666,6 +666,9 @@ class TestStatistics(TestCase):
         self.assertEqual(output._DNDarray__array.dtype, torch.float32)
 
         # check exceptions
+        random_volume_3 = ht.array([])
+        with self.assertRaises(ValueError):
+            ht.maximum(random_volume_1, random_volume_3)
         random_volume_3 = ht.random.randn(4, 2, 3, split=0)
         with self.assertRaises(ValueError):
             ht.maximum(random_volume_1, random_volume_3)
@@ -934,6 +937,9 @@ class TestStatistics(TestCase):
         self.assertEqual(output._DNDarray__array.dtype, torch.float32)
 
         # check exceptions
+        random_volume_3 = ht.array([])
+        with self.assertRaises(ValueError):
+            ht.minimum(random_volume_1, random_volume_3)
         random_volume_3 = ht.random.randn(4, 2, 3, split=0)
         with self.assertRaises(ValueError):
             ht.minimum(random_volume_1, random_volume_3)
