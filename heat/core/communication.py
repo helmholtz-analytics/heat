@@ -59,9 +59,11 @@ class MPICommunication(Communication):
         torch.int16: MPI.SHORT,
         torch.int32: MPI.INT,
         torch.int64: MPI.LONG,
+        torch.bfloat16: MPI.BYTE.Create_contiguous(2).Commit(),
         torch.float32: MPI.FLOAT,
         torch.float64: MPI.DOUBLE,
     }
+    MPI._typedict["e"] = __mpi_type_mappings
 
     def __init__(self, handle=MPI.COMM_WORLD):
         self.handle = handle

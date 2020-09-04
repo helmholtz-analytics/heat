@@ -10,18 +10,16 @@ from ..core.communication import MPICommunication
 from ..core.communication import MPI
 from .. import optim
 
+
 __all__ = ["DataParallel"]
 
 
-mpi_float16 = MPI.BYTE.Create_contiguous(2).Commit()
-MPI._typedict["e"] = mpi_float16
-
-
-def sum_f16_cb(buffer_a, buffer_b, t):
-    assert t == mpi_float16
-    array_a = np.frombuffer(buffer_a, dtype="float16")
-    array_b = np.frombuffer(buffer_b, dtype="float16")
-    array_b += array_a
+def sum_f16_cb(buffer_a, buffer_b, _):
+    stor_a = torch.BFloat16Storage.from_buffer(buffer_a, "native")
+    stor_b = torch.BFloat16Storage.from_buffer(buffer_b, "native")
+    tens_a = torch.BFloat16Tensor().set_(stor_a)
+    tens_b = torch.BFloat16Tensor().set_(stor_b)
+    tens_b += tens_a
 
 
 # create new OP
@@ -255,15 +253,12 @@ class DataParallel(tnn.Module):
         ----------
         [1] (cf. https://pytorch.org/docs/stable/tensors.html#torch.Tensor.register_hook).
         """
-        wrk = grad_loc.clone().detach().numpy().astype(np.float16)
+        wrk = grad_loc.to(torch.bfloat16)
         # average local gradients
         wrk *= 1 / float(self.comm.size)
-        out = np.zeros_like(wrk)
         # perform MPI Allreduce to compute global gradient
-        print("hook")
-        self.comm.Allreduce(wrk, out, mpi_sum_f16)
-        del wrk
-        return torch.tensor(out, dtype=grad_loc.dtype, device=grad_loc.device)
+        self.comm.Allreduce(MPI.IN_PLACE, wrk, mpi_sum_f16)
+        return wrk.to(grad_loc.dtype)
 
     def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
         """
@@ -279,10 +274,7 @@ class DataParallel(tnn.Module):
         # hook function for blocking gradient data exchange
         def _hook(grad_loc: torch.Tensor) -> torch.Tensor:
             with torch.no_grad():
-                wrk = torch.zeros_like(grad_loc)
-                wrk += grad_loc
-                # wrk = wrk.to(torch.float64)
-                wrk = wrk.to(torch.float64)
+                wrk = grad_loc.to(torch.bfloat16)
             # counterbalance local gradient averaging
             wrk *= 1 / float(self.comm.size)
             # perform MPI IAllreduce to compute global gradient, returns wait handle

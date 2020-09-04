@@ -54,7 +54,7 @@ def parse():
         help="path(s) to validation datasets (TFRecords)",
     )
     parser.add_argument(
-        "--data_indexes",
+        "--train_indexes",
         metavar="DIR",
         default="/p/project/haf/data/imagenet/train-idx/",
         nargs="*",
