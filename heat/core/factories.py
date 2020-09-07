@@ -1047,22 +1047,12 @@ def repeat(a, repeats, axis=None):
                     "was {}-dimensional.".format(len(repeats.shape))
                 )
 
-            # check whether repeats consists of 1 value (--> broadcast) or a is not distributed
+            # check whether repeats consists of 1 value (--> broadcast) or a is not/can not be distributed
             # otherwise, distribute repeats if the parameter combination/implied shapes requires it
 
-            if repeats.size != 1 or a.split is None:
-                # CASE 1.1: repeats has to be distributed (along axis 0)
-                if a.split == 0 and (axis is None or axis == 0):
-                    repeats = array(
-                        repeats,
-                        split=a.split,
-                        dtype=repeats.dtype,
-                        comm=repeats.comm,
-                        device=repeats.device,
-                    )
-
-                # CASE 1.2: repeats has to be distributed (along axis a.split), reshaped & flattened
-                if axis is None and a.split != 0:
+            if repeats.size != 1 or a.split is not None:
+                # CASE 1 - reshape, split `repeats` along the same axis as `a` and flatten it
+                if axis is None:
                     repeats = repeats.reshape(a.gshape)
                     repeats = array(
                         repeats,
@@ -1072,6 +1062,16 @@ def repeat(a, repeats, axis=None):
                         device=repeats.device,
                     )
                     repeats = repeats.flatten()
+                # CASE 2 - split `repeats` along axis 0
+                elif a.split == axis:
+                    repeats = array(
+                        repeats,
+                        split=0,
+                        dtype=repeats.dtype,
+                        comm=repeats.comm,
+                        device=repeats.device,
+                    )
+
                 # check matching shapes
                 if axis is None and a.flatten().lnumel != repeats.lnumel:
                     raise ValueError(
@@ -1088,7 +1088,9 @@ def repeat(a, repeats, axis=None):
                             repeats.lnumel, a.lshape[axis]
                         )
                     )
-
+            print(
+                f"\n\n[{a.comm.rank}]\nA:\n{a._DNDarray__array}\nRepeats:\n{repeats._DNDarray__array}"
+            )
             repeated_array_torch = torch.repeat_interleave(
                 a._DNDarray__array, repeats._DNDarray__array, axis
             )
@@ -1098,7 +1100,7 @@ def repeat(a, repeats, axis=None):
                     type(repeats)
                 )
             )
-    # split always = 0 (1d-array) or None
+    # repeated_array.split = 0 or None (as result is always a 1d-array)
     if a.split is None:
         repeated_array = array(
             repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm

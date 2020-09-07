@@ -849,17 +849,13 @@ class TestFactories(TestCase):
         result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats)
 
+        # print(f"\n\n[{a.comm.rank}] Result:\n{result._DNDarray__array}")  #TODO
+
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (sum(repeats),))
+        self.assertEqual(result.gshape, (sum(repeats),))
         self.assertEqual(result.split, a.split)
 
-        # if a.comm.rank == 0:          #with if, second half is something random
-        #     print(f"\nResult:\n{result}\nComparison:{comparison}")
-        print(
-            f"\nResult:\n{result}\nComparison:{comparison}"
-        )  # without it, everything is as it should be
         # self.assert_array_equal(result, comparison)   # TODO  # presumably error in assert_array_equal, replaced
-        # it with line above in affected cases
         self.assertTrue((ht.array(comparison) == result).all())
 
         # repeats = tuple
