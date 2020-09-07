@@ -1051,26 +1051,18 @@ def repeat(a, repeats, axis=None):
             # otherwise, distribute repeats if the parameter combination/implied shapes requires it
 
             if repeats.size != 1 or a.split is not None:
-                # CASE 1 - reshape, split `repeats` along the same axis as `a` and flatten it
+                # CASE 1 - reshape and split `repeats` along the same axis as `a` and flatten it afterwards
                 if axis is None:
+                    # repeats = repeats.reshape(a.gshape, axis=a.split)  # TODO split axis not changed, current bug
                     repeats = repeats.reshape(a.gshape)
-                    repeats = array(
-                        repeats,
-                        split=a.split,
-                        dtype=repeats.dtype,
-                        comm=repeats.comm,
-                        device=repeats.device,
-                    )
-                    repeats = repeats.flatten()
+                    repeats.resplit_(a.split)
+                    repeats = repeats.reshape(
+                        (repeats.size,)
+                    )  # instead of ht.flatten, as it balances the result
+
                 # CASE 2 - split `repeats` along axis 0
                 elif a.split == axis:
-                    repeats = array(
-                        repeats,
-                        split=0,
-                        dtype=repeats.dtype,
-                        comm=repeats.comm,
-                        device=repeats.device,
-                    )
+                    repeats.resplit_(0)
 
                 # check matching shapes
                 if axis is None and a.flatten().lnumel != repeats.lnumel:
@@ -1088,9 +1080,7 @@ def repeat(a, repeats, axis=None):
                             repeats.lnumel, a.lshape[axis]
                         )
                     )
-            print(
-                f"\n\n[{a.comm.rank}]\nA:\n{a._DNDarray__array}\nRepeats:\n{repeats._DNDarray__array}"
-            )
+
             repeated_array_torch = torch.repeat_interleave(
                 a._DNDarray__array, repeats._DNDarray__array, axis
             )

@@ -849,8 +849,6 @@ class TestFactories(TestCase):
         result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats)
 
-        # print(f"\n\n[{a.comm.rank}] Result:\n{result._DNDarray__array}")  #TODO
-
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.gshape, (sum(repeats),))
         self.assertEqual(result.split, a.split)
