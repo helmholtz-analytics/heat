@@ -427,7 +427,7 @@ def randn(*args, dtype=types.float32, split=None, device=None, comm=None):
     return normal_tensor
 
 
-def random(
+def random_sample(
     shape: Optional[Tuple[int]] = None,
     dtype=types.float32,
     split: Optional[int] = None,
@@ -438,6 +438,7 @@ def random(
     Random values in a given shape.
     Create a :class:`~heat.core.dndarray.DNDarray`  of the given shape and populate it with random samples from a
     uniform distribution over [0, 1).
+    
     Parameters
     ----------
     shape : Tuple[int]
@@ -461,7 +462,7 @@ def random(
 
 
 # aliases
-random_sample = ranf = sample = random
+random = ranf = sample = random_sample
 
 
 def seed(seed=None):

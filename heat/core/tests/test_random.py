@@ -317,7 +317,7 @@ class TestRandom(TestCase):
         self.assertFalse(np.allclose(a, c))
         self.assertFalse(np.allclose(b, c))
 
-    def test_random(self):
+    def test_random_sample(self):
         # short test
         # compare random and aliases with rand
         ht.random.seed(534)
@@ -337,7 +337,7 @@ class TestRandom(TestCase):
         self.assertTrue(ht.equal(a, e))
 
         # empty input
-        a = ht.random.random()
+        a = ht.random.random_sample()
         self.assertEqual(a.shape, (1,))
 
     def test_set_state(self):
