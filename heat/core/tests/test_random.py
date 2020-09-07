@@ -336,6 +336,10 @@ class TestRandom(TestCase):
         self.assertTrue(ht.equal(a, d))
         self.assertTrue(ht.equal(a, e))
 
+        # empty input
+        a = ht.random.random()
+        self.assertEqual(a.shape, (1,))
+
     def test_set_state(self):
         ht.random.set_state(("Threefry", 12345, 0xFFF))
         self.assertEqual(ht.random.get_state(), ("Threefry", 12345, 0xFFF, 0, 0.0))
