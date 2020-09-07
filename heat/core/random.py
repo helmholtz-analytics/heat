@@ -438,7 +438,7 @@ def random_sample(
     Random values in a given shape.
     Create a :class:`~heat.core.dndarray.DNDarray`  of the given shape and populate it with random samples from a
     uniform distribution over [0, 1).
-    
+
     Parameters
     ----------
     shape : Tuple[int]
