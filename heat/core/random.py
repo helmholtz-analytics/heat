@@ -276,7 +276,7 @@ def permutation(x):
         return randperm(x)
 
     if not isinstance(x, dndarray.DNDarray):
-        raise TypeError("x must be integer or DNDarray")
+        raise TypeError("x must be int or DNDarray")
 
     # random permutation
     recv = torch.randperm(x.shape[0], device=x.device.torch_device)
@@ -313,7 +313,7 @@ def permutation(x):
     else:
         data = torch.empty_like(x._DNDarray__array)
 
-    return factories.array(data, dtype=x.dtype, is_split=x.split, comm=x.comm)
+    return factories.array(data, dtype=x.dtype, is_split=x.split, device=x.device, comm=x.comm)
 
 
 def rand(*args, dtype=types.float32, split=None, device=None, comm=None):

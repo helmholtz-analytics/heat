@@ -354,15 +354,25 @@ class TestRandom(TestCase):
         # results
         a = ht.random.randperm(10, dtype=ht.int32)
         b = ht.random.randperm(4, dtype=ht.float32, split=0)
+        c = ht.random.randperm(5, split=0)
+        d = ht.random.randperm(5, dtype=ht.float64)
 
         torch.random.set_rng_state(state)
 
         # torch results to compare to
         a_cmp = torch.randperm(10, dtype=torch.int32, device=self.device.torch_device)
         b_cmp = torch.randperm(4, dtype=torch.float32, device=self.device.torch_device)
+        c_cmp = torch.randperm(5, dtype=torch.int64, device=self.device.torch_device)
+        d_cmp = torch.randperm(5, dtype=torch.float64, device=self.device.torch_device)
 
+        self.assertEqual(a.dtype, ht.int32)
         self.assertTrue((a._DNDarray__array == a_cmp).all())
+        self.assertEqual(b.dtype, ht.float32)
         self.assertTrue((ht.resplit(b)._DNDarray__array == b_cmp).all())
+        self.assertEqual(c.dtype, ht.int64)
+        self.assertTrue((ht.resplit(c)._DNDarray__array == c_cmp).all())
+        self.assertEqual(d.dtype, ht.float64)
+        self.assertTrue((d._DNDarray__array == d_cmp).all())
 
         with self.assertRaises(TypeError):
             ht.random.randperm("abc")
