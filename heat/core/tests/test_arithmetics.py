@@ -300,6 +300,12 @@ class TestArithmetics(TestCase):
             ht.diff(ht_array, axis="string")
         with self.assertRaises(TypeError):
             ht.diff("string", axis=2)
+        t_prepend = torch.zeros(ht_array.gshape)
+        with self.assertRaises(TypeError):
+            ht.diff(ht_array, prepend=t_prepend)
+        append_wrong_shape = ht.ones(ht_array.gshape)
+        with self.assertRaises(ValueError):
+            ht.diff(ht_array, axis=0, append=append_wrong_shape)
 
     def test_div(self):
         result = ht.array([[0.5, 1.0], [1.5, 2.0]])
