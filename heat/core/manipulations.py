@@ -2182,7 +2182,7 @@ def tile(x, reps):
         # no repeats along the split axis: local operation
         t_x = x._DNDarray__array
         t_tiled = t_x.repeat(reps)
-        return factories.array(t_tiled, dtype=x.dtype, split=split, comm=x.comm)
+        return factories.array(t_tiled, dtype=x.dtype, is_split=split, comm=x.comm)
     else:
         raise NotImplementedError("ht.tile() not implemented yet for repeats along the split axis")
         # size = x.comm.Get_size()
