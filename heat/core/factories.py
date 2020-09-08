@@ -5,6 +5,7 @@ from .communication import MPI, sanitize_comm
 from .stride_tricks import sanitize_axis, sanitize_shape
 from . import devices
 from . import dndarray
+from . import manipulations
 from . import memory
 from . import types
 
@@ -987,12 +988,14 @@ def repeat(a, repeats, axis=None):
             [3, 4]])
     """
     # `a` is empty, no data to repeat
-    if (
-        (isinstance(a, dndarray.DNDarray) and 0 in a.lshape)
-        or (isinstance(a, np.ndarray) and 0 in a.shape)
-        or (isinstance(a, (tuple, list)) and len(a) == 0)
+    if isinstance(a, dndarray.DNDarray) and 0 in a.lshape:
+        repeated_array_torch = empty(
+            (0,), dtype=a.dtype, device=a.device, comm=a.comm
+        )._DNDarray__array
+    elif (isinstance(a, np.ndarray) and 0 in a.shape) or (
+        isinstance(a, (tuple, list)) and len(a) == 0
     ):
-        repeated_array_torch = torch.tensor([])
+        repeated_array_torch = empty((0,))._DNDarray__array
     else:
         # sanitation `a`
         if not isinstance(a, dndarray.DNDarray):
@@ -1053,12 +1056,11 @@ def repeat(a, repeats, axis=None):
             if repeats.size != 1 or a.split is not None:
                 # CASE 1 - reshape and split `repeats` along the same axis as `a` and flatten it afterwards
                 if axis is None:
-                    # repeats = repeats.reshape(a.gshape, axis=a.split)  # TODO split axis not changed, current bug
                     repeats = repeats.reshape(a.gshape)
                     repeats.resplit_(a.split)
-                    repeats = repeats.reshape(
+                    repeats = repeats.reshape(  # instead of manipulations.flatten, as it balances the result
                         (repeats.size,)
-                    )  # instead of ht.flatten, as it balances the result
+                    )
 
                 # CASE 2 - split `repeats` along axis 0
                 elif a.split == axis:
@@ -1096,6 +1098,7 @@ def repeat(a, repeats, axis=None):
             repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
         )
     else:
+        # print(f"\n\n[{a.comm.rank}]\nResult:{repeated_array_torch}\nShape:\n{repeated_array_torch.shape}") #TODO
         repeated_array = array(
             repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
         )
