@@ -844,7 +844,7 @@ class TestFactories(TestCase):
         self.assert_array_equal(result, comparison)
         self.assertEqual(result.split, a.split)
 
-        # repeats = list
+        # repeats = list                                # TODO starting here things start to get stuck
         repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
         result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats)
@@ -852,9 +852,10 @@ class TestFactories(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.gshape, (sum(repeats),))
         self.assertEqual(result.split, a.split)
-
-        # self.assert_array_equal(result, comparison)   # TODO  # presumably error in assert_array_equal, replaced
         self.assertTrue((ht.array(comparison) == result).all())
+
+        if a.comm.rank == 0:  # TODO
+            print("\n-----------------\nList successul\n-----------------\n")
 
         # repeats = tuple
         repeats = (1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3)

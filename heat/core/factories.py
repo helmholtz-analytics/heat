@@ -987,28 +987,25 @@ def repeat(a, repeats, axis=None):
             [3, 4],
             [3, 4]])
     """
+    # sanitation `a`
+    if not isinstance(a, dndarray.DNDarray):
+        if isinstance(a, (int, float)):
+            a = array([a])
+        elif isinstance(a, (tuple, list, np.ndarray)):
+            a = array(a)
+        else:
+            raise TypeError(
+                "a must be a ht.DNDarray, np.ndarray, list, tuple, integer, or float, currently: {}".format(
+                    type(a)
+                )
+            )
+
     # `a` is empty, no data to repeat
-    if isinstance(a, dndarray.DNDarray) and 0 in a.lshape:
+    if 0 in a.lshape:
         repeated_array_torch = empty(
             (0,), dtype=a.dtype, device=a.device, comm=a.comm
         )._DNDarray__array
-    elif (isinstance(a, np.ndarray) and 0 in a.shape) or (
-        isinstance(a, (tuple, list)) and len(a) == 0
-    ):
-        repeated_array_torch = empty((0,))._DNDarray__array
     else:
-        # sanitation `a`
-        if not isinstance(a, dndarray.DNDarray):
-            if isinstance(a, (int, float)):
-                a = array([a])
-            elif isinstance(a, (tuple, list, np.ndarray)):
-                a = array(a)
-            else:
-                raise TypeError(
-                    "a must be a ht.DNDarray, np.ndarray, list, tuple, integer, or float, currently: {}".format(
-                        type(a)
-                    )
-                )
         # sanitation `axis`
         if axis is not None and not isinstance(axis, int):
             raise TypeError("axis must be an integer or None, currently: {}".format(type(axis)))
@@ -1051,29 +1048,40 @@ def repeat(a, repeats, axis=None):
                 )
 
             # check whether repeats consists of 1 value (--> broadcast) or a is not/can not be distributed
-            # otherwise, distribute repeats if the parameter combination/implied shapes requires it
+            # (i.e. all processes need all data of `repeats`
+            # otherwise, distribute `repeats` if the parameter combination/implied shapes requires it
 
             if repeats.size != 1 or a.split is not None:
                 # CASE 1 - reshape and split `repeats` along the same axis as `a` and flatten it afterwards
                 if axis is None:
                     repeats = repeats.reshape(a.gshape)
                     repeats.resplit_(a.split)
-                    repeats = repeats.reshape(  # instead of manipulations.flatten, as it balances the result
-                        (repeats.size,)
+
+                    repeats = array(  # instead of manipulations.flatten, as it balances the result
+                        torch.flatten(repeats._DNDarray__array),
+                        dtype=repeats.dtype,
+                        is_split=repeats.split,
+                        device=repeats.device,
+                        comm=repeats.comm,
                     )
 
                 # CASE 2 - split `repeats` along axis 0
                 elif a.split == axis:
                     repeats.resplit_(0)
 
+                a_flattened_torch = torch.flatten(
+                    a._DNDarray__array
+                )  # to avoid balancing in flatten
+
                 # check matching shapes
-                if axis is None and a.flatten().lnumel != repeats.lnumel:
+                if axis is None and tuple(a_flattened_torch.size()) != (repeats.lnumel,):
                     raise ValueError(
                         "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
                         "Please revise your definition specifying repetitions for all elements "
                         "of the DNDarray a or replace repeats with a single"
                         " scalar.".format(a.flatten().lnumel, repeats.lnumel)
                     )
+
                 if axis is not None and a.lshape[axis] != repeats.lnumel:
                     raise ValueError(
                         "Invalid input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
@@ -1086,22 +1094,28 @@ def repeat(a, repeats, axis=None):
             repeated_array_torch = torch.repeat_interleave(
                 a._DNDarray__array, repeats._DNDarray__array, axis
             )
+
         else:
             raise TypeError(
                 "repeats must be a an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
                     type(repeats)
                 )
             )
+
     # repeated_array.split = 0 or None (as result is always a 1d-array)
     if a.split is None:
         repeated_array = array(
             repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
         )
     else:
-        # print(f"\n\n[{a.comm.rank}]\nResult:{repeated_array_torch}\nShape:\n{repeated_array_torch.shape}") #TODO
+        # if a.split is not None:  # TODO
+        #     print(f"\n\n[{a.comm.rank}] Result so far:\n{repeated_array_torch}")
         repeated_array = array(
             repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
         )
+
+    # if a.split is not None: #TODO
+    #     print(f"\n\n[{a.comm.rank}] Hello again, finally:\n{repeated_array._DNDarray__array}")
 
     repeated_array.balance_()
 
