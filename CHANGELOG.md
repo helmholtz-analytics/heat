@@ -49,6 +49,9 @@
 - [#659](https://github.com/helmholtz-analytics/heat/pull/659) New feature: `random.permutation` + `random.randperm`
 - [#639](https://github.com/helmholtz-analytics/heat/pull/639) Bufix: balanced array in demo_knn, changed behaviour of knn
 - [#652](https://github.com/helmholtz-analytics/heat/pull/652) Feature: benchmark scripts and jobscript generation
+- [#664](https://github.com/helmholtz-analytics/heat/pull/664) New feature / enhancement: `random.random_sample`, `random.random`, `random.sample`, `random.ranf`, `random.random_integer`
+- [#666](https://github.com/helmholtz-analytics/heat/pull/666) New feature: distributed prepend/append for diff().
+- [#667](https://github.com/helmholtz-analytics/heat/pull/667) Enhancement `reshape`: rename axis parameter
 
 # v0.4.0
 
