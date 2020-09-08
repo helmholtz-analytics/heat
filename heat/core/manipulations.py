@@ -33,6 +33,7 @@ __all__ = [
     "sort",
     "squeeze",
     "stack",
+    "tile",
     "topk",
     "unique",
     "vstack",
@@ -2153,6 +2154,66 @@ def vstack(tup):
             tup[cn] = arr.expand_dims(0).resplit_(arr.split)
 
     return concatenate(tup, axis=0)
+
+
+def tile(x, reps):
+    """
+    Construct an array by repeating A the number of times given by reps.
+
+    If reps has length d, the result will have dimension of max(d, A.ndim).
+
+    If A.ndim < d, A is promoted to be d-dimensional by prepending new axes. So a shape (3,) array is promoted to (1, 3) for 2-D replication, or shape (1, 1, 3) for 3-D replication. If this is not the desired behavior, promote A to d-dimensions manually before calling this function.
+
+    If A.ndim > d, reps is promoted to A.ndim by pre-pending 1’s to it. Thus for an A of shape (2, 3, 4, 5), a reps of (2, 2) is treated as (1, 1, 2, 2).
+    """
+    # input sanitation
+    # x is DNDarray
+    # x.dim >= 1
+
+    # calculate map of new gshape, lshape
+
+    if len(reps) > x.ndim:
+        added_dims = len(reps) - x.ndim
+        new_shape = added_dims * (1,) + x.gshape
+        new_split = None if x.split is None else x.split + added_dims
+        x = x.reshape(new_shape, axis=new_split)
+    split = x.split
+    if split is None or reps[split] == 1:
+        # no repeats along the split axis: local operation
+        t_x = x._DNDarray__array
+        t_tiled = t_x.repeat(reps)
+        return factories.array(t_tiled, dtype=x.dtype, split=split, comm=x.comm)
+    else:
+        raise NotImplementedError("ht.tile() not implemented yet for repeats along the split axis")
+        # size = x.comm.Get_size()
+        # rank = x.comm.Get_rank()
+        # # repeats along the split axis: communication needed
+        # output_shape = tuple(s * r for s, r in zip(x.gshape, reps))
+        # tiled = factories.empty(output_shape, dtype=x.dtype, split=split, comm=x.comm)
+        # current_offset, current_lshape, current_slice = x.comm.chunk(x.gshape, split)
+        # tiled_offset, tiled_lshape, tiled_slice = tiled.comm.chunk(tiled.gshape, split)
+        # t_current_map = x.create_lshape_map()
+        # t_tiled_map = tiled.create_lshape_map()
+        # # map offsets (torch tensor with shape (size, 2) )
+        # t_offset_map = torch.stack(
+        #     (
+        #         t_current_map[:, split].cumsum(0) - t_current_map[:, split],
+        #         t_tiled_map[:, split].cumsum(0) - t_tiled_map[:, split],
+        #         t_tiled_map[rank, split] - t_current_map[:, split] + 1,
+        #     ),
+        #     dim=1,
+        # )
+
+        # # col 0 = current offsets, col 1 = tiled offsets
+        # recv_rank = torch.where(
+        #     0
+        #     <= t_offset_map[:, 0] - t_offset_map[:, 1]
+        #     <= t_tiled_map[:, split] - t_current_map[:, split] + 1
+        # )
+
+        # # use distributed setitem!
+        # # then torch.repeat on non-distributed dimensions
+        # pass
 
 
 def topk(a, k, dim=None, largest=True, sorted=True, out=None):
