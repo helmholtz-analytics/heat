@@ -3187,7 +3187,7 @@ class DNDarray:
                     key[self.split] = key[self.split] - chunk_start
                     self.__setter(tuple(key), value)
 
-                elif key[self.split] < 0:
+                elif isinstance(key[self.split], int) and key[self.split] < 0:
                     key = list(key)
                     if self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
                         key[self.split] = key[self.split] + self.shape[self.split] - chunk_start
