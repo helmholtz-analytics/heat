@@ -383,7 +383,7 @@ class TestRandom(TestCase):
 
         with self.assertRaises(TypeError):
             ht.random.randperm("abc")
-            
+
     def test_random_sample(self):
         # short test
         # compare random and aliases with rand

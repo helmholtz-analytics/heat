@@ -543,7 +543,7 @@ def randperm(
 
     return factories.array(perm, dtype=dtype, device=device, split=split, comm=comm)
 
-    
+
 def random_sample(
     shape: Optional[Tuple[int]] = None,
     dtype=types.float32,
@@ -568,7 +568,7 @@ def random_sample(
         The axis along which the array is split and distributed, defaults to no distribution.
     device : str, optional
         Specifies the :class:`~heat.core.devices.Device`  the array shall be allocated on, defaults to globally
-        set default device. 
+        set default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     """
