@@ -1059,15 +1059,29 @@ def repeat(a, repeats, axis=None):
                 )
             )
 
+    # TODO recheck if that is valid even if axis is not None
     # repeated_array.split = 0 or None (as result is always a 1d-array)
     if a.split is None:
         repeated_array = factories.array(
             repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
         )
     else:
-        repeated_array = factories.array(
-            repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
-        )
+        if axis is None:
+            repeated_array = factories.array(
+                repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
+            )
+        else:
+            new_lshape = list(a.lshape)
+            if isinstance(repeats, int):
+                new_lshape[axis] *= repeats
+            # DNDarray
+            else:
+                new_lshape[axis] = int(sum(repeats))
+            repeated_array_torch = repeated_array_torch.reshape(new_lshape)
+
+            repeated_array = factories.array(
+                repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+            )
 
     repeated_array.balance_()
 

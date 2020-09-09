@@ -1014,9 +1014,11 @@ class TestManipulations(TestCase):
         res = ht.hstack((a, b))
         self.assertEqual(res.shape, (24,))
 
-    def test_repeat(self):  # TODO
+    def test_repeat(self):
+        # TODO add tests with array of floats
+
         # -------------------
-        # undistributed case
+        # UNDISTRIBUTED case
         # -------------------
         # axis = None
         # -------------------
@@ -1092,7 +1094,51 @@ class TestManipulations(TestCase):
             ht.repeat(a, repeats, axis=2)
 
         # -------------------
-        # distributed case
+        # axis != None
+        # -------------------
+
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = list
+        repeats = [1, 2, 0]
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = tuple
+        repeats = (1, 2, 0)
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = np.ndarray
+        repeats = np.array([1, 2, 0])
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # -------------------
+        # DISTRIBUTED CASE
         # -------------------
         a = ht.arange(12, split=0).reshape((2, 2, 3))
         a_np = a.numpy()
@@ -1136,6 +1182,50 @@ class TestManipulations(TestCase):
         self.assertEqual(result.shape, (sum(repeats),))
         self.assertEqual(result.split, a.split)
         self.assertTrue((ht.array(comparison) == result).all())
+
+        # -------------------
+        # axis != None
+        # -------------------
+
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # repeats = list
+        repeats = [1, 2, 0]
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # repeats = tuple
+        repeats = (1, 2, 0)
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # repeats = np.ndarray
+        repeats = np.array([1, 2, 0])
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
 
     def test_reshape(self):
         # split = None
