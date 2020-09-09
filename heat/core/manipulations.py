@@ -1070,21 +1070,15 @@ def repeat(a, repeats, axis=None):
                 )
             )
 
-    # TODO recheck if that is valid even if axis is not None
-    # repeated_array.split = 0 or None (as result is always a 1d-array)
-    if a.split is None:
+    # result is linear and input was distributed
+    if axis is None and a.split is not None:
+        repeated_array = factories.array(
+            repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
+        )
+    else:
         repeated_array = factories.array(
             repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
         )
-    else:
-        if axis is None:
-            repeated_array = factories.array(
-                repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
-            )
-        else:
-            repeated_array = factories.array(
-                repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
-            )
 
     repeated_array.balance_()
 
