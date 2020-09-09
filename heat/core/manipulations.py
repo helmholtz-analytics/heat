@@ -13,7 +13,6 @@ from . import tiling
 from . import types
 from . import _operations
 
-
 __all__ = [
     "column_stack",
     "concatenate",
@@ -25,6 +24,7 @@ __all__ = [
     "fliplr",
     "flipud",
     "hstack",
+    "repeat",
     "reshape",
     "resplit",
     "rot90",
@@ -909,6 +909,177 @@ def hstack(tup):
                 tup[cn] = arr.expand_dims(1)
 
     return concatenate(tup, axis=axis)
+
+
+def repeat(a, repeats, axis=None):
+    """
+    Creates a new DNDarray by repeating elements of array a.
+
+    Parameters
+    ----------
+    a : array_like (i.e. int, float, or tuple/ list/ np.ndarray/ ht.DNDarray of ints/floats)
+        Array containing the elements or particular element to be repeated.
+    repeats : int, or 1-dimensional/ np.ndarray/ list/ tuple of ints
+        The number of repetitions for each element, repeats is broadcasted to fit the shape of the given axis
+         if it is composed of 1 element.
+        Otherwise, its length must be the same as a in the specified axis. To put it differently, the
+        amount of repetitions has to be determined for each element.
+    axis: int, optional
+        The axis along which to repeat values. By default, use the flattened input array and return a flat output
+        array.
+
+    Returns
+    -------
+    repeated_array : DNDarray
+        Output DNDarray which has the same shape as a, except along the given axis.
+        If no axis is given, repeated_array will be a flattened DNDarray.
+
+    Examples
+    --------
+    >>> ht.repeat(3, 4)
+    DNDarray([3, 3, 3, 3])
+
+    >>> x = ht.array([[1,2],[3,4]])
+    >>> ht.repeat(x, 2)
+    DNDarray([1, 1, 2, 2, 3, 3, 4, 4])
+
+    >>> ht.repeat(x, [1,2], axis=0)
+    DNDarray([[1, 2],
+            [3, 4],
+            [3, 4]])
+    """
+    # sanitation `a`
+    if not isinstance(a, dndarray.DNDarray):
+        if isinstance(a, (int, float)):
+            a = factories.array([a])
+        elif isinstance(a, (tuple, list, np.ndarray)):
+            a = factories.array(a)
+        else:
+            raise TypeError(
+                "a must be a ht.DNDarray, np.ndarray, list, tuple, integer, or float, currently: {}".format(
+                    type(a)
+                )
+            )
+
+    # `a` is empty, no data to repeat
+    if 0 in a.lshape:
+        repeated_array_torch = factories.empty(
+            (0,), dtype=a.dtype, device=a.device, comm=a.comm
+        )._DNDarray__array
+    else:
+        # sanitation `axis`
+        if axis is not None and not isinstance(axis, int):
+            raise TypeError("axis must be an integer or None, currently: {}".format(type(axis)))
+
+        if axis is not None and (axis >= len(a.shape) or axis < 0):
+            raise ValueError(
+                "Invalid input for axis. Value has to be either None or between 0 and {}, not {}.".format(
+                    len(a.shape) - 1, axis
+                )
+            )
+        # sanitation `repeats`
+        if isinstance(repeats, int):
+            repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
+        # check whether everything inside `repeats` is int
+        elif isinstance(repeats, (list, tuple, np.ndarray)):
+            if isinstance(repeats, np.ndarray):
+                if repeats.dtype.kind != "i" and repeats.dtype.kind != "u":
+                    raise TypeError(
+                        "Invalid dtype for np.ndarray 'repeats'. Has to be integer,"
+                        " but was {}".format(repeats.dtype.type)
+                    )
+                repeats = factories.array(
+                    repeats, dtype=types.int64, split=None, device=a.device, comm=a.comm
+                )
+            # invalid list/tuple
+            elif not all(isinstance(r, int) for r in repeats):
+                raise TypeError(
+                    "Invalid type within repeats. All components of repeats must be integers."
+                )
+            # valid list/tuple
+            else:
+                repeats = factories.array(
+                    repeats, dtype=types.int64, split=None, device=a.device, comm=a.comm
+                )
+
+            if len(repeats.shape) != 1:
+                raise ValueError(
+                    "Invalid input for repeats. Repeats must be a 1d-object or integer, but "
+                    "was {}-dimensional.".format(len(repeats.shape))
+                )
+
+            # check whether repeats consists of 1 value (--> broadcast) or a is not/can not be distributed
+            # (i.e. all processes need all data of `repeats`
+            # otherwise, distribute `repeats` if the parameter combination/implied shapes requires it
+
+            if repeats.size != 1 or a.split is not None:
+                # CASE 1 - reshape and split `repeats` along the same axis as `a` and flatten it afterwards
+                if axis is None:
+                    repeats = repeats.reshape(a.gshape)
+                    repeats.resplit_(a.split)
+
+                    repeats = factories.array(  # instead of manipulations.flatten, as it balances the result
+                        torch.flatten(repeats._DNDarray__array),
+                        dtype=repeats.dtype,
+                        is_split=repeats.split,
+                        device=repeats.device,
+                        comm=repeats.comm,
+                    )
+
+                # CASE 2 - split `repeats` along axis 0
+                elif a.split == axis:
+                    repeats.resplit_(0)
+
+                # for check above (next if) - to avoid balance_ in ht.flatten
+                a_flattened_torch = torch.flatten(a._DNDarray__array)
+
+                # check matching shapes
+                if axis is None and tuple(a_flattened_torch.size()) != (repeats.lnumel,):
+                    raise ValueError(
+                        "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
+                        "Please revise your definition specifying repetitions for all elements "
+                        "of the DNDarray a or replace repeats with a single"
+                        " scalar.".format(a.flatten().lnumel, repeats.lnumel)
+                    )
+
+                if axis is not None and a.lshape[axis] != repeats.lnumel:
+                    raise ValueError(
+                        "Invalid input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
+                        "are not the same. Please revise your definition specifying repetitions for all elements "
+                        "of the DNDarray a or replace repeats with a single scalar".format(
+                            repeats.lnumel, a.lshape[axis]
+                        )
+                    )
+
+            repeated_array_torch = torch.repeat_interleave(
+                a._DNDarray__array, repeats._DNDarray__array, axis
+            )
+
+        else:
+            raise TypeError(
+                "repeats must be a an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
+                    type(repeats)
+                )
+            )
+
+    # repeated_array.split = 0 or None (as result is always a 1d-array)
+    if a.split is None:
+        repeated_array = factories.array(
+            repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+        )
+    else:
+        # if a.split is not None:  # TODO
+        #     print(f"\n\n[{a.comm.rank}] Result so far:\n{repeated_array_torch}")
+        repeated_array = factories.array(
+            repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
+        )
+
+    # if a.split is not None:  # TODO
+    #     print(f"\n\n[{a.comm.rank}] Hello again, finally:\n{repeated_array._DNDarray__array}")
+
+    repeated_array.balance_()
+
+    return repeated_array
 
 
 def reshape(a, shape, new_split=None):

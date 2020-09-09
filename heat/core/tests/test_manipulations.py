@@ -1014,6 +1014,129 @@ class TestManipulations(TestCase):
         res = ht.hstack((a, b))
         self.assertEqual(res.shape, (24,))
 
+    def test_repeat(self):  # TODO
+        # -------------------
+        # undistributed case
+        # -------------------
+        # axis = None
+        # -------------------
+        a = ht.arange(12).reshape((2, 2, 3))
+        a_np = a.numpy()
+
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (a.size * repeats,))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = list
+        repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = tuple
+        repeats = (1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3)
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = np.ndarray
+        repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.repeat(a, repeats, axis="0")
+        with self.assertRaises(TypeError):
+            ht.repeat("[1, 2, 3]", repeats)
+        with self.assertRaises(ValueError):
+            ht.repeat(a, repeats, axis=-1)
+        with self.assertRaises(ValueError):
+            ht.repeat(a, repeats, axis=len(a.shape))
+        with self.assertRaises(TypeError):
+            repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], dtype=np.float32)
+            ht.repeat(a, repeats)
+        with self.assertRaises(TypeError):
+            repeats = [1, 2, 0, 0, 1, "3", 2, 5, 1, 0, 2, 3]
+            ht.repeat(a, repeats)
+        with self.assertRaises(TypeError):
+            repeats = [1, 2.4, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
+            ht.repeat(a, repeats)
+        with self.assertRaises(ValueError):
+            repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2]
+            ht.repeat(a, repeats)
+        with self.assertRaises(ValueError):
+            repeats = [1, 2]
+            ht.repeat(a, repeats, axis=2)
+        with self.assertRaises(TypeError):
+            repeats = "[1, 2, 3]"
+            ht.repeat(a, repeats, axis=2)
+
+        # -------------------
+        # distributed case
+        # -------------------
+        a = ht.arange(12, split=0).reshape((2, 2, 3))
+        a_np = a.numpy()
+
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (a.size * repeats,))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # repeats = list                                # TODO starting here things start to get stuck
+        repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.gshape, (sum(repeats),))
+        self.assertEqual(result.split, a.split)
+        self.assertTrue((ht.array(comparison) == result).all())
+
+        # repeats = tuple
+        repeats = (1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3)
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assertEqual(result.split, a.split)
+        self.assertTrue((ht.array(comparison) == result).all())
+
+        # repeats = np.ndarray
+        repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assertEqual(result.split, a.split)
+        self.assertTrue((ht.array(comparison) == result).all())
+
     def test_reshape(self):
         # split = None
         a = ht.zeros((3, 4))
