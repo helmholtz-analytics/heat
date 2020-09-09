@@ -962,10 +962,8 @@ def repeat(a, repeats, axis=None):
             )
 
     # `a` is empty, no data to repeat
-    if 0 in a.lshape:
-        repeated_array_torch = factories.empty(
-            (0,), dtype=a.dtype, device=a.device, comm=a.comm
-        )._DNDarray__array
+    if 0 in a.lshape:  # TODO change lshape definition if axis is not None
+        repeated_array_torch = torch.empty((0,), dtype=a.dtype.torch_type())
     else:
         # sanitation `axis`
         if axis is not None and not isinstance(axis, int):
@@ -980,7 +978,7 @@ def repeat(a, repeats, axis=None):
         # sanitation `repeats`
         if isinstance(repeats, int):
             repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
-        # check whether everything inside `repeats` is int
+        # make sure everything inside `repeats` is int
         elif isinstance(repeats, (list, tuple, np.ndarray)):
             if isinstance(repeats, np.ndarray):
                 if repeats.dtype.kind != "i" and repeats.dtype.kind != "u":
@@ -1008,9 +1006,9 @@ def repeat(a, repeats, axis=None):
                     "was {}-dimensional.".format(len(repeats.shape))
                 )
 
-            # check whether repeats consists of 1 value (--> broadcast) or a is not/can not be distributed
+            # check whether `repeats` consists of 1 value (--> broadcast) or `a` is or can not be distributed
             # (i.e. all processes need all data of `repeats`
-            # otherwise, distribute `repeats` if the parameter combination/implied shapes requires it
+            # otherwise, distribute `repeats` if the parameter combination/implied shapes require it
 
             if repeats.size != 1 or a.split is not None:
                 # CASE 1 - reshape and split `repeats` along the same axis as `a` and flatten it afterwards
@@ -1021,7 +1019,6 @@ def repeat(a, repeats, axis=None):
                     repeats = factories.array(  # instead of manipulations.flatten, as it balances the result
                         torch.flatten(repeats._DNDarray__array),
                         dtype=repeats.dtype,
-                        is_split=repeats.split,
                         device=repeats.device,
                         comm=repeats.comm,
                     )
@@ -1068,14 +1065,9 @@ def repeat(a, repeats, axis=None):
             repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
         )
     else:
-        # if a.split is not None:  # TODO
-        #     print(f"\n\n[{a.comm.rank}] Result so far:\n{repeated_array_torch}")
         repeated_array = factories.array(
             repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
         )
-
-    # if a.split is not None:  # TODO
-    #     print(f"\n\n[{a.comm.rank}] Hello again, finally:\n{repeated_array._DNDarray__array}")
 
     repeated_array.balance_()
 

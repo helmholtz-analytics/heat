@@ -1107,7 +1107,7 @@ class TestManipulations(TestCase):
         self.assert_array_equal(result, comparison)
         self.assertEqual(result.split, a.split)
 
-        # repeats = list                                # TODO starting here things start to get stuck
+        # repeats = list
         repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
         result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats)
