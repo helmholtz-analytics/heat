@@ -1065,6 +1065,16 @@ class TestManipulations(TestCase):
         self.assert_array_equal(result, comparison)
         self.assertEqual(result.split, None)
 
+        # repeats = ht.DNDarray
+        repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
         # exceptions
         with self.assertRaises(TypeError):
             ht.repeat(a, repeats, axis="0")

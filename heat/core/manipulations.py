@@ -919,7 +919,7 @@ def repeat(a, repeats, axis=None):
     ----------
     a : array_like (i.e. int, float, or tuple/ list/ np.ndarray/ ht.DNDarray of ints/floats)
         Array containing the elements or particular element to be repeated.
-    repeats : int, or 1-dimensional/ np.ndarray/ list/ tuple of ints
+    repeats : int, or 1-dimensional/ DNDarray/ np.ndarray/ list/ tuple of ints
         The number of repetitions for each element, repeats is broadcasted to fit the shape of the given axis
          if it is composed of 1 element.
         Otherwise, its length must be the same as a in the specified axis. To put it differently, the
@@ -990,8 +990,24 @@ def repeat(a, repeats, axis=None):
         if isinstance(repeats, int):
             repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
         # make sure everything inside `repeats` is int
-        elif isinstance(repeats, (list, tuple, np.ndarray)):
-            if isinstance(repeats, np.ndarray):
+        elif isinstance(repeats, (list, tuple, np.ndarray, dndarray.DNDarray)):
+            if isinstance(repeats, dndarray.DNDarray):
+                if repeats.dtype == types.int64:
+                    pass
+                elif types.can_cast(repeats.dtype, types.int64):
+                    repeats = factories.array(
+                        repeats,
+                        dtype=types.int64,
+                        split=repeats.split,
+                        device=repeats.device,
+                        comm=repeats.comm,
+                    )
+                else:
+                    raise TypeError(
+                        "Invalid dtype for ht.DNDarray 'repeats'. Has to be integer,"
+                        " but was {}".format(repeats.dtype)
+                    )
+            elif isinstance(repeats, np.ndarray):
                 if repeats.dtype.kind != "i" and repeats.dtype.kind != "u":
                     raise TypeError(
                         "Invalid dtype for np.ndarray 'repeats'. Has to be integer,"
