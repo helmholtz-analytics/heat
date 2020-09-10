@@ -9,6 +9,8 @@ from ..core.communication import MPICommunication
 from ..core.communication import MPI
 from .. import optim
 
+import time
+
 
 __all__ = ["DataParallel", "DataParallelMultiGPU"]
 
@@ -361,8 +363,8 @@ class DataParallelMultiGPU(tnn.Module):
 
         # assign given optimizers to this model
         self.optimizer = optimizer
-        optimizer.blocking_parameter_updates = self.blocking_parameter_updates
-        optimizer.step = self._backwards_hook_load_prev
+        #optimizer.blocking_parameter_updates = self.blocking_parameter_updates
+        optimizer.step = self.step_load_prev
         # unify parameters across nodes by unifying the random seed and resetting parameters
         torch.random.manual_seed(2147483646)  # max int32 value - 1
         self.module.apply(self._reset_parameters)
@@ -491,7 +493,8 @@ class DataParallelMultiGPU(tnn.Module):
         #         rcv.wait()
 
         # copy and send the parameter dictionary
-        if self.local_rank == 0:
+        t = time.perf_counter()
+        if self.local_rank != 100:
             # self._prev_params = []
             for c, param in enumerate(self.parameters()):
                 if param.requires_grad:
@@ -514,6 +517,7 @@ class DataParallelMultiGPU(tnn.Module):
                         param += new_rcv_buff
                         self._prev_params[c] = [None, None]
         self.optimizer.torch_optimizer.step()
+        print('step time', time.perf_counter() - t)
 
     def _blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
         """

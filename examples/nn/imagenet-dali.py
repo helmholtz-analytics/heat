@@ -172,19 +172,19 @@ def to_python_float(t):
 
 class HybridPipe(Pipeline):
     def __init__(
-        self, batch_size, num_threads, data_dir, label_dir, crop, dali_cpu=False, training=True
+        self, batch_size, num_threads, device_id, data_dir, label_dir, crop, dali_cpu=False, training=True
     ):
         # get the rank and size to work with
-        if torch.distributed.is_initialized():
-            shard_id = torch.distributed.get_rank() + (
-                ht.MPI_WORLD.rank * torch.cuda.device_count()
-            )
-            num_shards = torch.distributed.get_world_size() * ht.MPI_WORLD.size
-        else:
-            shard_id = ht.MPI_WORLD.rank
-            num_shards = ht.MPI_WORLD.size
-
-        super(HybridPipe, self).__init__(batch_size, num_threads, shard_id)
+        #if torch.distributed.is_initialized():
+            #shard_id = torch.distributed.get_rank() + (
+            #    ht.MPI_WORLD.rank * torch.cuda.device_count()
+            #)
+            #num_shards = torch.distributed.get_world_size() * ht.MPI_WORLD.size
+        #else:
+        shard_id = ht.MPI_WORLD.rank
+        num_shards = ht.MPI_WORLD.size
+        # print('s', shard_id)
+        super(HybridPipe, self).__init__(batch_size, num_threads, device_id, shard_id)
 
         data_dir_list = [data_dir + d for d in os.listdir(data_dir)]
         label_dir_list = [label_dir + d for d in os.listdir(label_dir)]
@@ -206,6 +206,7 @@ class HybridPipe(Pipeline):
                 "image/object/bbox/ymax": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
             },
         )
+        # print("end of input")
         # let user decide which pipeline works him bets for RN version he runs
         dali_device = "cpu" if dali_cpu else "gpu"
         decoder_device = "cpu" if dali_cpu else "mixed"
@@ -236,6 +237,7 @@ class HybridPipe(Pipeline):
             self.resize = ops.Resize(
                 device="cpu", resize_shorter=crop, interp_type=dali.types.INTERP_TRIANGULAR
             )
+        # print("end of training if/else")
         # should this be CPU or GPU? -> if prefetching then do it on CPU before sending
         self.normalize = ops.CropMirrorNormalize(
             device="cpu",  # need to make this work with the define graph
@@ -250,6 +252,7 @@ class HybridPipe(Pipeline):
         print(f"DALI '{dali_device}' variant, training set: {training}")
 
     def define_graph(self):
+        # print("begine define graph")
         inputs = self.input(name="Reader")
         images = inputs["image/encoded"]
         labels = inputs["image/class/label"] - 1
@@ -305,20 +308,30 @@ def main():
     loc_gpus = torch.cuda.device_count()
     device = torch.device("cpu")
     loc_dist = True if loc_gpus > 1 else False
-    rank = 0
+    rank = ht.MPI_WORLD.rank
+    loc_rank = rank % loc_gpus
+    # rank = 0
     if args.distributed and loc_dist:  # todo: DDDP
-        args.world_size = loc_gpus * ht.MPI_WORLD.size
         args.gpus = torch.cuda.device_count()
-        torch.distributed.init_process_group(backend="nccl", world_size=loc_gpus)
+        # print(args.world_size, loc_gpus)
+        #torch.distributed.init_process_group(backend="nccl")  # , init_method="file:///distrubted_test",)
+                                             # rank=rank % loc_gpus, world_size=loc_gpus)  
+        torch.distributed.init_process_group(
+            backend="nccl",
+            init_method="file:///distributed_test",
+            rank=rank,
+            world_size=loc_gpus
+        )
+        # , rank=0, world_size=loc_gpus)
         rank = torch.distributed.get_rank()
         args.local_rank = torch.distributed.get_rank() + (
             ht.MPI_WORLD.rank * torch.cuda.device_count()
         )
         # todo: get device name from torch rank?
-        device = "cuda:" + str(rank % args.world_size)
+        device = "cuda:" + str(loc_rank)
+        print(device)
         torch.cuda.set_device(device=device)
     elif loc_gpus == 1:
-        args.world_size = loc_gpus * ht.MPI_WORLD.size
         args.gpus = torch.cuda.device_count()
         args.distributed = False
         device = "cuda:0"
@@ -359,7 +372,7 @@ def main():
     )
 
     # make sure that gradients are allocated lazily, so that they are not shared here
-    model.share_memory()
+    # model.share_memory()
 
     # create DP optimizer and model:
     blocking = False  # choose blocking or non-blocking parameter updates
@@ -369,7 +382,7 @@ def main():
         ht.MPI_WORLD,
         dp_optimizer,
         local_rank=args.local_rank,
-        blocking_parameter_updates=blocking,
+        # blocking_parameter_updates=blocking,
     )
 
     # define loss function (criterion) and optimizer
@@ -407,6 +420,7 @@ def main():
     pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
+        device_id=loc_rank,
         data_dir=args.train,
         label_dir=args.train_indexes,
         crop=crop_size,
@@ -414,11 +428,13 @@ def main():
         training=True,
     )
     pipe.build()
+    # print('end of first pip')
     train_loader = DALIClassificationIterator(pipe, reader_name="Reader", fill_last_batch=False)
 
     pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
+        device_id=loc_rank, # device,
         data_dir=args.validate,
         label_dir=args.validate_indexes,
         crop=val_size,
@@ -508,7 +524,7 @@ def main():
 #         val_loader.reset()
 
 
-def train(rank, train_loader, model, criterion, optimizer, epoch):
+def train(dev, train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
@@ -519,8 +535,9 @@ def train(rank, train_loader, model, criterion, optimizer, epoch):
     end = time.time()
 
     for i, data in enumerate(train_loader):
-        input = data[0]["data"].cuda(rank)
-        target = data[0]["label"].squeeze().cuda(rank).long()
+        t = time.perf_counter()
+        input = data[0]["data"].cuda(dev)
+        target = data[0]["label"].squeeze().cuda(dev).long()
         train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
 
         if args.prof >= 0 and i == args.prof:
@@ -612,11 +629,11 @@ def train(rank, train_loader, model, criterion, optimizer, epoch):
             print("Profiling ended at iteration {}".format(i))
             torch.cuda.cudart().cudaProfilerStop()
             quit()
-
+        # print("batch time", time.perf_counter() - t)
     return batch_time.avg
 
 
-def validate(rank, val_loader, model, criterion):
+def validate(dev, val_loader, model, criterion):
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
@@ -628,8 +645,8 @@ def validate(rank, val_loader, model, criterion):
     end = time.time()
 
     for i, data in enumerate(val_loader):
-        input = data[0]["data"].cuda(rank)
-        target = data[0]["label"].squeeze().cuda(rank).long()
+        input = data[0]["data"].cuda(dev)
+        target = data[0]["label"].squeeze().cuda(dev).long()
         val_loader_len = int(val_loader._size / args.batch_size)
 
         # compute output
@@ -746,5 +763,8 @@ def reduce_tensor(tensor):
 
 
 if __name__ == "__main__":
-    # tmp.spawn(main, nprocs=torch.cuda.device_count())
+    #print('here')
+    #os.environ['MASTER_ADDR'] = 'localhost'
+    #os.environ['MASTER_PORT'] = '12355'
+    #tmp.spawn(main, nprocs=torch.cuda.device_count())
     main()
