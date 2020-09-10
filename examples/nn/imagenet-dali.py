@@ -11,7 +11,9 @@ import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 import torch.optim
 import torch.utils.data
-import torch.utils.data.distributed
+import torch.utils.data.distributed as tdist
+import torch.multiprocessing as tmp
+from torch.nn.parallel import DistributedDataParallel as tDDP
 import torchvision.models as models
 
 import sys
@@ -170,17 +172,20 @@ def to_python_float(t):
 
 class HybridPipe(Pipeline):
     def __init__(
-        self,
-        batch_size,
-        num_threads,
-        device_id,
-        data_dir,
-        label_dir,
-        crop,
-        dali_cpu=False,
-        training=True,
+        self, batch_size, num_threads, data_dir, label_dir, crop, dali_cpu=False, training=True
     ):
-        super(HybridPipe, self).__init__(batch_size, num_threads, device_id)
+        # get the rank and size to work with
+        if torch.distributed.is_initialized():
+            shard_id = torch.distributed.get_rank() + (
+                ht.MPI_WORLD.rank * torch.cuda.device_count()
+            )
+            num_shards = torch.distributed.get_world_size() * ht.MPI_WORLD.size
+        else:
+            shard_id = ht.MPI_WORLD.rank
+            num_shards = ht.MPI_WORLD.size
+
+        super(HybridPipe, self).__init__(batch_size, num_threads, shard_id)
+
         data_dir_list = [data_dir + d for d in os.listdir(data_dir)]
         label_dir_list = [label_dir + d for d in os.listdir(label_dir)]
 
@@ -188,8 +193,8 @@ class HybridPipe(Pipeline):
             path=data_dir_list,
             index_path=label_dir_list,
             random_shuffle=True if training else False,
-            shard_id=ht.MPI_WORLD.rank,  # todo: multi GPU/node
-            num_shards=ht.MPI_WORLD.size,
+            shard_id=shard_id,  # todo: multi GPU/node
+            num_shards=num_shards,
             initial_fill=10000,
             features={
                 "image/encoded": dali.tfrecord.FixedLenFeature((), dali.tfrecord.string, ""),
@@ -207,6 +212,7 @@ class HybridPipe(Pipeline):
         # This padding sets the size of the internal nvJPEG buffers to be able to
         # handle all images from full-sized ImageNet without additional reallocations
         # leaving the padding in for now to allow for the case for loading to GPUs
+        # todo: move info to GPUs
         device_memory_padding = 211025920 if decoder_device == "mixed" else 0
         host_memory_padding = 140544512 if decoder_device == "mixed" else 0
         if training:
@@ -256,6 +262,11 @@ class HybridPipe(Pipeline):
         return images, labels
 
 
+# def _set_cuda_dev():
+#     for g in range(torch.cuda.device_count()):
+#
+
+
 def main():
     global best_prec1, args
     best_prec1 = 0
@@ -270,15 +281,16 @@ def main():
         args.data = []
         print("Test mode - no DDP, no apex, RN50, 10 iterations")
 
-    args.distributed = False  # TODO: DDDP: if ht.MPI_WORLD.size > 1 else False
+    args.distributed = True  # TODO: DDDP: if ht.MPI_WORLD.size > 1 else False
     print("loss_scale = {}".format(args.loss_scale), type(args.loss_scale))
     print("\nCUDNN VERSION: {}\n".format(torch.backends.cudnn.version()))
 
-    if torch.cuda.is_available():
-        dev_id = ht.MPI_WORLD.rank % torch.cuda.device_count()
-        torch.cuda.set_device(dev_id)
-    else:
-        dev_id = None
+    # if torch.cuda.is_available():
+    #     dev_id = ht.MPI_WORLD.rank % torch.cuda.device_count()
+    #     # todo: change for DDDP
+    #     torch.cuda.set_device(dev_id)
+    # else:
+    #     dev_id = None
 
     cudnn.benchmark = True
     best_prec1 = 0
@@ -290,12 +302,28 @@ def main():
 
     args.gpu = 0
     args.world_size = ht.MPI_WORLD.size
-
-    # if args.distributed:  # todo: DDDP
-    #    args.gpu = args.local_rank
-    #    torch.cuda.set_device(args.gpu)
-    #    torch.distributed.init_process_group(backend="nccl", init_method="env://")
-    #    args.world_size = torch.distributed.get_world_size()
+    loc_gpus = torch.cuda.device_count()
+    device = torch.device("cpu")
+    loc_dist = True if loc_gpus > 1 else False
+    rank = 0
+    if args.distributed and loc_dist:  # todo: DDDP
+        args.world_size = loc_gpus * ht.MPI_WORLD.size
+        args.gpus = torch.cuda.device_count()
+        torch.distributed.init_process_group(backend="nccl", world_size=loc_gpus)
+        rank = torch.distributed.get_rank()
+        args.local_rank = torch.distributed.get_rank() + (
+            ht.MPI_WORLD.rank * torch.cuda.device_count()
+        )
+        # todo: get device name from torch rank?
+        device = "cuda:" + str(rank % args.world_size)
+        torch.cuda.set_device(device=device)
+    elif loc_gpus == 1:
+        args.world_size = loc_gpus * ht.MPI_WORLD.size
+        args.gpus = torch.cuda.device_count()
+        args.distributed = False
+        device = "cuda:0"
+        args.local_rank = 0
+        torch.cuda.set_device(device)
 
     args.total_batch_size = args.world_size * args.batch_size
     assert torch.backends.cudnn.enabled, "Amp requires cudnn backend to be enabled."
@@ -308,14 +336,21 @@ def main():
         print("=> creating model '{}'".format(args.arch))
         model = models.__dict__[args.arch]()
 
-    if hasattr(torch, "channels_last") and hasattr(torch, "contiguous_format"):
-        if args.channels_last:
-            memory_format = torch.channels_last
-        else:
-            memory_format = torch.contiguous_format
-        model = model.cuda(dev_id).to(memory_format=memory_format)
+    # todo: set the model cuda stuff later
+    if (
+        not args.distributed
+        and hasattr(torch, "channels_last")
+        and hasattr(torch, "contiguous_format")
+    ):
+        # if args.channels_last:
+        #    memory_format = torch.channels_last
+        # else:
+        memory_format = torch.contiguous_format
+        model = model.cuda(device).to(memory_format=memory_format)
+        # model = model.to(device, memory_format=memory_format)
     else:
-        model = model.cuda(dev_id)
+        model = model.cuda(device)
+        # model = model.to(device)
 
     # Scale learning rate based on global batch size
     args.lr = args.lr * float(args.batch_size * ht.MPI_WORLD.size) / 256.0
@@ -323,36 +358,43 @@ def main():
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
 
+    # make sure that gradients are allocated lazily, so that they are not shared here
+    model.share_memory()
+
     # create DP optimizer and model:
     blocking = False  # choose blocking or non-blocking parameter updates
     dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
-    htmodel = ht.nn.DataParallel(
-        model, ht.MPI_WORLD, dp_optimizer, blocking_parameter_updates=blocking
+    htmodel = ht.nn.DataParallelMultiGPU(
+        model,
+        ht.MPI_WORLD,
+        dp_optimizer,
+        local_rank=args.local_rank,
+        blocking_parameter_updates=blocking,
     )
 
     # define loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss().cuda()
+    criterion = nn.CrossEntropyLoss().cuda(device)
 
     # Optionally resume from a checkpoint
-    if args.resume:
-        # Use a local scope to avoid dangling references
-        def resume():
-            if os.path.isfile(args.resume):
-                print("=> loading checkpoint '{}'".format(args.resume))
-                checkpoint = torch.load(
-                    args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu)
-                )
-                args.start_epoch = checkpoint["epoch"]
-                # best_prec1 = checkpoint["best_prec1"]
-                htmodel.load_state_dict(checkpoint["state_dict"])
-                optimizer.load_state_dict(checkpoint["optimizer"])
-                print(
-                    "=> loaded checkpoint '{}' (epoch {})".format(args.resume, checkpoint["epoch"])
-                )
-            else:
-                print("=> no checkpoint found at '{}'".format(args.resume))
-
-        resume()
+    # if args.resume:
+    #     # Use a local scope to avoid dangling references
+    #     def resume():
+    #         if os.path.isfile(args.resume):
+    #             print("=> loading checkpoint '{}'".format(args.resume))
+    #             checkpoint = torch.load(
+    #                 args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu)
+    #             )
+    #             args.start_epoch = checkpoint["epoch"]
+    #             # best_prec1 = checkpoint["best_prec1"]
+    #             htmodel.load_state_dict(checkpoint["state_dict"])
+    #             optimizer.load_state_dict(checkpoint["optimizer"])
+    #             print(
+    #                 "=> loaded checkpoint '{}' (epoch {})".format(args.resume, checkpoint["epoch"])
+    #             )
+    #         else:
+    #             print("=> no checkpoint found at '{}'".format(args.resume))
+    #
+    #     resume()
 
     if args.arch == "inception_v3":
         raise RuntimeError("Currently, inception_v3 is not supported by this example.")
@@ -365,13 +407,10 @@ def main():
     pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
-        device_id=args.local_rank,
         data_dir=args.train,
         label_dir=args.train_indexes,
         crop=crop_size,
         dali_cpu=args.dali_cpu,
-        shard_id=args.local_rank,
-        num_shards=args.world_size,
         training=True,
     )
     pipe.build()
@@ -380,32 +419,29 @@ def main():
     pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
-        device_id=args.local_rank,
         data_dir=args.validate,
         label_dir=args.validate_indexes,
         crop=val_size,
         dali_cpu=args.dali_cpu,
-        shard_id=args.local_rank,
-        num_shards=args.world_size,
         training=False,
     )
     pipe.build()
     val_loader = DALIClassificationIterator(pipe, reader_name="Reader", fill_last_batch=False)
 
     if args.evaluate:
-        validate(val_loader, htmodel, criterion)
+        validate(device, val_loader, htmodel, criterion)
         return
 
     total_time = AverageMeter()
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
-        avg_train_time = train(train_loader, htmodel, criterion, dp_optimizer, epoch, dev_id)
+        avg_train_time = train(device, train_loader, htmodel, criterion, dp_optimizer, epoch)
         total_time.update(avg_train_time)
         if args.test:
             break
 
         # evaluate on validation set
-        [prec1, prec5] = validate(val_loader, htmodel, criterion)
+        [prec1, prec5] = validate(device, val_loader, htmodel, criterion)
 
         # remember best prec@1 and save checkpoint
         if args.local_rank == 0:
@@ -432,7 +468,47 @@ def main():
         val_loader.reset()
 
 
-def train(train_loader, model, criterion, optimizer, epoch, device_id):
+# def mp_epoch_fn(rank, train_val_args):
+#     loc_gpus = torch.cuda.device_count()
+#     train_loader, htmodel, criterion, optimizer, train_loader, val_loader = train_val_args
+#     tmp.spawn(train, nprocs=loc_gpus, args=(train_loader, htmodel, criterion, optimizer))
+#     total_time = AverageMeter()
+#     for epoch in range(args.start_epoch, args.epochs):
+#         # train for one epoch
+#         # avg_train_time = tmp.spawn(train, nprocs=loc_gpus, args=(train_loader, htmodel, criterion, optimizer))
+#         total_time.update(avg_train_time)
+#         if args.test:
+#             break
+#
+#         # evaluate on validation set
+#         [prec1, prec5] = validate(val_loader, htmodel, criterion)
+#
+#         # remember best prec@1 and save checkpoint
+#         if args.local_rank == 0:
+#             is_best = prec1 > best_prec1
+#             best_prec1 = max(prec1, best_prec1)
+#             save_checkpoint(
+#                 {
+#                     "epoch": epoch + 1,
+#                     "arch": args.arch,
+#                     "state_dict": htmodel.state_dict(),
+#                     "best_prec1": best_prec1,
+#                     "optimizer": optimizer.state_dict(),
+#                 },
+#                 is_best,
+#             )
+#             if epoch == args.epochs - 1:
+#                 print(
+#                     "##Top-1 {0}\n"
+#                     "##Top-5 {1}\n"
+#                     "##Perf  {2}".format(prec1, prec5, args.total_batch_size / total_time.avg)
+#                 )
+#
+#         train_loader.reset()
+#         val_loader.reset()
+
+
+def train(rank, train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
@@ -443,8 +519,8 @@ def train(train_loader, model, criterion, optimizer, epoch, device_id):
     end = time.time()
 
     for i, data in enumerate(train_loader):
-        input = data[0]["data"].cuda(device_id)
-        target = data[0]["label"].squeeze().cuda(device_id).long()
+        input = data[0]["data"].cuda(rank)
+        target = data[0]["label"].squeeze().cuda(rank).long()
         train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
 
         if args.prof >= 0 and i == args.prof:
@@ -540,7 +616,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device_id):
     return batch_time.avg
 
 
-def validate(val_loader, model, criterion):
+def validate(rank, val_loader, model, criterion):
     batch_time = AverageMeter()
     losses = AverageMeter()
     top1 = AverageMeter()
@@ -552,8 +628,8 @@ def validate(val_loader, model, criterion):
     end = time.time()
 
     for i, data in enumerate(val_loader):
-        input = data[0]["data"]
-        target = data[0]["label"].squeeze().cuda().long()
+        input = data[0]["data"].cuda(rank)
+        target = data[0]["label"].squeeze().cuda(rank).long()
         val_loader_len = int(val_loader._size / args.batch_size)
 
         # compute output
@@ -670,4 +746,5 @@ def reduce_tensor(tensor):
 
 
 if __name__ == "__main__":
+    # tmp.spawn(main, nprocs=torch.cuda.device_count())
     main()
