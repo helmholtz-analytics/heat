@@ -990,7 +990,9 @@ def repeat(a, repeats, axis=None):
         if isinstance(repeats, int):
             repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
         # make sure everything inside `repeats` is int
-        elif isinstance(repeats, (list, tuple, np.ndarray, dndarray.DNDarray)):
+        elif isinstance(
+            repeats, (list, tuple, np.ndarray, dndarray.DNDarray)
+        ):  # TODO restructure code
             if isinstance(repeats, dndarray.DNDarray):
                 if repeats.dtype == types.int64:
                     pass
@@ -1052,12 +1054,17 @@ def repeat(a, repeats, axis=None):
 
                 # CASE 2 - split `repeats` along axis 0
                 elif a.split == axis:
-                    repeats.resplit_(0)
+                    if repeats.split != 0:
+                        repeats.resplit_(0)
+
+                # CASE 3 - every process needs the whole data (Allgather)  # TODO check
+                elif repeats.split is not None:
+                    repeats.resplit_(None)
 
                 # for check above (next if) - to avoid balance_ in ht.flatten
                 a_flattened_torch = torch.flatten(a._DNDarray__array)
 
-                # check matching shapes
+                # check matching shapes         # TODO beautify - restructure code
                 if axis is None and tuple(a_flattened_torch.size()) != (repeats.lnumel,):
                     raise ValueError(
                         "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "

@@ -1065,15 +1065,30 @@ class TestManipulations(TestCase):
         self.assert_array_equal(result, comparison)
         self.assertEqual(result.split, None)
 
-        # repeats = ht.DNDarray
+        # repeats = undistributed ht.DNDarray
         repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
+        repeats_np = repeats.numpy()
         result = ht.repeat(a, repeats)
-        comparison = np.repeat(a_np, repeats)
+        comparison = np.repeat(a_np, repeats_np)
 
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (sum(repeats),))
+        self.assertEqual(result.shape, comparison.shape)
         self.assert_array_equal(result, comparison)
         self.assertEqual(result.split, None)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, None)
+
+        # repeats = distributed ht.DNDarray
+        repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats.numpy())
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, 0)
 
         # exceptions
         with self.assertRaises(TypeError):
@@ -1102,6 +1117,9 @@ class TestManipulations(TestCase):
         with self.assertRaises(TypeError):
             repeats = "[1, 2, 3]"
             ht.repeat(a, repeats, axis=2)
+        with self.assertRaises(TypeError):
+            repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], dtype=ht.float64)
+            ht.repeat(a, repeats)
 
         # -------------------
         # axis != None
