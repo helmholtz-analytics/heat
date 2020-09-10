@@ -172,18 +172,19 @@ def to_python_float(t):
 
 class HybridPipe(Pipeline):
     def __init__(
-        self, batch_size, num_threads, device_id, data_dir, label_dir, crop, dali_cpu=False, training=True
+        self,
+        batch_size,
+        num_threads,
+        device_id,
+        data_dir,
+        label_dir,
+        crop,
+        dali_cpu=False,
+        training=True,
     ):
         # get the rank and size to work with
-        #if torch.distributed.is_initialized():
-            #shard_id = torch.distributed.get_rank() + (
-            #    ht.MPI_WORLD.rank * torch.cuda.device_count()
-            #)
-            #num_shards = torch.distributed.get_world_size() * ht.MPI_WORLD.size
-        #else:
         shard_id = ht.MPI_WORLD.rank
         num_shards = ht.MPI_WORLD.size
-        # print('s', shard_id)
         super(HybridPipe, self).__init__(batch_size, num_threads, device_id, shard_id)
 
         data_dir_list = [data_dir + d for d in os.listdir(data_dir)]
@@ -206,7 +207,6 @@ class HybridPipe(Pipeline):
                 "image/object/bbox/ymax": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
             },
         )
-        # print("end of input")
         # let user decide which pipeline works him bets for RN version he runs
         dali_device = "cpu" if dali_cpu else "gpu"
         decoder_device = "cpu" if dali_cpu else "mixed"
@@ -252,7 +252,6 @@ class HybridPipe(Pipeline):
         print(f"DALI '{dali_device}' variant, training set: {training}")
 
     def define_graph(self):
-        # print("begine define graph")
         inputs = self.input(name="Reader")
         images = inputs["image/encoded"]
         labels = inputs["image/class/label"] - 1
@@ -263,11 +262,6 @@ class HybridPipe(Pipeline):
         else:
             images = self.normalize(images)
         return images, labels
-
-
-# def _set_cuda_dev():
-#     for g in range(torch.cuda.device_count()):
-#
 
 
 def main():
@@ -313,23 +307,15 @@ def main():
     # rank = 0
     if args.distributed and loc_dist:  # todo: DDDP
         args.gpus = torch.cuda.device_count()
-        # print(args.world_size, loc_gpus)
-        #torch.distributed.init_process_group(backend="nccl")  # , init_method="file:///distrubted_test",)
-                                             # rank=rank % loc_gpus, world_size=loc_gpus)  
         torch.distributed.init_process_group(
-            backend="nccl",
-            init_method="file:///distributed_test",
-            rank=rank,
-            world_size=loc_gpus
+            backend="nccl", init_method="file:///distributed_test", rank=rank, world_size=loc_gpus
         )
-        # , rank=0, world_size=loc_gpus)
-        rank = torch.distributed.get_rank()
-        args.local_rank = torch.distributed.get_rank() + (
-            ht.MPI_WORLD.rank * torch.cuda.device_count()
-        )
+        # rank = torch.distributed.get_rank()
+        # args.local_rank = torch.distributed.get_rank() + (
+        #     ht.MPI_WORLD.rank * torch.cuda.device_count()
+        # )
         # todo: get device name from torch rank?
         device = "cuda:" + str(loc_rank)
-        print(device)
         torch.cuda.set_device(device=device)
     elif loc_gpus == 1:
         args.gpus = torch.cuda.device_count()
@@ -378,11 +364,7 @@ def main():
     blocking = False  # choose blocking or non-blocking parameter updates
     dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
     htmodel = ht.nn.DataParallelMultiGPU(
-        model,
-        ht.MPI_WORLD,
-        dp_optimizer,
-        local_rank=args.local_rank,
-        # blocking_parameter_updates=blocking,
+        model, ht.MPI_WORLD, dp_optimizer, local_rank=args.local_rank, overlap=True
     )
 
     # define loss function (criterion) and optimizer
@@ -434,7 +416,7 @@ def main():
     pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
-        device_id=loc_rank, # device,
+        device_id=loc_rank,  # device,
         data_dir=args.validate,
         label_dir=args.validate_indexes,
         crop=val_size,
@@ -484,46 +466,6 @@ def main():
         val_loader.reset()
 
 
-# def mp_epoch_fn(rank, train_val_args):
-#     loc_gpus = torch.cuda.device_count()
-#     train_loader, htmodel, criterion, optimizer, train_loader, val_loader = train_val_args
-#     tmp.spawn(train, nprocs=loc_gpus, args=(train_loader, htmodel, criterion, optimizer))
-#     total_time = AverageMeter()
-#     for epoch in range(args.start_epoch, args.epochs):
-#         # train for one epoch
-#         # avg_train_time = tmp.spawn(train, nprocs=loc_gpus, args=(train_loader, htmodel, criterion, optimizer))
-#         total_time.update(avg_train_time)
-#         if args.test:
-#             break
-#
-#         # evaluate on validation set
-#         [prec1, prec5] = validate(val_loader, htmodel, criterion)
-#
-#         # remember best prec@1 and save checkpoint
-#         if args.local_rank == 0:
-#             is_best = prec1 > best_prec1
-#             best_prec1 = max(prec1, best_prec1)
-#             save_checkpoint(
-#                 {
-#                     "epoch": epoch + 1,
-#                     "arch": args.arch,
-#                     "state_dict": htmodel.state_dict(),
-#                     "best_prec1": best_prec1,
-#                     "optimizer": optimizer.state_dict(),
-#                 },
-#                 is_best,
-#             )
-#             if epoch == args.epochs - 1:
-#                 print(
-#                     "##Top-1 {0}\n"
-#                     "##Top-5 {1}\n"
-#                     "##Perf  {2}".format(prec1, prec5, args.total_batch_size / total_time.avg)
-#                 )
-#
-#         train_loader.reset()
-#         val_loader.reset()
-
-
 def train(dev, train_loader, model, criterion, optimizer, epoch):
     batch_time = AverageMeter()
     losses = AverageMeter()
@@ -535,7 +477,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     end = time.time()
 
     for i, data in enumerate(train_loader):
-        t = time.perf_counter()
+        # t = time.perf_counter()
         input = data[0]["data"].cuda(dev)
         target = data[0]["label"].squeeze().cuda(dev).long()
         train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
@@ -763,8 +705,8 @@ def reduce_tensor(tensor):
 
 
 if __name__ == "__main__":
-    #print('here')
-    #os.environ['MASTER_ADDR'] = 'localhost'
-    #os.environ['MASTER_PORT'] = '12355'
-    #tmp.spawn(main, nprocs=torch.cuda.device_count())
+    # print('here')
+    # os.environ['MASTER_ADDR'] = 'localhost'
+    # os.environ['MASTER_PORT'] = '12355'
+    # tmp.spawn(main, nprocs=torch.cuda.device_count())
     main()
