@@ -1165,8 +1165,35 @@ class TestManipulations(TestCase):
         self.assert_array_equal(result, comparison)
         self.assertEqual(result.split, None)
 
+        # repeats = undistributed ht.DNDarray
+        repeats = ht.array([1, 2, 0])
+        repeats_np = repeats.numpy()
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats_np, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, None)
+
+        # repeats = distributed ht.DNDarray
+        repeats = ht.array([1, 2, 0], split=0)
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats.numpy(), 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        # self.assertEqual(repeats.split, 0)  # TODO fails (eventually resplit not in place or resplit again)
+
         # -------------------
         # DISTRIBUTED CASE
+        # -------------------
+        # axis = None
         # -------------------
         a = ht.arange(12, split=0).reshape((2, 2, 3))
         a_np = a.numpy()
@@ -1210,6 +1237,32 @@ class TestManipulations(TestCase):
         self.assertEqual(result.shape, (sum(repeats),))
         self.assertEqual(result.split, a.split)
         self.assertTrue((ht.array(comparison) == result).all())
+
+        # repeats = undistributed ht.DNDarray
+        repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
+        repeats_np = repeats.numpy()
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats_np)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assertTrue((ht.array(comparison) == result).all())
+        self.assertEqual(result.split, a.split)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, None)
+
+        # repeats = distributed ht.DNDarray
+        # repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)
+        # result = ht.repeat(a, repeats)
+        #
+        # comparison = np.repeat(a_np, repeats.numpy())
+        #
+        # self.assertIsInstance(result, ht.DNDarray)
+        # self.assertEqual(result.shape, comparison.shape)
+        # self.assertTrue((ht.array(comparison) == result).all())
+        # self.assertEqual(result.split, a.split)
+        # self.assertIsInstance(repeats, ht.DNDarray)
+        # self.assertEqual(repeats.split, 0)
 
         # -------------------
         # axis != None

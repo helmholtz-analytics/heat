@@ -1039,7 +1039,9 @@ def repeat(a, repeats, axis=None):
             # (i.e. all processes need all data of `repeats`
             # otherwise, distribute `repeats` if the parameter combination/implied shapes require it
 
-            if repeats.size != 1 or a.split is not None:
+            if (
+                repeats.size != 1 or a.split is not None
+            ):  # TODO might be critical (repeats.size !=1 might not imply broadcast (axis not None))
                 # CASE 1 - reshape and split `repeats` along the same axis as `a` and flatten it afterwards
                 if axis is None:
                     repeats = repeats.reshape(a.gshape)
@@ -1053,7 +1055,7 @@ def repeat(a, repeats, axis=None):
                     )
 
                 # CASE 2 - split `repeats` along axis 0
-                elif a.split == axis:
+                elif a.split == axis:  # TODO check
                     if repeats.split != 0:
                         repeats.resplit_(0)
 
