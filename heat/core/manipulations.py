@@ -970,8 +970,9 @@ def repeat(a, repeats, axis=None):
             new_lshape = list(a.lshape)
             if isinstance(repeats, int):
                 new_lshape[axis] *= repeats
-            # DNDarray
-            else:
+            else:  # array_like
+                if isinstance(repeats, dndarray.DNDarray) and repeats.split is not None:
+                    repeats.resplit_(None)
                 new_lshape[axis] = int(sum(repeats))
 
             repeated_array_torch = torch.empty(new_lshape, dtype=a.dtype.torch_type())
@@ -1006,7 +1007,7 @@ def repeat(a, repeats, axis=None):
                     repeats = factories.array(
                         repeats,
                         dtype=types.int64,
-                        split=repeats.split,
+                        is_split=repeats.split,
                         device=repeats.device,
                         comm=repeats.comm,
                     )
@@ -1022,7 +1023,7 @@ def repeat(a, repeats, axis=None):
                         " but was {}".format(repeats.dtype.type)
                     )
                 repeats = factories.array(
-                    repeats, dtype=types.int64, split=None, device=a.device, comm=a.comm
+                    repeats, dtype=types.int64, is_split=None, device=a.device, comm=a.comm
                 )
             # invalid list/tuple
             elif not all(isinstance(r, int) for r in repeats):
@@ -1032,7 +1033,7 @@ def repeat(a, repeats, axis=None):
             # valid list/tuple
             else:
                 repeats = factories.array(
-                    repeats, dtype=types.int64, split=None, device=a.device, comm=a.comm
+                    repeats, dtype=types.int64, is_split=None, device=a.device, comm=a.comm
                 )
 
             # check `repeats` is 1-dimensional
@@ -1056,13 +1057,13 @@ def repeat(a, repeats, axis=None):
                             "of the DNDarray a or replace repeats with a single"
                             " scalar.".format(a.gnumel, repeats.gnumel)
                         )
-                    # TODO previous Allgather? repeats.resplit_(None) ?
+
                     repeats = repeats.reshape(a.gshape)
                     repeats.resplit_(a.split)
 
                     repeats = factories.array(  # instead of manipulations.flatten, as it balances the result
                         torch.flatten(repeats._DNDarray__array),
-                        dtype=repeats.dtype,
+                        dtype=repeats.dtype,  # TODO strangely, if is_split is set, code gets stuck (if 1 process is empty)
                         device=repeats.device,
                         comm=repeats.comm,
                     )
