@@ -2178,42 +2178,109 @@ def tile(x, reps):
         new_split = None if x.split is None else x.split + added_dims
         x = x.reshape(new_shape, axis=new_split)
     split = x.split
+    t_x = x._DNDarray__array
     if split is None or reps[split] == 1:
         # no repeats along the split axis: local operation
-        t_x = x._DNDarray__array
         t_tiled = t_x.repeat(reps)
         return factories.array(t_tiled, dtype=x.dtype, is_split=split, comm=x.comm)
     else:
-        raise NotImplementedError("ht.tile() not implemented yet for repeats along the split axis")
-        # size = x.comm.Get_size()
-        # rank = x.comm.Get_rank()
-        # # repeats along the split axis: communication needed
-        # output_shape = tuple(s * r for s, r in zip(x.gshape, reps))
-        # tiled = factories.empty(output_shape, dtype=x.dtype, split=split, comm=x.comm)
-        # current_offset, current_lshape, current_slice = x.comm.chunk(x.gshape, split)
-        # tiled_offset, tiled_lshape, tiled_slice = tiled.comm.chunk(tiled.gshape, split)
-        # t_current_map = x.create_lshape_map()
-        # t_tiled_map = tiled.create_lshape_map()
-        # # map offsets (torch tensor with shape (size, 2) )
-        # t_offset_map = torch.stack(
-        #     (
-        #         t_current_map[:, split].cumsum(0) - t_current_map[:, split],
-        #         t_tiled_map[:, split].cumsum(0) - t_tiled_map[:, split],
-        #         t_tiled_map[rank, split] - t_current_map[:, split] + 1,
-        #     ),
-        #     dim=1,
-        # )
+        # repeats along the split axis: communication needed
+        size = x.comm.Get_size()
+        rank = x.comm.Get_rank()
+        x_shape = x.gshape
+        # allocate tiled DNDarray
+        tiled_shape = tuple(s * r for s, r in zip(x_shape, reps))
+        tiled = factories.empty(tiled_shape, dtype=x.dtype, split=split, comm=x.comm)
+        # collect slicing information from all processes.
+        # t_(...) indicates process-local torch tensors
+        lshape_maps = []
+        slices_map = []
+        t_0 = torch.tensor([0], dtype=torch.int32)
+        for array in [x, tiled]:
+            t_lshape_map = array.create_lshape_map()
+            lshape_maps.append(t_lshape_map)
+            t_slices = torch.cat((t_0, t_lshape_map[:, split])).cumsum(0)
+            t_slices_starts = t_slices[:size]
+            t_slices_ends = t_slices[1:]
+            slices_map.append([t_slices_starts, t_slices_ends])
 
-        # # col 0 = current offsets, col 1 = tiled offsets
-        # recv_rank = torch.where(
-        #     0
-        #     <= t_offset_map[:, 0] - t_offset_map[:, 1]
-        #     <= t_tiled_map[:, split] - t_current_map[:, split] + 1
-        # )
+        t_slices_x, t_slices_tiled = slices_map
 
-        # # use distributed setitem!
-        # # then torch.repeat on non-distributed dimensions
-        # pass
+        # keep track of repetitions
+        # t_x_starts.shape, t_x_ends.shape changing from (size,) to (reps[split], size)
+        reps_indices = list(x_shape[split] * rep for rep in (range(reps[split])))
+        t_reps_indices = torch.tensor(reps_indices, dtype=torch.int32).reshape(len(reps_indices), 1)
+        for i, t in enumerate(t_slices_x):
+            t = t.repeat((reps[split], 1))
+            t += t_reps_indices
+            t_slices_x[i] = t
+
+        # distribution logic on current rank:
+        distr_map = []
+        slices_map = []
+        for i in range(2):
+            if i == 0:
+                # send logic for x slices on rank
+                t_x_starts = t_slices_x[0][:, rank].reshape(reps[split], 1)
+                t_x_ends = t_slices_x[1][:, rank].reshape(reps[split], 1)
+                t_tiled_starts, t_tiled_ends = t_slices_tiled
+            else:
+                # recv logic for tiled slices on rank
+                t_x_starts, t_x_ends = t_slices_x
+                t_tiled_starts = t_slices_tiled[0][rank]
+                t_tiled_ends = t_slices_tiled[1][rank]
+            t_max_starts = torch.max(t_x_starts, t_tiled_starts)
+            t_min_ends = torch.min(t_x_ends, t_tiled_ends)
+            coords = torch.where(t_min_ends - t_max_starts > 0)
+            # remove repeat offset from slices if sending
+            if i == 0:
+                t_max_starts -= t_reps_indices
+                t_min_ends -= t_reps_indices
+            starts = t_max_starts[coords]
+            ends = t_min_ends[coords]
+            slices_map.append([starts, ends])
+            distr_map.append(coords)
+
+        send_map, recv_map = distr_map
+        send_slices, recv_slices = slices_map
+        send_to_ranks = send_map[1].tolist()
+        recv_from_ranks = recv_map[1].tolist()
+
+        # allocate local buffer for incoming data
+        t_local_tile = torch.zeros(
+            tuple(lshape_maps[1][0].tolist()), dtype=x._DNDarray__array.dtype
+        )
+        t_tiled = tiled._DNDarray__array
+
+        send_slice = recv_slice = local_slice = tiled.ndim * (slice(None, None, None),)
+        offset_x, _, _ = x.comm.chunk(x.gshape, x.split)
+        offset_tiled, _, _ = tiled.comm.chunk(tiled.gshape, tiled.split)
+
+        for i, r in enumerate(send_to_ranks):
+            start = send_slices[0][i] - offset_x
+            stop = send_slices[1][i] - offset_x
+            send_slice = send_slice[:split] + (slice(start, stop, None),) + send_slice[split + 1 :]
+            local_slice = (
+                local_slice[:split] + (slice(0, stop - start, None),) + local_slice[split + 1 :]
+            )
+            t_local_tile[local_slice] = t_x[send_slice]
+            x.comm.Send(t_local_tile, r)
+        for i, r in enumerate(recv_from_ranks):
+            start = recv_slices[0][i] - offset_tiled
+            stop = recv_slices[1][i] - offset_tiled
+            recv_slice = recv_slice[:split] + (slice(start, stop, None),) + recv_slice[split + 1 :]
+            local_slice = (
+                local_slice[:split] + (slice(0, stop - start, None),) + local_slice[split + 1 :]
+            )
+            x.comm.Recv(t_local_tile, r)
+            tiled._DNDarray__array[recv_slice] = t_local_tile[local_slice]
+
+        # finally tile along non-split axes if needed. Needs change in slices definition above
+        # reps = list(reps)
+        # reps[split] = 1
+        # tiled._DNDarray__array = tiled._DNDarray__array.repeat(reps)
+
+        return tiled
 
 
 def topk(a, k, dim=None, largest=True, sorted=True, out=None):
