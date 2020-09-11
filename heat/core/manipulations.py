@@ -1054,35 +1054,34 @@ def repeat(a, repeats, axis=None):
                         comm=repeats.comm,
                     )
 
-                # CASE 2 - split `repeats` along axis 0
-                elif a.split == axis:  # TODO check
-                    if repeats.split != 0:
-                        repeats.resplit_(0)
-
-                # CASE 3 - every process needs the whole data (Allgather)  # TODO check
-                elif repeats.split is not None:
-                    repeats.resplit_(None)
-
-                # for check above (next if) - to avoid balance_ in ht.flatten
-                a_flattened_torch = torch.flatten(a._DNDarray__array)
-
-                # check matching shapes         # TODO beautify - restructure code
-                if axis is None and tuple(a_flattened_torch.size()) != (repeats.lnumel,):
-                    raise ValueError(
-                        "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
-                        "Please revise your definition specifying repetitions for all elements "
-                        "of the DNDarray a or replace repeats with a single"
-                        " scalar.".format(a.flatten().lnumel, repeats.lnumel)
-                    )
-
-                if axis is not None and a.lshape[axis] != repeats.lnumel:
-                    raise ValueError(
-                        "Invalid input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
-                        "are not the same. Please revise your definition specifying repetitions for all elements "
-                        "of the DNDarray a or replace repeats with a single scalar".format(
-                            repeats.lnumel, a.lshape[axis]
+                    # check matching shapes
+                    if tuple(torch.flatten(a._DNDarray__array).size()) != (repeats.lnumel,):
+                        raise ValueError(
+                            "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
+                            "Please revise your definition specifying repetitions for all elements "
+                            "of the DNDarray a or replace repeats with a single"
+                            " scalar.".format(a.flatten().lnumel, repeats.lnumel)
                         )
-                    )
+
+                # axis is not None
+                else:
+                    # CASE 2 - split `repeats` along axis 0
+                    if a.split == axis:
+                        if repeats.split != 0:  # TODO check
+                            repeats.resplit_(0)
+
+                    # CASE 3 - every process needs the whole data (Allgather)
+                    elif repeats.split is not None:
+                        repeats.resplit_(None)
+
+                    if a.lshape[axis] != repeats.lnumel:
+                        raise ValueError(
+                            "Invalid input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
+                            "are not the same. Please revise your definition specifying repetitions for all elements "
+                            "of the DNDarray a or replace repeats with a single scalar".format(
+                                repeats.lnumel, a.lshape[axis]
+                            )
+                        )
 
             repeated_array_torch = torch.repeat_interleave(
                 a._DNDarray__array, repeats._DNDarray__array, axis
