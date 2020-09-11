@@ -986,13 +986,19 @@ def repeat(a, repeats, axis=None):
                     len(a.shape) - 1, axis
                 )
             )
+
         # sanitation `repeats`
+        if not isinstance(repeats, (int, list, tuple, np.ndarray, dndarray.DNDarray)):
+            raise TypeError(
+                "repeats must be a an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
+                    type(repeats)
+                )
+            )
+
         if isinstance(repeats, int):
             repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
         # make sure everything inside `repeats` is int
-        elif isinstance(
-            repeats, (list, tuple, np.ndarray, dndarray.DNDarray)
-        ):  # TODO restructure code
+        else:
             if isinstance(repeats, dndarray.DNDarray):
                 if repeats.dtype == types.int64:
                     pass
@@ -1010,7 +1016,7 @@ def repeat(a, repeats, axis=None):
                         " but was {}".format(repeats.dtype)
                     )
             elif isinstance(repeats, np.ndarray):
-                if repeats.dtype.kind != "i" and repeats.dtype.kind != "u":
+                if not types.can_cast(repeats.dtype.type, types.int64):
                     raise TypeError(
                         "Invalid dtype for np.ndarray 'repeats'. Has to be integer,"
                         " but was {}".format(repeats.dtype.type)
@@ -1029,21 +1035,28 @@ def repeat(a, repeats, axis=None):
                     repeats, dtype=types.int64, split=None, device=a.device, comm=a.comm
                 )
 
+            # check `repeats` is 1-dimensional
             if len(repeats.shape) != 1:
                 raise ValueError(
                     "Invalid input for repeats. Repeats must be a 1d-object or integer, but "
                     "was {}-dimensional.".format(len(repeats.shape))
                 )
 
-            # check whether `repeats` consists of 1 value (--> broadcast) or `a` is or can not be distributed
-            # (i.e. all processes need all data of `repeats`
-            # otherwise, distribute `repeats` if the parameter combination/implied shapes require it
+            # check if the data chunks of `repeats` have to be (re)distributed before call of torch function.
 
-            if (
-                repeats.size != 1 or a.split is not None
-            ):  # TODO might be critical (repeats.size !=1 might not imply broadcast (axis not None))
+            # no broadcast or `a` is distributed (=> data of `repeats` has to be (re)distributed)
+            if repeats.gnumel != 1 or a.split is not None:
                 # CASE 1 - reshape and split `repeats` along the same axis as `a` and flatten it afterwards
                 if axis is None:
+                    # check matching shapes (repetition defined for every element)
+                    if a.gnumel != repeats.gnumel:
+                        raise ValueError(
+                            "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
+                            "Please revise your definition specifying repetitions for all elements "
+                            "of the DNDarray a or replace repeats with a single"
+                            " scalar.".format(a.gnumel, repeats.gnumel)
+                        )
+                    # TODO previous Allgather? repeats.resplit_(None) ?
                     repeats = repeats.reshape(a.gshape)
                     repeats.resplit_(a.split)
 
@@ -1054,20 +1067,11 @@ def repeat(a, repeats, axis=None):
                         comm=repeats.comm,
                     )
 
-                    # check matching shapes
-                    if tuple(torch.flatten(a._DNDarray__array).size()) != (repeats.lnumel,):
-                        raise ValueError(
-                            "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
-                            "Please revise your definition specifying repetitions for all elements "
-                            "of the DNDarray a or replace repeats with a single"
-                            " scalar.".format(a.flatten().lnumel, repeats.lnumel)
-                        )
-
                 # axis is not None
                 else:
-                    # CASE 2 - split `repeats` along axis 0
+                    # CASE 2 - split `repeats` along axis 0 (as `repeats` is always 1-dimensional)
                     if a.split == axis:
-                        if repeats.split != 0:  # TODO check
+                        if repeats.split != 0:
                             repeats.resplit_(0)
 
                     # CASE 3 - every process needs the whole data (Allgather)
@@ -1085,13 +1089,6 @@ def repeat(a, repeats, axis=None):
 
             repeated_array_torch = torch.repeat_interleave(
                 a._DNDarray__array, repeats._DNDarray__array, axis
-            )
-
-        else:
-            raise TypeError(
-                "repeats must be a an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
-                    type(repeats)
-                )
             )
 
     # result is linear and input was distributed
