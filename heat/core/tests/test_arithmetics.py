@@ -264,6 +264,20 @@ class TestArithmetics(TestCase):
                         self.assertEqual(ht_diff.split, sp)
                         self.assertEqual(ht_diff.dtype, lp_array.dtype)
 
+                        # test prepend/append. Note heat's intuitive casting vs. numpy's safe casting
+                        append_shape = lp_array.gshape[:ax] + (1,) + lp_array.gshape[ax + 1 :]
+                        ht_append = ht.ones(
+                            append_shape, dtype=lp_array.dtype, split=lp_array.split
+                        )
+                        ht_diff_pend = ht.diff(lp_array, n=nl, axis=ax, prepend=0, append=ht_append)
+                        np_diff_pend = ht.array(
+                            np.diff(np_array, n=nl, axis=ax, prepend=0, append=ht_append.numpy()),
+                            dtype=ht_diff_pend.dtype,
+                        )
+                        self.assertTrue(ht.equal(ht_diff_pend, np_diff_pend))
+                        self.assertEqual(ht_diff_pend.split, sp)
+                        self.assertEqual(ht_diff_pend.dtype, ht.float64)
+
         np_array = ht_array.numpy()
         ht_diff = ht.diff(ht_array, n=2)
         np_diff = ht.array(np.diff(np_array, n=2))
@@ -286,6 +300,12 @@ class TestArithmetics(TestCase):
             ht.diff(ht_array, axis="string")
         with self.assertRaises(TypeError):
             ht.diff("string", axis=2)
+        t_prepend = torch.zeros(ht_array.gshape)
+        with self.assertRaises(TypeError):
+            ht.diff(ht_array, prepend=t_prepend)
+        append_wrong_shape = ht.ones(ht_array.gshape)
+        with self.assertRaises(ValueError):
+            ht.diff(ht_array, axis=0, append=append_wrong_shape)
 
     def test_div(self):
         result = ht.array([[0.5, 1.0], [1.5, 2.0]])
