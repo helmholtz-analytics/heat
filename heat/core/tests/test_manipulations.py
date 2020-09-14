@@ -1262,7 +1262,7 @@ class TestManipulations(TestCase):
         # self.assertTrue((ht.array(comparison) == result).all())
         # self.assertEqual(result.split, a.split)
         # self.assertIsInstance(repeats, ht.DNDarray)
-        # self.assertEqual(repeats.split, 0)
+        # # self.assertEqual(repeats.split, 0)      #TODO  None != 0
 
         # -------------------
         # axis != None
@@ -1321,17 +1321,17 @@ class TestManipulations(TestCase):
         self.assertIsInstance(repeats, ht.DNDarray)
         self.assertEqual(repeats.split, None)
 
-        # # repeats = distributed ht.DNDarray       # TODO gets stuck
-        # repeats = ht.array([1, 2, 0], split=0)
-        # result = ht.repeat(a, repeats, 2)
-        # comparison = np.repeat(a_np, repeats.numpy(), 2)
-        #
-        # self.assertIsInstance(result, ht.DNDarray)
-        # self.assertEqual(result.shape, comparison.shape)
-        # self.assert_array_equal(result, comparison)
-        # self.assertEqual(result.split, a.split)
-        # self.assertIsInstance(repeats, ht.DNDarray)
-        # # self.assertEqual(repeats.split, 0)  # TODO fails (None != 0) (eventually resplit not in place or resplit again)
+        # repeats = distributed ht.DNDarray
+        repeats = ht.array([1, 2, 0], split=0)
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats.numpy(), 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        # self.assertEqual(repeats.split, 0)  # TODO fails (None != 0) (eventually resplit not in place or resplit again)
 
     def test_reshape(self):
         # split = None

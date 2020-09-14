@@ -1058,7 +1058,16 @@ def repeat(a, repeats, axis=None):
                             " scalar.".format(a.gnumel, repeats.gnumel)
                         )
 
-                    repeats = repeats.reshape(a.gshape)
+                    if a.split is not None and repeats.split is not None:
+                        print(
+                            f"\n[{a.comm.rank}] Hello, a.gshape: {a.gshape}, repeats.lshape: {repeats.lshape}, repeats.split: {repeats.split}, a.split: {a.split}"
+                        )
+
+                    repeats = repeats.reshape(a.gshape)  # TODO stuck here
+
+                    if a.split is not None and repeats.split is not None:
+                        print(f"[{a.comm.rank}] Hello again")
+
                     repeats.resplit_(a.split)
 
                     repeats = factories.array(  # instead of manipulations.flatten, as it balances the result
@@ -1092,11 +1101,29 @@ def repeat(a, repeats, axis=None):
                 a._DNDarray__array, repeats._DNDarray__array, axis
             )
 
+    if isinstance(repeats, dndarray.DNDarray):
+        print(f"\n[{a.comm.rank}] A.split: {a.split}, Repeats.split: {repeats.split}")
+
     # result is linear and input was distributed
     if axis is None and a.split is not None:
-        repeated_array = factories.array(
-            repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
+        if (
+            isinstance(repeats, dndarray.DNDarray)
+            and a.split is not None
+            and repeats.split is not None
+        ):  # TODO
+            print(f"\n[{a.comm.rank}] Almost last hello, {repeated_array_torch}")
+        # repeated_array = factories.array(               # TODO stuck here if empty
+        #     repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
+        # )
+        repeated_array = factories.array(  # TODO stuck here if empty
+            repeated_array_torch, is_split=0, device=a.device, comm=a.comm
         )
+        if (
+            isinstance(repeats, dndarray.DNDarray)
+            and a.split is not None
+            and repeats.split is not None
+        ):  # TODO
+            print(f"\n[{a.comm.rank}] Last hello, {repeated_array._DNDarray__array}")
     else:
         repeated_array = factories.array(
             repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
