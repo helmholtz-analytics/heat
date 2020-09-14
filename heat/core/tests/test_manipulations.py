@@ -1016,6 +1016,8 @@ class TestManipulations(TestCase):
 
     def test_repeat(self):
         # TODO add tests with array of floats
+        # TODO philosophy split axis repeats (-> split not in place, resplit again?)
+        # TODO add testcase broadcast as 1-element DNDarray
 
         # -------------------
         # UNDISTRIBUTED case
@@ -1088,7 +1090,7 @@ class TestManipulations(TestCase):
         self.assert_array_equal(result, comparison)
         self.assertEqual(result.split, None)
         self.assertIsInstance(repeats, ht.DNDarray)
-        # self.assertEqual(repeats.split, 0)    #TODO delete eventually
+        # self.assertEqual(repeats.split, 0)    #TODO (None !=0)
 
         # exceptions
         with self.assertRaises(TypeError):
@@ -1188,7 +1190,7 @@ class TestManipulations(TestCase):
         self.assert_array_equal(result, comparison)
         self.assertEqual(result.split, None)
         self.assertIsInstance(repeats, ht.DNDarray)
-        # self.assertEqual(repeats.split, 0)  # TODO fails (None !=0) (eventually resplit not in place or resplit again)
+        # self.assertEqual(repeats.split, 0)  # TODO (None !=0)
 
         # -------------------
         # DISTRIBUTED CASE
@@ -1251,18 +1253,18 @@ class TestManipulations(TestCase):
         self.assertIsInstance(repeats, ht.DNDarray)
         self.assertEqual(repeats.split, None)
 
-        # # repeats = distributed ht.DNDarray
-        # repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)
-        # result = ht.repeat(a, repeats)  #TODO stuck starting with 3 processes
-        #
-        # comparison = np.repeat(a_np, repeats.numpy())
-        #
-        # self.assertIsInstance(result, ht.DNDarray)
-        # self.assertEqual(result.shape, comparison.shape)
-        # self.assertTrue((ht.array(comparison) == result).all())
-        # self.assertEqual(result.split, a.split)
-        # self.assertIsInstance(repeats, ht.DNDarray)
-        # # self.assertEqual(repeats.split, 0)      #TODO  None != 0
+        # repeats = distributed ht.DNDarray
+        repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)
+        result = ht.repeat(a, repeats)  # TODO stuck starting with 3 processes
+
+        comparison = np.repeat(a_np, repeats.numpy())
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assertTrue((ht.array(comparison) == result).all())
+        self.assertEqual(result.split, a.split)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        # self.assertEqual(repeats.split, 0)      #TODO  None != 0
 
         # -------------------
         # axis != None
@@ -1331,7 +1333,7 @@ class TestManipulations(TestCase):
         self.assert_array_equal(result, comparison)
         self.assertEqual(result.split, a.split)
         self.assertIsInstance(repeats, ht.DNDarray)
-        # self.assertEqual(repeats.split, 0)  # TODO fails (None != 0) (eventually resplit not in place or resplit again)
+        # self.assertEqual(repeats.split, 0)  # TODO (None != 0)
 
     def test_reshape(self):
         # split = None
