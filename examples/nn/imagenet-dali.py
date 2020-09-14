@@ -593,7 +593,8 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             print("Profiling ended at iteration {}".format(i))
             torch.cuda.cudart().cudaProfilerStop()
             quit()
-        print("batch", i, "time", time.perf_counter() - tt)
+        if ht.MPI_WORLD.rank == 0:
+            print("batch", i, "time", time.perf_counter() - tt)
     return batch_time.avg
 
 

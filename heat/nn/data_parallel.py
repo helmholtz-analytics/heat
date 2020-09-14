@@ -388,6 +388,9 @@ class DataParallelMultiGPU(tnn.Module):
         self._prev_params = [None, None]
         # self._prev_params = [[None, None] for _ in self.parameters()]
         self.last_batch = False
+    
+    def forward(self, *inputs, **kwargs):
+        return self.module(*inputs, **kwargs)
 
     def step_load_prev(self):
         # collect the parameters from the current batch -> save + (non?)blocking send
@@ -401,7 +404,7 @@ class DataParallelMultiGPU(tnn.Module):
         t = time.perf_counter()
         # self._prev_params = []
         # copy whole dict and sent it
-        if self.reduced_comm is not None:
+        if self.comm.rank in self.base_loc_ranks:
             with torch.no_grad():
                 params = []
                 shapes = {}
@@ -421,9 +424,9 @@ class DataParallelMultiGPU(tnn.Module):
                 # self._prev_params[1] will become params
                 # receive previous ones
                 if self._prev_params[0] is not None:
-                    ttt = time.perf_counter()
+                    # ttt = time.perf_counter()
                     self._prev_params[0].wait()
-                    print("wait time", time.perf_counter() - ttt)
+                    # print("wait time", time.perf_counter() - ttt)
                     # need to add the weighted average to param
                     # for p in range(len(params)):
                     for name, param in self.named_parameters():
@@ -476,9 +479,11 @@ class DataParallelMultiGPU(tnn.Module):
             # if torch.distributed.is_initialized():
             #     torch.distributed.barrier()
         # todo: should barrier be before or after?
-        self.comm.Barrier()
+        # torch.distributed.barrier()
+        # self.comm.Barrier()
         self.optimizer.torch_optimizer.step()
-        print("step time", time.perf_counter() - t)
+        self.comm.Barrier()
+        # print("step time", time.perf_counter() - t)
 
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:
