@@ -304,27 +304,14 @@ def main():
     loc_dist = True if loc_gpus > 1 else False
     rank = ht.MPI_WORLD.rank
     loc_rank = rank % loc_gpus
-    reduced_comm, base_loc_ranks = None, None
+    # reduced_comm, base_loc_ranks = None, None
     # rank = 0
+    twice_dist = False
     if args.distributed and loc_dist:  # todo: DDDP
         args.gpus = torch.cuda.device_count()
-        # color = 111 if rank in base_loc_ranks else 222
-        # key = 0 if rank in base_loc_ranks else 444
-        # torch_comm = ht.MPICommunication(ht.MPI_WORLD.Split(color, key))
-
-        torch.distributed.init_process_group(
-            backend="nccl",
-            init_method="file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test",
-            rank=loc_rank,
-            world_size=loc_gpus,
-        )
-        print("torch rank", torch.distributed.get_rank())
-        base_loc_ranks = list(range(0, args.world_size, loc_gpus))
+        twice_dist = True
         # indv_node_group = ht.MPI_WORLD.group.Excl(base_loc_ranks)
         # indv_node_comm = ht.MPI_WORLD.Create_group(indv_node_group)
-        color = 111 if rank in base_loc_ranks else 222
-        key = 0 if rank in base_loc_ranks else 444
-        reduced_comm = ht.MPICommunication(ht.MPI_WORLD.Split(color, key))
 
         # rank = torch.distributed.get_rank()
         # args.local_rank = torch.distributed.get_rank() + (
@@ -374,7 +361,7 @@ def main():
     )
 
     # make sure that gradients are allocated lazily, so that they are not shared here
-    model.share_memory()
+    # model.share_memory()
 
     # create DP optimizer and model:
     blocking = False  # choose blocking or non-blocking parameter updates
@@ -383,10 +370,9 @@ def main():
         model,
         ht.MPI_WORLD,
         dp_optimizer,
-        local_rank=args.local_rank,
         overlap=True,
-        base_loc_ranks=base_loc_ranks,
-        reduced_comm=reduced_comm,
+        distributed_twice=twice_dist,
+        torch_init_file="file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test",
     )
 
     # define loss function (criterion) and optimizer
@@ -497,12 +483,13 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     # switch to train mode
     model.train()
     end = time.time()
-
+    train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
+    # TODO: must set last batch!
+    model.last_batch = train_loader_len
     for i, data in enumerate(train_loader):
         tt = time.perf_counter()
         input = data[0]["data"].cuda(dev)
         target = data[0]["label"].squeeze().cuda(dev).long()
-        train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
 
         if args.prof >= 0 and i == args.prof:
             print("Profiling begun at iteration {}".format(i))
