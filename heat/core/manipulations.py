@@ -948,15 +948,8 @@ def repeat(a, repeats, axis=None):
             [3, 4],
             [3, 4]])
     """
-    # trickyTestCase = False  # TODO
-    # if (
-    #     isinstance(a, dndarray.DNDarray)
-    #     and a.split is not None
-    #     and isinstance(repeats, dndarray.DNDarray)
-    #     and repeats.split is not None
-    #     and axis is None
-    # ):
-    #     trickyTestCase = True
+    if isinstance(repeats, dndarray.DNDarray) and repeats.split is not None:  # TODO dirty fix
+        repeats.resplit_(None)
 
     # sanitation `a`
     if not isinstance(a, dndarray.DNDarray):
@@ -983,6 +976,7 @@ def repeat(a, repeats, axis=None):
             else:  # array_like
                 if isinstance(repeats, dndarray.DNDarray) and repeats.split is not None:
                     repeats.resplit_(None)
+                    # repeats = resplit(repeats, None)   # stuck if I do it out of place
                 new_lshape[axis] = int(sum(repeats))
 
             repeated_array_torch = torch.empty(new_lshape, dtype=a.dtype.torch_type())
@@ -1069,15 +1063,15 @@ def repeat(a, repeats, axis=None):
                             "of the DNDarray a or replace repeats with a single"
                             " scalar.".format(a.gnumel, repeats.gnumel)
                         )
-                else:
-                    if a.lshape[axis] != repeats.lnumel:
-                        raise ValueError(
-                            "Invalid input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
-                            "are not the same. Please revise your definition specifying repetitions for all elements "
-                            "of the DNDarray a or replace repeats with a single scalar".format(
-                                repeats.lnumel, a.lshape[axis]
-                            )
+                elif a.lshape[axis] != repeats.lnumel:
+                    raise ValueError(
+                        "Invalid input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
+                        "are not the same. Please revise your definition specifying repetitions for all elements "
+                        "of the DNDarray a or replace repeats with a single scalar".format(
+                            repeats.lnumel, a.lshape[axis]
                         )
+                    )
+
             # At least one DNDarray is distributed, no broadcast implied
             # (=> data of `repeats` has to be (re)distributed))
             else:
@@ -1095,18 +1089,14 @@ def repeat(a, repeats, axis=None):
                         repeats.resplit_(None)
                     # CASE 1 - reshape and resplit `repeats` along the same axis as `a` and flatten it afterwards
                     else:
-                        # if trickyTestCase:  #TODO
-                        #     print(f"\n\n[{a.comm.rank}] Hello before reshape,\nRepeats:\n{repeats._DNDarray__array}\nrepeats.gshape: {repeats.gshape}, a.gshape: {a.gshape}")
                         repeats = repeats.reshape(a.gshape)
-                        # if trickyTestCase:  #TODO
-                        #     print(f"\n\n[{a.comm.rank}] Hello after reshape\nRepeats:\n{repeats._DNDarray__array}")
                         if repeats.split != a.split:
                             repeats.resplit_(a.split)
 
                         repeats = factories.array(  # instead of manipulations.flatten, as it balances the result
                             torch.flatten(repeats._DNDarray__array),
                             dtype=repeats.dtype,
-                            # is_split=a.split,# TODO gets stuck if defined
+                            # is_split=a.split,# TODO gets stuck if defined (DISTRIBUTED CASE, repeats not scalar, axis=None)
                             device=repeats.device,
                             comm=repeats.comm,
                         )
@@ -1137,20 +1127,13 @@ def repeat(a, repeats, axis=None):
 
     # result is linear and input was distributed
     if axis is None and a.split is not None:
-        # if trickyTestCase:  # TODO
-        #     print(
-        #         f"\n\n[{a.comm.rank}] Almost last hello,\n{repeated_array_torch}, a.split: {a.split}, repeats.split: {repeats.split}"
-        #     )
-        repeated_array = factories.array(  # TODO stuck here if empty in trickTestCase
+        repeated_array = factories.array(  # TODO was stuck here if empty in trickTestCase without dirty solution
             repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
         )
     else:
         repeated_array = factories.array(
             repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
         )
-
-    # if trickyTestCase:  # TODO
-    #     print(f"\n\n[{a.comm.rank}] Last hello,\n{repeated_array._DNDarray__array}\nresult.split: {repeated_array.split}")
 
     repeated_array.balance_()
 
