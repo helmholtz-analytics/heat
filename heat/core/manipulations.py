@@ -1101,9 +1101,6 @@ def repeat(a, repeats, axis=None):
                 a._DNDarray__array, repeats._DNDarray__array, axis
             )
 
-    if isinstance(repeats, dndarray.DNDarray):
-        print(f"\n[{a.comm.rank}] A.split: {a.split}, Repeats.split: {repeats.split}")
-
     # result is linear and input was distributed
     if axis is None and a.split is not None:
         if (
@@ -1111,12 +1108,11 @@ def repeat(a, repeats, axis=None):
             and a.split is not None
             and repeats.split is not None
         ):  # TODO
-            print(f"\n[{a.comm.rank}] Almost last hello, {repeated_array_torch}")
-        # repeated_array = factories.array(               # TODO stuck here if empty
-        #     repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
-        # )
+            print(
+                f"\n[{a.comm.rank}] Almost last hello, {repeated_array_torch}, a.split: {a.split}, repeats.split: {repeats.split}"
+            )
         repeated_array = factories.array(  # TODO stuck here if empty
-            repeated_array_torch, is_split=0, device=a.device, comm=a.comm
+            repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
         )
         if (
             isinstance(repeats, dndarray.DNDarray)
