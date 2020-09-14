@@ -25,6 +25,17 @@ def __sum_f16_cb(buffer_a, buffer_b, _):
 mpi_sum_f16 = MPI.Op.Create(__sum_f16_cb, commute=True)
 
 
+def addCounter(counter1, counter2, datatype):
+    for item in counter2:
+        if item in counter1:
+            counter1[item] += counter2[item]
+        else:
+            counter1[item] = counter2[item]
+    return counter1
+
+counterSumOp = MPI.Op.Create(addCounter, commute=True)
+
+
 class DataParallel(tnn.Module):
     """
     Implements data parallelism across multiple processes. This means that the same model will be run locally
@@ -370,6 +381,7 @@ class DataParallelMultiGPU(tnn.Module):
         self.module.apply(self._reset_parameters)
         self.local_rank = local_rank
         self._prev_params = [None, None]
+        #self._prev_params = [[None, None] for _ in self.parameters()]
         self.last_batch = False
         # # get parameter indexing and slices
         # start_idx = 0
@@ -393,8 +405,9 @@ class DataParallelMultiGPU(tnn.Module):
 
     def __setattr__(self, name, value):
         # auto-detect end of epoch's training phase and finalize wait handles (only relevant for non-blocking)
-        if name == "training" and not value and not self.blocking_parameter_updates:
-            self._iparam_update()
+        #if name == "training" and not value and not self.blocking_parameter_updates:
+        #    self._iparam_update()
+        #self.last_batch = True
         super(DataParallelMultiGPU, self).__setattr__(name, value)
 
     def forward(self, *inputs: tuple, **kwargs: dict) -> torch.Tensor:
@@ -496,50 +509,75 @@ class DataParallelMultiGPU(tnn.Module):
         t = time.perf_counter()
         # self._prev_params = []
         # copy whole dict and sent it
-        params = self._parameters.copy()
-        cur_params = self._parameters
-        with torch.no_grad:
-            for p in params.keys():
-                params[p] /= self.comm.size + 1.0
-            # new_rcv_buff = torch.empty_like(to_snd)
+        with torch.no_grad():
+            params = []
+            shapes = {}
+            cur_params = {}
+            st = 0
+            for name, param in self.named_parameters():
+                if param.requires_grad:
+                    # flatten and prep the data for sending
+                    shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
+                    params.append((param / (self.comm.size + 1.0)).flatten())
+                    # params.append(param.flatten())
+                    cur_params[name] = param
+                    st += param.numel()
+            params = torch.cat(params)  # / (self.comm.size + 1.0)
             new_wait = self.comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)
-        #   self._prev_params[0] will become new_wait
-        #   self._prev_params[1] will become params
-        # receive previous ones
-        if self._prev_params[0] is not None:
-            self._prev_params[0].wait()
-            # need to add the weighted average to param
-            for p in params.keys():
-                cur_params[p] /= self.comm.size + 1.0
-                cur_params[p] += self._prev_params[1]
-            self._prev_params = [new_wait, params]
-        if self.last_batch:
-            new_wait.wait()
-            for p in params.keys():
-                cur_params[p] /= self.comm.size + 1.0
-                cur_params[p] += params[p]
-            self._prev_params = [None, None]
-        # for c, param in enumerate(self.parameters()):
-        #     if param.requires_grad:
-        #         # send new ones before setting old ones
-        #         with torch.no_grad:
-        #             to_snd = param.clone() / (self.comm.size + 1.0)
-        #             new_rcv_buff = torch.empty_like(to_snd)
-        #             new_wait = self.comm.Iallreduce(to_snd, new_rcv_buff, MPI.SUM)
-        #         #   self._prev_params[c][0] will become new_wait
-        #         #   self._prev_params[c][1] will become new_rcv_buff
-        #         # receive previous ones
-        #         if self._prev_params[c][0] is not None:
-        #             self._prev_params[c][0].wait()
-        #             # need to add the weighted average to param
-        #             param /= self.comm.size + 1.0
-        #             param += self._prev_params[c][1]
-        #             self._prev_params[c] = [new_wait, new_rcv_buff]
-        #         if self.last_batch:
-        #             new_wait.wait()
-        #             param /= self.comm.size + 1.0
-        #             param += new_rcv_buff
-        #             self._prev_params[c] = [None, None]
+            # self._prev_params[0] will become new_wait
+            # self._prev_params[1] will become params
+            # receive previous ones
+            if self._prev_params[0] is not None:
+                ttt = time.perf_counter()
+                self._prev_params[0].wait()
+                print('wait time', time.perf_counter() - ttt)
+                # need to add the weighted average to param
+                # for p in range(len(params)):
+                for name, param in self.named_parameters():
+                    if param.requires_grad:
+                        rcv_params = self._prev_params[1]
+                        update = rcv_params[shapes[name][1]].reshape(shapes[name][0]) # .to(shapes[name][2])
+                        cur_params[name] /= self.comm.size + 1.0
+                        cur_params[name] += update
+                self._prev_params = [new_wait, params]
+            else:
+                self._prev_params = [new_wait, params]
+
+            if self.last_batch:
+                new_wait.wait()
+                for name in cur_params.keys():
+                    if param.requires_grad:
+                        update = params[shapes[name][1]].reshape(shapes[name][0]) # .to(shapes[name][2])
+                        cur_params[name] /= self.comm.size + 1.0
+                        cur_params[name] += update
+                self._prev_params = [None, None]
+
+        #for c, param in enumerate(self.parameters()):
+        #    if param.requires_grad:
+        #        # send new ones before setting old ones
+        #        with torch.no_grad():
+        #            to_snd = param.clone() / (self.comm.size + 1.0)
+        #            new_rcv_buff = torch.empty_like(to_snd)
+        #            new_wait = self.comm.Iallreduce(to_snd, new_rcv_buff, MPI.SUM)
+        #        #   self._prev_params[c][0] will become new_wait
+        #        #   self._prev_params[c][1] will become new_rcv_buff
+        #        # receive previous ones
+        #            if self._prev_params[c][0] is not None:
+        #                self._prev_params[c][0].wait()
+        #                # need to add the weighted average to param
+        #                param /= self.comm.size + 1.0
+        #                param += self._prev_params[c][1]
+        #                self._prev_params[c] = [new_wait, new_rcv_buff]
+        #            else:
+        #                self._prev_params[c] = [new_wait, new_rcv_buff]
+        #            if self.last_batch:
+        #                new_wait.wait()
+        #                param /= self.comm.size + 1.0
+        #                param += new_rcv_buff
+        #                self._prev_params[c] = [None, None]
+        # print("param update time")
+        # if torch.distributed.is_initialized():
+        #     torch.distributed.barrier()
         self.optimizer.torch_optimizer.step()
         print("step time", time.perf_counter() - t)
 

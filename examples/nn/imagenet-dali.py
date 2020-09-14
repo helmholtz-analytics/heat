@@ -304,12 +304,26 @@ def main():
     loc_dist = True if loc_gpus > 1 else False
     rank = ht.MPI_WORLD.rank
     loc_rank = rank % loc_gpus
+    indv_node_comm = None
     # rank = 0
     if args.distributed and loc_dist:  # todo: DDDP
         args.gpus = torch.cuda.device_count()
+        #color = 111 if rank in base_loc_ranks else 222
+        #key = 0 if rank in base_loc_ranks else 444
+        #torch_comm = ht.MPICommunication(ht.MPI_WORLD.Split(color, key))
+ 
         torch.distributed.init_process_group(
-            backend="nccl", init_method="file:///distributed_test", rank=rank, world_size=loc_gpus
+            backend="nccl", init_method="file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test", 
+            rank=loc_rank, world_size=loc_gpus
         )
+        print("torch rank", torch.distributed.get_rank())
+        base_loc_ranks = list(range(0, args.world_size, loc_gpus))
+        #indv_node_group = ht.MPI_WORLD.group.Excl(base_loc_ranks)
+        #indv_node_comm = ht.MPI_WORLD.Create_group(indv_node_group)
+        color = 111 if rank in base_loc_ranks else 222
+        key = 0 if rank in base_loc_ranks else 444
+        indv_node_comm = ht.MPICommunication(ht.MPI_WORLD.Split(color, key))
+        #print(indv_node_comm, ht.MPI_WORLD)
         # rank = torch.distributed.get_rank()
         # args.local_rank = torch.distributed.get_rank() + (
         #     ht.MPI_WORLD.rank * torch.cuda.device_count()
@@ -364,7 +378,7 @@ def main():
     blocking = False  # choose blocking or non-blocking parameter updates
     dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
     htmodel = ht.nn.DataParallelMultiGPU(
-        model, ht.MPI_WORLD, dp_optimizer, local_rank=args.local_rank, overlap=True
+        model, ht.MPI_WORLD if indv_node_comm is None else indv_node_comm, dp_optimizer, local_rank=args.local_rank, overlap=True, base_loc_ranks=base_loc_ranks,
     )
 
     # define loss function (criterion) and optimizer
@@ -477,7 +491,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     end = time.time()
 
     for i, data in enumerate(train_loader):
-        # t = time.perf_counter()
+        tt = time.perf_counter()
         input = data[0]["data"].cuda(dev)
         target = data[0]["label"].squeeze().cuda(dev).long()
         train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
@@ -571,7 +585,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             print("Profiling ended at iteration {}".format(i))
             torch.cuda.cudart().cudaProfilerStop()
             quit()
-        # print("batch time", time.perf_counter() - t)
+        print("batch", i, "time", time.perf_counter() - tt)
     return batch_time.avg
 
 
