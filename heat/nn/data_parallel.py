@@ -33,6 +33,7 @@ def addCounter(counter1, counter2, datatype):
             counter1[item] = counter2[item]
     return counter1
 
+
 counterSumOp = MPI.Op.Create(addCounter, commute=True)
 
 
@@ -353,11 +354,15 @@ class DataParallelMultiGPU(tnn.Module):
         optimizer: optim.DataParallelOptimizer,
         local_rank: int,
         overlap: bool = True,
+        base_loc_ranks: list = None,
+        reduced_comm: MPICommunication = None,
     ):
         super(DataParallelMultiGPU, self).__init__()
         self.module = module
         self.comm = comm
+        self.reduced_comm = reduced_comm
         self.overlap = overlap
+        self.base_loc_ranks = base_loc_ranks
 
         self._layer_wait_handles = OrderedDict()
         self._fwd_hook_handles = list()
@@ -381,120 +386,8 @@ class DataParallelMultiGPU(tnn.Module):
         self.module.apply(self._reset_parameters)
         self.local_rank = local_rank
         self._prev_params = [None, None]
-        #self._prev_params = [[None, None] for _ in self.parameters()]
+        # self._prev_params = [[None, None] for _ in self.parameters()]
         self.last_batch = False
-        # # get parameter indexing and slices
-        # start_idx = 0
-        # layer_name_prev = None
-        # for idx, (name, param) in enumerate(module.named_parameters()):
-        #     self._param_indices[name] = idx
-        #     layer_name = name.rsplit(sep=".", maxsplit=1)[0]
-        #     if layer_name_prev is None:
-        #         layer_name_prev = layer_name
-        #     if layer_name_prev != layer_name:
-        #         self._param_slices[layer_name_prev] = slice(start_idx, idx)
-        #         layer_name_prev = layer_name
-        #         start_idx = idx
-        #
-        #     # # register backward hooks for all model parameter tensors
-        #     # if self.blocking_parameter_updates:
-        #     #     param.register_hook(self._blocking_hook)
-        #     # else:
-        #     #     param.register_hook(self._nonblocking_hook(layer_name, name))
-        # self._param_slices[layer_name_prev] = slice(start_idx, len(self._param_indices))
-
-    def __setattr__(self, name, value):
-        # auto-detect end of epoch's training phase and finalize wait handles (only relevant for non-blocking)
-        #if name == "training" and not value and not self.blocking_parameter_updates:
-        #    self._iparam_update()
-        #self.last_batch = True
-        super(DataParallelMultiGPU, self).__setattr__(name, value)
-
-    def forward(self, *inputs: tuple, **kwargs: dict) -> torch.Tensor:
-        """
-        Do the forward step for the network, receive the parameters from the last
-        """
-        # check if non-blocking and training
-        # todo: leftover...
-        # if not self.blocking_parameter_updates and self.module.training:
-        #     # register forward hooks for all layers with wait handles
-        #     for name, submodule in self.module.named_modules():
-        #         if name == "":
-        #             continue
-        #         if name in self._layer_wait_handles:
-        #             hook_handle = submodule.register_forward_pre_hook(self._forward_hook(name))
-        #             self._fwd_hook_handles.append(hook_handle)
-
-        # perform forward pass
-        ret = self.module(*inputs, **kwargs)
-        # todo: leftover...
-        # # finalize potentially remaining wait handles and update corresponding params (if
-        # # computation graph has changed between previous backward and this forward)
-        # if not self.blocking_parameter_updates and self.module.training:
-        #     # set has to be copied in order to be manipulated during iteration
-        #     active_layers_cpy = self._active_layers.copy()
-        #     for layer_name in active_layers_cpy:
-        #         self._forward_hook(layer_name)(None, None)
-        # # reset optimizer flag
-        # for ldp_optimizer in self._dp_optimizers:
-        #     ldp_optimizer.update_next = False
-        # # clear dictionary after all wait handles are used up (dynamic computation graph)
-        # self._layer_wait_handles.clear()
-        # # remove forward hooks (dynamic computation graph)
-        # for hook_handle in self._fwd_hook_handles:
-        #     hook_handle.remove()
-        # self._fwd_hook_handles.clear()
-
-        return ret
-
-    def _iparam_update(self, param_slice: slice = None, layer_names: List[str] = None) -> None:
-        """
-        Update parameters asynchronously via wait handles.
-
-        Parameters
-        ----------
-        param_slice : slice, optional
-            Slice object for creating a view onto optimizer's params list.
-            By default, the whole params list is used, (``None``)
-        layer_names : list(str), optional
-            List of layer names which parameters will be updated, must match param_slice.
-            By default, all layers are updated (``None``)
-        """
-        # for non-blocking, only one dp optimizer is allowed
-        dp_optimizer = self._dp_optimizers[0]
-        # perform update on the whole model
-        if param_slice is None:
-            param_slice = slice(len(dp_optimizer.params_ref))
-        if layer_names is None:
-            layer_names = list(self._layer_wait_handles.keys())
-        # update params that are visible for the optimizer
-        dp_optimizer.torch_optimizer.param_groups[0]["params"] = dp_optimizer.params_ref[
-            param_slice
-        ]
-        # iterate over layers
-        for layer_name in reversed(layer_names):
-            # only perform update, if all given layers hold unfinalized wait handles (important for layer reuse)
-            if layer_name not in self._active_layers:
-                return
-            # iterate over layer's parameters/associated wait handles
-            for (param_name, wait_handle, dtp, tens) in self._layer_wait_handles[layer_name]:
-                # get internal index of selected parameter
-                param_idx = self._param_indices[param_name]
-                # synchronize, get parameter's global gradient
-                wait_handle.wait()
-                # check if shapes are matching
-                if (
-                    dp_optimizer.params_ref[param_idx].grad.data.shape != tens.shape
-                ):  # wait_handle.tensor.shape:
-                    raise ValueError("Shapes must be equal.")
-                # accumulate parameter's global gradient
-                # print(tens.dtype, dtp)
-                dp_optimizer.params_ref[param_idx].grad.data += tens.to(dtp)  # wait_handle.tensor
-                # remove layer from set of active layers, if present
-                self._active_layers.discard(layer_name)
-        # if desired, perform actual parameter update
-        if dp_optimizer.update_next:
-            dp_optimizer.torch_optimizer.step()
 
     def step_load_prev(self):
         # collect the parameters from the current batch -> save + (non?)blocking send
@@ -504,154 +397,88 @@ class DataParallelMultiGPU(tnn.Module):
         # for c, param in enumerate(self.parameters()):
         #     if rcv is not None:
         #         rcv.wait()
-
         # copy and send the parameter dictionary
         t = time.perf_counter()
         # self._prev_params = []
         # copy whole dict and sent it
-        with torch.no_grad():
-            params = []
-            shapes = {}
-            cur_params = {}
-            st = 0
-            for name, param in self.named_parameters():
-                if param.requires_grad:
-                    # flatten and prep the data for sending
-                    shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
-                    params.append((param / (self.comm.size + 1.0)).flatten())
-                    # params.append(param.flatten())
-                    cur_params[name] = param
-                    st += param.numel()
-            params = torch.cat(params)  # / (self.comm.size + 1.0)
-            new_wait = self.comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)
-            # self._prev_params[0] will become new_wait
-            # self._prev_params[1] will become params
-            # receive previous ones
-            if self._prev_params[0] is not None:
-                ttt = time.perf_counter()
-                self._prev_params[0].wait()
-                print('wait time', time.perf_counter() - ttt)
-                # need to add the weighted average to param
-                # for p in range(len(params)):
+        if self.reduced_comm is not None:
+            with torch.no_grad():
+                params = []
+                shapes = {}
+                cur_params = {}
+                st = 0
                 for name, param in self.named_parameters():
                     if param.requires_grad:
-                        rcv_params = self._prev_params[1]
-                        update = rcv_params[shapes[name][1]].reshape(shapes[name][0]) # .to(shapes[name][2])
-                        cur_params[name] /= self.comm.size + 1.0
-                        cur_params[name] += update
-                self._prev_params = [new_wait, params]
-            else:
-                self._prev_params = [new_wait, params]
+                        # flatten and prep the data for sending
+                        shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
+                        params.append((param / (self.reduced_comm.size + 1.0)).flatten())
+                        # params.append(param.flatten())
+                        cur_params[name] = param
+                        st += param.numel()
+                params = torch.cat(params)  # / (self.comm.size + 1.0)
+                new_wait = self.reduced_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)
+                # self._prev_params[0] will become new_wait
+                # self._prev_params[1] will become params
+                # receive previous ones
+                if self._prev_params[0] is not None:
+                    ttt = time.perf_counter()
+                    self._prev_params[0].wait()
+                    print("wait time", time.perf_counter() - ttt)
+                    # need to add the weighted average to param
+                    # for p in range(len(params)):
+                    for name, param in self.named_parameters():
+                        if param.requires_grad:
+                            rcv_params = self._prev_params[1]
+                            update = rcv_params[shapes[name][1]].reshape(
+                                shapes[name][0]
+                            )  # .to(shapes[name][2])
+                            cur_params[name] /= self.reduced_comm.size + 1.0
+                            cur_params[name] += update
+                    self._prev_params = [new_wait, params]
+                else:
+                    self._prev_params = [new_wait, params]
 
-            if self.last_batch:
-                new_wait.wait()
-                for name in cur_params.keys():
-                    if param.requires_grad:
-                        update = params[shapes[name][1]].reshape(shapes[name][0]) # .to(shapes[name][2])
-                        cur_params[name] /= self.comm.size + 1.0
-                        cur_params[name] += update
-                self._prev_params = [None, None]
+                if self.last_batch:
+                    new_wait.wait()
+                    for name in cur_params.keys():
+                        if param.requires_grad:
+                            update = params[shapes[name][1]].reshape(
+                                shapes[name][0]
+                            )  # .to(shapes[name][2])
+                            cur_params[name] /= self.comm.size + 1.0
+                            cur_params[name] += update
+                    self._prev_params = [None, None]
+            # for c, param in enumerate(self.parameters()):
+            #    if param.requires_grad:
+            #        # send new ones before setting old ones
+            #        with torch.no_grad():
+            #            to_snd = param.clone() / (self.comm.size + 1.0)
+            #            new_rcv_buff = torch.empty_like(to_snd)
+            #            new_wait = self.comm.Iallreduce(to_snd, new_rcv_buff, MPI.SUM)
+            #        #   self._prev_params[c][0] will become new_wait
+            #        #   self._prev_params[c][1] will become new_rcv_buff
+            #        # receive previous ones
+            #            if self._prev_params[c][0] is not None:
+            #                self._prev_params[c][0].wait()
+            #                # need to add the weighted average to param
+            #                param /= self.comm.size + 1.0
+            #                param += self._prev_params[c][1]
+            #                self._prev_params[c] = [new_wait, new_rcv_buff]
+            #            else:
+            #                self._prev_params[c] = [new_wait, new_rcv_buff]
+            #            if self.last_batch:
+            #                new_wait.wait()
+            #                param /= self.comm.size + 1.0
+            #                param += new_rcv_buff
+            #                self._prev_params[c] = [None, None]
+            # print("param update time")
 
-        #for c, param in enumerate(self.parameters()):
-        #    if param.requires_grad:
-        #        # send new ones before setting old ones
-        #        with torch.no_grad():
-        #            to_snd = param.clone() / (self.comm.size + 1.0)
-        #            new_rcv_buff = torch.empty_like(to_snd)
-        #            new_wait = self.comm.Iallreduce(to_snd, new_rcv_buff, MPI.SUM)
-        #        #   self._prev_params[c][0] will become new_wait
-        #        #   self._prev_params[c][1] will become new_rcv_buff
-        #        # receive previous ones
-        #            if self._prev_params[c][0] is not None:
-        #                self._prev_params[c][0].wait()
-        #                # need to add the weighted average to param
-        #                param /= self.comm.size + 1.0
-        #                param += self._prev_params[c][1]
-        #                self._prev_params[c] = [new_wait, new_rcv_buff]
-        #            else:
-        #                self._prev_params[c] = [new_wait, new_rcv_buff]
-        #            if self.last_batch:
-        #                new_wait.wait()
-        #                param /= self.comm.size + 1.0
-        #                param += new_rcv_buff
-        #                self._prev_params[c] = [None, None]
-        # print("param update time")
-        # if torch.distributed.is_initialized():
-        #     torch.distributed.barrier()
+            # if torch.distributed.is_initialized():
+            #     torch.distributed.barrier()
+        # todo: should barrier be before or after?
+        self.comm.Barrier()
         self.optimizer.torch_optimizer.step()
         print("step time", time.perf_counter() - t)
-
-    def _blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
-        """
-        Add a blocking hook to the PyTorch DAG for all of the backwards calls.
-
-        Parameters
-        ----------
-        grad_loc : torch.Tensor
-            The local gradient
-
-        References
-        ----------
-        [1] (cf. https://pytorch.org/docs/stable/tensors.html#torch.Tensor.register_hook).
-        """
-        wrk = grad_loc.to(torch.bfloat16)
-        # average local gradients
-        wrk *= 1 / float(self.comm.size)
-        # perform MPI Allreduce to compute global gradient
-        self.comm.Allreduce(MPI.IN_PLACE, wrk, mpi_sum_f16)
-        return wrk.to(grad_loc.dtype)
-
-    def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
-        """
-        Add a nonblocking hook to send and receive the averaged parameters after the backwards step
-
-        Parameters
-        ----------
-        layer_name : str
-            Name of the layer
-        param_name : str
-            Name of the parameter
-        """
-        # hook function for blocking gradient data exchange
-        def _hook(grad_loc: torch.Tensor) -> torch.Tensor:
-            with torch.no_grad():
-                wrk = grad_loc.to(torch.bfloat16)
-            # counterbalance local gradient averaging
-            wrk *= 1 / float(self.comm.size)
-            # perform MPI IAllreduce to compute global gradient, returns wait handle
-            wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, wrk, mpi_sum_f16)
-            # if layer wait handle dict does not contain the layer, add it -> automatically tracks reversed layer order
-            if layer_name not in self._layer_wait_handles:
-                self._layer_wait_handles[layer_name] = list()
-            # add layer to set of active layers
-            self._active_layers.add(layer_name)
-            # assign wait handle to its layer, layer-internal sorting by size
-            self._layer_wait_handles[layer_name].append(
-                (param_name, wait_handle, grad_loc.dtype, wrk)
-            )
-            # don't return grad_loc, otherwise gradient is doubled
-            return torch.zeros(*wrk.size(), device=grad_loc.device)
-
-        return _hook
-
-    def _forward_hook(self, layer_name: str) -> Callable:
-        """
-        Add a forward hook to update parameters during the forward step. This will return a hook with can be added
-        using the ``submodule.register_forward_pre_hook`` command.
-
-        Parameters
-        ----------
-        layer_name : str
-            Name of the layer
-        """
-        # hook function for non-blocking parameter update
-        def _hook(_, input_):
-            # update parameters of given layer
-            param_slice = self._param_slices[layer_name]
-            self._iparam_update(param_slice, [layer_name])
-            return input_
-
-        return _hook
 
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:
