@@ -360,8 +360,21 @@ def main():
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
 
+    torch_init_file = "file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test"
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "29500"
+    # os.environ['NCCL_SOCKET_IFNAME'] = 'ib'
+    local_rank = rank % loc_gpus
+    init_method_file = torch_init_file if not None else "file:///"
+    if init_method_file[:7] != "file://":
+        # "file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test"
+        init_method_file = "file://" + init_method_file
+    torch.distributed.init_process_group(
+        backend="nccl", init_method=init_method_file, rank=local_rank, world_size=loc_gpus
+    )
+
     # make sure that gradients are allocated lazily, so that they are not shared here
-    # model.share_memory()
+    model.share_memory()
 
     # create DP optimizer and model:
     blocking = False  # choose blocking or non-blocking parameter updates
@@ -582,9 +595,9 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             quit()
         if ht.MPI_WORLD.rank == 0:
             print("batch", i, "time", time.perf_counter() - tt)
-        #if i == 2:
+        # if i == 2:
         #    break
-    #for name, param in model.named_parameters():
+    # for name, param in model.named_parameters():
     #    # print(model.comm.allreduce(param.clone(), ht.MPI.SUM) / ht.MPI_WORLD.size)
     #    print(param.flatten())
     #    break

@@ -365,28 +365,15 @@ class DataParallelMultiGPU(tnn.Module):
         loc_gpus = torch.cuda.device_count()
         local_rank = rank % loc_gpus
         if loc_gpus > 1 and distributed_twice:
-            os.environ['MASTER_ADDR'] = 'localhost'
-            os.environ['MASTER_PORT'] = '29500'
-            #os.environ['NCCL_SOCKET_IFNAME'] = 'ib'
             base_loc_ranks = list(range(0, comm.size, loc_gpus))
-            init_method_file = torch_init_file if not None else "file:///"
-            if init_method_file[:7] != "file://":
-                # "file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test"
-                init_method_file = "file://" + init_method_file
-            torch.distributed.init_process_group(
-                backend="nccl", init_method=init_method_file, 
-                rank=local_rank, world_size=loc_gpus,
-                # rank=rank, world_size=comm.size,
-                # group_name=lg,
-            )
-            time.sleep(2)
-            print(torch.distributed.get_world_size(), torch.distributed.get_rank())
+            # time.sleep(2)
+            # print(torch.distributed.get_world_size(), torch.distributed.get_rank())
             reduced_comms = []
             reduced_ranks = []
             for i in range(loc_gpus):
                 lp_ranks = [j + i for j in base_loc_ranks]
-                color = 111 + i if rank in lp_ranks else 222
-                key = 0 + i if rank in lp_ranks else 444
+                color = 111 + i if rank in lp_ranks else 222 + i
+                key = 0 + i if rank in lp_ranks else 444 + i
                 reduced_comms.append(MPICommunication(MPI_WORLD.Split(color, key)))
                 reduced_ranks.append(tuple(lp_ranks))
             # print(reduced_ranks)
@@ -395,12 +382,11 @@ class DataParallelMultiGPU(tnn.Module):
             # print(base_loc_ranks)
             self.loc_gpus = loc_gpus
             # dev_ids = [id + ((comm.rank // loc_gpus)*loc_gpus) for id in range(loc_gpus)]
-            dev_ids = [0, 1, 2, 3]
+            # dev_ids = [r for r in range(loc_gpus)]
             # TODO: make groups for each node????
-            other_groups = []
-            lg = torch.distributed.new_group(ranks=dev_ids)
-            print(dev_ids)
-            module = tDDP(module, device_ids=[local_rank], process_group=lg)
+            # lg = torch.distributed.new_group(ranks=dev_ids)
+            # print(dev_ids)
+            module = tDDP(module, device_ids=[local_rank])  # , process_group=lg)
             module.share_memory()
             device = "cuda:" + str(local_rank)
             torch.cuda.set_device(device=device)
@@ -487,7 +473,7 @@ class DataParallelMultiGPU(tnn.Module):
                 new_wait.wait()
                 self._update_parameters(len(current_ranks))
                 self._prev_params = [None, None]
-        #if torch.distributed.is_initialized():
+        # if torch.distributed.is_initialized():
         #    torch.distributed.barrier()
         self.optimizer.torch_optimizer.step()
         self.comm.Barrier()
