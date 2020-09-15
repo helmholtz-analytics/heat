@@ -948,8 +948,8 @@ def repeat(a, repeats, axis=None):
             [3, 4],
             [3, 4]])
     """
-    if isinstance(repeats, dndarray.DNDarray) and repeats.split is not None:  # TODO dirty fix
-        repeats.resplit_(None)
+    # if isinstance(repeats, dndarray.DNDarray) and repeats.split is not None:  # TODO dirty fix
+    #     repeats.resplit_(None)
 
     # sanitation `a`
     if not isinstance(a, dndarray.DNDarray):
@@ -975,7 +975,7 @@ def repeat(a, repeats, axis=None):
                 new_lshape[axis] *= repeats
             else:  # array_like
                 if isinstance(repeats, dndarray.DNDarray) and repeats.split is not None:
-                    repeats.resplit_(None)
+                    repeats.resplit_(None)  # TODO avoid Allgather operation
                     # repeats = resplit(repeats, None)   # stuck if I do it out of place
                 new_lshape[axis] = int(sum(repeats))
 
@@ -1040,6 +1040,10 @@ def repeat(a, repeats, axis=None):
                     repeats, dtype=types.int64, is_split=None, device=a.device, comm=a.comm
                 )
 
+            # check `repeats` is not empty
+            if repeats.gnumel == 0:  # TODO add tests
+                raise ValueError("Invalid input for repeats. Repeats must contain data.")
+
             # check `repeats` is 1-dimensional
             if len(repeats.shape) != 1:
                 raise ValueError(
@@ -1084,7 +1088,7 @@ def repeat(a, repeats, axis=None):
                             "of the DNDarray a or replace repeats with a single"
                             " scalar.".format(a.gnumel, repeats.gnumel)
                         )
-                    # CASE 0 - Allgather of repeats
+                    # CASE 0 - Allgather of `repeats`
                     if a.split is None and repeats.split is not None:
                         repeats.resplit_(None)
                     # CASE 1 - reshape and resplit `repeats` along the same axis as `a` and flatten it afterwards
@@ -1096,7 +1100,7 @@ def repeat(a, repeats, axis=None):
                         repeats = factories.array(  # instead of manipulations.flatten, as it balances the result
                             torch.flatten(repeats._DNDarray__array),
                             dtype=repeats.dtype,
-                            # is_split=a.split,# TODO gets stuck if defined (DISTRIBUTED CASE, repeats not scalar, axis=None)
+                            is_split=a.split,  # TODO gets stuck if defined (DISTRIBUTED CASE, repeats not scalar, axis=None, 3 processes)
                             device=repeats.device,
                             comm=repeats.comm,
                         )
@@ -1127,7 +1131,7 @@ def repeat(a, repeats, axis=None):
 
     # result is linear and input was distributed
     if axis is None and a.split is not None:
-        repeated_array = factories.array(  # TODO was stuck here if empty in trickTestCase without dirty solution
+        repeated_array = factories.array(  # TODO stuck here if empty in trickTestCase without dirty solution
             repeated_array_torch, dtype=a.dtype, is_split=0, device=a.device, comm=a.comm
         )
     else:
