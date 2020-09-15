@@ -995,7 +995,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
             req = data.comm.Iallgather(data, output)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1015,7 +1015,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
             req = data.comm.Iallgather(data, output, recv_axis=1)
-            req.wait()
+            req.Wait()
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
@@ -1034,7 +1034,7 @@ class TestCommunication(TestCase):
             self.assertFalse(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
             req = data.comm.Iallgather(data, output)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertFalse(data._DNDarray__array.is_contiguous())
@@ -1054,7 +1054,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertFalse(output._DNDarray__array.is_contiguous())
             req = data.comm.Iallgather(data, output, recv_axis=1)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1085,7 +1085,7 @@ class TestCommunication(TestCase):
             counts = tuple(range(1, ht.MPI_WORLD.size + 1))
             displs = tuple(np.cumsum(range(ht.MPI_WORLD.size)))
             req = data.comm.Iallgatherv(data, (output, counts, displs))
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1110,7 +1110,7 @@ class TestCommunication(TestCase):
             counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
             displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
             req = data.comm.Iallgatherv(data, (output, counts, displs))
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertFalse(data._DNDarray__array.is_contiguous())
@@ -1135,7 +1135,7 @@ class TestCommunication(TestCase):
             counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
             displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
             req = data.comm.Iallgatherv(data, (output, counts, displs))
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1160,7 +1160,7 @@ class TestCommunication(TestCase):
             counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
             displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
             req = data.comm.Iallgatherv(data, (output, counts, displs))
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertFalse(data._DNDarray__array.is_contiguous())
@@ -1186,7 +1186,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(out._DNDarray__array.is_contiguous())
             req = data.comm.Iallreduce(data, out, op=ht.MPI.SUM)
-            req.wait()
+            req.Wait()
 
             # check the reduction result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1201,7 +1201,7 @@ class TestCommunication(TestCase):
             self.assertFalse(data._DNDarray__array.is_contiguous())
             self.assertTrue(out._DNDarray__array.is_contiguous())
             req = data.comm.Iallreduce(data, out, op=ht.MPI.SUM)
-            req.wait()
+            req.Wait()
 
             # check the reduction result
             # the data tensor will be contiguous after the reduction
@@ -1220,7 +1220,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertFalse(out._DNDarray__array.is_contiguous())
             req = data.comm.Iallreduce(data, out, op=ht.MPI.SUM)
-            req.wait()
+            req.Wait()
 
             # check the reduction result
             # the data tensor will be contiguous after the reduction
@@ -1245,7 +1245,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
             req = data.comm.Ialltoall(data, output)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1265,7 +1265,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
             req = data.comm.Ialltoall(data, output, send_axis=1)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1285,7 +1285,7 @@ class TestCommunication(TestCase):
             self.assertFalse(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
             req = data.comm.Ialltoall(data, output)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertFalse(data._DNDarray__array.is_contiguous())
@@ -1303,7 +1303,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertFalse(output._DNDarray__array.is_contiguous())
             req = data.comm.Ialltoall(data, output, send_axis=1)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1338,7 +1338,7 @@ class TestCommunication(TestCase):
             req = data.comm.Ialltoallv(
                 (data, send_counts, send_displs), (output, recv_counts, recv_displs)
             )
-            req.wait()
+            req.Wait()
 
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
@@ -1370,7 +1370,7 @@ class TestCommunication(TestCase):
             req = data.comm.Ialltoallv(
                 (data, send_counts, send_displs), (output, recv_counts, recv_displs)
             )
-            req.wait()
+            req.Wait()
 
             self.assertFalse(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
@@ -1403,7 +1403,7 @@ class TestCommunication(TestCase):
             req = data.comm.Ialltoallv(
                 (data, send_counts, send_displs), (output, recv_counts, recv_displs)
             )
-            req.wait()
+            req.Wait()
 
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertFalse(output._DNDarray__array.is_contiguous())
@@ -1436,7 +1436,7 @@ class TestCommunication(TestCase):
             req = data.comm.Ialltoallv(
                 (data, send_counts, send_displs), (output, recv_counts, recv_displs)
             )
-            req.wait()
+            req.Wait()
 
             self.assertFalse(data._DNDarray__array.is_contiguous())
             self.assertFalse(output._DNDarray__array.is_contiguous())
@@ -1463,7 +1463,7 @@ class TestCommunication(TestCase):
             # broadcast data to all nodes
             self.assertTrue(data._DNDarray__array.is_contiguous())
             req = data.comm.Ibcast(data, root=0)
-            req.wait()
+            req.Wait()
 
             # assert output is equal
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1479,7 +1479,7 @@ class TestCommunication(TestCase):
             # broadcast data to all nodes
             self.assertFalse(data._DNDarray__array.is_contiguous())
             req = data.comm.Ibcast(data, root=0)
-            req.wait()
+            req.Wait()
 
             # assert output is equal
             self.assertFalse(data._DNDarray__array.is_contiguous())
@@ -1504,7 +1504,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(out._DNDarray__array.is_contiguous())
             req = data.comm.Iexscan(data, out)
-            req.wait()
+            req.Wait()
 
             # check the reduction result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1519,7 +1519,7 @@ class TestCommunication(TestCase):
             self.assertFalse(data._DNDarray__array.is_contiguous())
             self.assertTrue(out._DNDarray__array.is_contiguous())
             req = data.comm.Iexscan(data, out)
-            req.wait()
+            req.Wait()
 
             # check the reduction result
             # the data tensor will be contiguous after the reduction
@@ -1538,7 +1538,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertFalse(out._DNDarray__array.is_contiguous())
             req = data.comm.Iexscan(data, out)
-            req.wait()
+            req.Wait()
 
             # check the reduction result
             # the data tensor will be contiguous after the reduction
@@ -1563,7 +1563,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
             req = data.comm.Igather(data, output, root=0)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1588,7 +1588,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
             req = data.comm.Igather(data, output, root=0, axis=1)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1613,7 +1613,7 @@ class TestCommunication(TestCase):
             self.assertFalse(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
             req = data.comm.Igather(data, output, root=0)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertFalse(data._DNDarray__array.is_contiguous())
@@ -1638,7 +1638,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertFalse(output._DNDarray__array.is_contiguous())
             req = data.comm.Igather(data, output, root=0, axis=1)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1674,7 +1674,7 @@ class TestCommunication(TestCase):
             counts = tuple(range(1, ht.MPI_WORLD.size + 1))
             displs = tuple(np.cumsum(range(ht.MPI_WORLD.size)))
             req = data.comm.Igatherv(data, (output, counts, displs), root=0)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1700,7 +1700,7 @@ class TestCommunication(TestCase):
             counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
             displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
             req = data.comm.Igatherv(data, (output, counts, displs), root=0)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertFalse(data._DNDarray__array.is_contiguous())
@@ -1726,7 +1726,7 @@ class TestCommunication(TestCase):
             counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
             displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
             req = data.comm.Igatherv(data, (output, counts, displs), root=0)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1752,7 +1752,7 @@ class TestCommunication(TestCase):
             counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
             displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
             req = data.comm.Igatherv(data, (output, counts, displs), root=0)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertFalse(data._DNDarray__array.is_contiguous())
@@ -1779,7 +1779,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(out._DNDarray__array.is_contiguous())
             req = data.comm.Ireduce(data, out, op=ht.MPI.SUM, root=0)
-            req.wait()
+            req.Wait()
 
             # check the reduction result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1795,7 +1795,7 @@ class TestCommunication(TestCase):
             self.assertFalse(data._DNDarray__array.is_contiguous())
             self.assertTrue(out._DNDarray__array.is_contiguous())
             req = data.comm.Ireduce(data, out, op=ht.MPI.SUM, root=0)
-            req.wait()
+            req.Wait()
 
             # check the reduction result
             # the data tensor will be contiguous after the reduction
@@ -1815,7 +1815,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertFalse(out._DNDarray__array.is_contiguous())
             req = data.comm.Ireduce(data, out, op=ht.MPI.SUM, root=0)
-            req.wait()
+            req.Wait()
 
             # check the reduction result
             # the data tensor will be contiguous after the reduction
@@ -1841,7 +1841,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(out._DNDarray__array.is_contiguous())
             req = data.comm.Iscan(data, out)
-            req.wait()
+            req.Wait()
 
             # check the reduction result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1856,7 +1856,7 @@ class TestCommunication(TestCase):
             self.assertFalse(data._DNDarray__array.is_contiguous())
             self.assertTrue(out._DNDarray__array.is_contiguous())
             req = data.comm.Iscan(data, out)
-            req.wait()
+            req.Wait()
 
             # check the reduction result
             # the data tensor will be contiguous after the reduction
@@ -1875,7 +1875,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertFalse(out._DNDarray__array.is_contiguous())
             req = data.comm.Iscan(data, out)
-            req.wait()
+            req.Wait()
 
             # check the reduction result
             # the data tensor will be contiguous after the reduction
@@ -1903,7 +1903,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
             req = data.comm.Iscatter(data, output, root=0)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1923,7 +1923,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertTrue(output._DNDarray__array.is_contiguous())
             req = data.comm.Iscatter(data, output, root=0, axis=1)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1944,7 +1944,7 @@ class TestCommunication(TestCase):
             # ensure prior invariants
             self.assertTrue(output._DNDarray__array.is_contiguous())
             req = data.comm.Iscatter(data, output, root=0)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             if ht.MPI_WORLD.rank == 0:
@@ -1967,7 +1967,7 @@ class TestCommunication(TestCase):
             self.assertTrue(data._DNDarray__array.is_contiguous())
             self.assertFalse(output._DNDarray__array.is_contiguous())
             req = data.comm.Iscatter(data, output, root=0, axis=1)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -1996,7 +1996,7 @@ class TestCommunication(TestCase):
             counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
             displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
             req = data.comm.Iscatterv((data, counts, displs), output, root=0)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -2022,7 +2022,7 @@ class TestCommunication(TestCase):
             counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
             displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
             req = data.comm.Iscatterv((data, counts, displs), output, root=0)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertFalse(data._DNDarray__array.is_contiguous())
@@ -2048,7 +2048,7 @@ class TestCommunication(TestCase):
             counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
             displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
             req = data.comm.Iscatterv((data, counts, displs), output, root=0)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertTrue(data._DNDarray__array.is_contiguous())
@@ -2074,7 +2074,7 @@ class TestCommunication(TestCase):
             counts = tuple(range(2, 2 * (ht.MPI_WORLD.size + 1), 2))
             displs = tuple(np.cumsum(range(0, 2 * ht.MPI_WORLD.size, 2)))
             req = data.comm.Iscatterv((data, counts, displs), output, root=0)
-            req.wait()
+            req.Wait()
 
             # check scatter result
             self.assertFalse(data._DNDarray__array.is_contiguous())

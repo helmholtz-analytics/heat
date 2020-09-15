@@ -317,8 +317,8 @@ def concatenate(arrays, axis=0):
                 chunk_map[arr0.comm.rank, i] = chk[i].stop - chk[i].start
             chunk_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
 
-            lshape_map_comm.wait()
-            chunk_map_comm.wait()
+            lshape_map_comm.Wait()
+            chunk_map_comm.Wait()
 
             if s0 is not None:
                 send_slice = [slice(None)] * arr0.ndim
@@ -341,7 +341,7 @@ def concatenate(arrays, axis=0):
                                     tag=pr + arr0.comm.size + spr,
                                 )
                                 arr0._DNDarray__array = arr0.lloc[keep_slice].clone()
-                                send.wait()
+                                send.Wait()
                     for pr in range(spr):
                         snt = abs((chunk_map[pr, s0] - lshape_map[0, pr, s0]).item())
                         snt = (
@@ -388,7 +388,7 @@ def concatenate(arrays, axis=0):
                                     tag=pr + arr1.comm.size + spr,
                                 )
                                 arr1._DNDarray__array = arr1.lloc[keep_slice].clone()
-                                send.wait()
+                                send.Wait()
                     for pr in range(arr1.comm.size - 1, spr, -1):
                         snt = abs((chunk_map[pr, axis] - lshape_map[1, pr, axis]).item())
                         snt = (
@@ -2010,9 +2010,9 @@ def resplit(arr, axis=None):
                 buf = torch.zeros_like(new_tiles[key])
                 rcv_waits[key] = [arr.comm.Irecv(buf=buf, source=spr, tag=spr), buf]
     for w in waits:
-        w.wait()
+        w.Wait()
     for k in rcv_waits.keys():
-        rcv_waits[k][0].wait()
+        rcv_waits[k][0].Wait()
         new_tiles[k] = rcv_waits[k][1]
 
     return new_arr
