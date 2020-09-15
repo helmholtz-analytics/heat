@@ -353,7 +353,7 @@ def main():
     else:
         model = model.cuda(device)
         # model = model.to(device)
-
+    # model = tDDP(model)
     # Scale learning rate based on global batch size
     args.lr = args.lr * float(args.batch_size * ht.MPI_WORLD.size) / 256.0
     optimizer = torch.optim.SGD(
@@ -582,6 +582,12 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             quit()
         if ht.MPI_WORLD.rank == 0:
             print("batch", i, "time", time.perf_counter() - tt)
+        #if i == 2:
+        #    break
+    #for name, param in model.named_parameters():
+    #    # print(model.comm.allreduce(param.clone(), ht.MPI.SUM) / ht.MPI_WORLD.size)
+    #    print(param.flatten())
+    #    break
     return batch_time.avg
 
 

@@ -1,13 +1,16 @@
 import bisect
+import os
 import warnings
 import torch
 import torch.nn as tnn
 import torch.distributed
+from torch.nn.parallel import DistributedDataParallel as tDDP
 
 from collections import OrderedDict
 from typing import Callable, List, Union, Tuple
 from ..core.communication import MPICommunication
 from ..core.communication import MPI
+from ..core.communication import MPI_WORLD
 from .. import optim
 
 import time
@@ -362,25 +365,42 @@ class DataParallelMultiGPU(tnn.Module):
         loc_gpus = torch.cuda.device_count()
         local_rank = rank % loc_gpus
         if loc_gpus > 1 and distributed_twice:
+            os.environ['MASTER_ADDR'] = 'localhost'
+            os.environ['MASTER_PORT'] = '29500'
+            #os.environ['NCCL_SOCKET_IFNAME'] = 'ib'
             base_loc_ranks = list(range(0, comm.size, loc_gpus))
             init_method_file = torch_init_file if not None else "file:///"
             if init_method_file[:7] != "file://":
                 # "file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test"
                 init_method_file = "file://" + init_method_file
             torch.distributed.init_process_group(
-                backend="nccl", init_method=init_method_file, rank=local_rank, world_size=loc_gpus
+                backend="nccl", init_method=init_method_file, 
+                rank=local_rank, world_size=loc_gpus,
+                # rank=rank, world_size=comm.size,
+                # group_name=lg,
             )
+            time.sleep(2)
+            print(torch.distributed.get_world_size(), torch.distributed.get_rank())
             reduced_comms = []
             reduced_ranks = []
             for i in range(loc_gpus):
-                lp_ranks = [j + 1 for j in base_loc_ranks]
+                lp_ranks = [j + i for j in base_loc_ranks]
                 color = 111 + i if rank in lp_ranks else 222
                 key = 0 + i if rank in lp_ranks else 444
-                reduced_comms.append(MPICommunication(MPICommunication.Split(color, key)))
+                reduced_comms.append(MPICommunication(MPI_WORLD.Split(color, key)))
                 reduced_ranks.append(tuple(lp_ranks))
+            # print(reduced_ranks)
             self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
             self.base_loc_ranks = base_loc_ranks
+            # print(base_loc_ranks)
             self.loc_gpus = loc_gpus
+            # dev_ids = [id + ((comm.rank // loc_gpus)*loc_gpus) for id in range(loc_gpus)]
+            dev_ids = [0, 1, 2, 3]
+            # TODO: make groups for each node????
+            other_groups = []
+            lg = torch.distributed.new_group(ranks=dev_ids)
+            print(dev_ids)
+            module = tDDP(module, device_ids=[local_rank], process_group=lg)
             module.share_memory()
             device = "cuda:" + str(local_rank)
             torch.cuda.set_device(device=device)
@@ -427,7 +447,8 @@ class DataParallelMultiGPU(tnn.Module):
         current_comm = self.reduced_comms[mod_hold]
         current_ranks = self.reduced_ranks[mod_hold]
         if self.current_batch > 0:
-            mod_hold = self.current_batch - 1 % self.loc_gpus
+            mod_hold = (self.current_batch - 1) % self.loc_gpus
+            # print(mod_hold, self.current_batch)
             prev_ranks = self.reduced_ranks[mod_hold]
         else:
             prev_ranks = [], []
@@ -446,38 +467,42 @@ class DataParallelMultiGPU(tnn.Module):
                         cur_params[name] = param
                         st += param.numel()
                 params = torch.cat(params)  # / (self.comm.size + 1.0)
-                new_wait = self.current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)
+                new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)
                 # self._prev_params[0] will become new_wait
                 # self._prev_params[1] will become params
-                self._prev_params = [new_wait, params]
+                self._prev_params = [new_wait, params, shapes]
             if self.comm.rank in prev_ranks:
                 # receive previous ones
                 if self._prev_params[0] is not None:
                     # ttt = time.perf_counter()
+                    # print(self._prev_params)
                     self._prev_params[0].wait()
                     # print("wait time", time.perf_counter() - ttt)
                     # need to add the weighted average to param
-                    self._update_parameters(shapes, cur_params)
+                    self._update_parameters(len(prev_ranks))
 
-            if self.last_batch:
+            if self.current_batch == self.last_batch and self.comm.rank in current_ranks:
+                # print(self.last_batch)
+                self.current_batch = 0
                 new_wait.wait()
-                self._update_parameters(shapes, cur_params)
+                self._update_parameters(len(current_ranks))
                 self._prev_params = [None, None]
-        if torch.distributed.is_initialized():
-            torch.distributed.barrier()
+        #if torch.distributed.is_initialized():
+        #    torch.distributed.barrier()
         self.optimizer.torch_optimizer.step()
         self.comm.Barrier()
         self.current_batch += 1
         # print("step time", time.perf_counter() - t)
 
-    def _update_parameters(self, shapes, current_params):
+    def _update_parameters(self, sz):
+        shapes = self._prev_params[2]
         for name, param in self.named_parameters():
             if param.requires_grad:
                 rcv_params = self._prev_params[1]
                 update = rcv_params[shapes[name][1]].reshape(shapes[name][0])
                 # .to(shapes[name][2])
-                current_params[name] /= self.reduced_comm.size + 1.0
-                current_params[name] += update
+                param /= sz + 1.0
+                param += update
 
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:
