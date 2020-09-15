@@ -363,7 +363,7 @@ def main():
     torch_init_file = "file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test"
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "29500"
-    # os.environ['NCCL_SOCKET_IFNAME'] = 'ib'
+    os.environ['NCCL_SOCKET_IFNAME'] = 'ib'
     local_rank = rank % loc_gpus
     init_method_file = torch_init_file if not None else "file:///"
     if init_method_file[:7] != "file://":
@@ -374,7 +374,7 @@ def main():
     )
 
     # make sure that gradients are allocated lazily, so that they are not shared here
-    model.share_memory()
+    # model.share_memory()
 
     # create DP optimizer and model:
     blocking = False  # choose blocking or non-blocking parameter updates
