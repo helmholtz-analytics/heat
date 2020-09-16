@@ -1094,13 +1094,15 @@ def repeat(a, repeats, axis=None):
                     # CASE 1 - reshape and resplit `repeats` along the same axis as `a` and flatten it afterwards
                     else:
                         repeats = repeats.reshape(a.gshape)
-                        if repeats.split != a.split:
-                            repeats.resplit_(a.split)
+                        repeats.resplit_(a.split)
 
-                        repeats = factories.array(  # instead of manipulations.flatten, as it balances the result
-                            torch.flatten(repeats._DNDarray__array),
-                            dtype=repeats.dtype,
-                            is_split=a.split,  # TODO gets stuck if defined (DISTRIBUTED CASE, repeats not scalar, axis=None, 3 processes)
+                        t_repeats_flattened = torch.flatten(
+                            repeats._DNDarray__array
+                        )  # instead of manipulations.flatten, as it balances the result
+                        repeats = factories.array(
+                            t_repeats_flattened,
+                            dtype=t_repeats_flattened.dtype,
+                            is_split=0,  # TODO gets stuck if defined (DISTRIBUTED CASE, repeats not scalar, axis=None, 3 processes)
                             device=repeats.device,
                             comm=repeats.comm,
                         )
