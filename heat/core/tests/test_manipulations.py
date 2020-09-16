@@ -1123,6 +1123,9 @@ class TestManipulations(TestCase):
         with self.assertRaises(TypeError):
             repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], dtype=ht.float64)
             ht.repeat(a, repeats)
+        with self.assertRaises(ValueError):
+            repeats = ht.array([], dtype=ht.int64)
+            ht.repeat(a, repeats)
 
         # -------------------
         # axis != None
@@ -1193,7 +1196,7 @@ class TestManipulations(TestCase):
         self.assertIsInstance(repeats, ht.DNDarray)
         self.assertEqual(repeats.split, None)
 
-        print("UNDISTRIBUTED CASE DONE")
+        print("TESTS: UNDISTRIBUTED CASE DONE")
 
         # -------------------
         # DISTRIBUTED CASE
@@ -1213,14 +1216,14 @@ class TestManipulations(TestCase):
         self.assertEqual(result.shape, (a.size * repeats,))
         self.assert_array_equal(result, comparison)
 
-        print("Scalar done")
+        print("TESTS: Scalar done")
 
         # repeats = list
         repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
         result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats)
 
-        print("List done")  # TODO stuck here if line 1105 (is_split is defined)
+        print("TESTS: List done")
 
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.gshape, (sum(repeats),))
@@ -1260,7 +1263,7 @@ class TestManipulations(TestCase):
         self.assertIsInstance(repeats, ht.DNDarray)
         # self.assertEqual(repeats.split, None)      # TODO failed
 
-        print("Undistributed DNDarray done")
+        print("TESTS: Undistributed DNDarray done")
 
         # # repeats = distributed ht.DNDarray
         # repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)

@@ -1022,7 +1022,7 @@ def repeat(a, repeats, axis=None):
             )
 
         # check `repeats` is not empty
-        if repeats.gnumel == 0:  # TODO add tests
+        if repeats.gnumel == 0:
             raise ValueError("Invalid input for repeats. Repeats must contain data.")
 
         # check `repeats` is 1-dimensional
@@ -1041,17 +1041,15 @@ def repeat(a, repeats, axis=None):
             new_lshape = list(a.lshape)
             if isinstance(repeats, int):
                 new_lshape[axis] *= repeats
-            else:  # array_like
-                if isinstance(repeats, dndarray.DNDarray) and repeats.split is not None:
-                    repeats.resplit_(None)  # TODO avoid Allgather operation
-                    # repeats = resplit(repeats, None)   # stuck if I do it out of place
+            else:  # DNDarray
+                if repeats.split is not None:
+                    repeats.resplit_(None)  # TODO avoid Allgather operation (not possible?)
                 new_lshape[axis] = int(sum(repeats))
 
             repeated_array_torch = torch.empty(new_lshape, dtype=a.dtype.torch_type())
     else:
         # Broadcast
         if isinstance(repeats, int):
-            print(f"\n\n[{a.comm.rank}] Hello")
             if a.split is not None and a.split != 0:
                 print(
                     "\n!!! WARNING !!!\nSplit axis of a will be changed from {} to 0.".format(
@@ -1061,11 +1059,10 @@ def repeat(a, repeats, axis=None):
                 a.resplit_(
                     0
                 )  # TODO stuck here in distributed case if 1 process is empty and a.split=1
-            print(f"\n\n[{a.comm.rank}] Hello again")
             repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
 
         else:
-            # check if the data chunks of `repeats` have to be (re)distributed before call of torch function.
+            # check if the data chunks of `repeats` and/or `a` have to be (re)distributed before call of torch function.
 
             # UNDISTRIBUTED CASE (a not distributed)
             if a.split is None:
@@ -1117,6 +1114,7 @@ def repeat(a, repeats, axis=None):
                             )
                         )
                         repeats.resplit_(0)
+                # axis is not None
                 else:
                     if a.split == axis:
                         if repeats.split != 0:
@@ -1147,8 +1145,6 @@ def repeat(a, repeats, axis=None):
             repeated_array_torch = torch.repeat_interleave(
                 a._DNDarray__array, repeats._DNDarray__array, axis
             )
-
-    print(f"\n\n[{a.comm.rank}]\nA.split: {a.split}\naxis: {axis}")
 
     repeated_array = factories.array(
         repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
