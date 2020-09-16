@@ -370,7 +370,8 @@ def main():
         # "file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test"
         init_method_file = "file://" + init_method_file
     torch.distributed.init_process_group(
-        backend="nccl", init_method=init_method_file, rank=local_rank, world_size=loc_gpus
+        backend="nccl", # init_method=init_method_file, 
+        rank=local_rank, world_size=loc_gpus
     )
 
     # make sure that gradients are allocated lazily, so that they are not shared here
@@ -519,7 +520,9 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         # compute output
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("forward")
+        #t3 = time.perf_counter()
         output = model(input)
+        #print("forward", time.perf_counter() - t3)
         if args.prof >= 0:
             torch.cuda.nvtx.range_pop()
         loss = criterion(output, target)
@@ -529,7 +532,9 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
 
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("backward")
+        #t2 = time.perf_counter()
         loss.backward()
+        #print("backwards time", time.perf_counter() - t2)
         if args.prof >= 0:
             torch.cuda.nvtx.range_pop()
 
@@ -595,9 +600,9 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             quit()
         if ht.MPI_WORLD.rank == 0:
             print("batch", i, "time", time.perf_counter() - tt)
-        # if i == 2:
-        #    break
-    # for name, param in model.named_parameters():
+    #    if i == 20:
+    #        break
+    #for name, param in model.named_parameters():
     #    # print(model.comm.allreduce(param.clone(), ht.MPI.SUM) / ht.MPI_WORLD.size)
     #    print(param.flatten())
     #    break

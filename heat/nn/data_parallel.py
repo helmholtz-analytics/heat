@@ -387,7 +387,7 @@ class DataParallelMultiGPU(tnn.Module):
             # lg = torch.distributed.new_group(ranks=dev_ids)
             # print(dev_ids)
             module = tDDP(module, device_ids=[local_rank])  # , process_group=lg)
-            module.share_memory()
+            # module.share_memory()
             device = "cuda:" + str(local_rank)
             torch.cuda.set_device(device=device)
 
@@ -427,68 +427,101 @@ class DataParallelMultiGPU(tnn.Module):
         # test for receive from last batch,
         #   if yes: receive, update parameters with rcved stuff
         # copy and send the parameter dictionary
-        # t = time.perf_counter()
+        t = time.perf_counter()
         # copy whole dict and sent it
+        t3 = time.perf_counter()
+        self.optimizer.torch_optimizer.step()
+        if self.comm.rank == 0:
+            print("optimizer step", time.perf_counter() - t3)
         mod_hold = self.current_batch % self.loc_gpus
+        mod_hold_m1 = None      
         current_comm = self.reduced_comms[mod_hold]
         current_ranks = self.reduced_ranks[mod_hold]
         if self.current_batch > 0:
-            mod_hold = (self.current_batch - 1) % self.loc_gpus
+            mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
             # print(mod_hold, self.current_batch)
-            prev_ranks = self.reduced_ranks[mod_hold]
+            prev_ranks = self.reduced_ranks[mod_hold_m1]
         else:
             prev_ranks = [], []
         with torch.no_grad():
             if self.comm.rank in current_ranks:
+                t4 = time.perf_counter()
                 params = []
                 shapes = {}
-                cur_params = {}
+                # cur_params = {}
                 st = 0
                 for name, param in self.named_parameters():
                     if param.requires_grad:
                         # flatten and prep the data for sending
                         shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
-                        params.append((param / (current_comm.size + 1.0)).flatten())
+                        params.append(param.to(torch.bfloat16).flatten()) # / (self.comm.size + 1.0)) 
                         # params.append(param.flatten())
-                        cur_params[name] = param
+                        # cur_params[name] = param
                         st += param.numel()
-                params = torch.cat(params)  # / (self.comm.size + 1.0)
-                new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)
+                params = torch.cat(params) / (self.comm.size + 1.0) # .to(torch.bfloat16)  # / (self.comm.size + 1.0)
+                new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, mpi_sum_f16) #MPI.SUM)
                 # self._prev_params[0] will become new_wait
                 # self._prev_params[1] will become params
                 self._prev_params = [new_wait, params, shapes]
+                if self.comm.rank == 0:
+                    print('send time', time.perf_counter() - t4)
             if self.comm.rank in prev_ranks:
                 # receive previous ones
                 if self._prev_params[0] is not None:
-                    # ttt = time.perf_counter()
+                    ttt = time.perf_counter()
                     # print(self._prev_params)
                     self._prev_params[0].wait()
-                    # print("wait time", time.perf_counter() - ttt)
+                    if self.comm.rank == 0:
+                        print("wait time", time.perf_counter() - ttt)
                     # need to add the weighted average to param
                     self._update_parameters(len(prev_ranks))
-
-            if self.current_batch == self.last_batch and self.comm.rank in current_ranks:
-                # print(self.last_batch)
-                self.current_batch = 0
-                new_wait.wait()
-                self._update_parameters(len(current_ranks))
-                self._prev_params = [None, None]
-        # if torch.distributed.is_initialized():
-        #    torch.distributed.barrier()
-        self.optimizer.torch_optimizer.step()
-        self.comm.Barrier()
+            #tttt = time.perf_counter()
+            self._local_torch_param_update(mod_hold_m1)
+            #print('torch update', time.perf_counter() - tttt)
+            if self.current_batch == self.last_batch:
+                # print("starting last batch stuff", self.last_batch)
+                if self.comm.rank in current_ranks:
+                    self.current_batch = 0
+                    self._prev_params[0].wait()
+                    # new_wait.wait()
+                    self._update_parameters(len(current_ranks))
+                    self._prev_params = [None, None]
+                self._local_torch_param_update(mod_hold)
         self.current_batch += 1
-        # print("step time", time.perf_counter() - t)
+        if self.comm.rank == 0:
+            print("step time", time.perf_counter() - t)
+
+    def _local_torch_param_update(self, mod_hold_pr):
+        if mod_hold_pr is None:
+            return
+        if torch.distributed.is_initialized():
+            # snd = mod_hold_m1
+            if mod_hold_pr is not None:
+                snds = {}
+                tsz = torch.distributed.get_world_size()
+                for name, param in self.named_parameters():
+                    if param.requires_grad:
+                        snd = [None, None]
+                        snd[1] = param / tsz
+                        snd[0] = torch.distributed.broadcast(param, mod_hold_pr, async_op=True)
+                        snds[name] = snd
+                for name, param in self.named_parameters():
+                    if param.requires_grad:
+                        snds[name][0].wait()
+                        # param *= 0
+                        # param += snds[name][1] 
 
     def _update_parameters(self, sz):
         shapes = self._prev_params[2]
         for name, param in self.named_parameters():
             if param.requires_grad:
                 rcv_params = self._prev_params[1]
-                update = rcv_params[shapes[name][1]].reshape(shapes[name][0])
+                update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                 # .to(shapes[name][2])
+                # param += update
                 param /= sz + 1.0
                 param += update
+        self._prev_params = [None, None]
 
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:
