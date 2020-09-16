@@ -2171,7 +2171,7 @@ def tile(x, reps):
     # x.dim >= 1
 
     # calculate map of new gshape, lshape
-
+    reps = list(reps)
     if len(reps) > x.ndim:
         added_dims = len(reps) - x.ndim
         new_shape = added_dims * (1,) + x.gshape
@@ -2184,13 +2184,14 @@ def tile(x, reps):
         t_tiled = t_x.repeat(reps)
         return factories.array(t_tiled, dtype=x.dtype, is_split=split, comm=x.comm)
     else:
-        # repeats along the split axis: communication needed
+        # repeats along the split axis: communication of the split-axis repeats only
         size = x.comm.Get_size()
         rank = x.comm.Get_rank()
         x_shape = x.gshape
-        # allocate tiled DNDarray
-        tiled_shape = tuple(s * r for s, r in zip(x_shape, reps))
-        tiled = factories.empty(tiled_shape, dtype=x.dtype, split=split, comm=x.comm)
+        # allocate tiled DNDarray, at first along split axis only
+        split_reps = [rep if i == split else 1 for i, rep in enumerate(reps)]
+        split_tiled_shape = tuple(s * r for s, r in zip(x_shape, split_reps))
+        tiled = factories.empty(split_tiled_shape, dtype=x.dtype, split=split, comm=x.comm)
         # collect slicing information from all processes.
         # t_(...) indicates process-local torch tensors
         lshape_maps = []
@@ -2206,7 +2207,7 @@ def tile(x, reps):
 
         t_slices_x, t_slices_tiled = slices_map
 
-        # keep track of repetitions
+        # keep track of repetitions:
         # t_x_starts.shape, t_x_ends.shape changing from (size,) to (reps[split], size)
         reps_indices = list(x_shape[split] * rep for rep in (range(reps[split])))
         t_reps_indices = torch.tensor(reps_indices, dtype=torch.int32).reshape(len(reps_indices), 1)
@@ -2246,15 +2247,16 @@ def tile(x, reps):
         send_to_ranks = send_map[1].tolist()
         recv_from_ranks = recv_map[1].tolist()
 
-        # allocate local buffer for incoming data
+        # allocate local buffers for incoming data
         t_local_tile = torch.zeros(
             tuple(lshape_maps[1][0].tolist()), dtype=x._DNDarray__array.dtype
         )
         t_tiled = tiled._DNDarray__array
 
-        send_slice = recv_slice = local_slice = tiled.ndim * (slice(None, None, None),)
-        offset_x, _, _ = x.comm.chunk(x.gshape, x.split)
-        offset_tiled, _, _ = tiled.comm.chunk(tiled.gshape, tiled.split)
+        # send_slice = recv_slice = local_slice = tiled.ndim * (slice(None, None, None),)
+        offset_x, _, send_slice = x.comm.chunk(x.gshape, x.split)
+        offset_tiled, _, recv_slice = tiled.comm.chunk(tiled.gshape, tiled.split)
+        local_slice = send_slice
 
         for i, r in enumerate(send_to_ranks):
             start = send_slices[0][i] - offset_x
@@ -2273,13 +2275,11 @@ def tile(x, reps):
                 local_slice[:split] + (slice(0, stop - start, None),) + local_slice[split + 1 :]
             )
             x.comm.Recv(t_local_tile, r)
-            tiled._DNDarray__array[recv_slice] = t_local_tile[local_slice]
+            t_tiled[recv_slice] = t_local_tile[local_slice]
 
-        # finally tile along non-split axes if needed. Needs change in slices definition above
-        # reps = list(reps)
-        # reps[split] = 1
-        # tiled._DNDarray__array = tiled._DNDarray__array.repeat(reps)
-
+        # finally tile along non-split axes if needed
+        reps[split] = 1
+        tiled = factories.array(t_tiled.repeat(reps), dtype=x.dtype, is_split=0, comm=x.comm)
         return tiled
 
 
