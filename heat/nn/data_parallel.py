@@ -462,12 +462,13 @@ class DataParallelMultiGPU(tnn.Module):
                     print("send time", time.perf_counter() - t4)
             if self.comm.rank in prev_ranks:
                 # receive previous ones
-                if self._prev_params[0] is not None:
+                # print(self._prev_params)
+                if self._prev_params[0][0] is not None:
                     ttt = time.perf_counter()
                     # print(self._prev_params)
-                    self._prev_params[0].wait()
-                    if self.comm.rank == 0:
-                        print("wait time", time.perf_counter() - ttt)
+                    self._prev_params[0][0].wait()
+                    # if self.comm.rank == 0:
+                    print("wait time", time.perf_counter() - ttt)
                     # need to add the weighted average to param
                     self._update_parameters(len(prev_ranks))
             # tttt = time.perf_counter()
@@ -478,7 +479,8 @@ class DataParallelMultiGPU(tnn.Module):
                 mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
                 prev_ranks = self.reduced_ranks[mod_hold_m1]
                 if self.comm.rank in prev_ranks:
-                    if self._prev_params[0] is not None:
+                    # prev_ranks = self.reduced_ranks[mod_hold_m2]
+                    if self._prev_params[0][0] is not None:
                         ttt = time.perf_counter()
                         # print(self._prev_params)
                         self._prev_params[0][0].wait()
@@ -494,7 +496,7 @@ class DataParallelMultiGPU(tnn.Module):
                     self._prev_params[0][0].wait()
                     # new_wait.wait()
                     self._update_parameters(len(current_ranks))
-                    # self._prev_params = [None, None]
+                    self._prev_params = [None, None]
                 self._local_torch_param_update(mod_hold)
         self.current_batch += 1
         if self.comm.rank == 0:
