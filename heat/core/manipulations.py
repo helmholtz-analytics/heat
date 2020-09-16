@@ -962,6 +962,76 @@ def repeat(a, repeats, axis=None):
                 )
             )
 
+    # sanitation `axis`
+    if axis is not None and not isinstance(axis, int):
+        raise TypeError("axis must be an integer or None, currently: {}".format(type(axis)))
+
+    if axis is not None and (axis >= len(a.shape) or axis < 0):
+        raise ValueError(
+            "Invalid input for axis. Value has to be either None or between 0 and {}, not {}.".format(
+                len(a.shape) - 1, axis
+            )
+        )
+
+    # sanitation `repeats`
+    if not isinstance(repeats, (int, list, tuple, np.ndarray, dndarray.DNDarray)):
+        raise TypeError(
+            "repeats must be a an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
+                type(repeats)
+            )
+        )
+
+    if isinstance(repeats, int):
+        pass
+    else:
+        # make sure everything inside `repeats` is int
+        if isinstance(repeats, dndarray.DNDarray):
+            if repeats.dtype == types.int64:
+                pass
+            elif types.can_cast(repeats.dtype, types.int64):
+                repeats = factories.array(
+                    repeats,
+                    dtype=types.int64,
+                    is_split=repeats.split,
+                    device=repeats.device,
+                    comm=repeats.comm,
+                )
+            else:
+                raise TypeError(
+                    "Invalid dtype for ht.DNDarray 'repeats'. Has to be integer,"
+                    " but was {}".format(repeats.dtype)
+                )
+        elif isinstance(repeats, np.ndarray):
+            if not types.can_cast(repeats.dtype.type, types.int64):
+                raise TypeError(
+                    "Invalid dtype for np.ndarray 'repeats'. Has to be integer,"
+                    " but was {}".format(repeats.dtype.type)
+                )
+            repeats = factories.array(
+                repeats, dtype=types.int64, is_split=None, device=a.device, comm=a.comm
+            )
+        # invalid list/tuple
+        elif not all(isinstance(r, int) for r in repeats):
+            raise TypeError(
+                "Invalid type within repeats. All components of repeats must be integers."
+            )
+        # valid list/tuple
+        else:
+            repeats = factories.array(
+                repeats, dtype=types.int64, is_split=None, device=a.device, comm=a.comm
+            )
+
+        # check `repeats` is not empty
+        if repeats.gnumel == 0:  # TODO add tests
+            raise ValueError("Invalid input for repeats. Repeats must contain data.")
+
+        # check `repeats` is 1-dimensional
+        if len(repeats.shape) != 1:
+            raise ValueError(
+                "Invalid input for repeats. Repeats must be a 1d-object or integer, but "
+                "was {}-dimensional.".format(len(repeats.shape))
+            )
+
     # `a` is empty, no data to repeat
     if 0 in a.lshape:
         if axis is None:
@@ -979,80 +1049,22 @@ def repeat(a, repeats, axis=None):
 
             repeated_array_torch = torch.empty(new_lshape, dtype=a.dtype.torch_type())
     else:
-        # sanitation `axis`
-        if axis is not None and not isinstance(axis, int):
-            raise TypeError("axis must be an integer or None, currently: {}".format(type(axis)))
-
-        if axis is not None and (axis >= len(a.shape) or axis < 0):
-            raise ValueError(
-                "Invalid input for axis. Value has to be either None or between 0 and {}, not {}.".format(
-                    len(a.shape) - 1, axis
-                )
-            )
-
-        # sanitation `repeats`
-        if not isinstance(repeats, (int, list, tuple, np.ndarray, dndarray.DNDarray)):
-            raise TypeError(
-                "repeats must be a an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
-                    type(repeats)
-                )
-            )
-
         # Broadcast
         if isinstance(repeats, int):
+            print(f"\n\n[{a.comm.rank}] Hello")
             if a.split is not None and a.split != 0:
-                a.resplit_(0)
+                print(
+                    "\n!!! WARNING !!!\nSplit axis of a will be changed from {} to 0.".format(
+                        a.split
+                    )
+                )
+                a.resplit_(
+                    0
+                )  # TODO stuck here in distributed case if 1 process is empty and a.split=1
+            print(f"\n\n[{a.comm.rank}] Hello again")
             repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
 
-        # make sure everything inside `repeats` is int
         else:
-            if isinstance(repeats, dndarray.DNDarray):
-                if repeats.dtype == types.int64:
-                    pass
-                elif types.can_cast(repeats.dtype, types.int64):
-                    repeats = factories.array(
-                        repeats,
-                        dtype=types.int64,
-                        is_split=repeats.split,
-                        device=repeats.device,
-                        comm=repeats.comm,
-                    )
-                else:
-                    raise TypeError(
-                        "Invalid dtype for ht.DNDarray 'repeats'. Has to be integer,"
-                        " but was {}".format(repeats.dtype)
-                    )
-            elif isinstance(repeats, np.ndarray):
-                if not types.can_cast(repeats.dtype.type, types.int64):
-                    raise TypeError(
-                        "Invalid dtype for np.ndarray 'repeats'. Has to be integer,"
-                        " but was {}".format(repeats.dtype.type)
-                    )
-                repeats = factories.array(
-                    repeats, dtype=types.int64, is_split=None, device=a.device, comm=a.comm
-                )
-            # invalid list/tuple
-            elif not all(isinstance(r, int) for r in repeats):
-                raise TypeError(
-                    "Invalid type within repeats. All components of repeats must be integers."
-                )
-            # valid list/tuple
-            else:
-                repeats = factories.array(
-                    repeats, dtype=types.int64, is_split=None, device=a.device, comm=a.comm
-                )
-
-            # check `repeats` is not empty
-            if repeats.gnumel == 0:  # TODO add tests
-                raise ValueError("Invalid input for repeats. Repeats must contain data.")
-
-            # check `repeats` is 1-dimensional
-            if len(repeats.shape) != 1:
-                raise ValueError(
-                    "Invalid input for repeats. Repeats must be a 1d-object or integer, but "
-                    "was {}-dimensional.".format(len(repeats.shape))
-                )
-
             # check if the data chunks of `repeats` have to be (re)distributed before call of torch function.
 
             # UNDISTRIBUTED CASE (a not distributed)
@@ -1093,14 +1105,14 @@ def repeat(a, repeats, axis=None):
 
                     if a.split != 0:
                         print(
-                            "!!! WARNING !!!\nSplit axis of a will be changed from {} to 0.".format(
+                            "\n!!! WARNING !!!\nSplit axis of a will be changed from {} to 0.".format(
                                 a.split
                             )
                         )
                         a.resplit_(0)
                     if repeats.split != 0:
                         print(
-                            "!!! WARNING !!!\nSplit axis of repeats will be changed from {} to 0.".format(
+                            "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to 0.".format(
                                 repeats.split
                             )
                         )
@@ -1109,7 +1121,7 @@ def repeat(a, repeats, axis=None):
                     if a.split == axis:
                         if repeats.split != 0:
                             print(
-                                "!!! WARNING !!!\nSplit axis of repeats will be changed from {} to 0.".format(
+                                "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to 0.".format(
                                     repeats.split
                                 )
                             )
@@ -1117,7 +1129,7 @@ def repeat(a, repeats, axis=None):
                     else:
                         if repeats.split is not None:
                             print(
-                                "!!! WARNING !!!\nSplit axis of repeats will be changed from {} to None.".format(
+                                "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to None.".format(
                                     repeats.split
                                 )
                             )
@@ -1136,7 +1148,7 @@ def repeat(a, repeats, axis=None):
                 a._DNDarray__array, repeats._DNDarray__array, axis
             )
 
-    # print(f"\n\n[{a.comm.rank}]\nA.split: {a.split}\naxis:\n {axis}")
+    print(f"\n\n[{a.comm.rank}]\nA.split: {a.split}\naxis: {axis}")
 
     repeated_array = factories.array(
         repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm

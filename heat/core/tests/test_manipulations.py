@@ -1191,7 +1191,7 @@ class TestManipulations(TestCase):
         self.assert_array_equal(result, comparison)
         self.assertEqual(result.split, None)
         self.assertIsInstance(repeats, ht.DNDarray)
-        # self.assertEqual(repeats.split, 0)  # TODO (None !=0)
+        self.assertEqual(repeats.split, None)
 
         print("UNDISTRIBUTED CASE DONE")
 
@@ -1201,7 +1201,7 @@ class TestManipulations(TestCase):
         # axis = None
         # -------------------
         # a = ht.arange(12, split=0).reshape((2, 2, 3))
-        a = ht.arange(12, split=0).reshape((2, 2, 3), axis=1)  # produces an error
+        a = ht.arange(12, split=0).reshape((2, 2, 3), axis=1)  # TODO STUCK already for scalar
         a_np = a.numpy()
 
         # repeats = scalar
@@ -1211,11 +1211,7 @@ class TestManipulations(TestCase):
 
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, (a.size * repeats,))
-        # self.assert_array_equal(result, comparison)    #not working with split axis=1
-        # if a.comm.rank == 0:
-        print(f"\n\n[{a.comm.rank}]\nResult:\n{result._DNDarray__array}\nComparison:\n{comparison}")
-        self.assertTrue((ht.array(comparison) == result).all())
-        self.assertEqual(result.split, a.split)
+        self.assert_array_equal(result, comparison)
 
         print("Scalar done")
 
