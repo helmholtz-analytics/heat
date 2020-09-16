@@ -2258,7 +2258,6 @@ def tile(x, reps):
         )
         t_tiled = tiled._DNDarray__array
 
-        # send_slice = recv_slice = local_slice = tiled.ndim * (slice(None, None, None),)
         offset_x, _, send_slice = x.comm.chunk(x.gshape, x.split)
         offset_tiled, _, recv_slice = tiled.comm.chunk(tiled.gshape, tiled.split)
         local_slice = send_slice
