@@ -12,6 +12,7 @@ from . import stride_tricks
 from . import tiling
 from . import types
 from . import _operations
+from . import sanitation
 
 
 __all__ = [
@@ -2166,12 +2167,16 @@ def tile(x, reps):
 
     If A.ndim > d, reps is promoted to A.ndim by pre-pending 1’s to it. Thus for an A of shape (2, 3, 4, 5), a reps of (2, 2) is treated as (1, 1, 2, 2).
     """
-    # input sanitation
-    # x is DNDarray
-    # x.dim >= 1
 
-    # calculate map of new gshape, lshape
-    reps = list(reps)
+    # check that input is DNDarray
+    sanitation.sanitize_input(x)
+    # check dimensions
+    if x.ndim == 0:
+        x = sanitation.to_1d(x)
+    # reps to list
+    reps = sanitation.sanitize_sequence(reps)
+
+    # calculate new gshape, split
     if len(reps) > x.ndim:
         added_dims = len(reps) - x.ndim
         new_shape = added_dims * (1,) + x.gshape
@@ -2193,7 +2198,7 @@ def tile(x, reps):
         split_tiled_shape = tuple(s * r for s, r in zip(x_shape, split_reps))
         tiled = factories.empty(split_tiled_shape, dtype=x.dtype, split=split, comm=x.comm)
         # collect slicing information from all processes.
-        # t_(...) indicates process-local torch tensors
+        # "t_" indicates process-local torch tensors
         lshape_maps = []
         slices_map = []
         t_0 = torch.tensor([0], dtype=torch.int32)
