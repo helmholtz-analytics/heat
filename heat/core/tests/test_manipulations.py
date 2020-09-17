@@ -1694,6 +1694,11 @@ class TestManipulations(TestCase):
         self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
         self.assertTrue(tiled_along_split.dtype is x.dtype)
 
+        # test exceptions
+        float_reps = (1, 2, 2, 1.5)
+        with self.assertRaises(TypeError):
+            tiled_along_split = ht.tile(x, float_reps)
+
     def test_topk(self):
         size = ht.MPI_WORLD.size
         if size == 1:

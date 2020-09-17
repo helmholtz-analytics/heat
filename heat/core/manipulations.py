@@ -2204,7 +2204,6 @@ def tile(x, reps):
                [ 6,  7,  8,  6,  7,  8],
                [ 9, 10, 11,  9, 10, 11]]], dtype=ht.int32, device=cpu:0, split=1)
     """
-
     # check that input is DNDarray
     sanitation.sanitize_input(x)
     # check dimensions
