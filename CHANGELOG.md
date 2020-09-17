@@ -49,6 +49,7 @@
 - [#664](https://github.com/helmholtz-analytics/heat/pull/664) New feature / enhancement: `random.random_sample`, `random.random`, `random.sample`, `random.ranf`, `random.random_integer`
 - [#666](https://github.com/helmholtz-analytics/heat/pull/666) New feature: distributed prepend/append for diff().
 - [#667](https://github.com/helmholtz-analytics/heat/pull/667) Enhancement `reshape`: rename axis parameter
+- [#678](https://github.com/helmholtz-analytics/heat/pull/678) New feature: distributed `tile`
 
 # v0.4.0
 
