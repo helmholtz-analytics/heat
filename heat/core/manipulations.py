@@ -1082,12 +1082,12 @@ def repeat(a, repeats, axis=None):
             # Broadcast (via 1-element DNDarray)
             if repeats.gnumel == 1:
                 if repeats.split is not None:
-                    print(
-                        "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to None.".format(
+                    raise ValueError(
+                        "Doing a broadcast via array_like repeats, split axis must be None, but was {}".format(
                             repeats.split
                         )
                     )
-                    repeats.resplit_(None)
+
             # axis is None
             elif axis is None:
                 if a.gnumel != repeats.gnumel:
@@ -1113,7 +1113,7 @@ def repeat(a, repeats, axis=None):
                             )
                         )
 
-                    # calculate the needed slices of repeats
+                    # calculate the needed slices of repeats ("simulate" split along axis 0)
                     number_of_processes = a.comm.size
                     stepsize = repeats.gnumel // number_of_processes
                     residual = repeats.gnumel % number_of_processes
@@ -1126,17 +1126,35 @@ def repeat(a, repeats, axis=None):
                         if a.comm.rank != 0:
                             start += 1
 
+                    # if a.comm.rank == residual:
+                    #     start += 1
+
                     repeats = repeats[start:end]
             # axis is not None
             else:
                 if a.split == axis:
                     if repeats.split != 0:
-                        print(
-                            "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to 0.".format(
-                                repeats.split
+                        if repeats.split is not None:
+                            raise ValueError(
+                                "repeats has to be split along axis 0 if distributed, but was {}".format(
+                                    repeats.split
+                                )
                             )
-                        )
-                        repeats.resplit_(0)
+
+                        # calculate the needed slices of repeats ("simulate" split along axis 0)
+                        number_of_processes = a.comm.size
+                        stepsize = repeats.gnumel // number_of_processes
+                        residual = repeats.gnumel % number_of_processes
+
+                        start = a.comm.rank * stepsize
+                        end = start + stepsize
+
+                        if a.comm.rank <= residual - 1:
+                            end += 1
+                            if a.comm.rank != 0:
+                                start += 1
+
+                        repeats = repeats[start:end]
                 else:
                     if repeats.split is not None:
                         print(
