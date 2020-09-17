@@ -2242,7 +2242,7 @@ def tile(x, reps):
         # collect slicing information from all processes.
         lshape_maps = []
         slices_map = []
-        t_0 = torch.tensor([0], dtype=torch.int32)
+        t_0 = torch.tensor([0], dtype=torch.int32, device=t_x.device)
         for array in [x, tiled]:
             t_lshape_map = array.create_lshape_map()
             lshape_maps.append(t_lshape_map)
