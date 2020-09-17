@@ -2161,15 +2161,48 @@ def tile(x, reps):
     """
     Construct a new DNDarray by repeating 'x' the number of times given by 'reps'.
 
-    If 'reps' has length 'd', the result will have dimension of 'max(d, x.ndim)'.
+    If 'reps' has length 'd', the result will have 'max(d, x.ndim)' dimensions:
 
-    If 'x.ndim < d', 'x' is promoted to be d-dimensional by prepending new axes.
+    - if 'x.ndim < d', 'x' is promoted to be d-dimensional by prepending new axes.
     So a shape (3,) array is promoted to (1, 3) for 2-D replication, or shape (1, 1, 3)
-    for 3-D replication. If this is not the desired behavior, promote 'x' to d-dimensions
-    manually before calling this function.
+    for 3-D replication (if this is not the desired behavior, promote 'x' to d-dimensions
+    manually before calling this function);
 
-    If 'x.ndim > d', 'reps' will replicate the last 'd' dimensions of 'x', i.e., if
+    - if 'x.ndim > d', 'reps' will replicate the last 'd' dimensions of 'x', i.e., if
     'x.shape' is (2, 3, 4, 5), a 'reps' of (2, 2) will be expanded to (1, 1, 2, 2).
+
+    Parameters
+    ----------
+    x : DNDarray
+
+    reps : Sequence[ints,...]
+
+    Returns
+    -------
+    tiled : DNDarray
+            Split semantics: if `x` is distributed, the tiled data will be distributed along the
+            same dimension. Note that nominally `tiled.split != x.split` in the case where
+            `len(reps) > x.ndim`.  See example below.
+
+    Examples
+    --------
+    >>> x = ht.arange(12).reshape((4,3)).resplit_(0)
+    >>> x
+    DNDarray([[ 0,  1,  2],
+              [ 3,  4,  5],
+              [ 6,  7,  8],
+              [ 9, 10, 11]], dtype=ht.int32, device=cpu:0, split=0)
+    >>> reps = (1, 2, 2)
+    >>> tiled = ht.tile(x, reps)
+    >>> tiled
+    DNDarray([[[ 0,  1,  2,  0,  1,  2],
+               [ 3,  4,  5,  3,  4,  5],
+               [ 6,  7,  8,  6,  7,  8],
+               [ 9, 10, 11,  9, 10, 11],
+               [ 0,  1,  2,  0,  1,  2],
+               [ 3,  4,  5,  3,  4,  5],
+               [ 6,  7,  8,  6,  7,  8],
+               [ 9, 10, 11,  9, 10, 11]]], dtype=ht.int32, device=cpu:0, split=1)
     """
 
     # check that input is DNDarray
@@ -2179,6 +2212,8 @@ def tile(x, reps):
         x = sanitation.to_1d(x)
     # reps to list
     reps = sanitation.sanitize_sequence(reps)
+    if not all(isinstance(rep, int) for rep in reps):
+        raise TypeError("reps must be a sequence of integers, got {}".format(reps))
 
     # calculate new gshape, split
     if len(reps) != x.ndim:
