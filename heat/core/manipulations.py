@@ -2290,7 +2290,7 @@ def tile(x, reps):
 
         # finally tile along non-split axes if needed
         reps[split] = 1
-        tiled = factories.array(t_tiled.repeat(reps), dtype=x.dtype, is_split=0, comm=x.comm)
+        tiled = factories.array(t_tiled.repeat(reps), dtype=x.dtype, is_split=split, comm=x.comm)
         return tiled
 
 

@@ -36,7 +36,7 @@ def sanitize_sequence(seq):
             raise TypeError(
                 "seq is a distributed DNDarray, expected a list, a tuple, or a process-local array."
             )
-    elif isinstance(seq, torch.tensor):
+    elif isinstance(seq, torch.Tensor):
         return seq.tolist()
     else:
         raise TypeError(
