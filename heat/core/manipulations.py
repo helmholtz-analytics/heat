@@ -2256,7 +2256,9 @@ def tile(x, reps):
         # keep track of repetitions:
         # t_x_starts.shape, t_x_ends.shape changing from (size,) to (reps[split], size)
         reps_indices = list(x_shape[split] * rep for rep in (range(reps[split])))
-        t_reps_indices = torch.tensor(reps_indices, dtype=torch.int32).reshape(len(reps_indices), 1)
+        t_reps_indices = torch.tensor(reps_indices, dtype=torch.int32, device=t_x.device).reshape(
+            len(reps_indices), 1
+        )
         for i, t in enumerate(t_slices_x):
             t = t.repeat((reps[split], 1))
             t += t_reps_indices
