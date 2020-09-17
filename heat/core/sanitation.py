@@ -23,7 +23,15 @@ def sanitize_input(x):
 
 def sanitize_sequence(seq):
     """
-    if tuple, torch.tensor, dndarray --> return list
+    Check if sequence is valid, return list.
+
+    Parameters
+    ----------
+    seq : Union[Sequence[ints, ...], Sequence[floats, ...], DNDarray, torch.tensor]
+
+    Returns
+    -------
+    seq : List
     """
     if isinstance(seq, list):
         return seq
@@ -47,10 +55,17 @@ def sanitize_sequence(seq):
 def scalar_to_1d(x):
     """
     Turn a scalar DNDarray into a 1-D DNDarray with 1 element.
+
+    Parameters
+    ----------
+    x : DNDarray
+        with `x.ndim = 0`
+
+    Returns
+    -------
+    x : DNDarray
+        where `x.ndim = 1` and `x.shape = (1,)`
     """
-    if x.ndim == 0:
-        return factories.array(
-            x._DNDarray__array.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm
-        )
-    else:
-        raise ValueError("expected a DNDarray scalar, got DNDarray with shape {}".format(x.shape))
+    return factories.array(
+        x._DNDarray__array.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm
+    )
