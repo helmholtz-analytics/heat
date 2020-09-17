@@ -1032,7 +1032,7 @@ def repeat(a, repeats, axis=None):
                 "was {}-dimensional.".format(len(repeats.shape))
             )
 
-    # Broadcast
+    # Broadcast (via int)
     if isinstance(repeats, int):
         pass
         if a.split is not None and a.split != 0:
@@ -1042,15 +1042,20 @@ def repeat(a, repeats, axis=None):
             a.resplit_(0)
         repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
 
-    # No Broadcast
+    # No Broadcast (via int)
     else:
         # check if the data chunks of `repeats` and/or `a` have to be (re)distributed before call of torch function.
 
         # UNDISTRIBUTED CASE (a not distributed)
         if a.split is None:
             if repeats.split is not None:
+                print(
+                    "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to None.".format(
+                        repeats.split
+                    )
+                )
                 repeats.resplit_(None)
-            # Broadcast
+            # Broadcast (1-element DNDarray)
             if repeats.gnumel == 1:
                 pass
             # Check correct input
@@ -1063,6 +1068,7 @@ def repeat(a, repeats, axis=None):
                         "of the DNDarray a or replace repeats with a single"
                         " scalar.".format(a.gnumel, repeats.gnumel)
                     )
+            # axis is not None
             elif a.lshape[axis] != repeats.lnumel:
                 raise ValueError(
                     "Invalid input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
@@ -1073,7 +1079,17 @@ def repeat(a, repeats, axis=None):
                 )
         # DISTRIBUTED CASE (a distributed)
         else:
-            if axis is None:
+            # Broadcast (via 1-element DNDarray)
+            if repeats.gnumel == 1:
+                if repeats.split is not None:
+                    print(
+                        "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to None.".format(
+                            repeats.split
+                        )
+                    )
+                    repeats.resplit_(None)
+            # axis is None
+            elif axis is None:
                 if a.gnumel != repeats.gnumel:
                     raise ValueError(
                         "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
@@ -1143,7 +1159,7 @@ def repeat(a, repeats, axis=None):
                         new_lshape[axis] = int(sum(repeats))
                         repeats.resplit_(old_split)  # guarantee split consistency
 
-                    repeated_array_torch = torch.empty(new_lshape, dtype=a.dtype.torch_type())
+                repeated_array_torch = torch.empty(new_lshape, dtype=a.dtype.torch_type())
         # data to repeat
         else:
             repeated_array_torch = torch.repeat_interleave(
