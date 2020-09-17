@@ -398,7 +398,7 @@ def bincount(x, weights=None, minlength: int = 0):
     Returns
     -------
     out : DNDArray
-        An array of length `max(x) + 1` if input is non-empty, else 0.
+        An array of length `max(x) + 1` if input is non-empty, else 0. The array's `split=None`. 
 
     Examples
     --------
@@ -419,7 +419,7 @@ def bincount(x, weights=None, minlength: int = 0):
 
     counts = torch.bincount(x._DNDarray__array, weights, minlength)
 
-    size = counts.size()[0]
+    size = counts.numel()
     maxlength = x.comm.allreduce(size, op=MPI.MAX)
 
     # resize tensors
