@@ -1099,19 +1099,34 @@ def repeat(a, repeats, axis=None):
                     )
 
                 if a.split != 0:
-                    print(
-                        "\n!!! WARNING !!!\nSplit axis of a will be changed from {} to 0.".format(
+                    raise ValueError(
+                        "a has to be split along axis 0 if distributed if parameter axis=None, but was {}".format(
                             a.split
                         )
                     )
-                    a.resplit_(0)
+
                 if repeats.split != 0:
-                    print(
-                        "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to 0.".format(
-                            repeats.split
+                    if repeats.split is not None:
+                        raise ValueError(
+                            "repeats has to be split along axis 0 if distributed, but was {}".format(
+                                repeats.split
+                            )
                         )
-                    )
-                    repeats.resplit_(0)
+
+                    # calculate the needed slices of repeats
+                    number_of_processes = a.comm.size
+                    stepsize = repeats.gnumel // number_of_processes
+                    residual = repeats.gnumel % number_of_processes
+
+                    start = a.comm.rank * stepsize
+                    end = start + stepsize
+
+                    if a.comm.rank <= residual - 1:
+                        end += 1
+                        if a.comm.rank != 0:
+                            start += 1
+
+                    repeats = repeats[start:end]
             # axis is not None
             else:
                 if a.split == axis:
