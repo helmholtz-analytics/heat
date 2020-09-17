@@ -1203,8 +1203,7 @@ class TestManipulations(TestCase):
         # -------------------
         # axis = None
         # -------------------
-        # a = ht.arange(12, split=0).reshape((2, 2, 3))
-        a = ht.arange(12, split=0).reshape((2, 2, 3), axis=1)  # TODO STUCK already for scalar
+        a = ht.arange(12, split=0).reshape((2, 2, 3), axis=1)
         a_np = a.numpy()
 
         # repeats = scalar
@@ -1265,18 +1264,18 @@ class TestManipulations(TestCase):
 
         print("TESTS: Undistributed DNDarray done")
 
-        # # repeats = distributed ht.DNDarray
-        # repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)
-        # result = ht.repeat(a, repeats)  # TODO stuck starting with 3 processes
-        #
-        # comparison = np.repeat(a_np, repeats.numpy())
-        #
-        # self.assertIsInstance(result, ht.DNDarray)
-        # self.assertEqual(result.shape, comparison.shape)
-        # self.assertTrue((ht.array(comparison) == result).all())
-        # self.assertEqual(result.split, a.split)
-        # self.assertIsInstance(repeats, ht.DNDarray)
-        # # self.assertEqual(repeats.split, 0)      #TODO  None != 0
+        # repeats = distributed ht.DNDarray
+        repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)
+        result = ht.repeat(a, repeats)  # TODO stuck starting with 3 processes
+
+        comparison = np.repeat(a_np, repeats.numpy())
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assertTrue((ht.array(comparison) == result).all())
+        self.assertEqual(result.split, a.split)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        # self.assertEqual(repeats.split, 0)      #TODO  None != 0
 
         # -------------------
         # axis != None

@@ -1032,81 +1032,73 @@ def repeat(a, repeats, axis=None):
                 "was {}-dimensional.".format(len(repeats.shape))
             )
 
-    # `a` is empty, no data to repeat
-    if 0 in a.lshape:
-        if axis is None:
-            repeated_array_torch = torch.empty((0,), dtype=a.dtype.torch_type())
-        else:
-            # calculate adapted lshape
-            new_lshape = list(a.lshape)
-            if isinstance(repeats, int):
-                new_lshape[axis] *= repeats
-            else:  # DNDarray
-                if repeats.split is not None:
-                    repeats.resplit_(None)  # TODO avoid Allgather operation (not possible?)
-                new_lshape[axis] = int(sum(repeats))
+    # Broadcast
+    if isinstance(repeats, int):
+        pass
+        if a.split is not None and a.split != 0:
+            print(
+                "\n!!! WARNING !!!\nSplit axis of a will be changed from {} to 0.".format(a.split)
+            )
+            a.resplit_(0)
+        repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
 
-            repeated_array_torch = torch.empty(new_lshape, dtype=a.dtype.torch_type())
+    # No Broadcast
     else:
-        # Broadcast
-        if isinstance(repeats, int):
-            if a.split is not None and a.split != 0:
-                print(
-                    "\n!!! WARNING !!!\nSplit axis of a will be changed from {} to 0.".format(
-                        a.split
+        # check if the data chunks of `repeats` and/or `a` have to be (re)distributed before call of torch function.
+
+        # UNDISTRIBUTED CASE (a not distributed)
+        if a.split is None:
+            if repeats.split is not None:
+                repeats.resplit_(None)
+            # Broadcast
+            if repeats.gnumel == 1:
+                pass
+            # Check correct input
+            elif axis is None:
+                # check matching shapes (repetition defined for every element)
+                if a.gnumel != repeats.gnumel:
+                    raise ValueError(
+                        "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
+                        "Please revise your definition specifying repetitions for all elements "
+                        "of the DNDarray a or replace repeats with a single"
+                        " scalar.".format(a.gnumel, repeats.gnumel)
+                    )
+            elif a.lshape[axis] != repeats.lnumel:
+                raise ValueError(
+                    "Invalid input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
+                    "are not the same. Please revise your definition specifying repetitions for all elements "
+                    "of the DNDarray a or replace repeats with a single scalar".format(
+                        repeats.lnumel, a.lshape[axis]
                     )
                 )
-                a.resplit_(
-                    0
-                )  # TODO stuck here in distributed case if 1 process is empty and a.split=1
-            repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
-
+        # DISTRIBUTED CASE (a distributed)
         else:
-            # check if the data chunks of `repeats` and/or `a` have to be (re)distributed before call of torch function.
-
-            # UNDISTRIBUTED CASE (a not distributed)
-            if a.split is None:
-                if repeats.split is not None:
-                    repeats.resplit_(None)
-                # Broadcast
-                if repeats.gnumel == 1:
-                    pass
-                # Check correct input
-                elif axis is None:
-                    # check matching shapes (repetition defined for every element)
-                    if a.gnumel != repeats.gnumel:
-                        raise ValueError(
-                            "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
-                            "Please revise your definition specifying repetitions for all elements "
-                            "of the DNDarray a or replace repeats with a single"
-                            " scalar.".format(a.gnumel, repeats.gnumel)
-                        )
-                elif a.lshape[axis] != repeats.lnumel:
+            if axis is None:
+                if a.gnumel != repeats.gnumel:
                     raise ValueError(
-                        "Invalid input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
-                        "are not the same. Please revise your definition specifying repetitions for all elements "
-                        "of the DNDarray a or replace repeats with a single scalar".format(
-                            repeats.lnumel, a.lshape[axis]
+                        "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
+                        "Please revise your definition specifying repetitions for all elements "
+                        "of the DNDarray a or replace repeats with a single"
+                        " scalar.".format(a.gnumel, repeats.gnumel)
+                    )
+
+                if a.split != 0:
+                    print(
+                        "\n!!! WARNING !!!\nSplit axis of a will be changed from {} to 0.".format(
+                            a.split
                         )
                     )
-            # DISTRIBUTED CASE (a distributed)
+                    a.resplit_(0)
+                if repeats.split != 0:
+                    print(
+                        "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to 0.".format(
+                            repeats.split
+                        )
+                    )
+                    repeats.resplit_(0)
+            # axis is not None
             else:
-                if axis is None:
-                    if a.gnumel != repeats.gnumel:
-                        raise ValueError(
-                            "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
-                            "Please revise your definition specifying repetitions for all elements "
-                            "of the DNDarray a or replace repeats with a single"
-                            " scalar.".format(a.gnumel, repeats.gnumel)
-                        )
-
-                    if a.split != 0:
-                        print(
-                            "\n!!! WARNING !!!\nSplit axis of a will be changed from {} to 0.".format(
-                                a.split
-                            )
-                        )
-                        a.resplit_(0)
+                if a.split == axis:
                     if repeats.split != 0:
                         print(
                             "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to 0.".format(
@@ -1114,24 +1106,14 @@ def repeat(a, repeats, axis=None):
                             )
                         )
                         repeats.resplit_(0)
-                # axis is not None
                 else:
-                    if a.split == axis:
-                        if repeats.split != 0:
-                            print(
-                                "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to 0.".format(
-                                    repeats.split
-                                )
+                    if repeats.split is not None:
+                        print(
+                            "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to None.".format(
+                                repeats.split
                             )
-                            repeats.resplit_(0)
-                    else:
-                        if repeats.split is not None:
-                            print(
-                                "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to None.".format(
-                                    repeats.split
-                                )
-                            )
-                            repeats.resplit_(None)
+                        )
+                        repeats.resplit_(None)
 
                     if a.lshape[axis] != repeats.lnumel:
                         raise ValueError(
@@ -1141,10 +1123,34 @@ def repeat(a, repeats, axis=None):
                                 repeats.lnumel, a.lshape[axis]
                             )
                         )
+        # no data to repeat
+        if 0 in a.lshape:
+            if axis is None:
+                repeated_array_torch = torch.empty((0,), dtype=a.dtype.torch_type())
+            else:
+                # calculate adapted lshape
+                new_lshape = list(a.lshape)
 
+                # Broadcast
+                if repeats.gnumel == 1:
+                    new_lshape[axis] *= int(repeats)
+                else:
+                    old_split = None
+                    if repeats.split is not None:
+                        old_split = repeats.split
+                        repeats.resplit_(None)  # TODO avoid Allgather operation (not possible?)
+                        # repeats = resplit(repeats, None)
+                        new_lshape[axis] = int(sum(repeats))
+                        repeats.resplit_(old_split)  # guarantee split consistency
+
+                    repeated_array_torch = torch.empty(new_lshape, dtype=a.dtype.torch_type())
+        # data to repeat
+        else:
             repeated_array_torch = torch.repeat_interleave(
                 a._DNDarray__array, repeats._DNDarray__array, axis
             )
+
+        # print(f"\n\n[{a.comm.rank}]\nA.split: {a.split}\nRepeats.split: {repeats.split}\n{repeated_array_torch}")
 
     repeated_array = factories.array(
         repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
