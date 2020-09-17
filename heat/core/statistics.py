@@ -398,7 +398,7 @@ def bincount(x, weights=None, minlength: int = 0):
     Returns
     -------
     out : DNDArray
-        An array of length `max(x) + 1` if input is non-empty, else 0. The array's `split=None`. 
+        An array of length `max(x) + 1` if input is non-empty, else 0. The array's `split=None`.
 
     Examples
     --------
