@@ -2159,13 +2159,17 @@ def vstack(tup):
 
 def tile(x, reps):
     """
-    Construct an array by repeating A the number of times given by reps.
+    Construct a new DNDarray by repeating 'x' the number of times given by 'reps'.
 
-    If reps has length d, the result will have dimension of max(d, A.ndim).
+    If 'reps' has length 'd', the result will have dimension of 'max(d, x.ndim)'.
 
-    If A.ndim < d, A is promoted to be d-dimensional by prepending new axes. So a shape (3,) array is promoted to (1, 3) for 2-D replication, or shape (1, 1, 3) for 3-D replication. If this is not the desired behavior, promote A to d-dimensions manually before calling this function.
+    If 'x.ndim < d', 'x' is promoted to be d-dimensional by prepending new axes.
+    So a shape (3,) array is promoted to (1, 3) for 2-D replication, or shape (1, 1, 3)
+    for 3-D replication. If this is not the desired behavior, promote 'x' to d-dimensions
+    manually before calling this function.
 
-    If A.ndim > d, reps is promoted to A.ndim by pre-pending 1’s to it. Thus for an A of shape (2, 3, 4, 5), a reps of (2, 2) is treated as (1, 1, 2, 2).
+    If 'x.ndim > d', 'reps' will replicate the last 'd' dimensions of 'x', i.e., if
+    'x.shape' is (2, 3, 4, 5), a 'reps' of (2, 2) will be expanded to (1, 1, 2, 2).
     """
 
     # check that input is DNDarray
@@ -2177,12 +2181,16 @@ def tile(x, reps):
     reps = sanitation.sanitize_sequence(reps)
 
     # calculate new gshape, split
-    if len(reps) > x.ndim:
-        added_dims = len(reps) - x.ndim
-        new_shape = added_dims * (1,) + x.gshape
-        new_split = None if x.split is None else x.split + added_dims
-        x = x.reshape(new_shape, axis=new_split)
+    if len(reps) != x.ndim:
+        added_dims = abs(len(reps) - x.ndim)
+        if len(reps) > x.ndim:
+            new_shape = added_dims * (1,) + x.gshape
+            new_split = None if x.split is None else x.split + added_dims
+            x = x.reshape(new_shape, axis=new_split)
+        else:
+            reps = added_dims * [1] + reps
     split = x.split
+    # "t_" indicates process-local torch tensors
     t_x = x._DNDarray__array
     if split is None or reps[split] == 1:
         # no repeats along the split axis: local operation
@@ -2193,12 +2201,11 @@ def tile(x, reps):
         size = x.comm.Get_size()
         rank = x.comm.Get_rank()
         x_shape = x.gshape
-        # allocate tiled DNDarray, at first along split axis only
+        # allocate tiled DNDarray, at first tiled along split axis only
         split_reps = [rep if i == split else 1 for i, rep in enumerate(reps)]
         split_tiled_shape = tuple(s * r for s, r in zip(x_shape, split_reps))
         tiled = factories.empty(split_tiled_shape, dtype=x.dtype, split=split, comm=x.comm)
         # collect slicing information from all processes.
-        # "t_" indicates process-local torch tensors
         lshape_maps = []
         slices_map = []
         t_0 = torch.tensor([0], dtype=torch.int32)
