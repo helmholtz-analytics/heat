@@ -2208,7 +2208,7 @@ def tile(x, reps):
     sanitation.sanitize_input(x)
     # check dimensions
     if x.ndim == 0:
-        x = sanitation.to_1d(x)
+        x = sanitation.scalar_to_1d(x)
     # reps to list
     reps = sanitation.sanitize_sequence(reps)
     if not all(isinstance(rep, int) for rep in reps):

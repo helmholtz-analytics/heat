@@ -10,7 +10,7 @@ from . import stride_tricks
 from . import types
 
 
-__all__ = ["sanitize_input", "sanitize_sequence", "to_1d"]
+__all__ = ["sanitize_input", "sanitize_sequence", "scalar_to_1d"]
 
 
 def sanitize_input(x):
@@ -33,7 +33,7 @@ def sanitize_sequence(seq):
         if seq.split is None:
             return seq._DNDarray__array.tolist()
         else:
-            raise TypeError(
+            raise ValueError(
                 "seq is a distributed DNDarray, expected a list, a tuple, or a process-local array."
             )
     elif isinstance(seq, torch.Tensor):
@@ -44,10 +44,13 @@ def sanitize_sequence(seq):
         )
 
 
-def to_1d(x):
+def scalar_to_1d(x):
     """
     Turn a scalar DNDarray into a 1-D DNDarray with 1 element.
     """
-    return factories.array(
-        x._DNDarray__array.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm
-    )
+    if x.ndim == 0:
+        return factories.array(
+            x._DNDarray__array.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm
+        )
+    else:
+        raise ValueError("expected a DNDarray scalar, got DNDarray with shape {}".format(x.shape))
