@@ -1673,6 +1673,14 @@ class TestManipulations(TestCase):
         self.assertTrue((np_tiled == ht_tiled.numpy()).all())
         self.assertTrue(ht_tiled.dtype is x.dtype)
 
+        # test scalar x
+        x = ht.array(9.0)
+        reps = (2, 1)
+        ht_tiled = ht.tile(x, reps)
+        np_tiled = np.tile(x.numpy(), reps)
+        self.assertTrue((np_tiled == ht_tiled.numpy()).all())
+        self.assertTrue(ht_tiled.dtype is x.dtype)
+
         # test distributed tile along split axis
         # reps is a DNDarray
         # len(reps) > x.ndim
