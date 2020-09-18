@@ -918,12 +918,13 @@ def repeat(a, repeats, axis=None):
     Parameters
     ----------
     a : array_like (i.e. int, float, or tuple/ list/ np.ndarray/ ht.DNDarray of ints/floats)
-        Array containing the elements or particular element to be repeated.
+        Array containing the elements to be repeated.
     repeats : int, or 1-dimensional/ DNDarray/ np.ndarray/ list/ tuple of ints
-        The number of repetitions for each element, repeats is broadcasted to fit the shape of the given axis
-         if it is composed of 1 element.
+        The number of repetitions for each element, indicates broadcast if int or array_like of 1 element.
+        In this case, the given value is broadcasted to fit the shape of the given axis.
         Otherwise, its length must be the same as a in the specified axis. To put it differently, the
-        amount of repetitions has to be determined for each element.
+        amount of repetitions has to be determined for each element in the corresponding dimension
+        (or in all dimensions if axis is None).
     axis: int, optional
         The axis along which to repeat values. By default, use the flattened input array and return a flat output
         array.
@@ -932,7 +933,7 @@ def repeat(a, repeats, axis=None):
     -------
     repeated_array : DNDarray
         Output DNDarray which has the same shape as a, except along the given axis.
-        If no axis is given, repeated_array will be a flattened DNDarray.
+        If axis is None, repeated_array will be a flattened DNDarray.
 
     Examples
     --------
@@ -942,6 +943,10 @@ def repeat(a, repeats, axis=None):
     >>> x = ht.array([[1,2],[3,4]])
     >>> ht.repeat(x, 2)
     DNDarray([1, 1, 2, 2, 3, 3, 4, 4])
+
+    >>> x = ht.array([[1,2],[3,4]])
+    >>> ht.repeat(x, [0, 1, 2, 0])
+    DNDarray([2, 3, 3])
 
     >>> ht.repeat(x, [1,2], axis=0)
     DNDarray([[1, 2],
@@ -1058,7 +1063,7 @@ def repeat(a, repeats, axis=None):
             repeated_array_torch = torch.repeat_interleave(
                 a._DNDarray__array, repeats._DNDarray__array, axis
             )
-    # No Broadcast
+    # No broadcast
     else:
         # check if the data chunks of `repeats` and/or `a` have to be (re)distributed before call of torch function.
 
@@ -1139,7 +1144,7 @@ def repeat(a, repeats, axis=None):
 
                 # a.split != axis
                 else:
-                    if repeats.split is not None:  # TODO eventually raise Error
+                    if repeats.split is not None:
                         print(
                             "\n!!! WARNING !!!\nIf axis != a.split, repeats must not be distributed.\nSplit axis of repeats will be changed from {} to None.".format(
                                 repeats.split
