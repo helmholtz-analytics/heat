@@ -1109,13 +1109,22 @@ def repeat(a, repeats, axis=None):
                     )
                     a.resplit_(0)
 
+                repeats = repeats.reshape(a.gshape)
                 if repeats.split != 0:
+
                     print(
                         "\n!!! WARNING !!!\nIf axis is None, repeats has to be split along axis 0 if "
                         "distributed.\nSplit axis of repeats "
                         "will be changed from {} to 0.".format(repeats.split)
                     )
                     repeats.resplit_(0)
+                flatten_repeats_t = torch.flatten(repeats._DNDarray__array)
+                repeats = factories.array(
+                    flatten_repeats_t,
+                    is_split=repeats.split,
+                    device=repeats.device,
+                    comm=repeats.comm,
+                )
 
             # axis is not None
             else:
@@ -1146,31 +1155,10 @@ def repeat(a, repeats, axis=None):
                                 repeats.lnumel, a.lshape[axis]
                             )
                         )
-        # no data to repeat
-        if 0 in a.lshape:
-            if axis is None:
-                repeated_array_torch = torch.empty((0,), dtype=a.dtype.torch_type())
-            else:
-                # calculate adapted lshape
-                new_lshape = list(a.lshape)
 
-                if repeats.split is not None:
-                    print(
-                        "\n!!! WARNING !!!\nDue to correct lshape mapping, repeats.split will be changed from {} to None".format(
-                            repeats.split
-                        )
-                    )
-                    repeats.resplit_(None)
-                    new_lshape[axis] = int(sum(repeats))
-
-                repeated_array_torch = torch.empty(new_lshape, dtype=a.dtype.torch_type())
-        # data to repeat
-        else:
-            repeated_array_torch = torch.repeat_interleave(
-                a._DNDarray__array, repeats._DNDarray__array, axis
-            )
-
-        # print(f"\n\n[{a.comm.rank}]\nA.split: {a.split}\nRepeats.split: {repeats.split}\n{repeated_array_torch}")
+        repeated_array_torch = torch.repeat_interleave(
+            a._DNDarray__array, repeats._DNDarray__array, axis
+        )
 
     repeated_array = factories.array(
         repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
