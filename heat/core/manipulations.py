@@ -1048,7 +1048,7 @@ def repeat(a, repeats, axis=None):
         if isinstance(repeats, int):
             repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
         else:
-            if repeats.split is not None:  # TODO eventually raise error
+            if repeats.split is not None:
                 print(
                     "\n!!! WARNING !!!\nFor broadcast via array_like repeats, repeats must not be "
                     "distributed.\nSplit axis of repeats "
@@ -1064,7 +1064,7 @@ def repeat(a, repeats, axis=None):
 
         # UNDISTRIBUTED CASE (a not distributed)
         if a.split is None:
-            if repeats.split is not None:  # TODO eventually raise Error
+            if repeats.split is not None:
                 print(
                     "\n!!! WARNING !!!\nIf a is undistributed, repeats also has to be undistributed.\nSplit axis of "
                     "repeats will be changed from {} to None.".format(repeats.split)
