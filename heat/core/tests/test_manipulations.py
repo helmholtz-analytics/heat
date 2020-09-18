@@ -1025,6 +1025,19 @@ class TestManipulations(TestCase):
         # -------------------
         # axis = None
         # -------------------
+
+        # a is empty
+        a = ht.array([])
+        a_np = a.numpy()
+        repeats = 2
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
         a = ht.arange(12).reshape((2, 2, 3))
         a_np = a.numpy()
 

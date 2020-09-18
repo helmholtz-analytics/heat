@@ -1034,6 +1034,9 @@ def repeat(a, repeats, axis=None):
 
     # start of algorithm
 
+    if 0 in a.gshape:
+        return a
+
     # Broadcast (via int or 1-element DNDarray)
     if isinstance(repeats, int) or repeats.gnumel == 1:
         if axis is None and a.split is not None and a.split != 0:
@@ -1151,17 +1154,14 @@ def repeat(a, repeats, axis=None):
                 # calculate adapted lshape
                 new_lshape = list(a.lshape)
 
-                # Broadcast
-                if repeats.gnumel == 1:
-                    new_lshape[axis] *= int(repeats)
-                else:
-                    old_split = None
-                    if repeats.split is not None:
-                        old_split = repeats.split
-                        repeats.resplit_(None)  # TODO avoid Allgather operation (not possible?)
-                        # repeats = resplit(repeats, None)
-                        new_lshape[axis] = int(sum(repeats))
-                        repeats.resplit_(old_split)  # guarantee split consistency
+                if repeats.split is not None:
+                    print(
+                        "\n!!! WARNING !!!\nDue to correct lshape mapping, repeats.split will be changed from {} to None".format(
+                            repeats.split
+                        )
+                    )
+                    repeats.resplit_(None)
+                    new_lshape[axis] = int(sum(repeats))
 
                 repeated_array_torch = torch.empty(new_lshape, dtype=a.dtype.torch_type())
         # data to repeat
