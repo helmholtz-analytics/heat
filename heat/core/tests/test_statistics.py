@@ -943,6 +943,9 @@ class TestStatistics(TestCase):
         random_volume_3 = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_1, random_volume_3)
+        random_volume_3 = np.array(7.2)
+        with self.assertRaises(NotImplementedError):
+            ht.minimum(random_volume_3, random_volume_1)
         random_volume_3 = ht.random.randn(6, 3, 3, split=1)
         with self.assertRaises(NotImplementedError):
             ht.minimum(random_volume_1, random_volume_3)
