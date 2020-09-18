@@ -980,7 +980,7 @@ def repeat(a, repeats, axis=None):
                 type(repeats)
             )
         )
-
+    # broadcast implied
     if isinstance(repeats, int):
         pass
     else:
@@ -1032,34 +1032,44 @@ def repeat(a, repeats, axis=None):
                 "was {}-dimensional.".format(len(repeats.shape))
             )
 
-    # Broadcast (via int)
-    if isinstance(repeats, int):
-        pass
-        if a.split is not None and a.split != 0:
+    # start of algorithm
+
+    # Broadcast (via int or 1-element DNDarray)
+    if isinstance(repeats, int) or repeats.gnumel == 1:
+        if axis is None and a.split is not None and a.split != 0:
             print(
-                "\n!!! WARNING !!!\nSplit axis of a will be changed from {} to 0.".format(a.split)
+                "\n!!! WARNING !!!\nIf axis is None, a has to be split along axis 0 if distributed.\nSplit axis of a "
+                "will be changed from {} to 0.".format(a.split)
             )
             a.resplit_(0)
-        repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
-
-    # No Broadcast (via int)
+        if isinstance(repeats, int):
+            repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
+        else:
+            if repeats.split is not None:  # TODO eventually raise error
+                print(
+                    "\n!!! WARNING !!!\nFor broadcast via array_like repeats, repeats must not be "
+                    "distributed.\nSplit axis of repeats "
+                    "will be changed from {} to None.".format(repeats.split)
+                )
+                repeats.resplit_(None)
+            repeated_array_torch = torch.repeat_interleave(
+                a._DNDarray__array, repeats._DNDarray__array, axis
+            )
+    # No Broadcast
     else:
         # check if the data chunks of `repeats` and/or `a` have to be (re)distributed before call of torch function.
 
         # UNDISTRIBUTED CASE (a not distributed)
         if a.split is None:
-            if repeats.split is not None:
+            if repeats.split is not None:  # TODO eventually raise Error
                 print(
-                    "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to None.".format(
-                        repeats.split
-                    )
+                    "\n!!! WARNING !!!\nIf a is undistributed, repeats also has to be undistributed.\nSplit axis of "
+                    "repeats will be changed from {} to None.".format(repeats.split)
                 )
                 repeats.resplit_(None)
-            # Broadcast (1-element DNDarray)
-            if repeats.gnumel == 1:
-                pass
+
             # Check correct input
-            elif axis is None:
+            if axis is None:
                 # check matching shapes (repetition defined for every element)
                 if a.gnumel != repeats.gnumel:
                     raise ValueError(
@@ -1079,17 +1089,7 @@ def repeat(a, repeats, axis=None):
                 )
         # DISTRIBUTED CASE (a distributed)
         else:
-            # Broadcast (via 1-element DNDarray)
-            if repeats.gnumel == 1:
-                if repeats.split is not None:
-                    raise ValueError(
-                        "Doing a broadcast via array_like repeats, split axis must be None, but was {}".format(
-                            repeats.split
-                        )
-                    )
-
-            # axis is None
-            elif axis is None:
+            if axis is None:
                 if a.gnumel != repeats.gnumel:
                     raise ValueError(
                         "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
@@ -1099,66 +1099,37 @@ def repeat(a, repeats, axis=None):
                     )
 
                 if a.split != 0:
-                    raise ValueError(
-                        "a has to be split along axis 0 if distributed if parameter axis=None, but was {}".format(
-                            a.split
-                        )
+                    print(
+                        "\n!!! WARNING !!!\nIf axis is None, a has to be split along axis 0 if distributed.\nSplit "
+                        "axis of a "
+                        "will be changed from {} to 0.".format(a.split)
                     )
+                    a.resplit_(0)
 
                 if repeats.split != 0:
-                    if repeats.split is not None:
-                        raise ValueError(
-                            "repeats has to be split along axis 0 if distributed, but was {}".format(
-                                repeats.split
-                            )
-                        )
+                    print(
+                        "\n!!! WARNING !!!\nIf axis is None, repeats has to be split along axis 0 if "
+                        "distributed.\nSplit axis of repeats "
+                        "will be changed from {} to 0.".format(repeats.split)
+                    )
+                    repeats.resplit_(0)
 
-                    # calculate the needed slices of repeats ("simulate" split along axis 0)
-                    number_of_processes = a.comm.size
-                    stepsize = repeats.gnumel // number_of_processes
-                    residual = repeats.gnumel % number_of_processes
-
-                    start = a.comm.rank * stepsize
-                    end = start + stepsize
-
-                    if a.comm.rank <= residual - 1:
-                        end += 1
-                        if a.comm.rank != 0:
-                            start += 1
-
-                    # if a.comm.rank == residual:
-                    #     start += 1
-
-                    repeats = repeats[start:end]
             # axis is not None
             else:
                 if a.split == axis:
                     if repeats.split != 0:
-                        if repeats.split is not None:
-                            raise ValueError(
-                                "repeats has to be split along axis 0 if distributed, but was {}".format(
-                                    repeats.split
-                                )
-                            )
-
-                        # calculate the needed slices of repeats ("simulate" split along axis 0)
-                        number_of_processes = a.comm.size
-                        stepsize = repeats.gnumel // number_of_processes
-                        residual = repeats.gnumel % number_of_processes
-
-                        start = a.comm.rank * stepsize
-                        end = start + stepsize
-
-                        if a.comm.rank <= residual - 1:
-                            end += 1
-                            if a.comm.rank != 0:
-                                start += 1
-
-                        repeats = repeats[start:end]
-                else:
-                    if repeats.split is not None:
                         print(
-                            "\n!!! WARNING !!!\nSplit axis of repeats will be changed from {} to None.".format(
+                            "\n!!! WARNING !!!\nIf axis equals a.split, repeats has to be split along axis 0 if "
+                            "distributed.\nSplit axis of repeats "
+                            "will be changed from {} to 0.".format(repeats.split)
+                        )
+                        repeats.resplit_(0)
+
+                # a.split != axis
+                else:
+                    if repeats.split is not None:  # TODO eventually raise Error
+                        print(
+                            "\n!!! WARNING !!!\nIf axis != a.split, repeats must not be distributed.\nSplit axis of repeats will be changed from {} to None.".format(
                                 repeats.split
                             )
                         )
