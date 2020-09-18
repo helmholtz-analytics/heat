@@ -182,9 +182,13 @@ class HybridPipe(Pipeline):
         dali_cpu=False,
         training=True,
     ):
-        # get the rank and size to work with
-        shard_id = ht.MPI_WORLD.rank
-        num_shards = ht.MPI_WORLD.size
+        if training:
+            # get the rank and size to work with
+            shard_id = ht.MPI_WORLD.rank
+            num_shards = ht.MPI_WORLD.size
+        else:
+            shard_id = device_id
+            num_shards = torch.cuda.device_count()
         super(HybridPipe, self).__init__(batch_size, num_threads, device_id, shard_id)
 
         data_dir_list = [data_dir + d for d in os.listdir(data_dir)]
@@ -504,6 +508,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         tt = time.perf_counter()
         input = data[0]["data"].cuda(dev)
         target = data[0]["label"].squeeze().cuda(dev).long()
+        # print(input.shape)
 
         if args.prof >= 0 and i == args.prof:
             print("Profiling begun at iteration {}".format(i))
@@ -598,8 +603,8 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             print("Profiling ended at iteration {}".format(i))
             torch.cuda.cudart().cudaProfilerStop()
             quit()
-        if ht.MPI_WORLD.rank == 0:
-            print("batch", i, "time", time.perf_counter() - tt)
+        #if ht.MPI_WORLD.rank == 0:
+        #    print("batch", i, "time", time.perf_counter() - tt)
     #    if i == 20:
     #        break
     #for name, param in model.named_parameters():
