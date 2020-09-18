@@ -558,71 +558,52 @@ def max(x, axis=None, out=None, keepdim=None):
 
 def maximum(x1, x2, out=None):
     """
-    Compares two DNDarrays and returns a new DNDarray containing the element-wise maxima.
-    If one of the elements being compared is a NaN, then that element is returned. If both elements are NaNs then the first is returned.
-    The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
+    Compares two `DNDarray`s and returns a new `DNDarray` containing the element-wise maxima.
+    If one of the elements being compared is a NaN, then that element is returned.
+    If distributed, the two DNDarrays must be split along the same axis.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
 
     x1, x2 : DNDarray
-            The arrays containing the elements to be compared. They must have the same shape, or shapes that can be broadcast to a single shape.
+            The arrays containing the elements to be compared. They must have the same shape, or
+            shapes that can be broadcast to a single shape.
             For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
-            If distributed, they must have the same split axis.
 
-    out : DNDarray or None, optional
-        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to,
-        and the same split axis. If not provided or None, a freshly-allocated array is returned.
+    out : Optional[DNDarray]
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        and the inputs' split axis. If not provided or None, a freshly-allocated `DNDarray` is returned.
 
-    Returns:
-    --------
+    Returns
+    -------
 
     maximum: DNDarray
-            Element-wise maximum of the two input tensors.
+            Element-wise maximum of the two input arrays.
 
-    Examples:
-    ---------
+    Examples
+    --------
     >>> import heat as ht
-    >>> import torch
-    >>> torch.manual_seed(1)
-    <torch._C.Generator object at 0x105c50b50>
-
     >>> a = ht.random.randn(3, 4)
     >>> a
     tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [ 3.5870, -1.8313,  1.5987, -1.2770]])
-
     >>> b = ht.random.randn(3, 4)
     >>> b
     tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [-0.6842,  0.4533,  0.2912, -0.8317]])
-
     >>> ht.maximum(a, b)
     tensor([[ 0.8310, -0.2477,  0.4224,  0.2673],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [ 3.5870,  0.4533,  1.5987, -0.8317]])
-
     >>> c = ht.random.randn(1, 4)
     >>> c
     tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
-
     >>> ht.maximum(a, c)
     tensor([[-0.1955,  0.9803,  0.4224,  0.2673],
             [-0.4212,  0.9803, -0.0421, -0.1232],
             [ 3.5870,  0.9803,  1.5987, -0.8206]])
-
-    >>> b.__setitem__((0, 1), ht.nan)
-    >>> b
-    tensor([[ 0.8310,     nan, -0.8029,  0.2366],
-            [ 0.2857,  0.6898, -0.6331,  0.8795],
-            [-0.6842,  0.4533,  0.2912, -0.8317]])
-    >>> ht.maximum(a, b)
-    tensor([[ 0.8310,     nan,  0.4224,  0.2673],
-            [ 0.2857,  0.6898, -0.6331,  0.8795],
-            [ 3.5870,  0.4533,  1.5987, -0.8317]])
-
     >>> d = ht.random.randn(3, 4, 5)
     >>> ht.maximum(a, d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
@@ -907,72 +888,52 @@ def min(x, axis=None, out=None, keepdim=None):
 
 def minimum(x1, x2, out=None):
     """
-    Compares two DNDarrays and returns a new DNDarray containing the element-wise minima.
-    If one of the elements being compared is a NaN, then that element is returned. If both elements are NaNs then the first is returned.
-    The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
+    Compares two `DNDarray`s and returns a new `DNDarray` containing the element-wise minima.
+    If one of the elements being compared is a NaN, then that element is returned.
+    If distributed, the two DNDarrays must be split along the same axis.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
 
     x1, x2 : DNDarray
-            The arrays containing the elements to be compared. They must have the same shape, or shapes that can be broadcast to a single shape.
+            The arrays containing the elements to be compared. They must have the same shape, or
+            shapes that can be broadcast to a single shape.
             For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
-            If distributed, they must have the same split axis.
 
-    out : DNDarray or None, optional
-        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to,
-        and the same split axis. If not provided or None, a freshly-allocated array is returned.
+    out : Optional[DNDarray]
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        and the inputs' split axis. If not provided or None, a freshly-allocated `DNDarray` is returned.
 
-
-    Returns:
-    --------
+    Returns
+    -------
 
     minimum: DNDarray
-            Element-wise minimum of the two input tensors.
+            Element-wise minimum of the two input arrays.
 
-    Examples:
-    ---------
+    Examples
+    --------
     >>> import heat as ht
-    >>> import torch
-    >>> torch.manual_seed(1)
-    <torch._C.Generator object at 0x105c50b50>
-
     >>> a = ht.random.randn(3,4)
     >>> a
     tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [ 3.5870, -1.8313,  1.5987, -1.2770]])
-
     >>> b = ht.random.randn(3,4)
     >>> b
     tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [-0.6842,  0.4533,  0.2912, -0.8317]])
-
     >>> ht.minimum(a,b)
     tensor([[-0.1955, -0.9656, -0.8029,  0.2366],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [-0.6842, -1.8313,  0.2912, -1.2770]])
-
     >>> c = ht.random.randn(1,4)
     >>> c
     tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
-
     >>> ht.minimum(a,c)
     tensor([[-1.6428, -0.9656, -0.0421, -0.8206],
             [-1.6428, -0.5107, -1.5727, -0.8206],
             [-1.6428, -1.8313, -0.0421, -1.2770]])
-
-    >>> b.__setitem__((0,1), ht.nan)
-    >>> b
-    tensor([[ 0.8310,     nan, -0.8029,  0.2366],
-            [ 0.2857,  0.6898, -0.6331,  0.8795],
-            [-0.6842,  0.4533,  0.2912, -0.8317]])
-    >>> ht.minimum(a,b)
-    tensor([[-0.1955,     nan, -0.8029,  0.2366],
-            [-0.4212, -0.5107, -1.5727, -0.1232],
-            [-0.6842, -1.8313,  0.2912, -1.2770]])
-
     >>> d = ht.random.randn(3,4,5)
     >>> ht.minimum(a,d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
