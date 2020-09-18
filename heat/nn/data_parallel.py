@@ -358,7 +358,6 @@ class DataParallelMultiGPU(tnn.Module):
         optimizer: optim.DataParallelOptimizer,
         overlap: bool = True,
         distributed_twice: bool = True,
-        torch_init_file: str = None,
     ):
         super(DataParallelMultiGPU, self).__init__()
         rank = comm.rank
@@ -366,8 +365,6 @@ class DataParallelMultiGPU(tnn.Module):
         local_rank = rank % loc_gpus
         if loc_gpus > 1 and distributed_twice:
             base_loc_ranks = list(range(0, comm.size, loc_gpus))
-            # time.sleep(2)
-            # print(torch.distributed.get_world_size(), torch.distributed.get_rank())
             reduced_comms = []
             reduced_ranks = []
             for i in range(loc_gpus):
@@ -376,16 +373,9 @@ class DataParallelMultiGPU(tnn.Module):
                 key = 0 + i if rank in lp_ranks else 444 + i
                 reduced_comms.append(MPICommunication(MPI_WORLD.Split(color, key)))
                 reduced_ranks.append(tuple(lp_ranks))
-            # print(reduced_ranks)
             self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
             self.base_loc_ranks = base_loc_ranks
-            # print(base_loc_ranks)
             self.loc_gpus = loc_gpus
-            # dev_ids = [id + ((comm.rank // loc_gpus)*loc_gpus) for id in range(loc_gpus)]
-            # dev_ids = [r for r in range(loc_gpus)]
-            # TODO: make groups for each node????
-            # lg = torch.distributed.new_group(ranks=dev_ids)
-            # print(dev_ids)
             module = tDDP(module, device_ids=[local_rank])  # , process_group=lg)
             # module.share_memory()
             device = "cuda:" + str(local_rank)
@@ -410,7 +400,6 @@ class DataParallelMultiGPU(tnn.Module):
 
         # assign given optimizers to this model
         self.optimizer = optimizer
-        # optimizer.blocking_parameter_updates = self.blocking_parameter_updates
         optimizer.step = self.step_load_prev
         # unify parameters across nodes by unifying the random seed and resetting parameters
         torch.random.manual_seed(2147483646)  # max int32 value - 1
@@ -418,6 +407,7 @@ class DataParallelMultiGPU(tnn.Module):
         self.local_rank = local_rank
         self._prev_params = []
         self.current_batch, self.last_batch = 0, None
+        # self.
 
     def forward(self, *inputs, **kwargs):
         return self.module(*inputs, **kwargs)
@@ -434,7 +424,7 @@ class DataParallelMultiGPU(tnn.Module):
         #if self.comm.rank == 0:
         #    print("optimizer step", time.perf_counter() - t3)
         mod_hold = self.current_batch % self.loc_gpus
-        mod_hold_m2 = None      
+        mod_hold_m2 = None
 
         current_comm = self.reduced_comms[mod_hold]
         current_ranks = self.reduced_ranks[mod_hold]
@@ -455,7 +445,9 @@ class DataParallelMultiGPU(tnn.Module):
                     if param.requires_grad:
                         # flatten and prep the data for sending
                         shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
-                        params.append(param.to(torch.bfloat16).flatten()) # / (self.comm.size + 1.0)) 
+                        params.append(
+                            param.to(torch.bfloat16).flatten()
+                        )  # / (self.comm.size + 1.0))
                         # params.append(param.flatten())
                         # cur_params[name] = param
                         st += param.numel()
@@ -477,9 +469,9 @@ class DataParallelMultiGPU(tnn.Module):
          #           print("wait time", time.perf_counter() - ttt)
                     # need to add the weighted average to param
                     self._update_parameters(len(prev_ranks))
-            #tttt = time.perf_counter()
+            # tttt = time.perf_counter()
             self._local_torch_param_update(mod_hold_m2)
-            #print('torch update', time.perf_counter() - tttt)
+            # print('torch update', time.perf_counter() - tttt)
             if self.current_batch == self.last_batch - 1:
                 # receive previous ones
                 mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
@@ -533,7 +525,6 @@ class DataParallelMultiGPU(tnn.Module):
                 # param += update
                 param /= (sz) # + 1.0)
                 param += update
-
 
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:

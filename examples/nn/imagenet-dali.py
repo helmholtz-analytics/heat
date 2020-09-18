@@ -364,18 +364,16 @@ def main():
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
 
-    torch_init_file = "file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test"
+    # torch_init_file = "file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test"
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "29500"
-    os.environ['NCCL_SOCKET_IFNAME'] = 'ib'
+    os.environ["NCCL_SOCKET_IFNAME"] = "ib"
     local_rank = rank % loc_gpus
-    init_method_file = torch_init_file if not None else "file:///"
-    if init_method_file[:7] != "file://":
-        # "file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test"
-        init_method_file = "file://" + init_method_file
+    # init_method_file = torch_init_file if not None else "file:///"
+    # if init_method_file[:7] != "file://":
+    #     init_method_file = "file://" + init_method_file
     torch.distributed.init_process_group(
-        backend="nccl", # init_method=init_method_file, 
-        rank=local_rank, world_size=loc_gpus
+        backend="nccl", rank=local_rank, world_size=loc_gpus  # init_method=init_method_file,
     )
 
     # make sure that gradients are allocated lazily, so that they are not shared here
@@ -385,12 +383,7 @@ def main():
     blocking = False  # choose blocking or non-blocking parameter updates
     dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
     htmodel = ht.nn.DataParallelMultiGPU(
-        model,
-        ht.MPI_WORLD,
-        dp_optimizer,
-        overlap=True,
-        distributed_twice=twice_dist,
-        torch_init_file="file:///p/home/jusers/coquelin1/hdfml/heat/heat/examples/nn/distributed_test",
+        model, ht.MPI_WORLD, dp_optimizer, overlap=True, distributed_twice=twice_dist
     )
 
     # define loss function (criterion) and optimizer
@@ -525,9 +518,9 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         # compute output
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("forward")
-        #t3 = time.perf_counter()
+        # t3 = time.perf_counter()
         output = model(input)
-        #print("forward", time.perf_counter() - t3)
+        # print("forward", time.perf_counter() - t3)
         if args.prof >= 0:
             torch.cuda.nvtx.range_pop()
         loss = criterion(output, target)
@@ -537,9 +530,9 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
 
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("backward")
-        #t2 = time.perf_counter()
+        # t2 = time.perf_counter()
         loss.backward()
-        #print("backwards time", time.perf_counter() - t2)
+        # print("backwards time", time.perf_counter() - t2)
         if args.prof >= 0:
             torch.cuda.nvtx.range_pop()
 
@@ -607,7 +600,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         #    print("batch", i, "time", time.perf_counter() - tt)
     #    if i == 20:
     #        break
-    #for name, param in model.named_parameters():
+    # for name, param in model.named_parameters():
     #    # print(model.comm.allreduce(param.clone(), ht.MPI.SUM) / ht.MPI_WORLD.size)
     #    print(param.flatten())
     #    break
