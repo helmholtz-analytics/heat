@@ -73,9 +73,9 @@ def parse():
         "--arch",
         "-a",
         metavar="ARCH",
-        default="resnet18",
+        default="resnet50",
         choices=model_names,
-        help="model architecture: " + " | ".join(model_names) + " (default: resnet18)",
+        help="model architecture: " + " | ".join(model_names) + " (default: resnet50)",
     )
     parser.add_argument(
         "-j",
@@ -182,13 +182,13 @@ class HybridPipe(Pipeline):
         dali_cpu=False,
         training=True,
     ):
-        if training:
-            # get the rank and size to work with
-            shard_id = ht.MPI_WORLD.rank
-            num_shards = ht.MPI_WORLD.size
-        else:
-            shard_id = device_id
-            num_shards = torch.cuda.device_count()
+        #if training:
+        #    # get the rank and size to work with
+        shard_id = ht.MPI_WORLD.rank
+        num_shards = ht.MPI_WORLD.size
+        #else:
+        #    shard_id = 0 # device_id
+        #    num_shards = 1 # torch.cuda.device_count()
         super(HybridPipe, self).__init__(batch_size, num_threads, device_id, shard_id)
 
         data_dir_list = [data_dir + d for d in os.listdir(data_dir)]
@@ -598,12 +598,12 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             quit()
         #if ht.MPI_WORLD.rank == 0:
         #    print("batch", i, "time", time.perf_counter() - tt)
-    #    if i == 20:
-    #        break
-    # for name, param in model.named_parameters():
-    #    # print(model.comm.allreduce(param.clone(), ht.MPI.SUM) / ht.MPI_WORLD.size)
-    #    print(param.flatten())
-    #    break
+        if i == model.last_batch:
+            break
+    for name, param in model.named_parameters():
+        # print(model.comm.allreduce(param.clone(), ht.MPI.SUM) / ht.MPI_WORLD.size)
+        print(param.flatten())
+        break
     return batch_time.avg
 
 
