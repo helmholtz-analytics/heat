@@ -413,38 +413,29 @@ class DataParallelMultiGPU(tnn.Module):
         return self.module(*inputs, **kwargs)
 
     def step_load_prev(self):
+        # TODO: raise error is last batch is not set
         # collect the parameters from the current batch -> save + (non?)blocking send
         # test for receive from last batch,
         #   if yes: receive, update parameters with rcved stuff
         # copy and send the parameter dictionary
-        t = time.perf_counter()
+        # t = time.perf_counter()
         # copy whole dict and sent it
-        t3 = time.perf_counter()
+        # t3 = time.perf_counter()
         self.optimizer.torch_optimizer.step()
-        #for name, param in self.named_parameters():
-        #    # print(model.comm.allreduce(param.clone(), ht.MPI.SUM) / ht.MPI_WORLD.size)
-        #    print(param.flatten())
-        #    break
-        #return
-
-        #if self.comm.rank == 0:
-        #    print("optimizer step", time.perf_counter() - t3)
+        # if self.comm.rank == 0:
+        #     print("optimizer step", time.perf_counter() - t3)
         mod_hold = self.current_batch % self.loc_gpus
-        mod_hold_m2 = None
-
         current_comm = self.reduced_comms[mod_hold]
         current_ranks = self.reduced_ranks[mod_hold]
-        mod_hold = self.current_batch % self.loc_gpus
+
+        # mod_hold_m2 = None
+        # if self.current_batch > 1:
+        #     mod_hold_m2 = (self.current_batch - 2) % self.loc_gpus
+        #     prev_ranks = self.reduced_ranks[mod_hold_m2]
+        # else:
+        #     prev_ranks = []
+
         mod_hold_m1 = None
-
-        current_comm = self.reduced_comms[mod_hold]
-        current_ranks = self.reduced_ranks[mod_hold]
-        #if self.current_batch > 1:
-        #    mod_hold_m2 = (self.current_batch - 2) % self.loc_gpus
-        #    prev_ranks = self.reduced_ranks[mod_hold_m2]
-        #else:
-        #    prev_ranks = [], []
-        
         if self.current_batch > 0:
             mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
             prev_ranks = self.reduced_ranks[mod_hold_m1]
@@ -452,7 +443,7 @@ class DataParallelMultiGPU(tnn.Module):
             prev_ranks = []
         with torch.no_grad():
             if self.comm.rank in current_ranks:
-         #       t4 = time.perf_counter()
+                # t4 = time.perf_counter()
                 params = []
                 shapes = {}
                 st = 0
@@ -460,85 +451,78 @@ class DataParallelMultiGPU(tnn.Module):
                     if param.requires_grad:
                         # flatten and prep the data for sending
                         shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
-                        params.append(param.flatten())  # .to(torch.bfloat16).flatten()) # / (self.comm.size + 0.0))
-                        # params.append(param.flatten())
-                        # cur_params[name] = param
+                        params.append(
+                            param.flatten()
+                        )  # .to(torch.bfloat16).flatten()) # / (self.comm.size + 0.0))
                         st += param.numel()
                 # factor = current_comm.size / (current_comm.size + 1)
-                params = torch.cat(params) / (current_comm.size + 1.) # .to(torch.bfloat16)  # / (self.comm.size + 1.0)
-                new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)#mpi_sum_f16) #
+                params = torch.cat(params) / (current_comm.size + 1.0)  # .to(torch.bfloat16)
+                new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)  # mpi_sum_f16) #
                 self._prev_params.append([new_wait, params, shapes])
-                #if self.comm.rank == 0:
-                #    print('send time', time.perf_counter() - t4)
+                # if self.comm.rank == 0:
+                #     print('send time', time.perf_counter() - t4)
             if self.comm.rank in prev_ranks:
                 # receive previous ones
-                # print(self._prev_params)
                 if self._prev_params[0][0] is not None:
-         #           ttt = time.perf_counter()
-                    # print(self._prev_params)
+                    # ttt = time.perf_counter()
                     self._prev_params[0][0].wait()
                     # if self.comm.rank == 0:
-         #           print("wait time", time.perf_counter() - ttt)
+                    #     print("wait time", time.perf_counter() - ttt)
                     # need to add the weighted average to param
                     self._update_parameters(len(prev_ranks))
-            # tttt = time.perf_counter()
-            #self.optimizer.torch_optimizer.step()
             if mod_hold_m1 is not None:
                 self._local_torch_param_update(mod_hold_m1)
-            # print('torch update', time.perf_counter() - tttt)
-            #if self.current_batch == self.last_batch - 1:
-            #    # receive previous ones
-            #    mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
-            #    prev_ranks = self.reduced_ranks[mod_hold_m1]
-            #    if self.comm.rank in prev_ranks:
-            #        # prev_ranks = self.reduced_ranks[mod_hold_m2]
-            #        if self._prev_params[0][0] is not None:
-            #            ttt = time.perf_counter()
-            #            # print(self._prev_params)
-            #            self._prev_params[0][0].wait()
-            #            #if self.comm.rank == 0:
-            #            #    print("wait time", time.perf_counter() - ttt)
-            #            # need to add the weighted average to param
-            #            self._update_parameters(len(prev_ranks))
-            #    self._local_torch_param_update(mod_hold_m1)
+            # if self.current_batch == self.last_batch - 1:
+            #     # receive previous ones
+            #     mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
+            #     prev_ranks = self.reduced_ranks[mod_hold_m1]
+            #     if self.comm.rank in prev_ranks:
+            #         # prev_ranks = self.reduced_ranks[mod_hold_m2]
+            #         if self._prev_params[0][0] is not None:
+            #             ttt = time.perf_counter()
+            #             # print(self._prev_params)
+            #             self._prev_params[0][0].wait()
+            #             #if self.comm.rank == 0:
+            #             #    print("wait time", time.perf_counter() - ttt)
+            #             # need to add the weighted average to param
+            #             self._update_parameters(len(prev_ranks))
+            #     self._local_torch_param_update(mod_hold_m1)
             self.current_batch += 1
             if self.current_batch == self.last_batch:
-                # print("starting last batch stuff", self.last_batch)
                 self.current_batch = 0
                 if self.comm.rank in current_ranks:
                     self._prev_params[0][0].wait()
-                    # new_wait.wait()
-                    #self._update_parameters(len(current_ranks))
+                    new_wait.wait()
                     prev_params = self._prev_params.pop(0)
                     shapes = prev_params[2]
                     for name, param in self.named_parameters():
                         if param.requires_grad:
                             rcv_params = prev_params[1]
-                            update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-                            # param += update
-                            #param /= (sz + 1.0)
-                            param = update
+                            param[:] = (
+                                rcv_params[shapes[name][1]]
+                                .reshape(shapes[name][0])
+                                .to(shapes[name][2])
+                            )
                     self._prev_params = []
                 self._local_torch_param_update(mod_hold)
-        #self.optimizer.torch_optimizer.step()
-        # self.current_batch += 1
-        #if self.comm.rank == 0:
-        #    print("step time", time.perf_counter() - t)
+        # if self.comm.rank == 0:
+        #     print("step time", time.perf_counter() - t)
 
     def _local_torch_param_update(self, mod_hold_pr):
         if mod_hold_pr is None:
             return
         if torch.distributed.is_initialized():
             snds = {}
-            nodes = self.comm.size // torch.cuda.device_count()
-            factor = nodes / float(self.comm.size) if torch.distributed.get_rank() == mod_hold_pr else \
-                     1 / float(self.comm.size)
+            # todo: test averaging in the update data instead of just setting it
+            # nodes = self.comm.size // torch.cuda.device_count()
+            # factor = nodes / float(self.comm.size) if torch.distributed.get_rank() == mod_hold_pr else \
+            #          1 / float(self.comm.size)
             for name, param in self.named_parameters():
                 if param.requires_grad:
                     snds[name] = torch.distributed.broadcast(param, mod_hold_pr, async_op=True)
-                    #param /= float(torch.cuda.device_count())
-                    #param *= factor
-                    #snds[name] = torch.distributed.all_reduce(param, op=torch.distributed.ReduceOp.SUM, async_op=True)
+                    # param /= float(torch.cuda.device_count())
+                    # param *= factor
+                    # snds[name] = torch.distributed.all_reduce(param, op=torch.distributed.ReduceOp.SUM, async_op=True)
             for name, param in self.named_parameters():
                 if param.requires_grad:
                     snds[name].wait()
@@ -551,8 +535,7 @@ class DataParallelMultiGPU(tnn.Module):
             if param.requires_grad:
                 rcv_params = prev_params[1]
                 update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-                # param += update
-                param /= (sz + 1.0)
+                param /= sz + 1.0
                 param += update
 
     @staticmethod
