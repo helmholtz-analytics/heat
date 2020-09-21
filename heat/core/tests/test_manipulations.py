@@ -1354,7 +1354,30 @@ class TestManipulations(TestCase):
                     )
 
     def test_split(self):
-        pass
+        # ====================================
+        # UNDISTRIBUTED CASE
+        # ====================================
+        data_ht = ht.arange(24).reshape((2, 3, 4))
+        data_np = data_ht.numpy()
+
+        # indices_or_sections = int
+        result = ht.split(data_ht, 2)
+        comparison = np.split(data_np, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = tuple
+        # result = ht.split(data_ht, )
+
+        # indices_or_sections = list
+
+        # indices_or_sections = undistributed DNDarray
+
+        # indices_or_sections = distributed DNDarray
 
     def test_resplit(self):
         if ht.MPI_WORLD.size > 1:

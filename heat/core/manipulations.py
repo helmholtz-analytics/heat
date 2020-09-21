@@ -1477,8 +1477,9 @@ def split(ary, indices_or_sections, axis=0):
                     ary.gshape, indices_or_sections, axis
                 )
             )
-        # to adapt torch syntax
-        indices_or_sections -= 1
+        # np to torch mapping - calculate size of resulting data chunks
+        indices_or_sections_t = ary.gshape[axis] // indices_or_sections
+
     elif isinstance(indices_or_sections, (list, tuple, dndarray.DNDarray)):
         if isinstance(indices_or_sections, (list, tuple)):
             indices_or_sections = factories.array(indices_or_sections)
@@ -1496,11 +1497,28 @@ def split(ary, indices_or_sections, axis=0):
         )
 
     if ary.split is None:
-        sub_arrays_t = torch.split(ary, indices_or_sections, axis)
+        if isinstance(indices_or_sections, int):
+            sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
+        else:
+            if (
+                indices_or_sections.split is None
+            ):  # TODO map np syntax to torch (calculate chunk sizes)
+                pass
+            sub_arrays_t = torch.split(
+                ary._DNDarray__array, indices_or_sections._DNDarray__array, axis
+            )
 
-    return factories.array(
-        sub_arrays_t, dtype=ary.dtype, is_split=ary.split, device=ary.device, comm=ary.comm
-    )
+    sub_arrays_ht = [
+        factories.array(
+            sub_DNDarray, dtype=ary.dtype, is_split=ary.split, device=ary.device, comm=ary.comm
+        )
+        for sub_DNDarray in sub_arrays_t
+    ]
+
+    for sub_DNDarray in sub_arrays_ht:
+        sub_DNDarray.balance_()
+
+    return sub_arrays_ht
 
 
 def squeeze(x, axis=None):
