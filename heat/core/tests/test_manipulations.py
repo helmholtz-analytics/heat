@@ -1207,6 +1207,18 @@ class TestManipulations(TestCase):
 
         self.assert_array_equal(pad_ht_split, pad_np_split)
 
+        # padding in split dimension, constant_values = int
+        pad_np_split = np.pad(data_np, pad_width=(2, 1), mode="constant", constant_values=2)
+        pad_ht_split = ht.pad(data_ht_split, pad_width=(2, 1), mode="constant", constant_values=2)
+
+        self.assert_array_equal(pad_ht_split, pad_np_split)
+
+        # padding in split dimension, constant_values = [int,]
+        pad_np_split = np.pad(data_np, pad_width=(2, 1), mode="constant", constant_values=[2])
+        pad_ht_split = ht.pad(data_ht_split, pad_width=(2, 1), mode="constant", constant_values=[2])
+
+        self.assert_array_equal(pad_ht_split, pad_np_split)
+
         # padding in non split dimension
         # weird syntax necessary due to np restrictions (tuples for every axis obligatory apart from shortcuts)
         pad_np_split = np.pad(
