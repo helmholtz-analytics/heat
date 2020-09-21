@@ -1329,7 +1329,7 @@ class TestManipulations(TestCase):
 
         a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=2)
         result = ht.array(torch.arange(4 * 5 * 3).reshape([4, 5, 3]), split=1)
-        reshaped = ht.reshape(a, [4, 5, 3], axis=1)
+        reshaped = ht.reshape(a, [4, 5, 3], new_split=1)
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertEqual(reshaped.split, 1)
@@ -1337,7 +1337,7 @@ class TestManipulations(TestCase):
 
         a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=1)
         result = ht.array(torch.arange(4 * 5 * 3).reshape([4 * 5, 3]), split=0)
-        reshaped = ht.reshape(a, [4 * 5, 3], axis=0)
+        reshaped = ht.reshape(a, [4 * 5, 3], new_split=0)
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertEqual(reshaped.split, 0)
@@ -1345,7 +1345,7 @@ class TestManipulations(TestCase):
 
         a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=0)
         result = ht.array(torch.arange(4 * 5 * 3).reshape([4, 5 * 3]), split=1)
-        reshaped = ht.reshape(a, [4, 5 * 3], axis=1)
+        reshaped = ht.reshape(a, [4, 5 * 3], new_split=1)
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertEqual(reshaped.split, 1)
