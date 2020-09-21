@@ -450,6 +450,7 @@ class DataParallelMultiGPU(tnn.Module):
         # mod_hold_m1 = None
         # if self.current_batch > 0:
         # mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
+        prev_ranks = []
         if self._send_mod_m1 is not None:
             prev_ranks = self.reduced_ranks[self._send_mod_m1]
         with torch.no_grad():
@@ -501,8 +502,6 @@ class DataParallelMultiGPU(tnn.Module):
             #             self._update_parameters(len(prev_ranks))
             #     self._local_torch_param_update(mod_hold_m1)
             self.current_batch += 1
-            self._send_mod_m1 = self._send_mod
-            self._send_mod += 1
             if self.current_batch == self.last_batch:
                 self.current_batch = 0
                 if self.comm.rank in current_ranks:
@@ -520,6 +519,11 @@ class DataParallelMultiGPU(tnn.Module):
                             )
                     self._prev_params = []
                 self._local_torch_param_update(self._send_mod)
+                self._send_mod_m1 = None
+                self._send_mod = 0
+            else:
+                self._send_mod_m1 = self._send_mod
+                self._send_mod += 1
         # if self.comm.rank == 0:
         #     print("step time", time.perf_counter() - t)
 
