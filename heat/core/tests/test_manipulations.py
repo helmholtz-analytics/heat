@@ -1357,6 +1357,8 @@ class TestManipulations(TestCase):
         # ====================================
         # UNDISTRIBUTED CASE
         # ====================================
+        # axis = 0
+        # ====================================
         data_ht = ht.arange(24).reshape((2, 3, 4))
         data_np = data_ht.numpy()
 
@@ -1371,6 +1373,16 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = tuple
+        result = ht.split(data_ht, (0, 1))
+        comparison = np.split(data_np, (0, 1))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = list
         result = ht.split(data_ht, [0, 1])
         comparison = np.split(data_np, [0, 1])
 
@@ -1380,11 +1392,56 @@ class TestManipulations(TestCase):
             self.assertIsInstance(result[i], ht.DNDarray)
             self.assert_array_equal(result[i], comparison[i])
 
-        # indices_or_sections = list
-
         # indices_or_sections = undistributed DNDarray
+        result = ht.split(data_ht, ht.array([0, 1]))
+        comparison = np.split(data_np, np.array([0, 1]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = distributed DNDarray
+
+        # ====================================
+        # axis != 0 (2 in this case)
+        # ====================================
+        # indices_or_sections = int
+        result = ht.split(data_ht, 2, 2)
+        comparison = np.split(data_np, 2, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = tuple
+        result = ht.split(data_ht, (0, 1))
+        comparison = np.split(data_np, (0, 1))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.split([1, 2, 3, 4], 2)
+        with self.assertRaises(TypeError):
+            ht.split(data_ht, "2")
+        with self.assertRaises(TypeError):
+            ht.split(data_ht, 2, "0")
+        with self.assertRaises(ValueError):
+            ht.split(data_ht, 2, -1)
+        with self.assertRaises(ValueError):
+            ht.split(data_ht, 2, 3)
+        with self.assertRaises(ValueError):
+            ht.split(data_ht, 5)
+        with self.assertRaises(ValueError):
+            ht.split(data_ht, [[0, 1]])
 
     def test_resplit(self):
         if ht.MPI_WORLD.size > 1:
