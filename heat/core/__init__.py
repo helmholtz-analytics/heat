@@ -15,6 +15,7 @@ from .printing import *
 from . import random
 from .relational import *
 from .rounding import *
+from .sanitation import *
 from .statistics import *
 from .dndarray import *
 from .tiling import *
