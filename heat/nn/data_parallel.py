@@ -408,7 +408,7 @@ class DataParallelMultiGPU(tnn.Module):
         self.local_rank = local_rank
         self._prev_params = []
         self.current_batch, self.last_batch = 0, None
-        self.param_list = [p for p in self.parameters()]
+        self._send_mod, self._send_mod_m1 = 0, None
 
     def forward(self, *inputs, **kwargs):
         return self.module(*inputs, **kwargs)
@@ -425,9 +425,12 @@ class DataParallelMultiGPU(tnn.Module):
         self.optimizer.torch_optimizer.step()
         # if self.comm.rank == 0:
         #     print("optimizer step", time.perf_counter() - t3)
-        mod_hold = self.current_batch % self.loc_gpus
-        current_comm = self.reduced_comms[mod_hold]
-        current_ranks = self.reduced_ranks[mod_hold]
+        if self.current_batch % 2 == 0 and self.current_batch != self.last_batch:
+            self.current_batch += 1
+            return
+        # mod_hold = self.current_batch % self.loc_gpus
+        current_comm = self.reduced_comms[self._send_mod]
+        current_ranks = self.reduced_ranks[self._send_mod]
 
         # mod_hold_m2 = None
         # if self.current_batch > 1:
@@ -438,27 +441,28 @@ class DataParallelMultiGPU(tnn.Module):
 
         # param_list = [[n, p] for n, p in self.parameters()]
 
-        mod_hold_m1 = None
-        if self.current_batch > 0:
-            mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
-            prev_ranks = self.reduced_ranks[mod_hold_m1]
-        else:
-            prev_ranks = []
+        # mod_hold_m1 = None
+        # if self.current_batch > 0:
+        #     mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
+        #     prev_ranks = self.reduced_ranks[mod_hold_m1]
+        # else:
+        #     prev_ranks = []
+        # mod_hold_m1 = None
+        # if self.current_batch > 0:
+        # mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
+        if self._send_mod_m1 is not None:
+            prev_ranks = self.reduced_ranks[self._send_mod_m1]
         with torch.no_grad():
             if self.comm.rank in current_ranks:
                 # t4 = time.perf_counter()
                 params = []
                 shapes = {}
-                starts, stops, dtypes = [], [], []
                 st = 0
                 self.param_list = []
                 for name, param in self.named_parameters():
                     if param.requires_grad:
                         self.param_list.append(param)
                         # flatten and prep the data for sending
-                        starts.append(st)
-                        stops.append(st + param.numel())
-                        dtypes.append(param.dtype)
                         shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
                         params.append(
                             param.flatten()
@@ -478,19 +482,9 @@ class DataParallelMultiGPU(tnn.Module):
                     # if self.comm.rank == 0:
                     #     print("wait time", time.perf_counter() - ttt)
                     # need to add the weighted average to param
-                    # _update_parameters()
-                    prev_params = self._prev_params.pop(0)
-                    _update_parameters(
-                        self.param_list,
-                        prev_params[1],
-                        starts,
-                        stops,
-                        shapes,
-                        dtypes,
-                        len(prev_ranks),
-                    )
-            if mod_hold_m1 is not None:
-                self._local_torch_param_update(mod_hold_m1)
+                    self._update_parameters(len(prev_ranks))
+            if self._send_mod_m1 is not None:
+                self._local_torch_param_update(self._send_mod_m1)
             # if self.current_batch == self.last_batch - 1:
             #     # receive previous ones
             #     mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
@@ -507,6 +501,8 @@ class DataParallelMultiGPU(tnn.Module):
             #             self._update_parameters(len(prev_ranks))
             #     self._local_torch_param_update(mod_hold_m1)
             self.current_batch += 1
+            self._send_mod_m1 = self._send_mod
+            self._send_mod += 1
             if self.current_batch == self.last_batch:
                 self.current_batch = 0
                 if self.comm.rank in current_ranks:
@@ -523,7 +519,7 @@ class DataParallelMultiGPU(tnn.Module):
                                 .to(shapes[name][2])
                             )
                     self._prev_params = []
-                self._local_torch_param_update(mod_hold)
+                self._local_torch_param_update(self._send_mod)
         # if self.comm.rank == 0:
         #     print("step time", time.perf_counter() - t)
 
@@ -547,6 +543,16 @@ class DataParallelMultiGPU(tnn.Module):
                     snds[name].wait()
             del snds
 
+    def _update_parameters(self, sz):
+        prev_params = self._prev_params.pop(0)
+        shapes = prev_params[2]
+        for name, param in self.named_parameters():
+            if param.requires_grad:
+                rcv_params = prev_params[1]
+                update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
+                param /= sz + 1.0
+                param += update
+
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:
         """
@@ -560,34 +566,3 @@ class DataParallelMultiGPU(tnn.Module):
         """
         if callable(getattr(module, "reset_parameters", None)):
             module.reset_parameters()
-
-
-@torch.jit.script
-def _update_parameters(
-    param_list: List[torch.Tensor],
-    rcv: torch.Tensor,
-    starts: List[int],
-    stops: List[int],
-    shapes: List[torch.Size],
-    dtypes: List[torch.dtype],
-    size: int,
-):
-    # prev_params = model._prev_params.pop(0)
-    # shapes = prev_params[2]
-    # for name, param in prev_params:
-    #     if param.requires_grad:
-    #         rcv_params = prev_params[1]
-    #         update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-    #         param /= sz + 1.0
-    #         param += update
-    # shapes = prev_params[2]
-    # things needed:
-    #   - list with params to iterate over
-    #   - rcv'ed vector
-    #   - start/stop indices of vector
-    #   - shape of parameter
-    #   - size to scale by
-    for c, param in enumerate(param_list):
-        update = rcv[starts[c] : stops[c]].reshape(shapes[c]).to(dtypes[c])
-        param /= size + 1.0
-        param += update
