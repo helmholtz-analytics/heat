@@ -410,11 +410,11 @@ def bincount(x, weights=None, minlength: int = 0):
     Raises
     ------
     ValueError
-        If split axes of `x` and `weights` are not the same.
+        If `x` and `weights` don't have the same distribution.
     """
     if isinstance(weights, dndarray.DNDarray):
         if weights.split != x.split:
-            raise ValueError("weights must have the same split as x")
+            raise ValueError("weights must have the same split value as x")
         weights = weights._DNDarray__array
 
     counts = torch.bincount(x._DNDarray__array, weights, minlength)
