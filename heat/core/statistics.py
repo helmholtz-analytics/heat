@@ -558,145 +558,58 @@ def max(x, axis=None, out=None, keepdim=None):
 
 def maximum(x1, x2, out=None):
     """
-    Compares two tensors and returns a new tensor containing the element-wise maxima.
-    If one of the elements being compared is a NaN, then that element is returned. TODO: Check this: If both elements are NaNs then the first is returned.
-    The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
+    Compares two `DNDarray`s and returns a new `DNDarray` containing the element-wise maxima.
+    If one of the elements being compared is a NaN, then that element is returned.
+    If distributed, the two DNDarrays must be split along the same axis.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
 
-    x1, x2 : ht.DNDarray
-            The tensors containing the elements to be compared. They must have the same shape, or shapes that can be broadcast to a single shape.
+    x1, x2 : DNDarray
+            The arrays containing the elements to be compared. They must have the same shape, or
+            shapes that can be broadcast to a single shape.
             For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
 
-    out : ht.DNDarray or None, optional
+    out : Optional[DNDarray]
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or None, a freshly-allocated tensor is returned.
+        and the inputs' split axis. If not provided or None, a freshly-allocated `DNDarray` is returned.
 
-    Returns:
+    Returns
+    -------
+
+    maximum: DNDarray
+            Element-wise maximum of the two input arrays.
+
+    Examples
     --------
-
-    maximum: ht.DNDarray
-            Element-wise maximum of the two input tensors.
-
-    Examples:
-    ---------
     >>> import heat as ht
-    >>> import torch
-    >>> torch.manual_seed(1)
-    <torch._C.Generator object at 0x105c50b50>
-
     >>> a = ht.random.randn(3, 4)
     >>> a
     tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [ 3.5870, -1.8313,  1.5987, -1.2770]])
-
     >>> b = ht.random.randn(3, 4)
     >>> b
     tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [-0.6842,  0.4533,  0.2912, -0.8317]])
-
     >>> ht.maximum(a, b)
     tensor([[ 0.8310, -0.2477,  0.4224,  0.2673],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [ 3.5870,  0.4533,  1.5987, -0.8317]])
-
     >>> c = ht.random.randn(1, 4)
     >>> c
     tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
-
     >>> ht.maximum(a, c)
     tensor([[-0.1955,  0.9803,  0.4224,  0.2673],
             [-0.4212,  0.9803, -0.0421, -0.1232],
             [ 3.5870,  0.9803,  1.5987, -0.8206]])
-
-    >>> b.__setitem__((0, 1), ht.nan)
-    >>> b
-    tensor([[ 0.8310,     nan, -0.8029,  0.2366],
-            [ 0.2857,  0.6898, -0.6331,  0.8795],
-            [-0.6842,  0.4533,  0.2912, -0.8317]])
-    >>> ht.maximum(a, b)
-    tensor([[ 0.8310,     nan,  0.4224,  0.2673],
-            [ 0.2857,  0.6898, -0.6331,  0.8795],
-            [ 3.5870,  0.4533,  1.5987, -0.8317]])
-
     >>> d = ht.random.randn(3, 4, 5)
     >>> ht.maximum(a, d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
-    # perform sanitation
-    if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
-        raise TypeError(
-            "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(type(x1), type(x2))
-        )
-    if out is not None and not isinstance(out, dndarray.DNDarray):
-        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
-    # apply split semantics
-    if x1.split is not None or x2.split is not None:
-        if x1.split is None:
-            x1.resplit_(x2.split)
-        if x2.split is None:
-            x2.resplit_(x1.split)
-        if x1.split != x2.split:
-            if np.prod(x1.gshape) < np.prod(x2.gshape):
-                x1.resplit_(x2.split)
-            if np.prod(x2.gshape) < np.prod(x1.gshape):
-                x2.resplit_(x1.split)
-            else:
-                if x1.split < x2.split:
-                    x2.resplit_(x1.split)
-                else:
-                    x1.resplit_(x2.split)
-        split = x1.split
-    else:
-        split = None
-
-    # locally: apply torch.max(x1, x2)
-    output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
-    lresult = factories.empty(output_lshape, dtype=x1.dtype)
-    lresult._DNDarray__array = torch.max(x1._DNDarray__array, x2._DNDarray__array)
-    lresult._DNDarray__dtype = types.promote_types(x1.dtype, x2.dtype)
-    lresult._DNDarray__split = split
-    if x1.split is not None or x2.split is not None:
-        if x1.comm.is_distributed():  # assuming x1.comm = x2.comm
-            output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
-            result = factories.empty(output_gshape, dtype=x1.dtype)
-            x1.comm.Allgather(lresult, result)
-            # TODO: adopt Allgatherv() as soon as it is fixed, Issue #233
-            result._DNDarray__dtype = lresult._DNDarray__dtype
-            result._DNDarray__split = split
-
-            if out is not None:
-                if out.shape != output_gshape:
-                    raise ValueError(
-                        "Expecting output buffer of shape {}, got {}".format(
-                            output_gshape, out.shape
-                        )
-                    )
-                out._DNDarray__array = result._DNDarray__array
-                out._DNDarray__dtype = result._DNDarray__dtype
-                out._DNDarray__split = split
-                out._DNDarray__device = x1.device
-                out._DNDarray__comm = x1.comm
-
-                return out
-            return result
-
-    if out is not None:
-        if out.shape != output_lshape:
-            raise ValueError(
-                "Expecting output buffer of shape {}, got {}".format(output_lshape, out.shape)
-            )
-        out._DNDarray__array = lresult._DNDarray__array
-        out._DNDarray__dtype = lresult._DNDarray__dtype
-        out._DNDarray__split = split
-        out._DNDarray__device = x1.device
-        out._DNDarray__comm = x1.comm
-
-    return lresult
+    return _operations.__binary_op(torch.max, x1, x2, out)
 
 
 def mean(x, axis=None):
@@ -975,145 +888,58 @@ def min(x, axis=None, out=None, keepdim=None):
 
 def minimum(x1, x2, out=None):
     """
-    Compares two tensors and returns a new tensor containing the element-wise minima.
-    If one of the elements being compared is a NaN, then that element is returned. TODO: Check this: If both elements are NaNs then the first is returned.
-    The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
+    Compares two `DNDarray`s and returns a new `DNDarray` containing the element-wise minima.
+    If one of the elements being compared is a NaN, then that element is returned.
+    If distributed, the two DNDarrays must be split along the same axis.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
 
-    x1, x2 : ht.DNDarray
-            The tensors containing the elements to be compared. They must have the same shape, or shapes that can be broadcast to a single shape.
+    x1, x2 : DNDarray
+            The arrays containing the elements to be compared. They must have the same shape, or
+            shapes that can be broadcast to a single shape.
             For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
 
-    out : ht.DNDarray or None, optional
+    out : Optional[DNDarray]
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
-        If not provided or None, a freshly-allocated tensor is returned.
+        and the inputs' split axis. If not provided or None, a freshly-allocated `DNDarray` is returned.
 
-    Returns:
+    Returns
+    -------
+
+    minimum: DNDarray
+            Element-wise minimum of the two input arrays.
+
+    Examples
     --------
-
-    minimum: ht.DNDarray
-            Element-wise minimum of the two input tensors.
-
-    Examples:
-    ---------
     >>> import heat as ht
-    >>> import torch
-    >>> torch.manual_seed(1)
-    <torch._C.Generator object at 0x105c50b50>
-
     >>> a = ht.random.randn(3,4)
     >>> a
     tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [ 3.5870, -1.8313,  1.5987, -1.2770]])
-
     >>> b = ht.random.randn(3,4)
     >>> b
     tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [-0.6842,  0.4533,  0.2912, -0.8317]])
-
     >>> ht.minimum(a,b)
     tensor([[-0.1955, -0.9656, -0.8029,  0.2366],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [-0.6842, -1.8313,  0.2912, -1.2770]])
-
     >>> c = ht.random.randn(1,4)
     >>> c
     tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
-
     >>> ht.minimum(a,c)
     tensor([[-1.6428, -0.9656, -0.0421, -0.8206],
             [-1.6428, -0.5107, -1.5727, -0.8206],
             [-1.6428, -1.8313, -0.0421, -1.2770]])
-
-    >>> b.__setitem__((0,1), ht.nan)
-    >>> b
-    tensor([[ 0.8310,     nan, -0.8029,  0.2366],
-            [ 0.2857,  0.6898, -0.6331,  0.8795],
-            [-0.6842,  0.4533,  0.2912, -0.8317]])
-    >>> ht.minimum(a,b)
-    tensor([[-0.1955,     nan, -0.8029,  0.2366],
-            [-0.4212, -0.5107, -1.5727, -0.1232],
-            [-0.6842, -1.8313,  0.2912, -1.2770]])
-
     >>> d = ht.random.randn(3,4,5)
     >>> ht.minimum(a,d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
-    # perform sanitation
-    if not isinstance(x1, dndarray.DNDarray) or not isinstance(x2, dndarray.DNDarray):
-        raise TypeError(
-            "expected x1 and x2 to be a ht.DNDarray, but were {}, {} ".format(type(x1), type(x2))
-        )
-    if out is not None and not isinstance(out, dndarray.DNDarray):
-        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
-    # apply split semantics
-    if x1.split is not None or x2.split is not None:
-        if x1.split is None:
-            x1.resplit_(x2.split)
-        if x2.split is None:
-            x2.resplit_(x1.split)
-        if x1.split != x2.split:
-            if np.prod(x1.gshape) < np.prod(x2.gshape):
-                x1.resplit_(x2.split)
-            if np.prod(x2.gshape) < np.prod(x1.gshape):
-                x2.resplit_(x1.split)
-            else:
-                if x1.split < x2.split:
-                    x2.resplit_(x1.split)
-                else:
-                    x1.resplit_(x2.split)
-        split = x1.split
-    else:
-        split = None
-
-    # locally: apply torch.min(x1, x2)
-    output_lshape = stride_tricks.broadcast_shape(x1.lshape, x2.lshape)
-    lresult = factories.empty(output_lshape, dtype=x1.dtype)
-    lresult._DNDarray__array = torch.min(x1._DNDarray__array, x2._DNDarray__array)
-    lresult._DNDarray__dtype = types.promote_types(x1.dtype, x2.dtype)
-    lresult._DNDarray__split = split
-    if x1.split is not None or x2.split is not None:
-        if x1.comm.is_distributed():  # assuming x1.comm = x2.comm
-            output_gshape = stride_tricks.broadcast_shape(x1.gshape, x2.gshape)
-            result = factories.empty(output_gshape, dtype=x1.dtype)
-            x1.comm.Allgather(lresult, result)
-            # TODO: adopt Allgatherv() as soon as it is fixed, Issue #233
-            result._DNDarray__dtype = lresult._DNDarray__dtype
-            result._DNDarray__split = split
-
-            if out is not None:
-                if out.shape != output_gshape:
-                    raise ValueError(
-                        "Expecting output buffer of shape {}, got {}".format(
-                            output_gshape, out.shape
-                        )
-                    )
-                out._DNDarray__array = result._DNDarray__array
-                out._DNDarray__dtype = result._DNDarray__dtype
-                out._DNDarray__split = split
-                out._DNDarray__device = x1.device
-                out._DNDarray__comm = x1.comm
-
-                return out
-            return result
-
-    if out is not None:
-        if out.shape != output_lshape:
-            raise ValueError(
-                "Expecting output buffer of shape {}, got {}".format(output_lshape, out.shape)
-            )
-        out._DNDarray__array = lresult._DNDarray__array
-        out._DNDarray__dtype = lresult._DNDarray__dtype
-        out._DNDarray__split = split
-        out._DNDarray__device = x1.device
-        out._DNDarray__comm = x1.comm
-
-    return lresult
+    return _operations.__binary_op(torch.min, x1, x2, out)
 
 
 def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None, Fischer=None):
