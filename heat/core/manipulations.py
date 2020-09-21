@@ -962,18 +962,18 @@ def repeat(a, repeats, axis=None):
             a = factories.array(a)
         else:
             raise TypeError(
-                "a must be a ht.DNDarray, np.ndarray, list, tuple, integer, or float, currently: {}".format(
+                "`a` must be a ht.DNDarray, np.ndarray, list, tuple, integer, or float, currently: {}".format(
                     type(a)
                 )
             )
 
     # sanitation `axis`
     if axis is not None and not isinstance(axis, int):
-        raise TypeError("axis must be an integer or None, currently: {}".format(type(axis)))
+        raise TypeError("`axis` must be an integer or None, currently: {}".format(type(axis)))
 
     if axis is not None and (axis >= len(a.shape) or axis < 0):
         raise ValueError(
-            "Invalid input for axis. Value has to be either None or between 0 and {}, not {}.".format(
+            "Invalid input for `axis`. Value has to be either None or between 0 and {}, not {}.".format(
                 len(a.shape) - 1, axis
             )
         )
@@ -981,7 +981,7 @@ def repeat(a, repeats, axis=None):
     # sanitation `repeats`
     if not isinstance(repeats, (int, list, tuple, np.ndarray, dndarray.DNDarray)):
         raise TypeError(
-            "repeats must be a an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
+            "`repeats` must be a an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
                 type(repeats)
             )
         )
@@ -1003,13 +1003,13 @@ def repeat(a, repeats, axis=None):
                 )
             else:
                 raise TypeError(
-                    "Invalid dtype for ht.DNDarray 'repeats'. Has to be integer,"
+                    "Invalid dtype for ht.DNDarray `repeats`. Has to be integer,"
                     " but was {}".format(repeats.dtype)
                 )
         elif isinstance(repeats, np.ndarray):
             if not types.can_cast(repeats.dtype.type, types.int64):
                 raise TypeError(
-                    "Invalid dtype for np.ndarray 'repeats'. Has to be integer,"
+                    "Invalid dtype for np.ndarray `repeats`. Has to be integer,"
                     " but was {}".format(repeats.dtype.type)
                 )
             repeats = factories.array(
@@ -1018,7 +1018,7 @@ def repeat(a, repeats, axis=None):
         # invalid list/tuple
         elif not all(isinstance(r, int) for r in repeats):
             raise TypeError(
-                "Invalid type within repeats. All components of repeats must be integers."
+                "Invalid type within `repeats`. All components of `repeats` must be integers."
             )
         # valid list/tuple
         else:
@@ -1028,12 +1028,12 @@ def repeat(a, repeats, axis=None):
 
         # check `repeats` is not empty
         if repeats.gnumel == 0:
-            raise ValueError("Invalid input for repeats. Repeats must contain data.")
+            raise ValueError("Invalid input for `repeats`. `repeats` must contain data.")
 
         # check `repeats` is 1-dimensional
         if len(repeats.shape) != 1:
             raise ValueError(
-                "Invalid input for repeats. Repeats must be a 1d-object or integer, but "
+                "Invalid input for `repeats`. `repeats` must be a 1d-object or integer, but "
                 "was {}-dimensional.".format(len(repeats.shape))
             )
 
@@ -1045,21 +1045,21 @@ def repeat(a, repeats, axis=None):
     # Broadcast (via int or 1-element DNDarray)
     if isinstance(repeats, int) or repeats.gnumel == 1:
         if axis is None and a.split is not None and a.split != 0:
-            print(
-                "\n!!! WARNING !!!\nIf axis is None, a has to be split along axis 0 if distributed.\nSplit axis of a "
-                "will be changed from {} to 0.".format(a.split)
+            warnings.warn(
+                "If axis is None, `a` has to be split along axis 0 (not {}) if distributed.\n`a` will be "
+                "copied with new split axis 0.".format(a.split)
             )
-            a.resplit_(0)
+            a = resplit(a, 0)
         if isinstance(repeats, int):
             repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
         else:
             if repeats.split is not None:
-                print(
-                    "\n!!! WARNING !!!\nFor broadcast via array_like repeats, repeats must not be "
-                    "distributed.\nSplit axis of repeats "
-                    "will be changed from {} to None.".format(repeats.split)
+                warnings.warn(
+                    "For broadcast via array_like repeats, `repeats` must not be "
+                    "distributed (along axis {}).\n`repeats` will be "
+                    "copied with new split axis None.".format(repeats.split)
                 )
-                repeats.resplit_(None)
+                repeats = resplit(repeats, None)
             repeated_array_torch = torch.repeat_interleave(
                 a._DNDarray__array, repeats._DNDarray__array, axis
             )
@@ -1070,28 +1070,28 @@ def repeat(a, repeats, axis=None):
         # UNDISTRIBUTED CASE (a not distributed)
         if a.split is None:
             if repeats.split is not None:
-                print(
-                    "\n!!! WARNING !!!\nIf a is undistributed, repeats also has to be undistributed.\nSplit axis of "
-                    "repeats will be changed from {} to None.".format(repeats.split)
+                warnings.warn(
+                    "If `a` is undistributed, `repeats` also has to be undistributed (not split along axis {}).\n`repeats` will be copied "
+                    "with new split axis None.".format(repeats.split)
                 )
-                repeats.resplit_(None)
+                repeats = resplit(repeats, None)
 
             # Check correct input
             if axis is None:
                 # check matching shapes (repetition defined for every element)
                 if a.gnumel != repeats.gnumel:
                     raise ValueError(
-                        "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
+                        "Invalid input. Sizes of flattened `a` ({}) and `repeats` ({}) are not same. "
                         "Please revise your definition specifying repetitions for all elements "
-                        "of the DNDarray a or replace repeats with a single"
+                        "of the DNDarray `a` or replace repeats with a single"
                         " scalar.".format(a.gnumel, repeats.gnumel)
                     )
             # axis is not None
             elif a.lshape[axis] != repeats.lnumel:
                 raise ValueError(
-                    "Invalid input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
+                    "Invalid input. Amount of elements of `repeats` ({}) and of `a` in the specified axis ({}) "
                     "are not the same. Please revise your definition specifying repetitions for all elements "
-                    "of the DNDarray a or replace repeats with a single scalar".format(
+                    "of the DNDarray `a` or replace `repeats` with a single scalar".format(
                         repeats.lnumel, a.lshape[axis]
                     )
                 )
@@ -1100,29 +1100,26 @@ def repeat(a, repeats, axis=None):
             if axis is None:
                 if a.gnumel != repeats.gnumel:
                     raise ValueError(
-                        "Invalid input. Sizes of flattened a ({}) and repeats ({}) are not same. "
+                        "Invalid input. Sizes of flattened `a` ({}) and `repeats` ({}) are not same. "
                         "Please revise your definition specifying repetitions for all elements "
-                        "of the DNDarray a or replace repeats with a single"
+                        "of the DNDarray `a` or replace `repeats` with a single"
                         " scalar.".format(a.gnumel, repeats.gnumel)
                     )
 
                 if a.split != 0:
-                    print(
-                        "\n!!! WARNING !!!\nIf axis is None, a has to be split along axis 0 if distributed.\nSplit "
-                        "axis of a "
-                        "will be changed from {} to 0.".format(a.split)
+                    warnings.warn(
+                        "If `axis` is None, `a` has to be split along axis 0 (not {}) if distributed.\n`a` will be copied"
+                        " with new split axis 0.".format(a.split)
                     )
-                    a.resplit_(0)
+                    a = resplit(a, 0)
 
                 repeats = repeats.reshape(a.gshape)
                 if repeats.split != 0:
-
-                    print(
-                        "\n!!! WARNING !!!\nIf axis is None, repeats has to be split along axis 0 if "
-                        "distributed.\nSplit axis of repeats "
-                        "will be changed from {} to 0.".format(repeats.split)
+                    warnings.warn(
+                        "If `axis` is None, `repeats` has to be split along axis 0 (not {}) if distributed.\n`repeats` will be copied"
+                        " with new split axis 0.".format(repeats.split)
                     )
-                    repeats.resplit_(0)
+                    repeats = resplit(repeats, 0)
                 flatten_repeats_t = torch.flatten(repeats._DNDarray__array)
                 repeats = factories.array(
                     flatten_repeats_t,
@@ -1135,28 +1132,26 @@ def repeat(a, repeats, axis=None):
             else:
                 if a.split == axis:
                     if repeats.split != 0:
-                        print(
-                            "\n!!! WARNING !!!\nIf axis equals a.split, repeats has to be split along axis 0 if "
-                            "distributed.\nSplit axis of repeats "
-                            "will be changed from {} to 0.".format(repeats.split)
+                        warnings.warn(
+                            "If `axis` equals `a.split`, `repeats` has to be split along axis 0 (not {}) if distributed.\n"
+                            "`repeats` will be copied with new split axis 0".format(repeats.split)
                         )
-                        repeats.resplit_(0)
+                        repeats = resplit(repeats, 0)
 
                 # a.split != axis
                 else:
                     if repeats.split is not None:
-                        print(
-                            "\n!!! WARNING !!!\nIf axis != a.split, repeats must not be distributed.\nSplit axis of repeats will be changed from {} to None.".format(
-                                repeats.split
-                            )
+                        warnings.warn(
+                            "If `axis` != `a.split`, `repeast` must not be distributed (along axis {}).\n`repeats` will be copied with new"
+                            " split axis None.".format(repeats.split)
                         )
-                        repeats.resplit_(None)
+                        repeats = resplit(repeats, None)
 
                     if a.lshape[axis] != repeats.lnumel:
                         raise ValueError(
-                            "Invalid input. Amount of elements of repeats ({}) and of a in the specified axis ({}) "
+                            "Invalid input. Amount of elements of `repeats` ({}) and of `a` in the specified axis ({}) "
                             "are not the same. Please revise your definition specifying repetitions for all elements "
-                            "of the DNDarray a or replace repeats with a single scalar".format(
+                            "of the DNDarray `a` or replace `repeats` with a single scalar".format(
                                 repeats.lnumel, a.lshape[axis]
                             )
                         )
