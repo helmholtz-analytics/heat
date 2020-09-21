@@ -4,9 +4,11 @@ import warnings
 
 from .communication import MPI
 
+from . import arithmetics
 from . import constants
 from . import dndarray
 from . import factories
+from . import indexing
 from . import linalg
 from . import stride_tricks
 from . import tiling
@@ -1500,13 +1502,31 @@ def split(ary, indices_or_sections, axis=0):
         if isinstance(indices_or_sections, int):
             sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
         else:
-            if (
-                indices_or_sections.split is None
-            ):  # TODO map np syntax to torch (calculate chunk sizes)
+            if indices_or_sections.split is None:
+                # np to torch mapping
+
+                # 1. replace all values out of range with gshape[axis] to generate size 0
+                indices_or_sections_t = indexing.where(
+                    indices_or_sections <= ary.gshape[axis], indices_or_sections, ary.gshape[axis]
+                )
+
+                # 2. add first and last value to DNDarray
+                additional_zero = factories.array([0])
+                additional_length = factories.array([ary.gshape[axis]])
+                indices_or_sections_t = concatenate(
+                    [additional_zero, indices_or_sections_t, additional_length]
+                )
+
+                # 3. calculate the 1-st discrete difference therefore corresponding chunk sizes
+                indices_or_sections_t = arithmetics.diff(indices_or_sections_t)
+
+                # 4. transform the result into a list (torch requirement)
+                indices_or_sections_t = [int(ele) for ele in indices_or_sections_t]
+            # indices_or_sections distributed
+            else:  # TODO
                 pass
-            sub_arrays_t = torch.split(
-                ary._DNDarray__array, indices_or_sections._DNDarray__array, axis
-            )
+
+            sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
 
     sub_arrays_ht = [
         factories.array(

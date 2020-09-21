@@ -1371,7 +1371,14 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = tuple
-        # result = ht.split(data_ht, )
+        result = ht.split(data_ht, [0, 1])
+        comparison = np.split(data_np, [0, 1])
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = list
 
