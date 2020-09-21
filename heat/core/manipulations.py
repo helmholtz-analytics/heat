@@ -13,7 +13,6 @@ from . import tiling
 from . import types
 from . import _operations
 
-
 __all__ = [
     "column_stack",
     "concatenate",
@@ -31,6 +30,7 @@ __all__ = [
     "row_stack",
     "shape",
     "sort",
+    "split",
     "squeeze",
     "stack",
     "topk",
@@ -1422,6 +1422,76 @@ def sort(a, axis=None, descending=False, out=None):
             final_result, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
         )
         return tensor, return_indices
+
+
+def split(ary, indices_or_sections, axis=0):
+    """
+    Split a DNDarray into multiple sub-DNDarrays as views into ary.
+
+    Parameters
+    ----------
+    ary : DNDarray
+        DNDArray to be divided into sub-DNDarrays.
+    indices_or_sections : int or 1-dimensional array_like (i.e. DNDarray, list or tuple)
+        If indices_or_sections is an integer, N, the DNDarray will be divided into N equal DNDarrays along axis.
+        If such a split is not possible, an error is raised.
+        If indices_or_sections is a 1-D DNDarray of sorted integers, the entries indicate where along axis
+        the array is split.
+    axis : int, optional
+        The axis along which to split, default is 0.
+
+    Returns
+    -------
+    sub-arrays : list of DNDarrays
+        A list of sub-DNDarrays as views into ary.
+
+    Raises
+    ------
+    ValueError
+        If indices_or_sections is given as integer, but a split does not result in equal division.
+
+    Examples    #TODO
+    --------
+    >>> x = ht.array(12).reshape((2,2,3))
+
+    """
+    # sanitize ary
+    if not isinstance(ary, dndarray.DNDarray):
+        raise TypeError("Expected ary to be a DNDarray, but was {}".format(type(ary)))
+
+    # sanitize axis
+    if not isinstance(axis, int):
+        raise TypeError("Expected axis to be an integer, but was {}".format(type(axis)))
+    if axis < 0 or axis > len(ary.gshape) - 1:
+        raise ValueError(
+            "Invalid input for axis. Valid range is between 0 and {}, but was {}".format(
+                len(ary.gshape) - 1, axis
+            )
+        )
+
+    # sanitize indices_or_sections
+    if isinstance(indices_or_sections, int):
+        if ary.gshape[axis] % indices_or_sections != 0:
+            raise ValueError(
+                "DNDarray with shape {} can't be divided equally into {} chunks along axis {}".format(
+                    ary.gshape, indices_or_sections, axis
+                )
+            )
+    elif isinstance(indices_or_sections, (list, tuple, dndarray.DNDarray)):
+        if isinstance(indices_or_sections, (list, tuple)):
+            indices_or_sections = factories.array(indices_or_sections)
+        if len(indices_or_sections.gshape) != 1:
+            raise ValueError(
+                "Expected indices_or_sections to be 1-dimensional, but was {}-dimensional instead.".format(
+                    len(indices_or_sections.gshape) - 1
+                )
+            )
+    else:
+        raise TypeError(
+            "Expected indices_or_sections to be array_like (DNDarray, list or tuple), but was {}".format(
+                type(indices_or_sections)
+            )
+        )
 
 
 def squeeze(x, axis=None):
