@@ -314,13 +314,17 @@ class DNDarray:
         halo_size : int
             Size of the halo.
         """
+        if not self.is_balanced():
+            raise RuntimeError(
+                "halo cannot be created for unbalanced tensors, running the .balance_() function is recommended"
+            )
         if not isinstance(halo_size, int):
             raise TypeError(
-                "halo_size needs to be of Python type integer, {} given)".format(type(halo_size))
+                "halo_size needs to be of Python type integer, {} given".format(type(halo_size))
             )
         if halo_size < 0:
             raise ValueError(
-                "halo_size needs to be a positive Python integer, {} given)".format(type(halo_size))
+                "halo_size needs to be a positive Python integer, {} given".format(type(halo_size))
             )
 
         if self.comm.is_distributed() and self.split is not None:
@@ -332,10 +336,8 @@ class DNDarray:
             prev_rank = rank - 1
             last_rank = size - 1
 
-            # if local shape is zero and its the last process or the next one is also zero we can exit here
-            if self.lshape[self.split] == 0 and (
-                rank == last_rank or lshape_map[next_rank, self.split] == 0
-            ):
+            # if local shape is zero and its the last process
+            if self.lshape[self.split] == 0:
                 return  # if process has no data we ignore it
 
             if halo_size > self.lshape[self.split]:

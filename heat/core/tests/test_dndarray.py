@@ -118,6 +118,11 @@ class TestDNDarray(TestCase):
             # exception for too large halos
             with self.assertRaises(ValueError):
                 data.get_halo(4)
+            # exception on non balanced tensor
+            with self.assertRaises(RuntimeError):
+                if data.comm.rank == 1:
+                    data._DNDarray__array = torch.empty(0)
+                data.get_halo(1)
 
             # test no data on process
             data_np = np.arange(2 * 12).reshape(2, 12)
