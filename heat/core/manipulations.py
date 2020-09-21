@@ -1442,7 +1442,7 @@ def split(ary, indices_or_sections, axis=0):
 
     Returns
     -------
-    sub-arrays : list of DNDarrays
+    sub_arrays : list of DNDarrays
         A list of sub-DNDarrays as views into ary.
 
     Raises
@@ -1477,6 +1477,8 @@ def split(ary, indices_or_sections, axis=0):
                     ary.gshape, indices_or_sections, axis
                 )
             )
+        # to adapt torch syntax
+        indices_or_sections -= 1
     elif isinstance(indices_or_sections, (list, tuple, dndarray.DNDarray)):
         if isinstance(indices_or_sections, (list, tuple)):
             indices_or_sections = factories.array(indices_or_sections)
@@ -1492,6 +1494,13 @@ def split(ary, indices_or_sections, axis=0):
                 type(indices_or_sections)
             )
         )
+
+    if ary.split is None:
+        sub_arrays_t = torch.split(ary, indices_or_sections, axis)
+
+    return factories.array(
+        sub_arrays_t, dtype=ary.dtype, is_split=ary.split, device=ary.device, comm=ary.comm
+    )
 
 
 def squeeze(x, axis=None):

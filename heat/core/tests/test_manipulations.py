@@ -1353,6 +1353,9 @@ class TestManipulations(TestCase):
                         ).all()
                     )
 
+    def test_split(self):
+        pass
+
     def test_resplit(self):
         if ht.MPI_WORLD.size > 1:
             # resplitting with same axis, should leave everything unchanged
