@@ -10,7 +10,6 @@ from . import stride_tricks
 from . import types
 
 
-
 __all__ = ["sanitize_input", "sanitize_out", "sanitize_sequence", "scalar_to_1d"]
 
 
