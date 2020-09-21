@@ -469,7 +469,7 @@ class DataParallelMultiGPU(tnn.Module):
                     # if self.comm.rank == 0:
                     #     print("wait time", time.perf_counter() - ttt)
                     # need to add the weighted average to param
-                    self._update_parameters(len(prev_ranks))
+                    _update_parameters(self, len(prev_ranks), self._prev_params.pop(0))
             if mod_hold_m1 is not None:
                 self._local_torch_param_update(mod_hold_m1)
             # if self.current_batch == self.last_batch - 1:
@@ -528,16 +528,6 @@ class DataParallelMultiGPU(tnn.Module):
                     snds[name].wait()
             del snds
 
-    def _update_parameters(self, sz):
-        prev_params = self._prev_params.pop(0)
-        shapes = prev_params[2]
-        for name, param in self.named_parameters():
-            if param.requires_grad:
-                rcv_params = prev_params[1]
-                update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-                param /= sz + 1.0
-                param += update
-
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:
         """
@@ -551,3 +541,15 @@ class DataParallelMultiGPU(tnn.Module):
         """
         if callable(getattr(module, "reset_parameters", None)):
             module.reset_parameters()
+
+
+@torch.jit.script
+def _update_parameters(model, sz, prev_params):
+    # prev_params = model._prev_params.pop(0)
+    shapes = prev_params[2]
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            rcv_params = prev_params[1]
+            update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
+            param /= sz + 1.0
+            param += update
