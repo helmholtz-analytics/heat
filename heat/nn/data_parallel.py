@@ -523,7 +523,9 @@ class DataParallelMultiGPU(tnn.Module):
                 self._send_mod = 0
             else:
                 self._send_mod_m1 = self._send_mod
-                self._send_mod += 1
+                self._send_mod = (
+                    self._send_mod + 1 if self._send_mod <= torch.cuda.device_count() - 2 else 0
+                )
         # if self.comm.rank == 0:
         #     print("step time", time.perf_counter() - t)
 
