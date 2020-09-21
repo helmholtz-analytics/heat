@@ -295,7 +295,8 @@ def main():
 
     args.gpu = 0
     args.world_size = ht.MPI_WORLD.size
-    rank = ht.MPI_WORLD.rank
+    args.rank = ht.MPI_WORLD.rank
+    rank = args.rank
     args.gpus = torch.cuda.device_count()
     device = torch.device("cpu")
     loc_dist = True if args.gpus > 1 else False
@@ -430,19 +431,19 @@ def main():
         [prec1, prec5] = validate(device, val_loader, htmodel, criterion)
 
         # remember best prec@1 and save checkpoint
-        if args.local_rank == 0:
+        if args.rank == 0:
             is_best = prec1 > best_prec1
             best_prec1 = max(prec1, best_prec1)
-            save_checkpoint(
-                {
-                    "epoch": epoch + 1,
-                    "arch": args.arch,
-                    "state_dict": htmodel.state_dict(),
-                    "best_prec1": best_prec1,
-                    "optimizer": optimizer.state_dict(),
-                },
-                is_best,
-            )
+            #save_checkpoint(
+            #    {
+            #        "epoch": epoch + 1,
+            #        "arch": args.arch,
+            #        "state_dict": htmodel.state_dict(),
+            #        "best_prec1": best_prec1,
+            #        "optimizer": optimizer.state_dict(),
+            #    },
+            #    is_best,
+            #)
             if epoch == args.epochs - 1:
                 print(
                     "##Top-1 {0}\n"
@@ -519,12 +520,12 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
 
             # Average loss and accuracy across processes for logging
-            if args.distributed:
-                reduced_loss = reduce_tensor(loss.data, comm=model.comm)
-                prec1 = reduce_tensor(prec1, comm=model.comm)
-                prec5 = reduce_tensor(prec5, comm=model.comm)
-            else:
-                reduced_loss = loss.data
+            #if args.distributed:
+            #    reduced_loss = reduce_tensor(loss.data, comm=model.comm)
+            #    prec1 = reduce_tensor(prec1, comm=model.comm)
+            #    prec5 = reduce_tensor(prec5, comm=model.comm)
+            #else:
+            reduced_loss = loss.data
 
             # to_python_float incurs a host<->device sync
             losses.update(to_python_float(reduced_loss), input.size(0))
@@ -534,7 +535,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             batch_time.update((time.time() - end) / args.print_freq)
             end = time.time()
 
-            if args.local_rank == 0:
+            if args.rank == 0:
                 print(
                     "Epoch: [{0}][{1}/{2}]\t"
                     "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
@@ -597,12 +598,12 @@ def validate(dev, val_loader, model, criterion):
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
 
-        if args.distributed:
-            reduced_loss = reduce_tensor(loss.data, comm=model.comm)
-            prec1 = reduce_tensor(prec1, comm=model.comm)
-            prec5 = reduce_tensor(prec5, comm=model.comm)
-        else:
-            reduced_loss = loss.data
+        #if args.distributed:
+        #    reduced_loss = reduce_tensor(loss.data, comm=model.comm)
+        #    prec1 = reduce_tensor(prec1, comm=model.comm)
+        #    prec5 = reduce_tensor(prec5, comm=model.comm)
+        #else:
+        reduced_loss = loss.data
 
         losses.update(to_python_float(reduced_loss), input.size(0))
         top1.update(to_python_float(prec1), input.size(0))
@@ -613,7 +614,8 @@ def validate(dev, val_loader, model, criterion):
         end = time.time()
 
         # TODO:  Change timings to mirror train().
-        if args.local_rank == 0 and i % args.print_freq == 0:
+        if args.rank == 0 and i % args.print_freq == 0:
+        # if i % args.print_freq == 0:
             print(
                 "Test: [{0}/{1}]\t"
                 "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
@@ -631,8 +633,10 @@ def validate(dev, val_loader, model, criterion):
                     top5=top5,
                 )
             )
-
-    print(" * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
+    top1.avg = reduce_tensor(torch.tensor(top1.avg), comm=model.comm)
+    top5.avg = reduce_tensor(torch.tensor(top5.avg), comm=model.comm)
+    if args.local_rank == 0:
+        print(" * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
 
     return [top1.avg, top5.avg]
 
@@ -696,7 +700,7 @@ def accuracy(output, target, topk=(1,)):
 
 
 def reduce_tensor(tensor, comm):
-    rt = tensor / comm.size
+    rt = tensor / float(comm.size)
     comm.Allreduce(MPI.IN_PLACE, rt, MPI.SUM)
     return rt
 

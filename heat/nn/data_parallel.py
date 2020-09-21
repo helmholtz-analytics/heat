@@ -498,7 +498,7 @@ class DataParallelMultiGPU(tnn.Module):
                     for name, param in self.named_parameters():
                         if param.requires_grad:
                             rcv_params = prev_params[1]
-                            param[:] = (
+                            param = (
                                 rcv_params[shapes[name][1]]
                                 .reshape(shapes[name][0])
                                 .to(shapes[name][2])
