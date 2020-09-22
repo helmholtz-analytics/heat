@@ -1451,6 +1451,30 @@ class TestManipulations(TestCase):
         with self.assertRaises(ValueError):
             ht.split(data_ht, [[0, 1]])
 
+        # ====================================
+        # DISTRIBUTED CASE
+        # ====================================
+        # axis == ary.split
+        # ====================================
+        data_ht = ht.arange(120, split=0).reshape((4, 5, 6))
+        data_np = data_ht.numpy()
+
+        with self.assertRaises(ValueError):
+            ht.split(data_ht, 2, 0)
+
+        # ====================================
+        # axis != ary.split
+        # ====================================
+        # indices_or_sections = int
+        result = ht.split(data_ht, 2, 2)
+        comparison = np.split(data_np, 2, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
     def test_resplit(self):
         if ht.MPI_WORLD.size > 1:
             # resplitting with same axis, should leave everything unchanged

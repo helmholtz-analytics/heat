@@ -10,6 +10,7 @@ from . import dndarray
 from . import factories
 from . import indexing
 from . import linalg
+from . import sanitation
 from . import stride_tricks
 from . import tiling
 from . import types
@@ -1454,19 +1455,34 @@ def split(ary, indices_or_sections, axis=0):
 
     Examples    #TODO
     --------
-    >>> x = ht.array(12).reshape((2,2,3))
+    >>> x = ht.array(12).reshape((4,3))
+    >>> ht.split(x, 2)
+        [ DNDarray([[0, 1, 2],
+                    [3, 4, 5]]),
+          DNDarray([[ 6,  7,  8],
+                    [ 9, 10, 11]])
+        ]
+    >>> ht.split(x, [2, 3, 5])
+        [ DNDarray([[0, 1, 2],
+                    [3, 4, 5]]),
+           DNDarray([[6, 7, 8]]
+          DNDarray([[ 9, 10, 11]]),
+          DNDarray([])
+        ]
+
+
+
 
     """
     # sanitize ary
-    if not isinstance(ary, dndarray.DNDarray):
-        raise TypeError("Expected ary to be a DNDarray, but was {}".format(type(ary)))
+    sanitation.sanitize_input(ary)
 
     # sanitize axis
     if not isinstance(axis, int):
-        raise TypeError("Expected axis to be an integer, but was {}".format(type(axis)))
+        raise TypeError("Expected `axis` to be an integer, but was {}".format(type(axis)))
     if axis < 0 or axis > len(ary.gshape) - 1:
         raise ValueError(
-            "Invalid input for axis. Valid range is between 0 and {}, but was {}".format(
+            "Invalid input for `axis`. Valid range is between 0 and {}, but was {}".format(
                 len(ary.gshape) - 1, axis
             )
         )
@@ -1493,11 +1509,14 @@ def split(ary, indices_or_sections, axis=0):
             )
     else:
         raise TypeError(
-            "Expected indices_or_sections to be array_like (DNDarray, list or tuple), but was {}".format(
+            "Expected `indices_or_sections` to be array_like (DNDarray, list or tuple), but was {}".format(
                 type(indices_or_sections)
             )
         )
 
+    # start of actual algorithm
+
+    # undistributed case
     if ary.split is None:
         if isinstance(indices_or_sections, int):
             sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
@@ -1535,6 +1554,18 @@ def split(ary, indices_or_sections, axis=0):
             indices_or_sections_t = indices_or_sections_t.tolist()
 
             sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
+    # distributed case
+    else:
+        if ary.split == axis:
+            raise ValueError(
+                "Split can only be applied to undistributed tensors if `ary.split` == `axis`.\n"
+                "Split axis {} is not allowed for `ary`".format(ary.split)
+            )
+        else:
+            if isinstance(indices_or_sections, int):
+                sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
+            else:
+                pass
 
     sub_arrays_ht = [
         factories.array(
