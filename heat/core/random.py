@@ -5,6 +5,7 @@ import torch
 from . import communication
 from . import devices
 from . import dndarray
+from . import factories
 from . import stride_tricks
 from . import types
 from typing import Type, List, Optional, Tuple
@@ -238,6 +239,83 @@ def __kundu_transform(values):
     return (torch.log(-torch.log(1 - values ** 0.0775)) - 1.0821) * __KUNDU_INVERSE
 
 
+def permutation(x):
+    """
+    Randomly permute a sequence, or return a permuted range.
+
+    If x is a multi-dimensional array, it is only shuffled along its first index.
+
+    Parameters
+    -----------
+    x : int or DNDarray
+        If x is an integer, call :function:`~heat.core.random.randperm`. If x is an array, make a copy and shuffle the elements randomly.
+
+    Returns
+    -----------
+    DNDarray
+
+    See Also
+    -----------
+    :function:`~heat.core.random.randperm` Random permuted range
+
+    Examples
+    ----------
+    >>> ht.random.permutation(10)
+    DNDarray([9, 1, 5, 4, 8, 2, 7, 6, 3, 0], dtype=ht.int64, device=cpu:0, split=None)
+
+    >>> ht.random.permutation(ht.array([1, 4, 9, 12, 15]))
+    DNDarray([ 9,  1, 12,  4, 15], dtype=ht.int64, device=cpu:0, split=None)
+
+    >>> arr = ht.arange(9).reshape((3, 3))
+    >>> ht.random.permutation(arr)
+    DNDarray([[3, 4, 5],
+              [6, 7, 8],
+              [0, 1, 2]], dtype=ht.int32, device=cpu:0, split=None)
+    """
+    if isinstance(x, int):
+        return randperm(x)
+
+    if not isinstance(x, dndarray.DNDarray):
+        raise TypeError("x must be int or DNDarray")
+
+    # random permutation
+    recv = torch.randperm(x.shape[0], device=x.device.torch_device)
+
+    # rearange locally
+    if (x.split is None) or (x.split != 0):
+        return x[recv]
+
+    # split == 0 -> Need for communication
+    if x.lshape[0] > 0:
+        cumsum = [x.comm.chunk(x.gshape, 0, i)[0] for i in range(0, x.comm.size)]
+        cumsum.append(x.shape[0])
+
+        send = torch.argsort(recv)
+        size = cumsum[x.comm.rank + 1] - cumsum[x.comm.rank]
+        torch_cumsum = torch.tensor(cumsum, device=x.device.torch_device)
+
+        buf = []
+        requests = []
+
+        for i in range(size):
+            proc_recv = torch.where(recv[torch_cumsum[x.comm.rank] + i] < torch_cumsum)[0][0] - 1
+            buf.append(torch.empty_like(x.lloc[i]))
+            requests.append(x.comm.Irecv(buf[-1], proc_recv, tag=i))
+
+            proc_send = torch.where(send[torch_cumsum[x.comm.rank] + i] < torch_cumsum)[0][0] - 1
+            tag = send[torch_cumsum[x.comm.rank] + i] - torch_cumsum[proc_send]
+            requests.append(x.comm.Isend(x.lloc[i].clone(), proc_send, tag=tag))
+
+        for req in requests:
+            req.Wait()
+
+        data = torch.stack(buf)
+    else:
+        data = torch.empty_like(x._DNDarray__array)
+
+    return factories.array(data, dtype=x.dtype, is_split=x.split, device=x.device, comm=x.comm)
+
+
 def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
     """
     Random values in a given shape.
@@ -427,6 +505,45 @@ def randn(*args, dtype=types.float32, split=None, device=None, comm=None):
     return normal_tensor
 
 
+def randperm(
+    n: int, dtype=types.int64, split: Optional[int] = None, device: Optional[str] = None, comm=None
+):
+    """
+    Returns a random permutation of integers from 0 to n - 1
+
+    Parameters
+    ----------
+    n : int
+        Number of integers
+    dtype : datatype, optional
+        The datatype of the returned values.
+    split : int, optional
+        The axis along which the array is split and distributed, defaults to no distribution.
+    device : str, optional
+        Specifies the :class:`~heat.core.devices.Device`  the array shall be allocated on, defaults to globally
+        set default device.
+    comm : Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+
+    Returns
+    -------
+    DNDarray
+
+    Example
+    --------
+    >>> ht.random.randperm(4)
+    DNDarray([2, 3, 1, 0], dtype=ht.int64, device=cpu:0, split=None)
+    """
+    if not isinstance(n, int):
+        raise TypeError("n must be an integer.")
+
+    device = devices.sanitize_device(device)
+    comm = communication.sanitize_comm(comm)
+    perm = torch.randperm(n, dtype=dtype.torch_type(), device=device.torch_device)
+
+    return factories.array(perm, dtype=dtype, device=device, split=split, comm=comm)
+
+
 def random_sample(
     shape: Optional[Tuple[int]] = None,
     dtype=types.float32,
@@ -447,7 +564,7 @@ def random_sample(
     dtype: Type[datatype], optional
         The datatype of the returned values. Has to be one of
         [:class:`~heat.core.types.float32, :class:`~heat.core.types.float64`].
-    split: int, optional
+    split : int, optional
         The axis along which the array is split and distributed, defaults to no distribution.
     device : str, optional
         Specifies the :class:`~heat.core.devices.Device`  the array shall be allocated on, defaults to globally
