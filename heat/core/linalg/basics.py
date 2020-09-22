@@ -207,6 +207,8 @@ def matmul(a, b, allow_resplit=False):
     split_01_flag = False
     split_10_flag = False
 
+    tdev = a.device.torch_device
+
     if (
         (a.split == 0 and b.split is None) or (a.split is None and b.split == 1)
     ) and not vector_flag:
@@ -221,9 +223,7 @@ def matmul(a, b, allow_resplit=False):
         return ret
 
     elif a.split == 1 and b.split is None:
-        c = torch.zeros(
-            (a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=a.device.torch_device
-        )
+        c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=tdev)
 
         a_idx = a.comm.chunk(a.shape, a.split)[2]
         c += (
@@ -238,9 +238,7 @@ def matmul(a, b, allow_resplit=False):
         return ret
 
     elif a.split is None and b.split == 0:
-        c = torch.zeros(
-            (a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=a.device.torch_device
-        )
+        c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=tdev)
         b_idx = b.comm.chunk(b.shape, b.split)[2]
         c += (
             a._DNDarray__array[:, b_idx[0].start : b_idx[0].start + b.lshape[0]]
@@ -256,9 +254,7 @@ def matmul(a, b, allow_resplit=False):
     elif (
         a.split == 0 and b.split is None
     ):  # this case and the one below will only be reaching if one of them is a vector
-        c = torch.zeros(
-            (a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type(), device=a.device.torch_device
-        )
+        c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type(), device=tdev)
         a_idx = a.comm.chunk(a.shape, a.split)[2]
         c[a_idx[0]] += a._DNDarray__array @ b._DNDarray__array
         a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
@@ -271,9 +267,7 @@ def matmul(a, b, allow_resplit=False):
         return ret
 
     elif a.split is None and b.split == 1:
-        c = torch.zeros(
-            (a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type(), device=a.device.torch_device
-        )
+        c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type(), device=tdev)
         c += a._DNDarray__array @ b._DNDarray__array
         c = c if not vector_flag else c.squeeze()
         split = b.split if a.gshape[1] > 1 else 0
@@ -317,11 +311,9 @@ def matmul(a, b, allow_resplit=False):
 
     # get the lshape map to determine what needs to be sent where as well as M and N
     # lshape map dims -> {node, a=0, b=1, lshape}
-    lshape_map = torch.zeros(
-        (a.comm.size, 2, len(a.gshape)), dtype=int, device=a.device.torch_device
-    )
-    lshape_map[a.comm.rank, 0, :] = torch.tensor(a.lshape, device=a.device.torch_device)
-    lshape_map[b.comm.rank, 1, :] = torch.tensor(b.lshape, device=a.device.torch_device)
+    lshape_map = torch.zeros((a.comm.size, 2, len(a.gshape)), dtype=int, device=tdev)
+    lshape_map[a.comm.rank, 0, :] = torch.tensor(a.lshape, device=tdev)
+    lshape_map[b.comm.rank, 1, :] = torch.tensor(b.lshape, device=tdev)
     a.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
     # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
@@ -339,26 +331,18 @@ def matmul(a, b, allow_resplit=False):
     # rem_map dims guide -> {process number, a/b (0/1), True/False (1/0)
     #   if there is a remainder in this dimension
     rem_map = torch.zeros((a.comm.size, 2, 2))
-    rem_map[a.comm.rank, 0, :] = torch.tensor((rem_a_out, rem_a), device=a._DNDarray__array.device)
-    rem_map[a.comm.rank, 1, :] = torch.tensor((rem_b, rem_b_out), device=a._DNDarray__array.device)
+    rem_map[a.comm.rank, 0, :] = torch.tensor((rem_a_out, rem_a), device=tdev)
+    rem_map[a.comm.rank, 1, :] = torch.tensor((rem_b, rem_b_out), device=tdev)
     rem_map_comm = a.comm.Iallreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
 
     # index_map dims guide -> {process number, a=0/b=1, relevent 1st index, 2nd index}
-    index_map = torch.zeros((a.comm.size, 2, 2, 2), dtype=int, device=b._DNDarray__array.device)
+    index_map = torch.zeros((a.comm.size, 2, 2, 2), dtype=int, device=tdev)
     a_idx = a.comm.chunk(a.shape, a.split)[2]
-    index_map[a.comm.rank, 0, 0] = torch.tensor(
-        (a_idx[0].start, a_idx[0].stop), device=b._DNDarray__array.device
-    )
-    index_map[a.comm.rank, 0, 1] = torch.tensor(
-        (a_idx[1].start, a_idx[1].stop), device=b._DNDarray__array.device
-    )
+    index_map[a.comm.rank, 0, 0] = torch.tensor((a_idx[0].start, a_idx[0].stop), device=tdev)
+    index_map[a.comm.rank, 0, 1] = torch.tensor((a_idx[1].start, a_idx[1].stop), device=tdev)
     b_idx = b.comm.chunk(b.shape, b.split)[2]
-    index_map[b.comm.rank, 1, 0] = torch.tensor(
-        (b_idx[0].start, b_idx[0].stop), device=b._DNDarray__array.device
-    )
-    index_map[b.comm.rank, 1, 1] = torch.tensor(
-        (b_idx[1].start, b_idx[1].stop), device=b._DNDarray__array.device
-    )
+    index_map[b.comm.rank, 1, 0] = torch.tensor((b_idx[0].start, b_idx[0].stop), device=tdev)
+    index_map[b.comm.rank, 1, 1] = torch.tensor((b_idx[1].start, b_idx[1].stop), device=tdev)
     index_map_comm = a.comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
 
     # for the communication scheme, the output array needs to be created
@@ -376,13 +360,13 @@ def matmul(a, b, allow_resplit=False):
         a_block_map = torch.zeros(
             (a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2),
             dtype=torch.int,
-            device=a.device.torch_device,
+            device=tdev,
         )
     elif a.split == 1:
         a_block_map = torch.zeros(
             (a.comm.size, a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size, 2),
             dtype=torch.int,
-            device=a.device.torch_device,
+            device=tdev,
         )
     # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
@@ -409,7 +393,7 @@ def matmul(a, b, allow_resplit=False):
             ):
                 # loop over the number of blocks in the 1st dimension
                 a_block_map[pr, dim0, dim1] = torch.tensor(
-                    (dim0 * mB, dim1 * kB), dtype=torch.int, device=a._DNDarray__array.device
+                    (dim0 * mB, dim1 * kB), dtype=torch.int, device=tdev
                 )
     rem_map_comm.wait()
     if b.split == 0:
@@ -425,13 +409,13 @@ def matmul(a, b, allow_resplit=False):
         b_block_map = torch.zeros(
             (b.comm.size, b.shape[-2] // kB // b.comm.size, b.shape[-1] // nB, 2),
             dtype=torch.int,
-            device=b.device.torch_device,
+            device=tdev,
         )
     elif b.split == 1:
         b_block_map = torch.zeros(
             (b.comm.size, b.shape[-2] // kB, b.shape[-1] // nB // b.comm.size, 2),
             dtype=torch.int,
-            device=b.device.torch_device,
+            device=tdev,
         )
     # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
@@ -457,7 +441,7 @@ def matmul(a, b, allow_resplit=False):
                 (stop1 - start1) // nB // b.comm.size if b_d1_1s_flag else (stop1 - start1) // nB
             ):
                 b_block_map[pr, dim0, dim1] = torch.tensor(
-                    (dim0 * kB, dim1 * nB), dtype=torch.int, device=b._DNDarray__array.device
+                    (dim0 * kB, dim1 * nB), dtype=torch.int, device=tdev
                 )
 
     if a.split == 1:
@@ -480,10 +464,7 @@ def matmul(a, b, allow_resplit=False):
         # remainders for a in the
         a_node_rem_s0 = a._DNDarray__array[:mB, kB : (kB + 1) * b_rem_locs0.numel() : kB + 1]
         b_rem = torch.empty(
-            b_rem_locs0.numel(),
-            b.lshape[-1],
-            dtype=a.dtype.torch_type(),
-            device=b.device.torch_device,
+            b_rem_locs0.numel(), b.lshape[-1], dtype=a.dtype.torch_type(), device=tdev
         )
 
         # this if/elif/else loop is for the handling of
@@ -505,7 +486,7 @@ def matmul(a, b, allow_resplit=False):
                 b_lp_data[pr] = torch.zeros(
                     (lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()),
                     dtype=b.dtype.torch_type(),
-                    device=b.device.torch_device,
+                    device=tdev,
                 )
 
             # sending a to all nodes for b to operate with
@@ -542,7 +523,6 @@ def matmul(a, b, allow_resplit=False):
                         st = index_map[pr - 1, 1, 0, 0].item()
                         sp = index_map[pr - 1, 1, 0, 1].item()
                         c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
-
                 del b_lp_data[pr - 1]
 
             # need to wait if its the last loop, also need to collect the remainders
@@ -579,18 +559,16 @@ def matmul(a, b, allow_resplit=False):
                             c._DNDarray__array[r_loc.item(), st1:sp1] += r[st:sp] @ b_lp_data[pr]
                         else:
                             c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr]
-
                 # set the final blocks on the last loop, then adjust for the
                 # the remainders which were collected in b_rem
                 if b_rem_locs0.numel():
                     c._DNDarray__array[: a_node_rem_s0.shape[0]] += a_node_rem_s0 @ b_rem
-
                 del b_lp_data[pr]
 
         if vector_flag:
             c_loc = c._DNDarray__array.squeeze()
             if c_loc.nelement() == 1:
-                c_loc = torch.tensor(c_loc, device=c._DNDarray__array.device)
+                c_loc = torch.tensor(c_loc, device=tdev)
             c = factories.array(c_loc, is_split=0, device=a.device)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
@@ -602,13 +580,10 @@ def matmul(a, b, allow_resplit=False):
         # locations of the remainders in b
         b_rem_locs1 = torch.nonzero(rem_map[:, 1, 1] == 1, as_tuple=False)
         a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
-        # b_node_rem_s1 -> remainders for a in the
         b_node_rem_s1 = b._DNDarray__array[kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB]
+        # b_node_rem_s1 -> remainders for a in the
         a_rem = torch.empty(
-            a.lshape[-2],
-            a_rem_locs1.numel(),
-            dtype=b.dtype.torch_type(),
-            device=a.device.torch_device,
+            a.lshape[-2], a_rem_locs1.numel(), dtype=b.dtype.torch_type(), device=tdev
         )
         # this if/elif/else loop is for the handling of
         if b.comm.rank in b_rem_locs1:
@@ -628,11 +603,10 @@ def matmul(a, b, allow_resplit=False):
                 a_lp_data[pr] = torch.zeros(
                     (lshape_map[pr, 0, 0].item(), lshape_map[pr, 0, 1].item()),
                     dtype=a.dtype.torch_type(),
-                    device=a.device.torch_device,
+                    device=tdev,
                 )
             # sending a to all nodes for b to operate with
             req[pr] = a.comm.Ibcast(a_lp_data[pr], root=pr)
-
             # receive the data from the last loop and do the calculation with that
             if pr != 0:
                 # after receiving the last loop's bcast
@@ -717,7 +691,7 @@ def matmul(a, b, allow_resplit=False):
                 b_lp_data[pr] = torch.empty(
                     (lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()),
                     dtype=b.dtype.torch_type(),
-                    device=b.device.torch_device,
+                    device=tdev,
                 )
             # sending a to all nodes for b to operate with
             req[pr] = b.comm.Ibcast(b_lp_data[pr], root=pr)
@@ -752,9 +726,7 @@ def matmul(a, b, allow_resplit=False):
         a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
         # locations of the remainders in b
         b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
-        res = torch.zeros(
-            (a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=c.device.torch_device
-        )
+        res = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=tdev)
         for i in range(a.lshape[-1] // kB):
             res += (
                 a._DNDarray__array[:mB, i * kB : i * kB + kB]
