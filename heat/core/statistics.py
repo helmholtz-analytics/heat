@@ -19,6 +19,7 @@ __all__ = [
     "argmax",
     "argmin",
     "average",
+    "bincount",
     "cov",
     "kurtosis",
     "max",
@@ -374,6 +375,72 @@ def average(x, axis=None, weights=None, returned=False):
         return (result, cumwgt)
 
     return result
+
+
+def bincount(x, weights=None, minlength: int = 0):
+    """
+    Count number of occurrences of each value in array of non-negative ints.
+
+    The number of bins (size 1) is one larger than the largest value in `x`
+    unless `x` is empty, in which case the result is a tensor of size 0.
+    If `minlength` is specified, the number of bins is at least `minlength` and
+    if `x` is empty, then the result is tensor of size `minlength` filled with zeros.
+    If `n` is the value at position `i`, `out[n] += weights[i]` if weights is specified else `out[n] += 1`.
+
+    Parameters
+    ----------
+    x : DNDarray, 1 dimensional, non-negative ints
+    weights : DNDarray, optional
+        Weight for each value in the input tensor. Array of the same shape as x. Same split as `x`.
+    minlength : int, non-negative, optional
+        Minimum number of bins
+
+    Returns
+    -------
+    out : DNDArray
+        An array of length `max(x) + 1` if input is non-empty, else 0. The array's `split=None`.
+
+    Examples
+    --------
+    >>> ht.bincount(ht.arange(5))
+    DNDarray([1, 1, 1, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.bincount(ht.array([0, 1, 3, 2, 1]), weights=ht.array([0, 0.5, 1, 1.5, 2]))
+    DNDarray([0.0000, 2.5000, 1.5000, 1.0000], dtype=ht.float32, device=cpu:0, split=None)
+
+    Raises
+    ------
+    ValueError
+        If `x` and `weights` don't have the same distribution.
+    """
+    if isinstance(weights, dndarray.DNDarray):
+        if weights.split != x.split:
+            raise ValueError("weights must have the same split value as x")
+        weights = weights._DNDarray__array
+
+    counts = torch.bincount(x._DNDarray__array, weights, minlength)
+
+    size = counts.numel()
+    maxlength = x.comm.allreduce(size, op=MPI.MAX)
+
+    # resize tensors
+    if size == 0:
+        dtype = torch.int64
+        if weights is not None:
+            dtype = torch.float64
+        counts = torch.zeros(maxlength, dtype=dtype, device=counts.device)
+    elif size < maxlength:
+        counts = torch.cat(
+            (counts, torch.zeros(maxlength - size, dtype=counts.dtype, device=counts.device))
+        )
+
+    # collect results
+    if x.split == 0:
+        data = torch.empty_like(counts)
+        x.comm.Allreduce(counts, data, op=MPI.SUM)
+    else:
+        data = counts
+
+    return factories.array(data, dtype=types.heat_type_of(data), device=x.device)
 
 
 def cov(m, y=None, rowvar=True, bias=False, ddof=None):
