@@ -312,21 +312,37 @@ class DNDarray:
         halo_size : int
             Size of the halo.
         """
+        if not self.is_balanced():
+            raise RuntimeError(
+                "halo cannot be created for unbalanced tensors, running the .balance_() function is recommended"
+            )
         if not isinstance(halo_size, int):
             raise TypeError(
-                "halo_size needs to be of Python type integer, {} given)".format(type(halo_size))
+                "halo_size needs to be of Python type integer, {} given".format(type(halo_size))
             )
         if halo_size < 0:
             raise ValueError(
-                "halo_size needs to be a positive Python integer, {} given)".format(type(halo_size))
+                "halo_size needs to be a positive Python integer, {} given".format(type(halo_size))
             )
 
         if self.comm.is_distributed() and self.split is not None:
-            min_chunksize = self.shape[self.split] // self.comm.size
-            if halo_size > min_chunksize:
+            # gather lshapes
+            lshape_map = self.create_lshape_map()
+            rank = self.comm.rank
+            size = self.comm.size
+            next_rank = rank + 1
+            prev_rank = rank - 1
+            last_rank = size - 1
+
+            # if local shape is zero and its the last process
+            if self.lshape[self.split] == 0:
+                return  # if process has no data we ignore it
+
+            if halo_size > self.lshape[self.split]:
+                # if on at least one process the halo_size is larger than the local size throw ValueError
                 raise ValueError(
-                    "halo_size {} needs to smaller than chunck-size {} )".format(
-                        halo_size, min_chunksize
+                    "halo_size {} needs to be smaller than chunck-size {} )".format(
+                        halo_size, self.lshape[self.split]
                     )
                 )
 
@@ -338,19 +354,20 @@ class DNDarray:
 
             req_list = list()
 
-            if self.comm.rank != self.comm.size - 1:
-                self.comm.Isend(a_next, self.comm.rank + 1)
+            # only exchange data with next process if it has data
+            if rank != last_rank and (lshape_map[next_rank, self.split] > 0):
+                self.comm.Isend(a_next, next_rank)
                 res_prev = torch.zeros(
                     a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
                 )
-                req_list.append(self.comm.Irecv(res_prev, source=self.comm.rank + 1))
+                req_list.append(self.comm.Irecv(res_prev, source=next_rank))
 
-            if self.comm.rank != 0:
-                self.comm.Isend(a_prev, self.comm.rank - 1)
+            if rank != 0:
+                self.comm.Isend(a_prev, prev_rank)
                 res_next = torch.zeros(
                     a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
                 )
-                req_list.append(self.comm.Irecv(res_next, source=self.comm.rank - 1))
+                req_list.append(self.comm.Irecv(res_next, source=prev_rank))
 
             for req in req_list:
                 req.Wait()
