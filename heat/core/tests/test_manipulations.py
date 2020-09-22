@@ -1480,7 +1480,7 @@ class TestManipulations(TestCase):
 
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, comparison.shape)
-        self.assert_array_equal(result, comparison)
+        self.assertTrue((ht.array(comparison) == result).all())
         self.assertEqual(result.split, a.split)
         self.assertIsInstance(repeats, ht.DNDarray)
         self.assertEqual(repeats.split, None)
@@ -1492,7 +1492,7 @@ class TestManipulations(TestCase):
 
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, comparison.shape)
-        self.assert_array_equal(result, comparison)
+        self.assertTrue((ht.array(comparison) == result).all())
         self.assertEqual(result.split, a.split)
         self.assertIsInstance(repeats, ht.DNDarray)
         self.assertEqual(repeats.split, 0)
@@ -1504,7 +1504,7 @@ class TestManipulations(TestCase):
 
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, comparison.shape)
-        self.assert_array_equal(result, comparison)
+        self.assertTrue((ht.array(comparison) == result).all())
         self.assertEqual(result.split, a.split)
         self.assertIsInstance(repeats, ht.DNDarray)
         self.assertEqual(repeats.split, 0)
