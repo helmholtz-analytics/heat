@@ -352,8 +352,14 @@ def main():
     # create DP optimizer and model:
     blocking = False  # choose blocking or non-blocking parameter updates
     dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
+    skip_batches = 2
     htmodel = ht.nn.DataParallelMultiGPU(
-        model, ht.MPI_WORLD, dp_optimizer, overlap=True, distributed_twice=twice_dist
+        model,
+        ht.MPI_WORLD,
+        dp_optimizer,
+        overlap=True,
+        distributed_twice=twice_dist,
+        skip_batches=skip_batches,
     )
 
     # define loss function (criterion) and optimizer
@@ -419,10 +425,16 @@ def main():
         validate(device, val_loader, htmodel, criterion)
         return
 
+    model.epochs = args.start_epoch
+
     total_time = AverageMeter()
+    batch_time_avg, train_acc1, train_acc5, avg_loss = [], [], [], []
+    val_acc1, val_acc5 = [], []
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
-        avg_train_time = train(device, train_loader, htmodel, criterion, dp_optimizer, epoch)
+        avg_train_time, tacc1, tacc5, ls = train(
+            device, train_loader, htmodel, criterion, dp_optimizer, epoch
+        )
         total_time.update(avg_train_time)
         if args.test:
             break
@@ -432,9 +444,9 @@ def main():
 
         # remember best prec@1 and save checkpoint
         if args.rank == 0:
-            is_best = prec1 > best_prec1
+            # is_best = prec1 > best_prec1
             best_prec1 = max(prec1, best_prec1)
-            #save_checkpoint(
+            # save_checkpoint(
             #    {
             #        "epoch": epoch + 1,
             #        "arch": args.arch,
@@ -443,16 +455,33 @@ def main():
             #        "optimizer": optimizer.state_dict(),
             #    },
             #    is_best,
-            #)
+            # )
             if epoch == args.epochs - 1:
                 print(
                     "##Top-1 {0}\n"
                     "##Top-5 {1}\n"
                     "##Perf  {2}".format(prec1, prec5, args.total_batch_size / total_time.avg)
                 )
-
+            val_acc1.append(prec1)
+            val_acc5.append(prec5)
+            batch_time_avg.append(total_time.avg)
+            train_acc1.append(tacc1)
+            train_acc5.append(tacc5)
+            avg_loss.append(ls)
         train_loader.reset()
         val_loader.reset()
+    if args.rank == 0:
+        print("\nRESULTS\n")
+        for c in range(args.start_epoch, args.epochs):
+            print(
+                f"Epoch {c}: "
+                f"\tAvg Batch Time: {batch_time_avg[c]}"
+                f"\tTrain Top1: {train_acc1[c]}"
+                f"\tTrain Top5: {train_acc5[c]}"
+                f"\tTrain Loss: {avg_loss[c]}"
+                f"\tVal Top1: {val_acc1[c]}"
+                f"\tVal Top5: {val_acc5[c]}"
+            )
 
 
 def train(dev, train_loader, model, criterion, optimizer, epoch):
@@ -511,7 +540,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         if args.prof >= 0:
             torch.cuda.nvtx.range_pop()
 
-        if i % args.print_freq == 0:
+        if i % args.print_freq == 0 or i == train_loader_len:
             # Every print_freq iterations, check the loss, accuracy, and speed.
             # For best performance, it doesn't make sense to print these metrics every
             # iteration, since they incur an allreduce and some host<->device syncs.
@@ -520,11 +549,11 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
 
             # Average loss and accuracy across processes for logging
-            #if args.distributed:
+            # if args.distributed:
             #    reduced_loss = reduce_tensor(loss.data, comm=model.comm)
             #    prec1 = reduce_tensor(prec1, comm=model.comm)
             #    prec5 = reduce_tensor(prec5, comm=model.comm)
-            #else:
+            # else:
             reduced_loss = loss.data
 
             # to_python_float incurs a host<->device sync
@@ -563,15 +592,12 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             print("Profiling ended at iteration {}".format(i))
             torch.cuda.cudart().cudaProfilerStop()
             quit()
-    #     #if ht.MPI_WORLD.rank == 0:
-    #     #    print("batch", i, "time", time.perf_counter() - tt)
-    #     if i == model.last_batch:
-    #         break
-    # for name, param in model.named_parameters():
-    #     # print(model.comm.allreduce(param.clone(), ht.MPI.SUM) / ht.MPI_WORLD.size)
-    #     print(param.flatten())
-    #     break
-    return batch_time.avg
+    # todo average loss, and top1 and top5
+    top1.avg = reduce_tensor(torch.tensor(top1.avg), comm=model.comm)
+    top5.avg = reduce_tensor(torch.tensor(top5.avg), comm=model.comm)
+    batch_time.avg = reduce_tensor(torch.tensor(batch_time.avg), comm=model.comm)
+    losses.avg = reduce_tensor(torch.tensor(losses.avg), comm=model.comm)
+    return batch_time.avg, top1.avg, top5.avg, losses.avg
 
 
 def validate(dev, val_loader, model, criterion):
@@ -598,11 +624,11 @@ def validate(dev, val_loader, model, criterion):
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
 
-        #if args.distributed:
+        # if args.distributed:
         #    reduced_loss = reduce_tensor(loss.data, comm=model.comm)
         #    prec1 = reduce_tensor(prec1, comm=model.comm)
         #    prec5 = reduce_tensor(prec5, comm=model.comm)
-        #else:
+        # else:
         reduced_loss = loss.data
 
         losses.update(to_python_float(reduced_loss), input.size(0))
@@ -615,7 +641,7 @@ def validate(dev, val_loader, model, criterion):
 
         # TODO:  Change timings to mirror train().
         if args.rank == 0 and i % args.print_freq == 0:
-        # if i % args.print_freq == 0:
+            # if i % args.print_freq == 0:
             print(
                 "Test: [{0}/{1}]\t"
                 "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
@@ -706,4 +732,6 @@ def reduce_tensor(tensor, comm):
 
 
 if __name__ == "__main__":
+    total_time = time.perf_counter()
     main()
+    print("total time", time.perf_counter() - total_time)
