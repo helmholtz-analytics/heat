@@ -1475,6 +1475,37 @@ class TestManipulations(TestCase):
             self.assertIsInstance(result[i], ht.DNDarray)
             self.assert_array_equal(result[i], comparison[i])
 
+        # indices_or_sections = list
+        result = ht.split(data_ht, [3, 4, 6], 2)
+        comparison = np.split(data_np, [3, 4, 6], 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = undistributed DNDarray
+        result = ht.split(data_ht, ht.array([3, 4, 6]), 2)
+        comparison = np.split(data_np, np.array([3, 4, 6]), 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = distributed DNDarray
+        indices = ht.array([3, 4, 6], split=0)
+        result = ht.split(data_ht, indices, 2)
+        comparison = np.split(data_np, np.array([3, 4, 6]), 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
     def test_resplit(self):
         if ht.MPI_WORLD.size > 1:
             # resplitting with same axis, should leave everything unchanged

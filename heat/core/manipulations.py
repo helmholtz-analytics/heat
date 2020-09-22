@@ -1435,13 +1435,14 @@ def split(ary, indices_or_sections, axis=0):
     ----------
     ary : DNDarray
         DNDArray to be divided into sub-DNDarrays.
-    indices_or_sections : int or 1-dimensional array_like (i.e. DNDarray, list or tuple)
+    indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
         If indices_or_sections is an integer, N, the DNDarray will be divided into N equal DNDarrays along axis.
         If such a split is not possible, an error is raised.
         If indices_or_sections is a 1-D DNDarray of sorted integers, the entries indicate where along axis
         the array is split.
     axis : int, optional
         The axis along which to split, default is 0.
+        axis is not allowed to equal ary.split if ary is distributed.
 
     Returns
     -------
@@ -1469,10 +1470,6 @@ def split(ary, indices_or_sections, axis=0):
           DNDarray([[ 9, 10, 11]]),
           DNDarray([])
         ]
-
-
-
-
     """
     # sanitize ary
     sanitation.sanitize_input(ary)
@@ -1516,8 +1513,12 @@ def split(ary, indices_or_sections, axis=0):
 
     # start of actual algorithm
 
-    # undistributed case
-    if ary.split is None:
+    if ary.split == axis:
+        raise ValueError(
+            "Split can only be applied to undistributed tensors if `ary.split` == `axis`.\n"
+            "Split axis {} is not allowed for `ary` in this case.".format(ary.split)
+        )
+    else:
         if isinstance(indices_or_sections, int):
             sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
         else:
@@ -1554,18 +1555,6 @@ def split(ary, indices_or_sections, axis=0):
             indices_or_sections_t = indices_or_sections_t.tolist()
 
             sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
-    # distributed case
-    else:
-        if ary.split == axis:
-            raise ValueError(
-                "Split can only be applied to undistributed tensors if `ary.split` == `axis`.\n"
-                "Split axis {} is not allowed for `ary`".format(ary.split)
-            )
-        else:
-            if isinstance(indices_or_sections, int):
-                sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
-            else:
-                pass
 
     sub_arrays_ht = [
         factories.array(
