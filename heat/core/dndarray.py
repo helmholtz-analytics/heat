@@ -370,7 +370,7 @@ class DNDarray:
                 req_list.append(self.comm.Irecv(res_next, source=prev_rank))
 
             for req in req_list:
-                req.wait()
+                req.Wait()
 
             self.__halo_next = res_prev
             self.__halo_prev = res_next
@@ -2792,7 +2792,7 @@ class DNDarray:
             lp_arr = None
             for k in lp_keys:
                 if rcv[k][0] is not None:
-                    rcv[k][0].wait()
+                    rcv[k][0].Wait()
                 if lp_arr is None:
                     lp_arr = rcv[k][1]
                 else:
