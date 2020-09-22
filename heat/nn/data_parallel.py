@@ -434,7 +434,12 @@ class DataParallelMultiGPU(tnn.Module):
         self.optimizer.torch_optimizer.step()
         # if self.comm.rank == 0:
         #     print("optimizer step", time.perf_counter() - t3)
-        if self.current_batch == 0 and self.epoch == self.skip_batches[0][1]:
+        if (
+            self.current_batch == 0
+            and len(self.skip_batches) > 0
+            and self.epoch == self.skip_batches[0][1]
+        ):
+            # adjust this at the beginning of the epoch
             del self.skip_batches[0]
             if len(self.skip_batches) > 0:
                 self.skip_num = self.skip_batches[0][0]
