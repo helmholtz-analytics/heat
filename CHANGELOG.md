@@ -37,6 +37,7 @@
 - [#652](https://github.com/helmholtz-analytics/heat/pull/652) Feature: benchmark scripts and jobscript generation
 - [#653](https://github.com/helmholtz-analytics/heat/pull/653) Printing above threshold gathers the data without a buffer now
 - [#653](https://github.com/helmholtz-analytics/heat/pull/653) Bugfixes: Update unittests argmax & argmin + force index order in mpi_argmax & mpi_argmin. Add device parameter for tensor creation in dndarray.get_halo().
+- [#659](https://github.com/helmholtz-analytics/heat/pull/659) New feature: `random.permutation` + `random.randperm`
 - [#662](https://github.com/helmholtz-analytics/heat/pull/662) Bugfixes: minimum() and maximum() split semantics, scalar input, different input dtype
 - [#664](https://github.com/helmholtz-analytics/heat/pull/664) New feature / enhancement: `random.random_sample`, `random.random`, `random.sample`, `random.ranf`, `random.random_integer`
 - [#666](https://github.com/helmholtz-analytics/heat/pull/666) New feature: distributed prepend/append for diff().
