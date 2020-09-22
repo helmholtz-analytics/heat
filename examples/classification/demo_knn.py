@@ -1,5 +1,6 @@
 import sys
 import os
+import random
 
 # Fix python path if run from terminal
 curdir = os.path.dirname(os.path.abspath(__file__))
@@ -19,20 +20,20 @@ for i in range(50, 100):
     keys.append(1)
 for i in range(100, 150):
     keys.append(2)
-Y = ht.array(keys)
+Y = ht.array(keys, split=0)
 
 
 def calculate_accuracy(new_y, verification_y):
     """
-    Calculates the accuracy of classification/clustering-Algorithms.
-    Note this only works with integer/discrete classes. For Algorithms that give Approximations an error function is
+    Calculates the accuracy of classification/clustering-algorithms.
+    Note this only works with integer/discrete classes. For algorithms that give approximations an error function is
     required.
 
     Parameters
     ----------
-    new_y : ht.tensor of shape (n_samples,), required
-        The new labels that are generated
-    verification_y : ht.tensor of shape (n_samples,), required
+    new_y : ht.tensor of shape (n_samples, n_features), required
+        The new labels that where generated
+    verification_y : ht.tensor of shape (n_samples, n_features), required
         Known labels
 
     Returns
@@ -41,17 +42,16 @@ def calculate_accuracy(new_y, verification_y):
         the accuracy, number of properly labeled samples divided by amount of labels.
     """
 
-    if len(new_y) != len(verification_y):
+    if new_y.gshape != verification_y.gshape:
         raise ValueError(
-            "Expecting results of same length, got {}, {}".format(len(new_y), len(verification_y))
+            "Expecting results of same length, got {}, {}".format(
+                new_y.gshape, verification_y.gshape
+            )
         )
 
-    length = len(new_y)
-    count = 0
-    for index in range(length):
-        if new_y[index] == verification_y[index].item():
-            count += 1
-    return count / length
+    count = ht.sum(ht.where(new_y == verification_y, 1, 0))
+
+    return count / new_y.gshape[0]
 
 
 def create_fold(dataset_x, dataset_y, size, seed=None):
@@ -84,23 +84,26 @@ def create_fold(dataset_x, dataset_y, size, seed=None):
     assert size < len(dataset_x)
 
     data_length = len(dataset_x)
-    if seed:
-        ht.random.seed(seed)
-    indices = ht.random.randint(low=0, high=data_length - 1, size=(size,))
-    indices = ht.unique(indices, sorted=True)
-    while len(indices) < size:
-        diff = size - len(indices)
-        additional = ht.random.randint(low=0, high=data_length, size=(diff,))
-        indices = ht.concatenate((indices, additional))
-        indices = ht.unique(indices, sorted=True)
-    indices = indices.tolist()
-    all_indices = [index for index in range(data_length)]
-    verification_indices = [index for index in all_indices if index not in indices]
 
-    fold_x = ht.array(dataset_x[indices], is_split=0)
-    fold_y = ht.array(dataset_y[indices], is_split=0)
+    if seed:
+        random.seed(seed)
+    indices = [i for i in range(data_length)]
+    random.shuffle(indices)
+
+    data_indices = ht.array(indices[0:size], split=0)
+    verification_indices = ht.array(indices[size:], split=0)
+
+    fold_x = ht.array(dataset_x[data_indices], is_split=0)
+    fold_y = ht.array(dataset_y[data_indices], is_split=0)
     verification_y = ht.array(dataset_y[verification_indices], is_split=0)
     verification_x = ht.array(dataset_x[verification_indices], is_split=0)
+
+    # Balance arrays
+    fold_x.balance_()
+    fold_y.balance_()
+    verification_y.balance_()
+    verification_x.balance_()
+
     return fold_x, fold_y, verification_x, verification_y
 
 
@@ -135,8 +138,8 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
         fold_x, fold_y, verification_x, verification_y = create_fold(x, y, split_size, seed)
         classifier = KNN(fold_x, fold_y, k)
         result_y = classifier.predict(verification_x)
-        accuracies.append(calculate_accuracy(result_y, verification_y))
+        accuracies.append(calculate_accuracy(result_y, verification_y).item())
     return accuracies
 
 
-print(verify_algorithm(X, Y, 5, 30, 5))
+print(verify_algorithm(X, Y, 1, 30, 5, 1))

@@ -1,6 +1,6 @@
 import torch
 
-from . import operations
+from . import _operations
 
 __all__ = ["exp", "expm1", "exp2", "log", "log2", "log10", "log1p", "sqrt"]
 
@@ -28,7 +28,7 @@ def exp(x, out=None):
     >>> ht.exp(ht.arange(5))
     tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
     """
-    return operations.__local_op(torch.exp, x, out)
+    return _operations.__local_op(torch.exp, x, out)
 
 
 def expm1(x, out=None):
@@ -54,7 +54,7 @@ def expm1(x, out=None):
     >>> ht.expm1(ht.arange(5)) + 1.
     tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
     """
-    return operations.__local_op(torch.expm1, x, out)
+    return _operations.__local_op(torch.expm1, x, out)
 
 
 def exp2(x, out=None):
@@ -84,7 +84,7 @@ def exp2(x, out=None):
     def local_exp2(xl, outl=None):
         return torch.pow(2, xl, out=outl)
 
-    return operations.__local_op(local_exp2, x, out)
+    return _operations.__local_op(local_exp2, x, out)
 
 
 def log(x, out=None):
@@ -113,7 +113,7 @@ def log(x, out=None):
     >>> ht.log(ht.arange(5))
     tensor([  -inf, 0.0000, 0.6931, 1.0986, 1.3863])
     """
-    return operations.__local_op(torch.log, x, out)
+    return _operations.__local_op(torch.log, x, out)
 
 
 def log2(x, out=None):
@@ -139,7 +139,7 @@ def log2(x, out=None):
     >>> ht.log2(ht.arange(5))
     tensor([  -inf, 0.0000, 1.0000, 1.5850, 2.0000])
     """
-    return operations.__local_op(torch.log2, x, out)
+    return _operations.__local_op(torch.log2, x, out)
 
 
 def log10(x, out=None):
@@ -165,7 +165,7 @@ def log10(x, out=None):
     >>> ht.log10(ht.arange(5))
     tensor([  -inf, 0.0000, 0.3010, 0.4771, 0.6021])
     """
-    return operations.__local_op(torch.log10, x, out)
+    return _operations.__local_op(torch.log10, x, out)
 
 
 def log1p(x, out=None):
@@ -191,7 +191,7 @@ def log1p(x, out=None):
     >>> ht.log1p(ht.arange(5))
     array([0., 0.69314718, 1.09861229, 1.38629436, 1.60943791])
     """
-    return operations.__local_op(torch.log1p, x, out)
+    return _operations.__local_op(torch.log1p, x, out)
 
 
 def sqrt(x, out=None):
@@ -219,4 +219,4 @@ def sqrt(x, out=None):
     >>> ht.sqrt(ht.arange(-5, 0))
     tensor([nan, nan, nan, nan, nan])
     """
-    return operations.__local_op(torch.sqrt, x, out)
+    return _operations.__local_op(torch.sqrt, x, out)

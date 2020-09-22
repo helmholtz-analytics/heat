@@ -6,6 +6,7 @@ import warnings
 from .communication import MPI, MPI_WORLD
 from . import factories
 from . import stride_tricks
+from . import sanitation
 from . import dndarray
 from . import types
 
@@ -13,7 +14,7 @@ __all__ = []
 __BOOLEAN_OPS = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
 
 
-def __binary_op(operation, t1, t2):
+def __binary_op(operation, t1, t2, out=None):
     """
     Generic wrapper for element-wise binary operations of two operands (either can be tensor or scalar).
     Takes the operation function and the two operands involved in the operation as arguments.
@@ -127,6 +128,10 @@ def __binary_op(operation, t1, t2):
     else:
         raise NotImplementedError("Not implemented for non scalar")
 
+    # sanitize output
+    if out is not None:
+        sanitation.sanitize_out(out, output_shape, output_split, output_device)
+
     promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
     if t1.split is not None:
         if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
@@ -150,6 +155,13 @@ def __binary_op(operation, t1, t2):
 
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result)
+
+    if out is not None:
+        out_dtype = out.dtype
+        out._DNDarray__array = result
+        out._DNDarray__comm = output_comm
+        out = out.astype(out_dtype)
+        return out
 
     return dndarray.DNDarray(
         result, output_shape, types.heat_type_of(result), output_split, output_device, output_comm
@@ -232,7 +244,7 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
     )
 
     if x.split is not None and axis == x.split:
-        indices = torch.tensor([cumop.shape[axis] - 1])
+        indices = torch.tensor([cumop.shape[axis] - 1], device=cumop.device)
         send = (
             torch.index_select(cumop, axis, indices)
             if indices[0] >= 0
@@ -240,12 +252,14 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
                 cumop.shape[:axis] + torch.Size([1]) + cumop.shape[axis + 1 :],
                 neutral,
                 dtype=cumop.dtype,
+                device=cumop.device,
             )
         )
         recv = torch.full(
             cumop.shape[:axis] + torch.Size([1]) + cumop.shape[axis + 1 :],
             neutral,
             dtype=cumop.dtype,
+            device=cumop.device,
         )
 
         x.comm.Exscan(send, recv, exscan_op)

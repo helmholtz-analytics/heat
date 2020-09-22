@@ -11,7 +11,7 @@ from . import linalg
 from . import stride_tricks
 from . import tiling
 from . import types
-from . import operations
+from . import _operations
 
 
 __all__ = [
@@ -911,7 +911,7 @@ def hstack(tup):
     return concatenate(tup, axis=axis)
 
 
-def reshape(a, shape, axis=None):
+def reshape(a, shape, new_split=None):
     """
     Returns a tensor with the same data and number of elements as a, but with the specified shape.
 
@@ -921,8 +921,8 @@ def reshape(a, shape, axis=None):
         The input tensor
     shape : tuple, list
         Shape of the new tensor
-    axis : int, optional
-        The new split axis. None denotes same axis
+    new_split : int, optional
+        The new split axis if `a` is a split DNDarray. None denotes same axis.
         Default : None
 
     Returns
@@ -953,10 +953,10 @@ def reshape(a, shape, axis=None):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
     if not isinstance(shape, (list, tuple)):
         raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
-        # check axis parameter
-    if axis is None:
-        axis = a.split
-    stride_tricks.sanitize_axis(shape, axis)
+        # check new_split parameter
+    if new_split is None:
+        new_split = a.split
+    stride_tricks.sanitize_axis(shape, new_split)
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
     # Check the type of shape and number elements
     shape = stride_tricks.sanitize_shape(shape)
@@ -1005,21 +1005,21 @@ def reshape(a, shape, axis=None):
         )
 
     # Create new flat result tensor
-    _, local_shape, _ = a.comm.chunk(shape, axis)
+    _, local_shape, _ = a.comm.chunk(shape, new_split)
     data = torch.empty(local_shape, dtype=tdtype, device=tdevice).flatten()
 
     # Calculate the counts and displacements
     _, old_displs, _ = a.comm.counts_displs_shape(a.shape, a.split)
-    _, new_displs, _ = a.comm.counts_displs_shape(shape, axis)
+    _, new_displs, _ = a.comm.counts_displs_shape(shape, new_split)
 
     old_displs += (a.shape[a.split],)
-    new_displs += (shape[axis],)
+    new_displs += (shape[new_split],)
 
     sendsort, sendcounts, senddispls = reshape_argsort_counts_displs(
-        a.shape, a.lshape, old_displs, a.split, shape, new_displs, axis, a.comm
+        a.shape, a.lshape, old_displs, a.split, shape, new_displs, new_split, a.comm
     )
     recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(
-        shape, local_shape, new_displs, axis, a.shape, old_displs, a.split, a.comm
+        shape, local_shape, new_displs, new_split, a.shape, old_displs, a.split, a.comm
     )
 
     # rearange order
@@ -1033,7 +1033,7 @@ def reshape(a, shape, axis=None):
     # Reshape local tensor
     data = data.reshape(local_shape)
 
-    return factories.array(data, dtype=a.dtype, is_split=axis, device=a.device, comm=a.comm)
+    return factories.array(data, dtype=a.dtype, is_split=new_split, device=a.device, comm=a.comm)
 
 
 def rot90(m, k=1, axes=(0, 1)):
@@ -2235,19 +2235,23 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         if dim == a.split:
             offset, _, _ = a.comm.chunk(shape, a.split)
             indices = indices.clone()
-            indices += torch.tensor(offset * a.comm.rank, dtype=indices.dtype)
+            indices += torch.tensor(
+                offset * a.comm.rank, dtype=indices.dtype, device=indices.device
+            )
 
         local_shape = list(result.shape)
         local_shape_len = len(shape)
 
-        metadata = torch.tensor([k, dim, largest, sorted, local_shape_len, *local_shape])
+        metadata = torch.tensor(
+            [k, dim, largest, sorted, local_shape_len, *local_shape], device=indices.device
+        )
         send_buffer = torch.cat(
             (metadata.double(), result.double().flatten(), indices.flatten().double())
         )
 
         return send_buffer
 
-    gres = operations.__reduce_op(
+    gres = _operations.__reduce_op(
         a,
         local_topk,
         MPI_TOPK,

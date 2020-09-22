@@ -10,11 +10,12 @@ from .io import *
 from .logical import *
 from .manipulations import *
 from .memory import *
-from .operations import *
+from ._operations import *
 from .printing import *
 from . import random
 from .relational import *
 from .rounding import *
+from .sanitation import *
 from .statistics import *
 from .dndarray import *
 from .tiling import *
