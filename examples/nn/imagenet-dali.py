@@ -102,6 +102,14 @@ def parse():
         help="mini-batch size per process (default: 256)",
     )
     parser.add_argument(
+        "-s",
+        "--batch-skip",
+        default=2,
+        type=int,
+        metavar="N",
+        help="number of batches between global parameter synchronizations",
+    )
+    parser.add_argument(
         "--lr",
         "--learning-rate",
         default=0.1,
@@ -352,7 +360,7 @@ def main():
     # create DP optimizer and model:
     blocking = False  # choose blocking or non-blocking parameter updates
     dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
-    skip_batches = 2
+    skip_batches = args.batch_skip
     htmodel = ht.nn.DataParallelMultiGPU(
         model,
         ht.MPI_WORLD,
