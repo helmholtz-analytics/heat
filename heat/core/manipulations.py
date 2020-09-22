@@ -1502,29 +1502,37 @@ def split(ary, indices_or_sections, axis=0):
         if isinstance(indices_or_sections, int):
             sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
         else:
-            if indices_or_sections.split is None:
-                # np to torch mapping
-
-                # 1. replace all values out of range with gshape[axis] to generate size 0
-                indices_or_sections_t = indexing.where(
-                    indices_or_sections <= ary.gshape[axis], indices_or_sections, ary.gshape[axis]
+            if indices_or_sections.split is not None:
+                warnings.warn(
+                    "`indices_or_sections` might not be distributed (along axis {}) if `ary` is not distributed.\n"
+                    "`indices_or_sections` will be copied with new split axis None.".format(
+                        indices_or_sections.split
+                    )
                 )
+                indices_or_sections = resplit(indices_or_sections, None)
 
-                # 2. add first and last value to DNDarray
-                additional_zero = factories.array([0])
-                additional_length = factories.array([ary.gshape[axis]])
-                indices_or_sections_t = concatenate(
-                    [additional_zero, indices_or_sections_t, additional_length]
-                )
+            # np to torch mapping
 
-                # 3. calculate the 1-st discrete difference therefore corresponding chunk sizes
-                indices_or_sections_t = arithmetics.diff(indices_or_sections_t)
+            # 1. replace all values out of range with gshape[axis] to generate size 0
+            indices_or_sections_t = indexing.where(
+                indices_or_sections <= ary.gshape[axis], indices_or_sections, ary.gshape[axis]
+            )
 
-                # 4. transform the result into a list (torch requirement)
-                indices_or_sections_t = [int(ele) for ele in indices_or_sections_t]
-            # indices_or_sections distributed
-            else:  # TODO
-                pass
+            # 2. add first and last value to DNDarray
+            # 3. calculate the 1-st discrete difference therefore corresponding chunk sizes
+            indices_or_sections_t = arithmetics.diff(
+                indices_or_sections_t, prepend=0, append=ary.gshape[axis]
+            )
+            indices_or_sections_t = factories.array(
+                indices_or_sections_t,
+                dtype=types.int64,
+                is_split=indices_or_sections_t.split,
+                comm=indices_or_sections_t.comm,
+                device=indices_or_sections_t.device,
+            )
+
+            # 4. transform the result into a list (torch requirement)
+            indices_or_sections_t = indices_or_sections_t.tolist()
 
             sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
 

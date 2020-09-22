@@ -1403,6 +1403,14 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = distributed DNDarray
+        result = ht.split(data_ht, ht.array([0, 1], split=0))
+        comparison = np.split(data_np, np.array([0, 1]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
 
         # ====================================
         # axis != 0 (2 in this case)
