@@ -126,6 +126,49 @@ class TestDNDarray(TestCase):
             # exception for too large halos
             with self.assertRaises(ValueError):
                 data.get_halo(4)
+            # exception on non balanced tensor
+            with self.assertRaises(RuntimeError):
+                if data.comm.rank == 1:
+                    data._DNDarray__array = torch.empty(0)
+                data.get_halo(1)
+
+            # test no data on process
+            data_np = np.arange(2 * 12).reshape(2, 12)
+            data = ht.array(data_np, split=0)
+            data.get_halo(1)
+
+            data_with_halos = data.array_with_halos
+
+            if data.comm.rank == 0:
+                self.assertTrue(data.halo_prev is None)
+                self.assertTrue(data.halo_next is not None)
+                self.assertEqual(data_with_halos.shape, (2, 12))
+            if data.comm.rank == 1:
+                self.assertTrue(data.halo_prev is not None)
+                self.assertTrue(data.halo_next is None)
+                self.assertEqual(data_with_halos.shape, (2, 12))
+            if data.comm.rank == 2:
+                self.assertTrue(data.halo_prev is None)
+                self.assertTrue(data.halo_next is None)
+                self.assertEqual(data_with_halos.shape, (0, 12))
+
+            data = data.reshape((12, 2), axis=1)
+            data.get_halo(1)
+
+            data_with_halos = data.array_with_halos
+
+            if data.comm.rank == 0:
+                self.assertTrue(data.halo_prev is None)
+                self.assertTrue(data.halo_next is not None)
+                self.assertEqual(data_with_halos.shape, (12, 2))
+            if data.comm.rank == 1:
+                self.assertTrue(data.halo_prev is not None)
+                self.assertTrue(data.halo_next is None)
+                self.assertEqual(data_with_halos.shape, (12, 2))
+            if data.comm.rank == 2:
+                self.assertTrue(data.halo_prev is None)
+                self.assertTrue(data.halo_next is None)
+                self.assertEqual(data_with_halos.shape, (12, 0))
 
     def test_astype(self):
         data = ht.float32([[1, 2, 3], [4, 5, 6]])
