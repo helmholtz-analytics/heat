@@ -1,11 +1,7 @@
-import unittest
-import os
-
+import numpy as np
 import torch
 
 import heat as ht
-import numpy as np
-
 from .test_suites.basic_test import TestCase
 
 
@@ -249,6 +245,13 @@ class TestRandom(TestCase):
         self.assertTrue(4900 < median < 5100)
         self.assertTrue(std < 2900)
 
+        # test aliases
+        ht.random.seed(234)
+        a = ht.random.randint(10, 50)
+        ht.random.seed(234)
+        b = ht.random.random_integer(10, 50)
+        self.assertTrue(ht.equal(a, b))
+
     def test_randn(self):
         # Test that the random values have the correct distribution
         ht.random.seed(54321)
@@ -313,6 +316,29 @@ class TestRandom(TestCase):
         c = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2).numpy()
         self.assertFalse(np.allclose(a, c))
         self.assertFalse(np.allclose(b, c))
+
+    def test_random_sample(self):
+        # short test
+        # compare random and aliases with rand
+        ht.random.seed(534)
+        a = ht.random.rand(6, 2, 3)
+        ht.random.seed(534)
+        b = ht.random.random((6, 2, 3))
+        ht.random.seed(534)
+        c = ht.random.random_sample((6, 2, 3))
+        ht.random.seed(534)
+        d = ht.random.ranf((6, 2, 3))
+        ht.random.seed(534)
+        e = ht.random.sample((6, 2, 3))
+
+        self.assertTrue(ht.equal(a, b))
+        self.assertTrue(ht.equal(a, c))
+        self.assertTrue(ht.equal(a, d))
+        self.assertTrue(ht.equal(a, e))
+
+        # empty input
+        a = ht.random.random_sample()
+        self.assertEqual(a.shape, (1,))
 
     def test_set_state(self):
         ht.random.set_state(("Threefry", 12345, 0xFFF))

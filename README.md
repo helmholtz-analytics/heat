@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/logo.png">
+  <img src="doc/images/logo.png">
 </div>
 
 ---
@@ -66,7 +66,7 @@ Tagged releases are made available on the
 [Python Package Index (PyPI)](https://pypi.org/project/heat/). You can typically
 install the latest version with
 
-> $ pip install heat[hdf5, netcdf]
+> $ pip install heat[hdf5,netcdf]
 
 where the part in brackets is a list of optional dependencies. You can omit
 it, if you do not need HDF5 or NetCDF support.
@@ -74,25 +74,15 @@ it, if you do not need HDF5 or NetCDF support.
 Hacking
 -------
 
-If you want to work with the development version, you can checkout the sources using
+If you want to work with the development version, you can check out the sources using
 
 > $ git clone https://github.com/helmholtz-analytics/heat.git
 
-The installation can then be done from the checked out sources with
+The installation can then be done from the checked-out sources with
 
-> $ pip install .[hdf5, netcdf, dev]
+> $ pip install .[hdf5,netcdf,dev]
 
-The extra `dev` dependency pulls in additional tools to support the enforcement
-of coding conventions ([Black](https://github.com/psf/black)) and to support a
-pre-commit hook to do the same. In order to fully use this framework, please
-also install the pre-commit hook with
-
-> $ pre-commit install
-
-In order to check compliance of your changes before even trying to commit anything,
-you can run
-
-> $ pre-commit run --all-files
+We welcome contributions from the community, please check out our [Contribution Guidelines](contributing.md) before getting started!
 
 License
 -------
@@ -110,3 +100,9 @@ under project number ZT-I-0003.*
 *This work is supported by the [Helmholtz Association Initiative and
 Networking Fund](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
 under the Helmholtz AI platform grant.*
+
+---
+
+<div align="center">
+  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="doc/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="doc/images/kit_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.helmholtz.de/en/"><img src="doc/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
+</div>

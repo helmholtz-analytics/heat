@@ -1,7 +1,4 @@
-import unittest
-import os
 import heat as ht
-
 from .test_suites.basic_test import TestCase
 
 

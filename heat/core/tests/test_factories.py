@@ -1,8 +1,6 @@
-import unittest
 import torch
-import os
-import heat as ht
 
+import heat as ht
 from .test_suites.basic_test import TestCase
 
 
@@ -24,8 +22,8 @@ class TestFactories(TestCase):
         self.assertIsInstance(one_arg_arange_float, ht.DNDarray)
         self.assertEqual(one_arg_arange_float.shape, (10,))
         self.assertLessEqual(one_arg_arange_float.lshape[0], 10)
-        self.assertEqual(one_arg_arange_float.dtype, ht.int32)
-        self.assertEqual(one_arg_arange_float._DNDarray__array.dtype, torch.int32)
+        self.assertEqual(one_arg_arange_float.dtype, ht.float32)
+        self.assertEqual(one_arg_arange_float._DNDarray__array.dtype, torch.float32)
         self.assertEqual(one_arg_arange_float.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(one_arg_arange_float.sum(), 45.0)

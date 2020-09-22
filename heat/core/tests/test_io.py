@@ -1,11 +1,8 @@
 import numpy as np
 import os
-import tempfile
 import torch
-import unittest
 
 import heat as ht
-
 from .test_suites.basic_test import TestCase
 
 
@@ -13,12 +10,13 @@ class TestIO(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestIO, cls).setUpClass()
+        pwd = os.getcwd()
         cls.HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.h5")
-        cls.HDF5_OUT_PATH = os.path.join(tempfile.gettempdir(), "test.h5")
+        cls.HDF5_OUT_PATH = pwd + "/test.h5"
         cls.HDF5_DATASET = "data"
 
         cls.NETCDF_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.nc")
-        cls.NETCDF_OUT_PATH = os.path.join(tempfile.gettempdir(), "test.nc")
+        cls.NETCDF_OUT_PATH = pwd + "/test.nc"
         cls.NETCDF_VARIABLE = "data"
 
         # load comparison data from csv
@@ -45,6 +43,7 @@ class TestIO(TestCase):
                 os.remove(self.NETCDF_OUT_PATH)
             except FileNotFoundError:
                 pass
+        # if ht.MPI_WORLD.rank == 0:
 
         # synchronize all nodes
         ht.MPI_WORLD.Barrier()
@@ -437,3 +436,10 @@ class TestIO(TestCase):
             ht.save_netcdf(data, 1, self.NETCDF_VARIABLE)
         with self.assertRaises(TypeError):
             ht.save_netcdf(data, self.NETCDF_PATH, 1)
+
+    # def test_remove_folder(self):
+    # ht.MPI_WORLD.Barrier()
+    # try:
+    #     os.rmdir(os.getcwd() + '/tmp/')
+    # except OSError:
+    #     pass
