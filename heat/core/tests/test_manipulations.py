@@ -1796,9 +1796,45 @@ class TestManipulations(TestCase):
             self.assertIsInstance(result[i], ht.DNDarray)
             self.assertTrue((ht.array(comparison[i]) == result[i]).all())
 
-        if data_ht.comm.size > 1:
-            with self.assertRaises(ValueError):
-                ht.split(data_ht, [0, 2], 0)
+        # indices_or_sections = tuple
+        result = ht.split(data_ht, (1, 3, 5))
+        comparison = np.split(data_np, (1, 3, 5))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = list
+        result = ht.split(data_ht, [1, 3, 5])
+        comparison = np.split(data_np, [1, 3, 5])
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = undistributed DNDarray
+        result = ht.split(data_ht, ht.array([1, 3, 5]))
+        comparison = np.split(data_np, np.array([1, 3, 5]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = distributed DNDarray
+        result = ht.split(data_ht, ht.array([1, 3, 5], split=0))
+        comparison = np.split(data_np, np.array([1, 3, 5]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
 
         # ====================================
         # axis != ary.split

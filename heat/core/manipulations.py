@@ -1860,7 +1860,9 @@ def split(ary, indices_or_sections, axis=0):
 
     if ary.split == axis and ary.split is not None and ary.comm.size > 1:
 
-        if isinstance(indices_or_sections, int):
+        if isinstance(
+            indices_or_sections, int
+        ):  # TODO eventually use x.comm.counts_displs (easier solution)
             # CASE 0 number of processes == indices_or_selections -> split already done due to distribution
             if ary.comm.size == indices_or_sections:
                 new_lshape = list(ary.lshape)
@@ -1897,7 +1899,7 @@ def split(ary, indices_or_sections, axis=0):
                             idx_block : (left_blocks_to_fill + idx_block)
                         ] = indices_or_sections_t
 
-                        # assign residuate to following process
+                        # assign residual to following process
                         new_indices[left_blocks_to_fill + idx_block] = (
                             left_data_process % indices_or_sections_t
                         )
@@ -1905,10 +1907,61 @@ def split(ary, indices_or_sections, axis=0):
                     sub_arrays_t = torch.split(ary._DNDarray__array, new_indices.tolist(), axis)
         # indices or sections == DNDarray
         else:
-            raise ValueError(
-                "Split can only be applied to undistributed tensors if `ary.split` == `axis`.\n"
-                "Split axis {} is not allowed for `ary` in this case.".format(ary.split)
+            if indices_or_sections.split is not None:
+                warnings.warn(
+                    "`indices_or_sections` might not be distributed (along axis {}) if `ary` is not distributed.\n"
+                    "`indices_or_sections` will be copied with new split axis None.".format(
+                        indices_or_sections.split
+                    )
+                )
+                indices_or_sections = resplit(indices_or_sections, None)
+
+            offset, local_shape, slices = ary.comm.chunk(ary.gshape, axis)
+
+            # np to torch mapping
+
+            # 1. replace all values out of range with gshape[axis] to generate size 0
+            indices_or_sections_t = indexing.where(
+                indices_or_sections <= ary.gshape[axis], indices_or_sections, ary.gshape[axis]
             )
+
+            # 2. add first and last value to DNDarray
+            # 3. calculate the 1-st discrete difference therefore corresponding chunk sizes
+            indices_or_sections_t = arithmetics.diff(
+                indices_or_sections_t, prepend=0, append=ary.gshape[axis]
+            )
+            indices_or_sections_t = factories.array(
+                indices_or_sections_t,
+                dtype=types.int64,
+                is_split=indices_or_sections_t.split,
+                comm=indices_or_sections_t.comm,
+                device=indices_or_sections_t.device,
+            )
+
+            # 4. transform the result into a list (torch requirement)
+            indices_or_sections_t = indices_or_sections_t.tolist()
+
+            left_data_process = ary.lshape[axis]
+
+            # 5. subtract already split data on a different process
+            for i in range(len(indices_or_sections_t)):
+                if offset != 0 and offset - indices_or_sections_t[i] >= 0:
+                    offset -= indices_or_sections_t[i]
+                    indices_or_sections_t[i] = 0
+                else:
+                    if offset != 0:
+                        indices_or_sections_t[i] -= offset
+                        offset = 0
+                    if left_data_process - indices_or_sections_t[i] >= 0:
+                        left_data_process -= indices_or_sections_t[i]
+                    else:
+                        indices_or_sections_t[i] = left_data_process
+                        indices_or_sections_t[i + 1 :] = [0] * (
+                            len(indices_or_sections_t) - (i + 1)
+                        )
+                        break
+
+            sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
     else:
         if isinstance(indices_or_sections, int):
             sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
