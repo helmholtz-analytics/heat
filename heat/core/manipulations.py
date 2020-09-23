@@ -1513,11 +1513,36 @@ def split(ary, indices_or_sections, axis=0):
 
     # start of actual algorithm
 
-    if ary.split == axis:
-        raise ValueError(
-            "Split can only be applied to undistributed tensors if `ary.split` == `axis`.\n"
-            "Split axis {} is not allowed for `ary` in this case.".format(ary.split)
-        )
+    if ary.split == axis and ary.split is not None:
+        # CASE 0 number of processes == indices_or_selections -> split already done due to distribution
+        if isinstance(indices_or_sections, int) and ary.comm.size == indices_or_sections:
+            new_lshape = list(ary.lshape)
+            new_lshape[axis] = 0
+            sub_arrays_t = [
+                torch.empty(new_lshape) if i != ary.comm.rank else ary._DNDarray__array
+                for i in range(indices_or_sections)
+            ]
+
+        # CASE 1 number of processes > tensor-chunk size -> reorder chunks correctly
+        elif isinstance(indices_or_sections, int) and ary.comm.size > indices_or_sections:
+            # no data
+            if ary.lshape[axis] == 0:
+                sub_arrays_t = [torch.empty(ary.lshape) for i in range(indices_or_sections_t)]
+            # already correctly split
+            elif indices_or_sections_t == ary.lshape[axis]:
+                sub_arrays_t = [
+                    torch.empty(ary.lshape) if i != ary.comm.rank else ary._DNDarray__array
+                    for i in range(indices_or_sections)
+                ]
+            # chunks too small
+            else:
+                pass
+
+        else:
+            raise ValueError(
+                "Split can only be applied to undistributed tensors if `ary.split` == `axis`.\n"
+                "Split axis {} is not allowed for `ary` in this case.".format(ary.split)
+            )
     else:
         if isinstance(indices_or_sections, int):
             sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
