@@ -1870,51 +1870,40 @@ def split(ary, indices_or_sections, axis=0):
                     for i in range(indices_or_sections)
                 ]
 
-            # CASE 1 number of processes > tensor-chunk size -> reorder (and split) chunks correctly
-            elif ary.comm.size > indices_or_sections:
+            # # CASE 1 number of processes > tensor-chunk size -> reorder (and split) chunks correctly
+            # # CASE 2 number of processes < tensor-chunk size -> reorder (and split) chunks correctly
+            else:
                 # no data
                 if ary.lshape[axis] == 0:
                     sub_arrays_t = [torch.empty(ary.lshape) for i in range(indices_or_sections)]
-                # calculate mapped list
                 else:
                     offset, local_shape, slices = ary.comm.chunk(ary.gshape, axis)
                     idx_block = offset // indices_or_sections_t
                     left_data_block = indices_or_sections_t - (offset % indices_or_sections_t)
+                    left_data_process = ary.lshape[axis]
 
-                    # put all available data on process on concerned block
-                    if left_data_block >= ary.lshape[axis]:
-                        new_lshape = list(ary.lshape)
-                        new_lshape[axis] = 0
-                        sub_arrays_t = [
-                            torch.empty(new_lshape) if i != idx_block else ary._DNDarray__array
-                            for i in range(indices_or_sections)
-                        ]
-                    else:
-                        new_indices = torch.zeros(indices_or_sections, dtype=int)
-                        new_indices[idx_block] = left_data_block
-                        new_indices[idx_block + 1] = ary.gshape[axis] - left_data_block
+                    new_indices = torch.zeros(indices_or_sections, dtype=int)
 
-                        sub_arrays_t = torch.split(ary._DNDarray__array, new_indices.tolist(), axis)
-            # CASE 2 number of processes < tensor-chunk size -> reorder (and split) chunks correctly
-            elif ary.comm.size < indices_or_sections:
-                offset, local_shape, slices = ary.comm.chunk(ary.gshape, axis)
-                idx_block = offset // indices_or_sections_t
-                left_data_block = indices_or_sections_t - (offset % indices_or_sections_t)
-                left_data_process = ary.lshape[axis]
-
-                new_indices = torch.zeros(indices_or_sections, dtype=int)
-
-                for i in range(idx_block, indices_or_sections):
                     if left_data_block >= left_data_process:
                         new_indices[idx_block] = left_data_process
-                        break
                     else:
                         new_indices[idx_block] = left_data_block
                         left_data_process -= left_data_block
                         idx_block += 1
-                        left_data_block = indices_or_sections_t
 
-                sub_arrays_t = torch.split(ary._DNDarray__array, new_indices.tolist(), axis)
+                        # calculate blocks which can be filled completely
+                        left_blocks_to_fill = left_data_process // indices_or_sections_t
+                        new_indices[
+                            idx_block : (left_blocks_to_fill + idx_block)
+                        ] = indices_or_sections_t
+
+                        # assign residuate to following process
+                        new_indices[left_blocks_to_fill + idx_block] = (
+                            left_data_process % indices_or_sections_t
+                        )
+
+                    sub_arrays_t = torch.split(ary._DNDarray__array, new_indices.tolist(), axis)
+        # indices or sections == DNDarray
         else:
             raise ValueError(
                 "Split can only be applied to undistributed tensors if `ary.split` == `axis`.\n"
