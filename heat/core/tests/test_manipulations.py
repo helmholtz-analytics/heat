@@ -1796,6 +1796,15 @@ class TestManipulations(TestCase):
                 self.assertIsInstance(result[i], ht.DNDarray)
                 self.assertTrue((ht.array(comparison[i]) == result[i]).all())
                 # self.assert_array_equal(result[i], comparison[i])
+        if data_ht.comm.size > 2:  # TODO generalize
+            result = ht.split(data_ht, 2)
+            comparison = np.split(data_np, 2)
+
+            self.assertTrue(len(result) == len(comparison))
+
+            for i in range(len(result)):
+                self.assertIsInstance(result[i], ht.DNDarray)
+                self.assertTrue((ht.array(comparison[i]) == result[i]).all())
 
         with self.assertRaises(ValueError):
             ht.split(data_ht, [0, 2], 0)
