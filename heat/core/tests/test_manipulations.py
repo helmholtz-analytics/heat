@@ -1014,6 +1014,333 @@ class TestManipulations(TestCase):
         res = ht.hstack((a, b))
         self.assertEqual(res.shape, (24,))
 
+    def test_pad(self):
+        # ======================================
+        # test padding of non-distributed tensor
+        # ======================================
+
+        data = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
+        data_ht = ht.array(data, device=self.device)
+        data_np = data_ht.numpy()
+
+        # padding with default (0 for all dimensions)
+        pad_torch = torch.nn.functional.pad(data, (1, 2, 1, 0, 2, 1))
+        pad_ht = ht.pad(data_ht, pad_width=((2, 1), (1, 0), (1, 2)))
+
+        self.assert_array_equal(pad_ht, pad_torch)
+        self.assertIsInstance(pad_ht, ht.DNDarray)
+
+        # padding with other values than default
+        pad_numpy = np.pad(
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
+        )
+        pad_ht = ht.pad(
+            data_ht,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        # shortcuts pad_width===================================
+        pad_numpy = np.pad(
+            data_np, pad_width=((2, 1),), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=((2, 1),), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np, pad_width=(2,), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=(2,), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np, pad_width=2, mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=2, mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        # pad_width datatype list===================================
+        # padding with default (0 for all dimensions)
+        pad_torch = torch.nn.functional.pad(data, (1, 2, 1, 0, 2, 1))
+        pad_ht = ht.pad(data_ht, pad_width=((2, 1), [1, 0], [1, 2]))
+
+        self.assert_array_equal(pad_ht, pad_torch)
+
+        # padding with other values than default
+        pad_numpy = np.pad(
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
+        )
+        pad_ht = ht.pad(
+            data_ht,
+            pad_width=[(2, 1), (1, 0), (1, 2)],
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        # shortcuts constant_values===================================
+
+        pad_numpy = np.pad(
+            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=((0, 3),)
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=((0, 3),)
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(0, 3)
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(0, 3)
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(3,)
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(3,)
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=4
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=4
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        # values datatype list/int/float===================================
+        pad_numpy = np.pad(
+            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=2
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=[(2, 1), (1, 0), (1, 2)], mode="constant", constant_values=2
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=1.2
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=[(2, 1), (1, 0), (1, 2)], mode="constant", constant_values=1.2
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(2,)
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=[(2, 1), (1, 0), (1, 2)], mode="constant", constant_values=(2,)
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
+        )
+        pad_ht = ht.pad(
+            data_ht,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=([0, 3], [1, 4], (2, 5)),
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
+        )
+        pad_ht = ht.pad(
+            data_ht,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=[(0, 3), (1, 4), (2, 5)],
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        # ==================================
+        # test padding of distributed tensor
+        # ==================================
+
+        # rank = ht.MPI_WORLD.rank
+        data_ht_split = ht.array(data, split=0, device=self.device)
+
+        # padding in split dimension
+        pad_np_split = np.pad(
+            data_np, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
+        pad_ht_split = ht.pad(
+            data_ht_split,
+            pad_width=(2, 1),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
+        )
+
+        self.assert_array_equal(pad_ht_split, pad_np_split)
+
+        # padding in split dimension, constant_values = int
+        pad_np_split = np.pad(data_np, pad_width=(2, 1), mode="constant", constant_values=2)
+        pad_ht_split = ht.pad(data_ht_split, pad_width=(2, 1), mode="constant", constant_values=2)
+
+        self.assert_array_equal(pad_ht_split, pad_np_split)
+
+        # padding in split dimension, constant_values = [int,]
+        pad_np_split = np.pad(data_np, pad_width=(2, 1), mode="constant", constant_values=[2])
+        pad_ht_split = ht.pad(data_ht_split, pad_width=(2, 1), mode="constant", constant_values=[2])
+
+        self.assert_array_equal(pad_ht_split, pad_np_split)
+
+        # padding in non split dimension
+        # weird syntax necessary due to np restrictions (tuples for every axis obligatory apart from shortcuts)
+        pad_np_split = np.pad(
+            data_np,
+            pad_width=((0, 0), (2, 1), (1, 0)),
+            mode="constant",
+            constant_values=((-1, 1), (0, 3), (1, 4)),
+        )
+        pad_ht_split = ht.pad(
+            data_ht_split,
+            pad_width=((2, 1), (1, 0)),
+            mode="constant",
+            constant_values=((0, 3), (1, 4)),
+        )
+
+        self.assert_array_equal(pad_ht_split, pad_np_split)
+
+        # shortcuts constant_values===================================
+
+        pad_numpy = np.pad(
+            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=((0, 3),)
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=((0, 3),)
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(0, 3)
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(0, 3)
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(3,)
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(3,)
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        pad_numpy = np.pad(
+            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=4
+        )
+        pad_ht = ht.pad(
+            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=4
+        )
+        self.assert_array_equal(pad_ht, pad_numpy)
+
+        # exceptions===================================
+
+        with self.assertRaises(TypeError):
+            ht.pad("[[3, 4, 5],[6,7,8]]", 3)
+        with self.assertRaises(TypeError):
+            ht.pad(data_ht, "(1,3)")
+        with self.assertRaises(TypeError):
+            ht.pad(data_ht, 3, mode=["constant"])
+        with self.assertRaises(TypeError):
+            ht.pad(data_ht, pad_width=("(1,2),",))
+        with self.assertRaises(TypeError):
+            ht.pad(data_ht, ((1, 2), "(3,4)", (5, 6)))
+        with self.assertRaises(TypeError):
+            ht.pad(
+                data_ht,
+                ((2, 1), (1, 0), (1, 2)),
+                mode="constant",
+                constant_values=((0, 3), "(1, 4)", (2, 5)),
+            )
+        with self.assertRaises(ValueError):
+            ht.pad(data_ht, ((1, 2, 3),))
+        with self.assertRaises(ValueError):
+            ht.pad(data_ht, ((1, 2), (3, 4, 5), (6, 7)))
+        with self.assertRaises(ValueError):
+            ht.pad(data_ht, ((2, 1), (1, 0), (1, 2), (1, 2)))
+        with self.assertRaises(ValueError):
+            ht.pad(
+                data_ht,
+                ((1, 2), (3, 4), (0, 1)),
+                mode="constant",
+                constant_values=((0, 3), (1, 4), (2, 5, 1)),
+            )
+
+        # =========================================
+        # test padding of large distributed tensor
+        # =========================================
+
+        data = torch.arange(8 * 3 * 4).reshape(8, 3, 4)
+        data_ht_split = ht.array(data, split=0)
+        data_np = data_ht_split.numpy()
+
+        # padding in split dimension
+        pad_np_split = np.pad(
+            data_np, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+        )
+        pad_ht_split = ht.pad(
+            data_ht_split,
+            pad_width=(2, 1),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
+        )
+
+        self.assertTrue((ht.array(pad_np_split) == pad_ht_split).all())
+
+        # padding in non split dimension
+        # weird syntax necessary due to np restrictions (tuples for every axis obligatory apart from shortcuts)
+        pad_np_split = np.pad(
+            data_np,
+            pad_width=((0, 0), (2, 1), (1, 0)),
+            mode="constant",
+            constant_values=((-1, 1), (0, 3), (1, 4)),
+        )
+        pad_ht_split = ht.pad(
+            data_ht_split,
+            pad_width=((2, 1), (1, 0)),
+            mode="constant",
+            constant_values=((0, 3), (1, 4)),
+        )
+
+        self.assert_array_equal(pad_ht_split, pad_np_split)
+
     def test_reshape(self):
         # split = None
         a = ht.zeros((3, 4))

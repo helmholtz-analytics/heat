@@ -333,6 +333,39 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.average(ht_array, axis=-4)
 
+    def test_bincount(self):
+        a = ht.array([], dtype=ht.int)
+        res = ht.bincount(a)
+        self.assertEqual(res.size, 0)
+        self.assertEqual(res.dtype, ht.int64)
+
+        a = ht.arange(5)
+        res = ht.bincount(a)
+        self.assertEqual(res.size, 5)
+        self.assertEqual(res.dtype, ht.int64)
+        self.assertTrue(ht.equal(res, ht.ones((5,), dtype=ht.int64)))
+
+        w = ht.arange(5)
+        res = ht.bincount(a, weights=w)
+        self.assertEqual(res.size, 5)
+        self.assertEqual(res.dtype, ht.float64)
+        self.assertTrue(ht.equal(res, ht.arange(5, dtype=ht.float64)))
+
+        res = ht.bincount(a, minlength=8)
+        self.assertEqual(res.size, 8)
+        self.assertEqual(res.dtype, ht.int64)
+        self.assertTrue(ht.equal(res, ht.array([1, 1, 1, 1, 1, 0, 0, 0], dtype=ht.int64)))
+
+        a = ht.arange(4, split=0)
+        w = ht.arange(4, split=0)
+        res = ht.bincount(a, weights=w)
+        self.assertEqual(res.size, 4)
+        self.assertEqual(res.dtype, ht.float64)
+        self.assertTrue(ht.equal(res, ht.arange((4,), dtype=ht.float64)))
+
+        with self.assertRaises(ValueError):
+            ht.bincount(ht.array([0, 1, 2, 3], split=0), weights=ht.array([1, 2, 3, 4]))
+
     def test_cov(self):
         x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=ht.float, split=1).T
         if x.comm.size < 3:
@@ -960,8 +993,8 @@ class TestStatistics(TestCase):
             ht.minimum(random_volume_1, random_volume_2, out=output)
 
     def test_percentile(self):
-        # test local, distributed, split/axis combination, TODO no data on process, Issue #568
-        x_np = np.arange(10 * 10 * 10).reshape(10, 10, 10)
+        # test local, distributed, split/axis combination, no data on process
+        x_np = np.arange(3 * 10 * 10).reshape(3, 10, 10)
         x_ht = ht.array(x_np)
         x_ht_split0 = ht.array(x_np, split=0)
         x_ht_split1 = ht.array(x_np, split=1)

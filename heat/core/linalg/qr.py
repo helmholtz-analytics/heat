@@ -671,7 +671,7 @@ def __split0_q_loop(col, r_tiles, proc_tile_start, active_procs, q0_tiles, q_dic
     if col in q_dict_waits.keys():
         for key in q_dict_waits[col].keys():
             new_key = q_dict_waits[col][key][3] + key + "e"
-            q_dict_waits[col][key][0][1].wait()
+            q_dict_waits[col][key][0][1].Wait()
             q_dict[col][new_key] = [
                 q_dict_waits[col][key][0][0],
                 q_dict_waits[col][key][1].wait(),
@@ -728,7 +728,7 @@ def __split0_q_loop(col, r_tiles, proc_tile_start, active_procs, q0_tiles, q_dic
     for pr in range(diag_process, active_procs[-1] + 1):
         if local_merge_q[pr][1] is not None:
             # receive q from the other processes
-            local_merge_q[pr][1].wait()
+            local_merge_q[pr][1].Wait()
         if rank in active_procs:
             sum_row = sum(q0_tiles.tile_rows_per_process[:pr])
             end_row = q0_tiles.tile_rows_per_process[pr] + sum_row
@@ -790,7 +790,7 @@ def __split0_q_loop(col, r_tiles, proc_tile_start, active_procs, q0_tiles, q_dic
             )
             for ind in qi_mult[qi_col]:
                 if global_merge_dict[ind][1] is not None:
-                    global_merge_dict[ind][1].wait()
+                    global_merge_dict[ind][1].Wait()
                 lp_q = global_merge_dict[ind][0]
                 if mult_qi_col.shape[1] < lp_q.shape[1]:
                     new_mult = torch.zeros(
@@ -810,7 +810,7 @@ def __split0_q_loop(col, r_tiles, proc_tile_start, active_procs, q0_tiles, q_dic
             q0_tiles.arr.lloc[:, write_inds[2] : write_inds[2] + hold.shape[1]] = hold
     else:
         for ind in merge_dict_keys:
-            global_merge_dict[ind][1].wait()
+            global_merge_dict[ind][1].Wait()
     if col in q_dict.keys():
         del q_dict[col]
 
