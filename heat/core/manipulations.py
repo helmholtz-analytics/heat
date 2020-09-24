@@ -1799,7 +1799,7 @@ def split(ary, indices_or_sections, axis=0):
     ValueError
         If indices_or_sections is given as integer, but a split does not result in equal division.
 
-    Examples    #TODO
+    Examples
     --------
     >>> x = ht.array(12).reshape((4,3))
     >>> ht.split(x, 2)
@@ -1811,10 +1811,25 @@ def split(ary, indices_or_sections, axis=0):
     >>> ht.split(x, [2, 3, 5])
         [ DNDarray([[0, 1, 2],
                     [3, 4, 5]]),
-           DNDarray([[6, 7, 8]]
+          DNDarray([[6, 7, 8]]
           DNDarray([[ 9, 10, 11]]),
           DNDarray([])
         ]
+    >>> ht.split(x, [1, 2], 1)
+        [ DNDarray([[0],
+                    [3],
+                    [6],
+                    [9]]),
+          DNDarray([[ 1],
+                    [ 4],
+                    [ 7],
+                    [10]],
+          DNDarray([[ 2],
+                    [ 5],
+                    [ 8],
+                    [11]])
+        ]
+
     """
     # sanitize ary
     sanitation.sanitize_input(ary)
@@ -1860,9 +1875,7 @@ def split(ary, indices_or_sections, axis=0):
 
     if ary.split == axis and ary.split is not None and ary.comm.size > 1:
 
-        if isinstance(
-            indices_or_sections, int
-        ):  # TODO eventually use x.comm.counts_displs (easier solution)
+        if isinstance(indices_or_sections, int):
             # CASE 0 number of processes == indices_or_selections -> split already done due to distribution
             if ary.comm.size == indices_or_sections:
                 new_lshape = list(ary.lshape)
@@ -1943,6 +1956,7 @@ def split(ary, indices_or_sections, axis=0):
 
             left_data_process = ary.lshape[axis]
 
+            # TODO eventually restructure code and add if case here instead
             # 5. subtract already split data on a different process
             for i in range(len(indices_or_sections_t)):
                 if offset != 0 and offset - indices_or_sections_t[i] >= 0:
