@@ -1930,18 +1930,23 @@ def split(ary, indices_or_sections, axis=0):
                 indices_or_sections = resplit(indices_or_sections, None)
 
             offset, local_shape, slices = ary.comm.chunk(ary.gshape, axis)
+            slice_axis = slices[axis]
+
+            # reduce information to the (chunk) relevant
+            indices_or_sections_t = indexing.where(
+                indices_or_sections <= slice_axis.start, slice_axis.start, indices_or_sections
+            )
+
+            indices_or_sections_t = indexing.where(
+                indices_or_sections_t >= slice_axis.stop, slice_axis.stop, indices_or_sections_t
+            )
 
             # np to torch mapping
-
-            # 1. replace all values out of range with gshape[axis] to generate size 0
-            indices_or_sections_t = indexing.where(
-                indices_or_sections <= ary.gshape[axis], indices_or_sections, ary.gshape[axis]
-            )
 
             # 2. add first and last value to DNDarray
             # 3. calculate the 1-st discrete difference therefore corresponding chunk sizes
             indices_or_sections_t = arithmetics.diff(
-                indices_or_sections_t, prepend=0, append=ary.gshape[axis]
+                indices_or_sections_t, prepend=slice_axis.start, append=slice_axis.stop
             )
             indices_or_sections_t = factories.array(
                 indices_or_sections_t,
@@ -1953,27 +1958,6 @@ def split(ary, indices_or_sections, axis=0):
 
             # 4. transform the result into a list (torch requirement)
             indices_or_sections_t = indices_or_sections_t.tolist()
-
-            left_data_process = ary.lshape[axis]
-
-            # TODO eventually restructure code and add if case here instead
-            # 5. subtract already split data on a different process
-            for i in range(len(indices_or_sections_t)):
-                if offset != 0 and offset - indices_or_sections_t[i] >= 0:
-                    offset -= indices_or_sections_t[i]
-                    indices_or_sections_t[i] = 0
-                else:
-                    if offset != 0:
-                        indices_or_sections_t[i] -= offset
-                        offset = 0
-                    if left_data_process - indices_or_sections_t[i] >= 0:
-                        left_data_process -= indices_or_sections_t[i]
-                    else:
-                        indices_or_sections_t[i] = left_data_process
-                        indices_or_sections_t[i + 1 :] = [0] * (
-                            len(indices_or_sections_t) - (i + 1)
-                        )
-                        break
 
             sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
     else:
