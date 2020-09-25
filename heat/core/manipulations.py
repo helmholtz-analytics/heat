@@ -939,8 +939,70 @@ def flipud(a):
     return flip(a, 0)
 
 
-def hsplit(ary, indices_or_sections):  # TODO
-    pass
+def hsplit(ary, indices_or_sections):
+    """
+    Split array into multiple sub-arrays along the 2nd axis (horizontally/column-wise).
+
+    Please refer to the split documentation. hsplit is nearly equivalent to split with axis=1,
+    the array is always split along the second axis though, in contrary to split, regardless of the array dimension.
+
+    Parameters
+    ----------
+    ary : DNDarray
+        DNDArray to be divided into sub-DNDarrays.
+    indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
+        If indices_or_sections is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 2nd axis.
+        If such a split is not possible, an error is raised.
+        If indices_or_sections is a 1-D DNDarray of sorted integers, the entries indicate where along the 2nd axis
+        the array is split.
+        If an index exceeds the dimension of the array along the 2nd axis, an empty sub-array is returned correspondingly.
+
+    Returns
+    -------
+    sub_arrays : list of DNDarrays
+        A list of sub-DNDarrays as views into ary.
+
+    Raises
+    ------
+    ValueError
+        If indices_or_sections is given as integer, but a split does not result in equal division.
+
+    Examples
+    --------
+    >>> x = ht.arange(24).reshape((2, 4, 3))
+    >>> ht.hsplit(x, 2)
+        [
+            DNDarray([[[ 0,  1,  2],
+                       [ 3,  4,  5]],
+
+                      [[12, 13, 14],
+                       [15, 16, 17]]]),
+            DNDarray([[[ 6,  7,  8],
+                       [ 9, 10, 11]],
+
+                      [[18, 19, 20],
+                       [21, 22, 23]]])
+        ]
+
+    >>> ht.hsplit(x, [1, 3])
+        [
+            DNDarray([[[ 0,  1,  2]],
+
+                      [[12, 13, 14]]]),
+            DNDarray([[[ 3,  4,  5],
+                       [ 6,  7,  8]],
+
+                      [[15, 16, 17],
+                       [18, 19, 20]]]),
+            DNDarray([[[ 9, 10, 11]],
+
+                      [[21, 22, 23]]])]
+       """
+    sanitation.sanitize_input(ary)
+
+    if len(ary.lshape) < 2:
+        ary = ary.reshape(ary, (1, ary.lshape[0]))
+    return split(ary, indices_or_sections, 1)
 
 
 def hstack(tup):
@@ -2593,8 +2655,73 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     return return_value
 
 
-def vsplit(ary, indices_or_sections):  # TODO
-    pass
+def vsplit(ary, indices_or_sections):
+    """
+    Split array into multiple sub-arrays along the 1st axis (vertically/row-wise).
+
+    Please refer to the split documentation. hsplit is equivalent to split with axis=0,
+    the array is always split along the first axis regardless of the array dimension.
+
+    Parameters
+    ----------
+    ary : DNDarray
+        DNDArray to be divided into sub-DNDarrays.
+    indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
+        If indices_or_sections is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 1st axis.
+        If such a split is not possible, an error is raised.
+        If indices_or_sections is a 1-D DNDarray of sorted integers, the entries indicate where along the 1st axis
+        the array is split.
+        If an index exceeds the dimension of the array along the 1st axis, an empty sub-array is returned correspondingly.
+
+    Returns
+    -------
+    sub_arrays : list of DNDarrays
+        A list of sub-DNDarrays as views into ary.
+
+    Raises
+    ------
+    ValueError
+        If indices_or_sections is given as integer, but a split does not result in equal division.
+
+    Examples
+    --------
+    >>> x = ht.arange(24).reshape((4, 3, 2))
+    >>> ht.vsplit(x, 2)
+        [
+            DNDarray([[[ 0,  1],
+                       [ 2,  3],
+                       [ 4,  5]],
+
+                      [[ 6,  7],
+                       [ 8,  9],
+                       [10, 11]]]),
+            DNDarray([[[12, 13],
+                       [14, 15],
+                       [16, 17]],
+
+                      [[18, 19],
+                       [20, 21],
+                       [22, 23]]])
+        ]
+
+        >>> ht.vsplit(x, [1, 3])
+        [
+            DNDarray([[[0, 1],
+                       [2, 3],
+                       [4, 5]]]),
+            DNDarray([[[ 6,  7],
+                       [ 8,  9],
+                       [10, 11]],
+
+                      [[12, 13],
+                       [14, 15],
+                       [16, 17]]]),
+            DNDarray([[[18, 19],
+                       [20, 21],
+                       [22, 23]]])]
+
+           """
+    return split(ary, indices_or_sections, 0)
 
 
 def resplit(arr, axis=None):
