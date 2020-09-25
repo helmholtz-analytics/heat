@@ -1001,8 +1001,13 @@ def hsplit(ary, indices_or_sections):
     sanitation.sanitize_input(ary)
 
     if len(ary.lshape) < 2:
-        ary = ary.reshape(ary, (1, ary.lshape[0]))
-    return split(ary, indices_or_sections, 1)
+        ary = reshape(ary, (1, ary.lshape[0]))
+        result = split(ary, indices_or_sections, 1)
+        result = [flatten(sub_array) for sub_array in result]
+    else:
+        result = split(ary, indices_or_sections, 1)
+
+    return result
 
 
 def hstack(tup):
