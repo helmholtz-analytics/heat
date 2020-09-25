@@ -1920,6 +1920,9 @@ def sort(a, axis=None, descending=False, out=None):
 def split(ary, indices_or_sections, axis=0):
     """
     Split a DNDarray into multiple sub-DNDarrays as views into ary.
+    ! Warning !
+    Though it is possible to distribute `ary`, this function has nothing to do with the split
+    parameter of a DNDarray.
 
     Parameters
     ----------
