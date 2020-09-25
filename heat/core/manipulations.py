@@ -1951,7 +1951,7 @@ def split(ary, indices_or_sections, axis=0):
 
     Examples
     --------
-    >>> x = ht.array(12).reshape((4,3))
+    >>> x = ht.arange(12).reshape((4,3))
     >>> ht.split(x, 2)
         [ DNDarray([[0, 1, 2],
                     [3, 4, 5]]),
