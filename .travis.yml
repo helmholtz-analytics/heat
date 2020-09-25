@@ -22,6 +22,8 @@ script:
     coverage xml'
 after_success:
 - codecov
+before_deploy:
+- sudo chown -R $USER:$USER *
 deploy:
   provider: pypi
   user: heat-travis-token
