@@ -1,4 +1,5 @@
 # Pending additions
+- [#677](https://github.com/helmholtz-analytics/heat/pull/677) New feature: split, vsplit, dsplit, hsplit
 ## New features
 ### Manipulations
 ### Statistical Functions
