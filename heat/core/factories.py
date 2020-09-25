@@ -289,6 +289,10 @@ def array(
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
 
+    # sanitize device
+    if device is not None:
+        device = devices.sanitize_device(device)
+
     # initialize the array
     if bool(copy):
         if isinstance(obj, torch.Tensor):
@@ -297,7 +301,13 @@ def array(
             obj = obj.clone().detach()
         else:
             try:
-                obj = torch.tensor(obj, dtype=dtype.torch_type() if dtype is not None else None)
+                obj = torch.tensor(
+                    obj,
+                    dtype=dtype.torch_type() if dtype is not None else None,
+                    device=device.torch_device
+                    if device is not None
+                    else devices.get_device().torch_device,
+                )
             except RuntimeError:
                 raise TypeError("invalid data of type {}".format(type(obj)))
 
@@ -308,6 +318,14 @@ def array(
         torch_dtype = dtype.torch_type()
         if obj.dtype != torch_dtype:
             obj = obj.type(torch_dtype)
+
+    # infer device from obj if not explicitly given
+    if device is None:
+        device = devices.sanitize_device(obj.device.type)
+
+    # change device if it do not match
+    if str(obj.device) != device.torch_device:
+        obj = obj.to(device.torch_device)
 
     # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
@@ -326,8 +344,7 @@ def array(
     if split is not None and is_split is not None:
         raise ValueError("split and is_split are mutually exclusive parameters")
 
-    # sanitize device and object
-    device = devices.sanitize_device(device)
+    # sanitize comm object
     comm = sanitize_comm(comm)
 
     # determine the local and the global shape, if not split is given, they are identical

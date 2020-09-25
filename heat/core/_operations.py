@@ -5,6 +5,7 @@ import warnings
 
 from .communication import MPI, MPI_WORLD
 from . import factories
+from . import devices
 from . import stride_tricks
 from . import sanitation
 from . import dndarray
@@ -51,7 +52,7 @@ def __binary_op(operation, t1, t2, out=None):
                 )
             output_shape = (1,)
             output_split = None
-            output_device = None
+            output_device = t2.device
             output_comm = MPI_WORLD
         elif isinstance(t2, dndarray.DNDarray):
             t1 = t1.gpu() if t2.device.device_type == "gpu" else t1.cpu()
@@ -154,7 +155,7 @@ def __binary_op(operation, t1, t2, out=None):
         )
 
     if not isinstance(result, torch.Tensor):
-        result = torch.tensor(result)
+        result = torch.tensor(result, device=output_device.torch_device)
 
     if out is not None:
         out_dtype = out.dtype
