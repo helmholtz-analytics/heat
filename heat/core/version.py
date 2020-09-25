@@ -1,5 +1,5 @@
 major = 0
-minor = 4
+minor = 5
 micro = 0
 extension = None
 
