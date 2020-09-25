@@ -1,3 +1,12 @@
+# Pending additions
+## New features
+### Manipulations
+### Statistical Functions
+### Linear Algebra
+### ...
+
+## Bug fixes
+
 # v0.5.0
 
 - [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection.
