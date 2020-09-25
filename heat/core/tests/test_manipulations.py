@@ -738,6 +738,9 @@ class TestManipulations(TestCase):
             numpy_args={"axis1": 0, "axis2": 1},
         )
 
+    def test_dsplit(self):
+        pass  # TODO
+
     def test_expand_dims(self):
         # vector data
         a = ht.arange(10)
@@ -1789,6 +1792,20 @@ class TestManipulations(TestCase):
         # indices = int
         result = ht.split(data_ht, 2)
         comparison = np.split(data_np, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assertTrue((ht.array(comparison[i]) == result[i]).all())
+
+        # larger example
+        data_ht_large = ht.arange(160, split=0).reshape((8, 5, 4))
+        data_np_large = data_ht_large.numpy()
+
+        # indices = int
+        result = ht.split(data_ht_large, 2)
+        comparison = np.split(data_np_large, 2)
 
         self.assertTrue(len(result) == len(comparison))
 

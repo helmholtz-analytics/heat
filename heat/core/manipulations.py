@@ -21,11 +21,13 @@ __all__ = [
     "concatenate",
     "diag",
     "diagonal",
+    "dsplit",
     "expand_dims",
     "flatten",
     "flip",
     "fliplr",
     "flipud",
+    "hsplit",
     "hstack",
     "pad",
     "reshape",
@@ -39,6 +41,7 @@ __all__ = [
     "stack",
     "topk",
     "unique",
+    "vsplit",
     "vstack",
 ]
 
@@ -643,6 +646,77 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
     return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
 
 
+def dsplit(ary, indices_or_sections):
+    """
+    Split array into multiple sub-arrays along the 3rd axis (depth).
+
+    Please refer to the split documentation. dsplit is equivalent to split with axis=2,
+    the array is always split along the third axis provided the array dimension is greater than or equal to 3.
+
+    Parameters
+    ----------
+    ary : DNDarray
+        DNDArray to be divided into sub-DNDarrays.
+    indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
+        If indices_or_sections is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 3rd axis.
+        If such a split is not possible, an error is raised.
+        If indices_or_sections is a 1-D DNDarray of sorted integers, the entries indicate where along the 3rd axis
+        the array is split.
+        If an index exceeds the dimension of the array along the 3rd axis, an empty sub-array is returned correspondingly.
+
+    Returns
+    -------
+    sub_arrays : list of DNDarrays
+        A list of sub-DNDarrays as views into ary.
+
+    Raises
+    ------
+    ValueError
+        If indices_or_sections is given as integer, but a split does not result in equal division.
+
+    Examples
+    --------
+    >>> x = ht.array(24).reshape((2, 3, 4))
+    >>> ht.dsplit(x, 2)
+        [
+            DNDarray([[[ 0,  1],
+                       [ 4,  5],
+                       [ 8,  9]],
+
+                       [[12, 13],
+                       [16, 17],
+                       [20, 21]]]),
+            DNDarray([[[ 2,  3],
+                       [ 6,  7],
+                       [10, 11]],
+
+                       [[14, 15],
+                       [18, 19],
+                       [22, 23]]])
+        ]
+    >>> ht.dsplit(x, [1, 4])
+        [
+            DNDarray([[[ 0],
+                        [ 4],
+                        [ 8]],
+
+                       [[12],
+                        [16],
+                        [20]]]),
+            DNDarray([[[ 1,  2,  3],
+                        [ 5,  6,  7],
+                        [ 9, 10, 11]],
+
+                        [[13, 14, 15],
+                         [17, 18, 19],
+                         [21, 22, 23]]]),
+            DNDarray([])
+        ]
+
+    """
+    return split(ary, indices_or_sections, 2)
+
+
 def expand_dims(a, axis):
     """
     Expand the shape of an array.
@@ -863,6 +937,10 @@ def flipud(a):
         (2/2) tensor([0,1,2])
     """
     return flip(a, 0)
+
+
+def hsplit(ary, indices_or_sections):  # TODO
+    pass
 
 
 def hstack(tup):
@@ -1096,7 +1174,7 @@ def pad(array, pad_width, mode="constant", constant_values=0):
         if len(pad) // 2 > len(array.shape):
             raise ValueError(
                 f"Not enough dimensions to pad.\n"
-                f"Padding a {len(array.shape)}-dimensional tensor for {len(pad)//2}"
+                f"Padding a {len(array.shape)}-dimensional tensor for {len(pad) // 2}"
                 f" dimensions is not possible."
             )
 
@@ -1785,6 +1863,11 @@ def split(ary, indices_or_sections, axis=0):
         If such a split is not possible, an error is raised.
         If indices_or_sections is a 1-D DNDarray of sorted integers, the entries indicate where along axis
         the array is split.
+        For example, indices_or_sections = [2, 3] would, for axis = 0, result in
+        - ary[:2]
+        - ary[2:3]
+        - ary[3:]
+        If an index exceeds the dimension of the array along axis, an empty sub-array is returned correspondingly.
     axis : int, optional
         The axis along which to split, default is 0.
         axis is not allowed to equal ary.split if ary is distributed.
@@ -2508,6 +2591,10 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         return_value = [return_value, inverse_indices.to(a.device.torch_device)]
 
     return return_value
+
+
+def vsplit(ary, indices_or_sections):  # TODO
+    pass
 
 
 def resplit(arr, axis=None):
