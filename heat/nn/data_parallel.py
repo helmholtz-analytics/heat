@@ -440,13 +440,17 @@ class DataParallelMultiGPU(tnn.Module):
             and self.epoch == self.skip_batches[0][1]
         ):
             # adjust this at the beginning of the epoch
-            del self.skip_batches[0]
+            # del self.skip_batches[0]
             if len(self.skip_batches) > 0:
                 self.skip_num = self.skip_batches[0][0]
+            del self.skip_batches[0]
         # todo: need make sure to receive the last batch params before skipping more
-        if self.current_batch % self.skip_num == 0 and self.current_batch != self.last_batch:
-            self.current_batch += 1
-            return
+        if self.current_batch != self.last_batch - 1:
+            if self.current_batch % self.skip_num != 0:  #  and self.current_batch != self.last_batch:
+                self.current_batch += 1
+                return
+        #if self.comm.rank == 0:
+        #    print(self.current_batch, self.skip_num)
         # mod_hold = self.current_batch % self.loc_gpus
         current_comm = self.reduced_comms[self._send_mod]
         current_ranks = self.reduced_ranks[self._send_mod]
@@ -498,6 +502,7 @@ class DataParallelMultiGPU(tnn.Module):
 
             self.current_batch += 1
             if self.current_batch == self.last_batch:
+                #print("last batch stuff")
                 self.current_batch = 0
                 if self.comm.rank in current_ranks:
                     self._prev_params[0][0].wait()
