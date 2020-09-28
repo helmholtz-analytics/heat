@@ -1,3 +1,7 @@
+# v0.5.1
+
+- [#678](https://github.com/helmholtz-analytics/heat/pull/678) Bugfix: Many implicit array transfers on DNDarray initialization
+
 # v0.5.0
 
 - [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection.
