@@ -359,8 +359,11 @@ def main():
 
     # create DP optimizer and model:
     blocking = False  # choose blocking or non-blocking parameter updates
-    dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
-    skip_batches = [[8, 0], [2, 80]]#args.batch_skip #[[2, 0], [3, 20], [5, 60]] # args.batch_skip
+    dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, ht.MPI_WORLD, blocking)
+    skip_batches = [
+        [8, 0],
+        [2, 80],
+    ]  # args.batch_skip #[[2, 0], [3, 20], [5, 60]] # args.batch_skip
     htmodel = ht.nn.DataParallelMultiGPU(
         model,
         ht.MPI_WORLD,
@@ -722,8 +725,6 @@ def accuracy(output, target, topk=(1,)):
     maxk = max(topk)
     batch_size = target.size(0)
 
-    _, pred = output.topk(maxk, 1, True, True)
-    pred = pred.t()
     _, pred = output.topk(maxk, 1, True, True)
     pred = pred.t()
     correct = pred.eq(target.view(1, -1).expand_as(pred))
