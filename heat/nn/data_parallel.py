@@ -350,6 +350,8 @@ class DataParallel(tnn.Module):
 class DataParallelMultiGPU(tnn.Module):
     """
     working for data parallel stuff
+
+    loss_floor is where the user would hope for the loss to get to
     """
 
     def __init__(
@@ -360,12 +362,14 @@ class DataParallelMultiGPU(tnn.Module):
         overlap: bool = True,
         distributed_twice: bool = True,
         skip_batches: Union[List, Tuple, int] = None,
+        loss_floor: Union[float, int] = 1.0,
     ):
         super(DataParallelMultiGPU, self).__init__()
         rank = comm.rank
         loc_gpus = torch.cuda.device_count()
+        self.loc_gpus = loc_gpus
         local_rank = rank % loc_gpus
-        self.auto_skip, self.torch_skip = False, 0
+        self.auto_skip, self.local_skip, self.local_skip = False, False, 1
         if loc_gpus > 1 and distributed_twice:
             base_loc_ranks = list(range(0, comm.size, loc_gpus))
             reduced_comms = []
@@ -378,7 +382,6 @@ class DataParallelMultiGPU(tnn.Module):
                 reduced_ranks.append(tuple(lp_ranks))
             self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
             self.base_loc_ranks = base_loc_ranks
-            self.loc_gpus = loc_gpus
             module = tDDP(module, device_ids=[local_rank])  # , process_group=lg)
             # module.share_memory()
             device = "cuda:" + str(local_rank)
@@ -386,12 +389,13 @@ class DataParallelMultiGPU(tnn.Module):
             self.old_require_backward_grad_sync = None
             if skip_batches is None:
                 self.auto_skip = True
-                skip_batches = 16
-                self.torch_skip = 8
+                skip_batches = 8
+                self.local_skip = 4
             # self.no_sync = module.no_sync
         self.module = module
         self.comm = comm
         self.overlap = overlap
+        self.waiting = False
 
         self._layer_wait_handles = OrderedDict()
         self._fwd_hook_handles = list()
@@ -408,7 +412,7 @@ class DataParallelMultiGPU(tnn.Module):
 
         # assign given optimizers to this model
         self.optimizer = optimizer
-        optimizer.step = self.step_load_prev
+        optimizer.step = self.step
         # unify parameters across nodes by unifying the random seed and resetting parameters
         torch.random.manual_seed(2147483646)  # max int32 value - 1
         self.module.apply(self._reset_parameters)
@@ -421,12 +425,15 @@ class DataParallelMultiGPU(tnn.Module):
             # the first index is how many to skip, the second int would be the batch number to change at
         self.skip_batches = skip_batches
         self.og_skip_batches = skip_batches
-        self.skip_num = skip_batches[0][0]
+        self.global_skips = skip_batches[0][0]
         self.epoch = 0
         self._send_mod, self._send_mod_m1 = 0, None
 
         self._prev_losses_mean, self._prev_losses_std = [], []
         self._loss_rcv, self._loss_wait = None, None
+        self.start_loss = None
+        self.loss_switch_target = None
+        self.loss_floor = loss_floor + 0.5
 
     def forward(self, *inputs, **kwargs):
         return self.module(*inputs, **kwargs)
@@ -450,9 +457,11 @@ class DataParallelMultiGPU(tnn.Module):
         # need to reset the skips after the learning rate is adjusted
         # for step based learning
         self.skip_batches = self.og_skip_batches
-        self.skip_num = self.og_skip_batches[0][0]
+        self.global_skips = self.og_skip_batches[0][0]
+        self.local_skip = self.global_skips // 2
 
     def epoch_loss_logic(self, loss):
+        # this should be called during the epoch
         # send the current loss value
         # gather the losses from previous batches
         # get the mean and std of the losses
@@ -470,9 +479,14 @@ class DataParallelMultiGPU(tnn.Module):
                 return
 
             rcv = self._loss_wait.pop(0)
-            rcv[0].Wait()
+            rcv[0].wait()
             loss_send = rcv[1]
             mu = torch.mean(loss_send)
+            if self.start_loss is None:
+                # logic to signal the drop in LR
+                # todo: customizable logic?
+                self.start_loss = mu
+                self.loss_switch_target = mu // 2
             # std = torch.std(loss_send)
             self._prev_losses_mean.append(mu)
             # self._prev_losses_std.append(std)
@@ -480,14 +494,29 @@ class DataParallelMultiGPU(tnn.Module):
             if self.current_batch < 4:
                 # first need to fill the list before doing anything else
                 return
-            # means = torch.tensor(self._prev_losses_mean)
-            # means -= means.mean()
-            # diff = means[-1] - means[0]
+            means = torch.tensor(self._prev_losses_mean)
+            diff = means[-1] - means[0]
+
+            lr_adjust = False
+            if diff < 0.1 or means[-1] < self.loss_switch_target:
+                lr_adjust = True
+
+            if means[-1] <= self.loss_floor and not lr_adjust:
+                # adjust batch skips
+                self.global_skips //= 2
+                self.local_skip //= 2
+            elif lr_adjust:
+                # reset the skip numbers
+                self.reset_skips()
+            # if the diff is < 0.1 adjust learning rate, at the end of the learning rate path,
+            #       then change the difference in the batch skips
+
+            return lr_adjust
         # todo: batch decay
 
         # todo: reset the skip after the learning rate is adjusted
 
-    def step_load_prev(self, loss=None):
+    def step(self):
         # TODO: raise error is last batch is not set
         # todo: exchange losses in nonblocking way to determine if stabilized
         # todo: non-data parallel update for torch
@@ -500,35 +529,75 @@ class DataParallelMultiGPU(tnn.Module):
         # copy whole dict and sent it
         # t3 = time.perf_counter()
         self.optimizer.torch_optimizer.step()
+
+        # adjust skip numbers
+        if self.current_batch == self.last_batch or self.current_batch % self.global_skips == 0:
+            # if last batch -> run last batch sync and return -> full global sync
+            # if self.batch_num % global_skip == 0 -> full global sync
+            return self._full_global_sync()
+        elif self.current_batch % self.local_skip == self.local_skip - 1:
+            # if self.batch_num % local_skip == local_skip - 1 -> turn on local sync
+            self._start_local_sync()
+        elif self.current_batch % self.local_skip == 0 or self.waiting:
+            # if self.batch_num % local_skip == 0 -> try to receive data, once received, turn off local sync
+            # if trying to receive -> try to receive still, once received, turn off local sync
+            self._global_sync_test_rcv()
+            self._stop_local_sync()
+
+        self.current_batch += 1
+
+        if self.current_batch == 0:
+            # this only occurs at the end of an epoch (batch numbers reset w/in full global sync)
+            pass
+
         # if self.comm.rank == 0:
         #     print("optimizer step", time.perf_counter() - t3)
-        if (
-            self.current_batch == 0
-            and len(self.skip_batches) > 0
-            and self.epoch == self.skip_batches[0][1]
-        ):
-            # adjust this at the beginning of the epoch
-            # del self.skip_batches[0]
-            if len(self.skip_batches) > 0:
-                self.skip_num = self.skip_batches[0][0]
-            del self.skip_batches[0]
-
-        if self.current_batch != self.last_batch - 1:
-            if self._send_mod is not None and self.current_batch < self.last_batch - self.skip_num:
-                # loop for stopping and starting the local updates
-                # todo: map out when to hold to syncs,
-                #       should sync on the batch before
-                #       and turn it off after the sync
-                pass
-            if self.current_batch % self.skip_num != 0:
-                self.current_batch += 1
-                return
+        #
+        # if self.current_batch != self.last_batch - 1:
+        #     if self._send_mod is not None and self.current_batch < self.last_batch - self.global_skips:
+        #         # loop for stopping and starting the local updates
+        #         # todo: map out when to hold to syncs,
+        #         #       should sync on the batch before
+        #         #       and turn it off after the sync
+        #         pass
+        #     if self.current_batch % self.global_skips != 0:  # -> this is updating when batch % global skip == 0
+        #         self.current_batch += 1
+        #         return
         # todo: receive the data from before and average it in
         #       -> wait 3 batches or something like that?
         #       -> need to do this AFTER a step that has a
         # if self.comm.rank == 0:
-        #    print(self.current_batch, self.skip_num)
+        #    print(self.current_batch, self.global_skips)
         # mod_hold = self.current_batch % self.loc_gpus
+        # self._full_global_sync()
+        # if self.comm.rank == 0:
+        #     print("step time", time.perf_counter() - t)
+
+    def _batch_skip_adjustments(self):
+        if self.current_batch != 0:
+            # this should only do things at the beginning/end of an epoch
+            return
+
+        # if self.auto_skip:
+        # todo:
+        #     # todo: need to reduce the number of skips as the loss decreases
+        #     pass
+
+        if (
+            len(self.skip_batches) > 0
+            and self.epoch == self.skip_batches[0][1]
+            and not self.auto_skip
+        ):
+            # adjust this at the beginning of the epoch
+            # del self.skip_batches[0]
+            if len(self.skip_batches) > 0:
+                self.global_skips = self.skip_batches[0][0]
+            del self.skip_batches[0]
+            # todo: set torch skips
+            self.local_skip = self.global_skips // 2
+
+    @torch.no_grad()
+    def _full_global_sync(self):
         current_comm = self.reduced_comms[self._send_mod]
         current_ranks = self.reduced_ranks[self._send_mod]
 
@@ -550,50 +619,68 @@ class DataParallelMultiGPU(tnn.Module):
         # mod_hold_m1 = None
         # if self.current_batch > 0:
         # mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
-        prev_ranks = []
-        if self._send_mod_m1 is not None:
-            prev_ranks = self.reduced_ranks[self._send_mod_m1]
-        with torch.no_grad():
+        pass
+        # todo: remove below is decorator works as intended
+        # with torch.no_grad():
+        if self.comm.rank in current_ranks:
+            self._global_send_update(current_comm)
+
+        self._update_parameters()  # -> splits off irrelevant ranks
+        # needs to happen on all ranks:
+        self._local_torch_param_update(self._send_mod_m1)
+
+        self.current_batch += 1
+
+        if self.current_batch == self.last_batch:
+            # todo: abstract last batch?
+            # receive the sent data to sync params across all ranks
+            # print("last batch stuff")
             if self.comm.rank in current_ranks:
-                new_wait = self._global_send_update(current_comm)
+                if len(self._prev_params) > 1:
+                    # todo: this shouldnt occur, this is here to double check if it happens
+                    raise ValueError(
+                        f"length of previos params was greater than 1! {len(self._prev_params)}"
+                    )
+                self._prev_params[0][0].wait()
+                prev_params = self._prev_params.pop(0)
+                shapes = prev_params[2]
+                for name, param in self.named_parameters():
+                    if param.requires_grad:
+                        rcv_params = prev_params[1]
+                        param = (
+                            rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
+                        )
+                self._prev_params = []
+            self._local_torch_param_update(self._send_mod)
 
-            self._update_parameters(prev_ranks)
-            if self._send_mod_m1 is not None:
-                self._local_torch_param_update(self._send_mod_m1)
+            self._send_mod_m1 = None
+            self._send_mod = 0
+            self.epoch += 1
+            self.current_batch = 0
+        else:
+            self._stop_local_sync()
+            self._send_mod_m1 = self._send_mod
+            self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
 
-            self.current_batch += 1
-            if self.current_batch == self.last_batch:
-                # receive the sent data to sync params across all ranks
-                # print("last batch stuff")
-                if self.comm.rank in current_ranks:
-                    self._prev_params[0][0].wait()
-                    new_wait.wait()
-                    prev_params = self._prev_params.pop(0)
-                    shapes = prev_params[2]
-                    for name, param in self.named_parameters():
-                        if param.requires_grad:
-                            rcv_params = prev_params[1]
-                            param = (
-                                rcv_params[shapes[name][1]]
-                                .reshape(shapes[name][0])
-                                .to(shapes[name][2])
-                            )
-                    self._prev_params = []
-                self._local_torch_param_update(self._send_mod)
-
-                self._send_mod_m1 = None
-                self._send_mod = 0
-                self.epoch += 1
-                self.current_batch = 0
-            else:
-                self._send_mod_m1 = self._send_mod
-                self._send_mod = (
-                    self._send_mod + 1 if self._send_mod <= torch.cuda.device_count() - 2 else 0
-                )
-        # if self.comm.rank == 0:
-        #     print("step time", time.perf_counter() - t)
+    # before this function local updates should be on!
+    def _global_sync_test_rcv(self):
+        # test if the data is there -> if it isn't: return, else: rcv, update, local update, turn off local sync
+        with torch.no_grad():
+            if self._send_mod_m1 is None:
+                return
+            prev_ranks = self.reduced_ranks[self._send_mod_m1]
+            if (
+                self.comm.rank in prev_ranks
+                and self._prev_params[0][0] is not None
+                or self._prev_params[0][0].test()
+            ):
+                # receive previous ones
+                self._update_parameters()
+            self._local_torch_param_update(self._send_mod_m1)
+            self.waiting = False
 
     def _global_send_update(self, current_comm):
+        # pack and send the data required for a global synchronization
         # t4 = time.perf_counter()
         params = []
         shapes = {}
@@ -613,6 +700,7 @@ class DataParallelMultiGPU(tnn.Module):
         return new_wait
 
     def _local_torch_param_update(self, mod_hold_pr):
+        # synchronize the local torch parameters
         if mod_hold_pr is None:
             return
         if torch.distributed.is_initialized():
@@ -632,7 +720,11 @@ class DataParallelMultiGPU(tnn.Module):
                     snds[name].wait()
             del snds
 
-    def _update_parameters(self, prev_ranks):
+    def _update_parameters(self):
+        # wait for the global sync data and update on the selected rank, requires local torch param update after
+        if self._send_mod_m1 is None:
+            return
+        prev_ranks = self.reduced_ranks[self._send_mod_m1]
         if self.comm.rank not in prev_ranks or self._prev_params[0][0] is None:
             # receive previous ones
             return

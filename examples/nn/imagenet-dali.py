@@ -360,17 +360,17 @@ def main():
     # create DP optimizer and model:
     blocking = False  # choose blocking or non-blocking parameter updates
     dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, ht.MPI_WORLD, blocking)
-    skip_batches = [
-        [8, 0],
-        [2, 80],
-    ]  # args.batch_skip #[[2, 0], [3, 20], [5, 60]] # args.batch_skip
+    # skip_batches = [
+    #     [8, 0],
+    #     [2, 80],
+    # ]  # args.batch_skip #[[2, 0], [3, 20], [5, 60]] # args.batch_skip
     htmodel = ht.nn.DataParallelMultiGPU(
         model,
         ht.MPI_WORLD,
         dp_optimizer,
         overlap=True,
         distributed_twice=twice_dist,
-        skip_batches=skip_batches,
+        # skip_batches=skip_batches,
     )
 
     # define loss function (criterion) and optimizer
@@ -437,7 +437,7 @@ def main():
         return
 
     model.epochs = args.start_epoch
-
+    args.lr_factor = 0
     total_time = AverageMeter()
     batch_time_avg, train_acc1, train_acc5, avg_loss = [], [], [], []
     val_acc1, val_acc5 = [], []
@@ -452,6 +452,10 @@ def main():
 
         # evaluate on validation set
         [prec1, prec5] = validate(device, val_loader, htmodel, criterion)
+
+        # epoch loss logic to adjust learning rate based on loss
+        lr_adjust = htmodel.epoch_loss_logic(ls)
+        adjust_learning_rate(dp_optimizer, epoch, None, None, lr_adjust)
 
         # remember best prec@1 and save checkpoint
         if args.rank == 0:
@@ -703,17 +707,22 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, epoch, step, len_epoch):
+def adjust_learning_rate(optimizer, epoch, step, len_epoch, lr_adjust):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
-    factor = epoch // 30
+    if lr_adjust:
+        args.factor += 1
+    elif epoch // 30 > 0:
+        args.factor += 1
+    # factor = epoch // 30
 
     if epoch >= 80:
-        factor = factor + 1
+        # todo: fix this to run when the loss is super low
+        args.factor += 1
 
-    lr = args.lr * (0.1 ** factor)
+    lr = args.lr * (0.1 ** args.factor)
 
     """Warmup"""
-    if epoch < 5:
+    if epoch < 5 and step is not None:
         lr = lr * float(1 + step + epoch * len_epoch) / (5.0 * len_epoch)
 
     for param_group in optimizer.torch_optimizer.param_groups:
