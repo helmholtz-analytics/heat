@@ -449,58 +449,65 @@ class TestStatistics(TestCase):
 
     def test_histc(self):
         # few entries and float64
-        c = torch.arange(4, dtype=torch.float64)
+        c = torch.arange(4, dtype=torch.float64, device=self.device.torch_device)
         comp = torch.histc(c, 7)
         a = ht.array(c)
         res = ht.histc(a, 7)
 
         self.assertEqual(res.shape, (7,))
         self.assertEqual(res.dtype, ht.float64)
+        self.assertEqual(res.device, self.device)
         self.assertTrue(torch.equal(res._DNDarray__array, comp))
 
         # matrix and splits
-        c = torch.rand([10, 10, 10])
+        c = torch.rand([10, 10, 10], device=self.device.torch_device)
         comp = torch.histc(c)
 
         a = ht.array(c)
         res = ht.histc(a)
         self.assertEqual(res.shape, (100,))
         self.assertEqual(res.dtype, ht.float32)
+        self.assertEqual(res.device, self.device)
         self.assertTrue(torch.equal(res._DNDarray__array, comp))
 
         a = ht.array(c, split=0)
         res = ht.histc(a)
         self.assertEqual(res.shape, (100,))
         self.assertEqual(res.dtype, ht.float32)
+        self.assertEqual(res.device, self.device)
         self.assertTrue(torch.equal(res._DNDarray__array, comp))
 
         a = ht.array(c, split=1)
         res = ht.histc(a)
         self.assertEqual(res.shape, (100,))
         self.assertEqual(res.dtype, ht.float32)
+        self.assertEqual(res.device, self.device)
         self.assertTrue(torch.equal(res._DNDarray__array, comp))
 
         a = ht.array(c, split=2)
         res = ht.histc(a)
         self.assertEqual(res.shape, (100,))
         self.assertEqual(res.dtype, ht.float32)
+        self.assertEqual(res.device, self.device)
         self.assertTrue(torch.equal(res._DNDarray__array, comp))
 
         # out parameter, min max
-        out = ht.empty(20, dtype=ht.float32)
-        c = torch.randint(10, size=(8,), dtype=torch.float32)
+        out = ht.empty(20, dtype=ht.float32, device=self.device)
+        c = torch.randint(10, size=(8,), dtype=torch.float32, device=self.device.torch_device)
         comp = torch.histc(c, bins=20, min=0, max=20)
 
         a = ht.array(c)
         ht.histc(a, bins=20, min=0, max=20, out=out)
         self.assertEqual(out.shape, (20,))
         self.assertEqual(out.dtype, ht.float32)
+        self.assertEqual(res.device, self.device)
         self.assertTrue(torch.equal(out._DNDarray__array, comp))
 
         a = ht.array(c, split=0)
         ht.histc(a, bins=20, min=0, max=20, out=out)
         self.assertEqual(out.shape, (20,))
         self.assertEqual(out.dtype, ht.float32)
+        self.assertEqual(res.device, self.device)
         self.assertTrue(torch.equal(out._DNDarray__array, comp))
 
     def test_kurtosis(self):
