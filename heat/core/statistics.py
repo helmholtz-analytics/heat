@@ -553,8 +553,8 @@ def histc(input, bins: int = 100, min: int = 0, max: int = 0, out=None):
     """
 
     if min == max:
-        min = int(input.min())
-        max = int(input.max())
+        min = float(input.min())
+        max = float(input.max())
 
     hist = torch.histc(
         input._DNDarray__array,
