@@ -1,4 +1,7 @@
 # Pending additions
+
+- [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: distributed `histc()`
+
 ## New features
 ### Manipulations
 ### Statistical Functions
