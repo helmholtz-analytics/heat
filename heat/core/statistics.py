@@ -21,6 +21,7 @@ __all__ = [
     "average",
     "bincount",
     "cov",
+    "histc",
     "kurtosis",
     "max",
     "maximum",
@@ -515,6 +516,67 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     c = linalg.dot(x, x.T)
     c /= norm
     return c
+
+
+def histc(input, bins: int = 100, min: int = 0, max: int = 0, out=None):
+    """
+    Compute the histogram of a DNDarray.
+
+    The elements are sorted into equal width bins between min and max.
+    If min and max are both equal, the minimum and maximum values of the data are used.
+    Elements lower than min and higher than max are ignored.
+
+    Parameters
+    ----------
+    input : DNDarray
+            the input array, must be of float type
+    bins  : int
+            number of histogram bins
+    min   : int
+            lower end of the range (inclusive)
+    max   : int
+            upper end of the range (inclusive)
+    out   : DNDarray, optional
+            the output tensor, same dtype as input
+
+    Returns
+    -------
+    out : DNDarray
+          the histogram of the input array
+
+    Examples
+    --------
+    >>> ht.histc(ht.array([1., 2, 1]), bins=4, min=0, max=3)
+    DNDarray([0., 2., 1., 0.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.histc(ht.arange(10, dtype=ht.float64, split=0), bins=10)
+    DNDarray([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.], dtype=ht.float64, device=cpu:0, split=None)
+    """
+
+    if min == max:
+        min = int(input.min())
+        max = int(input.max())
+
+    hist = torch.histc(
+        input._DNDarray__array,
+        bins,
+        min,
+        max,
+        out=out._DNDarray__array if out is not None and input.split is None else None,
+    )
+
+    if input.split is None:
+        if out is None:
+            out = factories.array(
+                hist, dtype=types.canonical_heat_type(hist.dtype), device=input.device
+            )
+    else:
+        if out is None:
+            out = factories.empty(
+                hist.size(), dtype=types.canonical_heat_type(hist.dtype), device=input.device
+            )
+        input.comm.Allreduce(hist, out, op=MPI.SUM)
+
+    return out
 
 
 def kurtosis(x, axis=None, unbiased=True, Fischer=True):
