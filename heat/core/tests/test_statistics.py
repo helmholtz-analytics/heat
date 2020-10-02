@@ -456,7 +456,7 @@ class TestStatistics(TestCase):
 
         self.assertEqual(res.shape, (7,))
         self.assertEqual(res.dtype, ht.float64)
-        self.assertTrue(ht.equal(res, comp))
+        self.assertTrue(torch.equal(res._DNDarray__array, comp))
 
         # matrix and splits
         c = torch.rand([10, 10, 10])
@@ -466,25 +466,25 @@ class TestStatistics(TestCase):
         res = ht.histc(a)
         self.assertEqual(res.shape, (100,))
         self.assertEqual(res.dtype, ht.float32)
-        self.assertTrue(ht.equal(res, comp))
+        self.assertTrue(torch.equal(res._DNDarray__array, comp))
 
         a = ht.array(c, split=0)
         res = ht.histc(a)
         self.assertEqual(res.shape, (100,))
         self.assertEqual(res.dtype, ht.float32)
-        self.assertTrue(ht.equal(res, comp))
+        self.assertTrue(torch.equal(res._DNDarray__array, comp))
 
         a = ht.array(c, split=1)
         res = ht.histc(a)
         self.assertEqual(res.shape, (100,))
         self.assertEqual(res.dtype, ht.float32)
-        self.assertTrue(ht.equal(res, comp))
+        self.assertTrue(torch.equal(res._DNDarray__array, comp))
 
         a = ht.array(c, split=2)
         res = ht.histc(a)
         self.assertEqual(res.shape, (100,))
         self.assertEqual(res.dtype, ht.float32)
-        self.assertTrue(ht.equal(res, comp))
+        self.assertTrue(torch.equal(res._DNDarray__array, comp))
 
         # out parameter, min max
         out = ht.empty(20, dtype=ht.float32)
@@ -495,13 +495,13 @@ class TestStatistics(TestCase):
         ht.histc(a, bins=20, min=0, max=20, out=out)
         self.assertEqual(out.shape, (20,))
         self.assertEqual(out.dtype, ht.float32)
-        self.assertTrue(ht.equal(out, comp))
+        self.assertTrue(torch.equal(out._DNDarray__array, comp))
 
         a = ht.array(c, split=0)
         ht.histc(a, bins=20, min=0, max=20, out=out)
         self.assertEqual(out.shape, (20,))
         self.assertEqual(out.dtype, ht.float32)
-        self.assertTrue(ht.equal(out, comp))
+        self.assertTrue(torch.equal(out._DNDarray__array, comp))
 
     def test_kurtosis(self):
         x = ht.zeros((2, 3, 4))
