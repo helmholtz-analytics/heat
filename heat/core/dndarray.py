@@ -113,6 +113,37 @@ class DNDarray:
         return self.__gshape
 
     @property
+    def larray(self):
+        """
+        Returns
+        -------
+        larray : torch.Tensor
+                the underlying local torch tensor of the DNDarray
+        """
+        return self.__array
+
+    @larray.setter
+    def larray(self, array):
+        """
+        Setter for larray/ the underlying local torch tensor of the DNDarray.
+        Warning: Please use this function with care, as it might corrupt/invalidate the metadata in the DNDarray instance.
+
+        Parameters
+        ----------
+        array : torch.tensor
+            The new underlying local torch tensor of the DNDarray
+        """
+        if not isinstance(array, torch.Tensor):
+            raise TypeError(
+                "Expected larray to be a torch tensor, but was {} instead.".format(type(array))
+            )
+        self.__array = array
+        warnings.warn(
+            "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
+            "might corrupt/invalidate the metadata in a DNDarray instance"
+        )
+
+    @property
     def numdims(self):
         """
         Returns
