@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import warnings
 
 from .communication import MPI, sanitize_comm
 from .stride_tricks import sanitize_axis, sanitize_shape
@@ -325,6 +326,10 @@ def array(
 
     # change device if it do not match
     if str(obj.device) != device.torch_device:
+        warnings.warn(
+            "Array 'obj' is not on device '{}'. It will be copied to it".format(device),
+            ResourceWarning,
+        )
         obj = obj.to(device.torch_device)
 
     # sanitize minimum number of dimensions

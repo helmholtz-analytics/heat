@@ -1,6 +1,6 @@
 # v0.5.1
 
-- [#678](https://github.com/helmholtz-analytics/heat/pull/678) Bugfix: Many implicit array transfers on DNDarray initialization
+- [#678](https://github.com/helmholtz-analytics/heat/pull/678) Bugfix: High number of implicit device transfers in `DNDarray.__init__()`
 
 # v0.5.0
 
