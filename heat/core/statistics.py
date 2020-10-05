@@ -325,7 +325,7 @@ def average(x, axis=None, weights=None, returned=False):
         result = mean(x, axis)
         num_elements = x.gnumel / result.gnumel
         cumwgt = factories.empty(1, dtype=result.dtype)
-        cumwgt.larray = num_elements
+        cumwgt.larray = torch.tensor(num_elements)
     else:
         # Weights sanitation:
         # weights (global) is either same size as x (global), or it is 1D and same size as x along chosen axis
