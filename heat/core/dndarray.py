@@ -126,7 +126,8 @@ class DNDarray:
     def larray(self, array):
         """
         Setter for larray/ the underlying local torch tensor of the DNDarray.
-        Warning: Please use this function with care, as it might corrupt/invalidate the metadata in the DNDarray instance.
+        Warning: Please use this function with care, as it might corrupt/invalidate the metadata in the
+        DNDarray instance.
 
         Parameters
         ----------
@@ -137,11 +138,11 @@ class DNDarray:
             raise TypeError(
                 "Expected larray to be a torch tensor, but was {} instead.".format(type(array))
             )
-        self.__array = array
         warnings.warn(
             "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
             "might corrupt/invalidate the metadata in a DNDarray instance"
         )
+        self.__array = array
 
     @property
     def numdims(self):
