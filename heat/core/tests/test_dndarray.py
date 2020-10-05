@@ -170,6 +170,30 @@ class TestDNDarray(TestCase):
                 self.assertTrue(data.halo_next is None)
                 self.assertEqual(data_with_halos.shape, (12, 0))
 
+    def test_larray(self):
+        x = ht.arange(6 * 7 * 8).reshape((6, 7, 8))
+
+        self.assertTrue((x._DNDarray__array == x.larray).all())
+        self.assertIsInstance(x.larray, torch.Tensor)
+        self.assertEqual(x.larray.shape, x.lshape)
+
+        x.larray = torch.arange(42)
+
+        self.assertTrue((x._DNDarray__array == x.larray).all())
+        self.assertTrue(x.gshape, (42,))
+        self.assertIsInstance(x.larray, torch.Tensor)
+        self.assertEqual(x.larray.shape, x.lshape)
+
+        # Exceptions
+        with self.assertRaises(TypeError):
+            x.larray = ht.array([1, 2, 3])
+        with self.assertRaises(TypeError):
+            x.larray = np.array([1, 2, 3])
+        with self.assertRaises(TypeError):
+            x.larray = [1, 2, 3]
+        with self.assertRaises(TypeError):
+            x.larray = "[1, 2, 3]"
+
     def test_astype(self):
         data = ht.float32([[1, 2, 3], [4, 5, 6]])
 
