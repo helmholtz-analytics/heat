@@ -21,9 +21,7 @@ def copy(a):
     """
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError("input needs to be a tensor")
-    return dndarray.DNDarray(
-        a._DNDarray__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm
-    )
+    return dndarray.DNDarray(a.larray.clone(), a.shape, a.dtype, a.split, a.device, a.comm)
 
 
 def sanitize_memory_layout(x, order="C"):

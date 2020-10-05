@@ -131,7 +131,7 @@ class DNDarray:
 
         Parameters
         ----------
-        array : torch.tensor
+        array : torch.tensor, float, int
             The new underlying local torch tensor of the DNDarray
         """
         if not isinstance(array, torch.Tensor):
@@ -296,8 +296,8 @@ class DNDarray:
             bytes to step in each dimension when traversing a tensor.
             numpy-like usage: self.strides
         """
-        steps = list(self._DNDarray__array.stride())
-        itemsize = self._DNDarray__array.storage().element_size()
+        steps = list(self.larray.stride())
+        itemsize = self.larray.storage().element_size()
         strides = tuple(step * itemsize for step in steps)
         return strides
 
@@ -1373,16 +1373,16 @@ class DNDarray:
                     displ[self.comm.rank + 1] if (self.comm.rank + 1) != self.comm.size else k,
                 )
                 if self.split == 0:
-                    self._DNDarray__array[:, indices[0] : indices[1]] = self._DNDarray__array[
+                    self.larray[:, indices[0] : indices[1]] = self.larray[
                         :, indices[0] : indices[1]
                     ].fill_diagonal_(value)
                 elif self.split == 1:
-                    self._DNDarray__array[indices[0] : indices[1], :] = self._DNDarray__array[
+                    self.larray[indices[0] : indices[1], :] = self.larray[
                         indices[0] : indices[1], :
                     ].fill_diagonal_(value)
 
         else:
-            self._DNDarray__array = self._DNDarray__array.fill_diagonal_(value)
+            self.larray = self.larray.fill_diagonal_(value)
 
         return self
 
@@ -1467,10 +1467,10 @@ class DNDarray:
             if key.ndim > 1:
                 for i in range(key.ndim):
                     kgshape[i] = key.gshape[i]
-                    lkey[i] = key._DNDarray__array[..., i]
+                    lkey[i] = key.larray[..., i]
             else:
                 kgshape[0] = key.gshape[0]
-                lkey[0] = key._DNDarray__array
+                lkey[0] = key.larray
             key = tuple(lkey)
         elif not isinstance(key, tuple):
             """ this loop handles all other cases. DNDarrays which make it to here refer to advanced indexing slices,
@@ -1480,7 +1480,7 @@ class DNDarray:
             if isinstance(key, DNDarray):
                 key.balance_()
                 key = manipulations.resplit(key.copy())
-                h[0] = key._DNDarray__array.tolist()
+                h[0] = key.larray.tolist()
             elif isinstance(key, torch.Tensor):
                 h[0] = key.tolist()
             else:
@@ -1500,7 +1500,7 @@ class DNDarray:
             elif isinstance(k, (DNDarray, torch.Tensor)):
                 gout_full[c] = k.shape[0] if not kgshape_flag else kgshape[c]
             if isinstance(k, DNDarray):
-                key[c] = k._DNDarray__array
+                key[c] = k.larray
         if all(g == 1 for g in gout_full):
             gout_full = [1]
         else:
@@ -1564,7 +1564,7 @@ class DNDarray:
                 # advanced indexing, elements in the split dimension are adjusted to the local indices
                 lkey = list(key)
                 if isinstance(key[self.split], DNDarray):
-                    lkey[self.split] = key[self.split]._DNDarray__array
+                    lkey[self.split] = key[self.split].larray
                 inds = (
                     torch.tensor(
                         lkey[self.split], dtype=torch.long, device=self.device.torch_device
@@ -2316,7 +2316,7 @@ class DNDarray:
         T1.numpy()
         """
         dist = manipulations.resplit(self, axis=None)
-        return dist._DNDarray__array.cpu().numpy()
+        return dist.larray.cpu().numpy()
 
     def __or__(self, other):
         """
@@ -3152,7 +3152,7 @@ class DNDarray:
             # this splits the key into torch.Tensors in each dimension for advanced indexing
             lkey = [slice(None, None, None)] * self.ndim
             for i in range(key.ndim):
-                lkey[i] = key._DNDarray__array[..., i]
+                lkey[i] = key.larray[..., i]
             key = tuple(lkey)
         elif not isinstance(key, tuple):
             h = [slice(None, None, None)] * self.ndim
