@@ -2,6 +2,8 @@ import numpy as np
 import math
 import torch
 import warnings
+from inspect import stack
+from pathlib import Path
 from typing import List, Union
 
 from . import arithmetics
@@ -138,10 +140,17 @@ class DNDarray:
             raise TypeError(
                 "Expected larray to be a torch tensor, but was {} instead.".format(type(array))
             )
-        warnings.warn(
-            "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
-            "might corrupt/invalidate the metadata in a DNDarray instance"
-        )
+
+        # raise warning if function was called by user/not out of 'heat/core/*'
+        caller = stack()[1]
+        abs_heat_path = Path("heat", "core").resolve()
+        abs_path_caller = Path(caller.filename).resolve()
+
+        if not (abs_heat_path < abs_path_caller):
+            warnings.warn(
+                "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
+                "might corrupt/invalidate the metadata in a DNDarray instance"
+            )
         self.__array = array
 
     @property
