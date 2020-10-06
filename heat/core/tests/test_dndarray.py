@@ -171,6 +171,7 @@ class TestDNDarray(TestCase):
                 self.assertEqual(data_with_halos.shape, (12, 0))
 
     def test_larray(self):
+        # undistributed case
         x = ht.arange(6 * 7 * 8).reshape((6, 7, 8))
 
         self.assertTrue((x.larray == x.larray).all())
@@ -183,6 +184,31 @@ class TestDNDarray(TestCase):
         self.assertTrue(x.gshape, (42,))
         self.assertIsInstance(x.larray, torch.Tensor)
         self.assertEqual(x.larray.shape, x.lshape)
+
+        # Exceptions
+        with self.assertRaises(TypeError):
+            x.larray = ht.array([1, 2, 3])
+        with self.assertRaises(TypeError):
+            x.larray = np.array([1, 2, 3])
+        with self.assertRaises(TypeError):
+            x.larray = [1, 2, 3]
+        with self.assertRaises(TypeError):
+            x.larray = "[1, 2, 3]"
+
+        # distributed case
+        x = ht.arange(6 * 7 * 8, split=0).reshape((6, 7, 8))
+
+        self.assertTrue((x.larray == x.larray).all())
+        self.assertIsInstance(x.larray, torch.Tensor)
+        self.assertEqual(x.larray.shape, x.lshape)
+
+        x.larray = torch.arange(42)
+
+        self.assertTrue((x.larray == x.larray).all())
+        self.assertTrue(x.gshape, (42,))
+        self.assertIsInstance(x.larray, torch.Tensor)
+        self.assertEqual(x.larray.shape, x.lshape)
+        self.assertEqual(x.split, 0)
 
         # Exceptions
         with self.assertRaises(TypeError):
