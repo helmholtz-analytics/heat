@@ -131,7 +131,7 @@ class DNDarray:
 
         Parameters
         ----------
-        array : torch.tensor, float, int
+        array : torch.tensor
             The new underlying local torch tensor of the DNDarray
         """
         if not isinstance(array, torch.Tensor):
