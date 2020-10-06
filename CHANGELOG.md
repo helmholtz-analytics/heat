@@ -1,5 +1,6 @@
 # Pending additions
 ## New features
+- [#680](https://github.com/helmholtz-analytics/heat/pull/680) Introduction of property larray
 ### Manipulations
 ### Statistical Functions
 ### Linear Algebra
