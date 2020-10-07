@@ -32,6 +32,8 @@ class TestGaussianNB(TestCase):
             "heat/datasets/data/iris_y_pred_proba.csv", sep=";", dtype=ht.float64
         )
 
+        assert(X_train.device, ht.get_device())
+
         # test ht.GaussianNB
         from heat.naive_bayes import GaussianNB
 
