@@ -109,10 +109,10 @@ class TestGaussianNB(TestCase):
         self.assert_array_equal(y_pred_split_weight, y_pred_split.numpy())
 
         # test exceptions
-        X_torch = torch.ones(75, 4)
+        X_torch = torch.ones(75, 4, device=self.device.torch_device)
         y_np = np.zeros(75)
         y_2D = ht.ones((75, 1), split=None)
-        weights_torch = torch.zeros(75)
+        weights_torch = torch.zeros(75, device=self.device.torch_device)
         X_3D = ht.ones((75, 4, 4), split=None)
         X_wrong_size = ht.ones((75, 5), split=None)
         y_wrong_size = ht.zeros(76)

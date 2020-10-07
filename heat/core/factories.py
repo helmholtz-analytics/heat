@@ -327,8 +327,8 @@ def array(
     # change device if it do not match
     if str(obj.device) != device.torch_device:
         warnings.warn(
-            "Array 'obj' is not on device '{}'. It will be copied to it".format(device),
-            UserWarning,
+            "Array 'obj' is not on device '{}'. It will be copied to it.".format(device),
+            UserWarning
         )
         obj = obj.to(device.torch_device)
 
