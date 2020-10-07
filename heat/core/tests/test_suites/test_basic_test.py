@@ -24,9 +24,9 @@ class TestBasicTest(TestCase):
         self.assert_array_equal(heat_array, expected_array)
 
         if self.get_rank() == 0:
-            data = torch.arange(self.get_size(), dtype=torch.int32)
+            data = torch.arange(self.get_size(), dtype=torch.int32, device=self.device.torch_device)
         else:
-            data = torch.empty((0,), dtype=torch.int32)
+            data = torch.empty((0,), dtype=torch.int32, device=self.device.torch_device)
 
         ht_array = ht.array(data, is_split=0)
         np_array = np.arange(self.get_size(), dtype=np.int32)
