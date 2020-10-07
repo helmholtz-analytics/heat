@@ -325,7 +325,7 @@ def array(
         device = devices.sanitize_device(obj.device.type)
 
     # change device if it do not match
-    assert obj.device == device.torch_device
+    assert str(obj.device) == device.torch_device
 
     if str(obj.device) != device.torch_device:
         warnings.warn(
