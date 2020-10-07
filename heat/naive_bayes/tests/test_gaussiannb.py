@@ -43,7 +43,7 @@ class TestGaussianNB(TestCase):
             gnb_heat.class_prior_
         with self.assertRaises(AttributeError):
             gnb_heat.epsilon_
-        """
+
         # test GaussianNB locally, no weights
         local_fit = gnb_heat.fit(X_train, y_train)
         self.assert_array_equal(gnb_heat.classes_, np.array([0, 1, 2]))
@@ -107,12 +107,12 @@ class TestGaussianNB(TestCase):
         ).predict(X_test_split)
         self.assertIsInstance(y_pred_split_weight, ht.DNDarray)
         self.assert_array_equal(y_pred_split_weight, y_pred_split.numpy())
-        
+
         # test exceptions
-        X_torch = torch.ones(75, 4, device=self.device.torch_device)
+        X_torch = torch.ones(75, 4)
         y_np = np.zeros(75)
         y_2D = ht.ones((75, 1), split=None)
-        weights_torch = torch.zeros(75, device=self.device.torch_device)
+        weights_torch = torch.zeros(75)
         X_3D = ht.ones((75, 4, 4), split=None)
         X_wrong_size = ht.ones((75, 5), split=None)
         y_wrong_size = ht.zeros(76)
@@ -162,7 +162,6 @@ class TestGaussianNB(TestCase):
         with self.assertRaises(ValueError):
             gnb_heat.priors = priors_wrong_sign
             gnb_heat.fit(X_train, y_train)
-        """
 
     def test_exception(self):
         with self.assertRaises(ValueError):
