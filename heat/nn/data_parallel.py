@@ -389,8 +389,8 @@ class DataParallelMultiGPU(tnn.Module):
             self.old_require_backward_grad_sync = None
             if skip_batches is None:
                 self.auto_skip = True
-                skip_batches = 8
-                self.local_skip = 4
+                skip_batches = 16
+                self.local_skip = 1
             # self.no_sync = module.no_sync
         self.module = module
         self.comm = comm
@@ -426,11 +426,12 @@ class DataParallelMultiGPU(tnn.Module):
         self.skip_batches = skip_batches
         self.og_skip_batches = skip_batches
         self.global_skips = skip_batches[0][0]
+        self._prev_params = []
         self.epoch = 0
         self._send_mod, self._send_mod_m1 = 0, None
 
         self._prev_losses_mean, self._prev_losses_std = [], []
-        self._loss_rcv, self._loss_wait = None, None
+        self._loss_rcv, self._loss_wait = None, []
         self.start_loss = None
         self.loss_switch_target = None
         self.loss_floor = loss_floor + 0.5
@@ -440,22 +441,24 @@ class DataParallelMultiGPU(tnn.Module):
 
     def _stop_local_sync(self):
         # stop local synchronizations for tDDP
-        if not isinstance(self.module, tDDP):
+        if not isinstance(self.module, tDDP) or not self.module.require_backward_grad_sync:
             # this has no effect if the module is not locally distributed in torch
             return
-        self.old_require_backward_grad_sync = self.module.require_backward_grad_sync
+        # self.old_require_backward_grad_sync = self.module.require_backward_grad_sync
         self.module.require_backward_grad_sync = False
 
     def _start_local_sync(self):
         # *restart* local synchronizations for tDDP
-        if not isinstance(self.module, tDDP):
+        if not isinstance(self.module, tDDP) or self.module.require_backward_grad_sync:
             # this has no effect if the module is not locally distributed in torch
             return
-        self.module.require_backward_grad_sync = self.old_require_backward_grad_sync
+        # self.module.require_backward_grad_sync = self.old_require_backward_grad_sync
+        self.module.require_backward_grad_sync = True
 
     def reset_skips(self):
         # need to reset the skips after the learning rate is adjusted
         # for step based learning
+        print("resetting skips")
         self.skip_batches = self.og_skip_batches
         self.global_skips = self.og_skip_batches[0][0]
         self.local_skip = self.global_skips // 2
@@ -503,8 +506,13 @@ class DataParallelMultiGPU(tnn.Module):
 
             if means[-1] <= self.loss_floor and not lr_adjust:
                 # adjust batch skips
+                print("adjusting batch skips in loss logic")
                 self.global_skips //= 2
                 self.local_skip //= 2
+                if self.local_skip == 0:
+                    self.local_skip = 1
+                if self.global_skips == 0:
+                    self.global_skips = 1
             elif lr_adjust:
                 # reset the skip numbers
                 self.reset_skips()
@@ -534,18 +542,47 @@ class DataParallelMultiGPU(tnn.Module):
         if self.current_batch == self.last_batch or self.current_batch % self.global_skips == 0:
             # if last batch -> run last batch sync and return -> full global sync
             # if self.batch_num % global_skip == 0 -> full global sync
-            return self._full_global_sync()
-        elif self.current_batch % self.local_skip == self.local_skip - 1:
+            #print(self.current_batch, "global sync")
+            self._full_global_sync()
+            # self._start_local_sync()
+            #if self.comm.rank == 0:
+            #    print("global send", self.current_batch - 1)
+            return
+        # elif self.current_batch % self.local_skip == 0:
+            #    self.current_batch % self.global_skips == 2
+            #self.current_batch % self.global_skips == self.global_skips - 1 or
+            #self.current_batch == self.last_batch - 1
+            #):
             # if self.batch_num % local_skip == local_skip - 1 -> turn on local sync
-            self._start_local_sync()
-        elif self.current_batch % self.local_skip == 0 or self.waiting:
+            # self._start_local_sync()
+            #self._stop_local_sync()
+        #    if self.comm.rank == 0:
+        #        print("starting to skip", self.current_batch)
+        elif self.current_batch % self.global_skips == 4:
+            # elif self.current_batch % self.local_skip == 0 or self.waiting:
             # if self.batch_num % local_skip == 0 -> try to receive data, once received, turn off local sync
-            # if trying to receive -> try to receive still, once received, turn off local sync
+            # if trying to receive -> try to receive still, once received, turn off local sync           
             self._global_sync_test_rcv()
-            self._stop_local_sync()
+            #self._stop_local_sync()
+            #if self.comm.rank == 0:
+            #    print("rcv + stoping local skip", self.current_batch)
+            # self._stop_local_sync()
+        elif (
+            self.current_batch == self.last_batch - 2 or
+            self.current_batch % self.global_skips == self.global_skips - 1 or 
+            self.current_batch % self.local_skip == self.local_skip - 1
+        ):
+            #if self.comm.rank == 0:
+            #    print("starting to locally skip", self.current_batch)
+            pass
+            #self._start_local_sync()
+        elif self.current_batch % self.local_skip == 0:
+            pass
+            #self._stop_local_sync()
 
         self.current_batch += 1
-
+        #if self.current_batch > self.last_batch - 10:
+        #    self._start_local_sync()
         if self.current_batch == 0:
             # this only occurs at the end of an epoch (batch numbers reset w/in full global sync)
             pass
@@ -658,7 +695,7 @@ class DataParallelMultiGPU(tnn.Module):
             self.epoch += 1
             self.current_batch = 0
         else:
-            self._stop_local_sync()
+            # self._start_local_sync()
             self._send_mod_m1 = self._send_mod
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
 
@@ -669,11 +706,13 @@ class DataParallelMultiGPU(tnn.Module):
             if self._send_mod_m1 is None:
                 return
             prev_ranks = self.reduced_ranks[self._send_mod_m1]
-            if (
-                self.comm.rank in prev_ranks
-                and self._prev_params[0][0] is not None
-                or self._prev_params[0][0].test()
-            ):
+            # print(prev_ranks)
+            if self.comm.rank in prev_ranks and len(self._prev_params) > 0 and self._prev_params[0][0] is not None:
+            #if (
+            #    self.comm.rank in prev_ranks
+            #    and self._prev_params[0][0] is not None
+            #    or self._prev_params[0][0].test()
+            #):
                 # receive previous ones
                 self._update_parameters()
             self._local_torch_param_update(self._send_mod_m1)
@@ -725,10 +764,14 @@ class DataParallelMultiGPU(tnn.Module):
         if self._send_mod_m1 is None:
             return
         prev_ranks = self.reduced_ranks[self._send_mod_m1]
-        if self.comm.rank not in prev_ranks or self._prev_params[0][0] is None:
+        if self.comm.rank not in prev_ranks: # or self._prev_params[0][0] is None:
             # receive previous ones
             return
+        # print(self._prev_params)
+        if len(self._prev_params) == 0 or self._prev_params[0][0] is None:
+            return
         # ttt = time.perf_counter()
+        #print(self._prev_params)
         self._prev_params[0][0].wait()
         # if self.comm.rank == 0:
         #     print("wait time", time.perf_counter() - ttt)

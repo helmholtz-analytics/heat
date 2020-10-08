@@ -359,7 +359,7 @@ def main():
 
     # create DP optimizer and model:
     blocking = False  # choose blocking or non-blocking parameter updates
-    dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, ht.MPI_WORLD, blocking)
+    dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
     # skip_batches = [
     #     [8, 0],
     #     [2, 80],
@@ -437,7 +437,7 @@ def main():
         return
 
     model.epochs = args.start_epoch
-    args.lr_factor = 0
+    args.factor = 0
     total_time = AverageMeter()
     batch_time_avg, train_acc1, train_acc5, avg_loss = [], [], [], []
     val_acc1, val_acc5 = [], []
@@ -512,6 +512,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     # must set last batch for the model to work properly
     model.last_batch = train_loader_len
     for i, data in enumerate(train_loader):
+        # print(i)
         # tt = time.perf_counter()
         input = data[0]["data"].cuda(dev)
         target = data[0]["label"].squeeze().cuda(dev).long()
@@ -707,7 +708,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, epoch, step, len_epoch, lr_adjust):
+def adjust_learning_rate(optimizer, epoch, step, len_epoch, lr_adjust=None):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
     if lr_adjust:
         args.factor += 1
