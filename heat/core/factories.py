@@ -330,10 +330,10 @@ def array(
     if str(obj.device) != device.torch_device:
         warnings.warn(
             "Array 'obj' is not on device '{}'. It will be copied to it.".format(device),
-            UserWarning
+            UserWarning,
         )
         obj = obj.to(device.torch_device)
-    
+
     # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
         raise TypeError("expected ndmin to be int, but was {}".format(type(ndmin)))
