@@ -2157,7 +2157,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         # Gather all unique vectors
         counts = list(uniques_buf.tolist())
         displs = list([0] + uniques_buf.cumsum(0).tolist()[:-1])
-        gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
+        gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type(), device=a.device.torch_device)
         a.comm.Allgatherv(lres, (gres_buf, counts, displs), recv_axis=0)
 
         if return_inverse:
