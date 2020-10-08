@@ -206,7 +206,7 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     # If x is distributed, then y is also distributed along the same axis
     if t1.comm.is_distributed() and t1.split is not None:
         output_gshape = stride_tricks.broadcast_shape(t1.gshape, t2.gshape)
-        res = torch.empty(output_gshape).bool()
+        res = torch.empty(output_gshape, device=t1.device.torch_device).bool()
         t1.comm.Allgather(_local_isclose, res)
         result = factories.array(res, dtype=types.bool, device=t1.device, split=t1.split)
     else:
