@@ -1431,6 +1431,14 @@ class TestManipulations(TestCase):
         self.assertEqual(reshaped.split, 1)
         self.assertTrue(ht.equal(reshaped, result))
 
+        a = ht.arange(4, split=0, dtype=ht.bool)
+        result = ht.array([[False,True],[True,True]])
+        reshaped = a.reshape((2,2))
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertEqual(reshaped.device, result.device)
+        self.assertTrue(ht.equal(reshaped, result))
+
         # exceptions
         with self.assertRaises(ValueError):
             ht.reshape(ht.zeros((4, 3)), (5, 7))
