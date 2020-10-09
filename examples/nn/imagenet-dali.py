@@ -360,17 +360,15 @@ def main():
     # create DP optimizer and model:
     blocking = False  # choose blocking or non-blocking parameter updates
     dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
-    # skip_batches = [
-    #     [8, 0],
-    #     [2, 80],
-    # ]  # args.batch_skip #[[2, 0], [3, 20], [5, 60]] # args.batch_skip
+    skip_batches = args.batch_skip
     htmodel = ht.nn.DataParallelMultiGPU(
         model,
         ht.MPI_WORLD,
         dp_optimizer,
         overlap=True,
         distributed_twice=twice_dist,
-        # skip_batches=skip_batches,
+        skip_batches=skip_batches,
+        loss_floor=1.5,
     )
 
     # define loss function (criterion) and optimizer
@@ -454,8 +452,7 @@ def main():
         [prec1, prec5] = validate(device, val_loader, htmodel, criterion)
 
         # epoch loss logic to adjust learning rate based on loss
-        # lr_adjust = htmodel.epoch_loss_logic(ls)
-        lr_adjust = False
+        lr_adjust = htmodel.epoch_loss_logic(ls)
         adjust_learning_rate(dp_optimizer, epoch, None, None, lr_adjust)
 
         # remember best prec@1 and save checkpoint
@@ -678,8 +675,12 @@ def validate(dev, val_loader, model, criterion):
             )
     top1.avg = reduce_tensor(torch.tensor(top1.avg), comm=model.comm)
     top5.avg = reduce_tensor(torch.tensor(top5.avg), comm=model.comm)
+    losses.avg = reduce_tensor(torch.tensor(losses.avg), comm=model.comm)
     if args.local_rank == 0:
-        print(" * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}".format(top1=top1, top5=top5))
+        print(
+            " * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} "
+            "loss: {loss.avg:.3f}".format(top1=top1, top5=top5, loss=losses)
+        )
 
     return [top1.avg, top5.avg]
 
@@ -713,8 +714,8 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch, lr_adjust=None):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
     if lr_adjust:
         args.factor += 1
-    elif epoch // 30 > 0:
-        args.factor += 1
+    # elif epoch // 30 > 0:
+    #     args.factor += 1
     # factor = epoch // 30
 
     if epoch >= 80:
