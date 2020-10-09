@@ -1431,9 +1431,9 @@ class TestManipulations(TestCase):
         self.assertEqual(reshaped.split, 1)
         self.assertTrue(ht.equal(reshaped, result))
 
-        x = ht.arange(4, split=0, dtype=ht.bool)
+        a = ht.arange(4, split=0, dtype=ht.bool)
         result = ht.array([[False, True], [True, True]], split=0, dtype=ht.bool)
-        x.reshape((2, 2))
+        reshaped = a.reshape((2, 2))
 
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
