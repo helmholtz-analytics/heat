@@ -493,6 +493,85 @@ class TestDNDarray(TestCase):
         with self.assertRaises(TypeError):
             ht.array([True]) << 2
 
+    def test_nbytes(self):
+        # undistributed case
+
+        # integer
+        x_uint8 = ht.arange(6 * 7 * 8, dtype=ht.uint8).reshape((6, 7, 8))
+        x_int8 = ht.arange(6 * 7 * 8, dtype=ht.int8).reshape((6, 7, 8))
+        x_int16 = ht.arange(6 * 7 * 8, dtype=ht.int16).reshape((6, 7, 8))
+        x_int32 = ht.arange(6 * 7 * 8, dtype=ht.int32).reshape((6, 7, 8))
+        x_int64 = ht.arange(6 * 7 * 8, dtype=ht.int64).reshape((6, 7, 8))
+
+        # float
+        x_float32 = ht.arange(6 * 7 * 8, dtype=ht.float32).reshape((6, 7, 8))
+        x_float64 = ht.arange(6 * 7 * 8, dtype=ht.float64).reshape((6, 7, 8))
+
+        # bool
+        x_bool = ht.arange(6 * 7 * 8, dtype=ht.bool).reshape((6, 7, 8))
+
+        self.assertEqual(x_uint8.nbytes, 336 * 1)
+        self.assertEqual(x_int8.nbytes, 336 * 1)
+        self.assertEqual(x_int16.nbytes, 336 * 2)
+        self.assertEqual(x_int32.nbytes, 336 * 4)
+        self.assertEqual(x_int64.nbytes, 336 * 8)
+
+        self.assertEqual(x_float32.nbytes, 336 * 4)
+        self.assertEqual(x_float64.nbytes, 336 * 8)
+
+        self.assertEqual(x_bool.nbytes, 336 * 1)
+
+        # equivalent function gnbytes
+        self.assertEqual(x_uint8.nbytes, x_uint8.gnbytes)
+        self.assertEqual(x_int8.nbytes, x_int8.gnbytes)
+        self.assertEqual(x_int16.nbytes, x_int16.gnbytes)
+        self.assertEqual(x_int32.nbytes, x_int32.gnbytes)
+        self.assertEqual(x_int64.nbytes, x_int64.gnbytes)
+
+        self.assertEqual(x_float32.nbytes, x_float32.gnbytes)
+        self.assertEqual(x_float64.nbytes, x_float64.gnbytes)
+
+        self.assertEqual(x_bool.nbytes, x_bool.gnbytes)
+
+        # distributed case
+
+        # integer
+        x_uint8_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.uint8)
+        x_int8_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int8)
+        x_int16_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int16)
+        x_int32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int32)
+        x_int64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int64)
+
+        # float
+        x_float32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float32)
+        x_float64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float64)
+
+        # bool
+        x_bool_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.bool)
+
+        self.assertEqual(x_uint8_d.nbytes, 336 * 1)
+        self.assertEqual(x_int8_d.nbytes, 336 * 1)
+        self.assertEqual(x_int16_d.nbytes, 336 * 2)
+        self.assertEqual(x_int32_d.nbytes, 336 * 4)
+        self.assertEqual(x_int64_d.nbytes, 336 * 8)
+
+        self.assertEqual(x_float32_d.nbytes, 336 * 4)
+        self.assertEqual(x_float64_d.nbytes, 336 * 8)
+
+        self.assertEqual(x_bool_d.nbytes, 336 * 1)
+
+        # equivalent function gnbytes
+        self.assertEqual(x_uint8_d.nbytes, x_uint8_d.gnbytes)
+        self.assertEqual(x_int8_d.nbytes, x_int8_d.gnbytes)
+        self.assertEqual(x_int16_d.nbytes, x_int16_d.gnbytes)
+        self.assertEqual(x_int32_d.nbytes, x_int32_d.gnbytes)
+        self.assertEqual(x_int64_d.nbytes, x_int64_d.gnbytes)
+
+        self.assertEqual(x_float32_d.nbytes, x_float32_d.gnbytes)
+        self.assertEqual(x_float64_d.nbytes, x_float64_d.gnbytes)
+
+        self.assertEqual(x_bool_d.nbytes, x_bool_d.gnbytes)
+
     def test_ndim(self):
         a = ht.empty([2, 3, 3, 2])
         self.assertEqual(a.ndim, 4)
