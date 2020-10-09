@@ -1314,9 +1314,9 @@ def reshape(a, shape, new_split=None):
         """
         Compute the send order, counts, and displacements.
         """
-        shape1 = torch.tensor(shape1, dtype=torch.int)
-        lshape1 = torch.tensor(lshape1, dtype=torch.int)
-        shape2 = torch.tensor(shape2, dtype=torch.int)
+        shape1 = torch.tensor(shape1, dtype=tdtype, device=tdevice)
+        lshape1 = torch.tensor(lshape1, dtype=tdtype, device=tdevice)
+        shape2 = torch.tensor(shape2, dtype=tdtype, device=tdevice)
         # constants
         width = torch.prod(lshape1[axis1:], dtype=torch.int)
         height = torch.prod(lshape1[:axis1], dtype=torch.int)
@@ -1331,7 +1331,7 @@ def reshape(a, shape, new_split=None):
         mask = mask.flatten()
 
         # Compute return values
-        counts = torch.zeros(comm.size, dtype=torch.int)
+        counts = torch.zeros(comm.size, dtype=torch.int, device=tdevice)
         displs = torch.zeros_like(counts)
         argsort = torch.empty_like(mask, dtype=torch.long)
         plz = 0
