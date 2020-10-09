@@ -116,6 +116,7 @@ class DNDarray:
     def nbytes(self):
         """
         Equivalent to property gnbytes.
+        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
 
         Returns
         -------
@@ -162,6 +163,7 @@ class DNDarray:
     @property
     def gnbytes(self):
         """
+        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
 
         Returns
         -------
@@ -184,6 +186,7 @@ class DNDarray:
     @property
     def lnbytes(self):
         """
+        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
 
         Returns
         -------
