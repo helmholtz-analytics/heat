@@ -389,7 +389,7 @@ class DataParallelMultiGPU(tnn.Module):
             self.old_require_backward_grad_sync = None
             if skip_batches is None:
                 self.auto_skip = True
-                skip_batches = 16
+                skip_batches = 8
                 self.local_skip = 1
             # self.no_sync = module.no_sync
         self.module = module
@@ -544,7 +544,7 @@ class DataParallelMultiGPU(tnn.Module):
             # if self.batch_num % global_skip == 0 -> full global sync
             #print(self.current_batch, "global sync")
             self._full_global_sync()
-            # self._start_local_sync()
+            #self._stop_local_sync()
             #if self.comm.rank == 0:
             #    print("global send", self.current_batch - 1)
             return
@@ -558,18 +558,20 @@ class DataParallelMultiGPU(tnn.Module):
             #self._stop_local_sync()
         #    if self.comm.rank == 0:
         #        print("starting to skip", self.current_batch)
+        elif self.current_batch % self.global_skips < 4 and self.current_batch < self.last_batch - 4:
+            pass
         elif self.current_batch % self.global_skips == 4:
             # elif self.current_batch % self.local_skip == 0 or self.waiting:
             # if self.batch_num % local_skip == 0 -> try to receive data, once received, turn off local sync
             # if trying to receive -> try to receive still, once received, turn off local sync           
             self._global_sync_test_rcv()
-            #self._stop_local_sync()
+        #    self._stop_local_sync()
             #if self.comm.rank == 0:
             #    print("rcv + stoping local skip", self.current_batch)
-            # self._stop_local_sync()
+            #self._stop_local_sync()
         elif (
-            self.current_batch == self.last_batch - 2 or
-            self.current_batch % self.global_skips == self.global_skips - 1 or 
+            self.current_batch == self.last_batch - 1 or
+            self.current_batch % self.global_skips >= self.global_skips - 2 or 
             self.current_batch % self.local_skip == self.local_skip - 1
         ):
             #if self.comm.rank == 0:
@@ -578,6 +580,8 @@ class DataParallelMultiGPU(tnn.Module):
             #self._start_local_sync()
         elif self.current_batch % self.local_skip == 0:
             pass
+            #if self.comm.rank == 0:
+            #    print("stoping local skip", self.current_batch)
             #self._stop_local_sync()
 
         self.current_batch += 1
@@ -666,7 +670,8 @@ class DataParallelMultiGPU(tnn.Module):
         # needs to happen on all ranks:
         self._local_torch_param_update(self._send_mod_m1)
 
-        self.current_batch += 1
+        # self.current_batch += 1
+        #print(self.last_batch)
 
         if self.current_batch == self.last_batch:
             # todo: abstract last batch?
@@ -696,6 +701,7 @@ class DataParallelMultiGPU(tnn.Module):
             self.current_batch = 0
         else:
             # self._start_local_sync()
+            self.current_batch += 1
             self._send_mod_m1 = self._send_mod
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
 
