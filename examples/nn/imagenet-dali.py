@@ -454,7 +454,7 @@ def main():
         [prec1, prec5] = validate(device, val_loader, htmodel, criterion)
 
         # epoch loss logic to adjust learning rate based on loss
-        #lr_adjust = htmodel.epoch_loss_logic(ls)
+        # lr_adjust = htmodel.epoch_loss_logic(ls)
         lr_adjust = False
         adjust_learning_rate(dp_optimizer, epoch, None, None, lr_adjust)
 
