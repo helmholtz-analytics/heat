@@ -425,7 +425,7 @@ class DataParallelMultiGPU(tnn.Module):
         #     skip batches should be a list of lists or list of tuples.
         #     the first index is how many to skip, the second int would be the batch number to change at
         self.og_skip_batches = skip_batches
-        self.global_skips = skip_batches
+        self.global_skip = skip_batches
         self.local_skip = skip_batches // 2
 
         self._prev_params = []
@@ -461,8 +461,8 @@ class DataParallelMultiGPU(tnn.Module):
         # need to reset the skips after the learning rate is adjusted
         # for step based learning
         # print("resetting skips")
-        self.global_skips = self.og_skip_batches
-        self.local_skip = self.global_skips // 2
+        self.global_skip = self.og_skip_batches
+        self.local_skip = self.global_skip // 2
 
     def epoch_loss_logic(self, loss):
         # this should be called during the epoch
@@ -501,25 +501,44 @@ class DataParallelMultiGPU(tnn.Module):
                 # first need to fill the list before doing anything else
                 return
             means = torch.tensor(self._prev_losses_mean)
-            diff = means[-1] - means[0]
+            if len(means) < 4:
+                return False
+            diff = abs(means[-1] - means[-5])
 
             lr_adjust = False
-            if diff < 0.1 or means[-1] < self.loss_switch_target:
+            if 0.0 < diff < 0.1 or means[-1] < self.loss_switch_target:
                 lr_adjust = True
 
             if means[-1] <= self.loss_floor and not lr_adjust:
+                # if the average mean is below the target loss floor
+                #       -> reduce the number of global and local skips by half
+                #       -> if global skips is 0 then receive them right away!
                 # adjust batch skips
                 # print("adjusting batch skips in loss logic")
-                self.global_skips //= 2
+                self.global_skip //= 2
                 self.local_skip //= 2
+                self.loss_floor -= 1
+
                 if self.local_skip == 0:
                     self.local_skip = 1
-                if self.global_skips == 0:
-                    self.global_skips = 1
-            elif lr_adjust:
-                # reset the skip numbers when the LR changes
-                self.start_loss = None
-                self.reset_skips()
+                if self.global_skip == 0:
+                    self.global_skip = 1
+                if self.comm.rank == 0:
+                    print(
+                        "adjust batches:",
+                        diff,
+                        means[-1],
+                        " global:",
+                        self.global_skip,
+                        "local:",
+                        self.local_skip,
+                    )
+
+            # todo: reset skips?
+            # elif lr_adjust:
+            #     # reset the skip numbers when the LR changes
+            #     self.start_loss = None
+            #     self.reset_skips()
             # if the diff is < 0.1 adjust learning rate, at the end of the learning rate path,
             #       then change the difference in the batch skips
             if lr_adjust and self.comm.rank == 0:
@@ -544,33 +563,33 @@ class DataParallelMultiGPU(tnn.Module):
         # t3 = time.perf_counter()
         self.optimizer.torch_optimizer.step()
 
-        batches_to_wait = 4
+        batches_to_wait = 4 if self.local_skip >= 4 else self.local_skip
 
         # do full synce on global skips and on the last batch
-        if self.current_batch == self.last_batch or self.current_batch % self.global_skips == 0:
+        if self.current_batch == self.last_batch or self.current_batch % self.global_skip == 0:
             return self._full_global_sync()
         # if the batch is close to the end make sure to start the local sync
         elif self.current_batch < self.last_batch - batches_to_wait:
             self._global_sync_test_rcv()
             self._start_local_sync()
         # # do nothing until N batches later, todo: tune how many batches
-        elif self.global_skips == 0:
-            # break out if no global skips
-            pass
-        elif self.current_batch % self.global_skips < batches_to_wait:
+        # elif self.global_skip == 0:
+        #     # break out if no global skips
+        #     pass
+        elif self.current_batch % self.global_skip < batches_to_wait:
             pass
         # receive the sent data from N batches ago and stop syncing locally
-        elif self.current_batch % self.global_skips == batches_to_wait:
+        elif self.current_batch % self.global_skip == batches_to_wait:
             self._full_global_sync()
             # todo: stop local sync
             self._stop_local_sync()
         # start syncing locally before the next global send
-        elif self.current_batch % self.global_skips == self.global_skips - 2:
+        elif self.current_batch % self.global_skip == self.global_skip - 2:
             self._start_local_sync()
             pass
-        elif self.local_skip == 0:
-            # break out if now local skips
-            pass
+        # elif self.local_skip == 0:
+        #     # break out if no local skips
+        #     pass
         elif self.current_batch % self.local_skip == 0:
             # this means that it should have just synced -> turn off local sync
             self._stop_local_sync()
@@ -592,8 +611,8 @@ class DataParallelMultiGPU(tnn.Module):
             # todo: this can actually be done at any time...
             return
 
-        if self.global_skips > 0:
-            self.global_skips //= 2
+        if self.global_skip > 0:
+            self.global_skip //= 2
         if self.local_skip > 0:
             self.local_skip //= 2
         # if self.auto_skip:
@@ -606,27 +625,6 @@ class DataParallelMultiGPU(tnn.Module):
         current_comm = self.reduced_comms[self._send_mod]
         current_ranks = self.reduced_ranks[self._send_mod]
 
-        # mod_hold_m2 = None
-        # if self.current_batch > 1:
-        #     mod_hold_m2 = (self.current_batch - 2) % self.loc_gpus
-        #     prev_ranks = self.reduced_ranks[mod_hold_m2]
-        # else:
-        #     prev_ranks = []
-
-        # param_list = [[n, p] for n, p in self.parameters()]
-
-        # mod_hold_m1 = None
-        # if self.current_batch > 0:
-        #     mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
-        #     prev_ranks = self.reduced_ranks[mod_hold_m1]
-        # else:
-        #     prev_ranks = []
-        # mod_hold_m1 = None
-        # if self.current_batch > 0:
-        # mod_hold_m1 = (self.current_batch - 1) % self.loc_gpus
-        pass
-        # todo: remove below if decorator works as intended
-        # with torch.no_grad():
         if self.comm.rank in current_ranks:
             self._global_send_update(current_comm)
 
@@ -634,7 +632,7 @@ class DataParallelMultiGPU(tnn.Module):
         # needs to happen on all ranks:
         self._local_torch_param_update(self._send_mod_m1)
 
-        if self.current_batch == self.last_batch:
+        if self.current_batch == self.last_batch or self.global_skip == 1:
             # todo: abstract last batch?
             # receive the sent data to sync params across all ranks
             # print("last batch stuff")
@@ -657,9 +655,14 @@ class DataParallelMultiGPU(tnn.Module):
             self._local_torch_param_update(self._send_mod)
 
             self._send_mod_m1 = None
-            self._send_mod = 0
-            self.epoch += 1
-            self.current_batch = 0
+
+            if self.current_batch == self.last_batch:
+                self._send_mod = 0
+                self.epoch += 1
+                self.current_batch = 0
+            else:
+                self.current_batch += 1
+                self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
         else:
             self.current_batch += 1
             self._send_mod_m1 = self._send_mod

@@ -368,7 +368,7 @@ def main():
         overlap=True,
         distributed_twice=twice_dist,
         skip_batches=skip_batches,
-        loss_floor=1.5,
+        loss_floor=2.5,
     )
 
     # define loss function (criterion) and optimizer
@@ -714,8 +714,8 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch, lr_adjust=None):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
     if lr_adjust:
         args.factor += 1
-    # elif epoch // 30 > 0:
-    #     args.factor += 1
+    elif epoch // 30 > 0 and args.factor < epoch // 30:
+        args.factor += 1
     # factor = epoch // 30
 
     if epoch >= 80:
