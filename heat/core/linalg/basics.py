@@ -364,7 +364,7 @@ def matmul(a, b, allow_resplit=False):
     if any(lshape_map[:, 0, :][:, 1] == 1):
         a_d1_1s_flag = True
 
-    index_map_comm.wait()
+    index_map_comm.Wait()
     for pr in range(a.comm.size):
         start0 = index_map[pr, 0, 0, 0].item()
         stop0 = index_map[pr, 0, 0, 1].item()
@@ -382,7 +382,7 @@ def matmul(a, b, allow_resplit=False):
                 a_block_map[pr, dim0, dim1] = torch.tensor(
                     (dim0 * mB, dim1 * kB), dtype=torch.int, device=a._DNDarray__array.device
                 )
-    rem_map_comm.wait()
+    rem_map_comm.Wait()
     if b.split == 0:
         # the blocks are shifted in the 2nd dimension of A for as many remainders
         # there are between the blocks in the first dim of B
@@ -440,14 +440,14 @@ def matmul(a, b, allow_resplit=False):
                 b_block_map[:, cnt:, :, 0] += 1
 
     # work loop: loop over all processes (also will incorporate the remainder calculations)
-    c_wait.wait()
+    c_wait.Wait()
 
     if split_0_flag:
         # need to send b here and not a
         #   the rows on 'a' are complete, and the columns of 'b' are split
         # locations of the remainders in b
-        b_rem_locs0 = (rem_map[:, 1, 0] == 1).nonzero()
-        a_rem_locs0 = (rem_map[:, 0, 0] == 1).nonzero()
+        b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
+        a_rem_locs0 = torch.nonzero(rem_map[:, 0, 0] == 1, as_tuple=False)
         # remainders for a in the
         a_node_rem_s0 = a._DNDarray__array[:mB, kB : (kB + 1) * b_rem_locs0.numel() : kB + 1]
         b_rem = torch.empty(
@@ -484,7 +484,7 @@ def matmul(a, b, allow_resplit=False):
 
             # receive the data from the last loop and do the calculation with that
             if pr != 0:
-                req[pr - 1].wait()
+                req[pr - 1].Wait()
                 # after receiving the last loop's bcast
                 __mm_c_block_setter(
                     b_proc=pr - 1,
@@ -518,7 +518,7 @@ def matmul(a, b, allow_resplit=False):
 
             # need to wait if its the last loop, also need to collect the remainders
             if pr == b.comm.size - 1:
-                req[pr].wait()
+                req[pr].Wait()
                 __mm_c_block_setter(
                     b_proc=pr,
                     a_proc=a.comm.rank,
@@ -570,8 +570,8 @@ def matmul(a, b, allow_resplit=False):
         # for this case, a is sent to b
         #   this is because 'b' has complete columns and the rows of 'a' are split
         # locations of the remainders in b
-        b_rem_locs1 = (rem_map[:, 1, 1] == 1).nonzero()
-        a_rem_locs1 = (rem_map[:, 0, 1] == 1).nonzero()
+        b_rem_locs1 = torch.nonzero(rem_map[:, 1, 1] == 1, as_tuple=False)
+        a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
         b_node_rem_s1 = b._DNDarray__array[
             kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB
         ]  # remainders for a in the
@@ -610,7 +610,7 @@ def matmul(a, b, allow_resplit=False):
             # receive the data from the last loop and do the calculation with that
             if pr != 0:
                 # after receiving the last loop's bcast
-                req[pr - 1].wait()
+                req[pr - 1].Wait()
                 __mm_c_block_setter(
                     a_proc=pr - 1,
                     b_proc=b.comm.rank,
@@ -645,7 +645,7 @@ def matmul(a, b, allow_resplit=False):
 
             # need to wait if its the last loop, also need to collect the remainders
             if pr == b.comm.size - 1:
-                req[pr].wait()
+                req[pr].Wait()
                 __mm_c_block_setter(
                     a_proc=pr,
                     b_proc=a.comm.rank,
@@ -706,7 +706,7 @@ def matmul(a, b, allow_resplit=False):
 
             # receive the data from the last loop and do the calculation with that
             if pr != 0:
-                req[pr - 1].wait()
+                req[pr - 1].Wait()
                 # after receiving the last loop's bcast
                 st0 = index_map[pr - 1, 0, 0, 0].item()
                 sp0 = index_map[pr - 1, 0, 0, 1].item() + 1
@@ -717,7 +717,7 @@ def matmul(a, b, allow_resplit=False):
                 del b_lp_data[pr - 1]
 
             if pr == b.comm.size - 1:
-                req[pr].wait()
+                req[pr].Wait()
                 st0 = index_map[pr, 0, 0, 0].item()
                 sp0 = index_map[pr, 0, 0, 1].item() + 1
                 st1 = index_map[pr, 1, 1, 0].item()
@@ -736,9 +736,9 @@ def matmul(a, b, allow_resplit=False):
     elif split_10_flag:
         # todo: this may create the full matrix on evey process, issue #360
         # for this case, only a sum is needed at the end
-        a_rem_locs1 = (rem_map[:, 0, 1] == 1).nonzero()
+        a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
         # locations of the remainders in b
-        b_rem_locs0 = (rem_map[:, 1, 0] == 1).nonzero()
+        b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
         res = torch.zeros(
             (a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=c.device.torch_device
         )

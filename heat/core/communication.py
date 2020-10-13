@@ -23,10 +23,10 @@ CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("PSP_CUDA") == "1"
 class Communication:
     @staticmethod
     def is_distributed():
-        return NotImplemented
+        raise NotImplementedError()
 
     def __init__(self):
-        return NotImplemented
+        raise NotImplementedError()
 
     def chunk(self, shape, split):
         """
@@ -47,7 +47,7 @@ class Communication:
         slices : tuple of slices
             the chunk slices with respect to the given shape
         """
-        return NotImplemented
+        raise NotImplementedError()
 
 
 class MPICommunication(Communication):
@@ -1093,18 +1093,6 @@ class MPIRequest:
 
     def Wait(self, status=None):
         self.handle.Wait(status)
-        if (
-            self.tensor is not None
-            and isinstance(self.tensor, torch.Tensor)
-            and self.tensor.is_cuda
-            and not CUDA_AWARE_MPI
-        ):
-            if self.permutation is not None:
-                self.recvbuf = self.recvbuf.permute(self.permutation)
-            self.tensor.copy_(self.recvbuf)
-
-    def wait(self, status=None):
-        self.handle.wait(status)
         if (
             self.tensor is not None
             and isinstance(self.tensor, torch.Tensor)

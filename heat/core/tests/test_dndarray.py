@@ -30,8 +30,8 @@ class TestDNDarray(TestCase):
 
         if data.comm.size == 2:
 
-            halo_next = torch.tensor(np.array([[4, 5], [10, 11]]))
-            halo_prev = torch.tensor(np.array([[2, 3], [8, 9]]))
+            halo_next = torch.tensor(np.array([[4, 5], [10, 11]]), device=data.device.torch_device)
+            halo_prev = torch.tensor(np.array([[2, 3], [8, 9]]), device=data.device.torch_device)
 
             data.get_halo(2)
 
@@ -59,8 +59,12 @@ class TestDNDarray(TestCase):
             data_np = np.array([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]])
             data = ht.array(data_np, split=1)
 
-            halo_next = torch.tensor(np.array([[4.0, 5.0], [10.0, 11.0]]))
-            halo_prev = torch.tensor(np.array([[2.0, 3.0], [8.0, 9.0]]))
+            halo_next = torch.tensor(
+                np.array([[4.0, 5.0], [10.0, 11.0]]), device=data.device.torch_device
+            )
+            halo_prev = torch.tensor(
+                np.array([[2.0, 3.0], [8.0, 9.0]]), device=data.device.torch_device
+            )
 
             data.get_halo(2)
 
@@ -73,8 +77,12 @@ class TestDNDarray(TestCase):
 
             data = ht.ones((10, 2), split=0)
 
-            halo_next = torch.tensor(np.array([[1.0, 1.0], [1.0, 1.0]]))
-            halo_prev = torch.tensor(np.array([[1.0, 1.0], [1.0, 1.0]]))
+            halo_next = torch.tensor(
+                np.array([[1.0, 1.0], [1.0, 1.0]]), device=data.device.torch_device
+            )
+            halo_prev = torch.tensor(
+                np.array([[1.0, 1.0], [1.0, 1.0]]), device=data.device.torch_device
+            )
 
             data.get_halo(2)
 
@@ -87,10 +95,10 @@ class TestDNDarray(TestCase):
 
         if data.comm.size == 3:
 
-            halo_1 = torch.tensor(np.array([[2], [8]]))
-            halo_2 = torch.tensor(np.array([[3], [9]]))
-            halo_3 = torch.tensor(np.array([[4], [10]]))
-            halo_4 = torch.tensor(np.array([[5], [11]]))
+            halo_1 = torch.tensor(np.array([[2], [8]]), device=data.device.torch_device)
+            halo_2 = torch.tensor(np.array([[3], [9]]), device=data.device.torch_device)
+            halo_3 = torch.tensor(np.array([[4], [10]]), device=data.device.torch_device)
+            halo_4 = torch.tensor(np.array([[5], [11]]), device=data.device.torch_device)
 
             data.get_halo(1)
 
@@ -118,6 +126,49 @@ class TestDNDarray(TestCase):
             # exception for too large halos
             with self.assertRaises(ValueError):
                 data.get_halo(4)
+            # exception on non balanced tensor
+            with self.assertRaises(RuntimeError):
+                if data.comm.rank == 1:
+                    data._DNDarray__array = torch.empty(0)
+                data.get_halo(1)
+
+            # test no data on process
+            data_np = np.arange(2 * 12).reshape(2, 12)
+            data = ht.array(data_np, split=0)
+            data.get_halo(1)
+
+            data_with_halos = data.array_with_halos
+
+            if data.comm.rank == 0:
+                self.assertTrue(data.halo_prev is None)
+                self.assertTrue(data.halo_next is not None)
+                self.assertEqual(data_with_halos.shape, (2, 12))
+            if data.comm.rank == 1:
+                self.assertTrue(data.halo_prev is not None)
+                self.assertTrue(data.halo_next is None)
+                self.assertEqual(data_with_halos.shape, (2, 12))
+            if data.comm.rank == 2:
+                self.assertTrue(data.halo_prev is None)
+                self.assertTrue(data.halo_next is None)
+                self.assertEqual(data_with_halos.shape, (0, 12))
+
+            data = data.reshape((12, 2), axis=1)
+            data.get_halo(1)
+
+            data_with_halos = data.array_with_halos
+
+            if data.comm.rank == 0:
+                self.assertTrue(data.halo_prev is None)
+                self.assertTrue(data.halo_next is not None)
+                self.assertEqual(data_with_halos.shape, (12, 2))
+            if data.comm.rank == 1:
+                self.assertTrue(data.halo_prev is not None)
+                self.assertTrue(data.halo_next is None)
+                self.assertEqual(data_with_halos.shape, (12, 2))
+            if data.comm.rank == 2:
+                self.assertTrue(data.halo_prev is None)
+                self.assertTrue(data.halo_next is None)
+                self.assertEqual(data_with_halos.shape, (12, 0))
 
     def test_astype(self):
         data = ht.float32([[1, 2, 3], [4, 5, 6]])
@@ -175,13 +226,13 @@ class TestDNDarray(TestCase):
         if ht.MPI_WORLD.size > 4:
             rank = ht.MPI_WORLD.rank
             if rank == 2:
-                arr = torch.tensor([0, 1])
+                arr = torch.tensor([0, 1], device=htdata.device.torch_device)
             elif rank == 3:
-                arr = torch.tensor([2, 3, 4, 5])
+                arr = torch.tensor([2, 3, 4, 5], device=htdata.device.torch_device)
             elif rank == 4:
-                arr = torch.tensor([6, 7, 8, 9])
+                arr = torch.tensor([6, 7, 8, 9], device=htdata.device.torch_device)
             else:
-                arr = torch.empty([0], dtype=torch.int64)
+                arr = torch.empty([0], dtype=torch.int64, device=htdata.device.torch_device)
             a = ht.array(arr, is_split=0)
             a.balance_()
             comp = ht.arange(10, split=0)
@@ -431,6 +482,61 @@ class TestDNDarray(TestCase):
         self.assertTrue(torch.all(a._DNDarray__array[3:7:2, 2:5:2] == 1))
         self.assertEqual(a.lloc[3:7:2, 2:5:2].dtype, torch.float32)
 
+    def test_lnbytes(self):
+        # undistributed case
+
+        # integer
+        x_uint8 = ht.arange(6 * 7 * 8, dtype=ht.uint8).reshape((6, 7, 8))
+        x_int8 = ht.arange(6 * 7 * 8, dtype=ht.int8).reshape((6, 7, 8))
+        x_int16 = ht.arange(6 * 7 * 8, dtype=ht.int16).reshape((6, 7, 8))
+        x_int32 = ht.arange(6 * 7 * 8, dtype=ht.int32).reshape((6, 7, 8))
+        x_int64 = ht.arange(6 * 7 * 8, dtype=ht.int64).reshape((6, 7, 8))
+
+        # float
+        x_float32 = ht.arange(6 * 7 * 8, dtype=ht.float32).reshape((6, 7, 8))
+        x_float64 = ht.arange(6 * 7 * 8, dtype=ht.float64).reshape((6, 7, 8))
+
+        # bool
+        x_bool = ht.arange(6 * 7 * 8, dtype=ht.bool).reshape((6, 7, 8))
+
+        self.assertEqual(x_uint8.lnbytes, x_uint8.gnbytes)
+        self.assertEqual(x_int8.lnbytes, x_int8.gnbytes)
+        self.assertEqual(x_int16.lnbytes, x_int16.gnbytes)
+        self.assertEqual(x_int32.lnbytes, x_int32.gnbytes)
+        self.assertEqual(x_int64.lnbytes, x_int64.gnbytes)
+
+        self.assertEqual(x_float32.lnbytes, x_float32.gnbytes)
+        self.assertEqual(x_float64.lnbytes, x_float64.gnbytes)
+
+        self.assertEqual(x_bool.lnbytes, x_bool.gnbytes)
+
+        # distributed case
+
+        # integer
+        x_uint8_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.uint8)
+        x_int8_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int8)
+        x_int16_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int16)
+        x_int32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int32)
+        x_int64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int64)
+
+        # float
+        x_float32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float32)
+        x_float64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float64)
+
+        # bool
+        x_bool_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.bool)
+
+        self.assertEqual(x_uint8_d.lnbytes, x_uint8_d.lnumel * 1)
+        self.assertEqual(x_int8_d.lnbytes, x_int8_d.lnumel * 1)
+        self.assertEqual(x_int16_d.lnbytes, x_int16_d.lnumel * 2)
+        self.assertEqual(x_int32_d.lnbytes, x_int32_d.lnumel * 4)
+        self.assertEqual(x_int64_d.lnbytes, x_int64_d.lnumel * 8)
+
+        self.assertEqual(x_float32_d.lnbytes, x_float32_d.lnumel * 4)
+        self.assertEqual(x_float64_d.lnbytes, x_float64_d.lnumel * 8)
+
+        self.assertEqual(x_bool_d.lnbytes, x_bool_d.lnumel * 1)
+
     def test_lshift(self):
         int_tensor = ht.array([[0, 1], [2, 3]])
         int_result = ht.array([[0, 4], [8, 12]])
@@ -441,6 +547,85 @@ class TestDNDarray(TestCase):
             int_tensor << 2.4
         with self.assertRaises(TypeError):
             ht.array([True]) << 2
+
+    def test_nbytes(self):
+        # undistributed case
+
+        # integer
+        x_uint8 = ht.arange(6 * 7 * 8, dtype=ht.uint8).reshape((6, 7, 8))
+        x_int8 = ht.arange(6 * 7 * 8, dtype=ht.int8).reshape((6, 7, 8))
+        x_int16 = ht.arange(6 * 7 * 8, dtype=ht.int16).reshape((6, 7, 8))
+        x_int32 = ht.arange(6 * 7 * 8, dtype=ht.int32).reshape((6, 7, 8))
+        x_int64 = ht.arange(6 * 7 * 8, dtype=ht.int64).reshape((6, 7, 8))
+
+        # float
+        x_float32 = ht.arange(6 * 7 * 8, dtype=ht.float32).reshape((6, 7, 8))
+        x_float64 = ht.arange(6 * 7 * 8, dtype=ht.float64).reshape((6, 7, 8))
+
+        # bool
+        x_bool = ht.arange(6 * 7 * 8, dtype=ht.bool).reshape((6, 7, 8))
+
+        self.assertEqual(x_uint8.nbytes, 336 * 1)
+        self.assertEqual(x_int8.nbytes, 336 * 1)
+        self.assertEqual(x_int16.nbytes, 336 * 2)
+        self.assertEqual(x_int32.nbytes, 336 * 4)
+        self.assertEqual(x_int64.nbytes, 336 * 8)
+
+        self.assertEqual(x_float32.nbytes, 336 * 4)
+        self.assertEqual(x_float64.nbytes, 336 * 8)
+
+        self.assertEqual(x_bool.nbytes, 336 * 1)
+
+        # equivalent function gnbytes
+        self.assertEqual(x_uint8.nbytes, x_uint8.gnbytes)
+        self.assertEqual(x_int8.nbytes, x_int8.gnbytes)
+        self.assertEqual(x_int16.nbytes, x_int16.gnbytes)
+        self.assertEqual(x_int32.nbytes, x_int32.gnbytes)
+        self.assertEqual(x_int64.nbytes, x_int64.gnbytes)
+
+        self.assertEqual(x_float32.nbytes, x_float32.gnbytes)
+        self.assertEqual(x_float64.nbytes, x_float64.gnbytes)
+
+        self.assertEqual(x_bool.nbytes, x_bool.gnbytes)
+
+        # distributed case
+
+        # integer
+        x_uint8_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.uint8)
+        x_int8_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int8)
+        x_int16_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int16)
+        x_int32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int32)
+        x_int64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int64)
+
+        # float
+        x_float32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float32)
+        x_float64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float64)
+
+        # bool
+        x_bool_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.bool)
+
+        self.assertEqual(x_uint8_d.nbytes, 336 * 1)
+        self.assertEqual(x_int8_d.nbytes, 336 * 1)
+        self.assertEqual(x_int16_d.nbytes, 336 * 2)
+        self.assertEqual(x_int32_d.nbytes, 336 * 4)
+        self.assertEqual(x_int64_d.nbytes, 336 * 8)
+
+        self.assertEqual(x_float32_d.nbytes, 336 * 4)
+        self.assertEqual(x_float64_d.nbytes, 336 * 8)
+
+        self.assertEqual(x_bool_d.nbytes, 336 * 1)
+
+        # equivalent function gnbytes
+        self.assertEqual(x_uint8_d.nbytes, x_uint8_d.gnbytes)
+        self.assertEqual(x_int8_d.nbytes, x_int8_d.gnbytes)
+        self.assertEqual(x_int16_d.nbytes, x_int16_d.gnbytes)
+        self.assertEqual(x_int32_d.nbytes, x_int32_d.gnbytes)
+        self.assertEqual(x_int64_d.nbytes, x_int64_d.gnbytes)
+
+        self.assertEqual(x_float32_d.nbytes, x_float32_d.gnbytes)
+        self.assertEqual(x_float64_d.nbytes, x_float64_d.gnbytes)
+
+        self.assertEqual(x_bool_d.nbytes, x_bool_d.gnbytes)
 
     def test_ndim(self):
         a = ht.empty([2, 3, 3, 2])

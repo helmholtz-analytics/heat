@@ -25,6 +25,7 @@ __all__ = [
     "fliplr",
     "flipud",
     "hstack",
+    "pad",
     "reshape",
     "resplit",
     "rot90",
@@ -317,8 +318,8 @@ def concatenate(arrays, axis=0):
                 chunk_map[arr0.comm.rank, i] = chk[i].stop - chk[i].start
             chunk_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
 
-            lshape_map_comm.wait()
-            chunk_map_comm.wait()
+            lshape_map_comm.Wait()
+            chunk_map_comm.Wait()
 
             if s0 is not None:
                 send_slice = [slice(None)] * arr0.ndim
@@ -341,7 +342,7 @@ def concatenate(arrays, axis=0):
                                     tag=pr + arr0.comm.size + spr,
                                 )
                                 arr0._DNDarray__array = arr0.lloc[keep_slice].clone()
-                                send.wait()
+                                send.Wait()
                     for pr in range(spr):
                         snt = abs((chunk_map[pr, s0] - lshape_map[0, pr, s0]).item())
                         snt = (
@@ -388,7 +389,7 @@ def concatenate(arrays, axis=0):
                                     tag=pr + arr1.comm.size + spr,
                                 )
                                 arr1._DNDarray__array = arr1.lloc[keep_slice].clone()
-                                send.wait()
+                                send.Wait()
                     for pr in range(arr1.comm.size - 1, spr, -1):
                         snt = abs((chunk_map[pr, axis] - lshape_map[1, pr, axis]).item())
                         snt = (
@@ -911,7 +912,351 @@ def hstack(tup):
     return concatenate(tup, axis=axis)
 
 
-def reshape(a, shape, axis=None):
+def pad(array, pad_width, mode="constant", constant_values=0):
+    """
+    Pads tensor with a specific value (default=0).
+    (Not all dimensions supported)
+
+
+    Parameters
+    ----------
+    array : DNDarray
+        array to be padded
+    pad_width: Union[int, Sequence[Sequence[int, int], ...]]
+        Number of values padded to the edges of each axis. ((before_1, after_1),...(before_N, after_N)) unique pad widths for each axis.
+        Shortcuts:
+            - ((before, after),)  or (before, after)
+                --> before and after pad width for each axis.
+            - (pad_width,) or int
+                --> before = after = pad width for all axes.
+
+        Determines how many elements are padded along which dimension.
+        Therefore:
+        - pad last dimension:       (
+                                        padding_left, padding_right
+                                    )
+        - pad last 2 dimensions:    (
+                                        (padding_top, padding_bottom),
+                                        (padding_left, padding_right)
+                                    )
+        - pad last 3 dimensions:    (
+                                        (padding_front, padding_back)
+                                        (padding_top, padding_bottom),
+                                        (paddling_left, padding_right),
+                                    )
+        - ... (same pattern)
+    mode : str, optional
+        - 'constant' (default): Pads the input tensor boundaries with a constant value.
+            --> available for arbitrary dimensions
+
+    constant_values: Union[int, float, Sequence[Sequence[int,int], ...], Sequence[Sequence[float,float], ...]]
+        Number or tuple of 2-element-sequences (containing numbers), optional (default=0)
+        The fill values for each axis (1 tuple per axis).
+        ((before_1, after_1), ... (before_N, after_N)) unique pad values for each axis.
+
+        Shortcuts:
+            - ((before, after),) or (before, after)
+               --> before and after padding values for each axis.
+            - (value,) or int
+                --> before = after = padding value for all axes.
+
+        Hint: This function follows the principle of datatype integrity.
+        Therefore, an array can only be padded with values of the same datatype.
+        All values that violate this rule are implicitly cast to the datatype of the ``DNDarray``.
+
+    Returns
+    -------
+    padded_tensor : DNDarray
+        The padded tensor
+
+    Examples
+    --------
+    >>> a = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
+    >>> b = ht.array(a, split = 0)
+
+
+    Pad last dimension
+    >>> c = ht.pad(b, (2,1), constant_values=1)
+    tensor([[[ 1,  1,  0,  1,  2,  3,  1],
+         [ 1,  1,  4,  5,  6,  7,  1],
+         [ 1,  1,  8,  9, 10, 11,  1]],
+
+        [[ 1,  1, 12, 13, 14, 15,  1],
+         [ 1,  1, 16, 17, 18, 19,  1],
+         [ 1,  1, 20, 21, 22, 23,  1]]])
+
+
+    Pad last 2 dimensions
+    >>> d = ht.pad(b, [(1,0), (2,1)])
+    tensor([[[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  1,  2,  3,  0],
+         [ 0,  0,  4,  5,  6,  7,  0],
+         [ 0,  0,  8,  9, 10, 11,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0, 12, 13, 14, 15,  0],
+         [ 0,  0, 16, 17, 18, 19,  0],
+         [ 0,  0, 20, 21, 22, 23,  0]]])
+
+
+    Pad last 3 dimensions
+    >>> e = ht.pad(b, ((2,1), [1,0], (2,1)))
+    tensor([[[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  1,  2,  3,  0],
+         [ 0,  0,  4,  5,  6,  7,  0],
+         [ 0,  0,  8,  9, 10, 11,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0, 12, 13, 14, 15,  0],
+         [ 0,  0, 16, 17, 18, 19,  0],
+         [ 0,  0, 20, 21, 22, 23,  0]],
+
+        [[ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0],
+         [ 0,  0,  0,  0,  0,  0,  0]]])
+
+    """
+
+    if not isinstance(array, dndarray.DNDarray):
+        raise TypeError("expected array to be a ht.DNDarray, but was {}".format(type(array)))
+
+    if not isinstance(mode, str):
+        raise TypeError("expected mode to be a string, but was {}".format(type(mode)))
+
+    # shortcut int for all dimensions
+    if isinstance(pad_width, int):
+        pad = (pad_width,) * 2 * len(array.shape)
+
+    elif not isinstance(pad_width, (tuple, list)):
+        raise TypeError(
+            "expected pad_width to be an integer or a sequence (tuple or list), but was {}".format(
+                type(pad_width)
+            )
+        )
+
+    # shortcut one sequence within a sequence for all dimensions - ((before,after), ) = pad_width
+    elif len(pad_width) == 1:
+        if isinstance(pad_width[0], int):
+            pad = (pad_width[0],) * 2 * len(array.shape)
+        elif not (isinstance(pad_width[0], tuple) or isinstance(pad_width[0], list)):
+            raise TypeError(
+                "For shortcut option '1 sequence for all dimensions', expected element within pad_width to be a tuple or list, but was {}".format(
+                    type(pad_width[0])
+                )
+            )
+        elif len(pad_width[0]) == 2:
+            pad = pad_width[0] * len(array.shape)
+        else:
+            raise ValueError(
+                f"Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "
+                "each sequence within pad_width must contain 2 elements."
+            )
+    # shortcut - one sequence for all dimensions - (before,after) = pad_width
+    elif len(pad_width) == 2 and isinstance(pad_width[0], int) and isinstance(pad_width[1], int):
+        pad_width = tuple(pad_width)
+        pad = pad_width * len(array.shape)
+
+    # no shortcut - padding of various dimensions
+    else:
+        if any(
+            not (isinstance(pad_tuple, tuple) or isinstance(pad_tuple, list))
+            for pad_tuple in pad_width
+        ):
+            raise TypeError(
+                f"Invalid type for pad_width {pad_width}.\nApart from shortcut options (--> documentation),"
+                "pad_width has to be a sequence of (2 elements) sequences (sequence=tuple or list)."
+            )
+        pad = tuple()
+        # Transform numpy pad_width to torch pad (--> one tuple containing all padding spans)
+        for pad_tuple in pad_width:
+            if isinstance(pad_tuple, list):
+                pad_tuple = tuple(pad_tuple)
+            pad = pad_tuple + pad
+
+        if len(pad) % 2 != 0:
+            raise ValueError(
+                f"Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "
+                "each sequence within pad_width must contain 2 elements."
+            )
+
+        if len(pad) // 2 > len(array.shape):
+            raise ValueError(
+                f"Not enough dimensions to pad.\n"
+                f"Padding a {len(array.shape)}-dimensional tensor for {len(pad)//2}"
+                f" dimensions is not possible."
+            )
+
+    # value_tuple = all padding values stored in 1 tuple
+    if isinstance(constant_values, tuple) or isinstance(constant_values, list):
+        value_tuple = tuple()
+        # sequences for each dimension defined within one sequence
+        if isinstance(constant_values[0], tuple) or isinstance(constant_values[0], list):
+            # one sequence for all dimensions - values = ((before, after),)
+            if len(constant_values) == 1:
+                value_tuple = constant_values[0] * (len(pad) // 2)
+            else:
+                for value_pair in constant_values:
+                    if isinstance(value_pair, tuple):
+                        pass
+                    elif isinstance(value_pair, list):
+                        value_pair = tuple(value_pair)
+                    else:
+                        raise TypeError(
+                            f"Value pair {value_pair} within values invalid. Expected all elements within values to be sequences(list/tuple),"
+                            f"but one was: {type(value_pair)}"
+                        )
+                    value_tuple = value_pair + value_tuple
+
+            if len(value_tuple) % 2 != 0:
+                raise ValueError(
+                    f"Expected values to contain an even amount of elements, but got {len(value_tuple)}"
+                )
+
+        # One sequence for all dimensions - values = (before, after)
+        elif len(constant_values) == 2:
+            value_tuple = constant_values * (len(pad) // 2)
+
+    rank_array = len(array.shape)
+    amount_pad_dim = len(pad) // 2
+    pad_dim = [rank_array - i for i in range(1, amount_pad_dim + 1)]
+
+    array_torch = array._DNDarray__array
+
+    if array.split is not None:
+        counts = array.comm.counts_displs_shape(array.gshape, array.split)[0]
+        amount_of_processes = len(counts)
+
+    # calculate gshape for output tensor
+    output_shape_list = list(array.gshape)
+
+    for i in range(0, len(pad), 2):
+        output_shape_list[-((i // 2) + 1)] += sum(pad[i : i + 2])
+
+    output_shape = tuple(output_shape_list)
+
+    # -------------------------------------------------------------------------------------------------------------------
+    # CASE 1: Padding in non split dimension or no distribution at all
+    # ------------------------------------------------------------------------------------------------------------------
+    # no data
+    if 0 in list(array.lshape):
+        adapted_lshape_list = [
+            0 if i == array.split else output_shape[i] for i in range(len(output_shape))
+        ]
+        adapted_lshape = tuple(adapted_lshape_list)
+        padded_torch_tensor = torch.empty(adapted_lshape, dtype=array._DNDarray__array.dtype)
+    else:
+        if array.split is None or array.split not in pad_dim or amount_of_processes == 1:
+            # values = scalar
+            if isinstance(constant_values, int) or isinstance(constant_values, float):
+                padded_torch_tensor = torch.nn.functional.pad(
+                    array_torch, pad, mode, constant_values
+                )
+            # values = sequence with one value for all dimensions
+            elif len(constant_values) == 1 and (
+                isinstance(constant_values[0], int) or isinstance(constant_values[0], float)
+            ):
+                padded_torch_tensor = torch.nn.functional.pad(
+                    array_torch, pad, mode, constant_values[0]
+                )
+            else:
+                padded_torch_tensor = array_torch
+                for i in range(len(value_tuple) - 1, -1, -1):
+                    pad_list = [0] * 2 * rank_array
+                    pad_list[i] = pad[i]
+                    pad_tuple = tuple(pad_list)
+                    padded_torch_tensor = torch.nn.functional.pad(
+                        padded_torch_tensor, pad_tuple, mode, value_tuple[i]
+                    )
+        else:
+            # ------------------------------------------------------------------------------------------------------------------
+            # CASE 2: padding in split dimension and function runs on more than 1 process
+            #
+            # Pad only first/last tensor portion on node (i.e. only beginning/end in split dimension)
+            # --> "Calculate" pad tuple for the corresponding tensor portion/ the two indices which have to be set to zero
+            #      in different paddings depending on the dimension
+            #       Calculate the index of the first element in tuple that has to change/set to zero in
+            #       some dimensions (the following is the second)
+            # ------------------------------------------------------------------------------------------------------------------
+
+            pad_beginning_list = list(pad)
+            pad_end_list = list(pad)
+            pad_middle_list = list(pad)
+
+            # calculate the corresponding pad tuples
+            first_idx_set_zero = 2 * (rank_array - array.split - 1)
+
+            pad_end_list[first_idx_set_zero] = 0
+            pad_beginning_list[first_idx_set_zero + 1] = 0
+            pad_middle_list[first_idx_set_zero : first_idx_set_zero + 2] = [0, 0]
+
+            pad_beginning = tuple(pad_beginning_list)
+            pad_end = tuple(pad_end_list)
+            pad_middle = tuple(pad_middle_list)
+
+            if amount_of_processes >= array.shape[array.split]:
+                last_ps_with_data = array.shape[array.split] - 1
+            else:
+                last_ps_with_data = amount_of_processes - 1
+
+            rank = array.comm.rank
+
+            # first process - pad beginning
+            if rank == 0:
+                pad_tuple_curr_rank = pad_beginning
+
+            # last process - pad end
+            elif rank == last_ps_with_data:
+                pad_tuple_curr_rank = pad_end
+
+            # pad middle
+            else:
+                pad_tuple_curr_rank = pad_middle
+
+            if isinstance(constant_values, (int, float)):
+                padded_torch_tensor = torch.nn.functional.pad(
+                    array_torch, pad_tuple_curr_rank, mode, constant_values
+                )
+
+            elif len(constant_values) == 1 and isinstance(constant_values[0], (int, float)):
+                padded_torch_tensor = torch.nn.functional.pad(
+                    array_torch, pad_tuple_curr_rank, mode, constant_values[0]
+                )
+
+            else:
+                padded_torch_tensor = array_torch
+                for i in range(len(value_tuple) - 1, -1, -1):
+                    pad_list = [0] * 2 * rank_array
+                    pad_list[i] = pad_tuple_curr_rank[i]
+                    pad_tuple = tuple(pad_list)
+                    padded_torch_tensor = torch.nn.functional.pad(
+                        padded_torch_tensor, pad_tuple, mode, value_tuple[i]
+                    )
+
+    padded_tensor = factories.array(
+        padded_torch_tensor,
+        dtype=array.dtype,
+        is_split=array.split,
+        device=array.device,
+        comm=array.comm,
+    )
+
+    padded_tensor.balance_()
+
+    return padded_tensor
+
+
+def reshape(a, shape, new_split=None):
     """
     Returns a tensor with the same data and number of elements as a, but with the specified shape.
 
@@ -921,8 +1266,8 @@ def reshape(a, shape, axis=None):
         The input tensor
     shape : tuple, list
         Shape of the new tensor
-    axis : int, optional
-        The new split axis. None denotes same axis
+    new_split : int, optional
+        The new split axis if `a` is a split DNDarray. None denotes same axis.
         Default : None
 
     Returns
@@ -953,10 +1298,10 @@ def reshape(a, shape, axis=None):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
     if not isinstance(shape, (list, tuple)):
         raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
-        # check axis parameter
-    if axis is None:
-        axis = a.split
-    stride_tricks.sanitize_axis(shape, axis)
+        # check new_split parameter
+    if new_split is None:
+        new_split = a.split
+    stride_tricks.sanitize_axis(shape, new_split)
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
     # Check the type of shape and number elements
     shape = stride_tricks.sanitize_shape(shape)
@@ -1005,21 +1350,21 @@ def reshape(a, shape, axis=None):
         )
 
     # Create new flat result tensor
-    _, local_shape, _ = a.comm.chunk(shape, axis)
+    _, local_shape, _ = a.comm.chunk(shape, new_split)
     data = torch.empty(local_shape, dtype=tdtype, device=tdevice).flatten()
 
     # Calculate the counts and displacements
     _, old_displs, _ = a.comm.counts_displs_shape(a.shape, a.split)
-    _, new_displs, _ = a.comm.counts_displs_shape(shape, axis)
+    _, new_displs, _ = a.comm.counts_displs_shape(shape, new_split)
 
     old_displs += (a.shape[a.split],)
-    new_displs += (shape[axis],)
+    new_displs += (shape[new_split],)
 
     sendsort, sendcounts, senddispls = reshape_argsort_counts_displs(
-        a.shape, a.lshape, old_displs, a.split, shape, new_displs, axis, a.comm
+        a.shape, a.lshape, old_displs, a.split, shape, new_displs, new_split, a.comm
     )
     recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(
-        shape, local_shape, new_displs, axis, a.shape, old_displs, a.split, a.comm
+        shape, local_shape, new_displs, new_split, a.shape, old_displs, a.split, a.comm
     )
 
     # rearange order
@@ -1033,7 +1378,7 @@ def reshape(a, shape, axis=None):
     # Reshape local tensor
     data = data.reshape(local_shape)
 
-    return factories.array(data, dtype=a.dtype, is_split=axis, device=a.device, comm=a.comm)
+    return factories.array(data, dtype=a.dtype, is_split=new_split, device=a.device, comm=a.comm)
 
 
 def rot90(m, k=1, axes=(0, 1)):
@@ -2010,9 +2355,9 @@ def resplit(arr, axis=None):
                 buf = torch.zeros_like(new_tiles[key])
                 rcv_waits[key] = [arr.comm.Irecv(buf=buf, source=spr, tag=spr), buf]
     for w in waits:
-        w.wait()
+        w.Wait()
     for k in rcv_waits.keys():
-        rcv_waits[k][0].wait()
+        rcv_waits[k][0].Wait()
         new_tiles[k] = rcv_waits[k][1]
 
     return new_arr
@@ -2235,12 +2580,16 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         if dim == a.split:
             offset, _, _ = a.comm.chunk(shape, a.split)
             indices = indices.clone()
-            indices += torch.tensor(offset * a.comm.rank, dtype=indices.dtype)
+            indices += torch.tensor(
+                offset * a.comm.rank, dtype=indices.dtype, device=indices.device
+            )
 
         local_shape = list(result.shape)
         local_shape_len = len(shape)
 
-        metadata = torch.tensor([k, dim, largest, sorted, local_shape_len, *local_shape])
+        metadata = torch.tensor(
+            [k, dim, largest, sorted, local_shape_len, *local_shape], device=indices.device
+        )
         send_buffer = torch.cat(
             (metadata.double(), result.double().flatten(), indices.flatten().double())
         )

@@ -6,6 +6,44 @@ from .test_suites.basic_test import TestCase
 
 
 class TestRandom(TestCase):
+    def test_permutation(self):
+        # Reset RNG
+        ht.random.seed()
+        state = torch.random.get_rng_state()
+
+        # results
+        a = ht.random.permutation(10)
+
+        b_arr = ht.arange(10, dtype=ht.float32)
+        b = ht.random.permutation(ht.resplit(b_arr, 0))
+
+        c_arr = ht.arange(16).reshape((4, 4))
+        c = ht.random.permutation(c_arr)
+
+        c0 = ht.random.permutation(ht.resplit(c_arr, 0))
+        c1 = ht.random.permutation(ht.resplit(c_arr, 1))
+
+        torch.set_rng_state(state)
+
+        # torch results to compare to
+        a_cmp = torch.randperm(a.shape[0], device=self.device.torch_device)
+        b_cmp = b_arr._DNDarray__array[torch.randperm(b.shape[0], device=self.device.torch_device)]
+        c_cmp = c_arr._DNDarray__array[torch.randperm(c.shape[0], device=self.device.torch_device)]
+        c0_cmp = c_arr._DNDarray__array[torch.randperm(c.shape[0], device=self.device.torch_device)]
+        c1_cmp = c_arr._DNDarray__array[torch.randperm(c.shape[0], device=self.device.torch_device)]
+
+        # compare
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue((a._DNDarray__array == a_cmp).all())
+        self.assertEqual(b.dtype, ht.float32)
+        self.assertTrue((ht.resplit(b)._DNDarray__array == b_cmp).all())
+        self.assertTrue((c._DNDarray__array == c_cmp).all())
+        self.assertTrue((ht.resplit(c0)._DNDarray__array == c0_cmp).all())
+        self.assertTrue((ht.resplit(c1)._DNDarray__array == c1_cmp).all())
+
+        with self.assertRaises(TypeError):
+            ht.random.permutation("abc")
+
     def test_rand(self):
         # int64 tests
 
@@ -245,6 +283,13 @@ class TestRandom(TestCase):
         self.assertTrue(4900 < median < 5100)
         self.assertTrue(std < 2900)
 
+        # test aliases
+        ht.random.seed(234)
+        a = ht.random.randint(10, 50)
+        ht.random.seed(234)
+        b = ht.random.random_integer(10, 50)
+        self.assertTrue(ht.equal(a, b))
+
     def test_randn(self):
         # Test that the random values have the correct distribution
         ht.random.seed(54321)
@@ -309,6 +354,58 @@ class TestRandom(TestCase):
         c = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2).numpy()
         self.assertFalse(np.allclose(a, c))
         self.assertFalse(np.allclose(b, c))
+
+    def test_randperm(self):
+        state = torch.random.get_rng_state()
+
+        # results
+        a = ht.random.randperm(10, dtype=ht.int32)
+        b = ht.random.randperm(4, dtype=ht.float32, split=0)
+        c = ht.random.randperm(5, split=0)
+        d = ht.random.randperm(5, dtype=ht.float64)
+
+        torch.random.set_rng_state(state)
+
+        # torch results to compare to
+        a_cmp = torch.randperm(10, dtype=torch.int32, device=self.device.torch_device)
+        b_cmp = torch.randperm(4, dtype=torch.float32, device=self.device.torch_device)
+        c_cmp = torch.randperm(5, dtype=torch.int64, device=self.device.torch_device)
+        d_cmp = torch.randperm(5, dtype=torch.float64, device=self.device.torch_device)
+
+        self.assertEqual(a.dtype, ht.int32)
+        self.assertTrue((a._DNDarray__array == a_cmp).all())
+        self.assertEqual(b.dtype, ht.float32)
+        self.assertTrue((ht.resplit(b)._DNDarray__array == b_cmp).all())
+        self.assertEqual(c.dtype, ht.int64)
+        self.assertTrue((ht.resplit(c)._DNDarray__array == c_cmp).all())
+        self.assertEqual(d.dtype, ht.float64)
+        self.assertTrue((d._DNDarray__array == d_cmp).all())
+
+        with self.assertRaises(TypeError):
+            ht.random.randperm("abc")
+
+    def test_random_sample(self):
+        # short test
+        # compare random and aliases with rand
+        ht.random.seed(534)
+        a = ht.random.rand(6, 2, 3)
+        ht.random.seed(534)
+        b = ht.random.random((6, 2, 3))
+        ht.random.seed(534)
+        c = ht.random.random_sample((6, 2, 3))
+        ht.random.seed(534)
+        d = ht.random.ranf((6, 2, 3))
+        ht.random.seed(534)
+        e = ht.random.sample((6, 2, 3))
+
+        self.assertTrue(ht.equal(a, b))
+        self.assertTrue(ht.equal(a, c))
+        self.assertTrue(ht.equal(a, d))
+        self.assertTrue(ht.equal(a, e))
+
+        # empty input
+        a = ht.random.random_sample()
+        self.assertEqual(a.shape, (1,))
 
     def test_set_state(self):
         ht.random.set_state(("Threefry", 12345, 0xFFF))
