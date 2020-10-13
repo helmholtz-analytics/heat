@@ -106,8 +106,16 @@ def parse():
         "--batch-skip",
         default=2,
         type=int,
-        metavar="N",
+        metavar="GS",
         help="number of batches between global parameter synchronizations",
+    )
+    parser.add_argument(
+        "--ls",
+        "--local-batch-skip",
+        default=1,
+        type=int,
+        metavar="LS",
+        help="number of batches between local parameter synchronizations",
     )
     parser.add_argument(
         "--lr",
@@ -361,6 +369,7 @@ def main():
     blocking = False  # choose blocking or non-blocking parameter updates
     dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
     skip_batches = args.batch_skip
+    local_skip = args.local_batch_skip
     htmodel = ht.nn.DataParallelMultiGPU(
         model,
         ht.MPI_WORLD,
@@ -368,7 +377,8 @@ def main():
         overlap=True,
         distributed_twice=twice_dist,
         skip_batches=skip_batches,
-        loss_floor=2.5,
+        local_skip=local_skip,
+        loss_floor=2.0,
     )
 
     # define loss function (criterion) and optimizer
@@ -712,7 +722,10 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch, step, len_epoch, lr_adjust=None):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
-    if lr_adjust:
+    if args.factor >= 2:
+        # breaks out of this logic loop
+        args.factor += 0
+    elif lr_adjust:
         args.factor += 1
     elif epoch // 30 > 0 and args.factor < epoch // 30:
         args.factor += 1
