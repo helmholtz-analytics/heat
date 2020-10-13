@@ -3,6 +3,7 @@
 - [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: distributed `histc()`
 
 ## New features
+- [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
 ### Manipulations
 ### Statistical Functions
 ### Linear Algebra

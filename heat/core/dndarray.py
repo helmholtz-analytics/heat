@@ -113,6 +113,19 @@ class DNDarray:
         return self.__gshape
 
     @property
+    def nbytes(self):
+        """
+        Equivalent to property gnbytes.
+        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
+
+        Returns
+        -------
+        global_number_of_bytes : int
+            number of bytes consumed by the global tensor
+        """
+        return self._DNDarray__array.element_size() * self.size
+
+    @property
     def numdims(self):
         """
         Returns
@@ -148,6 +161,18 @@ class DNDarray:
         return torch.prod(torch.tensor(self.gshape, device=self.device.torch_device)).item()
 
     @property
+    def gnbytes(self):
+        """
+        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
+
+        Returns
+        -------
+        global_number_of_bytes : int
+            number of bytes consumed by the global tensor
+        """
+        return self.nbytes
+
+    @property
     def gnumel(self):
         """
 
@@ -157,6 +182,18 @@ class DNDarray:
             number of total elements of the tensor
         """
         return self.size
+
+    @property
+    def lnbytes(self):
+        """
+        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
+
+        Returns
+        -------
+        local_number_of_bytes : int
+            number of bytes consumed by the local tensor
+        """
+        return self._DNDarray__array.element_size() * self._DNDarray__array.nelement()
 
     @property
     def lnumel(self):
