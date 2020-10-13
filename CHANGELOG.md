@@ -1,6 +1,7 @@
 # v0.5.1
 
 - [#678](https://github.com/helmholtz-analytics/heat/pull/678) Bugfix: High number of implicit device transfers in `DNDarray.__init__()`
+- [#684](https://github.com/helmholtz-analytics/heat/pull/684) Bug fix: distributed `reshape` does not work on booleans.
 
 # v0.5.0
 
