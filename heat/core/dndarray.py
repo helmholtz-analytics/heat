@@ -69,14 +69,14 @@ class DNDarray:
         The communications object for sending and recieving data
     """
 
-    def __init__(self, array, gshape, dtype, split, device, comm):
+    def __init__(self, array, gshape, dtype, split, device, comm, balanced):
         self.__array = array
         self.__gshape = gshape
         self.__dtype = dtype
         self.__split = split
         self.__device = device
         self.__comm = comm
-        self.__balanced = False
+        self.__balanced = balanced
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None

@@ -125,11 +125,12 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
     start += offset * step
     stop = start + lshape[0] * step
     data = torch.arange(start, stop, step, device=device.torch_device)
+    balanced = True
 
     htype = types.canonical_heat_type(dtype)
     data = data.type(htype.torch_type())
 
-    return dndarray.DNDarray(data, gshape, htype, split, device, comm)
+    return dndarray.DNDarray(data, gshape, htype, split, device, comm, balanced)
 
 
 def array(
@@ -142,6 +143,7 @@ def array(
     is_split=None,
     device=None,
     comm=None,
+    balanced=None,
 ):
     """
     Create a tensor.
@@ -177,6 +179,9 @@ def array(
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed tensor chunks.
+    balanced : None or bool, optional
+        Provides information about the distribution of the array across nodes. If None, no information is available,
+        if needed status must be verified with the `is_balanced()` method (requires communication).
 
     Returns
     -------
@@ -377,7 +382,9 @@ def array(
     elif split is None and is_split is None:
         obj = memory.sanitize_memory_layout(obj, order=order)
 
-    return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
+    return dndarray.DNDarray(
+        obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm, balanced
+    )
 
 
 def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
@@ -512,6 +519,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
     device = devices.sanitize_device(device)
     comm = sanitize_comm(comm)
     offset, lshape, _ = comm.chunk(gshape, split)
+    balanced = True
 
     # start by creating tensor filled with zeroes
     data = torch.zeros(
@@ -528,7 +536,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
 
     data = memory.sanitize_memory_layout(data, order=order)
     return dndarray.DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm
+        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
     )
 
 
@@ -565,10 +573,12 @@ def __factory(shape, dtype, split, local_factory, device, comm, order):
 
     # chunk the shape if necessary
     _, local_shape, _ = comm.chunk(shape, split)
+    balanced = True
+
     # create the torch data using the factory function
     data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
     data = memory.sanitize_memory_layout(data, order=order)
-    return dndarray.DNDarray(data, shape, dtype, split, device, comm)
+    return dndarray.DNDarray(data, shape, dtype, split, device, comm, balanced)
 
 
 def __factory_like(a, dtype, split, factory, device, comm, order="C", **kwargs):
@@ -783,6 +793,7 @@ def linspace(
     gshape = (num,)
     split = sanitize_axis(gshape, split)
     offset, lshape, _ = comm.chunk(gshape, split)
+    balanced = True
 
     # compose the local tensor
     start += offset * step
@@ -793,7 +804,7 @@ def linspace(
 
     # construct the resulting global tensor
     ht_tensor = dndarray.DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm
+        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
     )
 
     if retstep:
@@ -835,7 +846,7 @@ def logspace(
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
     device : str, ht.Device or None, optional
-        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
+        Specifies the device the tensoimport nur shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 
