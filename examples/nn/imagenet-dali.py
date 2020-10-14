@@ -106,15 +106,15 @@ def parse():
         "--batch-skip",
         default=2,
         type=int,
-        metavar="GS",
+        metavar="N",
         help="number of batches between global parameter synchronizations",
     )
     parser.add_argument(
-        "--ls",
+        "-L",
         "--local-batch-skip",
         default=1,
         type=int,
-        metavar="LS",
+        metavar="N",
         help="number of batches between local parameter synchronizations",
     )
     parser.add_argument(
@@ -722,12 +722,12 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch, step, len_epoch, lr_adjust=None):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
-    if args.factor >= 2:
-        # breaks out of this logic loop
-        args.factor += 0
-    elif lr_adjust:
-        args.factor += 1
-    elif epoch // 30 > 0 and args.factor < epoch // 30:
+    #if args.factor > 2:
+    #    # breaks out of this logic loop
+    #    args.factor += 0
+    #elif lr_adjust:
+    #    args.factor += 1
+    if epoch // 30 > 0 and args.factor < epoch // 30:
         args.factor += 1
     # factor = epoch // 30
 

@@ -509,6 +509,7 @@ class DataParallelMultiGPU(tnn.Module):
             lr_adjust = False
             if 0.0 < diff < 0.1:  # or means[-1] < self.loss_switch_target:
                 lr_adjust = True
+                self._prev_losses_mean = []
 
             if means[-1] <= self.loss_floor:  # and not lr_adjust:
                 # if the average mean is below the target loss floor
@@ -542,7 +543,7 @@ class DataParallelMultiGPU(tnn.Module):
             #     self.reset_skips()
             # if the diff is < 0.1 adjust learning rate, at the end of the learning rate path,
             #       then change the difference in the batch skips
-            if self.epoch == 80:
+            if self.epoch >= 80:
                 # todo: tune this value and make it do this when it is near the loss floor
                 self.local_skip = 1
                 self.global_skip = 1
@@ -579,25 +580,40 @@ class DataParallelMultiGPU(tnn.Module):
 
         batches_to_wait = 4 if ls >= 4 else ls
         # do full synce on global skips and on the last batch
-        if batch == self.last_batch or gmod == 0:
+        if batch >= self.last_batch or gmod == 0:
+            #if self.comm.rank == 0:
+            #    print(batch, "send global sync")
             return self._full_global_sync()
 
         if gmod < batches_to_wait:
             # do nothing on these batches
             self.current_batch += 1
+            #if self.comm.rank == 0:
+            #    print(batch, "waiting for global sync")
             return
         elif gmod == batches_to_wait:
             self._global_sync_rcv()
             self._stop_local_sync()
+            #if self.comm.rank == 0:
+            #    print(batch, "rcv global sync")
+
 
         if next_batch % gs == 0:
+            #if self.comm.rank == 0:
+            #    print(batch, "next batch is global sync, turning on local sync")
+
             self._start_local_sync()
             self.current_batch += 1
             return
 
         if lmod == 0:
+            #if self.comm.rank == 0:
+            #    print(batch, "STOPPING local sync")
             self._stop_local_sync()
         elif next_batch % ls == 0:
+            #if self.comm.rank == 0:
+            #    print(batch, "STARTING local sync")
+
             self._start_local_sync()
 
         self.current_batch += 1
