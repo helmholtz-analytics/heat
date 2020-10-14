@@ -198,7 +198,9 @@ class HybridPipe(Pipeline):
     ):
         shard_id = ht.MPI_WORLD.rank
         num_shards = ht.MPI_WORLD.size
-        super(HybridPipe, self).__init__(batch_size, num_threads, device_id, shard_id)
+        super(HybridPipe, self).__init__(
+            batch_size, num_threads, device_id, shard_id, seed=68 + shard_id
+        )
 
         data_dir_list = [data_dir + d for d in os.listdir(data_dir)]
         label_dir_list = [label_dir + d for d in os.listdir(label_dir)]
@@ -306,8 +308,11 @@ def main():
     if args.deterministic:
         cudnn.benchmark = False
         cudnn.deterministic = True
-        torch.manual_seed(args.local_rank)
+        torch.manual_seed(ht.MPI_WORLD.rank)
         torch.set_printoptions(precision=10)
+        print("deterministic==True, seed set to global rank")
+    else:
+        torch.manual_seed(999999999)
 
     args.gpu = 0
     args.world_size = ht.MPI_WORLD.size
