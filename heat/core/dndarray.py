@@ -1253,6 +1253,10 @@ class DNDarray:
         flattened : ht.DNDarray
             The flattened tensor
 
+        See Also
+        ---------
+        flatten
+
         Examples
         --------
         >>> x = ht.array([[1,2],[3,4]])
@@ -2477,6 +2481,27 @@ class DNDarray:
         return linalg.qr(
             self, tiles_per_proc=tiles_per_proc, calc_q=calc_q, overwrite_a=overwrite_a
         )
+
+    def ravel(self):
+        """
+        Return a flattened array with the same elements if possible.
+
+        Returns
+        -------
+        ret : DNDarray
+            flattened array with the same dtype as a, but with shape (a.size,).
+
+        See Also
+        --------
+        ravel
+
+        Examples
+        --------
+        >>> a = ht.array([[[1,2],[3,4]],[[5,6],[7,8]]])
+        >>> a.flatten()
+        tensor([1,2,3,4,5,6,7,8])
+        """
+        return manipulations.ravel(self)
 
     def __repr__(self) -> str:
         """

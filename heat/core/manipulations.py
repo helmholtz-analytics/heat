@@ -26,6 +26,7 @@ __all__ = [
     "flipud",
     "hstack",
     "pad",
+    "ravel",
     "reshape",
     "resplit",
     "rot90",
@@ -708,10 +709,16 @@ def flatten(a):
     ----------
     a : DNDarray
         array to collapse
+
     Returns
     -------
     ret : DNDarray
         flattened copy
+
+    See Also
+    --------
+    ravel
+
     Examples
     --------
     >>> a = ht.array([[[1,2],[3,4]],[[5,6],[7,8]]])
@@ -1254,6 +1261,59 @@ def pad(array, pad_width, mode="constant", constant_values=0):
     padded_tensor.balance_()
 
     return padded_tensor
+
+
+def ravel(a):
+    """
+    Return a flattened array with the same elements as a if possible. A copy is returned otherwise.
+
+    Parameters
+    ----------
+    a : DNDarray
+        array to collapse
+
+    Returns
+    -------
+    ret : DNDarray
+        flattened array with the same dtype as a, but with shape (a.size,).
+
+    See Also
+    --------
+    flatten
+
+    Examples
+    --------
+    >>> a = ht.ones((2,3), split=0)
+    >>> b = ht.ravel(a)
+    >>> a[0,0] = 4
+    >>> b
+    DNDarray([4., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
+    """
+    if a.split is None:
+        return factories.array(
+            torch.flatten(a._DNDarray__array),
+            dtype=a.dtype,
+            copy=False,
+            is_split=None,
+            device=a.device,
+            comm=a.comm,
+        )
+
+    # Redistribution necessary
+    # TODO allow not perfectly distributed arrays after #681 is implemented
+    if a.split != 0 or a.shape[0] % a.comm.size != 0:
+        return flatten(a)
+
+    a = factories.array(
+        torch.flatten(a._DNDarray__array),
+        dtype=a.dtype,
+        copy=False,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm,
+    )
+
+    return a
 
 
 def reshape(a, shape, new_split=None):
