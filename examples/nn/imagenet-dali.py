@@ -198,9 +198,7 @@ class HybridPipe(Pipeline):
     ):
         shard_id = ht.MPI_WORLD.rank
         num_shards = ht.MPI_WORLD.size
-        super(HybridPipe, self).__init__(
-            batch_size, num_threads, device_id, shard_id, seed=68 + shard_id
-        )
+        super(HybridPipe, self).__init__(batch_size, num_threads, device_id, seed=68 + shard_id)
 
         data_dir_list = [data_dir + d for d in os.listdir(data_dir)]
         label_dir_list = [label_dir + d for d in os.listdir(label_dir)]

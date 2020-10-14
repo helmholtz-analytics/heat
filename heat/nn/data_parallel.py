@@ -499,15 +499,10 @@ class DataParallelMultiGPU(tnn.Module):
             self._prev_losses_mean.append(mu)
             # self._prev_losses_std.append(std)
             # todo: how many to collect before changing the update delay!
-            if self.current_batch < 4:
-                # first need to fill the list before doing anything else
-                return
-            means = torch.tensor(self._prev_losses_mean)
-
             epochs_to_wait = 3
-
-            if len(means) < epochs_to_wait:
+            if len(self._prev_losses_mean) < epochs_to_wait:
                 return False
+            means = torch.tensor(self._prev_losses_mean)
             diff = abs(means[-1] - means[-1 * epochs_to_wait])
 
             lr_adjust = False
