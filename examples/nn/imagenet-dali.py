@@ -463,7 +463,7 @@ def main():
 
         # epoch loss logic to adjust learning rate based on loss
         lr_adjust = htmodel.epoch_loss_logic(ls)
-        adjust_learning_rate(dp_optimizer, epoch, None, None, lr_adjust)
+        adjust_learning_rate(dp_optimizer, epoch, None, None, htmodel, lr_adjust)
 
         # remember best prec@1 and save checkpoint
         if args.rank == 0:
@@ -495,15 +495,11 @@ def main():
         val_loader.reset()
     if args.rank == 0:
         print("\nRESULTS\n")
+        print("Epoch\tAvg Batch Time\tTrain Top1\tTrain Top5\tTrain Loss\tVal Top1\tVal Top5")
         for c in range(args.start_epoch, args.epochs):
             print(
-                f"Epoch {c}: "
-                f"\tAvg Batch Time: {batch_time_avg[c]}"
-                f"\tTrain Top1: {train_acc1[c]}"
-                f"\tTrain Top5: {train_acc5[c]}"
-                f"\tTrain Loss: {avg_loss[c]}"
-                f"\tVal Top1: {val_acc1[c]}"
-                f"\tVal Top5: {val_acc5[c]}"
+                f"{c}: {batch_time_avg[c]}, {train_acc1[c]}, {train_acc5[c]}, "
+                f"{avg_loss[c]}, {val_acc1[c]}, {val_acc5[c]}"
             )
 
 
@@ -532,7 +528,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("Body of iteration {}".format(i))
 
-        adjust_learning_rate(optimizer, epoch, i, train_loader_len)
+        adjust_learning_rate(optimizer, epoch, i, train_loader_len, model)
         if args.test:
             if i > 10:
                 break
@@ -720,14 +716,15 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, epoch, step, len_epoch, lr_adjust=None):
+def adjust_learning_rate(optimizer, epoch, step, len_epoch, htmodel, lr_adjust=None):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
-    #if args.factor > 2:
+    # if args.factor > 2:
     #    # breaks out of this logic loop
     #    args.factor += 0
-    #elif lr_adjust:
+    # elif lr_adjust:
     #    args.factor += 1
     if epoch // 30 > 0 and args.factor < epoch // 30:
+        htmodel.reset_skips()
         args.factor += 1
     # factor = epoch // 30
 
