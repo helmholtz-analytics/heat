@@ -324,13 +324,10 @@ def array(
     if device is None:
         device = devices.sanitize_device(obj.device.type)
 
-    # change device if it do not match
-    assert str(obj.device) == device.torch_device
-
     if str(obj.device) != device.torch_device:
         warnings.warn(
             "Array 'obj' is not on device '{}'. It will be copied to it.".format(device),
-            UserWarning,
+            UserWarning, stacklevel=2
         )
         obj = obj.to(device.torch_device)
 
