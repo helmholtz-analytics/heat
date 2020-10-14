@@ -76,6 +76,7 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
+        self.__balanced = False
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None
@@ -89,12 +90,8 @@ class DNDarray:
             self.__array = self.__array.to(devices.sanitize_device(self.__device).torch_device)
 
     @property
-    def halo_next(self):
-        return self.__halo_next
-
-    @property
-    def halo_prev(self):
-        return self.__halo_prev
+    def balanced(self):
+        return self.__balanced
 
     @property
     def comm(self):
@@ -113,6 +110,14 @@ class DNDarray:
         return self.__gshape
 
     @property
+    def halo_next(self):
+        return self.__halo_next
+
+    @property
+    def halo_prev(self):
+        return self.__halo_prev
+
+    @property
     def nbytes(self):
         """
         Equivalent to property gnbytes.
@@ -126,6 +131,16 @@ class DNDarray:
         return self._DNDarray__array.element_size() * self.size
 
     @property
+    def ndim(self):
+        """
+        Returns
+        -------
+        number_of_dimensions : int
+            the number of dimensions of the DNDarray
+        """
+        return len(self.__gshape)
+
+    @property
     def numdims(self):
         """
         Returns
@@ -137,16 +152,6 @@ class DNDarray:
           `numdims` will be removed in HeAT 1.0.0, it is replaced by `ndim` because the latter is numpy API compliant.
         """
         warnings.warn("numdims is deprecated, use ndim instead", DeprecationWarning)
-        return len(self.__gshape)
-
-    @property
-    def ndim(self):
-        """
-        Returns
-        -------
-        number_of_dimensions : int
-            the number of dimensions of the DNDarray
-        """
         return len(self.__gshape)
 
     @property
