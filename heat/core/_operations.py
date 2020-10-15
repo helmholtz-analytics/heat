@@ -38,13 +38,13 @@ def __binary_op(operation, t1, t2, out=None):
     """
     if np.isscalar(t1):
         try:
-            t1 = factories.array([t1], balanced=True)
+            t1 = factories.array([t1])
         except (ValueError, TypeError):
             raise TypeError("Data type not supported, input was {}".format(type(t1)))
 
         if np.isscalar(t2):
             try:
-                t2 = factories.array([t2], balanced=True)
+                t2 = factories.array([t2])
             except (ValueError, TypeError):
                 raise TypeError(
                     "Only numeric scalars are supported, but input was {}".format(type(t2))
@@ -71,7 +71,7 @@ def __binary_op(operation, t1, t2, out=None):
     elif isinstance(t1, dndarray.DNDarray):
         if np.isscalar(t2):
             try:
-                t2 = factories.array([t2], device=t1.device, balanced=True)
+                t2 = factories.array([t2], device=t1.device)
                 output_shape = t1.shape
                 output_split = t1.split
                 output_device = t1.device
@@ -82,23 +82,11 @@ def __binary_op(operation, t1, t2, out=None):
         elif isinstance(t2, dndarray.DNDarray):
             if t1.split is None:
                 t1 = factories.array(
-                    t1,
-                    split=t2.split,
-                    copy=False,
-                    comm=t1.comm,
-                    balanced=True,
-                    device=t1.device,
-                    ndmin=-t2.ndim,
+                    t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.ndim
                 )
             elif t2.split is None:
                 t2 = factories.array(
-                    t2,
-                    split=t1.split,
-                    copy=False,
-                    comm=t2.comm,
-                    balanced=True,
-                    device=t2.device,
-                    ndmin=-t1.ndim,
+                    t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.ndim
                 )
             elif t1.split != t2.split:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
@@ -144,6 +132,7 @@ def __binary_op(operation, t1, t2, out=None):
     if t1.balanced and t2.balanced:
         pass
     elif not t1.balanced and t1.split is not None or not t2.balanced and t2.split is not None:
+        # TODO: fine tuning. Allow imbalanced operation if/when it makes sense
         raise NotImplementedError(
             "Not implemented for imbalanced dndarray: t1.balanced is {}, t2.balanced is {}".format(
                 t1.balanced, t2.balanced

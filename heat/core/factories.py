@@ -326,7 +326,6 @@ def array(
     is_split = sanitize_axis(obj.shape, is_split)
     if split is not None and is_split is not None:
         raise ValueError("split and is_split are mutually exclusive parameters")
-    balanced = False if is_split else True
 
     # sanitize device and object
     device = devices.sanitize_device(device)
@@ -336,6 +335,7 @@ def array(
     lshape = np.array(obj.shape)
     gshape = lshape.copy()
 
+    balanced = True
     # content shall be split, chunk the passed data object up
     if split is not None:
         _, _, slices = comm.chunk(obj.shape, split)
@@ -351,7 +351,7 @@ def array(
             status = MPI.Status()
             comm.Probe(source=comm.rank - 1, status=status)
             length = status.Get_count() // lshape.dtype.itemsize
-
+            print("DEBUGGING: array(): length = ", length)
             # the number of shape elements does not match with the 'left' rank
             if length != len(lshape):
                 discard_buffer = np.empty(length)
@@ -376,12 +376,20 @@ def array(
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
         gshape[is_split] = ttl_shape[is_split]
         split = is_split
+        # compare to calculated balanced lshape (cf. dndarray.is_balanced())
+        gshape = tuple(int(ele) for ele in gshape)
+        lshape = tuple(int(ele) for ele in lshape)
+        _, _, chk = comm.chunk(gshape, split)
+        test_lshape = tuple([x.stop - x.start for x in chk])
+        match = 1 if test_lshape == lshape else 0
+        gmatch = comm.allreduce(match, MPI.SUM)
+        if gmatch != comm.size:
+            balanced = False
+
     elif split is None and is_split is None:
         obj = memory.sanitize_memory_layout(obj, order=order)
 
-    return dndarray.DNDarray(
-        obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm, balanced
-    )
+    return dndarray.DNDarray(obj, gshape, dtype, split, device, comm, balanced)
 
 
 def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
