@@ -143,7 +143,6 @@ def array(
     is_split=None,
     device=None,
     comm=None,
-    balanced=None,
 ):
     """
     Create a tensor.
@@ -179,9 +178,6 @@ def array(
         Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed tensor chunks.
-    balanced : None or bool, optional
-        Provides information about the distribution of the array across nodes. If None, no information is available,
-        if needed status must be verified with the `is_balanced()` method (requires communication).
 
     Returns
     -------
@@ -330,6 +326,7 @@ def array(
     is_split = sanitize_axis(obj.shape, is_split)
     if split is not None and is_split is not None:
         raise ValueError("split and is_split are mutually exclusive parameters")
+    balanced = False if is_split else True
 
     # sanitize device and object
     device = devices.sanitize_device(device)
