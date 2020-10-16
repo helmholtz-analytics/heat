@@ -2,6 +2,7 @@ import torch
 
 from . import _operations
 from . import dndarray
+from . import sanitation
 from . import types
 
 __all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "modf", "round", "trunc"]
@@ -113,17 +114,23 @@ def clip(a, a_min, a_max, out=None):
         A tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
         a_max with a_max.
     """
-    if not isinstance(a, dndarray.DNDarray):
-        raise TypeError("a must be a tensor")
+    sanitation.sanitize_in(a)
+
     if a_min is None and a_max is None:
         raise ValueError("either a_min or a_max must be set")
 
     if out is None:
         return dndarray.DNDarray(
-            a._DNDarray__array.clamp(a_min, a_max), a.shape, a.dtype, a.split, a.device, a.comm
+            a._DNDarray__array.clamp(a_min, a_max),
+            a.shape,
+            a.dtype,
+            a.split,
+            a.device,
+            a.comm,
+            a.balanced,
         )
-    if not isinstance(out, dndarray.DNDarray):
-        raise TypeError("out must be a tensor")
+
+    sanitation.sanitize_out(out, a.gshape, a.split, a.device)
 
     return a._DNDarray__array.clamp(a_min, a_max, out=out._DNDarray__array) and out
 

@@ -772,7 +772,9 @@ class DNDarray:
         dtype = types.canonical_heat_type(dtype)
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
-            return DNDarray(casted_array, self.shape, dtype, self.split, self.device, self.comm)
+            return DNDarray(
+                casted_array, self.shape, dtype, self.split, self.device, self.comm, self.balanced
+            )
 
         self.__array = casted_array
         self.__dtype = dtype
@@ -1537,7 +1539,13 @@ class DNDarray:
                     new_split = self.split
 
                 return DNDarray(
-                    self.__array[key], gout, self.dtype, new_split, self.device, self.comm
+                    self.__array[key],
+                    gout,
+                    self.dtype,
+                    new_split,
+                    self.device,
+                    self.comm,
+                    self.balanced,
                 )
 
         else:
@@ -1652,6 +1660,7 @@ class DNDarray:
                 new_split,
                 self.device,
                 self.comm,
+                balanced=False,
             )
 
     if torch.cuda.device_count() > 0:

@@ -8,6 +8,7 @@ from . import constants
 from . import dndarray
 from . import factories
 from . import linalg
+from . import sanitation
 from . import stride_tricks
 from . import tiling
 from . import types
@@ -682,9 +683,8 @@ def expand_dims(a, axis):
     >>> y.shape
     (2, 1)
     """
-    # ensure type consistency
-    if not isinstance(a, dndarray.DNDarray):
-        raise TypeError("expected ht.DNDarray, but was {}".format(type(a)))
+    # sanitize input
+    sanitation.sanitize_in(a)
 
     # sanitize axis, introduce arbitrary dummy dimension to model expansion
     axis = stride_tricks.sanitize_axis(a.shape + (1,), axis)
@@ -696,6 +696,7 @@ def expand_dims(a, axis):
         a.split if a.split is None or a.split < axis else a.split + 1,
         a.device,
         a.comm,
+        a.balanced,
     )
 
 
@@ -1835,8 +1836,7 @@ def squeeze(x, axis=None):
     """
 
     # Sanitize input
-    if not isinstance(x, dndarray.DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+    sanitation.sanitize_in(x)
     # Sanitize axis
     axis = stride_tricks.sanitize_axis(x.shape, axis)
     if axis is not None:
@@ -1866,7 +1866,13 @@ def squeeze(x, axis=None):
         split = None
 
     return dndarray.DNDarray(
-        x_lsqueezed, out_gshape, x.dtype, split=split, device=x.device, comm=x.comm
+        x_lsqueezed,
+        out_gshape,
+        x.dtype,
+        split=split,
+        device=x.device,
+        comm=x.comm,
+        balanced=x.balanced,
     )
 
 
@@ -1955,8 +1961,7 @@ def stack(arrays, axis=0, out=None):
     """
 
     # sanitation
-    if not isinstance(arrays, (tuple, list)):
-        raise TypeError("arrays must be a list or a tuple")
+    sanitation.sanitize_sequence(arrays)
 
     if len(arrays) < 2:
         raise ValueError("stack expects a sequence of at least 2 DNDarrays")
@@ -1968,7 +1973,7 @@ def stack(arrays, axis=0, out=None):
             )
 
     arrays_metadata = list(
-        [array.gshape, array.split, array.device, array.is_balanced()] for array in arrays
+        [array.gshape, array.split, array.device, array.balanced] for array in arrays
     )
     num_arrays = len(arrays)
     # metadata must be identical for all arrays
@@ -1991,14 +1996,14 @@ def stack(arrays, axis=0, out=None):
                     devices
                 )
             )
-        balance = list(array.is_balanced() for array in arrays)
+        balance = list(array.balanced for array in arrays)
         if balance.count(balance[0]) != num_arrays:
             raise RuntimeError(
                 "DNDarrays distribution must be balanced across ranks, is_balanced() returns {}"
                 "You can balance a DNDarray with the balance_() method.".format(balance)
             )
     else:
-        array_shape, array_split, array_device = arrays_metadata[0][:3]
+        array_shape, array_split, array_device, array_balanced = arrays_metadata[0][:4]
         # extract torch tensors
         t_arrays = list(array._DNDarray__array for array in arrays)
         # output dtype
@@ -2014,7 +2019,7 @@ def stack(arrays, axis=0, out=None):
             t_arrays = list(t_array.type(t_array_dtype) for t_array in t_arrays)
         array_dtype = types.canonical_heat_type(t_array_dtype)
 
-    # sanitate axis
+    # sanitize axis
     axis = stride_tricks.sanitize_axis(array_shape + (num_arrays,), axis)
 
     # output shape and split
@@ -2024,26 +2029,13 @@ def stack(arrays, axis=0, out=None):
     else:
         stacked_split = None
 
-    # sanitate output
-    if out is not None:
-        if not isinstance(out, dndarray.DNDarray):
-            raise TypeError("expected out to be None or ht.DNDarray, but was {}".format(type(out)))
-        if out.dtype is not array_dtype:
-            raise TypeError("expected out to be {}, but was {}".format(array_dtype, out.dtype))
-        if out.gshape != stacked_shape:
-            raise ValueError(
-                "expected out.shape to be {}, got {}".format(out.gshape, stacked_shape)
-            )
-        if out.split is not stacked_split:
-            raise ValueError("expected out.split to be {}, got {}".format(out.split, stacked_split))
-    # end of sanitation
-
     # stack locally
     t_stacked = torch.stack(t_arrays, dim=axis)
 
     # return stacked DNDarrays
     if out is not None:
-        out._DNDarray__array = t_stacked
+        sanitation.sanitize_out(out, stacked_shape, stacked_split, array_device)
+        out._DNDarray__array = t_stacked.type(out._DNDarray__array.dtype)
         return out
 
     stacked = dndarray.DNDarray(
@@ -2053,6 +2045,7 @@ def stack(arrays, axis=0, out=None):
         split=stacked_split,
         device=array_device,
         comm=arrays[0].comm,
+        balanced=array_balanced,
     )
     return stacked
 
