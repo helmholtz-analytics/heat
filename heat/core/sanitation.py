@@ -10,10 +10,10 @@ from . import stride_tricks
 from . import types
 
 
-__all__ = ["sanitize_input", "sanitize_out", "sanitize_sequence", "scalar_to_1d"]
+__all__ = ["sanitize_in", "sanitize_out", "sanitize_sequence", "scalar_to_1d"]
 
 
-def sanitize_input(x):
+def sanitize_in(x):
     """
     Raise TypeError if input is not DNDarray
 
