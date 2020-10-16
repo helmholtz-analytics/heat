@@ -332,17 +332,17 @@ def array(
     comm = sanitize_comm(comm)
 
     # determine the local and the global shape, if not split is given, they are identical
-    lshape = np.array(obj.shape)
-    gshape = lshape.copy()
-
+    gshape = lshape = obj.shape
     balanced = True
+
     # content shall be split, chunk the passed data object up
     if split is not None:
-        _, _, slices = comm.chunk(obj.shape, split)
+        _, _, slices = comm.chunk(gshape, split)
         obj = obj[slices].clone()
         obj = memory.sanitize_memory_layout(obj, order=order)
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
+        gshape = lshape = np.array(lshape)
         obj = memory.sanitize_memory_layout(obj, order=order)
         if comm.rank < comm.size - 1:
             comm.Isend(lshape, dest=comm.rank + 1)
@@ -351,7 +351,6 @@ def array(
             status = MPI.Status()
             comm.Probe(source=comm.rank - 1, status=status)
             length = status.Get_count() // lshape.dtype.itemsize
-            print("DEBUGGING: array(): length = ", length)
             # the number of shape elements does not match with the 'left' rank
             if length != len(lshape):
                 discard_buffer = np.empty(length)
