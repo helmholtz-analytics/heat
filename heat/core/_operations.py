@@ -338,7 +338,13 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
     if out is None:
         result = operation(x._DNDarray__array.type(torch_type), **kwargs)
         return dndarray.DNDarray(
-            result, x.gshape, types.canonical_heat_type(result.dtype), x.split, x.device, x.comm
+            result,
+            x.gshape,
+            types.canonical_heat_type(result.dtype),
+            x.split,
+            x.device,
+            x.comm,
+            x.balanced,
         )
 
     # output buffer writing requires a bit more work
