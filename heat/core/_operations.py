@@ -388,13 +388,13 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
     """
     # perform sanitation
     sanitation.sanitize_in(x)
-    out = kwargs.get("out")
 
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
     if isinstance(axis, int):
         axis = (axis,)
     keepdim = kwargs.get("keepdim")
+    out = kwargs.get("out")
     split = x.split
     balanced = x.balanced
 
@@ -409,7 +409,6 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
             dtype=x.dtype.torch_type(),
             device=x.device.torch_device,
         )
-
     else:
         partial = x._DNDarray__array
 
@@ -434,7 +433,6 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
                 lshape_losedim = (partial.shape[0],) + lshape_losedim[1:]
             if len(lshape_losedim) > 0:
                 partial = partial.reshape(lshape_losedim)
-
     # perform a reduction operation in case the tensor is distributed across the reduction axis
     if x.split is not None and (axis is None or (x.split in axis)):
         split = None

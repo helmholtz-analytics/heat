@@ -807,7 +807,7 @@ class TestStatistics(TestCase):
         ht_array = ht.array(data)
         comparison = torch.tensor(data, device=self.device.torch_device)
 
-        # check global max
+        # check global min
         minimum = ht.min(ht_array)
 
         self.assertIsInstance(minimum, ht.DNDarray)
@@ -818,7 +818,7 @@ class TestStatistics(TestCase):
         self.assertEqual(minimum._DNDarray__array.dtype, torch.int64)
         self.assertEqual(minimum, 1)
 
-        # maximum along first axis
+        # min along first axis
         ht_array = ht.array(data, dtype=ht.int8)
         minimum_vertical = ht.min(ht_array, axis=0)
 
@@ -832,7 +832,7 @@ class TestStatistics(TestCase):
             (minimum_vertical._DNDarray__array == comparison.min(dim=0, keepdim=True)[0]).all()
         )
 
-        # maximum along second axis
+        # min along second axis
         ht_array = ht.array(data, dtype=ht.int16)
         minimum_horizontal = ht.min(ht_array, axis=1, keepdim=True)
 
@@ -846,7 +846,7 @@ class TestStatistics(TestCase):
             (minimum_horizontal._DNDarray__array == comparison.min(dim=1, keepdim=True)[0]).all()
         )
 
-        # check max over all float elements of split 3d tensor, across split axis
+        # check min over all float elements of split 3d tensor, across split axis
         size = ht.MPI_WORLD.size
         random_volume = ht.random.randn(3, 3 * size, 3, split=1)
         minimum_volume = ht.min(random_volume, axis=1)
@@ -870,7 +870,7 @@ class TestStatistics(TestCase):
         self.assertEqual(minimum_volume.split, 0)
         self.assertTrue((minimum_volume == alt_minimum_volume).all())
 
-        # check max over all float elements of split 5d tensor, along split axis
+        # check min over all float elements of split 5d tensor, along split axis
         random_5d = ht.random.randn(1 * size, 2, 3, 4, 5, split=0)
         minimum_5d = ht.min(random_5d, axis=1)
 
