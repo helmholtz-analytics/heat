@@ -229,10 +229,7 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
         If the split or device parameters do not match the parameters of the input
     """
     # perform sanitation
-    if not isinstance(x, dndarray.DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
-    if out is not None and not isinstance(out, dndarray.DNDarray):
-        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
+    sanitation.sanitize_in(x)
 
     if axis is None:
         raise NotImplementedError("axis = None is not supported")
@@ -242,16 +239,7 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
         dtype = types.canonical_heat_type(dtype)
 
     if out is not None:
-        if out.shape != x.shape:
-            raise ValueError("out and a have different shapes {} != {}".format(out.shape, x.shape))
-        if out.split != x.split:
-            raise RuntimeError(
-                "out and a have different splits {} != {}".format(out.split, x.split)
-            )
-        if out.device != x.device:
-            raise RuntimeError(
-                "out and a have different devices {} != {}".format(out.device, x.device)
-            )
+        sanitation.sanitize_out(out, x.shape, x.split, x.device)
         dtype = out.dtype
 
     cumop = partial_op(
@@ -321,8 +309,7 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
         If the input is not a tensor or the output is not a tensor or None.
     """
     # perform sanitation
-    if not isinstance(x, dndarray.DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+    sanitation.sanitize_in(x)
     if out is not None and not isinstance(out, dndarray.DNDarray):
         raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
@@ -400,11 +387,8 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
         If the shape of the optional output parameters does not match the shape of the reduced result
     """
     # perform sanitation
-    if not isinstance(x, dndarray.DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+    sanitation.sanitize_in(x)
     out = kwargs.get("out")
-    if out is not None and not isinstance(out, dndarray.DNDarray):
-        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
@@ -451,12 +435,6 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
             if len(lshape_losedim) > 0:
                 partial = partial.reshape(lshape_losedim)
 
-    # Check shape of output buffer, if any
-    if out is not None and out.shape != output_shape:
-        raise ValueError(
-            "Expecting output buffer of shape {}, got {}".format(output_shape, out.shape)
-        )
-
     # perform a reduction operation in case the tensor is distributed across the reduction axis
     if x.split is not None and (axis is None or (x.split in axis)):
         split = None
@@ -468,12 +446,9 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
     tensor_type = bool if reduction_op in __BOOLEAN_OPS else partial.dtype
 
     if out is not None:
+        # sanitize out
+        sanitation.sanitize_out(out, output_shape, split, x.device)
         out._DNDarray__array = partial
-        out._DNDarray__dtype = types.canonical_heat_type(tensor_type)
-        out._DNDarray__split = split
-        out._DNDarray__device = x.device
-        out._DNDarray__comm = x.comm
-
         return out
 
     return dndarray.DNDarray(
