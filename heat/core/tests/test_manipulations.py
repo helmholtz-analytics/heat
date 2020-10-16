@@ -1969,9 +1969,6 @@ class TestManipulations(TestCase):
         out_wrong_type = torch.empty((3, 5, 4), dtype=torch.float32)
         with self.assertRaises(TypeError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_type)
-        out_wrong_dtype = ht.empty((3, 5, 4), dtype=ht.float64, split=1)
-        with self.assertRaises(TypeError):
-            ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_dtype)
         out_wrong_shape = ht.empty((2, 5, 4), dtype=ht.float32, split=1)
         with self.assertRaises(ValueError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_shape)

@@ -542,9 +542,6 @@ class TestLinalgBasics(TestCase):
         t_out = torch.empty((a.gshape[0], b.gshape[0]), dtype=torch.float32)
         with self.assertRaises(TypeError):
             ht.outer(a, b, out=t_out)
-        ht_out_wrong_dtype = ht.empty((a.gshape[0], b.gshape[0]), dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            ht.outer(a, b, out=ht_out_wrong_dtype)
         ht_out_wrong_shape = ht.empty((7, b.gshape[0]), dtype=ht.float32)
         with self.assertRaises(ValueError):
             ht.outer(a, b, out=ht_out_wrong_shape)

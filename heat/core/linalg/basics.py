@@ -7,6 +7,7 @@ from .. import exponential
 from .. import dndarray
 from .. import factories
 from .. import manipulations
+from .. import sanitation
 from .. import types
 
 __all__ = ["dot", "matmul", "norm", "outer", "projection", "transpose", "tril", "triu"]
@@ -940,13 +941,21 @@ def outer(a, b, out=None, split=None):
                     [12.]], dtype=torch.float64)
     """
     # sanitize input
-    if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
-        raise TypeError(
-            "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
+    devices = []
+    for array in [a, b]:
+        sanitation.sanitize_in(array)
+        devices.append(array.device)
+    if devices.count(devices[0]) == 2:
+        device = devices[0]
+    else:
+        raise RuntimeError(
+            "input arrays on different devices: input 0 on {}, input 1 on {}".format(
+                devices[0], devices[1]
+            )
         )
 
     # sanitize dimensions
-    # TODO move to sanitation module #468
+    # TODO implement is_1D in sanitation module #468
     if a.ndim > 1:
         a = manipulations.flatten(a)
     if b.ndim > 1:
@@ -964,18 +973,8 @@ def outer(a, b, out=None, split=None):
     outer_dtype = types.canonical_heat_type(t_outer_dtype)
 
     if out is not None:
-        if not isinstance(out, dndarray.DNDarray):
-            raise TypeError("out must be of type ht.DNDarray, was {}".format(type(out)))
-        if out.dtype is not outer_dtype:
-            raise TypeError(
-                "Wrong datatype for out: expected {}, got {}".format(outer_dtype, out.dtype)
-            )
-        if out.gshape != outer_gshape:
-            raise ValueError("out must have shape {}, got {}".format(outer_gshape, out.gshape))
-        if out.split is not split:
-            raise ValueError(
-                "Split dimension mismatch for out: expected {}, got {}".format(split, out.split)
-            )
+        sanitation.sanitize_out(out, outer_gshape, split, device)
+        t_out_dtype = out._DNDarray__array.dtype
 
     # distributed outer product, dense arrays (TODO: sparse, #384)
     if a.comm.is_distributed() and split is not None or a.split is not None or b.split is not None:
@@ -1052,11 +1051,17 @@ def outer(a, b, out=None, split=None):
         split = None
 
     outer = dndarray.DNDarray(
-        t_outer, gshape=outer_gshape, dtype=outer_dtype, split=split, device=a.device, comm=a.comm
+        t_outer,
+        gshape=outer_gshape,
+        dtype=outer_dtype,
+        split=split,
+        device=a.device,
+        comm=a.comm,
+        balanced=True,
     )
 
     if out is not None:
-        out._DNDarray__array = outer._DNDarray__array
+        out._DNDarray__array = outer._DNDarray__array.type(t_out_dtype)
         return out
 
     return outer
@@ -1107,8 +1112,7 @@ def transpose(a, axes=None):
         a with its axes permuted.
     """
     # type check the input tensor
-    if not isinstance(a, dndarray.DNDarray):
-        raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
+    sanitation.sanitize_in(a)
 
     # set default value for axes permutations
     dimensions = len(a.shape)
@@ -1142,7 +1146,13 @@ def transpose(a, axes=None):
         transposed_shape = tuple(a.shape[axis] for axis in axes)
 
         return dndarray.DNDarray(
-            transposed_data, transposed_shape, a.dtype, transposed_split, a.device, a.comm
+            transposed_data,
+            transposed_shape,
+            a.dtype,
+            transposed_split,
+            a.device,
+            a.comm,
+            a.balanced,
         )
     # if not possible re- raise any torch exception as ValueError
     except (RuntimeError, IndexError) as exception:
@@ -1177,8 +1187,7 @@ def __tri_op(m, k, op):
     TypeError
         If the input is not a tensor or the diagonal offset cannot be converted to an integral value.
     """
-    if not isinstance(m, dndarray.DNDarray):
-        raise TypeError("Expected m to be a tensor but was {}".format(type(m)))
+    sanitation.sanitize_in(m)
 
     try:
         k = int(k)
@@ -1202,6 +1211,7 @@ def __tri_op(m, k, op):
             None if m.split is None else 1,
             m.device,
             m.comm,
+            m.balanced,
         )
 
     original = m._DNDarray__array
@@ -1225,7 +1235,7 @@ def __tri_op(m, k, op):
             index = partial_index + __index_base
             op(original[index], k, out=output[index])
 
-    return dndarray.DNDarray(output, m.shape, m.dtype, m.split, m.device, m.comm)
+    return dndarray.DNDarray(output, m.shape, m.dtype, m.split, m.device, m.comm, m.balanced)
 
 
 def tril(m, k=0):

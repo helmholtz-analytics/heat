@@ -137,7 +137,7 @@ class TestLogical(TestCase):
         self.assertEqual(float_5d_is_one._DNDarray__array.dtype, torch.bool)
         self.assertEqual(float_5d_is_one.split, 1)
 
-        out_noaxis = ht.zeros((1, 2, 3, 5))
+        out_noaxis = ht.zeros((1, 2, 3, 5), split=1)
         ht.all(ones_noaxis_split_axis_neg, axis=-2, out=out_noaxis)
 
         # exceptions
@@ -185,7 +185,7 @@ class TestLogical(TestCase):
         self.assertTrue(ht.equal(any_tensor, res))
 
         # integer values, major axis, output tensor
-        any_tensor = ht.zeros((2,))
+        any_tensor = ht.zeros((2,), dtype=ht.bool)
         x = ht.int32([[0, 0], [0, 0], [0, 1]])
         ht.any(x, axis=0, out=any_tensor)
         res = ht.uint8([0, 1])

@@ -77,19 +77,8 @@ def sanitize_sequence(seq):
         return seq
     elif isinstance(seq, tuple):
         return list(seq)
-    elif isinstance(seq, dndarray.DNDarray):
-        if seq.split is None:
-            return seq._DNDarray__array.tolist()
-        else:
-            raise ValueError(
-                "seq is a distributed DNDarray, expected a list, a tuple, or a process-local array."
-            )
-    elif isinstance(seq, torch.Tensor):
-        return seq.tolist()
     else:
-        raise TypeError(
-            "seq must be a list, a tuple, or a process-local array, got {}".format(type(seq))
-        )
+        raise TypeError("seq must be a list or a tuple, got {}".format(type(seq)))
 
 
 def scalar_to_1d(x):
