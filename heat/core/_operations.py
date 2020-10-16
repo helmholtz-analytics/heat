@@ -412,6 +412,7 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
         axis = (axis,)
     keepdim = kwargs.get("keepdim")
     split = x.split
+    balanced = x.balanced
 
     # if local tensor is empty, replace it with the identity element
     if 0 in x.lshape and (axis is None or (x.split in axis)):
@@ -432,6 +433,7 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
     if axis is None:
         partial = partial_op(partial).reshape(-1)
         output_shape = (1,)
+        balanced = True
     else:
         output_shape = x.gshape
         for dim in axis:
@@ -458,6 +460,7 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
     # perform a reduction operation in case the tensor is distributed across the reduction axis
     if x.split is not None and (axis is None or (x.split in axis)):
         split = None
+        balanced = True
         if x.comm.is_distributed():
             x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
 
@@ -480,4 +483,5 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
         split=split,
         device=x.device,
         comm=x.comm,
+        balanced=balanced,
     )
