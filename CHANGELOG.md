@@ -1,5 +1,6 @@
 # Pending additions
 ## New features
+- [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
 - [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
 ### Manipulations
 ### Statistical Functions
