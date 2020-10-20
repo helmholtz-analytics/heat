@@ -311,6 +311,7 @@ def main():
         print("deterministic==True, seed set to global rank")
     else:
         torch.manual_seed(999999999)
+        #torch.manual_seed(ht.MPI_WORLD.rank)
 
     args.gpu = 0
     args.world_size = ht.MPI_WORLD.size
