@@ -4,7 +4,7 @@ import torch
 from .communication import MPI
 from . import factories
 from . import manipulations
-from . import operations
+from . import _operations
 from . import dndarray
 from . import stride_tricks
 from . import types
@@ -77,7 +77,7 @@ def all(x, axis=None, out=None, keepdim=None):
     def local_all(t, *args, **kwargs):
         return torch.all(t != 0, *args, **kwargs)
 
-    return operations.__reduce_op(
+    return _operations.__reduce_op(
         x, local_all, MPI.LAND, axis=axis, out=out, neutral=1, keepdim=keepdim
     )
 
@@ -121,9 +121,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
-    _local_allclose = torch.tensor(
-        torch.allclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan)
-    )
+    _local_allclose = torch.tensor(torch.allclose(t1.larray, t2.larray, rtol, atol, equal_nan))
 
     # If x is distributed, then y is also distributed along the same axis
     if t1.comm.is_distributed():
@@ -175,7 +173,7 @@ def any(x, axis=None, out=None, keepdim=False):
     def local_any(t, *args, **kwargs):
         return torch.any(t != 0, *args, **kwargs)
 
-    return operations.__reduce_op(
+    return _operations.__reduce_op(
         x, local_any, MPI.LOR, axis=axis, out=out, neutral=0, keepdim=keepdim
     )
 
@@ -201,7 +199,7 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.isclose raises relevant errors
-    _local_isclose = torch.isclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan)
+    _local_isclose = torch.isclose(t1.larray, t2.larray, rtol, atol, equal_nan)
 
     # If x is distributed, then y is also distributed along the same axis
     if t1.comm.is_distributed() and t1.split is not None:
@@ -238,7 +236,7 @@ def logical_and(t1, t2):
     >>> ht.logical_and(ht.array([True, False]), ht.array([False, False]))
     tensor([ False, False])
     """
-    return operations.__binary_op(
+    return _operations.__binary_op(
         torch.Tensor.__and__, types.bool(t1, device=t1.device), types.bool(t2, device=t2.device)
     )
 
@@ -265,7 +263,7 @@ def logical_not(t, out=None):
     >>> ht.logical_not(ht.array([True, False]))
     tensor([ False,  True])
     """
-    return operations.__local_op(torch.logical_not, t, out)
+    return _operations.__local_op(torch.logical_not, t, out)
 
 
 def logical_or(t1, t2):
@@ -287,7 +285,7 @@ def logical_or(t1, t2):
     >>> ht.logical_or(ht.array([True, False]), ht.array([False, False]))
     tensor([True, False])
     """
-    return operations.__binary_op(
+    return _operations.__binary_op(
         torch.Tensor.__or__, types.bool(t1, device=t1.device), types.bool(t2, device=t2.device)
     )
 
@@ -311,7 +309,7 @@ def logical_xor(t1, t2):
     >>> ht.logical_xor(ht.array([True, False, True]), ht.array([True, False, False]))
     tensor([ False, False,  True])
     """
-    return operations.__binary_op(torch.logical_xor, t1, t2)
+    return _operations.__binary_op(torch.logical_xor, t1, t2)
 
 
 def __sanitize_close_input(x, y):

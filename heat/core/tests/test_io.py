@@ -1,6 +1,5 @@
 import numpy as np
 import os
-import tempfile
 import torch
 
 import heat as ht
@@ -11,12 +10,13 @@ class TestIO(TestCase):
     @classmethod
     def setUpClass(cls):
         super(TestIO, cls).setUpClass()
+        pwd = os.getcwd()
         cls.HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.h5")
-        cls.HDF5_OUT_PATH = os.path.join(tempfile.gettempdir(), "test.h5")
+        cls.HDF5_OUT_PATH = pwd + "/test.h5"
         cls.HDF5_DATASET = "data"
 
         cls.NETCDF_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.nc")
-        cls.NETCDF_OUT_PATH = os.path.join(tempfile.gettempdir(), "test.nc")
+        cls.NETCDF_OUT_PATH = pwd + "/test.nc"
         cls.NETCDF_VARIABLE = "data"
         cls.NETCDF_DIMENSION = "data"
 
@@ -44,6 +44,7 @@ class TestIO(TestCase):
                 os.remove(self.NETCDF_OUT_PATH)
             except FileNotFoundError:
                 pass
+        # if ht.MPI_WORLD.rank == 0:
 
         # synchronize all nodes
         ht.MPI_WORLD.Barrier()
@@ -56,12 +57,12 @@ class TestIO(TestCase):
             self.assertIsInstance(iris, ht.DNDarray)
             # shape invariant
             self.assertEqual(iris.shape, self.IRIS.shape)
-            self.assertEqual(iris._DNDarray__array.shape, self.IRIS.shape)
+            self.assertEqual(iris.larray.shape, self.IRIS.shape)
             # data type
             self.assertEqual(iris.dtype, ht.float32)
-            self.assertEqual(iris._DNDarray__array.dtype, torch.float32)
+            self.assertEqual(iris.larray.dtype, torch.float32)
             # content
-            self.assertTrue((self.IRIS == iris._DNDarray__array).all())
+            self.assertTrue((self.IRIS == iris.larray).all())
         else:
             with self.assertRaises(ValueError):
                 _ = ht.load(self.HDF5_PATH, dataset=self.HDF5_DATASET)
@@ -72,12 +73,12 @@ class TestIO(TestCase):
             self.assertIsInstance(iris, ht.DNDarray)
             # shape invariant
             self.assertEqual(iris.shape, self.IRIS.shape)
-            self.assertEqual(iris._DNDarray__array.shape, self.IRIS.shape)
+            self.assertEqual(iris.larray.shape, self.IRIS.shape)
             # data type
             self.assertEqual(iris.dtype, ht.float32)
-            self.assertEqual(iris._DNDarray__array.dtype, torch.float32)
+            self.assertEqual(iris.larray.dtype, torch.float32)
             # content
-            self.assertTrue((self.IRIS == iris._DNDarray__array).all())
+            self.assertTrue((self.IRIS == iris.larray).all())
         else:
             with self.assertRaises(ValueError):
                 _ = ht.load(self.NETCDF_PATH, variable=self.NETCDF_VARIABLE)
@@ -95,8 +96,8 @@ class TestIO(TestCase):
         a = ht.load_csv(self.CSV_PATH, sep=";")
         self.assertEqual(len(a), csv_file_length)
         self.assertEqual(a.shape, (csv_file_length, csv_file_cols))
-        self.assertTrue(torch.equal(a._DNDarray__array[0], first_value))
-        self.assertTrue(torch.equal(a._DNDarray__array[9], tenth_value))
+        self.assertTrue(torch.equal(a.larray[0], first_value))
+        self.assertTrue(torch.equal(a.larray[9], tenth_value))
 
         a = ht.load_csv(self.CSV_PATH, sep=";", split=0)
         rank = a.comm.Get_rank()
@@ -108,7 +109,7 @@ class TestIO(TestCase):
         self.assertEqual(a.lshape, expected_lshape)
 
         if rank == 0:
-            self.assertTrue(torch.equal(a._DNDarray__array[0], first_value))
+            self.assertTrue(torch.equal(a.larray[0], first_value))
 
         a = ht.load_csv(self.CSV_PATH, sep=";", header_lines=9, dtype=ht.float32, split=0)
         expected_gshape = (csv_file_length - 9, csv_file_cols)
@@ -119,7 +120,7 @@ class TestIO(TestCase):
         self.assertEqual(a.lshape, expected_lshape)
         self.assertEqual(a.dtype, ht.float32)
         if rank == 0:
-            self.assertTrue(torch.equal(a._DNDarray__array[0], tenth_value))
+            self.assertTrue(torch.equal(a.larray[0], tenth_value))
 
         a = ht.load_csv(self.CSV_PATH, sep=";", split=1)
         self.assertEqual(a.shape, (csv_file_length, csv_file_cols))
@@ -175,7 +176,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((local_range._DNDarray__array == comparison).all())
+                self.assertTrue((local_range.larray == comparison).all())
 
             # split range
             split_range = ht.arange(100, split=0)
@@ -187,7 +188,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((local_range._DNDarray__array == comparison).all())
+                self.assertTrue((local_range.larray == comparison).all())
 
         if ht.io.supports_netcdf():
             # local range
@@ -200,7 +201,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((local_range._DNDarray__array == comparison).all())
+                self.assertTrue((local_range.larray == comparison).all())
 
             # split range
             split_range = ht.arange(100, split=0)
@@ -212,7 +213,7 @@ class TestIO(TestCase):
                         dtype=torch.int32,
                         device=self.device.torch_device,
                     )
-                self.assertTrue((local_range._DNDarray__array == comparison).all())
+                self.assertTrue((local_range.larray == comparison).all())
 
             # naming dimensions: string
             local_range = ht.arange(100, device=ht_device)
@@ -374,8 +375,8 @@ class TestIO(TestCase):
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
-        self.assertEqual(iris._DNDarray__array.dtype, torch.float32)
-        self.assertTrue((self.IRIS == iris._DNDarray__array).all())
+        self.assertEqual(iris.larray.dtype, torch.float32)
+        self.assertTrue((self.IRIS == iris.larray).all())
 
         # positive split axis
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0)
@@ -400,7 +401,7 @@ class TestIO(TestCase):
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.int8)
-        self.assertEqual(iris._DNDarray__array.dtype, torch.int8)
+        self.assertEqual(iris.larray.dtype, torch.int8)
 
     def test_load_hdf5_exception(self):
         # HDF5 support is optional
@@ -434,7 +435,7 @@ class TestIO(TestCase):
                 comparison = torch.tensor(
                     handle[self.HDF5_DATASET], dtype=torch.int32, device=self.device.torch_device
                 )
-            self.assertTrue((local_data._DNDarray__array == comparison).all())
+            self.assertTrue((local_data.larray == comparison).all())
 
         # distributed data range
         split_data = ht.arange(100, split=0)
@@ -444,7 +445,7 @@ class TestIO(TestCase):
                 comparison = torch.tensor(
                     handle[self.HDF5_DATASET], dtype=torch.int32, device=self.device.torch_device
                 )
-            self.assertTrue((local_data._DNDarray__array == comparison).all())
+            self.assertTrue((local_data.larray == comparison).all())
 
     def test_save_hdf5_exception(self):
         # HDF5 support is optional
@@ -471,8 +472,8 @@ class TestIO(TestCase):
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.float32)
-        self.assertEqual(iris._DNDarray__array.dtype, torch.float32)
-        self.assertTrue((self.IRIS == iris._DNDarray__array).all())
+        self.assertEqual(iris.larray.dtype, torch.float32)
+        self.assertTrue((self.IRIS == iris.larray).all())
 
         # positive split axis
         iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE, split=0)
@@ -497,7 +498,7 @@ class TestIO(TestCase):
         self.assertIsInstance(iris, ht.DNDarray)
         self.assertEqual(iris.shape, self.IRIS.shape)
         self.assertEqual(iris.dtype, ht.int8)
-        self.assertEqual(iris._DNDarray__array.dtype, torch.int8)
+        self.assertEqual(iris.larray.dtype, torch.int8)
 
     def test_load_netcdf_exception(self):
         # netcdf support is optional
@@ -533,7 +534,7 @@ class TestIO(TestCase):
                     dtype=torch.int32,
                     device=self.device.torch_device,
                 )
-            self.assertTrue((local_data._DNDarray__array == comparison).all())
+            self.assertTrue((local_data.larray == comparison).all())
 
         # distributed data range
         split_data = ht.arange(100, split=0)
@@ -545,7 +546,7 @@ class TestIO(TestCase):
                     dtype=torch.int32,
                     device=self.device.torch_device,
                 )
-            self.assertTrue((local_data._DNDarray__array == comparison).all())
+            self.assertTrue((local_data.larray == comparison).all())
 
     def test_save_netcdf_exception(self):
         # netcdf support is optional
@@ -565,3 +566,11 @@ class TestIO(TestCase):
             ht.save_netcdf(data, self.NETCDF_PATH, self.NETCDF_VARIABLE, dimension_names=1)
         with self.assertRaises(ValueError):
             ht.save_netcdf(data, self.NETCDF_PATH, self.NETCDF_VARIABLE, dimension_names=["a", "b"])
+
+    # def test_remove_folder(self):
+    # ht.MPI_WORLD.Barrier()
+    # try:
+    #     os.rmdir(os.getcwd() + '/tmp/')
+    # except OSError:
+    #     pass
+    

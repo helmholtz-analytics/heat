@@ -87,7 +87,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
     if num_of_param == 1:
         if dtype is None:
             # use int32 as default instead of int64 used in numpy
-            dtype = types.int32
+            dtype = types.int32 if all_ints else types.float32
         start = 0
         stop = int(np.ceil(args[0]))
         step = 1
@@ -229,7 +229,7 @@ def array(
             [3, 4, 5]])
     >>> b.strides
     (24, 8)
-    >>> b._DNDarray__array.storage() #TODO: implement ht.view()
+    >>> b.larray.storage() #TODO: implement ht.view()
     0
     1
     2
@@ -243,7 +243,7 @@ def array(
             [3, 4, 5]])
     >>> c.strides
     (8, 16)
-    >>> c._DNDarray__array.storage() #TODO: implement ht.view()
+    >>> c.larray.storage() #TODO: implement ht.view()
     0
     3
     1
@@ -265,7 +265,7 @@ def array(
     >>> b.strides
     (0/2) (8, 16)
     (1/2) (8, 16)
-    >>> b._DNDarray__array.storage() #TODO: implement ht.view()
+    >>> b.larray.storage() #TODO: implement ht.view()
     (0/2) 0
           3
           1
@@ -283,7 +283,7 @@ def array(
     """
     # extract the internal tensor in case of a heat tensor
     if isinstance(obj, dndarray.DNDarray):
-        obj = obj._DNDarray__array
+        obj = obj.larray
 
     # sanitize the data type
     if dtype is not None:

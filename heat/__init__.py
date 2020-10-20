@@ -3,6 +3,7 @@ from .core.linalg import *
 from .core import __version__
 
 from . import core
+from . import classification
 from . import cluster
 from . import graph
 from . import naive_bayes

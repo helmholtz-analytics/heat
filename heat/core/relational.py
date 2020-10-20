@@ -1,7 +1,7 @@
 import torch
 
 from .communication import MPI
-from . import operations
+from . import _operations
 
 __all__ = ["eq", "equal", "ge", "gt", "le", "lt", "ne"]
 
@@ -37,7 +37,7 @@ def eq(t1, t2):
     tensor([[0, 1],
             [0, 0]])
     """
-    return operations.__binary_op(torch.eq, t1, t2)
+    return _operations.__binary_op(torch.eq, t1, t2)
 
 
 def equal(t1, t2):
@@ -69,10 +69,10 @@ def equal(t1, t2):
     >>> ht.eq(T1, 3.0)
     False
     """
-    result_tensor = operations.__binary_op(torch.equal, t1, t2)
+    result_tensor = _operations.__binary_op(torch.equal, t1, t2)
 
-    if result_tensor._DNDarray__array.numel() == 1:
-        result_value = result_tensor._DNDarray__array.item()
+    if result_tensor.larray.numel() == 1:
+        result_value = result_tensor.larray.item()
     else:
         result_value = True
 
@@ -111,7 +111,7 @@ def ge(t1, t2):
     tensor([[0, 1],
             [1, 1]], dtype=torch.uint8)
     """
-    return operations.__binary_op(torch.ge, t1, t2)
+    return _operations.__binary_op(torch.ge, t1, t2)
 
 
 def gt(t1, t2):
@@ -147,7 +147,7 @@ def gt(t1, t2):
     tensor([[0, 0],
             [1, 1]], dtype=torch.uint8)
     """
-    return operations.__binary_op(torch.gt, t1, t2)
+    return _operations.__binary_op(torch.gt, t1, t2)
 
 
 def le(t1, t2):
@@ -182,7 +182,7 @@ def le(t1, t2):
     tensor([[1, 1],
             [0, 0]], dtype=torch.uint8)
     """
-    return operations.__binary_op(torch.le, t1, t2)
+    return _operations.__binary_op(torch.le, t1, t2)
 
 
 def lt(t1, t2):
@@ -217,7 +217,7 @@ def lt(t1, t2):
     tensor([[1, 0],
             [0, 0]], dtype=torch.uint8)
     """
-    return operations.__binary_op(torch.lt, t1, t2)
+    return _operations.__binary_op(torch.lt, t1, t2)
 
 
 def ne(t1, t2):
@@ -251,4 +251,4 @@ def ne(t1, t2):
     tensor([[1, 0],
             [1, 1]])
     """
-    return operations.__binary_op(torch.ne, t1, t2)
+    return _operations.__binary_op(torch.ne, t1, t2)
