@@ -100,7 +100,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         yest : HeAT tensor, shape (1,)
             Thresholded model data
         """
-        return ht.sqrt((ht.mean((gt - yest) ** 2)))._DNDarray__array.item()
+        return ht.sqrt((ht.mean((gt - yest) ** 2))).larray.item()
 
     def fit(self, X, y):
         """
@@ -135,10 +135,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
             # Looping through each coordinate
             for j in range(n):
 
-                X_j = ht.array(X._DNDarray__array[:, j : j + 1], is_split=0)
+                X_j = ht.array(X.larray[:, j : j + 1], is_split=0)
 
                 y_est = X @ theta
-                theta_j = theta._DNDarray__array[j].item()
+                theta_j = theta.larray[j].item()
 
                 rho = (X_j * (y - y_est + theta_j * X_j)).mean()
 

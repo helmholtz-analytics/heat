@@ -52,7 +52,7 @@ class TestExponential(TestCase):
         self.assertEqual(actual.split, 0)
         actual = actual.resplit_(None)
         self.assertEqual(actual.lshape, expected.shape)
-        self.assertTrue(torch.equal(expected, actual._DNDarray__array))
+        self.assertTrue(torch.equal(expected, actual.larray))
         self.assertEqual(actual.dtype, ht.float32)
 
     def test_expm1(self):
@@ -387,9 +387,9 @@ class TestExponential(TestCase):
         # check whether the output buffer still has the correct shape
         self.assertIsInstance(float32_sqrt, ht.DNDarray)
         self.assertEqual(float32_sqrt.dtype, ht.float32)
-        self.assertEqual(float32_sqrt._DNDarray__array.shape, output_shape)
+        self.assertEqual(float32_sqrt.larray.shape, output_shape)
         for row in range(output_shape[0]):
-            self.assertTrue((float32_sqrt._DNDarray__array[row] == comparison).all())
+            self.assertTrue((float32_sqrt.larray[row] == comparison).all())
 
         # exception
         with self.assertRaises(TypeError):
