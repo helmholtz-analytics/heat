@@ -439,6 +439,7 @@ class DataParallelMultiGPU(tnn.Module):
         self.start_loss = None
         self.loss_switch_target = None
         self.loss_floor = loss_floor + 0.5
+        self.batches_to_wait = 1  # if self.local_skip >= 1 else self.local_skip
 
     def forward(self, *inputs, **kwargs):
         return self.module(*inputs, **kwargs)
@@ -466,6 +467,7 @@ class DataParallelMultiGPU(tnn.Module):
         self.global_skip = self.og_global_skip
         self.local_skip = self.og_local_skip
         self._prev_losses_mean = []
+        self.batches_to_wait = 1
 
     def epoch_loss_logic(self, loss):
         # this should be called during the epoch
@@ -539,6 +541,7 @@ class DataParallelMultiGPU(tnn.Module):
             elif means[-1] <= self.loss_floor and self.local_skip < self.global_skip:
                 if self.comm.rank == 0:
                     print("\t\t\t doubling local skips", self.global_skip, self.local_skip * 2)
+                self.batches_to_wait += 1
                 self.local_skip *= 4
                 self.loss_floor -= 0.1
                 # self.global_skip *= 2
@@ -573,7 +576,8 @@ class DataParallelMultiGPU(tnn.Module):
 
         # todo: make adjustments to logic if ls > gs
 
-        batches_to_wait = 1 if ls >= 1 else ls
+        # batches_to_wait = 1 if ls >= 1 else ls
+        batches_to_wait = self.batches_to_wait
         # do full synce on global skips and on the last batch
         # todo: sync for last few batches before the end?
         if batch == self.last_batch or gmod == 0:
