@@ -117,7 +117,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         V, T = ht.lanczos(L, self.n_lanczos, v0)
 
         # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
-        eval, evec = torch.eig(T._DNDarray__array, eigenvectors=True)
+        eval, evec = torch.eig(T.larray, eigenvectors=True)
         # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
         eval, idx = torch.sort(eval[:, 0], dim=0)
         eigenvalues = ht.array(eval)

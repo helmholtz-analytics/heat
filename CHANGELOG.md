@@ -1,6 +1,8 @@
 # Pending additions
 - [#677](https://github.com/helmholtz-analytics/heat/pull/677) New feature: split, vsplit, dsplit, hsplit
 ## New features
+- [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
+- [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
 ### Manipulations
 ### Statistical Functions
 ### Linear Algebra

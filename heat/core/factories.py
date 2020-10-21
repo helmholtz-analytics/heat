@@ -229,7 +229,7 @@ def array(
             [3, 4, 5]])
     >>> b.strides
     (24, 8)
-    >>> b._DNDarray__array.storage() #TODO: implement ht.view()
+    >>> b.larray.storage() #TODO: implement ht.view()
     0
     1
     2
@@ -243,7 +243,7 @@ def array(
             [3, 4, 5]])
     >>> c.strides
     (8, 16)
-    >>> c._DNDarray__array.storage() #TODO: implement ht.view()
+    >>> c.larray.storage() #TODO: implement ht.view()
     0
     3
     1
@@ -265,7 +265,7 @@ def array(
     >>> b.strides
     (0/2) (8, 16)
     (1/2) (8, 16)
-    >>> b._DNDarray__array.storage() #TODO: implement ht.view()
+    >>> b.larray.storage() #TODO: implement ht.view()
     (0/2) 0
           3
           1
@@ -283,7 +283,7 @@ def array(
     """
     # extract the internal tensor in case of a heat tensor
     if isinstance(obj, dndarray.DNDarray):
-        obj = obj._DNDarray__array
+        obj = obj.larray
 
     # sanitize the data type
     if dtype is not None:
