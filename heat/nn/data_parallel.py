@@ -573,7 +573,7 @@ class DataParallelMultiGPU(tnn.Module):
 
         # todo: make adjustments to logic if ls > gs
 
-        batches_to_wait = 2 if ls >= 2 else ls
+        batches_to_wait = 1 if ls >= 1 else ls
         # do full synce on global skips and on the last batch
         # todo: sync for last few batches before the end?
         if batch == self.last_batch or gmod == 0:
@@ -652,12 +652,13 @@ class DataParallelMultiGPU(tnn.Module):
                 self._prev_params[0][0].wait()
                 prev_params = self._prev_params.pop(0)
                 shapes = prev_params[2]
+                factor = 1.0 / float(len(current_ranks))
                 for name, param in self.named_parameters():
                     if param.requires_grad:
                         rcv_params = prev_params[1]
                         param = (
                             rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-                            / current_comm.size
+                            * factor
                         )
                 self._prev_params = []
             self._local_torch_param_update(self._send_mod)
@@ -750,7 +751,7 @@ class DataParallelMultiGPU(tnn.Module):
         # add the weighted average to param
         prev_params = self._prev_params.pop(0)
         shapes = prev_params[2]
-        factor = batches_between / (len(prev_ranks) + batches_between)
+        factor = batches_between / float((len(prev_ranks) + batches_between))
 
         for name, param in self.named_parameters():
             if param.requires_grad:
