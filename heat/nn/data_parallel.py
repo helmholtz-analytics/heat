@@ -573,7 +573,7 @@ class DataParallelMultiGPU(tnn.Module):
 
         # todo: make adjustments to logic if ls > gs
 
-        batches_to_wait = 2 if ls >= 2 else ls
+        batches_to_wait = 1 if ls >= 1 else ls
         # do full synce on global skips and on the last batch
         # todo: sync for last few batches before the end?
         if batch == self.last_batch or gmod == 0:
@@ -658,11 +658,12 @@ class DataParallelMultiGPU(tnn.Module):
                 self._prev_params[0][0].wait()
                 prev_params = self._prev_params.pop(0)
                 shapes = prev_params[2]
+                factor = 1. / float(len(current_ranks))
                 for name, param in self.named_parameters():
                     if param.requires_grad:
                         rcv_params = prev_params[1]
                         param = (
-                            rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
+                            rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2]) * factor
                         )
                 self._prev_params = []
             self._local_torch_param_update(self._send_mod)
@@ -713,9 +714,10 @@ class DataParallelMultiGPU(tnn.Module):
         # factor = current_comm.size / (current_comm.size + 1)
         # params = torch.cat(params) / (current_comm.size + 1.0)  # .to(torch.bfloat16)
         # todo: full size or local size??
-        numer = current_comm.size
-        denom = current_comm.size + batches_to_wait
-        params = torch.cat(params) * numer / denom
+        #numer = 1. # float(self.loc_gpus)
+        #denom = float(current_comm.size + batches_to_wait)
+        #print("sending:", numer, denom)
+        params = torch.cat(params) # * (numer / denom)
         new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)  # mpi_sum_f16) #
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
         # if self.comm.rank == 0:
@@ -759,16 +761,22 @@ class DataParallelMultiGPU(tnn.Module):
         # add the weighted average to param
         prev_params = self._prev_params.pop(0)
         shapes = prev_params[2]
+        numer = batches_between
+        denom = float(len(prev_ranks) + batches_between)
+        factor = numer / denom
+        # print("recv:", numer, denom)
         for name, param in self.named_parameters():
             if param.requires_grad:
                 rcv_params = prev_params[1]
                 update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                 # todo: should this be weighted down by the number of skips??
-                numer = batches_between
-                denom = len(prev_ranks) + batches_between
+                #numer = batches_between * self.loc_gpus
+                #denom = float(self.comm.size + batches_between * self.loc_gpus)
+                #denom = float(len(prev_ranks) + batches_between)
                 # param /= len(prev_ranks) + batches_between
-                param *= numer / denom
-                param += update
+                
+                param *= factor
+                param += (update * (1. - factor))
 
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:
