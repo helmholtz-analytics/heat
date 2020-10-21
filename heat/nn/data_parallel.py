@@ -622,18 +622,12 @@ class DataParallelMultiGPU(tnn.Module):
 
     def _batch_skip_adjustments(self):
         if self.current_batch != 0:
-            # this should only do things at the beginning/end of an epoch
-            # todo: this can actually be done at any time...
             return
 
         if self.global_skip > 0:
             self.global_skip //= 2
         if self.local_skip > 0:
             self.local_skip //= 2
-        # if self.auto_skip:
-        # todo:
-        #     # todo: need to reduce the number of skips as the loss decreases
-        #     pass
 
     @torch.no_grad()
     def _full_global_sync(self, batches_to_wait):
@@ -642,7 +636,7 @@ class DataParallelMultiGPU(tnn.Module):
 
         if self.comm.rank in current_ranks:
             self._global_send_update(current_comm, batches_to_wait)
-
+        # update parameters from the last sending (if there)
         self._update_parameters()  # -> splits off irrelevant ranks
         # needs to happen on all ranks:
         self._local_torch_param_update(self._send_mod_m1)
@@ -663,6 +657,7 @@ class DataParallelMultiGPU(tnn.Module):
                         rcv_params = prev_params[1]
                         param = (
                             rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
+                            / current_comm.size
                         )
                 self._prev_params = []
             self._local_torch_param_update(self._send_mod)
@@ -710,12 +705,8 @@ class DataParallelMultiGPU(tnn.Module):
                 shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
                 params.append(param.flatten())  # .to(torch.bfloat16).flatten())
                 st += param.numel()
-        # factor = current_comm.size / (current_comm.size + 1)
         # params = torch.cat(params) / (current_comm.size + 1.0)  # .to(torch.bfloat16)
-        # todo: full size or local size??
-        numer = current_comm.size
-        denom = current_comm.size + batches_to_wait
-        params = torch.cat(params) * numer / denom
+        params = torch.cat(params)
         new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)  # mpi_sum_f16) #
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
         # if self.comm.rank == 0:
@@ -759,16 +750,15 @@ class DataParallelMultiGPU(tnn.Module):
         # add the weighted average to param
         prev_params = self._prev_params.pop(0)
         shapes = prev_params[2]
+        factor = batches_between / (len(prev_ranks) + batches_between)
+
         for name, param in self.named_parameters():
             if param.requires_grad:
                 rcv_params = prev_params[1]
                 update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                 # todo: should this be weighted down by the number of skips??
-                numer = batches_between
-                denom = len(prev_ranks) + batches_between
-                # param /= len(prev_ranks) + batches_between
-                param *= numer / denom
-                param += update
+                param *= factor
+                param += update * (1.0 - factor)
 
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:
