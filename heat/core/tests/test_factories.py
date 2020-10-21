@@ -12,7 +12,7 @@ class TestFactories(TestCase):
         self.assertEqual(one_arg_arange_int.shape, (10,))
         self.assertLessEqual(one_arg_arange_int.lshape[0], 10)
         self.assertEqual(one_arg_arange_int.dtype, ht.int32)
-        self.assertEqual(one_arg_arange_int._DNDarray__array.dtype, torch.int32)
+        self.assertEqual(one_arg_arange_int.larray.dtype, torch.int32)
         self.assertEqual(one_arg_arange_int.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(one_arg_arange_int.sum(), 45)
@@ -23,7 +23,7 @@ class TestFactories(TestCase):
         self.assertEqual(one_arg_arange_float.shape, (10,))
         self.assertLessEqual(one_arg_arange_float.lshape[0], 10)
         self.assertEqual(one_arg_arange_float.dtype, ht.float32)
-        self.assertEqual(one_arg_arange_float._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(one_arg_arange_float.larray.dtype, torch.float32)
         self.assertEqual(one_arg_arange_float.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(one_arg_arange_float.sum(), 45.0)
@@ -34,7 +34,7 @@ class TestFactories(TestCase):
         self.assertEqual(two_arg_arange_int.shape, (10,))
         self.assertLessEqual(two_arg_arange_int.lshape[0], 10)
         self.assertEqual(two_arg_arange_int.dtype, ht.int32)
-        self.assertEqual(two_arg_arange_int._DNDarray__array.dtype, torch.int32)
+        self.assertEqual(two_arg_arange_int.larray.dtype, torch.int32)
         self.assertEqual(two_arg_arange_int.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(two_arg_arange_int.sum(), 45)
@@ -45,7 +45,7 @@ class TestFactories(TestCase):
         self.assertEqual(two_arg_arange_float.shape, (10,))
         self.assertLessEqual(two_arg_arange_float.lshape[0], 10)
         self.assertEqual(two_arg_arange_float.dtype, ht.float32)
-        self.assertEqual(two_arg_arange_float._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(two_arg_arange_float.larray.dtype, torch.float32)
         self.assertEqual(two_arg_arange_float.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(two_arg_arange_float.sum(), 45.0)
@@ -56,7 +56,7 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_int.shape, (5,))
         self.assertLessEqual(three_arg_arange_int.lshape[0], 5)
         self.assertEqual(three_arg_arange_int.dtype, ht.int32)
-        self.assertEqual(three_arg_arange_int._DNDarray__array.dtype, torch.int32)
+        self.assertEqual(three_arg_arange_int.larray.dtype, torch.int32)
         self.assertEqual(three_arg_arange_int.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_int.sum(), 20)
@@ -67,7 +67,7 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_float.shape, (5,))
         self.assertLessEqual(three_arg_arange_float.lshape[0], 5)
         self.assertEqual(three_arg_arange_float.dtype, ht.float32)
-        self.assertEqual(three_arg_arange_float._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(three_arg_arange_float.larray.dtype, torch.float32)
         self.assertEqual(three_arg_arange_float.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_float.sum(), 20.0)
@@ -78,7 +78,7 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_dtype_float32.shape, (5,))
         self.assertLessEqual(three_arg_arange_dtype_float32.lshape[0], 5)
         self.assertEqual(three_arg_arange_dtype_float32.dtype, ht.float32)
-        self.assertEqual(three_arg_arange_dtype_float32._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(three_arg_arange_dtype_float32.larray.dtype, torch.float32)
         self.assertEqual(three_arg_arange_dtype_float32.split, 0)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_dtype_float32.sum(axis=0, keepdim=True), 20.0)
@@ -89,7 +89,7 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_dtype_short.shape, (5,))
         self.assertLessEqual(three_arg_arange_dtype_short.lshape[0], 5)
         self.assertEqual(three_arg_arange_dtype_short.dtype, ht.int16)
-        self.assertEqual(three_arg_arange_dtype_short._DNDarray__array.dtype, torch.int16)
+        self.assertEqual(three_arg_arange_dtype_short.larray.dtype, torch.int16)
         self.assertEqual(three_arg_arange_dtype_short.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_dtype_short.sum(axis=0, keepdim=True), 20)
@@ -100,7 +100,7 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_dtype_float64.shape, (5,))
         self.assertLessEqual(three_arg_arange_dtype_float64.lshape[0], 5)
         self.assertEqual(three_arg_arange_dtype_float64.dtype, ht.float64)
-        self.assertEqual(three_arg_arange_dtype_float64._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(three_arg_arange_dtype_float64.larray.dtype, torch.float64)
         self.assertEqual(three_arg_arange_dtype_float64.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdim=True), 20.0)
@@ -123,9 +123,7 @@ class TestFactories(TestCase):
         self.assertEqual(a.gshape, (2, 3))
         self.assertEqual(a.split, None)
         self.assertTrue(
-            (
-                a._DNDarray__array == torch.tensor(unsplit_data, device=self.device.torch_device)
-            ).all()
+            (a.larray == torch.tensor(unsplit_data, device=self.device.torch_device)).all()
         )
 
         # basic array function, unsplit data, different datatype
@@ -133,13 +131,13 @@ class TestFactories(TestCase):
         b = ht.array(tuple_data, dtype=ht.int8)
         self.assertIsInstance(b, ht.DNDarray)
         self.assertEqual(b.dtype, ht.int8)
-        self.assertEqual(b._DNDarray__array.dtype, torch.int8)
+        self.assertEqual(b.larray.dtype, torch.int8)
         self.assertEqual(b.lshape, (2, 2))
         self.assertEqual(b.gshape, (2, 2))
         self.assertEqual(b.split, None)
         self.assertTrue(
             (
-                b._DNDarray__array
+                b.larray
                 == torch.tensor(tuple_data, dtype=torch.int8, device=self.device.torch_device)
             ).all()
         )
@@ -152,8 +150,8 @@ class TestFactories(TestCase):
         self.assertEqual(c.lshape, (6,))
         self.assertEqual(c.gshape, (6,))
         self.assertEqual(c.split, None)
-        self.assertIs(c._DNDarray__array, torch_tensor)
-        self.assertTrue((c._DNDarray__array == torch_tensor).all())
+        self.assertIs(c.larray, torch_tensor)
+        self.assertTrue((c.larray == torch_tensor).all())
 
         # basic array function, unsplit data, additional dimensions
         vector_data = [4.0, 5.0, 6.0]
@@ -165,7 +163,7 @@ class TestFactories(TestCase):
         self.assertEqual(d.split, None)
         self.assertTrue(
             (
-                d._DNDarray__array
+                d.larray
                 == torch.tensor(vector_data, device=self.device.torch_device).reshape(-1, 1, 1)
             ).all()
         )
@@ -180,7 +178,7 @@ class TestFactories(TestCase):
         self.assertEqual(d.split, None)
         self.assertTrue(
             (
-                d._DNDarray__array
+                d.larray
                 == torch.tensor(vector_data, device=self.device.torch_device).reshape(1, 1, -1)
             ).all()
         )
@@ -196,8 +194,7 @@ class TestFactories(TestCase):
         self.assertEqual(tensor_2d.split, 0)
         self.assertTrue(
             (
-                tensor_2d._DNDarray__array
-                == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
+                tensor_2d.larray == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
             ).all()
         )
 
@@ -410,14 +407,14 @@ class TestFactories(TestCase):
         self.assertEqual(eye.shape, (shape, shape))
         self.assertEqual(eye.split, 1)
 
-        offset_x, offset_y = get_offset(eye._DNDarray__array)
+        offset_x, offset_y = get_offset(eye.larray)
         self.assertGreaterEqual(offset_x, 0)
         self.assertGreaterEqual(offset_y, 0)
-        x, y = eye._DNDarray__array.shape
+        x, y = eye.larray.shape
         for i in range(x):
             for j in range(y):
                 expected = 1 if i - offset_x is j - offset_y else 0
-                self.assertEqual(eye._DNDarray__array[i][j], expected)
+                self.assertEqual(eye.larray[i][j], expected)
 
         shape = (10, 20)
         eye = ht.eye(shape, dtype=ht.float32)
@@ -426,14 +423,14 @@ class TestFactories(TestCase):
         self.assertEqual(eye.shape, shape)
         self.assertEqual(eye.split, None)
 
-        offset_x, offset_y = get_offset(eye._DNDarray__array)
+        offset_x, offset_y = get_offset(eye.larray)
         self.assertGreaterEqual(offset_x, 0)
         self.assertGreaterEqual(offset_y, 0)
-        x, y = eye._DNDarray__array.shape
+        x, y = eye.larray.shape
         for i in range(x):
             for j in range(y):
                 expected = 1.0 if i - offset_x is j - offset_y else 0.0
-                self.assertEqual(eye._DNDarray__array[i][j], expected)
+                self.assertEqual(eye.larray[i][j], expected)
 
         shape = (10,)
         eye = ht.eye(shape, dtype=ht.int32, split=0)
@@ -442,14 +439,14 @@ class TestFactories(TestCase):
         self.assertEqual(eye.shape, shape * 2)
         self.assertEqual(eye.split, 0)
 
-        offset_x, offset_y = get_offset(eye._DNDarray__array)
+        offset_x, offset_y = get_offset(eye.larray)
         self.assertGreaterEqual(offset_x, 0)
         self.assertGreaterEqual(offset_y, 0)
-        x, y = eye._DNDarray__array.shape
+        x, y = eye.larray.shape
         for i in range(x):
             for j in range(y):
                 expected = 1 if i - offset_x is j - offset_y else 0
-                self.assertEqual(eye._DNDarray__array[i][j], expected)
+                self.assertEqual(eye.larray[i][j], expected)
 
         shape = (11, 30)
         eye = ht.eye(shape, split=1, dtype=ht.float32)
@@ -465,7 +462,7 @@ class TestFactories(TestCase):
         self.assertEqual(data.shape, (10, 2))
         self.assertEqual(data.lshape, (10, 2))
         self.assertEqual(data.dtype, ht.float32)
-        self.assertEqual(data._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(data.larray.dtype, torch.float32)
         self.assertEqual(data.split, None)
         self.assertTrue(ht.allclose(data, ht.float32(4.0)))
 
@@ -475,7 +472,7 @@ class TestFactories(TestCase):
         self.assertEqual(data.shape, (10, 2))
         self.assertEqual(data.lshape, (10, 2))
         self.assertEqual(data.dtype, ht.int32)
-        self.assertEqual(data._DNDarray__array.dtype, torch.int32)
+        self.assertEqual(data.larray.dtype, torch.int32)
         self.assertEqual(data.split, None)
         self.assertTrue(ht.allclose(data, ht.int32(4)))
 
@@ -486,7 +483,7 @@ class TestFactories(TestCase):
         self.assertLessEqual(data.lshape[0], 10)
         self.assertEqual(data.lshape[1], 2)
         self.assertEqual(data.dtype, ht.float32)
-        self.assertEqual(data._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(data.larray.dtype, torch.float32)
         self.assertEqual(data.split, 0)
         self.assertTrue(ht.allclose(data, ht.float32(4.0)))
 
@@ -551,7 +548,7 @@ class TestFactories(TestCase):
         self.assertEqual(ascending.shape, (50,))
         self.assertLessEqual(ascending.lshape[0], 50)
         self.assertEqual(ascending.dtype, ht.float32)
-        self.assertEqual(ascending._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(ascending.larray.dtype, torch.float32)
         self.assertEqual(ascending.split, None)
 
         # simple inverse linear space
@@ -560,7 +557,7 @@ class TestFactories(TestCase):
         self.assertEqual(descending.shape, (100,))
         self.assertLessEqual(descending.lshape[0], 100)
         self.assertEqual(descending.dtype, ht.float32)
-        self.assertEqual(descending._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(descending.larray.dtype, torch.float32)
         self.assertEqual(descending.split, None)
 
         # split linear space
@@ -569,7 +566,7 @@ class TestFactories(TestCase):
         self.assertEqual(split.shape, (70,))
         self.assertLessEqual(split.lshape[0], 70)
         self.assertEqual(split.dtype, ht.float32)
-        self.assertEqual(split._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(split.larray.dtype, torch.float32)
         self.assertEqual(split.split, 0)
 
         # with casted type
@@ -578,7 +575,7 @@ class TestFactories(TestCase):
         self.assertEqual(casted.shape, (70,))
         self.assertLessEqual(casted.lshape[0], 70)
         self.assertEqual(casted.dtype, ht.uint8)
-        self.assertEqual(casted._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(casted.larray.dtype, torch.uint8)
         self.assertEqual(casted.split, 0)
 
         # retstep test
@@ -590,7 +587,7 @@ class TestFactories(TestCase):
         self.assertEqual(result[0].shape, (70,))
         self.assertLessEqual(result[0].lshape[0], 70)
         self.assertEqual(result[0].dtype, ht.uint8)
-        self.assertEqual(result[0]._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(result[0].larray.dtype, torch.uint8)
         self.assertEqual(result[0].split, 0)
 
         self.assertIsInstance(result[1], float)
@@ -611,7 +608,7 @@ class TestFactories(TestCase):
         self.assertEqual(ascending.shape, (50,))
         self.assertLessEqual(ascending.lshape[0], 50)
         self.assertEqual(ascending.dtype, ht.float32)
-        self.assertEqual(ascending._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(ascending.larray.dtype, torch.float32)
         self.assertEqual(ascending.split, None)
 
         # simple inverse log space
@@ -620,7 +617,7 @@ class TestFactories(TestCase):
         self.assertEqual(descending.shape, (100,))
         self.assertLessEqual(descending.lshape[0], 100)
         self.assertEqual(descending.dtype, ht.float32)
-        self.assertEqual(descending._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(descending.larray.dtype, torch.float32)
         self.assertEqual(descending.split, None)
 
         # split log space
@@ -629,7 +626,7 @@ class TestFactories(TestCase):
         self.assertEqual(split.shape, (70,))
         self.assertLessEqual(split.lshape[0], 70)
         self.assertEqual(split.dtype, ht.float32)
-        self.assertEqual(split._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(split.larray.dtype, torch.float32)
         self.assertEqual(split.split, 0)
 
         # with casted type
@@ -638,7 +635,7 @@ class TestFactories(TestCase):
         self.assertEqual(casted.shape, (70,))
         self.assertLessEqual(casted.lshape[0], 70)
         self.assertEqual(casted.dtype, ht.uint8)
-        self.assertEqual(casted._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(casted.larray.dtype, torch.uint8)
         self.assertEqual(casted.split, 0)
 
         # base test
@@ -647,7 +644,7 @@ class TestFactories(TestCase):
         self.assertEqual(base.shape, (70,))
         self.assertLessEqual(base.lshape[0], 70)
         self.assertEqual(base.dtype, ht.float32)
-        self.assertEqual(base._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(base.larray.dtype, torch.float32)
         self.assertEqual(base.split, None)
 
         # exceptions
@@ -666,7 +663,7 @@ class TestFactories(TestCase):
         self.assertEqual(simple_ones_float.lshape, (3,))
         self.assertEqual(simple_ones_float.split, None)
         self.assertEqual(simple_ones_float.dtype, ht.float32)
-        self.assertEqual((simple_ones_float._DNDarray__array == 1).all().item(), 1)
+        self.assertEqual((simple_ones_float.larray == 1).all().item(), 1)
 
         # different data type
         simple_ones_uint = ht.ones(5, dtype=ht.bool)
@@ -675,7 +672,7 @@ class TestFactories(TestCase):
         self.assertEqual(simple_ones_uint.lshape, (5,))
         self.assertEqual(simple_ones_uint.split, None)
         self.assertEqual(simple_ones_uint.dtype, ht.bool)
-        self.assertEqual((simple_ones_uint._DNDarray__array == 1).all().item(), 1)
+        self.assertEqual((simple_ones_uint.larray == 1).all().item(), 1)
 
         # multi-dimensional
         elaborate_ones_int = ht.ones((2, 3), dtype=ht.int32)
@@ -684,7 +681,7 @@ class TestFactories(TestCase):
         self.assertEqual(elaborate_ones_int.lshape, (2, 3))
         self.assertEqual(elaborate_ones_int.split, None)
         self.assertEqual(elaborate_ones_int.dtype, ht.int32)
-        self.assertEqual((elaborate_ones_int._DNDarray__array == 1).all().item(), 1)
+        self.assertEqual((elaborate_ones_int.larray == 1).all().item(), 1)
 
         # split axis
         elaborate_ones_split = ht.ones((6, 4), dtype=ht.int32, split=0)
@@ -694,7 +691,7 @@ class TestFactories(TestCase):
         self.assertEqual(elaborate_ones_split.lshape[1], 4)
         self.assertEqual(elaborate_ones_split.split, 0)
         self.assertEqual(elaborate_ones_split.dtype, ht.int32)
-        self.assertEqual((elaborate_ones_split._DNDarray__array == 1).all().item(), 1)
+        self.assertEqual((elaborate_ones_split.larray == 1).all().item(), 1)
 
         # exceptions
         with self.assertRaises(TypeError):
@@ -712,7 +709,7 @@ class TestFactories(TestCase):
         self.assertEqual(like_int.lshape, (1,))
         self.assertEqual(like_int.split, None)
         self.assertEqual(like_int.dtype, ht.int32)
-        self.assertEqual((like_int._DNDarray__array == 1).all().item(), 1)
+        self.assertEqual((like_int.larray == 1).all().item(), 1)
 
         # sequence
         like_str = ht.ones_like("abc")
@@ -721,7 +718,7 @@ class TestFactories(TestCase):
         self.assertEqual(like_str.lshape, (3,))
         self.assertEqual(like_str.split, None)
         self.assertEqual(like_str.dtype, ht.float32)
-        self.assertEqual((like_str._DNDarray__array == 1).all().item(), 1)
+        self.assertEqual((like_str.larray == 1).all().item(), 1)
 
         # elaborate tensor
         zeros = ht.zeros((2, 3), dtype=ht.uint8)
@@ -731,7 +728,7 @@ class TestFactories(TestCase):
         self.assertEqual(like_zeros.lshape, (2, 3))
         self.assertEqual(like_zeros.split, None)
         self.assertEqual(like_zeros.dtype, ht.uint8)
-        self.assertEqual((like_zeros._DNDarray__array == 1).all().item(), 1)
+        self.assertEqual((like_zeros.larray == 1).all().item(), 1)
 
         # elaborate tensor with split
         zeros_split = ht.zeros((2, 3), dtype=ht.uint8, split=0)
@@ -742,7 +739,7 @@ class TestFactories(TestCase):
         self.assertEqual(like_zeros_split.lshape[1], 3)
         self.assertEqual(like_zeros_split.split, 0)
         self.assertEqual(like_zeros_split.dtype, ht.uint8)
-        self.assertEqual((like_zeros_split._DNDarray__array == 1).all().item(), 1)
+        self.assertEqual((like_zeros_split.larray == 1).all().item(), 1)
 
         # exceptions
         with self.assertRaises(TypeError):
@@ -758,7 +755,7 @@ class TestFactories(TestCase):
         self.assertEqual(simple_zeros_float.lshape, (3,))
         self.assertEqual(simple_zeros_float.split, None)
         self.assertEqual(simple_zeros_float.dtype, ht.float32)
-        self.assertEqual((simple_zeros_float._DNDarray__array == 0).all().item(), 1)
+        self.assertEqual((simple_zeros_float.larray == 0).all().item(), 1)
 
         # different data type
         simple_zeros_uint = ht.zeros(5, dtype=ht.bool)
@@ -767,7 +764,7 @@ class TestFactories(TestCase):
         self.assertEqual(simple_zeros_uint.lshape, (5,))
         self.assertEqual(simple_zeros_uint.split, None)
         self.assertEqual(simple_zeros_uint.dtype, ht.bool)
-        self.assertEqual((simple_zeros_uint._DNDarray__array == 0).all().item(), 1)
+        self.assertEqual((simple_zeros_uint.larray == 0).all().item(), 1)
 
         # multi-dimensional
         elaborate_zeros_int = ht.zeros((2, 3), dtype=ht.int32)
@@ -776,7 +773,7 @@ class TestFactories(TestCase):
         self.assertEqual(elaborate_zeros_int.lshape, (2, 3))
         self.assertEqual(elaborate_zeros_int.split, None)
         self.assertEqual(elaborate_zeros_int.dtype, ht.int32)
-        self.assertEqual((elaborate_zeros_int._DNDarray__array == 0).all().item(), 1)
+        self.assertEqual((elaborate_zeros_int.larray == 0).all().item(), 1)
 
         # split axis
         elaborate_zeros_split = ht.zeros((6, 4), dtype=ht.int32, split=0)
@@ -786,7 +783,7 @@ class TestFactories(TestCase):
         self.assertEqual(elaborate_zeros_split.lshape[1], 4)
         self.assertEqual(elaborate_zeros_split.split, 0)
         self.assertEqual(elaborate_zeros_split.dtype, ht.int32)
-        self.assertEqual((elaborate_zeros_split._DNDarray__array == 0).all().item(), 1)
+        self.assertEqual((elaborate_zeros_split.larray == 0).all().item(), 1)
 
         # exceptions
         with self.assertRaises(TypeError):
@@ -804,7 +801,7 @@ class TestFactories(TestCase):
         self.assertEqual(like_int.lshape, (1,))
         self.assertEqual(like_int.split, None)
         self.assertEqual(like_int.dtype, ht.int32)
-        self.assertEqual((like_int._DNDarray__array == 0).all().item(), 1)
+        self.assertEqual((like_int.larray == 0).all().item(), 1)
 
         # sequence
         like_str = ht.zeros_like("abc")
@@ -813,7 +810,7 @@ class TestFactories(TestCase):
         self.assertEqual(like_str.lshape, (3,))
         self.assertEqual(like_str.split, None)
         self.assertEqual(like_str.dtype, ht.float32)
-        self.assertEqual((like_str._DNDarray__array == 0).all().item(), 1)
+        self.assertEqual((like_str.larray == 0).all().item(), 1)
 
         # elaborate tensor
         ones = ht.ones((2, 3), dtype=ht.uint8)
@@ -823,7 +820,7 @@ class TestFactories(TestCase):
         self.assertEqual(like_ones.lshape, (2, 3))
         self.assertEqual(like_ones.split, None)
         self.assertEqual(like_ones.dtype, ht.uint8)
-        self.assertEqual((like_ones._DNDarray__array == 0).all().item(), 1)
+        self.assertEqual((like_ones.larray == 0).all().item(), 1)
 
         # elaborate tensor with split
         ones_split = ht.ones((2, 3), dtype=ht.uint8, split=0)
@@ -834,7 +831,7 @@ class TestFactories(TestCase):
         self.assertEqual(like_ones_split.lshape[1], 3)
         self.assertEqual(like_ones_split.split, 0)
         self.assertEqual(like_ones_split.dtype, ht.uint8)
-        self.assertEqual((like_ones_split._DNDarray__array == 0).all().item(), 1)
+        self.assertEqual((like_ones_split.larray == 0).all().item(), 1)
 
         # exceptions
         with self.assertRaises(TypeError):
