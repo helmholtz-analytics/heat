@@ -599,7 +599,8 @@ class DataParallelMultiGPU(tnn.Module):
             return
         elif gmod == batches_to_wait:
             self._global_sync_rcv()
-            self._stop_local_sync()
+            if ls > 1:
+                self._stop_local_sync()
             # if self.comm.rank == 0:
             #    print(batch, "rcv global sync")
         if ls == 1:
