@@ -31,6 +31,11 @@ except ImportError:
     )
 
 
+def print0(*args, **kwargs):
+    if ht.MPI_WORLD.rank == 4:
+        print(*args, **kwargs)
+
+
 def parse():
     model_names = sorted(
         name
@@ -116,6 +121,14 @@ def parse():
         type=int,
         metavar="N",
         help="number of batches between local parameter synchronizations",
+    )
+    parser.add_argument(
+        "--gs",
+        "--global-skip-decay",
+        default=1,
+        type=int,
+        metavar="GS",
+        help="number of batches between global parameters are received in the global update",
     )
     parser.add_argument(
         "--lr",
@@ -261,7 +274,7 @@ class HybridPipe(Pipeline):
         )
         self.coin = ops.CoinFlip(probability=0.5)
         self.training = training
-        print(f"Completed init of DALI Dataset on '{dali_device}', is training set? -> {training}")
+        print0(f"Completed init of DALI Dataset on '{dali_device}', is training set? -> {training}")
 
     def define_graph(self):
         inputs = self.input(name="Reader")
@@ -288,11 +301,11 @@ def main():
         args.arch = "resnet50"
         args.batch_size = 64
         args.data = []
-        print("Test mode - no DDP, no apex, RN50, 10 iterations")
+        print0("Test mode - no DDP, no apex, RN50, 10 iterations")
 
     args.distributed = True  # TODO: DDDP: if ht.MPI_WORLD.size > 1 else False
-    print("loss_scale = {}".format(args.loss_scale), type(args.loss_scale))
-    print("\nCUDNN VERSION: {}\n".format(torch.backends.cudnn.version()))
+    print0("loss_scale = {}".format(args.loss_scale), type(args.loss_scale))
+    print0("\nCUDNN VERSION: {}\n".format(torch.backends.cudnn.version()))
 
     # if torch.cuda.is_available():
     #     dev_id = ht.MPI_WORLD.rank % torch.cuda.device_count()
@@ -308,10 +321,10 @@ def main():
         cudnn.deterministic = True
         torch.manual_seed(ht.MPI_WORLD.rank)
         torch.set_printoptions(precision=10)
-        print("deterministic==True, seed set to global rank")
+        print0("deterministic==True, seed set to global rank")
     else:
         torch.manual_seed(999999999)
-        #torch.manual_seed(ht.MPI_WORLD.rank)
+        # torch.manual_seed(ht.MPI_WORLD.rank)
 
     args.gpu = 0
     args.world_size = ht.MPI_WORLD.size
@@ -321,6 +334,7 @@ def main():
     device = torch.device("cpu")
     loc_dist = True if args.gpus > 1 else False
     loc_rank = rank % args.gpus
+    args.gpu = loc_rank
     args.local_rank = loc_rank
     twice_dist = False
     if args.distributed and loc_dist:
@@ -343,10 +357,10 @@ def main():
 
     # create model
     if args.pretrained:
-        print("=> using pre-trained model '{}'".format(args.arch))
+        print0("=> using pre-trained model '{}'".format(args.arch))
         model = models.__dict__[args.arch](pretrained=True)
     else:
-        print("=> creating model '{}'".format(args.arch))
+        print0("=> creating model '{}'".format(args.arch))
         model = models.__dict__[args.arch]()
 
     # todo: set the model cuda stuff later
@@ -383,31 +397,31 @@ def main():
         skip_batches=skip_batches,
         local_skip=local_skip,
         loss_floor=2.0,
+        global_skip_delay=args.gs,
     )
 
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda(device)
 
     # Optionally resume from a checkpoint
-    # if args.resume:
-    #     # Use a local scope to avoid dangling references
-    #     def resume():
-    #         if os.path.isfile(args.resume):
-    #             print("=> loading checkpoint '{}'".format(args.resume))
-    #             checkpoint = torch.load(
-    #                 args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu)
-    #             )
-    #             args.start_epoch = checkpoint["epoch"]
-    #             # best_prec1 = checkpoint["best_prec1"]
-    #             htmodel.load_state_dict(checkpoint["state_dict"])
-    #             optimizer.load_state_dict(checkpoint["optimizer"])
-    #             print(
-    #                 "=> loaded checkpoint '{}' (epoch {})".format(args.resume, checkpoint["epoch"])
-    #             )
-    #         else:
-    #             print("=> no checkpoint found at '{}'".format(args.resume))
-    #
-    #     resume()
+    if args.resume:
+        # Use a local scope to avoid dangling references
+        def resume():
+            if os.path.isfile(args.resume):
+                print0("=> loading checkpoint '{}'".format(args.resume))
+                checkpoint = torch.load(
+                    args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu)
+                )
+                args.start_epoch = checkpoint["epoch"]
+                # best_prec1 = checkpoint["best_prec1"]
+                htmodel.load_state_dict(checkpoint["state_dict"])
+                optimizer.load_state_dict(checkpoint["optimizer"])
+                ce = checkpoint["epoch"]
+                print0(f"=> loaded checkpoint '{args.resume}' (epoch {ce})")
+            else:
+                print0(f"=> no checkpoint found at '{args.resume}'")
+
+        resume()
 
     if args.arch == "inception_v3":
         raise RuntimeError("Currently, inception_v3 is not supported by this example.")
@@ -471,20 +485,22 @@ def main():
 
         # remember best prec@1 and save checkpoint
         if args.rank == 0:
-            # is_best = prec1 > best_prec1
+            is_best = prec1 > best_prec1
             best_prec1 = max(prec1, best_prec1)
-            # save_checkpoint(
-            #    {
-            #        "epoch": epoch + 1,
-            #        "arch": args.arch,
-            #        "state_dict": htmodel.state_dict(),
-            #        "best_prec1": best_prec1,
-            #        "optimizer": optimizer.state_dict(),
-            #    },
-            #    is_best,
-            # )
+            if epoch in [30, 60, 80]:
+                save_checkpoint(
+                    {
+                        "epoch": epoch + 1,
+                        "arch": args.arch,
+                        "state_dict": htmodel.state_dict(),
+                        "best_prec1": best_prec1,
+                        "optimizer": optimizer.state_dict(),
+                    },
+                    epoch,
+                    is_best,
+                )
             if epoch == args.epochs - 1:
-                print(
+                print0(
                     "##Top-1 {0}\n"
                     "##Top-5 {1}\n"
                     "##Perf  {2}".format(prec1, prec5, args.total_batch_size / total_time.avg)
@@ -502,8 +518,8 @@ def main():
         print("Epoch\tAvg Batch Time\tTrain Top1\tTrain Top5\tTrain Loss\tVal Top1\tVal Top5")
         for c in range(args.start_epoch, args.epochs):
             print(
-                f"{c}: {batch_time_avg[c]}, {train_acc1[c]}, {train_acc5[c]}, "
-                f"{avg_loss[c]}, {val_acc1[c]}, {val_acc5[c]}"
+                f"{c}\t{batch_time_avg[c]}\t{train_acc1[c]}\t{train_acc5[c]}\t"
+                f"{avg_loss[c]}\t{val_acc1[c]}\t{val_acc5[c]}"
             )
 
 
@@ -525,7 +541,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         input = data[0]["data"].cuda(dev)
         target = data[0]["label"].squeeze().cuda(dev).long()
 
-        if args.prof >= 0 and i == args.prof:
+        if 0 <= args.prof == i:
             print("Profiling begun at iteration {}".format(i))
             torch.cuda.cudart().cudaProfilerStart()
 
@@ -588,32 +604,31 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             batch_time.update((time.time() - end) / args.print_freq)
             end = time.time()
 
-            if args.rank == 0:
-                print(
-                    "Epoch: [{0}][{1}/{2}]\t"
-                    "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
-                    "Speed {3:.3f} ({4:.3f})\t"
-                    "Loss {loss.val:.10f} ({loss.avg:.4f})\t"
-                    "Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t"
-                    "Prec@5 {top5.val:.3f} ({top5.avg:.3f})".format(
-                        epoch,
-                        i,
-                        train_loader_len,
-                        args.world_size * args.batch_size / batch_time.val,
-                        args.world_size * args.batch_size / batch_time.avg,
-                        batch_time=batch_time,
-                        loss=losses,
-                        top1=top1,
-                        top5=top5,
-                    )
+            print0(
+                "Epoch: [{0}][{1}/{2}]\t"
+                "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
+                "Speed {3:.3f} ({4:.3f})\t"
+                "Loss {loss.val:.10f} ({loss.avg:.4f})\t"
+                "Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t"
+                "Prec@5 {top5.val:.3f} ({top5.avg:.3f})".format(
+                    epoch,
+                    i,
+                    train_loader_len,
+                    args.world_size * args.batch_size / batch_time.val,
+                    args.world_size * args.batch_size / batch_time.avg,
+                    batch_time=batch_time,
+                    loss=losses,
+                    top1=top1,
+                    top5=top5,
                 )
+            )
 
         # Pop range "Body of iteration {}".format(i)
         if args.prof >= 0:
             torch.cuda.nvtx.range_pop()
 
         if args.prof >= 0 and i == args.prof + 10:
-            print("Profiling ended at iteration {}".format(i))
+            print0("Profiling ended at iteration {}".format(i))
             torch.cuda.cudart().cudaProfilerStop()
             quit()
     # todo average loss, and top1 and top5
@@ -664,9 +679,9 @@ def validate(dev, val_loader, model, criterion):
         end = time.time()
 
         # TODO:  Change timings to mirror train().
-        if args.rank == 0 and i % args.print_freq == 0:
+        if i % args.print_freq == 0:
             # if i % args.print_freq == 0:
-            print(
+            print0(
                 "Test: [{0}/{1}]\t"
                 "Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t"
                 "Speed {2:.3f} ({3:.3f})\t"
@@ -687,15 +702,13 @@ def validate(dev, val_loader, model, criterion):
     top5.avg = reduce_tensor(torch.tensor(top5.avg), comm=model.comm)
     losses.avg = reduce_tensor(torch.tensor(losses.avg), comm=model.comm)
     if args.local_rank == 0:
-        print(
-            " * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} "
-            "loss: {loss.avg:.3f}".format(top1=top1, top5=top5, loss=losses)
-        )
+        print0(f"\n * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} loss: {losses.avg:.3f}\n")
 
     return [top1.avg, top5.avg]
 
 
-def save_checkpoint(state, is_best, filename="checkpoint.pth.tar"):
+def save_checkpoint(state, is_best, epoch, filename="checkpoint.pth.tar"):
+    filename = "checkpoint-epoch" + str(epoch) + ".pth.tar"
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, "model_best.pth.tar")
@@ -771,4 +784,4 @@ def reduce_tensor(tensor, comm):
 if __name__ == "__main__":
     total_time = time.perf_counter()
     main()
-    print("total time", time.perf_counter() - total_time)
+    print0("\n\ntotal time", time.perf_counter() - total_time)

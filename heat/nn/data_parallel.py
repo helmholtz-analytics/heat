@@ -1,6 +1,3 @@
-import bisect
-import os
-import math
 import warnings
 import torch
 import torch.nn as tnn
@@ -14,11 +11,13 @@ from ..core.communication import MPI
 from ..core.communication import MPI_WORLD
 from .. import optim
 
-import time
-from typing import Iterator
-
 
 __all__ = ["DataParallel", "DataParallelMultiGPU"]
+
+
+def print0(*args, **kwargs):
+    if MPI_WORLD.rank == 4:
+        print(*args, **kwargs)
 
 
 def __sum_f16_cb(buffer_a, buffer_b, _):
@@ -365,6 +364,7 @@ class DataParallelMultiGPU(tnn.Module):
         skip_batches: Union[List, Tuple, int] = None,
         local_skip: int = None,
         loss_floor: Union[float, int] = 1.0,
+        global_skip_delay: int = 4,
     ):
         super(DataParallelMultiGPU, self).__init__()
         rank = comm.rank
@@ -420,11 +420,7 @@ class DataParallelMultiGPU(tnn.Module):
         self.module.apply(self._reset_parameters)
 
         self.current_batch, self.last_batch = 0, None
-        # if isinstance(skip_batches, int):
-        #     # todo: raise error is the given param is a list of 2 values
-        #     skip_batches = [[skip_batches, 0]]
-        #     skip batches should be a list of lists or list of tuples.
-        #     the first index is how many to skip, the second int would be the batch number to change at
+
         self.og_global_skip = skip_batches
         self.global_skip = skip_batches
         self.local_skip = skip_batches // 2 if local_skip is None else local_skip
@@ -439,6 +435,8 @@ class DataParallelMultiGPU(tnn.Module):
         self.start_loss = None
         self.loss_switch_target = None
         self.loss_floor = loss_floor + 0.5
+        self.batches_to_wait = global_skip_delay
+        self._og_btw = global_skip_delay
 
     def forward(self, *inputs, **kwargs):
         return self.module(*inputs, **kwargs)
@@ -466,6 +464,7 @@ class DataParallelMultiGPU(tnn.Module):
         self.global_skip = self.og_global_skip
         self.local_skip = self.og_local_skip
         self._prev_losses_mean = []
+        self.batches_to_wait = self._og_btw
 
     def epoch_loss_logic(self, loss):
         # this should be called during the epoch
@@ -538,21 +537,44 @@ class DataParallelMultiGPU(tnn.Module):
                     )
             elif means[-1] <= self.loss_floor and self.local_skip < self.global_skip:
                 if self.comm.rank == 0:
-                    print("\t\t\t doubling local skips", self.global_skip, self.local_skip * 2)
-                self.local_skip *= 4
-                self.loss_floor -= 0.1
-                # self.global_skip *= 2
-            if 70 <= self.epoch < 80:
-                self.local_skip = 16
-                self.global_skip = 16
-            if 80 <= self.epoch < 87:
-                self.local_skip = 4
-                self.global_skip = 4
-            if self.epoch >= 87:
-                # todo: tune this value and make it do this when it is near the loss floor
-                self.local_skip = 2
-                self.global_skip = 2
-
+                    print(
+                        "\t\t\t doubling local skips",
+                        self.global_skip,
+                        self.local_skip * 2,
+                        "batches to wait:",
+                        self.batches_to_wait - 1,
+                        self.loss_floor,
+                    )
+                self._prev_losses_mean = self._prev_losses_mean[-2:]
+                self.batches_to_wait -= 1
+                self.local_skip *= 2
+                self.loss_floor -= 0.15
+                self.global_skip //= 2
+            elif means[-1] < self.loss_floor:
+                print0(
+                    "\t\t\t\t reducing skips and batches to wait -> hit loss floor",
+                    self.global_skip // 2,
+                    self.local_skip // 2,
+                    1,
+                )
+                self._prev_losses_mean = self._prev_losses_mean[-2:]
+                self.global_skip //= 2
+                self.local_skip //= 2
+                self.batches_to_wait = 1
+            # if 70 <= self.epoch < 80:
+            #    print0("\t\t\t override skips!", 16, 16, "batches to wait:", self.batches_to_wait + 1)
+            #    self.local_skip = 16
+            #    self.global_skip = 16
+            #    self.batches_to_wait = 2
+            # if 80 <= self.epoch < 87:
+            #    self.local_skip = 4
+            #    self.global_skip = 4
+            #    self.batches_to_wait = 4
+            # if self.epoch >= 87:
+            #    # todo: tune this value and make it do this when it is near the loss floor
+            #    self.local_skip = 2
+            #    self.global_skip = 2
+            #    self.batches_to_wait = 1
             return lr_adjust
         # todo: reset the skip after the learning rate is adjusted
 
@@ -573,7 +595,8 @@ class DataParallelMultiGPU(tnn.Module):
 
         # todo: make adjustments to logic if ls > gs
 
-        batches_to_wait = 1 if ls >= 1 else ls
+        # batches_to_wait = 1 if ls >= 1 else ls
+        batches_to_wait = self.batches_to_wait
         # do full synce on global skips and on the last batch
         # todo: sync for last few batches before the end?
         if batch == self.last_batch or gmod == 0:
@@ -595,25 +618,27 @@ class DataParallelMultiGPU(tnn.Module):
             # do nothing on these batches
             self.current_batch += 1
             # if self.comm.rank == 0:
-            #    print(batch, "waiting for global sync")
+            #     print(batch, "waiting for global sync")
             return
         elif gmod == batches_to_wait:
             self._global_sync_rcv()
             if ls > 1:
                 self._stop_local_sync()
             # if self.comm.rank == 0:
-            #    print(batch, "rcv global sync")
+            #     print(batch, "rcv global sync")
         if ls == 1:
+            # if self.comm.rank == 0:
+            #     print(batch, "STARTING LOCAL SYNC")
             self.current_batch += 1
             self._start_local_sync()
             return
         if lmod == 0:
             # if self.comm.rank == 0:
-            #    print(batch, "STOPPING local sync")
+            #     print(batch, "STOPPING local sync")
             self._stop_local_sync()
         elif next_batch % ls == 0:
             # if self.comm.rank == 0:
-            #    print(batch, "STARTING local sync")
+            #     print(batch, "STARTING local sync")
             self._start_local_sync()
 
         if next_batch == self.last_batch:
@@ -643,6 +668,7 @@ class DataParallelMultiGPU(tnn.Module):
         self._local_torch_param_update(self._send_mod_m1)
 
         if self.current_batch == self.last_batch or self.global_skip == 1:
+            # print("last batch")
             # todo: abstract last batch?
             # receive the sent data to sync params across all ranks
             if self.comm.rank in current_ranks:
@@ -709,6 +735,8 @@ class DataParallelMultiGPU(tnn.Module):
                 st += param.numel()
         # params = torch.cat(params) / (current_comm.size + 1.0)  # .to(torch.bfloat16)
         params = torch.cat(params)
+        # TODO: device the params by the future denominator here?
+        # TODO: bfloat16?
         new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)  # mpi_sum_f16) #
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
         # if self.comm.rank == 0:
@@ -748,19 +776,21 @@ class DataParallelMultiGPU(tnn.Module):
         if len(self._prev_params) == 0 or self._prev_params[0][0] is None:
             return
         batches_between = float(self._prev_params[0][3])
-        self._prev_params[0][0].wait()
+        self._prev_params[0][0].Wait()
         # add the weighted average to param
         prev_params = self._prev_params.pop(0)
         shapes = prev_params[2]
-        factor = batches_between / float((len(prev_ranks) + batches_between))
-
+        numer = batches_between
+        denom = float(len(prev_ranks) + batches_between)
+        factor = numer / denom
         for name, param in self.named_parameters():
             if param.requires_grad:
                 rcv_params = prev_params[1]
                 update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-                # todo: should this be weighted down by the number of skips??
+                # NOTE: update here is the total sum of the params across the processes
+                # print0(torch.mean(update))
                 param *= factor
-                param += update * (1.0 - factor)
+                param += update / denom
 
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:
