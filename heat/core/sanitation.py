@@ -95,6 +95,4 @@ def scalar_to_1d(x):
     x : DNDarray
         where `x.ndim = 1` and `x.shape = (1,)`
     """
-    return factories.array(
-        x._DNDarray__array.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm
-    )
+    return factories.array(x.larray.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm)

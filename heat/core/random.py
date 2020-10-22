@@ -311,7 +311,7 @@ def permutation(x):
 
         data = torch.stack(buf)
     else:
-        data = torch.empty_like(x._DNDarray__array)
+        data = torch.empty_like(x.larray)
 
     return factories.array(data, dtype=x.dtype, is_split=x.split, device=x.device, comm=x.comm)
 
@@ -503,7 +503,7 @@ def randn(*args, dtype=types.float32, split=None, device=None, comm=None):
     # generate uniformly distributed random numbers first
     normal_tensor = rand(*args, dtype=dtype, split=split, device=device, comm=comm)
     # convert the the values to a normal distribution using the kundu transform
-    normal_tensor._DNDarray__array = __kundu_transform(normal_tensor._DNDarray__array)
+    normal_tensor.larray = __kundu_transform(normal_tensor.larray)
 
     return normal_tensor
 

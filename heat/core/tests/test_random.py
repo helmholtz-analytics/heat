@@ -27,19 +27,19 @@ class TestRandom(TestCase):
 
         # torch results to compare to
         a_cmp = torch.randperm(a.shape[0], device=self.device.torch_device)
-        b_cmp = b_arr._DNDarray__array[torch.randperm(b.shape[0], device=self.device.torch_device)]
-        c_cmp = c_arr._DNDarray__array[torch.randperm(c.shape[0], device=self.device.torch_device)]
-        c0_cmp = c_arr._DNDarray__array[torch.randperm(c.shape[0], device=self.device.torch_device)]
-        c1_cmp = c_arr._DNDarray__array[torch.randperm(c.shape[0], device=self.device.torch_device)]
+        b_cmp = b_arr.larray[torch.randperm(b.shape[0], device=self.device.torch_device)]
+        c_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
+        c0_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
+        c1_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
 
         # compare
         self.assertEqual(a.dtype, ht.int64)
-        self.assertTrue((a._DNDarray__array == a_cmp).all())
+        self.assertTrue((a.larray == a_cmp).all())
         self.assertEqual(b.dtype, ht.float32)
-        self.assertTrue((ht.resplit(b)._DNDarray__array == b_cmp).all())
-        self.assertTrue((c._DNDarray__array == c_cmp).all())
-        self.assertTrue((ht.resplit(c0)._DNDarray__array == c0_cmp).all())
-        self.assertTrue((ht.resplit(c1)._DNDarray__array == c1_cmp).all())
+        self.assertTrue((ht.resplit(b).larray == b_cmp).all())
+        self.assertTrue((c.larray == c_cmp).all())
+        self.assertTrue((ht.resplit(c0).larray == c0_cmp).all())
+        self.assertTrue((ht.resplit(c1).larray == c1_cmp).all())
 
         with self.assertRaises(TypeError):
             ht.random.permutation("abc")
@@ -52,7 +52,7 @@ class TestRandom(TestCase):
         ht.random.seed(seed)
         a = ht.random.rand(2, 5, 7, 3, split=0)
         self.assertEqual(a.dtype, ht.float32)
-        self.assertEqual(a._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(a.larray.dtype, torch.float32)
         b = ht.random.rand(2, 5, 7, 3, split=0)
         self.assertFalse(ht.equal(a, b))
         ht.random.seed(seed)
@@ -99,7 +99,7 @@ class TestRandom(TestCase):
         ht.random.seed(seed)
         b = ht.random.rand(100, split=None)
         a = a.numpy().flatten()
-        b = b._DNDarray__array.cpu().numpy()
+        b = b.larray.cpu().numpy()
         self.assertTrue(np.array_equal(a, b))
 
         # On different shape and split the same random values are used
@@ -153,12 +153,12 @@ class TestRandom(TestCase):
         shape = (13, 43, 13, 23)
         a = ht.random.rand(*shape, dtype=ht.float32, split=0)
         self.assertEqual(a.dtype, ht.float32)
-        self.assertEqual(a._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(a.larray.dtype, torch.float32)
 
         ht.random.seed(9876)
         b = ht.random.rand(np.prod(shape), dtype=ht.float32)
         a = a.numpy().flatten()
-        b = b._DNDarray__array.cpu().numpy()
+        b = b.larray.cpu().numpy()
         self.assertTrue(np.array_equal(a, b))
         self.assertEqual(a.dtype, np.float32)
 
@@ -254,7 +254,7 @@ class TestRandom(TestCase):
         b = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0)
 
         self.assertEqual(a.dtype, ht.int32)
-        self.assertEqual(a._DNDarray__array.dtype, torch.int32)
+        self.assertEqual(a.larray.dtype, torch.int32)
         self.assertEqual(b.dtype, ht.int32)
         a = a.numpy()
         b = b.numpy()
@@ -337,7 +337,7 @@ class TestRandom(TestCase):
         ht.random.seed(54321)
         a = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2)
         self.assertEqual(a.dtype, ht.float32)
-        self.assertEqual(a._DNDarray__array[0, 0, 0].dtype, torch.float32)
+        self.assertEqual(a.larray[0, 0, 0].dtype, torch.float32)
         a = a.numpy()
         self.assertEqual(a.dtype, np.float32)
         mean = np.mean(a)
@@ -373,13 +373,13 @@ class TestRandom(TestCase):
         d_cmp = torch.randperm(5, dtype=torch.float64, device=self.device.torch_device)
 
         self.assertEqual(a.dtype, ht.int32)
-        self.assertTrue((a._DNDarray__array == a_cmp).all())
+        self.assertTrue((a.larray == a_cmp).all())
         self.assertEqual(b.dtype, ht.float32)
-        self.assertTrue((ht.resplit(b)._DNDarray__array == b_cmp).all())
+        self.assertTrue((ht.resplit(b).larray == b_cmp).all())
         self.assertEqual(c.dtype, ht.int64)
-        self.assertTrue((ht.resplit(c)._DNDarray__array == c_cmp).all())
+        self.assertTrue((ht.resplit(c).larray == c_cmp).all())
         self.assertEqual(d.dtype, ht.float64)
-        self.assertTrue((d._DNDarray__array == d_cmp).all())
+        self.assertTrue((d.larray == d_cmp).all())
 
         with self.assertRaises(TypeError):
             ht.random.randperm("abc")

@@ -22,7 +22,7 @@ def copy(a):
     """
     sanitation.sanitize_in(a)
     return dndarray.DNDarray(
-        a._DNDarray__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm, a.balanced
+        a.larray.clone(), a.shape, a.dtype, a.split, a.device, a.comm, a.balanced
     )
 
 

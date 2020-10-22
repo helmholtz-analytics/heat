@@ -105,7 +105,7 @@ def __binary_op(operation, t1, t2, out=None):
                         "Broadcasting requires transferring data of first operator between MPI ranks!"
                     )
                     if t1.comm.rank > 0:
-                        t1._DNDarray__array = torch.zeros(
+                        t1.larray = torch.zeros(
                             t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
                         )
                     t1.comm.Bcast(t1)
@@ -116,7 +116,7 @@ def __binary_op(operation, t1, t2, out=None):
                         "Broadcasting requires transferring data of second operator between MPI ranks!"
                     )
                     if t2.comm.rank > 0:
-                        t2._DNDarray__array = torch.zeros(
+                        t2.larray = torch.zeros(
                             t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
                         )
                     t2.comm.Bcast(t2)
@@ -147,30 +147,24 @@ def __binary_op(operation, t1, t2, out=None):
     promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
     if t1.split is not None:
         if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
-            result = t1._DNDarray__array.type(promoted_type)
+            result = t1.larray.type(promoted_type)
         else:
-            result = operation(
-                t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type)
-            )
+            result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type))
     elif t2.split is not None:
 
         if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
-            result = t2._DNDarray__array.type(promoted_type)
+            result = t2.larray.type(promoted_type)
         else:
-            result = operation(
-                t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type)
-            )
+            result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type))
     else:
-        result = operation(
-            t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type)
-        )
+        result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type))
 
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result)
 
     if out is not None:
         out_dtype = out.dtype
-        out._DNDarray__array = result
+        out.larray = result
         out._DNDarray__comm = output_comm
         out = out.astype(out_dtype)
         return out
@@ -243,9 +237,9 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
         dtype = out.dtype
 
     cumop = partial_op(
-        x._DNDarray__array,
+        x.larray,
         axis,
-        out=None if out is None else out._DNDarray__array,
+        out=None if out is None else out.larray,
         dtype=None if dtype is None else dtype.torch_type(),
     )
 
@@ -319,11 +313,11 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
         promoted_type = types.promote_types(x.dtype, types.float32)
         torch_type = promoted_type.torch_type()
     else:
-        torch_type = x._DNDarray__array.dtype
+        torch_type = x.larray.dtype
 
     # no defined output tensor, return a freshly created one
     if out is None:
-        result = operation(x._DNDarray__array.type(torch_type), **kwargs)
+        result = operation(x.larray.type(torch_type), **kwargs)
         return dndarray.DNDarray(
             result,
             x.gshape,
@@ -344,10 +338,8 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
     needs_repetition = builtins.any(multiple > 1 for multiple in multiples)
 
     # do an inplace operation into a provided buffer
-    casted = x._DNDarray__array.type(torch_type)
-    operation(
-        casted.repeat(multiples) if needs_repetition else casted, out=out._DNDarray__array, **kwargs
-    )
+    casted = x.larray.type(torch_type)
+    operation(casted.repeat(multiples) if needs_repetition else casted, out=out.larray, **kwargs)
 
     return out
 
@@ -410,7 +402,7 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
             device=x.device.torch_device,
         )
     else:
-        partial = x._DNDarray__array
+        partial = x.larray
 
     # apply the partial reduction operation to the local tensor
     if axis is None:
