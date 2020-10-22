@@ -332,7 +332,8 @@ def array(
     comm = sanitize_comm(comm)
 
     # determine the local and the global shape, if not split is given, they are identical
-    gshape = lshape = obj.shape
+    gshape = list(obj.shape)
+    lshape = gshape.copy()
     balanced = True
 
     # content shall be split, chunk the passed data object up
@@ -342,7 +343,8 @@ def array(
         obj = memory.sanitize_memory_layout(obj, order=order)
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
-        gshape = lshape = np.array(lshape)
+        gshape = np.array(gshape)
+        lshape = np.array(lshape)
         obj = memory.sanitize_memory_layout(obj, order=order)
         if comm.rank < comm.size - 1:
             comm.Isend(lshape, dest=comm.rank + 1)
@@ -388,7 +390,7 @@ def array(
     elif split is None and is_split is None:
         obj = memory.sanitize_memory_layout(obj, order=order)
 
-    return dndarray.DNDarray(obj, gshape, dtype, split, device, comm, balanced)
+    return dndarray.DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
 
 
 def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
