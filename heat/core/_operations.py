@@ -128,18 +128,6 @@ def __binary_op(operation, t1, t2, out=None):
     else:
         raise NotImplementedError("Not implemented for non scalar")
 
-    # check `balanced` attribute
-    if t1.balanced and t2.balanced:
-        pass
-    elif not t1.balanced and t1.split is not None or not t2.balanced and t2.split is not None:
-        # TODO: fine tuning. Allow imbalanced operation if/when it makes sense
-        raise NotImplementedError(
-            "Not implemented for imbalanced dndarray: t1.balanced is {}, t2.balanced is {}".format(
-                t1.balanced, t2.balanced
-            )
-        )
-    output_balanced = True
-
     # sanitize output
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, output_device)
@@ -176,7 +164,7 @@ def __binary_op(operation, t1, t2, out=None):
         output_split,
         output_device,
         output_comm,
-        output_balanced,
+        balanced=None,
     )
 
 

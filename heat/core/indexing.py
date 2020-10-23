@@ -142,11 +142,10 @@ def where(cond, x=None, y=None):
     if isinstance(x, (dndarray.DNDarray, int, float)) and isinstance(
         y, (dndarray.DNDarray, int, float)
     ):
-        if isinstance(y, int):
-            y = float(y)
-        if isinstance(x, int):
-            x = float(x)
-        return cond.dtype((cond == 0)) * y + cond * x
+        for var in [x, y]:
+            if isinstance(var, int):
+                var = float(var)
+        return (cond == 0) * y + cond * x
     elif x is None and y is None:
         return nonzero(cond)
     else:

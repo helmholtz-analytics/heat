@@ -454,7 +454,7 @@ def load_csv(
     comm=MPI_WORLD,
 ):
     """
-    Loads data from an CSV file. The data will be distributed along the 0 axis.
+    Loads data from a CSV file. The data will be distributed along the 0 axis.
 
     Parameters
     ----------

@@ -120,12 +120,12 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
     gshape = (num,)
     split = sanitize_axis(gshape, split)
     offset, lshape, _ = comm.chunk(gshape, split)
+    balanced = True
 
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step
     data = torch.arange(start, stop, step, device=device.torch_device)
-    balanced = True
 
     htype = types.canonical_heat_type(dtype)
     data = data.type(htype.torch_type())
@@ -331,7 +331,7 @@ def array(
     device = devices.sanitize_device(device)
     comm = sanitize_comm(comm)
 
-    # determine the local and the global shape, if not split is given, they are identical
+    # determine the local and the global shape. If split is None, they are identical
     gshape = list(obj.shape)
     lshape = gshape.copy()
     balanced = True

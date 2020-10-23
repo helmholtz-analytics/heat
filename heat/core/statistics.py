@@ -1028,7 +1028,7 @@ def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None, Fisc
         output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
         output_shape = output_shape if output_shape else (1,)
 
-        if x.split is None:  # x is *not* distributed -> no need to distributed
+        if x.split is None:  # x is *not* distributed -> no need to distribute
             return factories.array(function(x.larray, **kwargs), dtype=x.dtype, device=x.device)
         elif axis == x.split:  # x is distributed and axis chosen is == to split
             return elementwise_function(output_shape)

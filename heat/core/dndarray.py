@@ -68,7 +68,11 @@ class DNDarray:
     device : ht.device
         The device on which the local arrays are using (cpu or gpu)
     comm : ht.communication.MPICommunication
-        The communications object for sending and recieving data
+        The communications object for sending and receiving data
+    balanced: bool or None
+        Describes whether the data are evenly distributed across processes.
+        If this information is not available (`self.balanced is None`), it
+        can be gathered via the `is_distributed()` method (requires communication).
     """
 
     def __init__(self, array, gshape, dtype, split, device, comm, balanced):
@@ -119,6 +123,7 @@ class DNDarray:
     def halo_prev(self):
         return self.__halo_prev
 
+    @property
     def larray(self):
         """
         Returns
@@ -155,6 +160,7 @@ class DNDarray:
                 "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
                 "might corrupt/invalidate the metadata in a DNDarray instance"
             )
+        # TODO: insert check for consistent lshape
         self.__array = array
 
     @property
@@ -394,7 +400,7 @@ class DNDarray:
         halo_size : int
             Size of the halo.
         """
-        if not self.is_balanced():
+        if not self.balanced:
             raise RuntimeError(
                 "halo cannot be created for unbalanced tensors, running the .balance_() function is recommended"
             )
@@ -928,7 +934,9 @@ class DNDarray:
         [1/2] (7, 2) (2, 2)
         [2/2] (7, 2) (2, 2)
         """
-        if self.is_balanced():
+        if self.balanced is None:
+            self.__balanced = self.is_balanced()
+        if self.balanced:
             return
         self.redistribute_()
 
@@ -2601,7 +2609,6 @@ class DNDarray:
                         self.comm.size, len(self.gshape), lshape_map.shape
                     )
                 )
-
         if target_map is None:  # if no target map is given then it will balance the tensor
             target_map = torch.zeros(
                 (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
@@ -2613,6 +2620,7 @@ class DNDarray:
                 target_map[pr, self.split] = self.comm.chunk(self.shape, self.split, rank=pr)[1][
                     self.split
                 ]
+            self.__balanced = True
         else:
             if not isinstance(target_map, torch.Tensor):
                 raise TypeError(
@@ -2629,7 +2637,7 @@ class DNDarray:
                         (self.comm.size, len(self.gshape)), target_map.shape
                     )
                 )
-
+            self.__balanced = False
         lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
         chunk_cumsum = torch.cat(
             (
