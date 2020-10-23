@@ -2524,10 +2524,9 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     if dim is None:
         dim = len(a.shape) - 1
 
+    neutral_value = sanitation.sanitize_infinity(a)
     if largest:
-        neutral_value = -constants.sanitize_infinity(a.larray.dtype)
-    else:
-        neutral_value = constants.sanitize_infinity(a.larray.dtype)
+        neutral_value = -neutral_value
 
     def local_topk(*args, **kwargs):
         shape = a.lshape
