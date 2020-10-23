@@ -11,6 +11,7 @@ from . import manipulations
 from . import _operations
 from . import dndarray
 from . import types
+from . import sanitation
 from . import stride_tricks
 from . import logical
 from . import constants
@@ -96,47 +97,11 @@ def argmax(x, axis=None, out=None, **kwargs):
 
         return torch.cat([maxima.double(), indices.double()])
 
-    # axis sanitation
-    if axis is not None and not isinstance(axis, int):
-        raise TypeError("axis must be None or int, but was {}".format(type(axis)))
-
     # perform the global reduction
-    smallest_value = -constants.sanitize_infinity(x.larray.dtype)
-    reduced_result = _operations.__reduce_op(
-        x, local_argmax, MPI_ARGMAX, axis=axis, out=None, neutral=smallest_value, **kwargs
+    smallest_value = -sanitation.sanitize_infinity(x)
+    return _operations.__reduce_op(
+        x, local_argmax, MPI_ARGMAX, axis=axis, out=out, neutral=smallest_value, **kwargs
     )
-
-    # correct the tensor
-    reduced_result.larray = reduced_result.larray.chunk(2)[-1].type(torch.int64)
-    reduced_result._DNDarray__dtype = types.int64
-
-    # address lshape/gshape mismatch when axis is 0
-    if axis is not None:
-        if isinstance(axis, int):
-            axis = (axis,)
-        if 0 in axis:
-            reduced_result._DNDarray__gshape = (1,) + reduced_result._DNDarray__gshape
-            if not kwargs.get("keepdim"):
-                reduced_result = reduced_result.squeeze(axis=0)
-
-    if not reduced_result.is_distributed():
-        reduced_result._DNDarray__split = None
-
-    # set out parameter correctly, i.e. set the storage correctly
-    if out is not None:
-        if out.shape != reduced_result.shape:
-            raise ValueError(
-                "Expecting output buffer of shape {}, got {}".format(
-                    reduced_result.shape, out.shape
-                )
-            )
-        out._DNDarray__split = reduced_result.split
-        out.larray.storage().copy_(reduced_result.larray.storage())
-        out.larray = out.larray.type(torch.int64)
-        out._DNDarray__dtype = types.int64
-        return out
-
-    return reduced_result
 
 
 def argmin(x, axis=None, out=None, **kwargs):
@@ -201,46 +166,11 @@ def argmin(x, axis=None, out=None, **kwargs):
 
         return torch.cat([minimums.double(), indices.double()])
 
-    # axis sanitation
-    if axis is not None and not isinstance(axis, int):
-        raise TypeError("axis must be None or int, but was {}".format(type(axis)))
-
     # perform the global reduction
-    largest_value = constants.sanitize_infinity(x.larray.dtype)
-    reduced_result = _operations.__reduce_op(
-        x, local_argmin, MPI_ARGMIN, axis=axis, out=None, neutral=largest_value, **kwargs
+    largest_value = sanitation.sanitize_infinity(x)
+    return _operations.__reduce_op(
+        x, local_argmin, MPI_ARGMIN, axis=axis, out=out, neutral=largest_value, **kwargs
     )
-
-    # correct the tensor
-    reduced_result.larray = reduced_result.larray.chunk(2)[-1].type(torch.int64)
-    reduced_result._DNDarray__dtype = types.int64
-
-    # address lshape/gshape mismatch when axis is 0
-    if axis is not None:
-        if isinstance(axis, int):
-            axis = (axis,)
-        if 0 in axis:
-            reduced_result._DNDarray__gshape = (1,) + reduced_result._DNDarray__gshape
-            if not kwargs.get("keepdim"):
-                reduced_result = reduced_result.squeeze(axis=0)
-    # split correction for not distributed
-    if not reduced_result.is_distributed():
-        reduced_result._DNDarray__split = None
-    # set out parameter correctly, i.e. set the storage correctly
-    if out is not None:
-        if out.shape != reduced_result.shape:
-            raise ValueError(
-                "Expecting output buffer of shape {}, got {}".format(
-                    reduced_result.shape, out.shape
-                )
-            )
-        out._DNDarray__split = reduced_result.split
-        out.larray.storage().copy_(reduced_result.larray.storage())
-        out.larray = out.larray.type(torch.int64)
-        out._DNDarray__dtype = types.int64
-        return out
-
-    return reduced_result
 
 
 def average(x, axis=None, weights=None, returned=False):
@@ -615,7 +545,7 @@ def max(x, axis=None, out=None, keepdim=None):
             result = result[0]
         return result
 
-    smallest_value = -constants.sanitize_infinity(x.larray.dtype)
+    smallest_value = -sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
         x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdim=keepdim
     )
@@ -945,7 +875,7 @@ def min(x, axis=None, out=None, keepdim=None):
             result = result[0]
         return result
 
-    largest_value = constants.sanitize_infinity(x.larray.dtype)
+    largest_value = sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
         x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdim=keepdim
     )

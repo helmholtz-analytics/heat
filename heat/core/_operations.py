@@ -5,8 +5,9 @@ import warnings
 
 from .communication import MPI, MPI_WORLD
 from . import factories
-from . import stride_tricks
 from . import sanitation
+from . import statistics
+from . import stride_tricks
 from . import dndarray
 from . import types
 
@@ -419,6 +420,10 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
         balanced = True
         if x.comm.is_distributed():
             x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
+
+    ARG_OPS = [statistics.MPI_ARGMAX, statistics.MPI_ARGMIN]
+    if reduction_op in ARG_OPS:
+        partial = partial.chunk(2)[-1].type(torch.int64)
 
     # if reduction_op is a Boolean operation, then resulting tensor is bool
     tensor_type = bool if reduction_op in __BOOLEAN_OPS else partial.dtype
