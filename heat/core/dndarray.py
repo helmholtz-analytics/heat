@@ -165,7 +165,6 @@ class DNDarray:
                 "might corrupt/invalidate the metadata in a DNDarray instance"
             )
         self.__array = array
-        # TODO: implement __update_metadata() for gshape, lshape, dtype
 
     @property
     def nbytes(self):

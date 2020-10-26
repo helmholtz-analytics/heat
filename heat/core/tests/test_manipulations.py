@@ -1950,16 +1950,11 @@ class TestManipulations(TestCase):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_split)
         if ht_a_split.comm.is_distributed():
             rank = ht_a_split.comm.rank
-            if rank == 0:
-                t_a = torch.randn(4, 4, dtype=torch.float32)
-            elif rank == 1:
-                t_a = torch.randn(1, 4, dtype=torch.float32)
-            else:
-                t_a = torch.randn(0, 4, dtype=torch.float32)
+            t_a = torch.randn(rank + 1, 4, dtype=torch.float32)
             ht_a_unbalanced = ht.array(t_a, is_split=0)
+            ht_b_split = ht.empty_like(ht_a_unbalanced, split=0)
             with self.assertRaises(RuntimeError):
-                ht.stack((ht_a_unbalanced, ht_b_split, ht_c_split))
-        # TODO test with DNDarrays on different devices
+                ht.stack((ht_a_unbalanced, ht_b_split))
 
     def test_topk(self):
         size = ht.MPI_WORLD.size

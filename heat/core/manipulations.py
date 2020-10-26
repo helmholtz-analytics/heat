@@ -1970,7 +1970,7 @@ def stack(arrays, axis=0, out=None):
                 )
             )
         balance = list(array.balanced for array in arrays)
-        if balance.count(balance[0]) != num_arrays:
+        if balance.count(True) != num_arrays:
             raise RuntimeError(
                 "DNDarrays distribution must be balanced across ranks, is_balanced() returns {}"
                 "You can balance a DNDarray with the balance_() method.".format(balance)
