@@ -8,6 +8,10 @@
 ### ...
 
 ## Bug fixes
+# v0.5.1
+
+- [#678](https://github.com/helmholtz-analytics/heat/pull/678) Bugfix: Internal functions now use explicit device parameters for DNDarray and torch.Tensor initializations.
+- [#684](https://github.com/helmholtz-analytics/heat/pull/684) Bug fix: distributed `reshape` does not work on booleans.
 
 # v0.5.0
 

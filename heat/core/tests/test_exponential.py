@@ -97,7 +97,8 @@ class TestExponential(TestCase):
     def test_exp2(self):
         elements = 10
         tmp = np.exp2(torch.arange(elements, dtype=torch.float64))
-        comparison = ht.array(tmp)
+        tmp = tmp.to(self.device.torch_device)
+        comparison = ht.array(tmp, device=self.device)
 
         # exponential of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
