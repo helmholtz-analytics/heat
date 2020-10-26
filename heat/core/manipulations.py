@@ -1154,7 +1154,9 @@ def pad(array, pad_width, mode="constant", constant_values=0):
             0 if i == array.split else output_shape[i] for i in range(len(output_shape))
         ]
         adapted_lshape = tuple(adapted_lshape_list)
-        padded_torch_tensor = torch.empty(adapted_lshape, dtype=array._DNDarray__array.dtype)
+        padded_torch_tensor = torch.empty(
+            adapted_lshape, dtype=array._DNDarray__array.dtype, device=array.device.torch_device
+        )
     else:
         if array.split is None or array.split not in pad_dim or amount_of_processes == 1:
             # values = scalar
@@ -1987,8 +1989,8 @@ def stack(arrays, axis=0, out=None):
         devices = list(array.device for array in arrays)
         if devices.count(devices[0]) != num_arrays:
             raise RuntimeError(
-                "DNDarrays in sequence must reside on the same device, got devices {}".format(
-                    devices
+                "DNDarrays in sequence must reside on the same device, got devices {} {} {}".format(
+                    devices, devices[0].device_id, devices[1].device_id
                 )
             )
         balance = list(array.is_balanced() for array in arrays)
@@ -2155,7 +2157,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         # Gather all unique vectors
         counts = list(uniques_buf.tolist())
         displs = list([0] + uniques_buf.cumsum(0).tolist()[:-1])
-        gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
+        gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type(), device=a.device.torch_device)
         a.comm.Allgatherv(lres, (gres_buf, counts, displs), recv_axis=0)
 
         if return_inverse:

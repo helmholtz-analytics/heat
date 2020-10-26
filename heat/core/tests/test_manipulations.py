@@ -1019,7 +1019,7 @@ class TestManipulations(TestCase):
         # test padding of non-distributed tensor
         # ======================================
 
-        data = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
+        data = torch.arange(2 * 3 * 4, device=self.device.torch_device).reshape(2, 3, 4)
         data_ht = ht.array(data, device=self.device)
         data_np = data_ht.numpy()
 
@@ -1307,7 +1307,7 @@ class TestManipulations(TestCase):
         # test padding of large distributed tensor
         # =========================================
 
-        data = torch.arange(8 * 3 * 4).reshape(8, 3, 4)
+        data = torch.arange(8 * 3 * 4, device=self.device.torch_device).reshape(8, 3, 4)
         data_ht_split = ht.array(data, split=0)
         data_np = data_ht_split.numpy()
 
@@ -2005,7 +2005,9 @@ class TestManipulations(TestCase):
         if size == 1:
             size = 4
 
-        torch_array = torch.arange(size, dtype=torch.int32).expand(size, size)
+        torch_array = torch.arange(size, dtype=torch.int32, device=self.device.torch_device).expand(
+            size, size
+        )
         split_zero = ht.array(torch_array, split=0)
         split_one = ht.array(torch_array, split=1)
 
@@ -2027,7 +2029,9 @@ class TestManipulations(TestCase):
         self.assertTrue((indcs._DNDarray__array == exp_one_indcs._DNDarray__array).all())
         self.assertTrue(indcs._DNDarray__array.dtype == exp_one_indcs._DNDarray__array.dtype)
 
-        torch_array = torch.arange(size, dtype=torch.float64).expand(size, size)
+        torch_array = torch.arange(
+            size, dtype=torch.float64, device=self.device.torch_device
+        ).expand(size, size)
         split_zero = ht.array(torch_array, split=0)
         split_one = ht.array(torch_array, split=1)
 

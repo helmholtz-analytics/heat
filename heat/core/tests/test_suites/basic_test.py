@@ -276,10 +276,11 @@ class TestCase(unittest.TestCase):
 
         if isinstance(tensor, np.ndarray):
             torch_tensor = torch.from_numpy(tensor.copy())
+            torch_tensor = torch_tensor.to(self.device.torch_device)
             np_array = tensor
         elif isinstance(tensor, torch.Tensor):
             torch_tensor = tensor
-            np_array = tensor.numpy().copy()
+            np_array = tensor.cpu().numpy().copy()
         else:
             raise TypeError(
                 "The input tensors type must be one of [tuple, list, "
