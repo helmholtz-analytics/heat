@@ -328,7 +328,6 @@ def array(
         warnings.warn(
             "Array 'obj' is not on device '{}'. It will be copied to it.".format(device),
             UserWarning,
-            stacklevel=2,
         )
         obj = obj.to(device.torch_device)
 
