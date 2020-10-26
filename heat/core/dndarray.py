@@ -19,6 +19,7 @@ from . import memory
 from . import printing
 from . import relational
 from . import rounding
+from . import sanitation
 from . import statistics
 from . import stride_tricks
 from . import tiling
@@ -145,11 +146,14 @@ class DNDarray:
         array : torch.tensor
             The new underlying local torch tensor of the DNDarray
         """
-        if not isinstance(array, torch.Tensor):
-            raise TypeError(
-                "Expected larray to be a torch tensor, but was {} instead.".format(type(array))
-            )
-
+        # sanitize tensor input
+        sanitation.sanitize_in_tensor(array)
+        # verify consistency of tensor shape with global DNDarray
+        sanitation.sanitize_lshape(self, array)
+        # set balanced status
+        split = self.split
+        if split is not None and array.shape[split] != self.lshape[split]:
+            self.__balanced = None
         # raise warning if function was called by user/not out of 'heat/core/*'
         caller = stack()[1]
         abs_heat_path = Path("heat", "core").resolve()
@@ -160,8 +164,8 @@ class DNDarray:
                 "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
                 "might corrupt/invalidate the metadata in a DNDarray instance"
             )
-        # TODO: insert check for consistent lshape
         self.__array = array
+        # TODO: implement __update_metadata() for gshape, lshape, dtype
 
     @property
     def nbytes(self):
@@ -400,7 +404,7 @@ class DNDarray:
         halo_size : int
             Size of the halo.
         """
-        if not self.balanced:
+        if not self.is_balanced():
             raise RuntimeError(
                 "halo cannot be created for unbalanced tensors, running the .balance_() function is recommended"
             )
@@ -422,7 +426,7 @@ class DNDarray:
             prev_rank = rank - 1
             last_rank = size - 1
 
-            # if local shape is zero and its the last process
+            # if local shape is zero and it's the last process
             if self.lshape[self.split] == 0:
                 return  # if process has no data we ignore it
 
@@ -934,9 +938,7 @@ class DNDarray:
         [1/2] (7, 2) (2, 2)
         [2/2] (7, 2) (2, 2)
         """
-        if self.balanced is None:
-            self.__balanced = self.is_balanced()
-        if self.balanced:
+        if self.is_balanced():
             return
         self.redistribute_()
 
@@ -1708,7 +1710,7 @@ class DNDarray:
                 new_split,
                 self.device,
                 self.comm,
-                balanced=False,
+                balanced=None,
             )
 
     if torch.cuda.device_count() > 0:
@@ -1790,12 +1792,16 @@ class DNDarray:
         balanced : bool
             True if balanced, False if not
         """
+        if self.balanced is not None:
+            return self.balanced
+
         _, _, chk = self.comm.chunk(self.shape, self.split)
         test_lshape = tuple([x.stop - x.start for x in chk])
         balanced = 1 if test_lshape == self.lshape else 0
 
         out = self.comm.allreduce(balanced, MPI.SUM)
-        return True if out == self.comm.size else False
+        self.__balanced = True if out == self.comm.size else False
+        return self.balanced
 
     def is_distributed(self):
         """
