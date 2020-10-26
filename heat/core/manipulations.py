@@ -1259,7 +1259,7 @@ def repeat(a, repeats, axis=None):
     Returns
     -------
     repeated_array : DNDarray
-        Output DNDarray which has the same shape as a, except along the given axis.
+        Output DNDarray which has the same shape as `a`, except along the given axis.
         If axis is None, repeated_array will be a flattened DNDarray.
 
     Examples
@@ -1308,14 +1308,13 @@ def repeat(a, repeats, axis=None):
     # sanitation `repeats`
     if not isinstance(repeats, (int, list, tuple, np.ndarray, dndarray.DNDarray)):
         raise TypeError(
-            "`repeats` must be a an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
+            "`repeats` must be an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
                 type(repeats)
             )
         )
-    # broadcast implied
-    if isinstance(repeats, int):
-        pass
-    else:
+
+    # no broadcast implied
+    if not isinstance(repeats, int):
         # make sure everything inside `repeats` is int
         if isinstance(repeats, dndarray.DNDarray):
             if repeats.dtype == types.int64:
