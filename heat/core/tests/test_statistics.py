@@ -53,7 +53,6 @@ class TestStatistics(TestCase):
         self.assertEqual(result.larray.dtype, torch.int64)
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4,))
-        self.assertEqual(result.split, 0 if ht.MPI_WORLD.size > 1 else None)
         self.assertTrue((result.larray == expected).all())
 
         # 2D split tensor, across the axis
@@ -76,7 +75,7 @@ class TestStatistics(TestCase):
         size = ht.MPI_WORLD.size * 2
         data = ht.tril(ht.ones((size, size), split=0), k=-1)
 
-        output = ht.empty((size,))
+        output = ht.empty((size,), dtype=ht.int64)
         result = ht.argmax(data, axis=0, out=output)
         expected = torch.tensor(np.argmax(data.numpy(), axis=0))
         self.assertIsInstance(result, ht.DNDarray)
@@ -142,7 +141,6 @@ class TestStatistics(TestCase):
         self.assertEqual(result.larray.dtype, torch.int64)
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4,))
-        self.assertEqual(result.split, 0 if ht.MPI_WORLD.size > 1 else None)
         self.assertTrue((result.larray == expected).all())
 
         # 2D split tensor, across the axis
@@ -165,7 +163,7 @@ class TestStatistics(TestCase):
         size = ht.MPI_WORLD.size * 2
         data = ht.triu(ht.ones((size, size), split=0), k=1)
 
-        output = ht.empty((size,))
+        output = ht.empty((size,), dtype=ht.int64)
         result = ht.argmin(data, axis=0, out=output)
         expected = torch.tensor(np.argmin(data.numpy(), axis=0))
         self.assertIsInstance(result, ht.DNDarray)
