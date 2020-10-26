@@ -1950,9 +1950,11 @@ class TestManipulations(TestCase):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_split)
         if ht_a_split.comm.is_distributed():
             rank = ht_a_split.comm.rank
+            size = ht_a_split.comm.size
+            split_size = np.arange(1, size + 1).sum()
+            ht_b_split = ht.empty((split_size, 4), split=0, dtype=ht.float32)
             t_a = torch.randn(rank + 1, 4, dtype=torch.float32)
             ht_a_unbalanced = ht.array(t_a, is_split=0)
-            ht_b_split = ht.empty(ht_a_unbalanced.gshape, split=0, dtype=ht.float32)
             with self.assertRaises(RuntimeError):
                 ht.stack((ht_a_unbalanced, ht_b_split))
 

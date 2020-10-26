@@ -1940,10 +1940,7 @@ def stack(arrays, axis=0, out=None):
         raise ValueError("stack expects a sequence of at least 2 DNDarrays")
 
     for i, array in enumerate(arrays):
-        if not isinstance(array, dndarray.DNDarray):
-            raise TypeError(
-                "all arrays in sequence must be DNDarrays, array {} was {}".format(i, type(array))
-            )
+        sanitation.sanitize_in(array)
 
     arrays_metadata = list(
         [array.gshape, array.split, array.device, array.balanced] for array in arrays
