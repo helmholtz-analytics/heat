@@ -97,6 +97,10 @@ def argmax(x, axis=None, out=None, **kwargs):
 
         return torch.cat([maxima.double(), indices.double()])
 
+    # axis sanitation
+    if axis is not None and not isinstance(axis, int):
+        raise TypeError("axis must be None or int, was {}".format(type(axis)))
+
     # perform the global reduction
     smallest_value = -sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
@@ -165,6 +169,10 @@ def argmin(x, axis=None, out=None, **kwargs):
             indices += torch.tensor(offset, dtype=indices.dtype)
 
         return torch.cat([minimums.double(), indices.double()])
+
+    # axis sanitation
+    if axis is not None and not isinstance(axis, int):
+        raise TypeError("axis must be None or int, was {}".format(type(axis)))
 
     # perform the global reduction
     largest_value = sanitation.sanitize_infinity(x)
@@ -297,9 +305,11 @@ def average(x, axis=None, weights=None, returned=False):
 
     if returned:
         if cumwgt.gshape != result.gshape:
-            cumwgt.larray = torch.broadcast_tensors(cumwgt.larray, result.larray)[0]
-            cumwgt._DNDarray__gshape = result.gshape
-            cumwgt._DNDarray__split = result.split
+            cumwgt = factories.array(
+                torch.broadcast_tensors(cumwgt.larray, result.larray)[0],
+                is_split=result.split,
+                device=result.device,
+            )
         return (result, cumwgt)
 
     return result

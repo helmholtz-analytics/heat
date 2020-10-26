@@ -422,8 +422,12 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
             x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
 
     ARG_OPS = [statistics.MPI_ARGMAX, statistics.MPI_ARGMIN]
+    arg_op = False
     if reduction_op in ARG_OPS:
+        arg_op = True
         partial = partial.chunk(2)[-1].type(torch.int64)
+        if partial.ndim > 1:
+            partial = partial.squeeze(dim=0)
 
     # if reduction_op is a Boolean operation, then resulting tensor is bool
     tensor_type = bool if reduction_op in __BOOLEAN_OPS else partial.dtype
@@ -431,6 +435,12 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
     if out is not None:
         # sanitize out
         sanitation.sanitize_out(out, output_shape, split, x.device)
+        if arg_op and out.dtype != types.canonical_heat_type(partial.dtype):
+            raise TypeError(
+                "Data type mismatch: out.dtype should be {}, is {}".format(
+                    types.canonical_heat_type(partial.dtype), out.dtype
+                )
+            )
         out._DNDarray__array = partial
         return out
 
