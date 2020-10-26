@@ -664,6 +664,10 @@ def dsplit(ary, indices_or_sections):
     ValueError
         If indices_or_sections is given as integer, but a split does not result in equal division.
 
+    See Also
+    ------
+    :function:`split <heat.core.manipulations.split>`
+
     Examples
     --------
     >>> x = ht.array(24).reshape((2, 3, 4))
@@ -948,6 +952,10 @@ def hsplit(ary, indices_or_sections):
     ------
     ValueError
         If indices_or_sections is given as integer, but a split does not result in equal division.
+
+    See Also
+    ------
+    :function:`split <heat.core.manipulations.split>`
 
     Examples
     --------
@@ -2669,6 +2677,10 @@ def vsplit(ary, indices_or_sections):
     ------
     ValueError
         If indices_or_sections is given as integer, but a split does not result in equal division.
+
+    See Also
+    ------
+    :function:`split <heat.core.manipulations.split>`
 
     Examples
     --------
