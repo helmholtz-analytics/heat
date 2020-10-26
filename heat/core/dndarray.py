@@ -2628,10 +2628,7 @@ class DNDarray:
                 ]
             self.__balanced = True
         else:
-            if not isinstance(target_map, torch.Tensor):
-                raise TypeError(
-                    "target_map must be a torch.Tensor, currently {}".format(type(target_map))
-                )
+            sanitation.sanitize_in_tensor(target_map)
             if target_map[..., self.split].sum() != self.shape[self.split]:
                 raise ValueError(
                     "Sum along the split axis of the target map must be equal to the "
@@ -2643,6 +2640,7 @@ class DNDarray:
                         (self.comm.size, len(self.gshape)), target_map.shape
                     )
                 )
+            # no info on balanced status
             self.__balanced = False
         lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
         chunk_cumsum = torch.cat(
@@ -2727,7 +2725,7 @@ class DNDarray:
         send_amt : int, single element torch.Tensor
             Amount of data to be sent by the sending process
         rcv_pr : int, single element torch.Tensor
-            Recieving process
+            Receiving process
         snd_dtype : torch.type
             Torch type of the data in question
 

@@ -852,7 +852,7 @@ def logspace(
     split: int, optional
         The axis along which the array is split and distributed, defaults to None (no distribution).
     device : str, ht.Device or None, optional
-        Specifies the device the tensoimport nur shall be allocated on, defaults to None (i.e. globally set default device).
+        Specifies the device the tensor shall be allocated on, defaults to None (i.e. globally set default device).
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this tensor.
 

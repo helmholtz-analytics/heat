@@ -97,6 +97,9 @@ class TestStatistics(TestCase):
             data.argmax(axis="y")
         with self.assertRaises(ValueError):
             ht.argmax(data, axis=-4)
+        output = ht.empty((size,), dtype=ht.float32)
+        with self.assertRaises(TypeError):
+            ht.argmax(data, axis=0, out=output)
 
     def test_argmin(self):
         torch.manual_seed(1)
