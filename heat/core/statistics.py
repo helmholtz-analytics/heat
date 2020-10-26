@@ -22,6 +22,8 @@ __all__ = [
     "average",
     "bincount",
     "cov",
+    "histc",
+    "histogram",
     "kurtosis",
     "max",
     "maximum",
@@ -453,6 +455,112 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     c = linalg.dot(x, x.T)
     c /= norm
     return c
+
+
+def histc(input, bins: int = 100, min: int = 0, max: int = 0, out=None):
+    """
+    Compute the histogram of a DNDarray.
+
+    The elements are sorted into equal width bins between min and max.
+    If min and max are both equal, the minimum and maximum values of the data are used.
+    Elements lower than min and higher than max are ignored.
+
+    Parameters
+    ----------
+    input : DNDarray
+            the input array, must be of float type
+    bins  : int, optional
+            number of histogram bins
+    min   : int, optional
+            lower end of the range (inclusive)
+    max   : int, optional
+            upper end of the range (inclusive)
+    out   : DNDarray, optional
+            the output tensor, same dtype as input
+
+    Returns
+    -------
+    out : DNDarray
+          the histogram of the input array
+
+    Examples
+    --------
+    >>> ht.histc(ht.array([1., 2, 1]), bins=4, min=0, max=3)
+    DNDarray([0., 2., 1., 0.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.histc(ht.arange(10, dtype=ht.float64, split=0), bins=10)
+    DNDarray([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.], dtype=ht.float64, device=cpu:0, split=None)
+    """
+
+    if min == max:
+        min = float(input.min())
+        max = float(input.max())
+
+    hist = torch.histc(
+        input._DNDarray__array,
+        bins,
+        min,
+        max,
+        out=out._DNDarray__array if out is not None and input.split is None else None,
+    )
+
+    if input.split is None:
+        if out is None:
+            out = factories.array(
+                hist, dtype=types.canonical_heat_type(hist.dtype), device=input.device
+            )
+    else:
+        if out is None:
+            out = factories.empty(
+                hist.size(), dtype=types.canonical_heat_type(hist.dtype), device=input.device
+            )
+        input.comm.Allreduce(hist, out, op=MPI.SUM)
+
+    return out
+
+
+def histogram(
+    a, bins: int = 10, range: Tuple[int, int] = (0, 0), normed=None, weights=None, density=None
+):
+    """
+    Compute the histogram of a DNDarray.
+
+    Parameters
+    ----------
+    a       : DNDarray
+              the input array, must be of float type
+    bins    : int, optional
+              number of histogram bins
+    range   : Tuple[int,int], optional
+              lower and upper end of the bins. If not provided, range is simply (a.min(), a.max()).
+    normed  : Not supported
+    weights : Not supported
+    density : Not supported
+
+    Returns
+    -------
+    hist : DNDarray
+           The values of the histogram.
+
+    Notes
+    -----
+    This is a wrapper function of :function:`~heat.core.statistics.histc` for some basic compatibility with the NumPy API.
+
+    See Also
+    --------
+    :function:`~heat.core.statistics.histc`
+    """
+    # TODO: Rewrite to make it a proper implementation of the NumPy function
+
+    if normed is not None:
+        raise NotImplementedError("'normed' is not supported")
+    if weights is not None:
+        raise NotImplementedError("'weights' is not supported")
+    if density is not None:
+        raise NotImplementedError("'density' is not supported")
+    if not isinstance(bins, int):
+        raise NotImplementedError("'bins' only supports integer values")
+
+    return histc(a, bins, range[0], range[1])
 
 
 def kurtosis(x, axis=None, unbiased=True, Fischer=True):
