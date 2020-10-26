@@ -445,12 +445,19 @@ else:
 
         def __merge_slices(var, var_slices, data, data_slices=None):
             """
-            Using var[var_slices][data_slices] = data
-            combines a __getitem__ with a __setitem__ call, therefore it does not allow
-            parallelization of the write-operation and does not work is var_slices = slice(None)
-            (in that casem __getitem__ returns a copy and not a view).
-            This method merges both keys:
-            var[mergeSlices(var, var_slices, data)] = data
+            This method allows replacing:
+            ``var[var_slices][data_slices] = data``
+            (a `netcdf4.Variable.__getitem__` and a `numpy.ndarray.__setitem__` call)
+            with:
+            ``var[ __merge_slices(var, var_slices, data, data_slices) ] = data``
+            (a single `netcdf4.Variable.__setitem__` call)
+
+            This is necessary because performing the former would, in the `__getitem__`, load the
+            global dataset onto every process in local `numpy-ndarrays`. Then, the `__setitem__`
+            would write the local `chunk` into the `numpy-ndarray`.
+
+            The latter allows the netcdf4 library to parallelize the write-operation by directly
+            using the `netcdf4.Variable.__setitem__` method.
 
             Parameters
             ----------
@@ -533,16 +540,12 @@ else:
                 merged_slices = __merge_slices(var, file_slices, data)
                 try:
                     var[merged_slices] = (
-                        data._DNDarray__array.cpu()
-                        if is_split
-                        else data._DNDarray__array[slices].cpu()
+                        data.larray.cpu() if is_split else data.larray[slices].cpu()
                     )
                 except RuntimeError:
                     var.set_collective(True)
                     var[merged_slices] = (
-                        data._DNDarray__array.cpu()
-                        if is_split
-                        else data._DNDarray__array[slices].cpu()
+                        data.larray.cpu() if is_split else data.larray[slices].cpu()
                     )
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
@@ -560,9 +563,9 @@ else:
                 var.set_collective(False)  # not possible with non-parallel netcdf
                 if is_split:
                     merged_slices = __merge_slices(var, file_slices, data)
-                    var[merged_slices] = data._DNDarray__array.cpu()
+                    var[merged_slices] = data.larray.cpu()
                 else:
-                    var[file_slices] = data._DNDarray__array.cpu()
+                    var[file_slices] = data.larray.cpu()
 
             # ping next rank if it exists
             if is_split and data.comm.size > 1:
@@ -577,7 +580,7 @@ else:
                 var = handle.variables[variable]
                 var.set_collective(False)  # not possible with non-parallel netcdf
                 merged_slices = __merge_slices(var, file_slices, data)
-                var[merged_slices] = data._DNDarray__array.cpu()
+                var[merged_slices] = data.larray.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
