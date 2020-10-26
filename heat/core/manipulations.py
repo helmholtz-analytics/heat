@@ -640,9 +640,6 @@ def dsplit(ary, indices_or_sections):
     """
     Split array into multiple sub-arrays along the 3rd axis (depth).
 
-    Please refer to the split documentation. dsplit is equivalent to split with axis=2,
-    the array is always split along the third axis provided the array dimension is greater than or equal to 3.
-
     Parameters
     ----------
     ary : DNDarray
@@ -658,6 +655,11 @@ def dsplit(ary, indices_or_sections):
     -------
     sub_arrays : list of DNDarrays
         A list of sub-DNDarrays as views into ary.
+
+    Notes
+    -----
+    Please refer to the split documentation. dsplit is equivalent to split with axis=2,
+    the array is always split along the third axis provided the array dimension is greater than or equal to 3.
 
     Raises
     ------
@@ -676,14 +678,12 @@ def dsplit(ary, indices_or_sections):
             DNDarray([[[ 0,  1],
                        [ 4,  5],
                        [ 8,  9]],
-
                        [[12, 13],
                        [16, 17],
                        [20, 21]]]),
             DNDarray([[[ 2,  3],
                        [ 6,  7],
                        [10, 11]],
-
                        [[14, 15],
                        [18, 19],
                        [22, 23]]])
@@ -693,14 +693,12 @@ def dsplit(ary, indices_or_sections):
             DNDarray([[[ 0],
                         [ 4],
                         [ 8]],
-
                        [[12],
                         [16],
                         [20]]]),
             DNDarray([[[ 1,  2,  3],
                         [ 5,  6,  7],
                         [ 9, 10, 11]],
-
                         [[13, 14, 15],
                          [17, 18, 19],
                          [21, 22, 23]]]),
@@ -929,9 +927,6 @@ def hsplit(ary, indices_or_sections):
     """
     Split array into multiple sub-arrays along the 2nd axis (horizontally/column-wise).
 
-    Please refer to the split documentation. hsplit is nearly equivalent to split with axis=1,
-    the array is always split along the second axis though, in contrary to split, regardless of the array dimension.
-
     Parameters
     ----------
     ary : DNDarray
@@ -948,13 +943,18 @@ def hsplit(ary, indices_or_sections):
     sub_arrays : list of DNDarrays
         A list of sub-DNDarrays as views into ary.
 
+    Notes
+    -----
+    Please refer to the split documentation. hsplit is nearly equivalent to split with axis=1,
+    the array is always split along the second axis though, in contrary to split, regardless of the array dimension.
+
     Raises
     ------
     ValueError
         If indices_or_sections is given as integer, but a split does not result in equal division.
 
     See Also
-    ------
+    --------
     :function:`split <heat.core.manipulations.split>`
 
     Examples
@@ -1908,9 +1908,6 @@ def sort(a, axis=None, descending=False, out=None):
 def split(ary, indices_or_sections, axis=0):
     """
     Split a DNDarray into multiple sub-DNDarrays as views into ary.
-    ! Warning !
-    Though it is possible to distribute `ary`, this function has nothing to do with the split
-    parameter of a DNDarray.
 
     Parameters
     ----------
@@ -1935,10 +1932,20 @@ def split(ary, indices_or_sections, axis=0):
     sub_arrays : list of DNDarrays
         A list of sub-DNDarrays as views into ary.
 
+    Warnings
+    --------
+    Though it is possible to distribute `ary`, this function has nothing to do with the split
+    parameter of a DNDarray.
+
     Raises
     ------
     ValueError
         If indices_or_sections is given as integer, but a split does not result in equal division.
+
+    See Also
+    --------
+    :function:`dsplit <heat.core.manipulations.dsplit>`, :function:`hsplit <heat.core.manipulations.hsplit>`,
+    :function:`vsplit <heat.core.manipulations.vsplit>`
 
     Examples
     --------
@@ -2654,9 +2661,6 @@ def vsplit(ary, indices_or_sections):
     """
     Split array into multiple sub-arrays along the 1st axis (vertically/row-wise).
 
-    Please refer to the split documentation. hsplit is equivalent to split with axis=0,
-    the array is always split along the first axis regardless of the array dimension.
-
     Parameters
     ----------
     ary : DNDarray
@@ -2673,13 +2677,18 @@ def vsplit(ary, indices_or_sections):
     sub_arrays : list of DNDarrays
         A list of sub-DNDarrays as views into ary.
 
+    Notes
+    -----
+    Please refer to the split documentation. hsplit is equivalent to split with axis=0,
+    the array is always split along the first axis regardless of the array dimension.
+
     Raises
     ------
     ValueError
         If indices_or_sections is given as integer, but a split does not result in equal division.
 
     See Also
-    ------
+    --------
     :function:`split <heat.core.manipulations.split>`
 
     Examples
@@ -2690,14 +2699,12 @@ def vsplit(ary, indices_or_sections):
             DNDarray([[[ 0,  1],
                        [ 2,  3],
                        [ 4,  5]],
-
                       [[ 6,  7],
                        [ 8,  9],
                        [10, 11]]]),
             DNDarray([[[12, 13],
                        [14, 15],
                        [16, 17]],
-
                       [[18, 19],
                        [20, 21],
                        [22, 23]]])
@@ -2711,7 +2718,6 @@ def vsplit(ary, indices_or_sections):
             DNDarray([[[ 6,  7],
                        [ 8,  9],
                        [10, 11]],
-
                       [[12, 13],
                        [14, 15],
                        [16, 17]]]),
