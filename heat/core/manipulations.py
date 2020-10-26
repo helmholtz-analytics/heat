@@ -2222,12 +2222,6 @@ def stack(arrays, axis=0, out=None):
                     devices
                 )
             )
-        balance = list(array.balanced for array in arrays)
-        if balance.count(True) != num_arrays:
-            raise RuntimeError(
-                "DNDarrays distribution must be balanced across ranks, is_balanced() returns {}"
-                "You can balance a DNDarray with the balance_() method.".format(balance)
-            )
     else:
         array_shape, array_split, array_device, array_balanced = arrays_metadata[0][:4]
         # extract torch tensors
