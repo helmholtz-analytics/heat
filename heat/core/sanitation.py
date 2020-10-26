@@ -77,31 +77,34 @@ def sanitize_lshape(array, tensor):
     tensor : torch.tensor
         process-local data meant to replace `array.larray`
     """
-    # no input sanitation here, must be taken care of in parent function
+    # input sanitation is done in parent function
     tshape = tuple(tensor.shape)
     if tshape == array.lshape:
-        return tshape
-    else:
-        gshape = array.gshape
-        split = array.split
-        if split is None:
+        return
+    gshape = array.gshape
+    split = array.split
+    if split is None:
+        # allow for axes with size 0, other axes must match
+        non_zero = list(i for i in range(len(tshape)) if tshape[i] != 0)
+        cond = list(tshape[i] == gshape[i] for i in non_zero).count(True) == len(non_zero)
+        if cond:
+            return
+        else:
             raise ValueError(
                 "Shape of local tensor is inconsistent with global DNDarray: tensor.shape is {}, should be {}".format(
                     tshape, gshape
                 )
             )
-
-        # size of non-split dimensions must match global shape
-        reduced_gshape = gshape[:split] + gshape[split + 1 :]
-        reduced_tshape = tshape[:split] + tshape[split + 1 :]
-        if reduced_tshape == reduced_gshape:
-            return tshape
-        else:
-            raise ValueError(
-                "Shape of local tensor along non-split axes is inconsistent with global DNDarray: tensor.shape is {}, DNDarray is {}".format(
-                    tuple(tshape), gshape
-                )
-            )
+    # size of non-split dimensions must match global shape
+    reduced_gshape = gshape[:split] + gshape[split + 1 :]
+    reduced_tshape = tshape[:split] + tshape[split + 1 :]
+    if reduced_tshape == reduced_gshape:
+        return
+    raise ValueError(
+        "Shape of local tensor along non-split axes is inconsistent with global DNDarray: tensor.shape is {}, DNDarray is {}".format(
+            tshape, gshape
+        )
+    )
 
 
 def sanitize_out(out, output_shape, output_split, output_device):
