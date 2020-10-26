@@ -19,6 +19,7 @@ __all__ = [
     "argmax",
     "argmin",
     "average",
+    "bincount",
     "cov",
     "kurtosis",
     "max",
@@ -100,13 +101,13 @@ def argmax(x, axis=None, out=None, **kwargs):
         raise TypeError("axis must be None or int, but was {}".format(type(axis)))
 
     # perform the global reduction
-    smallest_value = -constants.sanitize_infinity(x._DNDarray__array.dtype)
+    smallest_value = -constants.sanitize_infinity(x.larray.dtype)
     reduced_result = _operations.__reduce_op(
         x, local_argmax, MPI_ARGMAX, axis=axis, out=None, neutral=smallest_value, **kwargs
     )
 
     # correct the tensor
-    reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
+    reduced_result.larray = reduced_result.larray.chunk(2)[-1].type(torch.int64)
     reduced_result._DNDarray__dtype = types.int64
 
     # address lshape/gshape mismatch when axis is 0
@@ -130,8 +131,8 @@ def argmax(x, axis=None, out=None, **kwargs):
                 )
             )
         out._DNDarray__split = reduced_result.split
-        out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
-        out._DNDarray__array = out._DNDarray__array.type(torch.int64)
+        out.larray.storage().copy_(reduced_result.larray.storage())
+        out.larray = out.larray.type(torch.int64)
         out._DNDarray__dtype = types.int64
         return out
 
@@ -205,13 +206,13 @@ def argmin(x, axis=None, out=None, **kwargs):
         raise TypeError("axis must be None or int, but was {}".format(type(axis)))
 
     # perform the global reduction
-    largest_value = constants.sanitize_infinity(x._DNDarray__array.dtype)
+    largest_value = constants.sanitize_infinity(x.larray.dtype)
     reduced_result = _operations.__reduce_op(
         x, local_argmin, MPI_ARGMIN, axis=axis, out=None, neutral=largest_value, **kwargs
     )
 
     # correct the tensor
-    reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
+    reduced_result.larray = reduced_result.larray.chunk(2)[-1].type(torch.int64)
     reduced_result._DNDarray__dtype = types.int64
 
     # address lshape/gshape mismatch when axis is 0
@@ -234,8 +235,8 @@ def argmin(x, axis=None, out=None, **kwargs):
                 )
             )
         out._DNDarray__split = reduced_result.split
-        out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
-        out._DNDarray__array = out._DNDarray__array.type(torch.int64)
+        out.larray.storage().copy_(reduced_result.larray.storage())
+        out.larray = out.larray.type(torch.int64)
         out._DNDarray__dtype = types.int64
         return out
 
@@ -324,7 +325,7 @@ def average(x, axis=None, weights=None, returned=False):
         result = mean(x, axis)
         num_elements = x.gnumel / result.gnumel
         cumwgt = factories.empty(1, dtype=result.dtype)
-        cumwgt._DNDarray__array = num_elements
+        cumwgt.larray = torch.tensor(num_elements)
     else:
         # Weights sanitation:
         # weights (global) is either same size as x (global), or it is 1D and same size as x along chosen axis
@@ -346,7 +347,7 @@ def average(x, axis=None, weights=None, returned=False):
             wgt = torch.empty(
                 wgt_lshape, dtype=weights.dtype.torch_type(), device=x.device.torch_device
             )
-            wgt[wgt_slice] = weights._DNDarray__array
+            wgt[wgt_slice] = weights.larray
             wgt = factories.array(wgt, is_split=wgt_split)
         else:
             if x.comm.is_distributed():
@@ -356,7 +357,7 @@ def average(x, axis=None, weights=None, returned=False):
                         "weights.split does not match data.split: not implemented yet."
                     )
             wgt = factories.empty_like(weights, device=x.device)
-            wgt._DNDarray__array = weights._DNDarray__array
+            wgt.larray = weights.larray
 
         cumwgt = wgt.sum(axis=axis)
         if logical.any(cumwgt == 0.0):
@@ -366,14 +367,78 @@ def average(x, axis=None, weights=None, returned=False):
 
     if returned:
         if cumwgt.gshape != result.gshape:
-            cumwgt._DNDarray__array = torch.broadcast_tensors(
-                cumwgt._DNDarray__array, result._DNDarray__array
-            )[0]
+            cumwgt.larray = torch.broadcast_tensors(cumwgt.larray, result.larray)[0]
             cumwgt._DNDarray__gshape = result.gshape
             cumwgt._DNDarray__split = result.split
         return (result, cumwgt)
 
     return result
+
+
+def bincount(x, weights=None, minlength: int = 0):
+    """
+    Count number of occurrences of each value in array of non-negative ints.
+
+    The number of bins (size 1) is one larger than the largest value in `x`
+    unless `x` is empty, in which case the result is a tensor of size 0.
+    If `minlength` is specified, the number of bins is at least `minlength` and
+    if `x` is empty, then the result is tensor of size `minlength` filled with zeros.
+    If `n` is the value at position `i`, `out[n] += weights[i]` if weights is specified else `out[n] += 1`.
+
+    Parameters
+    ----------
+    x : DNDarray, 1 dimensional, non-negative ints
+    weights : DNDarray, optional
+        Weight for each value in the input tensor. Array of the same shape as x. Same split as `x`.
+    minlength : int, non-negative, optional
+        Minimum number of bins
+
+    Returns
+    -------
+    out : DNDArray
+        An array of length `max(x) + 1` if input is non-empty, else 0. The array's `split=None`.
+
+    Examples
+    --------
+    >>> ht.bincount(ht.arange(5))
+    DNDarray([1, 1, 1, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.bincount(ht.array([0, 1, 3, 2, 1]), weights=ht.array([0, 0.5, 1, 1.5, 2]))
+    DNDarray([0.0000, 2.5000, 1.5000, 1.0000], dtype=ht.float32, device=cpu:0, split=None)
+
+    Raises
+    ------
+    ValueError
+        If `x` and `weights` don't have the same distribution.
+    """
+    if isinstance(weights, dndarray.DNDarray):
+        if weights.split != x.split:
+            raise ValueError("weights must have the same split value as x")
+        weights = weights.larray
+
+    counts = torch.bincount(x.larray, weights, minlength)
+
+    size = counts.numel()
+    maxlength = x.comm.allreduce(size, op=MPI.MAX)
+
+    # resize tensors
+    if size == 0:
+        dtype = torch.int64
+        if weights is not None:
+            dtype = torch.float64
+        counts = torch.zeros(maxlength, dtype=dtype, device=counts.device)
+    elif size < maxlength:
+        counts = torch.cat(
+            (counts, torch.zeros(maxlength - size, dtype=counts.dtype, device=counts.device))
+        )
+
+    # collect results
+    if x.split == 0:
+        data = torch.empty_like(counts)
+        x.comm.Allreduce(counts, data, op=MPI.SUM)
+    else:
+        data = counts
+
+    return factories.array(data, dtype=types.heat_type_of(data), device=x.device)
 
 
 def cov(m, y=None, rowvar=True, bias=False, ddof=None):
@@ -550,7 +615,7 @@ def max(x, axis=None, out=None, keepdim=None):
             result = result[0]
         return result
 
-    smallest_value = -constants.sanitize_infinity(x._DNDarray__array.dtype)
+    smallest_value = -constants.sanitize_infinity(x.larray.dtype)
     return _operations.__reduce_op(
         x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdim=keepdim
     )
@@ -684,7 +749,7 @@ def mean(x, axis=None):
             The calculated means.
         """
         if x.lshape[x.split] != 0:
-            mu = torch.mean(x._DNDarray__array, dim=axis)
+            mu = torch.mean(x.larray, dim=axis)
         else:
             mu = factories.zeros(output_shape_i, device=x.device)
 
@@ -708,11 +773,11 @@ def mean(x, axis=None):
         # full matrix calculation
         if not x.is_distributed():
             # if x is not distributed do a torch.mean on x
-            ret = torch.mean(x._DNDarray__array.float())
+            ret = torch.mean(x.larray.float())
             return factories.array(ret, is_split=None, device=x.device)
         else:
             # if x is distributed and no axis is given: return mean of the whole set
-            mu_in = torch.mean(x._DNDarray__array)
+            mu_in = torch.mean(x.larray)
             if torch.isnan(mu_in):
                 mu_in = 0.0
             n = x.lnumel
@@ -880,7 +945,7 @@ def min(x, axis=None, out=None, keepdim=None):
             result = result[0]
         return result
 
-    largest_value = constants.sanitize_infinity(x._DNDarray__array.dtype)
+    largest_value = constants.sanitize_infinity(x.larray.dtype)
     return _operations.__reduce_op(
         x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdim=keepdim
     )
@@ -964,13 +1029,11 @@ def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None, Fisc
         output_shape = output_shape if output_shape else (1,)
 
         if x.split is None:  # x is *not* distributed -> no need to distributed
-            return factories.array(
-                function(x._DNDarray__array, **kwargs), dtype=x.dtype, device=x.device
-            )
+            return factories.array(function(x.larray, **kwargs), dtype=x.dtype, device=x.device)
         elif axis == x.split:  # x is distributed and axis chosen is == to split
             return elementwise_function(output_shape)
         # singular axis given (axis) not equal to split direction (x.split)
-        lcl = function(x._DNDarray__array, **kwargs)
+        lcl = function(x.larray, **kwargs)
         return factories.array(
             lcl, is_split=x.split if axis > x.split else x.split - 1, dtype=x.dtype, device=x.device
         )
@@ -997,16 +1060,14 @@ def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None, Fisc
     output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
     # multiple dimensions
     if x.split is None:
-        return factories.array(
-            function(x._DNDarray__array, **kwargs), is_split=x.split, device=x.device
-        )
+        return factories.array(function(x.larray, **kwargs), is_split=x.split, device=x.device)
     if x.split in axis:
         # merge in the direction of the split
         return elementwise_function(output_shape)
     # multiple dimensions which does *not* include the split axis
     # combine along the split axis
     return factories.array(
-        function(x._DNDarray__array, **kwargs),
+        function(x.larray, **kwargs),
         is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
         device=x.device,
     )
@@ -1164,7 +1225,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
 
     gshape = x.gshape
     split = x.split
-    t_x = x._DNDarray__array
+    t_x = x.larray
 
     # sanitize q
     if isinstance(q, list) or isinstance(q, tuple):
@@ -1177,7 +1238,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
         if x.comm.is_distributed() and q.split is not None:
             # q needs to be local
             q.resplit_(axis=None)
-        t_q = q._DNDarray__array
+        t_q = q.larray
         t_perc_dtype = torch.promote_types(t_q.dtype, torch.float32)
     else:
         raise TypeError("DNDarray, list or tuple supported, but q was {}".format(type(q)))
@@ -1265,7 +1326,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
 
     # sort data
     data = manipulations.sort(x, axis=axis)[0].astype(perc_dtype)
-    t_data = data._DNDarray__array
+    t_data = data.larray
 
     if x.comm.is_distributed() and split is not None and axis == split:
         # allocate memory on all ranks
@@ -1295,7 +1356,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
             percentile = factories.empty(
                 output_shape, dtype=perc_dtype, split=join, device=x.device
             )
-            percentile._DNDarray__array = local_percentile(t_data, axis, t_indices)
+            percentile.larray = local_percentile(t_data, axis, t_indices)
             percentile.resplit_(axis=None)
         else:
             # non-distributed case
@@ -1305,7 +1366,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
         percentile = manipulations.squeeze(percentile, axis=0)
 
     if out is not None:
-        out._DNDarray__array = percentile._DNDarray__array
+        out.larray = percentile.larray
         return out
 
     return percentile
@@ -1541,8 +1602,8 @@ def var(x, axis=None, ddof=0, **kwargs):
         """
 
         if x.lshape[x.split] != 0:
-            mu = torch.mean(x._DNDarray__array, dim=axis)
-            var = torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
+            mu = torch.mean(x.larray, dim=axis)
+            var = torch.var(x.larray, dim=axis, unbiased=unbiased)
         else:
             mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
             var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
@@ -1566,12 +1627,12 @@ def var(x, axis=None, ddof=0, **kwargs):
     # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
-            ret = torch.var(x._DNDarray__array.float(), unbiased=unbiased)
+            ret = torch.var(x.larray.float(), unbiased=unbiased)
             return factories.array(ret)
 
         else:  # case for full matrix calculation (axis is None)
-            mu_in = torch.mean(x._DNDarray__array)
-            var_in = torch.var(x._DNDarray__array, unbiased=unbiased)
+            mu_in = torch.mean(x.larray)
+            var_in = torch.var(x.larray, unbiased=unbiased)
             # Nan is returned when local tensor is empty
             if torch.isnan(var_in):
                 var_in = 0.0

@@ -121,9 +121,7 @@ def allclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
-    _local_allclose = torch.tensor(
-        torch.allclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan)
-    )
+    _local_allclose = torch.tensor(torch.allclose(t1.larray, t2.larray, rtol, atol, equal_nan))
 
     # If x is distributed, then y is also distributed along the same axis
     if t1.comm.is_distributed():
@@ -201,7 +199,7 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.isclose raises relevant errors
-    _local_isclose = torch.isclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan)
+    _local_isclose = torch.isclose(t1.larray, t2.larray, rtol, atol, equal_nan)
 
     # If x is distributed, then y is also distributed along the same axis
     if t1.comm.is_distributed() and t1.split is not None:

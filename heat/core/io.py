@@ -174,18 +174,16 @@ else:
         if h5py.get_config().mpi:
             with h5py.File(path, mode, driver="mpio", comm=data.comm.handle) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
-                dset[slices] = (
-                    data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
-                )
+                dset[slices] = data.larray.cpu() if is_split else data.larray[slices].cpu()
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
             with h5py.File(path, mode) as handle:
                 dset = handle.create_dataset(dataset, data.shape, **kwargs)
                 if is_split:
-                    dset[slices] = data._DNDarray__array.cpu()
+                    dset[slices] = data.larray.cpu()
                 else:
-                    dset[...] = data._DNDarray__array.cpu()
+                    dset[...] = data.larray.cpu()
 
             # ping next rank if it exists
             if is_split and data.comm.size > 1:
@@ -197,7 +195,7 @@ else:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
             with h5py.File(path, "r+") as handle:
-                handle[dataset][slices] = data._DNDarray__array.cpu()
+                handle[dataset][slices] = data.larray.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
@@ -364,9 +362,7 @@ else:
                     dimension_names.append(name)
 
                 var = handle.createVariable(variable, data.dtype.char(), dimension_names, **kwargs)
-                var[slices] = (
-                    data._DNDarray__array.cpu() if is_split else data._DNDarray__array[slices].cpu()
-                )
+                var[slices] = data.larray.cpu() if is_split else data.larray[slices].cpu()
 
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
@@ -381,9 +377,9 @@ else:
                     variable, data.dtype.char(), tuple(dimension_names), **kwargs
                 )
                 if is_split:
-                    var[slices] = data._DNDarray__array.cpu()
+                    var[slices] = data.larray.cpu()
                 else:
-                    var[:] = data._DNDarray__array.cpu()
+                    var[:] = data.larray.cpu()
 
             # ping next rank if it exists
             if is_split and data.comm.size > 1:
@@ -395,7 +391,7 @@ else:
             # wait for the previous rank to finish writing its chunk, then write own part
             data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
             with nc.Dataset(path, "r+") as handle:
-                handle[variable][slices] = data._DNDarray__array.cpu()
+                handle[variable][slices] = data.larray.cpu()
 
             # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
             next_rank = (data.comm.rank + 1) % data.comm.size
