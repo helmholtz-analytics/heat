@@ -592,9 +592,9 @@ def histogram(
               number of histogram bins
     range   : Tuple[int,int], optional
               lower and upper end of the bins. If not provided, range is simply (a.min(), a.max()).
-    normed  : Not used
-    weights : Not used
-    density : Not used
+    normed  : Not supported
+    weights : Not supported
+    density : Not supported
 
     Returns
     -------
