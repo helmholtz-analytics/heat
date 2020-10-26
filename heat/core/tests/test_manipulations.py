@@ -1952,7 +1952,7 @@ class TestManipulations(TestCase):
             rank = ht_a_split.comm.rank
             t_a = torch.randn(rank + 1, 4, dtype=torch.float32)
             ht_a_unbalanced = ht.array(t_a, is_split=0)
-            ht_b_split = ht.empty_like(ht_a_unbalanced, split=0)
+            ht_b_split = ht.empty(ht_a_unbalanced.gshape, split=0, dtype=ht.float32)
             with self.assertRaises(RuntimeError):
                 ht.stack((ht_a_unbalanced, ht_b_split))
 
