@@ -22,6 +22,7 @@ __all__ = [
     "bincount",
     "cov",
     "histc",
+    "histogram",
     "kurtosis",
     "max",
     "maximum",
@@ -528,11 +529,11 @@ def histc(input, bins: int = 100, min: int = 0, max: int = 0, out=None):
     ----------
     input : DNDarray
             the input array, must be of float type
-    bins  : int
+    bins  : int, optional
             number of histogram bins
-    min   : int
+    min   : int, optional
             lower end of the range (inclusive)
-    max   : int
+    max   : int, optional
             upper end of the range (inclusive)
     out   : DNDarray, optional
             the output tensor, same dtype as input
@@ -575,6 +576,51 @@ def histc(input, bins: int = 100, min: int = 0, max: int = 0, out=None):
         input.comm.Allreduce(hist, out, op=MPI.SUM)
 
     return out
+
+
+def histogram(
+    a, bins: int = 10, range: Tuple[int, int] = (0, 0), normed=None, weights=None, density=None
+):
+    """
+    Compute the histogram of a DNDarray.
+
+    Parameters
+    ----------
+    a       : DNDarray
+              the input array, must be of float type
+    bins    : int, optional
+              number of histogram bins
+    range   : Tuple[int,int], optional
+              lower and upper end of the bins. If not provided, range is simply (a.min(), a.max()).
+    normed  : Not used
+    weights : Not used
+    density : Not used
+
+    Returns
+    -------
+    hist : DNDarray
+           The values of the histogram.
+
+    Notes
+    -----
+    This is a wrapper function of :function:`~heat.core.statistics.histc` for some basic compatibility with the NumPy API.
+
+    See Also
+    --------
+    :function:`~heat.core.statistics.histc`
+    """
+    # TODO: Rewrite to make it a proper implementation of the NumPy function
+
+    if normed is not None:
+        raise NotImplementedError("'normed' is not supported")
+    if weights is not None:
+        raise NotImplementedError("'weights' is not supported")
+    if density is not None:
+        raise NotImplementedError("'density' is not supported")
+    if not isinstance(bins, int):
+        raise NotImplementedError("'bins' only supports integer values")
+
+    return histc(a, bins, range[0], range[1])
 
 
 def kurtosis(x, axis=None, unbiased=True, Fischer=True):
