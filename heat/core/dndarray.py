@@ -83,7 +83,7 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
-        self.__balanced = balanced
+        self.__balanced = None
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None
@@ -1783,16 +1783,26 @@ class DNDarray:
         """
         return arithmetics.invert(self)
 
-    def is_balanced(self):
+    def is_balanced(self, force_check=False):
         """
-        Determine if a DNDarray is balanced evenly (or as evenly as possible) across all nodes
+        Returns the balanced status of a `DNDarray`, i.e. whether it is
+        distributed evenly (or as evenly as possible) across all processes.
+        This is equivalent to returning `self.balanced`. If no information
+        is available (`self.balanced = None`), the balanced status will be
+        assessed via collective communication.
+
+        Parameters
+        force_check : bool, optional
+            If True, the balanced status of the DNDarray will be assessed via
+            collective communication in any case.
 
         Returns
         -------
         balanced : bool
             True if balanced, False if not
         """
-        if self.balanced is not None:
+
+        if not force_check and self.balanced is not None:
             return self.balanced
 
         _, _, chk = self.comm.chunk(self.shape, self.split)
