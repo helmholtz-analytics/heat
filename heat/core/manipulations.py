@@ -668,7 +668,7 @@ def dsplit(ary, indices_or_sections):
 
     See Also
     ------
-    :function:`split <heat.core.manipulations.split>`
+    :function:`split`
 
     Examples
     --------
@@ -955,7 +955,7 @@ def hsplit(ary, indices_or_sections):
 
     See Also
     --------
-    :function:`split <heat.core.manipulations.split>`
+    :function:`split`
 
     Examples
     --------
@@ -1944,8 +1944,7 @@ def split(ary, indices_or_sections, axis=0):
 
     See Also
     --------
-    :function:`dsplit <heat.core.manipulations.dsplit>`, :function:`hsplit <heat.core.manipulations.hsplit>`,
-    :function:`vsplit <heat.core.manipulations.vsplit>`
+    :function:`dsplit`, :function:`hsplit`, :function:`vsplit`
 
     Examples
     --------
@@ -2689,7 +2688,7 @@ def vsplit(ary, indices_or_sections):
 
     See Also
     --------
-    :function:`split <heat.core.manipulations.split>`
+    :function:`split`
 
     Examples
     --------
