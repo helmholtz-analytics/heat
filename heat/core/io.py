@@ -615,7 +615,9 @@ def load_csv(
             # Create empty tensor and iteratively fill it with the values
             local_shape = (len(line_starts), columns)
             actual_length = 0
-            local_tensor = torch.empty(local_shape, dtype=dtype.torch_type())
+            local_tensor = torch.empty(
+                local_shape, dtype=dtype.torch_type(), device=device.torch_device
+            )
             for ind, start in enumerate(line_starts):
                 if ind == len(line_starts) - 1:
                     f.seek(displs[rank] + start, 0)
