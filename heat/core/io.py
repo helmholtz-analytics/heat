@@ -420,10 +420,6 @@ else:
                 )
             if all(shape) == 1 and all(expandedShape) == 1:  # size 1 array
                 return split
-            elif all(shape) == 1 or all(expandedShape) == 1:  # one shape is size 1, the other isn't
-                raise ValueError(
-                    "Shapes %s and %s differ in non-empty dimensions" % (shape, expandedShape)
-                )
             if len(shape) == len(expandedShape):  # actually not expanded at all
                 return split
             if split is None:  # not split at all
