@@ -82,13 +82,8 @@ class DNDarray:
         self.__halo_next = None
         self.__halo_prev = None
 
-        # handle inconsistencies between torch and heat devices
-        if (
-            isinstance(array, torch.Tensor)
-            and isinstance(device, devices.Device)
-            and array.device.type != device.device_type
-        ):
-            self.__array = self.__array.to(devices.sanitize_device(self.__device).torch_device)
+        # check for inconsistencies between torch and heat devices
+        assert str(array.device) == device.torch_device
 
     @property
     def halo_next(self):
@@ -1587,7 +1582,7 @@ class DNDarray:
             chunk_starts = torch.tensor([0] + chunk_ends.tolist(), device=self.device.torch_device)
             chunk_start = chunk_starts[rank]
             chunk_end = chunk_ends[rank]
-            arr = torch.Tensor()
+            arr = torch.tensor([], device=self.device.torch_device)
             # all keys should be tuples here
             gout = [0] * len(self.gshape)
             # handle the dimensional reduction for integers
