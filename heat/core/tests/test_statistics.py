@@ -441,6 +441,88 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.cov(htdata, ddof=10000)
 
+    def test_histc(self):
+        # few entries and float64
+        c = torch.arange(4, dtype=torch.float64, device=self.device.torch_device)
+        comp = torch.histc(c, 7)
+        a = ht.array(c)
+        res = ht.histc(a, 7)
+
+        self.assertEqual(res.shape, (7,))
+        self.assertEqual(res.dtype, ht.float64)
+        self.assertEqual(res.device, self.device)
+        self.assertTrue(torch.equal(res.larray, comp))
+
+        # matrix and splits
+        c = torch.rand([10, 10, 10], device=self.device.torch_device)
+        comp = torch.histc(c)
+
+        a = ht.array(c)
+        res = ht.histc(a)
+        self.assertEqual(res.shape, (100,))
+        self.assertEqual(res.dtype, ht.float32)
+        self.assertEqual(res.device, self.device)
+        self.assertTrue(torch.equal(res.larray, comp))
+
+        a = ht.array(c, split=0)
+        res = ht.histc(a)
+        self.assertEqual(res.shape, (100,))
+        self.assertEqual(res.dtype, ht.float32)
+        self.assertEqual(res.device, self.device)
+        self.assertTrue(torch.equal(res.larray, comp))
+
+        a = ht.array(c, split=1)
+        res = ht.histc(a)
+        self.assertEqual(res.shape, (100,))
+        self.assertEqual(res.dtype, ht.float32)
+        self.assertEqual(res.device, self.device)
+        self.assertTrue(torch.equal(res.larray, comp))
+
+        a = ht.array(c, split=2)
+        res = ht.histc(a)
+        self.assertEqual(res.shape, (100,))
+        self.assertEqual(res.dtype, ht.float32)
+        self.assertEqual(res.device, self.device)
+        self.assertTrue(torch.equal(res.larray, comp))
+
+        # out parameter, min max
+        out = ht.empty(20, dtype=ht.float32, device=self.device)
+        c = torch.randint(10, size=(8,), dtype=torch.float32, device=self.device.torch_device)
+        comp = torch.histc(c, bins=20, min=0, max=20)
+
+        a = ht.array(c)
+        ht.histc(a, bins=20, min=0, max=20, out=out)
+        self.assertEqual(out.shape, (20,))
+        self.assertEqual(out.dtype, ht.float32)
+        self.assertEqual(res.device, self.device)
+        self.assertTrue(torch.equal(out.larray, comp))
+
+        a = ht.array(c, split=0)
+        ht.histc(a, bins=20, min=0, max=20, out=out)
+        self.assertEqual(out.shape, (20,))
+        self.assertEqual(out.dtype, ht.float32)
+        self.assertEqual(res.device, self.device)
+        self.assertTrue(torch.equal(out.larray, comp))
+
+        # Alias
+        a = ht.arange(10, dtype=ht.float)
+        hist = ht.histc(a, 10)
+        alias = ht.histogram(a)
+
+        self.assertEqual(alias.gnumel, hist.gnumel)
+        self.assertTrue(ht.equal(alias, hist))
+
+        with self.assertRaises(NotImplementedError):
+            ht.histogram(a, "str")
+        with self.assertRaises(NotImplementedError):
+            ht.histogram(a, [1, 2, 3])
+        with self.assertRaises(NotImplementedError):
+            ht.histogram(a, weights=[1, 2, 3])
+        with self.assertRaises(NotImplementedError):
+            ht.histogram(a, normed=True)
+        with self.assertRaises(NotImplementedError):
+            ht.histogram(a, density=True)
+
     def test_kurtosis(self):
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(ValueError):
