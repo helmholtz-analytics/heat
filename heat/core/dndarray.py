@@ -2529,13 +2529,15 @@ class DNDarray:
 
         See Also
         --------
-        ravel
+        :function:`~heat.core.manipulations.ravel`
 
         Examples
         --------
-        >>> a = ht.array([[[1,2],[3,4]],[[5,6],[7,8]]])
-        >>> a.flatten()
-        tensor([1,2,3,4,5,6,7,8])
+        >>> a = ht.ones((2,3), split=0)
+        >>> b = a.ravel()
+        >>> a[0,0] = 4
+        >>> b
+        DNDarray([4., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
         """
         return manipulations.ravel(self)
 

@@ -843,29 +843,33 @@ class TestManipulations(TestCase):
     def test_flatten(self):
         a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
         res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=a.dtype)
-        self.assertTrue(ht.equal(ht.flatten(a), res))
-        self.assertEqual(a.dtype, res.dtype)
-        self.assertEqual(a.device, res.device)
+        flat = ht.flatten(a)
+        self.assertTrue(ht.equal(flat, res))
+        self.assertEqual(flat.dtype, res.dtype)
+        self.assertEqual(flat.device, res.device)
 
         a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], split=0, dtype=ht.int8)
         res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], split=0, dtype=ht.int8)
-        self.assertTrue(ht.equal(ht.flatten(a), res))
-        self.assertEqual(a.dtype, res.dtype)
-        self.assertEqual(a.device, res.device)
+        flat = ht.flatten(a)
+        self.assertTrue(ht.equal(flat, res))
+        self.assertEqual(flat.dtype, res.dtype)
+        self.assertEqual(flat.device, res.device)
 
         a = ht.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1)
         res = ht.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], split=0)
-        self.assertTrue(ht.equal(ht.flatten(a), res))
-        self.assertEqual(a.dtype, res.dtype)
-        self.assertEqual(a.device, res.device)
+        flat = ht.flatten(a)
+        self.assertTrue(ht.equal(flat, res))
+        self.assertEqual(flat.dtype, res.dtype)
+        self.assertEqual(flat.device, res.device)
 
         a = ht.array(
             [[[False, False], [False, True]], [[True, False], [True, True]]], split=2, dtype=ht.bool
         )
         res = ht.array([False, False, False, True, True, False, True, True], split=0, dtype=a.dtype)
-        self.assertTrue(ht.equal(ht.flatten(a), res))
-        self.assertEqual(a.dtype, res.dtype)
-        self.assertEqual(a.device, res.device)
+        flat = ht.flatten(a)
+        self.assertTrue(ht.equal(flat, res))
+        self.assertEqual(flat.dtype, res.dtype)
+        self.assertEqual(flat.device, res.device)
 
     def test_flip(self):
         a = ht.array([1, 2])
@@ -1325,6 +1329,52 @@ class TestManipulations(TestCase):
         )
 
         self.assert_array_equal(pad_ht_split, pad_np_split)
+
+    def test_ravel(self):
+        a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+        res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=a.dtype)
+        ravel = a.ravel()
+        self.assertTrue(ht.equal(ravel, res))
+        self.assertEqual(ravel.dtype, res.dtype)
+        self.assertEqual(ravel.device, res.device)
+        a[0, 0, 0] = 9
+        self.assertEqual(ravel[0], 9)
+
+        a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], split=0, dtype=ht.int8)
+        res = ht.flatten(a)
+        ravel = ht.ravel(a)
+        self.assertTrue(ht.equal(ravel, res))
+        self.assertEqual(ravel.dtype, res.dtype)
+        self.assertEqual(ravel.device, res.device)
+
+        a[0, 0, 0] = 9
+
+        if a.comm.size < 3:
+            self.assertEqual(ravel[0], 9)
+        else:
+            self.assertEqual(ravel[0], 1)
+
+        a = ht.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1)
+        res = ht.flatten(a)
+        ravel = ht.ravel(a)
+        self.assertTrue(ht.equal(ravel, res))
+        self.assertEqual(ravel.dtype, res.dtype)
+        self.assertEqual(ravel.device, res.device)
+
+        a[0, 0, 0] = 9
+        self.assertEqual(ravel[0], 1)
+
+        a = ht.array(
+            [[[False, False], [False, True]], [[True, False], [True, True]]], split=2, dtype=ht.bool
+        )
+        res = ht.flatten(a)
+        ravel = ht.ravel(a)
+        self.assertTrue(ht.equal(ravel, res))
+        self.assertEqual(ravel.dtype, res.dtype)
+        self.assertEqual(ravel.device, res.device)
+
+        a[0, 0, 0] = 9
+        self.assertEqual(ravel[0], False)
 
     def test_repeat(self):
         # -------------------

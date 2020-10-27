@@ -707,7 +707,7 @@ def flatten(a):
 
     See Also
     --------
-    ravel
+    :function:`~heat.core.manipulations.ravel`
 
     Examples
     --------
@@ -1263,7 +1263,7 @@ def ravel(a):
 
     See Also
     --------
-    flatten
+    :function:`~heat.core.manipulations.flatten`
 
     Examples
     --------
@@ -1284,7 +1284,7 @@ def ravel(a):
         )
 
     # Redistribution necessary
-    # TODO allow not perfectly distributed arrays after #681 is implemented
+    # Arrays are not perfectly distributed. Array are copied between processes.
     if a.split != 0 or a.shape[0] % a.comm.size != 0:
         return flatten(a)
 
@@ -1299,7 +1299,7 @@ def ravel(a):
 
     return a
 
-    
+
 def repeat(a, repeats, axis=None):
     """
     Creates a new DNDarray by repeating elements of array a.
