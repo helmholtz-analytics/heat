@@ -1,8 +1,8 @@
 import sys
-import torch
 import unittest
 
 from .data_parallel import *
+import torch
 
 if sys.version_info.minor >= 7:
     from . import functional
@@ -21,15 +21,31 @@ if sys.version_info.minor >= 7:
 
 
 else:
-    from .functional import *
+    # class Wrap(object):
+    #     def __init__(self, wrapped):
+    #         self.wrapped = wrapped
+    #
+    #     def __getattr__(self, item):
+    #         try:
+    #
+    # wrap functional
+    from . import functional
+    import sys
 
-    torch_all = torch.nn.modules.__all__
-    ht_fns = torch_all.copy()
+    if sys.version_info.minor < 7:
 
-    def fn(name):
-        def name():
-            return torch.nn.__getattr__(name)
+        class Wrap(object):
+            def __init__(self, wrapped):
+                self.wrapped = wrapped
 
-    for name in torch_all:
-        fn(name)
-    # pass
+            def __getattr__(self, item):
+                try:
+                    getattr(self.wrapped, item)
+                except AttributeError:
+                    try:
+                        getattr(torch.nn.functional, item)
+                    except AttributeError:
+                        raise AttributeError("Module not in heat.nn or torch.nn")
+
+        functional = Wrap(functional)
+    pass

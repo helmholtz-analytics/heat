@@ -25,7 +25,6 @@ if sys.version_info.minor >= 7:
 else:
     # from . import lr_scheduler
     from .dp_optimizer import *
-
     import torch.optim as topt
 
     Adadelta = topt.Adadelta
@@ -39,19 +38,6 @@ else:
     Rprop = topt.Rprop
     SGD = topt.SGD
     SparseAdam = topt.SparseAdam
-
-    import torch.optim.lr_scheduler as lrs
-
-    LambdaLR = lrs.LambdaLR
-    MultiplicativeLR = lrs.MultiplicativeLR
-    StepLR = lrs.StepLR
-    MultiStepLR = lrs.MultiStepLR
-    ExponentialLR = lrs.ExponentialLR
-    CosineAnnealingLR = lrs.CosineAnnealingLR
-    ReduceLROnPlateau = lrs.ReduceLROnPlateau
-    CyclicLR = lrs.CyclicLR
-    CosineAnnealingWarmRestarts = lrs.CosineAnnealingWarmRestarts
-    OneCycleLR = lrs.OneCycleLR
     """
     from . import lr_scheduler as lr_scheduler
     from .optimizer import Optimizer as Optimizer
