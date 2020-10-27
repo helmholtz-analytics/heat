@@ -378,7 +378,16 @@ class TestIO(TestCase):
             with self.assertRaises((ValueError, IndexError)):
                 ht.save(data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
                 ht.save(
-                    ht.arange(2),
+                    ht.arange(2, split=0),
+                    self.NETCDF_OUT_PATH,
+                    self.NETCDF_VARIABLE,
+                    file_slices=slice(None),
+                    mode="a",
+                )
+            with self.assertRaises((ValueError, IndexError)):
+                ht.save(data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
+                ht.save(
+                    ht.arange(2, split=None),
                     self.NETCDF_OUT_PATH,
                     self.NETCDF_VARIABLE,
                     file_slices=slice(None),
