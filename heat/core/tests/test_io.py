@@ -338,6 +338,21 @@ class TestIO(TestCase):
                     )
                 self.assertTrue((ones_nosplit.larray == comparison).all())
 
+            # indexing netcdf file: broadcasting ones
+            ht.MPI_WORLD.Barrier()
+            zeros = ht.zeros((1, 1, 1, 1), device=self.device)
+            zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
+            ones = ht.ones((1, 1), device=self.device)
+            ones.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+")
+            if split_range.comm.rank == 0:
+                with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
+                    comparison = torch.tensor(
+                        handle[self.NETCDF_VARIABLE][indices],
+                        dtype=torch.int32,
+                        device=self.device.torch_device,
+                    )
+                self.assertTrue((ones.larray == comparison).all())
+
             # different split and dtype
             ht.MPI_WORLD.Barrier()
             zeros = ht.zeros((2, 2), split=1, dtype=ht.int32, device=self.device)

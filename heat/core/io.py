@@ -414,19 +414,26 @@ else:
             -------
             ValueError
             """
-            # Get indices of non-empty dimensions and squeezed shapes
-            enumerated = [[i, v] for i, v in enumerate(shape) if v != 1]
-            ind_nonempty, sq_shape = list(zip(*enumerated))  # transpose
-            enumerated = [[i, v] for i, v in enumerate(expandedShape) if v != 1]
-            ex_ind_nonempty, sq_ex = list(zip(*enumerated))  # transpose
-            if not sq_shape == sq_ex:
-                raise ValueError(
-                    "Shapes %s and %s differ in non-empty dimensions" % (shape, expandedShape)
-                )
             if len(shape) == len(expandedShape):  # actually not expanded at all
                 return split
             if split is None:  # not split at all
                 return None
+            if all(shape) == 1 and all(expandedShape) == 1:  # size 1 array
+                return split
+            elif all(shape) == 1 or all(expandedShape) == 1:  # one shape is size 1, the other isn't
+                raise ValueError(
+                    "Shapes %s and %s differ in non-empty dimensions" % (shape, expandedShape)
+                )
+
+            # Get indices of non-empty dimensions and squeezed shapes
+            enumerated = np.array([[i, v] for i, v in enumerate(shape) if v != 1])
+            ind_nonempty, sq_shape = (enumerated.T).tolist()
+            enumerated = np.array([[i, v] for i, v in enumerate(expandedShape) if v != 1])
+            ex_ind_nonempty, sq_ex = (enumerated.T).tolist()
+            if not sq_shape == sq_ex:
+                raise ValueError(
+                    "Shapes %s and %s differ in non-empty dimensions" % (shape, expandedShape)
+                )
             if split in ind_nonempty:  # split along non-empty dimension
                 split_sq = ind_nonempty.index(split)  # split-axis in squeezed shape
                 return ex_ind_nonempty[split_sq]
