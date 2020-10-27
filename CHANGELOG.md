@@ -1,12 +1,19 @@
 # Pending additions
+
 ## New features
+- [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
 - [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
 ### Manipulations
 ### Statistical Functions
+- [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``
 ### Linear Algebra
 ### ...
 
 ## Bug fixes
+# v0.5.1
+
+- [#678](https://github.com/helmholtz-analytics/heat/pull/678) Bugfix: Internal functions now use explicit device parameters for DNDarray and torch.Tensor initializations.
+- [#684](https://github.com/helmholtz-analytics/heat/pull/684) Bug fix: distributed `reshape` does not work on booleans.
 
 # v0.5.0
 
@@ -51,6 +58,7 @@
 - [#664](https://github.com/helmholtz-analytics/heat/pull/664) New feature / enhancement: distributed `random.random_sample`, `random.random`, `random.sample`, `random.ranf`, `random.random_integer`
 - [#666](https://github.com/helmholtz-analytics/heat/pull/666) New feature: distributed prepend/append for `diff()`.
 - [#667](https://github.com/helmholtz-analytics/heat/pull/667) Enhancement `reshape`: rename axis parameter
+- [#674](https://github.com/helmholtz-analytics/heat/pull/674) New feature: `repeat`
 - [#670](https://github.com/helmholtz-analytics/heat/pull/670) New Feature: distributed `bincount()`
 - [#672](https://github.com/helmholtz-analytics/heat/pull/672) Bug / Enhancement: Remove `MPIRequest.wait()`, rewrite calls with capital letters. lower case `wait()` now falls back to the `mpi4py` function
 

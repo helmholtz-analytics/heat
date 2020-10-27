@@ -276,10 +276,11 @@ class TestCase(unittest.TestCase):
 
         if isinstance(tensor, np.ndarray):
             torch_tensor = torch.from_numpy(tensor.copy())
+            torch_tensor = torch_tensor.to(self.device.torch_device)
             np_array = tensor
         elif isinstance(tensor, torch.Tensor):
             torch_tensor = tensor
-            np_array = tensor.numpy().copy()
+            np_array = tensor.cpu().numpy().copy()
         else:
             raise TypeError(
                 "The input tensors type must be one of [tuple, list, "
@@ -298,11 +299,11 @@ class TestCase(unittest.TestCase):
             ht_res = heat_func(ht_array, **heat_args)
 
             self.assertEqual(ht_array.device, ht_res.device)
-            self.assertEqual(ht_array._DNDarray__array.device, ht_res._DNDarray__array.device)
+            self.assertEqual(ht_array.larray.device, ht_res.larray.device)
             if distributed_result:
                 self.assert_array_equal(ht_res, np_res)
             else:
-                self.assertTrue(np.array_equal(ht_res._DNDarray__array.cpu().numpy(), np_res))
+                self.assertTrue(np.array_equal(ht_res.larray.cpu().numpy(), np_res))
 
     def assertTrue_memory_layout(self, tensor, order):
         """
@@ -312,7 +313,7 @@ class TestCase(unittest.TestCase):
         -----------
         order: str, 'C' for C-like (row-major), 'F' for Fortran-like (column-major) memory layout.
         """
-        stride = tensor._DNDarray__array.stride()
+        stride = tensor.larray.stride()
         row_major = all(np.diff(list(stride)) <= 0)
         column_major = all(np.diff(list(stride)) >= 0)
         if order == "C":

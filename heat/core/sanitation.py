@@ -79,7 +79,7 @@ def sanitize_sequence(seq):
         return list(seq)
     elif isinstance(seq, dndarray.DNDarray):
         if seq.split is None:
-            return seq._DNDarray__array.tolist()
+            return seq.larray.tolist()
         else:
             raise ValueError(
                 "seq is a distributed DNDarray, expected a list, a tuple, or a process-local array."
@@ -106,6 +106,4 @@ def scalar_to_1d(x):
     x : DNDarray
         where `x.ndim = 1` and `x.shape = (1,)`
     """
-    return factories.array(
-        x._DNDarray__array.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm
-    )
+    return factories.array(x.larray.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm)
