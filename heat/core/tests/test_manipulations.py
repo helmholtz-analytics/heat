@@ -1006,7 +1006,7 @@ class TestManipulations(TestCase):
         # test padding of non-distributed tensor
         # ======================================
 
-        data = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
+        data = torch.arange(2 * 3 * 4, device=self.device.torch_device).reshape(2, 3, 4)
         data_ht = ht.array(data, device=self.device)
         data_np = data_ht.numpy()
 
@@ -1294,7 +1294,7 @@ class TestManipulations(TestCase):
         # test padding of large distributed tensor
         # =========================================
 
-        data = torch.arange(8 * 3 * 4).reshape(8, 3, 4)
+        data = torch.arange(8 * 3 * 4, device=self.device.torch_device).reshape(8, 3, 4)
         data_ht_split = ht.array(data, split=0)
         data_np = data_ht_split.numpy()
 
@@ -1913,6 +1913,15 @@ class TestManipulations(TestCase):
         self.assertEqual(reshaped.split, 1)
         self.assertTrue(ht.equal(reshaped, result))
 
+        a = ht.arange(4, split=0, dtype=ht.bool)
+        result = ht.array([[False, True], [True, True]], split=0, dtype=ht.bool)
+        reshaped = a.reshape((2, 2))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertEqual(reshaped.device, result.device)
+        self.assertTrue(ht.equal(reshaped, result))
+
         # exceptions
         with self.assertRaises(ValueError):
             ht.reshape(ht.zeros((4, 3)), (5, 7))
@@ -2449,7 +2458,9 @@ class TestManipulations(TestCase):
         if size == 1:
             size = 4
 
-        torch_array = torch.arange(size, dtype=torch.int32).expand(size, size)
+        torch_array = torch.arange(size, dtype=torch.int32, device=self.device.torch_device).expand(
+            size, size
+        )
         split_zero = ht.array(torch_array, split=0)
         split_one = ht.array(torch_array, split=1)
 
@@ -2471,7 +2482,9 @@ class TestManipulations(TestCase):
         self.assertTrue((indcs.larray == exp_one_indcs.larray).all())
         self.assertTrue(indcs.larray.dtype == exp_one_indcs.larray.dtype)
 
-        torch_array = torch.arange(size, dtype=torch.float64).expand(size, size)
+        torch_array = torch.arange(
+            size, dtype=torch.float64, device=self.device.torch_device
+        ).expand(size, size)
         split_zero = ht.array(torch_array, split=0)
         split_one = ht.array(torch_array, split=1)
 

@@ -122,7 +122,7 @@ def __counter_sequence(shape, dtype, split, device, comm):
     lrange[0], lrange[1] = lrange[0] - diff, lrange[1] - diff
 
     # create x_1 counter sequence
-    x_1 = torch.arange(*lrange, dtype=dtype)
+    x_1 = torch.arange(*lrange, dtype=dtype, device=device.torch_device)
     while diff > signed_mask:
         # signed_mask is maximum that can be added at a time because torch does not support unit64 or unit32
         x_1 += signed_mask
@@ -664,9 +664,9 @@ def __threefry32(X_0, X_1):
     seed_32 = __seed & 0x7FFFFFFF
 
     # set up key buffer
-    ks_0 = torch.full((samples,), seed_32, dtype=torch.int32)
-    ks_1 = torch.full((samples,), seed_32, dtype=torch.int32)
-    ks_2 = torch.full((samples,), 466688986, dtype=torch.int32)
+    ks_0 = torch.full((samples,), seed_32, dtype=torch.int32, device=X_0.device)
+    ks_1 = torch.full((samples,), seed_32, dtype=torch.int32, device=X_1.device)
+    ks_2 = torch.full((samples,), 466688986, dtype=torch.int32, device=X_0.device)
     ks_2 ^= ks_0
     ks_2 ^= ks_0
 
@@ -754,9 +754,9 @@ def __threefry64(X_0, X_1):
     samples = len(X_0)
 
     # set up key buffer
-    ks_0 = torch.full((samples,), __seed, dtype=torch.int64)
-    ks_1 = torch.full((samples,), __seed, dtype=torch.int64)
-    ks_2 = torch.full((samples,), 2004413935125273122, dtype=torch.int64)
+    ks_0 = torch.full((samples,), __seed, dtype=torch.int64, device=X_0.device)
+    ks_1 = torch.full((samples,), __seed, dtype=torch.int64, device=X_1.device)
+    ks_2 = torch.full((samples,), 2004413935125273122, dtype=torch.int64, device=X_0.device)
     ks_2 ^= ks_0
     ks_2 ^= ks_0
 
