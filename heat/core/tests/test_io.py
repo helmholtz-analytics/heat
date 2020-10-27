@@ -375,13 +375,14 @@ class TestIO(TestCase):
                 ht.save(data, self.NETCDF_OUT_PATH, 1)
             with self.assertRaises(ValueError):
                 ht.save(data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r")
-            with self.assertRaises(ValueError):
+            with self.assertRaises((ValueError, IndexError)):
                 ht.save(data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
                 ht.save(
                     ht.arange(2),
                     self.NETCDF_OUT_PATH,
                     self.NETCDF_VARIABLE,
                     file_slices=slice(None),
+                    mode="a",
                 )
         else:
             with self.assertRaises(ValueError):
