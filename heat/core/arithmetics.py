@@ -387,7 +387,7 @@ def diff(a, n=1, axis=-1, prepend=None, append=None):
         ret.lloc[diff_slice] = dif
 
         if rank > 0:
-            snd.wait()  # wait for the send to finish
+            snd.Wait()  # wait for the send to finish
         if rank < size - 1:
             cr_slice = [slice(None)] * len(a.shape)
             # slice of 1 element in the selected axis for the shape creation
@@ -399,7 +399,7 @@ def diff(a, n=1, axis=-1, prepend=None, append=None):
             axis_slice_end = [slice(None)] * len(a.shape)
             # select the last elements in the selected axis
             axis_slice_end[axis] = slice(-1, None)
-            rec.wait()
+            rec.Wait()
             # diff logic
             ret.lloc[axis_slice_end] = (
                 recv_data.reshape(ret.lloc[axis_slice_end].shape) - ret.lloc[axis_slice_end]
