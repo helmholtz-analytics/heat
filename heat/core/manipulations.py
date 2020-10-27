@@ -2166,7 +2166,7 @@ def sort(a, axis=None, descending=False, out=None):
 
 def split(ary, indices_or_sections, axis=0):
     """
-    Split a DNDarray into multiple sub-DNDarrays as views into ary.
+    Split a DNDarray into multiple sub-DNDarrays as copies of parts of ary.
 
     Parameters
     ----------
@@ -2279,7 +2279,7 @@ def split(ary, indices_or_sections, axis=0):
 
     # start of actual algorithm
 
-    if ary.split == axis and ary.split is not None and ary.comm.size > 1:
+    if ary.split == axis and ary.is_distributed():
 
         if isinstance(indices_or_sections, int):
             # CASE 1 number of processes == indices_or_selections -> split already done due to distribution
