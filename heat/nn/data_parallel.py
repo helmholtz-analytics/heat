@@ -16,7 +16,7 @@ __all__ = ["DataParallel", "DataParallelMultiGPU"]
 
 
 def print0(*args, **kwargs):
-    if MPI_WORLD.rank == 4:
+    if MPI_WORLD.rank == 0:
         print(*args, **kwargs)
 
 
@@ -460,7 +460,7 @@ class DataParallelMultiGPU(tnn.Module):
     def reset_skips(self):
         # need to reset the skips after the learning rate is adjusted
         # for step based learning
-        # print("resetting skips")
+        print("resetting skips", self.og_global_skip, self.og_local_skip, self._og_btw)
         self.global_skip = self.og_global_skip
         self.local_skip = self.og_local_skip
         self._prev_losses_mean = []

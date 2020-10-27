@@ -32,7 +32,7 @@ except ImportError:
 
 
 def print0(*args, **kwargs):
-    if ht.MPI_WORLD.rank == 4:
+    if ht.MPI_WORLD.rank == 0:
         print(*args, **kwargs)
 
 
@@ -708,7 +708,7 @@ def validate(dev, val_loader, model, criterion):
 
 
 def save_checkpoint(state, is_best, epoch, filename="checkpoint.pth.tar"):
-    filename = "checkpoint-epoch" + str(epoch) + ".pth.tar"
+    filename = "checkpoint-epoch" + str(epoch.item) + ".pth.tar"
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, "model_best.pth.tar")

@@ -204,7 +204,7 @@ def main_worker(args):
     )
     train_dataset = ImagenetDataset(train_file, transforms=[train_img_transform, None])
     train_loader = ht.utils.data.datatools.DataLoader(
-        lcl_dataset=train_dataset, batch_size=args.batch_size, pin_memory=False
+        dataset=train_dataset, batch_size=args.batch_size, pin_memory=False
     )
 
     val_img_transforms = transforms.Compose(
@@ -220,7 +220,7 @@ def main_worker(args):
         val_file, transforms=[val_img_transforms, None], validate_set=True
     )
     val_loader = ht.utils.data.datatools.DataLoader(
-        lcl_dataset=val_dataset, batch_size=args.batch_size, pin_memory=True
+        dataset=val_dataset, batch_size=args.batch_size, pin_memory=True
     )
 
     if args.evaluate:

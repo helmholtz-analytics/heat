@@ -14,9 +14,9 @@ from heat.utils.data.mnist import MNISTDataset
 
 """
 This file is an example script for how to use the HeAT DataParallel class to train a network on the MNIST dataset.
-To run this file execute:
-mpirun -np N python mnist.py
-where N is the number of processes, in the examples/nn/ directory
+To run this file execute the following in the examples/nn/ directory:
+    mpirun -np N python -u mnist.py
+where N is the number of processes.
 """
 
 
@@ -158,7 +158,7 @@ def main():
     model = Net().to(device)
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
     blocking = False
-    torch.nn.parallel.DistributedDataParallel
+    # torch.nn.parallel.DistributedDataParallel
     dp_optim = ht.optim.DataParallelOptimizer(optimizer, blocking=blocking)
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     dp_model = ht.nn.DataParallel(
