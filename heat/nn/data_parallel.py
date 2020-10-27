@@ -536,6 +536,7 @@ class DataParallelMultiGPU(tnn.Module):
                         self.local_skip,
                     )
             elif means[-1] <= self.loss_floor and self.local_skip < self.global_skip:
+                # todo: tune this...
                 if self.comm.rank == 0:
                     print(
                         "\t\t\t doubling local skips",
@@ -683,7 +684,8 @@ class DataParallelMultiGPU(tnn.Module):
                 for name, param in self.named_parameters():
                     if param.requires_grad:
                         rcv_params = prev_params[1]
-                        param = (
+                        param *= 0
+                        param += (
                             rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                             * factor
                         )
