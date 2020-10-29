@@ -387,6 +387,8 @@ else:
                 "mode was {}, not in possible modes {}".format(mode, __VALID_WRITE_MODES)
             )
 
+        failed = 0
+        excep = None
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
         is_split = data.split is not None
         _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
@@ -416,20 +418,19 @@ else:
             """
             if np.prod(shape) != np.prod(expandedShape):
                 raise ValueError(
-                    "Shapes %s and %s differ in non-empty dimensions" % (shape, expandedShape)
+                    "Shapes %s and %s do not have the same size" % (shape, expandedShape)
                 )
-            if all(shape) == 1 and all(expandedShape) == 1:  # size 1 array
+            if np.prod(shape) == 1:  # size 1 array
                 return split
             if len(shape) == len(expandedShape):  # actually not expanded at all
                 return split
             if split is None:  # not split at all
                 return None
-
             # Get indices of non-empty dimensions and squeezed shapes
-            enumerated = np.array([[i, v] for i, v in enumerate(shape) if v != 1])
-            ind_nonempty, sq_shape = (enumerated.T).tolist()
-            enumerated = np.array([[i, v] for i, v in enumerate(expandedShape) if v != 1])
-            ex_ind_nonempty, sq_ex = (enumerated.T).tolist()
+            enumerated = [[i, v] for i, v in enumerate(shape) if v != 1]
+            ind_nonempty, sq_shape = list(zip(*enumerated))  # transpose
+            enumerated = [[i, v] for i, v in enumerate(expandedShape) if v != 1]
+            ex_ind_nonempty, sq_ex = list(zip(*enumerated))  # transpose
             if not sq_shape == sq_ex:
                 raise ValueError(
                     "Shapes %s and %s differ in non-empty dimensions" % (shape, expandedShape)
@@ -534,64 +535,86 @@ else:
 
         # attempt to perform parallel I/O if possible
         if __nc_has_par:
-            with nc.Dataset(path, mode, parallel=True, comm=data.comm.handle) as handle:
-                if variable in handle.variables:
-                    var = handle.variables[variable]
-                else:
-                    for name, elements in zip(dimension_names, data.shape):
-                        if name not in handle.dimensions:
-                            handle.createDimension(name, elements if not is_unlimited else None)
-                    var = handle.createVariable(
-                        variable, data.dtype.char(), dimension_names, **kwargs
-                    )
-                merged_slices = __merge_slices(var, file_slices, data)
-                try:
-                    var[merged_slices] = (
-                        data.larray.cpu() if is_split else data.larray[slices].cpu()
-                    )
-                except RuntimeError:
-                    var.set_collective(True)
-                    var[merged_slices] = (
-                        data.larray.cpu() if is_split else data.larray[slices].cpu()
-                    )
-
+            try:
+                with nc.Dataset(path, mode, parallel=True, comm=data.comm.handle) as handle:
+                    if variable in handle.variables:
+                        var = handle.variables[variable]
+                    else:
+                        for name, elements in zip(dimension_names, data.shape):
+                            if name not in handle.dimensions:
+                                handle.createDimension(name, elements if not is_unlimited else None)
+                        var = handle.createVariable(
+                            variable, data.dtype.char(), dimension_names, **kwargs
+                        )
+                    merged_slices = __merge_slices(var, file_slices, data)
+                    try:
+                        var[merged_slices] = (
+                            data.larray.cpu() if is_split else data.larray[slices].cpu()
+                        )
+                    except RuntimeError:
+                        var.set_collective(True)
+                        var[merged_slices] = (
+                            data.larray.cpu() if is_split else data.larray[slices].cpu()
+                        )
+            except Exception as e:
+                failed = data.comm.rank + 1
+                excep = e
         # otherwise a single rank only write is performed in case of local data (i.e. no split)
         elif data.comm.rank == 0:
-            with nc.Dataset(path, mode) as handle:
-                if variable in handle.variables:
-                    var = handle.variables[variable]
-                else:
-                    for name, elements in zip(dimension_names, data.shape):
-                        if name not in handle.dimensions:
-                            handle.createDimension(name, elements if not is_unlimited else None)
-                    var = handle.createVariable(
-                        variable, data.dtype.char(), dimension_names, **kwargs
-                    )
-                var.set_collective(False)  # not possible with non-parallel netcdf
-                if is_split:
-                    merged_slices = __merge_slices(var, file_slices, data)
-                    var[merged_slices] = data.larray.cpu()
-                else:
-                    var[file_slices] = data.larray.cpu()
+            try:
+                with nc.Dataset(path, mode) as handle:
+                    if variable in handle.variables:
+                        var = handle.variables[variable]
+                    else:
+                        for name, elements in zip(dimension_names, data.shape):
+                            if name not in handle.dimensions:
+                                handle.createDimension(name, elements if not is_unlimited else None)
+                        var = handle.createVariable(
+                            variable, data.dtype.char(), dimension_names, **kwargs
+                        )
+                    var.set_collective(False)  # not possible with non-parallel netcdf
+                    if is_split:
+                        merged_slices = __merge_slices(var, file_slices, data)
+                        var[merged_slices] = data.larray.cpu()
+                    else:
+                        var[file_slices] = data.larray.cpu()
+            except Exception as e:
+                failed = 1
+                excep = e
+            finally:
+                if data.comm.size > 1:
+                    data.comm.isend(failed, dest=1)
+                    data.comm.recv()
 
-            # ping next rank if it exists
-            if is_split and data.comm.size > 1:
-                data.comm.Isend([None, 0, MPI.INT], dest=1)
-                data.comm.Recv([None, 0, MPI.INT], source=data.comm.size - 1)
-
-        # no MPI, but data is split, we have to serialize the writes
-        elif is_split:
+        # non-root
+        else:
             # wait for the previous rank to finish writing its chunk, then write own part
-            data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
-            with nc.Dataset(path, "r+") as handle:
-                var = handle.variables[variable]
-                var.set_collective(False)  # not possible with non-parallel netcdf
-                merged_slices = __merge_slices(var, file_slices, data)
-                var[merged_slices] = data.larray.cpu()
+            failed = data.comm.recv()
+            try:
+                # no MPI, but data is split, we have to serialize the writes
+                if not failed and is_split:
+                    with nc.Dataset(path, "r+") as handle:
+                        var = handle.variables[variable]
+                        var.set_collective(False)  # not possible with non-parallel netcdf
+                        merged_slices = __merge_slices(var, file_slices, data)
+                        var[merged_slices] = data.larray.cpu()
+            except Exception as e:
+                failed = data.comm.rank + 1
+                excep = e
+            finally:
+                # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
+                next_rank = (data.comm.rank + 1) % data.comm.size
+                data.comm.isend(failed, dest=next_rank)
 
-            # ping the next node in the communicator, wrap around to 0 to complete barrier behavior
-            next_rank = (data.comm.rank + 1) % data.comm.size
-            data.comm.Isend([None, 0, MPI.INT], dest=next_rank)
+        failed = data.comm.allreduce(failed, op=MPI.MAX)
+        if failed - 1 == data.comm.rank:
+            data.comm.bcast(excep, root=failed - 1)
+            raise excep
+        elif failed:
+            excep = data.comm.bcast(excep, root=failed - 1)
+            excep.args = "raised by process rank {}".format(failed - 1), *excep.args
+            raise excep from None  # raise the same error but without traceback
+            # because that is on a different process
 
 
 def load(path, *args, **kwargs):
