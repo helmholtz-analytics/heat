@@ -10,10 +10,10 @@ with open("./heat/core/version.py") as handle:
 
 setup(
     name="heat",
-    packages=find_packages(exclude=("*tests*",)),
+    packages=find_packages(exclude=("*tests*", "*benchmarks*")),
     data_files=["README.md", "LICENSE"],
     version=__version__,
-    description="A framework for high performance data analytics and machine learning.",
+    description="A framework for high-performance data analytics and machine learning.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Helmholtz Association",

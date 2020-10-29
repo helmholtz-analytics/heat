@@ -2,6 +2,8 @@ import numpy as np
 import math
 import torch
 import warnings
+from inspect import stack
+from pathlib import Path
 from typing import List, Union
 
 from . import arithmetics
@@ -80,13 +82,8 @@ class DNDarray:
         self.__halo_next = None
         self.__halo_prev = None
 
-        # handle inconsistencies between torch and heat devices
-        if (
-            isinstance(array, torch.Tensor)
-            and isinstance(device, devices.Device)
-            and array.device.type != device.device_type
-        ):
-            self.__array = self.__array.to(devices.sanitize_device(self.__device).torch_device)
+        # check for inconsistencies between torch and heat devices
+        assert str(array.device) == device.torch_device
 
     @property
     def halo_next(self):
@@ -111,6 +108,58 @@ class DNDarray:
     @property
     def gshape(self):
         return self.__gshape
+
+    @property
+    def larray(self):
+        """
+        Returns
+        -------
+        larray : torch.Tensor
+                the underlying local torch tensor of the DNDarray
+        """
+        return self.__array
+
+    @larray.setter
+    def larray(self, array):
+        """
+        Setter for larray/ the underlying local torch tensor of the DNDarray.
+        Warning: Please use this function with care, as it might corrupt/invalidate the metadata in the
+        DNDarray instance.
+
+        Parameters
+        ----------
+        array : torch.tensor
+            The new underlying local torch tensor of the DNDarray
+        """
+        if not isinstance(array, torch.Tensor):
+            raise TypeError(
+                "Expected larray to be a torch tensor, but was {} instead.".format(type(array))
+            )
+
+        # raise warning if function was called by user/not out of 'heat/core/*'
+        caller = stack()[1]
+        abs_heat_path = Path("heat", "core").resolve()
+        abs_path_caller = Path(caller.filename).resolve()
+
+        if not (abs_heat_path < abs_path_caller):
+            warnings.warn(
+                "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
+                "might corrupt/invalidate the metadata in a DNDarray instance"
+            )
+        self.__array = array
+
+    @property
+    def nbytes(self):
+        """
+        Equivalent to property gnbytes.
+        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
+
+        Returns
+        -------
+        global_number_of_bytes : int
+            number of bytes consumed by the global tensor
+        """
+        return self.__array.element_size() * self.size
 
     @property
     def numdims(self):
@@ -148,6 +197,18 @@ class DNDarray:
         return torch.prod(torch.tensor(self.gshape, device=self.device.torch_device)).item()
 
     @property
+    def gnbytes(self):
+        """
+        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
+
+        Returns
+        -------
+        global_number_of_bytes : int
+            number of bytes consumed by the global tensor
+        """
+        return self.nbytes
+
+    @property
     def gnumel(self):
         """
 
@@ -157,6 +218,18 @@ class DNDarray:
             number of total elements of the tensor
         """
         return self.size
+
+    @property
+    def lnbytes(self):
+        """
+        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
+
+        Returns
+        -------
+        local_number_of_bytes : int
+            number of bytes consumed by the local tensor
+        """
+        return self.__array.element_size() * self.__array.nelement()
 
     @property
     def lnumel(self):
@@ -264,8 +337,8 @@ class DNDarray:
             bytes to step in each dimension when traversing a tensor.
             numpy-like usage: self.strides
         """
-        steps = list(self._DNDarray__array.stride())
-        itemsize = self._DNDarray__array.storage().element_size()
+        steps = list(self.larray.stride())
+        itemsize = self.larray.storage().element_size()
         strides = tuple(step * itemsize for step in steps)
         return strides
 
@@ -312,21 +385,37 @@ class DNDarray:
         halo_size : int
             Size of the halo.
         """
+        if not self.is_balanced():
+            raise RuntimeError(
+                "halo cannot be created for unbalanced tensors, running the .balance_() function is recommended"
+            )
         if not isinstance(halo_size, int):
             raise TypeError(
-                "halo_size needs to be of Python type integer, {} given)".format(type(halo_size))
+                "halo_size needs to be of Python type integer, {} given".format(type(halo_size))
             )
         if halo_size < 0:
             raise ValueError(
-                "halo_size needs to be a positive Python integer, {} given)".format(type(halo_size))
+                "halo_size needs to be a positive Python integer, {} given".format(type(halo_size))
             )
 
         if self.comm.is_distributed() and self.split is not None:
-            min_chunksize = self.shape[self.split] // self.comm.size
-            if halo_size > min_chunksize:
+            # gather lshapes
+            lshape_map = self.create_lshape_map()
+            rank = self.comm.rank
+            size = self.comm.size
+            next_rank = rank + 1
+            prev_rank = rank - 1
+            last_rank = size - 1
+
+            # if local shape is zero and its the last process
+            if self.lshape[self.split] == 0:
+                return  # if process has no data we ignore it
+
+            if halo_size > self.lshape[self.split]:
+                # if on at least one process the halo_size is larger than the local size throw ValueError
                 raise ValueError(
-                    "halo_size {} needs to smaller than chunck-size {} )".format(
-                        halo_size, min_chunksize
+                    "halo_size {} needs to be smaller than chunck-size {} )".format(
+                        halo_size, self.lshape[self.split]
                     )
                 )
 
@@ -338,22 +427,23 @@ class DNDarray:
 
             req_list = list()
 
-            if self.comm.rank != self.comm.size - 1:
-                self.comm.Isend(a_next, self.comm.rank + 1)
+            # only exchange data with next process if it has data
+            if rank != last_rank and (lshape_map[next_rank, self.split] > 0):
+                self.comm.Isend(a_next, next_rank)
                 res_prev = torch.zeros(
                     a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
                 )
-                req_list.append(self.comm.Irecv(res_prev, source=self.comm.rank + 1))
+                req_list.append(self.comm.Irecv(res_prev, source=next_rank))
 
-            if self.comm.rank != 0:
-                self.comm.Isend(a_prev, self.comm.rank - 1)
+            if rank != 0:
+                self.comm.Isend(a_prev, prev_rank)
                 res_next = torch.zeros(
                     a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
                 )
-                req_list.append(self.comm.Irecv(res_next, source=self.comm.rank - 1))
+                req_list.append(self.comm.Irecv(res_next, source=prev_rank))
 
             for req in req_list:
-                req.wait()
+                req.Wait()
 
             self.__halo_next = res_prev
             self.__halo_prev = res_next
@@ -1324,16 +1414,16 @@ class DNDarray:
                     displ[self.comm.rank + 1] if (self.comm.rank + 1) != self.comm.size else k,
                 )
                 if self.split == 0:
-                    self._DNDarray__array[:, indices[0] : indices[1]] = self._DNDarray__array[
+                    self.larray[:, indices[0] : indices[1]] = self.larray[
                         :, indices[0] : indices[1]
                     ].fill_diagonal_(value)
                 elif self.split == 1:
-                    self._DNDarray__array[indices[0] : indices[1], :] = self._DNDarray__array[
+                    self.larray[indices[0] : indices[1], :] = self.larray[
                         indices[0] : indices[1], :
                     ].fill_diagonal_(value)
 
         else:
-            self._DNDarray__array = self._DNDarray__array.fill_diagonal_(value)
+            self.larray = self.larray.fill_diagonal_(value)
 
         return self
 
@@ -1418,10 +1508,10 @@ class DNDarray:
             if key.ndim > 1:
                 for i in range(key.ndim):
                     kgshape[i] = key.gshape[i]
-                    lkey[i] = key._DNDarray__array[..., i]
+                    lkey[i] = key.larray[..., i]
             else:
                 kgshape[0] = key.gshape[0]
-                lkey[0] = key._DNDarray__array
+                lkey[0] = key.larray
             key = tuple(lkey)
         elif not isinstance(key, tuple):
             """ this loop handles all other cases. DNDarrays which make it to here refer to advanced indexing slices,
@@ -1431,7 +1521,7 @@ class DNDarray:
             if isinstance(key, DNDarray):
                 key.balance_()
                 key = manipulations.resplit(key.copy())
-                h[0] = key._DNDarray__array.tolist()
+                h[0] = key.larray.tolist()
             elif isinstance(key, torch.Tensor):
                 h[0] = key.tolist()
             else:
@@ -1451,7 +1541,7 @@ class DNDarray:
             elif isinstance(k, (DNDarray, torch.Tensor)):
                 gout_full[c] = k.shape[0] if not kgshape_flag else kgshape[c]
             if isinstance(k, DNDarray):
-                key[c] = k._DNDarray__array
+                key[c] = k.larray
         if all(g == 1 for g in gout_full):
             gout_full = [1]
         else:
@@ -1492,7 +1582,7 @@ class DNDarray:
             chunk_starts = torch.tensor([0] + chunk_ends.tolist(), device=self.device.torch_device)
             chunk_start = chunk_starts[rank]
             chunk_end = chunk_ends[rank]
-            arr = torch.Tensor()
+            arr = torch.tensor([], device=self.device.torch_device)
             # all keys should be tuples here
             gout = [0] * len(self.gshape)
             # handle the dimensional reduction for integers
@@ -1515,7 +1605,7 @@ class DNDarray:
                 # advanced indexing, elements in the split dimension are adjusted to the local indices
                 lkey = list(key)
                 if isinstance(key[self.split], DNDarray):
-                    lkey[self.split] = key[self.split]._DNDarray__array
+                    lkey[self.split] = key[self.split].larray
                 inds = (
                     torch.tensor(
                         lkey[self.split], dtype=torch.long, device=self.device.torch_device
@@ -2267,7 +2357,7 @@ class DNDarray:
         T1.numpy()
         """
         dist = manipulations.resplit(self, axis=None)
-        return dist._DNDarray__array.cpu().numpy()
+        return dist.larray.cpu().numpy()
 
     def __or__(self, other):
         """
@@ -2775,7 +2865,7 @@ class DNDarray:
             lp_arr = None
             for k in lp_keys:
                 if rcv[k][0] is not None:
-                    rcv[k][0].wait()
+                    rcv[k][0].Wait()
                 if lp_arr is None:
                     lp_arr = rcv[k][1]
                 else:
@@ -3103,7 +3193,7 @@ class DNDarray:
             # this splits the key into torch.Tensors in each dimension for advanced indexing
             lkey = [slice(None, None, None)] * self.ndim
             for i in range(key.ndim):
-                lkey[i] = key._DNDarray__array[..., i]
+                lkey[i] = key.larray[..., i]
             key = tuple(lkey)
         elif not isinstance(key, tuple):
             h = [slice(None, None, None)] * self.ndim

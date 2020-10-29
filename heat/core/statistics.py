@@ -19,7 +19,10 @@ __all__ = [
     "argmax",
     "argmin",
     "average",
+    "bincount",
     "cov",
+    "histc",
+    "histogram",
     "kurtosis",
     "max",
     "maximum",
@@ -100,13 +103,13 @@ def argmax(x, axis=None, out=None, **kwargs):
         raise TypeError("axis must be None or int, but was {}".format(type(axis)))
 
     # perform the global reduction
-    smallest_value = -constants.sanitize_infinity(x._DNDarray__array.dtype)
+    smallest_value = -constants.sanitize_infinity(x.larray.dtype)
     reduced_result = _operations.__reduce_op(
         x, local_argmax, MPI_ARGMAX, axis=axis, out=None, neutral=smallest_value, **kwargs
     )
 
     # correct the tensor
-    reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
+    reduced_result.larray = reduced_result.larray.chunk(2)[-1].type(torch.int64)
     reduced_result._DNDarray__dtype = types.int64
 
     # address lshape/gshape mismatch when axis is 0
@@ -130,8 +133,8 @@ def argmax(x, axis=None, out=None, **kwargs):
                 )
             )
         out._DNDarray__split = reduced_result.split
-        out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
-        out._DNDarray__array = out._DNDarray__array.type(torch.int64)
+        out.larray.storage().copy_(reduced_result.larray.storage())
+        out.larray = out.larray.type(torch.int64)
         out._DNDarray__dtype = types.int64
         return out
 
@@ -205,13 +208,13 @@ def argmin(x, axis=None, out=None, **kwargs):
         raise TypeError("axis must be None or int, but was {}".format(type(axis)))
 
     # perform the global reduction
-    largest_value = constants.sanitize_infinity(x._DNDarray__array.dtype)
+    largest_value = constants.sanitize_infinity(x.larray.dtype)
     reduced_result = _operations.__reduce_op(
         x, local_argmin, MPI_ARGMIN, axis=axis, out=None, neutral=largest_value, **kwargs
     )
 
     # correct the tensor
-    reduced_result._DNDarray__array = reduced_result._DNDarray__array.chunk(2)[-1].type(torch.int64)
+    reduced_result.larray = reduced_result.larray.chunk(2)[-1].type(torch.int64)
     reduced_result._DNDarray__dtype = types.int64
 
     # address lshape/gshape mismatch when axis is 0
@@ -234,8 +237,8 @@ def argmin(x, axis=None, out=None, **kwargs):
                 )
             )
         out._DNDarray__split = reduced_result.split
-        out._DNDarray__array.storage().copy_(reduced_result._DNDarray__array.storage())
-        out._DNDarray__array = out._DNDarray__array.type(torch.int64)
+        out.larray.storage().copy_(reduced_result.larray.storage())
+        out.larray = out.larray.type(torch.int64)
         out._DNDarray__dtype = types.int64
         return out
 
@@ -324,7 +327,7 @@ def average(x, axis=None, weights=None, returned=False):
         result = mean(x, axis)
         num_elements = x.gnumel / result.gnumel
         cumwgt = factories.empty(1, dtype=result.dtype)
-        cumwgt._DNDarray__array = num_elements
+        cumwgt.larray = torch.tensor(num_elements)
     else:
         # Weights sanitation:
         # weights (global) is either same size as x (global), or it is 1D and same size as x along chosen axis
@@ -346,7 +349,7 @@ def average(x, axis=None, weights=None, returned=False):
             wgt = torch.empty(
                 wgt_lshape, dtype=weights.dtype.torch_type(), device=x.device.torch_device
             )
-            wgt[wgt_slice] = weights._DNDarray__array
+            wgt[wgt_slice] = weights.larray
             wgt = factories.array(wgt, is_split=wgt_split)
         else:
             if x.comm.is_distributed():
@@ -356,7 +359,7 @@ def average(x, axis=None, weights=None, returned=False):
                         "weights.split does not match data.split: not implemented yet."
                     )
             wgt = factories.empty_like(weights, device=x.device)
-            wgt._DNDarray__array = weights._DNDarray__array
+            wgt.larray = weights.larray
 
         cumwgt = wgt.sum(axis=axis)
         if logical.any(cumwgt == 0.0):
@@ -366,14 +369,78 @@ def average(x, axis=None, weights=None, returned=False):
 
     if returned:
         if cumwgt.gshape != result.gshape:
-            cumwgt._DNDarray__array = torch.broadcast_tensors(
-                cumwgt._DNDarray__array, result._DNDarray__array
-            )[0]
+            cumwgt.larray = torch.broadcast_tensors(cumwgt.larray, result.larray)[0]
             cumwgt._DNDarray__gshape = result.gshape
             cumwgt._DNDarray__split = result.split
         return (result, cumwgt)
 
     return result
+
+
+def bincount(x, weights=None, minlength: int = 0):
+    """
+    Count number of occurrences of each value in array of non-negative ints.
+
+    The number of bins (size 1) is one larger than the largest value in `x`
+    unless `x` is empty, in which case the result is a tensor of size 0.
+    If `minlength` is specified, the number of bins is at least `minlength` and
+    if `x` is empty, then the result is tensor of size `minlength` filled with zeros.
+    If `n` is the value at position `i`, `out[n] += weights[i]` if weights is specified else `out[n] += 1`.
+
+    Parameters
+    ----------
+    x : DNDarray, 1 dimensional, non-negative ints
+    weights : DNDarray, optional
+        Weight for each value in the input tensor. Array of the same shape as x. Same split as `x`.
+    minlength : int, non-negative, optional
+        Minimum number of bins
+
+    Returns
+    -------
+    out : DNDArray
+        An array of length `max(x) + 1` if input is non-empty, else 0. The array's `split=None`.
+
+    Examples
+    --------
+    >>> ht.bincount(ht.arange(5))
+    DNDarray([1, 1, 1, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.bincount(ht.array([0, 1, 3, 2, 1]), weights=ht.array([0, 0.5, 1, 1.5, 2]))
+    DNDarray([0.0000, 2.5000, 1.5000, 1.0000], dtype=ht.float32, device=cpu:0, split=None)
+
+    Raises
+    ------
+    ValueError
+        If `x` and `weights` don't have the same distribution.
+    """
+    if isinstance(weights, dndarray.DNDarray):
+        if weights.split != x.split:
+            raise ValueError("weights must have the same split value as x")
+        weights = weights.larray
+
+    counts = torch.bincount(x.larray, weights, minlength)
+
+    size = counts.numel()
+    maxlength = x.comm.allreduce(size, op=MPI.MAX)
+
+    # resize tensors
+    if size == 0:
+        dtype = torch.int64
+        if weights is not None:
+            dtype = torch.float64
+        counts = torch.zeros(maxlength, dtype=dtype, device=counts.device)
+    elif size < maxlength:
+        counts = torch.cat(
+            (counts, torch.zeros(maxlength - size, dtype=counts.dtype, device=counts.device))
+        )
+
+    # collect results
+    if x.split == 0:
+        data = torch.empty_like(counts)
+        x.comm.Allreduce(counts, data, op=MPI.SUM)
+    else:
+        data = counts
+
+    return factories.array(data, dtype=types.heat_type_of(data), device=x.device)
 
 
 def cov(m, y=None, rowvar=True, bias=False, ddof=None):
@@ -448,6 +515,112 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     c = linalg.dot(x, x.T)
     c /= norm
     return c
+
+
+def histc(input, bins: int = 100, min: int = 0, max: int = 0, out=None):
+    """
+    Compute the histogram of a DNDarray.
+
+    The elements are sorted into equal width bins between min and max.
+    If min and max are both equal, the minimum and maximum values of the data are used.
+    Elements lower than min and higher than max are ignored.
+
+    Parameters
+    ----------
+    input : DNDarray
+            the input array, must be of float type
+    bins  : int, optional
+            number of histogram bins
+    min   : int, optional
+            lower end of the range (inclusive)
+    max   : int, optional
+            upper end of the range (inclusive)
+    out   : DNDarray, optional
+            the output tensor, same dtype as input
+
+    Returns
+    -------
+    out : DNDarray
+          the histogram of the input array
+
+    Examples
+    --------
+    >>> ht.histc(ht.array([1., 2, 1]), bins=4, min=0, max=3)
+    DNDarray([0., 2., 1., 0.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.histc(ht.arange(10, dtype=ht.float64, split=0), bins=10)
+    DNDarray([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.], dtype=ht.float64, device=cpu:0, split=None)
+    """
+
+    if min == max:
+        min = float(input.min())
+        max = float(input.max())
+
+    hist = torch.histc(
+        input._DNDarray__array,
+        bins,
+        min,
+        max,
+        out=out._DNDarray__array if out is not None and input.split is None else None,
+    )
+
+    if input.split is None:
+        if out is None:
+            out = factories.array(
+                hist, dtype=types.canonical_heat_type(hist.dtype), device=input.device
+            )
+    else:
+        if out is None:
+            out = factories.empty(
+                hist.size(), dtype=types.canonical_heat_type(hist.dtype), device=input.device
+            )
+        input.comm.Allreduce(hist, out, op=MPI.SUM)
+
+    return out
+
+
+def histogram(
+    a, bins: int = 10, range: Tuple[int, int] = (0, 0), normed=None, weights=None, density=None
+):
+    """
+    Compute the histogram of a DNDarray.
+
+    Parameters
+    ----------
+    a       : DNDarray
+              the input array, must be of float type
+    bins    : int, optional
+              number of histogram bins
+    range   : Tuple[int,int], optional
+              lower and upper end of the bins. If not provided, range is simply (a.min(), a.max()).
+    normed  : Not supported
+    weights : Not supported
+    density : Not supported
+
+    Returns
+    -------
+    hist : DNDarray
+           The values of the histogram.
+
+    Notes
+    -----
+    This is a wrapper function of :function:`~heat.core.statistics.histc` for some basic compatibility with the NumPy API.
+
+    See Also
+    --------
+    :function:`~heat.core.statistics.histc`
+    """
+    # TODO: Rewrite to make it a proper implementation of the NumPy function
+
+    if normed is not None:
+        raise NotImplementedError("'normed' is not supported")
+    if weights is not None:
+        raise NotImplementedError("'weights' is not supported")
+    if density is not None:
+        raise NotImplementedError("'density' is not supported")
+    if not isinstance(bins, int):
+        raise NotImplementedError("'bins' only supports integer values")
+
+    return histc(a, bins, range[0], range[1])
 
 
 def kurtosis(x, axis=None, unbiased=True, Fischer=True):
@@ -550,7 +723,7 @@ def max(x, axis=None, out=None, keepdim=None):
             result = result[0]
         return result
 
-    smallest_value = -constants.sanitize_infinity(x._DNDarray__array.dtype)
+    smallest_value = -constants.sanitize_infinity(x.larray.dtype)
     return _operations.__reduce_op(
         x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdim=keepdim
     )
@@ -558,163 +731,58 @@ def max(x, axis=None, out=None, keepdim=None):
 
 def maximum(x1, x2, out=None):
     """
-    Compares two DNDarrays and returns a new DNDarray containing the element-wise maxima.
-    If one of the elements being compared is a NaN, then that element is returned. If both elements are NaNs then the first is returned.
-    The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
+    Compares two `DNDarray`s and returns a new `DNDarray` containing the element-wise maxima.
+    If one of the elements being compared is a NaN, then that element is returned.
+    If distributed, the two DNDarrays must be split along the same axis.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
 
     x1, x2 : DNDarray
-            The arrays containing the elements to be compared. They must have the same shape, or shapes that can be broadcast to a single shape.
+            The arrays containing the elements to be compared. They must have the same shape, or
+            shapes that can be broadcast to a single shape.
             For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
-            If distributed, they must have the same split axis.
 
-    out : DNDarray or None, optional
-        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to,
-        and the same split axis. If not provided or None, a freshly-allocated array is returned.
+    out : Optional[DNDarray]
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        and the inputs' split axis. If not provided or None, a freshly-allocated `DNDarray` is returned.
 
-    Returns:
-    --------
+    Returns
+    -------
 
     maximum: DNDarray
-            Element-wise maximum of the two input tensors.
+            Element-wise maximum of the two input arrays.
 
-    Examples:
-    ---------
+    Examples
+    --------
     >>> import heat as ht
-    >>> import torch
-    >>> torch.manual_seed(1)
-    <torch._C.Generator object at 0x105c50b50>
-
     >>> a = ht.random.randn(3, 4)
     >>> a
     tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [ 3.5870, -1.8313,  1.5987, -1.2770]])
-
     >>> b = ht.random.randn(3, 4)
     >>> b
     tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [-0.6842,  0.4533,  0.2912, -0.8317]])
-
     >>> ht.maximum(a, b)
     tensor([[ 0.8310, -0.2477,  0.4224,  0.2673],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [ 3.5870,  0.4533,  1.5987, -0.8317]])
-
     >>> c = ht.random.randn(1, 4)
     >>> c
     tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
-
     >>> ht.maximum(a, c)
     tensor([[-0.1955,  0.9803,  0.4224,  0.2673],
             [-0.4212,  0.9803, -0.0421, -0.1232],
             [ 3.5870,  0.9803,  1.5987, -0.8206]])
-
-    >>> b.__setitem__((0, 1), ht.nan)
-    >>> b
-    tensor([[ 0.8310,     nan, -0.8029,  0.2366],
-            [ 0.2857,  0.6898, -0.6331,  0.8795],
-            [-0.6842,  0.4533,  0.2912, -0.8317]])
-    >>> ht.maximum(a, b)
-    tensor([[ 0.8310,     nan,  0.4224,  0.2673],
-            [ 0.2857,  0.6898, -0.6331,  0.8795],
-            [ 3.5870,  0.4533,  1.5987, -0.8317]])
-
     >>> d = ht.random.randn(3, 4, 5)
     >>> ht.maximum(a, d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
-    # TODO: move all of this to __binary_op
-    # sanitize input
-    in_x = [x1, x2]
-    splits = []
-    shapes = []
-    comms = []
-    devices = []
-    t_x = []
-    for i, x in enumerate(in_x):
-        if isinstance(x, (int, float)):
-            x = factories.array([x], dtype=types.canonical_heat_type(type(x)), split=None)
-            in_x[i] = x
-        if not isinstance(x, dndarray.DNDarray):
-            raise TypeError("expected two DNDarrays, but array {} was {} ".format(i, type(x)))
-        if x.size == 0:
-            raise ValueError("operation not possible, array {} contains no data".format(i))
-        splits.append(x.split)
-        shapes.append(x.gshape)
-        comms.append(x.comm)
-        devices.append(x.device.device_type)
-        t_x.append(x._DNDarray__array)
 
-    # sanitize devices
-    if devices.count("gpu") == 1:
-        not_on_gpu = abs(devices.index("gpu") - 1)
-        # move to gpu
-        in_x[not_on_gpu] = in_x[not_on_gpu].gpu()
-
-    # sanitize shapes
-    output_gshape = stride_tricks.broadcast_shape(shapes[0], shapes[1])
-
-    # sanitize splits
-    if not splits.count(None) == 2:
-        # DNDarrays must be distributed along same axis
-        if splits.count(None) == 0:
-            if splits.count(splits[0]) == len(splits):
-                split = splits[0]
-                comm = comms[0]
-            else:
-                raise ValueError(
-                    "input DNDarrays must be distributed along the same axis, currently x1.split is {}, x2.split is {}".format(
-                        splits[0], splits[1]
-                    )
-                )
-        elif splits.count(None) == 1:
-            # one DNDarray non-distributed, OK only for split along broadcastable axis
-            split_none = splits.index(None)
-            split_not_none = abs(split_none - 1)
-            if in_x[split_none].size > 1 and shapes[split_none][splits[split_not_none]] != 1:
-                raise ValueError(
-                    "input DNDarrays must be distributed along the same axis, currently x1.split is {}, x2.split is {}".format(
-                        splits[0], splits[1]
-                    )
-                )
-            else:
-                split = splits[split_not_none]
-                comm = comms[split_not_none]
-    else:
-        split = None
-        comm = comms[0]
-
-    # sanitize out
-    if out is not None:
-        if not isinstance(out, dndarray.DNDarray):
-            raise TypeError("expected `out` to be None or a DNDarray, but was {}".format(type(out)))
-        if out.gshape != output_gshape:
-            raise ValueError(
-                "Expecting output buffer of shape {}, got {}".format(output_gshape, out.shape)
-            )
-        if out.split is not split:
-            raise ValueError(
-                "Split axis of output buffer is inconsistent with split semantics (see documentation)."
-            )
-
-    # calculate process-local element-wise minimum
-    t_dtype = torch.promote_types(t_x[0].dtype, t_x[1].dtype)
-    t_result = torch.max(t_x[0].type(t_dtype), t_x[1].type(t_dtype))
-
-    result = factories.array(
-        t_result, dtype=types.canonical_heat_type(t_dtype), is_split=split, comm=comm
-    )
-    if out is not None:
-        out_dtype = out.dtype
-        out._DNDarray__array = result._DNDarray__array
-        out._DNDarray__comm = comm
-        out = out.astype(out_dtype)
-        return out
-    return result
+    return _operations.__binary_op(torch.max, x1, x2, out)
 
 
 def mean(x, axis=None):
@@ -789,7 +857,7 @@ def mean(x, axis=None):
             The calculated means.
         """
         if x.lshape[x.split] != 0:
-            mu = torch.mean(x._DNDarray__array, dim=axis)
+            mu = torch.mean(x.larray, dim=axis)
         else:
             mu = factories.zeros(output_shape_i, device=x.device)
 
@@ -813,11 +881,11 @@ def mean(x, axis=None):
         # full matrix calculation
         if not x.is_distributed():
             # if x is not distributed do a torch.mean on x
-            ret = torch.mean(x._DNDarray__array.float())
+            ret = torch.mean(x.larray.float())
             return factories.array(ret, is_split=None, device=x.device)
         else:
             # if x is distributed and no axis is given: return mean of the whole set
-            mu_in = torch.mean(x._DNDarray__array)
+            mu_in = torch.mean(x.larray)
             if torch.isnan(mu_in):
                 mu_in = 0.0
             n = x.lnumel
@@ -985,7 +1053,7 @@ def min(x, axis=None, out=None, keepdim=None):
             result = result[0]
         return result
 
-    largest_value = constants.sanitize_infinity(x._DNDarray__array.dtype)
+    largest_value = constants.sanitize_infinity(x.larray.dtype)
     return _operations.__reduce_op(
         x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdim=keepdim
     )
@@ -993,164 +1061,58 @@ def min(x, axis=None, out=None, keepdim=None):
 
 def minimum(x1, x2, out=None):
     """
-    Compares two DNDarrays and returns a new DNDarray containing the element-wise minima.
-    If one of the elements being compared is a NaN, then that element is returned. If both elements are NaNs then the first is returned.
-    The latter distinction is important for complex NaNs, which are defined as at least one of the real or imaginary parts being a NaN. The net effect is that NaNs are propagated.
+    Compares two `DNDarray`s and returns a new `DNDarray` containing the element-wise minima.
+    If one of the elements being compared is a NaN, then that element is returned.
+    If distributed, the two DNDarrays must be split along the same axis.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
 
     x1, x2 : DNDarray
-            The arrays containing the elements to be compared. They must have the same shape, or shapes that can be broadcast to a single shape.
+            The arrays containing the elements to be compared. They must have the same shape, or
+            shapes that can be broadcast to a single shape.
             For broadcasting semantics, see: https://pytorch.org/docs/stable/notes/broadcasting.html
-            If distributed, they must have the same split axis.
 
-    out : DNDarray or None, optional
-        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to,
-        and the same split axis. If not provided or None, a freshly-allocated array is returned.
+    out : Optional[DNDarray]
+        A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
+        and the inputs' split axis. If not provided or None, a freshly-allocated `DNDarray` is returned.
 
-
-    Returns:
-    --------
+    Returns
+    -------
 
     minimum: DNDarray
-            Element-wise minimum of the two input tensors.
+            Element-wise minimum of the two input arrays.
 
-    Examples:
-    ---------
+    Examples
+    --------
     >>> import heat as ht
-    >>> import torch
-    >>> torch.manual_seed(1)
-    <torch._C.Generator object at 0x105c50b50>
-
     >>> a = ht.random.randn(3,4)
     >>> a
     tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [ 3.5870, -1.8313,  1.5987, -1.2770]])
-
     >>> b = ht.random.randn(3,4)
     >>> b
     tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
             [ 0.2857,  0.6898, -0.6331,  0.8795],
             [-0.6842,  0.4533,  0.2912, -0.8317]])
-
     >>> ht.minimum(a,b)
     tensor([[-0.1955, -0.9656, -0.8029,  0.2366],
             [-0.4212, -0.5107, -1.5727, -0.1232],
             [-0.6842, -1.8313,  0.2912, -1.2770]])
-
     >>> c = ht.random.randn(1,4)
     >>> c
     tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
-
     >>> ht.minimum(a,c)
     tensor([[-1.6428, -0.9656, -0.0421, -0.8206],
             [-1.6428, -0.5107, -1.5727, -0.8206],
             [-1.6428, -1.8313, -0.0421, -1.2770]])
-
-    >>> b.__setitem__((0,1), ht.nan)
-    >>> b
-    tensor([[ 0.8310,     nan, -0.8029,  0.2366],
-            [ 0.2857,  0.6898, -0.6331,  0.8795],
-            [-0.6842,  0.4533,  0.2912, -0.8317]])
-    >>> ht.minimum(a,b)
-    tensor([[-0.1955,     nan, -0.8029,  0.2366],
-            [-0.4212, -0.5107, -1.5727, -0.1232],
-            [-0.6842, -1.8313,  0.2912, -1.2770]])
-
     >>> d = ht.random.randn(3,4,5)
     >>> ht.minimum(a,d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
-    # TODO: move all of this to __binary_op
-    # sanitize input
-    in_x = [x1, x2]
-    splits = []
-    shapes = []
-    comms = []
-    devices = []
-    t_x = []
-    for i, x in enumerate(in_x):
-        if isinstance(x, (int, float)):
-            x = factories.array([x], dtype=types.canonical_heat_type(type(x)), split=None)
-            in_x[i] = x
-        if not isinstance(x, dndarray.DNDarray):
-            raise TypeError("expected two DNDarrays, but array {} was {} ".format(i, type(x)))
-        if x.size == 0:
-            raise ValueError("operation not possible, array {} contains no data".format(i))
-        splits.append(x.split)
-        shapes.append(x.gshape)
-        comms.append(x.comm)
-        devices.append(x.device.device_type)
-        t_x.append(x._DNDarray__array)
 
-    # sanitize devices
-    if devices.count("gpu") == 1:
-        not_on_gpu = abs(devices.index("gpu") - 1)
-        # move to gpu
-        in_x[not_on_gpu] = in_x[not_on_gpu].gpu()
-
-    # sanitize shapes
-    output_gshape = stride_tricks.broadcast_shape(shapes[0], shapes[1])
-
-    # sanitize splits
-    if not splits.count(None) == 2:
-        # DNDarrays must be distributed along same axis
-        if splits.count(None) == 0:
-            if splits.count(splits[0]) == len(splits):
-                split = splits[0]
-                comm = comms[0]
-            else:
-                raise ValueError(
-                    "input DNDarrays must be distributed along the same axis, currently x1.split is {}, x2.split is {}".format(
-                        splits[0], splits[1]
-                    )
-                )
-        elif splits.count(None) == 1:
-            # one DNDarray non-distributed, OK only for split along broadcastable axis
-            split_none = splits.index(None)
-            split_not_none = abs(split_none - 1)
-            if in_x[split_none].size > 1 and shapes[split_none][splits[split_not_none]] != 1:
-                raise ValueError(
-                    "input DNDarrays must be distributed along the same axis, currently x1.split is {}, x2.split is {}".format(
-                        splits[0], splits[1]
-                    )
-                )
-            else:
-                split = splits[split_not_none]
-                comm = comms[split_not_none]
-    else:
-        split = None
-        comm = comms[0]
-
-    # sanitize out
-    if out is not None:
-        if not isinstance(out, dndarray.DNDarray):
-            raise TypeError("expected `out` to be None or a DNDarray, but was {}".format(type(out)))
-        if out.gshape != output_gshape:
-            raise ValueError(
-                "Expecting output buffer of shape {}, got {}".format(output_gshape, out.shape)
-            )
-        if out.split is not split:
-            raise ValueError(
-                "Split axis of output buffer is inconsistent with split semantics (see documentation)."
-            )
-
-    # calculate process-local element-wise minimum
-    t_dtype = torch.promote_types(t_x[0].dtype, t_x[1].dtype)
-    t_result = torch.min(t_x[0].type(t_dtype), t_x[1].type(t_dtype))
-
-    result = factories.array(
-        t_result, dtype=types.canonical_heat_type(t_dtype), is_split=split, comm=comm
-    )
-    if out is not None:
-        out_dtype = out.dtype
-        out._DNDarray__array = result._DNDarray__array
-        out._DNDarray__comm = comm
-        out = out.astype(out_dtype)
-        return out
-    return result
+    return _operations.__binary_op(torch.min, x1, x2, out)
 
 
 def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None, Fischer=None):
@@ -1175,13 +1137,11 @@ def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None, Fisc
         output_shape = output_shape if output_shape else (1,)
 
         if x.split is None:  # x is *not* distributed -> no need to distributed
-            return factories.array(
-                function(x._DNDarray__array, **kwargs), dtype=x.dtype, device=x.device
-            )
+            return factories.array(function(x.larray, **kwargs), dtype=x.dtype, device=x.device)
         elif axis == x.split:  # x is distributed and axis chosen is == to split
             return elementwise_function(output_shape)
         # singular axis given (axis) not equal to split direction (x.split)
-        lcl = function(x._DNDarray__array, **kwargs)
+        lcl = function(x.larray, **kwargs)
         return factories.array(
             lcl, is_split=x.split if axis > x.split else x.split - 1, dtype=x.dtype, device=x.device
         )
@@ -1208,16 +1168,14 @@ def __moment_w_axis(function, x, axis, elementwise_function, unbiased=None, Fisc
     output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
     # multiple dimensions
     if x.split is None:
-        return factories.array(
-            function(x._DNDarray__array, **kwargs), is_split=x.split, device=x.device
-        )
+        return factories.array(function(x.larray, **kwargs), is_split=x.split, device=x.device)
     if x.split in axis:
         # merge in the direction of the split
         return elementwise_function(output_shape)
     # multiple dimensions which does *not* include the split axis
     # combine along the split axis
     return factories.array(
-        function(x._DNDarray__array, **kwargs),
+        function(x.larray, **kwargs),
         is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
         device=x.device,
     )
@@ -1375,7 +1333,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
 
     gshape = x.gshape
     split = x.split
-    t_x = x._DNDarray__array
+    t_x = x.larray
 
     # sanitize q
     if isinstance(q, list) or isinstance(q, tuple):
@@ -1388,7 +1346,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
         if x.comm.is_distributed() and q.split is not None:
             # q needs to be local
             q.resplit_(axis=None)
-        t_q = q._DNDarray__array
+        t_q = q.larray
         t_perc_dtype = torch.promote_types(t_q.dtype, torch.float32)
     else:
         raise TypeError("DNDarray, list or tuple supported, but q was {}".format(type(q)))
@@ -1476,7 +1434,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
 
     # sort data
     data = manipulations.sort(x, axis=axis)[0].astype(perc_dtype)
-    t_data = data._DNDarray__array
+    t_data = data.larray
 
     if x.comm.is_distributed() and split is not None and axis == split:
         # allocate memory on all ranks
@@ -1506,7 +1464,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
             percentile = factories.empty(
                 output_shape, dtype=perc_dtype, split=join, device=x.device
             )
-            percentile._DNDarray__array = local_percentile(t_data, axis, t_indices)
+            percentile.larray = local_percentile(t_data, axis, t_indices)
             percentile.resplit_(axis=None)
         else:
             # non-distributed case
@@ -1516,7 +1474,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
         percentile = manipulations.squeeze(percentile, axis=0)
 
     if out is not None:
-        out._DNDarray__array = percentile._DNDarray__array
+        out.larray = percentile.larray
         return out
 
     return percentile
@@ -1752,8 +1710,8 @@ def var(x, axis=None, ddof=0, **kwargs):
         """
 
         if x.lshape[x.split] != 0:
-            mu = torch.mean(x._DNDarray__array, dim=axis)
-            var = torch.var(x._DNDarray__array, dim=axis, unbiased=unbiased)
+            mu = torch.mean(x.larray, dim=axis)
+            var = torch.var(x.larray, dim=axis, unbiased=unbiased)
         else:
             mu = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
             var = factories.zeros(output_shape_i, dtype=x.dtype, device=x.device)
@@ -1777,12 +1735,12 @@ def var(x, axis=None, ddof=0, **kwargs):
     # ----------------------------------------------------------------------------------------------
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
-            ret = torch.var(x._DNDarray__array.float(), unbiased=unbiased)
+            ret = torch.var(x.larray.float(), unbiased=unbiased)
             return factories.array(ret)
 
         else:  # case for full matrix calculation (axis is None)
-            mu_in = torch.mean(x._DNDarray__array)
-            var_in = torch.var(x._DNDarray__array, unbiased=unbiased)
+            mu_in = torch.mean(x.larray)
+            var_in = torch.var(x.larray, unbiased=unbiased)
             # Nan is returned when local tensor is empty
             if torch.isnan(var_in):
                 var_in = 0.0
