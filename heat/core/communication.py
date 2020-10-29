@@ -163,7 +163,7 @@ class MPICommunication(Communication):
         # helper that calculates the output shape for a receiving buffer under the assumption all nodes have an equally
         # sized input compared to this node
         output_shape = list(shape)
-        output_shape[axis] = self.size * counts[self.rank]
+        output_shape[axis] = self.size * counts[self.rank].item()
 
         return tuple(counts.tolist()), tuple(displs.tolist()), tuple(output_shape)
 
