@@ -37,7 +37,7 @@ def __counter_sequence(shape, dtype, split, device, comm):
         The data type of the elements to be generated. Needs to be either torch.int32 or torch.int64.
     split : int or None
         The split axis along which the random number tensor is split
-    device : 'str'
+    device : devices.Device
         Specifies the device the tensor shall be allocated on.
     comm: ht.Communication
         Handle to the nodes holding distributed parts or copies of this tensor.
@@ -69,12 +69,12 @@ def __counter_sequence(shape, dtype, split, device, comm):
         c_0 = (__counter & (max_count << 64)) >> 64
         c_1 = __counter & max_count
 
-    total_elements = np.prod(shape)
-    if total_elements > 2 * max_count:
+    total_elements = torch.prod(torch.tensor(shape, device=device.torch_device))
+    if total_elements.item() > 2 * max_count:
         raise ValueError("Shape is to big with {} elements".format(total_elements))
 
     if split is None:
-        values = np.ceil(total_elements / 2)
+        values = torch.ceil(total_elements / 2)
         even_end = total_elements % 2 == 0
         lslice = slice(None) if even_end else slice(None, -1)
         start = c_1
@@ -86,7 +86,7 @@ def __counter_sequence(shape, dtype, split, device, comm):
 
         # Calculate number of local elements per process
         local_elements = [total_elements / shape[split] * counts[i] for i in range(size)]
-        cum_elements = np.cumsum(local_elements)
+        cum_elements = torch.cumsum(torch.tensor(local_elements, device=device.torch_device), dim=0)
 
         # Calculate the correct borders and slices
         even_start = True if rank == 0 else cum_elements[rank - 1] % 2 == 0
@@ -152,12 +152,12 @@ def __counter_sequence(shape, dtype, split, device, comm):
             x_0[-(end - max_count - 1) :] += 1
 
     # Correctly increase the counter variable
-    used_values = int(np.ceil(total_elements / 2))
+    used_values = int(torch.ceil(total_elements / 2))
     # Increase counter but not over 128 bit
     tmp_counter += used_values
     __counter = tmp_counter & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  # 128bit mask
 
-    return x_0, x_1, lshape, lslice
+    return x_0.contiguous(), x_1.contiguous(), lshape, lslice
 
 
 def get_state():
@@ -358,7 +358,15 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
     # generate the random sequence
     if dtype == types.float32:
         x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, device, comm)
+        # first_int_vals = torch.stack([x_0, x_1], dim=1).flatten()[lslice]
+        # print(int_vals)
         x_0, x_1 = __threefry32(x_0, x_1)
+        int_vals = torch.stack([x_0, x_1], dim=1).flatten()[lslice]
+        a = int_vals.numpy()
+        _, counts = np.unique(a, return_counts=True)
+        # Assert that no value appears more than once
+        print(counts)
+        print("h", np.nonzero(counts != 1))
 
         # combine the values into one tensor and convert them to floats
         values = __int32_to_float32(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(

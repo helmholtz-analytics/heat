@@ -141,12 +141,13 @@ class TestRounding(TestCase):
 
     def test_floor(self):
         start, end, step = -5.0, 5.0, 1.4
-        comparison = torch.arange(
-            start, end, step, dtype=torch.float64, device=self.device.torch_device
+        comparison = (
+            torch.arange(start, end, step, dtype=torch.float32, device=self.device.torch_device)
+            + 0.01
         ).floor()
 
         # exponential of float32
-        float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
+        float32_tensor = ht.arange(start, end, step, dtype=ht.float32) + 0.01
         float32_floor = float32_tensor.floor()
         self.assertIsInstance(float32_floor, ht.DNDarray)
         self.assertEqual(float32_floor.dtype, ht.float32)
@@ -154,7 +155,7 @@ class TestRounding(TestCase):
         self.assertTrue((float32_floor.larray == comparison.float()).all())
 
         # exponential of float64
-        float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
+        float64_tensor = ht.arange(start, end, step, dtype=ht.float64) + 0.01
         float64_floor = float64_tensor.floor()
         self.assertIsInstance(float64_floor, ht.DNDarray)
         self.assertEqual(float64_floor.dtype, ht.float64)
