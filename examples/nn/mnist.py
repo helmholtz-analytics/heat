@@ -144,7 +144,7 @@ def main():
     device = torch.device("cuda" if use_cuda else "cpu")
     kwargs = {"batch_size": args.batch_size}
     if use_cuda:
-        kwargs.update({"num_workers": 1, "pin_memory": True, "shuffle": True})
+        kwargs.update({"num_workers": 1, "pin_memory": True})
     transform = ht.utils.vision_transforms.Compose(
         [vision_transforms.ToTensor(), vision_transforms.Normalize((0.1307,), (0.3081,))]
     )
