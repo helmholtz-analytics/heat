@@ -1804,8 +1804,8 @@ class DNDarray:
         balanced = 1 if test_lshape == self.lshape else 0
 
         out = self.comm.allreduce(balanced, MPI.SUM)
-        self.__balanced = True if out == self.comm.size else False
-        return self.balanced
+        balanced = True if out == self.comm.size else False
+        return balanced
 
     def is_distributed(self):
         """
