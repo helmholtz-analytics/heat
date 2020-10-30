@@ -185,6 +185,12 @@ def parse():
     parser.add_argument(
         "-t", "--test", action="store_true", help="Launch test mode with preset arguments"
     )
+    parser.add_argument(
+        "--local-comms",
+        default="nccl",
+        type=str,
+        help="communications backend for local comms (default: nccl), if NCCL isnt there, fallback is MPI",
+    )
     args = parser.parse_args()
     return args
 
@@ -342,8 +348,11 @@ def main():
         device = "cuda:" + str(loc_rank)
         os.environ["MASTER_ADDR"] = "localhost"
         os.environ["MASTER_PORT"] = "29500"
-        os.environ["NCCL_SOCKET_IFNAME"] = "ib"
-        torch.distributed.init_process_group(backend="nccl", rank=loc_rank, world_size=args.gpus)
+        if args.local_comms == "nccl":
+            os.environ["NCCL_SOCKET_IFNAME"] = "ib"
+        torch.distributed.init_process_group(
+            backend=args.local_comms, rank=loc_rank, world_size=args.gpus
+        )
         torch.cuda.set_device(device)
     elif args.gpus == 1:
         args.gpus = torch.cuda.device_count()
