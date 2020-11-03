@@ -4,10 +4,11 @@ import unittest
 
 from . import functional
 
-functional.__getattr__ = functional.func_getattr
+# functional.__getattr__ = functional.func_getattr
 
 if sys.version_info.minor >= 7:
     from .data_parallel import *
+    functional.__getattr__ = functional.func_getattr
 
     def __getattr__(name):
         torch_all = torch.nn.modules.__all__

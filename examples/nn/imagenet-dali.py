@@ -312,7 +312,7 @@ def main():
     args.distributed = True  # TODO: DDDP: if ht.MPI_WORLD.size > 1 else False
     print0("loss_scale = {}".format(args.loss_scale), type(args.loss_scale))
     print0("\nCUDNN VERSION: {}\n".format(torch.backends.cudnn.version()))
-
+    # print("here")
     # if torch.cuda.is_available():
     #     dev_id = ht.MPI_WORLD.rank % torch.cuda.device_count()
     #     # todo: change for DDDP
@@ -394,7 +394,7 @@ def main():
 
     # create DP optimizer and model:
     blocking = False  # choose blocking or non-blocking parameter updates
-    dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
+    dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, blocking)
     skip_batches = args.batch_skip
     local_skip = args.local_batch_skip
     htmodel = ht.nn.DataParallelMultiGPU(
@@ -414,6 +414,7 @@ def main():
 
     # Optionally resume from a checkpoint
     if args.resume:
+        # print(args.resume)
         # Use a local scope to avoid dangling references
         def resume():
             if os.path.isfile(args.resume):
@@ -526,9 +527,10 @@ def main():
         print("\nRESULTS\n")
         print("Epoch\tAvg Batch Time\tTrain Top1\tTrain Top5\tTrain Loss\tVal Top1\tVal Top5")
         for c in range(args.start_epoch, args.epochs):
+            cp = c - args.start_epoch
             print(
-                f"{c}\t{batch_time_avg[c]}\t{train_acc1[c]}\t{train_acc5[c]}\t"
-                f"{avg_loss[c]}\t{val_acc1[c]}\t{val_acc5[c]}"
+                f"{c}\t{batch_time_avg[cp]}\t{train_acc1[cp]}\t{train_acc5[cp]}\t"
+                f"{avg_loss[cp]}\t{val_acc1[cp]}\t{val_acc5[cp]}"
             )
 
 

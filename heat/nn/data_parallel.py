@@ -620,6 +620,8 @@ class DataParallelMultiGPU(tnn.Module):
             self.current_batch += 1
             # if self.comm.rank == 0:
             #     print(batch, "waiting for global sync")
+            if next_batch == self.last_batch:
+                self._start_local_sync()
             return
         elif gmod == batches_to_wait:
             self._global_sync_rcv()
@@ -627,7 +629,7 @@ class DataParallelMultiGPU(tnn.Module):
                 self._stop_local_sync()
             # if self.comm.rank == 0:
             #     print(batch, "rcv global sync")
-        if ls == 1:
+        if ls == 1 and next_batch != self.last_batch:
             # if self.comm.rank == 0:
             #     print(batch, "STARTING LOCAL SYNC")
             self.current_batch += 1
@@ -675,9 +677,9 @@ class DataParallelMultiGPU(tnn.Module):
             if self.comm.rank in current_ranks:
                 if len(self._prev_params) > 1:
                     raise ValueError(
-                        f"length of previos params was greater than 1! {len(self._prev_params)}"
+                        f"length of previous params > 1! {len(self._prev_params)}"
                     )
-                self._prev_params[0][0].wait()
+                self._prev_params[0][0].Wait()
                 prev_params = self._prev_params.pop(0)
                 shapes = prev_params[2]
                 factor = 1.0 / float(len(current_ranks))
@@ -690,6 +692,11 @@ class DataParallelMultiGPU(tnn.Module):
                             * factor
                         )
                 self._prev_params = []
+            else:
+                 if len(self._prev_params) > 1:
+                     raise ValueError(
+                         f"OFF NODES!length of previous params > 1! {len(self._prev_params)}"
+                     )
             self._local_torch_param_update(self._send_mod)
 
             self._send_mod_m1 = None
@@ -785,14 +792,13 @@ class DataParallelMultiGPU(tnn.Module):
         numer = batches_between
         denom = float(len(prev_ranks) + batches_between)
         factor = numer / denom
+        rcv_params = prev_params[1] / denom
         for name, param in self.named_parameters():
             if param.requires_grad:
-                rcv_params = prev_params[1]
                 update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                 # NOTE: update here is the total sum of the params across the processes
-                # print0(torch.mean(update))
                 param *= factor
-                param += update / denom
+                param += update  # / denom
 
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:
