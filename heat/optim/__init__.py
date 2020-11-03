@@ -1,6 +1,4 @@
 from .lr_scheduler import *
-#from .dp_optimizer import *
-#from . import dp_optimizer
 
 import sys
 import torch
@@ -8,6 +6,7 @@ import unittest
 
 
 if sys.version_info.minor >= 7:
+    from .dp_optimizer import *
 
     def __getattr__(name):
         # this will call the Heat optimizers if available,
@@ -26,8 +25,8 @@ if sys.version_info.minor >= 7:
 
 
 else:
-    # from .dp_optimizer import *
     from . import dp_optimizer
+
     class Wrapper(object):
         def __init__(self, wrapped):
             self.wrapped = wrapped

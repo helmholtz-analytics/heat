@@ -128,7 +128,7 @@ def parse():
         default=1,
         type=int,
         metavar="GS",
-        help="number of batches between global parameters are received in the global update",
+        help="number of batches after parameters are sent when global parameters are received for the global update",
     )
     parser.add_argument(
         "--lr",
@@ -342,9 +342,7 @@ def main():
     loc_rank = rank % args.gpus
     args.gpu = loc_rank
     args.local_rank = loc_rank
-    twice_dist = False
     if args.distributed and loc_dist:
-        twice_dist = True
         device = "cuda:" + str(loc_rank)
         os.environ["MASTER_ADDR"] = "localhost"
         os.environ["MASTER_PORT"] = "29500"
@@ -393,21 +391,16 @@ def main():
     )
 
     # create DP optimizer and model:
-    blocking = False  # choose blocking or non-blocking parameter updates
-    dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, blocking)
     skip_batches = args.batch_skip
     local_skip = args.local_batch_skip
-    htmodel = ht.nn.DataParallelMultiGPU(
-        model,
-        ht.MPI_WORLD,
-        dp_optimizer,
-        overlap=True,
-        distributed_twice=twice_dist,
+    dp_optimizer = ht.optim.SkipBatches(
+        local_optimizer=optimizer,
         skip_batches=skip_batches,
         local_skip=local_skip,
         loss_floor=2.0,
         global_skip_delay=args.gs,
     )
+    htmodel = ht.nn.DataParallelMultiGPU(model, ht.MPI_WORLD, dp_optimizer)
 
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda(device)
