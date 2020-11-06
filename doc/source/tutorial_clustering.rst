@@ -13,18 +13,19 @@ Spherical Clouds of Datapoints
 ------------------------------
 For a simple demonstration of the clustering process and the differences between the algorithms, we will create an
 artificial dataset, consisting of two circularly shaped clusters positioned at :math:`(x_1=2, y_1=2)` and :math:`(x_2=-2, y_2=-2)` in 2D space.
-For each cluster we will sample 100 arbitrary points from a circle with radius of :math:`r = 1.0` by drawing random numbers
-for the spherical coordinates :math:`( r\in [0,1], \phi \in [0,2\pi])`, translating these to cartesian coordinates
+For each cluster we will sample 100 arbitrary points from a circle with radius of :math:`R = 1.0` by drawing random numbers
+for the spherical coordinates :math:`( r\in [0,R], \phi \in [0,2\pi])`, translating these to cartesian coordinates
 and shifting them by :math:`+2` for cluster ``c1`` and :math:`-2` for cluster ``c2``. The resulting concatenated dataset ``data`` has shape
 :math:`(200, 2)` and is distributed among the ``p`` processes along axis 0 (sample axis)
 
 .. code:: python
 
     num_ele = 100
+    R = 1.0
 
     # Create default spherical point cloud
     # Sample radius between 0 and 1, and phi between 0 and 2pi
-    r = ht.random.rand(num_ele, split=0) * radius
+    r = ht.random.rand(num_ele, split=0) * R
     phi = ht.random.rand(num_ele, split=0) * 2 * ht.constants.PI
 
     # Transform spherical coordinates to cartesian coordinates
@@ -67,9 +68,9 @@ initial centroids.
     c1.balance_()
     c2.balance_()
 
-    print("Number of points assigned to c1: {} \n
-           Number of points assigned to c2: {} \n
-           Centroids = {}".format(c1.shape[0], c2.shape[0], centroids))
+    print("""Number of points assigned to c1: {}
+    Number of points assigned to c2: {}
+    Centroids = {}""".format(c1.shape[0], c2.shape[0], centroids))
 
 .. code:: output
 
