@@ -147,7 +147,6 @@ class SkipBatches:
         self.start_loss = None
         self.loss_switch_target = None
         self.loss_floor = loss_floor
-        self.loss_floot_p = loss_floor + 0.25
         self.batches_to_wait = global_skip_delay
         self._og_btw = global_skip_delay
         self._inc_ls = False
@@ -209,27 +208,6 @@ class SkipBatches:
                 f"\tLoss floor:, global skips: {self.global_skip}, ls {self.local_skip}"
                 f", btw {self.batches_to_wait}, {avg_loss}"
             )
-
-        means = torch.tensor(self._prev_losses_mean)
-        diff = abs(means[-1] - means[-1 * epochs_to_wait])
-
-        if avg_loss > self.loss_switch_target and diff < 0.1:
-            # tune diff value here
-            # drop gs by factor of 2
-            if self.global_skip > 1:
-                self.global_skip //= 2
-            if self._inc_ls:
-                self.local_skip *= 2
-            # self.local_skip should be 1 at first, then later it will increase
-            # self.batches_to_wait should be 1
-            if self.local_skip > self.global_skip:
-                self.local_skip = self.global_skip
-            if self.batches_to_wait > self.local_skip:
-                self.batches_to_wait = self.local_skip
-            print0(
-                f"\tabv loss target, stable:, gs: {self.global_skip}, ls {self.local_skip}"
-                f", btw {self.batches_to_wait}, {avg_loss}"
-            )
             return
 
         if self.loss_switch_target > avg_loss > self.loss_floor + 0.75:
@@ -251,6 +229,29 @@ class SkipBatches:
                 f"\tbelow loss target:, gs: {self.global_skip}, ls {self.local_skip}"
                 f", btw {self.batches_to_wait}, {avg_loss}"
             )
+            return
+
+        means = torch.tensor(self._prev_losses_mean)
+        diff = abs(means[-1] - means[-1 * epochs_to_wait])
+
+        if diff < 0.1:
+            # tune diff value here
+            # drop gs by factor of 2
+            if self.global_skip > 1:
+                self.global_skip //= 2
+            if self._inc_ls:
+                self.local_skip *= 2
+            # self.local_skip should be 1 at first, then later it will increase
+            # self.batches_to_wait should be 1
+            if self.local_skip > self.global_skip:
+                self.local_skip = self.global_skip
+            if self.batches_to_wait > self.local_skip:
+                self.batches_to_wait = self.local_skip
+            print0(
+                f"\tabv loss target, stable:, gs: {self.global_skip}, ls {self.local_skip}"
+                f", btw {self.batches_to_wait}, {avg_loss}"
+            )
+            return
 
     def epoch_loss_logic(self, loss):
         # this should be called during the epoch
@@ -569,8 +570,8 @@ class SkipBatches:
         numer = batches_between
         denom = float(len(prev_ranks) + batches_between)
         factor = numer / denom
-        rcv_params = prev_params[1] / denom
         prev_params[0].Wait()
+        rcv_params = prev_params[1] / denom
         # todo: jit the parameter setting
         for name, param in self.module.named_parameters():
             if param.requires_grad:

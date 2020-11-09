@@ -397,7 +397,7 @@ def main():
         local_optimizer=optimizer,
         skip_batches=skip_batches,
         local_skip=local_skip,
-        loss_floor=1.75,
+        loss_floor=1.0,
         global_skip_delay=args.gs,
     )
     htmodel = ht.nn.DataParallelMultiGPU(model, ht.MPI_WORLD, dp_optimizer)
