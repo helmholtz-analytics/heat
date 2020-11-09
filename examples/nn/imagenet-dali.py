@@ -397,7 +397,7 @@ def main():
         local_optimizer=optimizer,
         skip_batches=skip_batches,
         local_skip=local_skip,
-        loss_floor=2.0,
+        loss_floor=1.75,
         global_skip_delay=args.gs,
     )
     htmodel = ht.nn.DataParallelMultiGPU(model, ht.MPI_WORLD, dp_optimizer)
@@ -483,7 +483,7 @@ def main():
         [prec1, prec5] = validate(device, val_loader, htmodel, criterion)
 
         # epoch loss logic to adjust learning rate based on loss
-        lr_adjust = htmodel.epoch_loss_logic(ls)
+        lr_adjust = dp_optimizer.epoch_loss_logic(ls)
         adjust_learning_rate(dp_optimizer, epoch, None, None, htmodel, lr_adjust)
 
         # remember best prec@1 and save checkpoint
@@ -538,7 +538,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     end = time.time()
     train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
     # must set last batch for the model to work properly
-    model.last_batch = train_loader_len
+    optimizer.last_batch = train_loader_len
     for i, data in enumerate(train_loader):
         # print(i)
         # tt = time.perf_counter()
@@ -745,7 +745,7 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch, htmodel, lr_adjust=N
     # elif lr_adjust:
     #    args.factor += 1
     if epoch // 30 > 0 and args.factor < epoch // 30:
-        htmodel.reset_skips()
+        optimizer.reset_skips()
         args.factor += 1
     # factor = epoch // 30
 
@@ -759,7 +759,7 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch, htmodel, lr_adjust=N
     if epoch < 5 and step is not None:
         lr = lr * float(1 + step + epoch * len_epoch) / (5.0 * len_epoch)
 
-    for param_group in optimizer.torch_optimizer.param_groups:
+    for param_group in optimizer.lcl_optimizer.param_groups:
         param_group["lr"] = lr
 
 

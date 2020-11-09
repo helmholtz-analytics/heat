@@ -59,7 +59,8 @@ class MPICommunication(Communication):
         torch.int16: MPI.SHORT,
         torch.int32: MPI.INT,
         torch.int64: MPI.LONG,
-        torch.bfloat16: MPI.BYTE.Create_contiguous(2).Commit(),
+        torch.bfloat16: MPI.SHORT, #MPI.BYTE.Create_contiguous(2).Commit(),
+        torch.float16: MPI.SHORT,
         torch.float32: MPI.FLOAT,
         torch.float64: MPI.DOUBLE,
     }

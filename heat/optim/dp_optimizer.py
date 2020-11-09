@@ -16,8 +16,8 @@ def print0(*args, **kwargs):
 
 
 def __sum_f16_cb(buffer_a, buffer_b, _):
-    tens_a = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_a, "native"))
-    tens_b = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_b, "native"))
+    tens_a = torch.HalfTensor().set_(torch.HalfStorage.from_buffer(buffer_a, "native"))
+    tens_b = torch.HalfTensor().set_(torch.HalfStorage.from_buffer(buffer_b, "native"))
     tens_b += tens_a
 
 
@@ -251,7 +251,7 @@ class SkipBatches:
                         self.batches_to_wait - 1,
                         self.loss_floor,
                     )
-                self._prev_losses_mean = self._prev_losses_mean[-2:]
+                self._prev_losses_mean = []  # self._prev_losses_mean[-2:]
                 self.batches_to_wait -= 1
                 self.local_skip *= 2
                 self.loss_floor -= 0.15
@@ -267,6 +267,7 @@ class SkipBatches:
                 self.global_skip //= 2
                 self.local_skip //= 2
                 self.batches_to_wait = 1
+                self._prev_losses_mean = []
             # if 70 <= self.epoch < 80:
             #    print0("\t\t\t override skips!", 16, 16, "batches to wait:", self.batches_to_wait + 1)
             #    self.local_skip = 16
@@ -373,6 +374,7 @@ class SkipBatches:
         # update parameters from the last sending (if there)
         self._update_parameters()  # -> splits off irrelevant ranks
         # needs to happen on all ranks:
+
         self._local_torch_param_update(self._send_mod_m1)
 
         if self.current_batch == self.last_batch or self.global_skip == 1:
@@ -443,12 +445,9 @@ class SkipBatches:
             if param.requires_grad:
                 # flatten and prep the data for sending
                 shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
-                params.append(param.flatten())  # .to(torch.bfloat16).flatten())
+                params.append(param.flatten()) #.to(torch.float16))  # .to(torch.bfloat16).flatten())
                 st += param.numel()
-        # params = torch.cat(params) / (current_comm.size + 1.0)  # .to(torch.bfloat16)
         params = torch.cat(params)
-        # TODO: device the params by the future denominator here?
-        # TODO: bfloat16?
         new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)  # mpi_sum_f16) #
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
         # if self.comm.rank == 0:
@@ -499,6 +498,7 @@ class SkipBatches:
         for name, param in self.module.named_parameters():
             if param.requires_grad:
                 update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
+                #print(update.mean())
                 # NOTE: update here is the total sum of the params across the processes
                 param *= factor
                 param += update  # / denom
