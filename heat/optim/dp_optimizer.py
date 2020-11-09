@@ -205,6 +205,10 @@ class SkipBatches:
                 self.global_skip = 1
             self.local_skip = 1
             self.batches_to_wait = 1
+            print0(
+                f"\tLoss floor:, global skips: {self.global_skip}, ls {self.local_skip}"
+                f", btw {self.batches_to_wait}, {avg_loss}"
+            )
 
         means = torch.tensor(self._prev_losses_mean)
         diff = abs(means[-1] - means[-1 * epochs_to_wait])
@@ -222,6 +226,10 @@ class SkipBatches:
                 self.local_skip = self.global_skip
             if self.batches_to_wait > self.local_skip:
                 self.batches_to_wait = self.local_skip
+            print0(
+                f"\tabv loss target, stable:, gs: {self.global_skip}, ls {self.local_skip}"
+                f", btw {self.batches_to_wait}, {avg_loss}"
+            )
             return
 
         if self.loss_switch_target > avg_loss > self.loss_floor + 0.75:
@@ -239,6 +247,10 @@ class SkipBatches:
 
             self.loss_switch_target /= 2.0
             self._inc_ls = True
+            print0(
+                f"\tbelow loss target:, gs: {self.global_skip}, ls {self.local_skip}"
+                f", btw {self.batches_to_wait}, {avg_loss}"
+            )
 
     def epoch_loss_logic(self, loss):
         # this should be called during the epoch
