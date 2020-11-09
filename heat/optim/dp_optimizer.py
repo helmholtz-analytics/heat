@@ -209,6 +209,11 @@ class SkipBatches:
                 f", btw {self.batches_to_wait}, {avg_loss}"
             )
             return
+        if avg_loss < self.loss_floor + 0.25:
+            self.global_skip = 0
+            self.local_skip = 0
+            self.batches_to_wait = 0
+            return
 
         if self.loss_switch_target > avg_loss > self.loss_floor + 0.75:
             # todo: double global skips v reset global skips
