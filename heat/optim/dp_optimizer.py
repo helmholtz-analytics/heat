@@ -123,8 +123,8 @@ class SkipBatches:
             self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
             self.base_loc_ranks = base_loc_ranks
 
-            device = "cuda:" + str(local_rank)
-            torch.cuda.set_device(device=device)
+            self.device = "cuda:" + str(local_rank)
+            torch.cuda.set_device(device=self.device)
             if skip_batches is None:
                 skip_batches = 8
                 self.local_skip = skip_batches // 2
@@ -488,6 +488,7 @@ class SkipBatches:
             self._send_mod_m1 = self._send_mod
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
 
+    @torch.no_grad()
     def _global_send_update(self, current_comm, batches_to_wait):
         # pack and send the data required for a global synchronization
         if self._param_send_shp is not None:
@@ -509,10 +510,11 @@ class SkipBatches:
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
         return new_wait
 
+    @torch.no_grad()
     def _global_send_update_zeros(self, current_comm, batches_to_wait):
         # pack and send the data required for a global synchronization
         # todo: device??, jit loop?
-        params = torch.zeros(self._param_send_shp)
+        params = torch.zeros(self._param_send_shp, device=self.device)
         shapes = {}
         st = 0
         for name, param in self.module.named_parameters():
@@ -526,6 +528,7 @@ class SkipBatches:
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
         return new_wait
 
+    @torch.no_grad()
     def _local_torch_param_update(self, mod_hold_pr):
         # mod_hold_pr is the process which has the updated gradients to be broadcast to the other local ranks
         # synchronize the local torch parameters
@@ -548,6 +551,7 @@ class SkipBatches:
                     snds[name].wait()
             del snds
 
+    @torch.no_grad()
     def _update_parameters(self):
         # wait for the global sync data and update on the selected rank, requires local torch param update after
         if self._send_mod_m1 is None:
