@@ -7,6 +7,8 @@ from ..core.communication import MPI_WORLD
 
 from typing import Union, List, Tuple
 
+import time
+
 __all__ = ["DataParallelOptimizer", "SkipBatches"]
 
 
@@ -144,9 +146,12 @@ class SkipBatches:
         self._loss_wait = []
         self.start_loss = None
         self.loss_switch_target = None
-        self.loss_floor = loss_floor + 0.5
+        self.loss_floor = loss_floor
+        self.loss_floot_p = loss_floor + 0.25
         self.batches_to_wait = global_skip_delay
         self._og_btw = global_skip_delay
+        self._inc_ls = False
+        self._param_send_shp = None
 
     def set_model(self, model):
         self.module = model
@@ -173,6 +178,67 @@ class SkipBatches:
         self.local_skip = self.og_local_skip
         self._prev_losses_mean = []
         self.batches_to_wait = self._og_btw
+
+    @torch.no_grad()
+    def new_loss_logic(self, loss):
+        loss_send = torch.zeros(self.comm.size)
+        # todo: check that its ``loss.data`` and not something else (why not just loss?)
+        loss_send[self.comm.rank] = loss.data
+        # todo: time this
+        t_ls0 = time.perf_counter()
+        self.comm.Allreduce(MPI.IN_PLACE, loss_send, MPI.SUM)
+        print0(f"Loss allreduce time: {time.perf_counter() - t_ls0}")
+
+        avg_loss = torch.mean(loss_send)
+        self._prev_losses_mean.append(avg_loss)
+
+        if self.loss_switch_target is None:
+            self.loss_switch_target = avg_loss / 2.0
+
+        epochs_to_wait = 4
+        if len(self._prev_losses_mean) < epochs_to_wait:
+            return
+
+        if avg_loss < self.loss_floor + 0.5:
+            self.global_skip //= 2
+            if self.global_skip == 0:
+                self.global_skip = 1
+            self.local_skip = 1
+            self.batches_to_wait = 1
+
+        means = torch.tensor(self._prev_losses_mean)
+        diff = abs(means[-1] - means[-1 * epochs_to_wait])
+
+        if avg_loss > self.loss_switch_target and diff < 0.1:
+            # tune diff value here
+            # drop gs by factor of 2
+            if self.global_skip > 1:
+                self.global_skip //= 2
+            if self._inc_ls:
+                self.local_skip *= 2
+            # self.local_skip should be 1 at first, then later it will increase
+            # self.batches_to_wait should be 1
+            if self.local_skip > self.global_skip:
+                self.local_skip = self.global_skip
+            if self.batches_to_wait > self.local_skip:
+                self.batches_to_wait = self.local_skip
+            return
+
+        if self.loss_switch_target > avg_loss > self.loss_floor + 0.75:
+            # todo: double global skips v reset global skips
+            # self.global_skip = self.og_global_skip // 2
+            self.global_skip *= 2
+
+            self.local_skip *= 2
+            if self.local_skip > self.global_skip:
+                self.local_skip = self.global_skip
+
+            self.batches_to_wait *= 2
+            if self.batches_to_wait > self.local_skip:
+                self.batches_to_wait = self.local_skip
+
+            self.loss_switch_target /= 2.0
+            self._inc_ls = True
 
     def epoch_loss_logic(self, loss):
         # this should be called during the epoch
@@ -297,8 +363,8 @@ class SkipBatches:
         gs = self.global_skip
         ls = self.local_skip
 
-        gmod = batch % gs
-        lmod = batch % ls
+        gmod = batch % gs if gs > 0 else 0
+        lmod = batch % ls if ls > 0 else 0
 
         # todo: make adjustments to logic if ls > gs
 
@@ -330,17 +396,21 @@ class SkipBatches:
                 self._start_local_sync()
             return
         elif gmod == batches_to_wait:
-            self._global_sync_rcv()
+            # local updates should be on before this is called!
+            self._update_parameters()
+            self._local_torch_param_update(self._send_mod_m1)
             if ls > 1:
                 self._stop_local_sync()
             # if self.comm.rank == 0:
             #     print(batch, "rcv global sync")
+
         if ls == 1 and next_batch != self.last_batch:
             # if self.comm.rank == 0:
             #     print(batch, "STARTING LOCAL SYNC")
             self.current_batch += 1
             self._start_local_sync()
             return
+
         if lmod == 0:
             # if self.comm.rank == 0:
             #     print(batch, "STOPPING local sync")
@@ -355,15 +425,6 @@ class SkipBatches:
 
         self.current_batch += 1
 
-    def _batch_skip_adjustments(self):
-        if self.current_batch != 0:
-            return
-
-        if self.global_skip > 0:
-            self.global_skip //= 2
-        if self.local_skip > 0:
-            self.local_skip //= 2
-
     @torch.no_grad()
     def _full_global_sync(self, batches_to_wait):
         current_comm = self.reduced_comms[self._send_mod]
@@ -374,20 +435,19 @@ class SkipBatches:
         # update parameters from the last sending (if there)
         self._update_parameters()  # -> splits off irrelevant ranks
         # needs to happen on all ranks:
-
         self._local_torch_param_update(self._send_mod_m1)
 
-        if self.current_batch == self.last_batch or self.global_skip == 1:
+        if self.current_batch == self.last_batch or self.global_skip == 0:
             # print("last batch")
             # todo: abstract last batch?
             # receive the sent data to sync params across all ranks
             if self.comm.rank in current_ranks:
                 if len(self._prev_params) > 1:
                     raise ValueError(f"length of previous params > 1! {len(self._prev_params)}")
-                self._prev_params[0][0].Wait()
                 prev_params = self._prev_params.pop(0)
                 shapes = prev_params[2]
                 factor = 1.0 / float(len(current_ranks))
+                prev_params[0].Wait()
                 for name, param in self.module.named_parameters():
                     if param.requires_grad:
                         rcv_params = prev_params[1]
@@ -399,9 +459,7 @@ class SkipBatches:
                 self._prev_params = []
             else:
                 if len(self._prev_params) > 1:
-                    raise ValueError(
-                        f"OFF NODES!length of previous params > 1! {len(self._prev_params)}"
-                    )
+                    raise ValueError(f"OFF RANKS!len(prev_params) > 1! {len(self._prev_params)}")
             self._local_torch_param_update(self._send_mod)
 
             self._send_mod_m1 = None
@@ -418,26 +476,11 @@ class SkipBatches:
             self._send_mod_m1 = self._send_mod
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
 
-    # before this function local updates should be on!
-    def _global_sync_rcv(self):
-        # test if the data is there -> if it isn't: return, else: rcv, update, local update, turn off local sync
-        with torch.no_grad():
-            if self._send_mod_m1 is None:
-                return
-            prev_ranks = self.reduced_ranks[self._send_mod_m1]
-            if (
-                self.comm.rank in prev_ranks
-                and len(self._prev_params) > 0
-                and self._prev_params[0][0] is not None
-            ):
-                # receive previous ones
-                self._update_parameters()
-            self._local_torch_param_update(self._send_mod_m1)
-            self.waiting = False
-
     def _global_send_update(self, current_comm, batches_to_wait):
         # pack and send the data required for a global synchronization
-        # t4 = time.perf_counter()
+        if self._param_send_shp is not None:
+            return self._global_send_update_zeros(current_comm, batches_to_wait)
+
         params = []
         shapes = {}
         st = 0
@@ -445,13 +488,30 @@ class SkipBatches:
             if param.requires_grad:
                 # flatten and prep the data for sending
                 shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
-                params.append(param.flatten()) #.to(torch.float16))  # .to(torch.bfloat16).flatten())
+                params.append(param.flatten())  # .to(torch.bfloat16))
                 st += param.numel()
         params = torch.cat(params)
+        self._param_send_shp = params.shape
+
         new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)  # mpi_sum_f16) #
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
-        # if self.comm.rank == 0:
-        #     print('send time', time.perf_counter() - t4)
+        return new_wait
+
+    def _global_send_update_zeros(self, current_comm, batches_to_wait):
+        # pack and send the data required for a global synchronization
+        # todo: device??, jit loop?
+        params = torch.zeros(self._param_send_shp)
+        shapes = {}
+        st = 0
+        for name, param in self.module.named_parameters():
+            if param.requires_grad:
+                # flatten and prep the data for sending
+                shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
+                params[slice(st, st + param.numel())] = param.flatten()
+                st += param.numel()
+
+        new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)  # mpi_sum_f16) #
+        self._prev_params.append([new_wait, params, shapes, batches_to_wait])
         return new_wait
 
     def _local_torch_param_update(self, mod_hold_pr):
@@ -484,21 +544,22 @@ class SkipBatches:
         if self.comm.rank not in prev_ranks:  # or self._prev_params[0][0] is None:
             # receive previous ones
             return
-        if len(self._prev_params) == 0 or self._prev_params[0][0] is None:
+        if len(self._prev_params) == 0:  # or self._prev_params[0][0] is None:
             return
-        batches_between = float(self._prev_params[0][3])
-        self._prev_params[0][0].Wait()
-        # add the weighted average to param
         prev_params = self._prev_params.pop(0)
+        batches_between = float(prev_params[3])
+        # add the weighted average to param
         shapes = prev_params[2]
         numer = batches_between
         denom = float(len(prev_ranks) + batches_between)
         factor = numer / denom
         rcv_params = prev_params[1] / denom
+        prev_params[0].Wait()
+        # todo: jit the parameter setting
         for name, param in self.module.named_parameters():
             if param.requires_grad:
                 update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-                #print(update.mean())
+                # print(update.mean())
                 # NOTE: update here is the total sum of the params across the processes
                 param *= factor
                 param += update  # / denom

@@ -445,7 +445,7 @@ def main():
         training=True,
     )
     pipe.build()
-    # print('end of first pip')
+
     train_loader = DALIClassificationIterator(pipe, reader_name="Reader", fill_last_batch=False)
 
     pipe = HybridPipe(
@@ -483,8 +483,9 @@ def main():
         [prec1, prec5] = validate(device, val_loader, htmodel, criterion)
 
         # epoch loss logic to adjust learning rate based on loss
-        lr_adjust = dp_optimizer.epoch_loss_logic(ls)
-        adjust_learning_rate(dp_optimizer, epoch, None, None, htmodel, lr_adjust)
+        # dp_optimizer.epoch_loss_logic(ls)
+        dp_optimizer.new_loss_logic(ls)
+        adjust_learning_rate(dp_optimizer, epoch, None, None)
 
         # remember best prec@1 and save checkpoint
         if args.rank == 0:
@@ -552,7 +553,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("Body of iteration {}".format(i))
 
-        adjust_learning_rate(optimizer, epoch, i, train_loader_len, model)
+        adjust_learning_rate(optimizer, epoch, i, train_loader_len)
         if args.test:
             if i > 10:
                 break
@@ -737,7 +738,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, epoch, step, len_epoch, htmodel, lr_adjust=None):
+def adjust_learning_rate(optimizer, epoch, step, len_epoch):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
     # if args.factor > 2:
     #    # breaks out of this logic loop
@@ -745,7 +746,7 @@ def adjust_learning_rate(optimizer, epoch, step, len_epoch, htmodel, lr_adjust=N
     # elif lr_adjust:
     #    args.factor += 1
     if epoch // 30 > 0 and args.factor < epoch // 30:
-        optimizer.reset_skips()
+        # optimizer.reset_skips()
         args.factor += 1
     # factor = epoch // 30
 
