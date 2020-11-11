@@ -21,10 +21,23 @@ def __sum_f16_cb(buffer_a, buffer_b, _):
     tens_a = torch.HalfTensor().set_(torch.HalfStorage.from_buffer(buffer_a, "native"))
     tens_b = torch.HalfTensor().set_(torch.HalfStorage.from_buffer(buffer_b, "native"))
     tens_b += tens_a
+    nelem = torch.prod(torch.tensor(tens_b.shape)).item()
+    new_buff = MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=tens_b.element_size() * nelem)
+    buffer_b[:] = new_buff
+
+
+def __sum_bfloat_cb(buffer_a, buffer_b, _):
+    tens_a = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_a, "native"))
+    tens_b = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_b, "native"))
+    tens_b += tens_a
+    nelem = torch.prod(torch.tensor(tens_b.shape)).item()
+    new_buff = MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=tens_b.element_size() * nelem)
+    buffer_b[:] = new_buff
 
 
 # create new OP
 mpi_sum_f16 = MPI.Op.Create(__sum_f16_cb, commute=True)
+mpi_sum_bfloat = MPI.Op.Create(__sum_bfloat_cb, commute=True)
 
 
 def addCounter(counter1, counter2, datatype):
@@ -198,7 +211,10 @@ class SkipBatches:
         if len(self._prev_losses_mean) < epochs_to_wait:
             return
 
-        if avg_loss < self.loss_floor + 0.5:
+        means = torch.tensor(self._prev_losses_mean)
+        diff = abs(means[-1] - means[-1 * epochs_to_wait])
+
+        if avg_loss < self.loss_floor + 1.0:
             self.global_skip //= 2
             if self.global_skip == 0:
                 self.global_skip = 1
@@ -208,14 +224,11 @@ class SkipBatches:
                 f"\tLoss floor:, global skips: {self.global_skip}, ls {self.local_skip}"
                 f", btw {self.batches_to_wait}, {avg_loss}"
             )
-            return
-        if avg_loss < self.loss_floor + 0.25:
+        elif avg_loss < self.loss_floor + 0.5:
             self.global_skip = 0
             self.local_skip = 0
             self.batches_to_wait = 0
-            return
-
-        if self.loss_switch_target > avg_loss > self.loss_floor + 0.75:
+        elif self.loss_switch_target > avg_loss > self.loss_floor + 1.0:
             # todo: double global skips v reset global skips
             # self.global_skip = self.og_global_skip // 2
             self.global_skip *= 2
@@ -234,12 +247,7 @@ class SkipBatches:
                 f"\tbelow loss target:, gs: {self.global_skip}, ls {self.local_skip}"
                 f", btw {self.batches_to_wait}, {avg_loss}"
             )
-            return
-
-        means = torch.tensor(self._prev_losses_mean)
-        diff = abs(means[-1] - means[-1 * epochs_to_wait])
-
-        if diff < 0.1:
+        elif diff < 0.1:
             # tune diff value here
             # drop gs by factor of 2
             if self.global_skip > 1:
@@ -256,7 +264,6 @@ class SkipBatches:
                 f"\tabv loss target, stable:, gs: {self.global_skip}, ls {self.local_skip}"
                 f", btw {self.batches_to_wait}, {avg_loss}"
             )
-            return
 
     def epoch_loss_logic(self, loss):
         # this should be called during the epoch
@@ -497,8 +504,13 @@ class SkipBatches:
     @torch.no_grad()
     def _global_send_update(self, current_comm, batches_to_wait):
         # pack and send the data required for a global synchronization
+        op = MPI.SUM
+        cast = False
+        if self.global_skip == 0:
+            op = mpi_sum_bfloat
+            cast = True
         if self._param_send_shp is not None:
-            return self._global_send_update_zeros(current_comm, batches_to_wait)
+            return self._global_send_update_zeros(current_comm, batches_to_wait, op=op, cast=cast)
 
         params = []
         shapes = {}
@@ -507,30 +519,38 @@ class SkipBatches:
             if param.requires_grad:
                 # flatten and prep the data for sending
                 shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
-                params.append(param.flatten())  # .to(torch.bfloat16))
+                p = param.flatten()
+                if cast:
+                    p = p.to(torch.bfloat16)
+                params.append(p)  # .to(torch.bfloat16))
                 st += param.numel()
         params = torch.cat(params)
         self._param_send_shp = params.shape
 
-        new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)  # mpi_sum_f16) #
+        new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
         return new_wait
 
     @torch.no_grad()
-    def _global_send_update_zeros(self, current_comm, batches_to_wait):
+    def _global_send_update_zeros(self, current_comm, batches_to_wait, op, cast):
         # pack and send the data required for a global synchronization
         # todo: device??, jit loop?
-        params = torch.zeros(self._param_send_shp, device=self.device)
+        params = torch.zeros(
+            self._param_send_shp, device=self.device, dtype=torch.bfloat16 if cast else None
+        )
         shapes = {}
         st = 0
         for name, param in self.module.named_parameters():
             if param.requires_grad:
                 # flatten and prep the data for sending
                 shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
-                params[slice(st, st + param.numel())] = param.flatten()
+                p = param.flatten()
+                if cast:
+                    p = p.to(torch.bfloat16)
+                params[slice(st, st + param.numel())] = p
                 st += param.numel()
 
-        new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, MPI.SUM)  # mpi_sum_f16) #
+        new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
         return new_wait
 
