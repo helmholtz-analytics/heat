@@ -4,12 +4,16 @@
 - [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
 - [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
 ### Manipulations
+- [#690](https://github.com/helmholtz-analytics/heat/pull/690) New feature: `ravel()`
 ### Statistical Functions
 - [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``
 ### Linear Algebra
 ### ...
 
 ## Bug fixes
+### Manipulations
+- [#690](https://github.com/helmholtz-analytics/heat/pull/690) Enhancement: reshape accepts shape arguments with one unknown dimension.
+
 # v0.5.1
 
 - [#678](https://github.com/helmholtz-analytics/heat/pull/678) Bugfix: Internal functions now use explicit device parameters for DNDarray and torch.Tensor initializations.
