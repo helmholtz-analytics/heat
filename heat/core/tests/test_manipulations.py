@@ -841,31 +841,43 @@ class TestManipulations(TestCase):
             ht.empty((3, 4, 5)).expand_dims(-5)
 
     def test_flatten(self):
-        a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
-        res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=a.dtype)
-        flat = ht.flatten(a)
-        self.assertTrue(ht.equal(flat, res))
-        self.assertEqual(flat.dtype, res.dtype)
-        self.assertEqual(flat.device, res.device)
-
-        a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], split=0, dtype=ht.int8)
-        res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], split=0, dtype=ht.int8)
-        flat = ht.flatten(a)
-        self.assertTrue(ht.equal(flat, res))
-        self.assertEqual(flat.dtype, res.dtype)
-        self.assertEqual(flat.device, res.device)
-
-        a = ht.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1)
-        res = ht.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], split=0)
+        a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], device=self.device)
+        res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=a.dtype, device=self.device)
         flat = ht.flatten(a)
         self.assertTrue(ht.equal(flat, res))
         self.assertEqual(flat.dtype, res.dtype)
         self.assertEqual(flat.device, res.device)
 
         a = ht.array(
-            [[[False, False], [False, True]], [[True, False], [True, True]]], split=2, dtype=ht.bool
+            [[[1, 2], [3, 4]], [[5, 6], [7, 8]]], split=0, dtype=ht.int8, device=self.device
         )
-        res = ht.array([False, False, False, True, True, False, True, True], split=0, dtype=a.dtype)
+        res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], split=0, dtype=ht.int8, device=self.device)
+        flat = ht.flatten(a)
+        self.assertTrue(ht.equal(flat, res))
+        self.assertEqual(flat.dtype, res.dtype)
+        self.assertEqual(flat.device, res.device)
+
+        a = ht.array(
+            [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1, device=self.device
+        )
+        res = ht.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], split=0, device=self.device)
+        flat = ht.flatten(a)
+        self.assertTrue(ht.equal(flat, res))
+        self.assertEqual(flat.dtype, res.dtype)
+        self.assertEqual(flat.device, res.device)
+
+        a = ht.array(
+            [[[False, False], [False, True]], [[True, False], [True, True]]],
+            split=2,
+            dtype=ht.bool,
+            device=self.device,
+        )
+        res = ht.array(
+            [False, False, False, True, True, False, True, True],
+            split=0,
+            dtype=a.dtype,
+            device=self.device,
+        )
         flat = ht.flatten(a)
         self.assertTrue(ht.equal(flat, res))
         self.assertEqual(flat.dtype, res.dtype)
@@ -1331,8 +1343,8 @@ class TestManipulations(TestCase):
         self.assert_array_equal(pad_ht_split, pad_np_split)
 
     def test_ravel(self):
-        a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
-        res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=a.dtype)
+        a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], device=self.device)
+        res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], dtype=a.dtype, device=self.device)
         ravel = a.ravel()
         self.assertTrue(ht.equal(ravel, res))
         self.assertEqual(ravel.dtype, res.dtype)
@@ -1340,7 +1352,9 @@ class TestManipulations(TestCase):
         a[0, 0, 0] = 9
         self.assertEqual(ravel[0], 9)
 
-        a = ht.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], split=0, dtype=ht.int8)
+        a = ht.array(
+            [[[1, 2], [3, 4]], [[5, 6], [7, 8]]], split=0, dtype=ht.int8, device=self.device
+        )
         res = ht.flatten(a)
         ravel = ht.ravel(a)
         self.assertTrue(ht.equal(ravel, res))
@@ -1354,7 +1368,9 @@ class TestManipulations(TestCase):
         else:
             self.assertEqual(ravel[0], 1)
 
-        a = ht.array([[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1)
+        a = ht.array(
+            [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1, device=self.device
+        )
         res = ht.flatten(a)
         ravel = ht.ravel(a)
         self.assertTrue(ht.equal(ravel, res))
@@ -1365,7 +1381,10 @@ class TestManipulations(TestCase):
         self.assertEqual(ravel[0], 1)
 
         a = ht.array(
-            [[[False, False], [False, True]], [[True, False], [True, True]]], split=2, dtype=ht.bool
+            [[[False, False], [False, True]], [[True, False], [True, True]]],
+            split=2,
+            dtype=ht.bool,
+            device=self.device,
         )
         res = ht.flatten(a)
         ravel = ht.ravel(a)
@@ -1873,96 +1892,168 @@ class TestManipulations(TestCase):
 
     def test_reshape(self):
         # split = None
-        a = ht.zeros((3, 4))
-        result = ht.zeros((2, 6))
+        a = ht.zeros((3, 4), device=self.device)
+        result = ht.zeros((2, 6), device=self.device)
         reshaped = ht.reshape(a, (2, 6))
 
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
+
+        # shape = -1
+        result = ht.zeros(12, device=self.device)
+        reshaped = ht.reshape(a, -1)
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
 
         # 1-dim distributed vector
-        a = ht.arange(8, dtype=ht.float64, split=0)
+        a = ht.arange(8, dtype=ht.float64, split=0, device=self.device)
         result = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]], dtype=ht.float64, split=0)
         reshaped = ht.reshape(a, (2, 2, 2))
 
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
 
-        a = ht.linspace(0, 14, 8, split=0)
-        result = ht.array([[0, 2, 4, 6], [8, 10, 12, 14]], dtype=ht.float32, split=0)
+        a = ht.linspace(0, 14, 8, split=0, device=self.device)
+        result = ht.array(
+            [[0, 2, 4, 6], [8, 10, 12, 14]], dtype=ht.float32, split=0, device=self.device
+        )
         reshaped = ht.reshape(a, (2, 4))
 
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
 
-        a = ht.zeros((4, 3), dtype=ht.int32, split=0)
-        result = ht.zeros((3, 4), dtype=ht.int32, split=0)
+        # Matrix
+        a = ht.zeros((4, 3), dtype=ht.int32, split=0, device=self.device)
+        result = ht.zeros((3, 4), dtype=ht.int32, split=0, device=self.device)
         reshaped = ht.reshape(a, (3, 4))
 
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
 
-        a = ht.arange(16, split=0)
-        result = ht.array([[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]])
+        a = ht.arange(16, split=0, device=self.device)
+        result = ht.array(
+            [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]], device=self.device
+        )
         reshaped = a.reshape((4, 4))
 
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
 
         a = reshaped
-        result = ht.array([[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]], split=0)
+        result = ht.array(
+            [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]], split=0, device=self.device
+        )
         reshaped = a.reshape((2, 8))
 
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
 
-        a = ht.array(torch.arange(3 * 4 * 5).reshape((3, 4, 5)), split=1)
-        result = ht.array(torch.arange(4 * 5 * 3).reshape((4, 5, 3)), split=1)
+        a = ht.array(
+            torch.arange(3 * 4 * 5, device=self.device.torch_device).reshape((3, 4, 5)), split=1
+        )
+        result = ht.array(
+            torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape((4, 5, 3)), split=1
+        )
         reshaped = a.reshape((4, 5, 3))
 
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
 
-        a = ht.array(torch.arange(6 * 4 * 8).reshape([6, 4, 8]), split=2)
-        result = ht.array(torch.arange(4 * 12 * 4).reshape([4, 12, 4]), split=2)
+        a = ht.array(
+            torch.arange(6 * 4 * 8, device=self.device.torch_device).reshape([6, 4, 8]), split=2
+        )
+        result = ht.array(
+            torch.arange(4 * 12 * 4, device=self.device.torch_device).reshape([4, 12, 4]), split=2
+        )
         reshaped = ht.reshape(a, [4, 12, 4])
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
 
-        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=2)
-        result = ht.array(torch.arange(4 * 5 * 3).reshape([4, 5, 3]), split=1)
+        a = ht.array(
+            torch.arange(3 * 4 * 5, device=self.device.torch_device).reshape([3, 4, 5]), split=2
+        )
+        result = ht.array(
+            torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape([4, 5, 3]), split=1
+        )
         reshaped = ht.reshape(a, [4, 5, 3], new_split=1)
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertEqual(reshaped.split, 1)
         self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
 
-        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=1)
-        result = ht.array(torch.arange(4 * 5 * 3).reshape([4 * 5, 3]), split=0)
+        a = ht.array(
+            torch.arange(3 * 4 * 5, device=self.device.torch_device).reshape([3, 4, 5]), split=1
+        )
+        result = ht.array(
+            torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape([4 * 5, 3]), split=0
+        )
         reshaped = ht.reshape(a, [4 * 5, 3], new_split=0)
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertEqual(reshaped.split, 0)
         self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
 
-        a = ht.array(torch.arange(3 * 4 * 5).reshape([3, 4, 5]), split=0)
-        result = ht.array(torch.arange(4 * 5 * 3).reshape([4, 5 * 3]), split=1)
+        a = ht.array(
+            torch.arange(3 * 4 * 5, device=self.device.torch_device).reshape([3, 4, 5]), split=0
+        )
+        result = ht.array(
+            torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape([4, 5 * 3]), split=1
+        )
         reshaped = ht.reshape(a, [4, 5 * 3], new_split=1)
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertEqual(reshaped.split, 1)
         self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
 
-        a = ht.arange(4, split=0, dtype=ht.bool)
-        result = ht.array([[False, True], [True, True]], split=0, dtype=ht.bool)
+        # unknown dimension
+        a = ht.ones((4, 4, 4), split=0, device=self.device)
+        result = ht.ones((4, 16), split=0, device=self.device)
+
+        reshaped = ht.reshape(a, (4, -1))
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
+
+        result = ht.ones((2, 4, 8), split=0, device=self.device)
+        reshaped = ht.reshape(a, (2, -1, 8))
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
+
+        result = ht.ones((4, 2, 4, 2), split=0, device=self.device)
+        reshaped = ht.reshape(a, (-1, 2, 4, 2))
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
+
+        # booleans
+        a = ht.arange(4, split=0, dtype=ht.bool, device=self.device)
+        result = ht.array([[False, True], [True, True]], split=0, dtype=ht.bool, device=self.device)
         reshaped = a.reshape((2, 2))
 
         self.assertEqual(reshaped.size, result.size)

@@ -1286,6 +1286,9 @@ def ravel(a):
     # Redistribution necessary
     # Arrays are not perfectly distributed. Array are copied between processes.
     if a.split != 0 or a.shape[0] % a.comm.size != 0:
+        warnings.warn(
+            "Data needs to be copied between processes. Fall back to flatten()", UserWarning
+        )
         return flatten(a)
 
     a = factories.array(
@@ -1575,6 +1578,10 @@ def reshape(a, shape, new_split=None):
     reshaped : ht.DNDarray
         The DNDarray with the specified shape
 
+    See Also
+    --------
+    :function:`~heat.core.manipulations.ravel`
+
     Raises
     ------
     ValueError
@@ -1596,17 +1603,8 @@ def reshape(a, shape, new_split=None):
     """
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
-    if not isinstance(shape, (list, tuple)):
-        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
-        # check new_split parameter
-    if new_split is None:
-        new_split = a.split
-    stride_tricks.sanitize_axis(shape, new_split)
+
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
-    # Check the type of shape and number elements
-    shape = stride_tricks.sanitize_shape(shape)
-    if torch.prod(torch.tensor(shape, device=tdevice)) != a.size:
-        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
     def reshape_argsort_counts_displs(
         shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
@@ -1642,6 +1640,45 @@ def reshape(a, shape, new_split=None):
             plz += counts[i]
         displs[1:] = torch.cumsum(counts[:-1], dim=0)
         return argsort, counts, displs
+
+    # Special case, equivalent to ravel
+    if shape == -1:
+        return ravel(a)
+
+    if not isinstance(shape, (list, tuple)):
+        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
+
+    # check new_split parameter
+    if new_split is None:
+        new_split = a.split
+    stride_tricks.sanitize_axis(shape, new_split)
+
+    # Check the type of shape and number elements
+    shape = list(shape)
+    for dim in shape:
+        if issubclass(type(dim), np.integer):
+            dim = int(dim)
+        if not isinstance(dim, int):
+            raise TypeError(
+                "argument 'shape' contains an element of type {}, only ints are allowed".format(
+                    type(dim)
+                )
+            )
+        if dim < -1:
+            raise ValueError("negative dimensions are not allowed")
+
+    # infer unknown dimension
+    if shape.count(-1) > 1:
+        raise ValueError("too many unknown dimensions")
+    elif shape.count(-1) == 1:
+        pos = shape.index(-1)
+        shape[pos] = -(
+            a.size / torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
+        ).item()
+
+    shape = stride_tricks.sanitize_shape(shape)
+    if torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice)) != a.size:
+        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
     # Forward to Pytorch directly
     if a.split is None:
