@@ -485,7 +485,7 @@ def main():
         # epoch loss logic to adjust learning rate based on loss
         # dp_optimizer.epoch_loss_logic(ls)
         dp_optimizer.new_loss_logic(ls)
-        adjust_learning_rate(dp_optimizer, epoch, None, None)
+        adjust_learning_rate(dp_optimizer, ls)
 
         # remember best prec@1 and save checkpoint
         if args.rank == 0:
@@ -553,7 +553,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("Body of iteration {}".format(i))
 
-        adjust_learning_rate(optimizer, epoch, i, train_loader_len)
+        lr_warmup(optimizer, epoch, i, train_loader_len)
         if args.test:
             if i > 10:
                 break
@@ -738,27 +738,28 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, epoch, step, len_epoch):
+def adjust_learning_rate(optimizer, loss):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
-    # if args.factor > 2:
-    #    # breaks out of this logic loop
-    #    args.factor += 0
-    # elif lr_adjust:
-    #    args.factor += 1
-    if epoch // 30 > 0 and args.factor < epoch // 30:
-        # optimizer.reset_skips()
-        args.factor += 1
-    # factor = epoch // 30
+    if loss <= 1.25:
+        factor = 3
+    elif loss <= 1.75:
+        factor = 2
+    elif loss <= 2.75:
+        factor = 1
+    else:
+        factor = 0
+    lr = args.lr * (0.1 ** factor)
 
-    if epoch >= 80:
-        # todo: fix this to run when the loss is super low
-        args.factor += 1
+    for param_group in optimizer.lcl_optimizer.param_groups:
+        param_group["lr"] = lr
 
-    lr = args.lr * (0.1 ** args.factor)
+    for param_group in optimizer.lcl_optimizer.param_groups:
+        param_group["lr"] = lr
 
-    """Warmup"""
+
+def lr_warmup(optimizer, epoch, step, len_epoch):
     if epoch < 5 and step is not None:
-        lr = lr * float(1 + step + epoch * len_epoch) / (5.0 * len_epoch)
+        lr = args.lr * float(1 + step + epoch * len_epoch) / (5.0 * len_epoch)
 
     for param_group in optimizer.lcl_optimizer.param_groups:
         param_group["lr"] = lr

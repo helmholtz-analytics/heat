@@ -214,26 +214,26 @@ class SkipBatches:
         means = torch.tensor(self._prev_losses_mean)
         diff = abs(means[-1] - means[-1 * epochs_to_wait])
 
-        if avg_loss < self.loss_floor + 0.5:
+        if avg_loss < self.loss_floor + 0.4:
             self.global_skip = 0
             self.local_skip = 0
             self.batches_to_wait = 0
             print0("all 0s", avg_loss)
-            if len(self._prev_losses_mean) == 4:
+            if len(self._prev_losses_mean) == 3:
                 self._prev_losses_mean = []
                 self.global_skip = 4
                 self.local_skip = 1
                 self.batches_to_wait = 1
             return
-        elif avg_loss < self.loss_floor + 1.0:
+        elif avg_loss < self.loss_floor + 0.75:
             # todo: set the global skips to half? or just to 4?
             self.global_skip //= 2
-            if self.global_skip > 4:
+            if self.global_skip < 4:
                 self.global_skip = 4
             self.local_skip = 1
             self.batches_to_wait = 1
             print0(
-                f"\tLoss floor:, global skips: {self.global_skip}, ls {self.local_skip}"
+                f"\tLoss floor: gs: {self.global_skip}, ls {self.local_skip}"
                 f", btw {self.batches_to_wait}, {avg_loss}"
             )
             self._prev_losses_mean = []
@@ -250,7 +250,7 @@ class SkipBatches:
             self.loss_switch_target /= 2.0
             self._inc_ls = True
             print0(
-                f"\tbelow loss target:, gs: {self.global_skip}, ls {self.local_skip}"
+                f"\tbelow loss target: gs: {self.global_skip}, ls {self.local_skip}"
                 f", btw {self.batches_to_wait}, {avg_loss}"
             )
             self._prev_losses_mean = []
