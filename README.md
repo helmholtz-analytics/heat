@@ -16,14 +16,6 @@ Project Status
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
 [![Mattermost Chat](https://img.shields.io/badge/chat-on%20mattermost-blue.svg)](https://mattermost-haf.fz-juelich.de/signup_user_complete/?id=iqrr6pmxb38fzqffa51qqhcu8w)
 
-Update 11/2020
---------------
-[HeAT paper](https://arxiv.org/abs/2007.13552) accepted at [IEEE BigData 2020](https://bigdataieee.org/BigData2020/index.html).
-
-If you find HeAT helpful for your research, pleace mention it in your academic publications. You can cite:
-
-- Götz, M., Debus, C., Coquelin, D., et al., "HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics." 2020 IEEE International Conference on Big Data (Big Data). IEEE, 2020 (accepted).
-
 Goals
 -----
 
@@ -97,6 +89,13 @@ License
 
 HeAT is distributed under the MIT license, see our
 [LICENSE](LICENSE) file.
+
+Citing HeAT
+-----------
+
+If you find HeAT helpful for your research, please mention it in your academic publications. You can cite:
+
+- Götz, M., Debus, C., Coquelin, D., et al., "HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics." 2020 IEEE International Conference on Big Data (Big Data). IEEE, 2020 (accepted). [[Download](https://arxiv.org/abs/2007.13552)]
 
 Acknowledgements
 ----------------
