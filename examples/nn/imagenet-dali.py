@@ -758,6 +758,8 @@ def adjust_learning_rate(optimizer, loss):
 def lr_warmup(optimizer, epoch, step, len_epoch):
     if epoch < 5 and step is not None:
         lr = args.lr * float(1 + step + epoch * len_epoch) / (5.0 * len_epoch)
+    else:
+        return
 
     for param_group in optimizer.lcl_optimizer.param_groups:
         param_group["lr"] = lr
