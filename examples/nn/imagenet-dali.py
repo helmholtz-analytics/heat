@@ -740,18 +740,16 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, loss):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
-    if loss <= 1.25:
+    if loss <= 1.05:
         factor = 3
-    elif loss <= 1.75:
+    elif loss <= 1.45:
         factor = 2
-    elif loss <= 2.75:
+    elif loss <= 2.25:
         factor = 1
     else:
         factor = 0
     lr = args.lr * (0.1 ** factor)
-
-    for param_group in optimizer.lcl_optimizer.param_groups:
-        param_group["lr"] = lr
+    print0(f"LR: {lr}, Factor: {factor}")
 
     for param_group in optimizer.lcl_optimizer.param_groups:
         param_group["lr"] = lr

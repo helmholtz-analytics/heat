@@ -222,8 +222,8 @@ class SkipBatches:
             if len(self._prev_losses_mean) == 3:
                 self._prev_losses_mean = []
                 self.global_skip = 4
-                self.local_skip = 1
-                self.batches_to_wait = 1
+                # self.local_skip = 1
+                # self.batches_to_wait = 1
             return
         elif avg_loss < self.loss_floor + 0.75:
             # todo: set the global skips to half? or just to 4?
@@ -232,10 +232,7 @@ class SkipBatches:
                 self.global_skip = 4
             self.local_skip = 1
             self.batches_to_wait = 1
-            print0(
-                f"\tLoss floor: gs: {self.global_skip}, ls {self.local_skip}"
-                f", btw {self.batches_to_wait}, {avg_loss}"
-            )
+            print0("\t below Loss floor + 0.75")
             self._prev_losses_mean = []
             # if diff < 0.1:
             #     # if the loss is stable and in this range, do what???
@@ -243,33 +240,32 @@ class SkipBatches:
         elif avg_loss < self.loss_switch_target:
             # todo: double global skips v reset global skips
             # self.global_skip = self.og_global_skip // 2
-            self.global_skip *= 2
+            self.global_skip *= 4
             self.local_skip *= 2
             self.batches_to_wait *= 2
 
-            self.loss_switch_target /= 2.0
+            self.loss_switch_target /= 1.5
             self._inc_ls = True
-            print0(
-                f"\tbelow loss target: gs: {self.global_skip}, ls {self.local_skip}"
-                f", btw {self.batches_to_wait}, {avg_loss}"
-            )
+            print0("\tbelow loss target")
             self._prev_losses_mean = []
         elif diff < 0.1:
             # drop gs by factor of 2
             self.global_skip //= 2
             if self._inc_ls:
                 self.local_skip *= 2
-            print0(
-                f"\tabv loss target, stable:, gs: {self.global_skip}, ls {self.local_skip}"
-                f", btw {self.batches_to_wait}, {avg_loss}"
-            )
             self._prev_losses_mean = []
+            print0("dropping skips, loss stable")
         if self.global_skip == 0:
             self.global_skip = 1
         if self.local_skip > self.global_skip:
             self.local_skip = self.global_skip
         if self.batches_to_wait > self.local_skip:
             self.batches_to_wait = self.local_skip
+
+        print0(
+            f"\tgs: {self.global_skip}, ls {self.local_skip}, "
+            f"btw {self.batches_to_wait}, {avg_loss}"
+        )
 
     def epoch_loss_logic(self, loss):
         # this should be called during the epoch
@@ -512,7 +508,7 @@ class SkipBatches:
         # pack and send the data required for a global synchronization
         op = MPI.SUM
         cast = False
-        if self.global_skip == 0:
+        if self.global_skip < 2:
             op = mpi_sum_bfloat
             cast = True
         if self._param_send_shp is not None:
@@ -540,7 +536,7 @@ class SkipBatches:
     @torch.no_grad()
     def _global_send_update_zeros(self, current_comm, batches_to_wait, op, cast):
         # pack and send the data required for a global synchronization
-        # todo: device??, jit loop?
+        # todo: jit loop?
         params = torch.zeros(
             self._param_send_shp, device=self.device, dtype=torch.bfloat16 if cast else None
         )
