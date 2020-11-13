@@ -133,7 +133,7 @@ def parse():
     parser.add_argument(
         "--lr",
         "--learning-rate",
-        default=0.1,
+        default=0.0125,
         type=float,
         metavar="LR",
         help="Initial learning rate.  Will be scaled by <global batch size>/256: args.lr = args.lr*float(args.batch_size*args.world_size)/256.  A warmup schedule will also be applied over the first 5 epochs.",
@@ -385,7 +385,7 @@ def main():
         model = model.to(device)
     # model = tDDP(model) -> done in the ht model initialization
     # Scale learning rate based on global batch size
-    args.lr = args.lr * float(args.batch_size * ht.MPI_WORLD.size) / 256.0
+    # args.lr = args.lr * float(args.batch_size * ht.MPI_WORLD.size) / 256.0
     optimizer = torch.optim.SGD(
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
@@ -748,7 +748,8 @@ def adjust_learning_rate(optimizer, loss):
         factor = 1
     else:
         factor = 0
-    lr = args.lr * (0.1 ** factor)
+
+    lr = args.lr * ht.MPI_WORLD.size * (0.1 ** factor)
     print0(f"LR: {lr}, Factor: {factor}")
 
     for param_group in optimizer.lcl_optimizer.param_groups:
@@ -757,12 +758,14 @@ def adjust_learning_rate(optimizer, loss):
 
 def lr_warmup(optimizer, epoch, step, len_epoch):
     if epoch < 5 and step is not None:
-        lr = args.lr * float(1 + step + epoch * len_epoch) / (5.0 * len_epoch)
+        sz = ht.MPI_WORLD.size
+        epoch += float(step + 1) / len_epoch
+        lr_adj = 1.0 / sz * (epoch * (sz - 1) / 6.0)
     else:
         return
 
     for param_group in optimizer.lcl_optimizer.param_groups:
-        param_group["lr"] = lr
+        param_group["lr"] = args.lr * ht.MPI_WORLD.size * lr_adj
 
 
 def accuracy(output, target, topk=(1,)):

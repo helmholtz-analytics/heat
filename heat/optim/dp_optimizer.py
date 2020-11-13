@@ -205,7 +205,7 @@ class SkipBatches:
         self._prev_losses_mean.append(avg_loss)
 
         if self.loss_switch_target is None:
-            self.loss_switch_target = avg_loss / 3.0
+            self.loss_switch_target = avg_loss / 2.5
 
         epochs_to_wait = 4
         if len(self._prev_losses_mean) < epochs_to_wait:
