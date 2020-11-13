@@ -25,6 +25,7 @@ after_success:
 before_deploy:
 - sudo chown -R $USER:$USER *
 deploy:
+  install: pip install keyring==21.4.0
   provider: pypi
   user: bhagemeier
   password:
