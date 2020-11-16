@@ -10,10 +10,10 @@ with open("./heat/core/version.py") as handle:
 
 setup(
     name="heat",
-    packages=find_packages(exclude=("*tests*",)),
+    packages=find_packages(exclude=("*tests*", "*benchmarks*")),
     data_files=["README.md", "LICENSE"],
     version=__version__,
-    description="A framework for high performance data analytics and machine learning.",
+    description="A framework for high-performance data analytics and machine learning.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Helmholtz Association",
@@ -30,7 +30,7 @@ setup(
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering",
     ],
-    install_requires=["mpi4py>=3.0.0", "numpy>=1.13.0", "torch>=1.6.0", "scipy>=0.14.0"],
+    install_requires=["mpi4py>=3.0.0", "numpy>=1.13.0", "torch==1.6.0", "scipy>=0.14.0"],
     extras_require={
         "hdf5": ["h5py>=2.8.0"],
         "netcdf": ["netCDF4>=1.4.0,<=1.5.2"],
