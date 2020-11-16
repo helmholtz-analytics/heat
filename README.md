@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="doc/images/logo.png">
+  <img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/logo.png">
 </div>
 
 ---
@@ -90,6 +90,13 @@ License
 HeAT is distributed under the MIT license, see our
 [LICENSE](LICENSE) file.
 
+Citing HeAT
+-----------
+
+If you find HeAT helpful for your research, please mention it in your academic publications. You can cite:
+
+- Götz, M., Debus, C., Coquelin, D., et al., "HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics." 2020 IEEE International Conference on Big Data (Big Data). IEEE, 2020 (accepted). [[Download](https://arxiv.org/abs/2007.13552)]
+
 Acknowledgements
 ----------------
 
@@ -104,5 +111,5 @@ under the Helmholtz AI platform grant.*
 ---
 
 <div align="center">
-  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="doc/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="doc/images/kit_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.helmholtz.de/en/"><img src="doc/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
+  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/kit_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.helmholtz.de/en/"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
 </div>
