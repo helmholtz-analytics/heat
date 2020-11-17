@@ -8,7 +8,8 @@ from . import types
 
 __all__ = ["angle", "conj", "conjugate", "imag", "real"]
 
-def angle(z, deg: bool=False, out=None):
+
+def angle(z, deg: bool = False, out=None):
     """
     Calculate the element-wise angle of the complex argument.
 
@@ -30,16 +31,16 @@ def angle(z, deg: bool=False, out=None):
     DNDarray([  0.,  90.,  45., 135., -45.], dtype=ht.float32, device=cpu:0, split=None)
     """
     a = _operations.__local_op(torch.angle, z, out)
-    
+
     if deg:
-        a *= 180/constants.pi
-    
+        a *= 180 / constants.pi
+
     return a
 
 
 def conjugate(x, out=None):
     """
-    Compute the complex conjugate, element-wise. 
+    Compute the complex conjugate, element-wise.
 
     Parameters
     ----------
@@ -56,6 +57,7 @@ def conjugate(x, out=None):
     DNDarray([ (1-0j),     -1j,  (1-1j), (-2-2j),  (3+3j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.conj, x, out)
+
 
 # alias
 conj = conjugate
@@ -92,7 +94,7 @@ def real(val):
     ----------
     val : DNDarray
         input
-    
+
     Returns
     ------
     DNDarray
