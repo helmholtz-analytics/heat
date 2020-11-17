@@ -57,6 +57,7 @@ class TestManipulations(TestCase):
         x = ht.zeros((16, 15), split=None)
         y = ht.ones((16, 15), split=None)
         res = ht.concatenate((x, y), axis=0)
+
         self.assertEqual(res.gshape, (32, 15))
         self.assertEqual(res.dtype, ht.float)
         _, _, chk = res.comm.chunk((32, 15), res.split)
@@ -74,7 +75,6 @@ class TestManipulations(TestCase):
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
         self.assertEqual(res.lshape, tuple(lshape))
-
         # =============================================
         # None 0 0
         x = ht.zeros((16, 15), split=None)
@@ -381,6 +381,7 @@ class TestManipulations(TestCase):
 
         a = ht.array(data, split=0)
         res = ht.diag(a)
+
         self.assertEqual(res.split, a.split)
         self.assertEqual(res.shape, (size * 2, size * 2))
         self.assertEqual(res.lshape[res.split], 2)
@@ -389,6 +390,7 @@ class TestManipulations(TestCase):
             self.assertTrue(torch.equal(res[i, i].larray, exp[i, i]))
 
         res = ht.diag(a, offset=size)
+
         self.assertEqual(res.split, a.split)
         self.assertEqual(res.shape, (size * 3, size * 3))
         self.assertEqual(res.lshape[res.split], 3)
@@ -411,7 +413,7 @@ class TestManipulations(TestCase):
         res_2 = ht.diagonal(a)
         self.assertTrue(ht.equal(res_1, res_2))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             ht.diag(data)
 
         with self.assertRaises(ValueError):
@@ -2444,27 +2446,12 @@ class TestManipulations(TestCase):
         out_wrong_type = torch.empty((3, 5, 4), dtype=torch.float32)
         with self.assertRaises(TypeError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_type)
-        out_wrong_dtype = ht.empty((3, 5, 4), dtype=ht.float64, split=1)
-        with self.assertRaises(TypeError):
-            ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_dtype)
         out_wrong_shape = ht.empty((2, 5, 4), dtype=ht.float32, split=1)
         with self.assertRaises(ValueError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_shape)
         out_wrong_split = ht.empty((3, 5, 4), dtype=ht.float32, split=0)
         with self.assertRaises(ValueError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_split)
-        if ht_a_split.comm.is_distributed():
-            rank = ht_a_split.comm.rank
-            if rank == 0:
-                t_a = torch.randn(4, 4, dtype=torch.float32)
-            elif rank == 1:
-                t_a = torch.randn(1, 4, dtype=torch.float32)
-            else:
-                t_a = torch.randn(0, 4, dtype=torch.float32)
-            ht_a_unbalanced = ht.array(t_a, is_split=0)
-            with self.assertRaises(RuntimeError):
-                ht.stack((ht_a_unbalanced, ht_b_split, ht_c_split))
-        # TODO test with DNDarrays on different devices
 
     def test_topk(self):
         size = ht.MPI_WORLD.size
