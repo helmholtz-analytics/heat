@@ -3,8 +3,10 @@
 ## New features
 - [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
 - [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
-- [#559](https://github.com/helmholtz-analytics/heat/pull/559) Enhancement: `save_netcdf` allows naming dimensions, creating unlimited dimensions, using existing dimensions and variables, slicing
+- [#687](https://github.com/helmholtz-analytics/heat/pull/687) New DNDarray property: balanced
 
+### I/O
+- [#559](https://github.com/helmholtz-analytics/heat/pull/559) Enhancement: `save_netcdf` allows naming dimensions, creating unlimited dimensions, using existing dimensions and variables, slicing
 ### Manipulations
 ### Statistical Functions
 - [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``
