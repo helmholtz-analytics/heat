@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Union
 
 from . import arithmetics
+from . import complex_math
 from . import devices
 from . import exponential
 from . import factories
@@ -220,6 +221,13 @@ class DNDarray:
         return self.size
 
     @property
+    def imag(self):
+        """
+        Return the imaginary part of the DNDarray.
+        """
+        return complex_math.imag(self)
+
+    @property
     def lnbytes(self):
         """
         Note: Does not include memory consumed by non-element attributes of the DNDarray object.
@@ -292,6 +300,13 @@ class DNDarray:
             the shape of the data on each node
         """
         return tuple(self.__array.shape)
+
+    @property
+    def real(self):
+        """
+        Return the real part of the DNDarray.
+        """
+        return complex_math.real(self)
 
     @property
     def shape(self):

@@ -2,6 +2,7 @@ from .arithmetics import *
 from .base import *
 from .communication import *
 from .constants import *
+from .complex_math import *
 from .devices import *
 from .exponential import *
 from .factories import *

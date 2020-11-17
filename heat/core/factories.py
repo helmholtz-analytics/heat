@@ -690,6 +690,10 @@ def full(shape, fill_value, dtype=types.float32, split=None, device=None, comm=N
     def local_factory(*args, **kwargs):
         return torch.full(*args, fill_value=fill_value, **kwargs)
 
+    # Will be redundant with PyTorch 1.7
+    if isinstance(fill_value, complex):
+        dtype = types.complex64
+
     return __factory(shape, dtype, split, local_factory, device, comm, order=order)
 
 

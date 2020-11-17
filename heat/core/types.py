@@ -56,6 +56,10 @@ __all__ = [
     "flexible",
     "can_cast",
     "promote_types",
+    "complex64",
+    "csingle",
+    "complex128",
+    "cdouble",
 ]
 
 
@@ -211,6 +215,30 @@ class flexible(generic):
     pass
 
 
+class complex(number):
+    pass
+
+
+class complex64(complex):
+    @classmethod
+    def torch_type(cls):
+        return torch.complex64
+
+    @classmethod
+    def char(cls):
+        return "c8"
+
+
+class complex128(complex):
+    @classmethod
+    def torch_type(cls):
+        return torch.complex128
+
+    @classmethod
+    def char(cls):
+        return "c16"
+
+
 # definition of aliases
 bool_ = bool
 ubyte = uint8
@@ -222,11 +250,17 @@ long = int64
 float = float32
 float_ = float32
 double = float64
+cfloat = complex64
+csingle = complex64
+cdouble = complex128
+
+_complexfloating = (complex64, complex128)
 
 _inexact = (
     # float16,
     float32,
     float64,
+    *_complexfloating,
 )
 
 _exact = (uint8, int8, int16, int32, int64)
@@ -247,6 +281,8 @@ __type_mappings = {
     "f": float32,
     "f4": float32,
     "f8": float64,
+    "c8": complex64,
+    "c16": complex128,
     # numpy types
     np.bool: bool,
     np.uint8: uint8,
@@ -256,6 +292,8 @@ __type_mappings = {
     np.int64: int64,
     np.float32: float32,
     np.float64: float64,
+    np.complex64: complex64,
+    np.complex128: complex128,
     # torch types
     torch.bool: bool,
     torch.uint8: uint8,
@@ -265,10 +303,13 @@ __type_mappings = {
     torch.int64: int64,
     torch.float32: float32,
     torch.float64: float64,
+    torch.complex64: complex64,
+    torch.complex128: complex128,
     # builtins
     builtins.bool: bool,
     builtins.int: int32,
     builtins.float: float32,
+    builtins.complex: complex128,
 }
 
 
@@ -340,6 +381,23 @@ def heat_type_is_inexact(ht_dtype):
     return ht_dtype in _inexact
 
 
+def heat_type_is_complexfloating(ht_dtype):
+    """
+    Check if HeAT type is an inexact type, i.e floating point type
+
+    Parameters
+    ----------
+    ht_dtype: ht.dtype
+        HeAT type to check
+
+    Returns
+    -------
+    out: bool
+        True if ht_dtype is a float, False otherwise
+    """
+    return ht_dtype in _complexfloating
+
+
 def heat_type_of(obj):
     """
     Returns the corresponding HeAT data type of given object, i.e. scalar, array or iterable. Attempts to determine the
@@ -393,47 +451,55 @@ __type_codes = collections.OrderedDict(
         (int64, 5),
         (float32, 6),
         (float64, 7),
+        (complex64, 8),
+        (complex128, 9),
     ]
 )
 
 # safe cast table
 __safe_cast = [
-    # bool  uint8  int8   int16  int32  int64  float32 float64
-    [True, True, True, True, True, True, True, True],  # bool
-    [False, True, False, True, True, True, True, True],  # uint8
-    [False, False, True, True, True, True, True, True],  # int8
-    [False, False, False, True, True, True, True, True],  # int16
-    [False, False, False, False, True, True, False, True],  # int32
-    [False, False, False, False, False, True, False, True],  # int64
-    [False, False, False, False, False, False, True, True],  # float32
-    [False, False, False, False, False, False, False, True],  # float64
+    # bool  uint8  int8   int16  int32  int64  float32 float64 complex64 complex128
+    [True, True, True, True, True, True, True, True, True, True],  # bool
+    [False, True, False, True, True, True, True, True, True, True],  # uint8
+    [False, False, True, True, True, True, True, True, True, True],  # int8
+    [False, False, False, True, True, True, True, True, True, True],  # int16
+    [False, False, False, False, True, True, False, True, False, True],  # int32
+    [False, False, False, False, False, True, False, True, False, True],  # int64
+    [False, False, False, False, False, False, True, True, True, True],  # float32
+    [False, False, False, False, False, False, False, True, False, True],  # float64
+    [False, False, False, False, False, False, False, False, True, True],  # complex64
+    [False, False, False, False, False, False, False, False, False, True],  # complex128
 ]
 
 # intuitive cast table
 __intuitive_cast = [
-    # bool  uint8  int8   int16  int32  int64  float32 float64
-    [True, True, True, True, True, True, True, True],  # bool
-    [False, True, False, True, True, True, True, True],  # uint8
-    [False, False, True, True, True, True, True, True],  # int8
-    [False, False, False, True, True, True, True, True],  # int16
-    [False, False, False, False, True, True, True, True],  # int32
-    [False, False, False, False, False, True, False, True],  # int64
-    [False, False, False, False, False, False, True, True],  # float32
-    [False, False, False, False, False, False, False, True],  # float64
+    # bool  uint8  int8   int16  int32  int64  float32 float64 complex64 complex128
+    [True, True, True, True, True, True, True, True, True, True],  # bool
+    [False, True, False, True, True, True, True, True, True, True],  # uint8
+    [False, False, True, True, True, True, True, True, True, True],  # int8
+    [False, False, False, True, True, True, True, True, True, True],  # int16
+    [False, False, False, False, True, True, True, True, True, True],  # int32
+    [False, False, False, False, False, True, False, True, False, True],  # int64
+    [False, False, False, False, False, False, True, True, True, True],  # float32
+    [False, False, False, False, False, False, False, True, False, True],  # float64
+    [False, False, False, False, False, False, False, False, True, True],  # complex64
+    [False, False, False, False, False, False, False, False, False, True],  # complex128
 ]
 
 
 # same kind table
 __same_kind = [
-    # bool  uint8  int8   int16  int32  int64  float32 float64
-    [True, False, False, False, False, False, False, False],  # bool
-    [False, True, True, True, True, True, False, False],  # uint8
-    [False, True, True, True, True, True, False, False],  # int8
-    [False, True, True, True, True, True, False, False],  # int16
-    [False, True, True, True, True, True, False, False],  # int32
-    [False, True, True, True, True, True, False, False],  # int64
-    [False, False, False, False, False, False, True, True],  # float32
-    [False, False, False, False, False, False, True, True],  # float64
+    # bool  uint8  int8   int16  int32  int64  float32 float64 complex64 complex128
+    [True, False, False, False, False, False, False, False, False, False],  # bool
+    [False, True, True, True, True, True, False, False, False, False],  # uint8
+    [False, True, True, True, True, True, False, False, False, False],  # int8
+    [False, True, True, True, True, True, False, False, False, False],  # int16
+    [False, True, True, True, True, True, False, False, False, False],  # int32
+    [False, True, True, True, True, True, False, False, False, False],  # int64
+    [False, False, False, False, False, False, True, True, False, False],  # float32
+    [False, False, False, False, False, False, True, True, False, False],  # float64
+    [False, False, False, False, False, False, False, False, True, True],  # complex64
+    [False, False, False, False, False, False, False, False, True, True],  # complex128
 ]
 
 
@@ -670,7 +736,7 @@ class iinfo:
             pass
 
         if dtype not in _exact:
-            raise TypeError("Data type {} not inexact, not supported".format(dtype))
+            raise TypeError("Data type {} not exact, not supported".format(dtype))
 
         return super(iinfo, cls).__new__(cls)._init(dtype)
 
