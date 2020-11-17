@@ -95,7 +95,7 @@ class generic:
             raise ValueError(str(exception))
 
         return dndarray.DNDarray(
-            array, tuple(array.shape), cls, split=None, device=device, comm=comm
+            array, tuple(array.shape), cls, split=None, device=device, comm=comm, balanced=True
         )
 
     @classmethod

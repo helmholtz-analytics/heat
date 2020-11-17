@@ -213,8 +213,10 @@ def concatenate(arrays, axis=0):
     [1/1]         [1., 1.],
     [1/1]         [1., 1.]])
     """
-    if not isinstance(arrays, (tuple, list)):
-        raise TypeError("arrays must be a list or a tuple")
+    # input sanitation
+    arrays = sanitation.sanitize_sequence(arrays)
+    for arr in arrays:
+        sanitation.sanitize_in(arr)
 
     # a single array cannot be concatenated
     if len(arrays) < 2:
@@ -227,11 +229,8 @@ def concatenate(arrays, axis=0):
         return res
 
     # unpack the arrays
-    arr0, arr1 = arrays[0], arrays[1]
+    arr0, arr1 = arrays
 
-    # input sanitation
-    if not isinstance(arr0, dndarray.DNDarray) or not isinstance(arr1, dndarray.DNDarray):
-        raise TypeError("Both arrays must be DNDarrays")
     if not isinstance(axis, int):
         raise TypeError("axis must be an integer, currently: {}".format(type(axis)))
     axis = stride_tricks.sanitize_axis(arr0.gshape, axis)
@@ -271,18 +270,15 @@ def concatenate(arrays, axis=0):
 
     # unsplit and split array
     elif (s0 is None and s1 != axis) or (s1 is None and s0 != axis):
-        out_shape = tuple(
-            arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
-            for x in range(len(arr1.gshape))
-        )
-        out = factories.empty(
-            out_shape, split=s1 if s1 is not None else s0, device=arr1.device, comm=arr0.comm
-        )
-
         _, _, arr0_slice = arr1.comm.chunk(arr0.shape, arr1.split)
         _, _, arr1_slice = arr0.comm.chunk(arr1.shape, arr0.split)
-        out.larray = torch.cat((arr0.larray[arr0_slice], arr1.larray[arr1_slice]), dim=axis)
-        out._DNDarray__comm = arr0.comm
+        out = factories.array(
+            torch.cat((arr0.larray[arr0_slice], arr1.larray[arr1_slice]), dim=axis),
+            dtype=out_dtype,
+            is_split=s1 if s1 is not None else s0,
+            device=arr1.device,
+            comm=arr0.comm,
+        )
 
         return out
 
@@ -290,18 +286,19 @@ def concatenate(arrays, axis=0):
         if s0 != axis and all([s is not None for s in [s0, s1]]):
             # the axis is different than the split axis, this case can be easily implemented
             # torch cat arrays together and return a new array that is_split
-            out_shape = tuple(
-                arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
-                for x in range(len(arr1.gshape))
+
+            out = factories.array(
+                torch.cat((arr0.larray, arr1.larray), dim=axis),
+                dtype=out_dtype,
+                is_split=s0,
+                device=arr0.device,
+                comm=arr0.comm,
             )
-            out = factories.empty(out_shape, split=s0, dtype=out_dtype, device=arr0.device)
-            out.larray = torch.cat((arr0.larray, arr1.larray), dim=axis)
-            out._DNDarray__comm = arr0.comm
             return out
 
         else:
-            arr0 = arr0.copy()
-            arr1 = arr1.copy()
+            t_arr0 = arr0.larray
+            t_arr1 = arr1.larray
             # maps are created for where the data is and the output shape is calculated
             lshape_map = torch.zeros((2, arr0.comm.size, len(arr0.gshape)), dtype=torch.int)
             lshape_map[0, arr0.comm.rank, :] = torch.Tensor(arr0.lshape)
@@ -312,7 +309,7 @@ def concatenate(arrays, axis=0):
             arr0_shape[axis] += arr1_shape[axis]
             out_shape = tuple(arr0_shape)
 
-            # the chunk map is used for determine how much data should be on each process
+            # the chunk map is used to determine how much data should be on each process
             chunk_map = torch.zeros((arr0.comm.size, len(arr0.gshape)), dtype=torch.int)
             _, _, chk = arr0.comm.chunk(out_shape, s0 if s0 is not None else s1)
             for i in range(len(out_shape)):
@@ -331,18 +328,17 @@ def concatenate(arrays, axis=0):
                         for pr in range(spr):
                             send_amt = abs((chunk_map[pr, axis] - lshape_map[0, pr, axis]).item())
                             send_amt = (
-                                send_amt if send_amt < arr0.lshape[axis] else arr0.lshape[axis]
+                                send_amt if send_amt < t_arr0.shape[axis] else t_arr0.shape[axis]
                             )
                             if send_amt:
                                 send_slice[arr0.split] = slice(0, send_amt)
-                                keep_slice[arr0.split] = slice(send_amt, arr0.lshape[axis])
-
+                                keep_slice[arr0.split] = slice(send_amt, t_arr0.shape[axis])
                                 send = arr0.comm.Isend(
-                                    arr0.lloc[send_slice].clone(),
+                                    t_arr0[send_slice].clone(),
                                     dest=pr,
                                     tag=pr + arr0.comm.size + spr,
                                 )
-                                arr0.larray = arr0.lloc[keep_slice].clone()
+                                t_arr0 = t_arr0[keep_slice].clone()
                                 send.Wait()
                     for pr in range(spr):
                         snt = abs((chunk_map[pr, s0] - lshape_map[0, pr, s0]).item())
@@ -359,13 +355,14 @@ def concatenate(arrays, axis=0):
                             )
 
                             arr0.comm.Recv(data, source=spr, tag=pr + arr0.comm.size + spr)
-                            arr0.larray = torch.cat((arr0.larray, data), dim=arr0.split)
+                            t_arr0 = torch.cat((t_arr0, data), dim=arr0.split)
                         lshape_map[0, pr, arr0.split] += snt
                         lshape_map[0, spr, arr0.split] -= snt
 
             if s1 is not None:
                 send_slice = [slice(None)] * arr0.ndim
                 keep_slice = [slice(None)] * arr0.ndim
+
                 # push the data backwards (arr1), making the data the proper size for arr1 on the last nodes
                 # the data is "compressed" on np/2 processes. data is sent from
                 for spr in range(arr0.comm.size - 1, -1, -1):
@@ -374,20 +371,19 @@ def concatenate(arrays, axis=0):
                             # calculate the amount of data to send from the chunk map
                             send_amt = abs((chunk_map[pr, axis] - lshape_map[1, pr, axis]).item())
                             send_amt = (
-                                send_amt if send_amt < arr1.lshape[axis] else arr1.lshape[axis]
+                                send_amt if send_amt < t_arr1.shape[axis] else t_arr1.shape[axis]
                             )
                             if send_amt:
                                 send_slice[axis] = slice(
-                                    arr1.lshape[axis] - send_amt, arr1.lshape[axis]
+                                    t_arr1.shape[axis] - send_amt, t_arr1.shape[axis]
                                 )
-                                keep_slice[axis] = slice(0, arr1.lshape[axis] - send_amt)
-
+                                keep_slice[axis] = slice(0, t_arr1.shape[axis] - send_amt)
                                 send = arr1.comm.Isend(
-                                    arr1.lloc[send_slice].clone(),
+                                    t_arr1[send_slice].clone(),
                                     dest=pr,
                                     tag=pr + arr1.comm.size + spr,
                                 )
-                                arr1.larray = arr1.lloc[keep_slice].clone()
+                                t_arr1 = t_arr1[keep_slice].clone()
                                 send.Wait()
                     for pr in range(arr1.comm.size - 1, spr, -1):
                         snt = abs((chunk_map[pr, axis] - lshape_map[1, pr, axis]).item())
@@ -404,7 +400,7 @@ def concatenate(arrays, axis=0):
                                 shp, dtype=out_dtype.torch_type(), device=arr1.device.torch_device
                             )
                             arr1.comm.Recv(data, source=spr, tag=pr + arr1.comm.size + spr)
-                            arr1.larray = torch.cat((data, arr1.larray), dim=axis)
+                            t_arr1 = torch.cat((data, t_arr1), dim=axis)
                         lshape_map[1, pr, axis] += snt
                         lshape_map[1, spr, axis] -= snt
 
@@ -421,18 +417,18 @@ def concatenate(arrays, axis=0):
                 if arr0.comm.rank == 0:
                     lcl_slice = [slice(None)] * arr0.ndim
                     lcl_slice[axis] = slice(chunk_map[0, axis].item())
-                    arr0.larray = arr0.larray[lcl_slice].clone().squeeze()
+                    t_arr0 = t_arr0[lcl_slice].clone().squeeze()
                 ttl = chunk_map[0, axis].item()
                 for en in range(1, arr0.comm.size):
                     sz = chunk_map[en, axis]
                     if arr0.comm.rank == en:
                         lcl_slice = [slice(None)] * arr0.ndim
                         lcl_slice[axis] = slice(ttl, sz.item() + ttl, 1)
-                        arr0.larray = arr0.larray[lcl_slice].clone().squeeze()
+                        t_arr0 = t_arr0[lcl_slice].clone().squeeze()
                     ttl += sz.item()
 
-                if len(arr0.lshape) < len(arr1.lshape):
-                    arr0.larray.unsqueeze_(axis)
+                if len(t_arr0.shape) < len(t_arr1.shape):
+                    t_arr0.unsqueeze_(axis)
 
             if s1 is None:
                 arb_slice = [None] * len(arr0.shape)
@@ -444,33 +440,30 @@ def concatenate(arrays, axis=0):
                 if arr1.comm.rank == arr1.comm.size - 1:
                     lcl_slice = [slice(None)] * arr1.ndim
                     lcl_slice[axis] = slice(
-                        arr1.lshape[axis] - chunk_map[-1, axis].item(), arr1.lshape[axis], 1
+                        t_arr1.shape[axis] - chunk_map[-1, axis].item(), t_arr1.shape[axis], 1
                     )
-                    arr1.larray = arr1.larray[lcl_slice].clone().squeeze()
+                    t_arr1 = t_arr1[lcl_slice].clone().squeeze()
                 ttl = chunk_map[-1, axis].item()
                 for en in range(arr1.comm.size - 2, -1, -1):
                     sz = chunk_map[en, axis]
                     if arr1.comm.rank == en:
                         lcl_slice = [slice(None)] * arr1.ndim
                         lcl_slice[axis] = slice(
-                            arr1.lshape[axis] - (sz.item() + ttl), arr1.lshape[axis] - ttl, 1
+                            t_arr1.shape[axis] - (sz.item() + ttl), t_arr1.shape[axis] - ttl, 1
                         )
-                        arr1.larray = arr1.larray[lcl_slice].clone().squeeze()
+                        t_arr1 = t_arr1[lcl_slice].clone().squeeze()
                     ttl += sz.item()
-                if len(arr1.lshape) < len(arr0.lshape):
-                    arr1.larray.unsqueeze_(axis)
+                if len(t_arr1.shape) < len(t_arr0.shape):
+                    t_arr1.unsqueeze_(axis)
 
-            # now that the data is in the proper shape, need to concatenate them on the nodes where they both exist for
-            # the others, just set them equal
-            out = factories.empty(
-                out_shape,
-                split=s0 if s0 is not None else s1,
+            res = torch.cat((t_arr0, t_arr1), dim=axis)
+            out = factories.array(
+                res,
+                is_split=s0 if s0 is not None else s1,
                 dtype=out_dtype,
                 device=arr0.device,
                 comm=arr0.comm,
             )
-            res = torch.cat((arr0.larray, arr1.larray), dim=axis)
-            out.larray = res
 
             return out
 
@@ -514,14 +507,14 @@ def diag(a, offset=0):
     >>> ht.diag(a)
     tensor([1, 4])
     """
+    sanitation.sanitize_in(a)
+
     if len(a.shape) > 1:
         return diagonal(a, offset=offset)
     elif len(a.shape) < 1:
         raise ValueError("input array must be of dimension 1 or greater")
     if not isinstance(offset, int):
         raise ValueError("offset must be an integer, got", type(offset))
-    if not isinstance(a, dndarray.DNDarray):
-        raise ValueError("a must be a DNDarray, got", type(a))
 
     # 1-dimensional array, must be extended to a square diagonal matrix
     gshape = (a.shape[0] + abs(offset),) * 2
@@ -752,9 +745,8 @@ def expand_dims(a, axis):
     >>> y.shape
     (2, 1)
     """
-    # ensure type consistency
-    if not isinstance(a, dndarray.DNDarray):
-        raise TypeError("expected ht.DNDarray, but was {}".format(type(a)))
+    # sanitize input
+    sanitation.sanitize_in(a)
 
     # sanitize axis, introduce arbitrary dummy dimension to model expansion
     axis = stride_tricks.sanitize_axis(a.shape + (1,), axis)
@@ -766,6 +758,7 @@ def expand_dims(a, axis):
         a.split if a.split is None or a.split < axis else a.split + 1,
         a.device,
         a.comm,
+        a.balanced,
     )
 
 
@@ -2482,8 +2475,7 @@ def squeeze(x, axis=None):
     """
 
     # Sanitize input
-    if not isinstance(x, dndarray.DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+    sanitation.sanitize_in(x)
     # Sanitize axis
     axis = stride_tricks.sanitize_axis(x.shape, axis)
     if axis is not None:
@@ -2513,7 +2505,13 @@ def squeeze(x, axis=None):
         split = None
 
     return dndarray.DNDarray(
-        x_lsqueezed, out_gshape, x.dtype, split=split, device=x.device, comm=x.comm
+        x_lsqueezed,
+        out_gshape,
+        x.dtype,
+        split=split,
+        device=x.device,
+        comm=x.comm,
+        balanced=x.balanced,
     )
 
 
@@ -2602,20 +2600,16 @@ def stack(arrays, axis=0, out=None):
     """
 
     # sanitation
-    if not isinstance(arrays, (tuple, list)):
-        raise TypeError("arrays must be a list or a tuple")
+    sanitation.sanitize_sequence(arrays)
 
     if len(arrays) < 2:
         raise ValueError("stack expects a sequence of at least 2 DNDarrays")
 
     for i, array in enumerate(arrays):
-        if not isinstance(array, dndarray.DNDarray):
-            raise TypeError(
-                "all arrays in sequence must be DNDarrays, array {} was {}".format(i, type(array))
-            )
+        sanitation.sanitize_in(array)
 
     arrays_metadata = list(
-        [array.gshape, array.split, array.device, array.is_balanced()] for array in arrays
+        [array.gshape, array.split, array.device, array.balanced] for array in arrays
     )
     num_arrays = len(arrays)
     # metadata must be identical for all arrays
@@ -2638,14 +2632,8 @@ def stack(arrays, axis=0, out=None):
                     devices, devices[0].device_id, devices[1].device_id
                 )
             )
-        balance = list(array.is_balanced() for array in arrays)
-        if balance.count(balance[0]) != num_arrays:
-            raise RuntimeError(
-                "DNDarrays distribution must be balanced across ranks, is_balanced() returns {}"
-                "You can balance a DNDarray with the balance_() method.".format(balance)
-            )
     else:
-        array_shape, array_split, array_device = arrays_metadata[0][:3]
+        array_shape, array_split, array_device, array_balanced = arrays_metadata[0][:4]
         # extract torch tensors
         t_arrays = list(array.larray for array in arrays)
         # output dtype
@@ -2661,7 +2649,7 @@ def stack(arrays, axis=0, out=None):
             t_arrays = list(t_array.type(t_array_dtype) for t_array in t_arrays)
         array_dtype = types.canonical_heat_type(t_array_dtype)
 
-    # sanitate axis
+    # sanitize axis
     axis = stride_tricks.sanitize_axis(array_shape + (num_arrays,), axis)
 
     # output shape and split
@@ -2671,26 +2659,13 @@ def stack(arrays, axis=0, out=None):
     else:
         stacked_split = None
 
-    # sanitate output
-    if out is not None:
-        if not isinstance(out, dndarray.DNDarray):
-            raise TypeError("expected out to be None or ht.DNDarray, but was {}".format(type(out)))
-        if out.dtype is not array_dtype:
-            raise TypeError("expected out to be {}, but was {}".format(array_dtype, out.dtype))
-        if out.gshape != stacked_shape:
-            raise ValueError(
-                "expected out.shape to be {}, got {}".format(out.gshape, stacked_shape)
-            )
-        if out.split is not stacked_split:
-            raise ValueError("expected out.split to be {}, got {}".format(out.split, stacked_split))
-    # end of sanitation
-
     # stack locally
     t_stacked = torch.stack(t_arrays, dim=axis)
 
     # return stacked DNDarrays
     if out is not None:
-        out.larray = t_stacked
+        sanitation.sanitize_out(out, stacked_shape, stacked_split, array_device)
+        out.larray = t_stacked.type(out.larray.dtype)
         return out
 
     stacked = dndarray.DNDarray(
@@ -2700,6 +2675,7 @@ def stack(arrays, axis=0, out=None):
         split=stacked_split,
         device=array_device,
         comm=arrays[0].comm,
+        balanced=array_balanced,
     )
     return stacked
 
@@ -3270,10 +3246,9 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     if dim is None:
         dim = len(a.shape) - 1
 
+    neutral_value = sanitation.sanitize_infinity(a)
     if largest:
-        neutral_value = -constants.sanitize_infinity(a.larray.dtype)
-    else:
-        neutral_value = constants.sanitize_infinity(a.larray.dtype)
+        neutral_value = -neutral_value
 
     def local_topk(*args, **kwargs):
         shape = a.lshape
