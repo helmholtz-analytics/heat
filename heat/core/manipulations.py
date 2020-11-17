@@ -632,23 +632,24 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
 
 def dsplit(ary, indices_or_sections):
     """
-    Split array into multiple sub-arrays along the 3rd axis (depth).
+    Split array into multiple sub-DNDarrays along the 3rd axis (depth).
+    Note that this function returns copies and not views into `ary`.
 
     Parameters
     ----------
     ary : DNDarray
         DNDArray to be divided into sub-DNDarrays.
     indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
-        If indices_or_sections is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 3rd axis.
+        If `indices_or_sections` is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 3rd axis.
         If such a split is not possible, an error is raised.
-        If indices_or_sections is a 1-D DNDarray of sorted integers, the entries indicate where along the 3rd axis
+        If `indices_or_sections` is a 1-D DNDarray of sorted integers, the entries indicate where along the 3rd axis
         the array is split.
-        If an index exceeds the dimension of the array along the 3rd axis, an empty sub-array is returned correspondingly.
+        If an index exceeds the dimension of the array along the 3rd axis, an empty sub-DNDarray is returned correspondingly.
 
     Returns
     -------
     sub_arrays : list of DNDarrays
-        A list of sub-DNDarrays as views into ary.
+        A list of sub-DNDarrays as copies of parts of `ary`.
 
     Notes
     -----
@@ -658,7 +659,7 @@ def dsplit(ary, indices_or_sections):
     Raises
     ------
     ValueError
-        If indices_or_sections is given as integer, but a split does not result in equal division.
+        If `indices_or_sections` is given as integer, but a split does not result in equal division.
 
     See Also
     ------
@@ -919,23 +920,24 @@ def flipud(a):
 
 def hsplit(ary, indices_or_sections):
     """
-    Split array into multiple sub-arrays along the 2nd axis (horizontally/column-wise).
+    Split array into multiple sub-DNDarrays along the 2nd axis (horizontally/column-wise).
+    Note that this function returns copies and not views into `ary`.
 
     Parameters
     ----------
     ary : DNDarray
         DNDArray to be divided into sub-DNDarrays.
     indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
-        If indices_or_sections is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 2nd axis.
+        If `indices_or_sections` is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 2nd axis.
         If such a split is not possible, an error is raised.
-        If indices_or_sections is a 1-D DNDarray of sorted integers, the entries indicate where along the 2nd axis
+        If `indices_or_sections` is a 1-D DNDarray of sorted integers, the entries indicate where along the 2nd axis
         the array is split.
-        If an index exceeds the dimension of the array along the 2nd axis, an empty sub-array is returned correspondingly.
+        If an index exceeds the dimension of the array along the 2nd axis, an empty sub-DNDarray is returned correspondingly.
 
     Returns
     -------
     sub_arrays : list of DNDarrays
-        A list of sub-DNDarrays as views into ary.
+        A list of sub-DNDarrays as copies of parts of `ary`
 
     Notes
     -----
@@ -945,7 +947,7 @@ def hsplit(ary, indices_or_sections):
     Raises
     ------
     ValueError
-        If indices_or_sections is given as integer, but a split does not result in equal division.
+        If `indices_or_sections` is given as integer, but a split does not result in equal division.
 
     See Also
     --------
@@ -982,7 +984,7 @@ def hsplit(ary, indices_or_sections):
 
                       [[21, 22, 23]]])]
        """
-    sanitation.sanitize_input(ary)
+    sanitation.sanitize_in(ary)
 
     if len(ary.lshape) < 2:
         ary = reshape(ary, (1, ary.lshape[0]))
@@ -2159,30 +2161,30 @@ def sort(a, axis=None, descending=False, out=None):
 
 def split(ary, indices_or_sections, axis=0):
     """
-    Split a DNDarray into multiple sub-DNDarrays as copies of parts of ary.
+    Split a DNDarray into multiple sub-DNDarrays as copies of parts of `ary`.
 
     Parameters
     ----------
     ary : DNDarray
         DNDArray to be divided into sub-DNDarrays.
     indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
-        If indices_or_sections is an integer, N, the DNDarray will be divided into N equal DNDarrays along axis.
+        If `indices_or_sections` is an integer, N, the DNDarray will be divided into N equal DNDarrays along axis.
         If such a split is not possible, an error is raised.
-        If indices_or_sections is a 1-D DNDarray of sorted integers, the entries indicate where along axis
+        If `indices_or_sections` is a 1-D DNDarray of sorted integers, the entries indicate where along axis
         the array is split.
-        For example, indices_or_sections = [2, 3] would, for axis = 0, result in
-        - ary[:2]
-        - ary[2:3]
-        - ary[3:]
+        For example, `indices_or_sections = [2, 3]` would, for `axis = 0`, result in
+        - `ary[:2]`
+        - `ary[2:3]`
+        - `ary[3:]`
         If an index exceeds the dimension of the array along axis, an empty sub-array is returned correspondingly.
     axis : int, optional
         The axis along which to split, default is 0.
-        axis is not allowed to equal ary.split if ary is distributed.
+        `axis` is not allowed to equal `ary.split` if `ary` is distributed.
 
     Returns
     -------
     sub_arrays : list of DNDarrays
-        A list of sub-DNDarrays as views into ary.
+        A list of sub-DNDarrays as copies of parts of `ary`.
 
     Warnings
     --------
@@ -2192,7 +2194,7 @@ def split(ary, indices_or_sections, axis=0):
     Raises
     ------
     ValueError
-        If indices_or_sections is given as integer, but a split does not result in equal division.
+        If `indices_or_sections` is given as integer, but a split does not result in equal division.
 
     See Also
     --------
@@ -2231,7 +2233,7 @@ def split(ary, indices_or_sections, axis=0):
 
     """
     # sanitize ary
-    sanitation.sanitize_input(ary)
+    sanitation.sanitize_in(ary)
 
     # sanitize axis
     if not isinstance(axis, int):
@@ -2893,33 +2895,34 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
 
 def vsplit(ary, indices_or_sections):
     """
-    Split array into multiple sub-arrays along the 1st axis (vertically/row-wise).
+    Split array into multiple sub-DNDNarrays along the 1st axis (vertically/row-wise).
+    Note that this function returns copies and not views into `ary`.
 
     Parameters
     ----------
     ary : DNDarray
         DNDArray to be divided into sub-DNDarrays.
     indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
-        If indices_or_sections is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 1st axis.
+        If `indices_or_sections` is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 1st axis.
         If such a split is not possible, an error is raised.
-        If indices_or_sections is a 1-D DNDarray of sorted integers, the entries indicate where along the 1st axis
+        If `indices_or_sections` is a 1-D DNDarray of sorted integers, the entries indicate where along the 1st axis
         the array is split.
-        If an index exceeds the dimension of the array along the 1st axis, an empty sub-array is returned correspondingly.
+        If an index exceeds the dimension of the array along the 1st axis, an empty sub-DNDarray is returned correspondingly.
 
     Returns
     -------
     sub_arrays : list of DNDarrays
-        A list of sub-DNDarrays as views into ary.
+        A list of sub-DNDarrays as copies of parts of `ary`.
 
     Notes
     -----
-    Please refer to the split documentation. hsplit is equivalent to split with axis=0,
+    Please refer to the split documentation. hsplit is equivalent to split with `axis=0`,
     the array is always split along the first axis regardless of the array dimension.
 
     Raises
     ------
     ValueError
-        If indices_or_sections is given as integer, but a split does not result in equal division.
+        If `indices_or_sections` is given as integer, but a split does not result in equal division.
 
     See Also
     --------
