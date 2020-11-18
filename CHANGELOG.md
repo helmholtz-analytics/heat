@@ -13,6 +13,8 @@
 ### ...
 
 ## Bug fixes
+
+## Enhancements
 ### Manipulations
 - [#690](https://github.com/helmholtz-analytics/heat/pull/690) Enhancement: reshape accepts shape arguments with one unknown dimension.
 
