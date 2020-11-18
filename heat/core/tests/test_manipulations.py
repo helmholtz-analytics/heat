@@ -1524,10 +1524,7 @@ class TestManipulations(TestCase):
         res = ht.flatten(a)
         ravel = ht.ravel(a)
 
-        if a.comm.size < 3:
-            self.assertTrue(ravel.balanced)
-        else:
-            self.assertFalse(ravel.balanced)
+        if a.comm.size > 3:
             ravel.balance_()
 
         self.assertTrue(ht.equal(ravel, res))
