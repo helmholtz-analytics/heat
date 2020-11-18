@@ -1810,8 +1810,6 @@ def reshape(a, shape, new_split=None):
     # Check the type of shape and number elements
     shape = list(shape)
     for dim in shape:
-        if issubclass(type(dim), np.integer):
-            dim = int(dim)
         if not isinstance(dim, int):
             raise TypeError(
                 "argument 'shape' contains an element of type {}, only ints are allowed".format(
