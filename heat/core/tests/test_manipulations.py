@@ -1524,7 +1524,7 @@ class TestManipulations(TestCase):
         res = ht.flatten(a)
         ravel = ht.ravel(a)
 
-        if a.comm.size > 3:
+        if a.comm.size > 2:
             ravel.balance_()
 
         self.assertTrue(ht.equal(ravel, res))
@@ -1532,11 +1532,7 @@ class TestManipulations(TestCase):
         self.assertEqual(ravel.device, res.device)
 
         a[0, 0, 0] = 9
-
-        if a.comm.size < 3:
-            self.assertEqual(ravel[0], 9)
-        else:
-            self.assertEqual(ravel[0], 1)
+        self.assertEqual(ravel[0], 9)
 
         a = ht.array(
             [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1, device=self.device

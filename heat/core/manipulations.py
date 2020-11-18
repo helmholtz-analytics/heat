@@ -1402,7 +1402,7 @@ def pad(array, pad_width, mode="constant", constant_values=0):
 def ravel(a):
     """
     Return a flattened array with the same elements as a if possible. A copy is returned otherwise.
-    The returned DNDarray may be unbalanced on distributed input data.
+    The returned DNDarray may be unbalanced.
 
     Parameters
     ----------
