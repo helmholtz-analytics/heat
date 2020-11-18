@@ -20,6 +20,7 @@ from . import memory
 from . import printing
 from . import relational
 from . import rounding
+from . import sanitation
 from . import statistics
 from . import stride_tricks
 from . import tiling
@@ -69,16 +70,21 @@ class DNDarray:
     device : ht.device
         The device on which the local arrays are using (cpu or gpu)
     comm : ht.communication.MPICommunication
-        The communications object for sending and recieving data
+        The communications object for sending and receiving data
+    balanced: bool or None
+        Describes whether the data are evenly distributed across processes.
+        If this information is not available (`self.balanced is None`), it
+        can be gathered via the `is_distributed()` method (requires communication).
     """
 
-    def __init__(self, array, gshape, dtype, split, device, comm):
+    def __init__(self, array, gshape, dtype, split, device, comm, balanced):
         self.__array = array
         self.__gshape = gshape
         self.__dtype = dtype
         self.__split = split
         self.__device = device
         self.__comm = comm
+        self.__balanced = None
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None
@@ -87,12 +93,8 @@ class DNDarray:
         assert str(array.device) == device.torch_device
 
     @property
-    def halo_next(self):
-        return self.__halo_next
-
-    @property
-    def halo_prev(self):
-        return self.__halo_prev
+    def balanced(self):
+        return self.__balanced
 
     @property
     def comm(self):
@@ -109,6 +111,14 @@ class DNDarray:
     @property
     def gshape(self):
         return self.__gshape
+
+    @property
+    def halo_next(self):
+        return self.__halo_next
+
+    @property
+    def halo_prev(self):
+        return self.__halo_prev
 
     @property
     def larray(self):
@@ -132,11 +142,14 @@ class DNDarray:
         array : torch.tensor
             The new underlying local torch tensor of the DNDarray
         """
-        if not isinstance(array, torch.Tensor):
-            raise TypeError(
-                "Expected larray to be a torch tensor, but was {} instead.".format(type(array))
-            )
-
+        # sanitize tensor input
+        sanitation.sanitize_in_tensor(array)
+        # verify consistency of tensor shape with global DNDarray
+        sanitation.sanitize_lshape(self, array)
+        # set balanced status
+        split = self.split
+        if split is not None and array.shape[split] != self.lshape[split]:
+            self.__balanced = None
         # raise warning if function was called by user/not out of 'heat/core/*'
         caller = stack()[1]
         abs_heat_path = Path("heat", "core").resolve()
@@ -163,6 +176,16 @@ class DNDarray:
         return self.__array.element_size() * self.size
 
     @property
+    def ndim(self):
+        """
+        Returns
+        -------
+        number_of_dimensions : int
+            the number of dimensions of the DNDarray
+        """
+        return len(self.__gshape)
+
+    @property
     def numdims(self):
         """
         Returns
@@ -174,16 +197,6 @@ class DNDarray:
           `numdims` will be removed in HeAT 1.0.0, it is replaced by `ndim` because the latter is numpy API compliant.
         """
         warnings.warn("numdims is deprecated, use ndim instead", DeprecationWarning)
-        return len(self.__gshape)
-
-    @property
-    def ndim(self):
-        """
-        Returns
-        -------
-        number_of_dimensions : int
-            the number of dimensions of the DNDarray
-        """
         return len(self.__gshape)
 
     @property
@@ -422,7 +435,7 @@ class DNDarray:
             prev_rank = rank - 1
             last_rank = size - 1
 
-            # if local shape is zero and its the last process
+            # if local shape is zero and it's the last process
             if self.lshape[self.split] == 0:
                 return  # if process has no data we ignore it
 
@@ -818,7 +831,9 @@ class DNDarray:
         dtype = types.canonical_heat_type(dtype)
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
-            return DNDarray(casted_array, self.shape, dtype, self.split, self.device, self.comm)
+            return DNDarray(
+                casted_array, self.shape, dtype, self.split, self.device, self.comm, self.balanced
+            )
 
         self.__array = casted_array
         self.__dtype = dtype
@@ -1583,7 +1598,13 @@ class DNDarray:
                     new_split = self.split
 
                 return DNDarray(
-                    self.__array[key], gout, self.dtype, new_split, self.device, self.comm
+                    self.__array[key],
+                    gout,
+                    self.dtype,
+                    new_split,
+                    self.device,
+                    self.comm,
+                    self.balanced,
                 )
 
         else:
@@ -1698,6 +1719,7 @@ class DNDarray:
                 new_split,
                 self.device,
                 self.comm,
+                balanced=None,
             )
 
     if torch.cuda.device_count() > 0:
@@ -1770,21 +1792,35 @@ class DNDarray:
         """
         return arithmetics.invert(self)
 
-    def is_balanced(self):
+    def is_balanced(self, force_check=False):
         """
-        Determine if a DNDarray is balanced evenly (or as evenly as possible) across all nodes
+        Returns the balanced status of a `DNDarray`, i.e. whether it is
+        distributed evenly (or as evenly as possible) across all processes.
+        This is equivalent to returning `self.balanced`. If no information
+        is available (`self.balanced = None`), the balanced status will be
+        assessed via collective communication.
+
+        Parameters
+        force_check : bool, optional
+            If True, the balanced status of the DNDarray will be assessed via
+            collective communication in any case.
 
         Returns
         -------
         balanced : bool
             True if balanced, False if not
         """
+
+        if not force_check and self.balanced is not None:
+            return self.balanced
+
         _, _, chk = self.comm.chunk(self.shape, self.split)
         test_lshape = tuple([x.stop - x.start for x in chk])
         balanced = 1 if test_lshape == self.lshape else 0
 
         out = self.comm.allreduce(balanced, MPI.SUM)
-        return True if out == self.comm.size else False
+        balanced = True if out == self.comm.size else False
+        return balanced
 
     def is_distributed(self):
         """
@@ -2598,7 +2634,6 @@ class DNDarray:
                         self.comm.size, len(self.gshape), lshape_map.shape
                     )
                 )
-
         if target_map is None:  # if no target map is given then it will balance the tensor
             target_map = torch.zeros(
                 (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
@@ -2610,11 +2645,9 @@ class DNDarray:
                 target_map[pr, self.split] = self.comm.chunk(self.shape, self.split, rank=pr)[1][
                     self.split
                 ]
+            self.__balanced = True
         else:
-            if not isinstance(target_map, torch.Tensor):
-                raise TypeError(
-                    "target_map must be a torch.Tensor, currently {}".format(type(target_map))
-                )
+            sanitation.sanitize_in_tensor(target_map)
             if target_map[..., self.split].sum() != self.shape[self.split]:
                 raise ValueError(
                     "Sum along the split axis of the target map must be equal to the "
@@ -2626,7 +2659,8 @@ class DNDarray:
                         (self.comm.size, len(self.gshape)), target_map.shape
                     )
                 )
-
+            # no info on balanced status
+            self.__balanced = False
         lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
         chunk_cumsum = torch.cat(
             (
@@ -2710,7 +2744,7 @@ class DNDarray:
         send_amt : int, single element torch.Tensor
             Amount of data to be sent by the sending process
         rcv_pr : int, single element torch.Tensor
-            Recieving process
+            Receiving process
         snd_dtype : torch.type
             Torch type of the data in question
 

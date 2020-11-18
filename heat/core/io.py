@@ -101,6 +101,7 @@ else:
             dims = len(gshape)
             split = sanitize_axis(gshape, split)
             _, _, indices = comm.chunk(gshape, split)
+            balanced = True
             if split is None:
                 data = torch.tensor(
                     data[indices], dtype=dtype.torch_type(), device=device.torch_device
@@ -122,7 +123,7 @@ else:
                 )
                 data = data[slice2]
 
-            return dndarray.DNDarray(data, gshape, dtype, split, device, comm)
+            return dndarray.DNDarray(data, gshape, dtype, split, device, comm, balanced)
 
     def save_hdf5(data, path, dataset, mode="w", **kwargs):
         """
@@ -295,6 +296,7 @@ else:
 
             # chunk up the data portion
             _, local_shape, indices = comm.chunk(gshape, split)
+            balanced = True
             if split is None or local_shape[split] > 0:
                 data = torch.tensor(
                     data[indices], dtype=dtype.torch_type(), device=device.torch_device
@@ -304,7 +306,7 @@ else:
                     local_shape, dtype=dtype.torch_type(), device=device.torch_device
                 )
 
-            return dndarray.DNDarray(data, gshape, dtype, split, device, comm)
+            return dndarray.DNDarray(data, gshape, dtype, split, device, comm, balanced)
 
     def save_netcdf(data, path, variable, mode="w", **kwargs):
         """
@@ -452,7 +454,7 @@ def load_csv(
     comm=MPI_WORLD,
 ):
     """
-    Loads data from an CSV file. The data will be distributed along the 0 axis.
+    Loads data from a CSV file. The data will be distributed along the 0 axis.
 
     Parameters
     ----------
