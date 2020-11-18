@@ -1402,6 +1402,7 @@ def pad(array, pad_width, mode="constant", constant_values=0):
 def ravel(a):
     """
     Return a flattened array with the same elements as a if possible. A copy is returned otherwise.
+    The returned DNDarray may be unbalanced on distributed input data.
 
     Parameters
     ----------
@@ -1425,6 +1426,8 @@ def ravel(a):
     >>> b
     DNDarray([4., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
     """
+    sanitation.sanitize_in(a)
+
     if a.split is None:
         return factories.array(
             torch.flatten(a._DNDarray__array),
@@ -1437,13 +1440,13 @@ def ravel(a):
 
     # Redistribution necessary
     # Arrays are not perfectly distributed. Array are copied between processes.
-    if a.split != 0 or a.shape[0] % a.comm.size != 0:
+    if a.split != 0:
         warnings.warn(
             "Data needs to be copied between processes. Fall back to flatten()", UserWarning
         )
         return flatten(a)
 
-    a = factories.array(
+    result = factories.array(
         torch.flatten(a._DNDarray__array),
         dtype=a.dtype,
         copy=False,
@@ -1452,7 +1455,7 @@ def ravel(a):
         comm=a.comm,
     )
 
-    return a
+    return result
 
 
 def repeat(a, repeats, axis=None):
@@ -1793,9 +1796,8 @@ def reshape(a, shape, new_split=None):
         displs[1:] = torch.cumsum(counts[:-1], dim=0)
         return argsort, counts, displs
 
-    # Special case, equivalent to ravel
     if shape == -1:
-        return ravel(a)
+        shape = (a.gnumel,)
 
     if not isinstance(shape, (list, tuple)):
         raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))

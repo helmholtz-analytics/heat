@@ -1523,6 +1523,13 @@ class TestManipulations(TestCase):
         )
         res = ht.flatten(a)
         ravel = ht.ravel(a)
+
+        if a.comm.size < 3:
+            self.assertTrue(ravel.balanced)
+        else:
+            self.assertFalse(ravel.balanced)
+            ravel.balance_()
+
         self.assertTrue(ht.equal(ravel, res))
         self.assertEqual(ravel.dtype, res.dtype)
         self.assertEqual(ravel.device, res.device)
@@ -1538,7 +1545,8 @@ class TestManipulations(TestCase):
             [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1, device=self.device
         )
         res = ht.flatten(a)
-        ravel = ht.ravel(a)
+        with self.assertWarns(UserWarning):
+            ravel = ht.ravel(a)
         self.assertTrue(ht.equal(ravel, res))
         self.assertEqual(ravel.dtype, res.dtype)
         self.assertEqual(ravel.device, res.device)
@@ -1553,7 +1561,8 @@ class TestManipulations(TestCase):
             device=self.device,
         )
         res = ht.flatten(a)
-        ravel = ht.ravel(a)
+        with self.assertWarns(UserWarning):
+            ravel = ht.ravel(a)
         self.assertTrue(ht.equal(ravel, res))
         self.assertEqual(ravel.dtype, res.dtype)
         self.assertEqual(ravel.device, res.device)
