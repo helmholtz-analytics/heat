@@ -47,9 +47,9 @@ class TestComplex(TestCase):
         self.assertTrue(ht.equal(angle, res))
 
         # Not complex
-        a = ht.ones((4, 4))
+        a = ht.ones((4, 4), split=1)
         angle = ht.angle(a)
-        res = ht.zeros((4, 4))
+        res = ht.zeros((4, 4), split=1)
 
         self.assertIs(angle.device, self.device)
         self.assertIs(angle.dtype, ht.float32)
@@ -111,9 +111,9 @@ class TestComplex(TestCase):
         self.assertTrue(ht.equal(real, res))
 
         # Not complex
-        a = ht.ones((4, 4))
+        a = ht.ones((4, 4), split=1)
         real = a.real
-        res = ht.ones((4, 4))
+        res = ht.ones((4, 4), split=1)
 
         self.assertIs(real.device, self.device)
         self.assertIs(real.dtype, ht.float32)
