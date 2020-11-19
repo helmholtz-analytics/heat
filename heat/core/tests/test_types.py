@@ -105,9 +105,13 @@ class TestTypes(TestCase):
         self.assert_is_instantiable_heat_type(ht.cfloat, torch.complex64)
         self.assert_is_instantiable_heat_type(ht.csingle, torch.complex64)
 
+        self.assertEqual(ht.complex64.char(), "c8")
+
     def test_complex128(self):
         self.assert_is_instantiable_heat_type(ht.complex128, torch.complex128)
         self.assert_is_instantiable_heat_type(ht.cdouble, torch.complex128)
+
+        self.assertEqual(ht.complex128.char(), "c16")
 
 
 class TestTypeConversion(TestCase):
