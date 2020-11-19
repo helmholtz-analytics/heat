@@ -57,6 +57,7 @@ __all__ = [
     "can_cast",
     "promote_types",
     "complex64",
+    "cfloat",
     "csingle",
     "complex128",
     "cdouble",

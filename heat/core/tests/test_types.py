@@ -100,6 +100,15 @@ class TestTypes(TestCase):
     def test_flexible(self):
         self.assert_non_instantiable_heat_type(ht.flexible)
 
+    def test_complex64(self):
+        self.assert_is_instantiable_heat_type(ht.complex64, torch.complex64)
+        self.assert_is_instantiable_heat_type(ht.cfloat, torch.complex64)
+        self.assert_is_instantiable_heat_type(ht.csingle, torch.complex64)
+
+    def test_complex128(self):
+        self.assert_is_instantiable_heat_type(ht.complex128, torch.complex128)
+        self.assert_is_instantiable_heat_type(ht.cdouble, torch.complex128)
+
 
 class TestTypeConversion(TestCase):
     def test_can_cast(self):
@@ -154,6 +163,7 @@ class TestTypeConversion(TestCase):
         self.assertEqual(ht.core.types.canonical_heat_type("u1"), ht.uint8)
         self.assertEqual(ht.core.types.canonical_heat_type(np.int8), ht.int8)
         self.assertEqual(ht.core.types.canonical_heat_type(torch.short), ht.int16)
+        self.assertEqual(ht.core.types.canonical_heat_type(torch.cfloat), ht.complex64)
 
         with self.assertRaises(TypeError):
             ht.core.types.canonical_heat_type({})
@@ -177,6 +187,9 @@ class TestTypeConversion(TestCase):
         iterable = [3, "hello world"]
         self.assertEqual(ht.core.types.heat_type_of(iterable), ht.int32)
 
+        torch_tensor = torch.full((2,), 1 + 1j, dtype=torch.complex128)
+        self.assertEqual(ht.core.types.heat_type_of(torch_tensor), ht.complex128)
+
         with self.assertRaises(TypeError):
             ht.core.types.heat_type_of({})
         with self.assertRaises(TypeError):
@@ -188,6 +201,7 @@ class TestTypeConversion(TestCase):
         self.assertEqual(ht.promote_types(ht.int32, ht.float32), ht.float32)
         self.assertEqual(ht.promote_types("f4", ht.float), ht.float32)
         self.assertEqual(ht.promote_types(ht.bool_, "?"), ht.bool)
+        self.assertEqual(ht.promote_types(ht.float32, ht.complex64), ht.complex64)
 
         # exceptions
         with self.assertRaises(TypeError):
