@@ -485,7 +485,8 @@ def main():
         # epoch loss logic to adjust learning rate based on loss
         # dp_optimizer.epoch_loss_logic(ls)
         dp_optimizer.new_loss_logic(ls)
-        adjust_learning_rate(dp_optimizer, ls)
+        avg_loss.append(ls)
+        adjust_learning_rate(dp_optimizer, avg_loss, epoch)
 
         # remember best prec@1 and save checkpoint
         if args.rank == 0:
@@ -514,7 +515,7 @@ def main():
             batch_time_avg.append(total_time.avg)
             train_acc1.append(tacc1)
             train_acc5.append(tacc5)
-            avg_loss.append(ls)
+            # avg_loss.append(ls)
         train_loader.reset()
         val_loader.reset()
     if args.rank == 0:
@@ -713,7 +714,7 @@ def validate(dev, val_loader, model, criterion):
 
 
 def save_checkpoint(state, is_best, epoch, filename="checkpoint.pth.tar"):
-    filename = "checkpoint-epoch" + str(epoch.item) + ".pth.tar"
+    filename = "checkpoint-000-epoch" + str(epoch.item()) + ".pth.tar"
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, "model_best.pth.tar")
@@ -738,19 +739,25 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, loss):
+def adjust_learning_rate(optimizer, losses, epoch):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
-    if loss <= 1.05:
-        factor = 3
-    elif loss <= 1.45:
-        factor = 2
-    elif loss <= 2.25:
-        factor = 1
-    else:
-        factor = 0
-
+    # TODO: make sure that losses are stable before increasing the factor
+    loss = losses[-1]
+    stable = True if len(losses) > 3 and abs(losses[-3] - losses[-1]) < 0.075 else False
+    if loss <= 1.20 and stable and args.factor < 3: # 1.05?or epoch >= 80:
+        #args.factor = 3
+        args.factor += 1
+    elif loss <= 1.350 and stable and args.factor < 2:
+        #args.factor = 2
+        args.factor += 1
+    elif loss <= 1.90 and stable and args.factor < 1:
+        # args.factor = 1
+        args.factor += 1
+    #else:
+    #    args.factor = 0
+    factor = args.factor
     lr = args.lr * ht.MPI_WORLD.size * (0.1 ** factor)
-    print0(f"LR: {lr}, Factor: {factor}")
+    print0(f"LR: {lr}, Factor: {factor}, loss: {loss}")
 
     for param_group in optimizer.lcl_optimizer.param_groups:
         param_group["lr"] = lr
