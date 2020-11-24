@@ -673,7 +673,7 @@ def __threefry32(X_0, X_1):
     ks_1 = torch.full((samples,), seed_32, dtype=torch.int32, device=X_1.device)
     ks_2 = torch.full((samples,), 466688986, dtype=torch.int32, device=X_0.device)
     ks_2 ^= ks_0
-    ks_2 ^= ks_0
+    ks_2 ^= ks_1
 
     # initialize output using the key
     X_0 += ks_0
@@ -763,7 +763,7 @@ def __threefry64(X_0, X_1):
     ks_1 = torch.full((samples,), __seed, dtype=torch.int64, device=X_1.device)
     ks_2 = torch.full((samples,), 2004413935125273122, dtype=torch.int64, device=X_0.device)
     ks_2 ^= ks_0
-    ks_2 ^= ks_0
+    ks_2 ^= ks_1
 
     # initialize output using the key
     X_0 += ks_0
