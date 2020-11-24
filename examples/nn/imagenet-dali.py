@@ -540,7 +540,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     end = time.time()
     train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
     # must set last batch for the model to work properly
-    optimizer.last_batch = train_loader_len
+    optimizer.last_batch = train_loader_len - 1
     for i, data in enumerate(train_loader):
         # print(i)
         # tt = time.perf_counter()
@@ -744,13 +744,13 @@ def adjust_learning_rate(optimizer, losses, epoch):
     # TODO: make sure that losses are stable before increasing the factor
     loss = losses[-1]
     stable = True if len(losses) > 3 and abs(losses[-3] - losses[-1]) < 0.075 else False
-    if loss <= 1.20 and stable and args.factor < 3: # 1.05?or epoch >= 80:
+    if loss <= 1.3250 and stable and args.factor < 3: # 1.05?or epoch >= 80:
         #args.factor = 3
         args.factor += 1
-    elif loss <= 1.350 and stable and args.factor < 2:
+    elif loss <= 1.60 and stable and args.factor < 2:
         #args.factor = 2
         args.factor += 1
-    elif loss <= 1.90 and stable and args.factor < 1:
+    elif loss <= 2.50 and stable and args.factor < 1:
         # args.factor = 1
         args.factor += 1
     #else:

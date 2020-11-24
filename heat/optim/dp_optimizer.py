@@ -165,6 +165,9 @@ class SkipBatches:
         self._inc_ls = False
         self._param_send_shp = None
         self.ls_flag1, self.ls_flag2 = False, False
+        self.global_skip = 0
+        self.local_skip = 0
+        self.batches_to_wait = 0
 
     def set_model(self, model):
         self.module = model
@@ -285,6 +288,14 @@ class SkipBatches:
         if self.loss_switch_target is None:
             self.loss_switch_target = avg_loss / 3.0
 
+        if self.epoch < 5:
+            self.global_skip = 0
+            self.local_skip = 0
+            self.batches_to_wait = 0
+            return
+        elif self.epoch == 5:
+            self.reset_skips()
+
         epochs_to_wait = 4
         if len(self._prev_losses_mean) < epochs_to_wait:
             # self.global_skip = 0
@@ -295,10 +306,10 @@ class SkipBatches:
         means = torch.tensor(self._prev_losses_mean)
         diff = abs(means[-1] - means[-1 * epochs_to_wait])
 
-        if avg_loss < self.loss_floor + 0.3:
-            self.global_skip = 0
-            self.local_skip = 0
-            self.batches_to_wait = 0
+        if avg_loss < self.loss_floor + 0.5 and diff < 0.1:
+            self.global_skip //= 2
+            self.local_skip //= 2
+            self.batches_to_wait //= 2
             print0("all 0s", avg_loss)
             if len(self._prev_losses_mean) == 3:
                 self._prev_losses_mean = []
@@ -306,39 +317,43 @@ class SkipBatches:
                 self.local_skip = 1
                 self.batches_to_wait = 1
             return
-        elif avg_loss < self.loss_floor + 0.5 and diff < 0.1:
+        elif avg_loss < self.loss_floor + 0.75 and diff < 0.1:
             # todo: set the global skips to half? or just to 4?
             if not self.ls_flag1:
                 self.ls_flag1 = True
                 self.reset_skips()
                 # self.local_skip = 2
-            self.global_skip //= 2
-            # if self.global_skip < 4:
-            #    self.global_skip = 4
-            self.local_skip *= 2
-            self.batches_to_wait *= 2
-            print0("\t below Loss floor + 0.75")
-            self._prev_losses_mean = []
-            # if diff < 0.1:
-            #     # if the loss is stable and in this range, do what???
-            #     pass
+            else:
+                self.global_skip //= 2
+                # if self.global_skip < 4:
+                #    self.global_skip = 4
+                self.local_skip *= 2
+                self.batches_to_wait //= 2
+                print0("\t below Loss floor + 0.5")
+                self._prev_losses_mean = []
+                # if diff < 0.1:
+                #     # if the loss is stable and in this range, do what???
+                #     pass
         elif avg_loss < self.loss_switch_target:
             # todo: double global skips v reset global skips
             # self.global_skip = self.og_global_skip // 2
             self.global_skip *= 4
+            if self.global_skip > self.og_global_skip:
+                self.global_skip = self.og_global_skip // 2
             self.local_skip *= 2
-            self.batches_to_wait *= 2
-
-            self.loss_switch_target /= 1.5
+            self.batches_to_wait *= 4  # 2
+            if self.batches_to_wait > self._og_btw * 2:
+                self.batches_to_wait = self._og_btw * 2
+            self.loss_switch_target /= 1.25
             self._inc_ls = True
             print0("\tbelow loss target")
             self._prev_losses_mean = []
         elif diff < 0.1:
             # drop gs by factor of 2
             self.global_skip //= 2
-            if self._inc_ls:
-                self.local_skip *= 3
-                self.batches_to_wait *= 2
+            # if self._inc_ls:
+            #    self.local_skip *= 3
+            #    self.batches_to_wait *= 2
             self._prev_losses_mean = self._prev_losses_mean[-1:]
             print0("dropping skips, loss stable")
             if self.global_skip == 0 and avg_loss > self.loss_floor + 0.75:
@@ -561,22 +576,22 @@ class SkipBatches:
                     raise ValueError(f"length of previous params > 0! {len(self._prev_params)}")
                 prev_params = self._prev_params.pop(0)
                 shapes = prev_params[2]
-                factor = 1.0 / float(len(current_ranks))
+                # factor = 1.0 / float(len(current_ranks))
                 prev_params[0].Wait()
+                rcv_params = prev_params[1] / float(len(current_ranks))  # * factor
                 for name, param in self.module.named_parameters():
                     if param.requires_grad:
-                        rcv_params = prev_params[1]
+                        # rcv_params = prev_params[1]
                         # param *= 0
                         param[:] = (
                             rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-                            * factor
                         )
                 self._prev_params = []
             else:
-                if len(self._prev_params) > 1:
+                if len(self._prev_params) > 0:
                     raise ValueError(
-                        f"OFF RANKS!len(prev_params) > 1! {len(self._prev_params)}"
-                        f" batch number: {self.current_batch}"
+                        f"OFF RANKS!len(prev_params) > 0! {len(self._prev_params)}"
+                        f" batch number {self.current_batch}"
                     )
             self._local_torch_param_update(self._send_mod)
 
@@ -687,19 +702,19 @@ class SkipBatches:
         batches_between = float(prev_params[3])
         # add the weighted average to param
         shapes = prev_params[2]
-        numer = batches_between if batches_between > 0.0 else 1.0
+        # numer = batches_between * 2. if batches_between > 0.0 else 1.0
+        numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
         denom = float(len(prev_ranks) + numer)
         factor = numer / denom
-        f2 = len(prev_ranks) / denom
         prev_params[0].Wait()
-        rcv_params = prev_params[1] / float(len(prev_ranks))  # denom
-        rcv_params *= f2
+        # f2 = len(prev_ranks) / denom
+        rcv_params = prev_params[1] / denom  # float(len(prev_ranks))) * f2
+        # rcv_params *= f2
         # todo: jit the parameter setting
         for name, param in self.module.named_parameters():
             if param.requires_grad:
                 update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-                # print(update.mean())
-                # NOTE: update here is the total sum of the params across the processes
+                # NOTE: update here is the sum of the params across the processes
                 param *= factor
                 param += update  # / denom
                 # param += update
