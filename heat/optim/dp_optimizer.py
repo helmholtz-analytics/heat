@@ -193,6 +193,83 @@ class SkipBatches:
         self.batches_to_wait = self._og_btw
 
     @torch.no_grad()
+    def new_loss_logic2(self, loss):
+        loss_send = torch.zeros(self.comm.size)
+        # todo: check that its ``loss.data`` and not something else (why not just loss?)
+        loss_send[self.comm.rank] = loss.data
+        # todo: time this
+        t_ls0 = time.perf_counter()
+        self.comm.Allreduce(MPI.IN_PLACE, loss_send, MPI.SUM)
+        print0(f"Loss allreduce time: {time.perf_counter() - t_ls0}")
+
+        avg_loss = torch.mean(loss_send)
+        self._prev_losses_mean.append(avg_loss)
+
+        if self.loss_switch_target is None:
+            self.loss_switch_target = avg_loss / 3.0
+
+        epochs_to_wait = 4
+        if len(self._prev_losses_mean) < epochs_to_wait:
+            return
+
+        means = torch.tensor(self._prev_losses_mean)
+        diff = abs(means[-1] - means[-1 * epochs_to_wait])
+        if diff < 0.1:
+            # drop gs by factor of 2
+            self.global_skip += 2
+            self.local_skip += 2
+            self.batches_to_wait += 1
+            self._prev_losses_mean = []
+            print0("loss stable, increasing skips")
+
+        if avg_loss < self.loss_floor + 0.4:
+            self.global_skip = 0
+            self.local_skip = 0
+            self.batches_to_wait = 0
+            print0("all 0s", avg_loss)
+            if len(self._prev_losses_mean) == 3:
+                self._prev_losses_mean = []
+                self.global_skip = 4
+                # self.local_skip = 1
+                # self.batches_to_wait = 1
+            return
+        elif avg_loss < self.loss_floor + 0.75:
+            # todo: set the global skips to half? or just to 4?
+            self.global_skip //= 2
+            if self.global_skip < 4:
+                self.global_skip = 4
+            self.local_skip = 1
+            self.batches_to_wait = 1
+            print0("\t below Loss floor + 0.75")
+            self._prev_losses_mean = []
+            # if diff < 0.1:
+            #     # if the loss is stable and in this range, do what???
+            #     pass
+        elif avg_loss < self.loss_switch_target:
+            # todo: double global skips v reset global skips
+            # self.global_skip = self.og_global_skip // 2
+            self.global_skip *= 4
+            self.local_skip *= 2
+            self.batches_to_wait *= 2
+
+            self.loss_switch_target /= 1.5
+            self._inc_ls = True
+            print0("\tbelow loss target")
+            self._prev_losses_mean = []
+
+        if self.global_skip == 0:
+            self.global_skip = 1
+        if self.local_skip > self.global_skip:
+            self.local_skip = self.global_skip
+        if self.batches_to_wait > self.local_skip:
+            self.batches_to_wait = self.local_skip
+
+        print0(
+            f"\tgs: {self.global_skip}, ls {self.local_skip}, "
+            f"btw {self.batches_to_wait}, {avg_loss}"
+        )
+
+    @torch.no_grad()
     def new_loss_logic(self, loss):
         loss_send = torch.zeros(self.comm.size)
         # todo: check that its ``loss.data`` and not something else (why not just loss?)
@@ -210,9 +287,9 @@ class SkipBatches:
 
         epochs_to_wait = 4
         if len(self._prev_losses_mean) < epochs_to_wait:
-            #self.global_skip = 0
-            #self.local_skip = 0
-            #self.batches_to_wait = 0
+            # self.global_skip = 0
+            # self.local_skip = 0
+            # self.batches_to_wait = 0
             return
 
         means = torch.tensor(self._prev_losses_mean)
@@ -234,9 +311,9 @@ class SkipBatches:
             if not self.ls_flag1:
                 self.ls_flag1 = True
                 self.reset_skips()
-                #self.local_skip = 2
+                # self.local_skip = 2
             self.global_skip //= 2
-            #if self.global_skip < 4:
+            # if self.global_skip < 4:
             #    self.global_skip = 4
             self.local_skip *= 2
             self.batches_to_wait *= 2
@@ -261,7 +338,7 @@ class SkipBatches:
             self.global_skip //= 2
             if self._inc_ls:
                 self.local_skip *= 3
-                self.batches_to_wait *= 2 
+                self.batches_to_wait *= 2
             self._prev_losses_mean = self._prev_losses_mean[-1:]
             print0("dropping skips, loss stable")
             if self.global_skip == 0 and avg_loss > self.loss_floor + 0.75:
@@ -406,14 +483,14 @@ class SkipBatches:
 
         # batches_to_wait = 1 if ls >= 1 else ls
         batches_to_wait = self.batches_to_wait
+        btw = (
+            batches_to_wait
+            if batches_to_wait + batch <= self.last_batch
+            else self.last_batch - batch
+        )
         # do full synce on global skips and on the last batch
         # todo: sync for last few batches before the end?
         if batch == self.last_batch or gmod == 0:
-            btw = (
-                batches_to_wait
-                if batches_to_wait + batch <= self.last_batch
-                else self.last_batch - batch
-            )
             return self._full_global_sync(btw)
 
         if next_batch % gs == 0:
@@ -423,7 +500,7 @@ class SkipBatches:
             self.current_batch += 1
             return
 
-        if gmod < batches_to_wait:
+        if gmod < btw:
             # do nothing on these batches
             self.current_batch += 1
             # if self.comm.rank == 0:
@@ -431,7 +508,7 @@ class SkipBatches:
             if next_batch == self.last_batch:
                 self._start_local_sync()
             return
-        elif gmod == batches_to_wait:
+        elif gmod == btw:
             # local updates should be on before this is called!
             self._update_parameters()
             self._local_torch_param_update(self._send_mod_m1)
@@ -469,19 +546,19 @@ class SkipBatches:
         if self.comm.rank in current_ranks:
             self._global_send_update(current_comm, batches_to_wait)
 
-        if self.global_skip != 0:
+        if self.batches_to_wait != 0:
             # update parameters from the last sending (if there)
             self._update_parameters()  # -> splits off irrelevant ranks
             # needs to happen on all ranks:
             self._local_torch_param_update(self._send_mod_m1)
 
-        if self.current_batch == self.last_batch or self.global_skip == 0:
+        if self.current_batch == self.last_batch or self.batches_to_wait == 0:
             # print("last batch")
             # todo: abstract last batch?
             # receive the sent data to sync params across all ranks
             if self.comm.rank in current_ranks:
-                if len(self._prev_params) > 1:
-                    raise ValueError(f"length of previous params > 1! {len(self._prev_params)}")
+                if len(self._prev_params) > 0:
+                    raise ValueError(f"length of previous params > 0! {len(self._prev_params)}")
                 prev_params = self._prev_params.pop(0)
                 shapes = prev_params[2]
                 factor = 1.0 / float(len(current_ranks))
@@ -489,15 +566,18 @@ class SkipBatches:
                 for name, param in self.module.named_parameters():
                     if param.requires_grad:
                         rcv_params = prev_params[1]
-                        param *= 0
-                        param += (
+                        # param *= 0
+                        param[:] = (
                             rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                             * factor
                         )
                 self._prev_params = []
             else:
                 if len(self._prev_params) > 1:
-                    raise ValueError(f"OFF RANKS!len(prev_params) > 1! {len(self._prev_params)}")
+                    raise ValueError(
+                        f"OFF RANKS!len(prev_params) > 1! {len(self._prev_params)}"
+                        f" batch number: {self.current_batch}"
+                    )
             self._local_torch_param_update(self._send_mod)
 
             self._send_mod_m1 = None
@@ -510,8 +590,8 @@ class SkipBatches:
                 self.current_batch += 1
                 self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
         else:
-            #self._update_parameters()
-            #self._local_torch_param_update(self._send_mod_m1)
+            # self._update_parameters()
+            # self._local_torch_param_update(self._send_mod_m1)
             self.current_batch += 1
             self._send_mod_m1 = self._send_mod
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
@@ -607,7 +687,7 @@ class SkipBatches:
         batches_between = float(prev_params[3])
         # add the weighted average to param
         shapes = prev_params[2]
-        numer = batches_between if batches_between > 0. else 1.
+        numer = batches_between if batches_between > 0.0 else 1.0
         denom = float(len(prev_ranks) + numer)
         factor = numer / denom
         f2 = len(prev_ranks) / denom
@@ -622,8 +702,8 @@ class SkipBatches:
                 # NOTE: update here is the total sum of the params across the processes
                 param *= factor
                 param += update  # / denom
-                #param += update
-                #param /= 2. #denom
+                # param += update
+                # param /= 2. #denom
 
     def zero_grad(self) -> None:
         """
