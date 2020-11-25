@@ -682,19 +682,19 @@ def __threefry32(X_0, X_1):
     # perform rounds
     # round 1
     X_0 += X_1
-    X_1 = (X_1 << 13) | (X_1 >> 19)
+    X_1 = (X_1 << 13) | ((X_1 >> 19) & (0x7FFFFFFF >> 18))
     X_1 ^= X_0
     # round 2
     X_0 += X_1
-    X_1 = (X_1 << 15) | (X_1 >> 17)
+    X_1 = (X_1 << 15) | ((X_1 >> 17) & (0x7FFFFFFF >> 16))
     X_1 ^= X_0
     # round 3
     X_0 += X_1
-    X_1 = (X_1 << 26) | (X_1 >> 6)
+    X_1 = (X_1 << 26) | ((X_1 >> 6) & (0x7FFFFFFF >> 5))
     X_1 ^= X_0
     # round 4
     X_0 += X_1
-    X_1 = (X_1 << 6) | (X_1 >> 26)
+    X_1 = (X_1 << 6) | ((X_1 >> 26) & (0x7FFFFFFF >> 25))
     X_1 ^= X_0
 
     # inject key
@@ -703,19 +703,19 @@ def __threefry32(X_0, X_1):
 
     # round 5
     X_0 += X_1
-    X_1 = (X_1 << 17) | (X_1 >> 15)
+    X_1 = (X_1 << 17) | ((X_1 >> 15) & (0x7FFFFFFF >> 14))
     X_1 ^= X_0
     # round 6
     X_0 += X_1
-    X_1 = (X_1 << 29) | (X_1 >> 3)
+    X_1 = (X_1 << 29) | ((X_1 >> 3) & (0x7FFFFFFF >> 2))
     X_1 ^= X_0
     # round 7
     X_0 += X_1
-    X_1 = (X_1 << 16) | (X_1 >> 16)
+    X_1 = (X_1 << 16) | ((X_1 >> 16) & (0x7FFFFFFF >> 15))
     X_1 ^= X_0
     # round 8
     X_0 += X_1
-    X_1 = (X_1 << 24) | (X_1 >> 8)
+    X_1 = (X_1 << 24) | ((X_1 >> 8) & (0x7FFFFFFF >> 7))
     X_1 ^= X_0
 
     # inject key
@@ -772,19 +772,19 @@ def __threefry64(X_0, X_1):
     # perform rounds
     # round 1
     X_0 += X_1
-    X_1 = (X_1 << 16) | (X_1 >> 48)
+    X_1 = (X_1 << 16) | ((X_1 >> 48) & (0x7FFFFFFFFFFFFFFF >> 47))
     X_1 ^= X_0
     # round 2
     X_0 += X_1
-    X_1 = (X_1 << 42) | (X_1 >> 22)
+    X_1 = (X_1 << 42) | ((X_1 >> 22) & (0x7FFFFFFFFFFFFFFF >> 21))
     X_1 ^= X_0
     # round 3
     X_0 += X_1
-    X_1 = (X_1 << 12) | (X_1 >> 52)
+    X_1 = (X_1 << 12) | ((X_1 >> 52) & (0x7FFFFFFFFFFFFFFF >> 51))
     X_1 ^= X_0
     # round 4
     X_0 += X_1
-    X_1 = (X_1 << 31) | (X_1 >> 33)
+    X_1 = (X_1 << 31) | ((X_1 >> 33) & (0x7FFFFFFFFFFFFFFF >> 32))
     X_1 ^= X_0
 
     # inject key
@@ -793,19 +793,19 @@ def __threefry64(X_0, X_1):
 
     # round 5
     X_0 += X_1
-    X_1 = (X_1 << 16) | (X_1 >> 48)
+    X_1 = (X_1 << 16) | ((X_1 >> 48) & (0x7FFFFFFFFFFFFFFF >> 47))
     X_1 ^= X_0
     # round 6
     X_0 += X_1
-    X_1 = (X_1 << 32) | (X_1 >> 32)
+    X_1 = (X_1 << 32) | ((X_1 >> 32) & (0x7FFFFFFFFFFFFFFF >> 31))
     X_1 ^= X_0
     # round 7
     X_0 += X_1
-    X_1 = (X_1 << 24) | (X_1 >> 40)
+    X_1 = (X_1 << 24) | ((X_1 >> 40) & (0x7FFFFFFFFFFFFFFF >> 39))
     X_1 ^= X_0
     # round 8
     X_0 += X_1
-    X_1 = (X_1 << 21) | (X_1 >> 43)
+    X_1 = (X_1 << 21) | (X_1 >> 43) & (0x7FFFFFFFFFFFFFFF >> 42)
     X_1 ^= X_0
 
     # inject key
