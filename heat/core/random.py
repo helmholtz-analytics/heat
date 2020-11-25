@@ -358,15 +358,7 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
     # generate the random sequence
     if dtype == types.float32:
         x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, device, comm)
-        # first_int_vals = torch.stack([x_0, x_1], dim=1).flatten()[lslice]
-        # print(int_vals)
         x_0, x_1 = __threefry32(x_0, x_1)
-        int_vals = torch.stack([x_0, x_1], dim=1).flatten()[lslice]
-        a = int_vals.numpy()
-        _, counts = np.unique(a, return_counts=True)
-        # Assert that no value appears more than once
-        print(counts)
-        print("h", np.nonzero(counts != 1))
 
         # combine the values into one tensor and convert them to floats
         values = __int32_to_float32(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(
