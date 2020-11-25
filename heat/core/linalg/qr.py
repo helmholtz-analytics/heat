@@ -304,7 +304,7 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, col_num, diag_pr, not_complet
     """
 
     Function to do the QR calculations to calculate the global R of the array `a`.
-    This function uses a binary merge structure in the globabl R merge.
+    This function uses a binary merge structure in the global R merge.
 
     Parameters
     ----------
