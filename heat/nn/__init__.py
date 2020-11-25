@@ -1,15 +1,15 @@
+import sys
 import torch
 import unittest
 
-from .data_parallel import *
 from . import functional
 
-import sys
 
 if sys.version_info.minor >= 7:
+    from .data_parallel import *
+
     functional.__getattr__ = functional.func_getattr
 
-    # todo: skip this for functions in unittest
     def __getattr__(name):
         torch_all = torch.nn.modules.__all__
         if name in torch_all:
@@ -22,8 +22,25 @@ if sys.version_info.minor >= 7:
 
 
 else:
-    import torch.nn.functional as tnn
+    from . import data_parallel
 
-    torch_all = tnn.__dict__
-    for n in torch_all.keys():
-        setattr(functional, n, torch_all[n])
+    class Wrapper(object):
+        def __init__(self, wrapped):
+            self.wrapped = wrapped
+
+        def __getattr__(self, name):
+            torch_all = torch.nn.modules.__all__
+            data_parallel_all = data_parallel.__all__
+            if name in torch_all:
+                return torch.nn.__getattribute__(name)
+            elif name == "functional":
+                return functional
+            elif name in data_parallel_all:
+                return data_parallel.__getattribute__(name)
+            else:
+                try:
+                    unittest.__getattribute__(name)
+                except AttributeError:
+                    raise AttributeError(f"module {name} not implemented in Torch or Heat")
+
+    sys.modules[__name__] = Wrapper(sys.modules[__name__])
