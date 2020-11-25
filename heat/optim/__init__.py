@@ -44,6 +44,6 @@ else:
                     unittest.__getattribute__(name)
                 except AttributeError:
                     if name is not None:
-                        raise AttributeError(f"module {name} not implemented in torch.optim")
+                        raise AttributeError(f"module {name} not implemented in torch or heat")
 
     sys.modules[__name__] = Wrapper(sys.modules[__name__])

@@ -27,15 +27,15 @@ else:
     class Wrapper(object):
         def __init__(self, wrapped):
             self.wrapped = wrapped
+            self.torch_all = torch.nn.modules.__all__
+            self.data_parallel_all = data_parallel.__all__
 
         def __getattr__(self, name):
-            torch_all = torch.nn.modules.__all__
-            data_parallel_all = data_parallel.__all__
-            if name in torch_all:
+            if name in self.torch_all:
                 return torch.nn.__getattribute__(name)
             elif name == "functional":
                 return functional
-            elif name in data_parallel_all:
+            elif name in self.data_parallel_all:
                 return data_parallel.__getattribute__(name)
             else:
                 try:
