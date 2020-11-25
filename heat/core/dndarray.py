@@ -3910,6 +3910,57 @@ class DNDarray:
         """
         return statistics.var(self, axis, ddof=ddof, **kwargs)
 
+    def view(self, *shape):
+        """
+        Similar to `torch.Tensor.view`, returns a new DNDarray with the data contained in `self`,
+        but displayed in a different `shape`.
+
+        Parameters
+        ----------
+        shape : int, or ints
+            the new shape for `self`
+
+        Returns
+        -------
+        view : DNDarray
+            points to the same memory location as `self`.
+
+        Raises
+        ------
+        RuntimeError
+            if `self` is distributed and `self.shape[self.split] != shape[self.split]`.
+            In other words, constructing a view is not possible if it requires data
+            communication among processes.
+
+        Also see
+        --------
+        `rebalance`
+
+        """
+        if not self.is_distributed:
+            return factories.array(
+                self.larray.view(*shape),
+                split=self.split,
+                copy=False,
+                device=self.device,
+                comm=self.comm,
+            )
+        elif shape[self.split] == self.gshape[self.split]:
+            view_lshape = shape[: self.split] + (self.lshape[self.split],) + shape[self.split + 1 :]
+            return factories.array(
+                self.larray.view(view_lshape),
+                is_split=self.split,
+                copy=False,
+                device=self.device,
+                comm=self.comm,
+            )
+        else:
+            raise RuntimeError(
+                "Cannot construct a view with shape {}. Memory buffer is distributed. Use `reshape()` instead.".format(
+                    tuple(shape)
+                )
+            )
+
     def __xor__(self, other):
         """
         Compute the bit-wise XOR of two arrays element-wise.
@@ -3924,8 +3975,8 @@ class DNDarray:
         result: ht.DNDArray
         A tensor containing the results of element-wise OR of self and other.
 
-        Examples:
-        ---------
+        Examples
+        --------
         import heat as ht
         >>> ht.array([13]) ^ 17
         tensor([28])

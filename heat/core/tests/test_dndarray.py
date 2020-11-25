@@ -360,39 +360,40 @@ class TestDNDarray(TestCase):
         self.assertTrue(ht.equal(flat, result))
 
     def test_fill_diagonal(self):
-        ref = ht.zeros((ht.MPI_WORLD.size * 2, ht.MPI_WORLD.size * 2), dtype=ht.float32, split=0)
-        a = ht.eye(ht.MPI_WORLD.size * 2, dtype=ht.float32, split=0)
+        size = ht.MPI_WORLD.size
+        ref = ht.zeros((size * 2, size * 2), dtype=ht.float32, split=0)
+        a = ht.eye(size * 2, dtype=ht.float32, split=0)
         a.fill_diagonal(0)
         self.assertTrue(ht.equal(a, ref))
 
-        ref = ht.zeros((ht.MPI_WORLD.size * 2, ht.MPI_WORLD.size * 2), dtype=ht.int32, split=0)
-        a = ht.eye(ht.MPI_WORLD.size * 2, dtype=ht.int32, split=0)
+        ref = ht.zeros((size * 2, size * 2), dtype=ht.int32, split=0)
+        a = ht.eye(size * 2, dtype=ht.int32, split=0)
         a.fill_diagonal(0)
         self.assertTrue(ht.equal(a, ref))
 
-        ref = ht.zeros((ht.MPI_WORLD.size * 2, ht.MPI_WORLD.size * 2), dtype=ht.float32, split=1)
-        a = ht.eye(ht.MPI_WORLD.size * 2, dtype=ht.float32, split=1)
+        ref = ht.zeros((size * 2, size * 2), dtype=ht.float32, split=1)
+        a = ht.eye(size * 2, dtype=ht.float32, split=1)
         a.fill_diagonal(0)
         self.assertTrue(ht.equal(a, ref))
 
-        ref = ht.zeros((ht.MPI_WORLD.size * 2, ht.MPI_WORLD.size * 3), dtype=ht.float32, split=0)
-        a = ht.eye((ht.MPI_WORLD.size * 2, ht.MPI_WORLD.size * 3), dtype=ht.float32, split=0)
-        a.fill_diagonal(0)
-        self.assertTrue(ht.equal(a, ref))
-
-        # ToDo: uneven tensor dimensions x and y when bug in factories.eye is fixed
-        ref = ht.zeros((ht.MPI_WORLD.size * 3, ht.MPI_WORLD.size * 3), dtype=ht.float32, split=1)
-        a = ht.eye((ht.MPI_WORLD.size * 3, ht.MPI_WORLD.size * 3), dtype=ht.float32, split=1)
+        ref = ht.zeros((size * 2, size * 3), dtype=ht.float32, split=0)
+        a = ht.eye((size * 2, size * 3), dtype=ht.float32, split=0)
         a.fill_diagonal(0)
         self.assertTrue(ht.equal(a, ref))
 
         # ToDo: uneven tensor dimensions x and y when bug in factories.eye is fixed
-        ref = ht.zeros((ht.MPI_WORLD.size * 4, ht.MPI_WORLD.size * 4), dtype=ht.float32, split=0)
-        a = ht.eye((ht.MPI_WORLD.size * 4, ht.MPI_WORLD.size * 4), dtype=ht.float32, split=0)
+        ref = ht.zeros((size * 3, size * 3), dtype=ht.float32, split=1)
+        a = ht.eye((size * 3, size * 3), dtype=ht.float32, split=1)
         a.fill_diagonal(0)
         self.assertTrue(ht.equal(a, ref))
 
-        a = ht.ones((ht.MPI_WORLD.size * 2,), dtype=ht.float32, split=0)
+        # ToDo: uneven tensor dimensions x and y when bug in factories.eye is fixed
+        ref = ht.zeros((size * 4, size * 4), dtype=ht.float32, split=0)
+        a = ht.eye((size * 4, size * 4), dtype=ht.float32, split=0)
+        a.fill_diagonal(0)
+        self.assertTrue(ht.equal(a, ref))
+
+        a = ht.ones((size * 2,), dtype=ht.float32, split=0)
         with self.assertRaises(ValueError):
             a.fill_diagonal(0)
 
@@ -784,8 +785,10 @@ class TestDNDarray(TestCase):
                 st.redistribute_(target_map=torch.zeros((2, 4)))
 
     def test_resplit(self):
+        size = ht.MPI_WORLD.size
+        rank = ht.MPI_WORLD.rank
         # resplitting with same axis, should leave everything unchanged
-        shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
+        shape = (size, size)
         data = ht.zeros(shape, split=None)
         data.resplit_(None)
 
@@ -795,7 +798,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(data.split, None)
 
         # resplitting with same axis, should leave everything unchanged
-        shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
+        shape = (size, size)
         data = ht.zeros(shape, split=1)
         data.resplit_(1)
 
@@ -805,7 +808,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(data.split, 1)
 
         # splitting an unsplit tensor should result in slicing the tensor locally
-        shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
+        shape = (size, size)
         data = ht.zeros(shape)
         data.resplit_(-1)
 
@@ -815,7 +818,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(data.split, 1)
 
         # unsplitting, aka gathering a tensor
-        shape = (ht.MPI_WORLD.size + 1, ht.MPI_WORLD.size)
+        shape = (size + 1, size)
         data = ht.ones(shape, split=0)
         data.resplit_(None)
 
@@ -825,24 +828,24 @@ class TestDNDarray(TestCase):
         self.assertEqual(data.split, None)
 
         # assign and entirely new split axis
-        shape = (ht.MPI_WORLD.size + 2, ht.MPI_WORLD.size + 1)
+        shape = (size + 2, size + 1)
         data = ht.ones(shape, split=0)
         data.resplit_(1)
 
         self.assertIsInstance(data, ht.DNDarray)
         self.assertEqual(data.shape, shape)
-        self.assertEqual(data.lshape[0], ht.MPI_WORLD.size + 2)
+        self.assertEqual(data.lshape[0], size + 2)
         self.assertTrue(data.lshape[1] == 1 or data.lshape[1] == 2)
         self.assertEqual(data.split, 1)
 
         # test sorting order of resplit
         a_tensor = self.reference_tensor.copy()
-        N = ht.MPI_WORLD.size
+        N = size
 
         # split along axis = 0
         a_tensor.resplit_(axis=0)
         local_shape = (1, N + 1, 2 * N)
-        local_tensor = self.reference_tensor[ht.MPI_WORLD.rank, :, :]
+        local_tensor = self.reference_tensor[rank, :, :]
         self.assertEqual(a_tensor.lshape, local_shape)
         self.assertTrue((a_tensor.larray == local_tensor.larray).all())
 
@@ -852,14 +855,12 @@ class TestDNDarray(TestCase):
 
         # split along axis = 1
         a_tensor.resplit_(axis=1)
-        if ht.MPI_WORLD.rank == 0:
+        if rank == 0:
             local_shape = (N, 2, 2 * N)
             local_tensor = self.reference_tensor[:, 0:2, :]
         else:
             local_shape = (N, 1, 2 * N)
-            local_tensor = self.reference_tensor[
-                :, ht.MPI_WORLD.rank + 1 : ht.MPI_WORLD.rank + 2, :
-            ]
+            local_tensor = self.reference_tensor[:, rank + 1 : rank + 2, :]
 
         self.assertEqual(a_tensor.lshape, local_shape)
         self.assertTrue((a_tensor.larray == local_tensor.larray).all())
@@ -871,16 +872,12 @@ class TestDNDarray(TestCase):
         # split along axis = 2
         a_tensor.resplit_(axis=2)
         local_shape = (N, N + 1, 2)
-        local_tensor = self.reference_tensor[
-            :, :, 2 * ht.MPI_WORLD.rank : 2 * ht.MPI_WORLD.rank + 2
-        ]
+        local_tensor = self.reference_tensor[:, :, 2 * rank : 2 * rank + 2]
 
         self.assertEqual(a_tensor.lshape, local_shape)
         self.assertTrue((a_tensor.larray == local_tensor.larray).all())
 
-        expected = torch.ones(
-            (ht.MPI_WORLD.size, 100), dtype=torch.int64, device=self.device.torch_device
-        )
+        expected = torch.ones((size, 100), dtype=torch.int64, device=self.device.torch_device)
         data = ht.array(expected, split=1)
         data.resplit_(None)
 
@@ -890,9 +887,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(data.dtype, ht.int64)
         self.assertEqual(data.larray.dtype, expected.dtype)
 
-        expected = torch.zeros(
-            (100, ht.MPI_WORLD.size), dtype=torch.uint8, device=self.device.torch_device
-        )
+        expected = torch.zeros((100, size), dtype=torch.uint8, device=self.device.torch_device)
         data = ht.array(expected, split=0)
         data.resplit_(None)
 
@@ -1332,39 +1327,30 @@ class TestDNDarray(TestCase):
         )
         self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)
 
+    def test_view(self):
+        t_a = torch.arange(4 * 5 * 6).reshape(4, 5, 6)
+        a = ht.array(t_a, split=0)
+        b = a.view(4, 3, -1)
+        print(a.view(4, 3, -1).shape)
+        self.assertEqual(b.shape[-1], 10)
+
     def test_tolist(self):
-        a = ht.zeros([ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.int32)
-        res = [
-            [[0 for z in range(ht.MPI_WORLD.size)] for y in range(ht.MPI_WORLD.size)]
-            for x in range(ht.MPI_WORLD.size)
-        ]
+        size = ht.MPI_WORLD.size
+        rank = ht.MPI_WORLD.rank
+        a = ht.zeros([size, size, size], dtype=ht.int32)
+        res = [[[0 for z in range(size)] for y in range(size)] for x in range(size)]
         self.assertListEqual(a.tolist(), res)
 
-        a = ht.zeros(
-            [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.int32, split=0
-        )
-        res = [
-            [[0 for z in range(ht.MPI_WORLD.size)] for y in range(ht.MPI_WORLD.size)]
-            for x in range(ht.MPI_WORLD.size)
-        ]
+        a = ht.zeros([size, size, size], dtype=ht.int32, split=0)
+        res = [[[0 for z in range(size)] for y in range(size)] for x in range(size)]
         self.assertListEqual(a.tolist(), res)
 
-        a = ht.zeros(
-            [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.float32, split=1
-        )
-        res = [
-            [[0.0 for z in range(ht.MPI_WORLD.size)] for y in [ht.MPI_WORLD.rank]]
-            for x in range(ht.MPI_WORLD.size)
-        ]
+        a = ht.zeros([size, size, size], dtype=ht.float32, split=1)
+        res = [[[0.0 for z in range(size)] for y in [rank]] for x in range(size)]
         self.assertListEqual(a.tolist(keepsplit=True), res)
 
-        a = ht.zeros(
-            [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.bool, split=2
-        )
-        res = [
-            [[False for z in [ht.MPI_WORLD.rank]] for y in range(ht.MPI_WORLD.size)]
-            for x in range(ht.MPI_WORLD.size)
-        ]
+        a = ht.zeros([size, size, size], dtype=ht.bool, split=2)
+        res = [[[False for z in [rank]] for y in range(size)] for x in range(size)]
         self.assertListEqual(a.tolist(keepsplit=True), res)
 
     def test_xor(self):
