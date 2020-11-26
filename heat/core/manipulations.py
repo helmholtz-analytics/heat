@@ -1648,7 +1648,7 @@ def repeat(a, repeats, axis=None):
     return repeated_array
 
 
-def reshape(a, *shape, new_split=None):
+def reshape(a, *shape, **kwargs):
     """
     Returns a tensor with the same data and number of elements as a, but with the specified shape.
 
@@ -1694,6 +1694,7 @@ def reshape(a, *shape, new_split=None):
         if not isinstance(shape, (list, tuple)):
             raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
     # check new_split parameter
+    new_split = kwargs.get("new_split")
     if new_split is None:
         new_split = a.split
     stride_tricks.sanitize_axis(shape, new_split)

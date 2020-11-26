@@ -149,7 +149,7 @@ class TestDNDarray(TestCase):
                 self.assertTrue(data.halo_next is None)
                 self.assertEqual(data_with_halos.shape, (0, 12))
 
-            data = data.reshape((12, 2), axis=1)
+            data = data.reshape((12, 2), new_split=1)
             data.get_halo(1)
 
             data_with_halos = data.array_with_halos
@@ -1334,7 +1334,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(b.shape[-1], 10)
         self.assertEqual(b.split, a.split)
         self.assertEqual(b.dtype, a.dtype)
-        b.larray[0, 0, 0] = torch.tensor(100, dtype=b.dtype)
+        b.larray[0, 0, 0] = torch.tensor(100, dtype=b.larray.dtype)
         self.assertEqual(b.larray[0, 0, 0], a.larray[0, 0, 0])
         b = a.view(4, -1)
         c = a.reshape((4, 30))

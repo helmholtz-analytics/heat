@@ -1815,7 +1815,7 @@ class TestManipulations(TestCase):
         # -------------------
         # axis = None
         # -------------------
-        a = ht.arange(12, split=0).reshape((2, 2, 3), axis=1)
+        a = ht.arange(12, split=0).reshape((2, 2, 3), new_split=1)
         a_np = a.numpy()
 
         # repeats = scalar

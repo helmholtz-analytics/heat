@@ -2762,7 +2762,7 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
                 self.__array = torch.cat((self.__array, data), dim=self.split)
 
-    def reshape(self, shape, axis=None):
+    def reshape(self, *shape, **kwargs):
         """
         Returns a tensor with the same data and number of elements as a, but with the specified shape.
 
@@ -2795,7 +2795,7 @@ class DNDarray:
         (2/2) tensor([[ 8,  9, 10, 11],
                     [12, 13, 14, 15]], dtype=torch.int32)
         """
-        return manipulations.reshape(self, shape, axis)
+        return manipulations.reshape(self, *shape, **kwargs)
 
     def resplit_(self, axis=None):
         """
