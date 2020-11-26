@@ -1334,7 +1334,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(b.shape[-1], 10)
         self.assertEqual(b.split, a.split)
         self.assertEqual(b.dtype, a.dtype)
-        b.larray[0, 0, 0] = torch.tensor(100, dtype=b.larray.dtype)
+        b.larray[0, 0, 0] = 100
         self.assertEqual(b.larray[0, 0, 0], a.larray[0, 0, 0])
         b = a.view(4, -1)
         c = a.reshape((4, 30))
@@ -1342,8 +1342,9 @@ class TestDNDarray(TestCase):
 
         # test exceptions
         a = ht.array(t_a, split=1)
-        with self.assertRaises(RuntimeError):
-            a.view(4, 3, -1)
+        if a.is_distributed():
+            with self.assertRaises(RuntimeError):
+                a.view(4, 3, -1)
         with self.assertRaises(NotImplementedError):
             a.view(dtype=ht.int32)
         a = ht.array(t_a, split=0, order="F")
