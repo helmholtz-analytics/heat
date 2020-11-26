@@ -83,7 +83,7 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
-        self.__balanced = None
+        self.__balanced = balanced
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None
@@ -3910,10 +3910,11 @@ class DNDarray:
         """
         return statistics.var(self, axis, ddof=ddof, **kwargs)
 
-    def view(self, *shape):
+    def view(self, *args, **kwargs):
         """
         Similar to `torch.Tensor.view`, returns a new DNDarray with the data contained in `self`,
-        but displayed in a different `shape`.
+        but displayed in a different `shape`. Note: constructing a view is not possible if the
+        corresponding memory buffer is distributed, use `reshape` instead.
 
         Parameters
         ----------
@@ -3929,36 +3930,41 @@ class DNDarray:
         ------
         RuntimeError
             if `self` is distributed and `self.shape[self.split] != shape[self.split]`.
-            In other words, constructing a view is not possible if it requires data
-            communication among processes.
 
         Also see
         --------
-        `rebalance`
+        `reshape`
 
         """
-        if not self.is_distributed:
+        if kwargs.get("dtype"):
+            raise NotImplementedError(
+                "Constructing a view of the DNDarray’s memory with a different data-type not implemented yet. "
+            )
+        # TODO: sanitize_dims?
+
+        new_shape = args
+        split = self.split
+
+        if not self.is_distributed():
             return factories.array(
-                self.larray.view(*shape),
-                split=self.split,
+                self.larray.view(new_shape),
+                split=None,
                 copy=False,
                 device=self.device,
                 comm=self.comm,
             )
-        elif shape[self.split] == self.gshape[self.split]:
-            view_lshape = shape[: self.split] + (self.lshape[self.split],) + shape[self.split + 1 :]
+        elif split == 0 and new_shape[split] == self.gshape[split]:
+            new_lshape = (self.lshape[split],) + new_shape[1:]
             return factories.array(
-                self.larray.view(view_lshape),
-                is_split=self.split,
+                self.larray.view(new_lshape),
+                is_split=split,
                 copy=False,
                 device=self.device,
                 comm=self.comm,
             )
         else:
             raise RuntimeError(
-                "Cannot construct a view with shape {}. Memory buffer is distributed. Use `reshape()` instead.".format(
-                    tuple(shape)
-                )
+                "Cannot construct view of a distributed memory buffer. Use `reshape()` instead."
             )
 
     def __xor__(self, other):

@@ -1331,8 +1331,24 @@ class TestDNDarray(TestCase):
         t_a = torch.arange(4 * 5 * 6).reshape(4, 5, 6)
         a = ht.array(t_a, split=0)
         b = a.view(4, 3, -1)
-        print(a.view(4, 3, -1).shape)
         self.assertEqual(b.shape[-1], 10)
+        self.assertEqual(b.split, a.split)
+        self.assertEqual(b.dtype, a.dtype)
+        b.larray[0, 0, 0] = 100
+        self.assertEqual(b.larray[0, 0, 0], a.larray[0, 0, 0])
+        b = a.view(4, -1)
+        c = a.reshape((4, 30))
+        self.assertTrue((b == c).all())
+
+        # test exceptions
+        a = ht.array(t_a, split=1)
+        with self.assertRaises(RuntimeError):
+            a.view(4, 3, -1)
+        with self.assertRaises(NotImplementedError):
+            a.view(dtype=ht.int32)
+        a = ht.array(t_a, split=0, order="F")
+        with self.assertRaises(RuntimeError):
+            a.view(4, 3, -1)
 
     def test_tolist(self):
         size = ht.MPI_WORLD.size
