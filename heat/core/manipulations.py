@@ -1648,7 +1648,7 @@ def repeat(a, repeats, axis=None):
     return repeated_array
 
 
-def reshape(a, shape, new_split=None):
+def reshape(a, *shape, new_split=None):
     """
     Returns a tensor with the same data and number of elements as a, but with the specified shape.
 
@@ -1686,11 +1686,14 @@ def reshape(a, shape, new_split=None):
     (1/2) tensor([[0., 2., 4., 6.]])
     (2/2) tensor([[ 8., 10., 12., 14.]])
     """
-    if not isinstance(a, dndarray.DNDarray):
-        raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
-    if not isinstance(shape, (list, tuple)):
-        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
-        # check new_split parameter
+    sanitation.sanitize_in(a)
+    # check for nested sequence
+    if isinstance(shape[0], (list, tuple)):
+        shape = shape[0]
+    else:
+        if not isinstance(shape, (list, tuple)):
+            raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
+    # check new_split parameter
     if new_split is None:
         new_split = a.split
     stride_tricks.sanitize_axis(shape, new_split)

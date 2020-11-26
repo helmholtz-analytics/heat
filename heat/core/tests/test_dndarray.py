@@ -1334,7 +1334,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(b.shape[-1], 10)
         self.assertEqual(b.split, a.split)
         self.assertEqual(b.dtype, a.dtype)
-        b.larray[0, 0, 0] = 100
+        b.larray[0, 0, 0] = torch.tensor(100, dtype=b.dtype)
         self.assertEqual(b.larray[0, 0, 0], a.larray[0, 0, 0])
         b = a.view(4, -1)
         c = a.reshape((4, 30))
