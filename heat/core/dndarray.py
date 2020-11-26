@@ -3948,7 +3948,7 @@ class DNDarray:
         if not self.is_distributed():
             return factories.array(
                 self.larray.view(new_shape),
-                split=None,
+                split=split,
                 copy=False,
                 device=self.device,
                 comm=self.comm,
