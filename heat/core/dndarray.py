@@ -933,7 +933,7 @@ class DNDarray:
         [2/2] (7, 2) (2, 2)
         """
         if self.is_balanced():
-            return
+            return self
         self.redistribute_()
 
     def __bool__(self):
