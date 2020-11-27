@@ -44,7 +44,7 @@ def sanitize_memory_layout(x, order="C"):
         raise NotImplementedError(
             "Internal usage of torch.clone() means losing original memory layout for now. \n Please specify order='C' for row-major, order='F' for column-major layout."
         )
-    if x.ndim < 2 or x.numel() == 0:
+    if x.ndim < 2:
         # do nothing
         return x
     dims = list(range(x.ndim))
@@ -61,12 +61,17 @@ def sanitize_memory_layout(x, order="C"):
         dims = tuple(reversed(dims))
         y = torch.empty_like(x)
         permutation = x.permute(dims).contiguous()
-        y = y.set_(
-            permutation.storage(),
-            x.storage_offset(),
-            x.shape,
-            tuple(reversed(permutation.stride())),
-        )
+        if x.numel() != 0:
+            y = y.set_(
+                permutation.storage(),
+                x.storage_offset(),
+                x.shape,
+                tuple(reversed(permutation.stride())),
+            )
+        else:
+            y = y.set_(
+                permutation.storage(), x.storage_offset(), x.shape, tuple(permutation.stride())
+            )
         return y
     else:
         raise ValueError(
