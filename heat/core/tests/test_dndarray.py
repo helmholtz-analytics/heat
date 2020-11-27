@@ -1328,28 +1328,28 @@ class TestDNDarray(TestCase):
         self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)
 
     def test_view(self):
-        t_a = torch.arange(4 * 5 * 6).reshape(4, 5, 6)
+        t_a = torch.arange(3 * 5 * 6).reshape(3, 5, 6)
         a = ht.array(t_a, split=0)
-        b = a.view(4, 3, -1)
+        b = a.view(3, 3, -1)
         self.assertEqual(b.shape[-1], 10)
         self.assertEqual(b.split, a.split)
         self.assertEqual(b.dtype, a.dtype)
-        b.larray[0, 0, 0] = 100
-        self.assertEqual(b.larray[0, 0, 0], a.larray[0, 0, 0])
-        b = a.view(4, -1)
-        c = a.reshape((4, 30))
+        b = a.view(3, -1)
+        c = a.reshape((3, 30))
         self.assertTrue((b == c).all())
+        if b.larray.numel() != 0:
+            self.assertEqual(id(b.larray[0, 0]), id(a.larray[0, 0]))
 
         # test exceptions
         a = ht.array(t_a, split=1)
         if a.is_distributed():
             with self.assertRaises(RuntimeError):
-                a.view(4, 3, -1)
+                a.view(3, 3, -1)
         with self.assertRaises(NotImplementedError):
             a.view(dtype=ht.int32)
         a = ht.array(t_a, split=0, order="F")
         with self.assertRaises(RuntimeError):
-            a.view(4, 3, -1)
+            a.view(3, 3, -1)
 
     def test_tolist(self):
         size = ht.MPI_WORLD.size
