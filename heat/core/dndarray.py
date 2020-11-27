@@ -3954,14 +3954,39 @@ class DNDarray:
                 comm=self.comm,
             )
         elif split == 0 and new_shape[split] == self.gshape[split]:
-            new_lshape = (self.lshape[split],) + new_shape[1:]
-            return factories.array(
-                self.larray.view(new_lshape),
-                is_split=split,
-                copy=False,
-                device=self.device,
-                comm=self.comm,
-            )
+            stride = self.larray.stride()
+            if stride[0] > stride[-1]:
+                # row-major tensor
+                lshape = self.lshape
+                gshape = self.gshape
+                if lshape[split] == 0 and new_shape.count(-1) == 1:
+                    # cannot calculate size of -1 dimension if no data on node
+                    replace_index = new_shape.index(-1)
+                    new_shape_match = (
+                        torch.true_divide(
+                            torch.tensor(gshape).prod(), torch.tensor(new_shape).prod().abs()
+                        )
+                        .type(torch.int64)
+                        .item()
+                    )
+                    new_shape = (
+                        new_shape[:replace_index]
+                        + (new_shape_match,)
+                        + new_shape[replace_index + 1 :]
+                    )
+                new_lshape = (lshape[split],) + new_shape[1:]
+                return factories.array(
+                    self.larray.view(new_lshape),
+                    is_split=split,
+                    copy=False,
+                    device=self.device,
+                    comm=self.comm,
+                )
+            else:
+                # column-major tensor
+                raise RuntimeError(
+                    "View size is not compatible with size and stride of input (at least one dimension spans across two contiguous subspaces). Use `reshape()` instead."
+                )
         else:
             raise RuntimeError(
                 "Cannot construct view of a distributed memory buffer. Use `reshape()` instead."
