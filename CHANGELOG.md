@@ -3,8 +3,9 @@
 ## New features
 - [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
 - [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
-- [#687](https://github.com/helmholtz-analytics/heat/pull/687) New DNDarray property: balanced
-
+- [#687](https://github.com/helmholtz-analytics/heat/pull/687) New: `DNDarray.balanced` property, greatly reduces the need for
+inter-process communication when assessing whether a DNDarray is evenly or unevenly distributed.
+- [#701](https://github.com/helmholtz-analytics/heat/pull/701) New: `DNDarray.view(shape)`. View the underlying data of a DNDarray in a different shape, and perform operations on a view without data duplication.
 ### I/O
 - [#559](https://github.com/helmholtz-analytics/heat/pull/559) Enhancement: `save_netcdf` allows naming dimensions, creating unlimited dimensions, using existing dimensions and variables, slicing
 ### Manipulations
