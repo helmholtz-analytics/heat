@@ -3912,9 +3912,10 @@ class DNDarray:
 
     def view(self, *args, **kwargs):
         """
-        Similar to `torch.Tensor.view`, returns a new DNDarray with the data contained in `self`,
-        but displayed in a different `shape`. Note: constructing a view is not possible if the
-        corresponding memory buffer is distributed, use `reshape` instead.
+        Similar to `torch.Tensor.view` (https://pytorch.org/docs/stable/tensors.html#torch.Tensor.view),
+        returns a new DNDarray with the data contained in `self`,but displayed in a different `shape`.
+        Note: constructing a view is not possible if the corresponding memory buffer is distributed,
+        in that case you should use `reshape` instead.
 
         Parameters
         ----------
@@ -3924,17 +3925,46 @@ class DNDarray:
         Returns
         -------
         view : DNDarray
-            points to the same memory location as `self`.
+            representation of `self` in the new `shape`. `self` and `view` share the same data.
 
         Raises
         ------
         RuntimeError
-            if `self` is distributed and `self.shape[self.split] != shape[self.split]`.
+            if the relevant memory buffer is distributed across different processes,
+            or if the data aren't stored contiguously (column-major DNDarray).
 
         Also see
         --------
         `reshape`
 
+        Examples
+        --------
+        >>> a = ht.arange(4*5).reshape(4,5)
+        >>> a
+        DNDarray([[ 0,  1,  2,  3,  4],
+                [ 5,  6,  7,  8,  9],
+                [10, 11, 12, 13, 14],
+                [15, 16, 17, 18, 19]], dtype=ht.int32, device=cpu:0, split=None)
+        >>> b = a.view(2,10)
+        >>> b
+        DNDarray([[ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9],
+                [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]], dtype=ht.int32, device=cpu:0, split=None)
+        >>> b[0,0] =  42
+        >>> a
+        DNDarray([[42,  1,  2,  3,  4],
+                [ 5,  6,  7,  8,  9],
+                [10, 11, 12, 13, 14],
+                [15, 16, 17, 18, 19]], dtype=ht.int32, device=cpu:0, split=None)
+        >>> c = ht.arange(3 * 4 * 5, split=0).reshape(3, 4, 5) # distributed
+        >>> d = c.view(3, -1) # the size -1 is inferred from the other dimensions
+        >>> d
+        DNDarray([[ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+                [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39],
+                [40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]], dtype=ht.int32, device=cpu:0, split=0)
+        >>> e = c.view(4, 3, 5)
+        Traceback (most recent call last):
+        (...)
+        RuntimeError: Cannot construct view of a distributed memory buffer. Use `reshape()` instead.
         """
         if kwargs.get("dtype"):
             raise NotImplementedError(
@@ -4003,7 +4033,7 @@ class DNDarray:
 
         Returns
         -------
-        result: ht.DNDArray
+        result: ht.DNDarray
         A tensor containing the results of element-wise OR of self and other.
 
         Examples
