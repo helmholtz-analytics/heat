@@ -296,8 +296,8 @@ class SkipBatches:
         elif self.epoch == 4:
             self.reset_skips()
             self.global_skip //= 2
-            #self.local_skip //= 2
-            #self.batches_to_wait //= 2
+            # self.local_skip //= 2
+            # self.batches_to_wait //= 2
             self._prev_losses_mean = []
 
         epochs_to_wait = 4
@@ -314,14 +314,14 @@ class SkipBatches:
             if not self.ls_flag2:
                 self.ls_flag2 = True
                 self.reset_skips()
-                #self.global_skip //= 2
-                #self.local_skip //= 2
-                #self.batches_to_wait //= 2
-            #else:
+                # self.global_skip //= 2
+                # self.local_skip //= 2
+                # self.batches_to_wait //= 2
+            # else:
             self.global_skip //= 2
             self.local_skip //= 2
             self.batches_to_wait //= 2
-            #print0("all 0s", avg_loss)
+            # print0("all 0s", avg_loss)
             if len(self._prev_losses_mean) > 3 and self.global_skip == 0:
                 self.global_skip = 4
                 self.local_skip = 1
@@ -337,11 +337,11 @@ class SkipBatches:
             if not self.ls_flag1:
                 self.ls_flag1 = True
                 self.reset_skips()
-                #self.global_skip //= 2
-                #self.local_skip = 2
-            #else: 
+                # self.global_skip //= 2
+                # self.local_skip = 2
+            # else:
             self.global_skip //= 2
-            #if self.global_skip < 4:
+            # if self.global_skip < 4:
             #    self.global_skip = 4
             self.local_skip *= 2
             self.batches_to_wait *= 2
@@ -354,18 +354,18 @@ class SkipBatches:
             # todo: double global skips v reset global skips
             self.global_skip = self.og_global_skip // 2
             # self.global_skip *= 3
-            #if self.global_skip > self.og_global_skip:
+            # if self.global_skip > self.og_global_skip:
             #    self.global_skip = self.og_global_skip // 2
             if self.local_skip == 0:
                 self.local_skip = 2
             else:
                 self.local_skip *= 2
-        
+
             if self.batches_to_wait == 0:
                 self.batches_to_wait = 4
             else:
-                self.batches_to_wait *= 4 # 2
-        
+                self.batches_to_wait *= 4  # 2
+
             if self.batches_to_wait > self._og_btw * 2:
                 self.batches_to_wait = self._og_btw * 2
             self.loss_switch_target /= 1.25
@@ -377,12 +377,12 @@ class SkipBatches:
             self.global_skip //= 2
             if self._inc_ls:
                 self.local_skip *= 2
-                self.batches_to_wait *= 2 
+                self.batches_to_wait *= 2
             self._prev_losses_mean = self._prev_losses_mean[-1:]
             print0("dropping skips, loss stable")
             if self.global_skip == 0 and avg_loss > self.loss_floor + 0.75:
                 self.global_skip = 1
-            #self._prev_losses_mean = []
+            # self._prev_losses_mean = []
             if self.local_skip < 2:
                 self.local_skip = 2
         if self.local_skip > self.global_skip // 1.5:
@@ -598,15 +598,15 @@ class SkipBatches:
             self._update_parameters()  # -> splits off irrelevant ranks
             # needs to happen on all ranks:
             self._local_torch_param_update(self._send_mod_m1)
-        
+
         # TODO: deal with the global_skip == 1 issue. when there is global_skip == 1 this loop doesnt run
         if self.current_batch == self.last_batch or self.batches_to_wait == 0:
             # print("last batch")
             # todo: abstract last batch?
             # receive the sent data to sync params across all ranks
             if self.comm.rank in current_ranks:
-                if len(self._prev_params) > 0:
-                    raise ValueError(f"length of previous params > 0! {len(self._prev_params)}")
+                if len(self._prev_params) > 1:
+                    raise ValueError(f"length of previous params > 1! {len(self._prev_params)}")
                 prev_params = self._prev_params.pop(0)
                 shapes = prev_params[2]
                 # factor = 1.0 / float(len(current_ranks))
