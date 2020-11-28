@@ -211,16 +211,19 @@ class SkipBatches:
         if self.loss_switch_target is None:
             self.loss_switch_target = avg_loss / 3.0
 
-        if self.epoch < 5:
+        if self.epoch < 4:
             self.global_skip = 0
             self.local_skip = 0
             self.batches_to_wait = 0
             return
-        elif self.epoch == 5:
+        elif self.epoch == 4:
             self.reset_skips()
+            self.global_skip //= 2
+            #self.local_skip //= 2
+            #self.batches_to_wait //= 2
+            self._prev_losses_mean = []
 
-
-        epochs_to_wait = 4
+        epochs_to_wait = 3
         if len(self._prev_losses_mean) < epochs_to_wait:
             #self.global_skip = 0
             #self.local_skip = 0
@@ -230,42 +233,62 @@ class SkipBatches:
         means = torch.tensor(self._prev_losses_mean)
         diff = abs(means[-1] - means[-1 * epochs_to_wait])
 
-        if avg_loss < self.loss_floor + 0.5 and diff < 0.1:
+        if avg_loss < self.loss_floor + 0.45 and diff < 0.1:
+            if not self.ls_flag2:
+                self.ls_flag2 = True
+                self.reset_skips()
+                #self.global_skip //= 2
+                #self.local_skip //= 2
+                #self.batches_to_wait //= 2
+            #else:
             self.global_skip //= 2
             self.local_skip //= 2
             self.batches_to_wait //= 2
-            print0("all 0s", avg_loss)
-            if len(self._prev_losses_mean) == 3:
-                self._prev_losses_mean = []
+            #print0("all 0s", avg_loss)
+            if len(self._prev_losses_mean) > 3 and self.global_skip == 0:
                 self.global_skip = 4
                 self.local_skip = 1
                 self.batches_to_wait = 1
+            self._prev_losses_mean = []
+            print0(
+                f"\tgs: {self.global_skip}, ls {self.local_skip}, "
+                f"btw {self.batches_to_wait}, {avg_loss}"
+            )
             return
-        elif avg_loss < self.loss_floor + 0.75 and diff < 0.1:
+        elif avg_loss < self.loss_floor + 0.75 and diff < 0.1 and not self.ls_flag1:
             # todo: set the global skips to half? or just to 4?
             if not self.ls_flag1:
                 self.ls_flag1 = True
                 self.reset_skips()
+                #self.global_skip //= 2
                 #self.local_skip = 2
-            else: 
-                self.global_skip //= 2
-                #if self.global_skip < 4:
-                #    self.global_skip = 4
-                self.local_skip *= 2
-                self.batches_to_wait //= 2
-                print0("\t below Loss floor + 0.5")
-                self._prev_losses_mean = []
-                # if diff < 0.1:
-                #     # if the loss is stable and in this range, do what???
-                #     pass
+            #else: 
+            self.global_skip //= 2
+            #if self.global_skip < 4:
+            #    self.global_skip = 4
+            self.local_skip *= 2
+            self.batches_to_wait *= 2
+            print0("\t below Loss floor + 0.75")
+            self._prev_losses_mean = []
+            # if diff < 0.1:
+            #     # if the loss is stable and in this range, do what???
+            #     pass
         elif avg_loss < self.loss_switch_target:
             # todo: double global skips v reset global skips
-            # self.global_skip = self.og_global_skip // 2
-            self.global_skip *= 4
-            if self.global_skip > self.og_global_skip:
-                self.global_skip = self.og_global_skip // 2
-            self.local_skip *= 2
-            self.batches_to_wait *= 4 # 2
+            self.global_skip = self.og_global_skip // 2
+            # self.global_skip *= 3
+            #if self.global_skip > self.og_global_skip:
+            #    self.global_skip = self.og_global_skip // 2
+            if self.local_skip == 0:
+                self.local_skip = 2
+            else:
+                self.local_skip *= 2
+        
+            if self.batches_to_wait == 0:
+                self.batches_to_wait = 4
+            else:
+                self.batches_to_wait *= 4 # 2
+        
             if self.batches_to_wait > self._og_btw * 2:
                 self.batches_to_wait = self._og_btw * 2
             self.loss_switch_target /= 1.25
@@ -275,18 +298,26 @@ class SkipBatches:
         elif diff < 0.1:
             # drop gs by factor of 2
             self.global_skip //= 2
-            #if self._inc_ls:
-            #    self.local_skip *= 3
-            #    self.batches_to_wait *= 2 
+            if self._inc_ls:
+                self.local_skip *= 2
+                self.batches_to_wait *= 2 
             self._prev_losses_mean = self._prev_losses_mean[-1:]
             print0("dropping skips, loss stable")
             if self.global_skip == 0 and avg_loss > self.loss_floor + 0.75:
                 self.global_skip = 1
-        if self.local_skip > self.global_skip:
-            self.local_skip = self.global_skip
-        if self.batches_to_wait > self.global_skip:
-            self.batches_to_wait = self.global_skip
-
+            #self._prev_losses_mean = []
+            if self.local_skip < 2:
+                self.local_skip = 2
+        if self.local_skip > self.global_skip // 1.5:
+            self.local_skip = int(self.global_skip // 1.5)
+        if self.batches_to_wait > self.global_skip // 2:
+            self.batches_to_wait = self.global_skip // 2
+        if len(self._prev_losses_mean) > 3 and self.global_skip == 0:
+            self._prev_losses_mean = []
+            self.global_skip = 4
+            self.local_skip = 1
+            self.batches_to_wait = 2
+        self._prev_losses_mean = []
         print0(
             f"\tgs: {self.global_skip}, ls {self.local_skip}, "
             f"btw {self.batches_to_wait}, {avg_loss}"
@@ -491,7 +522,8 @@ class SkipBatches:
             self._update_parameters()  # -> splits off irrelevant ranks
             # needs to happen on all ranks:
             self._local_torch_param_update(self._send_mod_m1)
-
+        
+        # TODO: deal with the global_skip == 1 issue. when there is global_skip == 1 this loop doesnt run
         if self.current_batch == self.last_batch or self.batches_to_wait == 0:
             # print("last batch")
             # todo: abstract last batch?
