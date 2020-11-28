@@ -1,11 +1,19 @@
 import torch
 from torch.utils import data as torch_data
-from typing import Callable, List, Iterator, Union, Optional
+from typing import Callable, List, Iterator, Union, Optional, Sized
 
 from ...core.dndarray import DNDarray
+from ...core.communication import MPI_WORLD
 from . import partial_dataset
 
-__all__ = ["DataLoader", "Dataset", "dataset_shuffle", "dataset_ishuffle"]
+__all__ = [
+    "DataLoader",
+    "Dataset",
+    "dataset_shuffle",
+    "dataset_ishuffle",
+    "DistributedLoaderRandomSampler",
+    "DistributedLoaderSequentialSampler",
+]
 
 
 class DataLoader:
@@ -372,3 +380,114 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
             # shuffle all of the data around
             shuffled = getattr(dataset, rcv[0][0])[prm]
             setattr(dataset, rcv[0][0], shuffled[dataset._cut_slice])
+
+
+class DistributedLoaderRandomSampler(torch_data.Sampler[int]):
+    r"""Samples elements randomly. If without replacement, then sample from a shuffled dataset.
+    If with replacement, then user can specify :attr:`num_samples` to draw.
+
+    Arguments:
+        data_source (Dataset): dataset to sample from
+        replacement (bool): samples are drawn on-demand with replacement if ``True``, default=``False``
+        num_samples (int): number of samples to draw, default=`len(dataset)`. This argument
+            is supposed to be specified only when `replacement` is ``True``.
+        generator (Generator): Generator used in sampling.
+    """
+    data_source: Sized
+    replacement: bool
+
+    def __init__(
+        self,
+        data_source: Sized,
+        replacement: bool = False,
+        num_samples: Optional[int] = None,
+        generator=None,
+        DDDP=False,
+    ) -> None:
+        self.data_source = data_source
+        self.replacement = replacement
+        self._num_samples = num_samples
+        self.generator = generator
+        self._splits = MPI_WORLD.size
+        self._rank_split = MPI_WORLD.rank
+        self.__seed = torch.iinfo(torch.int64).max
+        if DDDP:
+            # note: this implies a homogeneous node config
+            self._splits = MPI_WORLD.size // torch.cuda.device_count()
+            self._rank_split = MPI_WORLD.rank // torch.cuda.device_count()
+
+        if not isinstance(self.replacement, bool):
+            raise TypeError(
+                "replacement should be a boolean value, but got "
+                "replacement={}".format(self.replacement)
+            )
+
+        if self._num_samples is not None and not replacement:
+            raise ValueError(
+                "With replacement=False, num_samples should not be specified, "
+                "since a random permute will be performed."
+            )
+
+        if not isinstance(self.num_samples, int) or self.num_samples <= 0:
+            raise ValueError(
+                "num_samples should be a positive integer "
+                "value, but got num_samples={}".format(self.num_samples)
+            )
+
+    @property
+    def num_samples(self) -> int:
+        # dataset size might change at runtime
+        if self._num_samples is None:
+            return len(self.data_source) // self._splits
+        return self._num_samples // self._splits
+
+    def __iter__(self):
+        n = len(self.data_source)
+        loc_n = n // self._splits
+        sl = slice(self._rank_split * loc_n, (self._rank_split + 1) * loc_n)
+        self.__seed -= 1
+        if self.generator is None:
+            generator = torch.Generator()
+            generator.manual_seed(self.__seed)
+        else:
+            generator = self.generator
+        if self.replacement:
+            for _ in range(self.num_samples // 32):
+                yield from torch.randint(
+                    high=n, size=(32,), dtype=torch.int64, generator=generator
+                ).tolist()[sl]
+            yield from torch.randint(
+                high=n, size=(self.num_samples % 32,), dtype=torch.int64, generator=generator
+            ).tolist()[sl]
+        else:
+            yield from torch.randperm(n, generator=self.generator).tolist()[sl]
+
+    def __len__(self):
+        return self.num_samples
+
+
+class DistributedLoaderSequentialSampler(torch_data.Sampler[int]):
+    r"""Samples elements sequentially, always in the same order.
+
+    Arguments:
+        data_source (Dataset): dataset to sample from
+    """
+    data_source: Sized
+
+    def __init__(self, data_source, DDDP=True):
+        self.data_source = data_source
+        self._splits = MPI_WORLD.size
+        self._rank_split = MPI_WORLD.rank
+        if DDDP:
+            # note: this implies a homogeneous node config
+            self._splits = MPI_WORLD.size // torch.cuda.device_count()
+            self._rank_split = MPI_WORLD.rank // torch.cuda.device_count()
+
+    def __iter__(self):
+        n = len(self.data_source)
+        loc_n = n // self._splits
+        sl = slice(self._rank_split * loc_n, (self._rank_split + 1) * loc_n)
+        return iter(list(range(n))[sl])
+
+    def __len__(self) -> int:
+        return len(self.data_source)
