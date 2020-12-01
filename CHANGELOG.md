@@ -8,8 +8,8 @@
 ### I/O
 - [#559](https://github.com/helmholtz-analytics/heat/pull/559) Enhancement: `save_netcdf` allows naming dimensions, creating unlimited dimensions, using existing dimensions and variables, slicing
 ### Manipulations
-- [#690](https://github.com/helmholtz-analytics/heat/pull/690) New feature: `ravel()`
 - [#677](https://github.com/helmholtz-analytics/heat/pull/677) split, vsplit, dsplit, hsplit
+- [#690](https://github.com/helmholtz-analytics/heat/pull/690) New feature: `ravel()`
 ### Statistical Functions
 - [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``
 ### Linear Algebra

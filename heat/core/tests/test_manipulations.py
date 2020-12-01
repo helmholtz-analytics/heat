@@ -1538,8 +1538,7 @@ class TestManipulations(TestCase):
             [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1, device=self.device
         )
         res = ht.flatten(a)
-        with self.assertWarns(UserWarning):
-            ravel = ht.ravel(a)
+        ravel = ht.ravel(a)
         self.assertTrue(ht.equal(ravel, res))
         self.assertEqual(ravel.dtype, res.dtype)
         self.assertEqual(ravel.device, res.device)
@@ -1554,8 +1553,7 @@ class TestManipulations(TestCase):
             device=self.device,
         )
         res = ht.flatten(a)
-        with self.assertWarns(UserWarning):
-            ravel = ht.ravel(a)
+        ravel = ht.ravel(a)
         self.assertTrue(ht.equal(ravel, res))
         self.assertEqual(ravel.dtype, res.dtype)
         self.assertEqual(ravel.device, res.device)

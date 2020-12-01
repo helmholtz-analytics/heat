@@ -1401,8 +1401,7 @@ def pad(array, pad_width, mode="constant", constant_values=0):
 
 def ravel(a):
     """
-    Return a flattened array with the same elements as a if possible. A copy is returned otherwise.
-    The returned DNDarray may be unbalanced.
+    Return a flattened view of `a` if possible. A copy is returned otherwise.
 
     Parameters
     ----------
@@ -1413,6 +1412,12 @@ def ravel(a):
     -------
     ret : DNDarray
         flattened array with the same dtype as a, but with shape (a.size,).
+
+    Notes
+    ------
+    Returning a view of distributed data is only possible when `split != 0`. The returned DNDarray may be unbalanced.
+    Otherwise, data must be communicated among processes, and `ravel` falls back to `flatten`.
+
 
     See Also
     --------
@@ -1441,9 +1446,6 @@ def ravel(a):
     # Redistribution necessary
     # Arrays are not perfectly distributed. Array are copied between processes.
     if a.split != 0:
-        warnings.warn(
-            "Data needs to be copied between processes. Fall back to flatten()", UserWarning
-        )
         return flatten(a)
 
     result = factories.array(
