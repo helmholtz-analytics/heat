@@ -115,7 +115,7 @@ def sanitize_axis(shape, axis):
     return axis
 
 
-def sanitize_shape(shape):
+def sanitize_shape(shape, lval: int = 0):
     """
     Verifies and normalizes the given shape.
 
@@ -123,6 +123,9 @@ def sanitize_shape(shape):
     ----------
     shape : int or sequence of ints
         Shape of an array.
+    lval : int
+        Lowest legal value
+
 
     Returns
     -------
@@ -154,7 +157,7 @@ def sanitize_shape(shape):
             dimension = int(dimension)
         if not isinstance(dimension, int):
             raise TypeError("expected sequence object with length >= 0 or a single integer")
-        if dimension < 0:
+        if dimension < lval:
             raise ValueError("negative dimensions are not allowed")
 
     return shape

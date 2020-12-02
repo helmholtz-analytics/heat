@@ -1810,28 +1810,20 @@ def reshape(a, shape, new_split=None):
     stride_tricks.sanitize_axis(shape, new_split)
 
     # Check the type of shape and number elements
+    shape = stride_tricks.sanitize_shape(shape, -1)
+
     shape = list(shape)
-    for dim in shape:
-        if not isinstance(dim, int):
-            raise TypeError(
-                "argument 'shape' contains an element of type {}, only ints are allowed".format(
-                    type(dim)
-                )
-            )
-        if dim < -1:
-            raise ValueError("negative dimensions are not allowed")
+    shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
 
     # infer unknown dimension
     if shape.count(-1) > 1:
         raise ValueError("too many unknown dimensions")
     elif shape.count(-1) == 1:
         pos = shape.index(-1)
-        shape[pos] = -(
-            a.size / torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
-        ).item()
+        shape[pos] = -(a.size / shape_size).item()
+        shape_size *= -shape[pos]
 
-    shape = stride_tricks.sanitize_shape(shape)
-    if torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice)) != a.size:
+    if shape_size != a.size:
         raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
     # Forward to Pytorch directly
