@@ -358,6 +358,7 @@ def main():
         device = "cuda:0"
         args.local_rank = 0
         torch.cuda.set_device(device)
+    torch.cuda.empty_cache()
 
     args.total_batch_size = args.world_size * args.batch_size
     assert torch.backends.cudnn.enabled, "Amp requires cudnn backend to be enabled."
@@ -484,7 +485,7 @@ def main():
 
         # epoch loss logic to adjust learning rate based on loss
         # dp_optimizer.epoch_loss_logic(ls)
-        dp_optimizer.new_loss_logic(ls)
+        dp_optimizer.epoch_loss_logic(ls, args.epochs)
         avg_loss.append(ls)
         adjust_learning_rate(dp_optimizer, avg_loss, epoch)
 
@@ -512,7 +513,7 @@ def main():
                 )
             val_acc1.append(prec1)
             val_acc5.append(prec5)
-            batch_time_avg.append(total_time.avg)
+            batch_time_avg.append(avg_train_time)
             train_acc1.append(tacc1)
             train_acc5.append(tacc5)
             # avg_loss.append(ls)
@@ -743,24 +744,44 @@ def adjust_learning_rate(optimizer, losses, epoch):
     """LR schedule that should yield 76% converged accuracy with batch size 256"""
     # TODO: make sure that losses are stable before increasing the factor
     loss = losses[-1]
-    stable = True if len(losses) > 3 and abs(losses[-3] - losses[-1]) < 0.075 else False
-    if loss <= 1.250 and stable and args.factor < 3: # 1.05?or epoch >= 80:
-        #args.factor = 3
+    stable = True if len(losses) > 3 and abs(losses[-3] - losses[-1]) < 0.075 else False  # 0.075
+    if (epoch == 85 or (loss <= 1.20 and stable)) and args.factor < 3:  # 1.05?or epoch >= 80:
+        # args.factor = 3
         args.factor += 1
-    elif loss <= 1.3500 and stable and args.factor < 2:
-        #args.factor = 2
+    elif loss <= 1.300 and stable and args.factor < 2:  # removed stable
+        # args.factor = 2
         args.factor += 1
-    elif loss <= 2.150 and stable and args.factor < 1:
+    elif loss <= 1.900 and stable and args.factor < 1:  # 1.8, 2.150
         # args.factor = 1
         args.factor += 1
-    #else:
+    # else:
     #    args.factor = 0
+    # if 80 <= epoch < 83:
+    #    factor = 1
+    # elif 83 <= epoch < 85:
+    #    factor = 2
+    # elif 85 <= epoch:
+    #    factor = 3
+    # else:
     factor = args.factor
     lr = args.lr * ht.MPI_WORLD.size * (0.1 ** factor)
     print0(f"LR: {lr}, Factor: {factor}, loss: {loss}")
 
     for param_group in optimizer.lcl_optimizer.param_groups:
         param_group["lr"] = lr
+
+
+def adjust_learning_rate_hvd(optimizer, epoch):
+    if epoch < 30:
+        lr_adj = 1.0
+    elif epoch < 60:
+        lr_adj = 1e-1
+    elif epoch < 80:
+        lr_adj = 1e-2
+    else:
+        lr_adj = 1e-3
+    for param_group in optimizer.lcl_optimizer.param_groups:
+        param_group["lr"] = args.lr * ht.MPI_WORLD.size * lr_adj  # optimizer.global_skip
 
 
 def lr_warmup(optimizer, epoch, step, len_epoch):
