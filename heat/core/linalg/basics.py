@@ -564,7 +564,7 @@ def matmul(a, b, allow_resplit=False):
             c_loc = c.larray.squeeze()
             if c_loc.nelement() == 1:
                 c_loc = torch.tensor(c_loc, device=tdev)
-                
+
             c = factories.array(c_loc, is_split=0, device=a.device)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
@@ -576,7 +576,7 @@ def matmul(a, b, allow_resplit=False):
         # locations of the remainders in b
         b_rem_locs1 = torch.nonzero(rem_map[:, 1, 1] == 1, as_tuple=False)
         a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
-        b_node_rem_s1 = b.larray[kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB]  
+        b_node_rem_s1 = b.larray[kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB]
         # b_node_rem_s1 -> remainders for a in the
 
         a_rem = torch.empty(
