@@ -5,8 +5,10 @@ import warnings
 
 from .communication import MPI, MPI_WORLD
 from . import factories
+from . import devices
 from . import stride_tricks
 from . import sanitation
+from . import statistics
 from . import dndarray
 from . import types
 
@@ -38,7 +40,9 @@ def __binary_op(operation, t1, t2, out=None):
     """
     if np.isscalar(t1):
         try:
-            t1 = factories.array([t1])
+            t1 = factories.array(
+                [t1], device=t2.device if isinstance(t2, dndarray.DNDarray) else None
+            )
         except (ValueError, TypeError):
             raise TypeError("Data type not supported, input was {}".format(type(t1)))
 
@@ -51,11 +55,9 @@ def __binary_op(operation, t1, t2, out=None):
                 )
             output_shape = (1,)
             output_split = None
-            output_device = None
+            output_device = t2.device
             output_comm = MPI_WORLD
         elif isinstance(t2, dndarray.DNDarray):
-            t1 = t1.gpu() if t2.device.device_type == "gpu" else t1.cpu()
-
             output_shape = t2.shape
             output_split = t2.split
             output_device = t2.device
@@ -105,7 +107,7 @@ def __binary_op(operation, t1, t2, out=None):
                         "Broadcasting requires transferring data of first operator between MPI ranks!"
                     )
                     if t1.comm.rank > 0:
-                        t1._DNDarray__array = torch.zeros(
+                        t1.larray = torch.zeros(
                             t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
                         )
                     t1.comm.Bcast(t1)
@@ -116,7 +118,7 @@ def __binary_op(operation, t1, t2, out=None):
                         "Broadcasting requires transferring data of second operator between MPI ranks!"
                     )
                     if t2.comm.rank > 0:
-                        t2._DNDarray__array = torch.zeros(
+                        t2.larray = torch.zeros(
                             t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
                         )
                     t2.comm.Bcast(t2)
@@ -135,36 +137,36 @@ def __binary_op(operation, t1, t2, out=None):
     promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
     if t1.split is not None:
         if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
-            result = t1._DNDarray__array.type(promoted_type)
+            result = t1.larray.type(promoted_type)
         else:
-            result = operation(
-                t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type)
-            )
+            result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type))
     elif t2.split is not None:
 
         if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
-            result = t2._DNDarray__array.type(promoted_type)
+            result = t2.larray.type(promoted_type)
         else:
-            result = operation(
-                t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type)
-            )
+            result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type))
     else:
-        result = operation(
-            t1._DNDarray__array.type(promoted_type), t2._DNDarray__array.type(promoted_type)
-        )
+        result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type))
 
     if not isinstance(result, torch.Tensor):
-        result = torch.tensor(result)
+        result = torch.tensor(result, device=output_device.torch_device)
 
     if out is not None:
         out_dtype = out.dtype
-        out._DNDarray__array = result
+        out.larray = result
         out._DNDarray__comm = output_comm
         out = out.astype(out_dtype)
         return out
 
     return dndarray.DNDarray(
-        result, output_shape, types.heat_type_of(result), output_split, output_device, output_comm
+        result,
+        output_shape,
+        types.heat_type_of(result),
+        output_split,
+        output_device,
+        output_comm,
+        balanced=None,
     )
 
 
@@ -211,10 +213,7 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
         If the split or device parameters do not match the parameters of the input
     """
     # perform sanitation
-    if not isinstance(x, dndarray.DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
-    if out is not None and not isinstance(out, dndarray.DNDarray):
-        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
+    sanitation.sanitize_in(x)
 
     if axis is None:
         raise NotImplementedError("axis = None is not supported")
@@ -224,22 +223,13 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out):
         dtype = types.canonical_heat_type(dtype)
 
     if out is not None:
-        if out.shape != x.shape:
-            raise ValueError("out and a have different shapes {} != {}".format(out.shape, x.shape))
-        if out.split != x.split:
-            raise RuntimeError(
-                "out and a have different splits {} != {}".format(out.split, x.split)
-            )
-        if out.device != x.device:
-            raise RuntimeError(
-                "out and a have different devices {} != {}".format(out.device, x.device)
-            )
+        sanitation.sanitize_out(out, x.shape, x.split, x.device)
         dtype = out.dtype
 
     cumop = partial_op(
-        x._DNDarray__array,
+        x.larray,
         axis,
-        out=None if out is None else out._DNDarray__array,
+        out=None if out is None else out.larray,
         dtype=None if dtype is None else dtype.torch_type(),
     )
 
@@ -303,8 +293,7 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
         If the input is not a tensor or the output is not a tensor or None.
     """
     # perform sanitation
-    if not isinstance(x, dndarray.DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+    sanitation.sanitize_in(x)
     if out is not None and not isinstance(out, dndarray.DNDarray):
         raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
 
@@ -314,13 +303,19 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
         promoted_type = types.promote_types(x.dtype, types.float32)
         torch_type = promoted_type.torch_type()
     else:
-        torch_type = x._DNDarray__array.dtype
+        torch_type = x.larray.dtype
 
     # no defined output tensor, return a freshly created one
     if out is None:
-        result = operation(x._DNDarray__array.type(torch_type), **kwargs)
+        result = operation(x.larray.type(torch_type), **kwargs)
         return dndarray.DNDarray(
-            result, x.gshape, types.canonical_heat_type(result.dtype), x.split, x.device, x.comm
+            result,
+            x.gshape,
+            types.canonical_heat_type(result.dtype),
+            x.split,
+            x.device,
+            x.comm,
+            x.balanced,
         )
 
     # output buffer writing requires a bit more work
@@ -333,10 +328,8 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
     needs_repetition = builtins.any(multiple > 1 for multiple in multiples)
 
     # do an inplace operation into a provided buffer
-    casted = x._DNDarray__array.type(torch_type)
-    operation(
-        casted.repeat(multiples) if needs_repetition else casted, out=out._DNDarray__array, **kwargs
-    )
+    casted = x.larray.type(torch_type)
+    operation(casted.repeat(multiples) if needs_repetition else casted, out=out.larray, **kwargs)
 
     return out
 
@@ -376,18 +369,16 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
         If the shape of the optional output parameters does not match the shape of the reduced result
     """
     # perform sanitation
-    if not isinstance(x, dndarray.DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
-    out = kwargs.get("out")
-    if out is not None and not isinstance(out, dndarray.DNDarray):
-        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
+    sanitation.sanitize_in(x)
 
     # no further checking needed, sanitize axis will raise the proper exceptions
     axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
     if isinstance(axis, int):
         axis = (axis,)
     keepdim = kwargs.get("keepdim")
+    out = kwargs.get("out")
     split = x.split
+    balanced = x.balanced
 
     # if local tensor is empty, replace it with the identity element
     if 0 in x.lshape and (axis is None or (x.split in axis)):
@@ -400,14 +391,14 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
             dtype=x.dtype.torch_type(),
             device=x.device.torch_device,
         )
-
     else:
-        partial = x._DNDarray__array
+        partial = x.larray
 
     # apply the partial reduction operation to the local tensor
     if axis is None:
         partial = partial_op(partial).reshape(-1)
         output_shape = (1,)
+        balanced = True
     else:
         output_shape = x.gshape
         for dim in axis:
@@ -424,29 +415,34 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
                 lshape_losedim = (partial.shape[0],) + lshape_losedim[1:]
             if len(lshape_losedim) > 0:
                 partial = partial.reshape(lshape_losedim)
-
-    # Check shape of output buffer, if any
-    if out is not None and out.shape != output_shape:
-        raise ValueError(
-            "Expecting output buffer of shape {}, got {}".format(output_shape, out.shape)
-        )
-
     # perform a reduction operation in case the tensor is distributed across the reduction axis
     if x.split is not None and (axis is None or (x.split in axis)):
         split = None
+        balanced = True
         if x.comm.is_distributed():
             x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
+
+    ARG_OPS = [statistics.MPI_ARGMAX, statistics.MPI_ARGMIN]
+    arg_op = False
+    if reduction_op in ARG_OPS:
+        arg_op = True
+        partial = partial.chunk(2)[-1].type(torch.int64)
+        if partial.ndim > 1:
+            partial = partial.squeeze(dim=0)
 
     # if reduction_op is a Boolean operation, then resulting tensor is bool
     tensor_type = bool if reduction_op in __BOOLEAN_OPS else partial.dtype
 
     if out is not None:
+        # sanitize out
+        sanitation.sanitize_out(out, output_shape, split, x.device)
+        if arg_op and out.dtype != types.canonical_heat_type(partial.dtype):
+            raise TypeError(
+                "Data type mismatch: out.dtype should be {}, is {}".format(
+                    types.canonical_heat_type(partial.dtype), out.dtype
+                )
+            )
         out._DNDarray__array = partial
-        out._DNDarray__dtype = types.canonical_heat_type(tensor_type)
-        out._DNDarray__split = split
-        out._DNDarray__device = x.device
-        out._DNDarray__comm = x.comm
-
         return out
 
     return dndarray.DNDarray(
@@ -456,4 +452,5 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
         split=split,
         device=x.device,
         comm=x.comm,
+        balanced=balanced,
     )

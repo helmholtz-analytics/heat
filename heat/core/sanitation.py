@@ -10,10 +10,18 @@ from . import stride_tricks
 from . import types
 
 
-__all__ = ["sanitize_input", "sanitize_out", "sanitize_sequence", "scalar_to_1d"]
+__all__ = [
+    "sanitize_in",
+    "sanitize_infinity",
+    "sanitize_in_tensor",
+    "sanitize_lshape",
+    "sanitize_out",
+    "sanitize_sequence",
+    "scalar_to_1d",
+]
 
 
-def sanitize_input(x):
+def sanitize_in(x):
     """
     Raise TypeError if input is not DNDarray
 
@@ -23,6 +31,80 @@ def sanitize_input(x):
     """
     if not isinstance(x, dndarray.DNDarray):
         raise TypeError("input must be a DNDarray, is {}".format(type(x)))
+
+
+def sanitize_infinity(x):
+    """
+    Returns largest possible value for the dtype of the input array.
+
+    Parameters:
+    -----------
+    x: `DNDarray` or `torch.Tensor`
+
+    Returns:
+    --------
+    largest: largest possible value for the given dtype
+    """
+    dtype = x.dtype if isinstance(x, torch.Tensor) else x.larray.dtype
+    try:
+        largest = torch.finfo(dtype).max
+    except TypeError:
+        largest = torch.iinfo(dtype).max
+
+    return largest
+
+
+def sanitize_in_tensor(x):
+    """
+    Raise TypeError if input is not torch.tensor
+
+    Parameters
+    ----------
+    x : Object
+    """
+    if not isinstance(x, torch.Tensor):
+        raise TypeError("input must be a torch.tensor, is {}".format(type(x)))
+
+
+def sanitize_lshape(array, tensor):
+    """
+    Verify shape consistency when manipulating process-local `larray`s (torch tensors).
+
+    Parameters
+    ----------
+    array : DNDarray
+        the original, potentially distributed `DNDarray`
+    tensor : torch.tensor
+        process-local data meant to replace `array.larray`
+    """
+    # input sanitation is done in parent function
+    tshape = tuple(tensor.shape)
+    if tshape == array.lshape:
+        return
+    gshape = array.gshape
+    split = array.split
+    if split is None:
+        # allow for axes with size 0, other axes must match
+        non_zero = list(i for i in range(len(tshape)) if tshape[i] != 0)
+        cond = list(tshape[i] == gshape[i] for i in non_zero).count(True) == len(non_zero)
+        if cond:
+            return
+        else:
+            raise ValueError(
+                "Shape of local tensor is inconsistent with global DNDarray: tensor.shape is {}, should be {}".format(
+                    tshape, gshape
+                )
+            )
+    # size of non-split dimensions must match global shape
+    reduced_gshape = gshape[:split] + gshape[split + 1 :]
+    reduced_tshape = tshape[:split] + tshape[split + 1 :]
+    if reduced_tshape == reduced_gshape:
+        return
+    raise ValueError(
+        "Shape of local tensor along non-split axes is inconsistent with global DNDarray: tensor.shape is {}, DNDarray is {}".format(
+            tshape, gshape
+        )
+    )
 
 
 def sanitize_out(out, output_shape, output_split, output_device):
@@ -77,19 +159,8 @@ def sanitize_sequence(seq):
         return seq
     elif isinstance(seq, tuple):
         return list(seq)
-    elif isinstance(seq, dndarray.DNDarray):
-        if seq.split is None:
-            return seq._DNDarray__array.tolist()
-        else:
-            raise ValueError(
-                "seq is a distributed DNDarray, expected a list, a tuple, or a process-local array."
-            )
-    elif isinstance(seq, torch.Tensor):
-        return seq.tolist()
     else:
-        raise TypeError(
-            "seq must be a list, a tuple, or a process-local array, got {}".format(type(seq))
-        )
+        raise TypeError("seq must be a list or a tuple, got {}".format(type(seq)))
 
 
 def scalar_to_1d(x):
@@ -106,6 +177,4 @@ def scalar_to_1d(x):
     x : DNDarray
         where `x.ndim = 1` and `x.shape = (1,)`
     """
-    return factories.array(
-        x._DNDarray__array.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm
-    )
+    return factories.array(x.larray.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm)

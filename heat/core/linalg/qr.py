@@ -92,7 +92,7 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     QR = collections.namedtuple("QR", "Q, R")
 
     if a.split is None:
-        q, r = a._DNDarray__array.qr(some=False)
+        q, r = a.larray.qr(some=False)
         q = factories.array(q, device=a.device)
         r = factories.array(r, device=a.device)
         ret = QR(q if calc_q else None, r)
@@ -201,12 +201,11 @@ def __split0_global_q_dict_set(q_dict_col, col, r_tiles, q_tiles, global_merge_d
     # q is already created, the job of this function is to create the group the merging q's together
     # it takes the merge qs, splits them, then puts them into a new dictionary
     proc_tile_start = torch.cumsum(
-        torch.tensor(r_tiles.tile_rows_per_process, device=r_tiles.arr._DNDarray__array.device),
-        dim=0,
+        torch.tensor(r_tiles.tile_rows_per_process, device=r_tiles.arr.larray.device), dim=0
     )
     diag_proc = torch.nonzero(input=proc_tile_start > col, as_tuple=False)[0].item()
     proc_tile_start = torch.cat(
-        (torch.tensor([0], device=r_tiles.arr._DNDarray__array.device), proc_tile_start[:-1]), dim=0
+        (torch.tensor([0], device=r_tiles.arr.larray.device), proc_tile_start[:-1]), dim=0
     )
 
     # 1: create caqr dictionary
@@ -305,7 +304,7 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, col_num, diag_pr, not_complet
     """
 
     Function to do the QR calculations to calculate the global R of the array `a`.
-    This function uses a binary merge structure in the globabl R merge.
+    This function uses a binary merge structure in the global R merge.
 
     Parameters
     ----------
@@ -392,7 +391,7 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, col_num, diag_pr, not_complet
                 key=str(loop) + "p0" + str(pr0) + "p1" + str(pr1) + "e",
                 q_dict_waits=q_dict_waits,
                 q_dtype=r_tiles.arr.dtype.torch_type(),
-                q_device=r_tiles.arr._DNDarray__array.device,
+                q_device=r_tiles.arr.larray.device,
             )
 
         loop_size_remaining = loop_size_remaining[: -1 * (half_prs_rem)]
@@ -423,7 +422,7 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, col_num, diag_pr, not_complet
                 comm=comm,
                 q_dict_waits=q_dict_waits,
                 q_dtype=r_tiles.arr.dtype.torch_type(),
-                q_device=r_tiles.arr._DNDarray__array.device,
+                q_device=r_tiles.arr.larray.device,
             )
             rem1 = rem2
             rem2 = None
@@ -454,7 +453,7 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, col_num, diag_pr, not_complet
                 comm=comm,
                 q_dict_waits=q_dict_waits,
                 q_dtype=r_tiles.arr.dtype.torch_type(),
-                q_device=r_tiles.arr._DNDarray__array.device,
+                q_device=r_tiles.arr.larray.device,
             )
             rem1 = None
 
@@ -499,7 +498,7 @@ def __split0_merge_tile_rows(pr0, pr1, column, rank, r_tiles, diag_process, key,
     upper_size = (upper_inds[1] - upper_inds[0], upper_inds[3] - upper_inds[2])
     lower_size = (lower_inds[1] - lower_inds[0], lower_inds[3] - lower_inds[2])
 
-    a_torch_device = r_tiles.arr._DNDarray__array.device
+    a_torch_device = r_tiles.arr.larray.device
 
     # upper adjustments
     if upper_size[0] < upper_size[1] and r_tiles.tile_rows_per_process[pr0] > 1:
@@ -780,7 +779,7 @@ def __split0_q_loop(col, r_tiles, proc_tile_start, active_procs, q0_tiles, q_dic
         # have all the q_merge in one place, now just do the mm with q0
         # get all the keys which are in a column (qi_mult[column])
         row_inds = q0_tiles.row_indices + [q0_tiles.arr.gshape[0]]
-        q_copy = q0_tiles.arr._DNDarray__array.clone()
+        q_copy = q0_tiles.arr.larray.clone()
         for qi_col in qi_mult.keys():
             # multiply q0 rows with qi cols
             # the result of this will take the place of the row height and the column width
@@ -838,8 +837,8 @@ def __split1_qr_loop(dcol, r_tiles, q0_tiles, calc_q):
     -------
     None
     """
-    r_torch_device = r_tiles.arr._DNDarray__array.device
-    q0_torch_device = q0_tiles.arr._DNDarray__array.device if calc_q else None
+    r_torch_device = r_tiles.arr.larray.device
+    q0_torch_device = q0_tiles.arr.larray.device if calc_q else None
     # ==================================== R Calculation - single tile =========================
     # loop over each column, need to do the QR for each tile in the column(should be rows)
     # need to get the diagonal process

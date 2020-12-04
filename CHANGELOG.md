@@ -1,33 +1,55 @@
-# Pending Additions
+# Pending additions
 
+## New features
+- [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
+- [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
+- [#687](https://github.com/helmholtz-analytics/heat/pull/687) New DNDarray property: balanced
+
+### I/O
+- [#559](https://github.com/helmholtz-analytics/heat/pull/559) Enhancement: `save_netcdf` allows naming dimensions, creating unlimited dimensions, using existing dimensions and variables, slicing
+### Manipulations
+- [#677](https://github.com/helmholtz-analytics/heat/pull/677) split, vsplit, dsplit, hsplit
+### Statistical Functions
+- [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``
+### Linear Algebra
+- [#658](https://github.com/helmholtz-analytics/heat/pull/658) Bugfix: `matmul` on GPU will cast away from `int`s to `float`s for the operation and cast back upon its completion. This may result in numerical inaccuracies for very large `int64` DNDarrays
+### ...
+
+## Bug fixes
+# v0.5.1
+
+- [#678](https://github.com/helmholtz-analytics/heat/pull/678) Bugfix: Internal functions now use explicit device parameters for DNDarray and torch.Tensor initializations.
+- [#684](https://github.com/helmholtz-analytics/heat/pull/684) Bug fix: distributed `reshape` now works on booleans as well.
+
+# v0.5.0
 
 - [#488](https://github.com/helmholtz-analytics/heat/pull/488) Enhancement: Rework of the test device selection.
-- [#569](https://github.com/helmholtz-analytics/heat/pull/569) New feature: `percentile()` and `median()`
+- [#569](https://github.com/helmholtz-analytics/heat/pull/569) New feature: distributed `percentile()` and `median()`
 - [#572](https://github.com/helmholtz-analytics/heat/pull/572) New feature: distributed `pad()`
 - [#573](https://github.com/helmholtz-analytics/heat/pull/573) Bugfix: matmul fixes: early out for 2 vectors, remainders not added if inner block is 1 for split 10 case
 - [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: Binary operations use proper type casting
 - [#575](https://github.com/helmholtz-analytics/heat/pull/558) Bugfix: ``where()`` and ``cov()`` convert ints to floats when given as parameters
 - [#577](https://github.com/helmholtz-analytics/heat/pull/577) Add ``DNDarray.ndim`` property
 - [#578](https://github.com/helmholtz-analytics/heat/pull/578) Bugfix: Bad variable in ``reshape()``
-- [#580](https://github.com/helmholtz-analytics/heat/pull/580) New feature: ``fliplr()``
+- [#580](https://github.com/helmholtz-analytics/heat/pull/580) New feature: distributed ``fliplr()``
 - [#581](https://github.com/helmholtz-analytics/heat/pull/581) New Feature: ``DNDarray.tolist()``
-- [#583](https://github.com/helmholtz-analytics/heat/pull/583) New feature: ``rot90()``
-- [#593](https://github.com/helmholtz-analytics/heat/pull/593) New feature ``arctan2()``
+- [#583](https://github.com/helmholtz-analytics/heat/pull/583) New feature: distributed ``rot90()``
+- [#593](https://github.com/helmholtz-analytics/heat/pull/593) New feature distributed ``arctan2()``
 - [#594](https://github.com/helmholtz-analytics/heat/pull/594) New feature: Advanced indexing
-- [#594](https://github.com/helmholtz-analytics/heat/pull/594) Bugfix: ``__getitem__`` and ``__setitem__`` memory consumption heavily reduced
-- [#596](https://github.com/helmholtz-analytics/heat/pull/596) New feature: ``outer()``
+- [#594](https://github.com/helmholtz-analytics/heat/pull/594) Bugfix: distributed ``__getitem__`` and ``__setitem__`` memory consumption heavily reduced
+- [#596](https://github.com/helmholtz-analytics/heat/pull/596) New feature: distributed ``outer()``
 - [#598](https://github.com/helmholtz-analytics/heat/pull/598) Type casting changed to PyTorch style casting (i.e. intuitive casting) instead of safe casting
 - [#600](https://github.com/helmholtz-analytics/heat/pull/600) New feature: ``shape()``
-- [#608](https://github.com/helmholtz-analytics/heat/pull/608) New features: ``stack()``, ``column_stack()``, ``row_stack()``
+- [#608](https://github.com/helmholtz-analytics/heat/pull/608) New features: distributed ``stack()``, ``column_stack()``, ``row_stack()``
 - [#614](https://github.com/helmholtz-analytics/heat/pull/614) New feature: printing of DNDarrays and ``__repr__`` and ``__str__`` functions
-- [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `skew()`
-- [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: `kurtosis()`
+- [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: distributed `skew()`
+- [#615](https://github.com/helmholtz-analytics/heat/pull/615) New feature: distributed `kurtosis()`
 - [#618](https://github.com/helmholtz-analytics/heat/pull/618) Printing of unbalanced DNDarrays added
-- [#620](https://github.com/helmholtz-analytics/heat/pull/620) New feature: KNN
+- [#620](https://github.com/helmholtz-analytics/heat/pull/620) New feature: distributed `knn`
 - [#624](https://github.com/helmholtz-analytics/heat/pull/624) Bugfix: distributed `median()` indexing and casting
-- [#629](https://github.com/helmholtz-analytics/heat/pull/629) New features: `asin`, `acos`, `atan`, `atan2`
+- [#629](https://github.com/helmholtz-analytics/heat/pull/629) New features: distributed `asin`, `acos`, `atan`, `atan2`
 - [#631](https://github.com/helmholtz-analytics/heat/pull/631) Bugfix: get_halo behaviour when rank has no data.
-- [#634](https://github.com/helmholtz-analytics/heat/pull/634) New features: `kmedians`, `kmedoids`, `manhattan`
+- [#634](https://github.com/helmholtz-analytics/heat/pull/634) New features: distributed `kmedians`, `kmedoids`, `manhattan`
 - [#633](https://github.com/helmholtz-analytics/heat/pull/633) Documentation: updated contributing.md
 - [#635](https://github.com/helmholtz-analytics/heat/pull/635) `DNDarray.__getitem__` balances and resplits the given key to None if the key is a DNDarray
 - [#638](https://github.com/helmholtz-analytics/heat/pull/638) Fix: arange returns float32 with single input of type float & update skipped device tests
@@ -37,13 +59,9 @@
 - [#652](https://github.com/helmholtz-analytics/heat/pull/652) Feature: benchmark scripts and jobscript generation
 - [#653](https://github.com/helmholtz-analytics/heat/pull/653) Printing above threshold gathers the data without a buffer now
 - [#653](https://github.com/helmholtz-analytics/heat/pull/653) Bugfixes: Update unittests argmax & argmin + force index order in mpi_argmax & mpi_argmin. Add device parameter for tensor creation in dndarray.get_halo().
-- [#658](https://github.com/helmholtz-analytics/heat/pull/658) Bugfix: `matmul` on GPU will cast away from `int`s to `float`s for the operation and cast back upon its completion. This may result in numerical inaccuracies for very large `int64` DNDarrays
-- [#659](https://github.com/helmholtz-analytics/heat/pull/659) New feature: `random.permutation` + `random.randperm`
-- [#662](https://github.com/helmholtz-analytics/heat/pull/662) Bugfixes: minimum() and maximum() split semantics, scalar input, different input dtype
-- [#664](https://github.com/helmholtz-analytics/heat/pull/664) New feature / enhancement: `random.random_sample`, `random.random`, `random.sample`, `random.ranf`, `random.random_integer`
-- [#666](https://github.com/helmholtz-analytics/heat/pull/666) New feature: distributed prepend/append for diff().
 - [#667](https://github.com/helmholtz-analytics/heat/pull/667) Enhancement `reshape`: rename axis parameter
-- [#670](https://github.com/helmholtz-analytics/heat/pull/670) New Feature: `bincount()`
+- [#674](https://github.com/helmholtz-analytics/heat/pull/674) New feature: `repeat`
+- [#670](https://github.com/helmholtz-analytics/heat/pull/670) New Feature: distributed `bincount()`
 - [#672](https://github.com/helmholtz-analytics/heat/pull/672) Bug / Enhancement: Remove `MPIRequest.wait()`, rewrite calls with capital letters. lower case `wait()` now falls back to the `mpi4py` function
 
 # v0.4.0

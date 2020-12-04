@@ -57,6 +57,7 @@ class TestManipulations(TestCase):
         x = ht.zeros((16, 15), split=None)
         y = ht.ones((16, 15), split=None)
         res = ht.concatenate((x, y), axis=0)
+
         self.assertEqual(res.gshape, (32, 15))
         self.assertEqual(res.dtype, ht.float)
         _, _, chk = res.comm.chunk((32, 15), res.split)
@@ -74,7 +75,6 @@ class TestManipulations(TestCase):
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
         self.assertEqual(res.lshape, tuple(lshape))
-
         # =============================================
         # None 0 0
         x = ht.zeros((16, 15), split=None)
@@ -371,30 +371,32 @@ class TestManipulations(TestCase):
         data = torch.arange(size * 2, device=self.device.torch_device)
         a = ht.array(data)
         res = ht.diag(a)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.diag(data)))
+        self.assertTrue(torch.equal(res.larray, torch.diag(data)))
 
         res = ht.diag(a, offset=size)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.diag(data, diagonal=size)))
+        self.assertTrue(torch.equal(res.larray, torch.diag(data, diagonal=size)))
 
         res = ht.diag(a, offset=-size)
-        self.assertTrue(torch.equal(res._DNDarray__array, torch.diag(data, diagonal=-size)))
+        self.assertTrue(torch.equal(res.larray, torch.diag(data, diagonal=-size)))
 
         a = ht.array(data, split=0)
         res = ht.diag(a)
+
         self.assertEqual(res.split, a.split)
         self.assertEqual(res.shape, (size * 2, size * 2))
         self.assertEqual(res.lshape[res.split], 2)
         exp = torch.diag(data)
         for i in range(rank * 2, (rank + 1) * 2):
-            self.assertTrue(torch.equal(res[i, i]._DNDarray__array, exp[i, i]))
+            self.assertTrue(torch.equal(res[i, i].larray, exp[i, i]))
 
         res = ht.diag(a, offset=size)
+
         self.assertEqual(res.split, a.split)
         self.assertEqual(res.shape, (size * 3, size * 3))
         self.assertEqual(res.lshape[res.split], 3)
         exp = torch.diag(data, diagonal=size)
         for i in range(rank * 3, min((rank + 1) * 3, a.shape[0])):
-            self.assertTrue(torch.equal(res[i, i + size]._DNDarray__array, exp[i, i + size]))
+            self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size]))
 
         res = ht.diag(a, offset=-size)
         self.assertEqual(res.split, a.split)
@@ -402,7 +404,7 @@ class TestManipulations(TestCase):
         self.assertEqual(res.lshape[res.split], 3)
         exp = torch.diag(data, diagonal=-size)
         for i in range(max(size, rank * 3), (rank + 1) * 3):
-            self.assertTrue(torch.equal(res[i, i - size]._DNDarray__array, exp[i, i - size]))
+            self.assertTrue(torch.equal(res[i, i - size].larray, exp[i, i - size]))
 
         self.assertTrue(ht.equal(ht.diag(ht.diag(a)), a))
 
@@ -411,7 +413,7 @@ class TestManipulations(TestCase):
         res_2 = ht.diagonal(a)
         self.assertTrue(ht.equal(res_1, res_2))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             ht.diag(data)
 
         with self.assertRaises(ValueError):
@@ -433,7 +435,7 @@ class TestManipulations(TestCase):
         res = ht.diag(a)
         self.assertTrue(
             torch.equal(
-                res[rank, rank]._DNDarray__array,
+                res[rank, rank].larray,
                 torch.tensor(1, dtype=torch.int32, device=self.device.torch_device),
             )
         )
@@ -462,14 +464,14 @@ class TestManipulations(TestCase):
         a = ht.array(data)
         res = ht.diagonal(a)
         self.assertTrue(
-            torch.equal(res._DNDarray__array, torch.arange(size, device=self.device.torch_device))
+            torch.equal(res.larray, torch.arange(size, device=self.device.torch_device))
         )
         self.assertEqual(res.split, None)
 
         a = ht.array(data, split=0)
         res = ht.diagonal(a)
         self.assertTrue(
-            torch.equal(res._DNDarray__array, torch.tensor([rank], device=self.device.torch_device))
+            torch.equal(res.larray, torch.tensor([rank], device=self.device.torch_device))
         )
         self.assertEqual(res.split, 0)
 
@@ -479,7 +481,7 @@ class TestManipulations(TestCase):
 
         res = ht.diagonal(a)
         self.assertTrue(
-            torch.equal(res._DNDarray__array, torch.tensor([rank], device=self.device.torch_device))
+            torch.equal(res.larray, torch.tensor([rank], device=self.device.torch_device))
         )
         self.assertEqual(res.split, 0)
 
@@ -495,49 +497,39 @@ class TestManipulations(TestCase):
         a = ht.array(data)
         res = ht.diagonal(a, offset=0)
         self.assertTrue(
-            torch.equal(
-                res._DNDarray__array, torch.arange(size + 1, device=self.device.torch_device)
-            )
+            torch.equal(res.larray, torch.arange(size + 1, device=self.device.torch_device))
         )
         res = ht.diagonal(a, offset=1)
         self.assertTrue(
-            torch.equal(
-                res._DNDarray__array, torch.arange(1, size + 1, device=self.device.torch_device)
-            )
+            torch.equal(res.larray, torch.arange(1, size + 1, device=self.device.torch_device))
         )
         res = ht.diagonal(a, offset=-1)
         self.assertTrue(
-            torch.equal(
-                res._DNDarray__array, torch.arange(0, size, device=self.device.torch_device)
-            )
+            torch.equal(res.larray, torch.arange(0, size, device=self.device.torch_device))
         )
 
         a = ht.array(data, split=0)
         res = ht.diagonal(a, offset=1)
         res.balance_()
         self.assertTrue(
-            torch.equal(
-                res._DNDarray__array, torch.tensor([rank + 1], device=self.device.torch_device)
-            )
+            torch.equal(res.larray, torch.tensor([rank + 1], device=self.device.torch_device))
         )
         res = ht.diagonal(a, offset=-1)
         res.balance_()
         self.assertTrue(
-            torch.equal(res._DNDarray__array, torch.tensor([rank], device=self.device.torch_device))
+            torch.equal(res.larray, torch.tensor([rank], device=self.device.torch_device))
         )
 
         a = ht.array(data, split=1)
         res = ht.diagonal(a, offset=1)
         res.balance_()
         self.assertTrue(
-            torch.equal(
-                res._DNDarray__array, torch.tensor([rank + 1], device=self.device.torch_device)
-            )
+            torch.equal(res.larray, torch.tensor([rank + 1], device=self.device.torch_device))
         )
         res = ht.diagonal(a, offset=-1)
         res.balance_()
         self.assertTrue(
-            torch.equal(res._DNDarray__array, torch.tensor([rank], device=self.device.torch_device))
+            torch.equal(res.larray, torch.tensor([rank], device=self.device.torch_device))
         )
 
         data = (
@@ -549,15 +541,12 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, offset=10)
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
-                torch.arange(10, 10 + size * 2, device=self.device.torch_device),
+                res.larray, torch.arange(10, 10 + size * 2, device=self.device.torch_device)
             )
         )
         res = ht.diagonal(a, offset=-10)
         self.assertTrue(
-            torch.equal(
-                res._DNDarray__array, torch.arange(0, size * 2, device=self.device.torch_device)
-            )
+            torch.equal(res.larray, torch.arange(0, size * 2, device=self.device.torch_device))
         )
 
         a = ht.array(data, split=0)
@@ -565,7 +554,7 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
+                res.larray,
                 torch.tensor([10 + rank * 2, 11 + rank * 2], device=self.device.torch_device),
             )
         )
@@ -573,8 +562,7 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
-                torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device),
+                res.larray, torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device)
             )
         )
 
@@ -583,7 +571,7 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
+                res.larray,
                 torch.tensor([10 + rank * 2, 11 + rank * 2], device=self.device.torch_device),
             )
         )
@@ -591,8 +579,7 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
-                torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device),
+                res.larray, torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device)
             )
         )
 
@@ -605,7 +592,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a)
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
+                res.larray,
                 torch.arange(size + 1, device=self.device.torch_device)
                 .repeat(size + 1)
                 .reshape(size + 1, size + 1)
@@ -615,7 +602,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, offset=1)
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
+                res.larray,
                 torch.arange(size + 1, device=self.device.torch_device)
                 .repeat(size)
                 .reshape(size, size + 1)
@@ -625,7 +612,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, offset=-1)
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
+                res.larray,
                 torch.arange(size + 1, device=self.device.torch_device)
                 .repeat(size)
                 .reshape(size, size + 1)
@@ -636,7 +623,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, dim1=1, dim2=2)
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
+                res.larray,
                 torch.arange(size + 1, device=self.device.torch_device)
                 .repeat(size + 1)
                 .reshape(size + 1, size + 1),
@@ -645,7 +632,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, offset=1, dim1=1, dim2=2)
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
+                res.larray,
                 torch.arange(1, size + 1, device=self.device.torch_device)
                 .repeat(size + 1)
                 .reshape(size + 1, size),
@@ -654,7 +641,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, offset=-1, dim1=1, dim2=2)
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
+                res.larray,
                 torch.arange(size, device=self.device.torch_device)
                 .repeat(size + 1)
                 .reshape(size + 1, size),
@@ -664,7 +651,7 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, dim1=0, dim2=2)
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
+                res.larray,
                 torch.arange(size + 1, device=self.device.torch_device)
                 .repeat(size + 1)
                 .reshape(size + 1, size + 1),
@@ -676,7 +663,7 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
+                res.larray,
                 torch.arange(size + 1, device=self.device.torch_device).reshape(size + 1, 1),
             )
         )
@@ -686,7 +673,7 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
+                res.larray,
                 torch.arange(size + 1, device=self.device.torch_device).reshape(size + 1, 1),
             )
         )
@@ -696,7 +683,7 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res._DNDarray__array,
+                res.larray,
                 torch.empty((size + 1, 0), dtype=torch.int64, device=self.device.torch_device),
             )
         )
@@ -737,6 +724,61 @@ class TestManipulations(TestCase):
             heat_args={"dim1": 0, "dim2": 1},
             numpy_args={"axis1": 0, "axis2": 1},
         )
+
+    def test_dsplit(self):
+        # for further testing, see test_split
+        data_ht = ht.arange(24).reshape((2, 3, 4))
+        data_np = data_ht.numpy()
+
+        # indices_or_sections = int
+        result = ht.dsplit(data_ht, 2)
+        comparison = np.dsplit(data_np, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = tuple
+        result = ht.dsplit(data_ht, (0, 1))
+        comparison = np.dsplit(data_np, (0, 1))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = list
+        result = ht.dsplit(data_ht, [0, 1])
+        comparison = np.dsplit(data_np, [0, 1])
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = undistributed DNDarray
+        result = ht.dsplit(data_ht, ht.array([0, 1]))
+        comparison = np.dsplit(data_np, np.array([0, 1]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = distributed DNDarray
+        result = ht.dsplit(data_ht, ht.array([0, 1], split=0))
+        comparison = np.dsplit(data_np, np.array([0, 1]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
 
     def test_expand_dims(self):
         # vector data
@@ -964,6 +1006,115 @@ class TestManipulations(TestCase):
         )
         self.assertTrue(ht.equal(ht.resplit(ht.flipud(c), 0), r_c))
 
+    def test_hsplit(self):
+        # for further testing, see test_split
+        # 1-dimensional array (as forbidden in split)
+        data_ht = ht.arange(24)
+        data_np = data_ht.numpy()
+
+        # indices_or_sections = int
+        result = ht.hsplit(data_ht, 2)
+        comparison = np.hsplit(data_np, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = tuple
+        result = ht.hsplit(data_ht, (0, 1))
+        comparison = np.hsplit(data_np, (0, 1))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = list
+        result = ht.hsplit(data_ht, [0, 1])
+        comparison = np.hsplit(data_np, [0, 1])
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = undistributed DNDarray
+        result = ht.hsplit(data_ht, ht.array([0, 1]))
+        comparison = np.hsplit(data_np, np.array([0, 1]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = distributed DNDarray
+        result = ht.hsplit(data_ht, ht.array([0, 1], split=0))
+        comparison = np.hsplit(data_np, np.array([0, 1]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        data_ht = ht.arange(24).reshape((2, 4, 3))
+        data_np = data_ht.numpy()
+
+        # indices_or_sections = int
+        result = ht.hsplit(data_ht, 2)
+        comparison = np.hsplit(data_np, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = tuple
+        result = ht.hsplit(data_ht, (0, 1))
+        comparison = np.hsplit(data_np, (0, 1))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = list
+        result = ht.hsplit(data_ht, [0, 1])
+        comparison = np.hsplit(data_np, [0, 1])
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = undistributed DNDarray
+        result = ht.hsplit(data_ht, ht.array([0, 1]))
+        comparison = np.hsplit(data_np, np.array([0, 1]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = distributed DNDarray
+        result = ht.hsplit(data_ht, ht.array([0, 1], split=0))
+        comparison = np.hsplit(data_np, np.array([0, 1]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
     def test_hstack(self):
         # cases to test:
         # MM===================================
@@ -1019,7 +1170,7 @@ class TestManipulations(TestCase):
         # test padding of non-distributed tensor
         # ======================================
 
-        data = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
+        data = torch.arange(2 * 3 * 4, device=self.device.torch_device).reshape(2, 3, 4)
         data_ht = ht.array(data, device=self.device)
         data_np = data_ht.numpy()
 
@@ -1307,7 +1458,7 @@ class TestManipulations(TestCase):
         # test padding of large distributed tensor
         # =========================================
 
-        data = torch.arange(8 * 3 * 4).reshape(8, 3, 4)
+        data = torch.arange(8 * 3 * 4, device=self.device.torch_device).reshape(8, 3, 4)
         data_ht_split = ht.array(data, split=0)
         data_np = data_ht_split.numpy()
 
@@ -1340,6 +1491,501 @@ class TestManipulations(TestCase):
         )
 
         self.assert_array_equal(pad_ht_split, pad_np_split)
+
+    def test_repeat(self):
+        # -------------------
+        # a = int
+        # -------------------
+        a = 42
+
+        # axis = None
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # -------------------
+        # a = float
+        # -------------------
+        a = 4.2
+
+        # axis = None
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # -------------------
+        # a = tuple
+        # -------------------
+        a = (1, 2, 3, 4, 5)
+
+        # axis = None
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # -------------------
+        # a = list
+        # -------------------
+        a = [1.2, 2.4, 3, 4, 5]
+
+        # axis = None
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # -------------------
+        # a = np.ndarray
+        # -------------------
+        a = np.array([1.2, 2.4, 3, 4, 5])
+        # axis is None
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # -------------------
+        # a = DNDarray
+        # -------------------
+
+        # -------------------
+        # UNDISTRIBUTED case
+        # -------------------
+        # axis = None
+        # -------------------
+
+        # a is empty
+        a = ht.array([])
+        a_np = a.numpy()
+        repeats = 2
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        a = ht.arange(12).reshape((2, 2, 3))
+        a_np = a.numpy()
+
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (a.size * repeats,))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = list
+        repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = tuple
+        repeats = (1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3)
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = np.ndarray
+        repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = undistributed ht.DNDarray
+        repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
+        repeats_np = repeats.numpy()
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats_np)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, None)
+
+        # dtype = ht.int32
+        repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], dtype=ht.int32)
+        repeats_np = repeats.numpy()
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats_np)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, None)
+
+        # Broadcast
+        repeats = ht.array([3])
+        repeats_np = repeats.numpy()
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats_np)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, None)
+
+        # repeats = distributed ht.DNDarray
+        repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats.numpy())
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, 0)
+
+        # Broadcast
+        repeats = ht.array([3], split=0)
+        repeats_np = repeats.numpy()
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats_np)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, 0)
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.repeat(a, repeats, axis="0")
+        with self.assertRaises(TypeError):
+            ht.repeat("[1, 2, 3]", repeats)
+        with self.assertRaises(ValueError):
+            ht.repeat(a, repeats, axis=-1)
+        with self.assertRaises(ValueError):
+            ht.repeat(a, repeats, axis=len(a.shape))
+        with self.assertRaises(TypeError):
+            repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], dtype=np.float32)
+            ht.repeat(a, repeats)
+        with self.assertRaises(TypeError):
+            repeats = [1, 2, 0, 0, 1, "3", 2, 5, 1, 0, 2, 3]
+            ht.repeat(a, repeats)
+        with self.assertRaises(TypeError):
+            repeats = [1, 2.4, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
+            ht.repeat(a, repeats)
+        with self.assertRaises(ValueError):
+            repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2]
+            ht.repeat(a, repeats)
+        with self.assertRaises(ValueError):
+            repeats = [1, 2]
+            ht.repeat(a, repeats, axis=2)
+        with self.assertRaises(TypeError):
+            repeats = "[1, 2, 3]"
+            ht.repeat(a, repeats, axis=2)
+        with self.assertRaises(TypeError):
+            repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], dtype=ht.float64)
+            ht.repeat(a, repeats)
+        with self.assertRaises(ValueError):
+            repeats = ht.array([], dtype=ht.int64)
+            ht.repeat(a, repeats)
+        with self.assertRaises(TypeError):
+            repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0, dtype=ht.float32)
+            ht.repeat(a, repeats)
+        with self.assertRaises(ValueError):
+            repeats = ht.array([[1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]], split=0)
+            ht.repeat(a, repeats)
+
+        # -------------------
+        # axis != None
+        # -------------------
+
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = list
+        repeats = [1, 2, 0]
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = tuple
+        repeats = (1, 2, 0)
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = np.ndarray
+        repeats = np.array([1, 2, 0])
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+
+        # repeats = undistributed ht.DNDarray
+        repeats = ht.array([1, 2, 0])
+        repeats_np = repeats.numpy()
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats_np, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, None)
+
+        # repeats = distributed ht.DNDarray
+        repeats = ht.array([1, 2, 0], split=0)
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats.numpy(), 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, None)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, 0)
+
+        # -------------------
+        # DISTRIBUTED CASE
+        # -------------------
+        # axis = None
+        # -------------------
+        a = ht.arange(12, split=0).reshape((2, 2, 3), axis=1)
+        a_np = a.numpy()
+
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (a.size * repeats,))
+        self.assert_array_equal(result, comparison)
+
+        # repeats = list
+        repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.gshape, (sum(repeats),))
+        self.assertEqual(result.split, 0)
+        self.assertTrue((ht.array(comparison) == result).all())
+
+        # repeats = tuple
+        repeats = (1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3)
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assertEqual(result.split, 0)
+        self.assertTrue((ht.array(comparison) == result).all())
+
+        # repeats = np.ndarray
+        repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, (sum(repeats),))
+        self.assertEqual(result.split, 0)
+        self.assertTrue((ht.array(comparison) == result).all())
+
+        # repeats = undistributed ht.DNDarray
+        repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
+        repeats_np = repeats.numpy()
+        result = ht.repeat(a, repeats)
+        comparison = np.repeat(a_np, repeats_np)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assertTrue((ht.array(comparison) == result).all())
+        self.assertEqual(result.split, 0)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, None)
+
+        # repeats = distributed ht.DNDarray
+        repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)
+        result = ht.repeat(a, repeats)
+
+        comparison = np.repeat(a_np, repeats.numpy())
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assertTrue((ht.array(comparison) == result).all())
+        self.assertEqual(result.split, 0)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, 0)
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2]
+            ht.repeat(a, repeats)
+
+        # -------------------
+        # axis != None
+        # -------------------
+
+        # repeats = scalar
+        repeats = 2
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # repeats = list
+        repeats = [1, 2, 0]
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # repeats = tuple
+        repeats = (1, 2, 0)
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # repeats = np.ndarray
+        repeats = np.array([1, 2, 0])
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+
+        # repeats = undistributed ht.DNDarray (axis != a.split)
+        repeats = ht.array([1, 2, 0])
+        repeats_np = repeats.numpy()
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats_np, 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assert_array_equal(result, comparison)
+        self.assertEqual(result.split, a.split)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, None)
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            repeats = ht.array([1, 2])
+            ht.repeat(a, repeats, 2)
+
+        # repeats = undistributed ht.DNDarray (axis == a.split)
+        repeats = ht.array([1, 2])
+        repeats_np = repeats.numpy()
+        result = ht.repeat(a, repeats, 1)
+        comparison = np.repeat(a_np, repeats_np, 1)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assertTrue((ht.array(comparison) == result).all())
+        self.assertEqual(result.split, a.split)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, None)
+
+        # repeats = distributed ht.DNDarray (axis != a.split)
+        repeats = ht.array([1, 2, 0], split=0)
+        result = ht.repeat(a, repeats, 2)
+        comparison = np.repeat(a_np, repeats.numpy(), 2)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assertTrue((ht.array(comparison) == result).all())
+        self.assertEqual(result.split, a.split)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, 0)
+
+        # repeats = distributed ht.DNDarray (axis == a.split)
+        repeats = ht.array([1, 2], split=0)
+        result = ht.repeat(a, repeats, 1)
+        comparison = np.repeat(a_np, repeats.numpy(), 1)
+
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assertEqual(result.shape, comparison.shape)
+        self.assertTrue((ht.array(comparison) == result).all())
+        self.assertEqual(result.split, a.split)
+        self.assertIsInstance(repeats, ht.DNDarray)
+        self.assertEqual(repeats.split, 0)
 
     def test_reshape(self):
         # split = None
@@ -1429,6 +2075,15 @@ class TestManipulations(TestCase):
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
         self.assertEqual(reshaped.split, 1)
+        self.assertTrue(ht.equal(reshaped, result))
+
+        a = ht.arange(4, split=0, dtype=ht.bool)
+        result = ht.array([[False, True], [True, True]], split=0, dtype=ht.bool)
+        reshaped = a.reshape((2, 2))
+
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertEqual(reshaped.device, result.device)
         self.assertTrue(ht.equal(reshaped, result))
 
         # exceptions
@@ -1549,21 +2204,21 @@ class TestManipulations(TestCase):
         data = ht.array(tensor, split=None)
         result, result_indices = ht.sort(data, axis=0, descending=True)
         expected, exp_indices = torch.sort(tensor, dim=0, descending=True)
-        self.assertTrue(torch.equal(result._DNDarray__array, expected))
-        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices.int()))
+        self.assertTrue(torch.equal(result.larray, expected))
+        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
         result, result_indices = ht.sort(data, axis=1, descending=True)
         expected, exp_indices = torch.sort(tensor, dim=1, descending=True)
-        self.assertTrue(torch.equal(result._DNDarray__array, expected))
-        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices.int()))
+        self.assertTrue(torch.equal(result.larray, expected))
+        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
         data = ht.array(tensor, split=0)
 
         exp_axis_zero = torch.arange(size, device=self.device.torch_device).reshape(1, size)
         exp_indices = torch.tensor([[rank] * size], device=self.device.torch_device)
         result, result_indices = ht.sort(data, descending=True, axis=0)
-        self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
-        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices.int()))
+        self.assertTrue(torch.equal(result.larray, exp_axis_zero))
+        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
         exp_axis_one, exp_indices = (
             torch.arange(size, device=self.device.torch_device)
@@ -1571,8 +2226,8 @@ class TestManipulations(TestCase):
             .sort(dim=1, descending=True)
         )
         result, result_indices = ht.sort(data, descending=True, axis=1)
-        self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
-        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_indices.int()))
+        self.assertTrue(torch.equal(result.larray, exp_axis_one))
+        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
         result1 = ht.sort(data, axis=1, descending=True)
         result2 = ht.sort(data, descending=True)
@@ -1588,10 +2243,10 @@ class TestManipulations(TestCase):
             size, dtype=torch.int64, device=self.device.torch_device
         ).reshape(size, 1)
         result, result_indices = ht.sort(data, axis=0, descending=True)
-        self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_zero))
+        self.assertTrue(torch.equal(result.larray, exp_axis_zero))
         # comparison value is only true on CPU
-        if result_indices._DNDarray__array.is_cuda is False:
-            self.assertTrue(torch.equal(result_indices._DNDarray__array, indices_axis_zero.int()))
+        if result_indices.larray.is_cuda is False:
+            self.assertTrue(torch.equal(result_indices.larray, indices_axis_zero.int()))
 
         exp_axis_one = (
             torch.tensor(size - rank - 1, device=self.device.torch_device)
@@ -1599,8 +2254,8 @@ class TestManipulations(TestCase):
             .reshape(size, 1)
         )
         result, result_indices = ht.sort(data, descending=True, axis=1)
-        self.assertTrue(torch.equal(result._DNDarray__array, exp_axis_one))
-        self.assertTrue(torch.equal(result_indices._DNDarray__array, exp_axis_one.int()))
+        self.assertTrue(torch.equal(result.larray, exp_axis_one))
+        self.assertTrue(torch.equal(result_indices.larray, exp_axis_one.int()))
 
         tensor = torch.tensor(
             [
@@ -1626,8 +2281,8 @@ class TestManipulations(TestCase):
                 [[0, 2, 2], [3, 0, 0]], dtype=torch.int32, device=self.device.torch_device
             )
         result, result_indices = ht.sort(data, axis=0)
-        first = result[0]._DNDarray__array
-        first_indices = result_indices[0]._DNDarray__array
+        first = result[0].larray
+        first_indices = result_indices[0].larray
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_zero))
             self.assertTrue(torch.equal(first_indices, indices_axis_zero))
@@ -1638,8 +2293,8 @@ class TestManipulations(TestCase):
             [[0, 1, 1]], dtype=torch.int32, device=self.device.torch_device
         )
         result, result_indices = ht.sort(data, axis=1)
-        first = result[0]._DNDarray__array[:1]
-        first_indices = result_indices[0]._DNDarray__array[:1]
+        first = result[0].larray[:1]
+        first_indices = result_indices[0].larray[:1]
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_one))
             self.assertTrue(torch.equal(first_indices, indices_axis_one))
@@ -1650,8 +2305,8 @@ class TestManipulations(TestCase):
             [[0], [1]], dtype=torch.int32, device=self.device.torch_device
         )
         result, result_indices = ht.sort(data, axis=2)
-        first = result[0]._DNDarray__array[:, :1]
-        first_indices = result_indices[0]._DNDarray__array[:, :1]
+        first = result[0].larray[:, :1]
+        first_indices = result_indices[0].larray[:, :1]
         if rank == 0:
             self.assertTrue(torch.equal(first, exp_axis_two))
             self.assertTrue(torch.equal(first_indices, indices_axis_two))
@@ -1674,11 +2329,221 @@ class TestManipulations(TestCase):
         for i, c in enumerate(counts):
             for idx in range(c - 1):
                 if rank == i:
-                    self.assertTrue(
-                        torch.lt(
-                            result._DNDarray__array[idx], result._DNDarray__array[idx + 1]
-                        ).all()
-                    )
+                    self.assertTrue(torch.lt(result.larray[idx], result.larray[idx + 1]).all())
+
+    def test_split(self):
+        # ====================================
+        # UNDISTRIBUTED CASE
+        # ====================================
+        # axis = 0
+        # ====================================
+        data_ht = ht.arange(24).reshape((2, 3, 4))
+        data_np = data_ht.numpy()
+
+        # indices_or_sections = int
+        result = ht.split(data_ht, 2)
+        comparison = np.split(data_np, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = tuple
+        result = ht.split(data_ht, (0, 1))
+        comparison = np.split(data_np, (0, 1))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = list
+        result = ht.split(data_ht, [0, 1])
+        comparison = np.split(data_np, [0, 1])
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = undistributed DNDarray
+        result = ht.split(data_ht, ht.array([0, 1]))
+        comparison = np.split(data_np, np.array([0, 1]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = distributed DNDarray
+        result = ht.split(data_ht, ht.array([0, 1], split=0))
+        comparison = np.split(data_np, np.array([0, 1]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # ====================================
+        # axis != 0 (2 in this case)
+        # ====================================
+        # indices_or_sections = int
+        result = ht.split(data_ht, 2, 2)
+        comparison = np.split(data_np, 2, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = tuple
+        result = ht.split(data_ht, (0, 1))
+        comparison = np.split(data_np, (0, 1))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # exceptions
+        with self.assertRaises(TypeError):
+            ht.split([1, 2, 3, 4], 2)
+        with self.assertRaises(TypeError):
+            ht.split(data_ht, "2")
+        with self.assertRaises(TypeError):
+            ht.split(data_ht, 2, "0")
+        with self.assertRaises(ValueError):
+            ht.split(data_ht, 2, -1)
+        with self.assertRaises(ValueError):
+            ht.split(data_ht, 2, 3)
+        with self.assertRaises(ValueError):
+            ht.split(data_ht, 5)
+        with self.assertRaises(ValueError):
+            ht.split(data_ht, [[0, 1]])
+
+        # ====================================
+        # DISTRIBUTED CASE
+        # ====================================
+        # axis == ary.split
+        # ====================================
+        data_ht = ht.arange(120, split=0).reshape((4, 5, 6))
+        data_np = data_ht.numpy()
+
+        # indices = int
+        result = ht.split(data_ht, 2)
+        comparison = np.split(data_np, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assertTrue((ht.array(comparison[i]) == result[i]).all())
+
+        # larger example
+        data_ht_large = ht.arange(160, split=0).reshape((8, 5, 4))
+        data_np_large = data_ht_large.numpy()
+
+        # indices = int
+        result = ht.split(data_ht_large, 2)
+        comparison = np.split(data_np_large, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assertTrue((ht.array(comparison[i]) == result[i]).all())
+
+        # indices_or_sections = tuple
+        result = ht.split(data_ht, (1, 3, 5))
+        comparison = np.split(data_np, (1, 3, 5))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = list
+        result = ht.split(data_ht, [1, 3, 5])
+        comparison = np.split(data_np, [1, 3, 5])
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = undistributed DNDarray
+        result = ht.split(data_ht, ht.array([1, 3, 5]))
+        comparison = np.split(data_np, np.array([1, 3, 5]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = distributed DNDarray
+        result = ht.split(data_ht, ht.array([1, 3, 5], split=0))
+        comparison = np.split(data_np, np.array([1, 3, 5]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # ====================================
+        # axis != ary.split
+        # ====================================
+        # indices_or_sections = int
+        result = ht.split(data_ht, 2, 2)
+        comparison = np.split(data_np, 2, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = list
+        result = ht.split(data_ht, [3, 4, 6], 2)
+        comparison = np.split(data_np, [3, 4, 6], 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = undistributed DNDarray
+        result = ht.split(data_ht, ht.array([3, 4, 6]), 2)
+        comparison = np.split(data_np, np.array([3, 4, 6]), 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = distributed DNDarray
+        indices = ht.array([3, 4, 6], split=0)
+        result = ht.split(data_ht, indices, 2)
+        comparison = np.split(data_np, np.array([3, 4, 6]), 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
 
     def test_resplit(self):
         if ht.MPI_WORLD.size > 1:
@@ -1746,15 +2611,11 @@ class TestManipulations(TestCase):
             local_shape = (1, N + 1, 2 * N)
             local_tensor = reference_tensor[ht.MPI_WORLD.rank, :, :]
             self.assertEqual(resplit_tensor.lshape, local_shape)
-            self.assertTrue(
-                (resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all()
-            )
+            self.assertTrue((resplit_tensor.larray == local_tensor.larray).all())
 
             # unsplit
             unsplit_tensor = ht.resplit(resplit_tensor, axis=None)
-            self.assertTrue(
-                (unsplit_tensor._DNDarray__array == reference_tensor._DNDarray__array).all()
-            )
+            self.assertTrue((unsplit_tensor.larray == reference_tensor.larray).all())
 
             # split along axis = 1
             resplit_tensor = ht.resplit(unsplit_tensor, axis=1)
@@ -1766,15 +2627,11 @@ class TestManipulations(TestCase):
                 local_tensor = reference_tensor[:, ht.MPI_WORLD.rank + 1 : ht.MPI_WORLD.rank + 2, :]
 
             self.assertEqual(resplit_tensor.lshape, local_shape)
-            self.assertTrue(
-                (resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all()
-            )
+            self.assertTrue((resplit_tensor.larray == local_tensor.larray).all())
 
             # unsplit
             unsplit_tensor = ht.resplit(resplit_tensor, axis=None)
-            self.assertTrue(
-                (unsplit_tensor._DNDarray__array == reference_tensor._DNDarray__array).all()
-            )
+            self.assertTrue((unsplit_tensor.larray == reference_tensor.larray).all())
 
             # split along axis = 2
             resplit_tensor = ht.resplit(unsplit_tensor, axis=2)
@@ -1782,9 +2639,7 @@ class TestManipulations(TestCase):
             local_tensor = reference_tensor[:, :, 2 * ht.MPI_WORLD.rank : 2 * ht.MPI_WORLD.rank + 2]
 
             self.assertEqual(resplit_tensor.lshape, local_shape)
-            self.assertTrue(
-                (resplit_tensor._DNDarray__array == local_tensor._DNDarray__array).all()
-            )
+            self.assertTrue((resplit_tensor.larray == local_tensor.larray).all())
 
             # order tests for resplit
             for dims in range(3, 5):
@@ -1811,48 +2666,48 @@ class TestManipulations(TestCase):
         result = ht.squeeze(data)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.larray.dtype, torch.float32)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze()).all())
+        self.assertTrue((result.larray == data.larray.squeeze()).all())
 
         # 4D local tensor, major axis
         result = ht.squeeze(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.larray.dtype, torch.float32)
         self.assertEqual(result.shape, (4, 5, 1))
         self.assertEqual(result.lshape, (4, 5, 1))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze(0)).all())
+        self.assertTrue((result.larray == data.larray.squeeze(0)).all())
 
         # 4D local tensor, minor axis
         result = ht.squeeze(data, axis=-1)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.larray.dtype, torch.float32)
         self.assertEqual(result.shape, (1, 4, 5))
         self.assertEqual(result.lshape, (1, 4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze(-1)).all())
+        self.assertTrue((result.larray == data.larray.squeeze(-1)).all())
 
         # 4D local tensor, tuple axis
         result = data.squeeze(axis=(0, -1))
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.larray.dtype, torch.float32)
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == data._DNDarray__array.squeeze()).all())
+        self.assertTrue((result.larray == data.larray.squeeze()).all())
 
         # 4D split tensor, along the axis
         data = ht.array(ht.random.randn(1, 4, 5, 1), split=1)
         result = ht.squeeze(data, axis=-1)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.larray.dtype, torch.float32)
         self.assertEqual(result.shape, (1, 4, 5))
         self.assertEqual(result.split, 1)
 
@@ -1861,7 +2716,7 @@ class TestManipulations(TestCase):
         result = ht.squeeze(data, axis=1)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.larray.dtype, torch.float32)
         self.assertEqual(result.shape, (3, 5, 6))
         self.assertEqual(result.split, None)
 
@@ -1870,7 +2725,7 @@ class TestManipulations(TestCase):
         result = ht.squeeze(data, axis=-1)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.larray.dtype, torch.float32)
         self.assertEqual(result.shape, (3, 6, 5))
         self.assertEqual(result.split, None)
 
@@ -1881,7 +2736,7 @@ class TestManipulations(TestCase):
         result = ht.squeeze(data, axis=0)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.float32)
-        self.assertEqual(result._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(result.larray.dtype, torch.float32)
         self.assertEqual(result.shape, (size * 2, size))
         self.assertEqual(result.lshape, (2, size))
         self.assertEqual(result.split, 0)
@@ -1969,34 +2824,21 @@ class TestManipulations(TestCase):
         out_wrong_type = torch.empty((3, 5, 4), dtype=torch.float32)
         with self.assertRaises(TypeError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_type)
-        out_wrong_dtype = ht.empty((3, 5, 4), dtype=ht.float64, split=1)
-        with self.assertRaises(TypeError):
-            ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_dtype)
         out_wrong_shape = ht.empty((2, 5, 4), dtype=ht.float32, split=1)
         with self.assertRaises(ValueError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_shape)
         out_wrong_split = ht.empty((3, 5, 4), dtype=ht.float32, split=0)
         with self.assertRaises(ValueError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_split)
-        if ht_a_split.comm.is_distributed():
-            rank = ht_a_split.comm.rank
-            if rank == 0:
-                t_a = torch.randn(4, 4, dtype=torch.float32)
-            elif rank == 1:
-                t_a = torch.randn(1, 4, dtype=torch.float32)
-            else:
-                t_a = torch.randn(0, 4, dtype=torch.float32)
-            ht_a_unbalanced = ht.array(t_a, is_split=0)
-            with self.assertRaises(RuntimeError):
-                ht.stack((ht_a_unbalanced, ht_b_split, ht_c_split))
-        # TODO test with DNDarrays on different devices
 
     def test_topk(self):
         size = ht.MPI_WORLD.size
         if size == 1:
             size = 4
 
-        torch_array = torch.arange(size, dtype=torch.int32).expand(size, size)
+        torch_array = torch.arange(size, dtype=torch.int32, device=self.device.torch_device).expand(
+            size, size
+        )
         split_zero = ht.array(torch_array, split=0)
         split_one = ht.array(torch_array, split=1)
 
@@ -2005,20 +2847,22 @@ class TestManipulations(TestCase):
         exp_zero_indcs = ht.array(
             [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=0
         )
-        self.assertTrue((res._DNDarray__array == exp_zero._DNDarray__array).all())
-        self.assertTrue((indcs._DNDarray__array == exp_zero._DNDarray__array).all())
-        self.assertTrue(indcs._DNDarray__array.dtype == exp_zero_indcs._DNDarray__array.dtype)
+        self.assertTrue((res.larray == exp_zero.larray).all())
+        self.assertTrue((indcs.larray == exp_zero.larray).all())
+        self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
 
         res, indcs = ht.topk(split_one, 2, sorted=True)
         exp_one = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.int32, split=1)
         exp_one_indcs = ht.array(
             [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=1
         )
-        self.assertTrue((res._DNDarray__array == exp_one._DNDarray__array).all())
-        self.assertTrue((indcs._DNDarray__array == exp_one_indcs._DNDarray__array).all())
-        self.assertTrue(indcs._DNDarray__array.dtype == exp_one_indcs._DNDarray__array.dtype)
+        self.assertTrue((res.larray == exp_one.larray).all())
+        self.assertTrue((indcs.larray == exp_one_indcs.larray).all())
+        self.assertTrue(indcs.larray.dtype == exp_one_indcs.larray.dtype)
 
-        torch_array = torch.arange(size, dtype=torch.float64).expand(size, size)
+        torch_array = torch.arange(
+            size, dtype=torch.float64, device=self.device.torch_device
+        ).expand(size, size)
         split_zero = ht.array(torch_array, split=0)
         split_one = ht.array(torch_array, split=1)
 
@@ -2027,38 +2871,38 @@ class TestManipulations(TestCase):
         exp_zero_indcs = ht.array(
             [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=0
         )
-        self.assertTrue((res._DNDarray__array == exp_zero._DNDarray__array).all())
-        self.assertTrue((indcs._DNDarray__array == exp_zero_indcs._DNDarray__array).all())
-        self.assertTrue(indcs._DNDarray__array.dtype == exp_zero_indcs._DNDarray__array.dtype)
+        self.assertTrue((res.larray == exp_zero.larray).all())
+        self.assertTrue((indcs.larray == exp_zero_indcs.larray).all())
+        self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
 
         res, indcs = ht.topk(split_one, 2, sorted=True)
         exp_one = ht.array([[size - 1, size - 2] for i in range(size)], dtype=ht.float64, split=1)
         exp_one_indcs = ht.array(
             [[size - 1, size - 2] for i in range(size)], dtype=ht.int64, split=1
         )
-        self.assertTrue((res._DNDarray__array == exp_one._DNDarray__array).all())
-        self.assertTrue((indcs._DNDarray__array == exp_one_indcs._DNDarray__array).all())
-        self.assertTrue(indcs._DNDarray__array.dtype == exp_one_indcs._DNDarray__array.dtype)
+        self.assertTrue((res.larray == exp_one.larray).all())
+        self.assertTrue((indcs.larray == exp_one_indcs.larray).all())
+        self.assertTrue(indcs.larray.dtype == exp_one_indcs.larray.dtype)
 
         res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False)
         exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.int32, split=0)
         exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int64, split=0)
-        self.assertTrue((res._DNDarray__array == exp_zero._DNDarray__array).all())
-        self.assertTrue((indcs._DNDarray__array == exp_zero._DNDarray__array).all())
-        self.assertTrue(indcs._DNDarray__array.dtype == exp_zero_indcs._DNDarray__array.dtype)
+        self.assertTrue((res.larray == exp_zero.larray).all())
+        self.assertTrue((indcs.larray == exp_zero.larray).all())
+        self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
 
         exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.int32, split=0)
         exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int64, split=0)
         out = (ht.empty_like(exp_zero), ht.empty_like(exp_zero_indcs))
         res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False, out=out)
 
-        self.assertTrue((res._DNDarray__array == exp_zero._DNDarray__array).all())
-        self.assertTrue((indcs._DNDarray__array == exp_zero._DNDarray__array).all())
-        self.assertTrue(indcs._DNDarray__array.dtype == exp_zero_indcs._DNDarray__array.dtype)
+        self.assertTrue((res.larray == exp_zero.larray).all())
+        self.assertTrue((indcs.larray == exp_zero.larray).all())
+        self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
 
-        self.assertTrue((out[0]._DNDarray__array == exp_zero._DNDarray__array).all())
-        self.assertTrue((out[1]._DNDarray__array == exp_zero._DNDarray__array).all())
-        self.assertTrue(out[1]._DNDarray__array.dtype == exp_zero_indcs._DNDarray__array.dtype)
+        self.assertTrue((out[0].larray == exp_zero.larray).all())
+        self.assertTrue((out[1].larray == exp_zero.larray).all())
+        self.assertTrue(out[1].larray.dtype == exp_zero_indcs.larray.dtype)
 
     def test_unique(self):
         size = ht.MPI_WORLD.size
@@ -2070,30 +2914,30 @@ class TestManipulations(TestCase):
 
         exp_axis_none = ht.array([rank], dtype=ht.int32)
         res = split_zero.unique(sorted=True)
-        self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
+        self.assertTrue((res.larray == exp_axis_none.larray).all())
 
         exp_axis_zero = ht.arange(size, dtype=ht.int32).expand_dims(0)
         res = ht.unique(split_zero, sorted=True, axis=0)
-        self.assertTrue((res._DNDarray__array == exp_axis_zero._DNDarray__array).all())
+        self.assertTrue((res.larray == exp_axis_zero.larray).all())
 
         exp_axis_one = ht.array([rank], dtype=ht.int32).expand_dims(0)
         split_zero_transposed = ht.array(torch_array.transpose(0, 1), split=0)
         res = ht.unique(split_zero_transposed, sorted=False, axis=1)
-        self.assertTrue((res._DNDarray__array == exp_axis_one._DNDarray__array).all())
+        self.assertTrue((res.larray == exp_axis_one.larray).all())
 
         split_one = ht.array(torch_array, dtype=ht.int32, split=1)
 
         exp_axis_none = ht.arange(size, dtype=ht.int32)
         res = ht.unique(split_one, sorted=True)
-        self.assertTrue((res._DNDarray__array == exp_axis_none._DNDarray__array).all())
+        self.assertTrue((res.larray == exp_axis_none.larray).all())
 
         exp_axis_zero = ht.array([rank], dtype=ht.int32).expand_dims(0)
         res = ht.unique(split_one, sorted=False, axis=0)
-        self.assertTrue((res._DNDarray__array == exp_axis_zero._DNDarray__array).all())
+        self.assertTrue((res.larray == exp_axis_zero.larray).all())
 
         exp_axis_one = ht.array([rank] * size, dtype=ht.int32).expand_dims(1)
         res = ht.unique(split_one, sorted=True, axis=1)
-        self.assertTrue((res._DNDarray__array == exp_axis_one._DNDarray__array).all())
+        self.assertTrue((res.larray == exp_axis_one.larray).all())
 
         torch_array = torch.tensor(
             [[1, 2], [2, 3], [1, 2], [2, 3], [1, 2]],
@@ -2128,11 +2972,66 @@ class TestManipulations(TestCase):
         self.assertEqual(inv.split, None)
         self.assertEqual(inv.dtype, data_split_none.dtype)
         self.assertEqual(inv.device, data_split_none.device)
-        self.assertTrue(torch.equal(inv._DNDarray__array, exp_inv.int()))
+        self.assertTrue(torch.equal(inv.larray, exp_inv.int()))
 
         data_split_zero = ht.array(torch_array, split=0)
         res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
         self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+
+    def test_vsplit(self):
+        # for further testing, see test_split
+        data_ht = ht.arange(24).reshape((4, 3, 2))
+        data_np = data_ht.numpy()
+
+        # indices_or_sections = int
+        result = ht.vsplit(data_ht, 2)
+        comparison = np.vsplit(data_np, 2)
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = tuple
+        result = ht.vsplit(data_ht, (0, 1))
+        comparison = np.vsplit(data_np, (0, 1))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = list
+        result = ht.vsplit(data_ht, [0, 1])
+        comparison = np.vsplit(data_np, [0, 1])
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = undistributed DNDarray
+        result = ht.vsplit(data_ht, ht.array([0, 1]))
+        comparison = np.vsplit(data_np, np.array([0, 1]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
+
+        # indices_or_sections = distributed DNDarray
+        result = ht.vsplit(data_ht, ht.array([0, 1], split=0))
+        comparison = np.vsplit(data_np, np.array([0, 1]))
+
+        self.assertTrue(len(result) == len(comparison))
+
+        for i in range(len(result)):
+            self.assertIsInstance(result[i], ht.DNDarray)
+            self.assert_array_equal(result[i], comparison[i])
 
     def test_vstack(self):
         # cases to test:

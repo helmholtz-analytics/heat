@@ -122,7 +122,7 @@ def __counter_sequence(shape, dtype, split, device, comm):
     lrange[0], lrange[1] = lrange[0] - diff, lrange[1] - diff
 
     # create x_1 counter sequence
-    x_1 = torch.arange(*lrange, dtype=dtype)
+    x_1 = torch.arange(*lrange, dtype=dtype, device=device.torch_device)
     while diff > signed_mask:
         # signed_mask is maximum that can be added at a time because torch does not support unit64 or unit32
         x_1 += signed_mask
@@ -311,7 +311,7 @@ def permutation(x):
 
         data = torch.stack(buf)
     else:
-        data = torch.empty_like(x._DNDarray__array)
+        data = torch.empty_like(x.larray)
 
     return factories.array(data, dtype=x.dtype, is_split=x.split, device=x.device, comm=x.comm)
 
@@ -354,6 +354,7 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
     split = stride_tricks.sanitize_axis(shape, split)
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
+    balanced = True
 
     # generate the random sequence
     if dtype == types.float32:
@@ -376,7 +377,7 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
         # Unsupported type
         raise ValueError("dtype is none of ht.float32 or ht.float64 but was {}".format(dtype))
 
-    return dndarray.DNDarray(values, shape, dtype, split, device, comm)
+    return dndarray.DNDarray(values, shape, dtype, split, device, comm, balanced)
 
 
 def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm=None):
@@ -438,6 +439,8 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     split = stride_tricks.sanitize_axis(shape, split)
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
+    balanced = True
+
     # generate the random sequence
     x_0, x_1, lshape, lslice = __counter_sequence(shape, dtype.torch_type(), split, device, comm)
     if torch_dtype is torch.int32:
@@ -450,7 +453,7 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     # ATTENTION: this is biased and known, bias-free rejection sampling is difficult to do in parallel
     values = (values.abs_() % span) + low
 
-    return dndarray.DNDarray(values, shape, dtype, split, device, comm)
+    return dndarray.DNDarray(values, shape, dtype, split, device, comm, balanced)
 
 
 # alias
@@ -500,7 +503,7 @@ def randn(*args, dtype=types.float32, split=None, device=None, comm=None):
     # generate uniformly distributed random numbers first
     normal_tensor = rand(*args, dtype=dtype, split=split, device=device, comm=comm)
     # convert the the values to a normal distribution using the kundu transform
-    normal_tensor._DNDarray__array = __kundu_transform(normal_tensor._DNDarray__array)
+    normal_tensor.larray = __kundu_transform(normal_tensor.larray)
 
     return normal_tensor
 
@@ -661,9 +664,9 @@ def __threefry32(X_0, X_1):
     seed_32 = __seed & 0x7FFFFFFF
 
     # set up key buffer
-    ks_0 = torch.full((samples,), seed_32, dtype=torch.int32)
-    ks_1 = torch.full((samples,), seed_32, dtype=torch.int32)
-    ks_2 = torch.full((samples,), 466688986, dtype=torch.int32)
+    ks_0 = torch.full((samples,), seed_32, dtype=torch.int32, device=X_0.device)
+    ks_1 = torch.full((samples,), seed_32, dtype=torch.int32, device=X_1.device)
+    ks_2 = torch.full((samples,), 466688986, dtype=torch.int32, device=X_0.device)
     ks_2 ^= ks_0
     ks_2 ^= ks_0
 
@@ -751,9 +754,9 @@ def __threefry64(X_0, X_1):
     samples = len(X_0)
 
     # set up key buffer
-    ks_0 = torch.full((samples,), __seed, dtype=torch.int64)
-    ks_1 = torch.full((samples,), __seed, dtype=torch.int64)
-    ks_2 = torch.full((samples,), 2004413935125273122, dtype=torch.int64)
+    ks_0 = torch.full((samples,), __seed, dtype=torch.int64, device=X_0.device)
+    ks_1 = torch.full((samples,), __seed, dtype=torch.int64, device=X_1.device)
+    ks_2 = torch.full((samples,), 2004413935125273122, dtype=torch.int64, device=X_0.device)
     ks_2 ^= ks_0
     ks_2 ^= ks_0
 
