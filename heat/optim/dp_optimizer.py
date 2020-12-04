@@ -168,6 +168,7 @@ class SkipBatches:
         self.global_skip = 0
         self.local_skip = 0
         self.batches_to_wait = 0
+        self.epochs_to_wait = 3
 
     def set_model(self, model):
         self.module = model
@@ -196,7 +197,7 @@ class SkipBatches:
         self.batches_to_wait = self._og_btw
 
     @torch.no_grad()
-    def new_loss_logic2(self, loss):
+    def new_loss_logic3(self, loss):
         loss_send = torch.zeros(self.comm.size)
         # todo: check that its ``loss.data`` and not something else (why not just loss?)
         loss_send[self.comm.rank] = loss.data
@@ -272,6 +273,86 @@ class SkipBatches:
             f"btw {self.batches_to_wait}, {avg_loss}"
         )
 
+
+    @torch.no_grad()
+    def new_loss_logic2(self, loss, max_epoch=None):
+        loss_send = torch.zeros(self.comm.size)
+        # todo: check that its ``loss.data`` and not something else (why not just loss?)
+        loss_send[self.comm.rank] = loss.data
+        # todo: time this
+        t_ls0 = time.perf_counter()
+        self.comm.Allreduce(MPI.IN_PLACE, loss_send, MPI.SUM)
+        print0(f"Loss allreduce time: {time.perf_counter() - t_ls0}")
+
+        avg_loss = torch.mean(loss_send)
+        self._prev_losses_mean.append(avg_loss)
+
+        if self.loss_switch_target is None:
+            self.loss_switch_target = avg_loss / 3.0
+
+        if self.epoch < 4:
+            self.global_skip = 0
+            self.local_skip = 0
+            self.batches_to_wait = 0
+            print0('\t\t', self.global_skip, self.local_skip, self.batches_to_wait)
+            return
+        elif 4 == self.epoch: # <= self.epoch < 10:
+            self.global_skip = 4
+            self.local_skip = 1
+            self.batches_to_wait = 1
+            print0('\t\t', self.global_skip, self.local_skip, self.batches_to_wait)
+            self._prev_losses_mean = []
+            #return
+        #elif self.epoch == 10:
+        #    #self.reset_skips()
+        #    self.global_skip = 8
+        #    self.local_skip = 2
+        #    self.batches_to_wait = 2
+        #    self.ls_flag1 = 0
+            #self._prev_losses_mean = []
+
+        if self.epoch == max_epoch - 5:
+            self.global_skip = 0
+            self.local_skip = 0
+            self.batches_to_wait = 0
+            return
+
+        # epochs_to_wait = 3
+        if len(self._prev_losses_mean) < self.epochs_to_wait:
+            return
+        means = torch.tensor(self._prev_losses_mean)
+        diff = abs(means[-1] - means[-1 * self.epochs_to_wait])
+        stable = True if diff <= 0.075 else False
+        # TODO: add something for when the loss is *increasing*
+        if stable and self.global_skip > 1:
+            # drop gs by factor of 2
+            self.global_skip //= 2
+            self.local_skip //= 2
+            self.batches_to_wait //= 2
+            self.epochs_to_wait += 1
+            self._prev_losses_mean = []
+            print0("dropping skips, loss stable")
+            if self.global_skip > 0 and self.batches_to_wait == 0:
+                self.batches_to_wait = 1
+            if self.global_skip > 0 and self.local_skip == 0:
+                self.local_skip = 1 
+            #if self.global_skip == 0 and avg_loss > self.loss_floor + 0.75:
+            #    self.global_skip = 2
+            #self._prev_losses_mean = []
+            #if self.local_skip < 2:
+            #    self.local_skip = 2
+        elif self.global_skip == 1 and stable:  # older: diff < 0.1 # gs ==0 and stable:
+            self.global_skip = 8
+            self.local_skip = 2
+            self.batches_to_wait = 3  # 2
+            self._prev_losses_mean = []
+            self.epochs_to_wait = 3 
+            #self.ls_flag += 1
+
+        print0('\t\t', self.global_skip, self.local_skip, self.batches_to_wait)
+        
+
+
     @torch.no_grad()
     def new_loss_logic(self, loss):
         loss_send = torch.zeros(self.comm.size)
@@ -293,9 +374,14 @@ class SkipBatches:
             self.local_skip = 0
             self.batches_to_wait = 0
             return
-        elif self.epoch == 4:
+        elif 4 <= self.epoch < 8:
+            self.global_skip = 4
+            self.local_skip = 1
+            self.batches_to_wait = 1
+            return 
+        elif self.epoch == 8:
             self.reset_skips()
-            self.global_skip //= 2
+            #self.global_skip //= 2
             #self.local_skip //= 2
             #self.batches_to_wait //= 2
             self._prev_losses_mean = []
@@ -313,27 +399,39 @@ class SkipBatches:
         if avg_loss < self.loss_floor + 0.45 and diff < 0.1:
             if not self.ls_flag2:
                 self.ls_flag2 = True
-                self.reset_skips()
-                #self.global_skip //= 2
-                #self.local_skip //= 2
-                #self.batches_to_wait //= 2
-            #else:
-            self.global_skip //= 2
-            self.local_skip //= 2
-            self.batches_to_wait //= 2
+                #self.reset_skips()
+                if self.global_skip == 0:
+                    self.global_skip = 4
+                else:
+                    self.global_skip //= 2
+
+                if self.local_skip == 0:
+                    self.local_skip = 1
+                self.local_skip *= 2
+                
+                if self.batches_to_wait == 0:
+                    self.batches_to_wait = 1
+                self.batches_to_wait *= 2
+                self._prev_losses_mean = []
+            else:
+                self.global_skip //= 2
+                self.local_skip //= 2
+                self.batches_to_wait //= 2
+                self._prev_losses_mean = []
+            
             #print0("all 0s", avg_loss)
             if len(self._prev_losses_mean) > 3 and self.global_skip == 0:
                 self.global_skip = 4
                 self.local_skip = 1
                 self.batches_to_wait = 1
-            self._prev_losses_mean = []
+                self._prev_losses_mean = []
             print0(
-                f"\tgs: {self.global_skip}, ls {self.local_skip}, "
+                f"below loss floor + 0.45\tgs: {self.global_skip}, ls {self.local_skip}, "
                 f"btw {self.batches_to_wait}, {avg_loss}"
             )
             return
-        elif avg_loss < self.loss_floor + 0.75 and diff < 0.1 and not self.ls_flag1:
-            # todo: set the global skips to half? or just to 4?
+        elif avg_loss < self.loss_floor + 1.00 and diff < 0.1: # 0.75 and not self.ls_flag1:
+            # TODO: remove the ls_flag clause?
             if not self.ls_flag1:
                 self.ls_flag1 = True
                 self.reset_skips()
@@ -350,28 +448,28 @@ class SkipBatches:
             # if diff < 0.1:
             #     # if the loss is stable and in this range, do what???
             #     pass
-        elif avg_loss < self.loss_switch_target:
-            # todo: double global skips v reset global skips
-            self.global_skip = self.og_global_skip // 2
-            # self.global_skip *= 3
-            #if self.global_skip > self.og_global_skip:
-            #    self.global_skip = self.og_global_skip // 2
-            if self.local_skip == 0:
-                self.local_skip = 2
-            else:
-                self.local_skip *= 2
-        
-            if self.batches_to_wait == 0:
-                self.batches_to_wait = 4
-            else:
-                self.batches_to_wait *= 4 # 2
-        
-            if self.batches_to_wait > self._og_btw * 2:
-                self.batches_to_wait = self._og_btw * 2
-            self.loss_switch_target /= 1.25
-            self._inc_ls = True
-            print0("\tbelow loss target")
-            self._prev_losses_mean = []
+       # elif avg_loss < self.loss_switch_target:
+       #     # todo: double global skips v reset global skips
+       #     #self.global_skip = self.og_global_skip // 2
+       #     # self.global_skip *= 3
+       #     #if self.global_skip > self.og_global_skip:
+       #     #    self.global_skip = self.og_global_skip // 2
+       #     if self.local_skip == 0:
+       #         self.local_skip = 2
+       #     else:
+       #         self.local_skip *= 2
+       # 
+       #     if self.batches_to_wait == 0:
+       #         self.batches_to_wait = 4
+       #     else:
+       #         self.batches_to_wait *= 2
+       # 
+       #     if self.batches_to_wait > self._og_btw * 2:
+       #         self.batches_to_wait = self._og_btw * 2
+       #     self.loss_switch_target /= 1.25
+       #     self._inc_ls = True
+       #     print0("\tbelow loss target")
+       #     self._prev_losses_mean = []
         elif diff < 0.1:
             # drop gs by factor of 2
             self.global_skip //= 2
@@ -381,7 +479,7 @@ class SkipBatches:
             self._prev_losses_mean = self._prev_losses_mean[-1:]
             print0("dropping skips, loss stable")
             if self.global_skip == 0 and avg_loss > self.loss_floor + 0.75:
-                self.global_skip = 1
+                self.global_skip = 2
             #self._prev_losses_mean = []
             if self.local_skip < 2:
                 self.local_skip = 2
@@ -389,12 +487,11 @@ class SkipBatches:
             self.local_skip = int(self.global_skip // 1.5)
         if self.batches_to_wait > self.global_skip // 2:
             self.batches_to_wait = self.global_skip // 2
-        if len(self._prev_losses_mean) > 3 and self.global_skip == 0:
+        if len(self._prev_losses_mean) > 3 and self.global_skip <= 1:
             self._prev_losses_mean = []
             self.global_skip = 4
             self.local_skip = 1
             self.batches_to_wait = 2
-        self._prev_losses_mean = []
         print0(
             f"\tgs: {self.global_skip}, ls {self.local_skip}, "
             f"btw {self.batches_to_wait}, {avg_loss}"
@@ -605,8 +702,8 @@ class SkipBatches:
             # todo: abstract last batch?
             # receive the sent data to sync params across all ranks
             if self.comm.rank in current_ranks:
-                if len(self._prev_params) > 0:
-                    raise ValueError(f"length of previous params > 0! {len(self._prev_params)}")
+                if len(self._prev_params) > 1:
+                    raise ValueError(f"length of previous params > 1! {len(self._prev_params)}")
                 prev_params = self._prev_params.pop(0)
                 shapes = prev_params[2]
                 # factor = 1.0 / float(len(current_ranks))

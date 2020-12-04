@@ -382,7 +382,7 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
             setattr(dataset, rcv[0][0], shuffled[dataset._cut_slice])
 
 
-class DistributedLoaderRandomSampler(torch_data.Sampler[int]):
+class DistributedLoaderRandomSampler(torch_data.Sampler):
     r"""Samples elements randomly. If without replacement, then sample from a shuffled dataset.
     If with replacement, then user can specify :attr:`num_samples` to draw.
 
@@ -466,7 +466,7 @@ class DistributedLoaderRandomSampler(torch_data.Sampler[int]):
         return self.num_samples
 
 
-class DistributedLoaderSequentialSampler(torch_data.Sampler[int]):
+class DistributedLoaderSequentialSampler(torch_data.Sampler):
     r"""Samples elements sequentially, always in the same order.
 
     Arguments:
