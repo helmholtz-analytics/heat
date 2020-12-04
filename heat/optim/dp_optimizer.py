@@ -110,11 +110,13 @@ class SkipBatches:
         local_skip: int = None,
         loss_floor: Union[float, int] = 1.0,
         global_skip_delay: int = 4,
+        scheduler: torch.optim.lr_scheduler = None,
     ):
         self.lcl_optimizer = local_optimizer
         # reference of optimizer's params
         self.params_ref = local_optimizer.param_groups[0]["params"]
         self.named_params = named_parameters
+        self.scheduler = scheduler
 
         # TODO: MAKE SURE TO PUT THIS *AFTER* THE DDP MODEL??
 
@@ -158,13 +160,9 @@ class SkipBatches:
         self._prev_losses_mean, self._prev_losses_std = [], []
         self._loss_wait = []
         self.start_loss = None
-        self.loss_switch_target = None
-        self.loss_floor = loss_floor
         self.batches_to_wait = global_skip_delay
         self._og_btw = global_skip_delay
-        self._inc_ls = False
         self._param_send_shp = None
-        self.ls_flag1, self.ls_flag2 = False, False
         self.global_skip = 0
         self.local_skip = 0
         self.batches_to_wait = 0
@@ -265,7 +263,10 @@ class SkipBatches:
         # test for receive from last batch,
         #   if yes: receive, update parameters with rcved stuff
         # copy and send the parameter dictionary
-        self.lcl_optimizer.step()
+        if self.scheduler is None:
+            self.lcl_optimizer.step()
+        else:
+            self.scheduler.step()
         batch = self.current_batch
         next_batch = batch + 1
         gs = self.global_skip
