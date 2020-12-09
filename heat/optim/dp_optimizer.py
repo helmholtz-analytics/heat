@@ -108,7 +108,6 @@ class SkipBatches:
         comm: MPICommunication = MPI_WORLD,
         skip_batches: Union[List, Tuple, int] = None,
         local_skip: int = None,
-        loss_floor: Union[float, int] = 1.0,
         global_skip_delay: int = 4,
         scheduler: torch.optim.lr_scheduler = None,
     ):
