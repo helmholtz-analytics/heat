@@ -104,3 +104,10 @@ Afterwards, change to the cloned source code directory and run the setup scripts
 
   $ cd heat
   $ pip install -e '.[hdf5, netcdf]'
+
+Support Channels
+----------------
+
+We use [StackOverflow](https://stackoverflow.com/tags/pyheat/) as a forum for questions about Heat.
+If you do not find an answer to your question, then please ask a new question there and be sure to
+tag it with "pyheat".
