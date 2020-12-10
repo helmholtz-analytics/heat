@@ -428,7 +428,10 @@ class SkipBatches:
         params = torch.zeros(
             self._param_send_buffer, device=self.device, dtype=torch.bfloat16 if cast else None
         )
-        params, shapes = self.__pack_data(params, cast)
+        param_dict = {}
+        for name, param in self.module.named_parameters():
+            param_dict[name] = param
+        params, shapes = self.__pack_data(param_dict, params, cast)
         # shapes = {}
         # st = 0
         # for name, param in self.module.named_parameters():
@@ -445,12 +448,13 @@ class SkipBatches:
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
         return new_wait
 
+    @staticmethod
     @torch.no_grad()
-    @torch.jit.script()
-    def __pack_data(self, params, cast):
+    @torch.jit.script
+    def __pack_data(iter_dict: dict, params: torch.Tensor, cast: bool):
         shapes = {}
         st = 0
-        for name, param in self.module.named_parameters():
+        for name, param in iter_dict.items():
             if param.requires_grad:
                 # flatten and prep the data for sending
                 shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
