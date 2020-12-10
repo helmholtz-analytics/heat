@@ -105,15 +105,14 @@ class SkipBatches:
         self,
         local_optimizer: torch.optim.Optimizer,
         total_epochs: int,
-        scheduler: torch.optim.lr_scheduler = None,
         comm: MPICommunication = MPI_WORLD,
-        warmup_epochs: int = 3,
+        warmup_epochs: int = 4,
+        scheduler: torch.optim.lr_scheduler = None,
     ):
         self.comm = comm
         self.lcl_optimizer = local_optimizer
+        # reference of optimizer's params
         self.scheduler = scheduler
-
-        # TODO: MAKE SURE TO PUT THIS *AFTER* THE DDP MODEL??
 
         rank = comm.rank
         loc_gpus = torch.cuda.device_count()
@@ -122,8 +121,7 @@ class SkipBatches:
         self.local_skip = 1
         if loc_gpus > 1:
             base_loc_ranks = list(range(0, comm.size, loc_gpus))
-            reduced_comms = []
-            reduced_ranks = []
+            reduced_comms, reduced_ranks = [], []
             for i in range(loc_gpus):
                 lp_ranks = [j + i for j in base_loc_ranks]
                 color = 111 + i if rank in lp_ranks else 222 + i
@@ -143,7 +141,6 @@ class SkipBatches:
         self._send_mod, self._send_mod_m1 = 0, None
 
         self._prev_losses_mean, self._prev_losses_std = [], []
-        self._param_send_buffer = None
         self.global_skip = 0
         self.local_skip = 0
         self.batches_to_wait = 0
@@ -151,6 +148,10 @@ class SkipBatches:
 
         self.warmup_epochs = warmup_epochs
         self.total_epochs = total_epochs
+
+        # used in the sending of the params
+        self._param_send_buffer_shape = None
+        self.param_dict, self.shapes = None, None
 
     def set_model(self, model):
         self.module = model
@@ -172,8 +173,9 @@ class SkipBatches:
     @torch.no_grad()
     def epoch_loss_logic(self, loss):
         loss_send = torch.zeros(self.comm.size)
-        # loss.data -> get the data without the backwards info
+        # loss.data -> this will get the raw number from the lass value and nothing else
         loss_send[self.comm.rank] = loss.data
+
         self.comm.Allreduce(MPI.IN_PLACE, loss_send, MPI.SUM)
 
         avg_loss = torch.mean(loss_send)
@@ -199,12 +201,13 @@ class SkipBatches:
             print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
             return
 
+        # epochs_to_wait = 3
         if len(self._prev_losses_mean) < self.epochs_to_wait:
             return
         means = torch.tensor(self._prev_losses_mean)
         diff = abs(means[-1] - means[-1 * self.epochs_to_wait])
         stable = True if diff <= 0.075 else False
-        # TODO: add something for when the loss is *increasing*
+        # TODO: add something for when the loss is *increasing*?
         if stable and self.global_skip > 1:
             # drop gs by factor of 2
             self.global_skip //= 2
@@ -302,7 +305,6 @@ class SkipBatches:
             # needs to happen on all ranks:
             self._local_torch_param_update(self._send_mod_m1)
 
-        # TODO: deal with the global_skip == 1 issue. when there is global_skip == 1 this loop doesnt run
         if self.current_batch == self.last_batch or self.batches_to_wait == 0:
             # todo: abstract last batch?
             # receive the sent data to sync params across all ranks
@@ -322,7 +324,7 @@ class SkipBatches:
             else:
                 if len(self._prev_params) > 0:
                     raise ValueError(
-                        f"OFF RANKS! len(prev_params) > 0! {len(self._prev_params)}"
+                        f"DEBUG: OFF RANKS! len(prev_params) > 0! {len(self._prev_params)}"
                         f" batch number {self.current_batch}"
                     )
             self._local_torch_param_update(self._send_mod)
@@ -349,98 +351,85 @@ class SkipBatches:
         if self.global_skip < 1:
             op = mpi_sum_bfloat
             cast = True
-        if self._param_send_buffer is not None:
-            return self._global_send_update_zeros(current_comm, batches_to_wait, op=op, cast=cast)
+        param_dict, shapes = self._create_param_dict_n_shapes()
 
-        params = []
+        params = torch.zeros(
+            self._param_send_buffer_shape,
+            device=self.device,
+            dtype=torch.bfloat16 if cast else None,
+        )
+        params = self.__pack_data(param_dict, params, cast)
+
+        new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
+        self._prev_params.append([new_wait, params, shapes, batches_to_wait])
+        return new_wait
+
+    def _create_param_dict_n_shapes(self):
+        """
+        create the shape and param dictionary used for sending parameters around the MPI world.
+        this will also define the buffer size if it was not previously defined.
+        """
+        if self.shapes is not None and self.param_dict is not None:
+            return self.param_dict, self.shapes
+        # else:
+        param_dict = {}
         shapes = {}
         st = 0
         for name, param in self.module.named_parameters():
+            param_dict[name] = param
+            numel = param.numel()
+            shapes[name] = [param.shape, slice(st, st + numel), param.dtype]
+            st += numel
+        if self._param_send_buffer_shape is None:
+            # use the total number of elements to define the sending buffer shape (single int)
+            self._param_send_buffer_shape = st
+        self.param_dict = param_dict
+        self.shapes = shapes
+        return param_dict, shapes
+
+    @staticmethod
+    @torch.jit.script
+    def __pack_data_list(iter_dict: Dict[str, torch.Tensor], cast: bool):
+        """ jitted loop to load the data into a list and create params to be sent"""
+        params = []
+        st = 0
+        for name, param in iter_dict.items():
             if param.requires_grad:
                 # flatten and prep the data for sending
-                shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
                 p = param.flatten()
                 if cast:
                     p = p.to(torch.bfloat16)
                 params.append(p)
                 st += param.numel()
         params = torch.cat(params)
-        self._param_send_buffer = params.shape
-
-        new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
-        self._prev_params.append([new_wait, params, shapes, batches_to_wait])
-        return new_wait
-
-    @torch.no_grad()
-    def _global_send_update_zeros(self, current_comm, batches_to_wait, op, cast):
-        # pack and send the data required for a global synchronization
-        # todo: jit loop?
-        params = torch.zeros(
-            self._param_send_buffer, device=self.device, dtype=torch.bfloat16 if cast else None
-        )
-        param_dict = {}
-        st = 0
-        shapes = {}
-        for name, param in self.module.named_parameters():
-            param_dict[name] = param
-            numel = param.numel()
-            shapes[name] = [param.shape, slice(st, st + numel), param.dtype]
-            st += numel
-        params = self.__pack_data(param_dict, params, cast)
-        # for s in shapes.keys():
-        #    shapes[s][1] = slice(shapes[s][1], shapes[s][3])
-        #    del shapes[s][3]
-        # shapes = {}
-        # st = 0
-        # for name, param in self.module.named_parameters():
-        #    if param.requires_grad:
-        #        # flatten and prep the data for sending
-        #        shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
-        #        p = param.flatten()
-        #        if cast:
-        #            p = p.to(torch.bfloat16)
-        #        params[slice(st, st + param.numel())] = p
-        #        st += param.numel()
-
-        new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
-        self._prev_params.append([new_wait, params, shapes, batches_to_wait])
-        return new_wait
+        return params
 
     @staticmethod
-    @torch.no_grad()
     @torch.jit.script
     def __pack_data(iter_dict: Dict[str, torch.Tensor], params: torch.Tensor, cast: bool):
-        # shapes = {}
+        """ jitted loop to pack the data into params to be sent"""
         st = 0
         for name, param in iter_dict.items():
             if param.requires_grad:
                 # flatten and prep the data for sending
-                # shapes[name] = [param.shape, st, param.dtype, st + param.numel()]
-                p = param.flatten()
+                p = torch.flatten(param)
                 if cast:
                     p = p.to(torch.bfloat16)
                 params[st : st + param.numel()] = p
                 st += param.numel()
-        return params  # , shapes
+        return params
 
     @torch.no_grad()
     def _local_torch_param_update(self, mod_hold_pr):
-        # mod_hold_pr is the process which has the updated gradients to be broadcast to the other local ranks
-        # synchronize the local torch parameters
+        # send the globally updated gradients from `mod_hold_pr` to the other local processes
         if mod_hold_pr is None:
+            # this is a failsafe in case this function is called when there is no need to synchronize
             return
         if torch.distributed.is_initialized():
             snds = {}
-            # todo: test averaging in the update data instead of just setting it
-            # nodes = self.comm.size // torch.cuda.device_count()
-            # factor = nodes / float(self.comm.size) if torch.distributed.get_rank() == mod_hold_pr else \
-            #          1 / float(self.comm.size)
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
                     snds[name] = torch.distributed.broadcast(param, mod_hold_pr, async_op=True)
-                    # param /= float(torch.cuda.device_count())
-                    # param *= factor
-                    # snds[name] = torch.distributed.all_reduce(param, op=torch.distributed.ReduceOp.SUM, async_op=True)
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
                     snds[name].wait()
@@ -452,32 +441,28 @@ class SkipBatches:
         if self._send_mod_m1 is None:
             return
         prev_ranks = self.reduced_ranks[self._send_mod_m1]
-        if self.comm.rank not in prev_ranks:  # or self._prev_params[0][0] is None:
-            # receive previous ones
+        if self.comm.rank not in prev_ranks:
+            # receive previous gradients
             return
-        if len(self._prev_params) == 0:  # or self._prev_params[0][0] is None:
+        if len(self._prev_params) == 0:
+            # if no old gradients, return without doing anything
             return
         prev_params = self._prev_params.pop(0)
         batches_between = float(prev_params[3])
         # add the weighted average to param
         shapes = prev_params[2]
-        # numer = batches_between * 2. if batches_between > 0.0 else 1.0
         numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
         denom = float(len(prev_ranks) + numer)
         factor = numer / denom
         prev_params[0].Wait()
-        # f2 = len(prev_ranks) / denom
-        rcv_params = prev_params[1] / denom  # float(len(prev_ranks))) * f2
-        # rcv_params *= f2
+        rcv_params = prev_params[1] / denom
         # todo: jit the parameter setting
         for name, param in self.module.named_parameters():
             if param.requires_grad:
                 update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                 # NOTE: update here is the sum of the params across the processes
                 param *= factor
-                param += update  # / denom
-                # param += update
-                # param /= 2. #denom
+                param += update
 
     def zero_grad(self) -> None:
         """
