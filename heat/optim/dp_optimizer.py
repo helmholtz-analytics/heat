@@ -103,12 +103,12 @@ class SkipBatches:
 
     def __init__(
         self,
-        local_optimizer: torch.optim.Optimizer = torch.optim.SGD,
+        local_optimizer: torch.optim.Optimizer,
+        total_epochs: int,
         comm: MPICommunication = MPI_WORLD,
         warmup_epochs: int = 4,
         scheduler: torch.optim.lr_scheduler = None,
         use_apex: bool = False,
-        total_epochs: int = 100,
     ):
         self.comm = comm
         self.lcl_optimizer = local_optimizer
@@ -177,7 +177,6 @@ class SkipBatches:
 
     @torch.no_grad()
     def epoch_loss_logic(self, loss):
-        # todo: add max_epoch as a class parameter - with max batch number
         loss_send = torch.zeros(self.comm.size)
         # loss.data -> this will get the raw number from the lass value and nothing else
         loss_send[self.comm.rank] = loss.data
@@ -213,7 +212,7 @@ class SkipBatches:
         means = torch.tensor(self._prev_losses_mean)
         diff = abs(means[-1] - means[-1 * self.epochs_to_wait])
         stable = True if diff <= 0.075 else False
-        # TODO: add something for when the loss is *increasing*
+        # TODO: add something for when the loss is *increasing*?
         if stable and self.global_skip > 1:
             # drop gs by factor of 2
             self.global_skip //= 2
@@ -227,7 +226,7 @@ class SkipBatches:
                     self.batches_to_wait = 1
                 if self.local_skip == 0:
                     self.local_skip = 1
-        elif self.global_skip == 1 and stable:  # older: diff < 0.1 # gs ==0 and stable:
+        elif self.global_skip == 1 and stable:
             self.global_skip = 8
             self.local_skip = 2
             self.batches_to_wait = 3  # 2
@@ -254,8 +253,6 @@ class SkipBatches:
         gmod = batch % gs if gs > 0 else 0
         lmod = batch % ls if ls > 0 else 0
 
-        # todo: make adjustments to logic if ls > gs
-
         batches_to_wait = self.batches_to_wait
         btw = (
             batches_to_wait
@@ -263,7 +260,6 @@ class SkipBatches:
             else self.last_batch - batch
         )
         # do full synce on global skips and on the last batch
-        # todo: sync for last few batches before the end?
         if batch == self.last_batch or gmod == 0:
             return self._full_global_sync(btw)
 
@@ -314,7 +310,6 @@ class SkipBatches:
             # needs to happen on all ranks:
             self._local_torch_param_update(self._send_mod_m1)
 
-        # TODO: deal with the global_skip == 1 issue. when there is global_skip == 1 this loop doesnt run
         if self.current_batch == self.last_batch or self.batches_to_wait == 0:
             # todo: abstract last batch?
             # receive the sent data to sync params across all ranks
@@ -323,9 +318,8 @@ class SkipBatches:
                     raise ValueError(f"length of previous params > 1! {len(self._prev_params)}")
                 prev_params = self._prev_params.pop(0)
                 shapes = prev_params[2]
-                # factor = 1.0 / float(len(current_ranks))
                 prev_params[0].Wait()
-                rcv_params = prev_params[1] / float(len(current_ranks))  # * factor
+                rcv_params = prev_params[1] / float(len(current_ranks))
                 for name, param in self.module.named_parameters():
                     if param.requires_grad:
                         param[:] = (
@@ -350,8 +344,6 @@ class SkipBatches:
                 self.current_batch += 1
                 self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
         else:
-            # self._update_parameters()
-            # self._local_torch_param_update(self._send_mod_m1)
             self.current_batch += 1
             self._send_mod_m1 = self._send_mod
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
@@ -468,22 +460,15 @@ class SkipBatches:
 
     @torch.no_grad()
     def _local_torch_param_update(self, mod_hold_pr):
-        # mod_hold_pr is the process which has the updated gradients to be broadcast to the other local ranks
-        # synchronize the local torch parameters
+        # send the globally updated gradients from `mod_hold_pr` to the other local processes
         if mod_hold_pr is None:
+            # this is a failsafe in case this function is called when there is no need to synchronize
             return
         if torch.distributed.is_initialized():
             snds = {}
-            # todo: test averaging in the update data instead of just setting it
-            # nodes = self.comm.size // torch.cuda.device_count()
-            # factor = nodes / float(self.comm.size) if torch.distributed.get_rank() == mod_hold_pr else \
-            #          1 / float(self.comm.size)
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
                     snds[name] = torch.distributed.broadcast(param, mod_hold_pr, async_op=True)
-                    # param /= float(torch.cuda.device_count())
-                    # param *= factor
-                    # snds[name] = torch.distributed.all_reduce(param, op=torch.distributed.ReduceOp.SUM, async_op=True)
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
                     snds[name].wait()
@@ -495,23 +480,21 @@ class SkipBatches:
         if self._send_mod_m1 is None:
             return
         prev_ranks = self.reduced_ranks[self._send_mod_m1]
-        if self.comm.rank not in prev_ranks:  # or self._prev_params[0][0] is None:
-            # receive previous ones
+        if self.comm.rank not in prev_ranks:
+            # receive previous gradients
             return
-        if len(self._prev_params) == 0:  # or self._prev_params[0][0] is None:
+        if len(self._prev_params) == 0:
+            # if no old gradients, return without doing anything
             return
         prev_params = self._prev_params.pop(0)
         batches_between = float(prev_params[3])
         # add the weighted average to param
         shapes = prev_params[2]
-        # numer = batches_between * 2. if batches_between > 0.0 else 1.0
         numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
         denom = float(len(prev_ranks) + numer)
         factor = numer / denom
         prev_params[0].Wait()
-        # f2 = len(prev_ranks) / denom
-        rcv_params = prev_params[1] / denom  # float(len(prev_ranks))) * f2
-        # rcv_params *= f2
+        rcv_params = prev_params[1] / denom
         # todo: jit the parameter setting
         for name, param in self.module.named_parameters():
             if param.requires_grad:

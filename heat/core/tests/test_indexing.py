@@ -49,7 +49,7 @@ class TestIndexing(TestCase):
         )
         self.assertTrue(ht.equal(wh, res))
         self.assertEqual(wh.gshape, (3, 3))
-        self.assertEqual(wh.dtype, ht.float)
+        self.assertEqual(wh.dtype, ht.float64)
 
         # split cond
         a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=0)
@@ -58,7 +58,7 @@ class TestIndexing(TestCase):
         self.assertTrue(ht.all(wh[ht.nonzero(a >= 4)] == -1))
         self.assertTrue(ht.equal(wh, res))
         self.assertEqual(wh.gshape, (3, 3))
-        self.assertEqual(wh.dtype, ht.float)
+        self.assertEqual(wh.dtype, ht.float64)
         self.assertEqual(wh.split, 0)
 
         a = ht.array([[0.0, 1.0, 2.0], [0.0, 2.0, 4.0], [0.0, 3.0, 6.0]], split=1)

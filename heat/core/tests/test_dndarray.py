@@ -99,9 +99,7 @@ class TestDNDarray(TestCase):
             halo_2 = torch.tensor(np.array([[3], [9]]), device=data.device.torch_device)
             halo_3 = torch.tensor(np.array([[4], [10]]), device=data.device.torch_device)
             halo_4 = torch.tensor(np.array([[5], [11]]), device=data.device.torch_device)
-
             data.get_halo(1)
-
             data_with_halos = data.array_with_halos
 
             if data.comm.rank == 0:
@@ -116,7 +114,6 @@ class TestDNDarray(TestCase):
                 self.assertEqual(data.halo_next, None)
                 self.assertTrue(torch.equal(data.halo_prev, halo_3))
                 self.assertEqual(data_with_halos.shape, (2, 3))
-
             # exception on wrong argument type in get_halo
             with self.assertRaises(TypeError):
                 data.get_halo("wrong_type")
@@ -128,10 +125,10 @@ class TestDNDarray(TestCase):
                 data.get_halo(4)
             # exception on non balanced tensor
             with self.assertRaises(RuntimeError):
-                if data.comm.rank == 1:
-                    data.larray = torch.empty(0)
-                data.get_halo(1)
-
+                data_nobalance = ht.array(
+                    torch.empty(((data.comm.rank + 1) * 2, 3, 4)), is_split=0, device=data.device
+                )
+                data_nobalance.get_halo(1)
             # test no data on process
             data_np = np.arange(2 * 12).reshape(2, 12)
             data = ht.array(data_np, split=0)
@@ -178,14 +175,16 @@ class TestDNDarray(TestCase):
         self.assertIsInstance(x.larray, torch.Tensor)
         self.assertEqual(x.larray.shape, x.lshape)
 
-        x.larray = torch.arange(42)
+        x.larray = torch.randn(6, 7, 8)
 
         self.assertTrue((x.larray == x.larray).all())
-        self.assertTrue(x.gshape, (42,))
+        self.assertTrue(x.gshape, (6, 7, 8))
         self.assertIsInstance(x.larray, torch.Tensor)
         self.assertEqual(x.larray.shape, x.lshape)
 
         # Exceptions
+        with self.assertRaises(ValueError):
+            x.larray = torch.arange(42)
         with self.assertRaises(TypeError):
             x.larray = ht.array([1, 2, 3])
         with self.assertRaises(TypeError):
@@ -202,15 +201,18 @@ class TestDNDarray(TestCase):
         self.assertIsInstance(x.larray, torch.Tensor)
         self.assertEqual(x.larray.shape, x.lshape)
 
-        x.larray = torch.arange(42)
+        if x.comm.rank == 0:
+            x.larray = torch.randn(4, 7, 8)
 
         self.assertTrue((x.larray == x.larray).all())
-        self.assertTrue(x.gshape, (42,))
+        # self.assertTrue(x.gshape, (42,))
         self.assertIsInstance(x.larray, torch.Tensor)
         self.assertEqual(x.larray.shape, x.lshape)
         self.assertEqual(x.split, 0)
 
         # Exceptions
+        with self.assertRaises(ValueError):
+            x.larray = torch.arange(42)
         with self.assertRaises(TypeError):
             x.larray = ht.array([1, 2, 3])
         with self.assertRaises(TypeError):
