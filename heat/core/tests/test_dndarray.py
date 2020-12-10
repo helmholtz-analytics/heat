@@ -1328,7 +1328,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)
 
     def test_view(self):
-        t_a = torch.arange(3 * 5 * 6).reshape(3, 5, 6)
+        t_a = torch.arange(3 * 5 * 6, device=self.device.torch_device).reshape(3, 5, 6)
         a = ht.array(t_a, split=0)
         b = a.view(3, 3, -1)
         self.assertEqual(b.shape[-1], 10)
