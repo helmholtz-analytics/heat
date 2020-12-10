@@ -312,13 +312,6 @@ def main():
     args.distributed = True  # TODO: DDDP: if ht.MPI_WORLD.size > 1 else False
     print0("loss_scale = {}".format(args.loss_scale), type(args.loss_scale))
     print0("\nCUDNN VERSION: {}\n".format(torch.backends.cudnn.version()))
-    # print("here")
-    # if torch.cuda.is_available():
-    #     dev_id = ht.MPI_WORLD.rank % torch.cuda.device_count()
-    #     # todo: change for DDDP
-    #     torch.cuda.set_device(dev_id)
-    # else:
-    #     dev_id = None
 
     cudnn.benchmark = True
     best_prec1 = 0
@@ -330,7 +323,6 @@ def main():
         print0("deterministic==True, seed set to global rank")
     else:
         torch.manual_seed(999999999)
-        # torch.manual_seed(ht.MPI_WORLD.rank)
 
     args.gpu = 0
     args.world_size = ht.MPI_WORLD.size
@@ -371,7 +363,6 @@ def main():
         print0("=> creating model '{}'".format(args.arch))
         model = models.__dict__[args.arch]()
 
-    # todo: set the model cuda stuff later
     if (
         not args.distributed
         and hasattr(torch, "channels_last")
@@ -386,21 +377,12 @@ def main():
         model = model.to(device)
     # model = tDDP(model) -> done in the ht model initialization
     # Scale learning rate based on global batch size
-    # args.lr = args.lr * float(args.batch_size * ht.MPI_WORLD.size) / 256.0
     optimizer = torch.optim.SGD(
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
 
     # create DP optimizer and model:
-    skip_batches = args.batch_skip
-    local_skip = args.local_batch_skip
-    dp_optimizer = ht.optim.SkipBatches(
-        local_optimizer=optimizer,
-        skip_batches=skip_batches,
-        local_skip=local_skip,
-        loss_floor=1.0,
-        global_skip_delay=args.gs,
-    )
+    dp_optimizer = ht.optim.SkipBatches(local_optimizer=optimizer, total_epochs=args.epochs)
     htmodel = ht.nn.DataParallelMultiGPU(model, ht.MPI_WORLD, dp_optimizer)
 
     # define loss function (criterion) and optimizer
@@ -484,8 +466,7 @@ def main():
         [prec1, prec5] = validate(device, val_loader, htmodel, criterion)
 
         # epoch loss logic to adjust learning rate based on loss
-        # dp_optimizer.epoch_loss_logic(ls)
-        dp_optimizer.epoch_loss_logic(ls, args.epochs)
+        dp_optimizer.epoch_loss_logic(ls)
         avg_loss.append(ls)
         adjust_learning_rate(dp_optimizer, avg_loss, epoch)
 
@@ -541,10 +522,9 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     end = time.time()
     train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
     # must set last batch for the model to work properly
+    # TODO: how to handle this?
     optimizer.last_batch = train_loader_len - 1
     for i, data in enumerate(train_loader):
-        # print(i)
-        # tt = time.perf_counter()
         input = data[0]["data"].cuda(dev)
         target = data[0]["label"].squeeze().cuda(dev).long()
 
@@ -563,9 +543,9 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         # compute output
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("forward")
-        # t3 = time.perf_counter()
+
         output = model(input)
-        # print("forward", time.perf_counter() - t3)
+
         if args.prof >= 0:
             torch.cuda.nvtx.range_pop()
         loss = criterion(output, target)
@@ -575,9 +555,9 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
 
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("backward")
-        # t2 = time.perf_counter()
+
         loss.backward()
-        # print("backwards time", time.perf_counter() - t2)
+
         if args.prof >= 0:
             torch.cuda.nvtx.range_pop()
 
@@ -596,11 +576,6 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
 
             # Average loss and accuracy across processes for logging
-            # if args.distributed:
-            #    reduced_loss = reduce_tensor(loss.data, comm=model.comm)
-            #    prec1 = reduce_tensor(prec1, comm=model.comm)
-            #    prec5 = reduce_tensor(prec5, comm=model.comm)
-            # else:
             reduced_loss = loss.data
 
             # to_python_float incurs a host<->device sync
@@ -670,11 +645,6 @@ def validate(dev, val_loader, model, criterion):
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
 
-        # if args.distributed:
-        #    reduced_loss = reduce_tensor(loss.data, comm=model.comm)
-        #    prec1 = reduce_tensor(prec1, comm=model.comm)
-        #    prec5 = reduce_tensor(prec5, comm=model.comm)
-        # else:
         reduced_loss = loss.data
 
         losses.update(to_python_float(reduced_loss), input.size(0))
@@ -754,15 +724,6 @@ def adjust_learning_rate(optimizer, losses, epoch):
     elif loss <= 1.900 and stable and args.factor < 1:  # 1.8, 2.150
         # args.factor = 1
         args.factor += 1
-    # else:
-    #    args.factor = 0
-    # if 80 <= epoch < 83:
-    #    factor = 1
-    # elif 83 <= epoch < 85:
-    #    factor = 2
-    # elif 85 <= epoch:
-    #    factor = 3
-    # else:
     factor = args.factor
     lr = args.lr * ht.MPI_WORLD.size * (0.1 ** factor)
     print0(f"LR: {lr}, Factor: {factor}, loss: {loss}")
