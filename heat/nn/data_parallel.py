@@ -2,7 +2,8 @@ import warnings
 import torch
 import torch.nn as tnn
 import torch.distributed
-from torch.nn.parallel import DistributedDataParallel as tDDP
+
+# from torch.nn.parallel import DistributedDataParallel as tDDP
 
 from collections import OrderedDict
 from typing import Callable, List, Union, Tuple
@@ -354,14 +355,21 @@ class DataParallelMultiGPU(tnn.Module):
     loss_floor is where the user would hope for the loss to get to
     """
 
-    def __init__(self, module: torch.nn.Module, comm: MPICommunication, optimizer):
+    def __init__(
+        self, module: torch.nn.Module, comm: MPICommunication, optimizer, use_apex: bool = False
+    ):
         super(DataParallelMultiGPU, self).__init__()
         rank = comm.rank
         loc_gpus = torch.cuda.device_count()
         if loc_gpus > 1:
             self.loc_gpus = loc_gpus
             local_rank = rank % loc_gpus
-            module = tDDP(module, device_ids=[local_rank])  # , process_group=lg)
+            if use_apex:
+                import apex
+
+                module = apex.parallel.DistributedDataParallel(module, device_ids=[local_rank])
+            else:
+                module = tnn.parallel.DistributedDataParallel(module, device_ids=[local_rank])
             # module.share_memory()
             device = "cuda:" + str(local_rank)
             torch.cuda.set_device(device=device)

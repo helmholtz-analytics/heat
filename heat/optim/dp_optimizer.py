@@ -104,23 +104,17 @@ class SkipBatches:
     def __init__(
         self,
         local_optimizer: torch.optim.Optimizer = torch.optim.SGD,
-        named_parameters=None,
         comm: MPICommunication = MPI_WORLD,
-        skip_batches: Union[List, Tuple, int] = None,
-        local_skip: int = None,
-        global_skip_delay: int = 4,
+        warmup_epochs: int = 4,
         scheduler: torch.optim.lr_scheduler = None,
         use_apex: bool = False,
+        total_epochs: int = 100,
     ):
         self.comm = comm
         self.lcl_optimizer = local_optimizer
         # reference of optimizer's params
-        self.params_ref = local_optimizer.param_groups[0]["params"]
-        self.named_params = named_parameters
         self.scheduler = scheduler
         self.apex = use_apex
-
-        # TODO: MAKE SURE TO PUT THIS *AFTER* THE DDP MODEL??
 
         rank = comm.rank
         loc_gpus = torch.cuda.device_count()
@@ -129,8 +123,7 @@ class SkipBatches:
         self.local_skip = 1
         if loc_gpus > 1:
             base_loc_ranks = list(range(0, comm.size, loc_gpus))
-            reduced_comms = []
-            reduced_ranks = []
+            reduced_comms, reduced_ranks = [], []
             for i in range(loc_gpus):
                 lp_ranks = [j + i for j in base_loc_ranks]
                 color = 111 + i if rank in lp_ranks else 222 + i
@@ -145,26 +138,25 @@ class SkipBatches:
 
         self.current_batch, self.last_batch = 0, None
 
-        self.og_global_skip = skip_batches
-        # self.global_skip = skip_batches
-        # self.local_skip = skip_batches // 2 if local_skip is None else local_skip
-        self.og_local_skip = self.local_skip
-
         self._prev_params = []
         self.epoch = 0
         self._send_mod, self._send_mod_m1 = 0, None
 
         self._prev_losses_mean, self._prev_losses_std = [], []
-        self.batches_to_wait = global_skip_delay
-        self._og_btw = global_skip_delay
-        self._param_send_buffer = None
-        self.global_skip = 4
-        self.local_skip = 1
-        self.batches_to_wait = 1
+        self.global_skip = 0
+        self.local_skip = 0
+        self.batches_to_wait = 0
         self.epochs_to_wait = 3
 
+        self.warmup_epochs = warmup_epochs
+        self.total_epochs = total_epochs
+
+        # used in the sending of the params
+        self._param_send_buffer_shape = None
+        self.param_dict, self.shapes = None, None
+
         if use_apex:
-            self
+            self.apex_dict = {}
 
     def set_model(self, model):
         self.module = model
@@ -177,49 +169,38 @@ class SkipBatches:
         self.module.require_backward_grad_sync = False
 
     def _start_local_sync(self):
-        # *restart* local synchronizations for tDDP
+        # *start* local synchronizations for tDDP
         if not isinstance(self.module, tDDP) or self.module.require_backward_grad_sync:
             # this has no effect if the module is not locally distributed in torch
             return
         self.module.require_backward_grad_sync = True
 
-    def reset_skips(self):
-        # need to reset the skips after the learning rate is adjusted
-        # for step based learning
-        print0("resetting skips", self.og_global_skip, self.og_local_skip, self._og_btw)
-        self.global_skip = self.og_global_skip
-        self.local_skip = self.og_local_skip
-        self._prev_losses_mean = []
-        self.batches_to_wait = self._og_btw
-
     @torch.no_grad()
-    def epoch_loss_logic(self, loss, max_epoch=None):
+    def epoch_loss_logic(self, loss):
+        # todo: add max_epoch as a class parameter - with max batch number
         loss_send = torch.zeros(self.comm.size)
-        # todo: check that its ``loss.data`` and not something else (why not just loss?)
+        # loss.data -> this will get the raw number from the lass value and nothing else
         loss_send[self.comm.rank] = loss.data
-        # todo: time this
-        t_ls0 = time.perf_counter()
+
         self.comm.Allreduce(MPI.IN_PLACE, loss_send, MPI.SUM)
-        print0(f"Loss allreduce time: {time.perf_counter() - t_ls0}")
 
         avg_loss = torch.mean(loss_send)
         self._prev_losses_mean.append(avg_loss)
 
-        # todo: add a parameter for the length of the warm up period
-        if self.epoch < 4:
+        if self.epoch < self.warmup_epochs:
             self.global_skip = 0
             self.local_skip = 0
             self.batches_to_wait = 0
             print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
             return
-        elif 4 == self.epoch:  # <= self.epoch < 10:
+        elif 4 == self.epoch:
             self.global_skip = 4
             self.local_skip = 1
             self.batches_to_wait = 1
             print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
             self._prev_losses_mean = []
 
-        if self.epoch >= max_epoch - 5:
+        if self.epoch >= self.total_epochs - 5:
             self.global_skip = 0
             self.local_skip = 0
             self.batches_to_wait = 0
@@ -261,7 +242,6 @@ class SkipBatches:
         # test for receive from last batch,
         #   if yes: receive, update parameters with rcved stuff
         # copy and send the parameter dictionary
-        #print("staring step")
         if self.scheduler is None:
             self.lcl_optimizer.step()
         else:
@@ -276,7 +256,6 @@ class SkipBatches:
 
         # todo: make adjustments to logic if ls > gs
 
-        # batches_to_wait = 1 if ls >= 1 else ls
         batches_to_wait = self.batches_to_wait
         btw = (
             batches_to_wait
@@ -289,8 +268,6 @@ class SkipBatches:
             return self._full_global_sync(btw)
 
         if next_batch % gs == 0:
-            # if self.comm.rank == 0:
-            #     print(batch, "next batch is global sync, turning on local sync")
             self._start_local_sync()
             self.current_batch += 1
             return
@@ -298,8 +275,6 @@ class SkipBatches:
         if gmod < btw:
             # do nothing on these batches
             self.current_batch += 1
-            # if self.comm.rank == 0:
-            #     print(batch, "waiting for global sync")
             if next_batch == self.last_batch:
                 self._start_local_sync()
             return
@@ -309,23 +284,15 @@ class SkipBatches:
             self._local_torch_param_update(self._send_mod_m1)
             if ls > 1:
                 self._stop_local_sync()
-            # if self.comm.rank == 0:
-            #     print(batch, "rcv global sync")
 
         if ls == 1 and next_batch != self.last_batch:
-            # if self.comm.rank == 0:
-            #     print(batch, "STARTING LOCAL SYNC")
             self.current_batch += 1
             self._start_local_sync()
             return
 
         if lmod == 0:
-            # if self.comm.rank == 0:
-            #     print(batch, "STOPPING local sync")
             self._stop_local_sync()
         elif next_batch % ls == 0:
-            # if self.comm.rank == 0:
-            #     print(batch, "STARTING local sync")
             self._start_local_sync()
 
         if next_batch == self.last_batch:
@@ -349,7 +316,6 @@ class SkipBatches:
 
         # TODO: deal with the global_skip == 1 issue. when there is global_skip == 1 this loop doesnt run
         if self.current_batch == self.last_batch or self.batches_to_wait == 0:
-            # print("last batch")
             # todo: abstract last batch?
             # receive the sent data to sync params across all ranks
             if self.comm.rank in current_ranks:
@@ -362,8 +328,6 @@ class SkipBatches:
                 rcv_params = prev_params[1] / float(len(current_ranks))  # * factor
                 for name, param in self.module.named_parameters():
                     if param.requires_grad:
-                        # rcv_params = prev_params[1]
-                        # param *= 0
                         param[:] = (
                             rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                         )
@@ -371,7 +335,7 @@ class SkipBatches:
             else:
                 if len(self._prev_params) > 0:
                     raise ValueError(
-                        f"OFF RANKS!len(prev_params) > 0! {len(self._prev_params)}"
+                        f"DEBUG: OFF RANKS! len(prev_params) > 0! {len(self._prev_params)}"
                         f" batch number {self.current_batch}"
                     )
             self._local_torch_param_update(self._send_mod)
@@ -391,7 +355,6 @@ class SkipBatches:
             self.current_batch += 1
             self._send_mod_m1 = self._send_mod
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
-        #print("end of full step")
 
     @torch.no_grad()
     def _global_send_update(self, current_comm, batches_to_wait):
@@ -401,79 +364,107 @@ class SkipBatches:
         if self.global_skip < 1:
             op = mpi_sum_bfloat
             cast = True
-        if self._param_send_buffer is not None:
-            return self._global_send_update_zeros(current_comm, batches_to_wait, op=op, cast=cast)
+        param_dict, shapes = self._create_param_dict_n_shapes()
 
-        params = []
-        shapes = {}
-        st = 0
-        for name, param in self.module.named_parameters():
-            if param.requires_grad:
-                # flatten and prep the data for sending
-                shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
-                p = param.flatten()
-                if cast:
-                    p = p.to(torch.bfloat16)
-                params.append(p)  # .to(torch.bfloat16))
-                st += param.numel()
-        params = torch.cat(params)
-        self._param_send_buffer = params.shape
+        params = torch.zeros(
+            self._param_send_buffer_shape,
+            device=self.device,
+            dtype=torch.bfloat16 if cast else None,
+        )
+        params = self.__pack_data(param_dict, params, cast)
 
         new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
         return new_wait
 
-    @torch.no_grad()
-    def _global_send_update_zeros(self, current_comm, batches_to_wait, op, cast):
-        # pack and send the data required for a global synchronization
-        # todo: jit loop?
-        params = torch.zeros(
-            self._param_send_buffer, device=self.device, dtype=torch.bfloat16 if cast else None
-        )
+    def _create_param_dict_n_shapes(self):
+        """
+        create the shape and param dictionary used for sending parameters around the MPI world.
+        this will also define the buffer size if it was not previously defined.
+        """
+        # todo: check that apex doesnt change which layers are cast each time...or check this each time
+        if self.apex:  # code to check each time -> self.apex_dict is None:
+            # in this case there are should be two param dicts and two shape dicts
+            if self.apex_dict != {}:
+                return
+            self.apex_dict = {
+                "fp32": {"params_dict": {}, "shapes": {}, "send-shp": None},
+                "fp16": {"params_dict": {}, "shapes": {}, "send-shp": None},
+            }
+            # apex dict will have the fp32 and fp16 keys for each thing
+            st, st16, st32 = 0, 0, 0
+            for name, param in self.module.named_parameters():
+                tp = param.dtype
+                numel = param.numel()
+                if tp == torch.float32:
+                    k = "fp32"
+                    st += st32
+                    end = st + numel
+                    st32 = end
+                elif tp == torch.float16:
+                    k = "fp16"
+                    st += st16
+                    end = st + numel
+                    st16 = end
+                else:
+                    raise TypeError(
+                        f"Unaccounted for dtype! must be either float32 or float16, "
+                        f"current param: name: {name}, dtype: {param.dtype}"
+                    )
+                self.apex_dict[k]["param_dict"][name] = param
+                self.apex_dict[k]["shapes"][name] = [param.shape, slice(st, end), tp]
+                st = 0
+            return
+
+        if self.shapes is not None and self.param_dict is not None:
+            return self.param_dict, self.shapes
+        # else:
         param_dict = {}
-        st = 0
         shapes = {}
+        st = 0
         for name, param in self.module.named_parameters():
             param_dict[name] = param
             numel = param.numel()
             shapes[name] = [param.shape, slice(st, st + numel), param.dtype]
             st += numel
-        params = self.__pack_data(param_dict, params, cast)
-        #for s in shapes.keys():
-        #    shapes[s][1] = slice(shapes[s][1], shapes[s][3])
-        #    del shapes[s][3]
-        #shapes = {}
-        #st = 0
-        #for name, param in self.module.named_parameters():
-        #    if param.requires_grad:
-        #        # flatten and prep the data for sending
-        #        shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
-        #        p = param.flatten()
-        #        if cast:
-        #            p = p.to(torch.bfloat16)
-        #        params[slice(st, st + param.numel())] = p
-        #        st += param.numel()
-
-        new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
-        self._prev_params.append([new_wait, params, shapes, batches_to_wait])
-        return new_wait
+        if self._param_send_buffer_shape is None:
+            # use the total number of elements to define the sending buffer shape (single int)
+            self._param_send_buffer_shape = st
+        self.param_dict = param_dict
+        self.shapes = shapes
+        return param_dict, shapes
 
     @staticmethod
-    @torch.no_grad()
     @torch.jit.script
-    def __pack_data(iter_dict: Dict[str, torch.Tensor], params: torch.Tensor, cast: bool):
-        #shapes = {}
+    def __pack_data_list(iter_dict: Dict[str, torch.Tensor], cast: bool):
+        """ jitted loop to load the data into a list and create params to be sent"""
+        params = []
         st = 0
         for name, param in iter_dict.items():
             if param.requires_grad:
                 # flatten and prep the data for sending
-                #shapes[name] = [param.shape, st, param.dtype, st + param.numel()]
                 p = param.flatten()
                 if cast:
                     p = p.to(torch.bfloat16)
-                params[st: st + param.numel()] = p
+                params.append(p)
                 st += param.numel()
-        return params#, shapes
+        params = torch.cat(params)
+        return params
+
+    @staticmethod
+    @torch.jit.script
+    def __pack_data(iter_dict: Dict[str, torch.Tensor], params: torch.Tensor, cast: bool):
+        """ jitted loop to pack the data into params to be sent"""
+        st = 0
+        for name, param in iter_dict.items():
+            if param.requires_grad:
+                # flatten and prep the data for sending
+                p = torch.flatten(param)
+                if cast:
+                    p = p.to(torch.bfloat16)
+                params[st : st + param.numel()] = p
+                st += param.numel()
+        return params
 
     @torch.no_grad()
     def _local_torch_param_update(self, mod_hold_pr):
@@ -528,13 +519,16 @@ class SkipBatches:
                 # NOTE: update here is the sum of the params across the processes
                 param *= factor
                 param += update  # / denom
-                # param += update
-                # param /= 2. #denom
+
+    # @staticmethod
+    # @torch.jit.script
+    # def __set_params_after_recv(param_dict, factor):
+    # todo: the slice to get the proper parameter numbers is a slice and
+    #       cannot be passed into torch's jit function, same with dtype
 
     def zero_grad(self) -> None:
         """
         Reset gradients of optimizer's params.
         """
         # reset view onto params in order to reset all gradients
-        self.lcl_optimizer.param_groups[0]["params"] = self.params_ref[:]
         self.lcl_optimizer.zero_grad()
