@@ -110,12 +110,15 @@ class SkipBatches:
         local_skip: int = None,
         global_skip_delay: int = 4,
         scheduler: torch.optim.lr_scheduler = None,
+        use_apex: bool = False,
     ):
+        self.comm = comm
         self.lcl_optimizer = local_optimizer
         # reference of optimizer's params
         self.params_ref = local_optimizer.param_groups[0]["params"]
         self.named_params = named_parameters
         self.scheduler = scheduler
+        self.apex = use_apex
 
         # TODO: MAKE SURE TO PUT THIS *AFTER* THE DDP MODEL??
 
@@ -139,17 +142,12 @@ class SkipBatches:
 
             self.device = "cuda:" + str(local_rank)
             torch.cuda.set_device(device=self.device)
-            if skip_batches is None:
-                skip_batches = 8
-                self.local_skip = skip_batches // 2
-
-        self.comm = comm
 
         self.current_batch, self.last_batch = 0, None
 
         self.og_global_skip = skip_batches
-        self.global_skip = skip_batches
-        self.local_skip = skip_batches // 2 if local_skip is None else local_skip
+        # self.global_skip = skip_batches
+        # self.local_skip = skip_batches // 2 if local_skip is None else local_skip
         self.og_local_skip = self.local_skip
 
         self._prev_params = []
@@ -157,15 +155,16 @@ class SkipBatches:
         self._send_mod, self._send_mod_m1 = 0, None
 
         self._prev_losses_mean, self._prev_losses_std = [], []
-        self._loss_wait = []
-        self.start_loss = None
         self.batches_to_wait = global_skip_delay
         self._og_btw = global_skip_delay
-        self._param_send_shp = None
+        self._param_send_buffer = None
         self.global_skip = 0
         self.local_skip = 0
         self.batches_to_wait = 0
         self.epochs_to_wait = 3
+
+        if use_apex:
+            self
 
     def set_model(self, model):
         self.module = model
@@ -400,7 +399,7 @@ class SkipBatches:
         if self.global_skip < 1:
             op = mpi_sum_bfloat
             cast = True
-        if self._param_send_shp is not None:
+        if self._param_send_buffer is not None:
             return self._global_send_update_zeros(current_comm, batches_to_wait, op=op, cast=cast)
 
         params = []
@@ -416,7 +415,7 @@ class SkipBatches:
                 params.append(p)  # .to(torch.bfloat16))
                 st += param.numel()
         params = torch.cat(params)
-        self._param_send_shp = params.shape
+        self._param_send_buffer = params.shape
 
         new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
@@ -427,8 +426,28 @@ class SkipBatches:
         # pack and send the data required for a global synchronization
         # todo: jit loop?
         params = torch.zeros(
-            self._param_send_shp, device=self.device, dtype=torch.bfloat16 if cast else None
+            self._param_send_buffer, device=self.device, dtype=torch.bfloat16 if cast else None
         )
+        params, shapes = self.__pack_data(params, cast)
+        # shapes = {}
+        # st = 0
+        # for name, param in self.module.named_parameters():
+        #     if param.requires_grad:
+        #         # flatten and prep the data for sending
+        #         shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
+        #         p = param.flatten()
+        #         if cast:
+        #             p = p.to(torch.bfloat16)
+        #         params[slice(st, st + param.numel())] = p
+        #         st += param.numel()
+
+        new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
+        self._prev_params.append([new_wait, params, shapes, batches_to_wait])
+        return new_wait
+
+    @torch.no_grad()
+    @torch.jit.script()
+    def __pack_data(self, params, cast):
         shapes = {}
         st = 0
         for name, param in self.module.named_parameters():
@@ -440,10 +459,7 @@ class SkipBatches:
                     p = p.to(torch.bfloat16)
                 params[slice(st, st + param.numel())] = p
                 st += param.numel()
-
-        new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
-        self._prev_params.append([new_wait, params, shapes, batches_to_wait])
-        return new_wait
+        return params, shapes
 
     @torch.no_grad()
     def _local_torch_param_update(self, mod_hold_pr):
