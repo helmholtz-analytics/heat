@@ -1697,7 +1697,7 @@ def reshape(a, *shape, **kwargs):
     new_split = kwargs.get("new_split")
     if new_split is None:
         new_split = a.split
-    stride_tricks.sanitize_axis(shape, new_split)
+    shape = stride_tricks.sanitize_shape(shape)
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
     # Check the type of shape and number elements
     shape = stride_tricks.sanitize_shape(shape)

@@ -2093,6 +2093,8 @@ class TestManipulations(TestCase):
             ht.reshape("ht.zeros((4, 3)), (5, 7)", (2, 3))
         with self.assertRaises(TypeError):
             ht.reshape(ht.zeros((4, 3)), "(5, 7)")
+        with self.assertRaises(TypeError):
+            ht.reshape(ht.zeros((4, 3)), ht.array([2, 6]))
 
     def test_rot90(self):
         size = ht.MPI_WORLD.size
