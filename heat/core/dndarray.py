@@ -3914,8 +3914,7 @@ class DNDarray:
         """
         Similar to `torch.Tensor.view` (https://pytorch.org/docs/stable/tensors.html#torch.Tensor.view),
         returns a new DNDarray with the data contained in `self`,but displayed in a different `shape`.
-        Note: constructing a view is not possible if the corresponding memory buffer is distributed,
-        in that case you should use `reshape` instead.
+        No communication of data involved, see `Notes`.
 
         Parameters
         ----------
@@ -3933,7 +3932,12 @@ class DNDarray:
             if the relevant memory buffer is distributed across different processes,
             or if the data aren't stored contiguously (column-major DNDarray).
 
-        Also see
+        Notes
+        -----
+        Constructing a view is not possible if the corresponding memory buffer is distributed,
+        in that case you should use `reshape` instead.
+
+        See also
         --------
         `reshape`
 
@@ -3970,9 +3974,8 @@ class DNDarray:
             raise NotImplementedError(
                 "Constructing a view of the DNDarray’s memory with a different data-type not implemented yet. "
             )
-        # TODO: sanitize_dims?
 
-        new_shape = args
+        new_shape = stride_tricks.sanitize_shape(args)
         split = self.split
 
         if not self.is_distributed():
