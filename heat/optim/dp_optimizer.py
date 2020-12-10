@@ -5,7 +5,7 @@ from ..core.communication import MPICommunication
 from ..core.communication import MPI
 from ..core.communication import MPI_WORLD
 
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Dict
 
 import time
 
@@ -158,9 +158,9 @@ class SkipBatches:
         self.batches_to_wait = global_skip_delay
         self._og_btw = global_skip_delay
         self._param_send_buffer = None
-        self.global_skip = 0
-        self.local_skip = 0
-        self.batches_to_wait = 0
+        self.global_skip = 4
+        self.local_skip = 1
+        self.batches_to_wait = 1
         self.epochs_to_wait = 3
 
         if use_apex:
@@ -261,6 +261,7 @@ class SkipBatches:
         # test for receive from last batch,
         #   if yes: receive, update parameters with rcved stuff
         # copy and send the parameter dictionary
+        #print("staring step")
         if self.scheduler is None:
             self.lcl_optimizer.step()
         else:
@@ -390,6 +391,7 @@ class SkipBatches:
             self.current_batch += 1
             self._send_mod_m1 = self._send_mod
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
+        #print("end of full step")
 
     @torch.no_grad()
     def _global_send_update(self, current_comm, batches_to_wait):
@@ -429,20 +431,28 @@ class SkipBatches:
             self._param_send_buffer, device=self.device, dtype=torch.bfloat16 if cast else None
         )
         param_dict = {}
+        st = 0
+        shapes = {}
         for name, param in self.module.named_parameters():
             param_dict[name] = param
-        params, shapes = self.__pack_data(param_dict, params, cast)
-        # shapes = {}
-        # st = 0
-        # for name, param in self.module.named_parameters():
-        #     if param.requires_grad:
-        #         # flatten and prep the data for sending
-        #         shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
-        #         p = param.flatten()
-        #         if cast:
-        #             p = p.to(torch.bfloat16)
-        #         params[slice(st, st + param.numel())] = p
-        #         st += param.numel()
+            numel = param.numel()
+            shapes[name] = [param.shape, slice(st, st + numel), param.dtype]
+            st += numel
+        params = self.__pack_data(param_dict, params, cast)
+        #for s in shapes.keys():
+        #    shapes[s][1] = slice(shapes[s][1], shapes[s][3])
+        #    del shapes[s][3]
+        #shapes = {}
+        #st = 0
+        #for name, param in self.module.named_parameters():
+        #    if param.requires_grad:
+        #        # flatten and prep the data for sending
+        #        shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
+        #        p = param.flatten()
+        #        if cast:
+        #            p = p.to(torch.bfloat16)
+        #        params[slice(st, st + param.numel())] = p
+        #        st += param.numel()
 
         new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
         self._prev_params.append([new_wait, params, shapes, batches_to_wait])
@@ -451,19 +461,19 @@ class SkipBatches:
     @staticmethod
     @torch.no_grad()
     @torch.jit.script
-    def __pack_data(iter_dict: dict, params: torch.Tensor, cast: bool):
-        shapes = {}
+    def __pack_data(iter_dict: Dict[str, torch.Tensor], params: torch.Tensor, cast: bool):
+        #shapes = {}
         st = 0
         for name, param in iter_dict.items():
             if param.requires_grad:
                 # flatten and prep the data for sending
-                shapes[name] = [param.shape, slice(st, st + param.numel()), param.dtype]
+                #shapes[name] = [param.shape, st, param.dtype, st + param.numel()]
                 p = param.flatten()
                 if cast:
                     p = p.to(torch.bfloat16)
-                params[slice(st, st + param.numel())] = p
+                params[st: st + param.numel()] = p
                 st += param.numel()
-        return params, shapes
+        return params#, shapes
 
     @torch.no_grad()
     def _local_torch_param_update(self, mod_hold_pr):
