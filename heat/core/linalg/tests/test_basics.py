@@ -381,6 +381,19 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, None)
 
+            a = ht.ones((n, m), split=None, dtype=ht.int64)
+            b = ht.ones((j), split=None, dtype=ht.int64)
+            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
+            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
+            self.assertTrue(ht.equal(ret00, ret_comp))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n,))
+            self.assertEqual(ret00.dtype, ht.int64)
+            self.assertEqual(ret00.split, None)
+
             # splits 0 None
             a = ht.ones((n, m), split=0)
             b = ht.ones((j), split=None)
@@ -393,6 +406,19 @@ class TestLinalgBasics(TestCase):
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n,))
             self.assertEqual(ret00.dtype, ht.float)
+            self.assertEqual(ret00.split, 0)
+
+            a = ht.ones((n, m), split=0, dtype=ht.int64)
+            b = ht.ones((j), split=None, dtype=ht.int64)
+            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
+            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
+            self.assertTrue(ht.equal(ret00, ret_comp))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n,))
+            self.assertEqual(ret00.dtype, ht.int64)
             self.assertEqual(ret00.split, 0)
 
             # splits 1 None
@@ -409,6 +435,19 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
+            a = ht.ones((n, m), split=1, dtype=ht.int64)
+            b = ht.ones((j), split=None, dtype=ht.int64)
+            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
+            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
+            self.assertTrue(ht.equal(ret00, ret_comp))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n,))
+            self.assertEqual(ret00.dtype, ht.int64)
+            self.assertEqual(ret00.split, 0)
+
             # splits None 0
             a = ht.ones((n, m), split=None)
             b = ht.ones((j), split=0)
@@ -421,6 +460,19 @@ class TestLinalgBasics(TestCase):
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n,))
             self.assertEqual(ret00.dtype, ht.float)
+            self.assertEqual(ret00.split, 0)
+
+            a = ht.ones((n, m), split=None, dtype=ht.int64)
+            b = ht.ones((j), split=0, dtype=ht.int64)
+            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
+            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
+            self.assertTrue(ht.equal(ret00, ret_comp))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n,))
+            self.assertEqual(ret00.dtype, ht.int64)
             self.assertEqual(ret00.split, 0)
 
             # splits 0 0
@@ -437,6 +489,19 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
+            a = ht.ones((n, m), split=0, dtype=ht.int64)
+            b = ht.ones((j), split=0, dtype=ht.int64)
+            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
+            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
+            self.assertTrue(ht.equal(ret00, ret_comp))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n,))
+            self.assertEqual(ret00.dtype, ht.int64)
+            self.assertEqual(ret00.split, 0)
+
             # splits 1 0
             a = ht.ones((n, m), split=1)
             b = ht.ones((j), split=0)
@@ -449,6 +514,19 @@ class TestLinalgBasics(TestCase):
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n,))
             self.assertEqual(ret00.dtype, ht.float)
+            self.assertEqual(ret00.split, 0)
+
+            a = ht.ones((n, m), split=1, dtype=ht.int64)
+            b = ht.ones((j), split=0, dtype=ht.int64)
+            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
+            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
+            self.assertTrue(ht.equal(ret00, ret_comp))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n,))
+            self.assertEqual(ret00.dtype, ht.int64)
             self.assertEqual(ret00.split, 0)
 
             with self.assertRaises(NotImplementedError):
