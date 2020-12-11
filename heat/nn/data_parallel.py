@@ -11,6 +11,7 @@ from ..core.communication import MPICommunication
 from ..core.communication import MPI
 from ..core.communication import MPI_WORLD
 from .. import optim
+from ..core.devices import get_device
 
 
 __all__ = ["DataParallel", "DataParallelMultiGPU"]

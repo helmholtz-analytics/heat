@@ -286,6 +286,7 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
         loss.backward()
         dp_optimizer.step()
         # measure elapsed time
+        print("img/s", args.batch_size / (time.time() - end))
         batch_time.update(time.time() - end)
         end = time.time()
 
