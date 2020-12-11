@@ -2,11 +2,11 @@ import heat as ht
 import torch
 import unittest
 
-import heat.nn.functional as F
-
 
 class TestDataParallel(unittest.TestCase):
     def test_data_parallel(self):
+        import heat.nn.functional as F
+
         with self.assertRaises(TypeError):
             ht.utils.data.datatools.DataLoader("asdf")
 
@@ -60,8 +60,8 @@ class TestDataParallel(unittest.TestCase):
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
         with self.assertRaises(TypeError):
-            ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, "asdf")
-        dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, True)
+            ht.optim.DataParallelOptimizer(optimizer, "asdf")
+        dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, True)
 
         ht.random.seed(1)
         torch.random.manual_seed(1)
@@ -92,7 +92,7 @@ class TestDataParallel(unittest.TestCase):
 
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
-        dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, False)
+        dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, False)
         labels = torch.randn((2, 10), device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
         dataset = ht.utils.data.Dataset(data, ishuffle=False)
@@ -121,7 +121,7 @@ class TestDataParallel(unittest.TestCase):
 
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
-        dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, False)
+        dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, False)
         labels = torch.randn((2, 10), device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
         dataset = ht.utils.data.Dataset(data, ishuffle=True)

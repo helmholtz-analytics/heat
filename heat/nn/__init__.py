@@ -23,6 +23,7 @@ if sys.version_info.minor >= 7:
 
 else:
     from . import data_parallel
+    from . import tests
 
     class Wrapper(object):
         def __init__(self, wrapped):
@@ -37,10 +38,12 @@ else:
                 return functional
             elif name in self.data_parallel_all:
                 return data_parallel.__getattribute__(name)
+            elif name == "tests":
+                return tests
             else:
                 try:
                     unittest.__getattribute__(name)
                 except AttributeError:
-                    raise AttributeError(f"module {name} not implemented in Torch or Heat")
+                    raise AttributeError(f"module '{name}' not implemented in Torch or Heat")
 
     sys.modules[__name__] = Wrapper(sys.modules[__name__])
