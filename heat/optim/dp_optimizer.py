@@ -108,13 +108,13 @@ class SkipBatches:
         comm: MPICommunication = MPI_WORLD,
         warmup_epochs: int = 4,
         scheduler: torch.optim.lr_scheduler = None,
-        use_apex: bool = False,
     ):
         self.comm = comm
         self.lcl_optimizer = local_optimizer
         # reference of optimizer's params
         self.scheduler = scheduler
-        self.apex = use_apex
+        # TODO: remove apex stuff
+        self.apex = False
 
         rank = comm.rank
         loc_gpus = torch.cuda.device_count()
@@ -155,7 +155,10 @@ class SkipBatches:
         self._param_send_buffer_shape = None
         self.param_dict, self.shapes = None, None
 
-        if use_apex:
+        self.scaler = None
+        self.amp = False
+
+        if self.apex:
             self.apex_dict = {}
 
     def set_model(self, model):
@@ -235,13 +238,21 @@ class SkipBatches:
 
         print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
 
+    def add_scaler(self, scaler):
+        self.scaler = scaler
+        self.amp = True
+
     def step(self):
         # TODO: raise error is last batch is not set
         # collect the parameters from the current batch -> save + (non?)blocking send
         # test for receive from last batch,
         #   if yes: receive, update parameters with rcved stuff
         # copy and send the parameter dictionary
-        if self.scheduler is None:
+        if self.amp:
+            self.scaler.step(self.lcl_optimizer)
+            # Updates the scale for next iteration.
+            self.scaler.update()
+        elif self.scheduler is None:
             self.lcl_optimizer.step()
         else:
             self.scheduler.step()
