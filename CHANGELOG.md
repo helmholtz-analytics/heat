@@ -6,6 +6,9 @@
 - [#687](https://github.com/helmholtz-analytics/heat/pull/687) New: `DNDarray.balanced` property, greatly reduces the need for
 inter-process communication when assessing whether a DNDarray is evenly or unevenly distributed.
 - [#701](https://github.com/helmholtz-analytics/heat/pull/701) New: `DNDarray.view(shape)`. View the underlying data of a DNDarray in a different shape, and perform operations on a view without data duplication.
+- [#687](https://github.com/helmholtz-analytics/heat/pull/687) New DNDarray property: balanced
+- [#702](https://github.com/helmholtz-analytics/heat/pull/702) Support channel stackoverflow
+
 ### I/O
 - [#559](https://github.com/helmholtz-analytics/heat/pull/559) Enhancement: `save_netcdf` allows naming dimensions, creating unlimited dimensions, using existing dimensions and variables, slicing
 ### Manipulations
@@ -13,9 +16,14 @@ inter-process communication when assessing whether a DNDarray is evenly or uneve
 ### Statistical Functions
 - [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``
 ### Linear Algebra
+- [#658](https://github.com/helmholtz-analytics/heat/pull/658) Bugfix: `matmul` on GPU will cast away from `int`s to `float`s for the operation and cast back upon its completion. This may result in numerical inaccuracies for very large `int64` DNDarrays
 ### ...
 
 ## Bug fixes
+# v0.5.2
+
+- [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
+
 # v0.5.1
 
 - [#678](https://github.com/helmholtz-analytics/heat/pull/678) Bugfix: Internal functions now use explicit device parameters for DNDarray and torch.Tensor initializations.
