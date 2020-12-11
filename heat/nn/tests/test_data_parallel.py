@@ -121,7 +121,7 @@ class TestDataParallel(unittest.TestCase):
                 hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
-                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i]))
+                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i], atol=1e-5, rtol=1e-5))
 
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
@@ -148,7 +148,7 @@ class TestDataParallel(unittest.TestCase):
                 hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
-                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i]))
+                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i], atol=1e-5, rtol=1e-5))
 
         ht_model = ht.nn.DataParallel(
             model, ht.MPI_WORLD, [dp_optimizer, dp_optimizer], blocking_parameter_updates=False
