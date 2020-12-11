@@ -356,58 +356,50 @@ class SkipBatches:
         if self.global_skip < 1:
             op = mpi_sum_bfloat
             cast = True
-        param_dict, shapes = self._create_param_dict_n_shapes()
 
-        params = torch.zeros(
-            self._param_send_buffer_shape,
-            device=self.device,
-            dtype=torch.bfloat16 if cast else None,
-        )
-        params = self.__pack_data(param_dict, params, cast)
+        if not self.apex:
+            param_dict, shapes = self._create_param_dict_n_shapes()
+            params = torch.zeros(
+                self._param_send_buffer_shape,
+                device=self.device,
+                dtype=torch.bfloat16 if cast else None,
+            )
+            params = self.__pack_data(param_dict, params, cast)
 
-        new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
-        self._prev_params.append([new_wait, params, shapes, batches_to_wait])
-        return new_wait
+            new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
+            self._prev_params.append([new_wait, params, shapes, batches_to_wait, None])
+            return new_wait
+        else:
+            self.apex_dict = self._create_apex_dict()
+            params32 = torch.zeros(
+                self.apex_dict["fp32"]["send-shp"],
+                device=self.device,
+                dtype=torch.bfloat16 if cast else None,
+            )
+            param_dict32 = self.apex_dict["fp32"]["param_dict"]
+            shapes32 = self.apex_dict["fp32"]["shapes"]
+            params32 = self.__pack_data(param_dict32, params32, cast)
+            op = MPI.SUM if not cast else op
+            new_wait32 = current_comm.Iallreduce(MPI.IN_PLACE, params32, op)
+            self._prev_params.append([new_wait32, params32, shapes32, batches_to_wait, "fp32"])
+            # float 16
+            params16 = torch.zeros(
+                self.apex_dict["fp16"]["send-shp"],
+                device=self.device,
+                dtype=torch.bfloat16 if cast else None,
+            )
+            param_dict16 = self.apex_dict["fp16"]["param_dict"]
+            shapes16 = self.apex_dict["fp16"]["shapes"]
+            # no benefit from casting to bfloat16 here
+            params16 = self.__pack_data(param_dict16, params16, cast=False)
+            new_wait16 = current_comm.Iallreduce(MPI.IN_PLACE, params16, mpi_sum_f16)
+            self._prev_params.append([new_wait16, params16, shapes16, batches_to_wait, "fp32"])
 
     def _create_param_dict_n_shapes(self):
         """
         create the shape and param dictionary used for sending parameters around the MPI world.
         this will also define the buffer size if it was not previously defined.
         """
-        # todo: check that apex doesnt change which layers are cast each time...or check this each time
-        if self.apex:  # code to check each time -> self.apex_dict is None:
-            # in this case there are should be two param dicts and two shape dicts
-            if self.apex_dict != {}:
-                return
-            self.apex_dict = {
-                "fp32": {"params_dict": {}, "shapes": {}, "send-shp": None},
-                "fp16": {"params_dict": {}, "shapes": {}, "send-shp": None},
-            }
-            # apex dict will have the fp32 and fp16 keys for each thing
-            st, st16, st32 = 0, 0, 0
-            for name, param in self.module.named_parameters():
-                tp = param.dtype
-                numel = param.numel()
-                if tp == torch.float32:
-                    k = "fp32"
-                    st += st32
-                    end = st + numel
-                    st32 = end
-                elif tp == torch.float16:
-                    k = "fp16"
-                    st += st16
-                    end = st + numel
-                    st16 = end
-                else:
-                    raise TypeError(
-                        f"Unaccounted for dtype! must be either float32 or float16, "
-                        f"current param: name: {name}, dtype: {param.dtype}"
-                    )
-                self.apex_dict[k]["param_dict"][name] = param
-                self.apex_dict[k]["shapes"][name] = [param.shape, slice(st, end), tp]
-                st = 0
-            return
-
         if self.shapes is not None and self.param_dict is not None:
             return self.param_dict, self.shapes
         # else:
@@ -426,22 +418,44 @@ class SkipBatches:
         self.shapes = shapes
         return param_dict, shapes
 
-    @staticmethod
-    @torch.jit.script
-    def __pack_data_list(iter_dict: Dict[str, torch.Tensor], cast: bool):
-        """ jitted loop to load the data into a list and create params to be sent"""
-        params = []
-        st = 0
-        for name, param in iter_dict.items():
-            if param.requires_grad:
-                # flatten and prep the data for sending
-                p = param.flatten()
-                if cast:
-                    p = p.to(torch.bfloat16)
-                params.append(p)
-                st += param.numel()
-        params = torch.cat(params)
-        return params
+    def _create_apex_dict(self):
+        if not self.apex:
+            return
+        # todo: check that apex doesnt change which layers are cast each time...or check this each time
+        # code to check each time -> self.apex_dict is None:
+        # in this case there are should be two param dicts and two shape dicts
+        if self.apex_dict != {} and self.apex_dict is not None:
+            return self.apex_dict
+        self.apex_dict = {
+            "fp32": {"params_dict": {}, "shapes": {}, "send-shp": 0},
+            "fp16": {"params_dict": {}, "shapes": {}, "send-shp": 0},
+        }
+        # apex dict will have the fp32 and fp16 keys for each thing
+        st, st16, st32 = 0, 0, 0
+        for name, param in self.module.named_parameters():
+            tp = param.dtype
+            numel = param.numel()
+            if tp == torch.float32:
+                k = "fp32"
+                st += st32
+                end = st + numel
+                st32 = end
+            elif tp == torch.float16:
+                k = "fp16"
+                st += st16
+                end = st + numel
+                st16 = end
+            else:
+                raise TypeError(
+                    f"Unaccounted for dtype! must be either float32 or float16, "
+                    f"current param: name: {name}, dtype: {param.dtype}"
+                )
+            self.apex_dict[k]["param_dict"][name] = param
+            self.apex_dict[k]["shapes"][name] = [param.shape, slice(st, end), tp]
+            st = 0
+        self.apex_dict["fp32"]["send-shp"] = st32
+        self.apex_dict["fp16"]["send-shp"] = st16
+        return self.apex_dict
 
     @staticmethod
     @torch.jit.script
@@ -460,6 +474,7 @@ class SkipBatches:
 
     @torch.no_grad()
     def _local_torch_param_update(self, mod_hold_pr):
+        # TODO: jit this?
         # send the globally updated gradients from `mod_hold_pr` to the other local processes
         if mod_hold_pr is None:
             # this is a failsafe in case this function is called when there is no need to synchronize
@@ -486,6 +501,12 @@ class SkipBatches:
         if len(self._prev_params) == 0:
             # if no old gradients, return without doing anything
             return
+        # use self.param_dict if not apex, otherwise use self.apex_dict
+        # if apex is there, then there are 2 buffers to receive
+        # for apex_ittr in range(1 if not self.apex else 2):
+        if self.apex:
+
+            return
         prev_params = self._prev_params.pop(0)
         batches_between = float(prev_params[3])
         # add the weighted average to param
@@ -502,6 +523,29 @@ class SkipBatches:
                 # NOTE: update here is the sum of the params across the processes
                 param *= factor
                 param += update  # / denom
+
+    def _apex_update_params(self, prev_ranks):
+        for _ in range(2):
+            # only two different dtypes in apex. if more are added, this would need to be increased
+            prev_params = self._prev_params.pop(0)
+            key = prev_params[4]
+            batches_between = float(prev_params[3])
+            # add the weighted average to param
+            shapes = prev_params[2]
+            numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
+            denom = float(len(prev_ranks) + numer)
+            factor = numer / denom
+            prev_params[0].Wait()
+            rcv_params = prev_params[1] / denom
+            # todo: jit the parameter setting
+            for name, param in self.apex_dict[key]["params_dict"]:
+                if param.requires_grad:
+                    update = (
+                        rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
+                    )
+                    # NOTE: update here is the sum of the params across the processes
+                    param *= factor
+                    param += update  # / denom
 
     # @staticmethod
     # @torch.jit.script
