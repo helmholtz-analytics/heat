@@ -2,11 +2,11 @@ import heat as ht
 import torch
 import unittest
 
-import heat.nn.functional as F
-
 
 class TestDataParallel(unittest.TestCase):
     def test_data_parallel(self):
+        import heat.nn.functional as F
+
         with self.assertRaises(TypeError):
             ht.utils.data.datatools.DataLoader("asdf")
 
@@ -60,8 +60,8 @@ class TestDataParallel(unittest.TestCase):
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
         with self.assertRaises(TypeError):
-            ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, "asdf")
-        dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, True)
+            ht.optim.DataParallelOptimizer(optimizer, "asdf")
+        dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, True)
 
         ht.random.seed(1)
         torch.random.manual_seed(1)
@@ -73,6 +73,8 @@ class TestDataParallel(unittest.TestCase):
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=True
         )
+        if str(ht.get_device())[:3] == "gpu":
+            ht_model.to(ht.get_device().torch_device)
 
         loss_fn = torch.nn.MSELoss()
         for _ in range(2):
@@ -88,11 +90,11 @@ class TestDataParallel(unittest.TestCase):
                 hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
-                    self.assertTrue(torch.all(hld_list[0] == hld_list[i]))
+                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i]))
 
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
-        dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, False)
+        dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, False)
         labels = torch.randn((2, 10), device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
         dataset = ht.utils.data.Dataset(data, ishuffle=False)
@@ -100,6 +102,8 @@ class TestDataParallel(unittest.TestCase):
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=False
         )
+        if str(ht.get_device())[:3] == "gpu":
+            ht_model.to(ht.get_device().torch_device)
 
         with self.assertRaises(TypeError):
             ht.nn.DataParallel(model, data.comm, "asdf")
@@ -117,11 +121,11 @@ class TestDataParallel(unittest.TestCase):
                 hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
-                    self.assertTrue(torch.all(hld_list[0] == hld_list[i]))
+                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i]))
 
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
-        dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, False)
+        dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, False)
         labels = torch.randn((2, 10), device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
         dataset = ht.utils.data.Dataset(data, ishuffle=True)
@@ -129,6 +133,9 @@ class TestDataParallel(unittest.TestCase):
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=False
         )
+        if str(ht.get_device())[:3] == "gpu":
+            ht_model.to(ht.get_device().torch_device)
+
         for _ in range(2):
             for data in dataloader:
                 self.assertEqual(data.shape[0], 2)
@@ -141,7 +148,7 @@ class TestDataParallel(unittest.TestCase):
                 hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
-                    self.assertTrue(torch.all(hld_list[0] == hld_list[i]))
+                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i]))
 
         ht_model = ht.nn.DataParallel(
             model, ht.MPI_WORLD, [dp_optimizer, dp_optimizer], blocking_parameter_updates=False
