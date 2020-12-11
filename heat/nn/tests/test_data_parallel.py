@@ -73,6 +73,8 @@ class TestDataParallel(unittest.TestCase):
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=True
         )
+        if ht.get_device()[:3] == "gpu":
+            ht_model.to(ht.get_device())
 
         loss_fn = torch.nn.MSELoss()
         for _ in range(2):
@@ -100,6 +102,8 @@ class TestDataParallel(unittest.TestCase):
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=False
         )
+        if ht.get_device()[:3] == "gpu":
+            ht_model.to(ht.get_device())
 
         with self.assertRaises(TypeError):
             ht.nn.DataParallel(model, data.comm, "asdf")
@@ -129,6 +133,9 @@ class TestDataParallel(unittest.TestCase):
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=False
         )
+        if ht.get_device()[:3] == "gpu":
+            ht_model.to(ht.get_device())
+
         for _ in range(2):
             for data in dataloader:
                 self.assertEqual(data.shape[0], 2)
