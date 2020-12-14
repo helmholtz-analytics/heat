@@ -308,6 +308,42 @@ class TestFactories(TestCase):
         with self.assertRaises(TypeError):
             ht.array((4,), comm={})
 
+    def test_asarray(self):
+        # same array
+        arr = ht.array([1, 2])
+        self.assertTrue(ht.asarray(arr) is arr)
+
+        # from distributed python list
+        arr = ht.array([1, 2, 3, 4, 5, 6], split=0)
+        lst = arr.tolist(keepsplit=True)
+        asarr = ht.asarray(lst, is_split=0)
+
+        self.assertEqual(asarr.shape, arr.shape)
+        self.assertEqual(asarr.split, 0)
+        self.assertEqual(asarr.device, ht.get_device())
+        self.assertTrue(ht.equal(asarr, arr))
+
+        # from numpy array
+        arr = np.array([1, 2, 3, 4])
+        asarr = ht.asarray(arr)
+
+        self.assertTrue(np.alltrue(np.equal(asarr.numpy(), arr)))
+
+        asarr[0] = 0
+
+        if asarr.device == ht.cpu:
+            self.assertEqual(asarr.numpy()[0], arr[0])
+
+        # from torch tensor
+        arr = torch.tensor([1, 2, 3, 4])
+        asarr = ht.asarray(arr)
+
+        self.assertTrue(torch.equal(asarr.larray, arr))
+
+        asarr[0] = 0
+
+        self.assertEqual(asarr.larray[0].item(), arr[0].item())
+
     def test_empty(self):
         # scalar input
         simple_empty_float = ht.empty(3)
