@@ -8,6 +8,7 @@ from ..core.communication import MPI_WORLD
 from typing import Union, List, Tuple, Dict
 
 import time
+import math
 
 __all__ = ["DataParallelOptimizer", "SkipBatches"]
 
@@ -113,8 +114,6 @@ class SkipBatches:
         self.lcl_optimizer = local_optimizer
         # reference of optimizer's params
         self.scheduler = scheduler
-        # TODO: remove apex stuff
-        self.apex = False
 
         rank = comm.rank
         loc_gpus = torch.cuda.device_count()
@@ -155,11 +154,9 @@ class SkipBatches:
         self._param_send_buffer_shape = None
         self.param_dict, self.shapes = None, None
 
-        self.scaler = None
-        self.amp = False
-
-        if self.apex:
-            self.apex_dict = {}
+        self.split = None
+        self.split_val = 40_000_000
+        self.split_inds = None
 
     def set_model(self, model):
         self.module = model
@@ -329,13 +326,32 @@ class SkipBatches:
                     raise ValueError(f"length of previous params > 1! {len(self._prev_params)}")
                 prev_params = self._prev_params.pop(0)
                 shapes = prev_params[2]
-                prev_params[0].Wait()
-                rcv_params = prev_params[1] / float(len(current_ranks))
-                for name, param in self.module.named_parameters():
-                    if param.requires_grad:
-                        param[:] = (
-                            rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-                        )
+                if not self.split:
+                    prev_params[0].Wait()
+                    rcv_params = prev_params[1] / float(len(current_ranks))
+                    for name, param in self.module.named_parameters():
+                        if param.requires_grad:
+                            param[:] = (
+                                rcv_params[shapes[name][1]]
+                                .reshape(shapes[name][0])
+                                .to(shapes[name][2])
+                            )
+                else:
+                    ind = 0
+                    prev_params[0][ind].Wait()
+                    rcv_params = prev_params[1][ind] / float(len(current_ranks))
+                    for name, param in self.module.named_parameters():
+                        if param.requires_grad:
+                            if shapes[name][1].stop > len(rcv_params):
+                                ind += 1
+                                prev_params[0][ind].Wait()
+                                new_rcv_params = prev_params[1][ind] / float(len(current_ranks))
+                                rcv_params = torch.cat((rcv_params, new_rcv_params))
+                            param[:] = (
+                                rcv_params[shapes[name][1]]
+                                .reshape(shapes[name][0])
+                                .to(shapes[name][2])
+                            )
                 self._prev_params = []
             else:
                 if len(self._prev_params) > 0:
@@ -368,43 +384,37 @@ class SkipBatches:
             op = mpi_sum_bfloat
             cast = True
 
-        if not self.apex:
-            param_dict, shapes = self._create_param_dict_n_shapes()
-            params = torch.zeros(
-                self._param_send_buffer_shape,
-                device=self.device,
-                dtype=torch.bfloat16 if cast else None,
-            )
-            params = self.__pack_data(param_dict, params, cast)
+        param_dict, shapes = self._create_param_dict_n_shapes()
+        params = torch.zeros(
+            self._param_send_buffer_shape,
+            device=self.device,
+            dtype=torch.bfloat16 if cast else None,
+        )
+        params = self.__pack_data(param_dict, params, cast)
 
-            new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
-            self._prev_params.append([new_wait, params, shapes, batches_to_wait, None])
-            return new_wait
+        if self.split or len(params) > self.split_val:
+            self.split = True
+            num_splits = math.ceil(len(params), self.split_val)
+            splits = [self.split_val] * (num_splits - 1)
+            rem = len(params) - self.split_val
+            # first one will be smaller then the rest (the raminder is first
+            splits = [rem] + splits
+            self.split_inds = splits
+            params_list = []
+            prev = 0
+            waits = []
+            for s in range(num_splits):
+                # need to slice the params at the split points
+                lp_par = params[prev : splits[s] + prev].clone()
+                prev = splits[s]
+                params_list.append(lp_par)
+                waits.append(current_comm.Iallreduce(MPI.IN_PLACE, lp_par, op))
+            self._prev_params.append([waits, params_list, shapes, batches_to_wait])
+            del params
         else:
-            self.apex_dict = self._create_apex_dict()
-            params32 = torch.zeros(
-                self.apex_dict["fp32"]["send-shp"],
-                device=self.device,
-                dtype=torch.bfloat16 if cast else None,
-            )
-            param_dict32 = self.apex_dict["fp32"]["param_dict"]
-            shapes32 = self.apex_dict["fp32"]["shapes"]
-            params32 = self.__pack_data(param_dict32, params32, cast)
-            op = MPI.SUM if not cast else op
-            new_wait32 = current_comm.Iallreduce(MPI.IN_PLACE, params32, op)
-            self._prev_params.append([new_wait32, params32, shapes32, batches_to_wait, "fp32"])
-            # float 16
-            params16 = torch.zeros(
-                self.apex_dict["fp16"]["send-shp"],
-                device=self.device,
-                dtype=torch.bfloat16 if cast else None,
-            )
-            param_dict16 = self.apex_dict["fp16"]["param_dict"]
-            shapes16 = self.apex_dict["fp16"]["shapes"]
-            # no benefit from casting to bfloat16 here
-            params16 = self.__pack_data(param_dict16, params16, cast=False)
-            new_wait16 = current_comm.Iallreduce(MPI.IN_PLACE, params16, mpi_sum_f16)
-            self._prev_params.append([new_wait16, params16, shapes16, batches_to_wait, "fp32"])
+            new_wait = current_comm.Iallreduce(MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
+            self._prev_params.append([new_wait, params, shapes, batches_to_wait])
+        return new_wait
 
     def _create_param_dict_n_shapes(self):
         """
@@ -429,45 +439,6 @@ class SkipBatches:
         self.shapes = shapes
         return param_dict, shapes
 
-    def _create_apex_dict(self):
-        if not self.apex:
-            return
-        # todo: check that apex doesnt change which layers are cast each time...or check this each time
-        # code to check each time -> self.apex_dict is None:
-        # in this case there are should be two param dicts and two shape dicts
-        if self.apex_dict != {} and self.apex_dict is not None:
-            return self.apex_dict
-        self.apex_dict = {
-            "fp32": {"params_dict": {}, "shapes": {}, "send-shp": 0},
-            "fp16": {"params_dict": {}, "shapes": {}, "send-shp": 0},
-        }
-        # apex dict will have the fp32 and fp16 keys for each thing
-        st, st16, st32 = 0, 0, 0
-        for name, param in self.module.named_parameters():
-            tp = param.dtype
-            numel = param.numel()
-            if tp == torch.float32:
-                k = "fp32"
-                st += st32
-                end = st + numel
-                st32 = end
-            elif tp == torch.float16:
-                k = "fp16"
-                st += st16
-                end = st + numel
-                st16 = end
-            else:
-                raise TypeError(
-                    f"Unaccounted for dtype! must be either float32 or float16, "
-                    f"current param: name: {name}, dtype: {param.dtype}"
-                )
-            self.apex_dict[k]["param_dict"][name] = param
-            self.apex_dict[k]["shapes"][name] = [param.shape, slice(st, end), tp]
-            st = 0
-        self.apex_dict["fp32"]["send-shp"] = st32
-        self.apex_dict["fp16"]["send-shp"] = st16
-        return self.apex_dict
-
     @staticmethod
     @torch.jit.script
     def __pack_data(iter_dict: Dict[str, torch.Tensor], params: torch.Tensor, cast: bool):
@@ -487,9 +458,6 @@ class SkipBatches:
     def _local_torch_param_update(self, mod_hold_pr):
         # TODO: jit this?
         # send the globally updated gradients from `mod_hold_pr` to the other local processes
-        if mod_hold_pr is None:
-            # this is a failsafe in case this function is called when there is no need to synchronize
-            return
         if torch.distributed.is_initialized():
             snds = {}
             for name, param in self.module.named_parameters():
@@ -498,6 +466,7 @@ class SkipBatches:
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
                     snds[name].wait()
+
             del snds
 
     @torch.no_grad()
@@ -512,45 +481,40 @@ class SkipBatches:
         if len(self._prev_params) == 0:
             # if no old gradients, return without doing anything
             return
-        # use self.param_dict if not apex, otherwise use self.apex_dict
-        # if apex is there, then there are 2 buffers to receive
-        # for apex_ittr in range(1 if not self.apex else 2):
-        if self.apex:
 
-            return
         prev_params = self._prev_params.pop(0)
         batches_between = float(prev_params[3])
-        # add the weighted average to param
         shapes = prev_params[2]
+        # add the weighted average to param
         numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
         denom = float(len(prev_ranks) + numer)
         factor = numer / denom
-        prev_params[0].Wait()
-        rcv_params = prev_params[1] / denom
-        # todo: jit the parameter setting
-        for name, param in self.module.named_parameters():
-            if param.requires_grad:
-                update = rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-                # NOTE: update here is the sum of the params across the processes
-                param *= factor
-                param += update  # / denom
-
-    def _apex_update_params(self, prev_ranks):
-        for _ in range(2):
-            # only two different dtypes in apex. if more are added, this would need to be increased
-            prev_params = self._prev_params.pop(0)
-            key = prev_params[4]
-            batches_between = float(prev_params[3])
-            # add the weighted average to param
-            shapes = prev_params[2]
-            numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
-            denom = float(len(prev_ranks) + numer)
-            factor = numer / denom
+        if not self.split:
             prev_params[0].Wait()
             rcv_params = prev_params[1] / denom
             # todo: jit the parameter setting
-            for name, param in self.apex_dict[key]["params_dict"]:
+            for name, param in self.module.named_parameters():
                 if param.requires_grad:
+                    update = (
+                        rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
+                    )
+                    # NOTE: update here is the sum of the params across the processes
+                    param *= factor
+                    param += update  # / denom
+        else:
+            # receive the first one, then when the end of the slice is higher than the amount received,
+            #   then get the next one
+            ind = 0
+            prev_params[0][ind].Wait()
+            rcv_params = prev_params[1][ind] / denom
+            # jit the parameter setting
+            for name, param in self.module.named_parameters():
+                if param.requires_grad:
+                    if shapes[name][1].stop > len(rcv_params):
+                        ind += 1
+                        prev_params[0][ind].Wait()
+                        new_rcv_params = prev_params[1][ind] / denom
+                        rcv_params = torch.cat((rcv_params, new_rcv_params))
                     update = (
                         rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                     )

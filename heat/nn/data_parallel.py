@@ -363,10 +363,10 @@ class DataParallelMultiGPU(tnn.Module):
         if loc_gpus > 1:
             self.loc_gpus = loc_gpus
             local_rank = rank % loc_gpus
-            module = tnn.parallel.DistributedDataParallel(module, device_ids=[local_rank])
-            # module.share_memory()
             device = "cuda:" + str(local_rank)
             torch.cuda.set_device(device=device)
+            module = tnn.parallel.DistributedDataParallel(module)
+            # module.share_memory()
         else:
             warnings.warn(
                 "DataParallelMultiGPU should be used with multiple GPUs per node", UserWarning
