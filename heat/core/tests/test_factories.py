@@ -309,7 +309,7 @@ class TestFactories(TestCase):
             ht.array((4,), comm={})
 
     def test_asarray(self):
-        # same array
+        # same heat array
         arr = ht.array([1, 2])
         self.assertTrue(ht.asarray(arr) is arr)
 
@@ -330,18 +330,16 @@ class TestFactories(TestCase):
         self.assertTrue(np.alltrue(np.equal(asarr.numpy(), arr)))
 
         asarr[0] = 0
-
         if asarr.device == ht.cpu:
             self.assertEqual(asarr.numpy()[0], arr[0])
 
         # from torch tensor
-        arr = torch.tensor([1, 2, 3, 4])
+        arr = torch.tensor([1, 2, 3, 4], device=self.device.torch_device)
         asarr = ht.asarray(arr)
 
         self.assertTrue(torch.equal(asarr.larray, arr))
 
         asarr[0] = 0
-
         self.assertEqual(asarr.larray[0].item(), arr[0].item())
 
     def test_empty(self):
