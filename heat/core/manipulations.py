@@ -2119,10 +2119,10 @@ def sort(a, axis=None, descending=False, out=None):
         for idx in np.ndindex(local_sorted.shape[1:]):
             idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
-            send_count = send_vec[idx][rank]
+            send_count = send_vec[idx][rank].cpu()
             send_disp = [0] + list(np.cumsum(send_count[:-1]))
 
-            recv_count = send_vec[idx][:, rank]
+            recv_count = send_vec[idx][:, rank].cpu()
             recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
 
             end = partition_matrix[rank][idx]
