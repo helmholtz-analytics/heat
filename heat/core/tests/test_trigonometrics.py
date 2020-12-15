@@ -9,9 +9,7 @@ class TestTrigonometrics(TestCase):
     def test_arccos(self):
         # base elements
         elements = [-1.0, -0.83, -0.12, 0.0, 0.24, 0.67, 1.0]
-        comparison = torch.tensor(
-            elements, dtype=torch.float64, device=self.device.torch_device
-        ).acos()
+        comparison = torch.tensor(elements, dtype=torch.float64).acos()
 
         # arccos of float32
         float32_tensor = ht.array(elements, dtype=ht.float32)
@@ -43,9 +41,7 @@ class TestTrigonometrics(TestCase):
     def test_arcsin(self):
         # base elements
         elements = [-1.0, -0.83, -0.12, 0.0, 0.24, 0.67, 1.0]
-        comparison = torch.tensor(
-            elements, dtype=torch.float64, device=self.device.torch_device
-        ).asin()
+        comparison = torch.tensor(elements, dtype=torch.float64).asin()
 
         # arcsin of float32
         float32_tensor = ht.array(elements, dtype=ht.float32)
@@ -77,9 +73,7 @@ class TestTrigonometrics(TestCase):
     def test_arctan(self):
         # base elements
         elements = 30
-        comparison = torch.arange(
-            elements, dtype=torch.float64, device=self.device.torch_device
-        ).atan()
+        comparison = torch.arange(elements, dtype=torch.float64).atan()
 
         # arctan of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
@@ -116,8 +110,8 @@ class TestTrigonometrics(TestCase):
             ht.arctan("hello world")
 
     def test_arctan2(self):
-        float32_y = torch.randn(30, device=self.device.torch_device)
-        float32_x = torch.randn(30, device=self.device.torch_device)
+        float32_y = torch.randn(30)
+        float32_x = torch.randn(30)
 
         float32_comparison = torch.atan2(float32_y, float32_x)
         float32_arctan2 = ht.arctan2(ht.array(float32_y), ht.array(float32_x))
@@ -126,8 +120,8 @@ class TestTrigonometrics(TestCase):
         self.assertEqual(float32_arctan2.dtype, ht.float32)
         self.assertTrue(torch.allclose(float32_arctan2.larray, float32_comparison))
 
-        float64_y = torch.randn(30, dtype=torch.float64, device=self.device.torch_device)
-        float64_x = torch.randn(30, dtype=torch.float64, device=self.device.torch_device)
+        float64_y = torch.randn(30, dtype=torch.float64)
+        float64_x = torch.randn(30, dtype=torch.float64)
 
         float64_comparison = torch.atan2(float64_y, float64_x)
         float64_arctan2 = ht.atan2(ht.array(float64_y), ht.array(float64_x))
@@ -160,11 +154,7 @@ class TestTrigonometrics(TestCase):
     def test_degrees(self):
         # base elements
         elements = [0.0, 0.2, 0.6, 0.9, 1.2, 2.7, 3.14]
-        comparison = (
-            180.0
-            * torch.tensor(elements, dtype=torch.float64, device=self.device.torch_device)
-            / 3.141592653589793
-        )
+        comparison = 180.0 * torch.tensor(elements, dtype=torch.float64) / 3.141592653589793
 
         # degrees with float32
         float32_tensor = ht.array(elements, dtype=ht.float32)
@@ -189,11 +179,7 @@ class TestTrigonometrics(TestCase):
     def test_deg2rad(self):
         # base elements
         elements = [0.0, 20.0, 45.0, 78.0, 94.0, 120.0, 180.0, 270.0, 311.0]
-        comparison = (
-            3.141592653589793
-            * torch.tensor(elements, dtype=torch.float64, device=self.device.torch_device)
-            / 180.0
-        )
+        comparison = 3.141592653589793 * torch.tensor(elements, dtype=torch.float64) / 180.0
 
         # deg2rad with float32
         float32_tensor = ht.array(elements, dtype=ht.float32)
@@ -218,9 +204,7 @@ class TestTrigonometrics(TestCase):
     def test_cos(self):
         # base elements
         elements = 30
-        comparison = torch.arange(
-            elements, dtype=torch.float64, device=self.device.torch_device
-        ).cos()
+        comparison = torch.arange(elements, dtype=torch.float64).cos()
 
         # cosine of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
@@ -259,9 +243,7 @@ class TestTrigonometrics(TestCase):
     def test_cosh(self):
         # base elements
         elements = 30
-        comparison = torch.arange(
-            elements, dtype=torch.float64, device=self.device.torch_device
-        ).cosh()
+        comparison = torch.arange(elements, dtype=torch.float64).cosh()
 
         # hyperbolic cosine of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
@@ -300,11 +282,7 @@ class TestTrigonometrics(TestCase):
     def test_rad2deg(self):
         # base elements
         elements = [0.0, 0.2, 0.6, 0.9, 1.2, 2.7, 3.14]
-        comparison = (
-            180.0
-            * torch.tensor(elements, dtype=torch.float64, device=self.device.torch_device)
-            / 3.141592653589793
-        )
+        comparison = 180.0 * torch.tensor(elements, dtype=torch.float64) / 3.141592653589793
 
         # rad2deg with float32
         float32_tensor = ht.array(elements, dtype=ht.float32)
@@ -329,11 +307,7 @@ class TestTrigonometrics(TestCase):
     def test_radians(self):
         # base elements
         elements = [0.0, 20.0, 45.0, 78.0, 94.0, 120.0, 180.0, 270.0, 311.0]
-        comparison = (
-            3.141592653589793
-            * torch.tensor(elements, dtype=torch.float64, device=self.device.torch_device)
-            / 180.0
-        )
+        comparison = 3.141592653589793 * torch.tensor(elements, dtype=torch.float64) / 180.0
 
         # radians with float32
         float32_tensor = ht.array(elements, dtype=ht.float32)
@@ -358,9 +332,7 @@ class TestTrigonometrics(TestCase):
     def test_sin(self):
         # base elements
         elements = 30
-        comparison = torch.arange(
-            elements, dtype=torch.float64, device=self.device.torch_device
-        ).sin()
+        comparison = torch.arange(elements, dtype=torch.float64).sin()
 
         # sine of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
@@ -399,9 +371,7 @@ class TestTrigonometrics(TestCase):
     def test_sinh(self):
         # base elements
         elements = 30
-        comparison = torch.arange(
-            elements, dtype=torch.float64, device=self.device.torch_device
-        ).sinh()
+        comparison = torch.arange(elements, dtype=torch.float64).sinh()
 
         # hyperbolic sine of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
@@ -440,9 +410,7 @@ class TestTrigonometrics(TestCase):
     def test_tan(self):
         # base elements
         elements = 30
-        comparison = torch.arange(
-            elements, dtype=torch.float64, device=self.device.torch_device
-        ).tan()
+        comparison = torch.arange(elements, dtype=torch.float64).tan()
 
         # tangent of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
@@ -481,9 +449,7 @@ class TestTrigonometrics(TestCase):
     def test_tanh(self):
         # base elements
         elements = 30
-        comparison = torch.arange(
-            elements, dtype=torch.float64, device=self.device.torch_device
-        ).tanh()
+        comparison = torch.arange(elements, dtype=torch.float64).tanh()
 
         # hyperbolic tangent of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)

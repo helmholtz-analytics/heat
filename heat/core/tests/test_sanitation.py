@@ -21,10 +21,10 @@ class TestSanitation(TestCase):
         out_wrong_type = torch.empty(output_shape)
         with self.assertRaises(TypeError):
             ht.sanitize_out(out_wrong_type, output_shape, output_split, output_device)
-        out_wrong_shape = ht.empty((4, 7, 6), split=output_split, device=output_device)
+        out_wrong_shape = ht.empty((4, 7, 6), split=output_split)
         with self.assertRaises(ValueError):
             ht.sanitize_out(out_wrong_shape, output_shape, output_split, output_device)
-        out_wrong_split = ht.empty(output_shape, split=2, device=output_device)
+        out_wrong_split = ht.empty(output_shape, split=2)
         with self.assertRaises(ValueError):
             ht.sanitize_out(out_wrong_split, output_shape, output_split, output_device)
 

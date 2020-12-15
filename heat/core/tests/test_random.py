@@ -26,11 +26,11 @@ class TestRandom(TestCase):
         torch.set_rng_state(state)
 
         # torch results to compare to
-        a_cmp = torch.randperm(a.shape[0], device=self.device.torch_device)
-        b_cmp = b_arr.larray[torch.randperm(b.shape[0], device=self.device.torch_device)]
-        c_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
-        c0_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
-        c1_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
+        a_cmp = torch.randperm(a.shape[0])
+        b_cmp = b_arr.larray[torch.randperm(b.shape[0])]
+        c_cmp = c_arr.larray[torch.randperm(c.shape[0])]
+        c0_cmp = c_arr.larray[torch.randperm(c.shape[0])]
+        c1_cmp = c_arr.larray[torch.randperm(c.shape[0])]
 
         # compare
         self.assertEqual(a.dtype, ht.int64)
@@ -367,10 +367,10 @@ class TestRandom(TestCase):
         torch.random.set_rng_state(state)
 
         # torch results to compare to
-        a_cmp = torch.randperm(10, dtype=torch.int32, device=self.device.torch_device)
-        b_cmp = torch.randperm(4, dtype=torch.float32, device=self.device.torch_device)
-        c_cmp = torch.randperm(5, dtype=torch.int64, device=self.device.torch_device)
-        d_cmp = torch.randperm(5, dtype=torch.float64, device=self.device.torch_device)
+        a_cmp = torch.randperm(10, dtype=torch.int32)
+        b_cmp = torch.randperm(4, dtype=torch.float32)
+        c_cmp = torch.randperm(5, dtype=torch.int64)
+        d_cmp = torch.randperm(5, dtype=torch.float64)
 
         self.assertEqual(a.dtype, ht.int32)
         self.assertTrue((a.larray == a_cmp).all())

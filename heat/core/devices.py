@@ -133,3 +133,7 @@ def use_device(device=None):
     """
     global __default_device
     __default_device = sanitize_device(device)
+    if __default_device == cpu:
+        torch.set_default_tensor_type(torch.FloatTensor)
+    else:
+        torch.set_default_tensor_type(torch.cuda.FloatTensor)

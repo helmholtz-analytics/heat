@@ -30,8 +30,8 @@ class TestDNDarray(TestCase):
 
         if data.comm.size == 2:
 
-            halo_next = torch.tensor(np.array([[4, 5], [10, 11]]), device=data.device.torch_device)
-            halo_prev = torch.tensor(np.array([[2, 3], [8, 9]]), device=data.device.torch_device)
+            halo_next = torch.tensor(np.array([[4, 5], [10, 11]]))
+            halo_prev = torch.tensor(np.array([[2, 3], [8, 9]]))
 
             data.get_halo(2)
 
@@ -59,12 +59,8 @@ class TestDNDarray(TestCase):
             data_np = np.array([[1.0, 2.0, 3.0, 4.0, 5.0, 6.0], [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]])
             data = ht.array(data_np, split=1)
 
-            halo_next = torch.tensor(
-                np.array([[4.0, 5.0], [10.0, 11.0]]), device=data.device.torch_device
-            )
-            halo_prev = torch.tensor(
-                np.array([[2.0, 3.0], [8.0, 9.0]]), device=data.device.torch_device
-            )
+            halo_next = torch.tensor(np.array([[4.0, 5.0], [10.0, 11.0]]))
+            halo_prev = torch.tensor(np.array([[2.0, 3.0], [8.0, 9.0]]))
 
             data.get_halo(2)
 
@@ -77,12 +73,8 @@ class TestDNDarray(TestCase):
 
             data = ht.ones((10, 2), split=0)
 
-            halo_next = torch.tensor(
-                np.array([[1.0, 1.0], [1.0, 1.0]]), device=data.device.torch_device
-            )
-            halo_prev = torch.tensor(
-                np.array([[1.0, 1.0], [1.0, 1.0]]), device=data.device.torch_device
-            )
+            halo_next = torch.tensor(np.array([[1.0, 1.0], [1.0, 1.0]]))
+            halo_prev = torch.tensor(np.array([[1.0, 1.0], [1.0, 1.0]]))
 
             data.get_halo(2)
 
@@ -95,10 +87,10 @@ class TestDNDarray(TestCase):
 
         if data.comm.size == 3:
 
-            halo_1 = torch.tensor(np.array([[2], [8]]), device=data.device.torch_device)
-            halo_2 = torch.tensor(np.array([[3], [9]]), device=data.device.torch_device)
-            halo_3 = torch.tensor(np.array([[4], [10]]), device=data.device.torch_device)
-            halo_4 = torch.tensor(np.array([[5], [11]]), device=data.device.torch_device)
+            halo_1 = torch.tensor(np.array([[2], [8]]))
+            halo_2 = torch.tensor(np.array([[3], [9]]))
+            halo_3 = torch.tensor(np.array([[4], [10]]))
+            halo_4 = torch.tensor(np.array([[5], [11]]))
             data.get_halo(1)
             data_with_halos = data.array_with_halos
 
@@ -125,9 +117,7 @@ class TestDNDarray(TestCase):
                 data.get_halo(4)
             # exception on non balanced tensor
             with self.assertRaises(RuntimeError):
-                data_nobalance = ht.array(
-                    torch.empty(((data.comm.rank + 1) * 2, 3, 4)), is_split=0, device=data.device
-                )
+                data_nobalance = ht.array(torch.empty(((data.comm.rank + 1) * 2, 3, 4)), is_split=0)
                 data_nobalance.get_halo(1)
             # test no data on process
             data_np = np.arange(2 * 12).reshape(2, 12)
@@ -278,13 +268,13 @@ class TestDNDarray(TestCase):
         if ht.MPI_WORLD.size > 4:
             rank = ht.MPI_WORLD.rank
             if rank == 2:
-                arr = torch.tensor([0, 1], device=htdata.device.torch_device)
+                arr = torch.tensor([0, 1])
             elif rank == 3:
-                arr = torch.tensor([2, 3, 4, 5], device=htdata.device.torch_device)
+                arr = torch.tensor([2, 3, 4, 5])
             elif rank == 4:
-                arr = torch.tensor([6, 7, 8, 9], device=htdata.device.torch_device)
+                arr = torch.tensor([6, 7, 8, 9])
             else:
-                arr = torch.empty([0], dtype=torch.int64, device=htdata.device.torch_device)
+                arr = torch.empty([0], dtype=torch.int64)
             a = ht.array(arr, is_split=0)
             a.balance_()
             comp = ht.arange(10, split=0)
@@ -723,9 +713,7 @@ class TestDNDarray(TestCase):
         # need to test with 1, 2, 3, and 4 dims
         st = ht.zeros((50,), split=0)
         if st.comm.size >= 3:
-            target_map = torch.zeros(
-                (st.comm.size, 1), dtype=torch.int, device=self.device.torch_device
-            )
+            target_map = torch.zeros((st.comm.size, 1), dtype=torch.int)
             target_map[1] = 30
             target_map[2] = 20
             st.redistribute_(target_map=target_map)
@@ -737,9 +725,7 @@ class TestDNDarray(TestCase):
                 self.assertEqual(st.lshape, (0,))
 
             st = ht.zeros((50, 50), split=1)
-            target_map = torch.zeros(
-                (st.comm.size, 2), dtype=torch.int, device=self.device.torch_device
-            )
+            target_map = torch.zeros((st.comm.size, 2), dtype=torch.int)
             target_map[0, 1] = 13
             target_map[2, 1] = 50 - 13
             st.redistribute_(target_map=target_map)
@@ -751,9 +737,7 @@ class TestDNDarray(TestCase):
                 self.assertEqual(st.lshape, (50, 0))
 
             st = ht.zeros((50, 81, 67), split=2)
-            target_map = torch.zeros(
-                (st.comm.size, 3), dtype=torch.int, device=self.device.torch_device
-            )
+            target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
             target_map[0, 2] = 67
             st.redistribute_(target_map=target_map)
             if st.comm.rank == 0:
@@ -762,9 +746,7 @@ class TestDNDarray(TestCase):
                 self.assertEqual(st.lshape, (50, 81, 0))
 
             st = ht.zeros((8, 8, 8), split=None)
-            target_map = torch.zeros(
-                (st.comm.size, 3), dtype=torch.int, device=self.device.torch_device
-            )
+            target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
             # this will do nothing!
             st.redistribute_(target_map=target_map)
             self.assertTrue(st.lshape, st.gshape)
@@ -878,9 +860,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(a_tensor.lshape, local_shape)
         self.assertTrue((a_tensor.larray == local_tensor.larray).all())
 
-        expected = torch.ones(
-            (ht.MPI_WORLD.size, 100), dtype=torch.int64, device=self.device.torch_device
-        )
+        expected = torch.ones((ht.MPI_WORLD.size, 100), dtype=torch.int64)
         data = ht.array(expected, split=1)
         data.resplit_(None)
 
@@ -890,9 +870,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(data.dtype, ht.int64)
         self.assertEqual(data.larray.dtype, expected.dtype)
 
-        expected = torch.zeros(
-            (100, ht.MPI_WORLD.size), dtype=torch.uint8, device=self.device.torch_device
-        )
+        expected = torch.zeros((100, ht.MPI_WORLD.size), dtype=torch.uint8)
         data = ht.array(expected, split=0)
         data.resplit_(None)
 
@@ -903,10 +881,10 @@ class TestDNDarray(TestCase):
         self.assertEqual(data.larray.dtype, expected.dtype)
 
         # "in place"
-        length = torch.tensor([i + 20 for i in range(2)], device=self.device.torch_device)
-        test = torch.arange(
-            torch.prod(length), dtype=torch.float64, device=self.device.torch_device
-        ).reshape([i + 20 for i in range(2)])
+        length = torch.tensor([i + 20 for i in range(2)])
+        test = torch.arange(torch.prod(length), dtype=torch.float64).reshape(
+            [i + 20 for i in range(2)]
+        )
         a = ht.array(test, split=1)
         a.resplit_(axis=0)
         self.assertTrue(ht.equal(a, ht.array(test, split=0)))
@@ -914,7 +892,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(a.dtype, ht.float64)
         del a
 
-        test = torch.arange(torch.prod(length), device=self.device.torch_device)
+        test = torch.arange(torch.prod(length))
         a = ht.array(test, split=0)
         a.resplit_(axis=None)
         self.assertTrue(ht.equal(a, ht.array(test, split=None)))
@@ -1064,7 +1042,7 @@ class TestDNDarray(TestCase):
 
         # setting with torch tensor
         a = ht.zeros((4, 5), split=0)
-        a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
+        a[1, 0:4] = torch.arange(4)
         # if a.comm.size == 2:
         for c, i in enumerate(range(4)):
             self.assertEqual(a[1, c], i)
@@ -1161,7 +1139,7 @@ class TestDNDarray(TestCase):
 
         # setting with torch tensor
         a = ht.zeros((4, 5), split=1)
-        a[1, 0:4] = torch.arange(4, device=self.device.torch_device)
+        a[1, 0:4] = torch.arange(4)
         for c, i in enumerate(range(4)):
             self.assertEqual(a[1, c], i)
 
@@ -1267,27 +1245,27 @@ class TestDNDarray(TestCase):
 
     def test_stride_and_strides(self):
         # Local, int16, row-major memory layout
-        torch_int16 = torch.arange(
-            6 * 5 * 3 * 4 * 5 * 7, dtype=torch.int16, device=self.device.torch_device
-        ).reshape(6, 5, 3, 4, 5, 7)
+        torch_int16 = torch.arange(6 * 5 * 3 * 4 * 5 * 7, dtype=torch.int16).reshape(
+            6, 5, 3, 4, 5, 7
+        )
         heat_int16 = ht.array(torch_int16)
         numpy_int16 = torch_int16.cpu().numpy()
         self.assertEqual(heat_int16.stride(), torch_int16.stride())
         self.assertEqual(heat_int16.strides, numpy_int16.strides)
 
         # Local, float32, row-major memory layout
-        torch_float32 = torch.arange(
-            6 * 5 * 3 * 4 * 5 * 7, dtype=torch.float32, device=self.device.torch_device
-        ).reshape(6, 5, 3, 4, 5, 7)
+        torch_float32 = torch.arange(6 * 5 * 3 * 4 * 5 * 7, dtype=torch.float32).reshape(
+            6, 5, 3, 4, 5, 7
+        )
         heat_float32 = ht.array(torch_float32)
         numpy_float32 = torch_float32.cpu().numpy()
         self.assertEqual(heat_float32.stride(), torch_float32.stride())
         self.assertEqual(heat_float32.strides, numpy_float32.strides)
 
         # Local, float64, column-major memory layout
-        torch_float64 = torch.arange(
-            6 * 5 * 3 * 4 * 5 * 7, dtype=torch.float64, device=self.device.torch_device
-        ).reshape(6, 5, 3, 4, 5, 7)
+        torch_float64 = torch.arange(6 * 5 * 3 * 4 * 5 * 7, dtype=torch.float64).reshape(
+            6, 5, 3, 4, 5, 7
+        )
         heat_float64_F = ht.array(torch_float64, order="F")
         numpy_float64_F = np.array(torch_float64.cpu().numpy(), order="F")
         self.assertNotEqual(heat_float64_F.stride(), torch_float64.stride())
@@ -1296,9 +1274,9 @@ class TestDNDarray(TestCase):
         # Distributed, int16, row-major memory layout
         size = ht.communication.MPI_WORLD.size
         split = 2
-        torch_int16 = torch.arange(
-            6 * 5 * 3 * size * 4 * 5 * 7, dtype=torch.int16, device=self.device.torch_device
-        ).reshape(6, 5, 3 * size, 4, 5, 7)
+        torch_int16 = torch.arange(6 * 5 * 3 * size * 4 * 5 * 7, dtype=torch.int16).reshape(
+            6, 5, 3 * size, 4, 5, 7
+        )
         heat_int16_split = ht.array(torch_int16, split=split)
         numpy_int16 = torch_int16.cpu().numpy()
         if size > 1:
@@ -1310,9 +1288,9 @@ class TestDNDarray(TestCase):
 
         # Distributed, float32, row-major memory layout
         split = -1
-        torch_float32 = torch.arange(
-            6 * 5 * 3 * 4 * 5 * 7 * size, dtype=torch.float32, device=self.device.torch_device
-        ).reshape(6, 5, 3, 4, 5, 7 * size)
+        torch_float32 = torch.arange(6 * 5 * 3 * 4 * 5 * 7 * size, dtype=torch.float32).reshape(
+            6, 5, 3, 4, 5, 7 * size
+        )
         heat_float32_split = ht.array(torch_float32, split=split)
         numpy_float32 = torch_float32.cpu().numpy()
         numpy_float32_split_strides = (
@@ -1322,9 +1300,9 @@ class TestDNDarray(TestCase):
 
         # Distributed, float64, column-major memory layout
         split = -2
-        torch_float64 = torch.arange(
-            6 * 5 * 3 * 4 * 5 * size * 7, dtype=torch.float64, device=self.device.torch_device
-        ).reshape(6, 5, 3, 4, 5 * size, 7)
+        torch_float64 = torch.arange(6 * 5 * 3 * 4 * 5 * size * 7, dtype=torch.float64).reshape(
+            6, 5, 3, 4, 5 * size, 7
+        )
         heat_float64_F_split = ht.array(torch_float64, order="F", split=split)
         numpy_float64_F = np.array(torch_float64.cpu().numpy(), order="F")
         numpy_float64_F_split_strides = numpy_float64_F.strides[: split + 1] + tuple(

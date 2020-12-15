@@ -20,15 +20,13 @@ class TestMemory(TestCase):
 
     def test_sanitize_memory_layout(self):
         # non distributed, 2D
-        a_torch = torch.arange(12, device=self.device.torch_device).reshape(4, 3)
+        a_torch = torch.arange(12).reshape(4, 3)
         a_heat_C = ht.array(a_torch)
         a_heat_F = ht.array(a_torch, order="F")
         self.assertTrue_memory_layout(a_heat_C, "C")
         self.assertTrue_memory_layout(a_heat_F, "F")
         # non distributed, 5D
-        a_torch_5d = torch.arange(4 * 3 * 5 * 2 * 1, device=self.device.torch_device).reshape(
-            4, 3, 1, 2, 5
-        )
+        a_torch_5d = torch.arange(4 * 3 * 5 * 2 * 1).reshape(4, 3, 1, 2, 5)
         a_heat_5d_C = ht.array(a_torch_5d)
         a_heat_5d_F = ht.array(a_torch_5d, order="F")
         self.assertTrue_memory_layout(a_heat_5d_C, "C")
@@ -38,9 +36,7 @@ class TestMemory(TestCase):
         self.assert_array_equal(a_heat_5d_F_sum, a_torch_5d_sum)
         # distributed, split, 2D
         size = ht.communication.MPI_WORLD.size
-        a_torch_2d = torch.arange(4 * size * 3 * size, device=self.device.torch_device).reshape(
-            4 * size, 3 * size
-        )
+        a_torch_2d = torch.arange(4 * size * 3 * size).reshape(4 * size, 3 * size)
         a_heat_2d_C_split = ht.array(a_torch_2d, split=0)
         a_heat_2d_F_split = ht.array(a_torch_2d, split=1, order="F")
         self.assertTrue_memory_layout(a_heat_2d_C_split, "C")
@@ -49,9 +45,7 @@ class TestMemory(TestCase):
         a_torch_2d_sum = a_torch_2d.sum(1)
         self.assert_array_equal(a_heat_2d_F_split_sum, a_torch_2d_sum)
         # distributed, split, 5D
-        a_torch_5d = torch.arange(
-            4 * 3 * 5 * 2 * size * 7, device=self.device.torch_device
-        ).reshape(4, 3, 7, 2 * size, 5)
+        a_torch_5d = torch.arange(4 * 3 * 5 * 2 * size * 7).reshape(4, 3, 7, 2 * size, 5)
         a_heat_5d_C_split = ht.array(a_torch_5d, split=-2)
         a_heat_5d_F_split = ht.array(a_torch_5d, split=-2, order="F")
         self.assertTrue_memory_layout(a_heat_5d_C_split, "C")

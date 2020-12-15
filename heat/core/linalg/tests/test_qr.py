@@ -17,7 +17,7 @@ else:
 class TestQR(TestCase):
     @unittest.skipIf(not extended_tests, "extended tests")
     def test_qr_sp0_ext(self):
-        st_whole = torch.randn(70, 70, device=self.device.torch_device)
+        st_whole = torch.randn(70, 70)
         sp = 0
         for m in range(50, st_whole.shape[0] + 1, 1):
             for n in range(50, st_whole.shape[1] + 1, 1):
@@ -32,7 +32,7 @@ class TestQR(TestCase):
 
     @unittest.skipIf(not extended_tests, "extended tests")
     def test_qr_sp1_ext(self):
-        st_whole = torch.randn(70, 70, device=self.device.torch_device)
+        st_whole = torch.randn(70, 70)
         sp = 1
         for m in range(50, st_whole.shape[0] + 1, 1):
             for n in range(50, st_whole.shape[1] + 1, 1):
@@ -47,7 +47,7 @@ class TestQR(TestCase):
 
     def test_qr(self):
         m, n = 20, 40
-        st = torch.randn(m, n, device=self.device.torch_device, dtype=torch.float)
+        st = torch.randn(m, n, dtype=torch.float)
         a_comp = ht.array(st, split=0)
         for t in range(1, 3):
             for sp in range(2):
@@ -57,7 +57,7 @@ class TestQR(TestCase):
                 self.assertTrue(ht.allclose(qr.Q.T @ qr.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
                 self.assertTrue(ht.allclose(ht.eye(m), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5))
         m, n = 40, 40
-        st1 = torch.randn(m, n, device=self.device.torch_device)
+        st1 = torch.randn(m, n)
         a_comp1 = ht.array(st1, split=0)
         for t in range(1, 3):
             for sp in range(2):
@@ -67,7 +67,7 @@ class TestQR(TestCase):
                 self.assertTrue(ht.allclose(qr1.Q.T @ qr1.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
                 self.assertTrue(ht.allclose(ht.eye(m), qr1.Q @ qr1.Q.T, rtol=1e-5, atol=1e-5))
         m, n = 40, 20
-        st2 = torch.randn(m, n, dtype=torch.double, device=self.device.torch_device)
+        st2 = torch.randn(m, n, dtype=torch.double)
         a_comp2 = ht.array(st2, split=0, dtype=ht.double)
         for t in range(1, 3):
             for sp in range(2):
@@ -85,7 +85,7 @@ class TestQR(TestCase):
                 self.assertTrue(qr.Q is None)
 
         m, n = 40, 20
-        st = torch.randn(m, n, device=self.device.torch_device)
+        st = torch.randn(m, n)
         a_comp = ht.array(st, split=None)
         a = ht.array(st, split=None)
         qr = a.qr()

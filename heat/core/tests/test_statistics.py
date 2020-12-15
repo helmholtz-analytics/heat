@@ -42,7 +42,7 @@ class TestStatistics(TestCase):
         self.assertEqual(result.shape, (1,))
         self.assertEqual(result.lshape, (1,))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.larray == torch.tensor([19], device=self.device.torch_device)))
+        self.assertTrue((result.larray == torch.tensor([19])))
 
         # 2D split tensor, along the axis
         data = ht.array(ht.random.randn(4, 5), is_split=0)
@@ -229,13 +229,9 @@ class TestStatistics(TestCase):
         self.assertTrue((avg_horizontal.numpy() == np.average(comparison, axis=1)).all())
 
         # check weighted average over all float elements of split 3d tensor, across split axis
-        random_volume = ht.array(
-            torch.randn((3, 3, 3), dtype=torch.float64, device=self.device.torch_device), is_split=1
-        )
+        random_volume = ht.array(torch.randn((3, 3, 3), dtype=torch.float64), is_split=1)
         size = random_volume.comm.size
-        random_weights = ht.array(
-            torch.randn((3 * size,), dtype=torch.float64, device=self.device.torch_device), split=0
-        )
+        random_weights = ht.array(torch.randn((3 * size,), dtype=torch.float64), split=0)
         avg_volume = ht.average(random_volume, weights=random_weights, axis=1)
         np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
         self.assertIsInstance(avg_volume, ht.DNDarray)
@@ -255,9 +251,7 @@ class TestStatistics(TestCase):
 
         # check weighted average over all float elements of split 3d tensor (3d weights)
 
-        random_weights_3d = ht.array(
-            torch.randn((3, 3, 3), dtype=torch.float64, device=self.device.torch_device), is_split=1
-        )
+        random_weights_3d = ht.array(torch.randn((3, 3, 3), dtype=torch.float64), is_split=1)
         avg_volume = ht.average(random_volume, weights=random_weights_3d, axis=1)
         np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
         self.assertIsInstance(avg_volume, ht.DNDarray)
@@ -444,7 +438,7 @@ class TestStatistics(TestCase):
 
     def test_histc(self):
         # few entries and float64
-        c = torch.arange(4, dtype=torch.float64, device=self.device.torch_device)
+        c = torch.arange(4, dtype=torch.float64)
         comp = torch.histc(c, 7)
         a = ht.array(c)
         res = ht.histc(a, 7)
@@ -455,7 +449,7 @@ class TestStatistics(TestCase):
         self.assertTrue(torch.equal(res.larray, comp))
 
         # matrix and splits
-        c = torch.rand([10, 10, 10], device=self.device.torch_device)
+        c = torch.rand([10, 10, 10])
         comp = torch.histc(c)
 
         a = ht.array(c)
@@ -487,8 +481,8 @@ class TestStatistics(TestCase):
         self.assertTrue(torch.equal(res.larray, comp))
 
         # out parameter, min max
-        out = ht.empty(20, dtype=ht.float32, device=self.device)
-        c = torch.randint(10, size=(8,), dtype=torch.float32, device=self.device.torch_device)
+        out = ht.empty(20, dtype=ht.float32)
+        c = torch.randint(10, size=(8,), dtype=torch.float32)
         comp = torch.histc(c, bins=20, min=0, max=20)
 
         a = ht.array(c)
@@ -617,7 +611,7 @@ class TestStatistics(TestCase):
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data)
-        comparison = torch.tensor(data, device=self.device.torch_device)
+        comparison = torch.tensor(data)
 
         # check global max
         maximum = ht.max(ht_array)
@@ -691,9 +685,7 @@ class TestStatistics(TestCase):
         if size > 1:
             a = ht.arange(size - 1, split=0)
             res = ht.max(a)
-            expected = torch.tensor(
-                [size - 2], dtype=a.dtype.torch_type(), device=self.device.torch_device
-            )
+            expected = torch.tensor([size - 2], dtype=a.dtype.torch_type())
             self.assertTrue(torch.equal(res.larray, expected))
 
         # check exceptions
@@ -710,8 +702,8 @@ class TestStatistics(TestCase):
 
         ht_array1 = ht.array(data1)
         ht_array2 = ht.array(data2)
-        comparison1 = torch.tensor(data1, device=self.device.torch_device)
-        comparison2 = torch.tensor(data2, device=self.device.torch_device)
+        comparison1 = torch.tensor(data1)
+        comparison2 = torch.tensor(data2)
 
         # check maximum
         maximum = ht.maximum(ht_array1, ht_array2)
@@ -778,13 +770,13 @@ class TestStatistics(TestCase):
         random_volume_3 = ht.random.randn(4, 2, 3, split=0)
         with self.assertRaises(ValueError):
             ht.maximum(random_volume_1, random_volume_3)
-        random_volume_3 = torch.ones(12, 3, 3, device=self.device.torch_device)
+        random_volume_3 = torch.ones(12, 3, 3)
         with self.assertRaises(TypeError):
             ht.maximum(random_volume_1, random_volume_3)
         random_volume_3 = ht.random.randn(6, 3, 3, split=1)
         with self.assertRaises(NotImplementedError):
             ht.maximum(random_volume_1, random_volume_3)
-        output = torch.ones(12, 3, 3, device=self.device.torch_device)
+        output = torch.ones(12, 3, 3)
         with self.assertRaises(TypeError):
             ht.maximum(random_volume_1, random_volume_2, out=output)
         output = ht.ones((12, 4, 3))
@@ -878,7 +870,7 @@ class TestStatistics(TestCase):
         data = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]]
 
         ht_array = ht.array(data)
-        comparison = torch.tensor(data, device=self.device.torch_device)
+        comparison = torch.tensor(data)
 
         # check global min
         minimum = ht.min(ht_array)
@@ -955,9 +947,7 @@ class TestStatistics(TestCase):
         if size > 1:
             a = ht.arange(size - 1, split=0)
             res = ht.min(a)
-            expected = torch.tensor(
-                [0], dtype=a.dtype.torch_type(), device=self.device.torch_device
-            )
+            expected = torch.tensor([0], dtype=a.dtype.torch_type())
             self.assertTrue(torch.equal(res.larray, expected))
 
         # check exceptions
@@ -974,8 +964,8 @@ class TestStatistics(TestCase):
 
         ht_array1 = ht.array(data1)
         ht_array2 = ht.array(data2)
-        comparison1 = torch.tensor(data1, device=self.device.torch_device)
-        comparison2 = torch.tensor(data2, device=self.device.torch_device)
+        comparison1 = torch.tensor(data1)
+        comparison2 = torch.tensor(data2)
 
         # check minimum
         minimum = ht.minimum(ht_array1, ht_array2)
@@ -1042,7 +1032,7 @@ class TestStatistics(TestCase):
         random_volume_3 = ht.random.randn(4, 2, 3, split=0)
         with self.assertRaises(ValueError):
             ht.minimum(random_volume_1, random_volume_3)
-        random_volume_3 = torch.ones(12, 3, 3, device=self.device.torch_device)
+        random_volume_3 = torch.ones(12, 3, 3)
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_1, random_volume_3)
         random_volume_3 = np.array(7.2)
@@ -1051,7 +1041,7 @@ class TestStatistics(TestCase):
         random_volume_3 = ht.random.randn(6, 3, 3, split=1)
         with self.assertRaises(NotImplementedError):
             ht.minimum(random_volume_1, random_volume_3)
-        output = torch.ones(12, 3, 3, device=self.device.torch_device)
+        output = torch.ones(12, 3, 3)
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_1, random_volume_2, out=output)
         output = ht.ones((12, 4, 3))
@@ -1097,7 +1087,7 @@ class TestStatistics(TestCase):
         axis = 2
         p_np = np.percentile(x_np, q, axis=axis, interpolation="lower", keepdims=True)
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdim=True)
-        out = ht.empty(p_np.shape, dtype=ht.float64, split=None, device=x_ht.device)
+        out = ht.empty(p_np.shape, dtype=ht.float64, split=None)
         ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdim=True)
         self.assertEqual(p_ht.numpy()[5].all(), p_np[5].all())
         self.assertEqual(out.numpy()[2].all(), p_np[2].all())

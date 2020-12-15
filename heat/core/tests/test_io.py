@@ -86,12 +86,8 @@ class TestIO(TestCase):
     def test_load_csv(self):
         csv_file_length = 150
         csv_file_cols = 4
-        first_value = torch.tensor(
-            [5.1, 3.5, 1.4, 0.2], dtype=torch.float32, device=self.device.torch_device
-        )
-        tenth_value = torch.tensor(
-            [4.9, 3.1, 1.5, 0.1], dtype=torch.float32, device=self.device.torch_device
-        )
+        first_value = torch.tensor([5.1, 3.5, 1.4, 0.2], dtype=torch.float32)
+        tenth_value = torch.tensor([4.9, 3.1, 1.5, 0.1], dtype=torch.float32)
 
         a = ht.load_csv(self.CSV_PATH, sep=";")
         self.assertEqual(len(a), csv_file_length)
@@ -171,11 +167,7 @@ class TestIO(TestCase):
             local_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET)
             if local_range.comm.rank == 0:
                 with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
-                    comparison = torch.tensor(
-                        handle[self.HDF5_DATASET],
-                        dtype=torch.int32,
-                        device=self.device.torch_device,
-                    )
+                    comparison = torch.tensor(handle[self.HDF5_DATASET], dtype=torch.int32)
                 self.assertTrue((local_range.larray == comparison).all())
 
             # split range
@@ -183,11 +175,7 @@ class TestIO(TestCase):
             split_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET)
             if split_range.comm.rank == 0:
                 with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
-                    comparison = torch.tensor(
-                        handle[self.HDF5_DATASET],
-                        dtype=torch.int32,
-                        device=self.device.torch_device,
-                    )
+                    comparison = torch.tensor(handle[self.HDF5_DATASET], dtype=torch.int32)
                 self.assertTrue((local_range.larray == comparison).all())
 
         if ht.io.supports_netcdf():
@@ -196,11 +184,7 @@ class TestIO(TestCase):
             local_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
             if local_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
-                    comparison = torch.tensor(
-                        handle[self.NETCDF_VARIABLE][:],
-                        dtype=torch.int32,
-                        device=self.device.torch_device,
-                    )
+                    comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
                 self.assertTrue((local_range.larray == comparison).all())
 
             # split range
@@ -208,15 +192,11 @@ class TestIO(TestCase):
             split_range.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
-                    comparison = torch.tensor(
-                        handle[self.NETCDF_VARIABLE][:],
-                        dtype=torch.int32,
-                        device=self.device.torch_device,
-                    )
+                    comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
                 self.assertTrue((local_range.larray == comparison).all())
 
             # naming dimensions: string
-            local_range = ht.arange(100, device=self.device)
+            local_range = ht.arange(100)
             local_range.save(
                 self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, dimension_names=self.NETCDF_DIMENSION
             )
@@ -226,7 +206,7 @@ class TestIO(TestCase):
                 self.assertTrue(self.NETCDF_DIMENSION in comparison)
 
             # naming dimensions: tuple
-            local_range = ht.arange(100, device=self.device)
+            local_range = ht.arange(100)
             local_range.save(
                 self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, dimension_names=(self.NETCDF_DIMENSION,)
             )
@@ -247,35 +227,29 @@ class TestIO(TestCase):
             )
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
-                    comparison = torch.tensor(
-                        handle[self.NETCDF_VARIABLE][:],
-                        dtype=torch.int32,
-                        device=self.device.torch_device,
-                    )
+                    comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
                 self.assertTrue(
                     (ht.concatenate((local_range, local_range)).larray == comparison).all()
                 )
 
             # indexing netcdf file: single index
             ht.MPI_WORLD.Barrier()
-            zeros = ht.zeros((20, 1, 20, 2), device=self.device)
+            zeros = ht.zeros((20, 1, 20, 2))
             zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
-            ones = ht.ones(20, device=self.device)
+            ones = ht.ones(20)
             indices = (-1, 0, slice(None), 1)
             ones.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices)
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
-                        handle[self.NETCDF_VARIABLE][indices],
-                        dtype=torch.int32,
-                        device=self.device.torch_device,
+                        handle[self.NETCDF_VARIABLE][indices], dtype=torch.int32
                     )
                 self.assertTrue((ones.larray == comparison).all())
 
             # indexing netcdf file: multiple indices
             ht.MPI_WORLD.Barrier()
-            small_range_split = ht.arange(10, split=0, device=self.device)
-            small_range = ht.arange(10, device=self.device)
+            small_range_split = ht.arange(10, split=0)
+            small_range = ht.arange(10)
             indices = [[0, 9, 5, 2, 1, 3, 7, 4, 8, 6]]
             small_range_split.save(
                 self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w", file_slices=indices
@@ -283,88 +257,74 @@ class TestIO(TestCase):
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
-                        handle[self.NETCDF_VARIABLE][indices],
-                        dtype=torch.int32,
-                        device=self.device.torch_device,
+                        handle[self.NETCDF_VARIABLE][indices], dtype=torch.int32
                     )
                 self.assertTrue((small_range.larray == comparison).all())
 
             # slicing netcdf file
             sslice = slice(7, 2, -1)
-            range_five_split = ht.arange(5, split=0, device=self.device)
-            range_five = ht.arange(5, device=self.device)
+            range_five_split = ht.arange(5, split=0)
+            range_five = ht.arange(5)
             range_five_split.save(
                 self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=sslice
             )
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
-                        handle[self.NETCDF_VARIABLE][sslice],
-                        dtype=torch.int32,
-                        device=self.device.torch_device,
+                        handle[self.NETCDF_VARIABLE][sslice], dtype=torch.int32
                     )
                 self.assertTrue((range_five.larray == comparison).all())
 
             # indexing netcdf file: broadcasting array
-            zeros = ht.zeros((2, 1, 1, 4), device=self.device)
+            zeros = ht.zeros((2, 1, 1, 4))
             zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
-            ones = ht.ones((4), split=0, device=self.device)
-            ones_nosplit = ht.ones((4), split=None, device=self.device)
+            ones = ht.ones((4), split=0)
+            ones_nosplit = ht.ones((4), split=None)
             indices = (0, slice(None), slice(None))
             ones.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices)
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
-                        handle[self.NETCDF_VARIABLE][indices],
-                        dtype=torch.int32,
-                        device=self.device.torch_device,
+                        handle[self.NETCDF_VARIABLE][indices], dtype=torch.int32
                     )
                 self.assertTrue((ones_nosplit.larray == comparison).all())
 
             # indexing netcdf file: broadcasting var
             ht.MPI_WORLD.Barrier()
-            zeros = ht.zeros((2, 2), device=self.device)
+            zeros = ht.zeros((2, 2))
             zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
-            ones = ht.ones((1, 2, 1), split=0, device=self.device)
-            ones_nosplit = ht.ones((1, 2, 1), device=self.device)
+            ones = ht.ones((1, 2, 1), split=0)
+            ones_nosplit = ht.ones((1, 2, 1))
             indices = (0,)
             ones.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+", file_slices=indices)
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
-                        handle[self.NETCDF_VARIABLE][indices],
-                        dtype=torch.int32,
-                        device=self.device.torch_device,
+                        handle[self.NETCDF_VARIABLE][indices], dtype=torch.int32
                     )
                 self.assertTrue((ones_nosplit.larray == comparison).all())
 
             # indexing netcdf file: broadcasting ones
             ht.MPI_WORLD.Barrier()
-            zeros = ht.zeros((1, 1, 1, 1), device=self.device)
+            zeros = ht.zeros((1, 1, 1, 1))
             zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
-            ones = ht.ones((1, 1), device=self.device)
+            ones = ht.ones((1, 1))
             ones.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="r+")
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
-                        handle[self.NETCDF_VARIABLE][indices],
-                        dtype=torch.int32,
-                        device=self.device.torch_device,
+                        handle[self.NETCDF_VARIABLE][indices], dtype=torch.int32
                     )
                 self.assertTrue((ones.larray == comparison).all())
 
             # different split and dtype
             ht.MPI_WORLD.Barrier()
-            zeros = ht.zeros((2, 2), split=1, dtype=ht.int32, device=self.device)
-            zeros_nosplit = ht.zeros((2, 2), dtype=ht.int32, device=self.device)
+            zeros = ht.zeros((2, 2), split=1, dtype=ht.int32)
+            zeros_nosplit = ht.zeros((2, 2), dtype=ht.int32)
             zeros.save(self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE, mode="w")
             if split_range.comm.rank == 0:
                 with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
-                    comparison = torch.tensor(
-                        handle[self.NETCDF_VARIABLE][:],
-                        dtype=torch.int32,
-                        device=self.device.torch_device,
-                    )
+                    comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
                 self.assertTrue((zeros_nosplit.larray == comparison).all())
 
     def test_save_exception(self):
@@ -479,9 +439,7 @@ class TestIO(TestCase):
         ht.save_hdf5(local_data, self.HDF5_OUT_PATH, self.HDF5_DATASET)
         if local_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
-                comparison = torch.tensor(
-                    handle[self.HDF5_DATASET], dtype=torch.int32, device=self.device.torch_device
-                )
+                comparison = torch.tensor(handle[self.HDF5_DATASET], dtype=torch.int32)
             self.assertTrue((local_data.larray == comparison).all())
 
         # distributed data range
@@ -489,9 +447,7 @@ class TestIO(TestCase):
         ht.save_hdf5(split_data, self.HDF5_OUT_PATH, self.HDF5_DATASET)
         if split_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
-                comparison = torch.tensor(
-                    handle[self.HDF5_DATASET], dtype=torch.int32, device=self.device.torch_device
-                )
+                comparison = torch.tensor(handle[self.HDF5_DATASET], dtype=torch.int32)
             self.assertTrue((local_data.larray == comparison).all())
 
     def test_save_hdf5_exception(self):
@@ -576,11 +532,7 @@ class TestIO(TestCase):
         ht.save_netcdf(local_data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
         if local_data.comm.rank == 0:
             with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
-                comparison = torch.tensor(
-                    handle[self.NETCDF_VARIABLE][:],
-                    dtype=torch.int32,
-                    device=self.device.torch_device,
-                )
+                comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
             self.assertTrue((local_data.larray == comparison).all())
 
         # distributed data range
@@ -588,11 +540,7 @@ class TestIO(TestCase):
         ht.save_netcdf(split_data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
         if split_data.comm.rank == 0:
             with ht.io.nc.Dataset(self.NETCDF_OUT_PATH, "r") as handle:
-                comparison = torch.tensor(
-                    handle[self.NETCDF_VARIABLE][:],
-                    dtype=torch.int32,
-                    device=self.device.torch_device,
-                )
+                comparison = torch.tensor(handle[self.NETCDF_VARIABLE][:], dtype=torch.int32)
             self.assertTrue((local_data.larray == comparison).all())
 
     def test_save_netcdf_exception(self):

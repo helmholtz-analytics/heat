@@ -8,7 +8,7 @@ from .test_suites.basic_test import TestCase
 class TestExponential(TestCase):
     def test_exp(self):
         elements = 10
-        tmp = torch.arange(elements, dtype=torch.float64, device=self.device.torch_device).exp()
+        tmp = torch.arange(elements, dtype=torch.float64).exp()
         comparison = ht.array(tmp)
 
         # exponential of float32
@@ -46,7 +46,7 @@ class TestExponential(TestCase):
             ht.exp("hello world")
 
         # Tests with split
-        expected = torch.arange(10, dtype=torch.float32, device=self.device.torch_device).exp()
+        expected = torch.arange(10, dtype=torch.float32).exp()
         actual = ht.arange(10, split=0, dtype=ht.float32).exp()
         self.assertEqual(actual.gshape, tuple(expected.shape))
         self.assertEqual(actual.split, 0)
@@ -57,7 +57,7 @@ class TestExponential(TestCase):
 
     def test_expm1(self):
         elements = 10
-        tmp = torch.arange(elements, dtype=torch.float64, device=self.device.torch_device).expm1()
+        tmp = torch.arange(elements, dtype=torch.float64).expm1()
         comparison = ht.array(tmp)
 
         # expm1onential of float32
@@ -98,7 +98,7 @@ class TestExponential(TestCase):
         elements = 10
         tmp = np.exp2(torch.arange(elements, dtype=torch.float64))
         tmp = tmp.to(self.device.torch_device)
-        comparison = ht.array(tmp, device=self.device)
+        comparison = ht.array(tmp)
 
         # exponential of float32
         float32_tensor = ht.arange(elements, dtype=ht.float32)
@@ -136,7 +136,7 @@ class TestExponential(TestCase):
 
     def test_log(self):
         elements = 15
-        tmp = torch.arange(1, elements, dtype=torch.float64, device=self.device.torch_device).log()
+        tmp = torch.arange(1, elements, dtype=torch.float64).log()
         comparison = ht.array(tmp)
 
         # logarithm of float32
@@ -175,7 +175,7 @@ class TestExponential(TestCase):
 
     def test_log2(self):
         elements = 15
-        tmp = torch.arange(1, elements, dtype=torch.float64, device=self.device.torch_device).log2()
+        tmp = torch.arange(1, elements, dtype=torch.float64).log2()
         comparison = ht.array(tmp)
 
         # logarithm of float32
@@ -214,9 +214,7 @@ class TestExponential(TestCase):
 
     def test_log10(self):
         elements = 15
-        tmp = torch.arange(
-            1, elements, dtype=torch.float64, device=self.device.torch_device
-        ).log10()
+        tmp = torch.arange(1, elements, dtype=torch.float64).log10()
         comparison = ht.array(tmp)
 
         # logarithm of float32
@@ -255,9 +253,7 @@ class TestExponential(TestCase):
 
     def test_log1p(self):
         elements = 15
-        tmp = torch.arange(
-            1, elements, dtype=torch.float64, device=self.device.torch_device
-        ).log1p()
+        tmp = torch.arange(1, elements, dtype=torch.float64).log1p()
         comparison = ht.array(tmp)
 
         # logarithm of float32
@@ -296,7 +292,7 @@ class TestExponential(TestCase):
 
     def test_sqrt(self):
         elements = 25
-        tmp = torch.arange(elements, dtype=torch.float64, device=self.device.torch_device).sqrt()
+        tmp = torch.arange(elements, dtype=torch.float64).sqrt()
         comparison = ht.array(tmp)
 
         # square roots of float32
@@ -335,7 +331,7 @@ class TestExponential(TestCase):
 
     def test_sqrt_method(self):
         elements = 25
-        tmp = torch.arange(elements, dtype=torch.float64, device=self.device.torch_device).sqrt()
+        tmp = torch.arange(elements, dtype=torch.float64).sqrt()
         comparison = ht.array(tmp)
 
         # square roots of float32
@@ -376,9 +372,7 @@ class TestExponential(TestCase):
 
         # square roots
         float32_sqrt = ht.sqrt(number_range, out=output_buffer)
-        comparison = torch.arange(
-            elements, dtype=torch.float32, device=self.device.torch_device
-        ).sqrt()
+        comparison = torch.arange(elements, dtype=torch.float32).sqrt()
 
         # check whether the input range remain unchanged
         self.assertIsInstance(number_range, ht.DNDarray)

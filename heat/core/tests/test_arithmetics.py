@@ -494,12 +494,7 @@ class TestArithmetics(TestCase):
 
         out_axis = ht.ones((3, 3))
         ht.prod(shape_noaxis, axis=0, out=out_axis)
-        self.assertTrue(
-            (
-                out_axis.larray
-                == torch.full((3,), 8, dtype=torch.float, device=self.device.torch_device)
-            ).all()
-        )
+        self.assertTrue((out_axis.larray == torch.full((3,), 8, dtype=torch.float)).all())
 
         # check sum over all float elements of splitted 5d tensor with negative axis
         shape_noaxis_split_axis_neg = ht.full((1, 2, 3, 4, 5), 2, split=1)
@@ -630,12 +625,7 @@ class TestArithmetics(TestCase):
 
         out_noaxis = ht.zeros((3, 3))
         ht.sum(shape_noaxis, axis=0, out=out_noaxis)
-        self.assertTrue(
-            (
-                out_noaxis.larray
-                == torch.full((3, 3), 3, dtype=torch.float, device=self.device.torch_device)
-            ).all()
-        )
+        self.assertTrue((out_noaxis.larray == torch.full((3, 3), 3, dtype=torch.float)).all())
 
         # check sum over all float elements of splitted 5d tensor with negative axis
         shape_noaxis_split_axis_neg = ht.ones((1, 2, 3, 4, 5), split=1)
