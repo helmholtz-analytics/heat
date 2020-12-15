@@ -5,6 +5,8 @@
 - [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
 - [#687](https://github.com/helmholtz-analytics/heat/pull/687) New DNDarray property: balanced
 
+### Factories
+- [#707](https://github.com/helmholtz-analytics/heat/pull/707) New feature: `asarray()`
 ### I/O
 - [#559](https://github.com/helmholtz-analytics/heat/pull/559) Enhancement: `save_netcdf` allows naming dimensions, creating unlimited dimensions, using existing dimensions and variables, slicing
 ### Manipulations
