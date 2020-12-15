@@ -4,6 +4,7 @@
 - [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
 - [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
 - [#687](https://github.com/helmholtz-analytics/heat/pull/687) New DNDarray property: balanced
+- [#702](https://github.com/helmholtz-analytics/heat/pull/702) Support channel stackoverflow
 
 ### Factories
 - [#707](https://github.com/helmholtz-analytics/heat/pull/707) New feature: `asarray()`
@@ -18,6 +19,10 @@
 ### ...
 
 ## Bug fixes
+# v0.5.2
+
+- [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
+
 # v0.5.1
 
 - [#678](https://github.com/helmholtz-analytics/heat/pull/678) Bugfix: Internal functions now use explicit device parameters for DNDarray and torch.Tensor initializations.
