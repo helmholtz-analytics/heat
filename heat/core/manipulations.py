@@ -1700,6 +1700,17 @@ def reshape(a, shape, new_split=None):
     if torch.prod(torch.tensor(shape, device=tdevice)) != a.size:
         raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
+    # Special case: if the split axis is left untouched by the reshaping, no communication is required and we can just reshape the local torch tensor
+    if new_split == a.split and a.shape[new_split] == shape[new_split]:
+        a_reshaped = factories.zeros(
+            shape, split=new_split, dtype=a.dtype, device=a.device, comm=a.comm
+        )
+        shape_loc = list(shape)
+        shape_loc[new_split] = a.lshape[new_split]
+        a_loc = a.larray.reshape(shape_loc)
+        a_reshaped.larray = a_loc
+        return a_reshaped
+
     def reshape_argsort_counts_displs(
         shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
     ):
