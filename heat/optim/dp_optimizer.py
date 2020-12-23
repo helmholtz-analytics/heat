@@ -48,7 +48,7 @@ def __sum_bfloat_cb(buffer_a, buffer_b, _):
 
     ret = tens_b + tens_a
     nelem = int(tens_b.numel())
-    new_buff = MPI.memory.fromaddress(ret.data_ptr(), nbytes=nelem)
+    new_buff = MPI.memory.fromaddress(ret.data_ptr(), nbytes=nelem * tens_b.element_size())
     buffer_b[:] = new_buff
 
 
@@ -175,8 +175,11 @@ class SkipBatches:
 
             def thread_send(lock_num, comm, thread_params, op):
                 self._locks[lock_num].acquire()
+                print("start thread allreduce", lock_num, thread_params.mean())
+                # self._locks[lock_num].acquire()
                 comm.Allreduce(MPI.IN_PLACE, thread_params, op)
                 self._locks[lock_num].release()
+                print("finished thread allreduce", lock_num)
 
             self.thread_fn = thread_send
 
@@ -355,6 +358,7 @@ class SkipBatches:
                         f"DEBUG: OFF RANKS! len(prev_params) > 0! {len(self._prev_params)}"
                         f" batch number {self.current_batch}"
                     )
+            self.comm.Barrier()
             self._local_torch_param_update(self._send_mod)
 
             self._send_mod_m1 = None
@@ -394,10 +398,11 @@ class SkipBatches:
             splits = self.split_inds
             for s in range(len(self._locks)):
                 # need to slice the params at the split points
-                lp_par = params[prev : splits[s] + prev].clone()
-                prev = splits[s]
+                lp_par = params[prev : splits[s] + prev]  # .clone()
+                prev += splits[s]
                 params_list.append(lp_par)
                 # thread.fn(lock_num, comm, thread_params, op)
+                print("putting lp par in queue", s, prev)
                 self._queue.put((self.thread_fn, s, current_comm, lp_par, op))
             self._prev_params.append([None, params_list, shapes, batches_to_wait])
         elif self.split or params.numel() > self.split_val:
@@ -448,10 +453,10 @@ class SkipBatches:
             num_locks = math.ceil(st / self.split_val)
             if num_locks < self.init_threads:
                 num_locks = self.init_threads
-            self._locks = [threading.Lock] * num_locks
+            self._locks = [threading.Lock()] * num_locks
 
             splits = [self.split_val] * (num_locks - 1)
-            rem = st - self.split_val
+            rem = st - (self.split_val * (num_locks - 1))
             # first one will be smaller then the rest (the raminder is first
             splits = [rem] + splits
             self.split_inds = splits
@@ -504,14 +509,20 @@ class SkipBatches:
         shapes = prev_params[2]
         if self.threaded_sync:
             ind1 = 0
+            print("before first lock acquire")
             self._locks[ind1].acquire()
+            print("after first lock acquire")
             rcv_params = prev_params[1][ind1] / float(len(current_ranks))
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
                     while shapes[name][1].stop > len(rcv_params):
                         ind1 += 1
-                        self._locks[ind1].acquire()
                         self._locks[ind1 - 1].release()
+                        print("getting lock:", ind1, self._locks[ind1], self._locks[ind1].locked())
+                        self._locks[ind1].acquire()
+                        print("acquired lock:", ind1, "releasing", ind1-1)
+                        # self._locks[ind1 - 1].release()
+                        print("lock released")
                         new_rcv_params = prev_params[1][ind1] / float(len(current_ranks))
                         rcv_params = torch.cat((rcv_params, new_rcv_params))
                     param[:] = (
