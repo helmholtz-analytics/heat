@@ -59,7 +59,7 @@ class MPICommunication(Communication):
         torch.int16: MPI.SHORT,
         torch.int32: MPI.INT,
         torch.int64: MPI.LONG,
-        torch.bfloat16: MPI.SHORT, #MPI.BYTE.Create_contiguous(2).Commit(),
+        torch.bfloat16: MPI.SHORT,  # MPI.BYTE.Create_contiguous(2).Commit(),
         torch.float16: MPI.SHORT,
         torch.float32: MPI.FLOAT,
         torch.float64: MPI.DOUBLE,
@@ -475,7 +475,7 @@ class MPICommunication(Communication):
         return MPIRequest(*self.__broadcast_like(self.handle.Ibcast, buf, root))
 
     Ibcast.__doc__ = MPI.Comm.Ibcast.__doc__
-
+    
     def __reduce_like(self, func, sendbuf, recvbuf, *args, **kwargs):
         sbuf = None
         rbuf = None
@@ -514,7 +514,8 @@ class MPICommunication(Communication):
                 recvbuf = (self.as_mpi_memory(rbuf), sendbuf[1], sendbuf[2])
 
         # perform the actual reduction operation
-        return func(sendbuf, recvbuf, *args, **kwargs), sbuf, rbuf, buf
+        return_func = func(sendbuf, recvbuf, *args, **kwargs)
+        return return_func, sbuf, rbuf, buf
 
     def Allreduce(self, sendbuf, recvbuf, op=MPI.SUM):
         ret, sbuf, rbuf, buf = self.__reduce_like(self.handle.Allreduce, sendbuf, recvbuf, op)

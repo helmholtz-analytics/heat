@@ -336,8 +336,9 @@ def main():
     args.local_rank = loc_rank
     if args.distributed and loc_dist:
         device = "cuda:" + str(loc_rank)
+        port = str(29500) # + (args.world_size % args.gpus))
         os.environ["MASTER_ADDR"] = "localhost"
-        os.environ["MASTER_PORT"] = "29500"
+        os.environ["MASTER_PORT"] = port #"29500"
         if args.local_comms == "nccl":
             os.environ["NCCL_SOCKET_IFNAME"] = "ib"
         torch.distributed.init_process_group(
@@ -429,7 +430,7 @@ def main():
     )
     pipe.build()
 
-    train_loader = DALIClassificationIterator(pipe, reader_name="Reader", fill_last_batch=False)
+    train_loader = DALIClassificationIterator(pipe, reader_name="Reader", last_batch_policy=False)
 
     pipe = HybridPipe(
         batch_size=args.batch_size,
@@ -442,7 +443,7 @@ def main():
         training=False,
     )
     pipe.build()
-    val_loader = DALIClassificationIterator(pipe, reader_name="Reader", fill_last_batch=False)
+    val_loader = DALIClassificationIterator(pipe, reader_name="Reader", last_batch_policy=False)
 
     if args.evaluate:
         validate(device, val_loader, htmodel, criterion)
@@ -564,6 +565,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("optimizer.step()")
         optimizer.step()
+
         if args.prof >= 0:
             torch.cuda.nvtx.range_pop()
 
