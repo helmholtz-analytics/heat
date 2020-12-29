@@ -44,17 +44,17 @@ def __sum_f16_cb(buffer_a, buffer_b, _):
 
 
 def __sum_bfloat_cb(buffer_a, buffer_b, _):
-    #print("top of MPI function")
+    # print("top of MPI function")
     tens_a = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_a, "native"))
     tens_b = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_b, "native"))
 
-    #ret = tens_b + tens_a
+    # ret = tens_b + tens_a
     tens_b += tens_a
     nelem = int(tens_b.numel())
-    #print("before buffer creation")
+    # print("before buffer creation")
     new_buff = MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=nelem * tens_b.element_size())
     buffer_b[:] = new_buff
-    #print("end of MPI function")
+    # print("end of MPI function")
 
 
 # create new OP
@@ -179,15 +179,17 @@ class SkipBatches:
                 threading.Thread(target=queue_thread, args=[self._queue], daemon=True).start()
 
             def thread_send(lock_num, comm, thread_params, op):
-                #print("beginning of threasd", self._locks[lock_num])
-                #self._locks[lock_num].acquire()
-                print("start thread allreduce", lock_num, self._locks[lock_num], thread_params.shape)
+                # print("beginning of threasd", self._locks[lock_num])
+                # self._locks[lock_num].acquire()
+                print(
+                    "start thread allreduce", lock_num, self._locks[lock_num], thread_params.shape
+                )
                 # self._locks[lock_num].acquire()
                 with self._locks[lock_num]:
-                    #print("before comm call")
+                    # print("before comm call")
                     comm.Allreduce(MPI.IN_PLACE, thread_params, op)
                 self.thread_running[lock_num] = False
-                #self._locks[lock_num].release()
+                # self._locks[lock_num].release()
                 print("finished thread allreduce", lock_num)
 
             self.thread_fn = thread_send
@@ -292,7 +294,7 @@ class SkipBatches:
             self.lcl_optimizer.step()
         else:
             self.scheduler.step()
-        
+
         batch = self.current_batch
         next_batch = batch + 1
         gs = self.global_skip
@@ -369,7 +371,7 @@ class SkipBatches:
                         f"DEBUG: OFF RANKS! len(prev_params) > 0! {len(self._prev_params)}"
                         f" batch number {self.current_batch}"
                     )
-            #self.comm.Barrier()
+            # self.comm.Barrier()
             self._local_torch_param_update(self._send_mod)
 
             self._send_mod_m1 = None
@@ -381,7 +383,7 @@ class SkipBatches:
             else:
                 self.current_batch += 1
                 self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
-            #if self._locks is not None:
+            # if self._locks is not None:
             #    for l in self._locks:
             #        print("locks", l)
             #        if l is not None and l.locked():
@@ -398,40 +400,30 @@ class SkipBatches:
         # pack and send the data required for a global synchronization
         op = MPI.SUM
         cast = False
-        #if self.global_skip < 1:
+        # if self.global_skip < 1:
         #    op = mpi_sum_bfloat
         #    cast = True
 
+        sndparams = torch.zeros(
+            self._param_send_buffer_shape,
+            device=self.device,
+            dtype=torch.bfloat16 if cast else None,
+        )
+
         param_dict, shapes = self._create_param_dict_n_shapes()
 
-        sndparams = self.__pack_data(
-            param_dict, self._param_send_buffer_shape, cast, str(self.device)
-        )#.contiguous() # , buff_param
+        # numer =
+        denom = float(current_comm.size + batches_to_wait * 2.0)
+
+        sndparams = self.__pack_data(sndparams, param_dict, cast, denom)
+
         if sndparams.isnan().sum():
-            raise ValueError(f"{params.isnan().sum()} NaNs in `params` shit be fucked?")
-        if self.threaded_sync:
-            # todo: put this into the non-blocking split case
-            params_list = []
-            prev = 0
-            splits = self.split_inds
-            for s in range(len(self._locks)):
-                # TODO: replace this logic with the self.split_inds
-                # need to slice the params at the split points
-                lp_par = sndparams[prev : splits[s] + prev]#.clone()
-                prev += splits[s]
-                params_list.append(lp_par)
-                #if self._locks[s].locked():
-                #    self._locks[s].release()
-                # thread.fn(lock_num, comm, thread_params, op)
-                #print("putting lp par in queue", s, prev, self._locks[s])
-                self._queue.put((self.thread_fn, s, current_comm, lp_par, op))
-                self.thread_running[s] = True
-            self._prev_params.append([None, params_list, shapes, batches_to_wait])
-        elif self.split or sndparams.numel() > self.split_val:
+            raise ValueError(f"{sndparams.isnan().sum()} NaNs in `params` shit be fucked?")
+        if self.split or sndparams.numel() > self.split_val:
             self.split = True
-            num_splits = math.ceil(len(params) / self.split_val)
+            num_splits = math.ceil(len(sndparams) / self.split_val)
             splits = [self.split_val] * (num_splits - 1)
-            rem = len(params) - (self.split_val * (num_splits - 1))
+            rem = len(sndparams) - (self.split_val * (num_splits - 1))
             # first one will be smaller then the rest (the raminder is first
             splits = [rem] + splits
             self.split_inds = splits
@@ -440,13 +432,12 @@ class SkipBatches:
             waits = [None] * num_splits
             for s in range(num_splits):
                 # need to slice the params at the split points
-                params_list[s] = sndparams[prev : splits[s] + prev]#.clone()
+                params_list[s] = sndparams[prev : splits[s] + prev]
                 prev += splits[s]
                 waits[s] = current_comm.Iallreduce(MPI.IN_PLACE, params_list[s], op)
             self._prev_params.append([waits, params_list, shapes, batches_to_wait])
         else:
-            #params.mean()
-            new_wait = current_comm.Iallreduce(MPI.IN_PLACE, sndparams, op) #MPI.IN_PLACE, params, op)  # mpi_sum_f16) #
+            new_wait = current_comm.Iallreduce(MPI.IN_PLACE, sndparams, op)  # mpi_sum_f16) #
             self._prev_params.append([new_wait, sndparams, shapes, batches_to_wait])
 
     def _create_param_dict_n_shapes(self):
@@ -455,8 +446,7 @@ class SkipBatches:
         this will also define the buffer size if it was not previously defined.
         """
         if self.shapes is not None:
-            #self.thread_running = [False] * len(self._locks)
-            #self.param_dict = {n:p for n, p in self.module.named_parameters()}
+            # self.param_dict = {n:p for n, p in self.module.named_parameters()}
             return self.param_dict, self.shapes
         # else:
         param_dict = {}
@@ -477,7 +467,7 @@ class SkipBatches:
             if num_locks < self.init_threads:
                 num_locks = self.init_threads
             self._locks = [threading.Lock() for _ in range(num_locks)]
-            
+
             if st / self.init_threads < self.split_val:
                 self.split_val = st // self.init_threads
             splits = [self.split_val] * (num_locks - 1)
@@ -493,22 +483,21 @@ class SkipBatches:
 
     @staticmethod
     @torch.no_grad()
-    #@torch.jit.script
-    def __pack_data(iter_dict: Dict[str, torch.Tensor], buffer_shape: int, cast: bool, dev: str):
+    @torch.jit.script
+    def __pack_data(
+        jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: bool, denom: float
+    ):
         """ jitted loop to pack the data into params to be sent"""
         st = 0
-        params = torch.zeros(buffer_shape, device=dev, dtype=torch.bfloat16 if cast else None)
-        #buff_params = params.clone()
         for name, param in iter_dict.items():
             if param.requires_grad:
                 # flatten and prep the data for sending
                 p = torch.flatten(param)
                 if cast:
                     p = p.to(torch.bfloat16)
-                params[st : st + param.numel()] = p
+                jtparams[st : st + param.numel()] = p
                 st += param.numel()
-        # print("w/in packing", params.mean(), params.isnan().sum())
-        return params #, buff_params  # .contiguous()
+        return jtparams / denom
 
     @torch.no_grad()
     def _local_torch_param_update(self, mod_hold_pr):
@@ -533,80 +522,38 @@ class SkipBatches:
             raise ValueError(f"length of previous params > 1! {len(self._prev_params)}")
         prev_params = self._prev_params.pop(0)
         shapes = prev_params[2]
-        if self.threaded_sync:
-            ind1 = 0
-            print("SETTER before first lock acquire", self._locks[ind1])
-            while self.thread_running[ind1]:  # self._queue.qsize() == len(self._locks) - ind1:
-                time.sleep(0.0051)
-            with self._locks[ind1]:
-                #self._locks[ind1].acquire()
-                print("SETTER after first lock acquire")
-                rcv_params = prev_params[1][ind1] / float(len(current_ranks))
-            for name, param in self.module.named_parameters():
-                if param.requires_grad:
-                    while shapes[name][1].stop > len(rcv_params):
-                        ind1 += 1
-                        #self._locks[ind1 - 1].release()
-                        #print("SETTER getting lock:", ind1, self._locks[ind1], self._locks[ind1].locked())
-                        #self._locks[ind1].acquire()
-                        #print("acquired lock:", ind1, "releasing", ind1-1)
-                        # self._locks[ind1 - 1].release()
-                        #print("lock released")
-                        while self.thread_running[ind1]:  # self._queue.qsize() == len(self._locks) - ind1:
-                            time.sleep(0.0051)
-                        with self._locks[ind1]:
-                            new_rcv_params = prev_params[1][ind1] / float(len(current_ranks))
-                        rcv_params = torch.cat((rcv_params, new_rcv_params))
-                    param[:] = (
-                        rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-                    )
-            #print("rcv params", rcv_params.sum())
-            #self.thread_running = [False] * len(self._locks)
-            #self._locks[ind1 - 1].release() 
-        elif not self.split:
+        if not self.split:
             print("before wait")
-            #prev_params[0].Wait()
-            #print("before second wait")
-            prev_params[0].wait()
-            rcv_params = prev_params[1] / float(len(current_ranks))
+            prev_params[0].Wait()
+            rcv_params = prev_params[1]  # / float(len(current_ranks))
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
                     param[:] = (
                         rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                     )
             print("end of update")
-            #del prev_params
+            del prev_params
         else:
             ind1 = 0
-            #print("before first wait", prev_params[0][0])
-            #prev_params[0][ind1].Wait()
-            #prev_params[0][ind1] = None
-            prev_params[0][0].wait()
-            #if prev_params[0][0] is not None:
-            #prev_params[0][0].wait()
+            # print("before first wait", prev_params[0][0])
+            prev_params[0][0].Wait()
             del prev_params[0][0]
-            rcv_params = prev_params[1][ind1] / float(len(current_ranks))
-            #print("after first wait")
+            rcv_params = prev_params[1][ind1]  # / float(len(current_ranks))
+            # print("after first wait")
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
                     while shapes[name][1].stop > len(rcv_params):
                         ind1 += 1
-                        prev_params[0][0].wait()
-                        #prev_params[0][0].wait()
+                        prev_params[0][0].Wait()
                         del prev_params[0][0]
-                        #prev_params[0][ind1].Wait()
-                        #prev_params[0][ind1] = None
-                        #print("finished wait for ind", ind1)
                         new_rcv_params = prev_params[1][ind1] / float(len(current_ranks))
                         rcv_params = torch.cat((rcv_params, new_rcv_params))
                     param[:] = (
                         rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                     )
-        #del rcv_params, prev_params
+        del rcv_params, prev_params
         if len(self._prev_params) >= 1:
             print("len of prev_params is > 1!", self._prev_params)
-        #gc.collect()
-        #self._prev_params = []
 
     @torch.no_grad()
     def _update_parameters(self):
@@ -628,28 +575,9 @@ class SkipBatches:
         numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
         denom = float(len(prev_ranks) + numer)
         factor = numer / denom
-        if self.threaded_sync:
-            ind1 = 0
-            # TODO: update for threaded send/rcv
-            #self._locks[ind1].acquire()
-            rcv_params = prev_params[1][ind1] / denom
-            for name, param in self.module.named_parameters():
-                if param.requires_grad:
-                    while shapes[name][1].stop > len(rcv_params):
-                        ind1 += 1
-                        self._locks[ind1].acquire()
-                        self._locks[ind1 - 1].release()
-                        new_rcv_params = prev_params[1][ind1] / denom
-                        rcv_params = torch.cat((rcv_params, new_rcv_params))
-                    update = (
-                        rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
-                    )
-                    # NOTE: update here is the sum of the params across the processes
-                    param *= factor
-                    param += update  # / denom
-        elif not self.split:
+        if not self.split:
             prev_params[0].Wait()
-            rcv_params = prev_params[1] / denom
+            rcv_params = prev_params[1]  # / denom
             # todo: jit the parameter setting
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
@@ -666,7 +594,7 @@ class SkipBatches:
             ind = 0
             prev_params[0][0].Wait()
             del prev_params[0][0]
-            rcv_params = prev_params[1][ind] / denom
+            rcv_params = prev_params[1][ind]  # / denom
             # jit the parameter setting
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
@@ -674,7 +602,7 @@ class SkipBatches:
                         ind += 1
                         prev_params[0][0].Wait()
                         del prev_params[0][0]
-                        new_rcv_params = prev_params[1][ind] / denom
+                        new_rcv_params = prev_params[1][ind]  # / denom
                         rcv_params = torch.cat((rcv_params, new_rcv_params))
                     update = (
                         rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
