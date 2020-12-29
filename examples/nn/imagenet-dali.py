@@ -569,7 +569,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         if args.prof >= 0:
             torch.cuda.nvtx.range_pop()
 
-        if i % args.print_freq == 0 or i == train_loader_len:
+        if i % args.print_freq == 0 or i == train_loader_len - 1:
             # Every print_freq iterations, check the loss, accuracy, and speed.
             # For best performance, it doesn't make sense to print these metrics every
             # iteration, since they incur an allreduce and some host<->device syncs.
