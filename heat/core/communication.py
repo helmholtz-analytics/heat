@@ -66,10 +66,22 @@ class MPICommunication(Communication):
     }
     MPI._typedict["e"] = __mpi_type_mappings
 
-    def __init__(self, handle=MPI.COMM_WORLD):
+    def __init__(self, handle=MPI.COMM_WORLD, group=False):
         self.handle = handle
-        self.rank = handle.Get_rank()
-        self.size = handle.Get_size()
+        if group:
+            try:
+                self.rank = handle.Get_rank()
+                self.size = handle.Get_size()
+            except MPI.Exception:
+                self.rank = None
+                self.size = None
+        else:
+            self.rank = handle.Get_rank()
+            self.size = handle.Get_size()
+    #def __init__(self, handle=MPI.COMM_WORLD):
+    #    self.handle = handle
+    #    self.rank = handle.Get_rank()
+    #    self.size = handle.Get_size()
 
     def is_distributed(self):
         """
