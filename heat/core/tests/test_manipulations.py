@@ -2116,6 +2116,8 @@ class TestManipulations(TestCase):
         exp_indices = torch.tensor([[rank] * size])
         result, result_indices = ht.sort(data, descending=True, axis=0)
         self.assertTrue(torch.equal(result.larray, exp_axis_zero))
+        print(result_indices.larray)
+        print(exp_indices.int())
         self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
         exp_axis_one, exp_indices = torch.arange(size).reshape(1, size).sort(dim=1, descending=True)
