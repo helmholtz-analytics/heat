@@ -2155,10 +2155,7 @@ class TestManipulations(TestCase):
 
         data = ht.array(tensor, split=0)
         exp_axis_zero = torch.tensor([[2, 3, 0], [0, 2, 3]], dtype=torch.int32)
-        if torch.cuda.is_available() and data.device == ht.gpu and size < 4:
-            indices_axis_zero = torch.tensor([[0, 2, 2], [3, 2, 0]], dtype=torch.int32)
-        else:
-            indices_axis_zero = torch.tensor([[0, 2, 2], [3, 0, 0]], dtype=torch.int32)
+        indices_axis_zero = torch.tensor([[0, 2, 2], [3, 0, 0]], dtype=torch.int32)
         result, result_indices = ht.sort(data, axis=0)
         first = result[0].larray
         first_indices = result_indices[0].larray
