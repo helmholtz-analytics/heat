@@ -12,7 +12,8 @@ import math
 import queue
 import threading
 import gc
-#gc.enable()
+
+# gc.enable()
 
 __all__ = ["DataParallelOptimizer", "SkipBatches"]
 
@@ -44,17 +45,17 @@ def __sum_f16_cb(buffer_a, buffer_b, _):
 
 
 def __sum_bfloat_cb(buffer_a, buffer_b, _):
-    #print("top of MPI function")
+    # print("top of MPI function")
     tens_a = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_a, "native"))
     tens_b = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_b, "native"))
 
     # ret = tens_b + tens_a
     tens_b += tens_a
     nelem = int(tens_b.numel())
-    #print("before buffer creation")
+    # print("before buffer creation")
     new_buff = MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=nelem * tens_b.element_size())
     buffer_b[:] = new_buff
-    #print("end of MPI function")
+    # print("end of MPI function")
     del tens_b, tens_a
 
 
@@ -136,13 +137,8 @@ class SkipBatches:
             reduced_comms, reduced_ranks = [], []
             for i in range(loc_gpus):
                 lp_ranks = [j + i for j in base_loc_ranks]
-                color = 111 + i if rank in lp_ranks else 222 + i
-                key = 0 + i if rank in lp_ranks else 444 + i
-                #reduced_comms.append(MPICommunication(MPI_WORLD.Split(color, key)))
                 newGroup = MPI_WORLD.group.Incl(lp_ranks)
                 newComm = MPI_WORLD.Create_group(newGroup)
-
-                #reduced_comms.append(MPICommunication(MPI_WORLD.Split(color, key)))
                 reduced_comms.append(MPICommunication(newComm, group=True))
                 reduced_ranks.append(tuple(lp_ranks))
             self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
@@ -172,37 +168,11 @@ class SkipBatches:
         self._param_send_shp = None
         self.split = None
 
-        self.split_val = 500_000_000  # 5?
+        self.split_val = 50_000_000  # 5?
 
         # TODO: add these to the class params
-        self.threaded_sync = False  # True
-        self.init_threads = 4
-        if self.threaded_sync:
-            self._queue = queue.Queue()
-            # TODO: set number of locks!!
-            self._locks = None
-            for _ in range(self.init_threads):
-                threading.Thread(target=queue_thread, args=[self._queue], daemon=True).start()
-
-            def thread_send(lock_num, comm, thread_params, op):
-                # print("beginning of threasd", self._locks[lock_num])
-                # self._locks[lock_num].acquire()
-                print(
-                    "start thread allreduce", lock_num, self._locks[lock_num], thread_params.shape
-                )
-                # self._locks[lock_num].acquire()
-                with self._locks[lock_num]:
-                    # print("before comm call")
-                    comm.Allreduce(MPI.IN_PLACE, thread_params, op)
-                self.thread_running[lock_num] = False
-                # self._locks[lock_num].release()
-                print("finished thread allreduce", lock_num)
-
-            self.thread_fn = thread_send
-            self.thread_running = None
 
         self.split_inds = None
-
         self.amp = False
 
     def set_model(self, model):
@@ -300,7 +270,7 @@ class SkipBatches:
             self.lcl_optimizer.step()
         else:
             self.scheduler.step()
-        #gc.collect()
+        # gc.collect()
         batch = self.current_batch
         next_batch = batch + 1
         gs = self.global_skip
@@ -389,17 +359,10 @@ class SkipBatches:
             else:
                 self.current_batch += 1
                 self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
-            # if self._locks is not None:
-            #    for l in self._locks:
-            #        print("locks", l)
-            #        if l is not None and l.locked():
-            #            l.release()
         else:
             self.current_batch += 1
             self._send_mod_m1 = self._send_mod
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
-
-        gc.collect()
 
     @torch.no_grad()
     def _global_send_update(self, current_comm, batches_to_wait):
@@ -416,14 +379,11 @@ class SkipBatches:
             device=self.device,
             dtype=torch.bfloat16 if cast else None,
         )
-        #rcvparams = sndparams.clone()
+        # todo: divide the data before sending? might have issues with the casting of smaller numbers??
+        # its slower to divide before sending! ???  ...more testing required
+        # denom = float(current_comm.size + batches_to_wait * 2.0)
 
-        # param_dict, shapes = self._create_param_dict_n_shapes()
-
-        # numer =
-        denom = float(current_comm.size + batches_to_wait * 2.0)
-
-        sndparams[:] = self.__pack_data(sndparams, param_dict, cast, denom)
+        sndparams = self.__pack_data(sndparams, param_dict, cast)
 
         if sndparams.isnan().sum():
             raise ValueError(f"{sndparams.isnan().sum()} NaNs in `params` shit be fucked?")
@@ -445,7 +405,7 @@ class SkipBatches:
                 waits[s] = current_comm.Iallreduce(MPI.IN_PLACE, params_list[s], op)
             self._prev_params.append([waits, params_list, shapes, batches_to_wait])
         else:
-            #print("sending", current_comm, op)
+            # print("sending", current_comm, op)
             new_wait = current_comm.Iallreduce(MPI.IN_PLACE, sndparams, op)  # mpi_sum_f16) #
             self._prev_params.append([new_wait, sndparams, shapes, batches_to_wait])
 
@@ -470,22 +430,6 @@ class SkipBatches:
             # use the total number of elements to define the sending buffer shape (single int)
             self._param_send_buffer_shape = st
 
-        if self.threaded_sync:
-            # get the number of divisions for the number of locks
-            num_locks = math.ceil(st / self.split_val)
-            if num_locks < self.init_threads:
-                num_locks = self.init_threads
-            self._locks = [threading.Lock() for _ in range(num_locks)]
-
-            if st / self.init_threads < self.split_val:
-                self.split_val = st // self.init_threads
-            splits = [self.split_val] * (num_locks - 1)
-            rem = st - (self.split_val * (num_locks - 1))
-            # first one will be smaller then the rest (the raminder is first
-            splits = [rem] + splits
-            self.split_inds = splits
-            self.thread_running = [False] * num_locks
-
         self.param_dict = param_dict
         self.shapes = shapes
         return param_dict, shapes
@@ -493,9 +437,7 @@ class SkipBatches:
     @staticmethod
     @torch.no_grad()
     @torch.jit.script
-    def __pack_data(
-        jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: bool, denom: float
-    ):
+    def __pack_data(jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: bool):
         """ jitted loop to pack the data into params to be sent"""
         st = 0
         for name, par in iter_dict.items():
@@ -506,7 +448,7 @@ class SkipBatches:
                     p = p.to(torch.bfloat16)
                 jtparams[st : st + par.numel()] = p
                 st += par.numel()
-        return jtparams #/ denom
+        return jtparams
 
     @torch.no_grad()
     def _local_torch_param_update(self, mod_hold_pr):
@@ -523,7 +465,7 @@ class SkipBatches:
         for name, param in self.module.named_parameters():
             if param.requires_grad:
                 snds[name].wait()
-        #del snds
+        # del snds
 
     @torch.no_grad()
     def _update_last_batch(self, current_ranks):
@@ -532,7 +474,7 @@ class SkipBatches:
         prev_params = self._prev_params.pop(0)
         shapes = prev_params[2]
         if not self.split:
-            #print("before wait")
+            # print("before wait")
             prev_params[0].Wait()
             rcv_params = prev_params[1] / float(len(current_ranks))
             for name, param in self.module.named_parameters():
@@ -540,15 +482,12 @@ class SkipBatches:
                     param[:] = (
                         rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                     )
-            #print("end of update")
-            #del prev_params
         else:
             ind1 = 0
-            #print("before first wait", prev_params[0][0])
+            # print("before first wait", prev_params[0][0])
             prev_params[0][0].Wait()
             del prev_params[0][0]
             rcv_params = prev_params[1][ind1] / float(len(current_ranks))
-            #print("after first wait")
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
                     while shapes[name][1].stop > len(rcv_params):
@@ -596,7 +535,7 @@ class SkipBatches:
                     # NOTE: update here is the sum of the params across the processes
                     param *= factor
                     param += update  # / denom
-            #del prev_params
+            # del prev_params
         else:
             # receive the first one, then when the end of the slice is higher than the amount received,
             #   then get the next one
@@ -611,7 +550,7 @@ class SkipBatches:
                         ind += 1
                         prev_params[0][0].Wait()
                         del prev_params[0][0]
-                        new_rcv_params = prev_params[1][ind]  # / denom
+                        new_rcv_params = prev_params[1][ind] / denom
                         rcv_params = torch.cat((rcv_params, new_rcv_params))
                     update = (
                         rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])

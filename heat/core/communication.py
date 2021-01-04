@@ -73,15 +73,12 @@ class MPICommunication(Communication):
                 self.rank = handle.Get_rank()
                 self.size = handle.Get_size()
             except MPI.Exception:
+                # ranks not within the group will fail with an MPI.Exception, this is expected
                 self.rank = None
                 self.size = None
         else:
             self.rank = handle.Get_rank()
             self.size = handle.Get_size()
-    #def __init__(self, handle=MPI.COMM_WORLD):
-    #    self.handle = handle
-    #    self.rank = handle.Get_rank()
-    #    self.size = handle.Get_size()
 
     def is_distributed(self):
         """
@@ -487,7 +484,7 @@ class MPICommunication(Communication):
         return MPIRequest(*self.__broadcast_like(self.handle.Ibcast, buf, root))
 
     Ibcast.__doc__ = MPI.Comm.Ibcast.__doc__
-    
+
     def __reduce_like(self, func, sendbuf, recvbuf, *args, **kwargs):
         sbuf = None
         rbuf = None
