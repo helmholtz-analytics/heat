@@ -172,7 +172,7 @@ class SkipBatches:
         self._param_send_shp = None
         self.split = None
 
-        self.split_val = 500_000_000  # 5?
+        self.split_val = 10_000_000  # 5?
 
         # TODO: add these to the class params
         self.threaded_sync = False  # True
@@ -423,7 +423,7 @@ class SkipBatches:
         # numer =
         denom = float(current_comm.size + batches_to_wait * 2.0)
 
-        sndparams[:] = self.__pack_data(sndparams, param_dict, cast, denom)
+        sndparams = self.__pack_data(sndparams, param_dict, cast, denom)
 
         if sndparams.isnan().sum():
             raise ValueError(f"{sndparams.isnan().sum()} NaNs in `params` shit be fucked?")
@@ -506,7 +506,7 @@ class SkipBatches:
                     p = p.to(torch.bfloat16)
                 jtparams[st : st + par.numel()] = p
                 st += par.numel()
-        return jtparams #/ denom
+        return jtparams / denom
 
     @torch.no_grad()
     def _local_torch_param_update(self, mod_hold_pr):
@@ -534,7 +534,7 @@ class SkipBatches:
         if not self.split:
             #print("before wait")
             prev_params[0].Wait()
-            rcv_params = prev_params[1] / float(len(current_ranks))
+            rcv_params = prev_params[1] #/ float(len(current_ranks))
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
                     param[:] = (
@@ -547,7 +547,7 @@ class SkipBatches:
             #print("before first wait", prev_params[0][0])
             prev_params[0][0].Wait()
             del prev_params[0][0]
-            rcv_params = prev_params[1][ind1] / float(len(current_ranks))
+            rcv_params = prev_params[1][ind1] #/ float(len(current_ranks))
             #print("after first wait")
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
@@ -555,7 +555,7 @@ class SkipBatches:
                         ind1 += 1
                         prev_params[0][0].Wait()
                         del prev_params[0][0]
-                        new_rcv_params = prev_params[1][ind1] / float(len(current_ranks))
+                        new_rcv_params = prev_params[1][ind1] #/ float(len(current_ranks))
                         rcv_params = torch.cat((rcv_params, new_rcv_params))
                     param[:] = (
                         rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
@@ -586,7 +586,7 @@ class SkipBatches:
         factor = numer / denom
         if not self.split:
             prev_params[0].Wait()
-            rcv_params = prev_params[1] / denom
+            rcv_params = prev_params[1] #/ denom
             # todo: jit the parameter setting
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
@@ -603,7 +603,7 @@ class SkipBatches:
             ind = 0
             prev_params[0][0].Wait()
             del prev_params[0][0]
-            rcv_params = prev_params[1][ind] / denom
+            rcv_params = prev_params[1][ind] #/ denom
             # jit the parameter setting
             for name, param in self.module.named_parameters():
                 if param.requires_grad:
