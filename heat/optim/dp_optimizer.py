@@ -64,24 +64,6 @@ mpi_sum_f16 = MPI.Op.Create(__sum_f16_cb, commute=True)
 mpi_sum_bfloat = MPI.Op.Create(__sum_bfloat_cb, commute=True)
 
 
-@torch.no_grad()
-@torch.jit.script
-def __pack_data(
-    jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: bool, denom: float
-):
-    """ jitted loop to pack the data into params to be sent"""
-    st = 0
-    for name, par in iter_dict.items():
-        if par.requires_grad:
-            # flatten and prep the data for sending
-            p = torch.flatten(par)
-            if cast:
-                p = p.to(torch.bfloat16)
-            jtparams[st : st + par.numel()] = p
-            st += par.numel()
-    return jtparams  # / denom
-
-
 class DataParallelOptimizer:
     """
     Uses a Torch.optim.Optimizer for data parallelism. It should be used in combination with DataParallel (DP) class.
@@ -382,6 +364,24 @@ class SkipBatches:
             self._send_mod_m1 = self._send_mod
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
 
+    @staticmethod
+    @torch.no_grad()
+    @torch.jit.script
+    def __pack_data(
+        jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: bool, denom: float
+    ):
+        """ jitted loop to pack the data into params to be sent"""
+        st = 0
+        for name, par in iter_dict.items():
+            if par.requires_grad:
+                # flatten and prep the data for sending
+                p = torch.flatten(par)
+                if cast:
+                    p = p.to(torch.bfloat16)
+                jtparams[st : st + par.numel()] = p
+                st += par.numel()
+        return jtparams  # / denom
+
     @torch.no_grad()
     def _global_send_update(self, current_comm, batches_to_wait):
         # pack and send the data required for a global synchronization
@@ -401,7 +401,7 @@ class SkipBatches:
         # its slower to divide before sending! ???  ...more testing required
         denom = float(current_comm.size + (batches_to_wait * 2.0))
 
-        sndparams = __pack_data(sndparams, param_dict, cast, denom)
+        sndparams = self.__pack_data(sndparams, param_dict, cast, denom)
 
         if sndparams.isnan().sum():
             raise ValueError(f"{sndparams.isnan().sum()} NaNs in `params` shit be fucked?")
