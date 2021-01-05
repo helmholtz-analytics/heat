@@ -64,6 +64,24 @@ mpi_sum_f16 = MPI.Op.Create(__sum_f16_cb, commute=True)
 mpi_sum_bfloat = MPI.Op.Create(__sum_bfloat_cb, commute=True)
 
 
+@torch.no_grad()
+@torch.jit.script
+def __pack_data(
+    jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: bool, denom: float
+):
+    """ jitted loop to pack the data into params to be sent"""
+    st = 0
+    for name, par in iter_dict.items():
+        if par.requires_grad:
+            # flatten and prep the data for sending
+            p = torch.flatten(par)
+            if cast:
+                p = p.to(torch.bfloat16)
+            jtparams[st : st + par.numel()] = p
+            st += par.numel()
+    return jtparams  # / denom
+
+
 class DataParallelOptimizer:
     """
     Uses a Torch.optim.Optimizer for data parallelism. It should be used in combination with DataParallel (DP) class.
@@ -168,7 +186,7 @@ class SkipBatches:
         self._param_send_shp = None
         self.split = None
 
-        self.split_val = 50_000_000  # 5?
+        self.split_val = 10_000_000  # 5?
 
         # TODO: add these to the class params
 
@@ -381,9 +399,9 @@ class SkipBatches:
         )
         # todo: divide the data before sending? might have issues with the casting of smaller numbers??
         # its slower to divide before sending! ???  ...more testing required
-        # denom = float(current_comm.size + batches_to_wait * 2.0)
+        denom = float(current_comm.size + (batches_to_wait * 2.0))
 
-        sndparams = self.__pack_data(sndparams, param_dict, cast)
+        sndparams = __pack_data(sndparams, param_dict, cast, denom)
 
         if sndparams.isnan().sum():
             raise ValueError(f"{sndparams.isnan().sum()} NaNs in `params` shit be fucked?")
@@ -434,22 +452,6 @@ class SkipBatches:
         self.shapes = shapes
         return param_dict, shapes
 
-    @staticmethod
-    @torch.no_grad()
-    @torch.jit.script
-    def __pack_data(jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: bool):
-        """ jitted loop to pack the data into params to be sent"""
-        st = 0
-        for name, par in iter_dict.items():
-            if par.requires_grad:
-                # flatten and prep the data for sending
-                p = torch.flatten(par)
-                if cast:
-                    p = p.to(torch.bfloat16)
-                jtparams[st : st + par.numel()] = p
-                st += par.numel()
-        return jtparams
-
     @torch.no_grad()
     def _local_torch_param_update(self, mod_hold_pr):
         # TODO: jit this?
@@ -499,7 +501,7 @@ class SkipBatches:
                     param[:] = (
                         rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                     )
-        del rcv_params, prev_params
+        # del rcv_params, prev_params
         if len(self._prev_params) >= 1:
             print("len of prev_params is > 1!", self._prev_params)
 
@@ -558,12 +560,6 @@ class SkipBatches:
                     # NOTE: update here is the sum of the params across the processes
                     param *= factor
                     param += update  # / denom
-
-    # @staticmethod
-    # @torch.jit.script
-    # def __set_params_after_recv(param_dict, factor):
-    # todo: the slice to get the proper parameter numbers is a slice and
-    #       cannot be passed into torch's jit function, same with dtype
 
     def zero_grad(self) -> None:
         """
