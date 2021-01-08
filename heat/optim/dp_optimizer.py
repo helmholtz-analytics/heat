@@ -4,6 +4,7 @@ from torch.nn.parallel import DistributedDataParallel as tDDP
 from ..core.communication import MPICommunication
 from ..core.communication import MPI
 from ..core.communication import MPI_WORLD
+from .utils import DetectMetricPlateau
 
 from typing import Union, List, Tuple, Dict
 
@@ -45,18 +46,12 @@ def __sum_f16_cb(buffer_a, buffer_b, _):
 
 
 def __sum_bfloat_cb(buffer_a, buffer_b, _):
-    # print("top of MPI function")
     tens_a = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_a, "native"))
     tens_b = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_b, "native"))
-
-    # ret = tens_b + tens_a
     tens_b += tens_a
     nelem = int(tens_b.numel())
-    # print("before buffer creation")
     new_buff = MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=nelem * tens_b.element_size())
     buffer_b[:] = new_buff
-    # print("end of MPI function")
-    del tens_b, tens_a
 
 
 # create new OP
@@ -119,7 +114,9 @@ class SkipBatches:
         total_epochs: int,
         comm: MPICommunication = MPI_WORLD,
         warmup_epochs: int = 4,
+        finalize_epochs: int = 5,
         scheduler: torch.optim.lr_scheduler = None,
+        stablitiy_level: float = 0.05,  # originally (imagenet: 0.075)
     ):
         self.comm = comm
         self.lcl_optimizer = local_optimizer
@@ -153,13 +150,13 @@ class SkipBatches:
         self.epoch = 0
         self._send_mod, self._send_mod_m1 = 0, None
 
-        self._prev_losses_mean, self._prev_losses_std = [], []
         self.global_skip = 0
         self.local_skip = 0
         self.batches_to_wait = 0
         self.epochs_to_wait = 3
 
         self.warmup_epochs = warmup_epochs
+        self.finalize_epochs = finalize_epochs
         self.total_epochs = total_epochs
 
         # used in the sending of the params
@@ -167,6 +164,17 @@ class SkipBatches:
         self.param_dict, self.shapes = None, None
         self._param_send_shp = None
         self.split = None
+
+        # self.stability_cirteria_level = stablitiy_level
+
+        self.stability = DetectMetricPlateau(
+            mode="min",
+            patience=3,
+            threshold=stablitiy_level,
+            threshold_mode="rel",
+            cooldown=3,
+            eps=1e-8,
+        )
 
         self.split_val = 10_000_000  # 5?
 
@@ -201,7 +209,6 @@ class SkipBatches:
         self.comm.Allreduce(MPI.IN_PLACE, loss_send, MPI.SUM)
 
         avg_loss = torch.mean(loss_send)
-        self._prev_losses_mean.append(avg_loss)
 
         if self.epoch < self.warmup_epochs:
             self.global_skip = 0
@@ -214,29 +221,23 @@ class SkipBatches:
             self.local_skip = 1
             self.batches_to_wait = 1
             print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
-            self._prev_losses_mean = []
 
-        if self.epoch >= self.total_epochs - 5:
+        if self.epoch >= self.total_epochs - self.finalize_epochs:
             self.global_skip = 0
             self.local_skip = 0
             self.batches_to_wait = 0
             print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
             return
 
-        # epochs_to_wait = 3
-        if len(self._prev_losses_mean) < self.epochs_to_wait:
-            return
-        means = torch.tensor(self._prev_losses_mean)
-        diff = abs(means[-1] - means[-1 * self.epochs_to_wait])
-        stable = True if diff <= 0.075 else False
-        # TODO: add something for when the loss is *increasing*?
+        stable = self.stability.test_if_improving(avg_loss)
         if stable and self.global_skip > 1:
             # drop gs by factor of 2
             self.global_skip //= 2
             self.local_skip //= 2
             self.batches_to_wait //= 2
-            self.epochs_to_wait += 1
-            self._prev_losses_mean = []
+            # self.epochs_to_wait += 1
+            # self._prev_losses_mean = []
+            self.stability.reset()
             print0("dropping skips, loss stable")
             if self.global_skip > 0:
                 if self.batches_to_wait == 0:
@@ -247,8 +248,9 @@ class SkipBatches:
             self.global_skip = 8
             self.local_skip = 2
             self.batches_to_wait = 3  # 2
-            self._prev_losses_mean = []
-            self.epochs_to_wait = 3
+            self.stability.reset()
+            # self._prev_losses_mean = []
+            # self.epochs_to_wait = 3
 
         print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
 
@@ -263,7 +265,9 @@ class SkipBatches:
         #   if yes: receive, update parameters with rcved stuff
         # copy and send the parameter dictionary
         if self.amp:
+
             self.scaler.step(self.lcl_optimizer)
+            # todo: add something to tell if the grads have infs or nans
             # Updates the scale for next iteration.
             self.scaler.update()
         elif self.scheduler is None:

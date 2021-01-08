@@ -191,6 +191,12 @@ def parse():
         type=str,
         help="communications backend for local comms (default: nccl), if NCCL isnt there, fallback is MPI",
     )
+    parser.add_argument(
+        "--benchmarking",
+        default=False,
+        type=bool,
+        help="save the results to a benchmarking csv with the node count",
+    )
     args = parser.parse_args()
     return args
 
@@ -336,9 +342,9 @@ def main():
     args.local_rank = loc_rank
     if args.distributed and loc_dist:
         device = "cuda:" + str(loc_rank)
-        port = str(29500) # + (args.world_size % args.gpus))
+        port = str(29500)  # + (args.world_size % args.gpus))
         os.environ["MASTER_ADDR"] = "localhost"
-        os.environ["MASTER_PORT"] = port #"29500"
+        os.environ["MASTER_PORT"] = port  # "29500"
         if args.local_comms == "nccl":
             os.environ["NCCL_SOCKET_IFNAME"] = "ib"
         torch.distributed.init_process_group(
@@ -454,6 +460,8 @@ def main():
     total_time = AverageMeter()
     batch_time_avg, train_acc1, train_acc5, avg_loss = [], [], [], []
     val_acc1, val_acc5 = [], []
+    epoch_times = []
+    et = time.perf_counter()
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
         avg_train_time, tacc1, tacc5, ls = train(
@@ -501,6 +509,8 @@ def main():
             # avg_loss.append(ls)
         train_loader.reset()
         val_loader.reset()
+        epoch_times.append(time.perf_counter() - et)
+        et = time.perf_counter()
     if args.rank == 0:
         print("\nRESULTS\n")
         print("Epoch\tAvg Batch Time\tTrain Top1\tTrain Top5\tTrain Loss\tVal Top1\tVal Top5")
@@ -510,6 +520,26 @@ def main():
                 f"{c}\t{batch_time_avg[cp]}\t{train_acc1[cp]}\t{train_acc5[cp]}\t"
                 f"{avg_loss[cp]}\t{val_acc1[cp]}\t{val_acc5[cp]}"
             )
+
+        if args.benchmarking:
+            import pandas as pd
+
+            nodes = str(dp_optimizer.comm.size / torch.cuda.device_count())
+            epochs = list(range(args.start_epoch, args.epochs))
+            out_df = pd.DataFrame(
+                {
+                    "epochs": epochs,
+                    nodes + "-avg-batch-time": batch_time_avg,
+                    nodes + "-total-epoch-time": epoch_times,
+                    nodes + "-train-top1": train_acc1,
+                    nodes + "-train-top5": train_acc5,
+                    nodes + "-train-loss": avg_loss,
+                    nodes + "-val-acc1": val_acc1,
+                    nodes + "-val-acc5": val_acc5,
+                }
+            )
+            out_df = out_df.set_index("epochs")
+            out_df.to_csv(nodes + "imagenet-benchmark.csv")
 
 
 def train(dev, train_loader, model, criterion, optimizer, epoch):
