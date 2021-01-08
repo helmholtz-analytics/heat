@@ -117,6 +117,7 @@ class SkipBatches:
         finalize_epochs: int = 5,
         scheduler: torch.optim.lr_scheduler = None,
         stablitiy_level: float = 0.05,  # originally (imagenet: 0.075)
+        max_global_skips: int = 8,
     ):
         self.comm = comm
         self.lcl_optimizer = local_optimizer
@@ -154,6 +155,7 @@ class SkipBatches:
         self.local_skip = 0
         self.batches_to_wait = 0
         self.epochs_to_wait = 3
+        self.max_gs = max_global_skips
 
         self.warmup_epochs = warmup_epochs
         self.finalize_epochs = finalize_epochs
@@ -165,16 +167,12 @@ class SkipBatches:
         self._param_send_shp = None
         self.split = None
 
-        # self.stability_cirteria_level = stablitiy_level
-
         self.stability = DetectMetricPlateau(
-            mode="min",
-            patience=3,
-            threshold=stablitiy_level,
-            threshold_mode="rel",
-            cooldown=3,
-            eps=1e-8,
+            mode="min", patience=3, threshold=stablitiy_level, threshold_mode="rel", eps=1e-8
         )
+
+        self._gs8_waits = 3
+        self._gs8_waited = 0
 
         self.split_val = 10_000_000  # 5?
 
@@ -219,7 +217,7 @@ class SkipBatches:
         elif self.warmup_epochs == self.epoch:
             self.global_skip = 4
             self.local_skip = 1
-            self.batches_to_wait = 1
+            self.batches_to_wait = 2
             print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
 
         if self.epoch >= self.total_epochs - self.finalize_epochs:
@@ -228,31 +226,36 @@ class SkipBatches:
             self.batches_to_wait = 0
             print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
             return
+        if self.global_skip == self.max_gs:
+            self._gs8_waited += 1
 
         stable = self.stability.test_if_improving(avg_loss)
-        if stable and self.global_skip > 1:
+
+        if (stable and self.global_skip > 1) or (self._gs8_waited == self._gs8_waits):
             # drop gs by factor of 2
             self.global_skip //= 2
             self.local_skip //= 2
-            self.batches_to_wait //= 2
+            self.batches_to_wait -= 1  # old was //= 2
             # self.epochs_to_wait += 1
             # self._prev_losses_mean = []
             self.stability.reset()
-            print0("dropping skips, loss stable")
+            print0("dropping skips")
             if self.global_skip > 0:
                 if self.batches_to_wait == 0:
                     self.batches_to_wait = 1
                 if self.local_skip == 0:
                     self.local_skip = 1
         elif self.global_skip == 1 and stable:
-            self.global_skip = 8
-            self.local_skip = 2
-            self.batches_to_wait = 3  # 2
+            self.global_skip = self.max_gs
+            self.local_skip = self.max_gs // 4
+            self.batches_to_wait = self.max_gs // 4 + 1  # 2
+
+            self._gs8_waited += 1
             self.stability.reset()
             # self._prev_losses_mean = []
             # self.epochs_to_wait = 3
 
-        print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
+        print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait, "\t", avg_loss)
 
     def add_scaler(self, scaler):
         self.scaler = scaler
