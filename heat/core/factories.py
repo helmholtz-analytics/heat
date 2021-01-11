@@ -12,6 +12,7 @@ from . import types
 __all__ = [
     "arange",
     "array",
+    "asarray",
     "empty",
     "empty_like",
     "eye",
@@ -283,6 +284,17 @@ def array(
           11
         [torch.LongStorage of size 6]
     """
+    # Array already exists; no copy
+    if (
+        isinstance(obj, dndarray.DNDarray)
+        and not copy
+        and (dtype is None or dtype == obj.dtype)
+        and (split is None or split == obj.split)
+        and (is_split is None or is_split == obj.split)
+        and (device is None or device == obj.device)
+    ):
+        return obj
+
     # extract the internal tensor in case of a heat tensor
     if isinstance(obj, dndarray.DNDarray):
         obj = obj.larray
@@ -312,6 +324,15 @@ def array(
                 )
             except RuntimeError:
                 raise TypeError("invalid data of type {}".format(type(obj)))
+    else:
+        if not isinstance(obj, dndarray.DNDarray):
+            obj = torch.as_tensor(
+                obj,
+                dtype=dtype.torch_type() if dtype is not None else None,
+                device=device.torch_device
+                if device is not None
+                else devices.get_device().torch_device,
+            )
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
@@ -412,6 +433,59 @@ def array(
         obj = memory.sanitize_memory_layout(obj, order=order)
 
     return dndarray.DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
+
+
+def asarray(obj, dtype=None, order="C", is_split=None, device=None):
+    """
+    Convert 'obj' to a DNDarray. If 'obj' is a `DNDarray` or `Tensor` with the same 'dtype' and 'device' or
+    if the data is an `ndarray` of the corresponding 'dtype' and the 'device' is the cpu, no copy will be performed
+
+    Parameters
+    ----------
+    obj : array_like
+        Input data, in any form that can be converted to an array. This includes lists, lists of tuples, tuples,
+        tuples of tuples, tuples of lists and ndarrays.
+    dtype : dtype, optional
+        By default, the data-type is inferred from the input data.
+    order: str, optional
+        Whether to use row-major (C-style) or column-major (Fortran-style) memory representation. Defaults to ‘C’.
+    is_split : None or int, optional
+        Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
+        interfacing with other HPC code. The shape of the global tensor is automatically inferred.
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on. By default, it is inferred from the input data.
+
+    Returns
+    -------
+    out : ht.DNDarray
+        An array object satisfying the specified requirements.
+
+    Examples
+    --------
+    >>> a = [1,2]
+    >>> ht.asarray(a)
+    DNDarray([1, 2], dtype=ht.int64, device=cpu:0, split=None)
+    >>> a = np.array([1,2,3])
+    >>> n = ht.asarray(a)
+    >>> n
+    DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
+    >>> n[0] = 0
+    >>> a
+    array([0, 2, 3])
+    >>> a = torch.tensor([1,2,3])
+    >>> t = ht.asarray(a)
+    >>> t
+    DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
+    >>> t[0] = 0
+    >>> a
+    tensor([0, 2, 3])
+    >>> a = ht.array([1,2,3,4], dtype=ht.float32)
+    >>> ht.asarray(a, dtype=ht.float32) is a
+    True
+    >>> ht.asarray(a, dtype=ht.float64) is a
+    False
+    """
+    return array(obj, dtype=dtype, copy=False, order=order, is_split=is_split, device=device)
 
 
 def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
