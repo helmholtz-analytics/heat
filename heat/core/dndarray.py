@@ -1524,6 +1524,7 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
+        key = getattr(key, "copy()", key)
         l_dtype = self.dtype.torch_type()
         kgshape_flag = False
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
@@ -3238,6 +3239,7 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
+        key = getattr(key, "copy()", key)
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
             # this splits the key into torch.Tensors in each dimension for advanced indexing
             lkey = [slice(None, None, None)] * self.ndim
