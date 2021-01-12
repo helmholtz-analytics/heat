@@ -168,7 +168,11 @@ class SkipBatches:
         self.split = None
 
         self.stability = DetectMetricPlateau(
-            mode="min", patience=3, threshold=stablitiy_level, threshold_mode="rel", eps=1e-8
+            mode="min", 
+            patience=2,  # running : 3 
+            threshold=-0.0125,  # stablitiy_level, 
+            threshold_mode="rel", 
+            eps=1e-8
         )
 
         self._gs8_waits = 3
@@ -218,6 +222,7 @@ class SkipBatches:
             self.global_skip = 4
             self.local_skip = 1
             self.batches_to_wait = 2
+            self.stability.reset()
             print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
 
         if self.epoch >= self.total_epochs - self.finalize_epochs:
@@ -226,7 +231,7 @@ class SkipBatches:
             self.batches_to_wait = 0
             print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
             return
-        if self.global_skip == self.max_gs:
+        if self.global_skip == self.max_gs and self.max_gs > 4:
             self._gs8_waited += 1
 
         stable = self.stability.test_if_improving(avg_loss)
@@ -238,24 +243,23 @@ class SkipBatches:
             self.batches_to_wait -= 1  # old was //= 2
             # self.epochs_to_wait += 1
             # self._prev_losses_mean = []
-            self.stability.reset()
             print0("dropping skips")
             if self.global_skip > 0:
                 if self.batches_to_wait == 0:
                     self.batches_to_wait = 1
                 if self.local_skip == 0:
                     self.local_skip = 1
+            self._gs8_waited = 0
         elif self.global_skip == 1 and stable:
             self.global_skip = self.max_gs
             self.local_skip = self.max_gs // 4
             self.batches_to_wait = self.max_gs // 4 + 1  # 2
 
             self._gs8_waited += 1
-            self.stability.reset()
             # self._prev_losses_mean = []
             # self.epochs_to_wait = 3
 
-        print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait, "\t", avg_loss)
+        print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait, "\t", avg_loss, self.stability.num_bad_epochs)
 
     def add_scaler(self, scaler):
         self.scaler = scaler
