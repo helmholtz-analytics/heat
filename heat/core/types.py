@@ -557,10 +557,8 @@ def issubdtype(arg1, arg2):
         Result of the stated comparison
     """
     # Assure that each argument is a ht.dtype
-    if not issubclass(arg1, generic):
-        arg1 = canonical_heat_type(arg1)
-    if not issubclass(arg2, generic):
-        arg2 = canonical_heat_type(arg2)
+    arg1 = canonical_heat_type(arg1)
+    arg2 = canonical_heat_type(arg2)
 
     return issubclass(arg1, arg2)
 

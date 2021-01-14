@@ -218,6 +218,19 @@ class TestTypeConversion(TestCase):
         self.assertTrue(ht.issubdtype(ht.float32, ht.float_))
         self.assertTrue(ht.issubdtype(ht.float64, ht.double))
 
+        # Small tests char representations (-> canonical_heat_type)
+        self.assertTrue("i", ht.int8)
+        self.assertTrue(ht.issubdtype("B", ht.uint8))
+        self.assertTrue(ht.issubdtype(ht.float64, "f8"))
+
+        # Small tests Exceptions (-> canonical_heat_type)
+        with self.assertRaises(TypeError):
+            ht.issubdtype(ht.bool, True)
+        with self.assertRaises(TypeError):
+            ht.issubdtype(4.2, "f")
+        with self.assertRaises(TypeError):
+            ht.issubdtype({}, ht.int)
+
     def test_type_promotions(self):
         self.assertEqual(ht.promote_types(ht.uint8, ht.uint8), ht.uint8)
         self.assertEqual(ht.promote_types(ht.int8, ht.uint8), ht.int16)
