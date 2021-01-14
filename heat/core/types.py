@@ -546,15 +546,15 @@ def issubdtype(arg1, arg2):
 
     Parameters
     ----------
-    arg1 : dtype_like
-        dtype or string representing a typecode
-    arg2 : dtype_like
-        dtype or string representing a typecode
+    arg1 : type, str, ht.dtype
+        A description representing the type. It may be a a Python builtin type, string or an HeAT type already.
+    arg2 : type, str, ht.dtype
+        A description representing the type. It may be a a Python builtin type, string or an HeAT type already.
 
     Returns
     -------
     out : bool
-        Result of the above stated comparison
+        Result of the stated comparison
     """
     # Assure that each argument is a ht.dtype
     if not issubclass(arg1, generic):
