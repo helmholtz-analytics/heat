@@ -345,6 +345,7 @@ def main():
         args.gpus = args.loc_gpus
         loc_gpus = args.loc_gpus
         loc_dist = True
+        args.distributed = True
     else:
         args.gpus = torch.cuda.device_count()
         loc_gpus = None
