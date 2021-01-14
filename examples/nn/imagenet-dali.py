@@ -197,6 +197,13 @@ def parse():
         type=bool,
         help="save the results to a benchmarking csv with the node count",
     )
+    parser.add_argument(
+        "--manual_dist",
+        default=False,
+        type=bool,
+        help="manually override the local distribution attributes, must also set the number of local GPUs",
+    )
+    parser.add_argument("--loc_gpus", default=None, type=int, help="number of node-local GPUs")
     args = parser.parse_args()
     return args
 
@@ -334,9 +341,15 @@ def main():
     args.world_size = ht.MPI_WORLD.size
     args.rank = ht.MPI_WORLD.rank
     rank = args.rank
-    args.gpus = torch.cuda.device_count()
+    if args.manual_dist:
+        args.gpus = args.loc_gpus
+        loc_gpus = args.loc_gpus
+        loc_dist = True
+    else:
+        args.gpus = torch.cuda.device_count()
+        loc_gpus = None
+        loc_dist = True if args.gpus > 1 else False
     device = torch.device("cpu")
-    loc_dist = True if args.gpus > 1 else False
     loc_rank = rank % args.gpus
     args.gpu = loc_rank
     args.local_rank = loc_rank
@@ -389,8 +402,10 @@ def main():
     )
 
     # create DP optimizer and model:
-    dp_optimizer = ht.optim.SkipBatches(local_optimizer=optimizer, total_epochs=args.epochs)
-    htmodel = ht.nn.DataParallelMultiGPU(model, ht.MPI_WORLD, dp_optimizer)
+    dp_optimizer = ht.optim.SkipBatches(
+        local_optimizer=optimizer, total_epochs=args.epochs, loc_gpus=loc_gpus
+    )
+    htmodel = ht.nn.DataParallelMultiGPU(model, ht.MPI_WORLD, dp_optimizer, loc_gpus=loc_gpus)
 
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda(device)

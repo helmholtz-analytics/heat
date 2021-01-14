@@ -356,10 +356,10 @@ class DataParallelMultiGPU(tnn.Module):
     loss_floor is where the user would hope for the loss to get to
     """
 
-    def __init__(self, module: torch.nn.Module, comm: MPICommunication, optimizer):
+    def __init__(self, module: torch.nn.Module, comm: MPICommunication, optimizer, loc_gpus=None):
         super(DataParallelMultiGPU, self).__init__()
         rank = comm.rank
-        loc_gpus = torch.cuda.device_count()
+        loc_gpus = torch.cuda.device_count() if loc_gpus is not None else loc_gpus
         if loc_gpus > 1:
             self.loc_gpus = loc_gpus
             local_rank = rank % loc_gpus

@@ -118,6 +118,7 @@ class SkipBatches:
         scheduler: torch.optim.lr_scheduler = None,
         stablitiy_level: float = 0.05,  # originally (imagenet: 0.075)
         max_global_skips: int = 8,
+        loc_gpus: int = None,
     ):
         self.comm = comm
         self.lcl_optimizer = local_optimizer
@@ -126,7 +127,7 @@ class SkipBatches:
         self.scheduler = scheduler
 
         rank = comm.rank
-        loc_gpus = torch.cuda.device_count()
+        loc_gpus = torch.cuda.device_count() if loc_gpus is None else loc_gpus
         self.loc_gpus = loc_gpus
         local_rank = rank % loc_gpus
         self.local_skip = 1
@@ -168,11 +169,11 @@ class SkipBatches:
         self.split = None
 
         self.stability = DetectMetricPlateau(
-            mode="min", 
-            patience=2,  # running : 3 
-            threshold=-0.025,  # stablitiy_level, working well at -0.0125 
-            threshold_mode="rel", 
-            eps=1e-8
+            mode="min",
+            patience=2,  # running : 3
+            threshold=-0.025,  # stablitiy_level, working well at -0.0125
+            threshold_mode="rel",
+            eps=1e-8,
         )
 
         self._gs8_waits = 3
@@ -261,7 +262,15 @@ class SkipBatches:
             # self._prev_losses_mean = []
             # self.epochs_to_wait = 3
 
-        print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait, "\t", avg_loss, self.stability.num_bad_epochs)
+        print0(
+            "\t\t",
+            self.global_skip,
+            self.local_skip,
+            self.batches_to_wait,
+            "\t",
+            avg_loss,
+            self.stability.num_bad_epochs,
+        )
 
     def add_scaler(self, scaler):
         self.scaler = scaler
