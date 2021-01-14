@@ -5,6 +5,7 @@
 - [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
 - [#687](https://github.com/helmholtz-analytics/heat/pull/687) New DNDarray property: balanced
 - [#702](https://github.com/helmholtz-analytics/heat/pull/702) Support channel stackoverflow
+- [#712](https://github.com/helmholtz-analytics/heat/pull/712) New function: `issubdtype`
 
 ### Factories
 - [#707](https://github.com/helmholtz-analytics/heat/pull/707) New feature: `asarray()`
@@ -16,6 +17,7 @@
 - [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``
 ### Linear Algebra
 - [#658](https://github.com/helmholtz-analytics/heat/pull/658) Bugfix: `matmul` on GPU will cast away from `int`s to `float`s for the operation and cast back upon its completion. This may result in numerical inaccuracies for very large `int64` DNDarrays
+
 ### ...
 
 ## Bug fixes
