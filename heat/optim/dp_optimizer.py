@@ -170,7 +170,7 @@ class SkipBatches:
         self.stability = DetectMetricPlateau(
             mode="min", 
             patience=2,  # running : 3 
-            threshold=-0.0125,  # stablitiy_level, 
+            threshold=-0.025,  # stablitiy_level, working well at -0.0125 
             threshold_mode="rel", 
             eps=1e-8
         )
