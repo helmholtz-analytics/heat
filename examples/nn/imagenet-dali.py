@@ -199,6 +199,7 @@ def parse():
     )
     parser.add_argument(
         "--manual_dist",
+        action="store_true",
         default=False,
         type=bool,
         help="manually override the local distribution attributes, must also set the number of local GPUs",
@@ -341,20 +342,27 @@ def main():
     args.world_size = ht.MPI_WORLD.size
     args.rank = ht.MPI_WORLD.rank
     rank = args.rank
+    device = torch.device("cpu")
     if args.manual_dist:
         args.gpus = args.loc_gpus
         loc_gpus = args.loc_gpus
-        loc_dist = True
         args.distributed = True
-    else:
+        port = str(29500)  # + (args.world_size % args.gpus))
+        os.environ["MASTER_ADDR"] = "localhost"
+        os.environ["MASTER_PORT"] = port  # "29500"
+        if args.local_comms == "nccl":
+            os.environ["NCCL_SOCKET_IFNAME"] = "ib"
+        torch.distributed.init_process_group(
+            backend=args.local_comms, rank=rank % args.loc_gpus, world_size=args.gpus
+        )
+        device = "cuda:" + str(0)
+        torch.cuda.set_device(device)
+        args.gpu = rank % args.loc_gpus
+        args.local_rank = rank % args.loc_gpus
+    elif args.distributed and args.gpus > 1:
         args.gpus = torch.cuda.device_count()
         loc_gpus = None
-        loc_dist = True if args.gpus > 1 else False
-    device = torch.device("cpu")
-    loc_rank = rank % args.gpus
-    args.gpu = loc_rank
-    args.local_rank = loc_rank
-    if args.distributed and loc_dist:
+        loc_rank = rank % args.gpus
         device = "cuda:" + str(loc_rank)
         port = str(29500)  # + (args.world_size % args.gpus))
         os.environ["MASTER_ADDR"] = "localhost"
@@ -365,6 +373,8 @@ def main():
             backend=args.local_comms, rank=loc_rank, world_size=args.gpus
         )
         torch.cuda.set_device(device)
+        args.gpu = loc_rank
+        args.local_rank = loc_rank
     elif args.gpus == 1:
         args.gpus = torch.cuda.device_count()
         args.distributed = False

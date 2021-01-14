@@ -142,8 +142,10 @@ class SkipBatches:
                 reduced_ranks.append(tuple(lp_ranks))
             self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
             self.base_loc_ranks = base_loc_ranks
-
-            self.device = "cuda:" + str(local_rank)
+            if loc_gpus != torch.cuda.device_count():
+                self.device = "cuda:0"
+            else:
+                self.device = "cuda:" + str(local_rank)
             torch.cuda.set_device(device=self.device)
 
         self.current_batch, self.last_batch = 0, None

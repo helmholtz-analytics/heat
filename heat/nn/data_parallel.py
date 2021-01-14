@@ -359,9 +359,14 @@ class DataParallelMultiGPU(tnn.Module):
     def __init__(self, module: torch.nn.Module, comm: MPICommunication, optimizer, loc_gpus=None):
         super(DataParallelMultiGPU, self).__init__()
         rank = comm.rank
-        loc_gpus = torch.cuda.device_count() if loc_gpus is not None else loc_gpus
-        if loc_gpus > 1:
+        if loc_gpus is not None:
             self.loc_gpus = loc_gpus
+            local_rank = rank % loc_gpus
+            device = "cuda:0"
+            module = tnn.parallel.DistributedDataParallel(module, device_ids=[local_rank])
+            torch.cuda.set_device(device=device)
+        elif torch.cuda.device_count() > 1:
+            self.loc_gpus = torch.cuda.device_count()
             local_rank = rank % loc_gpus
             device = "cuda:" + str(local_rank)
             torch.cuda.set_device(device=device)
