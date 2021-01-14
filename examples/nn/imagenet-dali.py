@@ -461,16 +461,14 @@ def main():
     batch_time_avg, train_acc1, train_acc5, avg_loss = [], [], [], []
     val_acc1, val_acc5 = [], []
     epoch_times = []
-    et = time.perf_counter()
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
-        avg_train_time, tacc1, tacc5, ls = train(
+        avg_train_time, tacc1, tacc5, ls, train_time = train(
             device, train_loader, htmodel, criterion, dp_optimizer, epoch
         )
         total_time.update(avg_train_time)
         if args.test:
             break
-
         # evaluate on validation set
         [prec1, prec5] = validate(device, val_loader, htmodel, criterion)
 
@@ -501,16 +499,15 @@ def main():
                     "##Top-5 {1}\n"
                     "##Perf  {2}".format(prec1, prec5, args.total_batch_size / total_time.avg)
                 )
+
             val_acc1.append(prec1)
+            epoch_times.append(train_time)
             val_acc5.append(prec5)
             batch_time_avg.append(avg_train_time)
             train_acc1.append(tacc1)
             train_acc5.append(tacc5)
-            # avg_loss.append(ls)
         train_loader.reset()
         val_loader.reset()
-        epoch_times.append(time.perf_counter() - et)
-        et = time.perf_counter()
     if args.rank == 0:
         print("\nRESULTS\n")
         print("Epoch\tAvg Batch Time\tTrain Top1\tTrain Top5\tTrain Loss\tVal Top1\tVal Top5")
@@ -530,7 +527,7 @@ def main():
                 {
                     "epochs": epochs,
                     nodes + "-avg-batch-time": batch_time_avg,
-                    nodes + "-total-epoch-time": epoch_times,
+                    nodes + "-total-train-time": epoch_times,
                     nodes + "-train-top1": train_acc1,
                     nodes + "-train-top5": train_acc5,
                     nodes + "-train-loss": avg_loss,
@@ -547,6 +544,8 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
+
+    total_train_time = time.perf_counter()
 
     # switch to train mode
     model.train()
@@ -646,11 +645,12 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             torch.cuda.cudart().cudaProfilerStop()
             quit()
     # todo average loss, and top1 and top5
+    total_train_time = time.perf_counter() - total_train_time
     top1.avg = reduce_tensor(torch.tensor(top1.avg), comm=model.comm)
     top5.avg = reduce_tensor(torch.tensor(top5.avg), comm=model.comm)
     batch_time.avg = reduce_tensor(torch.tensor(batch_time.avg), comm=model.comm)
     losses.avg = reduce_tensor(torch.tensor(losses.avg), comm=model.comm)
-    return batch_time.avg, top1.avg, top5.avg, losses.avg
+    return batch_time.avg, top1.avg, top5.avg, losses.avg, total_train_time
 
 
 def validate(dev, val_loader, model, criterion):

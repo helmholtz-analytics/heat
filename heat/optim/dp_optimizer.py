@@ -199,14 +199,16 @@ class SkipBatches:
         self.module.require_backward_grad_sync = True
 
     @torch.no_grad()
-    def epoch_loss_logic(self, loss):
-        loss_send = torch.zeros(self.comm.size)
-        # loss.data -> this will get the raw number from the lass value and nothing else
-        loss_send[self.comm.rank] = loss.data if isinstance(loss, torch.Tensor) else loss
+    def epoch_loss_logic(self, loss, loss_globally_averaged=False):
 
-        self.comm.Allreduce(MPI.IN_PLACE, loss_send, MPI.SUM)
-
-        avg_loss = torch.mean(loss_send)
+        if not loss_globally_averaged:
+            loss_send = torch.zeros(self.comm.size)
+            # loss.data -> this will get the raw number from the lass value and nothing else
+            loss_send[self.comm.rank] = loss.data if isinstance(loss, torch.Tensor) else loss
+            self.comm.Allreduce(MPI.IN_PLACE, loss_send, MPI.SUM)
+            avg_loss = torch.mean(loss_send)
+        else:
+            avg_loss = torch.tensor(loss)
 
         if self.epoch < self.warmup_epochs:
             self.global_skip = 0
