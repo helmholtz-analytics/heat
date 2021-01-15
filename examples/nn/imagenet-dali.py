@@ -200,8 +200,6 @@ def parse():
     parser.add_argument(
         "--manual_dist",
         action="store_true",
-        default=False,
-        type=bool,
         help="manually override the local distribution attributes, must also set the number of local GPUs",
     )
     parser.add_argument("--loc_gpus", default=None, type=int, help="number of node-local GPUs")
@@ -359,10 +357,11 @@ def main():
         torch.cuda.set_device(device)
         args.gpu = rank % args.loc_gpus
         args.local_rank = rank % args.loc_gpus
-    elif args.distributed and args.gpus > 1:
+    elif args.distributed and torch.cuda.device_count() > 1:
         args.gpus = torch.cuda.device_count()
-        loc_gpus = None
+        loc_gpus = args.gpus  # None
         loc_rank = rank % args.gpus
+        args.loc_rank = loc_rank
         device = "cuda:" + str(loc_rank)
         port = str(29500)  # + (args.world_size % args.gpus))
         os.environ["MASTER_ADDR"] = "localhost"
@@ -414,7 +413,7 @@ def main():
 
     # create DP optimizer and model:
     dp_optimizer = ht.optim.SkipBatches(
-        local_optimizer=optimizer, total_epochs=args.epochs, loc_gpus=loc_gpus
+        local_optimizer=optimizer, total_epochs=args.epochs, loc_gpus=loc_gpus, stablitiy_level=1e-3
     )
     htmodel = ht.nn.DataParallelMultiGPU(model, ht.MPI_WORLD, dp_optimizer, loc_gpus=loc_gpus)
 
@@ -453,7 +452,7 @@ def main():
     pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
-        device_id=loc_rank,
+        device_id=args.loc_rank if not args.manual_dist else 0,
         data_dir=args.train,
         label_dir=args.train_indexes,
         crop=crop_size,
@@ -467,7 +466,7 @@ def main():
     pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
-        device_id=loc_rank,
+        device_id=args.loc_rank if not args.manual_dist else 0,
         data_dir=args.validate,
         label_dir=args.validate_indexes,
         crop=val_size,

@@ -116,7 +116,7 @@ class SkipBatches:
         warmup_epochs: int = 4,
         finalize_epochs: int = 5,
         scheduler: torch.optim.lr_scheduler = None,
-        stablitiy_level: float = 0.05,  # originally (imagenet: 0.075)
+        stablitiy_level: float = -0.025,  # originally (imagenet: 0.075)
         max_global_skips: int = 8,
         loc_gpus: int = None,
     ):
@@ -173,7 +173,7 @@ class SkipBatches:
         self.stability = DetectMetricPlateau(
             mode="min",
             patience=2,  # running : 3
-            threshold=-0.025,  # stablitiy_level, working well at -0.0125
+            threshold=stablitiy_level, # working well at -0.0125 and -0.025
             threshold_mode="rel",
             eps=1e-8,
         )
@@ -295,6 +295,7 @@ class SkipBatches:
         else:
             self.scheduler.step()
         # gc.collect()
+        # print("step start")
         batch = self.current_batch
         next_batch = batch + 1
         gs = self.global_skip
@@ -348,6 +349,7 @@ class SkipBatches:
 
     @torch.no_grad()
     def _full_global_sync(self, batches_to_wait):
+        # print("top of full global sync")
         current_comm = self.reduced_comms[self._send_mod]
         current_ranks = self.reduced_ranks[self._send_mod]
 
@@ -444,6 +446,7 @@ class SkipBatches:
                 # need to slice the params at the split points
                 params_list[s] = sndparams[prev : splits[s] + prev]
                 prev += splits[s]
+                # print("before send", s)
                 waits[s] = current_comm.Iallreduce(MPI.IN_PLACE, params_list[s], op)
             self._prev_params.append([waits, params_list, shapes, batches_to_wait])
         else:
@@ -500,7 +503,7 @@ class SkipBatches:
         prev_params = self._prev_params.pop(0)
         shapes = prev_params[2]
         if not self.split:
-            # print("before wait")
+            #print("before wait")
             prev_params[0].Wait()
             rcv_params = prev_params[1] / float(len(current_ranks))
             for name, param in self.module.named_parameters():

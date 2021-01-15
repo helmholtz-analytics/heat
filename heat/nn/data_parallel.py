@@ -367,7 +367,7 @@ class DataParallelMultiGPU(tnn.Module):
             torch.cuda.set_device(device=device)
         elif torch.cuda.device_count() > 1:
             self.loc_gpus = torch.cuda.device_count()
-            local_rank = rank % loc_gpus
+            local_rank = rank % self.loc_gpus
             device = "cuda:" + str(local_rank)
             torch.cuda.set_device(device=device)
             module = tnn.parallel.DistributedDataParallel(module, device_ids=[local_rank])
