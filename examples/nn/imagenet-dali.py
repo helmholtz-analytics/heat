@@ -133,7 +133,7 @@ def parse():
     parser.add_argument(
         "--lr",
         "--learning-rate",
-        default=0.0125,
+        default=0.1,  # og: 0.0125
         type=float,
         metavar="LR",
         help="Initial learning rate.  Will be scaled by <global batch size>/256: args.lr = args.lr*float(args.batch_size*args.world_size)/256.  A warmup schedule will also be applied over the first 5 epochs.",
@@ -407,6 +407,7 @@ def main():
         model = model.to(device)
     # model = tDDP(model) -> done in the ht model initialization
     # Scale learning rate based on global batch size
+    # todo: change the learning rate adjustments to be reduce on plateau
     optimizer = torch.optim.SGD(
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
@@ -414,6 +415,13 @@ def main():
     # create DP optimizer and model:
     dp_optimizer = ht.optim.SkipBatches(
         local_optimizer=optimizer, total_epochs=args.epochs, loc_gpus=loc_gpus, stablitiy_level=1e-3
+    )
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        factor=0.5,  # past one 0.75 / 5 (80%)
+        patience=4,  # 0.5 / 5 -> 79.5ish %
+        # cooldown=1,
+        min_lr=1e-4,
     )
     htmodel = ht.nn.DataParallelMultiGPU(model, ht.MPI_WORLD, dp_optimizer, loc_gpus=loc_gpus)
 
@@ -500,7 +508,9 @@ def main():
         # epoch loss logic to adjust learning rate based on loss
         dp_optimizer.epoch_loss_logic(ls)
         avg_loss.append(ls)
-        adjust_learning_rate(dp_optimizer, avg_loss, epoch)
+
+        scheduler.step(ls)
+        # adjust_learning_rate(dp_optimizer, avg_loss, epoch)
 
         # remember best prec@1 and save checkpoint
         if args.rank == 0:
@@ -590,7 +600,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("Body of iteration {}".format(i))
 
-        lr_warmup(optimizer, epoch, i, train_loader_len)
+        # lr_warmup(optimizer, epoch, i, train_loader_len)
         if args.test:
             if i > 10:
                 break
@@ -767,51 +777,51 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, losses, epoch):
-    """LR schedule that should yield 76% converged accuracy with batch size 256"""
-    # TODO: make sure that losses are stable before increasing the factor
-    loss = losses[-1]
-    stable = True if len(losses) > 3 and abs(losses[-3] - losses[-1]) < 0.075 else False  # 0.075
-    if (epoch == 85 or (loss <= 1.20 and stable)) and args.factor < 3:  # 1.05?or epoch >= 80:
-        # args.factor = 3
-        args.factor += 1
-    elif loss <= 1.300 and stable and args.factor < 2:  # removed stable
-        # args.factor = 2
-        args.factor += 1
-    elif loss <= 1.900 and stable and args.factor < 1:  # 1.8, 2.150
-        # args.factor = 1
-        args.factor += 1
-    factor = args.factor
-    lr = args.lr * ht.MPI_WORLD.size * (0.1 ** factor)
-    print0(f"LR: {lr}, Factor: {factor}, loss: {loss}")
-
-    for param_group in optimizer.lcl_optimizer.param_groups:
-        param_group["lr"] = lr
-
-
-def adjust_learning_rate_hvd(optimizer, epoch):
-    if epoch < 30:
-        lr_adj = 1.0
-    elif epoch < 60:
-        lr_adj = 1e-1
-    elif epoch < 80:
-        lr_adj = 1e-2
-    else:
-        lr_adj = 1e-3
-    for param_group in optimizer.lcl_optimizer.param_groups:
-        param_group["lr"] = args.lr * ht.MPI_WORLD.size * lr_adj  # optimizer.global_skip
-
-
-def lr_warmup(optimizer, epoch, step, len_epoch):
-    if epoch < 5 and step is not None:
-        sz = ht.MPI_WORLD.size
-        epoch += float(step + 1) / len_epoch
-        lr_adj = 1.0 / sz * (epoch * (sz - 1) / 6.0)
-    else:
-        return
-
-    for param_group in optimizer.lcl_optimizer.param_groups:
-        param_group["lr"] = args.lr * ht.MPI_WORLD.size * lr_adj
+# def adjust_learning_rate(optimizer, losses, epoch):
+#     """LR schedule that should yield 76% converged accuracy with batch size 256"""
+#     # TODO: make sure that losses are stable before increasing the factor
+#     loss = losses[-1]
+#     stable = True if len(losses) > 3 and abs(losses[-3] - losses[-1]) < 0.075 else False  # 0.075
+#     if (epoch == 85 or (loss <= 1.20 and stable)) and args.factor < 3:  # 1.05?or epoch >= 80:
+#         # args.factor = 3
+#         args.factor += 1
+#     elif loss <= 1.300 and stable and args.factor < 2:  # removed stable
+#         # args.factor = 2
+#         args.factor += 1
+#     elif loss <= 1.900 and stable and args.factor < 1:  # 1.8, 2.150
+#         # args.factor = 1
+#         args.factor += 1
+#     factor = args.factor
+#     lr = args.lr * ht.MPI_WORLD.size * (0.1 ** factor)
+#     print0(f"LR: {lr}, Factor: {factor}, loss: {loss}")
+#
+#     for param_group in optimizer.lcl_optimizer.param_groups:
+#         param_group["lr"] = lr
+#
+#
+# def adjust_learning_rate_hvd(optimizer, epoch):
+#     if epoch < 30:
+#         lr_adj = 1.0
+#     elif epoch < 60:
+#         lr_adj = 1e-1
+#     elif epoch < 80:
+#         lr_adj = 1e-2
+#     else:
+#         lr_adj = 1e-3
+#     for param_group in optimizer.lcl_optimizer.param_groups:
+#         param_group["lr"] = args.lr * ht.MPI_WORLD.size * lr_adj  # optimizer.global_skip
+#
+#
+# def lr_warmup(optimizer, epoch, step, len_epoch):
+#     if epoch < 5 and step is not None:
+#         sz = ht.MPI_WORLD.size
+#         epoch += float(step + 1) / len_epoch
+#         lr_adj = 1.0 / sz * (epoch * (sz - 1) / 6.0)
+#     else:
+#         return
+#
+#     for param_group in optimizer.lcl_optimizer.param_groups:
+#         param_group["lr"] = args.lr * ht.MPI_WORLD.size * lr_adj
 
 
 def accuracy(output, target, topk=(1,)):

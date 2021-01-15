@@ -173,7 +173,7 @@ class SkipBatches:
         self.stability = DetectMetricPlateau(
             mode="min",
             patience=2,  # running : 3
-            threshold=stablitiy_level, # working well at -0.0125 and -0.025
+            threshold=stablitiy_level,  # working well at -0.0125 and -0.025
             threshold_mode="rel",
             eps=1e-8,
         )
@@ -503,7 +503,7 @@ class SkipBatches:
         prev_params = self._prev_params.pop(0)
         shapes = prev_params[2]
         if not self.split:
-            #print("before wait")
+            # print("before wait")
             prev_params[0].Wait()
             rcv_params = prev_params[1] / float(len(current_ranks))
             for name, param in self.module.named_parameters():
