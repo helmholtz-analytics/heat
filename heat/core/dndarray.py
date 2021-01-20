@@ -3673,6 +3673,10 @@ class DNDarray:
 
         return self.__array.tolist()
 
+    def trace(self, offset=0, axis1=0, axis2=1, dtype=None, out=None):
+        # TODO add documentation
+        return linalg.trace(self, offset, axis1, axis2, dtype, out)
+
     def transpose(self, axes=None):
         """
         Permute the dimensions of an array.
