@@ -1,4 +1,5 @@
 import itertools
+import numpy as np
 import torch
 
 from ..communication import MPI
@@ -1078,7 +1079,7 @@ def projection(a, b):
 def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     """
 
-    Return the sum along diagonals of the DNDarray
+    Return the sum along diagonals of the array
 
     If `a` is 2D, the sum along its diagonal with the given offset is returned, i.e. the sum of
     elements a[i, i+offset] for all i.
@@ -1089,12 +1090,12 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
 
     Parameters
     ----------
-    a : ht.DNDarray
-        Input DNDarray, from which the diagonals are taken
+    a : array_like
+        Input array, from which the diagonals are taken
     offset : int, optional
         Offsets of the diagonal from the main diagonal. Can be both positive and negative. Defaults to 0.
     axis2 : int, optional
-        Axes to be used as the first and the second axis of the 2D-sub-DNDarrays from which the diagonals
+        Axes to be used as the first and the second axis of the 2D-sub-arrays from which the diagonals
         should be taken. Defaults are the first two axes of `a`
     dtype : dtype, optional
         Determines the data-type of the returned array and of the accumulator where the elements are
@@ -1106,12 +1107,47 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
         to hold the output
     Returns
     -------
-    sum_along_diagonals : ht.DNDarray
-        If `a` is 2D, the sum along the diagonal is returned. If `a` has larger dimensions, then
-        an array of sums along diagonals is returned
+    sum_along_diagonals : integer or ht.DNDarray
+        If `a` is 2D, the sum along the diagonal is returned as an integer
+        If `a` has larger dimensions, then a DNDarray of sums along diagonals is returned
     """
     # TODO add example to documentation
-    pass
+    if not isinstance(a, (dndarray.DNDarray, torch.Tensor, np.ndarray, list, tuple)):
+        raise TypeError(
+            f"`a` must be a DNDarray, torch.Tensor, np.ndarray, list or tuple, is {type(a)}"
+        )
+    # cast input `a` to DNDarray
+    elif not isinstance(a, (dndarray.DNDarray)):
+        a = factories.array(a)
+
+    # assure correct dimensionality of input
+    if len(a.lshape) < 2:
+        raise ValueError(f"`a` must contain at least 2 dimensions, not {len(a.lshape)}")
+
+    # sanitize offset
+    if not isinstance(offset, int):
+        raise TypeError(f"`offset` must be an integer, not {type(offset)}")
+
+    # CASE 2D input (ignore axis1, axis)
+    if len(a.lshape) == 2:
+        # if offset results into an empty array
+        if offset <= -a.gshape[0] or offset >= a.gshape[1]:
+            return 0
+        # call torch.trace on concerned sub-DNDarray
+        if offset == 0:
+            sum_along_diagonals_t = torch.trace(a.larray)
+        elif offset > 0:
+            sum_along_diagonals_t = torch.trace(a.larray[:, offset:])
+        else:
+            sum_along_diagonals_t = torch.trace(a.larray[-offset:, :])
+
+        # convert resulting 0-d torch Tensor to scalar
+        sum_along_diagonals = sum_along_diagonals_t.item()
+        return sum_along_diagonals
+
+    # CASE larger than 2D
+    else:
+        pass
 
 
 def transpose(a, axes=None):
