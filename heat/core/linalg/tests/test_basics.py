@@ -652,6 +652,73 @@ class TestLinalgBasics(TestCase):
         with self.assertRaises(RuntimeError):
             ht.linalg.projection(a, e1)
 
+    def test_trace(self):
+        # UNDISTRIBUTED CASE
+        # CASE 2-D
+        x = ht.arange(24).reshape((6, 4))
+        x_np = x.numpy()
+
+        result = ht.trace(x)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist())
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # offset != 0
+        # negative offset
+        o = -(x.gshape[0] - 1)
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # positive offset
+        o = x.gshape[1] - 1
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # offset resulting into empty array
+        # negative
+        o = -x.gshape[0]
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, 0)
+        self.assertEqual(result, result_np)
+
+        # positive
+        o = x.gshape[1]
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, 0)
+        self.assertEqual(result, result_np)
+
+        # Exceptions
+        with self.assertRaises(TypeError):
+            x = "[[1, 2], [3, 4]]"
+            ht.trace(x)
+        with self.assertRaises(ValueError):
+            x = ht.arange(24)
+            ht.trace(x)
+        with self.assertRaises(TypeError):
+            x = ht.arange(24).reshape((6, 4))
+            ht.trace(x, axis1=0.2)
+        with self.assertRaises(TypeError):
+            ht.trace(x, axis2=1.4)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis1=2)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis2=2)
+        with self.assertRaises(TypeError):
+            ht.trace(x, offset=1.2)
+
     def test_transpose(self):
         # vector transpose, not distributed
         vector = ht.arange(10)

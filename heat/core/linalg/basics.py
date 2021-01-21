@@ -1094,7 +1094,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
         Input array, from which the diagonals are taken
     offset : int, optional
         Offsets of the diagonal from the main diagonal. Can be both positive and negative. Defaults to 0.
-    axis2 : int, optional
+    axis1, axis2 : int, optional
         Axes to be used as the first and the second axis of the 2D-sub-arrays from which the diagonals
         should be taken. Defaults are the first two axes of `a`
     dtype : dtype, optional
@@ -1117,12 +1117,23 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             f"`a` must be a DNDarray, torch.Tensor, np.ndarray, list or tuple, is {type(a)}"
         )
     # cast input `a` to DNDarray
-    elif not isinstance(a, (dndarray.DNDarray)):
+    elif not isinstance(a, dndarray.DNDarray):
         a = factories.array(a)
 
     # assure correct dimensionality of input
     if len(a.lshape) < 2:
         raise ValueError(f"`a` must contain at least 2 dimensions, not {len(a.lshape)}")
+
+    # sanitize axis1, axis2
+    if not isinstance(axis1, int):
+        raise TypeError(f"`axis1` must be integer, not {type(axis1)}")
+    if not isinstance(axis2, int):
+        raise TypeError(f"`axis2` must be integer, not {type(axis2)}")
+
+    if axis1 >= len(a.gshape):
+        raise ValueError(f"`axis1` out of bounds. {axis1} larger than {len(a.gshape)}.")
+    if axis2 >= len(a.gshape):
+        raise ValueError(f"`axis2` out of bounds. {axis2} larger than {len(a.gshape)}.")
 
     # sanitize offset
     if not isinstance(offset, int):
