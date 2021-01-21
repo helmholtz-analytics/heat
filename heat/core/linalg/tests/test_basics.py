@@ -732,12 +732,18 @@ class TestLinalgBasics(TestCase):
             ht.trace(x, axis1=1, axis2=1)
         with self.assertRaises(ValueError):
             ht.trace(x, dtype="ht.int64")
+        with self.assertRaises(TypeError):
+            ht.trace(x, out=[])
+        with self.assertRaises(ValueError):
+            out = ht.array([])
+            ht.trace(x, out=out)
 
         # ------------------------------------------------
         # CASE > 2-D (4D)
         # ------------------------------------------------
         x = ht.arange(24).reshape((1, 2, 3, 4))
         x_np = x.numpy()
+        out = ht.empty((3, 4))
         axis1 = 1
         axis2 = 3
 
@@ -751,11 +757,19 @@ class TestLinalgBasics(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
+        # out
+        result = ht.trace(x, out=out)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+        self.assert_array_equal(out, result_np)
+
         result = ht.trace(x, axis1=axis1, axis2=axis2)
         result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
+        # reversed axes order
         result = ht.trace(x, axis1=axis2, axis2=axis1)
         result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
         self.assertIsInstance(result, ht.DNDarray)
@@ -794,6 +808,11 @@ class TestLinalgBasics(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, np.zeros((1, 4)))
         self.assert_array_equal(result, result_np)
+
+        # Exceptions
+        with self.assertRaises(ValueError):
+            out = ht.array([])
+            ht.trace(x, out=out)
 
     def test_transpose(self):
         # vector transpose, not distributed

@@ -1103,9 +1103,11 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     out: ht.DNDarray, optional
         Array into which the output is placed. Its type is preserved and it must be of the right shape
         to hold the output
+        Only applicable if `a` has more than 2 dimensions, thus a result that is not a number.
+
     Returns
     -------
-    sum_along_diagonals : integer or ht.DNDarray
+    sum_along_diagonals : number (of defined dtype) or ht.DNDarray
         If `a` is 2D, the sum along the diagonal is returned as an integer
         If `a` has larger dimensions, then a DNDarray of sums along diagonals is returned
 
@@ -1186,6 +1188,10 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     except TypeError:  # not even a class was handed over
         raise ValueError(f"dtype must be a datatype or None, not {type(dtype)}")
 
+    # sanitize out
+    if out is not None and not isinstance(out, dndarray.DNDarray):
+        raise TypeError(f"out must be a ht.DNDarray or None not {type(out)}")
+
     # ----------------------------------------------------------------------------
     # ALGORITHM
     # ----------------------------------------------------------------------------
@@ -1194,7 +1200,9 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     if len(a.lshape) == 2:
         # if offset results into an empty array
         if offset <= -a.gshape[0] or offset >= a.gshape[1]:
-            return 0
+            if out is not None:
+                out.larray = torch.tensor(0, dtype=dtype.torch_type())
+            return dtype(0).item()
         # call torch.trace on concerned sub-DNDarray
         if offset == 0:
             sum_along_diagonals_t = torch.trace(a.larray)
@@ -1202,6 +1210,9 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             sum_along_diagonals_t = torch.trace(a.larray[:, offset:])
         else:
             sum_along_diagonals_t = torch.trace(a.larray[-offset:, :])
+
+        if out is not None:
+            raise ValueError("`out` not applicable (/must be None) if result is a number")
 
         # convert resulting 0-d torch Tensor to scalar
         sum_along_diagonals = sum_along_diagonals_t.item()
@@ -1227,6 +1238,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             sum_along_diagonals = factories.zeros(
                 result_shape, split=a.split, dtype=dtype, device=a.device, comm=a.comm
             )
+
         # compute each diagonal sum
         else:
             # extract diagonals
@@ -1241,6 +1253,12 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             sum_along_diagonals = factories.array(
                 sum_along_diagonals_t, dtype=dtype, split=a.split, comm=a.comm, device=a.device
             )
+
+        if out is not None:
+            output_gshape = list(a.gshape)
+            del output_gshape[axis1], output_gshape[axis2 - 1]
+            sanitation.sanitize_out(out, tuple(output_gshape), a.split, a.device)
+            out.larray = sum_along_diagonals.larray
 
         return sum_along_diagonals
 
