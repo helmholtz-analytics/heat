@@ -722,6 +722,39 @@ class TestLinalgBasics(TestCase):
         with self.assertRaises(TypeError):
             ht.trace(x, offset=1.2)
 
+        # ------------------------------------------------
+        # CASE > 2-D (4D)
+        # ------------------------------------------------
+        x = ht.arange(24).reshape((1, 2, 3, 4))
+        x_np = x.numpy()
+
+        result = ht.trace(x)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist())
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset != 0
+        # negative offset
+        o = -(x.gshape[0] - 1)
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # positive offset
+        o = x.gshape[1] - 1
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # TODO offset resulting into zero array
+
     def test_transpose(self):
         # vector transpose, not distributed
         vector = ht.arange(10)

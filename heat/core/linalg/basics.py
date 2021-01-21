@@ -1180,6 +1180,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
         return sum_along_diagonals
 
     # CASE larger than 2D
+    # TODO check for which (offset, axis1, axis2) combination function call results into zeros array
     else:
         # extract diagonals
         diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
