@@ -1110,8 +1110,27 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     sum_along_diagonals : integer or ht.DNDarray
         If `a` is 2D, the sum along the diagonal is returned as an integer
         If `a` has larger dimensions, then a DNDarray of sums along diagonals is returned
+
+    Examples
+    --------
+    2D-case
+    >>> x = ht.arange(24).reshape((4, 6))
+    >>> x
+        DNDarray([[ 0,  1,  2,  3,  4,  5],
+                  [ 6,  7,  8,  9, 10, 11],
+                  [12, 13, 14, 15, 16, 17],
+                  [18, 19, 20, 21, 22, 23]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.trace(x)
+        42
+    >>> ht.trace(x, 1)
+        46
+    >>> ht.trace(x, -2)
+        31
     """
-    # TODO add example to documentation
+    # ----------------------------------------------------------------------------
+    # SANITATION
+    # ----------------------------------------------------------------------------
+    # TODO add example (> 2D) to documentation
     if not isinstance(a, (dndarray.DNDarray, torch.Tensor, np.ndarray, list, tuple)):
         raise TypeError(
             f"`a` must be a DNDarray, torch.Tensor, np.ndarray, list or tuple, is {type(a)}"
@@ -1139,6 +1158,10 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     if not isinstance(offset, int):
         raise TypeError(f"`offset` must be an integer, not {type(offset)}")
 
+    # ----------------------------------------------------------------------------
+    # ALGORITHM
+    # ----------------------------------------------------------------------------
+
     # CASE 2D input (ignore axis1, axis)
     if len(a.lshape) == 2:
         # if offset results into an empty array
@@ -1158,7 +1181,19 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
 
     # CASE larger than 2D
     else:
-        pass
+        # extract diagonals
+        diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+
+        # sum them up along the last axis
+        last_axis = diag_t.ndim - 1
+        sum_along_diagonals_t = torch.sum(diag_t, last_axis)
+
+        # convert torch result back to DNDarray
+        sum_along_diagonals = factories.array(
+            sum_along_diagonals_t, dtype=a.dtype, split=a.split, comm=a.comm, device=a.device
+        )
+
+        return sum_along_diagonals
 
 
 def transpose(a, axes=None):

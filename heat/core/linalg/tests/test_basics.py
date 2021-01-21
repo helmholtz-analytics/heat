@@ -653,8 +653,11 @@ class TestLinalgBasics(TestCase):
             ht.linalg.projection(a, e1)
 
     def test_trace(self):
+        # ------------------------------------------------
         # UNDISTRIBUTED CASE
+        # ------------------------------------------------
         # CASE 2-D
+        # ------------------------------------------------
         x = ht.arange(24).reshape((6, 4))
         x_np = x.numpy()
 
