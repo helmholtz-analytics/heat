@@ -150,7 +150,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         # 3. Find the spectral gap, if number of clusters is not defined from the outside
         if self.n_clusters is None:
             diff = eigenvalues[1:] - eigenvalues[:-1]
-            tmp = ht.where(diff == diff.max()).item()
+            tmp = ht.argmax(diff).item()
             self.n_clusters = tmp + 1
 
         components = eigenvectors[:, : self.n_clusters].copy()
