@@ -1126,11 +1126,27 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
         46
     >>> ht.trace(x, -2)
         31
+
+    > 2D-case
+    >>> x = x.reshape((2, 3, 4))
+    >>> x
+        DNDarray([[[ 0,  1,  2,  3],
+                   [ 4,  5,  6,  7],
+                   [ 8,  9, 10, 11]],
+
+                  [[12, 13, 14, 15],
+                   [16, 17, 18, 19],
+                   [20, 21, 22, 23]]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.trace(x)
+        DNDarray([16, 18, 20, 22], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.trace(x, 1)
+        DNDarray([24, 26, 28, 30], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.trace(x, axis1=0, axis2=2)
+        DNDarray([13, 21, 29], dtype=ht.int32, device=cpu:0, split=None)
     """
     # ----------------------------------------------------------------------------
     # SANITATION
     # ----------------------------------------------------------------------------
-    # TODO add example (> 2D) to documentation
     if not isinstance(a, (dndarray.DNDarray, torch.Tensor, np.ndarray, list, tuple)):
         raise TypeError(
             f"`a` must be a DNDarray, torch.Tensor, np.ndarray, list or tuple, is {type(a)}"
@@ -1180,19 +1196,30 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
         return sum_along_diagonals
 
     # CASE larger than 2D
-    # TODO check for which (offset, axis1, axis2) combination function call results into zeros array
     else:
-        # extract diagonals
-        diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+        # combination for which function call results into zero array
+        if offset <= -a.gshape[axis1] or offset >= a.gshape[axis2]:
+            result_shape = list(a.gshape)
+            # -1 as shape contains one element less after deleting the element corresponding to axis1
+            del result_shape[axis1], result_shape[axis2 - 1]
 
-        # sum them up along the last axis
-        last_axis = diag_t.ndim - 1
-        sum_along_diagonals_t = torch.sum(diag_t, last_axis)
+            # TODO adapt dtype (surpass if given)
+            sum_along_diagonals = factories.zeros(
+                result_shape, split=a.split, device=a.device, comm=a.comm
+            )
+        # compute each diagonal sum
+        else:
+            # extract diagonals
+            diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
 
-        # convert torch result back to DNDarray
-        sum_along_diagonals = factories.array(
-            sum_along_diagonals_t, dtype=a.dtype, split=a.split, comm=a.comm, device=a.device
-        )
+            # sum them up along the last axis
+            last_axis = diag_t.ndim - 1
+            sum_along_diagonals_t = torch.sum(diag_t, last_axis)
+
+            # convert torch result back to DNDarray
+            sum_along_diagonals = factories.array(
+                sum_along_diagonals_t, dtype=a.dtype, split=a.split, comm=a.comm, device=a.device
+            )
 
         return sum_along_diagonals
 

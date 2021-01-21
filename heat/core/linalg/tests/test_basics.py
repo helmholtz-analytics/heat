@@ -653,6 +653,7 @@ class TestLinalgBasics(TestCase):
             ht.linalg.projection(a, e1)
 
     def test_trace(self):
+        # TODO add tests for dtype
         # ------------------------------------------------
         # UNDISTRIBUTED CASE
         # ------------------------------------------------
@@ -753,7 +754,24 @@ class TestLinalgBasics(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
-        # TODO offset resulting into zero array
+        # offset resulting into zero array
+        axis1 = 1
+        axis2 = 2
+        # negative
+        o = -x.gshape[axis1]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros((1, 4)))
+        self.assert_array_equal(result, result_np)
+
+        # positive
+        o = x.gshape[axis2]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros((1, 4)))
+        self.assert_array_equal(result, result_np)
 
     def test_transpose(self):
         # vector transpose, not distributed
