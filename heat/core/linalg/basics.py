@@ -1099,9 +1099,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
         should be taken. Defaults are the first two axes of `a`
     dtype : dtype, optional
         Determines the data-type of the returned array and of the accumulator where the elements are
-        summed. If `dtype` has value None and `a` is of integer type of precision less than the
-        default integer precision, then the default integer precision is used.
-        Otherwise, the precision is the same as that of `a`
+        summed. If `dtype` has value None than the dtype is the same as that of `a`
     out: ht.DNDarray, optional
         Array into which the output is placed. Its type is preserved and it must be of the right shape
         to hold the output
@@ -1165,6 +1163,9 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     if not isinstance(axis2, int):
         raise TypeError(f"`axis2` must be integer, not {type(axis2)}")
 
+    if axis1 == axis2:
+        raise ValueError(f"axis1 ({axis1}) and axis2 ({axis2}) cannot be the same.")
+
     if axis1 >= len(a.gshape):
         raise ValueError(f"`axis1` out of bounds. {axis1} larger than {len(a.gshape)}.")
     if axis2 >= len(a.gshape):
@@ -1173,6 +1174,17 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     # sanitize offset
     if not isinstance(offset, int):
         raise TypeError(f"`offset` must be an integer, not {type(offset)}")
+
+    # sanitize dtype
+    try:
+        if dtype is None:
+            dtype = a.dtype
+        elif not issubclass(dtype, types.generic):
+            raise ValueError(f"dtype must be a datatype or None, not {type(dtype)}")
+        else:
+            dtype = types.canonical_heat_type(dtype)
+    except TypeError:  # not even a class was handed over
+        raise ValueError(f"dtype must be a datatype or None, not {type(dtype)}")
 
     # ----------------------------------------------------------------------------
     # ALGORITHM
@@ -1193,32 +1205,41 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
 
         # convert resulting 0-d torch Tensor to scalar
         sum_along_diagonals = sum_along_diagonals_t.item()
+
+        # cast to correct dtype
+        sum_along_diagonals = dtype(sum_along_diagonals).item()
         return sum_along_diagonals
 
     # CASE larger than 2D
     else:
+        # sanitize axis1, axis2 (make sure axis1 < axis2)
+        if axis1 > axis2:
+            tmp = axis1
+            axis1 = axis2
+            axis2 = tmp
+
         # combination for which function call results into zero array
         if offset <= -a.gshape[axis1] or offset >= a.gshape[axis2]:
             result_shape = list(a.gshape)
             # -1 as shape contains one element less after deleting the element corresponding to axis1
             del result_shape[axis1], result_shape[axis2 - 1]
 
-            # TODO adapt dtype (surpass if given)
             sum_along_diagonals = factories.zeros(
-                result_shape, split=a.split, device=a.device, comm=a.comm
+                result_shape, split=a.split, dtype=dtype, device=a.device, comm=a.comm
             )
         # compute each diagonal sum
         else:
             # extract diagonals
             diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
 
-            # sum them up along the last axis
+            # sum them up along the last axis (and convert to given dtype)
+            dtype_t = dtype.torch_type()
             last_axis = diag_t.ndim - 1
-            sum_along_diagonals_t = torch.sum(diag_t, last_axis)
+            sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype_t)
 
             # convert torch result back to DNDarray
             sum_along_diagonals = factories.array(
-                sum_along_diagonals_t, dtype=a.dtype, split=a.split, comm=a.comm, device=a.device
+                sum_along_diagonals_t, dtype=dtype, split=a.split, comm=a.comm, device=a.device
             )
 
         return sum_along_diagonals
