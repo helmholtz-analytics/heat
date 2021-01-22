@@ -1208,27 +1208,23 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             # a_sub = a
             if a.is_distributed():
                 offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
-                # slicing does not result into empty array
-                if (offset_split < a_sub.lshape[1] and a.split == 0) or (
-                    offset_split < a_sub.lshape[0] and a.split == 1
-                ):
-                    a_sub = (
-                        a_sub[:, offset_split:] if a.split == 0 else a_sub[offset_split:, :]
-                    )  # TODO view
-                # slicing results into empty array
+                if a.split == 0:
+                    offset += offset_split
+                # a.split == 1
                 else:
-                    a_sub = (
-                        a_sub[:, a_sub.lshape[1] :] if a.split == 0 else a_sub[a_sub.lshape[0] :, :]
-                    )
-            # slice if possible else slice to result into empty array
+                    offset -= offset_split
+
+            # TODO beautify if (minimum offset, shape)
             if offset > 0:
-                a_sub = (
-                    a_sub[:, offset:] if offset < a_sub.lshape[1] else a_sub[:, a_sub.lshape[1] :]
-                )
+                if offset < a_sub.lshape[1]:
+                    a_sub = a_sub[:, offset:]
+                else:
+                    a_sub = a_sub[:, a_sub.lshape[1] :]
             elif offset < 0:
-                a_sub = (
-                    a_sub[-offset:, :] if -offset < a_sub.lshape[0] else a_sub[a_sub.lshape[0] :, :]
-                )
+                if -offset < a_sub.lshape[0]:
+                    a_sub = factories.array(a.larray[-offset:, :])
+                else:
+                    a_sub = factories.array(a.larray[a_sub.lshape[0] :, :])
 
             # calculate partial sum
             if 0 not in a_sub.lshape:
