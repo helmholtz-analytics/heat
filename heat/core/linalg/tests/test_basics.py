@@ -814,6 +814,31 @@ class TestLinalgBasics(TestCase):
             out = ht.array([])
             ht.trace(x, out=out)
 
+        # ------------------------------------------------
+        # DISTRIBUTED CASE
+        # ------------------------------------------------
+        # CASE 2-D
+        # ------------------------------------------------
+        x = ht.arange(24, split=0).reshape((6, 4))
+        x_np = np.arange(24).reshape((6, 4))
+        dtype = ht.float32
+
+        result = ht.trace(x)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist())
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # dtype
+        result = ht.trace(x, dtype=dtype)
+        result_np = np.trace(x_np, dtype=np.float32)
+        self.assertIsInstance(result, float)
+        self.assertEqual(result, result_np)
+
     def test_transpose(self):
         # vector transpose, not distributed
         vector = ht.arange(10)

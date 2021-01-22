@@ -1198,28 +1198,59 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
 
     # CASE 2D input (ignore axis1, axis)
     if len(a.lshape) == 2:
-        # if offset results into an empty array
+        # CASE 1.1: offset results into an empty array
         if offset <= -a.gshape[0] or offset >= a.gshape[1]:
-            if out is not None:
-                out.larray = torch.tensor(0, dtype=dtype.torch_type())
-            return dtype(0).item()
-        # call torch.trace on concerned sub-DNDarray
-        if offset == 0:
-            sum_along_diagonals_t = torch.trace(a.larray)
-        elif offset > 0:
-            sum_along_diagonals_t = torch.trace(a.larray[:, offset:])
+            sum_along_diagonals_t = torch.tensor(0, dtype=dtype.torch_type())
+        # CASE 1.2: non-zero array, call torch.trace on concerned sub-DNDarray
         else:
-            sum_along_diagonals_t = torch.trace(a.larray[-offset:, :])
+            # determine the additional offset created by distribution of `a`
+            a_sub = a.copy()  # TODO replace this with a view when implemented
+            # a_sub = a
+            if a.is_distributed():
+                offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
+                # slicing does not result into empty array
+                if (offset_split < a_sub.lshape[1] and a.split == 0) or (
+                    offset_split < a_sub.lshape[0] and a.split == 1
+                ):
+                    a_sub = (
+                        a_sub[:, offset_split:] if a.split == 0 else a_sub[offset_split:, :]
+                    )  # TODO view
+                # slicing results into empty array
+                else:
+                    a_sub = (
+                        a_sub[:, a_sub.lshape[1] :] if a.split == 0 else a_sub[a_sub.lshape[0] :, :]
+                    )
+            # slice if possible else slice to result into empty array
+            if offset > 0:
+                a_sub = (
+                    a_sub[:, offset:] if offset < a_sub.lshape[1] else a_sub[:, a_sub.lshape[1] :]
+                )
+            elif offset < 0:
+                a_sub = (
+                    a_sub[-offset:, :] if -offset < a_sub.lshape[0] else a_sub[a_sub.lshape[0] :, :]
+                )
+
+            # calculate partial sum
+            if 0 not in a_sub.lshape:
+                sum_along_diagonals_t = torch.trace(a_sub.larray)
+            # empty array => result = 0
+            else:
+                sum_along_diagonals_t = torch.tensor(0, dtype=a_sub.dtype.torch_type())
 
         if out is not None:
             raise ValueError("`out` not applicable (/must be None) if result is a number")
 
-        # convert resulting 0-d torch Tensor to scalar
-        sum_along_diagonals = sum_along_diagonals_t.item()
+        # sum up all partial sums
+        if a.is_distributed():
+            a.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
 
-        # cast to correct dtype
-        sum_along_diagonals = dtype(sum_along_diagonals).item()
-        return sum_along_diagonals
+        # cast to correct dtype and gather results
+        sum_along_diagonals = factories.array(
+            sum_along_diagonals_t, split=None, dtype=dtype, device=a.device
+        )
+
+        # convert resulting 0-d DNDarray to scalar
+        return sum_along_diagonals.item()
 
     # CASE larger than 2D
     else:
