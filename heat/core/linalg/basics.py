@@ -1214,17 +1214,13 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
                 else:
                     offset -= offset_split
 
-            # TODO beautify if (minimum offset, shape)
+            # Calculate resulting/concerned sub-array `a_sub`
             if offset > 0:
-                if offset < a_sub.lshape[1]:
-                    a_sub = a_sub[:, offset:]
-                else:
-                    a_sub = a_sub[:, a_sub.lshape[1] :]
+                offset = min(offset, a_sub.lshape[1])
+                a_sub = factories.array(a_sub.larray[:, offset:])
             elif offset < 0:
-                if -offset < a_sub.lshape[0]:
-                    a_sub = factories.array(a.larray[-offset:, :])
-                else:
-                    a_sub = factories.array(a.larray[a_sub.lshape[0] :, :])
+                offset = min(-offset, a_sub.lshape[0])
+                a_sub = factories.array(a_sub.larray[offset:, :])
 
             # calculate partial sum
             if 0 not in a_sub.lshape:
