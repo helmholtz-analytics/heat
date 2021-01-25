@@ -116,7 +116,7 @@ class SkipBatches:
         warmup_epochs: int = 4,
         finalize_epochs: int = 5,
         scheduler: torch.optim.lr_scheduler = None,
-        stablitiy_level: float = -0.025,  # originally (imagenet: 0.075)
+        stablitiy_level: float = 0.05,  # originally (imagenet: 0.075)
         max_global_skips: int = 8,
         loc_gpus: int = None,
     ):
@@ -227,7 +227,7 @@ class SkipBatches:
             self.global_skip = 4
             self.local_skip = 1
             self.batches_to_wait = 1
-            #self.stability.reset()
+            # self.stability.reset()
             print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
 
         if self.epoch >= self.total_epochs - self.finalize_epochs:
@@ -238,7 +238,14 @@ class SkipBatches:
             return
         if self.global_skip == self.max_gs and self.max_gs > 4:
             self._gs8_waited += 1
-        print0("current best:", self.stability.best * (1. - self.stability.threshold), "avg loss", avg_loss, "bad epochs", self.stability.num_bad_epochs)
+        print0(
+            "current best:",
+            self.stability.best * (1.0 - self.stability.threshold),
+            "avg loss",
+            avg_loss,
+            "bad epochs",
+            self.stability.num_bad_epochs,
+        )
         stable = self.stability.test_if_improving(avg_loss)
 
         if (stable and self.global_skip > 1) or (self._gs8_waited == self._gs8_waits):
@@ -254,13 +261,13 @@ class SkipBatches:
                     self.batches_to_wait = 1
                 if self.local_skip == 0:
                     self.local_skip = 1
-            #if self._gs8_waited == self._gs8_waits:
-                #self.stability.reset()
+            # if self._gs8_waited == self._gs8_waits:
+            # self.stability.reset()
             self._gs8_waited = 0
         elif self.global_skip == 1 and stable and (self._gs8_waited != self._gs8_waits):
             self.global_skip = self.max_gs
             self.local_skip = self.max_gs // 4
-            self.batches_to_wait = self.max_gs // 4 #+ 1  # 2
+            self.batches_to_wait = self.max_gs // 4  # + 1  # 2
 
             self._gs8_waited = 0
             # self._prev_losses_mean = []

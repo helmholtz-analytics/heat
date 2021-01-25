@@ -13,8 +13,10 @@ import torch.distributed as dist
 import torch.optim
 import torch.utils.data
 import torchvision.models as models
-
+import pickle
 import sys
+
+import pandas as pd
 
 sys.path.append("../../")
 import heat as ht
@@ -307,6 +309,11 @@ class HybridPipe(Pipeline):
         return images, labels
 
 
+def save_obj(obj, name):
+    with open(name + ".pkl", "wb") as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+
 def main():
     global best_prec1, args
     best_prec1 = 0
@@ -408,18 +415,21 @@ def main():
     # model = tDDP(model) -> done in the ht model initialization
     # Scale learning rate based on global batch size
     # todo: change the learning rate adjustments to be reduce on plateau
-    args.lr = 0.0125  # (1. / args.world_size * (5 * (args.world_size - 1) / 6.)) * 0.0125 * args.world_size
+    args.lr = (
+        0.0125
+    )  # (1. / args.world_size * (5 * (args.world_size - 1) / 6.)) * 0.0125 * args.world_size
+    # args.lr = (1. / args.world_size * (5 * (args.world_size - 1) / 6.)) * 0.0125 * args.world_size
     optimizer = torch.optim.SGD(
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
 
     # create DP optimizer and model:
     dp_optimizer = ht.optim.SkipBatches(
-        local_optimizer=optimizer, 
-        total_epochs=args.epochs, 
-        loc_gpus=loc_gpus, 
+        local_optimizer=optimizer,
+        total_epochs=args.epochs,
+        loc_gpus=loc_gpus,
         max_global_skips=4,
-        stablitiy_level=0.05
+        stablitiy_level=0.05,
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
@@ -427,14 +437,14 @@ def main():
         patience=5,  # 0.25 / 8 / 0.01 -> 73%: 0.5 / 7 / 0.01 -> 74.5
         # 	     # 0.4 / 7 / 0.01 -> 74.2
         threshold=0.05,  # 0.3 / 6 / 0.01 -> 74.5
-        min_lr=1e-4,     # 0.3 / 6 / 0.05 -> 74.58
-#	0.4 / 6 / 0.05 -> 74.72
-#	0.5 / 6 / 0.05 -> 74.0
-# 	0.4 / 5 / 0.05 -> 74.0
-#	*** putting back the lr warmup ***
-#	0.5 / 5 / 0.05 -> ??
-#	*** put limit back in ***
-#	0.5 / 5 / 0.05
+        min_lr=1e-4,  # 0.3 / 6 / 0.05 -> 74.58
+        # 0.4 / 6 / 0.05 -> 74.72
+        # 0.5 / 6 / 0.05 -> 74.0
+        # 	0.4 / 5 / 0.05 -> 74.0
+        # *** putting back the lr warmup ***
+        # 0.5 / 5 / 0.05 -> ??
+        # *** put limit back in ***
+        # 0.5 / 5 / 0.05
     )
     htmodel = ht.nn.DataParallelMultiGPU(model, ht.MPI_WORLD, dp_optimizer, loc_gpus=loc_gpus)
 
@@ -455,12 +465,33 @@ def main():
                 # best_prec1 = checkpoint["best_prec1"]
                 htmodel.load_state_dict(checkpoint["state_dict"])
                 optimizer.load_state_dict(checkpoint["optimizer"])
+
                 ce = checkpoint["epoch"]
                 print0(f"=> loaded checkpoint '{args.resume}' (epoch {ce})")
             else:
                 print0(f"=> no checkpoint found at '{args.resume}'")
 
         resume()
+    # if args.benchmarking:
+    # import pandas as pd
+    nodes = str(dp_optimizer.comm.size / torch.cuda.device_count())
+    cwd = os.getcwd()
+    fname = cwd + "/" + nodes + "imagenet-benchmark"
+    if args.resume and rank == 0:
+        with open(fname + ".pkl", "rb") as f:
+            out_dict = pickle.load(f)
+    else:
+        out_dict = {
+            "epochs": [],
+            nodes + "-avg-batch-time": [],
+            nodes + "-total-train-time": [],
+            nodes + "-train-top1": [],
+            nodes + "-train-top5": [],
+            nodes + "-train-loss": [],
+            nodes + "-val-acc1": [],
+            nodes + "-val-acc5": [],
+        }
+        print0("Output dict:", fname)
 
     if args.arch == "inception_v3":
         raise RuntimeError("Currently, inception_v3 is not supported by this example.")
@@ -504,9 +535,6 @@ def main():
     model.epochs = args.start_epoch
     args.factor = 0
     total_time = AverageMeter()
-    batch_time_avg, train_acc1, train_acc5, avg_loss = [], [], [], []
-    val_acc1, val_acc5 = [], []
-    epoch_times = []
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
         avg_train_time, tacc1, tacc5, ls, train_time = train(
@@ -520,28 +548,32 @@ def main():
 
         # epoch loss logic to adjust learning rate based on loss
         dp_optimizer.epoch_loss_logic(ls)
-        avg_loss.append(ls)
-        print0("scheduler stuff", ls, scheduler.best * (1. - scheduler.threshold), scheduler.num_bad_epochs)
+        # avg_loss.append(ls)
+        print0(
+            "scheduler stuff",
+            ls,
+            scheduler.best * (1.0 - scheduler.threshold),
+            scheduler.num_bad_epochs,
+        )
         scheduler.step(ls)
-        print0("next lr:", dp_optimizer.lcl_optimizer.param_groups[0]['lr'])
+        print0("next lr:", dp_optimizer.lcl_optimizer.param_groups[0]["lr"])
         # adjust_learning_rate(dp_optimizer, avg_loss, epoch)
 
         # remember best prec@1 and save checkpoint
         if args.rank == 0:
             is_best = prec1 > best_prec1
             best_prec1 = max(prec1, best_prec1)
-            if epoch in [30, 60, 80]:
-                save_checkpoint(
-                    {
-                        "epoch": epoch + 1,
-                        "arch": args.arch,
-                        "state_dict": htmodel.state_dict(),
-                        "best_prec1": best_prec1,
-                        "optimizer": optimizer.state_dict(),
-                    },
-                    epoch=epoch,
-                    is_best=is_best,
-                )
+            # if epoch in [30, 60, 80]:
+            save_checkpoint(
+                {
+                    "epoch": epoch + 1,
+                    "arch": args.arch,
+                    "state_dict": htmodel.state_dict(),
+                    "best_prec1": best_prec1,
+                    "optimizer": optimizer.state_dict(),
+                },
+                is_best=is_best,
+            )
             if epoch == args.epochs - 1:
                 print0(
                     "##Top-1 {0}\n"
@@ -549,45 +581,34 @@ def main():
                     "##Perf  {2}".format(prec1, prec5, args.total_batch_size / total_time.avg)
                 )
 
-            val_acc1.append(prec1)
-            epoch_times.append(train_time)
-            val_acc5.append(prec5)
-            batch_time_avg.append(avg_train_time)
-            train_acc1.append(tacc1)
-            train_acc5.append(tacc5)
+            out_dict["epochs"].append(epoch)
+            out_dict[nodes + "-avg-batch-time"].append(avg_train_time)
+            out_dict[nodes + "-total-train-time"].append(train_time)
+            out_dict[nodes + "-train-top1"].append(tacc1)
+            out_dict[nodes + "-train-top5"].append(tacc5)
+            out_dict[nodes + "-train-loss"].append(ls)
+            out_dict[nodes + "-val-acc1"].append(prec1)
+            out_dict[nodes + "-val-acc5"].append(prec5)
+
+            # save the dict to pick up after the checkpoint
+            save_obj(out_dict, fname)
+
         train_loader.reset()
         val_loader.reset()
+
     if args.rank == 0:
         print("\nRESULTS\n")
-        print("Epoch\tAvg Batch Time\tTrain Top1\tTrain Top5\tTrain Loss\tVal Top1\tVal Top5")
-        for c in range(args.start_epoch, args.epochs):
-            cp = c - args.start_epoch
-            print(
-                f"{c}\t{batch_time_avg[cp]}\t{train_acc1[cp]}\t{train_acc5[cp]}\t"
-                f"{avg_loss[cp]}\t{val_acc1[cp]}\t{val_acc5[cp]}"
-            )
-
+        df = pd.DataFrame.from_dict(out_dict)
+        with pd.option_context("display.max_rows", None, "display.max_columns", None):
+            # more options can be specified also
+            print(df)
         if args.benchmarking:
-            import pandas as pd
-
-            nodes = str(dp_optimizer.comm.size / torch.cuda.device_count())
-            epochs = list(range(args.start_epoch, args.epochs))
-            out_df = pd.DataFrame(
-                {
-                    "epochs": epochs,
-                    nodes + "-avg-batch-time": batch_time_avg,
-                    nodes + "-total-train-time": epoch_times,
-                    nodes + "-train-top1": train_acc1,
-                    nodes + "-train-top5": train_acc5,
-                    nodes + "-train-loss": avg_loss,
-                    nodes + "-val-acc1": val_acc1,
-                    nodes + "-val-acc5": val_acc5,
-                }
-            )
-            out_df = out_df.set_index("epochs")
-            cwd = os.getcwd()
-            out_df.to_csv(cwd + "/" + nodes + "imagenet-benchmark.csv")
-            print("Output file:", cwd + "/" + nodes + "imagenet-benchmark.csv")
+            try:
+                fulldf = pd.read_csv(cwd + "/bench-results.csv")
+                fulldf = pd.concat([df, fulldf], axis=1)
+            except FileNotFoundError:
+                fulldf = df
+            fulldf.to_csv(cwd + "/bench-results.csv")
 
 
 def train(dev, train_loader, model, criterion, optimizer, epoch):
@@ -606,7 +627,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     # TODO: how to handle this?
     optimizer.last_batch = train_loader_len - 1
     for i, data in enumerate(train_loader):
-        #lr_warmup(optimizer,
+        # lr_warmup(optimizer,
         input = data[0]["data"].cuda(dev)
         target = data[0]["label"].squeeze().cuda(dev).long()
 
@@ -618,7 +639,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             torch.cuda.nvtx.range_push("Body of iteration {}".format(i))
 
         lr_warmup(optimizer, epoch, i, train_loader_len)
-        
+
         if args.test:
             if i > 10:
                 break
@@ -769,12 +790,9 @@ def validate(dev, val_loader, model, criterion):
     return [top1.avg, top5.avg]
 
 
-def save_checkpoint(state, is_best, epoch, filename="checkpoint.pth.tar"):
+def save_checkpoint(state, is_best):
     sz = ht.MPI_WORLD.size
-    rank = ht.MPI_WORLD.rank
-    if rank != 0:
-        return
-    filename = "checkpoint-" + str(sz) + "-epoch" + str(epoch) + ".pth.tar"
+    filename = "imgnet-checkpoint-" + str(sz) + ".pth.tar"
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, "model_best.pth.tar")
