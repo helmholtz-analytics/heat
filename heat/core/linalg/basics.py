@@ -1264,25 +1264,40 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
 
         # compute each diagonal sum
         else:
-            # extract diagonals
-            diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+            if not (a.is_distributed() and a.split in (axis1, axis2)):
+                # extract diagonals
+                diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
 
-            # sum them up along the last axis (and convert to given dtype)
-            last_axis = diag_t.ndim - 1
-            sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype.torch_type())
+                # sum them up along the last axis (and convert to given dtype)
+                last_axis = diag_t.ndim - 1
+                sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype.torch_type())
+            # split axis in trace axes
+            else:
+                # calculate required diagonal elements on the process
+                offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
+                offset += offset_split
+                diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+
+                # Gather all results
+                last_axis = diag_t.ndim - 1
+                all_diagonals = all_diagonals = factories.array(
+                    diag_t, dtype=dtype, is_split=last_axis, comm=a.comm, device=a.device
+                )
+
+                # Resplit the diagonal array s.t. the sums can be computed efficiently on each node
+                # (Distribute along axis 0 as it is never the last axis)
+                all_diagonals.resplit_(0)
+                sum_along_diagonals_t = torch.sum(all_diagonals.larray, last_axis)
 
         if a.is_distributed():
-            if a.split not in (axis1, axis2):
-                # Stack all partial results back together along the split axis of `a`
-                sum_along_diagonals = factories.array(
-                    sum_along_diagonals_t,
-                    dtype=dtype,
-                    is_split=a.split,
-                    comm=a.comm,
-                    device=a.device,
-                )
-            else:
-                pass
+            # Stack all partial results back together along the split axis of `a`
+            sum_along_diagonals = factories.array(
+                sum_along_diagonals_t,
+                dtype=dtype,
+                is_split=a.split,  # TODO check if split axis of all_diagonals is required
+                comm=a.comm,
+                device=a.device,
+            )
         else:
             # convert torch result back to DNDarray
             sum_along_diagonals = factories.array(
