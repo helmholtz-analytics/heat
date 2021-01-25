@@ -8,7 +8,7 @@ pipeline {
             steps {
                 withPythonEnv('python3') {
 	                sh 'pip3 install .[hdf5,netcdf] --no-cache-dir'
-                    sh 'pip3 install coverage pre-commit --no-cache-dir'
+                    sh 'pip3 install pytest coverage pre-commit --no-cache-dir'
                     sh 'pre-commit run --all-files'
                 }
             }
