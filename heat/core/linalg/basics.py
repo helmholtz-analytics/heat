@@ -1205,7 +1205,6 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
         else:
             # determine the additional offset created by distribution of `a`
             a_sub = a.copy()  # TODO replace this with a view when implemented
-            # a_sub = a
             if a.is_distributed():
                 offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
                 if a.split == 0:
@@ -1253,14 +1252,11 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             axis2 = tmp
 
         # combination for which function call results into zero array
-        if offset <= -a.gshape[axis1] or offset >= a.gshape[axis2]:
-            result_shape = list(a.gshape)
+        if -offset >= a.gshape[axis1] or offset >= a.gshape[axis2]:
+            result_shape = list(a.lshape)  # TODO lshape
             # -1 as shape contains one element less after deleting the element corresponding to axis1
             del result_shape[axis1], result_shape[axis2 - 1]
-
-            sum_along_diagonals = factories.zeros(
-                result_shape, split=a.split, dtype=dtype, device=a.device, comm=a.comm
-            )
+            sum_along_diagonals_t = torch.zeros(result_shape)
 
         # compute each diagonal sum
         else:
@@ -1268,10 +1264,17 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
 
             # sum them up along the last axis (and convert to given dtype)
-            dtype_t = dtype.torch_type()
             last_axis = diag_t.ndim - 1
-            sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype_t)
+            sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype.torch_type())
 
+        # if a.is_distributed() and (a.split not in (axis1, axis2)): # TODO check
+        if a.is_distributed():
+            # (implicit) Allgather + convert torch result back to DNDarray
+            # print(f"[{a.comm.rank}] SUMMING IT UP") # TODO debug print
+            sum_along_diagonals = factories.array(
+                sum_along_diagonals_t, dtype=dtype, split=None, comm=a.comm, device=a.device
+            )
+        else:
             # convert torch result back to DNDarray
             sum_along_diagonals = factories.array(
                 sum_along_diagonals_t, dtype=dtype, split=a.split, comm=a.comm, device=a.device
