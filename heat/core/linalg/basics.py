@@ -1196,7 +1196,9 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     # ALGORITHM
     # ----------------------------------------------------------------------------
 
-    # CASE 2D input (ignore axis1, axis)
+    # ---------------------------------------------
+    # CASE 2D input (ignore axis1, axis) => integer
+    # ---------------------------------------------
     if len(a.lshape) == 2:
         # CASE 1.1: offset results into an empty array
         if offset <= -a.gshape[0] or offset >= a.gshape[1]:
@@ -1204,7 +1206,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
         # CASE 1.2: non-zero array, call torch.trace on concerned sub-DNDarray
         else:
             # determine the additional offset created by distribution of `a`
-            a_sub = a.copy()  # TODO replace this with a view when implemented
+            a_sub = a.copy()
             if a.is_distributed():
                 offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
                 if a.split == 0:
@@ -1243,7 +1245,9 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
         # convert resulting 0-d DNDarray to scalar
         return sum_along_diagonals.item()
 
-    # CASE larger than 2D
+    # -------------------------------
+    # CASE larger than 2D => DNDArray
+    # -------------------------------
     else:
         # sanitize axis1, axis2 (make sure axis1 < axis2)
         if axis1 > axis2:
@@ -1253,7 +1257,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
 
         # combination for which function call results into zero array
         if -offset >= a.gshape[axis1] or offset >= a.gshape[axis2]:
-            result_shape = list(a.lshape)  # TODO lshape
+            result_shape = list(a.lshape)
             # -1 as shape contains one element less after deleting the element corresponding to axis1
             del result_shape[axis1], result_shape[axis2 - 1]
             sum_along_diagonals_t = torch.zeros(result_shape)
@@ -1267,13 +1271,18 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             last_axis = diag_t.ndim - 1
             sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype.torch_type())
 
-        # if a.is_distributed() and (a.split not in (axis1, axis2)): # TODO check
-        if a.is_distributed() and a.split not in (axis1, axis2):  # TODO check
-            # Stack all partial results back together along the split axis of `a`
-            # print(f"[{a.comm.rank}] SUMMING IT UP") # TODO debug print
-            sum_along_diagonals = factories.array(
-                sum_along_diagonals_t, dtype=dtype, is_split=a.split, comm=a.comm, device=a.device
-            )
+        if a.is_distributed():
+            if a.split not in (axis1, axis2):
+                # Stack all partial results back together along the split axis of `a`
+                sum_along_diagonals = factories.array(
+                    sum_along_diagonals_t,
+                    dtype=dtype,
+                    is_split=a.split,
+                    comm=a.comm,
+                    device=a.device,
+                )
+            else:
+                pass
         else:
             # convert torch result back to DNDarray
             sum_along_diagonals = factories.array(
