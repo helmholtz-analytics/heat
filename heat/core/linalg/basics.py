@@ -1268,11 +1268,11 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype.torch_type())
 
         # if a.is_distributed() and (a.split not in (axis1, axis2)): # TODO check
-        if a.is_distributed():
-            # (implicit) Allgather + convert torch result back to DNDarray
+        if a.is_distributed() and a.split not in (axis1, axis2):  # TODO check
+            # Stack all partial results back together along the split axis of `a`
             # print(f"[{a.comm.rank}] SUMMING IT UP") # TODO debug print
             sum_along_diagonals = factories.array(
-                sum_along_diagonals_t, dtype=dtype, split=None, comm=a.comm, device=a.device
+                sum_along_diagonals_t, dtype=dtype, is_split=a.split, comm=a.comm, device=a.device
             )
         else:
             # convert torch result back to DNDarray
