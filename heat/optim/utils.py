@@ -77,6 +77,36 @@ class DetectMetricPlateau(object):
         self._init_is_better(mode=mode, threshold=threshold, threshold_mode=threshold_mode)
         self.reset()
 
+    def get_dict(self):
+        return {
+            "patience": self.patience,
+            "verbose": self.verbose,
+            "cooldown": self.cooldown,
+            "cooldown_counter": self.cooldown_counter,
+            "mode": self.mode,
+            "threshold": self.threshold,
+            "threshold_mode": self.threshold_mode,
+            "best": self.best,
+            "num_bad_epochs": self.num_bad_epochs,
+            "mode_worse": self.mode_worse,
+            "eps": self.eps,
+            "last_epoch": self.last_epoch,
+        }
+
+    def load_dict(self, dic):
+        self.patience = dic["patience"]
+        self.verbose = dic["verbose"]
+        self.cooldown = dic["cooldown"]
+        self.cooldown_counter = dic["cooldown_counter"]
+        self.mode = dic["mode"]
+        self.threshold = dic["threshold"]
+        self.threshold_mode = dic["threshold_mode"]
+        self.best = dic["best"]
+        self.num_bad_epochs = dic["num_bad_epochs"]
+        self.mode_worse = dic["mode_worse"]
+        self.eps = dic["eps"]
+        self.last_epoch = dic["last_epoch"]
+
     def reset(self):
         """Resets num_bad_epochs counter and cooldown counter."""
         self.best = self.mode_worse
@@ -113,7 +143,8 @@ class DetectMetricPlateau(object):
     def is_better(self, a, best):
         if self.mode == "min" and self.threshold_mode == "rel":
             rel_epsilon = 1.0 - self.threshold
-            return a < best * rel_epsilon
+            comp = best * rel_epsilon if best >= 0 else best - (abs(best) * self.threshold)
+            return a < comp
 
         elif self.mode == "min" and self.threshold_mode == "abs":
             return a < best - self.threshold

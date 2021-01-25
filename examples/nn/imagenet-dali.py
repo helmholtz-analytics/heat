@@ -479,7 +479,7 @@ def main():
                     # best_prec1 = checkpoint["best_prec1"]
                     htmodel.load_state_dict(checkpoint["state_dict"])
                     optimizer.load_state_dict(checkpoint["optimizer"])
-    
+
                     ce = checkpoint["epoch"]
                     print0(f"=> loaded checkpoint '{resfile}' (epoch {ce})")
                 except FileNotFoundError:
@@ -491,18 +491,28 @@ def main():
     nodes = str(int(dp_optimizer.comm.size / torch.cuda.device_count()))
     cwd = os.getcwd()
     fname = cwd + "/" + nodes + "imagenet-benchmark"
-    if args.resume and rank == 0:
+    if args.resume and rank == 0 and os.path.isfile(fname + ".pkl"):
         with open(fname + ".pkl", "rb") as f:
             out_dict = pickle.load(f)
         nodes2 = str(dp_optimizer.comm.size / torch.cuda.device_count())
-        old_keys = [nodes2 + "-avg-batch-time", 
-                nodes2 + "-total-train-time", nodes2 + "-train-top1", 
-                nodes2 + "-train-top5", nodes2 + "-train-loss", 
-                nodes2 + "-val-acc1", nodes2 + "-val-acc5"]
-        new_keys = [nodes + "-avg-batch-time", 
-                nodes + "-total-train-time", nodes + "-train-top1", 
-                nodes + "-train-top5", nodes + "-train-loss", 
-                nodes + "-val-acc1", nodes + "-val-acc5"]
+        old_keys = [
+            nodes2 + "-avg-batch-time",
+            nodes2 + "-total-train-time",
+            nodes2 + "-train-top1",
+            nodes2 + "-train-top5",
+            nodes2 + "-train-loss",
+            nodes2 + "-val-acc1",
+            nodes2 + "-val-acc5",
+        ]
+        new_keys = [
+            nodes + "-avg-batch-time",
+            nodes + "-total-train-time",
+            nodes + "-train-top1",
+            nodes + "-train-top5",
+            nodes + "-train-loss",
+            nodes + "-val-acc1",
+            nodes + "-val-acc5",
+        ]
         for k in range(len(old_keys)):
             if old_keys[k] in out_dict.keys():
                 out_dict[new_keys[k]] = out_dict[old_keys[k]]
