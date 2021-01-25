@@ -408,20 +408,33 @@ def main():
     # model = tDDP(model) -> done in the ht model initialization
     # Scale learning rate based on global batch size
     # todo: change the learning rate adjustments to be reduce on plateau
+    args.lr = 0.0125  # (1. / args.world_size * (5 * (args.world_size - 1) / 6.)) * 0.0125 * args.world_size
     optimizer = torch.optim.SGD(
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
 
     # create DP optimizer and model:
     dp_optimizer = ht.optim.SkipBatches(
-        local_optimizer=optimizer, total_epochs=args.epochs, loc_gpus=loc_gpus, stablitiy_level=1e-3
+        local_optimizer=optimizer, 
+        total_epochs=args.epochs, 
+        loc_gpus=loc_gpus, 
+        max_global_skips=4,
+        stablitiy_level=0.05
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer,
-        factor=0.5,  # past one 0.75 / 5 (80%)
-        patience=4,  # 0.5 / 5 -> 79.5ish %
-        # cooldown=1,
-        min_lr=1e-4,
+        factor=0.5,  # 0.75 / 4 -> 72%
+        patience=5,  # 0.25 / 8 / 0.01 -> 73%: 0.5 / 7 / 0.01 -> 74.5
+        # 	     # 0.4 / 7 / 0.01 -> 74.2
+        threshold=0.05,  # 0.3 / 6 / 0.01 -> 74.5
+        min_lr=1e-4,     # 0.3 / 6 / 0.05 -> 74.58
+#	0.4 / 6 / 0.05 -> 74.72
+#	0.5 / 6 / 0.05 -> 74.0
+# 	0.4 / 5 / 0.05 -> 74.0
+#	*** putting back the lr warmup ***
+#	0.5 / 5 / 0.05 -> ??
+#	*** put limit back in ***
+#	0.5 / 5 / 0.05
     )
     htmodel = ht.nn.DataParallelMultiGPU(model, ht.MPI_WORLD, dp_optimizer, loc_gpus=loc_gpus)
 
@@ -508,8 +521,9 @@ def main():
         # epoch loss logic to adjust learning rate based on loss
         dp_optimizer.epoch_loss_logic(ls)
         avg_loss.append(ls)
-
+        print0("scheduler stuff", ls, scheduler.best * (1. - scheduler.threshold), scheduler.num_bad_epochs)
         scheduler.step(ls)
+        print0("next lr:", dp_optimizer.lcl_optimizer.param_groups[0]['lr'])
         # adjust_learning_rate(dp_optimizer, avg_loss, epoch)
 
         # remember best prec@1 and save checkpoint
@@ -525,8 +539,8 @@ def main():
                         "best_prec1": best_prec1,
                         "optimizer": optimizer.state_dict(),
                     },
-                    epoch,
-                    is_best,
+                    epoch=epoch,
+                    is_best=is_best,
                 )
             if epoch == args.epochs - 1:
                 print0(
@@ -571,7 +585,9 @@ def main():
                 }
             )
             out_df = out_df.set_index("epochs")
-            out_df.to_csv(nodes + "imagenet-benchmark.csv")
+            cwd = os.getcwd()
+            out_df.to_csv(cwd + "/" + nodes + "imagenet-benchmark.csv")
+            print("Output file:", cwd + "/" + nodes + "imagenet-benchmark.csv")
 
 
 def train(dev, train_loader, model, criterion, optimizer, epoch):
@@ -590,6 +606,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     # TODO: how to handle this?
     optimizer.last_batch = train_loader_len - 1
     for i, data in enumerate(train_loader):
+        #lr_warmup(optimizer,
         input = data[0]["data"].cuda(dev)
         target = data[0]["label"].squeeze().cuda(dev).long()
 
@@ -600,7 +617,8 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("Body of iteration {}".format(i))
 
-        # lr_warmup(optimizer, epoch, i, train_loader_len)
+        lr_warmup(optimizer, epoch, i, train_loader_len)
+        
         if args.test:
             if i > 10:
                 break
@@ -752,7 +770,11 @@ def validate(dev, val_loader, model, criterion):
 
 
 def save_checkpoint(state, is_best, epoch, filename="checkpoint.pth.tar"):
-    filename = "checkpoint-000-epoch" + str(epoch.item()) + ".pth.tar"
+    sz = ht.MPI_WORLD.size
+    rank = ht.MPI_WORLD.rank
+    if rank != 0:
+        return
+    filename = "checkpoint-" + str(sz) + "-epoch" + str(epoch) + ".pth.tar"
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, "model_best.pth.tar")
@@ -812,16 +834,16 @@ class AverageMeter(object):
 #         param_group["lr"] = args.lr * ht.MPI_WORLD.size * lr_adj  # optimizer.global_skip
 #
 #
-# def lr_warmup(optimizer, epoch, step, len_epoch):
-#     if epoch < 5 and step is not None:
-#         sz = ht.MPI_WORLD.size
-#         epoch += float(step + 1) / len_epoch
-#         lr_adj = 1.0 / sz * (epoch * (sz - 1) / 6.0)
-#     else:
-#         return
-#
-#     for param_group in optimizer.lcl_optimizer.param_groups:
-#         param_group["lr"] = args.lr * ht.MPI_WORLD.size * lr_adj
+def lr_warmup(optimizer, epoch, bn, len_epoch):
+    if epoch < 5 and bn is not None:
+        sz = ht.MPI_WORLD.size
+        epoch += float(bn + 1) / len_epoch
+        lr_adj = 1.0 / sz * (epoch * (sz - 1) / 6.0)
+    else:
+        return
+
+    for param_group in optimizer.lcl_optimizer.param_groups:
+        param_group["lr"] = args.lr * ht.MPI_WORLD.size * lr_adj
 
 
 def accuracy(output, target, topk=(1,)):

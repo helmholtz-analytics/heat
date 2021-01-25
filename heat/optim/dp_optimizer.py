@@ -226,8 +226,8 @@ class SkipBatches:
         elif self.warmup_epochs == self.epoch:
             self.global_skip = 4
             self.local_skip = 1
-            self.batches_to_wait = 2
-            self.stability.reset()
+            self.batches_to_wait = 1
+            #self.stability.reset()
             print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
 
         if self.epoch >= self.total_epochs - self.finalize_epochs:
@@ -238,7 +238,7 @@ class SkipBatches:
             return
         if self.global_skip == self.max_gs and self.max_gs > 4:
             self._gs8_waited += 1
-
+        print0("current best:", self.stability.best * (1. - self.stability.threshold), "avg loss", avg_loss, "bad epochs", self.stability.num_bad_epochs)
         stable = self.stability.test_if_improving(avg_loss)
 
         if (stable and self.global_skip > 1) or (self._gs8_waited == self._gs8_waits):
@@ -254,13 +254,15 @@ class SkipBatches:
                     self.batches_to_wait = 1
                 if self.local_skip == 0:
                     self.local_skip = 1
+            #if self._gs8_waited == self._gs8_waits:
+                #self.stability.reset()
             self._gs8_waited = 0
-        elif self.global_skip == 1 and stable:
+        elif self.global_skip == 1 and stable and (self._gs8_waited != self._gs8_waits):
             self.global_skip = self.max_gs
             self.local_skip = self.max_gs // 4
-            self.batches_to_wait = self.max_gs // 4 + 1  # 2
+            self.batches_to_wait = self.max_gs // 4 #+ 1  # 2
 
-            self._gs8_waited += 1
+            self._gs8_waited = 0
             # self._prev_losses_mean = []
             # self.epochs_to_wait = 3
 
