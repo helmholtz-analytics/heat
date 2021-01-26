@@ -12,6 +12,7 @@ from . import types
 __all__ = [
     "arange",
     "array",
+    "asarray",
     "empty",
     "empty_like",
     "eye",
@@ -121,6 +122,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
     gshape = (num,)
     split = sanitize_axis(gshape, split)
     offset, lshape, _ = comm.chunk(gshape, split)
+    balanced = True
 
     # compose the local tensor
     start += offset * step
@@ -130,7 +132,7 @@ def arange(*args, dtype=None, split=None, device=None, comm=None):
     htype = types.canonical_heat_type(dtype)
     data = data.type(htype.torch_type())
 
-    return dndarray.DNDarray(data, gshape, htype, split, device, comm)
+    return dndarray.DNDarray(data, gshape, htype, split, device, comm, balanced)
 
 
 def array(
@@ -282,6 +284,17 @@ def array(
           11
         [torch.LongStorage of size 6]
     """
+    # Array already exists; no copy
+    if (
+        isinstance(obj, dndarray.DNDarray)
+        and not copy
+        and (dtype is None or dtype == obj.dtype)
+        and (split is None or split == obj.split)
+        and (is_split is None or is_split == obj.split)
+        and (device is None or device == obj.device)
+    ):
+        return obj
+
     # extract the internal tensor in case of a heat tensor
     if isinstance(obj, dndarray.DNDarray):
         obj = obj.larray
@@ -311,6 +324,15 @@ def array(
                 )
             except RuntimeError:
                 raise TypeError("invalid data of type {}".format(type(obj)))
+    else:
+        if not isinstance(obj, dndarray.DNDarray):
+            obj = torch.as_tensor(
+                obj,
+                dtype=dtype.torch_type() if dtype is not None else None,
+                device=device.torch_device
+                if device is not None
+                else devices.get_device().torch_device,
+            )
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
@@ -351,17 +373,20 @@ def array(
     # sanitize comm object
     comm = sanitize_comm(comm)
 
-    # determine the local and the global shape, if not split is given, they are identical
-    lshape = np.array(obj.shape)
-    gshape = lshape.copy()
+    # determine the local and the global shape. If split is None, they are identical
+    gshape = list(obj.shape)
+    lshape = gshape.copy()
+    balanced = True
 
     # content shall be split, chunk the passed data object up
     if split is not None:
-        _, _, slices = comm.chunk(obj.shape, split)
+        _, _, slices = comm.chunk(gshape, split)
         obj = obj[slices].clone()
         obj = memory.sanitize_memory_layout(obj, order=order)
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
+        gshape = np.array(gshape)
+        lshape = np.array(lshape)
         obj = memory.sanitize_memory_layout(obj, order=order)
         if comm.rank < comm.size - 1:
             comm.Isend(lshape, dest=comm.rank + 1)
@@ -370,7 +395,6 @@ def array(
             status = MPI.Status()
             comm.Probe(source=comm.rank - 1, status=status)
             length = status.Get_count() // lshape.dtype.itemsize
-
             # the number of shape elements does not match with the 'left' rank
             if length != len(lshape):
                 discard_buffer = np.empty(length)
@@ -395,10 +419,73 @@ def array(
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
         gshape[is_split] = ttl_shape[is_split]
         split = is_split
+        # compare to calculated balanced lshape (cf. dndarray.is_balanced())
+        gshape = tuple(int(ele) for ele in gshape)
+        lshape = tuple(int(ele) for ele in lshape)
+        _, _, chk = comm.chunk(gshape, split)
+        test_lshape = tuple([x.stop - x.start for x in chk])
+        match = 1 if test_lshape == lshape else 0
+        gmatch = comm.allreduce(match, MPI.SUM)
+        if gmatch != comm.size:
+            balanced = False
+
     elif split is None and is_split is None:
         obj = memory.sanitize_memory_layout(obj, order=order)
 
-    return dndarray.DNDarray(obj, tuple(int(ele) for ele in gshape), dtype, split, device, comm)
+    return dndarray.DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
+
+
+def asarray(obj, dtype=None, order="C", is_split=None, device=None):
+    """
+    Convert 'obj' to a DNDarray. If 'obj' is a `DNDarray` or `Tensor` with the same 'dtype' and 'device' or
+    if the data is an `ndarray` of the corresponding 'dtype' and the 'device' is the cpu, no copy will be performed
+
+    Parameters
+    ----------
+    obj : array_like
+        Input data, in any form that can be converted to an array. This includes lists, lists of tuples, tuples,
+        tuples of tuples, tuples of lists and ndarrays.
+    dtype : dtype, optional
+        By default, the data-type is inferred from the input data.
+    order: str, optional
+        Whether to use row-major (C-style) or column-major (Fortran-style) memory representation. Defaults to ‘C’.
+    is_split : None or int, optional
+        Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
+        interfacing with other HPC code. The shape of the global tensor is automatically inferred.
+    device : str, ht.Device or None, optional
+        Specifies the device the tensor shall be allocated on. By default, it is inferred from the input data.
+
+    Returns
+    -------
+    out : ht.DNDarray
+        An array object satisfying the specified requirements.
+
+    Examples
+    --------
+    >>> a = [1,2]
+    >>> ht.asarray(a)
+    DNDarray([1, 2], dtype=ht.int64, device=cpu:0, split=None)
+    >>> a = np.array([1,2,3])
+    >>> n = ht.asarray(a)
+    >>> n
+    DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
+    >>> n[0] = 0
+    >>> a
+    array([0, 2, 3])
+    >>> a = torch.tensor([1,2,3])
+    >>> t = ht.asarray(a)
+    >>> t
+    DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
+    >>> t[0] = 0
+    >>> a
+    tensor([0, 2, 3])
+    >>> a = ht.array([1,2,3,4], dtype=ht.float32)
+    >>> ht.asarray(a, dtype=ht.float32) is a
+    True
+    >>> ht.asarray(a, dtype=ht.float64) is a
+    False
+    """
+    return array(obj, dtype=dtype, copy=False, order=order, is_split=is_split, device=device)
 
 
 def empty(shape, dtype=types.float32, split=None, device=None, comm=None, order="C"):
@@ -533,6 +620,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
     device = devices.sanitize_device(device)
     comm = sanitize_comm(comm)
     offset, lshape, _ = comm.chunk(gshape, split)
+    balanced = True
 
     # start by creating tensor filled with zeroes
     data = torch.zeros(
@@ -549,7 +637,7 @@ def eye(shape, dtype=types.float32, split=None, device=None, comm=None, order="C
 
     data = memory.sanitize_memory_layout(data, order=order)
     return dndarray.DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm
+        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
     )
 
 
@@ -586,10 +674,12 @@ def __factory(shape, dtype, split, local_factory, device, comm, order):
 
     # chunk the shape if necessary
     _, local_shape, _ = comm.chunk(shape, split)
+    balanced = True
+
     # create the torch data using the factory function
     data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
     data = memory.sanitize_memory_layout(data, order=order)
-    return dndarray.DNDarray(data, shape, dtype, split, device, comm)
+    return dndarray.DNDarray(data, shape, dtype, split, device, comm, balanced)
 
 
 def __factory_like(a, dtype, split, factory, device, comm, order="C", **kwargs):
@@ -804,6 +894,7 @@ def linspace(
     gshape = (num,)
     split = sanitize_axis(gshape, split)
     offset, lshape, _ = comm.chunk(gshape, split)
+    balanced = True
 
     # compose the local tensor
     start += offset * step
@@ -814,7 +905,7 @@ def linspace(
 
     # construct the resulting global tensor
     ht_tensor = dndarray.DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm
+        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
     )
 
     if retstep:
