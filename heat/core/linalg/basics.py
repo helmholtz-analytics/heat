@@ -1255,60 +1255,82 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             axis1 = axis2
             axis2 = tmp
 
-        # combination for which function call results into zero array
-        if -offset >= a.gshape[axis1] or offset >= a.gshape[axis2]:
-            result_shape = list(a.lshape)
-            # -1 as shape contains one element less after deleting the element corresponding to axis1
-            del result_shape[axis1], result_shape[axis2 - 1]
-            sum_along_diagonals_t = torch.zeros(result_shape)
+        # # combination for which function call results into zero array #TODO delete
+        # if -offset >= a.gshape[axis1] or offset >= a.gshape[axis2]:
+        #     result_shape = list(a.lshape)
+        #     # -1 as shape contains one element less after deleting the element corresponding to axis1
+        #     del result_shape[axis1], result_shape[axis2 - 1]
+        #     sum_along_diagonals_t = torch.zeros(result_shape)
 
         # compute each diagonal sum
+        # else:
+        if not (a.is_distributed() and a.split in (axis1, axis2)):
+            # extract diagonals
+            diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+
+            # sum them up along the last axis (and convert to given dtype)
+            last_axis = diag_t.ndim - 1
+            sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype.torch_type())
+        # split axis in trace axes
         else:
-            if not (a.is_distributed() and a.split in (axis1, axis2)):
-                # extract diagonals
-                diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+            # calculate required diagonal elements on the process
+            offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
 
-                # sum them up along the last axis (and convert to given dtype)
-                last_axis = diag_t.ndim - 1
-                sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype.torch_type())
-            # split axis in trace axes
-            else:
-                # calculate required diagonal elements on the process
-                offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
-                offset += offset_split
-                diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+            upd_offset = offset - offset_split  # TODO validate
+            # combination which would result into 0 array
+            # if offset <= a.gshape[axis1] or offset >= a.gshape[axis2]:
+            #    pass
+            # else:
+            # combination that would NOT result into 0 array
+            if -offset < a.gshape[axis1] or offset < a.gshape[axis2]:
+                # print(f"\n\n[{a.comm.rank}] UPDATE: {a.larray}\nOffset: {offset}, upd_offset: {upd_offset}")
+                offset = upd_offset
+            diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+            # TODO
+            # print(f"\n\n[{a.comm.rank}] UPDATE: {a.larray}\nOffset: {offset}, upd_offset: {upd_offset}\nDiag: {diag_t}")
 
-                # Gather all results
-                last_axis = diag_t.ndim - 1
-                all_diagonals = all_diagonals = factories.array(
-                    diag_t, dtype=dtype, is_split=last_axis, comm=a.comm, device=a.device
-                )
+            # Gather all results
+            last_axis = diag_t.ndim - 1
+            all_diagonals = all_diagonals = factories.array(
+                diag_t, dtype=dtype, is_split=last_axis, comm=a.comm, device=a.device
+            )
 
-                # Resplit the diagonal array s.t. the sums can be computed efficiently on each node
-                # (Distribute along axis 0 as it is never the last axis)
-                all_diagonals.resplit_(0)
-                sum_along_diagonals_t = torch.sum(all_diagonals.larray, last_axis)
+            # Resplit the diagonal array s.t. the sums can be computed efficiently on each node
+            # (Distribute along axis 0 as it is never the last axis)
+            all_diagonals.resplit_(0)
+            sum_along_diagonals_t = torch.sum(all_diagonals.larray, last_axis)
 
         if a.is_distributed():
-            # Stack all partial results back together along the split axis of `a`
+            # Stack all partial results back together along the axis of their computation
+            gather_axis = 0 if a.split in (axis1, axis2) else a.split
+
             sum_along_diagonals = factories.array(
                 sum_along_diagonals_t,
                 dtype=dtype,
-                is_split=a.split,  # TODO check if split axis of all_diagonals is required
+                is_split=gather_axis,
                 comm=a.comm,
                 device=a.device,
             )
+
+            # for consistency with original split axis
+            if a.split != gather_axis:
+                sum_along_diagonals.resplit_(a.split)
         else:
             # convert torch result back to DNDarray
             sum_along_diagonals = factories.array(
                 sum_along_diagonals_t, dtype=dtype, split=a.split, comm=a.comm, device=a.device
             )
 
-        if out is not None:
+        if (
+            out is not None
+        ):  # TODO not identical split axis (as now distributed along axis 0 => error)
             output_gshape = list(a.gshape)
             del output_gshape[axis1], output_gshape[axis2 - 1]
             sanitation.sanitize_out(out, tuple(output_gshape), a.split, a.device)
             out.larray = sum_along_diagonals.larray
+
+            # _, _, slices = sum_along_diagonals.comm.chunk(sum_along_diagonals.gshape, out.split)
+            # out.larray = sum_along_diagonals.larray[slices]
 
         return sum_along_diagonals
 
