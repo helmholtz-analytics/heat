@@ -1258,6 +1258,9 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             axis1 = axis2
             axis2 = tmp
 
+        # ----------------------------------
+        # CASE split axis NOT IN trace axes
+        # ----------------------------------
         # compute each diagonal sum
         if not (a.is_distributed() and a.split in (axis1, axis2)):
             # extract diagonals
@@ -1267,7 +1270,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             last_axis = diag_t.ndim - 1
             sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype.torch_type())
         # -----------------------------
-        # CASE split axis in trace axes
+        # CASE split axis IN trace axes
         # -----------------------------
         else:
             # combination that would NOT result into array of zeros
@@ -1275,12 +1278,17 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
                 # adapt the offset to distribution
                 # / calculate required diagonal elements on the process
                 offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
-                offset -= offset_split  # TODO validate
+
+                if a.split == axis1:
+                    offset += offset_split
+                else:  # a.split == axis2
+                    offset -= offset_split
+
             diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
 
             # Gather all results
             last_axis = diag_t.ndim - 1
-            all_diagonals = all_diagonals = factories.array(
+            all_diagonals = factories.array(
                 diag_t, dtype=dtype, is_split=last_axis, comm=a.comm, device=a.device
             )
 
@@ -1290,9 +1298,23 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             sum_along_diagonals_t = torch.sum(all_diagonals.larray, last_axis)
 
         if a.is_distributed():
+            # TODO CHOICE OF GATHER AXIS
+            # TODO check if a.split is small enough to be gather axis
+
+            if a.split in (axis1, axis2):
+                gather_axis = 0
+            elif a.split < axis2:
+                gather_axis = a.split
+            else:
+                gather_axis = a.split - 2
+
+            # TODO check if gather_axis is small enough to fit
+            # # Split axis too large => gather along last axis
+            #             # if a.split >= sum_along_diagonals_t.ndim:
+            #             #     gather_axis = sum_along_diagonals_t.ndim - 1
+
             # Stack all partial results back together along the axis of their computation
-            # gather_axis = 0 if a.split in (axis1, axis2) else a.split # TODO
-            gather_axis = 0  # TODO validate
+            print(f"[{a.comm.rank}] {sum_along_diagonals_t}, {sum_along_diagonals_t.shape}")  # TODO
 
             sum_along_diagonals = factories.array(
                 sum_along_diagonals_t,
@@ -1302,16 +1324,18 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
                 device=a.device,
             )
 
-            # for consistency with original split axis
-            if a.split != gather_axis:
-                sum_along_diagonals.resplit_(a.split)
         else:
+            # check if split axis is in range
+            gather_axis = a.split
+            if a.split is not None and a.split >= len(sum_along_diagonals_t.shape):
+                gather_axis = 0
+
             # convert torch result back to DNDarray
             sum_along_diagonals = factories.array(
-                sum_along_diagonals_t, dtype=dtype, split=a.split, comm=a.comm, device=a.device
+                sum_along_diagonals_t, dtype=dtype, split=gather_axis, comm=a.comm, device=a.device
             )
 
-        if out is not None:
+        if out is not None:  # TODO use gather axis instead
             output_gshape = list(a.gshape)
             del output_gshape[axis1], output_gshape[axis2 - 1]
             sanitation.sanitize_out(out, tuple(output_gshape), a.split, a.device)
