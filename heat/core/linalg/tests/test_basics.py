@@ -775,6 +775,18 @@ class TestLinalgBasics(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
+        # different axes
+        axis1 = 1
+        axis2 = 2
+        o = 0
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2, dtype=dtype)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2, dtype=np.float32)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        axis1 = 1
+        axis2 = 3
+
         # offset != 0
         # negative offset
         o = -(x.gshape[0] - 1)
@@ -912,7 +924,7 @@ class TestLinalgBasics(TestCase):
         x = ht.arange(24, split=0).reshape((1, 2, 3, 4))
         x_np = x.numpy()
         # ------------------------------------------------
-        # CASE split axis not in (axis1, axis2)
+        # CASE split axis NOT in (axis1, axis2)
         # ------------------------------------------------
         axis1 = 1
         axis2 = 2
@@ -946,16 +958,27 @@ class TestLinalgBasics(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
+        # different axes (still not in x.split = 0)
+        axis1 = 1
+        axis2 = 3
+        o = 0
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2, dtype=dtype)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2, dtype=np.float32)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
         # offset != 0
         # negative offset
-        o = -(x.gshape[0] - 1)
+        axis1 = 1
+        axis2 = 2
+        o = -(x.gshape[axis1] - 1)
         result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
         result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
         # positive offset
-        o = x.gshape[1] - 1
+        o = x.gshape[axis2] - 1
         result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
         result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
         self.assertIsInstance(result, ht.DNDarray)
@@ -985,15 +1008,30 @@ class TestLinalgBasics(TestCase):
             out = ht.array([])
             ht.trace(x, out=out, axis1=axis1, axis2=axis2)
 
-        # ------------------------------------------------
-        # CASE split axis IN (axis1, axis2)
-        # ------------------------------------------------
-        x = ht.arange(24).reshape((1, 2, 3, 4))
-        x = ht.array(x, split=1, dtype=dtype)
+        # different split axis (that is still not in (axis1, axis2)
+        x = ht.arange(24).reshape((1, 2, 3, 4, 1))
+        x = ht.array(x, split=2, dtype=dtype)
         x_np = x.numpy()
         axis1 = 0
         axis2 = 1
-        out = ht.empty((3, 4), split=1, dtype=x.dtype)
+        out = ht.empty((3, 4, 1), split=2, dtype=x.dtype)
+        result = ht.trace(x, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # ------------------------------------------------
+        # CASE split axis IN (axis1, axis2)
+        # ------------------------------------------------
+        x = ht.arange(24).reshape((1, 2, 3, 4, 1))
+        split_axis = 2
+        x = ht.array(x, split=split_axis, dtype=dtype)
+        x_np = x.numpy()
+        axis1 = 1
+        axis2 = 2
+        result_shape = list(x.gshape)
+        del result_shape[axis1], result_shape[axis2 - 1]
+        out = ht.empty(tuple(result_shape), split=split_axis, dtype=x.dtype)
 
         result = ht.trace(x, axis1=axis1, axis2=axis2)
         result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
@@ -1038,25 +1076,33 @@ class TestLinalgBasics(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
-        # offset resulting into zero array
+        # different axes
         axis1 = 1
         axis2 = 2
+        result_shape = list(x.gshape)
+        del result_shape[axis1], result_shape[axis2 - 1]
+        o = 0
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2, dtype=dtype)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2, dtype=np.float32)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset resulting into zero array
         # negative
         o = -x.gshape[axis1]
         result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
         result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
         self.assertIsInstance(result, ht.DNDarray)
-        # print(f"Heat:\n{result}\nNumpy:\n{result_np}")
-        self.assert_array_equal(result, np.zeros((1, 4), dtype=result_np.dtype))
+
+        self.assert_array_equal(result, np.zeros(result_shape, dtype=result_np.dtype))
         self.assert_array_equal(result, result_np)
 
-        # positive # TODO not working yet
+        # positive
         o = x.gshape[axis2]
         result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
         result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
         self.assertIsInstance(result, ht.DNDarray)
-        # self.assert_array_equal(result, np.zeros((1, 4), dtype=result_np.dtype)) # TODO check
-        print(f"Heat:\n{result}\nNumpy:\n{result_np}")
+        self.assert_array_equal(result, np.zeros(result_shape, dtype=result_np.dtype))
         self.assert_array_equal(result, result_np)
 
         # Exceptions
