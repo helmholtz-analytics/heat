@@ -962,11 +962,6 @@ class TestLinalgBasics(TestCase):
         self.assert_array_equal(result, result_np)
         self.assert_array_equal(out, result_np)
 
-        result = ht.trace(x, axis1=axis1, axis2=axis2)
-        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assert_array_equal(result, result_np)
-
         # reversed axes order
         result = ht.trace(x, axis1=axis2, axis2=axis1)
         result_np = np.trace(x_np, axis1=axis2, axis2=axis1)
@@ -976,9 +971,8 @@ class TestLinalgBasics(TestCase):
         # different axes (still not in x.split = 0)
         axis1 = 1
         axis2 = 3
-        o = 0
-        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2, dtype=dtype)
-        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2, dtype=np.float32)
+        result = ht.trace(x, offset=0, axis1=axis1, axis2=axis2, dtype=dtype)
+        result_np = np.trace(x_np, offset=0, axis1=axis1, axis2=axis2, dtype=np.float32)
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
@@ -1051,31 +1045,6 @@ class TestLinalgBasics(TestCase):
 
         # different split axis (that is still not in (axis1, axis2))
         x = ht.arange(24).reshape((1, 2, 3, 4, 1))
-        split_axis = 2
-        x = ht.array(x, split=split_axis, dtype=dtype)
-        x_np = x.numpy()
-        axis1 = 3
-        axis2 = 4
-        result = ht.trace(x, axis1=axis1, axis2=axis2)
-        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assert_array_equal(result, result_np)
-
-        # different split axis (that is still not in (axis1, axis2))
-        x = ht.arange(24).reshape((1, 2, 3, 4, 1))
-        x = ht.array(x, split=1, dtype=dtype)
-        x_np = x.numpy()
-        axis1 = 2
-        axis2 = 3
-        out = ht.empty((1, 2, 1), split=1, dtype=x.dtype)
-        result = ht.trace(x, axis1=axis1, axis2=axis2, out=out)
-        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assert_array_equal(result, result_np)
-        self.assert_array_equal(out, result_np)
-
-        # different split axis (that is still not in (axis1, axis2))
-        x = ht.arange(24).reshape((1, 2, 3, 4, 1))
         x = ht.array(x, split=3, dtype=dtype)
         x_np = x.numpy()
         axis1 = 2
@@ -1085,19 +1054,6 @@ class TestLinalgBasics(TestCase):
         result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
-
-        # different split axis (that is still not in (axis1, axis2))
-        x = ht.arange(24).reshape((1, 2, 3, 4, 1))
-        x = ht.array(x, split=3, dtype=dtype)
-        x_np = x.numpy()
-        axis1 = 2
-        axis2 = 3
-        out = ht.empty((1, 2, 1), split=1, dtype=x.dtype)
-        result = ht.trace(x, axis1=axis1, axis2=axis2, out=out)
-        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assert_array_equal(result, result_np)
-        self.assert_array_equal(out, result_np)
 
         # Exceptions
         with self.assertRaises(ValueError):
@@ -1172,7 +1128,6 @@ class TestLinalgBasics(TestCase):
         result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
         result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
         self.assertIsInstance(result, ht.DNDarray)
-
         self.assert_array_equal(result, np.zeros(result_shape, dtype=result_np.dtype))
         self.assert_array_equal(result, result_np)
 
