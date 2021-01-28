@@ -1104,14 +1104,14 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     out: ht.DNDarray, optional
         Array into which the output is placed. Its type is preserved and it must be of the right shape
         to hold the output
-        Only applicable if `a` has more than 2 dimensions, thus a result that is not a number.
+        Only applicable if `a` has more than 2 dimensions, thus the result is not a scalar.
         If distributed, its split axis might change eventually.
 
     Returns
     -------
     sum_along_diagonals : number (of defined dtype) or ht.DNDarray
-        If `a` is 2D, the sum along the diagonal is returned as an integer
-        If `a` has larger dimensions, then a DNDarray of sums along diagonals is returned
+        If `a` is 2D, the sum along the diagonal is returned as a scalar
+        If `a` has more than 2 dimensions, then a DNDarray of sums along diagonals is returned
 
     Examples
     --------
@@ -1170,10 +1170,11 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     if axis1 == axis2:
         raise ValueError(f"axis1 ({axis1}) and axis2 ({axis2}) cannot be the same.")
 
-    if axis1 >= len(a.gshape):
-        raise ValueError(f"`axis1` out of bounds. {axis1} larger than {len(a.gshape)}.")
-    if axis2 >= len(a.gshape):
-        raise ValueError(f"`axis2` out of bounds. {axis2} larger than {len(a.gshape)}.")
+    # TODO add tests for negative axes
+    if axis1 >= a.ndim or axis1 < -a.ndim:
+        raise ValueError(f"`axis1` ({axis1}) out of bounds for {a.ndim}-dimensional array.")
+    if axis2 >= a.ndim or axis2 < -a.ndim:
+        raise ValueError(f"`axis2` ({axis2}) out of bounds for {a.ndim}-dimensional array.")
 
     # sanitize offset
     if not isinstance(offset, int):
@@ -1197,9 +1198,9 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     # ----------------------------------------------------------------------------
     # ALGORITHM
     # ----------------------------------------------------------------------------
-
+    # TODO translate negative trace axes to positive ones
     # ---------------------------------------------
-    # CASE 2D input (ignore axis1, axis) => integer
+    # CASE 2D input (ignore axis1, axis) => scalar
     # ---------------------------------------------
     if len(a.lshape) == 2:
         # CASE 1.1: offset results into an empty array
@@ -1225,7 +1226,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
                 offset = min(-offset, a_sub.lshape[0])
                 a_sub = factories.array(a_sub.larray[offset:, :])
 
-            # calculate partial sum
+            # calculate trace /partial sum on that sub-array
             if 0 not in a_sub.lshape:
                 sum_along_diagonals_t = torch.trace(a_sub.larray)
             # empty array => result = 0
@@ -1233,7 +1234,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
                 sum_along_diagonals_t = torch.tensor(0, dtype=a_sub.dtype.torch_type())
 
         if out is not None:
-            raise ValueError("`out` not applicable (/must be None) if result is a number")
+            raise ValueError("`out` not applicable (/must be None) if result is a scalar/ input 2D")
 
         # sum up all partial sums
         if a.is_distributed():
@@ -1275,7 +1276,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             # combination that would NOT result into array of zeros
             if -offset < a.gshape[axis1] or offset < a.gshape[axis2]:
                 # adapt the offset to distribution
-                # / calculate required diagonal elements on the process
+                # (to result into required diagonal elements on each process)
                 offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
 
                 if a.split == axis1:
@@ -1297,20 +1298,17 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             sum_along_diagonals_t = torch.sum(all_diagonals.larray, last_axis)
 
         if a.is_distributed():
-            # TODO CHOICE OF GATHER AXIS
-            # TODO check if a.split is small enough to be gather axis
-
             if a.split in (axis1, axis2):
+                # as all_diagonals was resplit along axis 0
                 gather_axis = 0
             elif a.split < axis2:
                 gather_axis = a.split
             else:
                 gather_axis = a.split - 2
 
-            # TODO check if gather_axis is small enough to fit
-            # # Split axis too large => gather along last axis
-            #             # if a.split >= sum_along_diagonals_t.ndim:
-            #             #     gather_axis = sum_along_diagonals_t.ndim - 1
+            # check if gather_axis is in range of result
+            if gather_axis >= sum_along_diagonals_t.ndim:
+                gather_axis = sum_along_diagonals_t.ndim - 1
 
             # Stack all partial results back together along the correct axis
             sum_along_diagonals = factories.array(
@@ -1320,12 +1318,13 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
                 comm=a.comm,
                 device=a.device,
             )
-
+        # input not distributed
         else:
-            # check if split axis is in range
-            gather_axis = a.split
-            if a.split is not None and a.split >= len(sum_along_diagonals_t.shape):
-                gather_axis = 0
+            # check if split axis is in range of result
+            if a.split is not None and a.split >= sum_along_diagonals_t.ndim:
+                gather_axis = sum_along_diagonals_t.ndim - 1
+            else:
+                gather_axis = a.split
 
             # convert torch result back to DNDarray
             sum_along_diagonals = factories.array(
@@ -1334,7 +1333,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
 
         if out is not None:
             # resplit to guarantee correct results
-            if out.is_distributed() and out.split != gather_axis:
+            if out.split != gather_axis:
                 warnings.warn(
                     f"Split axis of `out` will be changed from {out.split} to {gather_axis} to "
                     f"guarantee correct results."
@@ -1346,7 +1345,8 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             sanitation.sanitize_out(out, tuple(output_gshape), gather_axis, a.device)
 
             # store result
-            out.larray = sum_along_diagonals.larray
+            out.larray = sum_along_diagonals_t
+            return out
 
         return sum_along_diagonals
 
