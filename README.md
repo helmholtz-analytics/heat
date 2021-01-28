@@ -102,7 +102,32 @@ Citing HeAT
 
 If you find HeAT helpful for your research, please mention it in your academic publications. You can cite:
 
-- Götz, M., Debus, C., Coquelin, D., et al., "HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics." 2020 IEEE International Conference on Big Data (Big Data). IEEE, 2020 (accepted). [[Download](https://arxiv.org/abs/2007.13552)]
+- Götz, M., D., Debus, Coquelin, C., Krajsek, K., Comito, C., Knechtges, P., .Hagemeier, B., Tarnawa, M., Hanselmann, S., Siggel, S., Basermann, A. & Streit, A. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In Proceedings of the 19th IEEE International Conference on Big Data (BigData) (pp. 276-288). IEEE.
+
+```
+@inproceedings{heat,
+    title={{HeAT -- a Distributed and GPU-accelerated Tensor Framework for Data Analytics}},
+    author={
+      Götz, Markus and 
+      Debus, Charlotte and 
+      Coquelin, Daniel and 
+      Krajsek, Kai and 
+      Comito, Claudia and 
+      Knechtges, Philipp and 
+      Hagemeier, Björn, and 
+      Tarnawa, Michael and 
+      Hanselmann, Simon and 
+      Siggel, Martin and 
+      Basermann, Achim and 
+      Streit, Achim
+    },
+    booktitle={Proceedings of the 19th IEEE International Conference on Big Data},
+    year={2020},
+    pages={276-288},
+    month={December},
+    publisher={IEEE}
+}
+```
 
 Acknowledgements
 ----------------
