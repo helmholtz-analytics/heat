@@ -1,6 +1,7 @@
 import itertools
 import numpy as np
 import torch
+import warnings
 
 from ..communication import MPI
 from .. import arithmetics
@@ -1104,6 +1105,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
         Array into which the output is placed. Its type is preserved and it must be of the right shape
         to hold the output
         Only applicable if `a` has more than 2 dimensions, thus a result that is not a number.
+        If distributed, its split axis might change eventually.
 
     Returns
     -------
@@ -1191,9 +1193,6 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     # sanitize out
     if out is not None and not isinstance(out, dndarray.DNDarray):
         raise TypeError(f"out must be a ht.DNDarray or None not {type(out)}")
-
-    if out is not None and out.split != a.split:  # TODO add test
-        raise ValueError(f"out.split ({out.split}) must be equal to a.split ({a.split})")
 
     # ----------------------------------------------------------------------------
     # ALGORITHM
@@ -1313,9 +1312,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             #             # if a.split >= sum_along_diagonals_t.ndim:
             #             #     gather_axis = sum_along_diagonals_t.ndim - 1
 
-            # Stack all partial results back together along the axis of their computation
-            print(f"[{a.comm.rank}] {sum_along_diagonals_t}, {sum_along_diagonals_t.shape}")  # TODO
-
+            # Stack all partial results back together along the correct axis
             sum_along_diagonals = factories.array(
                 sum_along_diagonals_t,
                 dtype=dtype,
@@ -1335,10 +1332,20 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
                 sum_along_diagonals_t, dtype=dtype, split=gather_axis, comm=a.comm, device=a.device
             )
 
-        if out is not None:  # TODO use gather axis instead
+        if out is not None:
+            # resplit to guarantee correct results
+            if out.is_distributed() and out.split != gather_axis:
+                warnings.warn(
+                    f"Split axis of `out` will be changed from {out.split} to {gather_axis} to "
+                    f"guarantee correct results."
+                )
+                out.resplit_(gather_axis)
+            # sanitize out
             output_gshape = list(a.gshape)
             del output_gshape[axis1], output_gshape[axis2 - 1]
-            sanitation.sanitize_out(out, tuple(output_gshape), a.split, a.device)
+            sanitation.sanitize_out(out, tuple(output_gshape), gather_axis, a.device)
+
+            # store result
             out.larray = sum_along_diagonals.larray
 
         return sum_along_diagonals

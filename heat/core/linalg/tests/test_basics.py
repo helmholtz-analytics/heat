@@ -1008,7 +1008,7 @@ class TestLinalgBasics(TestCase):
             out = ht.array([])
             ht.trace(x, out=out, axis1=axis1, axis2=axis2)
 
-        # different split axis (that is still not in (axis1, axis2) # TODO: Hint: stacke auf achse 0
+        # different split axis (that is still not in (axis1, axis2))
         x = ht.arange(24).reshape((1, 2, 3, 4, 1))
         x = ht.array(x, split=2, dtype=dtype)
         x_np = x.numpy()
@@ -1020,7 +1020,7 @@ class TestLinalgBasics(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
-        # different split axis (that is still not in (axis1, axis2) # TODO unable to construct
+        # different split axis (that is still not in (axis1, axis2))
         x = ht.arange(24).reshape((1, 2, 3, 4, 1))
         split_axis = 2
         x = ht.array(x, split=split_axis, dtype=dtype)
@@ -1032,7 +1032,7 @@ class TestLinalgBasics(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
-        # different split axis (that is still not in (axis1, axis2) # TODO
+        # different split axis (that is still not in (axis1, axis2))
         x = ht.arange(24).reshape((1, 2, 3, 4, 1))
         x = ht.array(x, split=1, dtype=dtype)
         x_np = x.numpy()
@@ -1047,7 +1047,6 @@ class TestLinalgBasics(TestCase):
         # ------------------------------------------------
         # CASE split axis IN (axis1, axis2)
         # ------------------------------------------------
-        # TODO WRONG -> Revise offset calculations
         x = ht.arange(24).reshape((1, 2, 3, 4))
         split_axis = 1
         x = ht.array(x, split=split_axis, dtype=dtype)
@@ -1068,12 +1067,12 @@ class TestLinalgBasics(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
-        # # out # TODO fix out
-        # result = ht.trace(x, out=out, axis1=axis1, axis2=axis2)
-        # result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
-        # self.assertIsInstance(result, ht.DNDarray)
-        # self.assert_array_equal(result, result_np)
-        # self.assert_array_equal(out, result_np)
+        # out
+        result = ht.trace(x, out=out, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+        self.assert_array_equal(out, result_np)
 
         # reversed axes order
         result = ht.trace(x, axis1=axis2, axis2=axis1)
