@@ -1167,13 +1167,17 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     if not isinstance(axis2, int):
         raise TypeError(f"`axis2` must be integer, not {type(axis2)}")
 
+    # translate negative to positive indexing (trace axes)
+    if axis1 < 0:
+        axis1 = axis1 % a.ndim
+    if axis2 < 0:
+        axis2 = axis2 % a.ndim
+
     if axis1 == axis2:
         raise ValueError(f"axis1 ({axis1}) and axis2 ({axis2}) cannot be the same.")
-
-    # TODO add tests for negative axes
-    if axis1 >= a.ndim or axis1 < -a.ndim:
+    if axis1 >= a.ndim:
         raise ValueError(f"`axis1` ({axis1}) out of bounds for {a.ndim}-dimensional array.")
-    if axis2 >= a.ndim or axis2 < -a.ndim:
+    if axis2 >= a.ndim:
         raise ValueError(f"`axis2` ({axis2}) out of bounds for {a.ndim}-dimensional array.")
 
     # sanitize offset
@@ -1198,7 +1202,6 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     # ----------------------------------------------------------------------------
     # ALGORITHM
     # ----------------------------------------------------------------------------
-    # TODO translate negative trace axes to positive ones
     # ---------------------------------------------
     # CASE 2D input (ignore axis1, axis) => scalar
     # ---------------------------------------------

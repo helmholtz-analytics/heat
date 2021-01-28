@@ -775,6 +775,24 @@ class TestLinalgBasics(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
+        # negative axes
+        axis1 = 1
+        axis2 = 2
+        result = ht.trace(x, axis1=axis1, axis2=-axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=-axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        result = ht.trace(x, axis1=-axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=-axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        result = ht.trace(x, axis1=-axis1, axis2=-axis2)
+        result_np = np.trace(x_np, axis1=-axis1, axis2=-axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
         # different axes
         axis1 = 1
         axis2 = 2
@@ -783,9 +801,6 @@ class TestLinalgBasics(TestCase):
         result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2, dtype=np.float32)
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
-
-        axis1 = 1
-        axis2 = 3
 
         # offset != 0
         # negative offset
@@ -964,6 +979,24 @@ class TestLinalgBasics(TestCase):
         o = 0
         result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2, dtype=dtype)
         result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2, dtype=np.float32)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # negative axes
+        axis1 = 1
+        axis2 = 2
+        result = ht.trace(x, axis1=axis1, axis2=-axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=-axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        result = ht.trace(x, axis1=-axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=-axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        result = ht.trace(x, axis1=-axis1, axis2=-axis2)
+        result_np = np.trace(x_np, axis1=-axis1, axis2=-axis2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 
