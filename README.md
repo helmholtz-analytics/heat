@@ -23,7 +23,7 @@ HeAT is a flexible and seamless open-source software for high performance data
 analytics and machine learning. It provides highly optimized algorithms and data
 structures for tensor computations using CPUs, GPUs and distributed cluster
 systems on top of MPI. The goal of HeAT is to fill the gap between data
-analytics and machine learning libraries with a strong focus on on single-node
+analytics and machine learning libraries with a strong focus on single-node
 performance, and traditional high-performance computing (HPC). HeAT's generic
 Python-first programming interface integrates seamlessly with the existing data
 science ecosystem and makes it as effortless as using numpy to write scalable
@@ -102,7 +102,32 @@ Citing HeAT
 
 If you find HeAT helpful for your research, please mention it in your academic publications. You can cite:
 
-- Götz, M., Debus, C., Coquelin, D., et al., "HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics." 2020 IEEE International Conference on Big Data (Big Data). IEEE, 2020 (accepted). [[Download](https://arxiv.org/abs/2007.13552)]
+- Götz, M., D., Debus, Coquelin, C., Krajsek, K., Comito, C., Knechtges, P., .Hagemeier, B., Tarnawa, M., Hanselmann, S., Siggel, S., Basermann, A. & Streit, A. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In Proceedings of the 19th IEEE International Conference on Big Data (BigData) (pp. 276-288). IEEE.
+
+```
+@inproceedings{heat,
+    title={{HeAT -- a Distributed and GPU-accelerated Tensor Framework for Data Analytics}},
+    author={
+      Götz, Markus and 
+      Debus, Charlotte and 
+      Coquelin, Daniel and 
+      Krajsek, Kai and 
+      Comito, Claudia and 
+      Knechtges, Philipp and 
+      Hagemeier, Björn, and 
+      Tarnawa, Michael and 
+      Hanselmann, Simon and 
+      Siggel, Martin and 
+      Basermann, Achim and 
+      Streit, Achim
+    },
+    booktitle={Proceedings of the 19th IEEE International Conference on Big Data},
+    year={2020},
+    pages={276-288},
+    month={December},
+    publisher={IEEE}
+}
+```
 
 Acknowledgements
 ----------------
