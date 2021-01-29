@@ -1289,7 +1289,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
 
             diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
 
-            # empty diagonal => create an array of zeros for summation
+            # empty diagonal => create an array of zeros for following summation
             if 0 in diag_t.shape:
                 res_shape = [1 if i == 0 else i for i in diag_t.shape]
                 diag_t = torch.zeros(res_shape)
@@ -1297,7 +1297,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             # create recvbuffer (with correct resulting shape)
             sum_along_diagonals_t = torch.clone(diag_t)
             res_shape = list(sum_along_diagonals_t.shape)
-            del res_shape[-1]
+            del res_shape[-1]  # as summed up along the last axis
             sum_along_diagonals_t = torch.reshape(sum_along_diagonals_t, res_shape)
 
             # Sum up all partial sums (and gather them)
@@ -1305,11 +1305,13 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
 
             # Store result in out if provided
             if out is not None:
-                warnings.warn(
-                    f"Split axis of `out` will be changed from {out.split} to None to "
-                    f"guarantee correct results."
-                )
-                out.resplit_(None)
+                if out.split is not None:
+                    warnings.warn(
+                        f"Split axis of `out` will be changed from {out.split} to None to "
+                        f"guarantee correct results."
+                    )
+                    # Allgather of out - necessary as whole result is on all processes after Allreduce
+                    out.resplit_(None)
                 sanitation.sanitize_out(out, tuple(res_shape), out.split, a.device)
                 out.larray = sum_along_diagonals_t
                 return out
