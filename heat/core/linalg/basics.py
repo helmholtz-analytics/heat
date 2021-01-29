@@ -1243,7 +1243,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
         if a.is_distributed():
             a.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
 
-        # cast to correct dtype and gather results
+        # cast to correct dtype and gather results #TODO gather actually not necessary (already happened) -> split=a.split?
         sum_along_diagonals = factories.array(
             sum_along_diagonals_t, split=None, dtype=dtype, device=a.device
         )
@@ -1289,16 +1289,38 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
 
             diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
 
-            # Gather all results
-            last_axis = diag_t.ndim - 1
-            all_diagonals = factories.array(
-                diag_t, dtype=dtype, is_split=last_axis, comm=a.comm, device=a.device
-            )
+            # ---------------------------------------------------------------------------------------------------
+            # empty diagonal => create an array of zeros for summation
+            if 0 in diag_t.shape:
+                res_shape = [1 if i == 0 else i for i in diag_t.shape]
+                diag_t = torch.zeros(res_shape)
 
-            # Resplit the diagonal array s.t. the sums can be computed efficiently on each node
-            # (Distribute along axis 0 as it is never the last axis)
-            all_diagonals.resplit_(0)
-            sum_along_diagonals_t = torch.sum(all_diagonals.larray, last_axis)
+            tmp = torch.clone(diag_t)
+            res_shape = list(tmp.shape)
+            del res_shape[-1]
+            tmp = torch.reshape(tmp, res_shape)
+            print(f"\n[{a.comm.rank}] DIAG:\n{tmp}")  # TODO
+            # a.comm.Allreduce(diag_t, tmp, MPI.SUM)
+            a.comm.Allreduce(MPI.IN_PLACE, tmp, MPI.SUM)
+            print(f"[{a.comm.rank}] TMP:\n{tmp}")
+
+            # TODO
+            last_axis = tmp.ndim - 1
+            if out is not None:
+                if out.split != last_axis:
+                    warnings.warn(
+                        f"Split axis of `out` will be changed from {out.split} to {last_axis} to "
+                        f"guarantee correct results."
+                    )
+                    out.resplit_(last_axis)
+                print("Will asign tmp to out")
+                sanitation.sanitize_out(out, tuple(res_shape), last_axis, a.device)
+                out.larray = (
+                    tmp
+                )  # TODO how to assign only "process local" chunk? -> out.comm.chunk?
+                return out
+
+            return factories.array(tmp, dtype=dtype, split=last_axis, comm=a.comm, device=a.device)
 
         if a.is_distributed():
             if a.split in (axis1, axis2):
