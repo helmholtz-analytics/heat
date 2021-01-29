@@ -16,6 +16,7 @@
 - [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``
 ### Linear Algebra
 - [#658](https://github.com/helmholtz-analytics/heat/pull/658) Bugfix: `matmul` on GPU will cast away from `int`s to `float`s for the operation and cast back upon its completion. This may result in numerical inaccuracies for very large `int64` DNDarrays
+- [#718](https://github.com/helmholtz-analytics/heat/pull/718) New feature: `trace()`
 ### ...
 
 ## Bug fixes
