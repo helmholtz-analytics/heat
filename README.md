@@ -108,17 +108,17 @@ If you find HeAT helpful for your research, please mention it in your academic p
 @inproceedings{heat,
     title={{HeAT -- a Distributed and GPU-accelerated Tensor Framework for Data Analytics}},
     author={
-      Götz, Markus and 
-      Debus, Charlotte and 
-      Coquelin, Daniel and 
-      Krajsek, Kai and 
-      Comito, Claudia and 
-      Knechtges, Philipp and 
-      Hagemeier, Björn, and 
-      Tarnawa, Michael and 
-      Hanselmann, Simon and 
-      Siggel, Martin and 
-      Basermann, Achim and 
+      Götz, Markus and
+      Debus, Charlotte and
+      Coquelin, Daniel and
+      Krajsek, Kai and
+      Comito, Claudia and
+      Knechtges, Philipp and
+      Hagemeier, Björn, and
+      Tarnawa, Michael and
+      Hanselmann, Simon and
+      Siggel, Martin and
+      Basermann, Achim and
       Streit, Achim
     },
     booktitle={Proceedings of the 19th IEEE International Conference on Big Data},
