@@ -1188,11 +1188,9 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     try:
         if dtype is None:
             dtype = a.dtype
-        elif not issubclass(dtype, types.generic):
-            raise ValueError(f"dtype must be a datatype or None, not {type(dtype)}")
         else:
             dtype = types.canonical_heat_type(dtype)
-    except TypeError:  # not even a class was handed over
+    except TypeError:  # type cannot be converted to ht.type
         raise ValueError(f"dtype must be a datatype or None, not {type(dtype)}")
 
     # sanitize out
