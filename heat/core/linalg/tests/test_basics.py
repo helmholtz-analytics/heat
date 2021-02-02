@@ -667,6 +667,11 @@ class TestLinalgBasics(TestCase):
         self.assertIsInstance(result, int)
         self.assertEqual(result, result_np)
 
+        # direct call
+        result = x.trace()
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
         # input = array_like (other than DNDarray)
         result = ht.trace(x.tolist())
         self.assertIsInstance(result, int)
@@ -737,6 +742,8 @@ class TestLinalgBasics(TestCase):
         with self.assertRaises(ValueError):
             out = ht.array([])
             ht.trace(x, out=out)
+        with self.assertRaises(ValueError):
+            ht.trace(x, dtype="ht.float32")
 
         # ------------------------------------------------
         # CASE > 2-D (4D)
@@ -1093,6 +1100,14 @@ class TestLinalgBasics(TestCase):
         # reversed axes order
         result = ht.trace(x, axis1=axis2, axis2=axis1)
         result_np = np.trace(x_np, axis1=axis2, axis2=axis1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # axis2 = a.split
+        axis1 = 0
+        axis2 = 1
+        result = ht.trace(x, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
         self.assertIsInstance(result, ht.DNDarray)
         self.assert_array_equal(result, result_np)
 

@@ -3674,7 +3674,74 @@ class DNDarray:
         return self.__array.tolist()
 
     def trace(self, offset=0, axis1=0, axis2=1, dtype=None, out=None):
-        # TODO add documentation
+        """
+
+        Return the sum along diagonals of the array
+
+        If `a` is 2D, the sum along its diagonal with the given offset is returned, i.e. the sum of
+        elements a[i, i+offset] for all i.
+
+        If `a` has more than two dimensions, then the axes specified by `axis1` and `axis2` are used
+        to determine the 2D-sub-DNDarrays whose traces are returned.
+        The shape of the resulting array is the same as that of `a` with `axis1` and `axis2` removed.
+
+        Parameters
+        ----------
+        a : array_like
+            Input array, from which the diagonals are taken
+        offset : int, optional
+            Offsets of the diagonal from the main diagonal. Can be both positive and negative. Defaults to 0.
+        axis1, axis2 : int, optional
+            Axes to be used as the first and the second axis of the 2D-sub-arrays from which the diagonals
+            should be taken. Defaults are the first two axes of `a`
+        dtype : dtype, optional
+            Determines the data-type of the returned array and of the accumulator where the elements are
+            summed. If `dtype` has value None than the dtype is the same as that of `a`
+        out: ht.DNDarray, optional
+            Array into which the output is placed. Its type is preserved and it must be of the right shape
+            to hold the output
+            Only applicable if `a` has more than 2 dimensions, thus the result is not a scalar.
+            If distributed, its split axis might change eventually.
+
+        Returns
+        -------
+        sum_along_diagonals : number (of defined dtype) or ht.DNDarray
+            If `a` is 2D, the sum along the diagonal is returned as a scalar
+            If `a` has more than 2 dimensions, then a DNDarray of sums along diagonals is returned
+
+        Examples
+        --------
+        2D-case
+        >>> x = ht.arange(24).reshape((4, 6))
+        >>> x
+            DNDarray([[ 0,  1,  2,  3,  4,  5],
+                      [ 6,  7,  8,  9, 10, 11],
+                      [12, 13, 14, 15, 16, 17],
+                      [18, 19, 20, 21, 22, 23]], dtype=ht.int32, device=cpu:0, split=None)
+        >>> ht.trace(x)
+            42
+        >>> ht.trace(x, 1)
+            46
+        >>> ht.trace(x, -2)
+            31
+
+        > 2D-case
+        >>> x = x.reshape((2, 3, 4))
+        >>> x
+            DNDarray([[[ 0,  1,  2,  3],
+                       [ 4,  5,  6,  7],
+                       [ 8,  9, 10, 11]],
+
+                      [[12, 13, 14, 15],
+                       [16, 17, 18, 19],
+                       [20, 21, 22, 23]]], dtype=ht.int32, device=cpu:0, split=None)
+        >>> x.trace()
+            DNDarray([16, 18, 20, 22], dtype=ht.int32, device=cpu:0, split=None)
+        >>> x.trace(offset=1)
+            DNDarray([24, 26, 28, 30], dtype=ht.int32, device=cpu:0, split=None)
+        >>> x.trace(axis1=0, axis2=2)
+            DNDarray([13, 21, 29], dtype=ht.int32, device=cpu:0, split=None)
+        """
         return linalg.trace(self, offset, axis1, axis2, dtype, out)
 
     def transpose(self, axes=None):
