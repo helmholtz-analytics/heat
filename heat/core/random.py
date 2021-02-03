@@ -738,7 +738,7 @@ def __threefry32(X_0: torch.Tensor, X_1: torch.Tensor, seed: int):
     return X_0, X_1
 
 
-@torch.jit.script
+# @torch.jit.script
 def __threefry64(X_0: torch.Tensor, X_1: torch.Tensor, seed: int):
     """
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. This is the
