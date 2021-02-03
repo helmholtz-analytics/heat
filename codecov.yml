@@ -2,4 +2,4 @@ ignore:
   - "heat/core/regression/lasso/demo.py"
   - "heat/core/regression/lasso/plotfkt.py"
   - "heat/examples/*"
-  - "heat/core/tests/test_*.py"
+  - "heat/**/test_*.py"
