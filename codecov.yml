@@ -2,3 +2,23 @@ ignore:
   - "heat/core/regression/lasso/demo.py"
   - "heat/core/regression/lasso/plotfkt.py"
   - "heat/examples/*"
+  - "heat/**/test_*.py"
+
+coverage:
+  status:
+    project:
+      default:
+        # basic
+        target: auto
+        threshold: 5%
+        base: auto
+        flags:
+          - unit
+        paths:
+          - "heat"
+       # advanced settings
+        branches:
+          - master
+        if_ci_failed: error #success, failure, error, ignore
+        informational: false
+        only_pulls: false

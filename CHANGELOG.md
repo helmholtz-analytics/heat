@@ -1,5 +1,6 @@
 # Pending additions
 - [#717] (https://github.com/helmholtz-analytics/heat/pull/717) Switch CPU CI over to Jenkins and pre-commit to GitHub action.
+- [#720] (https://github.com/helmholtz-analytics/heat/pull/720) Ignore test files in codecov report and allow drops in code coverage.
 
 ## New features
 - [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
