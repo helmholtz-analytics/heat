@@ -34,7 +34,7 @@ pipeline {
                 sh 'coverage erase report/cov/*'
             }
             withCredentials([string(credentialsId: 'codecov-token', variable: 'CCTOKEN')]) {
-                sh 'curl -s https://codecov.io/bash | bash -s -- -c -F unittests -f coverage.xml -t $CCTOKEN  || echo "Codecov failed to upload"'
+                sh 'curl -s https://codecov.io/bash | bash -s -- -c -F unit -f coverage.xml -t $CCTOKEN  || echo "Codecov failed to upload"'
             }
         }
     }
