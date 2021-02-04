@@ -1,4 +1,6 @@
 # Pending additions
+- [#717] (https://github.com/helmholtz-analytics/heat/pull/717) Switch CPU CI over to Jenkins and pre-commit to GitHub action.
+- [#720] (https://github.com/helmholtz-analytics/heat/pull/720) Ignore test files in codecov report and allow drops in code coverage.
 
 ## New features
 - [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
@@ -6,6 +8,8 @@
 - [#687](https://github.com/helmholtz-analytics/heat/pull/687) New DNDarray property: balanced
 - [#702](https://github.com/helmholtz-analytics/heat/pull/702) Support channel stackoverflow
 
+### Factories
+- [#707](https://github.com/helmholtz-analytics/heat/pull/707) New feature: `asarray()`
 ### I/O
 - [#559](https://github.com/helmholtz-analytics/heat/pull/559) Enhancement: `save_netcdf` allows naming dimensions, creating unlimited dimensions, using existing dimensions and variables, slicing
 ### Manipulations
@@ -18,6 +22,7 @@
 ### ...
 
 ## Bug fixes
+- [#709](https://github.com/helmholtz-analytics/heat/pull/709) Set the encoding for README.md in setup.py explicitly.
 
 ## Enhancements
 ### Manipulations
