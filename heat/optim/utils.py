@@ -143,7 +143,7 @@ class DetectMetricPlateau(object):
     def is_better(self, a, best):
         if self.mode == "min" and self.threshold_mode == "rel":
             rel_epsilon = 1.0 - self.threshold
-            comp = best * rel_epsilon if best >= 0 else best - (abs(best) * self.threshold)
+            comp = best * rel_epsilon if best >= 0 else best * (1 + self.threshold)
             return a < comp
 
         elif self.mode == "min" and self.threshold_mode == "abs":
