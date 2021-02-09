@@ -6,7 +6,7 @@ pipeline {
     stages {
         stage ('Build') {
             steps {
-                withPythonEnv('home/jenkins/allvenvs') {
+                withPythonEnv('home/jenkins/allvenvs/') {
 	                sh 'pip3 install .[hdf5,netcdf] --no-cache-dir'
                     sh 'pip3 install pytest coverage pre-commit --no-cache-dir'
                     sh 'pre-commit run --all-files'
@@ -15,7 +15,7 @@ pipeline {
         }
         stage ('Test') {
             steps {
-                withPythonEnv('home/jenkins/allvenvs') {
+                withPythonEnv('home/jenkins/allvenvs/') {
                     sh 'COVERAGE_FILE=report/cov/coverage1 mpirun -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/'
                     sh 'COVERAGE_FILE=report/cov/coverage2 mpirun -n 2 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report2.xml heat/'
                     sh 'COVERAGE_FILE=report/cov/coverage3 mpirun -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report3.xml heat/'
@@ -27,7 +27,7 @@ pipeline {
     post {
         always {
             junit 'report/test/*.xml'
-            withPythonEnv('home/jenkins/allvenvs') {
+            withPythonEnv('home/jenkins/allvenvs/') {
                 sh 'coverage combine report/cov/*'
                 sh 'coverage report'
                 sh 'coverage xml'
