@@ -1239,14 +1239,11 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
 
         # sum up all partial sums
         if a.is_distributed():
-            result_t = torch.tensor(0)
-            a.comm.Allreduce(sum_along_diagonals_t, result_t, MPI.SUM)
-        else:
-            result_t = sum_along_diagonals_t
+            a.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
 
         # cast to DNDarray of correct dtype
         sum_along_diagonals = factories.array(
-            result_t, split=a.split, dtype=dtype, device=a.device, comm=a.comm
+            sum_along_diagonals_t, split=a.split, dtype=dtype, device=a.device, comm=a.comm
         )
 
         # convert resulting 0-d DNDarray to scalar
