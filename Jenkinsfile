@@ -20,6 +20,7 @@ pipeline {
                     sh 'COVERAGE_FILE=report/cov/coverage2 mpirun -n 2 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report2.xml heat/'
                     sh 'COVERAGE_FILE=report/cov/coverage3 mpirun -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report3.xml heat/'
                     sh 'COVERAGE_FILE=report/cov/coverage4 mpirun -n 4 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report4.xml heat/'
+                    sh 'COVERAGE_FILE=report/cov/coverage7 mpirun -n 7 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report7.xml heat/'
                 }
             }
         }
