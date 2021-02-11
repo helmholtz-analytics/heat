@@ -107,11 +107,17 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         """
         L = self._laplacian.construct(X)
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
-        v0 = ht.ones((L.shape[0],), dtype=L.dtype, split=0, device=L.device) / math.sqrt(L.shape[0])
+        v0 = ht.full(
+            (L.shape[0],),
+            fill_value=1.0 / math.sqrt(L.shape[0]),
+            dtype=L.dtype,
+            split=0,
+            device=L.device,
+        )
         V, T = ht.lanczos(L, self.n_lanczos, v0)
 
         # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
-        eval, evec = torch.eig(T._DNDarray__array, eigenvectors=True)
+        eval, evec = torch.eig(T.larray, eigenvectors=True)
         # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
         eval, idx = torch.sort(eval[:, 0], dim=0)
         eigenvalues = ht.array(eval)

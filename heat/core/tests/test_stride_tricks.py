@@ -1,21 +1,8 @@
-import unittest
-import os
 import heat as ht
-
-if os.environ.get("DEVICE") == "gpu" and ht.torch.cuda.is_available():
-    ht.use_device("gpu")
-    ht.torch.cuda.set_device(ht.torch.device(ht.get_device().torch_device))
-else:
-    ht.use_device("cpu")
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and ht.torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    ht.torch.cuda.set_device(device)
+from .test_suites.basic_test import TestCase
 
 
-class TestStrideTricks(unittest.TestCase):
+class TestStrideTricks(TestCase):
     def test_broadcast_shape(self):
         self.assertEqual(ht.core.stride_tricks.broadcast_shape((5, 4), (4,)), (5, 4))
         self.assertEqual(
@@ -78,3 +65,18 @@ class TestStrideTricks(unittest.TestCase):
             ht.core.stride_tricks.sanitize_shape(1.0)
         with self.assertRaises(TypeError):
             ht.core.stride_tricks.sanitize_shape((1, 1.0))
+
+    def test_sanitize_slice(self):
+        test_slice = slice(None, None, None)
+        ret_slice = ht.core.stride_tricks.sanitize_slice(test_slice, 100)
+        self.assertEqual(ret_slice.start, 0)
+        self.assertEqual(ret_slice.stop, 100)
+        self.assertEqual(ret_slice.step, 1)
+        test_slice = slice(-50, -5, 2)
+        ret_slice = ht.core.stride_tricks.sanitize_slice(test_slice, 100)
+        self.assertEqual(ret_slice.start, 50)
+        self.assertEqual(ret_slice.stop, 95)
+        self.assertEqual(ret_slice.step, 2)
+
+        with self.assertRaises(TypeError):
+            ht.core.stride_tricks.sanitize_slice("test_slice", 100)

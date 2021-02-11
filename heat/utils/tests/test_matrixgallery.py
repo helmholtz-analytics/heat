@@ -2,8 +2,10 @@ import unittest
 
 import heat as ht
 
+from heat.core.tests.test_suites.basic_test import TestCase
 
-class TestMatrixgallery(unittest.TestCase):
+
+class TestMatrixgallery(TestCase):
     def __check_parter(self, parter):
         self.assertEqual(parter.shape, (20, 20))
         # TODO: check for singular values of the parter matrix

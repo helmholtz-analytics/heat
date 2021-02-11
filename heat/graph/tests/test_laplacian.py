@@ -3,26 +3,16 @@ import unittest
 
 import heat as ht
 
-if os.environ.get("DEVICE") == "gpu" and ht.torch.cuda.is_available():
-    ht.use_device("gpu")
-    ht.torch.cuda.set_device(ht.torch.device(ht.get_device().torch_device))
-else:
-    ht.use_device("cpu")
-device = ht.get_device().torch_device
-ht_device = None
-if os.environ.get("DEVICE") == "lgpu" and ht.torch.cuda.is_available():
-    device = ht.gpu.torch_device
-    ht_device = ht.gpu
-    ht.torch.cuda.set_device(device)
+from heat.core.tests.test_suites.basic_test import TestCase
 
 
-class TestLaplacian(unittest.TestCase):
+class TestLaplacian(TestCase):
     def test_laplacian(self):
         size = ht.communication.MPI_WORLD.size
         rank = ht.communication.MPI_WORLD.rank
         X = ht.ones((size * 2, 4), split=0)
-        X._DNDarray__array[0, :] *= rank
-        X._DNDarray__array[1, :] *= rank + 0.5
+        X.larray[0, :] *= rank
+        X.larray[1, :] *= rank + 0.5
 
         L = ht.graph.Laplacian(lambda x: ht.spatial.cdist(x, quadratic_expansion=True))
         res = L.construct(X)
