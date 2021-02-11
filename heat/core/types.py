@@ -622,6 +622,21 @@ def issubdtype(arg1, arg2):
     -------
     out : bool
         Result of the stated comparison
+
+    Examples
+    --------
+    >>> ints = ht.array([1, 2, 3], dtype=ht.int32)
+    >>> ht.issubdtype(ints.dtype, ht.integer)
+    True
+    >>> ht.issubdype(ints.dtype, ht.floating)
+    False
+
+    >>> ht.issubdtype(ht.float64, ht.float32)
+    False
+
+    >>> ht.issubdtype('i', ht.integer)
+    True
+
     """
     # Assure that each argument is a ht.dtype
     arg1 = canonical_heat_type(arg1)
