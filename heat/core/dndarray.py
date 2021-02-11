@@ -1321,7 +1321,7 @@ class DNDarray:
 
         See Also
         ---------
-        flatten
+        :function:`~heat.core.manipulations.flatten`
 
         Examples
         --------
