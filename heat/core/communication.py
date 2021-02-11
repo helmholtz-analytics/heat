@@ -61,6 +61,8 @@ class MPICommunication(Communication):
         torch.int64: MPI.LONG,
         torch.float32: MPI.FLOAT,
         torch.float64: MPI.DOUBLE,
+        torch.complex64: MPI.COMPLEX,
+        torch.complex128: MPI.DOUBLE_COMPLEX,
     }
 
     def __init__(self, handle=MPI.COMM_WORLD):
