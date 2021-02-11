@@ -1240,9 +1240,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
 
         # sum up all partial sums
         if a.is_distributed():
-            a.comm.Allreduce(
-                MPI.IN_PLACE, MPICommunication.as_buffer(sum_along_diagonals_t), MPI.SUM
-            )
+            a.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
 
         # cast to DNDarray of correct dtype
         sum_along_diagonals = factories.array(
