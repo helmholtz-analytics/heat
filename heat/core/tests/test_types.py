@@ -23,8 +23,8 @@ class TestTypes(TestCase):
         no_value = heat_type()
         self.assertIsInstance(no_value, ht.DNDarray)
         self.assertEqual(no_value.shape, (1,))
-        self.assertEqual((no_value._DNDarray__array == 0).all().item(), 1)
-        self.assertEqual(no_value._DNDarray__array.dtype, torch_type)
+        self.assertEqual((no_value.larray == 0).all().item(), 1)
+        self.assertEqual(no_value.larray.dtype, torch_type)
 
         # check a type constructor with a complex value
         ground_truth = [[3, 2, 1], [4, 5, 6]]
@@ -33,14 +33,14 @@ class TestTypes(TestCase):
         self.assertEqual(elaborate_value.shape, (2, 3))
         self.assertEqual(
             (
-                elaborate_value._DNDarray__array
+                elaborate_value.larray
                 == torch.tensor(ground_truth, dtype=torch_type, device=self.device.torch_device)
             )
             .all()
             .item(),
             1,
         )
-        self.assertEqual(elaborate_value._DNDarray__array.dtype, torch_type)
+        self.assertEqual(elaborate_value.larray.dtype, torch_type)
 
         # check exception when there is more than one parameter
         with self.assertRaises(TypeError):

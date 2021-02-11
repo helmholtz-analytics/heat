@@ -89,16 +89,16 @@ def _torch_data(dndarray, summarize):
         dndarray.balance_()
     # data is not split, we can use it as is
     if dndarray.split is None or dndarray.comm.size == 1:
-        data = dndarray._DNDarray__array
+        data = dndarray.larray
     # split, but no summary required, we collect it
     elif not summarize:
-        data = dndarray.copy().resplit_(None)._DNDarray__array
+        data = dndarray.copy().resplit_(None).larray
     # split, but summarized, collect the slices from all nodes and pass it on
     else:
         edgeitems = torch._tensor_str.PRINT_OPTS.edgeitems
         double_items = 2 * edgeitems
         ndims = dndarray.ndim
-        data = dndarray._DNDarray__array
+        data = dndarray.larray
 
         for i in range(ndims):
             # skip over dimensions that are smaller than twice the number of edge items to display
@@ -124,24 +124,10 @@ def _torch_data(dndarray, summarize):
                     data = torch.index_select(
                         data, i, torch.arange(max(0, global_start - offset), dndarray.lshape[i])
                     )
-
-        # marshall data into buffer
-        buffer = io.BytesIO()
-        torch.save(data, buffer)
-        buffer.seek(0)
-
         # exchange data
-        received = dndarray.comm.gather(buffer.read())
-
+        received = dndarray.comm.gather(data)
         if dndarray.comm.rank == 0:
-            # deserialize the buffers
-            for i, ele in enumerate(received):
-                buffer.seek(0)
-                buffer.write(ele)
-                buffer.seek(0)
-                received[i] = torch.load(buffer)
-
-            # concatenate them along the split axis
+            # concatenate data along the split axis
             data = torch.cat(received, dim=dndarray.split)
 
     return data
@@ -168,4 +154,11 @@ def _tensor_str(dndarray, indent):
     torch_data = _torch_data(dndarray, summarize)
     formatter = torch._tensor_str._Formatter(torch_data)
 
-    return torch._tensor_str._tensor_str_with_formatter(torch_data, indent, formatter, summarize)
+    if int(torch.__version__[2]) <= 5 and int(torch.__version__[0]) == 0:
+        return torch._tensor_str._tensor_str_with_formatter(
+            torch_data, indent, formatter, summarize
+        )
+    else:
+        return torch._tensor_str._tensor_str_with_formatter(
+            torch_data, indent, summarize, formatter
+        )

@@ -1,10 +1,11 @@
 import torch
+import numpy as np
 from mpi4py import MPI
 
 from ..core import factories
 from ..core import types
 
-__all__ = ["cdist", "rbf"]
+__all__ = ["cdist", "manhattan", "rbf"]
 
 
 def _euclidian(x, y):
@@ -68,8 +69,7 @@ def _quadratic_expand(x, y):
     y_norm = (y ** 2).sum(1).view(1, -1)
 
     dist = x_norm + y_norm - 2.0 * torch.mm(x, y_t)
-    info = torch.finfo(dist.dtype)
-    return torch.clamp(dist, 0.0, info.max)
+    return torch.clamp(dist, 0.0, np.inf)
 
 
 def _gaussian(x, y, sigma=1.0):
@@ -121,6 +121,48 @@ def _gaussian_fast(x, y, sigma=1.0):
     return result
 
 
+def _manhattan(x, y):
+    """
+    Helper function to calculate manhattan distance between torch.tensors x and y: sum(|x-y|)
+    Based on torch.cdist
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
+    return torch.cdist(x, y, p=1)
+
+
+def _manhattan_fast(x, y):
+    """
+    Helper function to calculate Manhattan distance between torch.tensors x and y: |x-y|
+    Uses dimension expansion
+
+    Parameters
+    ----------
+    x : torch.tensor
+        2D tensor of size m x f
+    y : torch.tensor
+        2D tensor of size n x f
+
+    Returns
+    -------
+    torch.tensor
+        2D tensor of size m x n
+    """
+
+    d = torch.sum(torch.abs(x.unsqueeze(1) - y.unsqueeze(0)), dim=2)
+    return d
+
+
 def cdist(X, Y=None, quadratic_expansion=False):
     if quadratic_expansion:
         return _dist(X, Y, _euclidian_fast)
@@ -133,6 +175,13 @@ def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False):
         return _dist(X, Y, lambda x, y: _gaussian_fast(x, y, sigma))
     else:
         return _dist(X, Y, lambda x, y: _gaussian(x, y, sigma))
+
+
+def manhattan(X, Y=None, expand=False):
+    if expand:
+        return _dist(X, Y, lambda x, y: _manhattan_fast(x, y))
+    else:
+        return _dist(X, Y, lambda x, y: _manhattan(x, y))
 
 
 def _dist(X, Y=None, metric=_euclidian):
@@ -192,7 +241,7 @@ def _dist(X, Y=None, metric=_euclidian):
         )
 
         if X.split is None:
-            d._DNDarray__array = metric(X._DNDarray__array, X._DNDarray__array)
+            d.larray = metric(X.larray, X.larray)
 
         elif X.split == 0:
             comm = X.comm
@@ -203,12 +252,12 @@ def _dist(X, Y=None, metric=_euclidian):
             counts, displ, _ = comm.counts_displs_shape(X.shape, X.split)
             num_iter = (size + 1) // 2
 
-            stationary = X._DNDarray__array
+            stationary = X.larray
             rows = (displ[rank], displ[rank + 1] if (rank + 1) != size else K)
 
             # 0th iteration, calculate diagonal
             d_ij = metric(stationary, stationary)
-            d._DNDarray__array[:, rows[0] : rows[1]] = d_ij
+            d.larray[:, rows[0] : rows[1]] = d_ij
             for iter in range(1, num_iter):
                 # Send rank's part of the matrix to the next process in a circular fashion
                 receiver = (rank + iter) % size
@@ -235,7 +284,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     comm.Recv(moving, source=sender, tag=iter)
 
                 d_ij = metric(stationary, moving)
-                d._DNDarray__array[:, columns[0] : columns[1]] = d_ij
+                d.larray[:, columns[0] : columns[1]] = d_ij
 
                 # Receive calculated tile
                 scol1 = displ[receiver]
@@ -254,7 +303,7 @@ def _dist(X, Y=None, metric=_euclidian):
                 comm.Send(d_ij, dest=sender, tag=iter)
                 if (rank // iter) == 0:
                     comm.Recv(symmetric, source=receiver, tag=iter)
-                d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
+                d.larray[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
 
             if (size + 1) % 2 != 0:  # we need one mor iteration for the first n/2 processes
                 receiver = (rank + num_iter) % size
@@ -272,7 +321,7 @@ def _dist(X, Y=None, metric=_euclidian):
                     columns = (col1, col2)
 
                     d_ij = metric(stationary, moving)
-                    d._DNDarray__array[:, columns[0] : columns[1]] = d_ij
+                    d.larray[:, columns[0] : columns[1]] = d_ij
 
                     # sending result back to sender of moving matrix (for symmetry)
                     comm.Send(d_ij, dest=sender, tag=num_iter)
@@ -291,7 +340,7 @@ def _dist(X, Y=None, metric=_euclidian):
                         device=X.device.torch_device,
                     )
                     comm.Recv(symmetric, source=receiver, tag=num_iter)
-                    d._DNDarray__array[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
+                    d.larray[:, scolumns[0] : scolumns[1]] = symmetric.transpose(0, 1)
 
         else:
             raise NotImplementedError(
@@ -352,11 +401,11 @@ def _dist(X, Y=None, metric=_euclidian):
         )
 
         if X.split is None:
-            d._DNDarray__array = metric(X._DNDarray__array, Y._DNDarray__array)
+            d.larray = metric(X.larray, Y.larray)
 
         elif X.split == 0:
             if Y.split is None:
-                d._DNDarray__array = metric(X._DNDarray__array, Y._DNDarray__array)
+                d.larray = metric(X.larray, Y.larray)
 
             elif Y.split == 0:
                 if X.shape[1] != Y.shape[1]:
@@ -373,14 +422,14 @@ def _dist(X, Y=None, metric=_euclidian):
                 ycounts, ydispl, _ = Y.comm.counts_displs_shape(Y.shape, Y.split)
                 num_iter = size
 
-                x_ = X._DNDarray__array
-                stationary = Y._DNDarray__array
+                x_ = X.larray
+                stationary = Y.larray
                 # rows = (xdispl[rank], xdispl[rank + 1] if (rank + 1) != size else m)
                 cols = (ydispl[rank], ydispl[rank + 1] if (rank + 1) != size else n)
 
                 # 0th iteration, calculate diagonal
                 d_ij = metric(x_, stationary)
-                d._DNDarray__array[:, cols[0] : cols[1]] = d_ij
+                d.larray[:, cols[0] : cols[1]] = d_ij
 
                 for iter in range(1, num_iter):
                     # Send rank's part of the matrix to the next process in a circular fashion
@@ -415,7 +464,7 @@ def _dist(X, Y=None, metric=_euclidian):
                         Y.comm.Recv(moving, source=sender, tag=iter)
 
                     d_ij = metric(x_, moving)
-                    d._DNDarray__array[:, columns[0] : columns[1]] = d_ij
+                    d.larray[:, columns[0] : columns[1]] = d_ij
 
             else:
                 raise NotImplementedError(

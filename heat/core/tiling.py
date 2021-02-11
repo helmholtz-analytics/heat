@@ -210,7 +210,7 @@ class SplitTiles:
         if arr.comm.rank not in self.tile_locations[key]:
             return None
         arb_slices = self.get_tile_slices(key)
-        return arr._DNDarray__array[tuple(arb_slices)]
+        return arr.larray[tuple(arb_slices)]
 
     def get_tile_slices(self, key):
         arr = self.__DNDarray
@@ -830,7 +830,7 @@ class SquareDiagTiles:
         """
         arr = self.__DNDarray
         tile_map = self.__tile_map
-        local_arr = arr._DNDarray__array
+        local_arr = arr.larray
         if not isinstance(key, (int, tuple, slice)):
             raise TypeError(
                 "key must be an int, tuple, or slice, is currently {}".format(type(key))
@@ -1037,7 +1037,7 @@ class SquareDiagTiles:
             # for mostly square matrices the diagonal is stretched to the last process
 
         elif mat_shape_type == "square":
-            print("here")
+            # print("here")
             self.__row_inds = tiles_to_match.__row_inds.copy()
             self.__col_inds = tiles_to_match.__col_inds.copy()
             if self.arr.split != tiles_to_match.arr.split:
@@ -1291,8 +1291,6 @@ class SquareDiagTiles:
             self.__col_per_proc_list,
             self.arr,
         )
-
-    # def add_column_to_end(self, index):
 
     def set_arr(self, arr):
         """

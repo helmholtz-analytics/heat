@@ -91,7 +91,7 @@ def qr(a, tiles_per_proc=1, calc_q=True, overwrite_a=False):
     QR = collections.namedtuple("QR", "Q, R")
 
     if a.split is None:
-        q, r = a._DNDarray__array.qr(some=False)
+        q, r = a.larray.qr(some=False)
         q = factories.array(q, device=a.device)
         r = factories.array(r, device=a.device)
         ret = QR(q if calc_q else None, r)
@@ -204,12 +204,11 @@ def __split0_global_q_dict_set(
     # it takes the merge qs, splits them, then puts them into a new dictionary
     # steps
     proc_tile_start = torch.cumsum(
-        torch.tensor(r_tiles.tile_rows_per_process, device=r_tiles.arr._DNDarray__array.device),
-        dim=0,
+        torch.tensor(r_tiles.tile_rows_per_process, device=r_tiles.arr.larray.device), dim=0
     )
     diag_proc = torch.nonzero(input=proc_tile_start > dim0, as_tuple=False)[0].item()
     proc_tile_start = torch.cat(
-        (torch.tensor([0], device=r_tiles.arr._DNDarray__array.device), proc_tile_start[:-1]), dim=0
+        (torch.tensor([0], device=r_tiles.arr.larray.device), proc_tile_start[:-1]), dim=0
     )
 
     # 1: create caqr dictionary
@@ -367,7 +366,7 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
     completed = False if loop_size_remaining.size()[0] > 1 else True
     procs_remaining = loop_size_remaining.size()[0]
     loop = 0
-    leftover = []
+    # leftover = []
     while not completed:
         if procs_remaining % 2 == 1:
             # if the number of processes active is odd need to save the remainders
@@ -387,30 +386,30 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
         )
         for pr in zipped:
             pr0, pr1 = int(pr[0].item()), int(pr[1].item())
-            if pr1 not in leftover:
-                __split0_merge_tile_rows(
-                    pr0=pr0,
-                    pr1=pr1,
-                    dim1=dim1,
-                    rank=rank,
-                    r_tiles=r_tiles,
-                    diag_process=diag_pr,
-                    key=str(loop) + "p0" + str(pr0) + "p1" + str(pr1) + "e",
-                    q_dict=q_dict,
-                    dim0=dim0,
-                )
-                __split0_send_q_to_diag_pr(
-                    col=dim1,
-                    pr0=pr0,
-                    pr1=pr1,
-                    diag_process=diag_pr,
-                    comm=comm,
-                    q_dict=q_dict,
-                    key=str(loop) + "p0" + str(pr0) + "p1" + str(pr1) + "e",
-                    q_dict_waits=q_dict_waits,
-                    q_dtype=r_tiles.arr.dtype.torch_type(),
-                    q_device=r_tiles.arr._DNDarray__array.device,
-                )
+            #             if pr1 not in leftover:
+            __split0_merge_tile_rows(
+                pr0=pr0,
+                pr1=pr1,
+                dim1=dim1,
+                rank=rank,
+                r_tiles=r_tiles,
+                diag_process=diag_pr,
+                key=str(loop) + "p0" + str(pr0) + "p1" + str(pr1) + "e",
+                q_dict=q_dict,
+                dim0=dim0,
+            )
+            __split0_send_q_to_diag_pr(
+                col=dim1,
+                pr0=pr0,
+                pr1=pr1,
+                diag_process=diag_pr,
+                comm=comm,
+                q_dict=q_dict,
+                key=str(loop) + "p0" + str(pr0) + "p1" + str(pr1) + "e",
+                q_dict_waits=q_dict_waits,
+                q_dtype=r_tiles.arr.dtype.torch_type(),
+                q_device=r_tiles.arr._DNDarray__array.device,
+            )
 
         loop_size_remaining = loop_size_remaining[: -1 * half_prs_rem]
         procs_remaining = loop_size_remaining.size()[0]
@@ -440,7 +439,7 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
                 comm=comm,
                 q_dict_waits=q_dict_waits,
                 q_dtype=r_tiles.arr.dtype.torch_type(),
-                q_device=r_tiles.arr._DNDarray__array.device,
+                q_device=r_tiles.arr.larray.device,
             )
             rem1 = rem2
             rem2 = None
@@ -471,7 +470,7 @@ def __split0_r_calc(r_tiles, q_dict, q_dict_waits, dim1, diag_pr, not_completed_
                 comm=comm,
                 q_dict_waits=q_dict_waits,
                 q_dtype=r_tiles.arr.dtype.torch_type(),
-                q_device=r_tiles.arr._DNDarray__array.device,
+                q_device=r_tiles.arr.larray.device,
             )
             rem1 = None
         completed = True if procs_remaining == 1 and rem1 is None and rem2 is None else False
@@ -518,7 +517,7 @@ def __split0_merge_tile_rows(pr0, pr1, dim1, rank, r_tiles, diag_process, key, q
     upper_size = (upper_inds[1] - upper_inds[0], upper_inds[3] - upper_inds[2])
     lower_size = (lower_inds[1] - lower_inds[0], lower_inds[3] - lower_inds[2])
 
-    a_torch_device = r_tiles.arr._DNDarray__array.device
+    a_torch_device = r_tiles.arr.larray.device
 
     # upper adjustments
     if upper_size[0] < upper_size[1]:
@@ -734,7 +733,7 @@ def __split0_q_loop(
     for pr in range(diag_process, active_procs[-1] + 1):
         if local_merge_q[pr][1] is not None:
             # receive q from the other processes
-            local_merge_q[pr][1].wait()
+            local_merge_q[pr][1].Wait()
         if rank in active_procs:
             sum_row = sum(q0_tiles.tile_rows_per_process[:pr])
             end_row = q0_tiles.tile_rows_per_process[pr] + sum_row
@@ -788,7 +787,7 @@ def __split0_q_loop(
         # have all the q_merge in one place, now just do the mm with q0
         # get all the keys which are in a column (qi_mult[column])
         row_inds = q0_tiles.row_indices + [q0_tiles.arr.gshape[0]]
-        q_copy = q0_tiles.arr._DNDarray__array.clone()
+        q_copy = q0_tiles.arr.larray.clone()
         for qi_col in qi_mult.keys():
             # multiply q0 rows with qi cols
             # the result of this will take the place of the row height and the column width
@@ -800,7 +799,7 @@ def __split0_q_loop(
             )
             for ind in qi_mult[qi_col]:
                 if global_merge_dict[ind][1] is not None:
-                    global_merge_dict[ind][1].wait()
+                    global_merge_dict[ind][1].Wait()
                 lp_q = global_merge_dict[ind][0]
                 if mult_qi_col.shape[1] < lp_q.shape[1]:
                     new_mult = torch.zeros(
@@ -861,6 +860,7 @@ def __split1_qr_loop(dim0, r_tiles, q0_tiles, calc_q, dim1=None, empties=None, s
     r_torch_device = r_tiles.arr.device.torch_device
     r_torch_type = r_tiles.arr.dtype.torch_type()
     q0_torch_device = q0_tiles.arr.device.torch_device if calc_q else None
+
     # ==================================== R Calculation - single tile =========================
     # loop over each column, need to do the QR for each tile in the column(should be rows)
     # need to get the diagonal process

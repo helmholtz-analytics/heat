@@ -56,7 +56,7 @@ class TestRounding(TestCase):
         self.assertIsInstance(absolute_values, ht.DNDarray)
         self.assertEqual(absolute_values.sum(axis=0), 100)
         self.assertEqual(absolute_values.dtype, ht.float32)
-        self.assertEqual(absolute_values._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(absolute_values.larray.dtype, torch.float32)
         # for fabs
         self.assertEqual(int8_absolute_values_fabs.dtype, ht.float32)
         self.assertEqual(int16_absolute_values_fabs.dtype, ht.float32)
@@ -98,7 +98,7 @@ class TestRounding(TestCase):
         self.assertIsInstance(float32_floor, ht.DNDarray)
         self.assertEqual(float32_floor.dtype, ht.float32)
         self.assertEqual(float32_floor.dtype, ht.float32)
-        self.assertTrue((float32_floor._DNDarray__array == comparison.float()).all())
+        self.assertTrue((float32_floor.larray == comparison.float()).all())
 
         # exponential of float64
         float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
@@ -106,7 +106,7 @@ class TestRounding(TestCase):
         self.assertIsInstance(float64_floor, ht.DNDarray)
         self.assertEqual(float64_floor.dtype, ht.float64)
         self.assertEqual(float64_floor.dtype, ht.float64)
-        self.assertTrue((float64_floor._DNDarray__array == comparison).all())
+        self.assertTrue((float64_floor.larray == comparison).all())
 
         # check exceptions
         with self.assertRaises(TypeError):
@@ -151,7 +151,7 @@ class TestRounding(TestCase):
         self.assertIsInstance(float32_floor, ht.DNDarray)
         self.assertEqual(float32_floor.dtype, ht.float32)
         self.assertEqual(float32_floor.dtype, ht.float32)
-        self.assertTrue((float32_floor._DNDarray__array == comparison.float()).all())
+        self.assertTrue((float32_floor.larray == comparison.float()).all())
 
         # exponential of float64
         float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
@@ -159,7 +159,7 @@ class TestRounding(TestCase):
         self.assertIsInstance(float64_floor, ht.DNDarray)
         self.assertEqual(float64_floor.dtype, ht.float64)
         self.assertEqual(float64_floor.dtype, ht.float64)
-        self.assertTrue((float64_floor._DNDarray__array == comparison).all())
+        self.assertTrue((float64_floor.larray == comparison).all())
 
         # check exceptions
         with self.assertRaises(TypeError):
@@ -312,14 +312,14 @@ class TestRounding(TestCase):
         float32_floor = float32_tensor.trunc()
         self.assertIsInstance(float32_floor, ht.DNDarray)
         self.assertEqual(float32_floor.dtype, ht.float32)
-        self.assertTrue((float32_floor._DNDarray__array == comparison.float()).all())
+        self.assertTrue((float32_floor.larray == comparison.float()).all())
 
         # trunc of float64
         float64_tensor = ht.array(base_array, dtype=ht.float64)
         float64_floor = float64_tensor.trunc()
         self.assertIsInstance(float64_floor, ht.DNDarray)
         self.assertEqual(float64_floor.dtype, ht.float64)
-        self.assertTrue((float64_floor._DNDarray__array == comparison).all())
+        self.assertTrue((float64_floor.larray == comparison).all())
 
         # check exceptions
         with self.assertRaises(TypeError):

@@ -3,7 +3,8 @@ import torch
 from .communication import MPI
 from . import dndarray
 from . import factories
-from . import operations
+from . import manipulations
+from . import _operations
 from . import stride_tricks
 from . import types
 
@@ -73,7 +74,7 @@ def add(t1, t2):
             [5., 6.]])
 
     """
-    return operations.__binary_op(torch.add, t1, t2)
+    return _operations.__binary_op(torch.add, t1, t2)
 
 
 def bitwise_and(t1, t2):
@@ -115,7 +116,7 @@ def bitwise_and(t1, t2):
         if types.heat_type_is_inexact(dtype):
             raise TypeError("Operation is not supported for float types")
 
-    return operations.__binary_op(torch.Tensor.__and__, t1, t2)
+    return _operations.__binary_op(torch.Tensor.__and__, t1, t2)
 
 
 def bitwise_or(t1, t2):
@@ -159,7 +160,7 @@ def bitwise_or(t1, t2):
         if types.heat_type_is_inexact(dtype):
             raise TypeError("Operation is not supported for float types")
 
-    return operations.__binary_op(torch.Tensor.__or__, t1, t2)
+    return _operations.__binary_op(torch.Tensor.__or__, t1, t2)
 
 
 def bitwise_xor(t1, t2):
@@ -198,7 +199,7 @@ def bitwise_xor(t1, t2):
         if types.heat_type_is_inexact(dtype):
             raise TypeError("Operation is not supported for float types")
 
-    return operations.__binary_op(torch.Tensor.__xor__, t1, t2)
+    return _operations.__binary_op(torch.Tensor.__xor__, t1, t2)
 
 
 def cumprod(a, axis, dtype=None, out=None):
@@ -236,7 +237,7 @@ def cumprod(a, axis, dtype=None, out=None):
             [4., 4., 4.],
             [8., 8., 8.])
     """
-    return operations.__cum_op(a, torch.cumprod, MPI.PROD, torch.mul, 1, axis, dtype, out)
+    return _operations.__cum_op(a, torch.cumprod, MPI.PROD, torch.mul, 1, axis, dtype, out)
 
 
 # Alias support
@@ -279,10 +280,10 @@ def cumsum(a, axis, dtype=None, out=None):
             [2., 2., 2.],
             [3., 3., 3.])
     """
-    return operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
+    return _operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
 
 
-def diff(a, n=1, axis=-1):
+def diff(a, n=1, axis=-1, prepend=None, append=None):
     """
     Calculate the n-th discrete difference along the given axis.
     The first difference is given by out[i] = a[i+1] - a[i] along the given axis, higher differences are calculated by using diff recursively.
@@ -295,13 +296,18 @@ def diff(a, n=1, axis=-1):
         n=2 is equivalent to ht.diff(ht.diff(a))
     axis : int, optional
         The axis along which the difference is taken, default is the last axis.
+    prepend, append : Optional[int, float, DNDarray]
+        Values to prepend or append along axis prior to performing the difference.
+        Scalar values are expanded to arrays with length 1 in the direction of axis and
+        the shape of the input array in along all other axes. Otherwise the dimension and
+        shape must match a except along axis.
 
     Returns
     -------
     diff : DNDarray
         The n-th differences. The shape of the output is the same as a except along axis where the dimension is smaller by n.
         The type of the output is the same as the type of the difference between any two elements of a.
-        The split does not change. The outpot array is balanced.
+        The split does not change. The output array is balanced.
     """
     if n == 0:
         return a
@@ -311,6 +317,41 @@ def diff(a, n=1, axis=-1):
         raise TypeError("'a' must be a DNDarray")
 
     axis = stride_tricks.sanitize_axis(a.gshape, axis)
+
+    if prepend is not None or append is not None:
+        pend_shape = a.gshape[:axis] + (1,) + a.gshape[axis + 1 :]
+        pend = [prepend, append]
+
+        for p, p_el in enumerate(pend):
+            if p_el is not None:
+                if isinstance(p_el, (int, float)):
+                    # TODO: implement broadcast_to
+                    p_el = factories.full(
+                        pend_shape,
+                        p_el,
+                        dtype=types.canonical_heat_type(torch.tensor(p_el).dtype),
+                        split=a.split,
+                        device=a.device,
+                        comm=a.comm,
+                    )
+                elif isinstance(p_el, dndarray.DNDarray) and p_el.gshape == pend_shape:
+                    pass
+                elif not isinstance(p_el, dndarray.DNDarray):
+                    raise TypeError(
+                        "prepend/append should be a scalar or a DNDarray, was {}".format(type(p_el))
+                    )
+                elif p_el.gshape != pend_shape:
+                    raise ValueError(
+                        "shape mismatch: expected prepend/append to be {}, got {}".format(
+                            pend_shape, p_el.gshape
+                        )
+                    )
+                if p == 0:
+                    # prepend
+                    a = manipulations.concatenate((p_el, a), axis=axis)
+                else:
+                    # append
+                    a = manipulations.concatenate((a, p_el), axis=axis)
 
     if not a.is_distributed():
         ret = a.copy()
@@ -346,7 +387,7 @@ def diff(a, n=1, axis=-1):
         ret.lloc[diff_slice] = dif
 
         if rank > 0:
-            snd.wait()  # wait for the send to finish
+            snd.Wait()  # wait for the send to finish
         if rank < size - 1:
             cr_slice = [slice(None)] * len(a.shape)
             # slice of 1 element in the selected axis for the shape creation
@@ -358,7 +399,7 @@ def diff(a, n=1, axis=-1):
             axis_slice_end = [slice(None)] * len(a.shape)
             # select the last elements in the selected axis
             axis_slice_end[axis] = slice(-1, None)
-            rec.wait()
+            rec.Wait()
             # diff logic
             ret.lloc[axis_slice_end] = (
                 recv_data.reshape(ret.lloc[axis_slice_end].shape) - ret.lloc[axis_slice_end]
@@ -406,7 +447,7 @@ def div(t1, t2):
     tensor([[2.0000, 1.0000],
             [0.6667, 0.5000]])
     """
-    return operations.__binary_op(torch.true_divide, t1, t2)
+    return _operations.__binary_op(torch.true_divide, t1, t2)
 
 
 # Alias in compliance with numpy API
@@ -449,7 +490,7 @@ def fmod(t1, t2):
     tensor([[0., 0.]
             [2., 2.]])
     """
-    return operations.__binary_op(torch.fmod, t1, t2)
+    return _operations.__binary_op(torch.fmod, t1, t2)
 
 
 def floordiv(t1, t2):
@@ -481,7 +522,7 @@ def floordiv(t1, t2):
     tensor([[1., 0.],
             [1., 1.]])
     """
-    return operations.__binary_op(torch.floor_divide, t1, t2)
+    return _operations.__binary_op(torch.floor_divide, t1, t2)
 
 
 # Alias in compliance with numpy API
@@ -510,7 +551,7 @@ def invert(t, out=None):
     if types.heat_type_is_inexact(dtype):
         raise TypeError("Operation is not supported for float types")
 
-    return operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
+    return _operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
 
 
 # alias for invert
@@ -544,7 +585,7 @@ def left_shift(t1, t2):
         if not types.heat_type_is_exact(dtype):
             raise TypeError("Operation is supported for integer types only")
 
-    return operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
+    return _operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
 
 
 def mod(t1, t2):
@@ -626,7 +667,7 @@ def mul(t1, t2):
     tensor([[2., 4.],
             [6., 8.]])
     """
-    return operations.__binary_op(torch.mul, t1, t2)
+    return _operations.__binary_op(torch.mul, t1, t2)
 
 
 # Alias in compliance with numpy API
@@ -668,7 +709,7 @@ def pow(t1, t2):
     tensor([[1., 8.],
             [27., 64.]])
     """
-    return operations.__binary_op(torch.pow, t1, t2)
+    return _operations.__binary_op(torch.pow, t1, t2)
 
 
 # Alias in compliance with numpy API
@@ -710,7 +751,7 @@ def remainder(t1, t2):
     tensor([[0, 0]
             [2, 2]], dtype=torch.int32)
     """
-    return operations.__binary_op(torch.remainder, t1, t2)
+    return _operations.__binary_op(torch.remainder, t1, t2)
 
 
 def right_shift(t1, t2):
@@ -740,7 +781,7 @@ def right_shift(t1, t2):
         if not types.heat_type_is_exact(dtype):
             raise TypeError("Operation is supported for integer types only")
 
-    return operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
+    return _operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
 
 
 def prod(x, axis=None, out=None, keepdim=None):
@@ -787,7 +828,7 @@ def prod(x, axis=None, out=None, keepdim=None):
     ], axis=1)
     ht.tensor([  2.,  12.])
     """
-    return operations.__reduce_op(
+    return _operations.__reduce_op(
         x, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
     )
 
@@ -827,7 +868,7 @@ def sub(t1, t2):
     tensor([[ 1.,  0.],
             [-1., -2.]])
     """
-    return operations.__binary_op(torch.sub, t1, t2)
+    return _operations.__binary_op(torch.sub, t1, t2)
 
 
 # Alias in compliance with numpy API
@@ -878,6 +919,6 @@ def sum(x, axis=None, out=None, keepdim=None):
              [3.]]])
     """
     # TODO: make me more numpy API complete Issue #101
-    return operations.__reduce_op(
+    return _operations.__reduce_op(
         x, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
     )
