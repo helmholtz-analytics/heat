@@ -55,6 +55,7 @@ __all__ = [
     "double",
     "flexible",
     "can_cast",
+    "issubdtype",
     "promote_types",
     "complex64",
     "cfloat",
@@ -604,6 +605,44 @@ for i, operand_a in enumerate(__type_codes.keys()):
             if can_cast(operand_a, target) and can_cast(operand_b, target):
                 __type_promotions[i][j] = target
                 break
+
+
+def issubdtype(arg1, arg2):
+    """
+    Returns True if first argument is a typecode lower/equal in type hierarchy.
+
+    Parameters
+    ----------
+    arg1 : type, str, ht.dtype
+        A description representing the type. It may be a a Python builtin type, string or an HeAT type already.
+    arg2 : type, str, ht.dtype
+        A description representing the type. It may be a a Python builtin type, string or an HeAT type already.
+
+    Returns
+    -------
+    out : bool
+        Result of the stated comparison
+
+    Examples
+    --------
+    >>> ints = ht.array([1, 2, 3], dtype=ht.int32)
+    >>> ht.issubdtype(ints.dtype, ht.integer)
+    True
+    >>> ht.issubdype(ints.dtype, ht.floating)
+    False
+
+    >>> ht.issubdtype(ht.float64, ht.float32)
+    False
+
+    >>> ht.issubdtype('i', ht.integer)
+    True
+
+    """
+    # Assure that each argument is a ht.dtype
+    arg1 = canonical_heat_type(arg1)
+    arg2 = canonical_heat_type(arg2)
+
+    return issubclass(arg1, arg2)
 
 
 def promote_types(type1, type2):
