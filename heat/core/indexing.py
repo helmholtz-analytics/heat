@@ -3,6 +3,7 @@ import torch
 from .communication import MPI
 from . import dndarray
 from . import factories
+from . import sanitation
 from . import types
 
 __all__ = ["nonzero", "where"]
@@ -58,17 +59,19 @@ def nonzero(a):
     [0/1] tensor([[4, 5, 6]])
     [1/1] tensor([[7, 8, 9]])
     """
+    sanitation.sanitize_in(a)
+
     if a.dtype == types.bool:
-        a._DNDarray__array = a._DNDarray__array.float()
+        a.larray = a.larray.float()
     if a.split is None:
         # if there is no split then just return the values from torch
-        # print(a._DNDarray__array)
-        lcl_nonzero = torch.nonzero(input=a._DNDarray__array, as_tuple=False)
+        # print(a.larray)
+        lcl_nonzero = torch.nonzero(input=a.larray, as_tuple=False)
         gout = list(lcl_nonzero.size())
         is_split = None
     else:
         # a is split
-        lcl_nonzero = torch.nonzero(input=a._DNDarray__array, as_tuple=False)
+        lcl_nonzero = torch.nonzero(input=a.larray, as_tuple=False)
         _, _, slices = a.comm.chunk(a.shape, a.split)
         lcl_nonzero[..., a.split] += slices[a.split].start
         gout = list(lcl_nonzero.size())
@@ -88,6 +91,7 @@ def nonzero(a):
         split=is_split,
         device=a.device,
         comm=a.comm,
+        balanced=False,
     )
 
 
@@ -138,11 +142,10 @@ def where(cond, x=None, y=None):
     if isinstance(x, (dndarray.DNDarray, int, float)) and isinstance(
         y, (dndarray.DNDarray, int, float)
     ):
-        if isinstance(y, int):
-            y = float(y)
-        if isinstance(x, int):
-            x = float(x)
-        return cond.dtype((cond == 0)) * y + cond * x
+        for var in [x, y]:
+            if isinstance(var, int):
+                var = float(var)
+        return cond.dtype(cond == 0) * y + cond * x
     elif x is None and y is None:
         return nonzero(cond)
     else:

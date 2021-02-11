@@ -56,7 +56,7 @@ class Device:
 
 
 # create a CPU device singleton
-cpu = Device("cpu", 0, "cpu:0")
+cpu = Device("cpu", 0, "cpu")
 
 # define the default device to be the CPU
 __default_device = cpu
@@ -71,6 +71,7 @@ if torch.cuda.device_count() > 0:
     gpu = Device("gpu", gpu_id, "cuda:{}".format(gpu_id))
     # add a GPU device string
     __device_mapping[gpu.device_type] = gpu
+    __device_mapping["cuda"] = gpu
     # the GPU device should be exported as global symbol
     __all__.append("gpu")
 

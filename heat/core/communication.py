@@ -23,10 +23,10 @@ CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("PSP_CUDA") == "1"
 class Communication:
     @staticmethod
     def is_distributed():
-        return NotImplemented
+        raise NotImplementedError()
 
     def __init__(self):
-        return NotImplemented
+        raise NotImplementedError()
 
     def chunk(self, shape, split):
         """
@@ -47,7 +47,7 @@ class Communication:
         slices : tuple of slices
             the chunk slices with respect to the given shape
         """
-        return NotImplemented
+        raise NotImplementedError()
 
 
 class MPICommunication(Communication):
@@ -61,6 +61,8 @@ class MPICommunication(Communication):
         torch.int64: MPI.LONG,
         torch.float32: MPI.FLOAT,
         torch.float64: MPI.DOUBLE,
+        torch.complex64: MPI.COMPLEX,
+        torch.complex128: MPI.DOUBLE_COMPLEX,
     }
 
     def __init__(self, handle=MPI.COMM_WORLD):
@@ -153,19 +155,19 @@ class MPICommunication(Communication):
             The counts and displacements for all nodes
         """
         # the elements send/received by all nodes
-        counts = np.full((self.size,), shape[axis] // self.size)
+        counts = torch.full((self.size,), shape[axis] // self.size)
         counts[: shape[axis] % self.size] += 1
 
         # the displacements into the buffer
-        displs = np.zeros((self.size,), dtype=counts.dtype)
-        np.cumsum(counts[:-1], out=displs[1:])
+        displs = torch.zeros((self.size,), dtype=counts.dtype)
+        torch.cumsum(counts[:-1], out=displs[1:], dim=0)
 
         # helper that calculates the output shape for a receiving buffer under the assumption all nodes have an equally
         # sized input compared to this node
         output_shape = list(shape)
-        output_shape[axis] = self.size * counts[self.rank]
+        output_shape[axis] = self.size * counts[self.rank].item()
 
-        return tuple(counts), tuple(displs), tuple(output_shape)
+        return tuple(counts.tolist()), tuple(displs.tolist()), tuple(output_shape)
 
     @classmethod
     def mpi_type_and_elements_of(cls, obj, counts, displs):
@@ -374,7 +376,7 @@ class MPICommunication(Communication):
 
     def Irecv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG):
         if isinstance(buf, dndarray.DNDarray):
-            buf = buf._DNDarray__array
+            buf = buf.larray
         if not isinstance(buf, torch.Tensor):
             return MPIRequest(self.handle.Irecv(buf, source, tag))
 
@@ -385,7 +387,7 @@ class MPICommunication(Communication):
 
     def Recv(self, buf, source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=None):
         if isinstance(buf, dndarray.DNDarray):
-            buf = buf._DNDarray__array
+            buf = buf.larray
         if not isinstance(buf, torch.Tensor):
             return self.handle.Recv(buf, source, tag, status)
 
@@ -400,7 +402,7 @@ class MPICommunication(Communication):
 
     def __send_like(self, func, buf, dest, tag):
         if isinstance(buf, dndarray.DNDarray):
-            buf = buf._DNDarray__array
+            buf = buf.larray
         if not isinstance(buf, torch.Tensor):
             return func(buf, dest, tag), None
 
@@ -451,7 +453,7 @@ class MPICommunication(Communication):
     def __broadcast_like(self, func, buf, root):
         # unpack the buffer if it is a HeAT tensor
         if isinstance(buf, dndarray.DNDarray):
-            buf = buf._DNDarray__array
+            buf = buf.larray
         # convert torch tensors to MPI memory buffers
         if not isinstance(buf, torch.Tensor):
             return func(buf, root), None, None, None
@@ -479,10 +481,10 @@ class MPICommunication(Communication):
         buf = None
         # unpack the send buffer if it is a HeAT tensor
         if isinstance(sendbuf, dndarray.DNDarray):
-            sendbuf = sendbuf._DNDarray__array
+            sendbuf = sendbuf.larray
         # unpack the receive buffer if it is a HeAT tensor
         if isinstance(recvbuf, dndarray.DNDarray):
-            recvbuf = recvbuf._DNDarray__array
+            recvbuf = recvbuf.larray
 
         # harmonize the input and output buffers
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
@@ -582,7 +584,7 @@ class MPICommunication(Communication):
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, dndarray.DNDarray):
-            sendbuf = sendbuf._DNDarray__array
+            sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor):
             if axis != 0:
                 raise TypeError(
@@ -595,7 +597,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, dndarray.DNDarray):
-            recvbuf = recvbuf._DNDarray__array
+            recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor):
             if axis != 0:
                 raise TypeError(
@@ -741,7 +743,7 @@ class MPICommunication(Communication):
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, dndarray.DNDarray):
-            sendbuf = sendbuf._DNDarray__array
+            sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
                 "sendbuf of type {} does not support send_axis != 0".format(type(sendbuf))
@@ -751,7 +753,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, dndarray.DNDarray):
-            recvbuf = recvbuf._DNDarray__array
+            recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
                 "recvbuf of type {} does not support send_axis != 0".format(type(recvbuf))
@@ -906,7 +908,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, dndarray.DNDarray):
-            recvbuf = recvbuf._DNDarray__array
+            recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
                 "recvbuf of type {} does not support send_axis != 0".format(type(recvbuf))
@@ -1093,18 +1095,6 @@ class MPIRequest:
 
     def Wait(self, status=None):
         self.handle.Wait(status)
-        if (
-            self.tensor is not None
-            and isinstance(self.tensor, torch.Tensor)
-            and self.tensor.is_cuda
-            and not CUDA_AWARE_MPI
-        ):
-            if self.permutation is not None:
-                self.recvbuf = self.recvbuf.permute(self.permutation)
-            self.tensor.copy_(self.recvbuf)
-
-    def wait(self, status=None):
-        self.handle.wait(status)
         if (
             self.tensor is not None
             and isinstance(self.tensor, torch.Tensor)

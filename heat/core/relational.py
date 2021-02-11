@@ -71,8 +71,8 @@ def equal(t1, t2):
     """
     result_tensor = _operations.__binary_op(torch.equal, t1, t2)
 
-    if result_tensor._DNDarray__array.numel() == 1:
-        result_value = result_tensor._DNDarray__array.item()
+    if result_tensor.larray.numel() == 1:
+        result_value = result_tensor.larray.item()
     else:
         result_value = True
 

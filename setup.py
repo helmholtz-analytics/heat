@@ -1,7 +1,8 @@
 from setuptools import setup, find_packages
+import codecs
 
 
-with open("README.md", "r") as handle:
+with codecs.open("README.md", "r", "utf-8") as handle:
     long_description = handle.read()
 
 __version__ = None  # appeases flake, assignment in exec() below
@@ -10,10 +11,10 @@ with open("./heat/core/version.py") as handle:
 
 setup(
     name="heat",
-    packages=find_packages(exclude=("*tests*",)),
+    packages=find_packages(exclude=("*tests*", "*benchmarks*")),
     data_files=["README.md", "LICENSE"],
     version=__version__,
-    description="A framework for high performance data analytics and machine learning.",
+    description="A framework for high-performance data analytics and machine learning.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Helmholtz Association",
@@ -33,7 +34,7 @@ setup(
     install_requires=[
       "mpi4py>=3.0.0", 
       "numpy>=1.13.0", 
-      "torch>=1.6.0", 
+      "torch>=1.7.0", 
       "scipy>=0.14.0"
       "pillow>=6.0.0",
       "torchvision>=0.5.0",

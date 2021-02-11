@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="doc/images/logo.png">
+  <img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/logo.png">
 </div>
 
 ---
@@ -23,7 +23,7 @@ HeAT is a flexible and seamless open-source software for high performance data
 analytics and machine learning. It provides highly optimized algorithms and data
 structures for tensor computations using CPUs, GPUs and distributed cluster
 systems on top of MPI. The goal of HeAT is to fill the gap between data
-analytics and machine learning libraries with a strong focus on on single-node
+analytics and machine learning libraries with a strong focus on single-node
 performance, and traditional high-performance computing (HPC). HeAT's generic
 Python-first programming interface integrates seamlessly with the existing data
 science ecosystem and makes it as effortless as using numpy to write scalable
@@ -50,6 +50,13 @@ right here on Github or in the /scripts directory.
 The complete documentation of the latest version is always deployed on
 [Read the Docs](https://heat.readthedocs.io/).
 
+Support Channels
+----------------
+
+We use [StackOverflow](https://stackoverflow.com/tags/pyheat/) as a forum for questions about Heat.
+If you do not find an answer to your question, then please ask a new question there and be sure to
+tag it with "pyheat".
+
 Requirements
 ------------
 
@@ -66,7 +73,7 @@ Tagged releases are made available on the
 [Python Package Index (PyPI)](https://pypi.org/project/heat/). You can typically
 install the latest version with
 
-> $ pip install heat[hdf5, netcdf]
+> $ pip install heat[hdf5,netcdf]
 
 where the part in brackets is a list of optional dependencies. You can omit
 it, if you do not need HDF5 or NetCDF support.
@@ -80,7 +87,7 @@ If you want to work with the development version, you can check out the sources 
 
 The installation can then be done from the checked-out sources with
 
-> $ pip install .[hdf5, netcdf, dev]
+> $ pip install .[hdf5,netcdf,dev]
 
 We welcome contributions from the community, please check out our [Contribution Guidelines](contributing.md) before getting started!
 
@@ -89,6 +96,38 @@ License
 
 HeAT is distributed under the MIT license, see our
 [LICENSE](LICENSE) file.
+
+Citing HeAT
+-----------
+
+If you find HeAT helpful for your research, please mention it in your academic publications. You can cite:
+
+- Götz, M., D., Debus, Coquelin, C., Krajsek, K., Comito, C., Knechtges, P., .Hagemeier, B., Tarnawa, M., Hanselmann, S., Siggel, S., Basermann, A. & Streit, A. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In Proceedings of the 19th IEEE International Conference on Big Data (BigData) (pp. 276-288). IEEE.
+
+```
+@inproceedings{heat,
+    title={{HeAT -- a Distributed and GPU-accelerated Tensor Framework for Data Analytics}},
+    author={
+      Götz, Markus and
+      Debus, Charlotte and
+      Coquelin, Daniel and
+      Krajsek, Kai and
+      Comito, Claudia and
+      Knechtges, Philipp and
+      Hagemeier, Björn, and
+      Tarnawa, Michael and
+      Hanselmann, Simon and
+      Siggel, Martin and
+      Basermann, Achim and
+      Streit, Achim
+    },
+    booktitle={Proceedings of the 19th IEEE International Conference on Big Data},
+    year={2020},
+    pages={276-288},
+    month={December},
+    publisher={IEEE}
+}
+```
 
 Acknowledgements
 ----------------
@@ -104,5 +143,5 @@ under the Helmholtz AI platform grant.*
 ---
 
 <div align="center">
-  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="doc/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="doc/images/kit_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.helmholtz.de/en/"><img src="doc/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
+  <a href="https://www.dlr.de/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/dlr_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.fz-juelich.de/portal/EN/Home/home_node.html"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="http://www.kit.edu/english/index.php"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/kit_logo.svg" height="50px" hspace="3%" vspace="20px"></a><a href="https://www.helmholtz.de/en/"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/helmholtz_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
 </div>

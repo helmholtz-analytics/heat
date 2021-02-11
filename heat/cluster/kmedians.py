@@ -58,7 +58,7 @@ class KMedians(_KCluster):
             # Remove 0-element lines to avoid spoiling of median
             assigned_points = X * selection
             rows = (assigned_points.abs()).sum(axis=1) != 0
-            local = assigned_points._DNDarray__array[rows._DNDarray__array]
+            local = assigned_points.larray[rows._DNDarray__array]
             clean = ht.array(local, is_split=X.split)
             clean.balance_()
             # failsafe in case no point is assigned to this cluster

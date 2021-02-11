@@ -135,12 +135,12 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
             vr = ht.random.rand(n, dtype=A.dtype, split=V.split)
             # orthogonalize v_r with respect to all vectors v[i]
             for j in range(i):
-                vi_loc = V._DNDarray__array[:, j]
-                a = torch.dot(vr._DNDarray__array, vi_loc)
+                vi_loc = V.larray[:, j]
+                a = torch.dot(vr.larray, vi_loc)
                 b = torch.dot(vi_loc, vi_loc)
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
-                vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
+                vr.larray = vr.larray - a / b * vi_loc
             # normalize v_r to Euclidian norm 1 and set as ith vector v
             vi = vr / ht.norm(vr)
         else:
@@ -150,18 +150,18 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
             # ToDo: Rethink this; mask torch calls, See issue #494
             # This is the fast solution, using item access on the ht.dndarray level is way slower
             for j in range(i):
-                vi_loc = V._DNDarray__array[:, j]
+                vi_loc = V.larray[:, j]
                 a = torch.dot(vr._DNDarray__array, vi_loc)
                 b = torch.dot(vi_loc, vi_loc)
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
-                vr._DNDarray__array -= a / b * vi_loc
+                vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
 
             vi = vr / ht.norm(vr)
 
         w = ht.matmul(A, vi)
         alpha = ht.dot(w, vi)
-        w -= alpha * vi - beta * V[:, i - 1]
+        w = w - alpha * vi - beta * V[:, i - 1]
 
         T[i - 1, i] = beta
         T[i, i - 1] = beta

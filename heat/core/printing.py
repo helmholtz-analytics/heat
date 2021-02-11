@@ -89,16 +89,16 @@ def _torch_data(dndarray, summarize):
         dndarray.balance_()
     # data is not split, we can use it as is
     if dndarray.split is None or dndarray.comm.size == 1:
-        data = dndarray._DNDarray__array
+        data = dndarray.larray
     # split, but no summary required, we collect it
     elif not summarize:
-        data = dndarray.copy().resplit_(None)._DNDarray__array
+        data = dndarray.copy().resplit_(None).larray
     # split, but summarized, collect the slices from all nodes and pass it on
     else:
         edgeitems = torch._tensor_str.PRINT_OPTS.edgeitems
         double_items = 2 * edgeitems
         ndims = dndarray.ndim
-        data = dndarray._DNDarray__array
+        data = dndarray.larray
 
         for i in range(ndims):
             # skip over dimensions that are smaller than twice the number of edge items to display
