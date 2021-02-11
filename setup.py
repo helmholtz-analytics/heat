@@ -1,7 +1,8 @@
 from setuptools import setup, find_packages
+import codecs
 
 
-with open("README.md", "r") as handle:
+with codecs.open("README.md", "r", "utf-8") as handle:
     long_description = handle.read()
 
 __version__ = None  # appeases flake, assignment in exec() below
