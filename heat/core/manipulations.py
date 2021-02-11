@@ -1820,7 +1820,7 @@ def reshape(a, shape, new_split=None):
         raise ValueError("too many unknown dimensions")
     elif shape.count(-1) == 1:
         pos = shape.index(-1)
-        shape[pos] = -(a.size / shape_size).item()
+        shape[pos] = int(-(a.size / shape_size).item())
         shape_size *= -shape[pos]
 
     if shape_size != a.size:
