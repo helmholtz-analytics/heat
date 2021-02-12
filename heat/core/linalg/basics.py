@@ -1233,7 +1233,9 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
                 sum_along_diagonals_t = torch.trace(a_sub.larray)
             # empty array => result = 0
             else:
-                sum_along_diagonals_t = torch.tensor(0, dtype=a_sub.dtype.torch_type())
+                sum_along_diagonals_t = torch.tensor(
+                    0, dtype=a_sub.dtype.torch_type(), device=a_sub.device.torch_device
+                )
 
         if out is not None:
             raise ValueError("`out` not applicable (/must be None) if result is a scalar/ input 2D")
