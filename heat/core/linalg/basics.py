@@ -4,7 +4,6 @@ import torch
 import warnings
 
 from ..communication import MPI
-from ..communication import MPICommunication
 from .. import arithmetics
 from .. import exponential
 from .. import dndarray
@@ -1210,6 +1209,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             sum_along_diagonals_t = torch.tensor(
                 0, dtype=dtype.torch_type(), device=a.device.torch_device
             )
+
         # CASE 1.2: non-zero array, call torch.trace on concerned sub-DNDarray
         else:
             # determine the additional offset created by distribution of `a`
@@ -1237,6 +1237,10 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             # calculate trace /partial sum on that sub-array
             if 0 not in a_sub.lshape:
                 sum_along_diagonals_t = torch.trace(a_sub.larray)
+
+                # make sure result is of correct dtype
+                sum_along_diagonals_t = sum_along_diagonals_t.type(a_sub.dtype.torch_type())
+
             # empty array => result = 0
             else:
                 sum_along_diagonals_t = torch.tensor(
