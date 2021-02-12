@@ -1207,7 +1207,9 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
     if len(a.lshape) == 2:
         # CASE 1.1: offset results into an empty array
         if offset <= -a.gshape[0] or offset >= a.gshape[1]:
-            sum_along_diagonals_t = torch.tensor(0, dtype=dtype.torch_type())
+            sum_along_diagonals_t = torch.tensor(
+                0, dtype=dtype.torch_type(), device=a.device.torch_device
+            )
         # CASE 1.2: non-zero array, call torch.trace on concerned sub-DNDarray
         else:
             # determine the additional offset created by distribution of `a`
@@ -1223,10 +1225,14 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             # Calculate resulting/concerned sub-array `a_sub`
             if offset > 0:
                 offset = min(offset, a_sub.lshape[1])
-                a_sub = factories.array(a_sub.larray[:, offset:])
+                a_sub = factories.array(
+                    a_sub.larray[:, offset:], device=a_sub.device, comm=a_sub.comm
+                )
             elif offset < 0:
                 offset = min(-offset, a_sub.lshape[0])
-                a_sub = factories.array(a_sub.larray[offset:, :])
+                a_sub = factories.array(
+                    a_sub.larray[offset:, :], device=a_sub.device, comm=a_sub.comm
+                )
 
             # calculate trace /partial sum on that sub-array
             if 0 not in a_sub.lshape:
@@ -1293,7 +1299,7 @@ def trace(a, offset=0, axis1=0, axis2=1, dtype=None, out=None):
             # empty diagonal => create an array of zeros for following summation
             if 0 in diag_t.shape:
                 res_shape = [1 if i == 0 else i for i in diag_t.shape]
-                diag_t = torch.zeros(res_shape)
+                diag_t = torch.zeros(res_shape, device=a.device.torch_device)
 
             # create recvbuffer (with correct resulting shape)
             sum_along_diagonals_t = torch.clone(diag_t)
