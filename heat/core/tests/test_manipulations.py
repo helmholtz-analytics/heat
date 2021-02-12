@@ -771,7 +771,8 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = distributed DNDarray
-        result = ht.dsplit(data_ht, ht.array([0, 1], split=0))
+        with self.assertWarns(Warning):
+            result = ht.dsplit(data_ht, ht.array([0, 1], split=0))
         comparison = np.dsplit(data_np, np.array([0, 1]))
 
         self.assertTrue(len(result) == len(comparison))
@@ -1053,7 +1054,8 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = distributed DNDarray
-        result = ht.hsplit(data_ht, ht.array([0, 1], split=0))
+        with self.assertWarns(Warning):
+            result = ht.hsplit(data_ht, ht.array([0, 1], split=0))
         comparison = np.hsplit(data_np, np.array([0, 1]))
 
         self.assertTrue(len(result) == len(comparison))
@@ -1106,7 +1108,8 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = distributed DNDarray
-        result = ht.hsplit(data_ht, ht.array([0, 1], split=0))
+        with self.assertWarns(Warning):
+            result = ht.hsplit(data_ht, ht.array([0, 1], split=0))
         comparison = np.hsplit(data_np, np.array([0, 1]))
 
         self.assertTrue(len(result) == len(comparison))
@@ -3024,7 +3027,8 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = distributed DNDarray
-        result = ht.vsplit(data_ht, ht.array([0, 1], split=0))
+        with self.assertWarns(Warning):
+            result = ht.vsplit(data_ht, ht.array([0, 1], split=0))
         comparison = np.vsplit(data_np, np.array([0, 1]))
 
         self.assertTrue(len(result) == len(comparison))
