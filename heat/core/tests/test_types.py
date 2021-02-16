@@ -100,6 +100,19 @@ class TestTypes(TestCase):
     def test_flexible(self):
         self.assert_non_instantiable_heat_type(ht.flexible)
 
+    def test_complex64(self):
+        self.assert_is_instantiable_heat_type(ht.complex64, torch.complex64)
+        self.assert_is_instantiable_heat_type(ht.cfloat, torch.complex64)
+        self.assert_is_instantiable_heat_type(ht.csingle, torch.complex64)
+
+        self.assertEqual(ht.complex64.char(), "c8")
+
+    def test_complex128(self):
+        self.assert_is_instantiable_heat_type(ht.complex128, torch.complex128)
+        self.assert_is_instantiable_heat_type(ht.cdouble, torch.complex128)
+
+        self.assertEqual(ht.complex128.char(), "c16")
+
 
 class TestTypeConversion(TestCase):
     def test_can_cast(self):
@@ -154,6 +167,7 @@ class TestTypeConversion(TestCase):
         self.assertEqual(ht.core.types.canonical_heat_type("u1"), ht.uint8)
         self.assertEqual(ht.core.types.canonical_heat_type(np.int8), ht.int8)
         self.assertEqual(ht.core.types.canonical_heat_type(torch.short), ht.int16)
+        self.assertEqual(ht.core.types.canonical_heat_type(torch.cfloat), ht.complex64)
 
         with self.assertRaises(TypeError):
             ht.core.types.canonical_heat_type({})
@@ -177,10 +191,62 @@ class TestTypeConversion(TestCase):
         iterable = [3, "hello world"]
         self.assertEqual(ht.core.types.heat_type_of(iterable), ht.int32)
 
+        torch_tensor = torch.full((2,), 1 + 1j, dtype=torch.complex128)
+        self.assertEqual(ht.core.types.heat_type_of(torch_tensor), ht.complex128)
+
         with self.assertRaises(TypeError):
             ht.core.types.heat_type_of({})
         with self.assertRaises(TypeError):
             ht.core.types.heat_type_of(object)
+
+    def test_issubdtype(self):
+        # First level
+        self.assertTrue(ht.issubdtype(ht.bool, ht.generic))
+        self.assertTrue(ht.issubdtype(ht.bool_, ht.generic))
+        self.assertTrue(ht.issubdtype(ht.number, ht.generic))
+        self.assertTrue(ht.issubdtype(ht.integer, ht.generic))
+        self.assertTrue(ht.issubdtype(ht.signedinteger, ht.generic))
+        self.assertTrue(ht.issubdtype(ht.unsignedinteger, ht.generic))
+        self.assertTrue(ht.issubdtype(ht.floating, ht.generic))
+        self.assertTrue(ht.issubdtype(ht.flexible, ht.generic))
+
+        # Second level
+        self.assertTrue(ht.issubdtype(ht.integer, ht.number))
+        self.assertTrue(ht.issubdtype(ht.floating, ht.number))
+        self.assertTrue(ht.issubdtype(ht.signedinteger, ht.integer))
+        self.assertTrue(ht.issubdtype(ht.unsignedinteger, ht.integer))
+
+        # Third level
+        self.assertTrue(ht.issubdtype(ht.int8, ht.signedinteger))
+        self.assertTrue(ht.issubdtype(ht.int16, ht.signedinteger))
+        self.assertTrue(ht.issubdtype(ht.int32, ht.signedinteger))
+        self.assertTrue(ht.issubdtype(ht.int64, ht.signedinteger))
+        self.assertTrue(ht.issubdtype(ht.uint8, ht.unsignedinteger))
+        self.assertTrue(ht.issubdtype(ht.float32, ht.floating))
+        self.assertTrue(ht.issubdtype(ht.float64, ht.floating))
+
+        # Fourth level
+        self.assertTrue(ht.issubdtype(ht.byte, ht.int8))
+        self.assertTrue(ht.issubdtype(ht.short, ht.int16))
+        self.assertTrue(ht.issubdtype(ht.int, ht.int32))
+        self.assertTrue(ht.issubdtype(ht.long, ht.int64))
+        self.assertTrue(ht.issubdtype(ht.uint8, ht.ubyte))
+        self.assertTrue(ht.issubdtype(ht.float32, ht.float))
+        self.assertTrue(ht.issubdtype(ht.float32, ht.float_))
+        self.assertTrue(ht.issubdtype(ht.float64, ht.double))
+
+        # Small tests char representations (-> canonical_heat_type)
+        self.assertTrue("i", ht.int8)
+        self.assertTrue(ht.issubdtype("B", ht.uint8))
+        self.assertTrue(ht.issubdtype(ht.float64, "f8"))
+
+        # Small tests Exceptions (-> canonical_heat_type)
+        with self.assertRaises(TypeError):
+            ht.issubdtype(ht.bool, True)
+        with self.assertRaises(TypeError):
+            ht.issubdtype(4.2, "f")
+        with self.assertRaises(TypeError):
+            ht.issubdtype({}, ht.int)
 
     def test_type_promotions(self):
         self.assertEqual(ht.promote_types(ht.uint8, ht.uint8), ht.uint8)
@@ -188,6 +254,7 @@ class TestTypeConversion(TestCase):
         self.assertEqual(ht.promote_types(ht.int32, ht.float32), ht.float32)
         self.assertEqual(ht.promote_types("f4", ht.float), ht.float32)
         self.assertEqual(ht.promote_types(ht.bool_, "?"), ht.bool)
+        self.assertEqual(ht.promote_types(ht.float32, ht.complex64), ht.complex64)
 
         # exceptions
         with self.assertRaises(TypeError):
