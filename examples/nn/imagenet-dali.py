@@ -348,23 +348,7 @@ def main():
     args.rank = ht.MPI_WORLD.rank
     rank = args.rank
     device = torch.device("cpu")
-    if args.manual_dist:
-        args.gpus = args.loc_gpus
-        loc_gpus = args.loc_gpus
-        args.distributed = True
-        port = str(29500)  # + (args.world_size % args.gpus))
-        os.environ["MASTER_ADDR"] = "localhost"
-        os.environ["MASTER_PORT"] = port  # "29500"
-        if args.local_comms == "nccl":
-            os.environ["NCCL_SOCKET_IFNAME"] = "ib"
-        torch.distributed.init_process_group(
-            backend=args.local_comms, rank=rank % args.loc_gpus, world_size=args.gpus
-        )
-        device = "cuda:" + str(0)
-        torch.cuda.set_device(device)
-        args.gpu = rank % args.loc_gpus
-        args.local_rank = rank % args.loc_gpus
-    elif args.distributed and torch.cuda.device_count() > 1:
+    if torch.cuda.device_count() > 1:
         args.gpus = torch.cuda.device_count()
         loc_gpus = args.gpus  # None
         loc_rank = rank % args.gpus
@@ -424,7 +408,7 @@ def main():
     )
 
     # create DP optimizer and model:
-    dp_optimizer = ht.optim.SkipBatches(
+    dp_optimizer = ht.optim.DASO(
         local_optimizer=optimizer,
         total_epochs=args.epochs,
         loc_gpus=loc_gpus,
