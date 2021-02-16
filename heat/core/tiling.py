@@ -320,7 +320,7 @@ class SquareDiagTiles:
         the number of divisions per process,
     no_tiles : bool, optional
         Default = False
-        This will initilize the class but will not do any logic,
+        This will initialize the class but will not do any logic,
         to be used when the tiles will be matched to another tiling class
 
     Properties

@@ -3,6 +3,7 @@ import torch
 from .qr import __split0_r_calc, __split0_q_loop, __split1_qr_loop
 from .. import dndarray
 from .. import factories
+from .. import sanitation
 from .. import tiling
 from . import utils
 
@@ -36,7 +37,7 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
     return_tiles : bool, Optional
         Default: False
         if True, will return the tiling objects as well as the final matrices
-        NOTE: if this is True and balance if False, the tiles will not be usable!
+        NOTE: if this is True and balance is False, the tiles will not be usable!
     balance : bool, Optional
         Default: True
         If True, will balance the output matrices
@@ -49,7 +50,7 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
         B (arr) : DNDarray
             block diagonal matrix (m x n)
         V (q1) : DNDarray
-            right transormation matrix (n x n)
+            right transformation matrix (n x n)
         tiles : Dict
             Dictionary with the entries of the tiling objects, keys are as follows
             `{"q0": q0_tiles, "arr": arr_tiles, "arr_t": arr_t_tiles, "q1": q1_tiles}`
@@ -60,15 +61,14 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
         Parallelism Granularity in a Two-Stage Bidiagonal Reduction," 2012 IEEE 26th International Parallel and
         Distributed Processing Symposium, Shanghai, 2012, pp. 25-35, doi: 10.1109/IPDPS.2012.13.
     """
-    if not isinstance(arr, dndarray.DNDarray):
-        raise TypeError("arr must be a DNDarray, not {}".format(type(arr)))
+    sanitation.sanitize_in(arr)
     if not arr.is_distributed():
         raise RuntimeError("Array must be distributed, see docs")
     if arr.split not in [0, 1]:
         raise NotImplementedError(
             "Split {} not implemented, arr must be 2D and split".format(arr.split)
         )
-    # todo: increase the tile number of possible (need to measure performance)
+    # todo: increase the tile number if possible (need to measure performance)
     tiles_per_proc = 2
     # 1. tile arr if needed
     if not overwrite_arr:
@@ -127,6 +127,41 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
 def __block_diagonalize_sp0(
     arr_tiles, arr_t_tiles, q0_tiles, q1_tiles, balance=True, ret_tiles=False
 ):
+    """
+    Auxiliary function for `block_diagonalize`.
+    Applied if input array of this function is split along axis 0.
+
+    Parameters
+    ----------
+    arr_tiles : ht.SquareDiagTiles
+        Tiles of input array
+    arr_t_tiles : ht.SquareDiagTiles
+        Tiles of transposed input array
+    q0_tiles : ht.SquareDiagTiles
+        Tiles of left orthogonal matrix q0 (U)
+    q1_tiles : ht.SquareDiagTiles
+        Tiles of right orthogonal matrix q1 (V)
+    balance : bool, Optional
+        Default: True
+        If True, will balance the output matrices
+    ret_tiles : bool, Optional
+        Default: False
+        if True, will return the tiling objects as well as the final matrices
+        NOTE: if this is True and balance is False, the tiles will not be usable!
+
+    Returns
+    -------
+    results : List
+        q0_tiles.arr : DNDarray
+            Left transformation matrix (m x m)
+        arr_tiles.arr : DNDarray
+            block diagonal matrix (m x n)
+        q1_tiles.arr.T : DNDarray
+            right transformation matrix (n x n)
+        tiles : Dict
+            Dictionary with the entries of the tiling objects, keys are as follows
+            `{"q0": q0_tiles, "arr": arr_tiles, "arr_t": arr_t_tiles, "q1": q1_tiles}`
+    """
     tile_columns = arr_tiles.tile_columns
 
     torch_device = arr_tiles.arr.device.torch_device
@@ -164,7 +199,7 @@ def __block_diagonalize_sp0(
         ).flatten()
         diag_process = not_completed_processes[0].item()
         if rank in not_completed_processes and rank in active_procs:
-            # if the process is done calculating R the break the loop
+            # if the process is done calculating R then break the loop
             __split0_r_calc(
                 r_tiles=arr_tiles,
                 q_dict=q0_dict,
@@ -245,6 +280,41 @@ def __block_diagonalize_sp0(
 def __block_diagonalize_sp1(
     arr_tiles, arr_t_tiles, q0_tiles, q1_tiles, balance=True, ret_tiles=False
 ):
+    """
+    Auxiliary function for `block_diagonalize`.
+    Applied if input array of this function is split along axis 1.
+
+    Parameters
+    ----------
+    arr_tiles : ht.SquareDiagTiles
+        Tiles of input array
+    arr_t_tiles : ht.SquareDiagTiles
+        Tiles of transposed input array
+    q0_tiles : ht.SquareDiagTiles
+        Tiles of left orthogonal matrix q0 (U)
+    q1_tiles : ht.SquareDiagTiles
+        Tiles of right orthogonal matrix q1 (V)
+    balance : bool, Optional
+        Default: True
+        If True, will balance the output matrices
+    ret_tiles : bool, Optional
+        Default: False
+        if True, will return the tiling objects as well as the final matrices
+        NOTE: if this is True and balance is False, the tiles will not be usable!
+
+    Returns
+    -------
+    results : List
+        q0_tiles.arr : DNDarray
+            Left transformation matrix (m x m)
+        arr_tiles.arr : DNDarray
+            block diagonal matrix (m x n)
+        q1_tiles.arr.T : DNDarray
+            right transformation matrix (n x n)
+        tiles : Dict
+            Dictionary with the entries of the tiling objects, keys are as follows
+            `{"q0": q0_tiles, "arr": arr_tiles, "arr_t": arr_t_tiles, "q1": q1_tiles}`
+    """
     # -------------------------- split = 1 stuff (att) ---------------------------------------------
     tile_columns = arr_tiles.tile_columns
     tile_rows = arr_tiles.tile_rows
@@ -357,6 +427,38 @@ def __block_diagonalize_sp1(
 
 
 def bulge_chasing(arr, q0, q1, tiles=None):
+    """
+    Transformation of an upper band/block matrix to a bidiagonal matrix
+    via a bulge chasing technique.
+    This function can be considered as an auxiliary function for the SVD computation.
+    (It comprises the second stage of the first phase/reduction to bidiagonal form)
+
+    May be considered as the continuation of function `block_diagonal`.
+
+
+    Parameters
+    ----------
+    arr : ht.DNDarray
+        Upper band matrix
+    q0 : ht.DNDarray
+        Left transformation matrix used in the transformation
+        from general matrix to band matrix.
+    q1 : ht.DNDarray
+        Right transformation matrix used in the transformation
+        from general matrix to band matrix.
+    tiles: ht.SquareDiagTiles, optional # TODO validate
+
+    Returns
+    -------
+     : Tuple
+        U_b : ht.DNDarray
+            Left transformation (unitary) matrix
+        B : ht.DNDarray
+            Bidiagonal matrix
+        V_bT : ht.DNDarray
+            Right transformation (unitary) matrix,
+
+    """
     # assuming that the matrix is upper band diagonal
     # need the tile shape first
     rank = arr.comm.rank
@@ -382,11 +484,14 @@ def bulge_chasing(arr, q0, q1, tiles=None):
     rcv_next = None
     st, sp = 0, 2 * band_width - 3
     rcv_shape = [sp - st] * 2
-    out_array_inds = [0, splits[rank], start1, splits[rank] + band_width]  # relative to work arr
+    # TODO variable not used
+    # out_array_inds = [0, splits[rank], start1, splits[rank] + band_width]  # relative to work arr
     data_to_send_next_inds = [None, None]  # relative to work arr
-    data_to_send_prev_inds = [None, None]  # relative to work arr
+    # TODO variable not used
+    # data_to_send_prev_inds = [None, None]  # relative to work arr
     work_arr_inds = [None, None]  # global
-    loc_data_inds = (slice(start1, splits[rank]), slice(start1, splits[rank] + band_width))
+    # TODO variable not used
+    # loc_data_inds = (slice(start1, splits[rank]), slice(start1, splits[rank] + band_width))
     if rank != arr.comm.size - 1:
         # send to rank + 1
         st1 = splits[rank].item() - (band_width - 2)
@@ -437,7 +542,8 @@ def bulge_chasing(arr, q0, q1, tiles=None):
         work_arr[rcv_next.shape[0] * -1 :, sp1 - band_width - 1 :] = rcv_next
 
         # data_to_send_prev_inds
-        lcl_array_start = (st0, sp0, st1, sp1)
+        # TODO variable not used
+        # lcl_array_start = (st0, sp0, st1, sp1)
     else:
         # only one side receiving
         if rcv_next is not None:  # only get from rank + 1 (lcl data on top)
@@ -454,8 +560,8 @@ def bulge_chasing(arr, q0, q1, tiles=None):
             work_arr[
                 lcl_array.shape[0] :, lcl_array.shape[0] : lcl_array.shape[0] + rcv_next.shape[1]
             ] = rcv_next
-
-            lcl_array_start = (0, lcl_array.shape[0], 0, lcl_array.shape[1])
+            # TODO variable not used
+        # lcl_array_start = (0, lcl_array.shape[0], 0, lcl_array.shape[1])
         else:  # only get from rank - 1 (lcl data on bottom)
             # only the case for rank == size - 1
             rcv_prev_shape = (rcv_inds[1] - rcv_inds[0], rcv_inds[3] - rcv_inds[2])
@@ -492,8 +598,9 @@ def bulge_chasing(arr, q0, q1, tiles=None):
     print(work_arrs_map, work_arr.shape)
     # print(data_to_send_next_inds)
     app_sz = band_width - 1
-    lcl_right_apply = {}
-    lcl_left_apply = {}
+    # TODO variables not used
+    # lcl_right_apply = {}
+    # lcl_left_apply = {}
     for row in range(1, nrows):
         # todo: loc_ind0/1 have the global start and stop for work_arr!
         # this is the loop for the start index
@@ -527,7 +634,8 @@ def bulge_chasing(arr, q0, q1, tiles=None):
             inds.append(tuple(nxt_ind))
         # the side to apply the vectors on starts with right and then alternates until the end of inds
         side = "right"
-        sent_data = False
+        # TODO variable not used
+        # sent_data = False
         if rank > active_procs[0]:
             # todo: need to fix this
             # create the wait for the data from the rank - 1
@@ -608,18 +716,27 @@ def bulge_chasing(arr, q0, q1, tiles=None):
                 else:
                     comm_vec = True
             else:  # both false
-                first_pr = prs_dim0[0][0]
-                second_pr = prs_dim0[0][1] if len(prs_dim0) > 1 else first_pr
+                # TODO variable never used
+                # first_pr = prs_dim0[0][0]
+                # TODO variable never used
+                # second_pr = prs_dim0[0][1] if len(prs_dim0) > 1 else first_pr
+                pass
             print(comm_result, comm_vec)
             if comm_vec or comm_result:
                 # need to find the process with all the vector data
                 if side == "right":
-                    first_pr = list(set(prs_dim1[0]).intersection(prs_dim1[1]))
-                    vec_pr = first_pr
+                    # TODO variable never used
+                    # first_pr = list(set(prs_dim1[0]).intersection(prs_dim1[1]))
+                    # TODO variable never used
+                    # vec_pr = first_pr
+                    pass
                 else:
-                    first_pr = list(set(prs_dim0[0]).intersection(prs_dim0[1]))
-                    vec_pr = first_pr
-                    second_pr = prs_dim0[0][1] if len(prs_dim0) > 1 else prs_dim1[1][1]
+                    # TODO variable never used
+                    # first_pr = list(set(prs_dim0[0]).intersection(prs_dim0[1]))
+                    # TODO variables not used
+                    # vec_pr = first_pr
+                    # second_pr = prs_dim0[0][1] if len(prs_dim0) > 1 else prs_dim1[1][1]
+                    pass
             if comm_result:
                 # need to find the indices of where to put the rest of the data
                 # todo: this part...
@@ -694,3 +811,47 @@ def bulge_chasing(arr, q0, q1, tiles=None):
     # print((work_arr * 100).round())
 
     # break
+
+
+def svd(a, full_matrices=True, compute_uv=True):
+    """
+    Computation of the Singular Value Decomposition.
+
+    Parameters
+    ----------
+    a : ht.DNDarray
+        2-dimensional (m x n) input on which to compute the SVD
+    full_matrices : bool, optional
+        If True, U and V have the shapes (m x m), (n x n) respectively, otherwise
+        the shapes are (m x k), (k x n) where k = min(m, n)
+        Default: True
+    compute_uv : bool, optional
+        Whether or not to compute the transformation matrices U, VT in addition
+        to S
+        Default: True
+
+    Returns
+    -------
+    svd : Tuple
+        U : ht.DNDarray
+            Left transformation (unitary) matrix,
+            where the columns contain the left singular vectors
+        S : ht.DNDarray
+            Diagonal matrix, upholding the singular values in descending order
+        VT : ht.DNDarray
+            Right transformation (unitary) matrix,
+            where the columns contain the right singular vectors
+
+    """
+    # Phase 1, First stage: Transformation from general to band/block matrix
+    res_stage1 = block_diagonalize(a)
+    print(res_stage1)
+
+    # Phase 1, Second stage: Transformation from band to bidiagonal
+    # res_stage2 = bulge_chasing()
+
+    # Phase 2, QR iteration
+
+    # eventually back transform singular vectors to original basis (if needed)
+    if compute_uv:
+        pass
