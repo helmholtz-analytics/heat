@@ -1,4 +1,5 @@
 import torch
+from collections import namedtuple
 
 from .qr import __split0_r_calc, __split0_q_loop, __split1_qr_loop
 from .. import dndarray
@@ -96,8 +97,8 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
     arr_t_tiles.match_tiles_qr_lq(arr_tiles)
     arr_t_tiles.set_arr(arr.T)
     # print(arr_tiles.row_indices, arr_tiles.col_indices)
-    print("arr_t", arr_t_tiles.row_indices, arr_t_tiles.col_indices)
-    print("arr_t", arr_t_tiles.tile_rows_per_process, arr_t_tiles.tile_columns_per_process)
+    # print("arr_t", arr_t_tiles.row_indices, arr_t_tiles.col_indices)
+    # print("arr_t", arr_t_tiles.tile_rows_per_process, arr_t_tiles.tile_columns_per_process)
 
     q0 = factories.eye(
         (arr.gshape[0], arr.gshape[0]), split=0, dtype=arr.dtype, comm=arr.comm, device=arr.device
@@ -107,12 +108,12 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
     # print("q0", q0_tiles.row_indices, q0_tiles.col_indices)
     q1_tiles = tiling.SquareDiagTiles(q1, tiles_per_proc)
     q1_tiles.match_tiles(arr_t_tiles)
-    print(
-        q1_tiles.row_indices,
-        q1_tiles.col_indices,
-        q1_tiles.tile_rows_per_process,
-        q1_tiles.tile_columns_per_process,
-    )
+    # print(
+    #     q1_tiles.row_indices,
+    #     q1_tiles.col_indices,
+    #     q1_tiles.tile_rows_per_process,
+    #     q1_tiles.tile_columns_per_process,
+    # )
 
     if arr.split == 0:
         return __block_diagonalize_sp0(
@@ -185,7 +186,7 @@ def __block_diagonalize_sp0(
         active_procs_t = active_procs_t[active_procs_t != e]
 
     proc_tile_start = torch.cumsum(torch.tensor(tile_rows_per_pr_trmd, device=torch_device), dim=0)
-    print("arr tile start", proc_tile_start)
+    # print("arr tile start", proc_tile_start)
 
     # looping over number of tile columns - 1 (col)
     # 1. do QR on arr for column=col (standard QR as written)
@@ -433,8 +434,7 @@ def bulge_chasing(arr, q0, q1, tiles=None):
     This function can be considered as an auxiliary function for the SVD computation.
     (It comprises the second stage of the first phase/reduction to bidiagonal form)
 
-    May be considered as the continuation of function `block_diagonal`.
-
+    Continuation of function `block_diagonal` in the SVD process.
 
     Parameters
     ----------
@@ -446,7 +446,7 @@ def bulge_chasing(arr, q0, q1, tiles=None):
     q1 : ht.DNDarray
         Right transformation matrix used in the transformation
         from general matrix to band matrix.
-    tiles: ht.SquareDiagTiles, optional # TODO validate
+    tiles: dict, optional
 
     Returns
     -------
@@ -456,8 +456,13 @@ def bulge_chasing(arr, q0, q1, tiles=None):
         B : ht.DNDarray
             Bidiagonal matrix
         V_bT : ht.DNDarray
-            Right transformation (unitary) matrix,
+            Right transformation (unitary) matrix
 
+    References
+    ----------
+    [0] A. Haidar, H. Ltaief, P. Luszczek and J. Dongarra, "A Comprehensive Study of Task Coalescing for Selecting
+        Parallelism Granularity in a Two-Stage Bidiagonal Reduction," 2012 IEEE 26th International Parallel and
+        Distributed Processing Symposium, Shanghai, 2012, pp. 25-35, doi: 10.1109/IPDPS.2012.13.
     """
     # assuming that the matrix is upper band diagonal
     # need the tile shape first
@@ -479,7 +484,7 @@ def bulge_chasing(arr, q0, q1, tiles=None):
     start1 = splits[rank - 1].item() if rank > 0 else 0
     stop1 = splits[rank].item() + (2 * band_width - 3)
     # stop1 += band_width + 1
-    lcl_array = arr._DNDarray__array[:, start1:stop1]
+    lcl_array = arr.larray[:, start1:stop1]
     nrows = min(arr.gshape) - 1 if arr.gshape[0] >= arr.gshape[1] else min(arr.gshape) + 1
     rcv_next = None
     st, sp = 0, 2 * band_width - 3
@@ -492,6 +497,8 @@ def bulge_chasing(arr, q0, q1, tiles=None):
     work_arr_inds = [None, None]  # global
     # TODO variable not used
     # loc_data_inds = (slice(start1, splits[rank]), slice(start1, splits[rank] + band_width))
+
+    # if not last process, communicate data/tile that has to be send next to neighboring process # TODO validate
     if rank != arr.comm.size - 1:
         # send to rank + 1
         st1 = splits[rank].item() - (band_width - 2)
@@ -669,7 +676,7 @@ def bulge_chasing(arr, q0, q1, tiles=None):
                 # send the local data to rank - 1
                 break
             # do work if i[0] is on the rank or rank - 1
-            print(i)
+            # print(i)
             # find the overlaps on the first two processes, wont work beyond that, this keeps everything in order
             #   but it may be a point where it is slower
             prs_dim0 = [
@@ -721,7 +728,7 @@ def bulge_chasing(arr, q0, q1, tiles=None):
                 # TODO variable never used
                 # second_pr = prs_dim0[0][1] if len(prs_dim0) > 1 else first_pr
                 pass
-            print(comm_result, comm_vec)
+            # print(comm_result, comm_vec)
             if comm_vec or comm_result:
                 # need to find the process with all the vector data
                 if side == "right":
@@ -832,7 +839,7 @@ def svd(a, full_matrices=True, compute_uv=True):
 
     Returns
     -------
-    svd : Tuple
+    svd : namedtuple
         U : ht.DNDarray
             Left transformation (unitary) matrix,
             where the columns contain the left singular vectors
@@ -843,6 +850,8 @@ def svd(a, full_matrices=True, compute_uv=True):
             where the columns contain the right singular vectors
 
     """
+    sanitation.sanitize_in(a)
+
     # Phase 1, First stage: Transformation from general to band/block matrix
     res_stage1 = block_diagonalize(a)
     print(res_stage1)
@@ -855,3 +864,8 @@ def svd(a, full_matrices=True, compute_uv=True):
     # eventually back transform singular vectors to original basis (if needed)
     if compute_uv:
         pass
+
+    # store results in a namedtuple and return it
+
+
+#  svd = namedtuple("svd", ["U", "S", "VT"])
