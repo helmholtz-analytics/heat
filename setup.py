@@ -34,7 +34,7 @@ setup(
     install_requires=["mpi4py>=3.0.0", "numpy>=1.13.0", "torch>=1.7.0", "scipy>=0.14.0"],
     extras_require={
         "hdf5": ["h5py>=2.8.0"],
-        "netcdf": ["netCDF4>=1.4.0,<=1.5.2"],
+        "netcdf": ["netCDF4>=1.4.0"],
         "dev": ["pre-commit>=1.18.3"],
     },
 )
