@@ -618,7 +618,10 @@ def bulge_chasing(arr, q0, q1, tiles=None):
         #     del active_procs[0]
         # # 1. get start element
         st_ind = (row, row + 1)
-        end_ind_first = (row + 1 + app_sz, row + 1 + app_sz)
+        end_ind_first = (
+            row + 1 + app_sz,
+            row + 1 + app_sz,
+        )  # TODO wrong end index? (row + app_sz, row + 1 + app_sz)
         # 2. determine where it will be applied to
         #       first round is a special case: it wont be the full thing, only 1 other element below the target point
         # get which processes are involved, need to figure out how to deal with the overlapping ones still
@@ -857,7 +860,7 @@ def svd(a, full_matrices=True, compute_uv=True):
     print(res_stage1)
 
     # Phase 1, Second stage: Transformation from band to bidiagonal
-    # res_stage2 = bulge_chasing()
+    # res_stage2 = bulge_chasing(res_stage1[1])
 
     # Phase 2, QR iteration
 
@@ -868,4 +871,4 @@ def svd(a, full_matrices=True, compute_uv=True):
     # store results in a namedtuple and return it
 
 
-#  svd = namedtuple("svd", ["U", "S", "VT"])
+#  svd = namedtuple("svd", ["U", "S", "V"])
