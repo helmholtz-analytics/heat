@@ -7,48 +7,43 @@ __all__ = ["DetectMetricPlateau"]
 
 class DetectMetricPlateau(object):
     """
-    Adapted from torch's ReduceLRonPlateau
-
     Determine if a  when a metric has stopped improving.
-    Models often benefit from reducing the learning rate by a factor
-    of 2-10 once learning stagnates. This scheduler reads a metrics
-    quantity and if no improvement is seen for a 'patience' number
-    of epochs, the learning rate is reduced.
+    This scheduler reads a metrics quantity and if no improvement
+    is seen for a 'patience' number of epochs, the learning rate is reduced.
+
+    Adapted from torch's ReduceLRonPlateau (:class:`torch.optim.lr_scheduler.ReduceLROnPlateau`).
 
     Args:
-        mode (str): One of `min`, `max`. In `min` mode, lr will
-            be reduced when the quantity monitored has stopped
-            decreasing; in `max` mode it will be reduced when the
-            quantity monitored has stopped increasing. Default: 'min'.
-        patience (int): Number of epochs with no improvement after
-            which learning rate will be reduced. For example, if
-            `patience = 2`, then we will ignore the first 2 epochs
-            with no improvement, and will only decrease the LR after the
+        mode: str, optional
+            One of `min`, `max`.
+            In `min` mode, the quantity monitored is determined to have plateaued when
+            it stops decreasing. In `max` mode, the quantity monitored is determined to
+            have plateaued when it stops decreasing.
+            Default: 'min'.
+        patience: int, optional
+            Number of epochs to wait before determining if there is a plateau
+            For example, if `patience = 2`, then we will ignore the first 2 epochs
+            with no improvement, and will only determine if there is a plateau after the
             3rd epoch if the loss still hasn't improved then.
             Default: 10.
-        threshold (float): Threshold for measuring the new optimum,
-            to only focus on significant changes. Default: 1e-4.
-        threshold_mode (str): One of `rel`, `abs`. In `rel` mode,
+        threshold: float, optional
+            Threshold for measuring the new optimum to only focus on significant changes.
+            Default: 1e-4.
+        threshold_mode: str, optional
+            One of `rel`, `abs`. In `rel` mode,
             dynamic_threshold = best * ( 1 + threshold ) in 'max'
             mode or best * ( 1 - threshold ) in `min` mode.
             In `abs` mode, dynamic_threshold = best + threshold in
-            `max` mode or best - threshold in `min` mode. Default: 'rel'.
-        cooldown (int): Number of epochs to wait before resuming
-            normal operation after lr has been reduced. Default: 0.
-        eps (float): Minimal decay applied to lr. If the difference
-            between new and old lr is smaller than eps, the update is
-            ignored. Default: 1e-8.
-        verbose (bool): If ``True``, prints a message to stdout for
-            each update. Default: ``False``.
-
-    Example:
-        >>> optimizer = torch.optim.SGD(model.parameters(), lr=0.1, momentum=0.9)
-        >>> scheduler = ReduceLROnPlateau(optimizer, 'min')
-        >>> for epoch in range(10):
-        >>>     train(...)
-        >>>     val_loss = validate(...)
-        >>>     # Note that step should be called after validate()
-        >>>     scheduler.step(val_loss)
+            `max` mode or best - threshold in `min` mode.
+            Default: 'rel'.
+        cooldown: int, optional
+            Number of epochs to wait before resuming
+            normal operation after lr has been reduced.
+            Default: 0.
+        verbose: bool, optional
+            If ``True``, prints a message to stdout for
+            each update.
+            Default: ``False``.
     """
 
     def __init__(
@@ -58,7 +53,6 @@ class DetectMetricPlateau(object):
         threshold=1e-4,
         threshold_mode="rel",
         cooldown=0,
-        eps=1e-8,
         verbose=False,
     ):
 
@@ -72,12 +66,14 @@ class DetectMetricPlateau(object):
         self.best = None
         self.num_bad_epochs = None
         self.mode_worse = None  # the worse value for the chosen mode
-        self.eps = eps
         self.last_epoch = 0
         self._init_is_better(mode=mode, threshold=threshold, threshold_mode=threshold_mode)
         self.reset()
 
     def get_dict(self):
+        """
+        Get a dictionary of the class parameters. This is useful for checkpointing.
+        """
         return {
             "patience": self.patience,
             "verbose": self.verbose,
@@ -89,11 +85,18 @@ class DetectMetricPlateau(object):
             "best": self.best,
             "num_bad_epochs": self.num_bad_epochs,
             "mode_worse": self.mode_worse,
-            "eps": self.eps,
             "last_epoch": self.last_epoch,
         }
 
     def load_dict(self, dic):
+        """
+        Load a dictionary with the status of the class. Typically used in checkpointing.
+
+        Parameters
+        ----------
+        dic: Dictionary
+            contains the values to be set as the class parameters
+        """
         self.patience = dic["patience"]
         self.verbose = dic["verbose"]
         self.cooldown = dic["cooldown"]
@@ -104,7 +107,6 @@ class DetectMetricPlateau(object):
         self.best = dic["best"]
         self.num_bad_epochs = dic["num_bad_epochs"]
         self.mode_worse = dic["mode_worse"]
-        self.eps = dic["eps"]
         self.last_epoch = dic["last_epoch"]
 
     def reset(self):
@@ -114,6 +116,19 @@ class DetectMetricPlateau(object):
         self.num_bad_epochs = 0
 
     def test_if_improving(self, metrics):
+        """
+        Test if the metric/s is/are improving. If the metrics are better than the adjusted best value, they
+        are set as the best for future testing.
+
+        Parameters
+        ----------
+        metrics: torch.Tensor
+            the metrics to test
+
+        Returns
+        -------
+        True if the metrics are better than the best, False otherwise
+        """
         # convert `metrics` to float, in case it's a zero-dim Tensor
         current = float(metrics)
 
@@ -138,9 +153,15 @@ class DetectMetricPlateau(object):
 
     @property
     def in_cooldown(self):
+        """
+        Test if the class is in the cool down period
+        """
         return self.cooldown_counter > 0
 
     def is_better(self, a, best):
+        """
+        Test if the given value is better than the current best value. The best value is adjusted with the threshold
+        """
         if self.mode == "min" and self.threshold_mode == "rel":
             rel_epsilon = 1.0 - self.threshold
             comp = best * rel_epsilon if best >= 0 else best * (1 + self.threshold)

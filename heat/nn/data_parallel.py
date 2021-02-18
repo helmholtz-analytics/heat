@@ -350,28 +350,38 @@ class DataParallel(tnn.Module):
 
 
 class DataParallelMultiGPU(tnn.Module):
-    """
-    working for data parallel stuff
+    def __init__(
+        self,
+        module: torch.nn.Module,
+        optimizer: torch.optim.Optimizer,
+        comm: MPICommunication = MPI_WORLD,
+    ):
+        """
+        This creates data parallel networks local to each node using PyTorch's distributed class. This does NOT
+        do any global synchronizations. To make optimal use of this structure, use :class:`..optim.dp_optimizer.DASO`.
 
-    loss_floor is where the user would hope for the loss to get to
-    """
+        Notes
+        -----
+        The PyTorch distributed process group must already exist before this class is initialized.
 
-    def __init__(self, module: torch.nn.Module, comm: MPICommunication, optimizer, loc_gpus=None):
+        Parameters
+        ----------
+        module: torch.nn.Module
+            an implemented PyTorch model
+        optimizer: torch.optim.Optimizer
+            a local PyTorch optimizer instance
+        comm: MPICommunication, optional
+            A global communicator.
+            Default: ht.MPICommunication
+        """
         super(DataParallelMultiGPU, self).__init__()
         rank = comm.rank
-        if loc_gpus is not None:
-            self.loc_gpus = loc_gpus
-            local_rank = rank % loc_gpus
-            device = "cuda:0"
-            module = tnn.parallel.DistributedDataParallel(module, device_ids=[local_rank])
-            torch.cuda.set_device(device=device)
-        elif torch.cuda.device_count() > 1:
+        if torch.cuda.device_count() > 1:
             self.loc_gpus = torch.cuda.device_count()
             local_rank = rank % self.loc_gpus
             device = "cuda:" + str(local_rank)
             torch.cuda.set_device(device=device)
             module = tnn.parallel.DistributedDataParallel(module, device_ids=[local_rank])
-            # module.share_memory()
         else:
             warnings.warn(
                 "DataParallelMultiGPU should be used with multiple GPUs per node", UserWarning
@@ -387,6 +397,9 @@ class DataParallelMultiGPU(tnn.Module):
             optimizer.set_model(self.module)
 
     def forward(self, *inputs, **kwargs):
+        """
+        Calls the forward method for the torch model
+        """
         return self.module(*inputs, **kwargs)
 
     @staticmethod
