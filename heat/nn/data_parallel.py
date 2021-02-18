@@ -100,6 +100,10 @@ class DataParallel(tnn.Module):
         optimizer: Union[optim.DataParallelOptimizer, List, Tuple],
         blocking_parameter_updates: bool = False,
     ):
+        if isinstance(optimizer, optim.DASO):
+            raise TypeError(
+                "For use with DASO please use DataParallelMultiGPU instead of DataParallel"
+            )
         super(DataParallel, self).__init__()
         self.module = module
         self.comm = comm
@@ -351,10 +355,7 @@ class DataParallel(tnn.Module):
 
 class DataParallelMultiGPU(tnn.Module):
     def __init__(
-        self,
-        module: torch.nn.Module,
-        optimizer: torch.optim.Optimizer,
-        comm: MPICommunication = MPI_WORLD,
+        self, module: torch.nn.Module, optimizer: optim.DASO, comm: MPICommunication = MPI_WORLD
     ):
         """
         This creates data parallel networks local to each node using PyTorch's distributed class. This does NOT
@@ -368,8 +369,9 @@ class DataParallelMultiGPU(tnn.Module):
         ----------
         module: torch.nn.Module
             an implemented PyTorch model
-        optimizer: torch.optim.Optimizer
-            a local PyTorch optimizer instance
+        optimizer: optim.DASO
+            A DASO optimizer. Other optimizers are not yet implemented. The DASO optimizer should be
+            defined prior to calling this class.
         comm: MPICommunication, optional
             A global communicator.
             Default: ht.MPICommunication
@@ -393,8 +395,7 @@ class DataParallelMultiGPU(tnn.Module):
         torch.random.manual_seed(2147483646)  # max int32 value - 1
         self.module.apply(self._reset_parameters)
 
-        if isinstance(optimizer, optim.SkipBatches):
-            optimizer.set_model(self.module)
+        optimizer.set_model(self.module)
 
     def forward(self, *inputs, **kwargs):
         """
