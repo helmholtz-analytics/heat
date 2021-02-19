@@ -27,6 +27,9 @@
 ## Bug fixes
 - [#709](https://github.com/helmholtz-analytics/heat/pull/709) Set the encoding for README.md in setup.py explicitly.
 
+## Enhancements
+- [#708](https://github.com/helmholtz-analytics/heat/pull/708) Change torch's set_default_tensor_type when ht.use_device is called.
+
 # v0.5.2
 
 - [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
