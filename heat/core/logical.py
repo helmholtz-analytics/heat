@@ -14,6 +14,9 @@ __all__ = [
     "allclose",
     "any",
     "isclose",
+    "isfinite",
+    "isinf",
+    "isnan",
     "logical_and",
     "logical_not",
     "logical_or",
@@ -215,6 +218,61 @@ def isclose(x, y, rtol=1e-05, atol=1e-08, equal_nan=False):
             result = factories.array(_local_isclose, dtype=types.bool, device=t1.device)
 
     return result
+
+
+def isfinite(x):
+    """
+    Test element-wise for finiteness (not infinity or not Not a Number) and return result as a boolean array.
+
+    Parameters
+    ----------
+    x   : DNDarray
+    out : DNDarray
+
+    Examples
+    --------
+    >>> ht.isfinite(ht.array([1, ht.inf, -ht.inf, ht.nan]))
+    DNDarray([ True, False, False, False], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.isfinite, x, None, no_cast=True)
+
+
+def isinf(x):
+    """
+    Test element-wise for positive or negative infinity and return result as a boolean array.
+
+    Parameters
+    ----------
+    x   : DNDarray
+    out : DNDarray
+
+    Examples
+    --------
+    >>> ht.isinf(ht.array([1, ht.inf, -ht.inf, ht.nan]))
+    DNDarray([False,  True,  True, False], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.isinf, x, None, no_cast=True)
+
+
+def isnan(x):
+    """
+    Test element-wise for NaN and return result as a boolean array.
+
+    Parameters
+    ----------
+    x   : DNDarray
+    out : DNDarray
+
+    Returns
+    -------
+    DNDarray
+
+    Examples
+    --------
+    >>> ht.isnan(ht.array([1, ht.inf, -ht.inf, ht.nan]))
+    DNDarray([False, False, False,  True], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.isnan, x, None, no_cast=True)
 
 
 def logical_and(t1, t2):
