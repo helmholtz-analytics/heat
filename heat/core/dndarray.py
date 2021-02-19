@@ -413,10 +413,6 @@ class DNDarray:
         halo_size : int
             Size of the halo.
         """
-        if not self.is_balanced():
-            raise RuntimeError(
-                "halo cannot be created for unbalanced tensors, running the .balance_() function is recommended"
-            )
         if not isinstance(halo_size, int):
             raise TypeError(
                 "halo_size needs to be of Python type integer, {} given".format(type(halo_size))
@@ -426,23 +422,30 @@ class DNDarray:
                 "halo_size needs to be a positive Python integer, {} given".format(type(halo_size))
             )
 
-        if self.comm.is_distributed() and self.split is not None:
+        if self.is_distributed():
             # gather lshapes
             lshape_map = self.create_lshape_map()
             rank = self.comm.rank
             size = self.comm.size
-            next_rank = rank + 1
-            prev_rank = rank - 1
-            last_rank = size - 1
 
-            # if local shape is zero and it's the last process
+            if not self.balanced:
+                populated_ranks = torch.nonzero(lshape_map[:, 0]).squeeze().tolist()
+                next_rank = populated_ranks.index(rank) + 1
+                prev_rank = populated_ranks.index(rank) - 1
+                last_rank = populated_ranks[-1]
+            else:
+                next_rank = rank + 1
+                prev_rank = rank - 1
+                last_rank = size - 1
+
+            # if local shape is zero
             if self.lshape[self.split] == 0:
                 return  # if process has no data we ignore it
 
             if halo_size > self.lshape[self.split]:
                 # if on at least one process the halo_size is larger than the local size throw ValueError
                 raise ValueError(
-                    "halo_size {} needs to be smaller than chunck-size {} )".format(
+                    "halo_size {} needs to be smaller than chunk-size {} )".format(
                         halo_size, self.lshape[self.split]
                     )
                 )
