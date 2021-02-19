@@ -3,7 +3,13 @@
 ## New features
 - [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
 - [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
+- [#687](https://github.com/helmholtz-analytics/heat/pull/687) New DNDarray property: balanced
+- [#702](https://github.com/helmholtz-analytics/heat/pull/702) Support channel stackoverflow
+
+### I/O
+- [#559](https://github.com/helmholtz-analytics/heat/pull/559) Enhancement: `save_netcdf` allows naming dimensions, creating unlimited dimensions, using existing dimensions and variables, slicing
 ### Manipulations
+- [#677](https://github.com/helmholtz-analytics/heat/pull/677) split, vsplit, dsplit, hsplit
 ### Statistical Functions
 - [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``
 ### Linear Algebra
@@ -13,13 +19,18 @@
 - [#625](https://github.com/helmholtz-analytics/heat/pull/625) New feature: `utils.data.datatools.DataLoader` for created a local `torch.utils.data.Dataloader` for use with `ht.nn.DataParallel`
 - [#625](https://github.com/helmholtz-analytics/heat/pull/625) New feature: `utils.data.datatools.Dataset` for created a local `torch.utils.data.Dataset` for use with `ht.nn.DataParallel`
 - [#625](https://github.com/helmholtz-analytics/heat/pull/625) Added MNIST example to `example/nn` to show the use of `ht.nn.DataParallel`. The `MNISTDataset` can be found in `ht.utils.data.mnist.py`
+- [#658](https://github.com/helmholtz-analytics/heat/pull/658) Bugfix: `matmul` on GPU will cast away from `int`s to `float`s for the operation and cast back upon its completion. This may result in numerical inaccuracies for very large `int64` DNDarrays
 ### ...
 
 ## Bug fixes
+# v0.5.2
+
+- [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
+
 # v0.5.1
 
 - [#678](https://github.com/helmholtz-analytics/heat/pull/678) Bugfix: Internal functions now use explicit device parameters for DNDarray and torch.Tensor initializations.
-- [#684](https://github.com/helmholtz-analytics/heat/pull/684) Bug fix: distributed `reshape` does not work on booleans.
+- [#684](https://github.com/helmholtz-analytics/heat/pull/684) Bug fix: distributed `reshape` now works on booleans as well.
 
 # v0.5.0
 

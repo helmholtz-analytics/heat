@@ -193,7 +193,7 @@ class TestArithmetics(TestCase):
             ht.cumprod(ht.ones((2, 2)), axis=None)
         with self.assertRaises(TypeError):
             ht.cumprod(ht.ones((2, 2)), axis="1")
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             ht.cumprod(a, 2, out=out)
         with self.assertRaises(ValueError):
             ht.cumprod(ht.ones((2, 2)), 2)
@@ -238,7 +238,7 @@ class TestArithmetics(TestCase):
             ht.cumsum(ht.ones((2, 2)), axis=None)
         with self.assertRaises(TypeError):
             ht.cumsum(ht.ones((2, 2)), axis="1")
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             ht.cumsum(a, 2, out=out)
         with self.assertRaises(ValueError):
             ht.cumsum(ht.ones((2, 2)), 2)
@@ -511,7 +511,7 @@ class TestArithmetics(TestCase):
         self.assertEqual(shape_noaxis_split_axis_neg_prod.larray.dtype, torch.float32)
         self.assertEqual(shape_noaxis_split_axis_neg_prod.split, 1)
 
-        out_noaxis = ht.zeros((1, 2, 3, 5))
+        out_noaxis = ht.zeros((1, 2, 3, 5), split=1)
         ht.prod(shape_noaxis_split_axis_neg, axis=-2, out=out_noaxis)
 
         # check sum over all float elements of splitted 3d tensor with tuple axis
@@ -647,7 +647,7 @@ class TestArithmetics(TestCase):
         self.assertEqual(shape_noaxis_split_axis_neg_sum.larray.dtype, torch.float32)
         self.assertEqual(shape_noaxis_split_axis_neg_sum.split, 1)
 
-        out_noaxis = ht.zeros((1, 2, 3, 5))
+        out_noaxis = ht.zeros((1, 2, 3, 5), split=1)
         ht.sum(shape_noaxis_split_axis_neg, axis=-2, out=out_noaxis)
 
         # check sum over all float elements of splitted 3d tensor with tuple axis

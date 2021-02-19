@@ -9,6 +9,7 @@ from typing import Callable, List, Union, Tuple
 from ..core.communication import MPICommunication
 from ..core.communication import MPI
 from .. import optim
+from ..core.devices import get_device
 
 __all__ = ["DataParallel"]
 
@@ -272,7 +273,7 @@ class DataParallel(tnn.Module):
             # TODO: is sorting faster? or is there any difference?
             # self._layer_wait_handles[layer_name].append((grad_loc.numel(), param_name, wait_handle))
             # don't return grad_loc, otherwise gradient is doubled
-            return torch.zeros(*grad_loc.size())
+            return torch.zeros(*grad_loc.size(), device=get_device().torch_device)
 
         return _hook
 

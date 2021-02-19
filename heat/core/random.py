@@ -354,6 +354,7 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
     split = stride_tricks.sanitize_axis(shape, split)
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
+    balanced = True
 
     # generate the random sequence
     if dtype == types.float32:
@@ -376,7 +377,7 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
         # Unsupported type
         raise ValueError("dtype is none of ht.float32 or ht.float64 but was {}".format(dtype))
 
-    return dndarray.DNDarray(values, shape, dtype, split, device, comm)
+    return dndarray.DNDarray(values, shape, dtype, split, device, comm, balanced)
 
 
 def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm=None):
@@ -438,6 +439,8 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     split = stride_tricks.sanitize_axis(shape, split)
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
+    balanced = True
+
     # generate the random sequence
     x_0, x_1, lshape, lslice = __counter_sequence(shape, dtype.torch_type(), split, device, comm)
     if torch_dtype is torch.int32:
@@ -450,7 +453,7 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     # ATTENTION: this is biased and known, bias-free rejection sampling is difficult to do in parallel
     values = (values.abs_() % span) + low
 
-    return dndarray.DNDarray(values, shape, dtype, split, device, comm)
+    return dndarray.DNDarray(values, shape, dtype, split, device, comm, balanced)
 
 
 # alias
