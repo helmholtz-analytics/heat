@@ -57,7 +57,7 @@ class TestDASO(TestCase):
             # Training settings
             args = {"epochs": 14, "batch_size": 64}
             # todo: break if there is no GPUs / CUDA
-            if not torch.cuda.is_available():
+            if not torch.cuda.is_available() and ht.MPI_WORLD.size < 8:
                 return
             torch.manual_seed(1)
 
@@ -102,7 +102,7 @@ class TestDASO(TestCase):
                 ls = train(dp_model, device, train_loader, daso_optimizer)
                 daso_optimizer.epoch_loss_logic(ls)
                 scheduler.step()
-                if epoch + 1 == args.epochs:
+                if epoch + 1 == 14:
                     train_loader.last_epoch = True
 
         MNIST_train()
