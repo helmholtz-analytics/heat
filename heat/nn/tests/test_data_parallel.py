@@ -10,9 +10,9 @@ class TestDataParallel(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.utils.data.datatools.DataLoader("asdf")
 
-        class TestModel(ht.nn.Module):
+        class Model(ht.nn.Module):
             def __init__(self):
-                super(TestModel, self).__init__()
+                super(Model, self).__init__()
                 # 1 input image channel, 6 output channels, 3x3 square convolution
                 # kernel
                 self.conv1 = ht.nn.Conv2d(1, 6, 3)
@@ -57,7 +57,7 @@ class TestDataParallel(unittest.TestCase):
                     ht.utils.data.dataset_shuffle(self, attrs=[["data", None]])
 
         # create model and move it to GPU with id rank
-        model = TestModel()
+        model = Model()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
         with self.assertRaises(TypeError):
             ht.optim.DataParallelOptimizer(optimizer, "asdf")
@@ -93,7 +93,7 @@ class TestDataParallel(unittest.TestCase):
                 for i in range(1, len(hld_list)):
                     self.assertTrue(torch.allclose(hld_list[0], hld_list[i], rtol=lim, atol=lim))
 
-        model = TestModel()
+        model = Model()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
         dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, False)
         labels = torch.randn((2, 10), device=ht.get_device().torch_device)
@@ -124,7 +124,7 @@ class TestDataParallel(unittest.TestCase):
                 for i in range(1, len(hld_list)):
                     self.assertTrue(torch.allclose(hld_list[0], hld_list[i], rtol=lim, atol=lim))
 
-        model = TestModel()
+        model = Model()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
         dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, False)
         labels = torch.randn((2, 10), device=ht.get_device().torch_device)
