@@ -51,6 +51,7 @@ class DASO:
         max_global_skips: int = 8,
         sending_chuck_size: int = 10_000_000,
         downcast_type: torch.dtype = torch.bfloat16,
+        use_mpi_groups: bool = True,
         verbose: bool = False,
     ):
         """
@@ -125,9 +126,12 @@ class DASO:
             communication and computation. This value is the maximum chunk size.
             Default: 10_000_000
         downcast_type: torch.dtype, optional
-             When the network parameters are sent during the global synchronization step, they are cast down to
-             a smaller dtype, by default this is `torch.bfloat16`. Smaller torch dtypes are not implemented.
-             torch.bfloat16
+            When the network parameters are sent during the global synchronization step, they are cast down to
+            a smaller dtype, by default this is `torch.bfloat16`. Smaller torch dtypes are not implemented.
+            torch.bfloat16
+        use_mpi_groups: bool, optional
+            Use MPI groups to divide the global communicator. If True, use MPI GROUPs, otherwise, use MPI SPLIT.
+            Default: True
         verbose: bool, optional
             If true, print out a collection of debug messages
             Default: False
@@ -163,9 +167,14 @@ class DASO:
             reduced_comms, reduced_ranks = [], []
             for i in range(loc_gpus):
                 lp_ranks = [j + i for j in base_loc_ranks]
-                new_group = MPI_WORLD.group.Incl(lp_ranks)
-                new_comm = MPI_WORLD.Create_group(new_group)
-                reduced_comms.append(MPICommunication(new_comm, group=True))
+                if use_mpi_groups:
+                    new_group = MPI_WORLD.group.Incl(lp_ranks)
+                    new_comm = MPI_WORLD.Create_group(new_group)
+                    reduced_comms.append(MPICommunication(new_comm, group=True))
+                else:
+                    color = 111 + i if rank in lp_ranks else 222 + i
+                    key = 0 + i if rank in lp_ranks else 444 + i
+                    reduced_comms.append(MPICommunication(MPI_WORLD.Split(color, key)))
                 reduced_ranks.append(tuple(lp_ranks))
             self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
             self.base_loc_ranks = base_loc_ranks
@@ -226,33 +235,43 @@ class DASO:
         # this does all of the checks and raises for the parameters for init
         if not isinstance(args["local_optimizer"], torch.optim.Optimizer):
             raise TypeError(
-                f"Local optimizer must be a torch optimizer object, currently {args['local_optimizer']}"
+                f"Local optimizer must be a torch optimizer object, currently {type(args['local_optimizer'])}"
             )
         if not isinstance(args["total_epochs"], int):
-            raise TypeError(f"total_epochs must be an int, currently {args['total_epochs']}")
-        if not isinstance(args["comm"], MPICommunication):
-            raise TypeError(f"comm must be a ht.MPICommunication object, currently {args['comm']}")
+            raise TypeError(f"total_epochs must be an int, currently {type(args['total_epochs'])}")
         if not isinstance(args["warmup_epochs"], int):
-            raise TypeError(f"warmup_epochs must be an int, currently {args['warmup_epochs']}")
+            raise TypeError(
+                f"warmup_epochs must be an int, currently {type(args['warmup_epochs'])}"
+            )
         if not isinstance(args["cooldown_epochs"], int):
-            raise TypeError(f"cooldown_epochs must be an int, currently {args['cooldown_epochs']}")
-        if not issubclass(args["scheduler"], torch.optim.lr_scheduler._LRScheduler):
+            raise TypeError(
+                f"cooldown_epochs must be an int, currently {type(args['cooldown_epochs'])}"
+            )
+        if args["scheduler"] is not None and not issubclass(
+            args["scheduler"], torch.optim.lr_scheduler._LRScheduler
+        ):
             raise TypeError(
                 f"scheduler must be a torch learning rate scheduler, currently {args['scheduler']}"
             )
-        if not isinstance(args["stablitiy_level"], float):
-            raise TypeError(f"stablitiy_level must be a float, currently {args['stablitiy_level']}")
+        if not isinstance(args["stability_level"], float):
+            raise TypeError(
+                f"stablitiy_level must be a float, currently {type(args['stablitiy_level'])}"
+            )
         if not isinstance(args["max_global_skips"], int):
             raise TypeError(
-                f"max_global_skips must be an int, currently {args['max_global_skips']}"
+                f"max_global_skips must be an int, currently {type(args['max_global_skips'])}"
             )
         if not isinstance(args["sending_chuck_size"], int):
             raise TypeError(
-                f"sending_chuck_size must be an int, currently {args['sending_chuck_size']}"
+                f"sending_chuck_size must be an int, currently {type(args['sending_chuck_size'])}"
             )
         if not isinstance(args["verbose"], bool):
-            raise TypeError(f"verbose must be a bool, currently {args['verbose']}")
-        if not isinstance(args["downcast_type"], int):
+            raise TypeError(f"verbose must be a bool, currently {type(args['verbose'])}")
+        if not isinstance(args["use_mpi_groups"], bool):
+            raise TypeError(
+                f"`use_mpi_grus` must be a bool, currently {type(args['use_mpi_groups'])}"
+            )
+        if not isinstance(args["downcast_type"], torch.dtype):
             raise TypeError(
                 f"downcast_type must be a torch.dtype, currently {args['downcast_type']}"
             )
