@@ -130,7 +130,7 @@ class TestDASO(TestCase):
             # )
             #
             # labels = torch.randn((2, 10), device=ht.get_device().torch_device)
-            data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
+            data = ht.random.rand(20 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
             dataset = TestDataset(data, ishuffle=True)
             dataloader = ht.utils.data.datatools.DataLoader(dataset=dataset, batch_size=2)
             # dataset1 = MNISTDataset(
