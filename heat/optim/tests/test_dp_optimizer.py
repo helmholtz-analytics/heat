@@ -41,16 +41,19 @@ class TestDASO(TestCase):
         def train(model, device, train_loader, optimizer):
             model.train()
             optimizer.last_batch = 20
+            print('before loader')
             for batch_idx, (data, target) in enumerate(train_loader):
+                print(batch_idx)
                 data, target = data.to(device), target.to(device)
                 optimizer.zero_grad()
                 output = model(data)
                 loss = F.nll_loss(output, target)
-                ret_loss = loss.clone().detatch()
+                ret_loss = loss.clone().detach()
                 loss.backward()
                 optimizer.step()
                 if batch_idx == 20:
                     break
+                print(batch_idx)
             return ret_loss
 
         def MNIST_train():
@@ -61,9 +64,9 @@ class TestDASO(TestCase):
                 return
             torch.manual_seed(1)
 
-            args.gpus = torch.cuda.device_count()
-            loc_rank = ht.MPI_WORLD.rank % args.gpus
-            args.loc_rank = loc_rank
+            gpus = torch.cuda.device_count()
+            loc_rank = ht.MPI_WORLD.rank % gpus
+            #args.loc_rank = loc_rank
             device = "cuda:" + str(loc_rank)
             port = str(29500)  # + (args.world_size % args.gpus))
             os.environ["MASTER_ADDR"] = "localhost"
@@ -71,10 +74,10 @@ class TestDASO(TestCase):
             os.environ["NCCL_SOCKET_IFNAME"] = "ib"
 
             torch.distributed.init_process_group(
-                backend="nccl", rank=loc_rank, world_size=args.gpus
+                backend="nccl", rank=loc_rank, world_size=gpus
             )
             torch.cuda.set_device(device)
-            args.gpu = loc_rank
+            #args.gpu = loc_rank
             device = torch.device("cuda")
             kwargs = {"batch_size": 64, "num_workers": 1, "pin_memory": True}
             transform = ht.utils.vision_transforms.Compose(
@@ -94,9 +97,13 @@ class TestDASO(TestCase):
                 stability_level=0.9,  # this should make it drop every time (hopefully)
                 warmup_epochs=1,
                 cooldown_epochs=1,
+                use_mpi_groups=False,
+                verbose=True,
             )
             scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
             dp_model = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
+
+            daso_optimizer.print0("finished inti")
 
             for epoch in range(1, 14):
                 ls = train(dp_model, device, train_loader, daso_optimizer)
@@ -104,5 +111,6 @@ class TestDASO(TestCase):
                 scheduler.step()
                 if epoch + 1 == 14:
                     train_loader.last_epoch = True
+                daso_optimizer.print0(f"finished epoch {epoch}")
 
         MNIST_train()

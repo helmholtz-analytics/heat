@@ -575,11 +575,11 @@ class DASO:
         )
         denom = float(current_comm.size + (batches_to_wait * 2.0))
 
-        sndparams = self.__pack_data(sndparams, param_dict, cast, denom)
+        sndparams = self.__pack_data(sndparams, param_dict, cast)
 
-        if sndparams.isnan().sum():
-            # check if there are NaNs, if so, stuff is bad
-            raise ValueError(f"{sndparams.isnan().sum()} NaNs in `params` shit be fucked.")
+        #if sndparams.isnan().sum():
+        #    # check if there are NaNs, if so, stuff is bad
+        #    raise ValueError(f"{sndparams.isnan().sum()} NaNs in `params` shit be fucked.")
 
         if not self.split and sndparams.numel() <= self.split_val:
             new_wait = current_comm.Iallreduce(MPI.IN_PLACE, sndparams, op)
