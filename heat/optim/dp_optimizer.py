@@ -276,13 +276,15 @@ class DASO:
                 f"downcast_type must be a torch.dtype, currently {args['downcast_type']}"
             )
         if args["warmup_epochs"] < 0:
-            raise ValueError(f"warmup_epochs must be > 0")
+            raise ValueError(f"warmup_epochs must be >= 0")
         if args["cooldown_epochs"] < 0:
-            raise ValueError(f"cooldown_epochs must be > 0")
+            raise ValueError(f"cooldown_epochs must be >= 0")
         if args["max_global_skips"] < 0:
-            raise ValueError(f"stablitiy_level must be > 0")
-        if args["sending_chuck_size"] < 0:
+            raise ValueError(f"stablitiy_level must be >= 0")
+        if args["sending_chuck_size"] <= 0:
             raise ValueError(f"sending_chuck_size must be > 0")
+        if args["total_epochs"] <= 0:
+            raise ValueError(f"total_epochs must be > 0")
 
     @torch.no_grad()
     def epoch_loss_logic(self, loss, loss_globally_averaged=False):
