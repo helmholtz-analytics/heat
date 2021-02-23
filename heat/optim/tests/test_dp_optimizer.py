@@ -4,15 +4,16 @@ import os
 import torch
 
 from heat.core.tests.test_suites.basic_test import TestCase
+import unittest
+# print("after first imports")
 
-
-class TestDASO(TestCase):
+class TestDASO(unittest.TestCase):
     def test_daso(self):
         import heat.nn.functional as F
         import heat.optim as optim
-        from heat.optim.lr_scheduler import StepLR
-        from heat.utils import vision_transforms
-        from heat.utils.data.mnist import MNISTDataset
+        #from heat.optim.lr_scheduler import StepLR
+        #from heat.utils import vision_transforms
+        #from heat.utils.data.mnist import MNISTDataset
 
         # class Net(ht.nn.Module):
         #     def __init__(self):
@@ -90,10 +91,12 @@ class TestDASO(TestCase):
             model.train()
             optimizer.last_batch = 20
             loss_fn = torch.nn.MSELoss()
-            # print("before loader")
-            for batch_idx, data in enumerate(train_loader):
+            #print("before loader")
+            #for batch_idx, data in enumerate(train_loader):
+            for b in range(20):
+                data = torch.rand(2, 1, 32, 32)
                 target = torch.randn((2, 10), device=ht.get_device().torch_device)
-                # print(batch_idx)
+                #print(b)
                 data, target = data.to(device), target.to(device)
                 optimizer.zero_grad()
                 output = model(data)
@@ -101,9 +104,9 @@ class TestDASO(TestCase):
                 ret_loss = loss.clone().detach()
                 loss.backward()
                 optimizer.step()
-                if batch_idx == 20:
-                    break
-                # print(batch_idx)
+                #if b == 20:
+                #    break
+                # print(b)
             return ret_loss
 
         # Training settings
@@ -120,12 +123,13 @@ class TestDASO(TestCase):
         os.environ["MASTER_ADDR"] = "localhost"
         os.environ["MASTER_PORT"] = port  # "29500"
         os.environ["NCCL_SOCKET_IFNAME"] = "ib"
-
+        #print("before process group init")
         torch.distributed.init_process_group(backend="nccl", rank=loc_rank, world_size=gpus)
         torch.cuda.set_device(device)
         device = torch.device("cuda")
-
-        data = ht.random.rand(20 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
+        #print('before data generation')
+        data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
+        #print("before dataset")
         dataset = TestDataset(data, ishuffle=True)
         dataloader = ht.utils.data.datatools.DataLoader(dataset=dataset, batch_size=2)
 
@@ -134,19 +138,19 @@ class TestDASO(TestCase):
         daso_optimizer = ht.optim.DASO(
             local_optimizer=optimizer,
             total_epochs=args["epochs"],
-            max_global_skips=4,
+            max_global_skips=8,
             stability_level=0.9999,  # this should make it drop every time (hopefully)
             warmup_epochs=1,
             cooldown_epochs=1,
             use_mpi_groups=False,
-            verbose=True,
+            #verbose=True,
         )
         # scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
         dp_model = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
 
         daso_optimizer.print0("finished inti")
 
-        for epoch in range(1, 14):
+        for epoch in range(0, 20):
             ls = train(dp_model, device, dataloader, daso_optimizer)
             # epoch loss logic function to be tested differently
             daso_optimizer.epoch_loss_logic(ls)
