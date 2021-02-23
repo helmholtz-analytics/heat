@@ -2011,9 +2011,7 @@ def sort(a, axis=None, descending=False, out=None):
             else:
                 lt_partitions[idx] = lt
             last = lt
-        lt_partitions[size - 1] = (
-            torch.ones_like(local_sorted, dtype=last.dtype) - last
-        )
+        lt_partitions[size - 1] = torch.ones_like(local_sorted, dtype=last.dtype) - last
 
         # Matrix holding information how many values will be sent where
         local_partitions = torch.sum(lt_partitions, dim=1)
@@ -2054,9 +2052,7 @@ def sort(a, axis=None, descending=False, out=None):
             recv_count = rcounts[idx_slice].reshape(-1).tolist()
             recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
             rcv_length = rcounts[idx_slice].sum().item()
-            r_val = torch.empty(
-                (rcv_length,) + s_val.shape[1:], dtype=local_sorted.dtype
-            )
+            r_val = torch.empty((rcv_length,) + s_val.shape[1:], dtype=local_sorted.dtype)
             r_ind = torch.empty_like(r_val)
 
             a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
@@ -2065,9 +2061,7 @@ def sort(a, axis=None, descending=False, out=None):
             first_indices[idx_slice][:rcv_length] = r_ind
 
         # The process might not have the correct number of values therefore the tensors need to be rebalanced
-        send_vec = torch.zeros(
-            local_sorted.shape[1:] + (size, size), dtype=torch.int64
-        )
+        send_vec = torch.zeros(local_sorted.shape[1:] + (size, size), dtype=torch.int64)
         target_cumsum = np.cumsum(counts)
         for idx in np.ndindex(local_sorted.shape[1:]):
             idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
@@ -2135,9 +2129,7 @@ def sort(a, axis=None, descending=False, out=None):
             s_val, indices = first_result[0:end][idx_slice].sort(descending=descending, dim=0)
             s_ind = first_indices[0:end][idx_slice][indices].reshape_as(s_val)
 
-            r_val = torch.empty(
-                (counts[rank],) + s_val.shape[1:], dtype=local_sorted.dtype
-            )
+            r_val = torch.empty((counts[rank],) + s_val.shape[1:], dtype=local_sorted.dtype)
             r_ind = torch.empty_like(r_val)
 
             a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
