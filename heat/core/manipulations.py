@@ -1970,7 +1970,7 @@ def sort(a, axis=None, descending=False, out=None):
         local_pivots = (
             local_sorted[partitions]
             if counts[rank]
-            else torch.empty((0,) + local_sorted.size()[1:], dtype=local_sorted.dtype, device="cpu")
+            else torch.empty((0,) + local_sorted.size()[1:], dtype=local_sorted.dtype)
         )
 
         # Only processes with elements should share their pivots
@@ -2000,8 +2000,8 @@ def sort(a, axis=None, descending=False, out=None):
 
         a.comm.Bcast(global_pivots, root=0)
 
-        lt_partitions = torch.empty((size,) + local_sorted.shape, dtype=torch.int64, device="cpu")
-        last = torch.zeros_like(local_sorted, dtype=torch.int64, device="cpu")
+        lt_partitions = torch.empty((size,) + local_sorted.shape, dtype=torch.int64)
+        last = torch.zeros_like(local_sorted, dtype=torch.int64)
         comp_op = torch.gt if descending else torch.lt
         # Iterate over all pivots and store which pivot is the first greater than the elements value
         for idx, p in enumerate(global_pivots):
@@ -2012,22 +2012,22 @@ def sort(a, axis=None, descending=False, out=None):
                 lt_partitions[idx] = lt
             last = lt
         lt_partitions[size - 1] = (
-            torch.ones_like(local_sorted, dtype=last.dtype, device="cpu") - last
+            torch.ones_like(local_sorted, dtype=last.dtype) - last
         )
 
         # Matrix holding information how many values will be sent where
         local_partitions = torch.sum(lt_partitions, dim=1)
 
-        partition_matrix = torch.empty_like(local_partitions, device="cpu")
+        partition_matrix = torch.empty_like(local_partitions)
         a.comm.Allreduce(local_partitions, partition_matrix, op=MPI.SUM)
 
         # Matrix that holds information which value will be shipped where
-        index_matrix = torch.empty_like(local_sorted, dtype=torch.int64, device="cpu")
+        index_matrix = torch.empty_like(local_sorted, dtype=torch.int64)
 
         # Matrix holding information which process get how many values from where
         shape = (size,) + transposed.size()[1:]
-        send_matrix = torch.zeros(shape, dtype=partition_matrix.dtype, device="cpu")
-        recv_matrix = torch.zeros(shape, dtype=partition_matrix.dtype, device="cpu")
+        send_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
+        recv_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
 
         for i, x in enumerate(lt_partitions):
             index_matrix[x > 0] = i
@@ -2039,8 +2039,8 @@ def sort(a, axis=None, descending=False, out=None):
         rcounts = recv_matrix
 
         shape = (partition_matrix[rank].max(),) + transposed.size()[1:]
-        first_result = torch.empty(shape, dtype=local_sorted.dtype, device="cpu")
-        first_indices = torch.empty_like(first_result, device="cpu")
+        first_result = torch.empty(shape, dtype=local_sorted.dtype)
+        first_indices = torch.empty_like(first_result)
 
         # Iterate through one layer and send values with alltoallv
         for idx in np.ndindex(local_sorted.shape[1:]):
@@ -2055,9 +2055,9 @@ def sort(a, axis=None, descending=False, out=None):
             recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
             rcv_length = rcounts[idx_slice].sum().item()
             r_val = torch.empty(
-                (rcv_length,) + s_val.shape[1:], dtype=local_sorted.dtype, device="cpu"
+                (rcv_length,) + s_val.shape[1:], dtype=local_sorted.dtype
             )
-            r_ind = torch.empty_like(r_val, device="cpu")
+            r_ind = torch.empty_like(r_val)
 
             a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
             a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
@@ -2066,7 +2066,7 @@ def sort(a, axis=None, descending=False, out=None):
 
         # The process might not have the correct number of values therefore the tensors need to be rebalanced
         send_vec = torch.zeros(
-            local_sorted.shape[1:] + (size, size), dtype=torch.int64, device="cpu"
+            local_sorted.shape[1:] + (size, size), dtype=torch.int64
         )
         target_cumsum = np.cumsum(counts)
         for idx in np.ndindex(local_sorted.shape[1:]):
@@ -2120,8 +2120,8 @@ def sort(a, axis=None, descending=False, out=None):
                 current_cumsum = list(np.cumsum(current_counts))
 
         # Iterate through one layer again to create the final balanced local tensors
-        second_result = torch.empty_like(local_sorted, device="cpu")
-        second_indices = torch.empty_like(second_result, device="cpu")
+        second_result = torch.empty_like(local_sorted)
+        second_indices = torch.empty_like(second_result)
         for idx in np.ndindex(local_sorted.shape[1:]):
             idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
@@ -2136,9 +2136,9 @@ def sort(a, axis=None, descending=False, out=None):
             s_ind = first_indices[0:end][idx_slice][indices].reshape_as(s_val)
 
             r_val = torch.empty(
-                (counts[rank],) + s_val.shape[1:], dtype=local_sorted.dtype, device="cpu"
+                (counts[rank],) + s_val.shape[1:], dtype=local_sorted.dtype
             )
-            r_ind = torch.empty_like(r_val, device="cpu")
+            r_ind = torch.empty_like(r_val)
 
             a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
             a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
@@ -2148,7 +2148,7 @@ def sort(a, axis=None, descending=False, out=None):
 
         second_result, tmp_indices = second_result.sort(dim=0, descending=descending)
         final_result = second_result.transpose(0, axis)
-        final_indices = torch.empty_like(second_indices, device="cpu")
+        final_indices = torch.empty_like(second_indices)
         # Update the indices in case the ordering changed during the last sort
         for idx in np.ndindex(tmp_indices.shape):
             val = tmp_indices[idx]
