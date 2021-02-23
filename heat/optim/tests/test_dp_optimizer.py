@@ -89,77 +89,69 @@ class TestDASO(TestCase):
         def train(model, device, train_loader, optimizer):
             model.train()
             optimizer.last_batch = 20
-            print("before loader")
-            for batch_idx, (data, target) in enumerate(train_loader):
-                print(batch_idx)
+            loss_fn = torch.nn.MSELoss()
+            # print("before loader")
+            for batch_idx, data in enumerate(train_loader):
+                target = torch.randn((2, 10), device=ht.get_device().torch_device)
+                # print(batch_idx)
                 data, target = data.to(device), target.to(device)
                 optimizer.zero_grad()
                 output = model(data)
-                loss = F.nll_loss(output, target)
+                loss = loss_fn(output, target)
                 ret_loss = loss.clone().detach()
                 loss.backward()
                 optimizer.step()
                 if batch_idx == 20:
                     break
-                print(batch_idx)
+                # print(batch_idx)
             return ret_loss
 
-        def MNIST_train():
-            # Training settings
-            args = {"epochs": 14, "batch_size": 64}
-            # todo: break if there is no GPUs / CUDA
-            if not torch.cuda.is_available() and ht.MPI_WORLD.size < 8:
-                return
-            torch.manual_seed(1)
+        # Training settings
+        args = {"epochs": 14, "batch_size": 2}
+        # todo: break if there is no GPUs / CUDA
+        if not torch.cuda.is_available() and ht.MPI_WORLD.size < 8:
+            return
+        torch.manual_seed(1)
 
-            gpus = torch.cuda.device_count()
-            loc_rank = ht.MPI_WORLD.rank % gpus
-            device = "cuda:" + str(loc_rank)
-            port = str(29500)  # + (args.world_size % args.gpus))
-            os.environ["MASTER_ADDR"] = "localhost"
-            os.environ["MASTER_PORT"] = port  # "29500"
-            os.environ["NCCL_SOCKET_IFNAME"] = "ib"
+        gpus = torch.cuda.device_count()
+        loc_rank = ht.MPI_WORLD.rank % gpus
+        device = "cuda:" + str(loc_rank)
+        port = str(29500)  # + (args.world_size % args.gpus))
+        os.environ["MASTER_ADDR"] = "localhost"
+        os.environ["MASTER_PORT"] = port  # "29500"
+        os.environ["NCCL_SOCKET_IFNAME"] = "ib"
 
-            torch.distributed.init_process_group(backend="nccl", rank=loc_rank, world_size=gpus)
-            torch.cuda.set_device(device)
-            # args.gpu = loc_rank
-            device = torch.device("cuda")
-            # kwargs = {"batch_size": 64, "num_workers": 1, "pin_memory": True}
-            # transform = ht.utils.vision_transforms.Compose(
-            #     [vision_transforms.ToTensor(), vision_transforms.Normalize((0.1307,), (0.3081,))]
-            # )
-            #
-            # labels = torch.randn((2, 10), device=ht.get_device().torch_device)
-            data = ht.random.rand(20 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
-            dataset = TestDataset(data, ishuffle=True)
-            dataloader = ht.utils.data.datatools.DataLoader(dataset=dataset, batch_size=2)
-            # dataset1 = MNISTDataset(
-            #     "../../heat/datasets", train=True, transform=transform, ishuffle=False
-            # )
-            #
-            # train_loader = ht.utils.data.datatools.DataLoader(dataset=dataset1, **kwargs)
-            model = Model().to(device)
-            optimizer = optim.SGD(model.parameters(), lr=1.0)
-            daso_optimizer = ht.optim.DASO(
-                local_optimizer=optimizer,
-                total_epochs=args["epochs"],
-                max_global_skips=4,
-                stability_level=0.9,  # this should make it drop every time (hopefully)
-                warmup_epochs=1,
-                cooldown_epochs=1,
-                use_mpi_groups=False,
-                verbose=True,
-            )
-            scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
-            dp_model = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
+        torch.distributed.init_process_group(backend="nccl", rank=loc_rank, world_size=gpus)
+        torch.cuda.set_device(device)
+        device = torch.device("cuda")
 
-            daso_optimizer.print0("finished inti")
+        data = ht.random.rand(20 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
+        dataset = TestDataset(data, ishuffle=True)
+        dataloader = ht.utils.data.datatools.DataLoader(dataset=dataset, batch_size=2)
 
-            for epoch in range(1, 14):
-                ls = train(dp_model, device, dataloader, daso_optimizer)
-                daso_optimizer.epoch_loss_logic(ls)
-                scheduler.step()
-                # if epoch + 1 == 14:
-                #     dataloader.last_epoch = True
+        model = Model().to(device)
+        optimizer = optim.SGD(model.parameters(), lr=1.0)
+        daso_optimizer = ht.optim.DASO(
+            local_optimizer=optimizer,
+            total_epochs=args["epochs"],
+            max_global_skips=4,
+            stability_level=0.9999,  # this should make it drop every time (hopefully)
+            warmup_epochs=1,
+            cooldown_epochs=1,
+            use_mpi_groups=False,
+            verbose=True,
+        )
+        # scheduler = StepLR(optimizer, step_size=1, gamma=0.7)
+        dp_model = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
 
-        MNIST_train()
+        daso_optimizer.print0("finished inti")
+
+        for epoch in range(1, 14):
+            ls = train(dp_model, device, dataloader, daso_optimizer)
+            # epoch loss logic function to be tested differently
+            daso_optimizer.epoch_loss_logic(ls)
+            # scheduler.step()
+            # if epoch + 1 == 14:
+            #     dataloader.last_epoch = True
+
+        # Train()

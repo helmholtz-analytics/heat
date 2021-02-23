@@ -418,7 +418,7 @@ class DASO:
         # if self.current_batch == self.last_batch or self.batches_to_wait == 0:
         #    this will only run if the batch is the last of the epoch,
         #    or the most recently sent data is to be immediately received (batches_to_wait == 0)
-        # receive the sent data to sync params across all ranks
+        #    -> receive the sent data to sync params across all ranks
         if self.comm.rank in current_ranks:
             self._gs_rcv_update_params_last_batch(current_ranks)
         else:
