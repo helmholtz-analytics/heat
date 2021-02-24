@@ -143,10 +143,7 @@ class DASO:
         init_args = inspect.getargvalues(frame)[3]
         self.__init_checktypes(init_args)
 
-        if downcast_type not in [torch.bfloat16, torch.half, torch.float]:
-            raise ValueError(
-                f"downcast_type must be one of [torch.bfloat16, torch.half, torch.float], currently {downcast_type}"
-            )
+        self.cast_dtype = downcast_type
         if downcast_type == torch.bfloat16:
             self.cast_fn = mpi_sum_bfloat
         elif downcast_type == torch.half:
@@ -279,6 +276,11 @@ class DASO:
             raise TypeError(
                 f"downcast_type must be a torch.dtype, currently {args['downcast_type']}"
             )
+        if args["downcast_type"] not in [torch.bfloat16, torch.half, torch.float]:
+            raise ValueError(
+                f"downcast_type must be one of [torch.bfloat16, torch.half, torch.float], "
+                f"currently {args['downcast_type']}"
+            )
         if args["warmup_epochs"] < 0:
             raise ValueError(f"warmup_epochs must be >= 0")
         if args["cooldown_epochs"] < 0:
@@ -322,7 +324,10 @@ class DASO:
             self.local_skip = 0
             self.batches_to_wait = 0
 
-            self.print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
+            self.print0(
+                f"Warmup Phase, parameters of next epoch\n\t Global Skips: {self.global_skip}, "
+                f"Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
+            )
             return
 
         elif self.warmup_epochs == self.epoch:
@@ -330,7 +335,10 @@ class DASO:
             self.local_skip = 1
             self.batches_to_wait = 1
 
-            self.print0("\t\t", self.global_skip, self.local_skip, self.batches_to_wait)
+            self.print0(
+                f"End of Warmup Phase, parameters of next epoch\n\t Global Skips: {self.global_skip}, "
+                f"Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
+            )
 
         if self.epoch >= self.total_epochs - self.cooldown_epochs:
             self.global_skip = 0
@@ -338,12 +346,8 @@ class DASO:
             self.batches_to_wait = 0
 
             self.print0(
-                "\tGlobal Skips:",
-                self.global_skip,
-                "Local Skips:",
-                self.local_skip,
-                "Batches to wait:",
-                self.batches_to_wait,
+                f"Cooldown Phase, parameters of next epoch:\n\tGlobal Skips: {self.global_skip}, "
+                f"Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
             )
             return
 
@@ -351,12 +355,8 @@ class DASO:
             self._gs8_waited += 1
 
         self.print0(
-            "current best:",
-            self.stability.best * (1.0 - self.stability.threshold),
-            "avg loss:",
-            avg_loss,
-            "bad epochs:",
-            self.stability.num_bad_epochs,
+            f"Best loss value: {self.stability.best * (1.0 - self.stability.threshold):.4f}"
+            f"Current loss: {avg_loss}, Worse epochs: {self.stability.num_bad_epochs.item():.4f}"
         )
 
         stable = self.stability.test_if_improving(avg_loss)
@@ -381,18 +381,10 @@ class DASO:
             self.batches_to_wait = self.max_gs // 4  # + 1  # 2
 
             self._gs8_waited = 0
-
         self.print0(
-            "\tGlobal Skips:",
-            self.global_skip,
-            "Local Skips:",
-            self.local_skip,
-            "Batches to wait:",
-            self.batches_to_wait,
-            "\nAvg loss:",
-            avg_loss,
-            "Number of bad Epochs",
-            self.stability.num_bad_epochs,
+            f"\tNext Parameters: Global Skips: {self.global_skip}, Local Skips {self.local_skip}, "
+            f"Batches to wait: {self.batches_to_wait}, \n\tCurrent loss: {avg_loss}, "
+            f"Worse epochs: {self.stability.num_bad_epochs}"
         )
 
     @torch.no_grad()
@@ -531,7 +523,6 @@ class DASO:
         prev_params = self._prev_params.pop(0)
         shapes = prev_params[2]
         if not self.split:
-            # print("before wait")
             prev_params[0].Wait()
             rcv_params = prev_params[1] / float(len(current_ranks))
             for name, param in self.module.named_parameters():
@@ -568,19 +559,31 @@ class DASO:
         op = MPI.SUM
         cast = False
         if self.global_skip < 1:
-            op = mpi_sum_bfloat
-            cast = True
+            # op = mpi_sum_bfloat
+            # cast = True
+            op = self.cast_fn
+            if self.cast_dtype == torch.bfloat16:
+                cast_int = 0
+            elif self.cast_dtype == torch.half:
+                cast_int = 1
+            else:  # keep as floats
+                cast_int = 2
 
         param_dict, shapes = self._gs_create_param_dict()
         sndparams = torch.zeros(
             self._param_send_buffer_size, device=self.device, dtype=torch.bfloat16 if cast else None
         )
 
-        sndparams = self.__pack_data(sndparams, param_dict, cast)
+        sndparams = self.__pack_data(sndparams, param_dict, cast_int)
+        try:
+            nans = sndparams.isnan().sum()
+        except RuntimeError:
+            # the isnan function isnt implemented in cuda 10.1
+            nans = sndparams.to(torch.half).isnan().sum()
 
-        # if sndparams.isnan().sum():
-        #     # check if there are NaNs, if so, stuff is bad
-        #     raise ValueError(f"{sndparams.isnan().sum()} NaNs in `params` shit be fucked.")
+        if nans:
+            # check if there are NaNs, if so, stuff is bad
+            raise ValueError(f"{nans} NaNs in `params` shit be fucked.")
 
         if not self.split and sndparams.numel() <= self.split_val:
             new_wait = current_comm.Iallreduce(MPI.IN_PLACE, sndparams, op)
@@ -623,15 +626,15 @@ class DASO:
     @staticmethod
     @torch.no_grad()
     @torch.jit.script
-    def __pack_data(jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: bool):
+    def __pack_data(jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: int):
         """ jitted loop to pack the data into a flattened buffer to be sent"""
         st = 0
+        cast_type = torch.bfloat16 if cast == 0 else torch.half if cast == 1 else torch.float
         for name, par in iter_dict.items():
             if par.requires_grad:
                 # flatten and prep the data for sending
                 p = torch.flatten(par)
-                if cast:
-                    p = p.to(torch.bfloat16)
+                p = p.to(cast_type)
                 jtparams[st : st + par.numel()] = p
                 st += par.numel()
         return jtparams
