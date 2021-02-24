@@ -160,6 +160,9 @@ class DASO:
 
         rank = MPI_WORLD.rank
         loc_gpus = torch.cuda.device_count()
+        # this assumes that there are an equal number of GPUs per node,
+        #   if a change is desired a comm her to find the lowest number would work for this, however
+        #   a change would also need to be made in heat.nn.DataParallelMultiGPU
         self.loc_gpus = loc_gpus
         local_rank = rank % loc_gpus
         self.local_skip = 1
@@ -194,7 +197,6 @@ class DASO:
         self.global_skip = 0
         self.local_skip = 0
         self.batches_to_wait = 0
-        self.epochs_to_wait = 3
         self.max_gs = max_global_skips
 
         self.warmup_epochs = warmup_epochs
@@ -217,6 +219,7 @@ class DASO:
         # TODO: its possible that the split indexes could be used to avoid the concatenating method used currently
         self.split_inds = None
         self.amp = False
+        self.print0("Finished DASO init")
 
     def add_scaler(self, scaler: torch.cuda.amp.GradScaler):
         """
@@ -645,6 +648,19 @@ class DASO:
         """
         if MPI_WORLD.rank == 0 and self.verbose:
             print(*args, **kwargs)
+
+    def reset(self):
+        """
+        Reset the optimizer to its base state
+        """
+        self.stability.reset()
+        self.global_skip = 0
+        self.local_skip = 0
+        self.batches_to_wait = 0
+        self.current_batch = 0
+        self._prev_params = []
+        self.epoch = 0
+        self._gs8_waited = 0
 
     def set_model(self, model: torch.nn.Module):
         """

@@ -8,6 +8,9 @@ from heat.core.tests.test_suites.basic_test import TestCase
 
 class TestDASO(TestCase):
     def test_daso(self):
+        if ht.MPI_WORLD.size != 8:
+            # only run these tests for 2 nodes, each of which has 4 GPUs
+            return
         import heat.nn.functional as F
         import heat.optim as optim
 
@@ -81,9 +84,8 @@ class TestDASO(TestCase):
         gpus = torch.cuda.device_count()
         loc_rank = ht.MPI_WORLD.rank % gpus
         device = "cuda:" + str(loc_rank)
-        port = str(29500)  # + (args.world_size % args.gpus))
         os.environ["MASTER_ADDR"] = "localhost"
-        os.environ["MASTER_PORT"] = port  # "29500"
+        os.environ["MASTER_PORT"] = "29500"
         os.environ["NCCL_SOCKET_IFNAME"] = "ib"
         torch.distributed.init_process_group(backend="nccl", rank=loc_rank, world_size=gpus)
         torch.cuda.set_device(device)
@@ -104,19 +106,26 @@ class TestDASO(TestCase):
         )
         dp_model = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
 
-        daso_optimizer.print0("finished inti")
+        # daso_optimizer.print0("finished inti")
         target = torch.rand((20, 2, 10), device=ht.get_device().torch_device)
         for epoch in range(epochs):
             ls = train(dp_model, device, daso_optimizer, target, batches=20)
             if epoch == 0:
                 first_ls = ls
             daso_optimizer.epoch_loss_logic(ls)
-            daso_optimizer.print0(epoch, ls)
+            # daso_optimizer.print0(epoch, ls)
         # test that the loss decreases
         self.assertTrue(ls < first_ls)
         # test if the smaller split value also works
 
-        # todo: fix
-        # daso_optimizer.split_val = 10
-        # daso_optimizer.total_epochs = 1
-        # train(dp_model, device, daso_optimizer, batches=10)
+        daso_optimizer.reset()
+        daso_optimizer.split_val = 10
+        daso_optimizer.verbose = False
+        for epoch in range(epochs):
+            ls = train(dp_model, device, daso_optimizer, target, batches=20)
+            if epoch == 0:
+                first_ls = ls
+            daso_optimizer.epoch_loss_logic(ls)
+            # daso_optimizer.print0(epoch, ls)
+        # test that the loss decreases
+        self.assertTrue(ls < first_ls)
