@@ -255,7 +255,7 @@ class DASO:
             )
         if not isinstance(args["stability_level"], float):
             raise TypeError(
-                f"stablitiy_level must be a float, currently {type(args['stablitiy_level'])}"
+                f"stability_level must be a float, currently {type(args['stability_level'])}"
             )
         if not isinstance(args["max_global_skips"], int):
             raise TypeError(
@@ -411,34 +411,31 @@ class DASO:
             # needs to happen on all ranks:
             self._local_update(self._send_mod_m1)
 
-        if self.current_batch != self.last_batch and self.batches_to_wait != 0:
+        if self.current_batch == self.last_batch or self.batches_to_wait == 0:
+            # todo: abstract last batch?
+            # receive the sent data to sync params across all ranks
+            if self.comm.rank in current_ranks:
+                self._gs_rcv_update_params_last_batch(current_ranks)
+            else:
+                if len(self._prev_params) > 0:
+                    raise ValueError(
+                        f"DEBUG: OFF RANKS! len(prev_params) > 0! {len(self._prev_params)}"
+                        f" batch number {self.current_batch}"
+                    )
+            self._local_update(self._send_mod)
+
+            self._send_mod_m1 = None
+
+            if self.current_batch == self.last_batch:
+                self._send_mod = 0
+                self.epoch += 1
+                self.current_batch = 0
+            else:
+                self.current_batch += 1
+                self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
+        else:
             self.current_batch += 1
             self._send_mod_m1 = self._send_mod
-            self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
-            return
-
-        # if self.current_batch == self.last_batch or self.batches_to_wait == 0:
-        #    this will only run if the batch is the last of the epoch,
-        #    or the most recently sent data is to be immediately received (batches_to_wait == 0)
-        #    -> receive the sent data to sync params across all ranks
-        if self.comm.rank in current_ranks:
-            self._gs_rcv_update_params_last_batch(current_ranks)
-        else:
-            if len(self._prev_params) > 0:
-                raise ValueError(
-                    f"DEBUG: off ranks have data when they shouldn't, {len(self._prev_params)}"
-                    f" batch number {self.current_batch}"
-                )
-        self._local_update(self._send_mod)
-
-        self._send_mod_m1 = None
-
-        if self.current_batch == self.last_batch:
-            self._send_mod = 0
-            self.epoch += 1
-            self.current_batch = 0
-        else:
-            self.current_batch += 1
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
 
     def _gs_create_param_dict(self):
