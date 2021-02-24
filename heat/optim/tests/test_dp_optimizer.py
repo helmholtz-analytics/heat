@@ -119,13 +119,20 @@ class TestDASO(TestCase):
         # test if the smaller split value also works
 
         daso_optimizer.reset()
-        daso_optimizer.split_val = 10
-        daso_optimizer.verbose = False
+        daso_optimizer = ht.optim.DASO(
+            local_optimizer=optimizer,
+            total_epochs=epochs,  # args["epochs"],
+            max_global_skips=8,
+            stability_level=0.9999,  # this should make it drop every time (hopefully)
+            warmup_epochs=1,
+            cooldown_epochs=1,
+            use_mpi_groups=False,
+            verbose=False,
+        )
         for epoch in range(epochs):
             ls = train(dp_model, device, daso_optimizer, target, batches=20)
             if epoch == 0:
                 first_ls = ls
             daso_optimizer.epoch_loss_logic(ls)
-            # daso_optimizer.print0(epoch, ls)
         # test that the loss decreases
         self.assertTrue(ls < first_ls)
