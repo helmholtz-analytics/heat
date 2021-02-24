@@ -63,11 +63,11 @@ class TestDASO(unittest.TestCase):
 
         def train(model, device, optimizer, batches=20):
             model.train()
-            optimizer.last_batch = batches
+            optimizer.last_batch = batches - 1
             loss_fn = torch.nn.MSELoss()
             torch.random.manual_seed(10)
             data = torch.rand(batches, 2, 1, 32, 32, device=device)  #, device=ht.get_device().torch_device)
-            target = torch.randn((batches, 2, 1), device=device)  #, device=ht.get_device().torch_device)
+            target = torch.randint(low=0, high=10, size=(batches, 2, 1), device=device).to(torch.float)  #, device=ht.get_device().torch_device)
             for b in range(batches):
                 d, t = data[b].to(device), target[b].to(device)
                 optimizer.zero_grad()
@@ -98,14 +98,15 @@ class TestDASO(unittest.TestCase):
 
         model = Model().to(device)
         optimizer = optim.SGD(model.parameters(), lr=1.0)
+        max_epochs = 20
         daso_optimizer = ht.optim.DASO(
             local_optimizer=optimizer,
-            total_epochs=args["epochs"],
+            total_epochs=20, #args["epochs"],
             max_global_skips=4,
             stability_level=0.9999,  # this should make it drop every time (hopefully)
             warmup_epochs=1,
             cooldown_epochs=1,
-            use_mpi_groups=False,
+            #use_mpi_groups=False,
             verbose=True,
         )
         # test raises ====================================================================
@@ -144,12 +145,13 @@ class TestDASO(unittest.TestCase):
         # ================================================================================
         dp_model = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
 
-        daso_optimizer.print0("finished inti")
+        #daso_optimizer.print0("finished inti")
 
         for epoch in range(0, 20):
             ls = train(dp_model, device, daso_optimizer)
             daso_optimizer.epoch_loss_logic(ls)
 
         # test if the smaller split value also works
-        daso_optimizer.split_val = 10
-        train(dp_model, device, daso_optimizer, batches=10)
+        #daso_optimizer.split_val = 10
+        #daso_optimizer.total_epochs = 1
+        #train(dp_model, device, daso_optimizer, batches=10)

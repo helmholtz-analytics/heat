@@ -574,10 +574,10 @@ class DASO:
         )
 
         sndparams = self.__pack_data(sndparams, param_dict, cast)
-
-        # if sndparams.isnan().sum():
-        #     # check if there are NaNs, if so, stuff is bad
-        #     raise ValueError(f"{sndparams.isnan().sum()} NaNs in `params` shit be fucked.")
+        # print(self.current_batch, sndparams.to(torch.half).isnan().sum(), self.global_skip, sndparams.dtype, sndparams.shape)
+        if sndparams.to(torch.half).isnan().sum():
+            # check if there are NaNs, if so, stuff is bad
+            raise ValueError(f"{sndparams.to(torch.half).isnan().sum()} NaNs in `params` shit be fucked.")
 
         if not self.split and sndparams.numel() <= self.split_val:
             new_wait = current_comm.Iallreduce(MPI.IN_PLACE, sndparams, op)
