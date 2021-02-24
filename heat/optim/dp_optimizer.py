@@ -255,7 +255,7 @@ class DASO:
             )
         if not isinstance(args["stability_level"], float):
             raise TypeError(
-                f"stablitiy_level must be a float, currently {type(args['stablitiy_level'])}"
+                f"stability_level must be a float, currently {type(args['stability_level'])}"
             )
         if not isinstance(args["max_global_skips"], int):
             raise TypeError(

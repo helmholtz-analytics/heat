@@ -63,13 +63,13 @@ class TestDASO(unittest.TestCase):
 
         def train(model, device, optimizer, batches=20):
             model.train()
-            optimizer.last_batch = 20
+            optimizer.last_batch = batches
             loss_fn = torch.nn.MSELoss()
             torch.random.manual_seed(10)
-            data = torch.rand(batches, 2, 1, 32, 32, device=ht.get_device().torch_device)
-            target = torch.randn((batches, 2, 1), device=ht.get_device().torch_device)
+            data = torch.rand(batches, 2, 1, 32, 32, device=device)  #, device=ht.get_device().torch_device)
+            target = torch.randn((batches, 2, 1), device=device)  #, device=ht.get_device().torch_device)
             for b in range(batches):
-                d, t = data[b], target[b]
+                d, t = data[b].to(device), target[b].to(device)
                 optimizer.zero_grad()
                 output = model(d)
                 loss = loss_fn(output, t)
@@ -101,7 +101,7 @@ class TestDASO(unittest.TestCase):
         daso_optimizer = ht.optim.DASO(
             local_optimizer=optimizer,
             total_epochs=args["epochs"],
-            max_global_skips=8,
+            max_global_skips=4,
             stability_level=0.9999,  # this should make it drop every time (hopefully)
             warmup_epochs=1,
             cooldown_epochs=1,
