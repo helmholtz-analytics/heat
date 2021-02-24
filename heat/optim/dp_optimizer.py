@@ -359,7 +359,7 @@ class DASO:
 
         self.print0(
             f"Best loss value: {self.stability.best * (1.0 - self.stability.threshold):.4f}"
-            f"Current loss: {avg_loss}, Worse epochs: {self.stability.num_bad_epochs.item():.4f}"
+            f"Current loss: {avg_loss}, Worse epochs: {self.stability.num_bad_epochs}"
         )
 
         stable = self.stability.test_if_improving(avg_loss)
@@ -561,20 +561,21 @@ class DASO:
         """
         op = MPI.SUM
         cast = False
+        cast_int = 2
         if self.global_skip < 1:
             # op = mpi_sum_bfloat
-            # cast = True
+            cast = True
             op = self.cast_fn
             if self.cast_dtype == torch.bfloat16:
                 cast_int = 0
             elif self.cast_dtype == torch.half:
                 cast_int = 1
-            else:  # keep as floats
-                cast_int = 2
+            # else:  # keep as floats
+            #     cast_int = 2
 
         param_dict, shapes = self._gs_create_param_dict()
         sndparams = torch.zeros(
-            self._param_send_buffer_size, device=self.device, dtype=torch.bfloat16 if cast else None
+            self._param_send_buffer_size, device=self.device, dtype=self.cast_dtype if cast else None
         )
 
         sndparams = self.__pack_data(sndparams, param_dict, cast_int)
@@ -632,7 +633,7 @@ class DASO:
     def __pack_data(jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: int):
         """ jitted loop to pack the data into a flattened buffer to be sent"""
         st = 0
-        cast_type = torch.bfloat16 if cast == 0 else torch.half if cast == 1 else torch.float
+        cast_type = torch.float if cast == 2 else torch.bfloat16 if cast == 0 else torch.half
         for name, par in iter_dict.items():
             if par.requires_grad:
                 # flatten and prep the data for sending
