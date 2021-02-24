@@ -329,7 +329,7 @@ class DASO:
 
             self.print0(
                 f"Warmup Phase, parameters of next epoch\n\t Global Skips: {self.global_skip}, "
-                f"Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
+                f" Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
             )
             return
 
@@ -340,7 +340,7 @@ class DASO:
 
             self.print0(
                 f"End of Warmup Phase, parameters of next epoch\n\t Global Skips: {self.global_skip}, "
-                f"Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
+                f" Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
             )
 
         if self.epoch >= self.total_epochs - self.cooldown_epochs:
@@ -350,7 +350,7 @@ class DASO:
 
             self.print0(
                 f"Cooldown Phase, parameters of next epoch:\n\tGlobal Skips: {self.global_skip}, "
-                f"Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
+                f" Local Skips {self.local_skip:.4f}, Batches to wait: {self.batches_to_wait}"
             )
             return
 
@@ -359,7 +359,7 @@ class DASO:
 
         self.print0(
             f"Best loss value: {self.stability.best * (1.0 - self.stability.threshold):.4f}"
-            f"Current loss: {avg_loss}, Worse epochs: {self.stability.num_bad_epochs}"
+            f" Current loss: {avg_loss:.4f}, Worse epochs: {self.stability.num_bad_epochs}"
         )
 
         stable = self.stability.test_if_improving(avg_loss)
@@ -386,8 +386,8 @@ class DASO:
             self._gs8_waited = 0
         self.print0(
             f"\tNext Parameters: Global Skips: {self.global_skip}, Local Skips {self.local_skip}, "
-            f"Batches to wait: {self.batches_to_wait}, \n\tCurrent loss: {avg_loss}, "
-            f"Worse epochs: {self.stability.num_bad_epochs}"
+            f" Batches to wait: {self.batches_to_wait}, \n\tCurrent loss: {avg_loss:.4f}, "
+            f" Worse epochs: {self.stability.num_bad_epochs}"
         )
 
     @torch.no_grad()
@@ -575,7 +575,9 @@ class DASO:
 
         param_dict, shapes = self._gs_create_param_dict()
         sndparams = torch.zeros(
-            self._param_send_buffer_size, device=self.device, dtype=self.cast_dtype if cast else None
+            self._param_send_buffer_size,
+            device=self.device,
+            dtype=self.cast_dtype if cast else None,
         )
 
         sndparams = self.__pack_data(sndparams, param_dict, cast_int)

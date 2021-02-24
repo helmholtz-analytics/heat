@@ -113,7 +113,6 @@ class TestDASO(TestCase):
             if epoch == 0:
                 first_ls = ls
             daso_optimizer.epoch_loss_logic(ls)
-            # daso_optimizer.print0(epoch, ls)
         # test that the loss decreases
         self.assertTrue(ls < first_ls)
         # test if the smaller split value also works
@@ -129,6 +128,7 @@ class TestDASO(TestCase):
             use_mpi_groups=False,
             verbose=False,
         )
+        dp_model = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
         for epoch in range(epochs):
             ls = train(dp_model, device, daso_optimizer, target, batches=20)
             if epoch == 0:
