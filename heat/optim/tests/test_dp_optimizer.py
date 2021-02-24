@@ -152,4 +152,4 @@ class TestDASO(unittest.TestCase):
 
         # test if the smaller split value also works
         daso_optimizer.split_val = 10
-        train(dp_model, device, daso_optimizer)
+        train(dp_model, device, daso_optimizer, batches=10)
