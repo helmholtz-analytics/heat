@@ -126,9 +126,11 @@ class DASO:
             communication and computation. This value is the maximum chunk size.
             Default: 10_000_000
         downcast_type: torch.dtype, optional
+            Options: [torch.bfloat16, torch.half, torch.float]
             When the network parameters are sent during the global synchronization step, they are cast down to
             a smaller dtype, by default this is `torch.bfloat16`. Smaller torch dtypes are not implemented.
-            torch.bfloat16
+            torch.bfloat16.
+            Default: torch.bfloat16
         use_mpi_groups: bool, optional
             Use MPI groups to divide the global communicator. If True, use MPI GROUPs, otherwise, use MPI SPLIT.
             Default: True
@@ -141,14 +143,16 @@ class DASO:
         init_args = inspect.getargvalues(frame)[3]
         self.__init_checktypes(init_args)
 
+        if downcast_type not in [torch.bfloat16, torch.half, torch.float]:
+            raise ValueError(
+                f"downcast_type must be one of [torch.bfloat16, torch.half, torch.float], currently {downcast_type}"
+            )
         if downcast_type == torch.bfloat16:
             self.cast_fn = mpi_sum_bfloat
         elif downcast_type == torch.half:
             self.cast_fn = mpi_sum_f16
         else:
-            raise ValueError(
-                f"downcast_type must be one of torch.bfloat16 or torch.half, currently {downcast_type}"
-            )
+            self.cast_fn = MPI.SUM
 
         self.comm = MPI_WORLD
         self.verbose = verbose
@@ -412,7 +416,6 @@ class DASO:
             self._local_update(self._send_mod_m1)
 
         if self.current_batch == self.last_batch or self.batches_to_wait == 0:
-            # todo: abstract last batch?
             # receive the sent data to sync params across all ranks
             if self.comm.rank in current_ranks:
                 self._gs_rcv_update_params_last_batch(current_ranks)

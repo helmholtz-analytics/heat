@@ -24,7 +24,7 @@ class TestDASO(unittest.TestCase):
                 # an affine operation: y = Wx + b
                 self.fc1 = ht.nn.Linear(16 * 6 * 6, 120)  # 6*6 from image dimension
                 self.fc2 = ht.nn.Linear(120, 84)
-                self.fc3 = ht.nn.Linear(84, 1)
+                self.fc3 = ht.nn.Linear(84, 10)
 
             def forward(self, x):
                 # Max pooling over a (2, 2) window
@@ -61,13 +61,13 @@ class TestDASO(unittest.TestCase):
                 if not self.test_set:
                     ht.utils.data.dataset_shuffle(self, attrs=[["data", None]])
 
-        def train(model, device, optimizer, batches=20):
+        def train(model, device, optimizer, target, batches=20):
             model.train()
-            optimizer.last_batch = 20
+            optimizer.last_batch = batches - 1
             loss_fn = torch.nn.MSELoss()
             torch.random.manual_seed(10)
             data = torch.rand(batches, 2, 1, 32, 32, device=ht.get_device().torch_device)
-            target = torch.randn((batches, 2, 1), device=ht.get_device().torch_device)
+            # target = torch.randn((batches, 2, 10), device=ht.get_device().torch_device)
             for b in range(batches):
                 d, t = data[b], target[b]
                 optimizer.zero_grad()
@@ -79,10 +79,7 @@ class TestDASO(unittest.TestCase):
             return ret_loss
 
         # Training settings
-        args = {"epochs": 14, "batch_size": 2}
         # todo: break if there is no GPUs / CUDA
-        if not torch.cuda.is_available() and ht.MPI_WORLD.size < 8:
-            return
         torch.manual_seed(1)
 
         gpus = torch.cuda.device_count()
@@ -97,10 +94,11 @@ class TestDASO(unittest.TestCase):
         device = torch.device("cuda")
 
         model = Model().to(device)
-        optimizer = optim.SGD(model.parameters(), lr=1.0)
+        optimizer = optim.SGD(model.parameters(), lr=0.1)
+        epochs = 20
         daso_optimizer = ht.optim.DASO(
             local_optimizer=optimizer,
-            total_epochs=args["epochs"],
+            total_epochs=epochs,  # args["epochs"],
             max_global_skips=8,
             stability_level=0.9999,  # this should make it drop every time (hopefully)
             warmup_epochs=1,
@@ -108,48 +106,19 @@ class TestDASO(unittest.TestCase):
             use_mpi_groups=False,
             verbose=True,
         )
-        # test raises ====================================================================
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer="optimizer", total_epochs=0)
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(optimizer, 1, warmup_epochs="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(optimizer, 1, cooldown_epochs="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(optimizer, 1, scheduler="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(optimizer, 1, stability_level="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(optimizer, 1, max_global_skips="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(optimizer, 1, sending_chuck_size="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(optimizer, 1, downcast_type="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(optimizer, 1, use_mpi_groups="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(optimizer, 1, verbose="asdf")
-        with self.assertRaises(ValueError):
-            ht.optim.DASO(optimizer, 1, warmup_epochs=-1)
-        with self.assertRaises(ValueError):
-            ht.optim.DASO(optimizer, 1, cooldown_epochs=-1)
-        with self.assertRaises(ValueError):
-            ht.optim.DASO(optimizer, 1, max_global_skips=-1)
-        with self.assertRaises(ValueError):
-            ht.optim.DASO(optimizer, 1, sending_chuck_size=-1)
-        with self.assertRaises(ValueError):
-            ht.optim.DASO(optimizer, 0)
-        # ================================================================================
         dp_model = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
 
         daso_optimizer.print0("finished inti")
-
-        for epoch in range(0, 20):
-            ls = train(dp_model, device, daso_optimizer)
+        target = torch.rand((20, 2, 10), device=ht.get_device().torch_device)
+        for epoch in range(epochs):
+            ls = train(dp_model, device, daso_optimizer, target, batches=20)
+            if epoch == 0:
+                first_ls = ls
             daso_optimizer.epoch_loss_logic(ls)
-
+            daso_optimizer.print0(epoch, ls)
+        # test that the loss decreases
+        self.assertTrue(ls < first_ls)
         # test if the smaller split value also works
+        # todo: fix
         daso_optimizer.split_val = 10
         train(dp_model, device, daso_optimizer, batches=10)
