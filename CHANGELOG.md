@@ -6,7 +6,9 @@
 - [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
 - [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
 - [#687](https://github.com/helmholtz-analytics/heat/pull/687) New DNDarray property: balanced
+- [#699](https://github.com/helmholtz-analytics/heat/pull/699) Support for complex numbers; New functions: angle, real, imag, conjugate
 - [#702](https://github.com/helmholtz-analytics/heat/pull/702) Support channel stackoverflow
+- [#712](https://github.com/helmholtz-analytics/heat/pull/712) New function: `issubdtype`
 
 ### Factories
 - [#707](https://github.com/helmholtz-analytics/heat/pull/707) New feature: `asarray()`
@@ -24,7 +26,9 @@
 - [#625](https://github.com/helmholtz-analytics/heat/pull/625) New feature: `utils.data.datatools.Dataset` for created a local `torch.utils.data.Dataset` for use with `ht.nn.DataParallel`
 - [#625](https://github.com/helmholtz-analytics/heat/pull/625) Added MNIST example to `example/nn` to show the use of `ht.nn.DataParallel`. The `MNISTDataset` can be found in `ht.utils.data.mnist.py`
 - [#658](https://github.com/helmholtz-analytics/heat/pull/658) Bugfix: `matmul` on GPU will cast away from `int`s to `float`s for the operation and cast back upon its completion. This may result in numerical inaccuracies for very large `int64` DNDarrays
-### ...
+### Logical
+- [#711](https://github.com/helmholtz-analytics/heat/pull/711) `isfinite()`, `isinf()`, `isnan()`
+
 
 ## Bug fixes
 - [#709](https://github.com/helmholtz-analytics/heat/pull/709) Set the encoding for README.md in setup.py explicitly.
