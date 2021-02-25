@@ -10,9 +10,9 @@ class TestDataParallel(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.utils.data.datatools.DataLoader("asdf")
 
-        class TestModel(torch.nn.Module):
+        class Model(ht.nn.Module):
             def __init__(self):
-                super(TestModel, self).__init__()
+                super(Model, self).__init__()
                 # 1 input image channel, 6 output channels, 3x3 square convolution
                 # kernel
                 self.conv1 = ht.nn.Conv2d(1, 6, 3)
@@ -57,7 +57,7 @@ class TestDataParallel(unittest.TestCase):
                     ht.utils.data.dataset_shuffle(self, attrs=[["data", None]])
 
         # create model and move it to GPU with id rank
-        model = TestModel()
+        model = Model()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
         with self.assertRaises(TypeError):
             ht.optim.DataParallelOptimizer(optimizer, "asdf")
@@ -75,6 +75,7 @@ class TestDataParallel(unittest.TestCase):
         )
         if str(ht.get_device())[:3] == "gpu":
             ht_model.to(ht.get_device().torch_device)
+        lim = 1e-4
 
         loss_fn = torch.nn.MSELoss()
         for _ in range(2):
@@ -90,9 +91,9 @@ class TestDataParallel(unittest.TestCase):
                 hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
-                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i]))
+                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i], rtol=lim, atol=lim))
 
-        model = TestModel()
+        model = Model()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
         dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, False)
         labels = torch.randn((2, 10), device=ht.get_device().torch_device)
@@ -121,9 +122,9 @@ class TestDataParallel(unittest.TestCase):
                 hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
-                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i], atol=1e-5, rtol=1e-5))
+                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i], rtol=lim, atol=lim))
 
-        model = TestModel()
+        model = Model()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
         dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, False)
         labels = torch.randn((2, 10), device=ht.get_device().torch_device)
@@ -148,9 +149,10 @@ class TestDataParallel(unittest.TestCase):
                 hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
-                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i], atol=1e-5, rtol=1e-5))
+                    self.assertTrue(torch.allclose(hld_list[0], hld_list[i], rtol=lim, atol=lim))
 
         ht_model = ht.nn.DataParallel(
             model, ht.MPI_WORLD, [dp_optimizer, dp_optimizer], blocking_parameter_updates=False
         )
+        # NOTE: this will throw a warning: this is expected
         self.assertTrue(ht_model.blocking_parameter_updates)
