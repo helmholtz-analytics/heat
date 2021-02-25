@@ -41,5 +41,5 @@ class TestPartialDataset(unittest.TestCase):
                         second_epoch = batch
                     else:
                         second_epoch = torch.cat((second_epoch, batch), dim=0)
-            self.assertTrue(elems >= (target_shape[0] - 7) / full_data.comm.size)
+            self.assertTrue(elems >= (target_shape[0] - 7) // full_data.comm.size)
         self.assertFalse(torch.allclose(first_epoch, second_epoch))
