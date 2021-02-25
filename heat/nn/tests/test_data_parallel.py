@@ -10,7 +10,7 @@ class TestDataParallel(unittest.TestCase):
         with self.assertRaises(TypeError):
             ht.utils.data.datatools.DataLoader("asdf")
 
-        class TestModel(ht.nn.Module):
+        class TestModel(torch.nn.Module):
             def __init__(self):
                 super(TestModel, self).__init__()
                 # 1 input image channel, 6 output channels, 3x3 square convolution
