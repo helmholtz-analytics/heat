@@ -17,20 +17,15 @@ class TestDASO(TestCase):
         class Model(ht.nn.Module):
             def __init__(self):
                 super(Model, self).__init__()
-                # 1 input image channel, 6 output channels, 3x3 square convolution
-                # kernel
                 self.conv1 = ht.nn.Conv2d(1, 6, 3)
                 self.conv2 = ht.nn.Conv2d(6, 16, 3)
-                # an affine operation: y = Wx + b
-                self.fc1 = ht.nn.Linear(16 * 6 * 6, 120)  # 6*6 from image dimension
+                self.fc1 = ht.nn.Linear(16 * 6 * 6, 120)
                 self.fc2 = ht.nn.Linear(120, 84)
                 self.fc3 = ht.nn.Linear(84, 10)
 
             def forward(self, x):
-                # Max pooling over a (2, 2) window
                 x = self.conv1(x)
                 x = F.max_pool2d(F.relu(x), (2, 2))
-                # If the size is a square you can only specify a single number
                 x = F.max_pool2d(F.relu(self.conv2(x)), 2)
                 x = x.view(-1, self.num_flat_features(x))
                 x = F.relu(self.fc1(x))
@@ -78,7 +73,6 @@ class TestDASO(TestCase):
             return ret_loss
 
         # Training settings
-        # todo: break if there is no GPUs / CUDA
         torch.manual_seed(1)
 
         gpus = torch.cuda.device_count()
@@ -96,17 +90,15 @@ class TestDASO(TestCase):
         epochs = 20
         daso_optimizer = ht.optim.DASO(
             local_optimizer=optimizer,
-            total_epochs=epochs,  # args["epochs"],
+            total_epochs=epochs,
             max_global_skips=8,
-            stability_level=0.9999,  # this should make it drop every time (hopefully)
+            stability_level=0.9999,
             warmup_epochs=1,
             cooldown_epochs=1,
-            # use_mpi_groups=False,
             verbose=True,
         )
         dp_model = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
 
-        # daso_optimizer.print0("finished inti")
         target = torch.rand((20, 2, 10), device=ht.get_device().torch_device)
         for epoch in range(epochs):
             ls = train(dp_model, device, daso_optimizer, target, batches=20)
@@ -120,9 +112,9 @@ class TestDASO(TestCase):
         daso_optimizer.reset()
         daso_optimizer = ht.optim.DASO(
             local_optimizer=optimizer,
-            total_epochs=epochs,  # args["epochs"],
+            total_epochs=epochs,
             max_global_skips=8,
-            stability_level=0.9999,  # this should make it drop every time (hopefully)
+            stability_level=0.9999,
             warmup_epochs=1,
             cooldown_epochs=1,
             use_mpi_groups=False,

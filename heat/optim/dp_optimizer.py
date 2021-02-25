@@ -664,6 +664,7 @@ class DASO:
         self._prev_params = []
         self.epoch = 0
         self._gs8_waited = 0
+        self.zero_grad()
 
     def set_model(self, model: torch.nn.Module):
         """

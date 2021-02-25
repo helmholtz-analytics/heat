@@ -376,6 +376,7 @@ class DataParallelMultiGPU(tnn.Module):
             A global communicator.
             Default: ht.MPICommunication
         """
+        torch.random.manual_seed(2147483646)  # max int32 value - 1
         super(DataParallelMultiGPU, self).__init__()
         rank = comm.rank
         if torch.cuda.device_count() > 1:
@@ -392,7 +393,6 @@ class DataParallelMultiGPU(tnn.Module):
         self.comm = comm
 
         # unify parameters across nodes by unifying the random seed and resetting parameters
-        torch.random.manual_seed(2147483646)  # max int32 value - 1
         self.module.apply(self._reset_parameters)
 
         optimizer.set_model(self.module)

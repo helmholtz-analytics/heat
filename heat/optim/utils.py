@@ -40,24 +40,10 @@ class DetectMetricPlateau(object):
             Number of epochs to wait before resuming
             normal operation after lr has been reduced.
             Default: 0.
-        verbose: bool, optional
-            If ``True``, prints a message to stdout for
-            each update.
-            Default: ``False``.
     """
 
-    def __init__(
-        self,
-        mode="min",
-        patience=10,
-        threshold=1e-4,
-        threshold_mode="rel",
-        cooldown=0,
-        verbose=False,
-    ):
-
+    def __init__(self, mode="min", patience=10, threshold=1e-4, threshold_mode="rel", cooldown=0):
         self.patience = patience
-        self.verbose = verbose
         self.cooldown = cooldown
         self.cooldown_counter = 0
         self.mode = mode
@@ -76,7 +62,6 @@ class DetectMetricPlateau(object):
         """
         return {
             "patience": self.patience,
-            "verbose": self.verbose,
             "cooldown": self.cooldown,
             "cooldown_counter": self.cooldown_counter,
             "mode": self.mode,
@@ -98,7 +83,6 @@ class DetectMetricPlateau(object):
             contains the values to be set as the class parameters
         """
         self.patience = dic["patience"]
-        self.verbose = dic["verbose"]
         self.cooldown = dic["cooldown"]
         self.cooldown_counter = dic["cooldown_counter"]
         self.mode = dic["mode"]
