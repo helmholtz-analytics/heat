@@ -525,8 +525,7 @@ class MPICommunication(Communication):
                 recvbuf = (self.as_mpi_memory(rbuf), sendbuf[1], sendbuf[2])
 
         # perform the actual reduction operation
-        return_func = func(sendbuf, recvbuf, *args, **kwargs)
-        return return_func, sbuf, rbuf, buf
+        return func(sendbuf, recvbuf, *args, **kwargs), sbuf, rbuf, buf
 
     def Allreduce(self, sendbuf, recvbuf, op=MPI.SUM):
         ret, sbuf, rbuf, buf = self.__reduce_like(self.handle.Allreduce, sendbuf, recvbuf, op)
