@@ -94,11 +94,7 @@ class TestDataParallel(unittest.TestCase):
 
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
-#<<<<<<< HEAD
-#        dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, False)
-#=======
         dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, False)
-#>>>>>>> c7ea00081aadee7d43efd4e8062fab5e7f27e99f
         labels = torch.randn((2, 10), device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
         dataset = ht.utils.data.Dataset(data, ishuffle=False)
@@ -129,11 +125,7 @@ class TestDataParallel(unittest.TestCase):
 
         model = TestModel()
         optimizer = ht.optim.SGD(model.parameters(), lr=0.001)
-#<<<<<<< HEAD
-#        dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, False)
-#=======
         dp_optimizer = ht.optim.DataParallelOptimizer(optimizer, False)
-#>>>>>>> c7ea00081aadee7d43efd4e8062fab5e7f27e99f
         labels = torch.randn((2, 10), device=ht.get_device().torch_device)
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
         dataset = ht.utils.data.Dataset(data, ishuffle=True)
