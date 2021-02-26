@@ -137,3 +137,4 @@ def use_device(device=None):
         torch.set_default_tensor_type(torch.FloatTensor)
     else:
         torch.set_default_tensor_type(torch.cuda.FloatTensor)
+        torch.cuda.set_device(torch.device(gpu.torch_device))
