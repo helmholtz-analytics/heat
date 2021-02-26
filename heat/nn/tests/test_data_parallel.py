@@ -70,6 +70,8 @@ class TestDataParallel(unittest.TestCase):
         data = ht.random.rand(2 * ht.MPI_WORLD.size, 1, 32, 32, split=0)
         dataset = TestDataset(data, ishuffle=True)
         dataloader = ht.utils.data.datatools.DataLoader(dataset=dataset, batch_size=2)
+        # there is only 1 batch on each process (data size[0] is 2 * number of processes, and the batch size is 2)
+        self.assertTrue(len(dataloader) == 1)
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=True
         )

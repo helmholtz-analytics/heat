@@ -103,21 +103,13 @@ class DataLoader:
     def __iter__(self) -> Iterator:
         if isinstance(self.dataset, partial_dataset.PartialH5Dataset):
             return partial_dataset.PartialH5DataLoaderIter(self)
-        try:
-            # if it is a normal dataset then this would be defined
+        if hasattr(self, "_full_dataset_shuffle_iter"):
+            # if it is a normal heat dataset then this is defined
             self._full_dataset_shuffle_iter()
-            return self.DataLoader.__iter__()
-        except AttributeError():
-            if isinstance(self.dataset, torch_data.Dataset):
-                return self.DataLoader.__iter__()
-            else:
-                raise TypeError(
-                    f"Dataset must be either a torch or heat dataset, "
-                    f"currently is {type(self.dataset)}"
-                )
+        return self.DataLoader.__iter__()
 
     def __len__(self) -> int:
-        return len(self.DataLoader)
+        return self.DataLoader.__len__()
 
     def _full_dataset_shuffle_iter(self):
         # logic for when to shuffle the data
