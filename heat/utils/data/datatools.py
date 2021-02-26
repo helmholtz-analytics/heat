@@ -26,8 +26,8 @@ class DataLoader:
     batch sampler. The rest of the ``DataLoader`` functionality mentioned in :func:`torch.utils.data.dataloader` applies
 
     Arguments:
-        data : Dataset, DNDarray
-            Dataset from which to load the data.
+        dataset : Dataset, torch.Dataset, partial_dataset.PartialH5Dataset
+            A torch dataset from which the data will be returned by the created iterator
         batch_size : int, optional
             How many samples per batch to load (default: 1).
         num_workers : int, optional
@@ -50,10 +50,6 @@ class DataLoader:
         worker_init_fn : callable, optional
             If not ``None``, this will be called on each worker subprocess with the worker id
             (an int in ``[0, num_workers - 1]``) as input, after seeding and before data loading. (default: ``None``)
-        dataset : torch.Dataset, partial_dataset.PartialH5Dataset, optional
-            A torch dataset from which the data will be returned by the created iterator
-        transform : Callable, optional
-            Transform to be given to ``Dataset`` :class:`Dataset` creation if a Dataset is created
 
     Attributes
     ----------
@@ -70,8 +66,7 @@ class DataLoader:
 
     def __init__(
         self,
-        data=None,
-        dataset: Union[torch_data.Dataset, partial_dataset.PartialH5Dataset] = None,
+        dataset: Union[torch_data.Dataset, partial_dataset.PartialH5Dataset],
         batch_size: int = 1,
         num_workers: int = 0,
         collate_fn: Callable = None,
@@ -79,16 +74,12 @@ class DataLoader:
         drop_last: bool = False,
         timeout: Union[int, float] = 0,
         worker_init_fn: Callable = None,
-        transforms: Union[List, Callable] = None,
     ):
-        if isinstance(data, DNDarray) and dataset is None:
-            self.dataset = Dataset(array=data, transforms=transforms)
-        elif dataset:
-            self.dataset = dataset
-        else:
+        if not isinstance(dataset, (torch_data.Dataset, Dataset, partial_dataset.PartialH5Dataset)):
             raise TypeError(
-                f"data must be a DNDarray or lcl_dataset must be given, data is currently: {type(data)}"
+                f"dataset must be a torch Dataset, heat Dataset, heat PartialH5Dataset, currently: {type(dataset)}"
             )
+        self.dataset = dataset
         self.ishuffle = self.dataset.ishuffle
         if isinstance(self.dataset, partial_dataset.PartialH5Dataset):
             drop_last = True
@@ -111,21 +102,13 @@ class DataLoader:
     def __iter__(self) -> Iterator:
         if isinstance(self.dataset, partial_dataset.PartialH5Dataset):
             return partial_dataset.PartialH5DataLoaderIter(self)
-        try:
-            # if it is a normal dataset then this would be defined
+        if hasattr(self, "_full_dataset_shuffle_iter"):
+            # if it is a normal heat dataset then this is defined
             self._full_dataset_shuffle_iter()
-            return self.DataLoader.__iter__()
-        except AttributeError():
-            if isinstance(self.dataset, torch_data.Dataset):
-                return self.DataLoader.__iter__()
-            else:
-                raise TypeError(
-                    f"Dataset must be either a torch or heat dataset, "
-                    f"currently is {type(self.dataset)}"
-                )
+        return self.DataLoader.__iter__()
 
     def __len__(self) -> int:
-        return len(self.DataLoader)
+        return self.DataLoader.__len__()
 
     def _full_dataset_shuffle_iter(self):
         # logic for when to shuffle the data

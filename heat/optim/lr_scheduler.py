@@ -1,12 +1,11 @@
-import torch.optim.lr_scheduler as lr_scheduler
 import sys
-
+import torch.optim.lr_scheduler as lrs
 
 if sys.version_info.minor >= 7:
 
     def __getattr__(name):
         try:
-            return lr_scheduler.__getattribute__(name)
+            return lrs.__getattribute__(name)
         except AttributeError:
             raise AttributeError(f"name {name} is not implemented in torch.optim.lr_scheduler")
 
@@ -19,7 +18,7 @@ else:
 
         def __getattr__(self, name):
             try:
-                return lr_scheduler.__getattribute__(name)
+                return lrs.__getattribute__(name)
             except AttributeError:
                 raise AttributeError(f"name {name} is not implemented in torch.optim.lr_scheduler")
 
