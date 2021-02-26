@@ -12,7 +12,7 @@ coverage:
       default:
         # basic
         target: auto
-        threshold: 5%
+        threshold: 3%
         base: auto
         flags:
           - unit
@@ -24,3 +24,18 @@ coverage:
         if_ci_failed: error #success, failure, error, ignore
         informational: false
         only_pulls: false
+    patch:
+      default:
+        # basic
+        target: auto
+        threshold: 3%
+        base: auto
+        # advanced
+        branches:
+          - master
+        if_ci_failed: error #success, failure, error, ignore
+        only_pulls: false
+        flags:
+          - "unit"
+        paths:
+          - "heat"
