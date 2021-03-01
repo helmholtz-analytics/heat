@@ -49,7 +49,7 @@ class DASO:
         scheduler: torch.optim.lr_scheduler = None,
         stability_level: float = 0.05,
         max_global_skips: int = 8,
-        sending_chuck_size: int = 10_000_000,
+        sending_chunk_size: int = 10_000_000,
         downcast_type: torch.dtype = torch.bfloat16,
         use_mpi_groups: bool = True,
         verbose: bool = False,
@@ -121,7 +121,7 @@ class DASO:
         max_global_skips: int, optional
             The maximum number of batches between the beginning of a global synchronization process
             Default: 8
-        sending_chuck_size: int, optional
+        sending_chunk_size: int, optional
             During the global synchronization step, the network parameters are split into chunks of data to overlap
             communication and computation. This value is the maximum chunk size.
             Default: 10_000_000
@@ -214,7 +214,7 @@ class DASO:
         self._gs8_waits = 3
         self._gs8_waited = 0
 
-        self.split_val = sending_chuck_size
+        self.split_val = sending_chunk_size
 
         # TODO: its possible that the split indexes could be used to avoid the concatenating method used currently
         self.split_inds = None
@@ -265,9 +265,9 @@ class DASO:
             raise TypeError(
                 f"max_global_skips must be an int, currently {type(args['max_global_skips'])}"
             )
-        if not isinstance(args["sending_chuck_size"], int):
+        if not isinstance(args["sending_chunk_size"], int):
             raise TypeError(
-                f"sending_chuck_size must be an int, currently {type(args['sending_chuck_size'])}"
+                f"sending_chunk_size must be an int, currently {type(args['sending_chunk_size'])}"
             )
         if not isinstance(args["verbose"], bool):
             raise TypeError(f"verbose must be a bool, currently {type(args['verbose'])}")
@@ -285,15 +285,17 @@ class DASO:
                 f"currently {args['downcast_type']}"
             )
         if args["warmup_epochs"] < 0:
-            raise ValueError(f"warmup_epochs must be >= 0")
+            raise ValueError(f"warmup_epochs must be >= 0, currently {args['warmup_epochs']}")
         if args["cooldown_epochs"] < 0:
-            raise ValueError(f"cooldown_epochs must be >= 0")
+            raise ValueError(f"cooldown_epochs must be >= 0, currently {args['cooldown_epochs']}")
         if args["max_global_skips"] < 0:
-            raise ValueError(f"stablitiy_level must be >= 0")
-        if args["sending_chuck_size"] <= 0:
-            raise ValueError(f"sending_chuck_size must be > 0")
+            raise ValueError(f"stablitiy_level must be >= 0, currently {args['max_global_skips']}")
+        if args["sending_chunk_size"] <= 0:
+            raise ValueError(
+                f"sending_chunk_size must be > 0, currently {args['sending_chunk_size']}"
+            )
         if args["total_epochs"] <= 0:
-            raise ValueError(f"total_epochs must be > 0")
+            raise ValueError(f"total_epochs must be > 0, currently {args['total_epochs']}")
 
     @torch.no_grad()
     def epoch_loss_logic(self, loss, loss_globally_averaged=False):

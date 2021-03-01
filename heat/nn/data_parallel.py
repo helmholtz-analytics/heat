@@ -3,23 +3,15 @@ import torch
 import torch.nn as tnn
 import torch.distributed
 
-# from torch.nn.parallel import DistributedDataParallel as tDDP
-
 from collections import OrderedDict
 from typing import Callable, List, Union, Tuple
 from ..core.communication import MPICommunication
 from ..core.communication import MPI
 from ..core.communication import MPI_WORLD
 from .. import optim
-from ..core.devices import get_device
 
 
 __all__ = ["DataParallel", "DataParallelMultiGPU"]
-
-
-def print0(*args, **kwargs):
-    if MPI_WORLD.rank == 0:
-        print(*args, **kwargs)
 
 
 def __sum_f16_cb(buffer_a, buffer_b, _):
@@ -30,18 +22,6 @@ def __sum_f16_cb(buffer_a, buffer_b, _):
 
 # create new OP
 mpi_sum_f16 = MPI.Op.Create(__sum_f16_cb, commute=True)
-
-
-def addCounter(counter1, counter2, datatype):
-    for item in counter2:
-        if item in counter1:
-            counter1[item] += counter2[item]
-        else:
-            counter1[item] = counter2[item]
-    return counter1
-
-
-counterSumOp = MPI.Op.Create(addCounter, commute=True)
 
 
 class DataParallel(tnn.Module):
@@ -254,7 +234,6 @@ class DataParallel(tnn.Module):
                 ):  # wait_handle.tensor.shape:
                     raise ValueError("Shapes must be equal.")
                 # accumulate parameter's global gradient
-                # print(tens.dtype, dtp)
                 dp_optimizer.params_ref[param_idx].grad.data += tens.to(dtp)  # wait_handle.tensor
                 # remove layer from set of active layers, if present
                 self._active_layers.discard(layer_name)

@@ -54,7 +54,6 @@ def train(args, model, device, train_loader, optimizer, epoch):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        # print("end forward")
         loss = F.nll_loss(output, target)
         loss.backward()
         optimizer.step()
@@ -158,7 +157,6 @@ def main():
     model = Net().to(device)
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
     blocking = False
-    # torch.nn.parallel.DistributedDataParallel
     dp_optim = ht.optim.DataParallelOptimizer(optimizer, blocking=blocking)
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     dp_model = ht.nn.DataParallel(
