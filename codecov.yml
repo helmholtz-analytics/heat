@@ -16,6 +16,7 @@ coverage:
         base: auto
         flags:
           - unit
+          - gpu
         paths:
           - "heat"
        # advanced settings
@@ -37,5 +38,6 @@ coverage:
         only_pulls: false
         flags:
           - "unit"
+          - "gpu"
         paths:
           - "heat"
