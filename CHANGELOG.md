@@ -10,6 +10,9 @@
 - [#699](https://github.com/helmholtz-analytics/heat/pull/699) Support for complex numbers; New functions: angle, real, imag, conjugate
 - [#702](https://github.com/helmholtz-analytics/heat/pull/702) Support channel stackoverflow
 - [#712](https://github.com/helmholtz-analytics/heat/pull/712) New function: `issubdtype`
+- [#728](https://github.com/helmholtz-analytics/heat/pull/728) Feature addition: `DASO` optimizer
+- [#728](https://github.com/helmholtz-analytics/heat/pull/728) New feature: `nn.DataParallelMultiGPU` which uses `torch.distributed` for local communication (for use with `optim.DASO`)
+- [#728](https://github.com/helmholtz-analytics/heat/pull/728) New feature: `optim.DetectMetricPlateau` detects when a given metric plateaus.
 
 ### Factories
 - [#707](https://github.com/helmholtz-analytics/heat/pull/707) New feature: `asarray()`
