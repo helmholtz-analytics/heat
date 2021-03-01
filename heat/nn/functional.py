@@ -1,5 +1,5 @@
-import torch
 import sys
+import torch
 
 
 def func_getattr(name):
