@@ -65,6 +65,8 @@ class DASO:
         done very frequently while global synchronizations are conducted asynchronously as the next batches are
         computed.
 
+        This implementation requires that all nodes have the name number of GPUs
+
         There are four phases to training:
             1. initialization (steps 1 to 8 above)
             2. Training: warmup phase
@@ -182,10 +184,7 @@ class DASO:
                 reduced_ranks.append(tuple(lp_ranks))
             self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
             self.base_loc_ranks = base_loc_ranks
-            if loc_gpus != torch.cuda.device_count():
-                self.device = "cuda:0"
-            else:
-                self.device = "cuda:" + str(local_rank)
+            self.device = "cuda:" + str(local_rank)
             torch.cuda.set_device(device=self.device)
 
         self.current_batch, self.last_batch = 0, None
@@ -572,8 +571,7 @@ class DASO:
                 cast_int = 0
             elif self.cast_dtype == torch.half:
                 cast_int = 1
-            # else:  # keep as floats
-            #     cast_int = 2
+            # else:  # keep as floats (default case, see above)
 
         param_dict, shapes = self._gs_create_param_dict()
         sndparams = torch.zeros(
@@ -586,7 +584,7 @@ class DASO:
         try:
             nans = sndparams.isnan().sum()
         except RuntimeError:
-            # the isnan function isnt implemented in cuda 10.1
+            # the isnan function isnt implemented in some cuda / torch implementations
             nans = sndparams.to(torch.half).isnan().sum()
 
         if nans:

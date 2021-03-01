@@ -26,7 +26,7 @@ class TestUtils(TestCase):
                 self.assertTrue(t)
             else:
                 self.assertFalse(t)
-        dmp = DetectMetricPlateau(mode="min", patience=2, threshold_mode="abs", cooldown=1)
+        dmp = DetectMetricPlateau(mode="min", patience=2, threshold_mode="rel", cooldown=1)
         for c, v in enumerate(values):
             t = dmp.test_if_improving(v)
             if c in {6, 10}:
