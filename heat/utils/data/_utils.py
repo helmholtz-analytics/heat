@@ -1,8 +1,14 @@
-# this file contains standalone utilities for data preparations
+# WARNING: This function likely requires adjustments and it is by no means a final product !!!
+# this file contains standalone utilities for data preparation which may be useful
+# this function contained within are not tested, nor actively supported
 
 
 def dali_tfrecord2idx(train_dir, train_idx_dir, val_dir, val_idx_dir):
     """
+    WARNING: This function likely requires adjustments and it is by no means a final product !!!
+    this file contains standalone utilities for data preparation which may be useful
+    this function contained within are not tested, nor actively supported
+
     prepare TFRecords indexes for use with DALI. It will produce indexes for all files in the
     given ``train_dir`` and ``val_dir`` directories
     """
@@ -41,6 +47,10 @@ def dali_tfrecord2idx(train_dir, train_idx_dir, val_dir, val_idx_dir):
 
 def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
     """
+    WARNING: This function likely requires adjustments and it is by no means a final product !!!
+    this file contains standalone utilities for data preparation which may be useful
+    this function contained within are not tested, nor actively supported
+
     merge multiple preprocessed imagenet TFRecord files together,
     result is one HDF5 file with all of the images stacked in the 0th dimension
 
