@@ -8,7 +8,7 @@ from heat.core.tests.test_suites.basic_test import TestCase
 
 class TestDASO(TestCase):
     def test_daso(self):
-        if ht.MPI_WORLD.size != 8 and ht.get_device() == "gpu":
+        if ht.MPI_WORLD.size != 8 or ht.get_device() == "gpu":
             # only run these tests for 2 nodes, each of which has 4 GPUs
             return
         import heat.nn.functional as F
