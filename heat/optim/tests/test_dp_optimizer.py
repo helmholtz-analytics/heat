@@ -53,7 +53,7 @@ class TestDASO(TestCase):
                 if not self.test_set:
                     ht.utils.data.dataset_shuffle(self, attrs=[["data", None]])
 
-        def train(model, device, optimizer, target, batches=20):
+        def train(model, device, optimizer, target, batches=20, scaler=None):
             model.train()
             optimizer.last_batch = batches - 1
             loss_fn = torch.nn.MSELoss()
@@ -62,17 +62,24 @@ class TestDASO(TestCase):
             for b in range(batches):
                 d, t = data[b].to(device), target[b].to(device)
                 optimizer.zero_grad()
-                output = model(d)
-                loss = loss_fn(output, t)
-                ret_loss = loss.clone().detach()
-                loss.backward()
+                if scaler is not None:
+                    with torch.cuda.amp.autocast():
+                        output = model(d)
+                        loss = loss_fn(output, t)
+                    ret_loss = loss.clone().detach()
+                    scaler.scale(loss).backward()
+                else:
+                    output = model(d)
+                    loss = loss_fn(output, t)
+                    loss.backward()
+
                 optimizer.step()
             return ret_loss
 
         model = Model()
         optimizer = optim.SGD(model.parameters(), lr=0.1)
-
-        if ht.MPI_WORLD.size == 1 and ht.get_device() == "cpu":
+        envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
+        if ht.MPI_WORLD.size == 1 and envar == "cpu":
             with self.assertRaises(TypeError):
                 ht.optim.DASO(local_optimizer="asdf", total_epochs=1)
             with self.assertRaises(TypeError):
@@ -165,10 +172,18 @@ class TestDASO(TestCase):
             sending_chunk_size=61194,
         )
         dp_model = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
+        scaler = torch.cuda.amp.GradScaler()
+        daso_optimizer.add_scaler(scaler)
         for epoch in range(epochs):
-            ls = train(dp_model, device, daso_optimizer, target, batches=20)
+            ls = train(dp_model, device, daso_optimizer, target, batches=20, scaler=None)
             if epoch == 0:
                 first_ls = ls
-            daso_optimizer.epoch_loss_logic(ls)
+            daso_optimizer.epoch_loss_logic(ls, loss_globally_averaged=True)
         # test that the loss decreases
         self.assertTrue(ls < first_ls)
+        with self.assertRaises(ValueError):
+            daso_optimizer._prev_params = [1, 2]
+            daso_optimizer._gs_rcv_update_params_last_batch(current_ranks=[0, 4])
+        with self.assertRaises(ValueError):
+            daso_optimizer.last_batch = None
+            daso_optimizer.step()

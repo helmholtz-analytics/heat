@@ -65,7 +65,7 @@ class DASO:
         done very frequently while global synchronizations are conducted asynchronously as the next batches are
         computed.
 
-        This implementation requires that all nodes have the name number of GPUs
+        This implementation requires that all nodes have the name number of GPUs.
 
         There are four phases to training:
             1. initialization (steps 1 to 8 above)
@@ -550,8 +550,6 @@ class DASO:
                     param[:] = (
                         rcv_params[shapes[name][1]].reshape(shapes[name][0]).to(shapes[name][2])
                     )
-        if len(self._prev_params) >= 1:
-            print("len of prev_params is > 1!", self._prev_params)
 
     @torch.no_grad()
     def _gs_send_params(self, current_comm, batches_to_wait):
