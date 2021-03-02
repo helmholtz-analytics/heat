@@ -54,12 +54,7 @@ class TestBasicTest(TestCase):
 
         with self.assertRaises(ValueError):
             self.assert_func_equal(
-                shape,
-                heat_func=ht.exp,
-                numpy_func=np.exp,
-                low=-100,
-                high=100,
-                data_types=[np.object],
+                shape, heat_func=ht.exp, numpy_func=np.exp, low=-100, high=100, data_types=[object]
             )
 
     def test_assert_func_equal_for_tensor(self):

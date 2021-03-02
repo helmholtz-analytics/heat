@@ -286,7 +286,7 @@ __type_mappings = {
     "c8": complex64,
     "c16": complex128,
     # numpy types
-    np.bool: bool,
+    np.bool_: bool,
     np.uint8: uint8,
     np.int8: int8,
     np.int16: int16,
