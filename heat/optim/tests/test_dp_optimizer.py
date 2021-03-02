@@ -151,6 +151,7 @@ class TestDASO(TestCase):
         # test if the smaller split value also works
 
         daso_optimizer.reset()
+        epochs = 4
         daso_optimizer = ht.optim.DASO(
             local_optimizer=optimizer,
             total_epochs=epochs,
@@ -161,7 +162,7 @@ class TestDASO(TestCase):
             use_mpi_groups=False,
             verbose=False,
             downcast_type=torch.half,
-            sending_chunk_size=10,
+            sending_chunk_size=61194,
         )
         dp_model = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
         for epoch in range(epochs):
