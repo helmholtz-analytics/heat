@@ -1444,7 +1444,6 @@ def ravel(a):
         )
 
     # Redistribution necessary
-    # Arrays are not perfectly distributed. Array are copied between processes.
     if a.split != 0:
         return flatten(a)
 
