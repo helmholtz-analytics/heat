@@ -51,4 +51,4 @@ class TestUtils(TestCase):
                 self.assertFalse(t)
             # get and load the dict to make sure that this doesnt change anything during a loop
             if c == 5:
-                dmp.load_dict(dmp.get_state())
+                dmp.set_state(dmp.get_state())
