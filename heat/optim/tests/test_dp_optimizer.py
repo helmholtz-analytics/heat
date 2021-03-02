@@ -176,7 +176,7 @@ class TestDASO(TestCase):
         scaler = torch.cuda.amp.GradScaler()
         daso_optimizer.add_scaler(scaler)
         for epoch in range(epochs):
-            ls = train(dp_model, device, daso_optimizer, target, batches=20, scaler=None)
+            ls = train(dp_model, device, daso_optimizer, target, batches=20, scaler=scaler)
             if epoch == 0:
                 first_ls = ls
             daso_optimizer.epoch_loss_logic(ls, loss_globally_averaged=True)
