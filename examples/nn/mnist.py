@@ -1,8 +1,8 @@
 from __future__ import print_function
 import argparse
-import torch
-import time
 import sys
+import time
+import torch
 
 sys.path.append("../../")
 import heat as ht

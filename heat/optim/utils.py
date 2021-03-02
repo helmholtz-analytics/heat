@@ -56,7 +56,7 @@ class DetectMetricPlateau(object):
         self._init_is_better(mode=mode, threshold=threshold, threshold_mode=threshold_mode)
         self.reset()
 
-    def get_dict(self):
+    def get_state(self):
         """
         Get a dictionary of the class parameters. This is useful for checkpointing.
         """
@@ -73,7 +73,7 @@ class DetectMetricPlateau(object):
             "last_epoch": self.last_epoch,
         }
 
-    def load_dict(self, dic):
+    def set_state(self, dic):
         """
         Load a dictionary with the status of the class. Typically used in checkpointing.
 

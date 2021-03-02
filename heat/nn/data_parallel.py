@@ -1,14 +1,15 @@
 import warnings
 import torch
-import torch.nn as tnn
 import torch.distributed
+import torch.nn as tnn
 
 from collections import OrderedDict
 from typing import Callable, List, Union, Tuple
-from ..core.communication import MPICommunication
+
+from .. import optim
 from ..core.communication import MPI
 from ..core.communication import MPI_WORLD
-from .. import optim
+from ..core.communication import MPICommunication
 
 
 __all__ = ["DataParallel", "DataParallelMultiGPU"]
@@ -223,7 +224,7 @@ class DataParallel(tnn.Module):
             if layer_name not in self._active_layers:
                 return
             # iterate over layer's parameters/associated wait handles
-            for (param_name, wait_handle, dtp, tens) in self._layer_wait_handles[layer_name]:
+            for param_name, wait_handle, dtp, tens in self._layer_wait_handles[layer_name]:
                 # get internal index of selected parameter
                 param_idx = self._param_indices[param_name]
                 # synchronize, get parameter's global gradient
@@ -254,12 +255,12 @@ class DataParallel(tnn.Module):
         ----------
         [1] (cf. https://pytorch.org/docs/stable/tensors.html#torch.Tensor.register_hook).
         """
-        wrk = grad_loc.to(torch.bfloat16)
+        grad_loc_bf = grad_loc.to(torch.bfloat16)
         # average local gradients
-        wrk *= 1 / float(self.comm.size)
+        grad_loc_bf *= 1 / float(self.comm.size)
         # perform MPI Allreduce to compute global gradient
-        self.comm.Allreduce(MPI.IN_PLACE, wrk, mpi_sum_f16)
-        return wrk.to(grad_loc.dtype)
+        self.comm.Allreduce(MPI.IN_PLACE, grad_loc_bf, mpi_sum_f16)
+        return grad_loc_bf.to(grad_loc.dtype)
 
     def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
         """
@@ -355,7 +356,6 @@ class DataParallelMultiGPU(tnn.Module):
             A global communicator.
             Default: ht.MPICommunication
         """
-        torch.random.manual_seed(2147483646)  # max int32 value - 1
         super(DataParallelMultiGPU, self).__init__()
         rank = comm.rank
         if torch.cuda.device_count() > 1:

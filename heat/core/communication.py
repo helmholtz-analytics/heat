@@ -59,28 +59,23 @@ class MPICommunication(Communication):
         torch.int16: MPI.SHORT,
         torch.int32: MPI.INT,
         torch.int64: MPI.LONG,
-        torch.bfloat16: MPI.SHORT,
-        torch.float16: MPI.SHORT,
+        torch.bfloat16: MPI.INT16_T,
+        torch.float16: MPI.INT16_T,
         torch.float32: MPI.FLOAT,
         torch.float64: MPI.DOUBLE,
         torch.complex64: MPI.COMPLEX,
         torch.complex128: MPI.DOUBLE_COMPLEX,
     }
-    # MPI._typedict["e"] = __mpi_type_mappings
 
-    def __init__(self, handle=MPI.COMM_WORLD, group=False):
+    def __init__(self, handle=MPI.COMM_WORLD):
         self.handle = handle
-        if group:
-            try:
-                self.rank = handle.Get_rank()
-                self.size = handle.Get_size()
-            except MPI.Exception:
-                # ranks not within the group will fail with an MPI.Exception, this is expected
-                self.rank = None
-                self.size = None
-        else:
+        try:
             self.rank = handle.Get_rank()
             self.size = handle.Get_size()
+        except MPI.Exception:
+            # ranks not within the group will fail with an MPI.Exception, this is expected
+            self.rank = None
+            self.size = None
 
     def is_distributed(self):
         """

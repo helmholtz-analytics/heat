@@ -28,6 +28,7 @@ try:
     import nvidia.dali.ops as ops
     import nvidia.dali.tfrecord as tfrec
 except ImportError:
+    ht.MPI.Finalize()
     raise ImportError(
         "Please install DALI from https://www.github.com/NVIDIA/DALI to run this example."
     )
@@ -823,6 +824,11 @@ class AverageMeter(object):
 
 
 def lr_warmup(optimizer, epoch, bn, len_epoch):
+    """
+    Using a high learning rate at the very beginning of training leads to a worse final
+    accuracy. During the first 5 epochs the learning rate is increased in the way presenting
+    in https://arxiv.org/abs/1706.02677. After this point, this function is not called.
+    """
     if epoch < 5 and bn is not None:
         sz = ht.MPI_WORLD.size
         epoch += float(bn + 1) / len_epoch

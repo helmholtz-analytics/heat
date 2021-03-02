@@ -23,6 +23,6 @@ if sys.version_info.minor == 6:
                 return torch.nn.functional.__getattribute__(name)
             except AttributeError:
                 if name is not None:
-                    raise AttributeError("module not implemented in Torch Functional")
+                    raise AttributeError("module not implemented in torch.nn.functional")
 
     sys.modules[__name__] = Wrapper(sys.modules[__name__])

@@ -160,7 +160,7 @@ class DASO:
         # reference of optimizer's params
         self.scheduler = scheduler
 
-        rank = MPI_WORLD.rank
+        rank = self.comm.rank
         loc_gpus = torch.cuda.device_count()
         # this assumes that there are an equal number of GPUs per node,
         #   if a change is desired a comm her to find the lowest number would work for this, however
@@ -169,18 +169,18 @@ class DASO:
         local_rank = rank % loc_gpus
         self.local_skip = 1
         if loc_gpus > 1:
-            base_loc_ranks = list(range(0, MPI_WORLD.size, loc_gpus))
+            base_loc_ranks = list(range(0, self.comm.size, loc_gpus))
             reduced_comms, reduced_ranks = [], []
             for i in range(loc_gpus):
                 lp_ranks = [j + i for j in base_loc_ranks]
                 if use_mpi_groups:
-                    new_group = MPI_WORLD.group.Incl(lp_ranks)
-                    new_comm = MPI_WORLD.Create_group(new_group)
-                    reduced_comms.append(MPICommunication(new_comm, group=True))
+                    new_group = self.comm.group.Incl(lp_ranks)
+                    new_comm = self.comm.Create_group(new_group)
+                    reduced_comms.append(MPICommunication(new_comm))
                 else:
                     color = 111 + i if rank in lp_ranks else 222 + i
                     key = 0 + i if rank in lp_ranks else 444 + i
-                    reduced_comms.append(MPICommunication(MPI_WORLD.Split(color, key)))
+                    reduced_comms.append(MPICommunication(self.comm.Split(color, key)))
                 reduced_ranks.append(tuple(lp_ranks))
             self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
             self.base_loc_ranks = base_loc_ranks
@@ -220,7 +220,7 @@ class DASO:
         self.amp = False
         self.print0("Finished DASO init")
 
-    def add_scaler(self, scaler: torch.cuda.amp.GradScaler):
+    def add_scaler(self, scaler: torch.cuda.amp.GradScaler) -> None:
         """
         Create a reference to torch's :class:`torch.cuda.amp.GradScaler` used in torch's automatic mixed
         precision. For more information on this see https://pytorch.org/docs/stable/notes/amp_examples.html
@@ -234,7 +234,7 @@ class DASO:
         self.amp = True
 
     @staticmethod
-    def __init_checktypes(args):
+    def __init_checktypes(args: Dict) -> None:
         # this does all of the checks and raises for the parameters for init
         if not isinstance(args["local_optimizer"], torch.optim.Optimizer):
             raise TypeError(
@@ -297,7 +297,9 @@ class DASO:
             raise ValueError(f"total_epochs must be > 0, currently {args['total_epochs']}")
 
     @torch.no_grad()
-    def epoch_loss_logic(self, loss, loss_globally_averaged=False):
+    def epoch_loss_logic(
+        self, loss: Union[torch.Tensor, int, float], loss_globally_averaged: bool = False
+    ) -> None:
         """
         Function controlling the number of batches between global synchronizations and the batches to wait before
         receiving the sent parameters. The warm-up and cool-down phases are also controlled here.
@@ -392,7 +394,7 @@ class DASO:
         )
 
     @torch.no_grad()
-    def _global_sync(self, batches_to_wait):
+    def _global_sync(self, batches_to_wait: int) -> None:
         """
         Performs a global synchronization. If `batches_to_wait > 0` this will wait for that many
         batches before received in the parameters.
@@ -437,7 +439,7 @@ class DASO:
             self._send_mod_m1 = self._send_mod
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
 
-    def _gs_create_param_dict(self):
+    def _gs_create_param_dict(self) -> Tuple[Dict, Dict]:
         """
         create the shape and param dictionary used for sending parameters around the MPI world.
         this will also define the buffer size if it was not previously defined.
@@ -462,7 +464,7 @@ class DASO:
         return param_dict, shapes
 
     @torch.no_grad()
-    def _gs_rcv_update_params(self):
+    def _gs_rcv_update_params(self) -> None:
         """
         receive the previously sent parameters for the last sending MPI group.
         this is also where the sent and local parameters are merged together.
@@ -518,7 +520,7 @@ class DASO:
                     param += update
 
     @torch.no_grad()
-    def _gs_rcv_update_params_last_batch(self, current_ranks):
+    def _gs_rcv_update_params_last_batch(self, current_ranks: Tuple) -> None:
         """
         abstracted receive for the last batch (and if `global_skips` == 0)
         """
@@ -552,7 +554,7 @@ class DASO:
                     )
 
     @torch.no_grad()
-    def _gs_send_params(self, current_comm, batches_to_wait):
+    def _gs_send_params(self, current_comm: MPICommunication, batches_to_wait: int) -> None:
         """
         pack and send the data required for a global synchronization on the `current_comm` group
 
@@ -613,7 +615,7 @@ class DASO:
         self._prev_params.append([waits, params_list, shapes, batches_to_wait])
 
     @torch.no_grad()
-    def _local_update(self, sending_process):
+    def _local_update(self, sending_process: Tuple) -> None:
         # use torch to send the network parameters of a single process to the other processes
         if not torch.distributed.is_initialized() or sending_process is None:
             return
@@ -630,8 +632,12 @@ class DASO:
     @staticmethod
     @torch.no_grad()
     @torch.jit.script
-    def __pack_data(jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: int):
-        """ jitted loop to pack the data into a flattened buffer to be sent"""
+    def __pack_data(
+        jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: int
+    ) -> torch.Tensor:
+        """
+        jitted loop to pack the data into a flattened buffer to be sent
+        """
         st = 0
         cast_type = torch.float if cast == 2 else torch.bfloat16 if cast == 0 else torch.half
         for name, par in iter_dict.items():
@@ -643,14 +649,14 @@ class DASO:
                 st += par.numel()
         return jtparams
 
-    def print0(self, *args, **kwargs):
+    def print0(self, *args, **kwargs) -> None:
         """
         Print a message on rank 0 if the class parameter `verbose` is set.
         """
-        if MPI_WORLD.rank == 0 and self.verbose:
+        if self.comm.rank == 0 and self.verbose:
             print(*args, **kwargs)
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Reset the optimizer to its base state
         """
@@ -664,7 +670,7 @@ class DASO:
         self._gs8_waited = 0
         self.zero_grad()
 
-    def set_model(self, model: torch.nn.Module):
+    def set_model(self, model: torch.nn.Module) -> None:
         """
         Set the local model for the optimizer.
         This should be called by the :class:`..nn.data_parappel.DataParallelMultiGPU`.
@@ -676,14 +682,16 @@ class DASO:
         """
         self.module = model
 
-    def _start_local_sync(self):
-        # *start* local synchronizations for the next batches
+    def _start_local_sync(self) -> None:
+        """
+        *start* local synchronizations for the next batches
+        """
         if not isinstance(self.module, tDDP) or self.module.require_backward_grad_sync:
             # this has no effect if the module is not locally distributed in torch
             return
         self.module.require_backward_grad_sync = True
 
-    def step(self):
+    def step(self) -> None:
         """
         Perform a single optimization step.
         This will perform the `step` operations of the local optimizer,
@@ -769,8 +777,10 @@ class DASO:
 
         self.current_batch += 1
 
-    def _stop_local_sync(self):
-        # stop local synchronizations for the next batches
+    def _stop_local_sync(self) -> None:
+        """
+        stop local synchronizations for the next batches
+        """
         if not isinstance(self.module, tDDP) or not self.module.require_backward_grad_sync:
             # this has no effect if the module is not locally distributed in torch
             return
