@@ -8,9 +8,6 @@ from heat.core.tests.test_suites.basic_test import TestCase
 
 class TestDASO(TestCase):
     def test_daso(self):
-        if ht.MPI_WORLD.size != 8 or torch.cuda.device_count() == 0:
-            # only run these tests for 2 nodes, each of which has 4 GPUs
-            return
         import heat.nn.functional as F
         import heat.optim as optim
 
@@ -87,6 +84,46 @@ class TestDASO(TestCase):
 
         model = Model().to(device)
         optimizer = optim.SGD(model.parameters(), lr=0.1)
+
+        if ht.MPI_WORLD.size == 1 and ht.get_device() == "cpu":
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer="asdf", total_epochs=1)
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs="aa")
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, warmup_epochs="asdf")
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, cooldown_epochs="asdf")
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, scheduler="asdf")
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, stability_level="asdf")
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, max_global_skips="asdf")
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, sending_chunk_size="asdf")
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, verbose="asdf")
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, use_mpi_groups="asdf")
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, downcast_type="asdf")
+            with self.assertRaises(ValueError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, downcast_type=torch.bool)
+            with self.assertRaises(ValueError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, warmup_epochs=-1)
+            with self.assertRaises(ValueError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, cooldown_epochs=-1)
+            with self.assertRaises(ValueError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, max_global_skips=-1)
+            with self.assertRaises(ValueError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, sending_chunk_size=-1)
+            with self.assertRaises(ValueError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=-1)
+        if ht.MPI_WORLD.size != 8 or torch.cuda.device_count() == 0:
+            # only run these tests for 2 nodes, each of which has 4 GPUs
+            return
+
         epochs = 20
 
         daso_optimizer = ht.optim.DASO(
@@ -131,38 +168,3 @@ class TestDASO(TestCase):
             daso_optimizer.epoch_loss_logic(ls)
         # test that the loss decreases
         self.assertTrue(ls < first_ls)
-
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer="asdf", total_epochs=1)
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs="aa")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, warmup_epochs="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, cooldown_epochs="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, scheduler="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, stability_level="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, max_global_skips="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, sending_chunk_size="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, verbose="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, use_mpi_groups="asdf")
-        with self.assertRaises(TypeError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, downcast_type="asdf")
-        with self.assertRaises(ValueError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, downcast_type=torch.bool)
-        with self.assertRaises(ValueError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, warmup_epochs=-1)
-        with self.assertRaises(ValueError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, cooldown_epochs=-1)
-        with self.assertRaises(ValueError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, max_global_skips=-1)
-        with self.assertRaises(ValueError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, sending_chunk_size=-1)
-        with self.assertRaises(ValueError):
-            ht.optim.DASO(local_optimizer=optimizer, total_epochs=-1)

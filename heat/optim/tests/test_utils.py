@@ -15,8 +15,10 @@ class TestUtils(TestCase):
         with self.assertRaises(ValueError):
             DetectMetricPlateau(threshold_mode="asdf")
 
+        if ht.MPI_WORLD.size > 1:
+            # this does not have any parallel code or aspects
+            return
         # tests needed: need to test min and max modes
-
         # min tests
         values = [1, 0.9, 0.8, 0.7, 0.8, 0.9, 1, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]
         dmp = DetectMetricPlateau(mode="min", patience=2, threshold_mode="abs")
