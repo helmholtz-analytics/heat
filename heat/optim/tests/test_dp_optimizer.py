@@ -69,20 +69,7 @@ class TestDASO(TestCase):
                 optimizer.step()
             return ret_loss
 
-        # Training settings
-        torch.manual_seed(1)
-
-        gpus = torch.cuda.device_count()
-        loc_rank = ht.MPI_WORLD.rank % gpus
-        device = "cuda:" + str(loc_rank)
-        os.environ["MASTER_ADDR"] = "localhost"
-        os.environ["MASTER_PORT"] = "29500"
-        os.environ["NCCL_SOCKET_IFNAME"] = "ib"
-        torch.distributed.init_process_group(backend="nccl", rank=loc_rank, world_size=gpus)
-        torch.cuda.set_device(device)
-        device = torch.device("cuda")
-
-        model = Model().to(device)
+        model = Model()
         optimizer = optim.SGD(model.parameters(), lr=0.1)
 
         if ht.MPI_WORLD.size == 1 and ht.get_device() == "cpu":
@@ -123,6 +110,22 @@ class TestDASO(TestCase):
         if ht.MPI_WORLD.size != 8 or torch.cuda.device_count() == 0:
             # only run these tests for 2 nodes, each of which has 4 GPUs
             return
+
+        # Training settings
+        torch.manual_seed(1)
+
+        gpus = torch.cuda.device_count()
+        loc_rank = ht.MPI_WORLD.rank % gpus
+        device = "cuda:" + str(loc_rank)
+        os.environ["MASTER_ADDR"] = "localhost"
+        os.environ["MASTER_PORT"] = "29500"
+        os.environ["NCCL_SOCKET_IFNAME"] = "ib"
+        torch.distributed.init_process_group(backend="nccl", rank=loc_rank, world_size=gpus)
+        torch.cuda.set_device(device)
+        device = torch.device("cuda")
+
+        model = Model().to(device)
+        optimizer = optim.SGD(model.parameters(), lr=0.1)
 
         epochs = 20
 
