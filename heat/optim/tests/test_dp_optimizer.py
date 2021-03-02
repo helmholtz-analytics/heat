@@ -71,6 +71,7 @@ class TestDASO(TestCase):
                 else:
                     output = model(d)
                     loss = loss_fn(output, t)
+                    ret_loss = loss.clone().detach()
                     loss.backward()
 
                 optimizer.step()
