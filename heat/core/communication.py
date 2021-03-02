@@ -66,7 +66,7 @@ class MPICommunication(Communication):
         torch.complex64: MPI.COMPLEX,
         torch.complex128: MPI.DOUBLE_COMPLEX,
     }
-    MPI._typedict["e"] = __mpi_type_mappings
+    # MPI._typedict["e"] = __mpi_type_mappings
 
     def __init__(self, handle=MPI.COMM_WORLD, group=False):
         self.handle = handle
