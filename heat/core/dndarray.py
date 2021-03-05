@@ -1142,11 +1142,22 @@ class DNDarray:
         lshape_map : torch.Tensor
             Units -> (process rank, lshape)
         """
+        if not self.is_distributed:
+            return torch.tensor(self.gshape)
+
         lshape_map = torch.zeros(
             (self.comm.size, len(self.gshape)), dtype=torch.int, device=self.device.torch_device
         )
-        lshape_map[self.comm.rank, :] = torch.tensor(self.lshape, device=self.device.torch_device)
-        self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+        if self.is_balanced():
+            for i in range(self.comm.size):
+                _, lshape, _ = self.comm.chunk(self.gshape, self.split, rank=i)
+                lshape_map[i, :] = torch.tensor(lshape, device=self.device.torch_device)
+        else:
+            lshape_map[self.comm.rank, :] = torch.tensor(
+                self.lshape, device=self.device.torch_device
+            )
+            self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
+
         return lshape_map
 
     def __eq__(self, other):
