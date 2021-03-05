@@ -2683,9 +2683,9 @@ def stack(arrays, axis=0, out=None):
     return stacked
 
 
-def unique(a, sorted=False, return_inverse=False, axis=None):
+def unique(a, return_inverse=False, axis=None):
     """
-    Finds and returns the unique elements of an array.
+    Finds and returns the sorted unique elements of an array.
 
     Works most effective if axis != a.split.
 
@@ -2726,10 +2726,8 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     array([[2, 3],
            [3, 1]])
     """
-    if a.split is None:
-        torch_output = torch.unique(
-            a.larray, sorted=sorted, return_inverse=return_inverse, dim=axis
-        )
+    if not a.is_distributed:
+        torch_output = torch.unique(a.larray, sorted=True, return_inverse=return_inverse, dim=axis)
         if isinstance(torch_output, tuple):
             heat_output = tuple(
                 factories.array(i, dtype=a.dtype, split=None, device=a.device) for i in torch_output
@@ -2738,18 +2736,24 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             heat_output = factories.array(torch_output, dtype=a.dtype, split=None, device=a.device)
         return heat_output
 
+    rank = a.comm.rank
+    size = a.comm.size
+
     local_data = a.larray
+
     unique_axis = None
-    inverse_indices = None
 
     if axis is not None:
-        # transpose so we can work along the 0 axis
-        local_data = local_data.transpose(0, axis)
-        unique_axis = 0
+        if axis != 0:
+            # transpose so we can work along the 0 axis
+            local_data = local_data.transpose(0, axis)
+            unique_axis = 0
+        else:
+            unique_axis = axis
 
-    # Calculate the unique on the local values
+    # Calculate local uniques
     if a.lshape[a.split] == 0:
-        # Passing an empty vector to torch throws exception
+        # address empty local tensor
         if axis is None:
             res_shape = [0]
             inv_shape = list(a.gshape)
@@ -2759,139 +2763,87 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             res_shape[0] = 0
             inv_shape = [0]
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
-        inverse_pos = torch.empty(inv_shape, dtype=torch.int64)
-
     else:
-        lres, inverse_pos = torch.unique(
-            local_data, sorted=sorted, return_inverse=True, dim=unique_axis
-        )
+        lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
+        inv_shape = local_data.shape if axis is None else (local_data.shape[unique_axis],)
+    gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
 
-    # Share and gather the results with the other processes
-    uniques = torch.tensor([lres.shape[0]]).to(torch.int32)
-    uniques_buf = torch.empty((a.comm.Get_size(),), dtype=torch.int32)
-    a.comm.Allgather(uniques, uniques_buf)
-
-    if axis is None or axis == a.split:
-        is_split = None
-        split = a.split
-
-        output_dim = list(lres.shape)
-        output_dim[0] = uniques_buf.sum().item()
-
-        # Gather all unique vectors
-        counts = list(uniques_buf.tolist())
-        displs = list([0] + uniques_buf.cumsum(0).tolist()[:-1])
-        gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type(), device=a.device.torch_device)
-        a.comm.Allgatherv(lres, (gres_buf, counts, displs), recv_axis=0)
-
-        if return_inverse:
-            # Prepare some information to generated the inverse indices list
-            avg_len = a.gshape[a.split] // a.comm.Get_size()
-            rem = a.gshape[a.split] % a.comm.Get_size()
-
-            # Share the local reverse indices with other processes
-            counts = [avg_len] * a.comm.Get_size()
-            add_vec = [1] * rem + [0] * (a.comm.Get_size() - rem)
-            inverse_counts = [sum(x) for x in zip(counts, add_vec)]
-            inverse_displs = [0] + list(np.cumsum(inverse_counts[:-1]))
-            inverse_dim = list(inverse_pos.shape)
-            inverse_dim[a.split] = a.gshape[a.split]
-            inverse_buf = torch.empty(inverse_dim, dtype=inverse_pos.dtype)
-
-            # Transpose data and buffer so we can use Allgatherv along axis=0 (axis=1 does not work properly yet)
-            inverse_pos = inverse_pos.transpose(0, a.split)
-            inverse_buf = inverse_buf.transpose(0, a.split)
-            a.comm.Allgatherv(
-                inverse_pos, (inverse_buf, inverse_counts, inverse_displs), recv_axis=0
-            )
-            inverse_buf = inverse_buf.transpose(0, a.split)
-
-        # Run unique a second time
-        gres = torch.unique(gres_buf, sorted=sorted, return_inverse=return_inverse, dim=unique_axis)
-        if return_inverse:
-            # Use the previously gathered information to generate global inverse_indices
-            g_inverse = gres[1]
-            gres = gres[0]
-            if axis is None:
-                # Calculate how many elements we have in each layer along the split axis
-                elements_per_layer = 1
-                for num, val in enumerate(a.gshape):
-                    if not num == a.split:
-                        elements_per_layer *= val
-
-                # Create the displacements for the flattened inverse indices array
-                local_elements = [displ * elements_per_layer for displ in inverse_displs][1:] + [
-                    float("inf")
-                ]
-
-                # Flatten the inverse indices array every element can be updated to represent a global index
-                transposed = inverse_buf.transpose(0, a.split)
-                transposed_shape = transposed.shape
-                flatten_inverse = transposed.flatten()
-
-                # Update the index elements iteratively
-                cur_displ = 0
-                inverse_indices = [0] * len(flatten_inverse)
-                for num in range(len(inverse_indices)):
-                    if num >= local_elements[cur_displ]:
-                        cur_displ += 1
-                    index = flatten_inverse[num] + displs[cur_displ]
-                    inverse_indices[num] = g_inverse[index].tolist()
-
-                # Convert the flattened array back to the correct global shape of a
-                inverse_indices = torch.tensor(inverse_indices).reshape(transposed_shape)
-                inverse_indices = inverse_indices.transpose(0, a.split)
-
-            else:
-                inverse_indices = torch.zeros_like(inverse_buf)
-                steps = displs + [None]
-
-                # Algorithm that creates the correct list for the reverse_indices
-                for i in range(len(steps) - 1):
-                    begin = steps[i]
-                    end = steps[i + 1]
-                    for num, x in enumerate(inverse_buf[begin:end]):
-                        inverse_indices[begin + num] = g_inverse[begin + x]
-
+    # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
+    _, data_max_lshape, _ = a.comm.chunk(a.gshape, a.split, rank=0)
+    data_max_lbytes = torch.prod(torch.tensor(data_max_lshape)) * a.larray.element_size()
+    if gres.nbytes <= data_max_lbytes:
+        print("RUNNING SPARSE UNIQUE")
+        # gather local uniques
+        gres.resplit_(None)
+        # final round of torch.unique
+        lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
+        gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device)
     else:
-        # Tensor is already split and does not need to be redistributed afterward
-        split = None
-        is_split = a.split
-        max_uniques, max_pos = uniques_buf.max(0)
-        # find indices of vectors
-        if a.comm.Get_rank() == max_pos.item():
-            # Get indices of the unique vectors to share with all over processes
-            indices = inverse_pos.reshape(-1).unique()
-        else:
-            indices = torch.empty((max_uniques.item(),), dtype=inverse_pos.dtype)
+        print("RUNNING DENSE UNIQUE")
+        # balance gres if needed
+        gres.balance_()
+        # global sort
+        gres, sorted_gindices = sort(gres, axis=unique_axis)
+        # second local unique
+        lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
+        gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
+        # get rid of doubles at the edges
+        gres.get_halo(1)
+        if gres.halo_prev is not None and (gres.halo_prev == lres[0]).all():
+            lres = lres[1:]
+        gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
+        gres.balance_()
+        lres = gres.larray
 
-        a.comm.Bcast(indices, root=max_pos)
-
-        gres = local_data[indices.tolist()]
-
-        inverse_indices = indices
-        if sorted:
-            raise ValueError(
-                "Sorting with axis != split is not supported yet. "
-                "See https://github.com/helmholtz-analytics/heat/issues/363"
-            )
-
-    if axis is not None:
-        # transpose matrix back
-        gres = gres.transpose(0, axis)
-
-    split = split if a.split < len(gres.shape) else None
-    result = factories.array(
-        gres, dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split
-    )
-    if split is not None:
-        result.resplit_(a.split)
-
-    return_value = result
+    # inverse indices
     if return_inverse:
-        return_value = [return_value, inverse_indices.to(a.device.torch_device)]
+        # allocate local tensors
+        inverse_pos = torch.empty(inv_shape, dtype=torch.int64, device=local_data.device)
+        unique_ranks = size if gres.is_distributed() else 1
+        if unique_ranks > 1:
+            gres_map = gres.create_lshape_map()
+            gres_offsets = torch.cat(
+                (torch.tensor([0], device=gres_map.device), gres_map[:-1, gres.split])
+            ).cumsum(dim=0)
+        else:
+            gres_map = torch.tensor(gres.gshape, device=inverse_pos.device)
+            gres_offsets = torch.tensor([0], device=gres_map.device)
+        lres = gres.larray
+        for p in range(unique_ranks):
+            origin = rank + p if rank + p < unique_ranks else rank + p - unique_ranks
+            incoming_offset = gres_offsets[origin]
+            # loop through unique elements, find matching position in data
+            for i, el in enumerate(lres.split(1, dim=0)):
+                counts = torch.zeros_like(local_data, dtype=torch.int8, device=local_data.device)
+                counts[torch.where(local_data == el)] = 1
+                if lres.ndim > 1:
+                    counts = torch.sum(counts, dim=tuple(range(lres.ndim))[1:])
+                cond = torch.where(counts == el.numel())
+                inverse_pos[cond] = i + incoming_offset
+            # if necessary, prepare to send lres to rank-1 and receive from rank+1
+            if unique_ranks > 1:
+                dest_rank = rank - 1 if rank != 0 else size - 1
+                gres.comm.Send(lres, dest_rank)
+                next_origin = origin + 1 if origin + 1 < unique_ranks else origin + 1 - unique_ranks
+                incoming_shape = gres_map[next_origin].tolist()
+                if incoming_shape != lres.shape:
+                    lres = torch.empty(
+                        incoming_shape, dtype=local_data.dtype, device=local_data.device
+                    )
+                recv_from_rank = rank + 1 if rank != size - 1 else 0
+                gres.comm.Recv(lres, recv_from_rank)
+        inverse = factories.array(inverse_pos, is_split=0, device=gres.device)
 
-    return return_value
+    if axis is not None and axis != 0:
+        # transpose back to original dimensions
+        gres = gres.transpose(0, axis)
+        if return_inverse:
+            inverse = inverse.transpose(0, axis)
+
+    if return_inverse:
+        return (gres, inverse)
+
+    return gres
 
 
 def vsplit(ary, indices_or_sections):
@@ -3020,7 +2972,13 @@ def resplit(arr, axis=None):
         gathered = torch.empty(
             arr.shape, dtype=arr.dtype.torch_type(), device=arr.device.torch_device
         )
-        counts, displs, _ = arr.comm.counts_displs_shape(arr.shape, arr.split)
+        if arr.is_balanced():
+            counts, displs, _ = arr.comm.counts_displs_shape(arr.shape, arr.split)
+        else:
+            counts = arr.create_lshape_map()[arr.split]
+            displs = torch.cumsum(
+                torch.cat((torch.tensor([0], device=counts.device), counts[:-1])), dim=0
+            )
         arr.comm.Allgatherv(arr.larray, (gathered, counts, displs), recv_axis=arr.split)
         new_arr = factories.array(gathered, is_split=axis, device=arr.device, dtype=arr.dtype)
         return new_arr
