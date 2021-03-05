@@ -1143,7 +1143,7 @@ class DNDarray:
             Units -> (process rank, lshape)
         """
         if not self.is_distributed:
-            return torch.tensor(self.gshape)
+            return torch.tensor(self.gshape).reshape(1, self.ndim)
 
         lshape_map = torch.zeros(
             (self.comm.size, len(self.gshape)), dtype=torch.int, device=self.device.torch_device
@@ -2874,7 +2874,13 @@ class DNDarray:
             gathered = torch.empty(
                 self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
             )
-            counts, displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
+            if self.is_balanced():
+                counts, displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
+            else:
+                counts = self.create_lshape_map()[self.split]
+                displs = torch.cumsum(
+                    torch.cat((torch.tensor([0], device=counts.device), counts[:-1])), dim=0
+                )
             self.comm.Allgatherv(self.__array, (gathered, counts, displs), recv_axis=self.split)
             self.__array = gathered
             self.__split = axis
