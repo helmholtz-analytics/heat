@@ -2811,8 +2811,11 @@ def unique(a, return_inverse=False, axis=None):
             gres_offsets = torch.tensor([0], device=gres_map.device)
         lres = gres.larray
         for p in range(unique_ranks):
-            origin = rank + p if rank + p < unique_ranks else rank + p - unique_ranks
-            incoming_offset = gres_offsets[origin]
+            if unique_ranks == 1:
+                incoming_offset = 0
+            else:
+                origin = rank + p if rank + p < unique_ranks else rank + p - unique_ranks
+                incoming_offset = gres_offsets[origin]
             # loop through unique elements, find matching position in data
             for i, el in enumerate(lres.split(1, dim=0)):
                 counts = torch.zeros_like(local_data, dtype=torch.int8, device=local_data.device)
