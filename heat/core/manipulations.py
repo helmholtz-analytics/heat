@@ -2772,6 +2772,7 @@ def unique(a, return_inverse=False, axis=None):
     data_max_lbytes = torch.prod(torch.tensor(data_max_lshape)) * a.larray.element_size()
     if gres.nbytes <= data_max_lbytes:
         print("RUNNING SPARSE UNIQUE")
+        print("DEBUGGING: gres.lshape = ", gres.lshape)
         # gather local uniques
         gres.resplit_(None)
         # final round of torch.unique
