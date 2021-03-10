@@ -2682,34 +2682,48 @@ def stack(arrays, axis=0, out=None):
     return stacked
 
 
-def unique(a, return_inverse=False, axis=None):
+def unique(a, sort=True, return_inverse=False, axis=None):
     """
-    Finds and returns the sorted unique elements of an array.
+    Returns the sorted unique elements of an array.
 
-    Works most effective if axis != a.split.
+    If `a` is distributed, and unique elements along a specific `axis` are required,
+    then `a` must be distributed along `axis`.
 
     Parameters
     ----------
     a : ht.DNDarray
-        Input array where unique elements should be found.
-    sorted : bool, optional
-        Whether the found elements should be sorted before returning as output.
-        Warning: sorted is not working if 'axis != None and axis != a.split'
-        Default: False
-    return_inverse : bool, optional
-        Whether to also return the indices for where elements in the original input ended up in the returned
-        unique list.
-        Default: False
+        Input array.
     axis : int, optional
-        Axis along which unique elements should be found. Default to None, which will return a one dimensional list of
-        unique values.
+        The axis to operate on. If None, `a` will be flattened.
+    sort : bool, optional
+        Sort the array in ascending order before finding the unique elements.
+        Set `sorted=False` only if `a` is already sorted (in whichever order).
+        Default: True
+    return_inverse : bool, optional
+        Return the indices of the unique array (for the specified `axis`, if provided)
+        that can be used to reconstruct `a`.
+        Default: False
 
     Returns
     -------
-    res : ht.DNDarray
-        Output array. The unique elements. Elements are distributed the same way as the input tensor.
-    inverse_indices : torch.tensor (optional)
-        If return_inverse is True, this tensor will hold the list of inverse indices
+    unique : ht.DNDarray
+        The sorted unique elements of `a`. Whether `unique` is distributed depends on the
+        size of the unique elements with respect to the (process-local) data. See Notes below.
+    inverse_indices : ht.DNDarray
+        The global indices to reconstruct the original (possibly distributed) array from `unique`.
+        `inverse_indices` is distributed like `a`. See Notes below on reconstructing the original array
+        from a distributed `unique` array.
+
+    Notes
+    -----
+    Distributed sorting is a communication-intensive operation. `ht.unique()` performs the unique/sort operation
+    locally if the collective size of the unique values, in bytes, does not exceed the size of
+    the process-local input `a`. In this case, the resulting `unique` will not be distributed (`unique.split=None`).
+    Otherwise, `unique` will be distributed along 0, if `axis` is specified, or along `a.split`, if `axis` is None.
+
+    WARNING: `inverse_indices` will always be distributed like the original data, and contains the GLOBAL indices
+    to recreate the LOCAL portion of `a`. Before you reconstruct an array based on `unique[inverse_indices]`, make sure
+    that `unique` is local (for example with `unique.resplit_(axis=None)`, see `ht.resplit`).
 
     Examples
     --------
@@ -2771,21 +2785,20 @@ def unique(a, return_inverse=False, axis=None):
     _, data_max_lshape, _ = a.comm.chunk(a.gshape, a.split, rank=0)
     data_max_lbytes = torch.prod(torch.tensor(data_max_lshape)) * a.larray.element_size()
     if gres.nbytes <= data_max_lbytes:
-        print("RUNNING SPARSE UNIQUE")
         # gather local uniques
         gres.resplit_(None)
         # final round of torch.unique
         lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
         gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device)
     else:
-        print("RUNNING DENSE UNIQUE")
-        # balance gres if needed
-        gres.balance_()
-        # global sort
-        gres, sorted_gindices = sort(gres, axis=unique_axis)
-        # second local unique
-        lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
-        gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
+        if sort:
+            # balance gres if needed
+            gres.balance_()
+            # global sort
+            gres, sorted_gindices = sort(gres, axis=unique_axis)
+            # second local unique
+            lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
+            gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
         # get rid of doubles at the edges
         gres.get_halo(1)
         if gres.halo_prev is not None and (gres.halo_prev == lres[0]).all():
@@ -2797,7 +2810,6 @@ def unique(a, return_inverse=False, axis=None):
     # inverse indices
     if return_inverse:
         # allocate local tensors
-        print("DEBUGGING: gres is distributed: ", gres.is_distributed())
         inverse_pos = torch.empty(inv_shape, dtype=torch.int64, device=local_data.device)
         unique_ranks = size if gres.is_distributed() else 1
         if unique_ranks > 1:
@@ -2835,7 +2847,7 @@ def unique(a, return_inverse=False, axis=None):
                     )
                 recv_from_rank = rank + 1 if rank != size - 1 else 0
                 gres.comm.Recv(lres, recv_from_rank)
-        inverse = factories.array(inverse_pos, is_split=0, device=gres.device)
+        inverse = factories.array(inverse_pos, is_split=a.split, device=gres.device)
 
     if axis is not None and axis != 0:
         # transpose back to original dimensions
