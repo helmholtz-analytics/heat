@@ -2798,6 +2798,7 @@ def unique(a, return_inverse=False, axis=None):
     # inverse indices
     if return_inverse:
         # allocate local tensors
+        print("DEBUGGING: gres is distributed: ", gres.is_distributed())
         inverse_pos = torch.empty(inv_shape, dtype=torch.int64, device=local_data.device)
         unique_ranks = size if gres.is_distributed() else 1
         if unique_ranks > 1:
