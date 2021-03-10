@@ -139,7 +139,7 @@ class MPICommunication(Communication):
 
     def counts_displs_shape(self, shape, axis):
         """
-        Calculates the item counts, displacements and output shape for a variable sized all-to-all MPI-call (e.g.
+        Calculates the item counts, displacements and output shape for a variable-sized all-to-all MPI-call (e.g.
         MPI_Alltoallv). The passed shape is regularly chunk along the given axis and for all nodes.
 
         Parameters
