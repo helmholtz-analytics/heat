@@ -34,6 +34,7 @@
 
 ## Bug fixes
 - [#709](https://github.com/helmholtz-analytics/heat/pull/709) Set the encoding for README.md in setup.py explicitly.
+- [#734](https://github.com/helmholtz-analytics/heat/pull/734) Fix division by zero error in __local_op with out != None on empty local arrays.
 
 # v0.5.2
 
