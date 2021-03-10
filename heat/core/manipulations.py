@@ -2772,7 +2772,6 @@ def unique(a, return_inverse=False, axis=None):
     data_max_lbytes = torch.prod(torch.tensor(data_max_lshape)) * a.larray.element_size()
     if gres.nbytes <= data_max_lbytes:
         print("RUNNING SPARSE UNIQUE")
-        print("DEBUGGING: gres.lshape = ", gres.lshape)
         # gather local uniques
         gres.resplit_(None)
         # final round of torch.unique
@@ -2975,10 +2974,11 @@ def resplit(arr, axis=None):
         if arr.is_balanced():
             counts, displs, _ = arr.comm.counts_displs_shape(arr.shape, arr.split)
         else:
-            counts = arr.create_lshape_map()[arr.split]
+            counts = arr.create_lshape_map()[:, arr.split]
             displs = torch.cumsum(
                 torch.cat((torch.tensor([0], device=counts.device), counts[:-1])), dim=0
             )
+            counts, displs = tuple(counts.tolist()), tuple(displs.tolist())
         arr.comm.Allgatherv(arr.larray, (gathered, counts, displs), recv_axis=arr.split)
         new_arr = factories.array(gathered, is_split=axis, device=arr.device, dtype=arr.dtype)
         return new_arr
