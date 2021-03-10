@@ -2877,10 +2877,11 @@ class DNDarray:
             if self.is_balanced():
                 counts, displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
             else:
-                counts = self.create_lshape_map()[self.split]
+                counts = self.create_lshape_map()[:, self.split]
                 displs = torch.cumsum(
                     torch.cat((torch.tensor([0], device=counts.device), counts[:-1])), dim=0
                 )
+                counts, displs = tuple(counts.tolist()), tuple(displs.tolist())
             self.comm.Allgatherv(self.__array, (gathered, counts, displs), recv_axis=self.split)
             self.__array = gathered
             self.__split = axis
