@@ -5,6 +5,7 @@ import unittest
 from . import functional
 
 
+
 if sys.version_info.minor >= 7:
     from .data_parallel import *
 
@@ -12,13 +13,16 @@ if sys.version_info.minor >= 7:
 
     def __getattr__(name):
         torch_all = torch.nn.modules.__all__
-        if name in torch_all:
+        if name == "SyncBatchNorm":
+            return Heat_SyncBatchNorm
+        elif name in torch_all:
             return torch.nn.__getattribute__(name)
         else:
             try:
                 unittest.__getattribute__(name)
             except AttributeError:
                 raise AttributeError(f"module {name} not implemented in Torch or Heat")
+
 
 
 else:
@@ -32,7 +36,10 @@ else:
             self.data_parallel_all = data_parallel.__all__
 
         def __getattr__(self, name):
-            if name in self.torch_all:
+            if name == "SyncBatchNorm":
+                return Heat_SyncBatchNorm
+            elif name in self.torch_all:
+                #if name in self.torch_all:
                 return torch.nn.__getattribute__(name)
             elif name == "functional":
                 return functional
