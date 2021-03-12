@@ -430,9 +430,10 @@ class DNDarray:
 
             if not self.balanced:
                 populated_ranks = torch.nonzero(lshape_map[:, 0]).squeeze().tolist()
-                next_rank = populated_ranks.index(rank) + 1
-                prev_rank = populated_ranks.index(rank) - 1
-                last_rank = populated_ranks[-1]
+                if rank in populated_ranks:
+                    next_rank = populated_ranks.index(rank) + 1
+                    prev_rank = populated_ranks.index(rank) - 1
+                    last_rank = populated_ranks[-1]
             else:
                 next_rank = rank + 1
                 prev_rank = rank - 1
