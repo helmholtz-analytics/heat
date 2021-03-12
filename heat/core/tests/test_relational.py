@@ -20,15 +20,17 @@ class TestRelational(TestCase):
         cls.errorneous_type = (2, 2)
 
     def test_eq(self):
-        result = ht.uint8([[0, 1], [0, 0]])
+        result = ht.array([[False, True], [False, False]])
 
-        self.assertTrue(ht.equal(ht.eq(self.a_scalar, self.a_scalar), ht.uint8([1])))
+        self.assertTrue(ht.equal(ht.eq(self.a_scalar, self.a_scalar), ht.array([True])))
         self.assertTrue(ht.equal(ht.eq(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.eq(self.a_scalar, self.a_tensor), result))
         self.assertTrue(ht.equal(ht.eq(self.a_tensor, self.another_tensor), result))
         self.assertTrue(ht.equal(ht.eq(self.a_tensor, self.a_vector), result))
         self.assertTrue(ht.equal(ht.eq(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.eq(self.a_split_tensor, self.a_tensor), result))
+
+        self.assertEqual(ht.eq(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
         with self.assertRaises(ValueError):
             ht.eq(self.a_tensor, self.another_vector)
@@ -44,16 +46,18 @@ class TestRelational(TestCase):
         self.assertFalse(ht.equal(self.another_tensor, self.a_scalar))
 
     def test_ge(self):
-        result = ht.uint8([[0, 1], [1, 1]])
-        commutated_result = ht.uint8([[1, 1], [0, 0]])
+        result = ht.uint8([[False, True], [True, True]])
+        commutated_result = ht.array([[True, True], [False, False]])
 
-        self.assertTrue(ht.equal(ht.ge(self.a_scalar, self.a_scalar), ht.uint8([1])))
+        self.assertTrue(ht.equal(ht.ge(self.a_scalar, self.a_scalar), ht.array([True])))
         self.assertTrue(ht.equal(ht.ge(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.ge(self.a_scalar, self.a_tensor), commutated_result))
         self.assertTrue(ht.equal(ht.ge(self.a_tensor, self.another_tensor), result))
         self.assertTrue(ht.equal(ht.ge(self.a_tensor, self.a_vector), result))
         self.assertTrue(ht.equal(ht.ge(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.ge(self.a_split_tensor, self.a_tensor), commutated_result))
+
+        self.assertEqual(ht.ge(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
         with self.assertRaises(ValueError):
             ht.ge(self.a_tensor, self.another_vector)
@@ -63,16 +67,18 @@ class TestRelational(TestCase):
             ht.ge("self.a_tensor", "s")
 
     def test_gt(self):
-        result = ht.uint8([[0, 0], [1, 1]])
-        commutated_result = ht.uint8([[1, 0], [0, 0]])
+        result = ht.array([[False, False], [True, True]])
+        commutated_result = ht.array([[True, False], [False, False]])
 
-        self.assertTrue(ht.equal(ht.gt(self.a_scalar, self.a_scalar), ht.uint8([0])))
+        self.assertTrue(ht.equal(ht.gt(self.a_scalar, self.a_scalar), ht.array([False])))
         self.assertTrue(ht.equal(ht.gt(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.gt(self.a_scalar, self.a_tensor), commutated_result))
         self.assertTrue(ht.equal(ht.gt(self.a_tensor, self.another_tensor), result))
         self.assertTrue(ht.equal(ht.gt(self.a_tensor, self.a_vector), result))
         self.assertTrue(ht.equal(ht.gt(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.gt(self.a_split_tensor, self.a_tensor), commutated_result))
+
+        self.assertEqual(ht.gt(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
         with self.assertRaises(ValueError):
             ht.gt(self.a_tensor, self.another_vector)
@@ -82,16 +88,18 @@ class TestRelational(TestCase):
             ht.gt("self.a_tensor", "s")
 
     def test_le(self):
-        result = ht.uint8([[1, 1], [0, 0]])
-        commutated_result = ht.uint8([[0, 1], [1, 1]])
+        result = ht.array([[True, True], [False, False]])
+        commutated_result = ht.array([[False, True], [True, True]])
 
-        self.assertTrue(ht.equal(ht.le(self.a_scalar, self.a_scalar), ht.uint8([1])))
+        self.assertTrue(ht.equal(ht.le(self.a_scalar, self.a_scalar), ht.array([True])))
         self.assertTrue(ht.equal(ht.le(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.le(self.a_scalar, self.a_tensor), commutated_result))
         self.assertTrue(ht.equal(ht.le(self.a_tensor, self.another_tensor), result))
         self.assertTrue(ht.equal(ht.le(self.a_tensor, self.a_vector), result))
         self.assertTrue(ht.equal(ht.le(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.le(self.a_split_tensor, self.a_tensor), commutated_result))
+
+        self.assertEqual(ht.le(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
         with self.assertRaises(ValueError):
             ht.le(self.a_tensor, self.another_vector)
@@ -101,16 +109,18 @@ class TestRelational(TestCase):
             ht.le("self.a_tensor", "s")
 
     def test_lt(self):
-        result = ht.uint8([[1, 0], [0, 0]])
-        commutated_result = ht.uint8([[0, 0], [1, 1]])
+        result = ht.array([[True, False], [False, False]])
+        commutated_result = ht.array([[False, False], [True, True]])
 
-        self.assertTrue(ht.equal(ht.lt(self.a_scalar, self.a_scalar), ht.uint8([0])))
+        self.assertTrue(ht.equal(ht.lt(self.a_scalar, self.a_scalar), ht.array([False])))
         self.assertTrue(ht.equal(ht.lt(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.lt(self.a_scalar, self.a_tensor), commutated_result))
         self.assertTrue(ht.equal(ht.lt(self.a_tensor, self.another_tensor), result))
         self.assertTrue(ht.equal(ht.lt(self.a_tensor, self.a_vector), result))
         self.assertTrue(ht.equal(ht.lt(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.lt(self.a_split_tensor, self.a_tensor), commutated_result))
+
+        self.assertEqual(ht.lt(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
         with self.assertRaises(ValueError):
             ht.lt(self.a_tensor, self.another_vector)
@@ -120,9 +130,9 @@ class TestRelational(TestCase):
             ht.lt("self.a_tensor", "s")
 
     def test_ne(self):
-        result = ht.uint8([[1, 0], [1, 1]])
+        result = ht.array([[True, False], [True, True]])
 
-        # self.assertTrue(ht.equal(ht.ne(self.a_scalar, self.a_scalar), ht.uint8([0])))
+        # self.assertTrue(ht.equal(ht.ne(self.a_scalar, self.a_scalar), ht.array([False])))
         # self.assertTrue(ht.equal(ht.ne(self.a_tensor, self.a_scalar), result))
         # self.assertTrue(ht.equal(ht.ne(self.a_scalar, self.a_tensor), result))
         # self.assertTrue(ht.equal(ht.ne(self.a_tensor, self.another_tensor), result))
@@ -130,6 +140,8 @@ class TestRelational(TestCase):
         # self.assertTrue(ht.equal(ht.ne(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.ne(self.a_split_tensor, self.a_tensor), result))
         self.assertTrue(ht.equal(self.a_split_tensor != self.a_tensor, result))
+
+        self.assertEqual(ht.ne(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
         with self.assertRaises(ValueError):
             ht.ne(self.a_tensor, self.another_vector)
