@@ -33,6 +33,9 @@
 - [#711](https://github.com/helmholtz-analytics/heat/pull/711) `isfinite()`, `isinf()`, `isnan()`
 - [#743](https://github.com/helmholtz-analytics/heat/pull/743) `isneginf()`, `isposinf()`
 
+### Types
+- [#738](https://github.com/helmholtz-analytics/heat/pull/738) `iscomplex()`, `isreal()`
+
 
 ## Bug fixes
 - [#709](https://github.com/helmholtz-analytics/heat/pull/709) Set the encoding for README.md in setup.py explicitly.
