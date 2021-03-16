@@ -788,7 +788,7 @@ class DASO:
 
     def zero_grad(self) -> None:
         """
-        Reset gradients of local optimizer's params.
+        Reset gradients of local optimizer's parameters.
         """
         # reset view onto params in order to reset all gradients
         self.local_optimizer.param_groups[0]["params"] = self.params_ref[:]
