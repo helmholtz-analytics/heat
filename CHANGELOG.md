@@ -1,6 +1,7 @@
 # Pending additions
 - [#717](https://github.com/helmholtz-analytics/heat/pull/717) Switch CPU CI over to Jenkins and pre-commit to GitHub action.
 - [#720](https://github.com/helmholtz-analytics/heat/pull/720) Ignore test files in codecov report and allow drops in code coverage.
+- [#725](https://github.com/helmholtz-analytics/heat/pull/725) Add tests for expected warnings.
 - [#736](https://github.com/helmholtz-analytics/heat/pull/736) Reference Jenkins CI tests and set development status to Beta.
 
 ## New features
