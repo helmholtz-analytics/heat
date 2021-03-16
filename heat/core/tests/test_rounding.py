@@ -278,7 +278,7 @@ class TestRounding(TestCase):
         with self.assertRaises(TypeError):
             ht.round(float32_tensor, 1, 1)
         with self.assertRaises(TypeError):
-            ht.round(float32_tensor, dtype=np.int)
+            ht.round(float32_tensor, dtype=np.int_)
 
         # with split tensors
 

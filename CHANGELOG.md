@@ -1,6 +1,8 @@
 # Pending additions
 - [#717](https://github.com/helmholtz-analytics/heat/pull/717) Switch CPU CI over to Jenkins and pre-commit to GitHub action.
 - [#720](https://github.com/helmholtz-analytics/heat/pull/720) Ignore test files in codecov report and allow drops in code coverage.
+- [#725](https://github.com/helmholtz-analytics/heat/pull/725) Add tests for expected warnings.
+- [#736](https://github.com/helmholtz-analytics/heat/pull/736) Reference Jenkins CI tests and set development status to Beta.
 
 ## New features
 - [#660](https://github.com/helmholtz-analytics/heat/pull/660) NN module for data parallel neural networks
@@ -31,11 +33,16 @@
 - [#660](https://github.com/helmholtz-analytics/heat/pull/660) New feature: Data loader for H5 datasets which shuffles data in the background during training (`utils.data.partial_dataset.PartialH5Dataset`)
 ### Logical
 - [#711](https://github.com/helmholtz-analytics/heat/pull/711) `isfinite()`, `isinf()`, `isnan()`
+- [#743](https://github.com/helmholtz-analytics/heat/pull/743) `isneginf()`, `isposinf()`
+
+### Types
+- [#738](https://github.com/helmholtz-analytics/heat/pull/738) `iscomplex()`, `isreal()`
 
 
 ## Bug fixes
 - [#709](https://github.com/helmholtz-analytics/heat/pull/709) Set the encoding for README.md in setup.py explicitly.
 - [#716](https://github.com/helmholtz-analytics/heat/pull/716) Bugfix: Finding clusters by spectral gap fails when multiple diffs identical
+- [#734](https://github.com/helmholtz-analytics/heat/pull/734) Fix division by zero error in `__local_op` with out != None on empty local arrays.
 - [#735](https://github.com/helmholtz-analytics/heat/pull/735) Set return type to bool in relational functions.
 
 ## Enhancements
