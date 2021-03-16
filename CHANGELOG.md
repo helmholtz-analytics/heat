@@ -37,6 +37,7 @@
 - [#716](https://github.com/helmholtz-analytics/heat/pull/716) Bugfix: Finding clusters by spectral gap fails when multiple diffs identical
 - [#734](https://github.com/helmholtz-analytics/heat/pull/734) Fix division by zero error in `__local_op` with out != None on empty local arrays.
 - [#735](https://github.com/helmholtz-analytics/heat/pull/735) Set return type to bool in relational functions.
+- [#744](https://github.com/helmholtz-analytics/heat/pull/735) Fix split semantics for reduction operations
 
 # v0.5.2
 
