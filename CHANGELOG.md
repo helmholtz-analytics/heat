@@ -32,6 +32,10 @@
 - [#660](https://github.com/helmholtz-analytics/heat/pull/660) New feature: Data loader for H5 datasets which shuffles data in the background during training (`utils.data.partial_dataset.PartialH5Dataset`)
 ### Logical
 - [#711](https://github.com/helmholtz-analytics/heat/pull/711) `isfinite()`, `isinf()`, `isnan()`
+- [#743](https://github.com/helmholtz-analytics/heat/pull/743) `isneginf()`, `isposinf()`
+
+### Types
+- [#738](https://github.com/helmholtz-analytics/heat/pull/738) `iscomplex()`, `isreal()`
 
 
 ## Bug fixes
