@@ -1,13 +1,15 @@
 import copy
 import io
 import torch
+from .communication import MPI_WORLD
 
-__all__ = ["get_printoptions", "set_printoptions"]
+__all__ = ["get_printoptions", "global_printing", "local_printing", "print0", "set_printoptions"]
 
 
 # set the default printing width to a 120
 _DEFAULT_LINEWIDTH = 120
 torch.set_printoptions(profile="default", linewidth=_DEFAULT_LINEWIDTH)
+LOCAL_PRINT = False
 
 
 def get_printoptions():
@@ -15,6 +17,50 @@ def get_printoptions():
     Returns the currently configured printing options.
     """
     return copy.copy(torch._tensor_str.PRINT_OPTS.__dict__)
+
+
+def local_printing():
+    """
+    The builtin `print` function will now print the local PyTorch Tensor values for
+    `DNDarrays` given as arguments.
+
+    Returns
+    -------
+    None
+    """
+    global LOCAL_PRINT
+    LOCAL_PRINT = True
+
+
+def global_printing():
+    """
+    For `DNDarray`s, the builtin `print` function will gather all of the data, format it
+    then print it on ONLY rank 0.
+
+    Returns
+    -------
+    None
+    """
+    global LOCAL_PRINT
+    LOCAL_PRINT = False
+
+
+def print0(*args, **kwargs):
+    """
+    Wraps the builtin `print` function in such a way that it will only run the command on
+    rank 0. If this is called with DNDarrays, it will cause errors.
+
+    Parameters
+    ----------
+    args
+    kwargs
+
+    Returns
+    -------
+
+    """
+    if MPI_WORLD.rank == 0:
+        print(*args, **kwargs)
 
 
 def set_printoptions(
@@ -64,6 +110,9 @@ def __str__(dndarray):
     dndarray: DNDarray
         The array for which to obtain the corresponding string
     """
+    # print('h', LOCAL_PRINT)
+    if LOCAL_PRINT:
+        return torch._tensor_str._tensor_str(dndarray.larray, __INDENT + 1)
     tensor_string = _tensor_str(dndarray, __INDENT + 1)
     if dndarray.comm.rank != 0:
         return ""
