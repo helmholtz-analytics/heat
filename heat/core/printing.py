@@ -2,6 +2,7 @@ import copy
 import io
 import torch
 from .communication import MPI_WORLD
+from . import dndarray
 
 __all__ = ["get_printoptions", "global_printing", "local_printing", "print0", "set_printoptions"]
 
@@ -48,7 +49,7 @@ def global_printing():
 def print0(*args, **kwargs):
     """
     Wraps the builtin `print` function in such a way that it will only run the command on
-    rank 0. If this is called with DNDarrays, it will cause errors.
+    rank 0. If this is called with DNDarrays and local printing, only the .
 
     Parameters
     ----------
@@ -59,6 +60,12 @@ def print0(*args, **kwargs):
     -------
 
     """
+    if not LOCAL_PRINT:
+        args = list(args)
+        for i in range(len(args)):
+            if isinstance(args[i], dndarray.DNDarray):
+                args[i] = __str__(args[i])
+        args = tuple(args)
     if MPI_WORLD.rank == 0:
         print(*args, **kwargs)
 
