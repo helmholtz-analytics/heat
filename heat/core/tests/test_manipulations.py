@@ -771,7 +771,8 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = distributed DNDarray
-        result = ht.dsplit(data_ht, ht.array([0, 1], split=0))
+        with self.assertWarns(Warning):
+            result = ht.dsplit(data_ht, ht.array([0, 1], split=0))
         comparison = np.dsplit(data_np, np.array([0, 1]))
 
         self.assertTrue(len(result) == len(comparison))
@@ -1053,7 +1054,8 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = distributed DNDarray
-        result = ht.hsplit(data_ht, ht.array([0, 1], split=0))
+        with self.assertWarns(Warning):
+            result = ht.hsplit(data_ht, ht.array([0, 1], split=0))
         comparison = np.hsplit(data_np, np.array([0, 1]))
 
         self.assertTrue(len(result) == len(comparison))
@@ -1106,7 +1108,8 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = distributed DNDarray
-        result = ht.hsplit(data_ht, ht.array([0, 1], split=0))
+        with self.assertWarns(Warning):
+            result = ht.hsplit(data_ht, ht.array([0, 1], split=0))
         comparison = np.hsplit(data_np, np.array([0, 1]))
 
         self.assertTrue(len(result) == len(comparison))
@@ -1678,7 +1681,8 @@ class TestManipulations(TestCase):
 
         # repeats = distributed ht.DNDarray
         repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)
-        result = ht.repeat(a, repeats)
+        with self.assertWarns(Warning):
+            result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats.numpy())
 
         self.assertIsInstance(result, ht.DNDarray)
@@ -1691,7 +1695,8 @@ class TestManipulations(TestCase):
         # Broadcast
         repeats = ht.array([3], split=0)
         repeats_np = repeats.numpy()
-        result = ht.repeat(a, repeats)
+        with self.assertWarns(Warning):
+            result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats_np)
 
         self.assertIsInstance(result, ht.DNDarray)
@@ -1800,7 +1805,8 @@ class TestManipulations(TestCase):
 
         # repeats = distributed ht.DNDarray
         repeats = ht.array([1, 2, 0], split=0)
-        result = ht.repeat(a, repeats, 2)
+        with self.assertWarns(Warning):
+            result = ht.repeat(a, repeats, 2)
         comparison = np.repeat(a_np, repeats.numpy(), 2)
 
         self.assertIsInstance(result, ht.DNDarray)
@@ -1820,7 +1826,8 @@ class TestManipulations(TestCase):
 
         # repeats = scalar
         repeats = 2
-        result = ht.repeat(a, repeats)
+        with self.assertWarns(Warning):
+            result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats)
 
         self.assertIsInstance(result, ht.DNDarray)
@@ -1829,7 +1836,8 @@ class TestManipulations(TestCase):
 
         # repeats = list
         repeats = [1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3]
-        result = ht.repeat(a, repeats)
+        with self.assertWarns(Warning):
+            result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats)
 
         self.assertIsInstance(result, ht.DNDarray)
@@ -1839,7 +1847,8 @@ class TestManipulations(TestCase):
 
         # repeats = tuple
         repeats = (1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3)
-        result = ht.repeat(a, repeats)
+        with self.assertWarns(Warning):
+            result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats)
 
         self.assertIsInstance(result, ht.DNDarray)
@@ -1849,7 +1858,8 @@ class TestManipulations(TestCase):
 
         # repeats = np.ndarray
         repeats = np.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
-        result = ht.repeat(a, repeats)
+        with self.assertWarns(Warning):
+            result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats)
 
         self.assertIsInstance(result, ht.DNDarray)
@@ -1860,7 +1870,8 @@ class TestManipulations(TestCase):
         # repeats = undistributed ht.DNDarray
         repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3])
         repeats_np = repeats.numpy()
-        result = ht.repeat(a, repeats)
+        with self.assertWarns(Warning):
+            result = ht.repeat(a, repeats)
         comparison = np.repeat(a_np, repeats_np)
 
         self.assertIsInstance(result, ht.DNDarray)
@@ -1872,7 +1883,8 @@ class TestManipulations(TestCase):
 
         # repeats = distributed ht.DNDarray
         repeats = ht.array([1, 2, 0, 0, 1, 3, 2, 5, 1, 0, 2, 3], split=0)
-        result = ht.repeat(a, repeats)
+        with self.assertWarns(Warning):
+            result = ht.repeat(a, repeats)
 
         comparison = np.repeat(a_np, repeats.numpy())
 
@@ -1953,7 +1965,8 @@ class TestManipulations(TestCase):
         # repeats = undistributed ht.DNDarray (axis == a.split)
         repeats = ht.array([1, 2])
         repeats_np = repeats.numpy()
-        result = ht.repeat(a, repeats, 1)
+        with self.assertWarns(Warning):
+            result = ht.repeat(a, repeats, 1)
         comparison = np.repeat(a_np, repeats_np, 1)
 
         self.assertIsInstance(result, ht.DNDarray)
@@ -1965,7 +1978,8 @@ class TestManipulations(TestCase):
 
         # repeats = distributed ht.DNDarray (axis != a.split)
         repeats = ht.array([1, 2, 0], split=0)
-        result = ht.repeat(a, repeats, 2)
+        with self.assertWarns(Warning):
+            result = ht.repeat(a, repeats, 2)
         comparison = np.repeat(a_np, repeats.numpy(), 2)
 
         self.assertIsInstance(result, ht.DNDarray)
@@ -2381,7 +2395,8 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = distributed DNDarray
-        result = ht.split(data_ht, ht.array([0, 1], split=0))
+        with self.assertWarns(Warning):
+            result = ht.split(data_ht, ht.array([0, 1], split=0))
         comparison = np.split(data_np, np.array([0, 1]))
 
         self.assertTrue(len(result) == len(comparison))
@@ -2492,7 +2507,8 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = distributed DNDarray
-        result = ht.split(data_ht, ht.array([1, 3, 5], split=0))
+        with self.assertWarns(Warning):
+            result = ht.split(data_ht, ht.array([1, 3, 5], split=0))
         comparison = np.split(data_np, np.array([1, 3, 5]))
 
         self.assertTrue(len(result) == len(comparison))
@@ -2536,7 +2552,8 @@ class TestManipulations(TestCase):
 
         # indices_or_sections = distributed DNDarray
         indices = ht.array([3, 4, 6], split=0)
-        result = ht.split(data_ht, indices, 2)
+        with self.assertWarns(Warning):
+            result = ht.split(data_ht, indices, 2)
         comparison = np.split(data_np, np.array([3, 4, 6]), 2)
 
         self.assertTrue(len(result) == len(comparison))
@@ -3024,7 +3041,8 @@ class TestManipulations(TestCase):
             self.assert_array_equal(result[i], comparison[i])
 
         # indices_or_sections = distributed DNDarray
-        result = ht.vsplit(data_ht, ht.array([0, 1], split=0))
+        with self.assertWarns(Warning):
+            result = ht.vsplit(data_ht, ht.array([0, 1], split=0))
         comparison = np.vsplit(data_np, np.array([0, 1]))
 
         self.assertTrue(len(result) == len(comparison))

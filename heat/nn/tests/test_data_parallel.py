@@ -152,9 +152,9 @@ class TestDataParallel(unittest.TestCase):
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
                     self.assertTrue(torch.allclose(hld_list[0], hld_list[i], rtol=lim, atol=lim))
-
-        ht_model = ht.nn.DataParallel(
-            model, ht.MPI_WORLD, [dp_optimizer, dp_optimizer], blocking_parameter_updates=False
-        )
+        with self.assertWarns(Warning):
+            ht_model = ht.nn.DataParallel(
+                model, ht.MPI_WORLD, [dp_optimizer, dp_optimizer], blocking_parameter_updates=False
+            )
         # NOTE: this will throw a warning: this is expected
         self.assertTrue(ht_model.blocking_parameter_updates)

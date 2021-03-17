@@ -113,6 +113,72 @@ class TestTypes(TestCase):
 
         self.assertEqual(ht.complex128.char(), "c16")
 
+    def test_iscomplex(self):
+        a = ht.array([1, 1.2, 1 + 1j, 1 + 0j])
+        s = ht.array([False, False, True, False])
+        r = ht.iscomplex(a)
+        self.assertEqual(r.shape, s.shape)
+        self.assertEqual(r.dtype, s.dtype)
+        self.assertEqual(r.device, s.device)
+        self.assertTrue(ht.equal(r, s))
+
+        a = ht.array([1, 1.2, True], split=0)
+        s = ht.array([False, False, False], split=0)
+        r = ht.iscomplex(a)
+        self.assertEqual(r.shape, s.shape)
+        self.assertEqual(r.dtype, s.dtype)
+        self.assertEqual(r.device, s.device)
+        self.assertTrue(ht.equal(r, s))
+
+        a = ht.ones((6, 6), dtype=ht.bool, split=0)
+        s = ht.zeros((6, 6), dtype=ht.bool, split=0)
+        r = ht.iscomplex(a)
+        self.assertEqual(r.shape, s.shape)
+        self.assertEqual(r.dtype, s.dtype)
+        self.assertEqual(r.device, s.device)
+        self.assertTrue(ht.equal(r, s))
+
+        a = ht.full((5, 5), 1 + 1j, dtype=ht.int, split=1)
+        s = ht.ones((5, 5), dtype=ht.bool, split=1)
+        r = ht.iscomplex(a)
+        self.assertEqual(r.shape, s.shape)
+        self.assertEqual(r.dtype, s.dtype)
+        self.assertEqual(r.device, s.device)
+        self.assertTrue(ht.equal(r, s))
+
+    def test_isreal(self):
+        a = ht.array([1, 1.2, 1 + 1j, 1 + 0j])
+        s = ht.array([True, True, False, True])
+        r = ht.isreal(a)
+        self.assertEqual(r.shape, s.shape)
+        self.assertEqual(r.dtype, s.dtype)
+        self.assertEqual(r.device, s.device)
+        self.assertTrue(ht.equal(r, s))
+
+        a = ht.array([1, 1.2, True], split=0)
+        s = ht.array([True, True, True], split=0)
+        r = ht.isreal(a)
+        self.assertEqual(r.shape, s.shape)
+        self.assertEqual(r.dtype, s.dtype)
+        self.assertEqual(r.device, s.device)
+        self.assertTrue(ht.equal(r, s))
+
+        a = ht.ones((6, 6), dtype=ht.bool, split=0)
+        s = ht.ones((6, 6), dtype=ht.bool, split=0)
+        r = ht.isreal(a)
+        self.assertEqual(r.shape, s.shape)
+        self.assertEqual(r.dtype, s.dtype)
+        self.assertEqual(r.device, s.device)
+        self.assertTrue(ht.equal(r, s))
+
+        a = ht.full((5, 5), 1 + 1j, dtype=ht.int, split=1)
+        s = ht.zeros((5, 5), dtype=ht.bool, split=1)
+        r = ht.isreal(a)
+        self.assertEqual(r.shape, s.shape)
+        self.assertEqual(r.dtype, s.dtype)
+        self.assertEqual(r.device, s.device)
+        self.assertTrue(ht.equal(r, s))
+
 
 class TestTypeConversion(TestCase):
     def test_can_cast(self):
