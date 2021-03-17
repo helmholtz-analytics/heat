@@ -38,6 +38,7 @@
 # v0.5.2
 
 - [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
+- [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
 
 # v0.5.1
 

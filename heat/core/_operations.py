@@ -416,11 +416,14 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
             if len(lshape_losedim) > 0:
                 partial = partial.reshape(lshape_losedim)
     # perform a reduction operation in case the tensor is distributed across the reduction axis
-    if x.split is not None and (axis is None or (x.split in axis)):
-        split = None
-        balanced = True
-        if x.comm.is_distributed():
-            x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
+    if x.split is not None:
+        if axis is None or (x.split in axis):
+            split = None
+            if x.comm.is_distributed():
+                x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
+        elif axis is not None:
+            down_dims = len(tuple(dim for dim in axis if dim < x.split))
+            split -= down_dims
 
     ARG_OPS = [statistics.MPI_ARGMAX, statistics.MPI_ARGMIN]
     arg_op = False
