@@ -1,3 +1,4 @@
+import builtins
 import copy
 import io
 import torch
@@ -68,6 +69,9 @@ def print0(*args, **kwargs):
         args = tuple(args)
     if MPI_WORLD.rank == 0:
         print(*args, **kwargs)
+
+
+builtins.print0 = print0
 
 
 def set_printoptions(
