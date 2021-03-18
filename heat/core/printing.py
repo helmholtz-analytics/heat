@@ -29,6 +29,10 @@ def local_printing():
     Returns
     -------
     None
+
+    Examples
+    --------
+
     """
     global LOCAL_PRINT
     LOCAL_PRINT = True
@@ -42,6 +46,10 @@ def global_printing():
     Returns
     -------
     None
+
+    Examples
+    --------
+
     """
     global LOCAL_PRINT
     LOCAL_PRINT = False
