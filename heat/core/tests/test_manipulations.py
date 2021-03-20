@@ -2907,76 +2907,106 @@ class TestManipulations(TestCase):
     def test_unique(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
-        torch_array = torch.arange(size, dtype=torch.int32, device=self.device.torch_device).expand(
-            size, size
+        # test "sparse" unique
+        data = ht.array(
+            torch.zeros(10, 4, dtype=torch.int32, device=self.device.torch_device), is_split=0
         )
-        split_zero = ht.array(torch_array, split=0)
+        _, _, local_slice = data.comm.chunk(data.gshape, data.split)
+        random_ranks = torch.randint(size, size=(size // 2 + 1,)).tolist()
+        if rank in random_ranks:
+            random_row = torch.randint(10, size=(10,))
+            random_col = torch.randint(4, size=(10,))
+            data.larray[random_row, random_col] = 1
+        t_comp = ht.resplit(data, axis=None).larray
+        # axis is None
+        unique, inverse = ht.unique(data, return_inverse=True)
+        unique.resplit_(None)
+        t_unique, t_inverse = torch.unique(t_comp, sorted=True, return_inverse=True)
+        self.assertTrue((unique.larray == t_unique).all())
+        self.assertTrue((inverse.larray == t_inverse[local_slice]).all())
+        # axis not None
+        axis = 0
+        unique0, inverse0 = ht.unique(data, return_inverse=True, axis=axis)
+        unique0.resplit_(None)
+        t_unique0, t_inverse0 = torch.unique(t_comp, sorted=True, return_inverse=True, dim=axis)
+        # print("DEBUGGING: unique0, inverse0 = ", inverse0.larray)
+        # print("DEBUGGING: t_unique0, t_inverse0 = ", t_unique0, t_inverse0, t_inverse0.shape)
+        self.assertTrue((unique0.larray == t_unique0).all())
+        self.assertTrue((inverse0.larray == t_inverse0[local_slice[0]]).all())
 
-        exp_axis_none = ht.array([rank], dtype=ht.int32)
-        res = split_zero.unique(sorted=True)
-        self.assertTrue((res.larray == exp_axis_none.larray).all())
+        # test "sparse" unique, distributed, axis
 
-        exp_axis_zero = ht.arange(size, dtype=ht.int32).expand_dims(0)
-        res = ht.unique(split_zero, sorted=True, axis=0)
-        self.assertTrue((res.larray == exp_axis_zero.larray).all())
+        # torch_array = torch.arange(size, dtype=torch.int32, device=self.device.torch_device).expand(
+        #     size, size
+        # )
+        # split_zero = ht.array(torch_array, split=0)
 
-        exp_axis_one = ht.array([rank], dtype=ht.int32).expand_dims(0)
-        split_zero_transposed = ht.array(torch_array.transpose(0, 1), split=0)
-        res = ht.unique(split_zero_transposed, sorted=False, axis=1)
-        self.assertTrue((res.larray == exp_axis_one.larray).all())
+        # exp_axis_none = ht.array([rank], dtype=ht.int32)
+        # res = split_zero.unique()[rank]
+        # print("res, exp_axis_none = ", res.larray, exp_axis_none.larray)
+        # self.assertTrue((res.larray == exp_axis_none.larray).all())
 
-        split_one = ht.array(torch_array, dtype=ht.int32, split=1)
+        # exp_axis_zero = ht.arange(size, dtype=ht.int32).expand_dims(0)
+        # res = ht.unique(split_zero, axis=0)
+        # self.assertTrue((res.larray == exp_axis_zero.larray).all())
 
-        exp_axis_none = ht.arange(size, dtype=ht.int32)
-        res = ht.unique(split_one, sorted=True)
-        self.assertTrue((res.larray == exp_axis_none.larray).all())
+        # exp_axis_one = ht.array([rank], dtype=ht.int32).expand_dims(0)
+        # split_zero_transposed = ht.array(torch_array.transpose(0, 1), split=0)
+        # res = ht.unique(split_zero_transposed, sorted=False, axis=1)
+        # self.assertTrue((res.larray == exp_axis_one.larray).all())
 
-        exp_axis_zero = ht.array([rank], dtype=ht.int32).expand_dims(0)
-        res = ht.unique(split_one, sorted=False, axis=0)
-        self.assertTrue((res.larray == exp_axis_zero.larray).all())
+        # split_one = ht.array(torch_array, dtype=ht.int32, split=1)
 
-        exp_axis_one = ht.array([rank] * size, dtype=ht.int32).expand_dims(1)
-        res = ht.unique(split_one, sorted=True, axis=1)
-        self.assertTrue((res.larray == exp_axis_one.larray).all())
+        # exp_axis_none = ht.arange(size, dtype=ht.int32)
+        # res = ht.unique(split_one, sorted=True)
+        # self.assertTrue((res.larray == exp_axis_none.larray).all())
 
-        torch_array = torch.tensor(
-            [[1, 2], [2, 3], [1, 2], [2, 3], [1, 2]],
-            dtype=torch.int32,
-            device=self.device.torch_device,
-        )
-        data = ht.array(torch_array, split=0)
+        # exp_axis_zero = ht.array([rank], dtype=ht.int32).expand_dims(0)
+        # res = ht.unique(split_one, sorted=False, axis=0)
+        # self.assertTrue((res.larray == exp_axis_zero.larray).all())
 
-        res, inv = ht.unique(data, return_inverse=True, axis=0)
-        _, exp_inv = torch_array.unique(dim=0, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+        # exp_axis_one = ht.array([rank] * size, dtype=ht.int32).expand_dims(1)
+        # res = ht.unique(split_one, sorted=True, axis=1)
+        # self.assertTrue((res.larray == exp_axis_one.larray).all())
 
-        res, inv = ht.unique(data, return_inverse=True, axis=1)
-        _, exp_inv = torch_array.unique(dim=1, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+        # torch_array = torch.tensor(
+        #     [[1, 2], [2, 3], [1, 2], [2, 3], [1, 2]],
+        #     dtype=torch.int32,
+        #     device=self.device.torch_device,
+        # )
+        # data = ht.array(torch_array, split=0)
 
-        torch_array = torch.tensor(
-            [[1, 1, 2], [1, 2, 2], [2, 1, 2], [1, 3, 2], [0, 1, 2]],
-            dtype=torch.int32,
-            device=self.device.torch_device,
-        )
-        exp_res, exp_inv = torch_array.unique(return_inverse=True, sorted=True)
+        # res, inv = ht.unique(data, return_inverse=True, axis=0)
+        # _, exp_inv = torch_array.unique(dim=0, return_inverse=True, sorted=True)
+        # self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
 
-        data_split_none = ht.array(torch_array)
-        res = ht.unique(data_split_none, sorted=True)
-        self.assertIsInstance(res, ht.DNDarray)
-        self.assertEqual(res.split, None)
-        self.assertEqual(res.dtype, data_split_none.dtype)
-        self.assertEqual(res.device, data_split_none.device)
-        res, inv = ht.unique(data_split_none, return_inverse=True, sorted=True)
-        self.assertIsInstance(inv, ht.DNDarray)
-        self.assertEqual(inv.split, None)
-        self.assertEqual(inv.dtype, data_split_none.dtype)
-        self.assertEqual(inv.device, data_split_none.device)
-        self.assertTrue(torch.equal(inv.larray, exp_inv.int()))
+        # res, inv = ht.unique(data, return_inverse=True, axis=1)
+        # _, exp_inv = torch_array.unique(dim=1, return_inverse=True, sorted=True)
+        # self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
 
-        data_split_zero = ht.array(torch_array, split=0)
-        res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+        # torch_array = torch.tensor(
+        #     [[1, 1, 2], [1, 2, 2], [2, 1, 2], [1, 3, 2], [0, 1, 2]],
+        #     dtype=torch.int32,
+        #     device=self.device.torch_device,
+        # )
+        # exp_res, exp_inv = torch_array.unique(return_inverse=True, sorted=True)
+
+        # data_split_none = ht.array(torch_array)
+        # res = ht.unique(data_split_none, sorted=True)
+        # self.assertIsInstance(res, ht.DNDarray)
+        # self.assertEqual(res.split, None)
+        # self.assertEqual(res.dtype, data_split_none.dtype)
+        # self.assertEqual(res.device, data_split_none.device)
+        # res, inv = ht.unique(data_split_none, return_inverse=True, sorted=True)
+        # self.assertIsInstance(inv, ht.DNDarray)
+        # self.assertEqual(inv.split, None)
+        # self.assertEqual(inv.dtype, data_split_none.dtype)
+        # self.assertEqual(inv.device, data_split_none.device)
+        # self.assertTrue(torch.equal(inv.larray, exp_inv.int()))
+
+        # data_split_zero = ht.array(torch_array, split=0)
+        # res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
+        # self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
 
     def test_vsplit(self):
         # for further testing, see test_split
