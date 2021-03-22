@@ -1919,13 +1919,11 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
 
     # Separate the sorted tensor into size + 1 equal length partitions
     partitions = [x * length // (size + 1) for x in range(1, size + 1)]
-    print("DEBUGGING: partitions = ", partitions)
     local_pivots = (
         local_sorted[partitions]
         if counts[rank]
         else torch.empty((0,) + local_sorted.size()[1:], dtype=local_sorted.dtype)
     )
-    print("DEBUGGING: local_pivots = ", local_pivots)
 
     # Only processes with elements should share their pivots
     gather_counts = [int(x > 0) * size for x in counts]
@@ -1945,20 +1943,16 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
 
     # root process creates new pivots and shares them with other processes
     if rank == 0:
-        print("DEBUGGING: pivot_buffer = ", pivot_buffer)
         if sort_op is torch.sort:
             sorted_pivots, _ = sort_op(pivot_buffer, dim=0, descending=descending)
         else:
             sorted_pivots = sort_op(pivot_buffer, dim=0, **kwargs)[0]
-        print("DEBUGGING: sorted_pivots = ", sorted_pivots)
         length = sorted_pivots.size()[0]
         global_partitions = [x * length // size for x in range(1, size)]
         global_pivots = sorted_pivots[global_partitions]
 
     a.comm.Bcast(global_pivots, root=0)
-    print("DEBUGGING: global_pivots = ", global_pivots)
-    print("DEBUGGING: local_sorted = ", local_sorted)
-    # special case: unique with axis not None
+    # special case: unique along axis
     if unique_along_axis:
         # find position of global pivots in local sorted uniques
         local_sorted, local_inv = torch.cat((local_sorted, global_pivots), dim=0).unique(
@@ -1976,11 +1970,9 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
         )
         recv_matrix = torch.zeros(size, dtype=torch.int64, device=local_sorted.device)
         a.comm.Alltoall(send_matrix, recv_matrix)
+        # reshape send/recv_matrix into column to match sort() alltoall scheme
         for matrix in [send_matrix, recv_matrix]:
             matrix = matrix.reshape(1, matrix.numel())
-
-        print("DEBUGGING: after alltoall: send_matrix = ", send_matrix)
-        print("DEBUGGING: after alltoall: recv_matrix = ", recv_matrix)
 
         scounts = send_matrix
         rcounts = recv_matrix
@@ -1998,6 +1990,7 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
                 lt_partitions[idx] = lt
             last = lt
         lt_partitions[size - 1] = torch.ones_like(local_sorted, dtype=last.dtype) - last
+
         # Matrix holding information how many values will be sent where
         local_partitions = torch.sum(lt_partitions, dim=1)
         partition_matrix = torch.empty_like(local_partitions)
@@ -2017,8 +2010,6 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
 
         a.comm.Alltoall(send_matrix, recv_matrix)
 
-        print("DEBUGGING: after alltoall: send_matrix = ", send_matrix)
-        print("DEBUGGING: after alltoall: recv_matrix = ", recv_matrix)
         scounts = local_partitions
         rcounts = recv_matrix
 
@@ -2036,7 +2027,7 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
 
     for idx in iterator:
         if unique_along_axis:
-            idx_slice = [slice(None)]  # + [slice(ind, ind + 1) for ind in range(idx)]
+            idx_slice = [slice(None)]
         else:
             idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
@@ -2098,7 +2089,6 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
                         i for i, x in enumerate(current_cumsum) if target_cumsum[proc - 1] < x
                     )
                 )
-                #                print("DEBUGGING: current_cumsum, target_cumsum[proc] = ", current_cumsum, target_cumsum[proc])
                 last = next(i for i, x in enumerate(current_cumsum) if target_cumsum[proc] <= x)
                 for i, x in enumerate(partition_matrix[idx_slice][first:last]):
                     # Taking as many elements as possible from each following process
@@ -2115,8 +2105,7 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
 
     # Iterate through one layer again to create the final balanced local tensors
     second_result = torch.empty_like(local_sorted)
-    if sort_op is torch.sort:
-        second_indices = torch.empty_like(second_result)
+    second_indices = torch.empty_like(second_result)
     for idx in np.ndindex(local_sorted.shape[1:]):
         idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
@@ -2132,26 +2121,20 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
         a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
         second_result[idx_slice] = r_val
 
-        if sort_op is torch.sort:
-            s_ind = first_indices[0:end][idx_slice][indices].reshape_as(s_val)
-            r_ind = torch.empty_like(r_val)
-            a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
-            second_indices[idx_slice] = r_ind
+        s_ind = first_indices[0:end][idx_slice][indices].reshape_as(s_val)
+        r_ind = torch.empty_like(r_val)
+        a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
+        second_indices[idx_slice] = r_ind
 
-    if sort_op is torch.sort:
-        second_result, tmp_indices = sort_op(second_result, dim=0, descending=descending)
-        final_result = second_result.transpose(0, axis)
-        final_indices = torch.empty_like(second_indices)
-        # Update the indices in case the ordering changed during the last sort
-        for idx in np.ndindex(tmp_indices.shape):
-            val = tmp_indices[idx]
-            final_indices[idx] = second_indices[val.item()][idx[1:]]
-        final_indices = final_indices.transpose(0, axis)
-        return final_result, final_indices
-    else:
-        second_result = sort_op(second_result, dim=0, **kwargs)[0]
-        final_result = second_result.transpose(0, axis)
-        return final_result
+    second_result, tmp_indices = sort_op(second_result, dim=0, descending=descending)
+    final_result = second_result.transpose(0, axis)
+    final_indices = torch.empty_like(second_indices)
+    # Update the indices in case the ordering changed during the last sort
+    for idx in np.ndindex(tmp_indices.shape):
+        val = tmp_indices[idx]
+        final_indices[idx] = second_indices[val.item()][idx[1:]]
+    final_indices = final_indices.transpose(0, axis)
+    return final_result, final_indices
 
 
 def sort(a, axis=None, descending=False, out=None):
@@ -2874,20 +2857,13 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         lres = torch.unique(gres.larray, sorted=sorted, dim=unique_axis)
         gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device)
     else:
-        # print("DEBUGGING: before sorting: gres.larray = ", gres.larray )
         # balance gres if needed
         gres.balance_()
-        # global sort
-        # print("DEBUGGING: before sorting after balancing: gres.larray = ", gres.larray )
-        # gres, sorted_gindices = sort(gres, axis=unique_axis)
+        # global sorted unique
         lres = _pivot_sorting(gres, 0, torch.unique, sorted=sorted, return_inverse=True)
-        print("DEBUGGING: after pivot_sorting: lres = ", lres)
-        # print("DEBUGGING: after sorting before unique: gres.larray = ", gres.larray )
         # second local unique
         lres = torch.unique(lres, sorted=sorted, dim=unique_axis)
-        print("DEBUGGING: after second unique: lres = ", lres)
         gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
-        #        print("DEBUGGING: after pivot_sorting unique: gres.larray = ", gres.larray )
         gres.balance_()
 
     # inverse indices
@@ -2906,45 +2882,34 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
             gres_map = torch.tensor(gres.gshape, device=inverse.device)
             gres_offsets = torch.tensor([0], device=gres_map.device)
         lres = gres.larray
-        print("DEBUGGING: after balancing: lres = ", lres)
-
-        gres_recv = None
         for p in range(unique_ranks):
             if unique_ranks == 1:
                 incoming_offset = 0
             else:
-                origin = rank + p if rank + p < unique_ranks else rank + p - unique_ranks
+                origin = (rank - p) % size
                 incoming_offset = gres_offsets[origin]
-            if gres_recv:
-                gres_recv.Wait()
+                tmp = torch.empty(
+                    gres_map[0].tolist(), dtype=local_data.dtype, device=local_data.device
+                )
             # loop through unique elements, find matching position in data
             for i, el in enumerate(lres):
                 counts = torch.zeros_like(local_data, dtype=torch.int8, device=local_data.device)
-                print("DEBUGGING: el = ", el)
-                # print("DEBUGGING: local_data = ", local_data)
                 counts[torch.where(local_data == el)] = 1
                 if lres.ndim > 1:
                     counts = torch.sum(counts, dim=tuple(range(lres.ndim))[1:])
                 cond = torch.where(counts == el.numel())
                 global_inverse.larray[cond] = i + incoming_offset
-            # if necessary, prepare to send lres to rank-1 and receive from rank+1
+            # if necessary, prepare to send lres to rank+1 and receive from rank-1
             if unique_ranks > 1:
-                dest_rank = rank - 1 if rank != 0 else size - 1
-                gres.comm.Send(lres, dest_rank)
-                next_origin = origin + 1 if origin + 1 < unique_ranks else origin + 1 - unique_ranks
-                incoming_shape = gres_map[next_origin].tolist()
-                if incoming_shape != lres.shape:
-                    print(
-                        "DEBUGGING: CHANGING LRES SHAPE!! incoming_shape, lres.shape = ",
-                        incoming_shape,
-                        lres.shape,
-                    )
-                    lres = torch.empty(
-                        incoming_shape, dtype=local_data.dtype, device=local_data.device
-                    )
-                recv_from_rank = rank + 1 if rank != size - 1 else 0
-                gres_recv = gres.comm.Recv(lres, recv_from_rank)
-                print("DEBUGGING: rank, p, lres = ", rank, p, lres)
+                dest_rank = (rank + 1) % unique_ranks
+                tmp[slice(None, lres.shape[0])] = lres
+                queue = gres.comm.Isend(tmp, dest_rank, tag=rank)
+                recv_from_rank = (rank - 1) % unique_ranks
+                next_origin = (origin - 1) % unique_ranks
+                incoming_size = gres_map[next_origin].tolist()[0]
+                queue.Wait()
+                gres.comm.Recv(tmp, recv_from_rank, tag=recv_from_rank)
+                lres = tmp[slice(None, incoming_size)]
 
     if axis is not None and axis != 0:
         # transpose back to original dimensions
