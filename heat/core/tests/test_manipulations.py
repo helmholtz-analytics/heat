@@ -2929,8 +2929,23 @@ class TestManipulations(TestCase):
         unique0, inverse0 = ht.unique(data, return_inverse=True, axis=axis)
         unique0.resplit_(None)
         t_unique0, t_inverse0 = torch.unique(t_comp, sorted=True, return_inverse=True, dim=axis)
-        # print("DEBUGGING: unique0, inverse0 = ", inverse0.larray)
-        # print("DEBUGGING: t_unique0, t_inverse0 = ", t_unique0, t_inverse0, t_inverse0.shape)
+        self.assertTrue((unique0.larray == t_unique0).all())
+        self.assertTrue((inverse0.larray == t_inverse0[local_slice[0]]).all())
+        # test "dense" unique
+        torch.random_seed(3)
+        t_comp = torch.randint(0, 7, (50, 3), dtype=torch.int64, device=self.device.torch_device)
+        data = ht.array(t_comp, split=0)
+        # axis is None
+        unique, inverse = ht.unique(data, return_inverse=True)
+        unique.resplit_(None)
+        t_unique, t_inverse = torch.unique(t_comp, sorted=True, return_inverse=True)
+        self.assertTrue((unique.larray == t_unique).all())
+        self.assertTrue((inverse.larray == t_inverse[local_slice]).all())
+        # axis not None
+        axis = 0
+        unique0, inverse0 = ht.unique(data, return_inverse=True, axis=axis)
+        unique0.resplit_(None)
+        t_unique0, t_inverse0 = torch.unique(t_comp, sorted=True, return_inverse=True, dim=axis)
         self.assertTrue((unique0.larray == t_unique0).all())
         self.assertTrue((inverse0.larray == t_inverse0[local_slice[0]]).all())
 
