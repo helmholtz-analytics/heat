@@ -1,9 +1,5 @@
-import os
 import unittest
-
 import heat as ht
-import numpy as np
-import torch
 
 from ...core.tests.test_suites.basic_test import TestCase
 
@@ -77,7 +73,7 @@ class TestKMeans(TestCase):
     def test_fit_iris_unsplit(self):
         split = 0
         # get some test data
-        iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=split)
+        iris = ht.load("heat/datasets/iris.csv", sep=";", split=split)
 
         # fit the clusters
         k = 3
@@ -103,7 +99,7 @@ class TestKMeans(TestCase):
 
     def test_exceptions(self):
         # get some test data
-        iris_split = ht.load("heat/datasets/data/iris.csv", sep=";", split=1)
+        iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=1)
 
         # build a clusterer
         k = 3

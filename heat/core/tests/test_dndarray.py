@@ -261,8 +261,8 @@ class TestDNDarray(TestCase):
         data.balance_()
         self.assertTrue(data.is_balanced())
 
-        data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
-        htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
+        data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
+        htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
         self.assertTrue(ht.equal(htdata, ht.array(data, split=0, dtype=ht.float)))
 
         if ht.MPI_WORLD.size > 4:
@@ -673,9 +673,6 @@ class TestDNDarray(TestCase):
         a = ht.empty([2, 3, 3, 2])
         self.assertEqual(a.ndim, 4)
 
-        with self.assertWarns(Warning):
-            a.numdims
-
     def test_numpy(self):
         # ToDo: numpy does not work for distributed tensors du to issue#
         # Add additional tests if the issue is solved
@@ -933,6 +930,13 @@ class TestDNDarray(TestCase):
             ht.array([True]) >> 2
 
     def test_setitem_getitem(self):
+        # tests for bug 730:
+        a = ht.ones((10, 25, 30), split=1)
+        if a.comm.size > 1:
+            self.assertEqual(a[0].split, 0)
+            self.assertEqual(a[:, 0, :].split, 0)
+            self.assertEqual(a[:, :, 0].split, 1)
+
         # set and get single value
         a = ht.zeros((13, 5), split=0)
         # set value on one node
