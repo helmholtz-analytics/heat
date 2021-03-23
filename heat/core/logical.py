@@ -17,6 +17,8 @@ __all__ = [
     "isfinite",
     "isinf",
     "isnan",
+    "isneginf",
+    "isposinf",
     "logical_and",
     "logical_not",
     "logical_or",
@@ -273,6 +275,38 @@ def isnan(x):
     DNDarray([False, False, False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.isnan, x, None, no_cast=True)
+
+
+def isneginf(x, out=None):
+    """
+    Test if each element of `x` is negative infinite, return result as a bool array.
+
+    Parameters
+    ----------
+    x : DNDarray
+
+    Examples
+    --------
+    >>> ht.isnan(ht.array([1, ht.inf, -ht.inf, ht.nan]))
+    DNDarray([False, False, True, False], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.isneginf, x, out, no_cast=True)
+
+
+def isposinf(x, out=None):
+    """
+    Test if each element of `x` is positive infinite, return result as a bool array.
+
+    Parameters
+    ----------
+    x : DNDarray
+
+    Examples
+    --------
+    >>> ht.isnan(ht.array([1, ht.inf, -ht.inf, ht.nan]))
+    DNDarray([False, True, False, False], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.isposinf, x, out, no_cast=True)
 
 
 def logical_and(t1, t2):

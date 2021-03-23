@@ -946,6 +946,13 @@ class TestDNDarray(TestCase):
             ht.array([True]) >> 2
 
     def test_setitem_getitem(self):
+        # tests for bug 730:
+        a = ht.ones((10, 25, 30), split=1)
+        if a.comm.size > 1:
+            self.assertEqual(a[0].split, 0)
+            self.assertEqual(a[:, 0, :].split, 0)
+            self.assertEqual(a[:, :, 0].split, 1)
+
         # set and get single value
         a = ht.zeros((13, 5), split=0)
         # set value on one node

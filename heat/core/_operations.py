@@ -324,7 +324,7 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
     # PyTorch always recreates the input shape and ignores broadcasting for too large buffers
     broadcast_shape = stride_tricks.broadcast_shape(x.lshape, out.lshape)
     padded_shape = (1,) * (len(broadcast_shape) - len(x.lshape)) + x.lshape
-    multiples = [int(a / b) for a, b in zip(broadcast_shape, padded_shape)]
+    multiples = [(int(a / b) if b > 0 else 0) for a, b in zip(broadcast_shape, padded_shape)]
     needs_repetition = builtins.any(multiple > 1 for multiple in multiples)
 
     # do an inplace operation into a provided buffer
