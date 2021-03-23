@@ -2932,13 +2932,15 @@ class TestManipulations(TestCase):
         self.assertTrue((unique0.larray == t_unique0).all())
         self.assertTrue((inverse0.larray == t_inverse0[local_slice[0]]).all())
         # test "dense" unique
-        torch.random_seed(3)
-        t_comp = torch.randint(0, 7, (50, 3), dtype=torch.int64, device=self.device.torch_device)
-        data = ht.array(t_comp, split=0)
+        data = ht.random.randint(0, 25, (50, 3), dtype=ht.int64, split=0)
+        _, _, local_slice = data.comm.chunk(data.gshape, data.split)
+        t_comp = ht.resplit(data, axis=None).larray
         # axis is None
         unique, inverse = ht.unique(data, return_inverse=True)
         unique.resplit_(None)
         t_unique, t_inverse = torch.unique(t_comp, sorted=True, return_inverse=True)
+        print("DEBUGGING: unique.larray = ", unique.larray)
+        print("DEBUGGING: t_unique = ", t_unique)
         self.assertTrue((unique.larray == t_unique).all())
         self.assertTrue((inverse.larray == t_inverse[local_slice]).all())
         # axis not None
