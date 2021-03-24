@@ -168,7 +168,7 @@ class TestIO(TestCase):
         if ht.io.supports_hdf5():
             # local range
             local_range = ht.arange(100)
-            local_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET)
+            local_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=local_range.dtype.char())
             if local_range.comm.rank == 0:
                 with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
@@ -180,7 +180,7 @@ class TestIO(TestCase):
 
             # split range
             split_range = ht.arange(100, split=0)
-            split_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET)
+            split_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=split_range.dtype.char())
             if split_range.comm.rank == 0:
                 with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
@@ -476,7 +476,9 @@ class TestIO(TestCase):
 
         # local unsplit data
         local_data = ht.arange(100)
-        ht.save_hdf5(local_data, self.HDF5_OUT_PATH, self.HDF5_DATASET)
+        ht.save_hdf5(
+            local_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=local_data.dtype.char()
+        )
         if local_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                 comparison = torch.tensor(
@@ -486,7 +488,9 @@ class TestIO(TestCase):
 
         # distributed data range
         split_data = ht.arange(100, split=0)
-        ht.save_hdf5(split_data, self.HDF5_OUT_PATH, self.HDF5_DATASET)
+        ht.save_hdf5(
+            split_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=split_data.dtype.char()
+        )
         if split_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                 comparison = torch.tensor(
