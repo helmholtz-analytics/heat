@@ -18,7 +18,7 @@ def __mpi_sum16(tens_cls, tens_storage, buffer_a, buffer_b):
     tens_a = tens_cls().set_(tens_storage.from_buffer(buffer_a, "native"))
     tens_b = tens_cls().set_(tens_storage.from_buffer(buffer_b, "native"))
     tens_b += tens_a
-    nelem = tens_b.numel().item()
+    nelem = torch.prod(torch.tensor(tens_b.shape)).item()
     return MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=tens_b.element_size() * nelem)
 
 
