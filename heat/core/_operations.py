@@ -327,7 +327,7 @@ def __local_op(operation, x, out, no_cast=False, **kwargs):
     # PyTorch always recreates the input shape and ignores broadcasting for too large buffers
     broadcast_shape = stride_tricks.broadcast_shape(x.lshape, out.lshape)
     padded_shape = (1,) * (len(broadcast_shape) - len(x.lshape)) + x.lshape
-    multiples = [int(a / b) for a, b in zip(broadcast_shape, padded_shape)]
+    multiples = [(int(a / b) if b > 0 else 0) for a, b in zip(broadcast_shape, padded_shape)]
     needs_repetition = builtins.any(multiple > 1 for multiple in multiples)
 
     # do an inplace operation into a provided buffer
@@ -419,11 +419,14 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
             if len(lshape_losedim) > 0:
                 partial = partial.reshape(lshape_losedim)
     # perform a reduction operation in case the tensor is distributed across the reduction axis
-    if x.split is not None and (axis is None or (x.split in axis)):
-        split = None
-        balanced = True
-        if x.comm.is_distributed():
-            x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
+    if x.split is not None:
+        if axis is None or (x.split in axis):
+            split = None
+            if x.comm.is_distributed():
+                x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
+        elif axis is not None:
+            down_dims = len(tuple(dim for dim in axis if dim < x.split))
+            split -= down_dims
 
     ARG_OPS = [statistics.MPI_ARGMAX, statistics.MPI_ARGMIN]
     arg_op = False

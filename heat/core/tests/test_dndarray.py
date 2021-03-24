@@ -123,12 +123,6 @@ class TestDNDarray(TestCase):
             # exception for too large halos
             with self.assertRaises(ValueError):
                 data.get_halo(4)
-            # exception on non balanced tensor
-            with self.assertRaises(RuntimeError):
-                data_nobalance = ht.array(
-                    torch.empty(((data.comm.rank + 1) * 2, 3, 4)), is_split=0, device=data.device
-                )
-                data_nobalance.get_halo(1)
             # test no data on process
             data_np = np.arange(2 * 12).reshape(2, 12)
             data = ht.array(data_np, split=0)
@@ -952,6 +946,13 @@ class TestDNDarray(TestCase):
             ht.array([True]) >> 2
 
     def test_setitem_getitem(self):
+        # tests for bug 730:
+        a = ht.ones((10, 25, 30), split=1)
+        if a.comm.size > 1:
+            self.assertEqual(a[0].split, 0)
+            self.assertEqual(a[:, 0, :].split, 0)
+            self.assertEqual(a[:, :, 0].split, 1)
+
         # set and get single value
         a = ht.zeros((13, 5), split=0)
         # set value on one node
