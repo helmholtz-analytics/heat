@@ -18,18 +18,20 @@ def __mpi_sum16(tens_cls, tens_storage, buffer_a, buffer_b):
     tens_a = tens_cls().set_(tens_storage.from_buffer(buffer_a, "native"))
     tens_b = tens_cls().set_(tens_storage.from_buffer(buffer_b, "native"))
     tens_b += tens_a
-    nelem = torch.prod(torch.tensor(tens_b.shape)).item()
+    nelem = tens_b.numel()
     return MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=tens_b.element_size() * nelem)
 
 
 def __sum_f16_cb(buffer_a, buffer_b, _):
     # MPI custom sum function to use torch.half
-    buffer_b[:] = __mpi_sum16(torch.HalfTensor, torch.HalfStorage, buffer_a, buffer_b)
+    nb = __mpi_sum16(torch.HalfTensor, torch.HalfStorage, buffer_a, buffer_b)
+    buffer_b[:] = nb
 
 
 def __sum_bfloat_cb(buffer_a, buffer_b, _):
     # MPI custom sum function to use torch.bfloat16
-    buffer_b[:] = __mpi_sum16(torch.BFloat16Tensor, torch.BFloat16Storage, buffer_a, buffer_b)
+    nb = __mpi_sum16(torch.BFloat16Tensor, torch.BFloat16Storage, buffer_a, buffer_b)
+    buffer_b[:] = nb
 
 
 # create new MPI OPs

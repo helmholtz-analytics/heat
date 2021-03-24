@@ -836,7 +836,7 @@ def lr_warmup(optimizer, epoch, bn, len_epoch):
     else:
         return
 
-    for param_group in optimizer.lcl_optimizer.param_groups:
+    for param_group in optimizer.local_optimizer.param_groups:
         param_group["lr"] = args.lr * ht.MPI_WORLD.size * lr_adj
 
 
