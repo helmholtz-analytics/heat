@@ -14,24 +14,24 @@ from .utils import DetectMetricPlateau
 __all__ = ["DataParallelOptimizer", "DASO"]
 
 
-def __mpi_sum16(tens_cls, tens_storage, buffer_a, buffer_b):
-    tens_a = tens_cls().set_(tens_storage.from_buffer(buffer_a, "native"))
-    tens_b = tens_cls().set_(tens_storage.from_buffer(buffer_b, "native"))
-    tens_b += tens_a
-    nelem = tens_b.numel()
-    return MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=tens_b.element_size() * nelem)
-
-
 def __sum_f16_cb(buffer_a, buffer_b, _):
     # MPI custom sum function to use torch.half
-    nb = __mpi_sum16(torch.HalfTensor, torch.HalfStorage, buffer_a, buffer_b)
-    buffer_b[:] = nb
+    tens_a = torch.HalfTensor().set_(torch.HalfStorage.from_buffer(buffer_a, "native"))
+    tens_b = torch.HalfTensor().set_(torch.HalfStorage.from_buffer(buffer_b, "native"))
+    tens_b += tens_a
+    nelem = torch.prod(torch.tensor(tens_b.shape)).item()
+    new_buff = MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=tens_b.element_size() * nelem)
+    buffer_b[:] = new_buff
 
 
 def __sum_bfloat_cb(buffer_a, buffer_b, _):
     # MPI custom sum function to use torch.bfloat16
-    nb = __mpi_sum16(torch.BFloat16Tensor, torch.BFloat16Storage, buffer_a, buffer_b)
-    buffer_b[:] = nb
+    tens_a = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_a, "native"))
+    tens_b = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_b, "native"))
+    tens_b += tens_a
+    nelem = int(tens_b.numel())
+    new_buff = MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=nelem * tens_b.element_size())
+    buffer_b[:] = new_buff
 
 
 # create new MPI OPs
