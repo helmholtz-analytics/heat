@@ -3095,6 +3095,13 @@ class TestManipulations(TestCase):
             unique, inverse = ht.unique(data, return_inverse=True)
             unique.resplit_(None)
             t_unique, t_inverse = torch.unique(comp, sorted=True, return_inverse=True)
+            print(
+                "DEBUGGING: unique.larray = ",
+                unique.larray,
+                unique.larray.dtype,
+                unique.larray.device,
+            )
+            print("DEBUGGING:  t_unique = ", t_unique, t_unique.dtype, t_unique.device)
             self.assertTrue((unique.larray == t_unique).all())
             self.assertTrue((inverse.larray == t_inverse[local_slice]).all())
             # axis not None
@@ -3102,14 +3109,7 @@ class TestManipulations(TestCase):
             unique0, inverse0 = ht.unique(data, return_inverse=True, axis=axis)
             unique0.resplit_(None)
             t_unique0, t_inverse0 = torch.unique(comp, sorted=True, return_inverse=True, dim=axis)
-            print(
-                "DEBUGGING: unique0.larray = ",
-                unique0.larray,
-                unique0.larray.dtype,
-                unique0.larray.device,
-            )
-            print("DEBUGGING:  t_unique0 = ", t_unique0, t_unique0.dtype, t_unique0.device)
-            self.assertTrue((unique0.larray == t_unique0).all().item())
+            self.assertTrue((unique0.larray == t_unique0).all())
             self.assertTrue((inverse0.larray == t_inverse0[local_slice[0]]).all())
 
     def test_vsplit(self):
