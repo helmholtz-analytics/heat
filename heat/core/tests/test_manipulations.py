@@ -3095,13 +3095,6 @@ class TestManipulations(TestCase):
             unique, inverse = ht.unique(data, return_inverse=True)
             unique.resplit_(None)
             t_unique, t_inverse = torch.unique(comp, sorted=True, return_inverse=True)
-            print(
-                "DEBUGGING: unique.larray = ",
-                unique.larray,
-                unique.larray.dtype,
-                unique.larray.device,
-            )
-            print("DEBUGGING:  t_unique = ", t_unique, t_unique.dtype, t_unique.device)
             self.assertTrue((unique.larray == t_unique).all())
             self.assertTrue((inverse.larray == t_inverse[local_slice]).all())
             # axis not None

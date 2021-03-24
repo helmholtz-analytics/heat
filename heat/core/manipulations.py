@@ -3000,6 +3000,7 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
                 queue.Wait()
                 gres.comm.Recv(tmp, recv_from_rank, tag=recv_from_rank)
                 lres = tmp[slice(None, incoming_size)]
+        gres.larray = lres
 
     if axis is not None and axis != 0:
         # transpose back to original dimensions
