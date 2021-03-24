@@ -103,6 +103,16 @@ class TestDASO(TestCase):
                 ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, use_mpi_groups="asdf")
             with self.assertRaises(TypeError):
                 ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, downcast_type="asdf")
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, comm="asdf")
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, local_skip_factor="asdf")
+            with self.assertRaises(TypeError):
+                ht.optim.DASO(
+                    local_optimizer=optimizer, total_epochs=1, skip_reduction_factor="asdf"
+                )
+                # local_skip_factor
+                # skip_reduction_factor
             with self.assertRaises(ValueError):
                 ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, downcast_type=torch.bool)
             with self.assertRaises(ValueError):
@@ -115,6 +125,10 @@ class TestDASO(TestCase):
                 ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, sending_chunk_size=-1)
             with self.assertRaises(ValueError):
                 ht.optim.DASO(local_optimizer=optimizer, total_epochs=-1)
+            with self.assertRaises(ValueError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, local_skip_factor=-1)
+            with self.assertRaises(ValueError):
+                ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, skip_reduction_factor=-1)
         if ht.MPI_WORLD.size != 8 or torch.cuda.device_count() == 0:
             # only run these tests for 2 nodes, each of which has 4 GPUs
             return
