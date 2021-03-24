@@ -14,24 +14,22 @@ from .utils import DetectMetricPlateau
 __all__ = ["DataParallelOptimizer", "DASO"]
 
 
+def __mpi_sum16(tens_cls, tens_storage, buffer_a, buffer_b):
+    tens_a = tens_cls().set_(tens_storage.from_buffer(buffer_a, "native"))
+    tens_b = tens_cls().set_(tens_storage.from_buffer(buffer_b, "native"))
+    tens_b += tens_a
+    nelem = tens_b.numel().item()
+    return MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=tens_b.element_size() * nelem)
+
+
 def __sum_f16_cb(buffer_a, buffer_b, _):
     # MPI custom sum function to use torch.half
-    tens_a = torch.HalfTensor().set_(torch.HalfStorage.from_buffer(buffer_a, "native"))
-    tens_b = torch.HalfTensor().set_(torch.HalfStorage.from_buffer(buffer_b, "native"))
-    tens_b += tens_a
-    nelem = torch.prod(torch.tensor(tens_b.shape)).item()
-    new_buff = MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=tens_b.element_size() * nelem)
-    buffer_b[:] = new_buff
+    buffer_b[:] = __mpi_sum16(torch.HalfTensor, torch.HalfStorage, buffer_a, buffer_b)
 
 
 def __sum_bfloat_cb(buffer_a, buffer_b, _):
     # MPI custom sum function to use torch.bfloat16
-    tens_a = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_a, "native"))
-    tens_b = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_b, "native"))
-    tens_b += tens_a
-    nelem = int(tens_b.numel())
-    new_buff = MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=nelem * tens_b.element_size())
-    buffer_b[:] = new_buff
+    buffer_b[:] = __mpi_sum16(torch.BFloat16Tensor, torch.BFloat16Storage, buffer_a, buffer_b)
 
 
 # create new MPI OPs
@@ -44,6 +42,7 @@ class DASO:
         self,
         local_optimizer: torch.optim.Optimizer,
         total_epochs: int,
+        comm: MPICommunication = MPI_WORLD,
         warmup_epochs: int = 4,
         cooldown_epochs: int = 4,
         scheduler: torch.optim.lr_scheduler = None,
@@ -52,6 +51,8 @@ class DASO:
         sending_chunk_size: int = 10_000_000,
         downcast_type: torch.dtype = torch.bfloat16,
         use_mpi_groups: bool = True,
+        skip_reduction_factor: int = 2,
+        local_skip_factor: int = 4,
         verbose: bool = False,
     ):
         """
@@ -105,6 +106,9 @@ class DASO:
             unexpected behavior
         total_epochs: int
             The total number of epochs for training. Needed to determine when to enter the cooldown phase
+        comm: MPICommunication, optional
+            The MPI communicator to use for training. Defaults to the full MPI WORLD
+            Default, MPI_WORLD
         warmup_epochs: int, optional
             The number of epochs to complete with a blocking averaging operation after each batch before entering
             the cycling phase.
@@ -136,6 +140,13 @@ class DASO:
         use_mpi_groups: bool, optional
             Use MPI groups to divide the global communicator. If True, use MPI GROUPs, otherwise, use MPI SPLIT.
             Default: True
+        skip_reduction_factor: int, optional
+            How much to reduce the global/local skips by when the loss has stabilized
+            Default: 2
+        local_skip_factor: int, optional
+            How many local skips occur per global skip.
+            i.e. number of local skips = global_skips // local_skip_factor
+            Default: 4
         verbose: bool, optional
             If true, print out a collection of debug messages
             Default: False
@@ -153,7 +164,7 @@ class DASO:
         else:
             self.cast_fn = MPI.SUM
 
-        self.comm = MPI_WORLD
+        self.comm = comm
         self.verbose = verbose
         self.local_optimizer = local_optimizer
         self.params_ref = local_optimizer.param_groups[0]["params"]
@@ -208,6 +219,11 @@ class DASO:
         self._param_send_shp = None
         self.split = None
 
+        self.skip_reduction_factor = skip_reduction_factor
+        # the local_skip_factor is the factor by which the global skips are divided by initially
+        # and upon reset
+        self.local_skip_factor = local_skip_factor
+
         self.stability = DetectMetricPlateau(patience=2, threshold=stability_level)
 
         self._gs8_waits = 3
@@ -239,6 +255,10 @@ class DASO:
         if not isinstance(args["local_optimizer"], torch.optim.Optimizer):
             raise TypeError(
                 f"Local optimizer must be a torch optimizer object, currently {type(args['local_optimizer'])}"
+            )
+        if not isinstance(args["comm"], MPICommunication):
+            raise TypeError(
+                f"Comm object must be a ht.MPICommunication object, currently {type(args['comm'])}"
             )
         if not isinstance(args["total_epochs"], int):
             raise TypeError(f"total_epochs must be an int, currently {type(args['total_epochs'])}")
@@ -283,6 +303,15 @@ class DASO:
                 f"downcast_type must be one of [torch.bfloat16, torch.half, torch.float], "
                 f"currently {args['downcast_type']}"
             )
+        if not isinstance(args["skip_reduction_factor"], int):
+            raise TypeError(
+                f"skip_reduction_factor must be an integer, currently {type(args['skip_reduction_factor'])}"
+            )
+        if not isinstance(args["local_skip_factor"], int):
+            raise TypeError(
+                f"local_skip_factor must be an integer, currently {type(args['local_skip_factor'])}"
+            )
+
         if args["warmup_epochs"] < 0:
             raise ValueError(f"warmup_epochs must be >= 0, currently {args['warmup_epochs']}")
         if args["cooldown_epochs"] < 0:
@@ -295,6 +324,14 @@ class DASO:
             )
         if args["total_epochs"] <= 0:
             raise ValueError(f"total_epochs must be > 0, currently {args['total_epochs']}")
+        if args["skip_reduction_factor"] <= 0:
+            raise ValueError(
+                f"skip_reduction_factor must be > 0, currently {args['skip_reduction_factor']}"
+            )
+        if args["local_skip_factor"] <= 0:
+            raise ValueError(
+                f"local_skip_factor must be > 0, currently {args['local_skip_factor']}"
+            )
 
     @torch.no_grad()
     def epoch_loss_logic(
@@ -369,8 +406,8 @@ class DASO:
 
         if stable and self.global_skip > 1:
             # drop gs by factor of 2
-            self.global_skip //= 2
-            self.local_skip //= 2
+            self.global_skip //= self.skip_reduction_factor
+            self.local_skip //= self.skip_reduction_factor
             self.batches_to_wait -= 1  # old was //= 2
 
             self.print0("dropping skips")
@@ -383,8 +420,8 @@ class DASO:
             self._gs8_waited = 0
         elif self.global_skip == 1 and stable:
             self.global_skip = self.max_gs
-            self.local_skip = self.max_gs // 4
-            self.batches_to_wait = self.max_gs // 4  # + 1  # 2
+            self.local_skip = self.max_gs // self.local_skip_factor
+            self.batches_to_wait = self.max_gs // self.local_skip_factor
 
             self._gs8_waited = 0
         self.print0(

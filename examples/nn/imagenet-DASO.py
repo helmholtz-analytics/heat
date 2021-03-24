@@ -21,6 +21,12 @@ import pandas as pd
 sys.path.append("../../")
 import heat as ht
 
+
+def print0(*args, **kwargs):
+    if ht.MPI_WORLD.rank == 0:
+        print(*args, **kwargs)
+
+
 try:
     from nvidia.dali.plugin.pytorch import DALIClassificationIterator
     from nvidia.dali.pipeline import Pipeline
@@ -28,15 +34,9 @@ try:
     import nvidia.dali.ops as ops
     import nvidia.dali.tfrecord as tfrec
 except ImportError:
+    print0("Please install DALI from https://www.github.com/NVIDIA/DALI to run this example.")
     ht.MPI.Finalize()
-    raise ImportError(
-        "Please install DALI from https://www.github.com/NVIDIA/DALI to run this example."
-    )
-
-
-def print0(*args, **kwargs):
-    if ht.MPI_WORLD.rank == 0:
-        print(*args, **kwargs)
+    sys.exit(0)
 
 
 def parse():
