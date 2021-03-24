@@ -3109,7 +3109,7 @@ class TestManipulations(TestCase):
                 unique0.larray.device,
             )
             print("DEBUGGING:  t_unique0 = ", t_unique0, t_unique0.dtype, t_unique0.device)
-            self.assertTrue((unique0.larray == t_unique0).all())
+            self.assertTrue((unique0.larray == t_unique0).all().item())
             self.assertTrue((inverse0.larray == t_inverse0[local_slice[0]]).all())
 
     def test_vsplit(self):
