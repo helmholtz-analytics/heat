@@ -419,11 +419,13 @@ def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs):
     if x.split is not None:
         if axis is None or (x.split in axis):
             split = None
+            balanced = True
             if x.comm.is_distributed():
                 x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
         elif axis is not None:
             down_dims = len(tuple(dim for dim in axis if dim < x.split))
             split -= down_dims
+            balanced = x.balanced
 
     ARG_OPS = [statistics.MPI_ARGMAX, statistics.MPI_ARGMIN]
     arg_op = False

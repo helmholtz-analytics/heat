@@ -30,6 +30,7 @@ __all__ = [
     "hsplit",
     "hstack",
     "pad",
+    "ravel",
     "repeat",
     "reshape",
     "resplit",
@@ -772,10 +773,16 @@ def flatten(a):
     ----------
     a : DNDarray
         array to collapse
+
     Returns
     -------
     ret : DNDarray
         flattened copy
+
+    See Also
+    --------
+    :function:`~heat.core.manipulations.ravel`
+
     Examples
     --------
     >>> a = ht.array([[[1,2],[3,4]],[[5,6],[7,8]]])
@@ -1392,6 +1399,66 @@ def pad(array, pad_width, mode="constant", constant_values=0):
     return padded_tensor
 
 
+def ravel(a):
+    """
+    Return a flattened view of `a` if possible. A copy is returned otherwise.
+
+    Parameters
+    ----------
+    a : DNDarray
+        array to collapse
+
+    Returns
+    -------
+    ret : DNDarray
+        flattened array with the same dtype as a, but with shape (a.size,).
+
+    Notes
+    ------
+    Returning a view of distributed data is only possible when `split != 0`. The returned DNDarray may be unbalanced.
+    Otherwise, data must be communicated among processes, and `ravel` falls back to `flatten`.
+
+
+    See Also
+    --------
+    :function:`~heat.core.manipulations.flatten`
+
+    Examples
+    --------
+    >>> a = ht.ones((2,3), split=0)
+    >>> b = ht.ravel(a)
+    >>> a[0,0] = 4
+    >>> b
+    DNDarray([4., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
+    """
+    sanitation.sanitize_in(a)
+
+    if a.split is None:
+        return factories.array(
+            torch.flatten(a._DNDarray__array),
+            dtype=a.dtype,
+            copy=False,
+            is_split=None,
+            device=a.device,
+            comm=a.comm,
+        )
+
+    # Redistribution necessary
+    if a.split != 0:
+        return flatten(a)
+
+    result = factories.array(
+        torch.flatten(a._DNDarray__array),
+        dtype=a.dtype,
+        copy=False,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm,
+    )
+
+    return result
+
+
 def repeat(a, repeats, axis=None):
     """
     Creates a new DNDarray by repeating elements of array a.
@@ -1667,6 +1734,10 @@ def reshape(a, shape, new_split=None):
     reshaped : ht.DNDarray
         The DNDarray with the specified shape
 
+    See Also
+    --------
+    :function:`~heat.core.manipulations.ravel`
+
     Raises
     ------
     ValueError
@@ -1688,17 +1759,8 @@ def reshape(a, shape, new_split=None):
     """
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
-    if not isinstance(shape, (list, tuple)):
-        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
-        # check new_split parameter
-    if new_split is None:
-        new_split = a.split
-    stride_tricks.sanitize_axis(shape, new_split)
+
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
-    # Check the type of shape and number elements
-    shape = stride_tricks.sanitize_shape(shape)
-    if torch.prod(torch.tensor(shape, device=tdevice)) != a.size:
-        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
     def reshape_argsort_counts_displs(
         shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
@@ -1734,6 +1796,34 @@ def reshape(a, shape, new_split=None):
             plz += counts[i]
         displs[1:] = torch.cumsum(counts[:-1], dim=0)
         return argsort, counts, displs
+
+    if shape == -1:
+        shape = (a.gnumel,)
+
+    if not isinstance(shape, (list, tuple)):
+        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
+
+    # check new_split parameter
+    if new_split is None:
+        new_split = a.split
+    stride_tricks.sanitize_axis(shape, new_split)
+
+    # Check the type of shape and number elements
+    shape = stride_tricks.sanitize_shape(shape, -1)
+
+    shape = list(shape)
+    shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
+
+    # infer unknown dimension
+    if shape.count(-1) > 1:
+        raise ValueError("too many unknown dimensions")
+    elif shape.count(-1) == 1:
+        pos = shape.index(-1)
+        shape[pos] = int(-(a.size / shape_size).item())
+        shape_size *= -shape[pos]
+
+    if shape_size != a.size:
+        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
     # Forward to Pytorch directly
     if a.split is None:

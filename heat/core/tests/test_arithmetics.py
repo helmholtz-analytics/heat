@@ -637,6 +637,15 @@ class TestArithmetics(TestCase):
         self.assertEqual(split_axis_sum.larray.dtype, torch.float32)
         self.assertEqual(split_axis_sum.split, None)
 
+        # check split semantics
+        shape_noaxis_split_axis = ht.ones((3, 3, 3), split=2)
+        split_axis_sum = shape_noaxis_split_axis.sum(axis=1)
+        self.assertIsInstance(split_axis_sum, ht.DNDarray)
+        self.assertEqual(split_axis_sum.shape, (3, 3))
+        self.assertEqual(split_axis_sum.dtype, ht.float32)
+        self.assertEqual(split_axis_sum.larray.dtype, torch.float32)
+        self.assertEqual(split_axis_sum.split, 1)
+
         out_noaxis = ht.zeros((3, 3))
         ht.sum(shape_noaxis, axis=0, out=out_noaxis)
         self.assertTrue(
