@@ -250,6 +250,7 @@ def main_worker(args):
                 },
                 is_best,
             )
+    model.end_of_training()
     return (len(train_dataset) + len(val_dataset)) * (args.epochs - args.start_epoch)
 
 

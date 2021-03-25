@@ -174,6 +174,8 @@ def main():
     if args.save_model:
         torch.save(model.state_dict(), "mnist_cnn.pt")
 
+    dp_model.end_of_training()
+
 
 if __name__ == "__main__":
     main()
