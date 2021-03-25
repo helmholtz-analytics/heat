@@ -2893,10 +2893,13 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         )
         if isinstance(torch_output, tuple):
             heat_output = tuple(
-                factories.array(i, dtype=a.dtype, split=None, device=a.device) for i in torch_output
+                factories.array(i, dtype=a.dtype, split=a.split, device=a.device)
+                for i in torch_output
             )
         else:
-            heat_output = factories.array(torch_output, dtype=a.dtype, split=None, device=a.device)
+            heat_output = factories.array(
+                torch_output, dtype=a.dtype, split=a.split, device=a.device
+            )
         return heat_output
 
     rank = a.comm.rank
@@ -2905,7 +2908,6 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
     local_data = a.larray
 
     unique_axis = None
-
     if axis is not None:
         if axis != a.split:
             raise ValueError(
@@ -2952,8 +2954,8 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         # global sorted unique
         lres = _pivot_sorting(gres, 0, torch.unique, sorted=sorted, return_inverse=True)
         # second local unique
-        lres = torch.unique(lres, sorted=sorted, dim=unique_axis)
-        print("DEBUGGING: lres.shape = ", lres.shape)
+        if 0 not in lres.shape:
+            lres = torch.unique(lres, sorted=sorted, dim=unique_axis)
         gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
         gres.balance_()
 
