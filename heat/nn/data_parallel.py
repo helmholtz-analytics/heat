@@ -153,11 +153,38 @@ class DataParallel(tnn.Module):
                 param.register_hook(self._nonblocking_hook(layer_name, name))
         self._param_slices[layer_name_prev] = slice(start_idx, len(self._param_indices))
 
-    def __setattr__(self, name, value):
-        # auto-detect end of epoch's training phase and finalize wait handles (only relevant for non-blocking)
-        if name == "training" and not value and not self.blocking_parameter_updates:
+    def _blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
+        """
+        Add a blocking hook to the PyTorch DAG for all of the backwards calls.
+
+        Parameters
+        ----------
+        grad_loc : torch.Tensor
+            The local gradient
+
+        References
+        ----------
+        [1] (cf. https://pytorch.org/docs/stable/tensors.html#torch.Tensor.register_hook).
+        """
+        grad_loc_bf = grad_loc.to(torch.bfloat16)
+        # average local gradients
+        grad_loc_bf *= 1 / float(self.comm.size)
+        # perform MPI Allreduce to compute global gradient
+        self.comm.Allreduce(MPI.IN_PLACE, grad_loc_bf, mpi_sum_f16)
+        return grad_loc_bf.to(grad_loc.dtype)
+
+    def end_of_training(self) -> None:
+        """
+        If the network is being trained with a non-blocking scheme, then the data is sent during
+        the backward step and received during the next forward step. However, this means that during
+        the last backward step, the sent parameters are never received. This function receives them.
+
+        Returns
+        -------
+        None
+        """
+        if not self.blocking_parameter_updates:
             self._iparam_update()
-        super(DataParallel, self).__setattr__(name, value)
 
     def forward(self, *inputs: tuple, **kwargs: dict) -> torch.Tensor:
         """
@@ -193,6 +220,25 @@ class DataParallel(tnn.Module):
         self._fwd_hook_handles.clear()
 
         return ret
+
+    def _forward_hook(self, layer_name: str) -> Callable:
+        """
+        Add a forward hook to update parameters during the forward step. This will return a hook with can be added
+        using the ``submodule.register_forward_pre_hook`` command.
+
+        Parameters
+        ----------
+        layer_name : str
+            Name of the layer
+        """
+        # hook function for non-blocking parameter update
+        def _hook(_, input_):
+            # update parameters of given layer
+            param_slice = self._param_slices[layer_name]
+            self._iparam_update(param_slice, [layer_name])
+            return input_
+
+        return _hook
 
     def _iparam_update(self, param_slice: slice = None, layer_names: List[str] = None) -> None:
         """
@@ -242,26 +288,6 @@ class DataParallel(tnn.Module):
         if dp_optimizer.update_next:
             dp_optimizer.torch_optimizer.step()
 
-    def _blocking_hook(self, grad_loc: torch.Tensor) -> torch.Tensor:
-        """
-        Add a blocking hook to the PyTorch DAG for all of the backwards calls.
-
-        Parameters
-        ----------
-        grad_loc : torch.Tensor
-            The local gradient
-
-        References
-        ----------
-        [1] (cf. https://pytorch.org/docs/stable/tensors.html#torch.Tensor.register_hook).
-        """
-        grad_loc_bf = grad_loc.to(torch.bfloat16)
-        # average local gradients
-        grad_loc_bf *= 1 / float(self.comm.size)
-        # perform MPI Allreduce to compute global gradient
-        self.comm.Allreduce(MPI.IN_PLACE, grad_loc_bf, mpi_sum_f16)
-        return grad_loc_bf.to(grad_loc.dtype)
-
     def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
         """
         Add a nonblocking hook to send and receive the averaged parameters after the backwards step
@@ -299,25 +325,6 @@ class DataParallel(tnn.Module):
 
         return _hook
 
-    def _forward_hook(self, layer_name: str) -> Callable:
-        """
-        Add a forward hook to update parameters during the forward step. This will return a hook with can be added
-        using the ``submodule.register_forward_pre_hook`` command.
-
-        Parameters
-        ----------
-        layer_name : str
-            Name of the layer
-        """
-        # hook function for non-blocking parameter update
-        def _hook(_, input_):
-            # update parameters of given layer
-            param_slice = self._param_slices[layer_name]
-            self._iparam_update(param_slice, [layer_name])
-            return input_
-
-        return _hook
-
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:
         """
@@ -331,6 +338,12 @@ class DataParallel(tnn.Module):
         """
         if callable(getattr(module, "reset_parameters", None)):
             module.reset_parameters()
+
+    def __setattr__(self, name, value):
+        # auto-detect end of epoch's training phase and finalize wait handles (only relevant for non-blocking)
+        if name == "training" and not value and not self.blocking_parameter_updates:
+            self._iparam_update()
+        super(DataParallel, self).__setattr__(name, value)
 
 
 class DataParallelMultiGPU(tnn.Module):
