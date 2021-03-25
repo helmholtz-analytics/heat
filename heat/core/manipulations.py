@@ -2953,6 +2953,7 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         lres = _pivot_sorting(gres, 0, torch.unique, sorted=sorted, return_inverse=True)
         # second local unique
         lres = torch.unique(lres, sorted=sorted, dim=unique_axis)
+        print("DEBUGGING: lres.shape = ", lres.shape)
         gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
         gres.balance_()
 
