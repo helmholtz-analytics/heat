@@ -1,17 +1,28 @@
-import bisect
 import warnings
-
 import torch
+import torch.distributed
 import torch.nn as tnn
 
 from collections import OrderedDict
 from typing import Callable, List, Union, Tuple
-from ..core.communication import MPICommunication
-from ..core.communication import MPI
-from .. import optim
-from ..core.devices import get_device
 
-__all__ = ["DataParallel"]
+from .. import optim
+from ..core.communication import MPI
+from ..core.communication import MPI_WORLD
+from ..core.communication import MPICommunication
+
+
+__all__ = ["DataParallel", "DataParallelMultiGPU"]
+
+
+def __sum_f16_cb(buffer_a, buffer_b, _):
+    tens_a = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_a, "native"))
+    tens_b = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_b, "native"))
+    tens_b += tens_a
+
+
+# create new OP
+mpi_sum_f16 = MPI.Op.Create(__sum_f16_cb, commute=True)
 
 
 class DataParallel(tnn.Module):
@@ -70,6 +81,10 @@ class DataParallel(tnn.Module):
         optimizer: Union[optim.DataParallelOptimizer, List, Tuple],
         blocking_parameter_updates: bool = False,
     ):
+        if isinstance(optimizer, optim.DASO):
+            raise TypeError(
+                "For use with DASO please use DataParallelMultiGPU instead of DataParallel"
+            )
         super(DataParallel, self).__init__()
         self.module = module
         self.comm = comm
@@ -209,16 +224,18 @@ class DataParallel(tnn.Module):
             if layer_name not in self._active_layers:
                 return
             # iterate over layer's parameters/associated wait handles
-            for (_, param_name, wait_handle) in self._layer_wait_handles[layer_name]:
+            for param_name, wait_handle, dtp, tens in self._layer_wait_handles[layer_name]:
                 # get internal index of selected parameter
                 param_idx = self._param_indices[param_name]
                 # synchronize, get parameter's global gradient
                 wait_handle.wait()
                 # check if shapes are matching
-                if dp_optimizer.params_ref[param_idx].grad.data.shape != wait_handle.tensor.shape:
+                if (
+                    dp_optimizer.params_ref[param_idx].grad.data.shape != tens.shape
+                ):  # wait_handle.tensor.shape:
                     raise ValueError("Shapes must be equal.")
                 # accumulate parameter's global gradient
-                dp_optimizer.params_ref[param_idx].grad.data += wait_handle.tensor
+                dp_optimizer.params_ref[param_idx].grad.data += tens.to(dtp)  # wait_handle.tensor
                 # remove layer from set of active layers, if present
                 self._active_layers.discard(layer_name)
         # if desired, perform actual parameter update
@@ -238,11 +255,12 @@ class DataParallel(tnn.Module):
         ----------
         [1] (cf. https://pytorch.org/docs/stable/tensors.html#torch.Tensor.register_hook).
         """
+        grad_loc_bf = grad_loc.to(torch.bfloat16)
         # average local gradients
-        grad_loc *= 1 / float(self.comm.size)
+        grad_loc_bf *= 1 / float(self.comm.size)
         # perform MPI Allreduce to compute global gradient
-        self.comm.Allreduce(MPI.IN_PLACE, grad_loc, MPI.SUM)
-        return grad_loc
+        self.comm.Allreduce(MPI.IN_PLACE, grad_loc_bf, mpi_sum_f16)
+        return grad_loc_bf.to(grad_loc.dtype)
 
     def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
         """
@@ -257,23 +275,27 @@ class DataParallel(tnn.Module):
         """
         # hook function for blocking gradient data exchange
         def _hook(grad_loc: torch.Tensor) -> torch.Tensor:
+            with torch.no_grad():
+                wrk = grad_loc.to(torch.bfloat16)
             # counterbalance local gradient averaging
-            grad_loc *= 1 / float(self.comm.size)
+            wrk *= 1 / float(self.comm.size)
             # perform MPI IAllreduce to compute global gradient, returns wait handle
-            wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, grad_loc, MPI.SUM)
+            wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, wrk, mpi_sum_f16)
             # if layer wait handle dict does not contain the layer, add it -> automatically tracks reversed layer order
             if layer_name not in self._layer_wait_handles:
                 self._layer_wait_handles[layer_name] = list()
             # add layer to set of active layers
             self._active_layers.add(layer_name)
             # assign wait handle to its layer, layer-internal sorting by size
-            bisect.insort(
-                self._layer_wait_handles[layer_name], (grad_loc.numel(), param_name, wait_handle)
-            )
+            # bisect.insort(
+            #     self._layer_wait_handles[layer_name], (wrk.numel(), param_name, wait_handle)
+            # )
             # TODO: is sorting faster? or is there any difference?
-            # self._layer_wait_handles[layer_name].append((grad_loc.numel(), param_name, wait_handle))
+            self._layer_wait_handles[layer_name].append(
+                (param_name, wait_handle, grad_loc.dtype, wrk)
+            )
             # don't return grad_loc, otherwise gradient is doubled
-            return torch.zeros(*grad_loc.size(), device=get_device().torch_device)
+            return torch.zeros(*wrk.size(), device=grad_loc.device)
 
         return _hook
 
@@ -295,6 +317,70 @@ class DataParallel(tnn.Module):
             return input_
 
         return _hook
+
+    @staticmethod
+    def _reset_parameters(module: tnn.Module) -> None:
+        """
+        Reset parameters of given torch submodule. Only works for basic module types containing ``reset_parameters``
+        function.
+
+        Parameters
+        ----------
+        module: torch.nn.Module
+            Submodule whose parameters are to be reset
+        """
+        if callable(getattr(module, "reset_parameters", None)):
+            module.reset_parameters()
+
+
+class DataParallelMultiGPU(tnn.Module):
+    def __init__(
+        self, module: torch.nn.Module, optimizer: optim.DASO, comm: MPICommunication = MPI_WORLD
+    ):
+        """
+        This creates data parallel networks local to each node using PyTorch's distributed class. This does NOT
+        do any global synchronizations. To make optimal use of this structure, use :class:`..optim.dp_optimizer.DASO`.
+
+        Notes
+        -----
+        The PyTorch distributed process group must already exist before this class is initialized.
+
+        Parameters
+        ----------
+        module: torch.nn.Module
+            an implemented PyTorch model
+        optimizer: optim.DASO
+            A DASO optimizer. Other optimizers are not yet implemented. The DASO optimizer should be
+            defined prior to calling this class.
+        comm: MPICommunication, optional
+            A global communicator.
+            Default: ht.MPICommunication
+        """
+        super(DataParallelMultiGPU, self).__init__()
+        rank = comm.rank
+        if torch.cuda.device_count() > 1:
+            self.loc_gpus = torch.cuda.device_count()
+            local_rank = rank % self.loc_gpus
+            device = "cuda:" + str(local_rank)
+            torch.cuda.set_device(device=device)
+            module = tnn.parallel.DistributedDataParallel(module, device_ids=[local_rank])
+        else:
+            warnings.warn(
+                "DataParallelMultiGPU should be used with multiple GPUs per node", UserWarning
+            )
+        self.module = module
+        self.comm = comm
+
+        # unify parameters across nodes by unifying the random seed and resetting parameters
+        self.module.apply(self._reset_parameters)
+
+        optimizer.set_model(self.module)
+
+    def forward(self, *inputs, **kwargs):
+        """
+        Calls the forward method for the torch model
+        """
+        return self.module(*inputs, **kwargs)
 
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:
