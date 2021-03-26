@@ -30,10 +30,10 @@ class Communication:
 
     @staticmethod
     def is_distributed() -> NotImplementedError:
-        return NotImplemented
+        raise NotImplementedError()
 
     def __init__(self) -> NotImplementedError:
-        return NotImplemented
+        raise NotImplementedError()
 
     def chunk(self, shape, split) -> NotImplementedError:
         """
@@ -49,7 +49,7 @@ class Communication:
             The axis along which to chunk the data
 
         """
-        return NotImplemented
+        raise NotImplementedError()
 
 
 class MPICommunication(Communication):
@@ -65,14 +65,23 @@ class MPICommunication(Communication):
         torch.int16: MPI.SHORT,
         torch.int32: MPI.INT,
         torch.int64: MPI.LONG,
+        torch.bfloat16: MPI.INT16_T,
+        torch.float16: MPI.INT16_T,
         torch.float32: MPI.FLOAT,
         torch.float64: MPI.DOUBLE,
+        torch.complex64: MPI.COMPLEX,
+        torch.complex128: MPI.DOUBLE_COMPLEX,
     }
 
     def __init__(self, handle=MPI.COMM_WORLD):
         self.handle = handle
-        self.rank = handle.Get_rank()
-        self.size = handle.Get_size()
+        try:
+            self.rank = handle.Get_rank()
+            self.size = handle.Get_size()
+        except MPI.Exception:
+            # ranks not within the group will fail with an MPI.Exception, this is expected
+            self.rank = None
+            self.size = None
 
     def is_distributed(self) -> bool:
         """
@@ -146,19 +155,19 @@ class MPICommunication(Communication):
 
         """
         # the elements send/received by all nodes
-        counts = np.full((self.size,), shape[axis] // self.size)
+        counts = torch.full((self.size,), shape[axis] // self.size)
         counts[: shape[axis] % self.size] += 1
 
         # the displacements into the buffer
-        displs = np.zeros((self.size,), dtype=counts.dtype)
-        np.cumsum(counts[:-1], out=displs[1:])
+        displs = torch.zeros((self.size,), dtype=counts.dtype)
+        torch.cumsum(counts[:-1], out=displs[1:], dim=0)
 
         # helper that calculates the output shape for a receiving buffer under the assumption all nodes have an equally
         # sized input compared to this node
         output_shape = list(shape)
-        output_shape[axis] = self.size * counts[self.rank]
+        output_shape[axis] = self.size * counts[self.rank].item()
 
-        return tuple(counts), tuple(displs), tuple(output_shape)
+        return tuple(counts.tolist()), tuple(displs.tolist()), tuple(output_shape)
 
     @classmethod
     def mpi_type_and_elements_of(
@@ -372,7 +381,7 @@ class MPICommunication(Communication):
             A Tag to identify the message
         """
         if isinstance(buf, DNDarray):
-            buf = buf._DNDarray__array
+            buf = buf.larray
         if not isinstance(buf, torch.Tensor):
             return MPIRequest(self.handle.Irecv(buf, source, tag))
 
@@ -403,7 +412,7 @@ class MPICommunication(Communication):
             Details on the communication
         """
         if isinstance(buf, DNDarray):
-            buf = buf._DNDarray__array
+            buf = buf.larray
         if not isinstance(buf, torch.Tensor):
             return self.handle.Recv(buf, source, tag, status)
 
@@ -434,7 +443,7 @@ class MPICommunication(Communication):
             A Tag to identify the message
         """
         if isinstance(buf, DNDarray):
-            buf = buf._DNDarray__array
+            buf = buf.larray
         if not isinstance(buf, torch.Tensor):
             return func(buf, dest, tag), None
 
@@ -609,7 +618,7 @@ class MPICommunication(Communication):
         """
         # unpack the buffer if it is a HeAT tensor
         if isinstance(buf, DNDarray):
-            buf = buf._DNDarray__array
+            buf = buf.larray
         # convert torch tensors to MPI memory buffers
         if not isinstance(buf, torch.Tensor):
             return func(buf, root), None, None, None
@@ -681,10 +690,10 @@ class MPICommunication(Communication):
         buf = None
         # unpack the send buffer if it is a HeAT tensor
         if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf._DNDarray__array
+            sendbuf = sendbuf.larray
         # unpack the receive buffer if it is a HeAT tensor
         if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf._DNDarray__array
+            recvbuf = recvbuf.larray
 
         # harmonize the input and output buffers
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
@@ -939,7 +948,7 @@ class MPICommunication(Communication):
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf._DNDarray__array
+            sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor):
             if axis != 0:
                 raise TypeError(
@@ -952,7 +961,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf._DNDarray__array
+            recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor):
             if axis != 0:
                 raise TypeError(
@@ -1150,7 +1159,7 @@ class MPICommunication(Communication):
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf._DNDarray__array
+            sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
                 "sendbuf of type {} does not support send_axis != 0".format(type(sendbuf))
@@ -1160,7 +1169,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf._DNDarray__array
+            recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
                 "recvbuf of type {} does not support send_axis != 0".format(type(recvbuf))
@@ -1422,7 +1431,7 @@ class MPICommunication(Communication):
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf._DNDarray__array
+            sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
                 "sendbuf of type {} does not support send_axis != 0".format(type(sendbuf))
@@ -1432,7 +1441,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf._DNDarray__array
+            recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(
                 "recvbuf of type {} does not support send_axis != 0".format(type(recvbuf))
@@ -1817,18 +1826,6 @@ class MPIRequest:
                 self.recvbuf = self.recvbuf.permute(self.permutation)
             self.tensor.copy_(self.recvbuf)
 
-    def wait(self, status: MPI.Status = None):
-        self.handle.wait(status)
-        if (
-            self.tensor is not None
-            and isinstance(self.tensor, torch.Tensor)
-            and self.tensor.is_cuda
-            and not CUDA_AWARE_MPI
-        ):
-            if self.permutation is not None:
-                self.recvbuf = self.recvbuf.permute(self.permutation)
-            self.tensor.copy_(self.recvbuf)
-
     def __getattr__(self, name: str):
         """
         Default pass-through for the communicator methods.
@@ -1837,6 +1834,11 @@ class MPIRequest:
         ----------
         name : str
             The name of the method to be called.
+
+        Returns
+        -------
+        method : function
+            The handle's method
         """
         return getattr(self.handle, name)
 
@@ -1851,6 +1853,11 @@ __default_comm = MPI_WORLD
 def get_comm() -> Communication:
     """
     Retrieves the currently globally set default communication.
+
+    Returns
+    -------
+    comm : Communication
+        The currently set default communication.
     """
     return __default_comm
 

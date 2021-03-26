@@ -5,6 +5,8 @@ import torch
 from .communication import MPI
 from .dndarray import DNDarray
 from . import _operations
+from . import dndarray
+from . import types
 
 __all__ = ["eq", "equal", "ge", "gt", "le", "lt", "ne"]
 
@@ -33,7 +35,20 @@ def eq(t1, t2) -> DNDarray:
     tensor([[0, 1],
             [0, 0]])
     """
-    return _operations.__binary_op(torch.eq, t1, t2)
+    res = _operations.__binary_op(torch.eq, t1, t2)
+
+    if res.dtype != types.bool:
+        res = dndarray.DNDarray(
+            res.larray.type(torch.bool),
+            res.gshape,
+            types.bool,
+            res.split,
+            res.device,
+            res.comm,
+            res.balanced,
+        )
+
+    return res
 
 
 DNDarray.__eq__ = lambda self, other: eq(self, other)
@@ -66,8 +81,8 @@ def equal(t1, t2) -> bool:
     """
     result_tensor = _operations.__binary_op(torch.equal, t1, t2)
 
-    if result_tensor._DNDarray__array.numel() == 1:
-        result_value = result_tensor._DNDarray__array.item()
+    if result_tensor.larray.numel() == 1:
+        result_value = result_tensor.larray.item()
     else:
         result_value = True
 
@@ -99,7 +114,20 @@ def ge(t1, t2) -> DNDarray:
     tensor([[0, 1],
             [1, 1]], dtype=torch.uint8)
     """
-    return _operations.__binary_op(torch.ge, t1, t2)
+    res = _operations.__binary_op(torch.ge, t1, t2)
+
+    if res.dtype != types.bool:
+        res = dndarray.DNDarray(
+            res.larray.type(torch.bool),
+            res.gshape,
+            types.bool,
+            res.split,
+            res.device,
+            res.comm,
+            res.balanced,
+        )
+
+    return res
 
 
 DNDarray.__ge__ = lambda self, other: ge(self, other)
@@ -131,7 +159,20 @@ def gt(t1, t2) -> DNDarray:
     tensor([[0, 0],
             [1, 1]], dtype=torch.uint8)
     """
-    return _operations.__binary_op(torch.gt, t1, t2)
+    res = _operations.__binary_op(torch.gt, t1, t2)
+
+    if res.dtype != types.bool:
+        res = dndarray.DNDarray(
+            res.larray.type(torch.bool),
+            res.gshape,
+            types.bool,
+            res.split,
+            res.device,
+            res.comm,
+            res.balanced,
+        )
+
+    return res
 
 
 DNDarray.__gt__ = lambda self, other: gt(self, other)
@@ -163,7 +204,20 @@ def le(t1, t2) -> DNDarray:
     tensor([[1, 1],
             [0, 0]], dtype=torch.uint8)
     """
-    return _operations.__binary_op(torch.le, t1, t2)
+    res = _operations.__binary_op(torch.le, t1, t2)
+
+    if res.dtype != types.bool:
+        res = dndarray.DNDarray(
+            res.larray.type(torch.bool),
+            res.gshape,
+            types.bool,
+            res.split,
+            res.device,
+            res.comm,
+            res.balanced,
+        )
+
+    return res
 
 
 DNDarray.__le__ = lambda self, other: le(self, other)
@@ -195,7 +249,20 @@ def lt(t1, t2) -> DNDarray:
     tensor([[1, 0],
             [0, 0]], dtype=torch.uint8)
     """
-    return _operations.__binary_op(torch.lt, t1, t2)
+    res = _operations.__binary_op(torch.lt, t1, t2)
+
+    if res.dtype != types.bool:
+        res = dndarray.DNDarray(
+            res.larray.type(torch.bool),
+            res.gshape,
+            types.bool,
+            res.split,
+            res.device,
+            res.comm,
+            res.balanced,
+        )
+
+    return res
 
 
 DNDarray.__lt__ = lambda self, other: lt(self, other)
@@ -226,9 +293,17 @@ def ne(t1, t2) -> DNDarray:
     tensor([[1, 0],
             [1, 1]])
     """
+    res = _operations.__binary_op(torch.ne, t1, t2)
 
-    return _operations.__binary_op(torch.ne, t1, t2)
+    if res.dtype != types.bool:
+        res = dndarray.DNDarray(
+            res.larray.type(torch.bool),
+            res.gshape,
+            types.bool,
+            res.split,
+            res.device,
+            res.comm,
+            res.balanced,
+        )
 
-
-DNDarray.__ne__ = lambda self, other: ne(self, other)
-DNDarray.__ne__.__doc__ = ne.__doc__
+    return res

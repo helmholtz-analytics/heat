@@ -102,7 +102,7 @@ def sanitize_axis(
     return axis
 
 
-def sanitize_shape(shape: Union[int, Tuple[int, ...]]) -> Tuple[int, ...]:
+def sanitize_shape(shape: Union[int, Tuple[int, ...]], lval: int = 0) -> Tuple[int, ...]:
     """
     Verifies and normalizes the given shape.
 
@@ -110,6 +110,9 @@ def sanitize_shape(shape: Union[int, Tuple[int, ...]]) -> Tuple[int, ...]:
     ----------
     shape : int or Tupe[int,...]
         Shape of an array.
+    lval : int
+        Lowest legal value
+
 
     Raises
     -------
@@ -134,7 +137,7 @@ def sanitize_shape(shape: Union[int, Tuple[int, ...]]) -> Tuple[int, ...]:
             dimension = int(dimension)
         if not isinstance(dimension, int):
             raise TypeError("expected sequence object with length >= 0 or a single integer")
-        if dimension < 0:
+        if dimension < lval:
             raise ValueError("negative dimensions are not allowed")
 
     return shape

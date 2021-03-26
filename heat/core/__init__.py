@@ -2,6 +2,7 @@ from .arithmetics import *
 from .base import *
 from .communication import *
 from .constants import *
+from .complex_math import *
 from .devices import *
 from .exponential import *
 from .factories import *
@@ -15,6 +16,7 @@ from .printing import *
 from . import random
 from .relational import *
 from .rounding import *
+from .sanitation import *
 from .statistics import *
 from .dndarray import *
 from .tiling import *

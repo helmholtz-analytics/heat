@@ -3,14 +3,15 @@ from __future__ import annotations
 import numpy as np
 import time
 import torch
-from typing import Type, List, Optional, Tuple
 
 from . import communication
 from .communication import Communication
 from . import devices
 from .dndarray import DNDarray
+from . import factories
 from . import stride_tricks
 from . import types
+from typing import Type, List, Optional, Tuple
 
 from .types import datatype
 
@@ -45,8 +46,22 @@ def __counter_sequence(
         The data type of the elements to be generated. Needs to be either ``torch.int32`` or ``torch.int64``.
     split : int or None
         The split axis along which the random number tensor is split
-    comm: Communication
+    device : devices.Device
+        Specifies the device the tensor shall be allocated on.
+    comm: ht.Communication
         Handle to the nodes holding distributed parts or copies of this tensor.
+
+    Returns
+    -------
+    x_0 : torch.Tensor
+        The high-bits vector for the threefry encryption.
+    x_1 : torch.Tensor
+        The low-bits vector for the threefry encryption.
+    lshape : tuple of ints
+        The shape x_0 and x_1 need to be reshaped to after encryption. May be slightly larger than the actual local
+        portion of the random number tensor due to sequence overlaps of the counter sequence.
+    slice : python slice
+        The slice that needs to be applied to the resulting random number tensor
     """
     # get the global random state into the function, might want to factor this out into a class later
     global __counter
@@ -65,12 +80,12 @@ def __counter_sequence(
         c_0 = (__counter & (max_count << 64)) >> 64
         c_1 = __counter & max_count
 
-    total_elements = np.prod(shape)
-    if total_elements > 2 * max_count:
+    total_elements = torch.prod(torch.tensor(shape))
+    if total_elements.item() > 2 * max_count:
         raise ValueError("Shape is to big with {} elements".format(total_elements))
 
     if split is None:
-        values = np.ceil(total_elements / 2)
+        values = torch.ceil(total_elements / 2)
         even_end = total_elements % 2 == 0
         lslice = slice(None) if even_end else slice(None, -1)
         start = c_1
@@ -82,7 +97,9 @@ def __counter_sequence(
 
         # Calculate number of local elements per process
         local_elements = [total_elements / shape[split] * counts[i] for i in range(size)]
-        cum_elements = np.cumsum(local_elements)
+        cum_elements = torch.cumsum(
+            torch.tensor(local_elements, device=devices.torch_device), dim=0
+        )
 
         # Calculate the correct borders and slices
         even_start = True if rank == 0 else cum_elements[rank - 1] % 2 == 0
@@ -118,7 +135,7 @@ def __counter_sequence(
     lrange[0], lrange[1] = lrange[0] - diff, lrange[1] - diff
 
     # create x_1 counter sequence
-    x_1 = torch.arange(*lrange, dtype=dtype)
+    x_1 = torch.arange(*lrange, dtype=dtype, device=devices.torch_device)
     while diff > signed_mask:
         # signed_mask is maximum that can be added at a time because torch does not support unit64 or unit32
         x_1 += signed_mask
@@ -148,12 +165,12 @@ def __counter_sequence(
             x_0[-(end - max_count - 1) :] += 1
 
     # correctly increase the counter variable
-    used_values = int(np.ceil(total_elements / 2))
+    used_values = int(torch.ceil(total_elements / 2))
     # increase counter but not over 128 bit
     tmp_counter += used_values
     __counter = tmp_counter & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  # 128-bit mask
 
-    return x_0, x_1, lshape, lslice
+    return x_0.contiguous(), x_1.contiguous(), lshape, lslice
 
 
 def get_state() -> Tuple[str, int, int, int, float]:
@@ -220,13 +237,84 @@ def __kundu_transform(values: torch.Tensor) -> torch.Tensor:
     return (torch.log(-torch.log(1 - values ** 0.0775)) - 1.0821) * __KUNDU_INVERSE
 
 
-def rand(
-    *args: List[int],
-    dtype: Type[datatype] = types.float32,
-    split: Optional[int] = None,
-    device: Optional[str] = None,
-    comm: Optional[Communication] = None
-) -> DNDarray:
+def permutation(x):
+    """
+    Randomly permute a sequence, or return a permuted range.
+
+    If x is a multi-dimensional array, it is only shuffled along its first index.
+
+    Parameters
+    -----------
+    x : int or DNDarray
+        If x is an integer, call :function:`~heat.core.random.randperm`. If x is an array, make a copy and shuffle the elements randomly.
+
+    Returns
+    -----------
+    DNDarray
+
+    See Also
+    -----------
+    :function:`~heat.core.random.randperm` Random permuted range
+
+    Examples
+    ----------
+    >>> ht.random.permutation(10)
+    DNDarray([9, 1, 5, 4, 8, 2, 7, 6, 3, 0], dtype=ht.int64, device=cpu:0, split=None)
+
+    >>> ht.random.permutation(ht.array([1, 4, 9, 12, 15]))
+    DNDarray([ 9,  1, 12,  4, 15], dtype=ht.int64, device=cpu:0, split=None)
+
+    >>> arr = ht.arange(9).reshape((3, 3))
+    >>> ht.random.permutation(arr)
+    DNDarray([[3, 4, 5],
+              [6, 7, 8],
+              [0, 1, 2]], dtype=ht.int32, device=cpu:0, split=None)
+    """
+    if isinstance(x, int):
+        return randperm(x)
+
+    if not isinstance(x, DNDarray):
+        raise TypeError("x must be int or DNDarray")
+
+    # random permutation
+    recv = torch.randperm(x.shape[0], device=x.device.torch_device)
+
+    # rearange locally
+    if (x.split is None) or (x.split != 0):
+        return x[recv]
+
+    # split == 0 -> Need for communication
+    if x.lshape[0] > 0:
+        cumsum = [x.comm.chunk(x.gshape, 0, i)[0] for i in range(0, x.comm.size)]
+        cumsum.append(x.shape[0])
+
+        send = torch.argsort(recv)
+        size = cumsum[x.comm.rank + 1] - cumsum[x.comm.rank]
+        torch_cumsum = torch.tensor(cumsum, device=x.device.torch_device)
+
+        buf = []
+        requests = []
+
+        for i in range(size):
+            proc_recv = torch.where(recv[torch_cumsum[x.comm.rank] + i] < torch_cumsum)[0][0] - 1
+            buf.append(torch.empty_like(x.lloc[i]))
+            requests.append(x.comm.Irecv(buf[-1], proc_recv, tag=i))
+
+            proc_send = torch.where(send[torch_cumsum[x.comm.rank] + i] < torch_cumsum)[0][0] - 1
+            tag = send[torch_cumsum[x.comm.rank] + i] - torch_cumsum[proc_send]
+            requests.append(x.comm.Isend(x.lloc[i].clone(), proc_send, tag=tag))
+
+        for req in requests:
+            req.Wait()
+
+        data = torch.stack(buf)
+    else:
+        data = torch.empty_like(x.larray)
+
+    return factories.array(data, dtype=x.dtype, is_split=x.split, device=x.device, comm=x.comm)
+
+
+def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
     """
     Random values in a given shape.
     Create a :class:`~heat.core.dndarray.DNDarray`  of the given shape and populate it with random samples from a
@@ -248,6 +336,10 @@ def rand(
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
 
+    Returns
+    -------
+    out : ht.dndarray, shape (d0, d1, ..., dn)
+        The uniformly distributed [0.0, 1.0)-bound random values.
     """
     # if args are not set, generate a single sample
     if not args:
@@ -262,11 +354,12 @@ def rand(
     split = stride_tricks.sanitize_axis(shape, split)
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
+    balanced = True
 
     # generate the random sequence
     if dtype == types.float32:
         x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, comm)
-        x_0, x_1 = __threefry32(x_0, x_1)
+        x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
 
         # combine the values into one tensor and convert them to floats
         values = __int32_to_float32(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(
@@ -274,7 +367,7 @@ def rand(
         )
     elif dtype == types.float64:
         x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, comm)
-        x_0, x_1 = __threefry64(x_0, x_1)
+        x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
 
         # combine the values into one tensor and convert them to floats
         values = __int64_to_float64(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(
@@ -284,7 +377,7 @@ def rand(
         # Unsupported type
         raise ValueError("dtype is none of ht.float32 or ht.float64 but was {}".format(dtype))
 
-    return DNDarray(values, shape, dtype, split, device, comm)
+    return DNDarray(values, shape, dtype, split, device, comm, balanced)
 
 
 def randint(
@@ -349,19 +442,25 @@ def randint(
     split = stride_tricks.sanitize_axis(shape, split)
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
+    balanced = True
+
     # generate the random sequence
     x_0, x_1, lshape, lslice = __counter_sequence(shape, dtype.torch_type(), split, comm)
     if torch_dtype is torch.int32:
-        x_0, x_1 = __threefry32(x_0, x_1)
+        x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
     else:  # torch.int64
-        x_0, x_1 = __threefry64(x_0, x_1)
+        x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
 
     # stack the resulting sequence and normalize to given range
     values = torch.stack([x_0, x_1], dim=1).flatten()[lslice].reshape(lshape)
     # ATTENTION: this is biased and known, bias-free rejection sampling is difficult to do in parallel
     values = (values.abs_() % span) + low
 
-    return DNDarray(values, shape, dtype, split, device, comm)
+    return DNDarray(values, shape, dtype, split, device, comm, balanced)
+
+
+# alias
+random_integer = randint
 
 
 def randn(
@@ -408,12 +507,89 @@ def randn(
     # generate uniformly distributed random numbers first
     normal_tensor = rand(*args, dtype=dtype, split=split, device=device, comm=comm)
     # convert the the values to a normal distribution using the kundu transform
-    normal_tensor._DNDarray__array = __kundu_transform(normal_tensor._DNDarray__array)
+    normal_tensor.larray = __kundu_transform(normal_tensor.larray)
 
     return normal_tensor
 
 
-def seed(seed: Optional[int] = None):
+def randperm(
+    n: int, dtype=types.int64, split: Optional[int] = None, device: Optional[str] = None, comm=None
+):
+    """
+    Returns a random permutation of integers from 0 to n - 1
+
+    Parameters
+    ----------
+    n : int
+        Number of integers
+    dtype : datatype, optional
+        The datatype of the returned values.
+    split : int, optional
+        The axis along which the array is split and distributed, defaults to no distribution.
+    device : str, optional
+        Specifies the :class:`~heat.core.devices.Device`  the array shall be allocated on, defaults to globally
+        set default device.
+    comm : Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+
+    Returns
+    -------
+    DNDarray
+
+    Example
+    --------
+    >>> ht.random.randperm(4)
+    DNDarray([2, 3, 1, 0], dtype=ht.int64, device=cpu:0, split=None)
+    """
+    if not isinstance(n, int):
+        raise TypeError("n must be an integer.")
+
+    device = devices.sanitize_device(device)
+    comm = communication.sanitize_comm(comm)
+    perm = torch.randperm(n, dtype=dtype.torch_type(), device=device.torch_device)
+
+    return factories.array(perm, dtype=dtype, device=device, split=split, comm=comm)
+
+
+def random_sample(
+    shape: Optional[Tuple[int]] = None,
+    dtype=types.float32,
+    split: Optional[int] = None,
+    device: Optional[str] = None,
+    comm=None,
+):
+    """
+    Random values in a given shape.
+    Create a :class:`~heat.core.dndarray.DNDarray`  of the given shape and populate it with random samples from a
+    uniform distribution over [0, 1).
+
+    Parameters
+    ----------
+    shape : Tuple[int]
+        The shape of the returned array, should all be positive. If no argument is given a single random sample is
+        generated.
+    dtype: Type[datatype], optional
+        The datatype of the returned values. Has to be one of
+        [:class:`~heat.core.types.float32, :class:`~heat.core.types.float64`].
+    split : int, optional
+        The axis along which the array is split and distributed, defaults to no distribution.
+    device : str, optional
+        Specifies the :class:`~heat.core.devices.Device`  the array shall be allocated on, defaults to globally
+        set default device.
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+    """
+    if not shape:
+        shape = (1,)
+    shape = stride_tricks.sanitize_shape(shape)
+    return rand(*shape, dtype=dtype, split=split, device=device, comm=comm)
+
+
+# aliases
+random = ranf = sample = random_sample
+
+
+def seed(seed=None):
     """
     Seed the generator.
 
@@ -468,7 +644,8 @@ def set_state(state: Tuple[str, int, int, int, float]):
     __counter = int(state[2])
 
 
-def __threefry32(x_0: torch.Tensor, x_1: torch.Tensor) -> Tuple[torch.tensor, torch.tensor]:
+# @torch.jit.script
+def __threefry32(X_0: torch.Tensor, X_1: torch.Tensor, seed: int):
     """
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. Returns
     Two vectors with num_samples / 2 (rounded-up) pseudo random numbers. This is the 32-bit version.
@@ -486,60 +663,69 @@ def __threefry32(x_0: torch.Tensor, x_1: torch.Tensor) -> Tuple[torch.tensor, to
     Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
     p. 16, 2011
     """
-    samples = len(x_0)
+    samples = len(X_0)
 
     # Seed is > 32 bit
-    seed_32 = __seed & 0x7FFFFFFF
+    seed_32 = seed & 0x7FFFFFFF
 
     # set up key buffer
-    ks_0 = torch.full((samples,), seed_32, dtype=torch.int32)
-    ks_1 = torch.full((samples,), seed_32, dtype=torch.int32)
-    ks_2 = torch.full((samples,), 466688986, dtype=torch.int32)
-    ks_2 ^= ks_0
-    ks_2 ^= ks_0
+    ks_0 = torch.full((samples,), seed_32, dtype=torch.int32, device=X_0.device)
+    ks_1 = torch.full((samples,), seed_32, dtype=torch.int32, device=X_1.device)
+    ks_2 = torch.full((samples,), 466688986, dtype=torch.int32, device=X_0.device)
+    # ks_2 ^= ks_0
+    # ks_2 ^= ks_1
+    ks_2 = torch.bitwise_xor(torch.bitwise_xor(ks_2, ks_0), ks_1)
 
     # initialize output using the key
-    x_0 += ks_0
-    x_1 += ks_1
+    X_0 += ks_0
+    X_1 += ks_1
 
     # perform rounds
     # round 1
-    x_0 += x_1
-    x_1 = (x_1 << 13) | (x_1 >> 19)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 13) | ((X_1 >> 19) & 0x1FFF)
+    X_1 = torch.bitwise_xor(X_1, X_0)
+    # X_1 ^= X_0
     # round 2
-    x_0 += x_1
-    x_1 = (x_1 << 15) | (x_1 >> 17)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 15) | ((X_1 >> 17) & 0x7FFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 3
-    x_0 += x_1
-    x_1 = (x_1 << 26) | (x_1 >> 6)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 26) | ((X_1 >> 6) & 0x3FFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 4
-    x_0 += x_1
-    x_1 = (x_1 << 6) | (x_1 >> 26)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 6) | ((X_1 >> 26) & 0x3F)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
 
     # inject key
-    x_0 += ks_1
-    x_1 += ks_2 + 1
+    X_0 += ks_1
+    X_1 += ks_2 + 1
 
     # round 5
-    x_0 += x_1
-    x_1 = (x_1 << 17) | (x_1 >> 15)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 17) | ((X_1 >> 15) & 0x1FFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 6
-    x_0 += x_1
-    x_1 = (x_1 << 29) | (x_1 >> 3)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 29) | ((X_1 >> 3) & 0x1FFFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 7
-    x_0 += x_1
-    x_1 = (x_1 << 16) | (x_1 >> 16)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 16) | ((X_1 >> 16) & 0xFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 8
-    x_0 += x_1
-    x_1 = (x_1 << 24) | (x_1 >> 8)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 24) | ((X_1 >> 8) & 0xFFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
 
     # inject key
     # X_0 += ks_2; X_1 += (ks_0 + 2)
@@ -550,16 +736,17 @@ def __threefry32(x_0: torch.Tensor, x_1: torch.Tensor) -> Tuple[torch.tensor, to
     # X_0 += X_1; X_1 = (X_1 <<  6) | (X_1 >> 26); X_1 ^= X_0  # round 12
 
     # inject key
-    x_0 += ks_0
-    x_1 += ks_1 + 3
+    X_0 += ks_0
+    X_1 += ks_1 + 3
 
-    return x_0, x_1
+    return X_0, X_1
 
 
-def __threefry64(x_0: torch.Tensor, x_1: torch.Tensor) -> Tuple[torch.tensor, torch.tensor]:
+# @torch.jit.script
+def __threefry64(X_0: torch.Tensor, X_1: torch.Tensor, seed: int):
     """
-    Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1].
-    Returns two vectors with num_samples / 2 (rounded-up) pseudo random numbers. This is the 64-bit version.
+    Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. This is the
+    64-bit version.
 
     Parameters
     ----------
@@ -574,57 +761,66 @@ def __threefry64(x_0: torch.Tensor, x_1: torch.Tensor) -> Tuple[torch.tensor, to
     Proceedings of 2011 International Conference for High Performance Computing, Networking, Storage and Analysis,
     p. 16, 2011
     """
-    samples = len(x_0)
+    samples = len(X_0)
 
     # set up key buffer
-    ks_0 = torch.full((samples,), __seed, dtype=torch.int64)
-    ks_1 = torch.full((samples,), __seed, dtype=torch.int64)
-    ks_2 = torch.full((samples,), 2004413935125273122, dtype=torch.int64)
-    ks_2 ^= ks_0
-    ks_2 ^= ks_0
+    ks_0 = torch.full((samples,), seed, dtype=torch.int64, device=X_0.device)
+    ks_1 = torch.full((samples,), seed, dtype=torch.int64, device=X_1.device)
+    ks_2 = torch.full((samples,), 2004413935125273122, dtype=torch.int64, device=X_0.device)
+    # ks_2 ^= ks_0
+    # ks_2 ^= ks_1
+    ks_2 = torch.bitwise_xor(torch.bitwise_xor(ks_2, ks_0), ks_1)
 
     # initialize output using the key
-    x_0 += ks_0
-    x_1 += ks_1
+    X_0 += ks_0
+    X_1 += ks_1
 
     # perform rounds
     # round 1
-    x_0 += x_1
-    x_1 = (x_1 << 16) | (x_1 >> 48)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 16) | ((X_1 >> 48) & 0xFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 2
-    x_0 += x_1
-    x_1 = (x_1 << 42) | (x_1 >> 22)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 42) | ((X_1 >> 22) & 0x3FFFFFFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 3
-    x_0 += x_1
-    x_1 = (x_1 << 12) | (x_1 >> 52)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 12) | ((X_1 >> 52) & 0xFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 4
-    x_0 += x_1
-    x_1 = (x_1 << 31) | (x_1 >> 33)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 31) | ((X_1 >> 33) & 0x7FFFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
 
     # inject key
-    x_0 += ks_1
-    x_1 += ks_2 + 1
+    X_0 += ks_1
+    X_1 += ks_2 + 1
 
     # round 5
-    x_0 += x_1
-    x_1 = (x_1 << 16) | (x_1 >> 48)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 16) | ((X_1 >> 48) & 0xFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 6
-    x_0 += x_1
-    x_1 = (x_1 << 32) | (x_1 >> 32)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 32) | ((X_1 >> 32) & 0xFFFFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 7
-    x_0 += x_1
-    x_1 = (x_1 << 24) | (x_1 >> 40)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 24) | ((X_1 >> 40) & 0xFFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 8
-    x_0 += x_1
-    x_1 = (x_1 << 21) | (x_1 >> 43)
-    x_1 ^= x_0
+    X_0 += X_1
+    X_1 = (X_1 << 21) | ((X_1 >> 43) & 0x1FFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
 
     # inject key
     # X_0 += ks_2; X_1 += (ks_0 + 2)
@@ -635,10 +831,10 @@ def __threefry64(x_0: torch.Tensor, x_1: torch.Tensor) -> Tuple[torch.tensor, to
     # X_0 += X_1; X_1 = (X_1 << 31) | (X_1 >> 33); X_1 ^= X_0  # round 12
 
     # inject key
-    x_0 += ks_0
-    x_1 += ks_1 + 3
+    X_0 += ks_0
+    X_1 += ks_1 + 3
 
-    return x_0, x_1
+    return X_0, X_1
 
 
 # roll a global time-based seed
