@@ -3097,13 +3097,46 @@ class TestManipulations(TestCase):
             t_unique, t_inverse = torch.unique(comp, sorted=True, return_inverse=True)
             self.assertTrue((unique.larray == t_unique).all())
             self.assertTrue((inverse.larray == t_inverse[local_slice]).all())
+            if data.is_distributed():
+                self.assertTrue(unique.split is None or unique.split == 0)
+            else:
+                self.assertTrue(unique.split is None)
+            # test inverse indices on "gathered" unique
+            self.assertTrue((unique[inverse.larray].larray == data.larray).all())
+
             # axis not None
             axis = 0
             unique0, inverse0 = ht.unique(data, return_inverse=True, axis=axis)
             unique0.resplit_(None)
             t_unique0, t_inverse0 = torch.unique(comp, sorted=True, return_inverse=True, dim=axis)
             self.assertTrue((unique0.larray == t_unique0).all())
-            self.assertTrue((inverse0.larray == t_inverse0[local_slice[0]]).all())
+            self.assertTrue((inverse0.larray == t_inverse0[local_slice[axis]]).all())
+            if data.is_distributed():
+                self.assertTrue(unique0.split is None or unique0.split == axis)
+            else:
+                self.assertTrue(unique0.split is None)
+            # test inverse indices on "gathered" unique
+            self.assertTrue((unique0[inverse0.larray].larray == data.larray).all())
+
+            # axis == split != 0
+            data = ht.array(comp, split=1)
+            _, _, local_slice = data.comm.chunk(data.gshape, data.split)
+            axis = 1
+            unique1, inverse1 = ht.unique(data, return_inverse=True, axis=axis)
+            unique1.resplit_(None)
+            t_unique1, t_inverse1 = torch.unique(comp, sorted=True, return_inverse=True, dim=axis)
+            self.assertTrue((unique1.larray == t_unique1).all())
+            self.assertTrue((inverse1.larray == t_inverse1[local_slice[axis]]).all())
+            if data.is_distributed():
+                self.assertTrue(unique1.split is None or unique1.split == axis)
+            else:
+                self.assertTrue(unique1.split is None)
+            # test inverse indices on "gathered" unique
+            self.assertTrue((unique1[:, inverse1.larray].larray == data.larray).all())
+
+        # test exceptions
+        with self.assertRaises(NotImplementedError):
+            ht.unique(dense_data, axis=1)
 
     def test_vsplit(self):
         # for further testing, see test_split

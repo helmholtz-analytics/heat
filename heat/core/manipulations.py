@@ -1999,10 +1999,7 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
             torch.cat((torch.tensor([0], device=counts.device), counts[:-1])), dim=0
         )
         counts, displs = tuple(counts.tolist()), tuple(displs.tolist())
-    else:
-        raise ValueError(
-            "sorting operation can be torch.sort or torch.unique, was {}".format(sort_op)
-        )
+
     unique_along_axis = True if sort_op is torch.unique and axis is not None else False
 
     length = local_sorted.size()[0]
@@ -2893,34 +2890,29 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         )
         if isinstance(torch_output, tuple):
             heat_output = tuple(
-                factories.array(i, dtype=a.dtype, split=a.split, device=a.device)
-                for i in torch_output
+                factories.array(i, dtype=a.dtype, split=None, device=a.device) for i in torch_output
             )
         else:
-            heat_output = factories.array(
-                torch_output, dtype=a.dtype, split=a.split, device=a.device
-            )
+            heat_output = factories.array(torch_output, dtype=a.dtype, split=None, device=a.device)
         return heat_output
 
     rank = a.comm.rank
     size = a.comm.size
 
     local_data = a.larray
-
+    inv_shape = local_data.shape if axis is None else (local_data.shape[axis],)
     unique_axis = None
     if axis is not None:
         if axis != a.split:
-            raise ValueError(
-                "Operation axis must match distribution axis of the array: axis is {}, array.split is {}".format(
+            raise NotImplementedError(
+                "Not implemented yet: Operation axis differs from distribution axis: axis is {}, array.split is {}".format(
                     axis, a.split
                 )
             )
         if axis != 0:
             # transpose so we can work along the 0 axis
             local_data = local_data.transpose(0, axis)
-            unique_axis = 0
-        else:
-            unique_axis = axis
+        unique_axis = 0
 
     # Calculate local uniques
     if a.lshape[a.split] == 0:
@@ -2936,7 +2928,6 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
     else:
         lres = torch.unique(local_data, sorted=sorted, return_inverse=False, dim=unique_axis)
-        inv_shape = local_data.shape if axis is None else (local_data.shape[unique_axis],)
     gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
 
     # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
@@ -2947,6 +2938,7 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         gres.resplit_(None)
         # final round of torch.unique
         lres = torch.unique(gres.larray, sorted=sorted, dim=unique_axis)
+        lres_split = None
         gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device)
     else:
         # balance gres if needed
@@ -2956,14 +2948,20 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         # second local unique
         if 0 not in lres.shape:
             lres = torch.unique(lres, sorted=sorted, dim=unique_axis)
-        gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
-        gres.balance_()
+        lres_split = 0
 
-    # inverse indices
+    gres = factories.array(lres, dtype=a.dtype, is_split=lres_split, device=a.device)
+    gres.balance_()
+
     if return_inverse:
+        # inverse indices
         # allocate local tensors and global DNDarray
         inverse = torch.empty(inv_shape, dtype=torch.int64, device=local_data.device)
-        global_inverse = factories.array(inverse, is_split=a.split, device=gres.device)
+        if a.is_distributed():
+            inv_split = 0 if inverse.ndim == 1 else a.split
+        else:
+            inv_split = None
+        global_inverse = factories.array(inverse, is_split=inv_split, device=gres.device)
 
         unique_ranks = size if gres.is_distributed() else 1
         if unique_ranks > 1:
@@ -3006,8 +3004,8 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         gres.larray = lres
 
     if axis is not None and axis != 0:
-        # transpose back to original dimensions
-        gres = gres.transpose(0, axis)
+        # transpose back to original
+        gres = linalg.basics.transpose(gres, (axis, 0))
 
     if return_inverse:
         return (gres, global_inverse)
