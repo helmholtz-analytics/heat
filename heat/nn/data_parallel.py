@@ -201,6 +201,7 @@ class DataParallel(tnn.Module):
                     self._fwd_hook_handles.append(hook_handle)
 
         # perform forward pass
+        print(inputs)
         ret = self.module(*inputs, **kwargs)
         # finalize potentially remaining wait handles and update corresponding params (if
         # computation graph has changed between previous backward and this forward)
@@ -321,7 +322,7 @@ class DataParallel(tnn.Module):
                 (param_name, wait_handle, grad_loc.dtype, wrk)
             )
             # don't return grad_loc, otherwise gradient is doubled
-            return torch.zeros(*wrk.size(), device=grad_loc.device)
+            return torch.zeros(*wrk.size(), dtype=grad_loc.dtype, device=grad_loc.device)
 
         return _hook
 
