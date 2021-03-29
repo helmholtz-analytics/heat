@@ -3135,8 +3135,9 @@ class TestManipulations(TestCase):
             self.assertTrue((unique1[:, inverse1.larray].larray == data.larray).all())
 
         # test exceptions
-        with self.assertRaises(NotImplementedError):
-            ht.unique(dense_data, axis=1)
+        if dense_data.is_distributed():
+            with self.assertRaises(NotImplementedError):
+                ht.unique(dense_data, axis=1)
 
     def test_vsplit(self):
         # for further testing, see test_split
