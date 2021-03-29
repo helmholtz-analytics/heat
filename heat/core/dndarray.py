@@ -5,6 +5,26 @@ import math
 import torch
 import warnings
 from typing import List, Union, Tuple
+from inspect import stack
+from pathlib import Path
+
+from . import arithmetics
+from . import complex_math
+from . import exponential
+from . import indexing
+from . import io
+from . import linalg
+from . import logical
+from . import manipulations
+from . import memory
+from . import relational
+from . import rounding
+from . import sanitation
+from . import statistics
+
+from . import trigonometrics
+from . import types
+
 
 # NOTE: heat module imports need to be placed at the very end of the file to avoid cyclic dependencies
 
@@ -48,34 +68,30 @@ class DNDarray:
         The device on which the local arrays are using (cpu or gpu)
     comm : Communication
         The communications object for sending and receiving data
+    balanced: bool or None
+        Describes whether the data are evenly distributed across processes.
+        If this information is not available (`self.balanced is None`), it
+        can be gathered via the `is_distributed()` method (requires communication).
     """
 
-    def __init__(self, array, gshape, dtype, split, device, comm):
+    def __init__(self, array, gshape, dtype, split, device, comm, balanced):
         self.__array = array
         self.__gshape = gshape
         self.__dtype = dtype
         self.__split = split
         self.__device = device
         self.__comm = comm
+        self.__balanced = None
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None
 
-        # handle inconsistencies between torch and heat devices
-        if (
-            isinstance(array, torch.Tensor)
-            and isinstance(device, Device)
-            and array.device.type != device.device_type
-        ):
-            self.__array = self.__array.to(devices.sanitize_device(self.__device).torch_device)
+        # check for inconsistencies between torch and heat devices
+        assert str(array.device) == device.torch_device
 
     @property
-    def halo_next(self):
-        return self.__halo_next
-
-    @property
-    def halo_prev(self):
-        return self.__halo_prev
+    def balanced(self):
+        return self.__balanced
 
     @property
     def comm(self):
@@ -103,27 +119,78 @@ class DNDarray:
         return self.__gshape
 
     @property
-    def numdims(self) -> int:
+    def halo_next(self):
+        return self.__halo_next
+
+    @property
+    def halo_prev(self):
+        return self.__halo_prev
+
+    @property
+    def larray(self):
         """
-        Number of dimensions of the ``DNDarray``
+        Returns
+        -------
+        larray : torch.Tensor
+                the underlying local torch tensor of the DNDarray
+        """
+        return self.__array
+
+    @larray.setter
+    def larray(self, array):
+        """
+        Setter for larray/ the underlying local torch tensor of the DNDarray.
+        Warning: Please use this function with care, as it might corrupt/invalidate the metadata in the
+        DNDarray instance.
+
+        Parameters
+        ----------
+        array : torch.tensor
+            The new underlying local torch tensor of the DNDarray
+        """
+        # sanitize tensor input
+        sanitation.sanitize_in_tensor(array)
+        # verify consistency of tensor shape with global DNDarray
+        sanitation.sanitize_lshape(self, array)
+        # set balanced status
+        split = self.split
+        if split is not None and array.shape[split] != self.lshape[split]:
+            self.__balanced = None
+        # raise warning if function was called by user/not out of 'heat/core/*'
+        caller = stack()[1]
+        abs_heat_path = Path("heat", "core").resolve()
+        abs_path_caller = Path(caller.filename).resolve()
+
+        if not (abs_heat_path < abs_path_caller):
+            warnings.warn(
+                "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
+                "might corrupt/invalidate the metadata in a DNDarray instance"
+            )
+        self.__array = array
+
+    @property
+    def nbytes(self):
+        """
+        Equivalent to property gnbytes.
+        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
 
         Returns
         -------
-        number_of_dimensions : int
-            The number of dimensions of the DNDarray
-
-        .. deprecated:: 0.5.0
-          ``numdims`` will be removed in HeAT 1.0.0, it is replaced by ``ndim`` because the latter is numpy API compliant.
+        global_number_of_bytes : int
+            number of bytes consumed by the global tensor
         """
-        warnings.warn("numdims is deprecated, use ndim instead", DeprecationWarning)
-        return len(self.__gshape)
+        return self.__array.element_size() * self.size
 
     @property
     def ndim(self) -> int:
         """
         Number of dimensions of the ``DNDarray``
 
+
+        .. deprecated:: 0.5.0
+          `numdims` will be removed in HeAT 1.0.0, it is replaced by `ndim` because the latter is numpy API compliant.
         """
+        warnings.warn("numdims is deprecated, use ndim instead", DeprecationWarning)
         return len(self.__gshape)
 
     @property
@@ -134,11 +201,46 @@ class DNDarray:
         return torch.prod(torch.tensor(self.gshape, device=self.device.torch_device)).item()
 
     @property
-    def gnumel(self) -> int:
+    def gnbytes(self):
         """
-        Number of total elements of the ``DNDarray``
+        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
+
+        Returns
+        -------
+        global_number_of_bytes : int
+            number of bytes consumed by the global tensor
+        """
+        return self.nbytes
+
+    @property
+    def gnumel(self):
+        """
+
+        Returns
+        -------
+        global_shape : int
+            number of total elements of the tensor
         """
         return self.size
+
+    @property
+    def imag(self):
+        """
+        Return the imaginary part of the DNDarray.
+        """
+        return complex_math.imag(self)
+
+    @property
+    def lnbytes(self):
+        """
+        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
+
+        Returns
+        -------
+        local_number_of_bytes : int
+            number of bytes consumed by the local tensor
+        """
+        return self.__array.element_size() * self.__array.nelement()
 
     @property
     def lnumel(self) -> int:
@@ -189,6 +291,13 @@ class DNDarray:
         return tuple(self.__array.shape)
 
     @property
+    def real(self):
+        """
+        Return the real part of the DNDarray.
+        """
+        return complex_math.real(self)
+
+    @property
     def shape(self) -> Tuple[int]:
         """
         Returns the shape of the ``DNDarray`` as a whole
@@ -214,8 +323,8 @@ class DNDarray:
         """
         Returns bytes to step in each dimension when traversing a ``DNDarray``. numpy-like usage: ``self.strides()``
         """
-        steps = list(self._DNDarray__array.stride())
-        itemsize = self._DNDarray__array.storage().element_size()
+        steps = list(self.larray.stride())
+        itemsize = self.larray.storage().element_size()
         strides = tuple(step * itemsize for step in steps)
         return strides
 
@@ -225,7 +334,7 @@ class DNDarray:
         Reverse the dimensions of a DNDarray.
         """
         # specialty docs for this version of transpose. The transpose function is in heat/core/linalg/basics
-        pass
+        return linalg.transpose(self, axes=None)
 
     @property
     def array_with_halos(self):
@@ -266,21 +375,37 @@ class DNDarray:
         halo_size : int
             Size of the halo.
         """
+        if not self.is_balanced():
+            raise RuntimeError(
+                "halo cannot be created for unbalanced tensors, running the .balance_() function is recommended"
+            )
         if not isinstance(halo_size, int):
             raise TypeError(
-                "halo_size needs to be of Python type integer, {} given)".format(type(halo_size))
+                "halo_size needs to be of Python type integer, {} given".format(type(halo_size))
             )
         if halo_size < 0:
             raise ValueError(
-                "halo_size needs to be a positive Python integer, {} given)".format(type(halo_size))
+                "halo_size needs to be a positive Python integer, {} given".format(type(halo_size))
             )
 
         if self.comm.is_distributed() and self.split is not None:
-            min_chunksize = self.shape[self.split] // self.comm.size
-            if halo_size > min_chunksize:
+            # gather lshapes
+            lshape_map = self.create_lshape_map()
+            rank = self.comm.rank
+            size = self.comm.size
+            next_rank = rank + 1
+            prev_rank = rank - 1
+            last_rank = size - 1
+
+            # if local shape is zero and it's the last process
+            if self.lshape[self.split] == 0:
+                return  # if process has no data we ignore it
+
+            if halo_size > self.lshape[self.split]:
+                # if on at least one process the halo_size is larger than the local size throw ValueError
                 raise ValueError(
-                    "halo_size {} needs to smaller than chunck-size {} )".format(
-                        halo_size, min_chunksize
+                    "halo_size {} needs to be smaller than chunck-size {} )".format(
+                        halo_size, self.lshape[self.split]
                     )
                 )
 
@@ -292,18 +417,23 @@ class DNDarray:
 
             req_list = list()
 
-            if self.comm.rank != self.comm.size - 1:
-                self.comm.Isend(a_next, self.comm.rank + 1)
-                res_prev = torch.zeros(a_prev.size(), dtype=a_prev.dtype)
-                req_list.append(self.comm.Irecv(res_prev, source=self.comm.rank + 1))
+            # only exchange data with next process if it has data
+            if rank != last_rank and (lshape_map[next_rank, self.split] > 0):
+                self.comm.Isend(a_next, next_rank)
+                res_prev = torch.zeros(
+                    a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
+                )
+                req_list.append(self.comm.Irecv(res_prev, source=next_rank))
 
-            if self.comm.rank != 0:
-                self.comm.Isend(a_prev, self.comm.rank - 1)
-                res_next = torch.zeros(a_next.size(), dtype=a_next.dtype)
-                req_list.append(self.comm.Irecv(res_next, source=self.comm.rank - 1))
+            if rank != 0:
+                self.comm.Isend(a_prev, prev_rank)
+                res_next = torch.zeros(
+                    a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
+                )
+                req_list.append(self.comm.Irecv(res_next, source=prev_rank))
 
             for req in req_list:
-                req.wait()
+                req.Wait()
 
             self.__halo_next = res_prev
             self.__halo_prev = res_next
@@ -339,12 +469,86 @@ class DNDarray:
         dtype = canonical_heat_type(dtype)
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
-            return DNDarray(casted_array, self.shape, dtype, self.split, self.device, self.comm)
+            return DNDarray(
+                casted_array, self.shape, dtype, self.split, self.device, self.comm, self.balanced
+            )
 
         self.__array = casted_array
         self.__dtype = dtype
 
         return self
+
+    def average(self, axis=None, weights=None, returned=False):
+        """
+        Compute the weighted average along the specified axis.
+
+        Parameters
+        ----------
+        x : ht.tensor
+            Tensor containing data to be averaged.
+
+        axis : None or int or tuple of ints, optional
+            Axis or axes along which to average x.  The default,
+            axis=None, will average over all of the elements of the input tensor.
+            If axis is negative it counts from the last to the first axis.
+
+            #TODO Issue #351: If axis is a tuple of ints, averaging is performed on all of the axes
+            specified in the tuple instead of a single axis or all the axes as
+            before.
+
+        weights : ht.tensor, optional
+            An tensor of weights associated with the values in x. Each value in
+            x contributes to the average according to its associated weight.
+            The weights tensor can either be 1D (in which case its length must be
+            the size of x along the given axis) or of the same shape as x.
+            If weights=None, then all data in x are assumed to have a
+            weight equal to one, the result is equivalent to ht.mean(x).
+
+        returned : bool, optional
+            Default is False. If True, the tuple (average, sum_of_weights)
+            is returned, otherwise only the average is returned.
+            If weights=None, sum_of_weights is equivalent to the number of
+            elements over which the average is taken.
+
+        Returns
+        -------
+        average, [sum_of_weights] : ht.tensor or tuple of ht.tensors
+            Return the average along the specified axis. When returned=True,
+            return a tuple with the average as the first element and the sum
+            of the weights as the second element. sum_of_weights is of the
+            same type as `average`.
+
+        Raises
+        ------
+        ZeroDivisionError
+            When all weights along axis are zero.
+
+        TypeError
+            When the length of 1D weights is not the same as the shape of x
+            along axis.
+
+
+        Examples
+        --------
+        >>> data = ht.arange(1,5, dtype=float)
+        >>> data
+        tensor([1., 2., 3., 4.])
+        >>> data.average()
+        tensor(2.5000)
+        >>> ht.arange(1,11, dtype=float).average(weights=ht.arange(10,0,-1))
+        tensor([4.])
+        >>> data = ht.array([[0, 1],
+                             [2, 3],
+                            [4, 5]], dtype=float, split=1)
+        >>> weights = ht.array([1./4, 3./4])
+        >>> data.average(axis=1, weights=weights)
+        tensor([0.7500, 2.7500, 4.7500])
+        >>> data.average(weights=weights)
+        Traceback (most recent call last):
+        ...
+        TypeError: Axis must be specified when shapes of x and weights differ.
+        """
+        return statistics.average(self, axis=axis, weights=weights, returned=returned)
 
     def balance_(self):
         """
@@ -418,6 +622,59 @@ class DNDarray:
 
         raise TypeError("only size-1 arrays can be converted to Python scalars")
 
+    def ceil(self, out=None):
+        """
+        Return the ceil of the input, element-wise.
+
+        The ceil of the scalar x is the smallest integer i, such that i >= x. It is often denoted as :math:`\\lceil x \\rceil`.
+
+        Parameters
+        ----------
+        out : ht.DNDarray or None, optional
+            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+            or set to None, a fresh tensor is allocated.
+
+        Returns
+        -------
+        ceiled : ht.DNDarray
+            A tensor of the same shape as x, containing the ceiled valued of each element in this tensor. If out was
+            provided, ceiled is a reference to it.
+
+        Returns
+        -------
+        ceiled : ht.DNDarray
+            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
+            provided, ceiled is a reference to it.
+
+        Examples
+        --------
+        >>> ht.arange(-2.0, 2.0, 0.4).ceil()
+        tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
+        """
+        return rounding.ceil(self, out)
+
+    def clip(self, a_min, a_max, out=None):
+        """
+        Parameters
+        ----------
+        a_min : scalar or None
+            Minimum value. If None, clipping is not performed on lower interval edge. Not more than one of a_min and
+            a_max may be None.
+        a_max : scalar or None
+            Maximum value. If None, clipping is not performed on upper interval edge. Not more than one of a_min and
+            a_max may be None.
+        out : ht.DNDarray, optional
+            The results will be placed in this array. It may be the input array for in-place clipping. out must be of
+            the right shape to hold the output. Its type is preserved.
+
+        Returns
+        -------
+        clipped_values : ht.DNDarray
+            A tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
+            a_max with a_max.
+        """
+        return rounding.clip(self, a_min, a_max, out)
+
     def __complex__(self):
         """
         Complex scalar casting.
@@ -447,6 +704,10 @@ class DNDarray:
 
     def __float__(self) -> float:
         """
+        See Also
+        ---------
+        :function:`~heat.core.manipulations.flatten`
+
         Float scalar casting.
         """
         return self.__cast(float)
@@ -478,16 +739,16 @@ class DNDarray:
                     displ[self.comm.rank + 1] if (self.comm.rank + 1) != self.comm.size else k,
                 )
                 if self.split == 0:
-                    self._DNDarray__array[:, indices[0] : indices[1]] = self._DNDarray__array[
+                    self.larray[:, indices[0] : indices[1]] = self.larray[
                         :, indices[0] : indices[1]
                     ].fill_diagonal_(value)
                 elif self.split == 1:
-                    self._DNDarray__array[indices[0] : indices[1], :] = self._DNDarray__array[
+                    self.larray[indices[0] : indices[1], :] = self.larray[
                         indices[0] : indices[1], :
                     ].fill_diagonal_(value)
 
         else:
-            self._DNDarray__array = self._DNDarray__array.fill_diagonal_(value)
+            self.larray = self.larray.fill_diagonal_(value)
 
         return self
 
@@ -521,6 +782,7 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
+        key = getattr(key, "copy()", key)
         l_dtype = self.dtype.torch_type()
         kgshape_flag = False
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
@@ -535,10 +797,10 @@ class DNDarray:
             if key.ndim > 1:
                 for i in range(key.ndim):
                     kgshape[i] = key.gshape[i]
-                    lkey[i] = key._DNDarray__array[..., i]
+                    lkey[i] = key.larray[..., i]
             else:
                 kgshape[0] = key.gshape[0]
-                lkey[0] = key._DNDarray__array
+                lkey[0] = key.larray
             key = tuple(lkey)
         elif not isinstance(key, tuple):
             """ this loop handles all other cases. DNDarrays which make it to here refer to advanced indexing slices,
@@ -548,7 +810,7 @@ class DNDarray:
             if isinstance(key, DNDarray):
                 key.balance_()
                 key.resplit_(axis=None)
-                h[0] = key._DNDarray__array.tolist()
+                h[0] = key.larray.tolist()
             elif isinstance(key, torch.Tensor):
                 h[0] = key.tolist()
             else:
@@ -568,7 +830,7 @@ class DNDarray:
             elif isinstance(k, (DNDarray, torch.Tensor)):
                 gout_full[c] = k.shape[0] if not kgshape_flag else kgshape[c]
             if isinstance(k, DNDarray):
-                key[c] = k._DNDarray__array
+                key[c] = k.larray
         if all(g == 1 for g in gout_full):
             gout_full = [1]
         else:
@@ -595,122 +857,128 @@ class DNDarray:
                     new_split = self.split
 
                 return DNDarray(
-                    self.__array[key], gout, self.dtype, new_split, self.device, self.comm
+                    self.__array[key],
+                    gout,
+                    self.dtype,
+                    new_split,
+                    self.device,
+                    self.comm,
+                    self.balanced,
                 )
-
+        # else: (DNDarray is distributed)
+        rank = self.comm.rank
+        ends = []
+        for pr in range(self.comm.size):
+            _, _, e = self.comm.chunk(self.shape, self.split, rank=pr)
+            ends.append(e[self.split].stop - e[self.split].start)
+        ends = torch.tensor(ends, device=self.device.torch_device)
+        chunk_ends = ends.cumsum(dim=0)
+        chunk_starts = torch.tensor([0] + chunk_ends.tolist(), device=self.device.torch_device)
+        chunk_start = chunk_starts[rank]
+        chunk_end = chunk_ends[rank]
+        arr = torch.tensor([], device=self.device.torch_device)
+        # all keys should be tuples here
+        # handle the dimensional reduction for integers
+        int_locs = [isinstance(it, int) for it in key]
+        ints = sum(int_locs)
+        if ints > 0:
+            ints_before_split = sum(int_locs[: self.split + 1])
+            new_split = self.split - ints_before_split
+            if new_split < 0:
+                new_split = 0
         else:
-            rank = self.comm.rank
-            ends = []
-            for pr in range(self.comm.size):
-                _, _, e = self.comm.chunk(self.shape, self.split, rank=pr)
-                ends.append(e[self.split].stop - e[self.split].start)
-            ends = torch.tensor(ends, device=self.device.torch_device)
-            chunk_ends = ends.cumsum(dim=0)
-            chunk_starts = torch.tensor([0] + chunk_ends.tolist(), device=self.device.torch_device)
-            chunk_start = chunk_starts[rank]
-            chunk_end = chunk_ends[rank]
-            arr = torch.Tensor()
-            # all keys should be tuples here
-            gout = [0] * len(self.gshape)
-            # handle the dimensional reduction for integers
-            ints = sum(isinstance(it, int) for it in key)
-            gout = gout[: len(gout) - ints]
-            if self.split >= len(gout):
-                new_split = len(gout) - 1 if len(gout) - 1 > 0 else 0
-            else:
-                new_split = self.split
-            if len(key) == 0:  # handle empty list
-                # this will return an array of shape (0, ...)
-                arr = self.__array[key]
-                gout_full = list(arr.shape)
+            new_split = self.split
+        if len(key) == 0:  # handle empty list
+            # this will return an array of shape (0, ...)
+            arr = self.__array[key]
+            gout_full = list(arr.shape)
 
-            """ At the end of the following if/elif/elif block the output array will be set.
-                each block handles the case where the element of the key along the split axis is a different type
-                and converts the key from global indices to local indices.
-            """
-            if isinstance(key[self.split], (list, torch.Tensor, DNDarray)):
-                # advanced indexing, elements in the split dimension are adjusted to the local indices
-                lkey = list(key)
-                if isinstance(key[self.split], DNDarray):
-                    lkey[self.split] = key[self.split]._DNDarray__array
-                inds = (
-                    torch.tensor(
-                        lkey[self.split], dtype=torch.long, device=self.device.torch_device
-                    )
-                    if not isinstance(lkey[self.split], torch.Tensor)
-                    else lkey[self.split]
-                )
-
-                loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
-                if len(loc_inds[0]) != 0:
-                    # if there are no local indices on a process, then `arr` is empty
-                    inds = inds[loc_inds] - chunk_start
-                    lkey[self.split] = inds
-                    arr = self.__array[tuple(lkey)]
-            elif isinstance(key[self.split], slice):
-                # standard slicing along the split axis,
-                #   adjust the slice start, stop, and step, then run it on the processes which have the requested data
-                key = list(key)
-                key_start = key[self.split].start if key[self.split].start is not None else 0
-                key_stop = (
-                    key[self.split].stop
-                    if key[self.split].stop is not None
-                    else self.gshape[self.split]
-                )
-                if key_stop < 0:
-                    key_stop = self.gshape[self.split] + key[self.split].stop
-                key_step = key[self.split].step
-                og_key_start = key_start
-                st_pr = torch.where(key_start < chunk_ends)[0]
-                st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
-                sp_pr = torch.where(key_stop >= chunk_starts)[0]
-                sp_pr = sp_pr[-1] if len(sp_pr) > 0 else 0
-                actives = list(range(st_pr, sp_pr + 1))
-                if rank in actives:
-                    key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
-                    key_stop = ends[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
-                    if key_step is not None and rank > actives[0]:
-                        offset = (chunk_ends[rank - 1] - og_key_start) % key_step
-                        if key_step > 2 and offset > 0:
-                            key_start += key_step - offset
-                        elif key_step == 2 and offset > 0:
-                            key_start += (chunk_ends[rank - 1] - og_key_start) % key_step
-                    if isinstance(key_start, torch.Tensor):
-                        key_start = key_start.item()
-                    if isinstance(key_stop, torch.Tensor):
-                        key_stop = key_stop.item()
-                    key[self.split] = slice(key_start, key_stop, key_step)
-                    arr = self.__array[tuple(key)]
-
-            elif isinstance(key[self.split], int):
-                # if there is an integer in the key along the split axis, adjust it and then get `arr`
-                key = list(key)
-                key[self.split] = (
-                    key[self.split] + self.gshape[self.split]
-                    if key[self.split] < 0
-                    else key[self.split]
-                )
-                if key[self.split] in range(chunk_start, chunk_end):
-                    key[self.split] = key[self.split] - chunk_start
-                    arr = self.__array[tuple(key)]
-
-            if 0 in arr.shape:
-                # arr is empty
-                # gout is all 0s as is the shape
-                warnings.warn(
-                    "This process (rank: {}) is without data after slicing, "
-                    "running the .balance_() function is recommended".format(self.comm.rank),
-                    ResourceWarning,
-                )
-
-            return DNDarray(
-                arr.type(l_dtype),
-                gout_full if isinstance(gout_full, tuple) else tuple(gout_full),
-                self.dtype,
-                new_split,
-                self.device,
-                self.comm,
+        """ At the end of the following if/elif/elif block the output array will be set.
+            each block handles the case where the element of the key along the split axis is a different type
+            and converts the key from global indices to local indices.
+        """
+        if isinstance(key[self.split], (list, torch.Tensor, DNDarray)):
+            # advanced indexing, elements in the split dimension are adjusted to the local indices
+            lkey = list(key)
+            if isinstance(key[self.split], DNDarray):
+                lkey[self.split] = key[self.split].larray
+            inds = (
+                torch.tensor(lkey[self.split], dtype=torch.long, device=self.device.torch_device)
+                if not isinstance(lkey[self.split], torch.Tensor)
+                else lkey[self.split]
             )
+
+            loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
+            if len(loc_inds[0]) != 0:
+                # if there are no local indices on a process, then `arr` is empty
+                inds = inds[loc_inds] - chunk_start
+                lkey[self.split] = inds
+                arr = self.__array[tuple(lkey)]
+        elif isinstance(key[self.split], slice):
+            # standard slicing along the split axis,
+            #   adjust the slice start, stop, and step, then run it on the processes which have the requested data
+            key = list(key)
+            key_start = key[self.split].start if key[self.split].start is not None else 0
+            key_stop = (
+                key[self.split].stop
+                if key[self.split].stop is not None
+                else self.gshape[self.split]
+            )
+            if key_stop < 0:
+                key_stop = self.gshape[self.split] + key[self.split].stop
+            key_step = key[self.split].step
+            og_key_start = key_start
+            st_pr = torch.where(key_start < chunk_ends)[0]
+            st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
+            sp_pr = torch.where(key_stop >= chunk_starts)[0]
+            sp_pr = sp_pr[-1] if len(sp_pr) > 0 else 0
+            actives = list(range(st_pr, sp_pr + 1))
+            if rank in actives:
+                key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
+                key_stop = ends[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
+                if key_step is not None and rank > actives[0]:
+                    offset = (chunk_ends[rank - 1] - og_key_start) % key_step
+                    if key_step > 2 and offset > 0:
+                        key_start += key_step - offset
+                    elif key_step == 2 and offset > 0:
+                        key_start += (chunk_ends[rank - 1] - og_key_start) % key_step
+                if isinstance(key_start, torch.Tensor):
+                    key_start = key_start.item()
+                if isinstance(key_stop, torch.Tensor):
+                    key_stop = key_stop.item()
+                key[self.split] = slice(key_start, key_stop, key_step)
+                arr = self.__array[tuple(key)]
+
+        elif isinstance(key[self.split], int):
+            # if there is an integer in the key along the split axis, adjust it and then get `arr`
+            key = list(key)
+            key[self.split] = (
+                key[self.split] + self.gshape[self.split]
+                if key[self.split] < 0
+                else key[self.split]
+            )
+            if key[self.split] in range(chunk_start, chunk_end):
+                key[self.split] = key[self.split] - chunk_start
+                arr = self.__array[tuple(key)]
+
+        if 0 in arr.shape:
+            # arr is empty
+            # gout is all 0s as is the shape
+            warnings.warn(
+                "This process (rank: {}) is without data after slicing, "
+                "running the .balance_() function is recommended".format(self.comm.rank),
+                ResourceWarning,
+            )
+
+        return DNDarray(
+            arr.type(l_dtype),
+            gout_full if isinstance(gout_full, tuple) else tuple(gout_full),
+            self.dtype,
+            new_split,
+            self.device,
+            self.comm,
+            balanced=None,
+        )
 
     if torch.cuda.device_count() > 0:
 
@@ -730,16 +998,30 @@ class DNDarray:
         """
         return self.__cast(int)
 
-    def is_balanced(self) -> bool:
+    def is_balanced(self, force_check=False) -> bool:
         """
         Determine if ``self`` is balanced evenly (or as evenly as possible) across all nodes
+        distributed evenly (or as evenly as possible) across all processes.
+        This is equivalent to returning `self.balanced`. If no information
+        is available (`self.balanced = None`), the balanced status will be
+        assessed via collective communication.
+
+        Parameters
+        force_check : bool, optional
+            If True, the balanced status of the DNDarray will be assessed via
+            collective communication in any case.
         """
+
+        if not force_check and self.balanced is not None:
+            return self.balanced
+
         _, _, chk = self.comm.chunk(self.shape, self.split)
         test_lshape = tuple([x.stop - x.start for x in chk])
         balanced = 1 if test_lshape == self.lshape else 0
 
         out = self.comm.allreduce(balanced, MPI.SUM)
-        return True if out == self.comm.size else False
+        balanced = True if out == self.comm.size else False
+        return balanced
 
     def is_distributed(self) -> bool:
         """
@@ -780,12 +1062,35 @@ class DNDarray:
         T1.numpy()
         """
         dist = self.copy().resplit_(axis=None)
-        return dist._DNDarray__array.cpu().numpy()
+        return dist.larray.cpu().numpy()
 
     def __repr__(self, *args):
         # TODO: document me
         # TODO: generate none-PyTorch repr
         return self.__array.__repr__(*args)
+
+    def ravel(self):
+        """
+        Return a flattened array with the same elements if possible.
+
+        Returns
+        -------
+        ret : DNDarray
+            flattened array with the same dtype as a, but with shape (a.size,).
+
+        See Also
+        --------
+        :function:`~heat.core.manipulations.ravel`
+
+        Examples
+        --------
+        >>> a = ht.ones((2,3), split=0)
+        >>> b = a.ravel()
+        >>> a[0,0] = 4
+        >>> b
+        DNDarray([4., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
+        """
+        return manipulations.ravel(self)
 
     def redistribute_(self, lshape_map=None, target_map=None):
         """
@@ -847,7 +1152,6 @@ class DNDarray:
                         self.comm.size, len(self.gshape), lshape_map.shape
                     )
                 )
-
         if target_map is None:  # if no target map is given then it will balance the tensor
             target_map = torch.zeros(
                 (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
@@ -859,11 +1163,9 @@ class DNDarray:
                 target_map[pr, self.split] = self.comm.chunk(self.shape, self.split, rank=pr)[1][
                     self.split
                 ]
+            self.__balanced = True
         else:
-            if not isinstance(target_map, torch.Tensor):
-                raise TypeError(
-                    "target_map must be a torch.Tensor, currently {}".format(type(target_map))
-                )
+            sanitation.sanitize_in_tensor(target_map)
             if target_map[..., self.split].sum() != self.shape[self.split]:
                 raise ValueError(
                     "Sum along the split axis of the target map must be equal to the "
@@ -875,7 +1177,8 @@ class DNDarray:
                         (self.comm.size, len(self.gshape)), target_map.shape
                     )
                 )
-
+            # no info on balanced status
+            self.__balanced = False
         lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
         chunk_cumsum = torch.cat(
             (
@@ -959,7 +1262,7 @@ class DNDarray:
         send_amt : int or torch.Tensor
             Amount of data to be sent by the sending process
         rcv_pr : int or torch.Tensor
-            Recieving process
+            Receiving process
         snd_dtype : torch.dtype
             Torch type of the data in question
         """
@@ -1085,7 +1388,7 @@ class DNDarray:
             lp_arr = None
             for k in lp_keys:
                 if rcv[k][0] is not None:
-                    rcv[k][0].wait()
+                    rcv[k][0].Wait()
                 if lp_arr is None:
                     lp_arr = rcv[k][1]
                 else:
@@ -1138,11 +1441,12 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
+        key = getattr(key, "copy()", key)
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
             # this splits the key into torch.Tensors in each dimension for advanced indexing
             lkey = [slice(None, None, None)] * self.ndim
             for i in range(key.ndim):
-                lkey[i] = key._DNDarray__array[..., i]
+                lkey[i] = key.larray[..., i]
             key = tuple(lkey)
         elif not isinstance(key, tuple):
             h = [slice(None, None, None)] * self.ndim

@@ -331,9 +331,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             if y_i in classes:
                 i = ht.where(classes == y_i).item()
             else:
-                classes_ext = torch.cat(
-                    (classes._DNDarray__array, y_i._DNDarray__array.unsqueeze(0))
-                )
+                classes_ext = torch.cat((classes._DNDarray__array, y_i.larray.unsqueeze(0)))
                 i = torch.argsort(classes_ext)[-1].item()
             where_y_i = ht.where(y == y_i)
             X_i = X[where_y_i, :]
@@ -371,7 +369,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         Returns :class:`~heat.core.dndarray.DNDarray` joint_log_likelihood(n_samples, n_classes).
         """
 
-        jll_size = self.classes_._DNDarray__array.numel()
+        jll_size = self.classes_.larray.numel()
         jll_shape = (X.shape[0], jll_size)
         joint_log_likelihood = ht.empty(jll_shape, dtype=X.dtype, split=X.split, device=X.device)
         for i in range(jll_size):
@@ -483,7 +481,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         log_prob_x_shape = (jll.gshape[0], 1)
         log_prob_x = ht.empty(log_prob_x_shape, dtype=jll.dtype, split=jll.split, device=jll.device)
         # normalize by P(x) = P(f_1, ..., f_n)
-        log_prob_x._DNDarray__array = self.logsumexp(jll, axis=1)._DNDarray__array.unsqueeze(1)
+        log_prob_x.larray = self.logsumexp(jll, axis=1).larray.unsqueeze(1)
         return jll - log_prob_x
 
     def predict_proba(self, X) -> DNDarray:

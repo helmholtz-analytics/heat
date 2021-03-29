@@ -5,9 +5,16 @@ import torch
 from .communication import MPI
 from .dndarray import DNDarray
 from . import factories
+from . import manipulations
 from . import _operations
 from . import stride_tricks
-from .types import datatype, heat_type_of, heat_type_is_inexact, heat_type_is_exact
+from .types import (
+    datatype,
+    heat_type_of,
+    heat_type_is_inexact,
+    heat_type_is_exact,
+    canonical_heat_type,
+)
 
 
 __all__ = [
@@ -271,7 +278,7 @@ def cumsum(a, axis, dtype=None, out=None) -> DNDarray:
     return _operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
 
 
-def diff(a, n=1, axis=-1) -> DNDarray:
+def diff(a, n=1, axis=-1, prepend=None, append=None) -> DNDarray:
     """
     Calculate the n-th discrete difference along the given axis.
     The first difference is given by ``out[i]=a[i+1]-a[i]`` along the given axis, higher differences are calculated
@@ -288,6 +295,18 @@ def diff(a, n=1, axis=-1) -> DNDarray:
         ``n=2`` is equivalent to ``diff(diff(a))``
     axis : int, optional
         The axis along which the difference is taken, default is the last axis.
+    prepend, append : Optional[int, float, DNDarray]
+        Values to prepend or append along axis prior to performing the difference.
+        Scalar values are expanded to arrays with length 1 in the direction of axis and
+        the shape of the input array in along all other axes. Otherwise the dimension and
+        shape must match a except along axis.
+
+    Returns
+    -------
+    diff : DNDarray
+        The n-th differences. The shape of the output is the same as a except along axis where the dimension is smaller by n.
+        The type of the output is the same as the type of the difference between any two elements of a.
+        The split does not change. The output array is balanced.
     """
     if n == 0:
         return a
@@ -297,6 +316,41 @@ def diff(a, n=1, axis=-1) -> DNDarray:
         raise TypeError("'a' must be a DNDarray")
 
     axis = stride_tricks.sanitize_axis(a.gshape, axis)
+
+    if prepend is not None or append is not None:
+        pend_shape = a.gshape[:axis] + (1,) + a.gshape[axis + 1 :]
+        pend = [prepend, append]
+
+        for p, p_el in enumerate(pend):
+            if p_el is not None:
+                if isinstance(p_el, (int, float)):
+                    # TODO: implement broadcast_to
+                    p_el = factories.full(
+                        pend_shape,
+                        p_el,
+                        dtype=canonical_heat_type(torch.tensor(p_el).dtype),
+                        split=a.split,
+                        device=a.device,
+                        comm=a.comm,
+                    )
+                elif isinstance(p_el, DNDarray) and p_el.gshape == pend_shape:
+                    pass
+                elif not isinstance(p_el, DNDarray):
+                    raise TypeError(
+                        "prepend/append should be a scalar or a DNDarray, was {}".format(type(p_el))
+                    )
+                elif p_el.gshape != pend_shape:
+                    raise ValueError(
+                        "shape mismatch: expected prepend/append to be {}, got {}".format(
+                            pend_shape, p_el.gshape
+                        )
+                    )
+                if p == 0:
+                    # prepend
+                    a = manipulations.concatenate((p_el, a), axis=axis)
+                else:
+                    # append
+                    a = manipulations.concatenate((a, p_el), axis=axis)
 
     if not a.is_distributed():
         ret = a.copy()
@@ -332,7 +386,7 @@ def diff(a, n=1, axis=-1) -> DNDarray:
         ret.lloc[diff_slice] = dif
 
         if rank > 0:
-            snd.wait()  # wait for the send to finish
+            snd.Wait()  # wait for the send to finish
         if rank < size - 1:
             cr_slice = [slice(None)] * len(a.shape)
             # slice of 1 element in the selected axis for the shape creation
@@ -344,7 +398,7 @@ def diff(a, n=1, axis=-1) -> DNDarray:
             axis_slice_end = [slice(None)] * len(a.shape)
             # select the last elements in the selected axis
             axis_slice_end[axis] = slice(-1, None)
-            rec.wait()
+            rec.Wait()
             # diff logic
             ret.lloc[axis_slice_end] = (
                 recv_data.reshape(ret.lloc[axis_slice_end].shape) - ret.lloc[axis_slice_end]

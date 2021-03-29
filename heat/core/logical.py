@@ -19,6 +19,11 @@ __all__ = [
     "allclose",
     "any",
     "isclose",
+    "isfinite",
+    "isinf",
+    "isnan",
+    "isneginf",
+    "isposinf",
     "logical_and",
     "logical_not",
     "logical_or",
@@ -128,9 +133,7 @@ def allclose(
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
-    _local_allclose = torch.tensor(
-        torch.allclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan)
-    )
+    _local_allclose = torch.tensor(torch.allclose(t1.larray, t2.larray, rtol, atol, equal_nan))
 
     # If x is distributed, then y is also distributed along the same axis
     if t1.comm.is_distributed():
@@ -222,12 +225,12 @@ def isclose(
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.isclose raises relevant errors
-    _local_isclose = torch.isclose(t1._DNDarray__array, t2._DNDarray__array, rtol, atol, equal_nan)
+    _local_isclose = torch.isclose(t1.larray, t2.larray, rtol, atol, equal_nan)
 
     # If x is distributed, then y is also distributed along the same axis
     if t1.comm.is_distributed() and t1.split is not None:
         output_gshape = stride_tricks.broadcast_shape(t1.gshape, t2.gshape)
-        res = torch.empty(output_gshape).bool()
+        res = torch.empty(output_gshape, device=t1.device.torch_device).bool()
         t1.comm.Allgather(_local_isclose, res)
         result = factories.array(res, dtype=types.bool, device=t1.device, split=t1.split)
     else:
@@ -238,6 +241,93 @@ def isclose(
             result = factories.array(_local_isclose, dtype=types.bool, device=t1.device)
 
     return result
+
+
+def isfinite(x):
+    """
+    Test element-wise for finiteness (not infinity or not Not a Number) and return result as a boolean array.
+
+    Parameters
+    ----------
+    x   : DNDarray
+    out : DNDarray
+
+    Examples
+    --------
+    >>> ht.isfinite(ht.array([1, ht.inf, -ht.inf, ht.nan]))
+    DNDarray([ True, False, False, False], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.isfinite, x, None, no_cast=True)
+
+
+def isinf(x):
+    """
+    Test element-wise for positive or negative infinity and return result as a boolean array.
+
+    Parameters
+    ----------
+    x   : DNDarray
+    out : DNDarray
+
+    Examples
+    --------
+    >>> ht.isinf(ht.array([1, ht.inf, -ht.inf, ht.nan]))
+    DNDarray([False,  True,  True, False], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.isinf, x, None, no_cast=True)
+
+
+def isnan(x):
+    """
+    Test element-wise for NaN and return result as a boolean array.
+
+    Parameters
+    ----------
+    x   : DNDarray
+    out : DNDarray
+
+    Returns
+    -------
+    DNDarray
+
+    Examples
+    --------
+    >>> ht.isnan(ht.array([1, ht.inf, -ht.inf, ht.nan]))
+    DNDarray([False, False, False,  True], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.isnan, x, None, no_cast=True)
+
+
+def isneginf(x, out=None):
+    """
+    Test if each element of `x` is negative infinite, return result as a bool array.
+
+    Parameters
+    ----------
+    x : DNDarray
+
+    Examples
+    --------
+    >>> ht.isnan(ht.array([1, ht.inf, -ht.inf, ht.nan]))
+    DNDarray([False, False, True, False], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.isneginf, x, out, no_cast=True)
+
+
+def isposinf(x, out=None):
+    """
+    Test if each element of `x` is positive infinite, return result as a bool array.
+
+    Parameters
+    ----------
+    x : DNDarray
+
+    Examples
+    --------
+    >>> ht.isnan(ht.array([1, ht.inf, -ht.inf, ht.nan]))
+    DNDarray([False, True, False, False], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.isposinf, x, out, no_cast=True)
 
 
 DNDarray.isclose: Callable[

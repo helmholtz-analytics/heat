@@ -1,4 +1,4 @@
-from .. import core
+from heat import core
 from ..core.dndarray import DNDarray
 from ..core.communication import Communication
 from ..core.devices import Device

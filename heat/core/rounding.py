@@ -5,6 +5,7 @@ from .types import datatype
 
 from . import _operations
 from . import dndarray
+from . import sanitation
 from . import types
 
 __all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "modf", "round", "trunc"]
@@ -32,7 +33,7 @@ def abs(
 
     absolute_values = _operations.__local_op(torch.abs, x, out)
     if dtype is not None:
-        absolute_values._DNDarray__array = absolute_values._DNDarray__array.type(dtype.torch_type())
+        absolute_values.larray = absolute_values.larray.type(dtype.torch_type())
         absolute_values._DNDarray__dtype = dtype
 
     return absolute_values
@@ -117,12 +118,19 @@ def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
         The results will be placed in this array. It may be the input array for in-place clipping. ``out`` must be of
         the right shape to hold the output. Its type is preserved.
     """
-    if not isinstance(x, DNDarray):
-        raise TypeError("a must be a DNDarray")
+    sanitation.sanitize_in(x)
+
     if min is None and max is None:
         raise ValueError("either min or max must be set")
 
-    return _operations.__local_op(torch.clamp, x, out, min=min, max=max)
+    if out is None:
+        return dndarray.DNDarray(
+            x.larray.clamp(min, max), x.shape, x.dtype, x.split, x.device, x.comm, x.balanced
+        )
+
+    sanitation.sanitize_out(out, x.gshape, x.split, x.device)
+
+    return x.larray.clamp(min, max, out=out.larray) and out
 
 
 DNDarray.clip = lambda self, a_min, a_max, out=None: clip(self, a_min, a_max, out)
@@ -220,8 +228,8 @@ def modf(x: DNDarray, out: Optional[Tuple[DNDarray, DNDarray]] = None) -> Tuple[
                     type(out[0]), type(out[1])
                 )
             )
-        out[0]._DNDarray__array = fractionalParts._DNDarray__array
-        out[1]._DNDarray__array = integralParts._DNDarray__array
+        out[0].larray = fractionalParts.larray
+        out[1].larray = integralParts.larray
         return out
 
     return (fractionalParts, integralParts)
@@ -274,7 +282,7 @@ def round(
         rounded_values /= 10 ** decimals
 
     if dtype is not None:
-        rounded_values._DNDarray__array = rounded_values._DNDarray__array.type(dtype.torch_type())
+        rounded_values.larray = rounded_values.larray.type(dtype.torch_type())
         rounded_values._DNDarray__dtype = dtype
 
     return rounded_values
