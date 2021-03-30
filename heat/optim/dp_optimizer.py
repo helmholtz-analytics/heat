@@ -61,29 +61,21 @@ class DASO:
 
         1. initialization: steps 1 to 8 below
         2. Warmup phase: blocking averaging update occurs for global synchronization step
-        3. Cycling phase: for the global synchronization, the data is sent after a number of batches. the number
-            of batches between synchronizations is referred to as `global_skips`. After the data
-            is sent a number of batches pass before it is received (`batches_to_wait`). both of
-            these cycle downward from `max_global_skips` for the global skips and 1/4th this value
-            for `batches_to_wait`. When both values are equal to 1 and the loss is stable it will
-            be reset to the initial values, then will decay again.
+        3. Cycling phase: for the global synchronization, the data is sent after a number of batches. the number of batches between synchronizations is referred to as `global_skips`. After the data is sent a number of batches pass before it is received (`batches_to_wait`). both of these cycle downward from `max_global_skips` for the global skips and 1/4th this value for `batches_to_wait`. When both values are equal to 1 and the loss is stable it will be reset to the initial values, then will decay again.
         4. Cooldown phase: blocking averaging update occurs for global synchronization step
 
-    As example usage of this can be found in `heat/examples/nn/imagenet-DASO.py`.
+    As example usage of this can be found in `heat/examples/nn/imagenet-DASO.py <https://github.com/helmholtz-analytics/heat/blob/504-docstring-formatting/examples/nn/imagenet-DASO.py>`_.
 
     The recommended checklist for using this class is as follows:
 
         1. initialize the local PyTorch process group and set the default device of the local GPUs.
         2. define the torch network
         3. define the `local_optimizer` -> a torch optimizer of your choice (tested with SGD)
-        4. optional, choose a learning rate scheduler. This is only for those learning rates
-            which will also step the optimizer
+        4. optional, choose a learning rate scheduler. This is only for those learning rates which will also step the optimizer
         5. initialize DASO with the local optimizers and parameters
-        6. initialize :class:`nn.DataParallelMultiGPU` with the torch network and DASO
-        7. If using automatic mixed precision (:class:`torch.cuda.amp`), initialize the gradient
-            scaler and add it to DASO (:func:`add_scaler`)
-        8. ensure that the DataLoaders evenly distribute the data between all the processes.
-            This can be done by using the `torch.utils.data.distributed.DistributedSampler <https://pytorch.org/docs/stable/data.html#torch.utils.data.distributed.DistributedSampler>`_ with the `num_replicas` and `rank` parameters
+        6. initialize :func:`nn.DataParallelMultiGPU <heat.nn.data_parallel.DataParallelMultiGPU>` with the torch network and DASO
+        7. If using automatic mixed precision (:class:`torch.cuda.amp`), initialize the gradient scaler and add it to DASO (:func:`add_scaler`)
+        8. ensure that the DataLoaders evenly distribute the data between all the processes. This can be done by using the `torch.utils.data.distributed.DistributedSampler <https://pytorch.org/docs/stable/data.html#torch.utils.data.distributed.DistributedSampler>`_ with the `num_replicas` and `rank` parameters
         9. call `daso_optimizer.epoch_loss_logic(training_loss)` at the end of
         10. set the number of batches per epoch (`daso_optimizer.last_batch = number_of_batches`)
         11. ensure that the step function used in training is that of the DASO optimizer
@@ -850,7 +842,7 @@ class DataParallelOptimizer:
     torch_optimizer : torch.optim.Optimizer
         the wrapped Torch optimizer
     blocking : bool
-        use blocking communications or not. will typically be overwritten by heat.nn.DataParallel
+        use blocking communications or not. will typically be overwritten by :func:`nn.DataParallel <heat.nn.data_parallel.DataParallel>`
     """
 
     def __init__(

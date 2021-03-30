@@ -18,4 +18,4 @@ repos:
     hooks:
     -   id: pydocstyle
         exclude: 'tests|benchmarks|examples|scripts|setup.py'  #|heat/utils/data/mnist.py|heat/utils/data/_utils.py  ?
-        ignore: D107
+        ignore: D107, D402

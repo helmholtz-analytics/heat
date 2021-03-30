@@ -1,3 +1,6 @@
+"""
+Module Implementing the Kmeans Algorithm
+"""
 from typing import Optional, Union, TypeVar
 
 import heat as ht
@@ -8,7 +11,7 @@ self = TypeVar("self")
 
 
 class KMeans(_KCluster):
-    """
+    r"""
     K-Means clustering algorithm. An implementation of Lloyd's algorithm [1].
 
     Attributes
@@ -19,9 +22,7 @@ class KMeans(_KCluster):
         Method for initialization:
 
         - ‘k-means++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
-
         - ‘random’: choose k observations (rows) at random from data for the initial centroids.
-
         - DNDarray: it should be of shape (n_clusters, n_features) and gives the initial centers.
     max_iter : int
         Maximum number of iterations of the k-means algorithm for a single run.
@@ -70,13 +71,14 @@ class KMeans(_KCluster):
 
     def _update_centroids(self, x: DNDarray, matching_centroids: DNDarray):
         """
-        Compute coordinates of new centroid ``ci`` as mean of the data points in ``X`` that are assigned to  ``ci``
+        Compute coordinates of new centroid as mean of the data points in ``x`` that are assigned to this centroid.
+
         Parameters
         ----------
         x :  DNDarray
             Input data
         matching_centroids : DNDarray
-            Array filled with indices ``i`` indicating to which cluster ``ci`` each sample point in X is assigned
+            Array filled with indices ``i`` indicating to which cluster ``ci`` each sample point in ``x`` is assigned
 
         """
         new_cluster_centers = self._cluster_centers.copy()

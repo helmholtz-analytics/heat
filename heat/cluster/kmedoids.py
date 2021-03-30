@@ -1,3 +1,6 @@
+"""
+Module Implementing the Kmedoids Algorithm
+"""
 import heat as ht
 from heat.cluster._kcluster import _KCluster
 from heat.core.dndarray import DNDarray
@@ -5,6 +8,32 @@ from typing import Optional, Union, TypeVar
 
 
 class KMedoids(_KCluster):
+    """
+    This is not the original implementation of k-medoids using PAM as originally proposed by in [1].
+    This is kmedoids with the Manhattan distance as fixed metric, calculating the median of the assigned cluster points as new cluster center
+    and snapping the centroid to the the nearest datapoint afterwards.
+
+    Parameters
+    ----------
+    n_clusters : int, optional, default: 8
+        The number of clusters to form as well as the number of centroids to generate.
+    init : str or DNDarray
+        Method for initialization, defaults to ‘random’:
+
+            - ‘k-medoids++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
+            - ‘random’: choose k observations (rows) at random from data for the initial centroids.
+            - ``DNDarray``: gives the initial centers, should be of Shape = (n_clusters, n_features)
+    max_iter : int, default: 300
+        Maximum number of iterations of the  algorithm for a single run.
+    random_state : int
+        Determines random number generation for centroid initialization.
+
+    References
+    -----------
+    [1] Kaufman, L. and Rousseeuw, P.J. (1987), Clustering by means of Medoids, in Statistical Data Analysis Based on the L1 Norm and Related Methods, edited by Y. Dodge, North-Holland, 405416.
+
+    """
+
     def __init__(
         self,
         n_clusters: int = 8,
@@ -12,30 +41,6 @@ class KMedoids(_KCluster):
         max_iter: int = 300,
         random_state: int = None,
     ):
-        """
-        This is not the original implementation of k-medoids using PAM as originally proposed by in [1].
-        This is kmedoids with the Manhattan distance as fixed metric, calculating the median of the assigned cluster points as new cluster center
-        and snapping the centroid to the the nearest datapoint afterwards.
-
-        Parameters
-        ----------
-        n_clusters : int, optional, default: 8
-            The number of clusters to form as well as the number of centroids to generate.
-        init : str or DNDarray
-            Method for initialization, defaults to ‘random’:
-                - ‘k-medoids++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2]. \n
-                - ‘random’: choose k observations (rows) at random from data for the initial centroids. \n
-                - ``DNDarray``: gives the initial centers, should be of Shape = (n_clusters, n_features)
-        max_iter : int, default: 300
-            Maximum number of iterations of the  algorithm for a single run.
-        random_state : int
-            Determines random number generation for centroid initialization.
-
-        References
-        -----------
-        [1] Kaufman, L. and Rousseeuw, P.J. (1987), Clustering by means of Medoids, in Statistical Data Analysis Based on the L1 Norm and Related Methods, edited by Y. Dodge, North-Holland, 405416.
-
-        """
         if init == "kmedoids++":
             init = "probability_based"
 
@@ -59,7 +64,6 @@ class KMedoids(_KCluster):
         matching_centroids : DNDarray
             Array filled with indeces ``i`` indicating to which cluster ``ci`` each sample point in ``x`` is assigned
         """
-
         new_cluster_centers = self._cluster_centers.copy()
         for i in range(self.n_clusters):
             # points in current cluster
@@ -115,7 +119,7 @@ class KMedoids(_KCluster):
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
         """
         # input sanitation

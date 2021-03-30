@@ -1,3 +1,7 @@
+"""
+Base-module for k-clustering algorithms
+"""
+
 import heat as ht
 from typing import Optional, Union, Callable
 from heat.core.dndarray import DNDarray
@@ -16,9 +20,10 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         The number of clusters to form as well as the number of centroids to generate.
     init : str or DNDarray
         Method for initialization, defaults to ‘random’:
-            - ‘probability_based’ : selects initial cluster centers for the clustering in a smart way to speed up convergence (k-means++) \n
-            - ‘random’: choose k observations (rows) at random from data for the initial centroids. \n
-            - ``DNDarray``: gives the initial centers, should be of Shape = (n_clusters, n_features)
+
+        - ‘probability_based’ : selects initial cluster centers for the clustering in a smart way to speed up convergence (k-means++)
+        - ‘random’: choose k observations (rows) at random from data for the initial centroids.
+        - ``DNDarray``: gives the initial centers, should be of Shape = (n_clusters, n_features)
     max_iter : int
         Maximum number of iterations for a single run.
     tol : float, default: 1e-4
@@ -35,7 +40,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         max_iter: int,
         tol: float,
         random_state: int,
-    ):
+    ):  # noqa: D107
         self.n_clusters = n_clusters
         self.init = init
         self.max_iter = max_iter
@@ -53,8 +58,8 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
     def cluster_centers_(self) -> DNDarray:
         """
         Returns the coordinates of the cluster centers.
-        If the algorithm stops before fully converging (see tol and max_iter),
-        these will not be consistent with labels_.
+        If the algorithm stops before fully converging (see ``tol`` and ``max_iter``),
+        these will not be consistent with :func:`labels_`.
         """
         return self._cluster_centers
 
@@ -82,6 +87,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
     def _initialize_cluster_centers(self, x: DNDarray):
         """
         Initializes the K-Means centroids.
+
         Parameters
         ----------
         x : DNDarray
@@ -218,7 +224,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
     def fit(self, x: DNDarray):
         """
-       Computes the centroid of the clustering algorithm to fit the data ``x``. The full pipeline is algorithm specific.
+        Computes the centroid of the clustering algorithm to fit the data ``x``. The full pipeline is algorithm specific.
 
         Parameters
         ----------
@@ -239,7 +245,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             New data to predict. Shape = (n_samples, n_features)
-       """
+        """
         # input sanitation
         if not isinstance(x, DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))

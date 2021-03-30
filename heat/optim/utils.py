@@ -10,39 +10,39 @@ __all__ = ["DetectMetricPlateau"]
 
 
 class DetectMetricPlateau(object):
-    """
+    r"""
     Determine if a  when a metric has stopped improving.
     This scheduler reads a metrics quantity and if no improvement
     is seen for a 'patience' number of epochs, the learning rate is reduced.
 
-    Adapted from torch's ReduceLRonPlateau (:class:`torch.optim.lr_scheduler.ReduceLROnPlateau`).
+    Adapted from `torch.optim.lr_scheduler.ReduceLROnPlateau <https://pytorch.org/docs/stable/optim.html#torch.optim.lr_scheduler.ReduceLROnPlateau>`_.
 
     Args:
         mode: str, optional
             One of `min`, `max`.
             In `min` mode, the quantity monitored is determined to have plateaued when
             it stops decreasing. In `max` mode, the quantity monitored is determined to
-            have plateaued when it stops decreasing.
+            have plateaued when it stops decreasing.\n
             Default: 'min'.
         patience: int, optional
             Number of epochs to wait before determining if there is a plateau
             For example, if `patience = 2`, then we will ignore the first 2 epochs
             with no improvement, and will only determine if there is a plateau after the
-            3rd epoch if the loss still hasn't improved then.
+            3rd epoch if the loss still hasn't improved then.\n
             Default: 10.
         threshold: float, optional
-            Threshold for measuring the new optimum to only focus on significant changes.
+            Threshold for measuring the new optimum to only focus on significant changes.\n
             Default: 1e-4.
         threshold_mode: str, optional
             One of `rel`, `abs`. In `rel` mode,
             dynamic_threshold = best * ( 1 + threshold ) in 'max'
             mode or best * ( 1 - threshold ) in `min` mode.
             In `abs` mode, dynamic_threshold = best + threshold in
-            `max` mode or best - threshold in `min` mode.
+            `max` mode or best - threshold in `min` mode.\n
             Default: 'rel'.
         cooldown: int, optional
             Number of epochs to wait before resuming
-            normal operation after lr has been reduced.
+            normal operation after lr has been reduced.\n
             Default: 0.
     """
 
