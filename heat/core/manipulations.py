@@ -1,10 +1,13 @@
+"""
+Manipulation operations for (potentially distributed) DNDarrays.
+"""
 from __future__ import annotations
 
 import numpy as np
 import torch
 import warnings
 
-from typing import Type, List, Dict, Any, TypeVar, Union, Tuple, Sequence, Optional
+from typing import Iterable, Type, List, Dict, Any, TypeVar, Union, Tuple, Sequence, Optional
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -52,31 +55,36 @@ __all__ = [
 ]
 
 
-def column_stack(arrays):
+def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     """
-    Stack 1-D or 2-D ``DNDarray``s as columns into a 2-D ``DNDarray``.
+    Stack 1-D or 2-D `DNDarray`s as columns into a 2-D `DNDarray`.
     If the input arrays are 1-D, they will be stacked as columns. If they are 2-D,
     they will be concatenated along the second axis.
 
     Parameters
     ----------
-    arrays : Sequence[DNDarrays,...]
+    arrays : Sequence[DNDarray, ...]
+        Sequence of `DNDarray`s.
 
     Raises
     ------
     ValueError
         If arrays have more than 2 dimensions
 
-    Returns
-    -------
-    DNDarray
+    Notes
+    -----
+    All `DNDarray`s in the sequence must have the same number of rows.
+    All `DNDarray`s must be split along the same axis! Note that distributed
+    1-D arrays (`split = 0`) by default will be transposed into distributed
+    column arrays with `split == 1`.
 
-    Note
-    ----
-    All ``DNDarray``s in the sequence must have the same number of rows.
-    All ``DNDarray``s must be split along the same axis! Note that distributed
-    1-D arrays (``split = 0``) by default will be transposed into distributed
-    column arrays with ``split == 1``.
+    See Also
+    --------
+    :func:`concatenate`
+    :func:`hstack`
+    :func:`row_stack`
+    :func:`stack`
+    :func:`vstack`
 
     Examples
     --------
@@ -143,9 +151,9 @@ def column_stack(arrays):
         return concatenate(arrays, axis=1)
 
 
-def concatenate(arrays, axis=0):
+def concatenate(arrays: Sequence[DNDarray, ...], axis: Optional[int] = 0) -> DNDarray:
     """
-    Join 2 or more ``DNDarrays`` along an existing axis.
+    Join 2 or more `DNDarrays` along an existing axis.
 
     Parameters
     ----------
@@ -157,7 +165,7 @@ def concatenate(arrays, axis=0):
     Raises
     ------
     RuntimeError
-        If the concatenated :class:`~heat.core.dndarray.DNDarray` meta information, e.g. ``split`` or ``comm``, does not match.
+        If the concatenated :class:`~heat.core.dndarray.DNDarray` meta information, e.g. `split` or `comm`, does not match.
     TypeError
         If the passed parameters are not of correct type.
     ValueError
@@ -467,7 +475,7 @@ def concatenate(arrays, axis=0):
             return out
 
 
-def diag(a: DNDarray, offset: int = 0) -> DNDarray:
+def diag(a: DNDarray, offset: Optional[int] = 0) -> DNDarray:
     """
     Extract a diagonal or construct a diagonal array.
     See the documentation for :func:`diagonal` for more information about extracting the diagonal.
@@ -476,11 +484,15 @@ def diag(a: DNDarray, offset: int = 0) -> DNDarray:
     ----------
     a: DNDarray
         The array holding data for creating a diagonal array or extracting a diagonal.
-        If ``a`` is a 1-dimensional array, a diagonal 2d-array will be returned.
-        If ``a`` is a n-dimensional array with n > 1 the diagonal entries will be returned in an n-1 dimensional array.
+        If `a` is a 1-dimensional array, a diagonal 2d-array will be returned.
+        If `a` is a n-dimensional array with n > 1 the diagonal entries will be returned in an n-1 dimensional array.
     offset: int, optional
         The offset from the main diagonal.
         Offset greater than zero means above the main diagonal, smaller than zero is below the main diagonal.
+
+    See Also
+    --------
+    :func:`diagonal`
 
     Examples
     --------
@@ -614,14 +626,15 @@ def diagonal(
     return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
 
 
-def dsplit(ary, indices_or_sections):
+def dsplit(x: Sequence[DNDarray, ...], indices_or_sections: Iterable) -> List[DNDarray, ...]:
     """
     Split array into multiple sub-DNDarrays along the 3rd axis (depth).
-    Note that this function returns copies and not views into `ary`.
+    Returns a list of sub-DNDarrays as copies of parts of `x`.
+
 
     Parameters
     ----------
-    ary : DNDarray
+    x : DNDarray
         DNDArray to be divided into sub-DNDarrays.
     indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
         If `indices_or_sections` is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 3rd axis.
@@ -629,11 +642,6 @@ def dsplit(ary, indices_or_sections):
         If `indices_or_sections` is a 1-D DNDarray of sorted integers, the entries indicate where along the 3rd axis
         the array is split.
         If an index exceeds the dimension of the array along the 3rd axis, an empty sub-DNDarray is returned correspondingly.
-
-    Returns
-    -------
-    sub_arrays : list of DNDarrays
-        A list of sub-DNDarrays as copies of parts of `ary`.
 
     Notes
     -----
@@ -647,7 +655,9 @@ def dsplit(ary, indices_or_sections):
 
     See Also
     ------
-    :function:`split`
+    :func:`split`
+    :func:`hsplit`
+    :func:`vsplit`
 
     Examples
     --------
@@ -685,7 +695,7 @@ def dsplit(ary, indices_or_sections):
         ]
 
     """
-    return split(ary, indices_or_sections, 2)
+    return split(x, indices_or_sections, 2)
 
 
 def expand_dims(a: DNDarray, axis: int) -> DNDarray:
@@ -703,7 +713,7 @@ def expand_dims(a: DNDarray, axis: int) -> DNDarray:
     Raises
     ------
     ValueError
-        If ``axis`` is not consistent with the available dimensions.
+        If `axis` is not consistent with the available dimensions.
 
     Examples
     --------
@@ -754,12 +764,12 @@ def flatten(a: DNDarray) -> DNDarray:
 
     Warning
     ----------
-    If ``a.split>0``, the array must be redistributed along the first axis (see :func:`resplit`).
+    If `a.split>0`, the array must be redistributed along the first axis (see :func:`resplit`).
 
 
     See Also
     --------
-    :function:`~heat.core.manipulations.ravel`
+    :func:`ravel`
 
     Examples
     --------
@@ -798,6 +808,11 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
         Input array to be flipped
     axis: int or Tuple[int,...]
         A list of axes to be flipped
+
+    See Also
+    --------
+    :func:`fliplr`
+    :func:`flipud`
 
     Examples
     --------
@@ -844,12 +859,17 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
 
 def fliplr(a: DNDarray) -> DNDarray:
     """
-    Flip array in the left/right direction. If ``a.ndim>2``, flip along dimension 1.
+    Flip array in the left/right direction. If `a.ndim>2`, flip along dimension 1.
 
     Parameters
     ----------
     a: DNDarray
         Input array to be flipped, must be at least 2-D
+
+    See Also
+    --------
+    :func:`flip`
+    :func:`flipud`
 
     Examples
     --------
@@ -874,6 +894,11 @@ def flipud(a: DNDarray) -> DNDarray:
     a: DNDarray
         Input array to be flipped
 
+    See Also
+    --------
+    :func:`flip`
+    :func:`fliplr`
+
     Examples
     --------
     >>> a = ht.array([[0,1],[2,3]])
@@ -888,14 +913,14 @@ def flipud(a: DNDarray) -> DNDarray:
     return flip(a, 0)
 
 
-def hsplit(ary, indices_or_sections):
+def hsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:
     """
     Split array into multiple sub-DNDarrays along the 2nd axis (horizontally/column-wise).
-    Note that this function returns copies and not views into `ary`.
+    Returns a list of sub-DNDarrays as copies of parts of `x`.
 
     Parameters
     ----------
-    ary : DNDarray
+    x : DNDarray
         DNDArray to be divided into sub-DNDarrays.
     indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
         If `indices_or_sections` is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 2nd axis.
@@ -903,11 +928,6 @@ def hsplit(ary, indices_or_sections):
         If `indices_or_sections` is a 1-D DNDarray of sorted integers, the entries indicate where along the 2nd axis
         the array is split.
         If an index exceeds the dimension of the array along the 2nd axis, an empty sub-DNDarray is returned correspondingly.
-
-    Returns
-    -------
-    sub_arrays : list of DNDarrays
-        A list of sub-DNDarrays as copies of parts of `ary`
 
     Notes
     -----
@@ -921,7 +941,9 @@ def hsplit(ary, indices_or_sections):
 
     See Also
     --------
-    :function:`split`
+    :func:`split`
+    :func:`dsplit`
+    :func:`vsplit`
 
     Examples
     --------
@@ -953,20 +975,20 @@ def hsplit(ary, indices_or_sections):
             DNDarray([[[ 9, 10, 11]],
 
                       [[21, 22, 23]]])]
-       """
-    sanitation.sanitize_in(ary)
+    """
+    sanitation.sanitize_in(x)
 
-    if len(ary.lshape) < 2:
-        ary = reshape(ary, (1, ary.lshape[0]))
-        result = split(ary, indices_or_sections, 1)
+    if len(x.lshape) < 2:
+        x = reshape(x, (1, x.lshape[0]))
+        result = split(x, indices_or_sections, 1)
         result = [flatten(sub_array) for sub_array in result]
     else:
-        result = split(ary, indices_or_sections, 1)
+        result = split(x, indices_or_sections, 1)
 
     return result
 
 
-def hstack(tup: Sequence[DNDarray, ...]) -> DNDarray:
+def hstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     """
     Stack arrays in sequence horizontally (column-wise).
     This is equivalent to concatenation along the second axis, except for 1-D
@@ -974,7 +996,7 @@ def hstack(tup: Sequence[DNDarray, ...]) -> DNDarray:
 
     Parameters
     ----------
-    tup : Sequence[DNDarray,...]
+    arrays : Sequence[DNDarray, ...]
         The arrays must have the same shape along all but the second axis,
         except 1-D arrays which can be any length.
 
@@ -984,6 +1006,7 @@ def hstack(tup: Sequence[DNDarray, ...]) -> DNDarray:
     :func:`stack`
     :func:`vstack`
     :func:`column_stack`
+    :func:`row_stack`
 
     Examples
     --------
@@ -1004,25 +1027,29 @@ def hstack(tup: Sequence[DNDarray, ...]) -> DNDarray:
     [0/1]         [2, 3]])
     [1/1] tensor([[3, 4]])
     """
-    tup = list(tup)
+    arrays = list(arrays)
     axis = 1
     all_vec = False
-    if len(tup) == 2 and all(len(x.gshape) == 1 for x in tup):
+    if len(arrays) == 2 and all(len(x.gshape) == 1 for x in arrays):
         axis = 0
         all_vec = True
     if not all_vec:
-        for cn, arr in enumerate(tup):
+        for cn, arr in enumerate(arrays):
             if len(arr.gshape) == 1:
-                tup[cn] = arr.expand_dims(1)
+                arrays[cn] = arr.expand_dims(1)
 
-    return concatenate(tup, axis=axis)
+    return concatenate(arrays, axis=axis)
 
 
-def pad(array, pad_width, mode="constant", constant_values=0):
+def pad(
+    array: DNDarray,
+    pad_width: Union[int, Sequence[Sequence[int, int], ...]],
+    mode: Optional[str] = "constant",
+    constant_values: Optional[int] = 0,
+) -> DNDarray:
     """
     Pads tensor with a specific value (default=0).
     (Not all dimensions supported)
-
 
     Parameters
     ----------
@@ -1068,19 +1095,12 @@ def pad(array, pad_width, mode="constant", constant_values=0):
 
         Hint: This function follows the principle of datatype integrity.
         Therefore, an array can only be padded with values of the same datatype.
-        All values that violate this rule are implicitly cast to the datatype of the ``DNDarray``.
-
-    Returns
-    -------
-    padded_tensor : DNDarray
-        The padded tensor
+        All values that violate this rule are implicitly cast to the datatype of the `DNDarray`.
 
     Examples
     --------
     >>> a = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
     >>> b = ht.array(a, split = 0)
-
-
     Pad last dimension
     >>> c = ht.pad(b, (2,1), constant_values=1)
     tensor([[[ 1,  1,  0,  1,  2,  3,  1],
@@ -1090,8 +1110,6 @@ def pad(array, pad_width, mode="constant", constant_values=0):
         [[ 1,  1, 12, 13, 14, 15,  1],
          [ 1,  1, 16, 17, 18, 19,  1],
          [ 1,  1, 20, 21, 22, 23,  1]]])
-
-
     Pad last 2 dimensions
     >>> d = ht.pad(b, [(1,0), (2,1)])
     tensor([[[ 0,  0,  0,  0,  0,  0,  0],
@@ -1103,8 +1121,6 @@ def pad(array, pad_width, mode="constant", constant_values=0):
          [ 0,  0, 12, 13, 14, 15,  0],
          [ 0,  0, 16, 17, 18, 19,  0],
          [ 0,  0, 20, 21, 22, 23,  0]]])
-
-
     Pad last 3 dimensions
     >>> e = ht.pad(b, ((2,1), [1,0], (2,1)))
     tensor([[[ 0,  0,  0,  0,  0,  0,  0],
@@ -1131,9 +1147,7 @@ def pad(array, pad_width, mode="constant", constant_values=0):
          [ 0,  0,  0,  0,  0,  0,  0],
          [ 0,  0,  0,  0,  0,  0,  0],
          [ 0,  0,  0,  0,  0,  0,  0]]])
-
     """
-
     if not isinstance(array, DNDarray):
         raise TypeError("expected array to be a ht.DNDarray, but was {}".format(type(array)))
 
@@ -1364,7 +1378,7 @@ def pad(array, pad_width, mode="constant", constant_values=0):
     return padded_tensor
 
 
-def ravel(a):
+def ravel(a: DNDarray) -> DNDarray:
     """
     Return a flattened view of `a` if possible. A copy is returned otherwise.
 
@@ -1383,10 +1397,9 @@ def ravel(a):
     Returning a view of distributed data is only possible when `split != 0`. The returned DNDarray may be unbalanced.
     Otherwise, data must be communicated among processes, and `ravel` falls back to `flatten`.
 
-
     See Also
     --------
-    :function:`~heat.core.manipulations.flatten`
+    :func:`flatten`
 
     Examples
     --------
@@ -1424,9 +1437,11 @@ def ravel(a):
     return result
 
 
-def repeat(a, repeats, axis=None):
+def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarray:
     """
-    Creates a new DNDarray by repeating elements of array a.
+    Creates a new `DNDarray` by repeating elements of array `a`. The output has
+    the same shape as `a`, except along the given axis. If axis is None, this
+    function returns a flattened `DNDarray`.
 
     Parameters
     ----------
@@ -1441,12 +1456,6 @@ def repeat(a, repeats, axis=None):
     axis: int, optional
         The axis along which to repeat values. By default, use the flattened input array and return a flat output
         array.
-
-    Returns
-    -------
-    repeated_array : DNDarray
-        Output DNDarray which has the same shape as `a`, except along the given axis.
-        If axis is None, repeated_array will be a flattened DNDarray.
 
     Examples
     --------
@@ -1466,7 +1475,6 @@ def repeat(a, repeats, axis=None):
             [3, 4],
             [3, 4]])
     """
-
     # sanitation `a`
     if not isinstance(a, DNDarray):
         if isinstance(a, (int, float)):
@@ -1680,9 +1688,9 @@ def repeat(a, repeats, axis=None):
     return repeated_array
 
 
-def reshape(a, shape, new_split=None):
+def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None) -> DNDarray:
     """
-    Returns an array with the same data and number of elements as ``a``, but with the specified shape.
+    Returns an array with the same data and number of elements as `a`, but with the specified shape.
 
     Parameters
     ----------
@@ -1694,14 +1702,9 @@ def reshape(a, shape, new_split=None):
         The new split axis if `a` is a split DNDarray. None denotes same axis.
         Default : None
 
-    Returns
-    -------
-    reshaped : ht.DNDarray
-        The DNDarray with the specified shape
-
     See Also
     --------
-    :function:`~heat.core.manipulations.ravel`
+    :func:`ravel`
 
     Raises
     ------
@@ -1833,7 +1836,7 @@ DNDarray.reshape.__doc__ = reshape.__doc__
 
 def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarray:
     """
-    Rotate an array by 90 degrees in the plane specified by ``axes``.
+    Rotate an array by 90 degrees in the plane specified by `axes`.
     Rotation direction is from the first towards the second axis.
 
     Parameters
@@ -1856,7 +1859,7 @@ def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarra
     Raises
     ------
     ValueError
-        If ``len(axis)!=2``.
+        If `len(axis)!=2`.
     ValueError
         If the axes are the same.
     ValueError
@@ -1927,11 +1930,12 @@ DNDarray.rot90.__doc__ = rot90.__doc__
 
 def shape(a: DNDarray) -> Tuple[int, ...]:
     """
-    Returns the shape of a DNDarray `a`.
+    Returns the global shape of a (potentially distributed) `DNDarray` as a tuple.
 
     Parameters
     ----------
     a : DNDarray
+        The input `DNDarray`.
     """
     # sanitize input
     if not isinstance(a, DNDarray):
@@ -1940,13 +1944,18 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
     return a.gshape
 
 
-def sort(a: DNDarray, axis: int = None, descending: bool = False, out: DNDarray = None):
+def sort(
+    a: DNDarray,
+    axis: Optional[int] = -1,
+    descending: Optional[bool] = False,
+    out: Optional[DNDarray] = None,
+):
     """
-    Sorts the elements of ``a`` along the given dimension (by default in ascending order) by their value.
+    Sorts the elements of `a` along the given dimension (by default in ascending order) by their value.
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
     original array.
-    Sorting where ``axis==a.split`` needs a lot of communication between the processes of MPI.
-    Returns a a tuple ``(values, indices)`` with the sorted local results and the indices of the elements in the original data
+    Sorting where `axis==a.split` needs a lot of communication between the processes of MPI.
+    Returns a tuple `(values, indices)` with the sorted local results and the indices of the elements in the original data
 
     Parameters
     ----------
@@ -1956,15 +1965,15 @@ def sort(a: DNDarray, axis: int = None, descending: bool = False, out: DNDarray 
         The dimension to sort along.
         Default is the last axis.
     descending : bool, optional
-        If set to ``True``, values are sorted in descending order.
+        If set to `True`, values are sorted in descending order.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh array is allocated.
+        or set to `None`, a fresh array is allocated.
 
     Raises
     ------
     ValueError
-        If ``axis`` is not consistent with the available dimensions.
+        If `axis` is not consistent with the available dimensions.
 
     Examples
     --------
@@ -1980,10 +1989,6 @@ def sort(a: DNDarray, axis: int = None, descending: bool = False, out: DNDarray 
     (array([[4, 1]], array([[0, 1]]))
     (array([[3, 2]], array([[1, 0]]))
     """
-    # default: using last axis
-    if axis is None:
-        axis = len(a.shape) - 1
-
     stride_tricks.sanitize_axis(a.shape, axis)
 
     if a.split is None or axis != a.split:
@@ -2198,13 +2203,16 @@ def sort(a: DNDarray, axis: int = None, descending: bool = False, out: DNDarray 
         return tensor, return_indices
 
 
-def split(ary, indices_or_sections, axis=0):
+def split(
+    x: DNDarray, indices_or_sections: Iterable, axis: Optional[int] = 0
+) -> List[DNDarray, ...]:
     """
-    Split a DNDarray into multiple sub-DNDarrays as copies of parts of `ary`.
+    Split a DNDarray into multiple sub-DNDarrays.
+    Returns a list of sub-DNDarrays as copies of parts of `x`.
 
     Parameters
     ----------
-    ary : DNDarray
+    x : DNDarray
         DNDArray to be divided into sub-DNDarrays.
     indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
         If `indices_or_sections` is an integer, N, the DNDarray will be divided into N equal DNDarrays along axis.
@@ -2212,22 +2220,17 @@ def split(ary, indices_or_sections, axis=0):
         If `indices_or_sections` is a 1-D DNDarray of sorted integers, the entries indicate where along axis
         the array is split.
         For example, `indices_or_sections = [2, 3]` would, for `axis = 0`, result in
-        - `ary[:2]`
-        - `ary[2:3]`
-        - `ary[3:]`
+        - `x[:2]`
+        - `x[2:3]`
+        - `x[3:]`
         If an index exceeds the dimension of the array along axis, an empty sub-array is returned correspondingly.
     axis : int, optional
         The axis along which to split, default is 0.
-        `axis` is not allowed to equal `ary.split` if `ary` is distributed.
-
-    Returns
-    -------
-    sub_arrays : list of DNDarrays
-        A list of sub-DNDarrays as copies of parts of `ary`.
+        `axis` is not allowed to equal `x.split` if `x` is distributed.
 
     Warnings
     --------
-    Though it is possible to distribute `ary`, this function has nothing to do with the split
+    Though it is possible to distribute `x`, this function has nothing to do with the split
     parameter of a DNDarray.
 
     Raises
@@ -2237,7 +2240,9 @@ def split(ary, indices_or_sections, axis=0):
 
     See Also
     --------
-    :function:`dsplit`, :function:`hsplit`, :function:`vsplit`
+    :func:`dsplit`
+    :func:`hsplit`
+    :func:`vsplit`
 
     Examples
     --------
@@ -2271,29 +2276,29 @@ def split(ary, indices_or_sections, axis=0):
         ]
 
     """
-    # sanitize ary
-    sanitation.sanitize_in(ary)
+    # sanitize x
+    sanitation.sanitize_in(x)
 
     # sanitize axis
     if not isinstance(axis, int):
         raise TypeError("Expected `axis` to be an integer, but was {}".format(type(axis)))
-    if axis < 0 or axis > len(ary.gshape) - 1:
+    if axis < 0 or axis > len(x.gshape) - 1:
         raise ValueError(
             "Invalid input for `axis`. Valid range is between 0 and {}, but was {}".format(
-                len(ary.gshape) - 1, axis
+                len(x.gshape) - 1, axis
             )
         )
 
     # sanitize indices_or_sections
     if isinstance(indices_or_sections, int):
-        if ary.gshape[axis] % indices_or_sections != 0:
+        if x.gshape[axis] % indices_or_sections != 0:
             raise ValueError(
                 "DNDarray with shape {} can't be divided equally into {} chunks along axis {}".format(
-                    ary.gshape, indices_or_sections, axis
+                    x.gshape, indices_or_sections, axis
                 )
             )
         # np to torch mapping - calculate size of resulting data chunks
-        indices_or_sections_t = ary.gshape[axis] // indices_or_sections
+        indices_or_sections_t = x.gshape[axis] // indices_or_sections
 
     elif isinstance(indices_or_sections, (list, tuple, DNDarray)):
         if isinstance(indices_or_sections, (list, tuple)):
@@ -2313,28 +2318,28 @@ def split(ary, indices_or_sections, axis=0):
 
     # start of actual algorithm
 
-    if ary.split == axis and ary.is_distributed():
+    if x.split == axis and x.is_distributed():
 
         if isinstance(indices_or_sections, int):
             # CASE 1 number of processes == indices_or_selections -> split already done due to distribution
-            if ary.comm.size == indices_or_sections:
-                new_lshape = list(ary.lshape)
+            if x.comm.size == indices_or_sections:
+                new_lshape = list(x.lshape)
                 new_lshape[axis] = 0
                 sub_arrays_t = [
-                    torch.empty(new_lshape) if i != ary.comm.rank else ary._DNDarray__array
+                    torch.empty(new_lshape) if i != x.comm.rank else x._DNDarray__array
                     for i in range(indices_or_sections)
                 ]
 
             # # CASE 2 number of processes != indices_or_selections -> reorder (and split) chunks correctly
             else:
                 # no data
-                if ary.lshape[axis] == 0:
-                    sub_arrays_t = [torch.empty(ary.lshape) for i in range(indices_or_sections)]
+                if x.lshape[axis] == 0:
+                    sub_arrays_t = [torch.empty(x.lshape) for i in range(indices_or_sections)]
                 else:
-                    offset, local_shape, slices = ary.comm.chunk(ary.gshape, axis)
+                    offset, local_shape, slices = x.comm.chunk(x.gshape, axis)
                     idx_frst_chunk_affctd = offset // indices_or_sections_t
                     left_data_chunk = indices_or_sections_t - (offset % indices_or_sections_t)
-                    left_data_process = ary.lshape[axis]
+                    left_data_process = x.lshape[axis]
 
                     new_indices = torch.zeros(indices_or_sections, dtype=int)
 
@@ -2356,19 +2361,19 @@ def split(ary, indices_or_sections, axis=0):
                             left_data_process % indices_or_sections_t
                         )
 
-                    sub_arrays_t = torch.split(ary._DNDarray__array, new_indices.tolist(), axis)
+                    sub_arrays_t = torch.split(x._DNDarray__array, new_indices.tolist(), axis)
         # indices or sections == DNDarray
         else:
             if indices_or_sections.split is not None:
                 warnings.warn(
-                    "`indices_or_sections` might not be distributed (along axis {}) if `ary` is not distributed.\n"
+                    "`indices_or_sections` might not be distributed (along axis {}) if `x` is not distributed.\n"
                     "`indices_or_sections` will be copied with new split axis None.".format(
                         indices_or_sections.split
                     )
                 )
                 indices_or_sections = resplit(indices_or_sections, None)
 
-            offset, local_shape, slices = ary.comm.chunk(ary.gshape, axis)
+            offset, local_shape, slices = x.comm.chunk(x.gshape, axis)
             slice_axis = slices[axis]
 
             # reduce information to the (chunk) relevant
@@ -2398,14 +2403,14 @@ def split(ary, indices_or_sections, axis=0):
             # 4. transform the result into a list (torch requirement)
             indices_or_sections_t = indices_or_sections_t.tolist()
 
-            sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
+            sub_arrays_t = torch.split(x._DNDarray__array, indices_or_sections_t, axis)
     else:
         if isinstance(indices_or_sections, int):
-            sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
+            sub_arrays_t = torch.split(x._DNDarray__array, indices_or_sections_t, axis)
         else:
             if indices_or_sections.split is not None:
                 warnings.warn(
-                    "`indices_or_sections` might not be distributed (along axis {}) if `ary` is not distributed.\n"
+                    "`indices_or_sections` might not be distributed (along axis {}) if `x` is not distributed.\n"
                     "`indices_or_sections` will be copied with new split axis None.".format(
                         indices_or_sections.split
                     )
@@ -2416,13 +2421,13 @@ def split(ary, indices_or_sections, axis=0):
 
             # 1. replace all values out of range with gshape[axis] to generate size 0
             indices_or_sections_t = indexing.where(
-                indices_or_sections <= ary.gshape[axis], indices_or_sections, ary.gshape[axis]
+                indices_or_sections <= x.gshape[axis], indices_or_sections, x.gshape[axis]
             )
 
             # 2. add first and last value to DNDarray
             # 3. calculate the 1-st discrete difference therefore corresponding chunk sizes
             indices_or_sections_t = arithmetics.diff(
-                indices_or_sections_t, prepend=0, append=ary.gshape[axis]
+                indices_or_sections_t, prepend=0, append=x.gshape[axis]
             )
             indices_or_sections_t = factories.array(
                 indices_or_sections_t,
@@ -2435,12 +2440,10 @@ def split(ary, indices_or_sections, axis=0):
             # 4. transform the result into a list (torch requirement)
             indices_or_sections_t = indices_or_sections_t.tolist()
 
-            sub_arrays_t = torch.split(ary._DNDarray__array, indices_or_sections_t, axis)
+            sub_arrays_t = torch.split(x._DNDarray__array, indices_or_sections_t, axis)
 
     sub_arrays_ht = [
-        factories.array(
-            sub_DNDarray, dtype=ary.dtype, is_split=ary.split, device=ary.device, comm=ary.comm
-        )
+        factories.array(sub_DNDarray, dtype=x.dtype, is_split=x.split, device=x.device, comm=x.comm)
         for sub_DNDarray in sub_arrays_t
     ]
 
@@ -2452,9 +2455,9 @@ def split(ary, indices_or_sections, axis=0):
 
 def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     """
-    Remove single-element entries from the shape of a ``DNDarray``.
-    Returns the input array, but with all or a subset (indicated by ``axis``) of the dimensions of length 1 removed.
-    Split semantics: see note below.
+    Remove single-element entries from the shape of a `DNDarray`.
+    Returns the input array, but with all or a subset (indicated by `axis`) of the dimensions of length 1 removed.
+    Split semantics: see Notes below.
 
     Parameters
     -----------
@@ -2462,17 +2465,16 @@ def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
         Input data.
     axis : None or int or Tuple[int,...], optional
            Selects a subset of the single-element entries in the shape.
-           If axis is ``None``, all single-element entries will be removed from the shape.
+           If axis is `None`, all single-element entries will be removed from the shape.
 
     Raises
     ------
-    ``ValueError``, if an axis is selected with shape entry greater than one.
+    `ValueError`, if an axis is selected with shape entry greater than one.
 
     Notes
     -----
     Split semantics: a distributed DNDarray will keep its original split dimension after "squeezing",
-    which, depending on the squeeze axis, may result in a lower numerical ``split`` value (see Examples).
-
+    which, depending on the squeeze axis, may result in a lower numerical `split` value (see Examples).
 
     Examples
     ---------
@@ -2511,7 +2513,6 @@ def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     >>> x.squeeze().split
     1
     """
-
     # Sanitize input
     sanitation.sanitize_in(x)
     # Sanitize axis
@@ -2553,17 +2554,19 @@ def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     )
 
 
-def stack(arrays, axis=0, out=None):
+def stack(
+    arrays: Sequence[DNDarray, ...], axis: Optional[int] = 0, out: Optional[DNDarray] = None
+) -> DNDarray:
     """
-    Join a sequence of ``DNDarray``s along a new axis.
+    Join a sequence of `DNDarray`s along a new axis.
 
-    The ``axis`` parameter specifies the index of the new axis in the dimensions of the result.
-    For example, if ``axis=0``, the arrays will be stacked along the first dimension; if ``axis=-1``,
+    The `axis` parameter specifies the index of the new axis in the dimensions of the result.
+    For example, if `axis=0`, the arrays will be stacked along the first dimension; if `axis=-1`,
     they will be stacked along the last dimension. See Notes below for split semantics.
 
     Parameters
     ----------
-    arrays : Sequence[DNDarrays,...]
+    arrays : Sequence[DNDarrays, ...]
         Each DNDarray must have the same shape, must be split along the same axis, and must be balanced.
     axis : int, optional
         The axis in the result array along which the input arrays are stacked.
@@ -2574,17 +2577,13 @@ def stack(arrays, axis=0, out=None):
     Raises
     ------
     TypeError
-        If arrays in sequence are not ``DNDarray``s, or if their ``dtype`` attribute does not match.
+        If arrays in sequence are not `DNDarray`s, or if their `dtype` attribute does not match.
     ValueError
-        If ``arrays`` contains less than 2 ``DNDarray``s.
+        If `arrays` contains less than 2 `DNDarray`s.
     ValueError
-        If the ``DNDarray``s are of different shapes, or if they are split along different axes (``split`` attribute).
+        If the `DNDarray`s are of different shapes, or if they are split along different axes (`split` attribute).
     RuntimeError
-        If the ``DNDarrays`` reside of different devices, or if they are unevenly distributed across ranks (method ``is_balanced()`` returns ``False``)
-
-    Returns
-    -------
-    DNDarray
+        If the `DNDarrays` reside of different devices, or if they are unevenly distributed across ranks (method `is_balanced()` returns `False`)
 
     Notes
     -----
@@ -2595,6 +2594,14 @@ def stack(arrays, axis=0, out=None):
     - if :math:`axis <= split`, output will be distributed along :math:`split+1`
 
     - if :math:`axis > split`, output will be distributed along `split`
+
+    See Also
+    --------
+    :func:`column_stack`
+    :func:`concatenate`
+    :func:`hstack`
+    :func:`row_stack`
+    :func:`vstack`
 
     Examples
     --------
@@ -2636,7 +2643,6 @@ def stack(arrays, axis=0, out=None):
     [2/2]          [18, 38],
     [2/2]          [19, 39]]])
     """
-
     # sanitation
     sanitation.sanitize_sequence(arrays)
 
@@ -2722,9 +2728,9 @@ def unique(
     a: DNDarray, sorted: bool = False, return_inverse: bool = False, axis: int = None
 ) -> Tuple[DNDarray, torch.tensor]:
     """
-    Finds and returns the unique elements of a ``DNDarray``.
-    If return_inverse is ``True``, the second tensor will hold the list of inverse indices
-    If distributed, it is most efficient if ``axis!=a.split``.
+    Finds and returns the unique elements of a `DNDarray`.
+    If return_inverse is `True`, the second tensor will hold the list of inverse indices
+    If distributed, it is most efficient if `axis!=a.split`.
 
     Parameters
     ----------
@@ -2732,12 +2738,12 @@ def unique(
         Input array.
     sorted : bool, optional
         Whether the found elements should be sorted before returning as output.
-        Warning: sorted is not working if ``axis!=None and axis!=a.split``
+        Warning: sorted is not working if `axis!=None and axis!=a.split`
     return_inverse : bool, optional
         Whether to also return the indices for where elements in the original input ended up in the returned
         unique list.
     axis : int, optional
-        Axis along which unique elements should be found. Default to ``None``, which will return a one dimensional list of
+        Axis along which unique elements should be found. Default to `None`, which will return a one dimensional list of
         unique values.
 
     Examples
@@ -2920,14 +2926,14 @@ def unique(
     return return_value
 
 
-def vsplit(ary, indices_or_sections):
+def vsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:
     """
     Split array into multiple sub-DNDNarrays along the 1st axis (vertically/row-wise).
-    Note that this function returns copies and not views into `ary`.
+    Returns a list of sub-DNDarrays as copies of parts of `x`.
 
     Parameters
     ----------
-    ary : DNDarray
+    x : DNDarray
         DNDArray to be divided into sub-DNDarrays.
     indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
         If `indices_or_sections` is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 1st axis.
@@ -2936,14 +2942,9 @@ def vsplit(ary, indices_or_sections):
         the array is split.
         If an index exceeds the dimension of the array along the 1st axis, an empty sub-DNDarray is returned correspondingly.
 
-    Returns
-    -------
-    sub_arrays : list of DNDarrays
-        A list of sub-DNDarrays as copies of parts of `ary`.
-
     Notes
     -----
-    Please refer to the split documentation. hsplit is equivalent to split with `axis=0`,
+    Please refer to the split documentation. :func:`hsplit` is equivalent to split with `axis=0`,
     the array is always split along the first axis regardless of the array dimension.
 
     Raises
@@ -2953,7 +2954,9 @@ def vsplit(ary, indices_or_sections):
 
     See Also
     --------
-    :function:`split`
+    :func:`split`
+    :func:`dsplit`
+    :func:`hsplit`
 
     Examples
     --------
@@ -2989,13 +2992,13 @@ def vsplit(ary, indices_or_sections):
                        [20, 21],
                        [22, 23]]])]
 
-           """
-    return split(ary, indices_or_sections, 0)
+    """
+    return split(x, indices_or_sections, 0)
 
 
 def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
     """
-    Out-of-place redistribution of the content of the ``DNDarray``. Allows to "unsplit" (i.e. gather) all values from all
+    Out-of-place redistribution of the content of the `DNDarray`. Allows to "unsplit" (i.e. gather) all values from all
     nodes,  as well as to define a new axis along which the array is split without changes to the values.
     WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for
     small arrays.
@@ -3005,7 +3008,7 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
     arr : DNDarray
         The array from which to resplit
     axis : int or None
-        The new split axis, ``None`` denotes gathering, an int will set the new split axis
+        The new split axis, `None` denotes gathering, an int will set the new split axis
 
 
     Examples
@@ -3084,29 +3087,34 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
     return new_arr
 
 
-def row_stack(arrays):
+def row_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     """
-    Stack 1-D or 2-D ``DNDarray``s as rows into a 2-D ``DNDarray``.
+    Stack 1-D or 2-D `DNDarray`s as rows into a 2-D `DNDarray`.
     If the input arrays are 1-D, they will be stacked as rows. If they are 2-D,
     they will be concatenated along the first axis.
 
     Parameters
     ----------
-    arrays : Sequence[DNDarrays,...]
+    arrays : Sequence[DNDarrays, ...]
+        Sequence of `DNDarray`s.
 
     Raises
     ------
     ValueError
         If arrays have more than 2 dimensions
 
-    Returns
-    -------
-    DNDarray
+    Notes
+    -----
+    All `DNDarray`s in the sequence must have the same number of columns.
+    All `DNDarray`s must be split along the same axis!
 
-    Note
-    ----
-    All ``DNDarray``s in the sequence must have the same number of columns.
-    All ``DNDarray``s must be split along the same axis!
+    See Also
+    --------
+    :func:`column_stack`
+    :func:`concatenate`
+    :func:`hstack`
+    :func:`stack`
+    :func:`vstack`
 
     Examples
     --------
@@ -3167,7 +3175,7 @@ def row_stack(arrays):
         return concatenate(arrays, axis=0)
 
 
-def vstack(tup):
+def vstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     """
     Stack arrays in sequence vertically (row wise).
     This is equivalent to concatenation along the first axis.
@@ -3178,7 +3186,7 @@ def vstack(tup):
 
     Parameters
     ----------
-    tup : Sequence[DNDarray,...]
+    arrays : Sequence[DNDarray,...]
         The arrays must have the same shape along all but the first axis.
         1-D arrays must have the same length.
 
@@ -3221,21 +3229,21 @@ def vstack(tup):
     [1]         [3],
     [1]         [4]])
     """
-    tup = list(tup)
-    for cn, arr in enumerate(tup):
+    arrays = list(arrays)
+    for cn, arr in enumerate(arrays):
         if len(arr.gshape) == 1:
-            tup[cn] = arr.expand_dims(0).resplit_(arr.split)
+            arrays[cn] = arr.expand_dims(0).resplit_(arr.split)
 
-    return concatenate(tup, axis=0)
+    return concatenate(arrays, axis=0)
 
 
 def topk(
     a: DNDarray,
     k: int,
-    dim: int = None,
-    largest: bool = True,
-    sorted: bool = True,
-    out=Tuple[DNDarray, DNDarray],
+    dim: Optional[int] = -1,
+    largest: Optional[bool] = True,
+    sorted: Optional[bool] = True,
+    out: Optional[Tuple[DNDarray, DNDarray]] = None,
 ) -> Tuple[DNDarray, DNDarray]:
     """
     Returns the :math:`k` highest entries in the array.
@@ -3250,10 +3258,10 @@ def topk(
     dim: int, optional
         Dimension along which to sort, per default the last dimension
     largest: bool, optional
-        If ``True``, return the :math:`k` largest items, otherwise return the :math:`k` smallest items
+        If `True`, return the :math:`k` largest items, otherwise return the :math:`k` smallest items
     sorted: bool, optional
-        Whether to sort the output (descending if ``largest`` is ``True``, else ascending)
-    out: tuple of ``DNDarray``s, optional
+        Whether to sort the output (descending if `largest` is `True`, else ascending)
+    out: tuple of `DNDarray`s, optional
         output buffer
 
     Returns
@@ -3270,22 +3278,20 @@ def topk(
     (tensor([3, 2]), tensor([2, 1]))
     >>> a = ht.array([[1,2,3],[1,2,3]])
     >>> ht.topk(a,2,dim=1)
-   (tensor([[3, 2],
+    (tensor([[3, 2],
         [3, 2]]),
     tensor([[2, 1],
         [2, 1]]))
     >>> a = ht.array([[1,2,3],[1,2,3]], split=1)
     >>> ht.topk(a,2,dim=1)
-   (tensor([[3],
+    (tensor([[3],
         [3]]), tensor([[1],
         [1]]))
     (tensor([[2],
         [2]]), tensor([[1],
         [1]]))
     """
-
-    if dim is None:
-        dim = len(a.shape) - 1
+    dim = stride_tricks.sanitize_axis(a.gshape, dim)
 
     neutral_value = sanitation.sanitize_infinity(a)
     if largest:
