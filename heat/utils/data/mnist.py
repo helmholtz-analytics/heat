@@ -15,9 +15,9 @@ __all__ = ["MNISTDataset"]
 
 class MNISTDataset(datasets.MNIST):
     """
-    Dataset wrapper for :class:`torchvision.datasets.MNIST`. This implements all of the required functions mentioned in
-    :class:`heat.utils.data.Dataset`. The ``__getitem__`` and ``__len__`` functions are inherited from
-    :class:`torchvision.datasets.MNIST`.
+    Dataset wrapper for `torchvision.datasets.MNIST <https://pytorch.org/vision/stable/datasets.html#torchvision.datasets.MNIST>`_.
+    This implements all of the required functions mentioned in :class:`heat.utils.data.Dataset`. The ``__getitem__`` and ``__len__`` functions are inherited from
+    `torchvision.datasets.MNIST <https://pytorch.org/vision/stable/datasets.html#torchvision.datasets.MNIST>`_.
 
     Parameters
     ----------
@@ -62,7 +62,9 @@ class MNISTDataset(datasets.MNIST):
     test_set : bool
         if this dataset is the testing set then keep all of the data local
 
-    For other attributes see :class:`torchvision.datasets.MNIST`.
+    Notes
+    -----
+    For other attributes see `torchvision.datasets.MNIST <https://pytorch.org/vision/stable/datasets.html#torchvision.datasets.MNIST>`_.
     """
 
     def __init__(

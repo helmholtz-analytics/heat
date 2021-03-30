@@ -32,11 +32,11 @@ def queue_thread(q: queue.Queue):
 class PartialH5Dataset(torch_data.Dataset):
     """
     Create a Dataset object for a dataset which loads portions of data from an HDF5 file. Very similar to
-    :class:'.datatools.Dataset'. This will create 2 threads, one for loading the data from the target file, and one
-    for converting items before being passed to the network. The conversion is done by the iterator. A portion of the
-    data of length ``initial_load`` is loaded upon initialization, the rest of the data is loaded after the loaded
-    data is returned by :class:'PartialH5DataLoaderIter'. This iterator will be used by the HeAT
-    :class:'.datatools.DataLoader' automatically with this type of dataset.
+    :func:`<heat.utils.data.datatools.Dataset>`. This will create 2 threads, one for loading the data from the target file,
+    and one for converting items before being passed to the network. The conversion is done by the iterator.
+    A portion of the data of length ``initial_load`` is loaded upon initialization, the rest of the data is loaded
+    after the loaded data is returned by :func:`PartialH5DataLoaderIter`. This iterator will be used by the HeAT
+    :func:`heat.utils.data.datatools.DataLoader` automatically with this type of dataset.
 
     Notes
     -----
@@ -187,7 +187,7 @@ class PartialH5Dataset(torch_data.Dataset):
 
     def thread_replace_converted_batches(self):
         """
-        Replace the elements of the dataset with newly loaded elements. :class:'PartialH5DataLoaderIter' will
+        Replace the elements of the dataset with newly loaded elements. :func:'PartialH5DataLoaderIter' will
         put the used indices in the ``used_indices`` parameter. This object is reset to an empty list after
         these elements are overwritten with new data.
         """
@@ -223,7 +223,7 @@ class PartialH5Dataset(torch_data.Dataset):
 
 class PartialH5DataLoaderIter(object):
     """
-    Iterator to be used with :class:'PartialH5Dataset'. It closely mirrors the standard torch iterator while loading
+    Iterator to be used with :func:'PartialH5Dataset'. It closely mirrors the standard torch iterator while loading
     new data to replace the loaded batches automatically. It also pre-fetches the batches and begins their
     preparation, collation, and device setting in the background.
     """
