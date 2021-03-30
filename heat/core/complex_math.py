@@ -3,6 +3,7 @@ This module handles operations focussing on complex numbers.
 """
 
 import torch
+from typing import Optional
 
 from . import _operations
 from . import constants
@@ -14,7 +15,7 @@ from .dndarray import DNDarray
 __all__ = ["angle", "conj", "conjugate", "imag", "real"]
 
 
-def angle(x, deg: bool = False, out=None) -> DNDarray:
+def angle(x: DNDarray, deg: bool = False, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Calculate the element-wise angle of the complex argument.
 
@@ -42,7 +43,7 @@ def angle(x, deg: bool = False, out=None) -> DNDarray:
     return a
 
 
-def conjugate(x, out=None) -> DNDarray:
+def conjugate(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Compute the complex conjugate, element-wise.
 
@@ -65,7 +66,7 @@ def conjugate(x, out=None) -> DNDarray:
 conj = conjugate
 
 
-def imag(x) -> DNDarray:
+def imag(x: DNDarray) -> DNDarray:
     """
     Return the imaginary part of the complex argument. The returned DNDarray and the input DNDarray share the same underlying storage.
 
@@ -85,7 +86,7 @@ def imag(x) -> DNDarray:
         return factories.zeros_like(x)
 
 
-def real(x) -> DNDarray:
+def real(x: DNDarray) -> DNDarray:
     """
     Return the real part of the complex argument. The returned DNDarray and the input DNDarray share the same underlying storage.
 
