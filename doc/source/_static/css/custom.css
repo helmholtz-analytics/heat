@@ -7429,7 +7429,7 @@ span[id*='MathJax-Span'] {
 	background-color: var(--horange-light) !important;
 }
 
-.hightlight-text>.hightlight {
+.highlight-text>.highlight {
   background-color: var(--horange-light) !important;
 }
 
