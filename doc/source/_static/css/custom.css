@@ -7429,6 +7429,10 @@ span[id*='MathJax-Span'] {
 	background-color: var(--horange-light) !important;
 }
 
+.hightlight-text>.hightlight {
+  background-color: var(--horange-light) !important;
+}
+
 .case {
 	width: 40%;
 	float: left;

@@ -72,7 +72,7 @@ initial centroids.
     Number of points assigned to c2: {}
     Centroids = {}""".format(c1.shape[0], c2.shape[0], centroids))
 
-.. code:: output
+.. code:: text
 
     Number of points assigned to c1: 100
     Number of points assigned to c2: 100
