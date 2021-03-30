@@ -1,18 +1,21 @@
+"""Enables parallel I/O with data on disk."""
+from __future__ import annotations
+
 import os.path
-import torch
 import numpy as np
+import torch
 import warnings
 
-from typing import Type, Dict, List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 
-
-from heat.core import factories
-from .communication import Communication, MPI, MPI_WORLD, sanitize_comm
 from . import devices
-from .stride_tricks import sanitize_axis
+from . import factories
 from . import types
-from .types import datatype
+
+from .communication import Communication, MPI, MPI_WORLD, sanitize_comm
 from .dndarray import DNDarray
+from .stride_tricks import sanitize_axis
+from .types import datatype
 
 __VALID_WRITE_MODES = frozenset(["w", "a", "r+"])
 __CSV_EXTENSION = frozenset([".csv"])
@@ -20,8 +23,7 @@ __HDF5_EXTENSIONS = frozenset([".h5", ".hdf5"])
 __NETCDF_EXTENSIONS = frozenset([".nc", ".nc4", "netcdf"])
 __NETCDF_DIM_TEMPLATE = "{}_dim_{}"
 
-__all__ = ["load", "load_csv", "save"]
-
+__all__ = ["load", "load_csv", "save", "supports_hdf5", "supports_netcdf", "save_hdf5"]
 
 try:
     import h5py
@@ -29,31 +31,31 @@ except ImportError:
     # HDF5 support is optional
     def supports_hdf5() -> bool:
         """
-        Returns whether HeAT supports reading from and writing to HDF5 files.
+        Returns ``True`` if HeAT supports reading from and writing to HDF5 files, ``False`` otherwise.
         """
         return False
 
 
 else:
+    # add functions to exports
+    __all__.extend(["load_hdf5", "save_hdf5"])
+
     # warn the user about serial hdf5
     if not h5py.get_config().mpi and MPI_WORLD.rank == 0:
         warnings.warn(
             "h5py does not support parallel I/O, falling back to slower serial I/O", ImportWarning
         )
 
-    # add functions to exports
-    __all__.extend(["load_hdf5", "save_hdf5"])
-
     def supports_hdf5() -> bool:
         """
-        Returns whether HeAT supports reading from and writing to HDF5 files.
+        Returns ``True`` if HeAT supports reading from and writing to HDF5 files, ``False`` otherwise.
         """
         return True
 
     def load_hdf5(
         path: str,
         dataset: str,
-        dtype: Type[datatype] = types.float32,
+        dtype: datatype = types.float32,
         split: Optional[int] = None,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
@@ -67,14 +69,14 @@ else:
             Path to the HDF5 file to be read.
         dataset : str
             Name of the dataset to be read.
-        dtype : datatype
+        dtype : datatype, optional
             Data type of the resulting array.
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
         device : str, optional
             The device id on which to place the data, defaults to globally set default device.
         comm : Communication, optional
-            The communication to use for the data distribution. Defaults to ``MPI_COMM_WORLD``.
+            The communication to use for the data distribution.
 
         Raises
         -------
@@ -85,20 +87,24 @@ else:
         --------
         >>> a = ht.load_hdf5('data.h5', dataset='DATA')
         >>> a.shape
-        (5,)
+        [0/2] (5,)
+        [1/2] (5,)
         >>> a.lshape
-        (5,)
+        [0/2] (5,)
+        [1/2] (5,)
         >>> b = ht.load_hdf5('data.h5', dataset='DATA', split=0)
         >>> b.shape
-        (5,)
+        [0/2] (5,)
+        [1/2] (5,)
         >>> b.lshape
-        (3,)
+        [0/2] (3,)
+        [1/2] (2,)
         """
         if not isinstance(path, str):
             raise TypeError("path must be str, not {}".format(type(path)))
-        if not isinstance(dataset, str):
+        elif not isinstance(dataset, str):
             raise TypeError("dataset must be str, not {}".format(type(dataset)))
-        if split is not None and not isinstance(split, int):
+        elif split is not None and not isinstance(split, int):
             raise TypeError("split must be None or int, not {}".format(type(split)))
 
         # infer the type and communicator for the loaded array
@@ -136,11 +142,9 @@ else:
                 )
                 data = data[slice2]
 
-            return dndarray.DNDarray(data, gshape, dtype, split, device, comm, balanced)
+            return DNDarray(data, gshape, dtype, split, device, comm, balanced)
 
-    def save_hdf5(
-        data: DNDarray, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]
-    ):
+    def save_hdf5(data: str, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]):
         """
         Saves ``data`` to an HDF5 file. Attempts to utilize parallel I/O if possible.
 
@@ -152,9 +156,9 @@ else:
             Path to the HDF5 file to be written.
         dataset : str
             Name of the dataset the data is saved to.
-        mode : str
+        mode : str, optional
             File access mode, one of ``'w', 'a', 'r+'``
-        kwargs : dict
+        kwargs : dict, optional
             Additional arguments passed to the created dataset.
 
         Raises
@@ -166,10 +170,10 @@ else:
 
         Examples
         --------
-        >>> a_range = ht.arange(100, split=0)
-        >>> ht.save_hdf5(a_range, 'data.h5', dataset='DATA')
+        >>> x = ht.arange(100, split=0)
+        >>> ht.save_hdf5(x, 'data.h5', dataset='DATA')
         """
-        if not isinstance(data, dndarray.DNDarray):
+        if not isinstance(data, DNDarray):
             raise TypeError("data must be heat tensor, not {}".format(type(data)))
         if not isinstance(path, str):
             raise TypeError("path must be str, not {}".format(type(path)))
@@ -226,15 +230,19 @@ else:
 try:
     import netCDF4 as nc
 except ImportError:
-
+    # netCDF4 support is optional
     def supports_netcdf() -> bool:
         """
-        Returns whether HeAT supports reading from and writing to netCDF4 files.
+        Returns ``True`` if HeAT supports reading from and writing to netCDF4 files, ``False`` otherwise.
         """
         return False
 
 
 else:
+    # add functions to visible exports
+    __all__.extend(["load_netcdf", "save_netcdf"])
+
+    # determine netCDF's parallel I/O support
     __nc_has_par = (
         nc.__dict__.get("__has_parallel4_support__", False)
         or nc.__dict__.get("__has_pnetcdf_support__", False)
@@ -248,19 +256,16 @@ else:
             ImportWarning,
         )
 
-    # add functions to visible exports
-    __all__.extend(["load_netcdf", "save_netcdf"])
-
     def supports_netcdf() -> bool:
         """
-        Returns whether HeAT supports reading from and writing to netCDF4 files.
+        Returns ``True`` if HeAT supports reading from and writing to netCDF4 files, ``False`` otherwise.
         """
         return True
 
     def load_netcdf(
         path: str,
         variable: str,
-        dtype: Type[datatype] = types.float32,
+        dtype: datatype = types.float32,
         split: Optional[int] = None,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
@@ -274,7 +279,7 @@ else:
             Path to the NetCDF4 file to be read.
         variable : str
             Name of the variable to be read.
-        dtype : datatype
+        dtype : datatype, optional
             Data type of the resulting array
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
@@ -286,20 +291,24 @@ else:
         Raises
         -------
         TypeError
-            If any of the input parameters are not of correct type
+            If any of the input parameters are not of correct type.
 
         Examples
         --------
         >>> a = ht.load_netcdf('data.nc', variable='DATA')
         >>> a.shape
-        (5,)
+        [0/2] (5,)
+        [1/2] (5,)
         >>> a.lshape
-        (5,)
+        [0/2] (5,)
+        [1/2] (5,)
         >>> b = ht.load_netcdf('data.nc', variable='DATA', split=0)
         >>> b.shape
-        (5,)
+        [0/2] (5,)
+        [1/2] (5,)
         >>> b.lshape
-        (3,)
+        [0/2] (3,)
+        [1/2] (2,)
         """
         if not isinstance(path, str):
             raise TypeError("path must be str, not {}".format(type(path)))
@@ -334,17 +343,17 @@ else:
                     local_shape, dtype=dtype.torch_type(), device=device.torch_device
                 )
 
-            return dndarray.DNDarray(data, gshape, dtype, split, device, comm, balanced)
+            return DNDarray(data, gshape, dtype, split, device, comm, balanced)
 
     def save_netcdf(
-        data,
-        path,
-        variable,
-        mode="w",
-        dimension_names=None,
-        is_unlimited=False,
-        file_slices=slice(None),
-        **kwargs
+        data: str,
+        path: str,
+        variable: str,
+        mode: str = "w",
+        dimension_names: Union[list, tuple, str] = None,
+        is_unlimited: bool = False,
+        file_slices: Union[Iterable[int], slice, bool] = slice(None),
+        **kwargs: Dict[str, object]
     ):
         """
         Saves data to a netCDF4 file. Attempts to utilize parallel I/O if possible.
@@ -357,20 +366,16 @@ else:
             Path to the netCDF4 file to be written.
         variable : str
             Name of the variable the data is saved to.
-        mode : str
-            File access mode, one of ``'w', 'a', 'r+'``
+        mode : str, optional
+            File access mode, one of ``'w', 'a', 'r+'``.
         dimension_names : list or tuple or string
-            Specifies the netCDF Dimensions used by the variable. Ignored if
-            Variable already exists.
-        is_unlimited : bool
-            If True, every dimension created for this variable (i.e. doesn't
-            already exist) is unlimited. Already existing limited dimensions
-            cannot be changed to unlimited and vice versa.
-        file_slices : tuple of integer, slice, ellipsis or 1-d bool or
-            integer sequences
-            Keys used to slice the netCDF Variable, as given in
-            the nc.utils._StartCountStride method.
-        kwargs : dict
+            Specifies the netCDF Dimensions used by the variable. Ignored if Variable already exists.
+        is_unlimited : bool, optional
+            If True, every dimension created for this variable (i.e. doesn't already exist) is unlimited. Already
+            existing limited dimensions cannot be changed to unlimited and vice versa.
+        file_slices : integer iterable, slice, ellipsis or bool
+            Keys used to slice the netCDF Variable, as given in the nc.utils._StartCountStride method.
+        kwargs : dict, optional
             additional arguments passed to the created dataset.
 
         Raises
@@ -378,14 +383,15 @@ else:
         TypeError
             If any of the input parameters are not of correct type.
         ValueError
-            If the access mode is not understood.
-            If the number of dimension names does not match the number of dimensions.
+            If the access mode is not understood or if the number of dimension names does not match the number of
+            dimensions.
+
         Examples
         --------
-        >>> a_range = ht.arange(100, split=0)
-        >>> ht.save_netcdf(a_range, 'data.nc', dataset='DATA')
+        >>> x = ht.arange(100, split=0)
+        >>> ht.save_netcdf(x, 'data.nc', dataset='DATA')
         """
-        if not isinstance(data, dndarray.DNDarray):
+        if not isinstance(data, DNDarray):
             raise TypeError("data must be heat tensor, not {}".format(type(data)))
         if not isinstance(path, str):
             raise TypeError("path must be str, not {}".format(type(path)))
@@ -422,47 +428,45 @@ else:
         is_split = data.split is not None
         _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
-        def __get_expanded_split(shape, expandedShape, split):
+        def __get_expanded_split(
+            shape: Tuple[int], expanded_shape: Tuple[int], split: Optional[int]
+        ) -> int:
             """
             Returns the hypothetical split-axis of a dndarray of shape=shape and
             split=split if it was expanded to expandedShape by adding empty dimensions.
 
             Parameters
             ----------
-            shape : tuple(int)
-                Shape of a dndarray.
-            expandedShape : tuple(int)
-                Shape of hypothetical expanded dndarray.
+            shape : tuple[int]
+                Shape of a DNDarray.
+            expanded_shape : tuple[int]
+                Shape of hypothetical expanded DNDarray.
             split : int or None
                 split-axis of dndarray.
-
-            Returns
-            -------
-            int
-                split-Axis of expanded dndarray.
 
             Raises
             -------
             ValueError
+                If resulting shapes do not match.
             """
-            if np.prod(shape) != np.prod(expandedShape):
+            if np.prod(shape) != np.prod(expanded_shape):
                 raise ValueError(
-                    "Shapes %s and %s do not have the same size" % (shape, expandedShape)
+                    "Shapes %s and %s do not have the same size" % (shape, expanded_shape)
                 )
             if np.prod(shape) == 1:  # size 1 array
                 return split
-            if len(shape) == len(expandedShape):  # actually not expanded at all
+            if len(shape) == len(expanded_shape):  # actually not expanded at all
                 return split
             if split is None:  # not split at all
                 return None
             # Get indices of non-empty dimensions and squeezed shapes
             enumerated = [[i, v] for i, v in enumerate(shape) if v != 1]
             ind_nonempty, sq_shape = list(zip(*enumerated))  # transpose
-            enumerated = [[i, v] for i, v in enumerate(expandedShape) if v != 1]
+            enumerated = [[i, v] for i, v in enumerate(expanded_shape) if v != 1]
             ex_ind_nonempty, sq_ex = list(zip(*enumerated))  # transpose
             if not sq_shape == sq_ex:
                 raise ValueError(
-                    "Shapes %s and %s differ in non-empty dimensions" % (shape, expandedShape)
+                    "Shapes %s and %s differ in non-empty dimensions" % (shape, expanded_shape)
                 )
             if split in ind_nonempty:  # split along non-empty dimension
                 split_sq = ind_nonempty.index(split)  # split-axis in squeezed shape
@@ -476,41 +480,42 @@ else:
             ]  # index of (first nonempty element after split) in squeezed shape
             return max(
                 i
-                for i, v in enumerate(expandedShape[: max(ex_ind_nonempty[:ind_ne_after_split])])
+                for i, v in enumerate(expanded_shape[: max(ex_ind_nonempty[:ind_ne_after_split])])
                 if v == 1
             )
 
-        def __merge_slices(var, var_slices, data, data_slices=None):
+        def __merge_slices(
+            var: nc.Variable,
+            var_slices: Tuple[int, slice],
+            data: DNDarray,
+            data_slices: Optional[Tuple[int, slice]] = None,
+        ) -> Tuple[Union[int, slice]]:
             """
             This method allows replacing:
-            ``var[var_slices][data_slices] = data``
+                ``var[var_slices][data_slices] = data``
             (a `netcdf4.Variable.__getitem__` and a `numpy.ndarray.__setitem__` call)
+
             with:
-            ``var[ __merge_slices(var, var_slices, data, data_slices) ] = data``
-            (a single `netcdf4.Variable.__setitem__` call)
+                ``var[ __merge_slices(var, var_slices, data, data_slices) ] = data``
+            (a single `netcdf4.Variable.__setitem__` call).
 
-            This is necessary because performing the former would, in the `__getitem__`, load the
-            global dataset onto every process in local `numpy-ndarrays`. Then, the `__setitem__`
-            would write the local `chunk` into the `numpy-ndarray`.
+            This is necessary because performing the former would, in the ``__getitem__``, load the global dataset onto
+            every process in local ``np.ndarray``s. Then, the ``__setitem__`` would write the local `chunk` into the
+            ``np.ndarray``.
 
-            The latter allows the netcdf4 library to parallelize the write-operation by directly
-            using the `netcdf4.Variable.__setitem__` method.
+            The latter allows the netcdf4 library to parallelize the write-operation by directly using the
+            `netcdf4.Variable.__setitem__` method.
 
             Parameters
             ----------
-            var : netcdf4.Variable
+            var : nc.Variable
                 Variable to which data is to be saved.
-            var_slices :
+            var_slices : tuple[int, slice]
                 Keys to pass to the set-operator.
-            data : dndarray
+            data : DNDarray
                 Data to be saved.
-            data_slices: tuple of slices
+            data_slices: tuple[int, slice]
                 As returned by the data.comm.chunk method.
-
-            Returns
-            -------
-            tuple of (slice or integer sequence)
-                Keys for the set-operation.
             """
             slices = data_slices
             if slices is None:
@@ -651,16 +656,21 @@ else:
     DNDarray.save_netcdf.__doc__ = save_netcdf.__doc__
 
 
-def load(path: str, *args: List[object], **kwargs: Dict[str, object]) -> DNDarray:
+def load(
+    path: str, *args: Optional[List[object]], **kwargs: Optional[Dict[str, object]]
+) -> DNDarray:
     """
     Attempts to load data from a file stored on disk. Attempts to auto-detect the file format by determining the
-    extension.
+    extension. Supports at least CSV files, HDF5 and netCDF4 are additionally possible if the corresponding libraries
+    are installed.
 
     Parameters
     ----------
     path : str
         Path to the file to be read.
-    args/kwargs : list/dict
+    args : list, optional
+        Additional options passed to the particular functions.
+    kwargs : dict, optional
         Additional options passed to the particular functions.
 
     Raises
@@ -671,9 +681,9 @@ def load(path: str, *args: List[object], **kwargs: Dict[str, object]) -> DNDarra
     Examples
     --------
     >>> ht.load('data.h5', dataset='DATA')
-    tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
+    DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
     >>> ht.load('data.nc', variable='DATA')
-    tensor([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
+    DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
     """
     if not isinstance(path, str):
         raise TypeError("Expected path to be str, but was {}".format(type(path)))
@@ -693,14 +703,14 @@ def load_csv(
     path: str,
     header_lines: int = 0,
     sep: str = ",",
-    dtype: Type[datatype] = types.float32,
-    encoding: str = "UTF-8",
+    dtype: datatype = types.float32,
+    encoding: str = "utf-8",
     split: Optional[int] = None,
     device: Optional[str] = None,
-    comm: Optional[Communication] = MPI_WORLD,
+    comm: Communication = MPI_WORLD,
 ) -> DNDarray:
     """
-    Loads data from a CSV file. The data will be distributed along the 0 axis.
+    Loads data from a CSV file. The data will be distributed along the axis 0.
 
     Parameters
     ----------
@@ -712,7 +722,7 @@ def load_csv(
         The single ``char`` or ``str`` that separates the values in each row.
     dtype : datatype, optional
         Data type of the resulting array.
-     encoding : str, optional
+    encoding : str, optional
         The type of encoding which will be used to interpret the lines of the csv file as strings.
     split : int or None : optional
         Along which axis the resulting array should be split.
@@ -720,12 +730,12 @@ def load_csv(
     device : str, optional
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
-        The communication to use for the data distribution. Defaults to ``MPI_COMM_WORLD``.
+        The communication to use for the data distribution, defaults to ``MPI_COMM_WORLD``.
 
     Raises
     -------
     TypeError
-        If any of the input parameters are not of correct type
+        If any of the input parameters are not of correct type.
 
     Examples
     --------
@@ -857,6 +867,7 @@ def load_csv(
             local_tensor = torch.empty(
                 local_shape, dtype=dtype.torch_type(), device=device.torch_device
             )
+
             for ind, start in enumerate(line_starts):
                 if ind == len(line_starts) - 1:
                     f.seek(displs[rank] + start, 0)
@@ -901,10 +912,12 @@ def load_csv(
     return resulting_tensor
 
 
-def save(data: DNDarray, path: str, *args: List[object], **kwargs: Dict[str, object]):
+def save(
+    data: DNDarray, path: str, *args: Optional[List[object]], **kwargs: Optional[Dict[str, object]]
+):
     """
-    Attempts to save data from a :class:`~heat.core.dndarray.DNDarray`  to disk.
-    Attempts to auto-detect the file format by determining the extension.
+    Attempts to save data from a :class:`~heat.core.dndarray.DNDarray` to disk. An auto-detection based on the file
+    format extension is performed.
 
     Parameters
     ----------
@@ -912,7 +925,9 @@ def save(data: DNDarray, path: str, *args: List[object], **kwargs: Dict[str, obj
         The array holding the data to be stored
     path : str
         Path to the file to be stored.
-    args/kwargs : list/dict
+    args : list, optional
+        Additional options passed to the particular functions.
+    kwargs : dict, optional
         Additional options passed to the particular functions.
 
     Raises
@@ -922,9 +937,8 @@ def save(data: DNDarray, path: str, *args: List[object], **kwargs: Dict[str, obj
 
     Examples
     --------
-    >>> a_range = ht.arange(100, split=0)
-    >>> ht.save(a_range, 'data.h5', 'DATA', mode='a')
-    >>> ht.save(a_range, 'data.nc', 'DATA', mode='w')
+    >>> x = ht.arange(100, split=0)
+    >>> ht.save(x, 'data.h5', 'DATA', mode='a')
     """
     if not isinstance(path, str):
         raise TypeError("Expected path to be str, but was {}".format(type(path)))
@@ -940,7 +954,3 @@ def save(data: DNDarray, path: str, *args: List[object], **kwargs: Dict[str, obj
 
 DNDarray.save = lambda self, path, *args, **kwargs: save(self, path, *args, **kwargs)
 DNDarray.save.__doc__ = save.__doc__
-
-
-# tensor is imported at the very end to break circular dependency
-from . import dndarray
