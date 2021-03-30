@@ -1,16 +1,16 @@
 """This module contains HeAT's version information."""
 
-major = 1
+major: int = 1
 """Indicates HeAT's main version."""
-minor = 0
+minor: int = 0
 """Indicates feature extension."""
-micro = 0
+micro: int = 0
 """Indicates revisions for bugfixes."""
-extension = None
+extension: str = None
 """Indicates special builds, e.g. for specific hardware."""
 
 if not extension:
-    __version__ = "{}.{}.{}".format(major, minor, micro)
+    __version__: str = "{}.{}.{}".format(major, minor, micro)
     """The combined version string, consisting out of major, minor, micro and possibly extension."""
 else:
-    __version__ = "{}.{}.{}-{}".format(major, minor, micro, extension)
+    __version__: str = "{}.{}.{}-{}".format(major, minor, micro, extension)
