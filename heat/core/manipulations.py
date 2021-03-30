@@ -1,5 +1,5 @@
 """
-Manipulation operations for (potentially distributed) DNDarrays.
+Manipulation operations for (potentially distributed) `DNDarray`s.
 """
 from __future__ import annotations
 
@@ -151,16 +151,16 @@ def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
         return concatenate(arrays, axis=1)
 
 
-def concatenate(arrays: Sequence[DNDarray, ...], axis: Optional[int] = 0) -> DNDarray:
+def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     """
     Join 2 or more `DNDarrays` along an existing axis.
 
     Parameters
     ----------
     arrays: Sequence[DNDarray, ...]
-        The arrays must have the same shape, except in the dimension corresponding to axis (the first, by default).
+        The arrays must have the same shape, except in the dimension corresponding to axis.
     axis: int, optional
-        The axis along which the arrays will be joined.
+        The axis along which the arrays will be joined (default is 0).
 
     Raises
     ------
@@ -475,7 +475,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: Optional[int] = 0) -> DND
             return out
 
 
-def diag(a: DNDarray, offset: Optional[int] = 0) -> DNDarray:
+def diag(a: DNDarray, offset: int = 0) -> DNDarray:
     """
     Extract a diagonal or construct a diagonal array.
     See the documentation for :func:`diagonal` for more information about extracting the diagonal.
@@ -550,9 +550,7 @@ def diag(a: DNDarray, offset: Optional[int] = 0) -> DNDarray:
     return factories.array(local, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
 
 
-def diagonal(
-    a: DNDarray, offset: Optional[int] = 0, dim1: Optional[int] = 0, dim2: Optional[int] = 1
-) -> DNDarray:
+def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDarray:
     """
     Extract a diagonal of an n-dimensional array with n > 1.
     The returned array will be of dimension n-1.
@@ -1044,8 +1042,8 @@ def hstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
 def pad(
     array: DNDarray,
     pad_width: Union[int, Sequence[Sequence[int, int], ...]],
-    mode: Optional[str] = "constant",
-    constant_values: Optional[int] = 0,
+    mode: str = "constant",
+    constant_values: int = 0,
 ) -> DNDarray:
     """
     Pads tensor with a specific value (default=0).
@@ -1944,12 +1942,7 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
     return a.gshape
 
 
-def sort(
-    a: DNDarray,
-    axis: Optional[int] = -1,
-    descending: Optional[bool] = False,
-    out: Optional[DNDarray] = None,
-):
+def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DNDarray] = None):
     """
     Sorts the elements of `a` along the given dimension (by default in ascending order) by their value.
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
@@ -2203,9 +2196,7 @@ def sort(
         return tensor, return_indices
 
 
-def split(
-    x: DNDarray, indices_or_sections: Iterable, axis: Optional[int] = 0
-) -> List[DNDarray, ...]:
+def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DNDarray, ...]:
     """
     Split a DNDarray into multiple sub-DNDarrays.
     Returns a list of sub-DNDarrays as copies of parts of `x`.
@@ -2555,7 +2546,7 @@ def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
 
 
 def stack(
-    arrays: Sequence[DNDarray, ...], axis: Optional[int] = 0, out: Optional[DNDarray] = None
+    arrays: Sequence[DNDarray, ...], axis: int = 0, out: Optional[DNDarray] = None
 ) -> DNDarray:
     """
     Join a sequence of `DNDarray`s along a new axis.
@@ -3240,9 +3231,9 @@ def vstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
 def topk(
     a: DNDarray,
     k: int,
-    dim: Optional[int] = -1,
-    largest: Optional[bool] = True,
-    sorted: Optional[bool] = True,
+    dim: int = -1,
+    largest: bool = True,
+    sorted: bool = True,
     out: Optional[Tuple[DNDarray, DNDarray]] = None,
 ) -> Tuple[DNDarray, DNDarray]:
     """
