@@ -1,3 +1,7 @@
+"""
+This module defines constants used in HeAT.
+"""
+
 import torch
 
 from typing import Union
@@ -18,20 +22,20 @@ E = 2.718281828459045
 
 # aliases
 inf = INF
-""":math:`\\infty`, infinity"""
+"""IEEE 754 floating point representation of (positive) infinity (:math:`\\infty`)."""
 Inf = INF
-""":math:`\\infty`, infinity"""
+"""IEEE 754 floating point representation of (positive) infinity (:math:`\\infty`)."""
 Infty = INF
-""":math:`\\infty`, infinity"""
+"""IEEE 754 floating point representation of (positive) infinity (:math:`\\infty`)."""
 Infinity = INF
-""":math:`\\infty`, infinity"""
+"""IEEE 754 floating point representation of (positive) infinity (:math:`\\infty`)."""
 nan = NAN
-"""Not a number"""
+"""IEEE 754 floating point representation of Not a Number (NaN)."""
 NaN = NAN
-"""Not a number"""
+"""IEEE 754 floating point representation of Not a Number (NaN)."""
 pi = PI
-""":math:`\\pi`, Archimedes' constant"""
+"""IEEE 754 floating point representation of Archimedes' constant (:math:`\\pi`)."""
 e = E
-""":math:`e`, Euler's number"""
+"""IEEE 754 floating point representation of Euler's number (:math:`e`)."""
 Euler = E
-""":math:`e`, Euler's number"""
+"""IEEE 754 floating point representation of Euler's number (:math:`e`)."""
