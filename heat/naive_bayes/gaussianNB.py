@@ -11,7 +11,7 @@ import torch
 
 class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
     """
-    Gaussian Naive Bayes (GaussianNB), based on `scikit-learn.naive_bayes.GaussianNB <https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html>`_
+    Gaussian Naive Bayes (GaussianNB), based on `scikit-learn.naive_bayes.GaussianNB <https://scikit-learn.org/stable/modules/generated/sklearn.naive_bayes.GaussianNB.html>`_.
     Can perform online updates to model parameters via method :func:`partial_fit`.
     For details on algorithm used to update feature means and variance online,
     see Chan, Golub, and LeVeque 1983 [1].
@@ -102,16 +102,12 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         return self.__partial_fit(x, y, classes, _refit=True, sample_weight=sample_weight)
 
-    def __check_partial_fit_first_call(self, classes=None):
+    def __check_partial_fit_first_call(self, classes: Optional[DNDarray] = None) -> bool:
         """
         Adapted to HeAT from scikit-learn.
-        Private helper function for factorizing common classes param logic.
-        Estimators that implement the :func:`partial_fit` API need to be provided with
-        the list of possible classes at the first call to :func:`partial_fit`.
-        Subsequent calls to :meth:`partial_fit` should check that `classes_` is still
-        consistent with a previous value of :attr:`GaussianNB.classes_` when provided.
+
         This function returns ``True`` if it detects that this was the first call to
-        :meth:`partial_fit` on :class:`GaussianNB`. In that case the `classes_` attribute is also
+        :meth:`partial_fit` on :class:`GaussianNB`. In that case the :attr:`classes_` attribute is also
         set on :class:`GaussianNB`.
         """
         if getattr(self, "classes_", None) is None and classes is None:
@@ -202,7 +198,13 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         return total_mu, total_var
 
-    def partial_fit(self, x, y, classes=None, sample_weight=None):
+    def partial_fit(
+        self,
+        x: DNDarray,
+        y: DNDarray,
+        classes: Optional[DNDarray] = None,
+        sample_weight: Optional[DNDarray] = None,
+    ):
         """
         Adapted to HeAT from scikit-learn.
         Incremental fit on a batch of samples.
@@ -232,7 +234,14 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         """
         return self.__partial_fit(x, y, classes, _refit=False, sample_weight=sample_weight)
 
-    def __partial_fit(self, x, y, classes=None, _refit=False, sample_weight=None):
+    def __partial_fit(
+        self,
+        x: DNDarray,
+        y: DNDarray,
+        classes: Optional[DNDarray] = None,
+        _refit: bool = False,
+        sample_weight: Optional[DNDarray] = None,
+    ):
         """
         Actual implementation of Gaussian NB fitting. Adapted to HeAT from scikit-learn.
 
@@ -372,11 +381,11 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         return self
 
-    def __joint_log_likelihood(self, x):
+    def __joint_log_likelihood(self, x: DNDarray) -> DNDarray:
         """
         Adapted to HeAT from scikit-learn.
         Calculates joint log-likelihood for `n_samples` to be assigned to each class.
-        Returns :class:`~heat.core.dndarray.DNDarray` joint_log_likelihood(n_samples, n_classes).
+        Returns a ``DNDarray`` joint_log_likelihood(n_samples, n_classes).
         """
         jll_size = self.classes_.larray.numel()
         jll_shape = (x.shape[0], jll_size)
@@ -388,7 +397,14 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             joint_log_likelihood[:, i] = jointi + n_ij
         return joint_log_likelihood
 
-    def logsumexp(self, a, axis=None, b=None, keepdim=False, return_sign=False) -> DNDarray:
+    def logsumexp(
+        self,
+        a: DNDarray,
+        axis: Optional[Union[int, Tuple[int, ...]]] = None,
+        b: Optional[DNDarray] = None,
+        keepdim: bool = False,
+        return_sign: bool = False,
+    ) -> DNDarray:
         """
         Adapted to HeAT from scikit-learn.
         Compute the log of the sum of exponentials of input elements. The result, ``np.log(np.sum(np.exp(a)))``
@@ -454,7 +470,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # else:
         return out
 
-    def predict(self, x) -> DNDarray:
+    def predict(self, x: DNDarray) -> DNDarray:
         """
         Adapted to HeAT from scikit-learn.
         Perform classification on a tensor of test data ``x``.
@@ -471,7 +487,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         jll = self.__joint_log_likelihood(x)
         return self.classes_[ht.argmax(jll, axis=1).numpy()]
 
-    def predict_log_proba(self, x) -> DNDarray:
+    def predict_log_proba(self, x: DNDarray) -> DNDarray:
         """
         Adapted to HeAT from scikit-learn.
         Return log-probability estimates of the samples for each class in
@@ -491,7 +507,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         log_prob_x.larray = self.logsumexp(jll, axis=1).larray.unsqueeze(1)
         return jll - log_prob_x
 
-    def predict_proba(self, x) -> DNDarray:
+    def predict_proba(self, x: DNDarray) -> DNDarray:
         """
         Adapted to HeAT from scikit-learn.
         Return probability estimates for the test tensor x of the samples for each class in
