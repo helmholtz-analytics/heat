@@ -1,3 +1,6 @@
+"""
+Module implementing the communication layer of HeAT
+"""
 from __future__ import annotations
 
 from mpi4py import MPI
@@ -30,6 +33,9 @@ class Communication:
 
     @staticmethod
     def is_distributed() -> NotImplementedError:
+        """
+        Whether or not the Communication is distributed
+        """
         raise NotImplementedError()
 
     def __init__(self) -> NotImplementedError:
@@ -55,9 +61,13 @@ class Communication:
 class MPICommunication(Communication):
     """
     Class encapsulating all MPI Communication
+
+    Parameters
+    ----------
+    handle: MPI.Communicator
+        Handle for the mpi4py Communicator
     """
 
-    # static mapping of torch types to the respective MPI type handle
     __mpi_type_mappings = {
         torch.bool: MPI.BOOL,
         torch.uint8: MPI.UNSIGNED_CHAR,
@@ -232,7 +242,6 @@ class MPICommunication(Communication):
         obj : torch.Tensor
             The tensor to be converted into a MPI memory view.
         """
-
         pointer = obj.data_ptr()
         pointer += obj.storage_offset()
 
@@ -335,7 +344,6 @@ class MPICommunication(Communication):
         obj: torch.Tensor
              The object to be transformed into a custom MPI datatype
         """
-
         mpi_type, _ = self.__mpi_type_mappings[obj.dtype], torch.numel(obj)
 
         nproc = self.size
@@ -464,7 +472,6 @@ class MPICommunication(Communication):
         tag: int, optional
             A Tag to identify the message
         """
-
         return self.__send_like(self.handle.Bsend, buf, dest, tag)[0]
 
     Bsend.__doc__ = MPI.Comm.Bsend.__doc__
@@ -539,7 +546,6 @@ class MPICommunication(Communication):
         tag: int, optional
             A Tag to identify the message
         """
-
         return MPIRequest(*self.__send_like(self.handle.Issend, buf, dest, tag))
 
     Issend.__doc__ = MPI.Comm.Issend.__doc__
@@ -1137,8 +1143,9 @@ class MPICommunication(Communication):
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
-                - if ``send_axis==recv_axis``, an error will be thrown \n
-                - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown \n
+
+                - if ``send_axis==recv_axis``, an error will be thrown
+                - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown
         recv_axis: int
             Prior split axis, along which blocks are received from the individual ranks
         """
@@ -1277,8 +1284,9 @@ class MPICommunication(Communication):
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
-                - if ``send_axis==recv_axis``, an error will be thrown \n
-                - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown \n
+
+                - if ``send_axis==recv_axis``, an error will be thrown
+                - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown
         recv_axis: int
             Prior split axis, along which blocks are received from the individual ranks
         """
@@ -1312,8 +1320,9 @@ class MPICommunication(Communication):
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
-                - if ``send_axis==recv_axis``, an error will be thrown \n
-                - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown \n
+
+                - if ``send_axis==recv_axis``, an error will be thrown
+                - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown
         recv_axis: int
             Prior split axis, along which blocks are received from the individual ranks
         """
@@ -1346,8 +1355,9 @@ class MPICommunication(Communication):
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
-                - if ``send_axis==recv_axis``, an error will be thrown \n
-                - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown \n
+
+                - if ``send_axis==recv_axis``, an error will be thrown
+                - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown
         recv_axis: int
             Prior split axis, along which blocks are received from the individual ranks
         """
@@ -1376,8 +1386,9 @@ class MPICommunication(Communication):
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
-                - if ``send_axis==recv_axis``, an error will be thrown \n
-                - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown \n
+
+                - if ``send_axis==recv_axis``, an error will be thrown
+                - if ``send_axis`` or ``recv_axis`` are ``None``, an error will be thrown
         recv_axis: int
             Prior split axis, along which blocks are received from the individual ranks
         """
@@ -1511,7 +1522,6 @@ class MPICommunication(Communication):
         recv_axis: int
             The axis along which ``recvbuf`` is packed
         """
-
         ret, sbuf, rbuf, buf, permutation = self.__scatter_like(
             self.handle.Gather, sendbuf, recvbuf, axis, recv_axis, root=root, recv_factor=self.size
         )
@@ -1734,7 +1744,6 @@ class MPICommunication(Communication):
         recv_axis: int
             The axis along which ``recvbuf`` is packed
         """
-
         ret, sbuf, rbuf, buf, permutation = self.__scatter_like(
             self.handle.Scatter, sendbuf, recvbuf, axis, recv_axis, root=root, send_factor=self.size
         )
@@ -1800,6 +1809,23 @@ class MPICommunication(Communication):
 
 
 class MPIRequest:
+    """
+    Represents a handle on a non-blocking operation
+
+    Parameters
+    ----------
+    handle: MPI.Communicator
+        Handle for the mpi4py Communicator
+    sendbuf: DNDarray or torch.Tensor or Any
+        The buffer for the data to be send
+    recvbuf: DNDarray or torch.Tensor or Any
+        The buffer to the receive data
+    tensor: torch.Tensor
+        Internal Data
+    permutation: Tuple[int,...]
+        Permutation of the tensor axes
+    """
+
     def __init__(
         self,
         handle,
@@ -1815,6 +1841,9 @@ class MPIRequest:
         self.permutation = permutation
 
     def Wait(self, status: MPI.Status = None):
+        """
+        Waits for an MPI request to complete
+        """
         self.handle.Wait(status)
         if (
             self.tensor is not None

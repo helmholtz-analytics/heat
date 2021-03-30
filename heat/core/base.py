@@ -1,3 +1,6 @@
+"""
+Provides mixins for high-level algorithms, e.g. classifiers or clustering algorithms.
+"""
 from __future__ import annotations
 
 import inspect
@@ -5,6 +8,7 @@ import json
 
 from typing import Dict, List, TypeVar
 from .dndarray import DNDarray
+
 
 self = TypeVar("self")
 
@@ -54,6 +58,14 @@ class BaseEstimator:
         return params
 
     def __repr__(self, indent=1):
+        """
+        Returns a printable representation of the object.
+
+        Parameters
+        ----------
+        indent : int
+            Indicates the indentation for the top-level output (default=1).
+        """
         return "{}({})".format(self.__class__.__name__, json.dumps(self.get_params(), indent=4))
 
     def set_params(self, **params: Dict[str, object]) -> self:
