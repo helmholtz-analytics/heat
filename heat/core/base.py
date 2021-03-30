@@ -33,7 +33,7 @@ class BaseEstimator:
             if p.name != "self" and p.kind == p.POSITIONAL_OR_KEYWORD
         ]
 
-    def get_params(self, deep=True) -> Dict[str, object]:
+    def get_params(self, deep: bool = True) -> Dict[str, object]:
         """
         Get parameters for this estimator.
 
@@ -54,7 +54,7 @@ class BaseEstimator:
             params[key] = value
         return params
 
-    def __repr__(self, indent=1) -> str:
+    def __repr__(self, indent: int = 1) -> str:
         """
         Returns a printable representation of the object.
 
@@ -100,7 +100,7 @@ class ClassificationMixin:
     Mixin for all classifiers in HeAT.
     """
 
-    def fit(self, x, y):
+    def fit(self, x: DNDarray, y: DNDarray):
         """
         Fits the classification model.
 
@@ -115,7 +115,7 @@ class ClassificationMixin:
         """
         raise NotImplementedError()
 
-    def fit_predict(self, x, y) -> DNDarray:
+    def fit_predict(self, x: DNDarray, y: DNDarray) -> DNDarray:
         """
         Fits model and returns classes for each input sample
         Convenience method; equivalent to calling :func:`fit` followed by :func:`predict`.
@@ -130,7 +130,7 @@ class ClassificationMixin:
         self.fit(x, y)
         return self.predict(x)
 
-    def predict(self, x) -> DNDarray:
+    def predict(self, x: DNDarray) -> DNDarray:
         """
         Predicts the class labels for each sample.
 
@@ -147,7 +147,7 @@ class ClusteringMixin:
     Clustering mixin for all clusterers in HeAT.
     """
 
-    def fit(self, x):
+    def fit(self, x: DNDarray):
         """
         Computes the clustering.
 
@@ -158,7 +158,7 @@ class ClusteringMixin:
         """
         raise NotImplementedError()
 
-    def fit_predict(self, x) -> DNDarray:
+    def fit_predict(self, x: DNDarray) -> DNDarray:
         """
         Compute clusters and returns the predicted cluster assignment for each sample.
         Returns index of the cluster each sample belongs to.
@@ -178,7 +178,7 @@ class RegressionMixin:
     Mixin for all regression estimators in HeAT.
     """
 
-    def fit(self, x, y):
+    def fit(self, x: DNDarray, y: DNDarray):
         """
         Fits the regression model.
 
@@ -191,7 +191,7 @@ class RegressionMixin:
         """
         raise NotImplementedError()
 
-    def fit_predict(self, x, y) -> DNDarray:
+    def fit_predict(self, x: DNDarray, y: DNDarray) -> DNDarray:
         """
         Fits model and returns regression predictions for each input sample
         Convenience method; equivalent to calling :func:`fit` followed by :func:`predict`.
@@ -206,7 +206,7 @@ class RegressionMixin:
         self.fit(x, y)
         return self.predict(x)
 
-    def predict(self, x) -> DNDarray:
+    def predict(self, x: DNDarray) -> DNDarray:
         """
         Predicts the continuous labels for each sample.
 
@@ -218,7 +218,7 @@ class RegressionMixin:
         raise NotImplementedError()
 
 
-def is_classifier(estimator) -> bool:
+def is_classifier(estimator: object) -> bool:
     """
     Return ``True`` if the given estimator is a classifier, ``False`` otherwise.
 
@@ -230,7 +230,7 @@ def is_classifier(estimator) -> bool:
     return isinstance(estimator, ClassificationMixin)
 
 
-def is_estimator(estimator) -> bool:
+def is_estimator(estimator: object) -> bool:
     """
     Return ``True`` if the given estimator is an estimator, ``False`` otherwise.
 
@@ -242,7 +242,7 @@ def is_estimator(estimator) -> bool:
     return isinstance(estimator, BaseEstimator)
 
 
-def is_clusterer(estimator) -> bool:
+def is_clusterer(estimator: object) -> bool:
     """
     Return ``True`` if the given estimator is a clusterer, ``False`` otherwise.
 
@@ -255,7 +255,7 @@ def is_clusterer(estimator) -> bool:
     return isinstance(estimator, ClusteringMixin)
 
 
-def is_regressor(estimator) -> bool:
+def is_regressor(estimator: object) -> bool:
     """
     Return ``True`` if the given estimator is a regressor, ``False`` otherwise.
 

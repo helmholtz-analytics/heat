@@ -1,3 +1,6 @@
+"""
+QR decomposition of (distributed) 2-D ``DNDarray``s.
+"""
 import collections
 import torch
 from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple
@@ -18,7 +21,7 @@ def qr(
     calc_q: bool = True,
     overwrite_a: bool = False,
 ) -> Tuple[DNDarray, DNDarray]:
-    """
+    r"""
     Calculates the QR decomposition of a 2D ``DNDarray``.
     Factor the matrix ``a`` as *QR*, where ``Q`` is orthonormal and ``R`` is upper-triangular.
     If ``calc_q==True``, function returns ``QR(Q=Q, R=R)``, else function returns ``QR(Q=None, R=R)``
@@ -498,7 +501,10 @@ def __split0_merge_tile_rows(
         Tiling object used for getting/setting the tiles required
     diag_process : int
         The rank of the process which has the tile along the diagonal for the given column
-
+    key : str
+        Input key
+    q_dict : Dict
+        Input dictionary
     """
     if rank not in [pr0, pr1]:
         return
@@ -653,12 +659,12 @@ def __split0_q_loop(
     r_tiles: SquareDiagTiles,
     proc_tile_start: torch.Tensor,
     active_procs: torch.Tensor,
-    q0_tiles: torch.Tensor,
+    q0_tiles: SquareDiagTiles,
     q_dict: Dict,
     q_dict_waits: Dict,
 ) -> None:
     """
-    Function for Calculating Q for ``split=0`` for QR. col is the index of the tile column.
+    Function for Calculating Q for ``split=0`` for QR. ``col`` is the index of the tile column.
     The assumption here is that the diagonal tile is ``(col, col)``.
 
     Parameters
@@ -666,18 +672,19 @@ def __split0_q_loop(
     col : int
         Current column for which to calculate Q
     r_tiles : SquareDiagTiles
+        R tiles
     proc_tile_start : torch.Tensor
         Tensor containing the row tile start indices for each process
     active_procs : torch.Tensor
         Tensor containing the ranks of processes with have data
     q0_tiles : SquareDiagTiles
+        Q0 tiles
     q_dict : Dict
         Dictionary created in the ``split=0`` R calculation containing all of the Q matrices found
         transforming the matrix to upper triangular for each column. The keys of this dictionary are
         the column indices
     q_dict_waits : Dict
         Dictionary created while sending the Q matrices to the diagonal process
-
     """
     tile_columns = r_tiles.tile_columns
     diag_process = (

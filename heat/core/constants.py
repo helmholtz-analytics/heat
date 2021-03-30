@@ -4,8 +4,6 @@ This module defines constants used in HeAT.
 
 import torch
 
-from typing import Union
-
 __all__ = ["e", "Euler", "inf", "Inf", "Infty", "Infinity", "nan", "NaN", "pi"]
 
 # infinity
@@ -34,8 +32,8 @@ nan = NAN
 NaN = NAN
 """IEEE 754 floating point representation of Not a Number (NaN)."""
 pi = PI
-"""IEEE 754 floating point representation of Archimedes' constant (:math:`\\pi`)."""
+"""Archimedes' constant (:math:`\\pi`)."""
 e = E
-"""IEEE 754 floating point representation of Euler's number (:math:`e`)."""
+"""Euler's number, Euler's constant (:math:`e`)."""
 Euler = E
-"""IEEE 754 floating point representation of Euler's number (:math:`e`)."""
+"""Euler's number, Euler's constant (:math:`e`)."""
