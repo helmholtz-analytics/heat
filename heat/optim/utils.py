@@ -1,3 +1,7 @@
+"""
+Utility functions for the heat optimizers
+"""
+
 import math
 import torch
 
@@ -42,7 +46,9 @@ class DetectMetricPlateau(object):
             Default: 0.
     """
 
-    def __init__(self, mode="min", patience=10, threshold=1e-4, threshold_mode="rel", cooldown=0):
+    def __init__(
+        self, mode="min", patience=10, threshold=1e-4, threshold_mode="rel", cooldown=0
+    ):  # noqa: D107
         self.patience = patience
         self.cooldown = cooldown
         self.cooldown_counter = 0
@@ -94,7 +100,9 @@ class DetectMetricPlateau(object):
         self.last_epoch = dic["last_epoch"]
 
     def reset(self):
-        """Resets num_bad_epochs counter and cooldown counter."""
+        """
+        Resets num_bad_epochs counter and cooldown counter.
+        """
         self.best = self.mode_worse
         self.cooldown_counter = 0
         self.num_bad_epochs = 0
