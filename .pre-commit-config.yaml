@@ -17,4 +17,5 @@ repos:
     rev: 5.0.1  # pick a git hash / tag to point to
     hooks:
     -   id: pydocstyle
-        exclude: 'tests|benchmarks|examples|scripts'
+        exclude: 'tests|benchmarks|examples|scripts|setup.py'  #|heat/utils/data/mnist.py|heat/utils/data/_utils.py  ?
+        ignore: D107
