@@ -1,3 +1,6 @@
+"""
+This file is for the general data parallel neural network classes.
+"""
 import warnings
 import torch
 import torch.distributed
@@ -80,7 +83,7 @@ class DataParallel(tnn.Module):
         comm: MPICommunication,
         optimizer: Union[optim.DataParallelOptimizer, List, Tuple],
         blocking_parameter_updates: bool = False,
-    ):
+    ):  # noqa: D107
         if isinstance(optimizer, optim.DASO):
             raise TypeError(
                 "For use with DASO please use DataParallelMultiGPU instead of DataParallel"
@@ -154,7 +157,10 @@ class DataParallel(tnn.Module):
         self._param_slices[layer_name_prev] = slice(start_idx, len(self._param_indices))
 
     def __setattr__(self, name, value):
-        # auto-detect end of epoch's training phase and finalize wait handles (only relevant for non-blocking)
+        """
+        Overwrite the current torch.nn.Module.__setattr__ so that it auto-detects the end of epoch's
+        training phase and finalize wait handles (only relevant for non-blocking)
+        """
         if name == "training" and not value and not self.blocking_parameter_updates:
             self._iparam_update()
         super(DataParallel, self).__setattr__(name, value)
@@ -334,28 +340,29 @@ class DataParallel(tnn.Module):
 
 
 class DataParallelMultiGPU(tnn.Module):
+    """
+    This creates data parallel networks local to each node using PyTorch's distributed class. This does NOT
+    do any global synchronizations. To make optimal use of this structure, use :class:`..optim.dp_optimizer.DASO`.
+
+    Notes
+    -----
+    The PyTorch distributed process group must already exist before this class is initialized.
+
+    Parameters
+    ----------
+    module: torch.nn.Module
+        an implemented PyTorch model
+    optimizer: optim.DASO
+        A DASO optimizer. Other optimizers are not yet implemented. The DASO optimizer should be
+        defined prior to calling this class.
+    comm: MPICommunication, optional
+        A global communicator.
+        Default: ht.MPICommunication
+    """
+
     def __init__(
         self, module: torch.nn.Module, optimizer: optim.DASO, comm: MPICommunication = MPI_WORLD
-    ):
-        """
-        This creates data parallel networks local to each node using PyTorch's distributed class. This does NOT
-        do any global synchronizations. To make optimal use of this structure, use :class:`..optim.dp_optimizer.DASO`.
-
-        Notes
-        -----
-        The PyTorch distributed process group must already exist before this class is initialized.
-
-        Parameters
-        ----------
-        module: torch.nn.Module
-            an implemented PyTorch model
-        optimizer: optim.DASO
-            A DASO optimizer. Other optimizers are not yet implemented. The DASO optimizer should be
-            defined prior to calling this class.
-        comm: MPICommunication, optional
-            A global communicator.
-            Default: ht.MPICommunication
-        """
+    ):  # noqa: D107
         super(DataParallelMultiGPU, self).__init__()
         rank = comm.rank
         if torch.cuda.device_count() > 1:
