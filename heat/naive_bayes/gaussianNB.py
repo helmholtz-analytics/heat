@@ -19,9 +19,8 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
     Parameters
     ----------
     priors : DNDarray
-        Prior probabilities of the classes. If specified, the priors are not
+        Prior probabilities of the classes, with shape ``(n_classes,)``. If specified, the priors are not
         adjusted according to the data.
-        Shape = (n_classes,)
     var_smoothing : float, optional
         Portion of the largest variance of all features that is added to
         variances for calculation stability.
@@ -29,17 +28,17 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
     Attributes
     ----------
     class_count_ : DNDarray
-        Number of training samples observed in each class. Shape = (n_classes,)
+        Number of training samples observed in each class. Shape = ``(n_classes,)``
     class_prior_ : DNDarray
-        Probability of each class. Shape = (n_classes,)
+        Probability of each class. Shape = ``(n_classes,)``
     classes_ : DNDarray
-        Class labels known to the classifier. Shape = (n_classes,)
+        Class labels known to the classifier. Shape = ``(n_classes,)``
     epsilon_ : float
         Absolute additive value to variances
     sigma_ : DNDarray
-        Variance of each feature per class. Shape = (n_classes, n_features)
+        Variance of each feature per class. Shape = ``(n_classes, n_features)``
     theta_ : DNDarray
-        Mean of each feature per class. Shape = (n_classes, n_features)
+        Mean of each feature per class. Shape = ``(n_classes, n_features)``
 
     References
     ----------
@@ -76,11 +75,11 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Training set, where n_samples is the number of samples
-            and n_features is the number of features.  Shape = (n_samples, n_features)
+            and n_features is the number of features.  Shape = ``(n_classes, n_features)``
         y : DNDarray
-            Labels for training set. Shape = (n_samples, )
+            Labels for training set. Shape = ``(n_samples, )``
         sample_weight : DNDarray, optional
-            Weights applied to individual samples (1. for unweighted). Shape = (n_samples, )
+            Weights applied to individual samples (1. for unweighted). Shape = ``(n_samples, )``
         """
         # sanitize input - to be moved to sanitation module, cf. #468
         if not isinstance(x, ht.DNDarray):
@@ -154,13 +153,13 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             weights were given, this should contain the sum of sample
             weights represented in old mean and variance.
         mu : DNDarray
-            Means for Gaussians in original set. Shape = (number of Gaussians,)
+            Means for Gaussians in original set. Shape = ``(number of Gaussians,)``
         var : DNDarray
-            Variances for Gaussians in original set. Shape = (number of Gaussians,)
+            Variances for Gaussians in original set. Shape = ``(number of Gaussians,)``
         x : DNDarray
             Input data
         sample_weight : DNDarray, optional
-            Weights applied to individual samples (1. for unweighted). Shape = (n_samples,)
+            Weights applied to individual samples (1. for unweighted). Shape = ``(n_samples,)``
 
         References
         ----------
@@ -222,15 +221,15 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Training set, where `n_samples` is the number of samples and
-            `n_features` is the number of features. Shape = (n_samples, n_features)
+            `n_features` is the number of features. Shape = ``(n_samples, n_features)``
         y : DNDarray
-            Labels for training set. Shape = (n_samples,)
+            Labels for training set. Shape = ``(n_samples,)``
         classes : DNDarray, optional
             List of all the classes that can possibly appear in the ``y`` vector.
             Must be provided at the first call to :func:`partial_fit`, can be omitted
-            in subsequent calls. Shape = (n_classes,)
+            in subsequent calls. Shape = ``(n_classes,)``
         sample_weight : DNDarray, optional
-            Weights applied to individual samples (1. for unweighted). Shape = (n_samples,)
+            Weights applied to individual samples (1. for unweighted). Shape = ``(n_samples,)``
         """
         return self.__partial_fit(x, y, classes, _refit=False, sample_weight=sample_weight)
 
@@ -249,18 +248,18 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Training set, where n_samples is the number of samples and
-            n_features is the number of features. Shape = (n_samples, n_features)
+            n_features is the number of features. Shape = ``(n_samples, n_features)``
         y : DNDarray
-            Labels for training set. Shape = (n_samples,)
+            Labels for training set. Shape = ``(n_samples,)``
         classes : DNDarray, optional
             List of all the classes that can possibly appear in the y vector.
             Must be provided at the first call to :func:`partial_fit`, can be omitted
-            in subsequent calls. Shape = (n_classes,)
+            in subsequent calls. Shape = ``(n_classes,)``
         _refit : bool, optional
             If ``True``, act as though this were the first time :func:`__partial_fit` is called
             (ie, throw away any past fitting and start over).
         sample_weight : DNDarray, optional
-            Weights applied to individual samples (1. for unweighted). Shape = (n_samples,)
+            Weights applied to individual samples (1. for unweighted). Shape = ``(n_samples,)``
         """
         # TODO: sanitize x and y shape: sanitation/validation module, cf. #468
         n_samples = x.shape[0]
