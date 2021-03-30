@@ -1,3 +1,6 @@
+"""
+Basic linear algebra operations on distributed ``DNDarray``s.
+"""
 import itertools
 import torch
 from typing import List, Callable, Union
@@ -16,7 +19,7 @@ __all__ = ["dot", "matmul", "norm", "outer", "projection", "transpose", "tril", 
 
 def dot(a: DNDarray, b: DNDarray, out: DNDarray = None) -> Union[DNDarray, float]:
     """
-    Returns the dot product of two ``DNDarrays``.
+    Returns the dot product of two ``DNDarray``s.
     Specifically,
 
         1. If both a and b are 1-D arrays, it is inner product of vectors.
@@ -28,9 +31,11 @@ def dot(a: DNDarray, b: DNDarray, out: DNDarray = None) -> Union[DNDarray, float
     Parameters
     ----------
     a : DNDarray
+        First input DNDarray
     b : DNDarray
+        Second input DNDarray
     out : DNDarray, optional
-        place to put the result
+        Output buffer.
     """
     if isinstance(a, (float, int)) or isinstance(b, (float, int)) or a.ndim == 0 or b.ndim == 0:
         # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
@@ -56,12 +61,11 @@ def dot(a: DNDarray, b: DNDarray, out: DNDarray = None) -> Union[DNDarray, float
         # 2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
         ret = matmul(a, b)
         if out is not None:
-            if out is not None:
-                out.larray = ret.larray
-                out._DNDarray__dtype = ret.dtype
-                out._DNDarray__split = ret.split
-                out._DNDarray__device = ret.device
-                out._DNDarray__comm = ret.comm
+            out.larray = ret.larray
+            out._DNDarray__dtype = ret.dtype
+            out._DNDarray__split = ret.split
+            out._DNDarray__device = ret.device
+            out._DNDarray__comm = ret.comm
             return out
         return ret
     else:
@@ -69,7 +73,7 @@ def dot(a: DNDarray, b: DNDarray, out: DNDarray = None) -> Union[DNDarray, float
 
 
 def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
-    """
+    r"""
     Matrix multiplication of two ``DNDarrays``: ``a@b=c`` or ``A@B=c``.
     Returns a tensor with the result of ``a@b``. The split dimension of the returned array is
     typically the split dimension of a. However, if ``a.split=None`` then the the ``c.split`` will be
@@ -744,13 +748,13 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
 def norm(a: DNDarray) -> float:
     """
-    Returns the vector norm (Frobenius norm) of vector ``a``
+    Return the vector norm (Frobenius norm) of vector ``a``.
 
     Parameters
     ----------
     a : DNDarray
         Input vector
-    """
+    """  # noqa: D402
     if not isinstance(a, DNDarray):
         raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
 
@@ -767,7 +771,7 @@ DNDarray.norm.__doc__ = norm.__doc__
 
 
 def outer(a: DNDarray, b: DNDarray, out: DNDarray = None, split: int = None) -> DNDarray:
-    """
+    r"""
     Compute the outer product of two 1-D DNDarrays: out[i, j] = a[i] * b[j].
     Given two vectors, :math:`a = (a_0, a_1, ..., a_N)` and :math:`b = (b_0, b_1, ..., b_M)`, the outer product is:
 
@@ -798,7 +802,7 @@ def outer(a: DNDarray, b: DNDarray, out: DNDarray = None, split: int = None) -> 
             in which case default is ``split=0`` (see Note).
 
     Notes
-    ----------
+    -----
     Parallel implementation of outer product, arrays are dense.
     In the classical (dense) case, one DNDarray stays put, the other one is passed around the ranks in
     ring communication. The slice-by-slice outer product is calculated locally (here via torch.einsum()).
