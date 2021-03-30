@@ -1,13 +1,16 @@
+"""
+Collection of solvers for systems of linear equations.
+"""
 import heat as ht
 from ..dndarray import DNDarray
-from typing import List, Dict, Any, TypeVar, Union, Tuple
+from typing import List, Dict, Any, TypeVar, Union, Tuple, Optional
 
 import torch
 
 __all__ = ["cg", "lanczos"]
 
 
-def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: DNDarray = None) -> DNDarray:
+def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Conjugate gradients method for solving a system of linear equations :math: `Ax = b`
 
@@ -21,12 +24,10 @@ def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: DNDarray = None) -> DNDarray
         Arbitrary 1D starting vector
     out : DNDarray, optional
         Output Vector
-
     """
-
     if not isinstance(A, DNDarray) or not isinstance(b, DNDarray) or not isinstance(x0, DNDarray):
         raise TypeError(
-            "A, b and x0 need to be of type ht.dndarra, but were {}, {}, {}".format(
+            "A, b and x0 need to be of type ht.dndarray, but were {}, {}, {}".format(
                 type(A), type(b), type(x0)
             )
         )
@@ -65,9 +66,13 @@ def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: DNDarray = None) -> DNDarray
 
 
 def lanczos(
-    A: DNDarray, m: int, v0: DNDarray = None, V_out: DNDarray = None, T_out: DNDarray = None
+    A: DNDarray,
+    m: int,
+    v0: Optional[DNDarray] = None,
+    V_out: Optional[DNDarray] = None,
+    T_out: Optional[DNDarray] = None,
 ) -> Tuple[DNDarray, DNDarray]:
-    """
+    r"""
     The Lanczos algorithm is an iterative approximation of the solution to the eigenvalue problem, as an adaptation of
     power methods to find the m "most useful" (tending towards extreme highest/lowest) eigenvalues and eigenvectors of
     an :math: `n \\times n` Hermitian matrix, where often :math: `m<<n`.
@@ -84,11 +89,10 @@ def lanczos(
         Number of Lanczos iterations
     v0 : DNDarray, optional
         1D starting vector of Euclidian norm 1. If not provided, a random vector will be used to start the algorithm
-    V_out DNDarray, optional
+    V_out : DNDarray, optional
         Output Matrix for the Krylow vectors, Shape = (n, m)
-    T_out DNDarray, optional
+    T_out : DNDarray, optional
         Output Matrix for the Tridiagonal matrix, Shape = (m, m)
-
     """
     if not isinstance(A, DNDarray):
         raise TypeError("A needs to be of type ht.dndarra, but was {}".format(type(A)))
