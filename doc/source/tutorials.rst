@@ -7,7 +7,6 @@ HeAT Tutorials
     tutorial_30_minutes
     tutorial_parallel_computation
     tutorial_clustering
-    tutorial_dpnn
 
 .. container:: tutorial
 
@@ -62,24 +61,5 @@ HeAT Tutorials
                 <p/>
                 <p>Automatically identify clusters in your data by employing unsupervised clustering methods.</p>
                 <em>For intermediate analysts.</em>
-            </div>
-        </a>
-
-
-.. container:: tutorial
-
-    .. container:: tutorial-image
-
-        .. image:: ../images/tutorial_dpnn.svg
-            :target: tutorial_dpnn.html
-
-    .. raw:: html
-
-        <a class="reference external" href="tutorial_dpnn.html">
-            <div class="tutorial-text">
-                <strong>Data-parallel Neural Networks</strong>
-                <p/>
-                <p>Learn how to use multiple device to speed up your neural network training.</p>
-                <em>Advanced AI enthusiasts welcome.</em>
             </div>
         </a>
