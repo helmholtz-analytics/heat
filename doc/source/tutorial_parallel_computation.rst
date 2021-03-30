@@ -17,7 +17,7 @@ GPUs can accelerate applications running on the CPU by offloading some or all of
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([0, 1, 2, 3, 4], dtype=ht.int32, device=cuda:0, split=None)
 
@@ -32,7 +32,7 @@ We can move data back and forth the CPU and GPU by calling the respective functi
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([0, 1, 2, 3, 4], dtype=ht.int32, device=cpu:0, split=None)
 
@@ -45,7 +45,7 @@ Manually, allocating or moving all ``DNDarrays`` between CPU and GPU can quickly
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([[0., 0., 0., 0.],
               [0., 0., 0., 0.],
@@ -60,7 +60,7 @@ Finally, operations on ``DNDarrays`` on GPUs can be performed as we are used to 
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([[10., 10., 10., 10.],
               [10., 10., 10., 10.],
@@ -93,7 +93,7 @@ Data chunking in Heat is always done along a singular axis, i.e. a one-dimension
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([0, 1, 2, 3, 4], dtype=ht.int32, device=cpu:0, split=0)
 
@@ -109,7 +109,7 @@ This can also be done along other axes for arrays with larger dimensions.
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([[0., 0., 0., 0.],
               [0., 0., 0., 0.],
@@ -134,7 +134,7 @@ As previously explained, specifying no ``split`` axis or setting it explicitly t
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([0, 1, 2, 3, 4], dtype=ht.int32, device=cpu:0, split=None)
 
@@ -152,7 +152,7 @@ You may also modify the data partitioning of a Heat array by using the ``resplit
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([0, 1, 2, 3, 4], dtype=ht.int32, device=cpu:0, split=0)
 
@@ -169,7 +169,7 @@ The result of an operation on a Heat tensor will in most cases preserve the spli
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([12.], dtype=ht.float32, device=cpu:0, split=None)
 
@@ -184,7 +184,7 @@ The previously ``split=0`` matrix is ``split=None`` after the reduction operatio
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([[1., 2., 3., 4.],
               [1., 2., 3., 4.],

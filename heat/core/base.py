@@ -1,7 +1,6 @@
 """
 Provides mixins for high-level algorithms, e.g. classifiers or clustering algorithms.
 """
-from __future__ import annotations
 
 import inspect
 import json
@@ -15,7 +14,7 @@ self = TypeVar("self")
 
 class BaseEstimator:
     """
-    Abstract base class for all estimators, i.e. parametrized analysis algorithms, in Heat. Can be used as mixin.
+    Abstract base class for all estimators, i.e. parametrized analysis algorithms, in HeAT. Can be used as mixin.
     """
 
     @classmethod
@@ -44,7 +43,8 @@ class BaseEstimator:
         Parameters
         ----------
         deep : bool
-            If ``True``, will return the parameters for this estimator and contained sub-objects that are estimators.
+            If ``True``, will return the parameters for this estimator and contained sub-objects that are estimators
+            (default=True).
         """
         params = dict()
 
@@ -57,7 +57,7 @@ class BaseEstimator:
             params[key] = value
         return params
 
-    def __repr__(self, indent=1):
+    def __repr__(self, indent: int = 1) -> str:
         """
         Returns a printable representation of the object.
 
@@ -68,14 +68,14 @@ class BaseEstimator:
         """
         return "{}({})".format(self.__class__.__name__, json.dumps(self.get_params(), indent=4))
 
-    def set_params(self, **params: Dict[str, object]) -> self:
+    def set_params(self, **params) -> self:
         """
         Set the parameters of this estimator. The method works on simple estimators as well as on nested objects
         (such as pipelines). The latter have to be nested dictionaries.
 
         Parameters
         ----------
-        **params : Dict[str, Any]
+        **params : dict[str, object]
             Estimator parameters to bet set.
         """
         if not params:
@@ -100,7 +100,7 @@ class BaseEstimator:
 
 class ClassificationMixin:
     """
-    Mixin for all classifiers in Heat.
+    Mixin for all classifiers in HeAT.
     """
 
     def fit(self, x: DNDarray, y: DNDarray):
@@ -121,7 +121,7 @@ class ClassificationMixin:
     def fit_predict(self, x: DNDarray, y: DNDarray) -> DNDarray:
         """
         Fits model and returns classes for each input sample
-        Convenience method; equivalent to calling :func:`fit(X)` followed by :func:`predict(X)`.
+        Convenience method; equivalent to calling :func:`fit` followed by :func:`predict`.
 
         Parameters
         ----------
@@ -133,7 +133,7 @@ class ClassificationMixin:
         self.fit(x, y)
         return self.predict(x)
 
-    def predict(self, x: DNDarray):
+    def predict(self, x: DNDarray) -> DNDarray:
         """
         Predicts the class labels for each sample.
 
@@ -141,7 +141,6 @@ class ClassificationMixin:
         ----------
         x : DNDarray
             Values to predict the classes for. Shape = (n_samples, n_features)
-
         """
         raise NotImplementedError()
 
@@ -159,7 +158,6 @@ class ClusteringMixin:
         ----------
         x : DNDarray
             Training instances to cluster. Shape = (n_samples, n_features)
-
         """
         raise NotImplementedError()
 
@@ -167,13 +165,12 @@ class ClusteringMixin:
         """
         Compute clusters and returns the predicted cluster assignment for each sample.
         Returns index of the cluster each sample belongs to.
-        Convenience method; equivalent to calling :func:`fit(X)` followed by :func:`predict(X)`.
+        Convenience method; equivalent to calling :func:`fit` followed by :func:`predict`.
 
         Parameters
         ----------
         x : DNDarray
             Input data to be clustered. Shape = (n_samples, n_features)
-
         """
         self.fit(x)
         return self.predict(x)
@@ -181,7 +178,7 @@ class ClusteringMixin:
 
 class RegressionMixin:
     """
-    Mixin for all regression estimators in Heat.
+    Mixin for all regression estimators in HeAT.
     """
 
     def fit(self, x: DNDarray, y: DNDarray):
@@ -194,27 +191,25 @@ class RegressionMixin:
             Training instances to train on. Shape = (n_samples, n_features)
         y : DNDarray
             Continuous values to fit. Shape = (n_samples,)
-
         """
         raise NotImplementedError()
 
     def fit_predict(self, x: DNDarray, y: DNDarray) -> DNDarray:
         """
         Fits model and returns regression predictions for each input sample
-        Convenience method; equivalent to calling :func:`fit(X)` followed by :func:`predict(X)`.
+        Convenience method; equivalent to calling :func:`fit` followed by :func:`predict`.
 
         Parameters
         ----------
-        x : DNDarray,
+        x : DNDarray
             Input data to be predicted. Shape = (n_samples, n_features)
         y : DNDarray
             Continuous values to fit. Shape = (n_samples,)
-
         """
         self.fit(x, y)
         return self.predict(x)
 
-    def predict(self, x: DNDarray):
+    def predict(self, x: DNDarray) -> DNDarray:
         """
         Predicts the continuous labels for each sample.
 

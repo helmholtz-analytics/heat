@@ -1,8 +1,12 @@
+"""
+Generate matrices for specific tests and functions
+"""
+
 from heat import core
-from ..core.dndarray import DNDarray
-from ..core.communication import Communication
-from ..core.devices import Device
-from ..core.types import datatype
+from ...core.dndarray import DNDarray
+from ...core.communication import Communication
+from ...core.devices import Device
+from ...core.types import datatype
 from typing import Type, Union
 
 __all__ = ["parter"]
@@ -41,7 +45,6 @@ def parter(
     [3] Seymour V. Parter, On the distribution of the singular values of Toeplitz matrices, Linear Algebra and its
     Applications 80, 1986, 115-130, http://www.sciencedirect.com/science/article/pii/0024379586902806
     """
-
     if split is None:
         a = core.arange(n, dtype=dtype, device=device, comm=comm)
         II = a.expand_dims(0)
