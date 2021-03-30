@@ -1,3 +1,7 @@
+"""
+Function and classes useful for loading data into neural networks
+"""
+
 import torch
 from torch.utils import data as torch_data
 from typing import Callable, List, Iterator, Union, Optional, Sized
@@ -67,7 +71,7 @@ class DataLoader:
         drop_last: bool = False,
         timeout: Union[int, float] = 0,
         worker_init_fn: Callable = None,
-    ):
+    ):  # noqa: D107
         if not isinstance(dataset, (torch_data.Dataset, Dataset, partial_dataset.PartialH5Dataset)):
             raise TypeError(
                 f"dataset must be a torch Dataset, heat Dataset, heat PartialH5Dataset, currently: {type(dataset)}"
@@ -93,6 +97,14 @@ class DataLoader:
         self.last_epoch = False
 
     def __iter__(self) -> Iterator:
+        """
+        Generate a new iterator of a type dependent on the type of dataset
+
+        Returns
+        -------
+        :class:`partial_dataset.PartialH5DataLoaderIter` if the dataset is a :class:`partial_dataset.PartialH5Dataset`
+        :func:`self._full_dataset_shuffle_iter` otherwise
+        """
         if isinstance(self.dataset, partial_dataset.PartialH5Dataset):
             return partial_dataset.PartialH5DataLoaderIter(self)
         if hasattr(self, "_full_dataset_shuffle_iter"):
@@ -101,6 +113,9 @@ class DataLoader:
         return self.DataLoader.__iter__()
 
     def __len__(self) -> int:
+        """
+        Get the length of the dataloader. Returns the number of batches.
+        """
         return self.DataLoader.__len__()
 
     def _full_dataset_shuffle_iter(self):
@@ -123,7 +138,7 @@ class DataLoader:
 
 
 class Dataset(torch_data.Dataset):
-    """
+    r"""
     An abstract class representing a given dataset. This inherits from torch.utils.data.Dataset.
 
     This class is a general example for what should be done to create a Dataset. When creating a dataset all of the
@@ -180,7 +195,7 @@ class Dataset(torch_data.Dataset):
         transforms: Optional[Union[List, Callable]] = None,
         ishuffle: Optional[bool] = False,
         test_set: Optional[bool] = False,
-    ):
+    ):  # noqa: D107
         self.htdata = array
         self.comm = array.comm
         self.test_set = test_set
@@ -197,14 +212,18 @@ class Dataset(torch_data.Dataset):
         self.ishuffle = ishuffle
 
     def __getitem__(self, index: Union[int, slice, tuple, list, torch.Tensor]) -> torch.Tensor:
-        # this is the most basic form of getitem, it only gets items from data
-        # it should be overwritten by a custom dataset
+        """
+        This is the most basic form of getitem. As the dataset is often very specific to the dataset,
+        this should be overwritten by the user. In this form it only gets the raw items from the data.
+        """
         if self.transforms:
             return self.transforms[0](self.data[index])
         return self.data[index]
 
     def __len__(self) -> int:
-        # this should be overwritten by custom datasets
+        """
+        Get the number of items in the dataset. This should be overwritten by custom datasets
+        """
         return self.data.shape[0]
 
     def Shuffle(self):
@@ -238,6 +257,7 @@ def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[lis
     Parameters
     ----------
     dataset : Dataset
+        the dataset to shuffle
     attrs : List[List[str, str], ... ]
         List of lists each of which contains 2 strings. The strings are the handles corresponding to the Dataset
         attributes corresponding to the global data DNDarray and the local data of that array, i.e. [["data, "htdata"],]
@@ -293,6 +313,7 @@ def dataset_ishuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[li
     Parameters
     ----------
     dataset : Dataset
+        the dataset to shuffle
     attrs : List[List[str, str], ... ]
         List of lists each of which contains 2 strings. The strings are the handles corresponding to the Dataset
         attributes corresponding to the global data DNDarray and the local data of that array, i.e. [["htdata, "data"],]
@@ -334,6 +355,7 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
     Parameters
     ----------
     dataset : Dataset
+        the dataset to shuffle
 
     Notes
     -----

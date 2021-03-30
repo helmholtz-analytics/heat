@@ -1,6 +1,8 @@
-# WARNING: This function likely requires adjustments and it is by no means a final product !!!
-# this file contains standalone utilities for data preparation which may be useful
-# this function contained within are not tested, nor actively supported
+"""
+This file contains functions which may be useful for certain datatypes, but are not test in the heat framework
+This file contains standalone utilities for data preparation which may be useful
+The functions contained within are not tested, nor actively supported
+"""
 
 import base64
 import numpy as np

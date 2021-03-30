@@ -1,3 +1,7 @@
+"""
+Tiling functions/classes. With these classes, you can classes you can address blocks of data in a DNDarray
+"""
+
 from __future__ import annotations
 import torch
 from typing import List, Tuple, Union
@@ -72,7 +76,7 @@ class SplitTiles:
     [2/2]         [0, 1, 2]], dtype=torch.int32)
     """
 
-    def __init__(self, arr: DNDarray) -> None:
+    def __init__(self, arr: DNDarray) -> None:  # noqa: D107
         #  1. get the lshape map
         #  2. get the split axis numbers for the other axes
         #  3. build tile map
@@ -367,7 +371,7 @@ class SquareDiagTiles:
     This tiling scheme is intended for use with the :func:`~heat.core.linalg.qr.qr` function.
     """
 
-    def __init__(self, arr: DNDarray, tiles_per_proc: int = 2) -> None:
+    def __init__(self, arr: DNDarray, tiles_per_proc: int = 2) -> None:  # noqa: D107
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
         if not isinstance(arr, DNDarray):
             raise TypeError("arr must be a DNDarray, is currently a {}".format(type(self)))
