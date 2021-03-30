@@ -201,7 +201,6 @@ class DataParallel(tnn.Module):
                     self._fwd_hook_handles.append(hook_handle)
 
         # perform forward pass
-        print(inputs)
         ret = self.module(*inputs, **kwargs)
         # finalize potentially remaining wait handles and update corresponding params (if
         # computation graph has changed between previous backward and this forward)
