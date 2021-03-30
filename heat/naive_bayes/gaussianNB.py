@@ -385,7 +385,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         """
         Adapted to HeAT from scikit-learn.
         Calculates joint log-likelihood for `n_samples` to be assigned to each class.
-        Returns a ``DNDarray`` joint_log_likelihood(n_samples, n_classes).
+        Returns a ``DNDarray`` `joint_log_likelihood(n_samples, n_classes)`.
         """
         jll_size = self.classes_.larray.numel()
         jll_shape = (x.shape[0], jll_size)
@@ -478,7 +478,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         Parameters
         ----------
         x : DNDarray
-            Shape = (n_samples, n_features)
+            Input data with shape ``(n_samples, n_features)``
         """
         # sanitize input
         # TODO: sanitation/validation module, cf. #468
@@ -497,7 +497,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         Parameters
         ----------
         x : DNDarray
-            Shape = (n_samples, n_features)
+            Input data with shape ``(n_samples, n_features)``
         """
         # TODO: sanitation/validation module, cf. #468, log_prob_x must be 2D (cf. np.atleast_2D)
         jll = self.__joint_log_likelihood(x)
@@ -517,6 +517,6 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         Parameters
         ----------
         x : DNDarray
-            Shape = (n_samples, n_features)
+            Input data with shape ``(n_samples, n_features)``
         """
         return ht.exp(self.predict_log_proba(x))
