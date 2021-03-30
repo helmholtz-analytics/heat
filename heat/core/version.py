@@ -1,3 +1,5 @@
+"""This module contains HeAT's version information."""
+
 major = 0
 minor = 5
 micro = 1
