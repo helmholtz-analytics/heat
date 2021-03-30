@@ -44,10 +44,10 @@ mpi_sum_bfloat = MPI.Op.Create(__sum_bfloat_cb, commute=True)
 
 
 class DASO:
-    """
+    r"""
     Optimizer wrapper to use the Distributed Asynchronous and Selective Optimization (DASO) method.
 
-    This optimizer uses a local torch optimizer combined with the :class:`..nn.data_parappel.DataParallelMultiGPU`
+    This optimizer uses a local torch optimizer combined with the :func:`nn.DataParallelMultiGPU <heat.nn.data_parallel.DataParallelMultiGPU>`
     to create local DPNNs on each node consisting of the GPUs on each node. Then those networks communicate
     globally with MPI groups, each of which has a single GPU on each node.
 
@@ -58,31 +58,32 @@ class DASO:
     This implementation requires that all nodes have the name number of GPUs.
 
     There are four phases to training:
-        1. initialization (steps 1 to 8 above)
-        2. Training: warmup phase
-            - blocking averaging update occurs for global synchronization step
-        3. Training: cycling phase
-            - for the global synchronization, the data is sent after a number of batches. the number of batches
-            between synchronizations is referred to as `global_skips`. After the data is sent a number of batches
-            pass before it is received (`batches_to_wait`). both of these cycle downward from `max_global_skips`
-            for the global skips and 1/4th this value for `batches_to_wait`. When both values are equal to 1 and
-            the loss is stable it will be reset to the initial values, then will decay again.
-        4. Training: cooldown phase
-            - blocking averaging update occurs for global synchronization step
 
-    As example usage of this can be found in :file:`../../examples/nn/imagenet-DASO.py`.
+        1. initialization: steps 1 to 8 below
+        2. Warmup phase: blocking averaging update occurs for global synchronization step
+        3. Cycling phase: for the global synchronization, the data is sent after a number of batches. the number
+            of batches between synchronizations is referred to as `global_skips`. After the data
+            is sent a number of batches pass before it is received (`batches_to_wait`). both of
+            these cycle downward from `max_global_skips` for the global skips and 1/4th this value
+            for `batches_to_wait`. When both values are equal to 1 and the loss is stable it will
+            be reset to the initial values, then will decay again.
+        4. Cooldown phase: blocking averaging update occurs for global synchronization step
+
+    As example usage of this can be found in `heat/examples/nn/imagenet-DASO.py`.
 
     The recommended checklist for using this class is as follows:
+
         1. initialize the local PyTorch process group and set the default device of the local GPUs.
         2. define the torch network
         3. define the `local_optimizer` -> a torch optimizer of your choice (tested with SGD)
-        4. (optional) choose a learning rate scheduler -- this is only for those learning rates which will
-        also step the optimizer
+        4. optional, choose a learning rate scheduler. This is only for those learning rates
+            which will also step the optimizer
         5. initialize DASO with the local optimizers and parameters
-        6. initialize :class:`../nn/DataParallelMultiGPU` with the torch network and DASO
-        7. If using automatic mixed precision (:class:`torch.cuda.amp`), initialize the gradient scaler and add it to DASO (:func:`add_scaler`)
-        8. ensure that the DataLoaders evenly distribute the data between all the processes
-            - this can be done by using the :class:`torch.utils.data.distributed.DistributedSampler` with the `num_replicas` and `rank` parameters
+        6. initialize :class:`nn.DataParallelMultiGPU` with the torch network and DASO
+        7. If using automatic mixed precision (:class:`torch.cuda.amp`), initialize the gradient
+            scaler and add it to DASO (:func:`add_scaler`)
+        8. ensure that the DataLoaders evenly distribute the data between all the processes.
+            This can be done by using the `torch.utils.data.distributed.DistributedSampler <https://pytorch.org/docs/stable/data.html#torch.utils.data.distributed.DistributedSampler>`_ with the `num_replicas` and `rank` parameters
         9. call `daso_optimizer.epoch_loss_logic(training_loss)` at the end of
         10. set the number of batches per epoch (`daso_optimizer.last_batch = number_of_batches`)
         11. ensure that the step function used in training is that of the DASO optimizer
@@ -90,54 +91,53 @@ class DASO:
     Parameters
     ----------
     local_optimizer: torch.optim.Optimizer
-        This optimizer handles the optimization of the local NN. Example: torch.optim.SGD.
+        This optimizer handles the optimization of the local NN. Example: `torch.optim.SGD`. \n
         This can be any optimizer, although tests were only completed with SGD. Other optimizers may show
-        unexpected behavior
+        unexpected behavior.
     total_epochs: int
-        The total number of epochs for training. Needed to determine when to enter the cooldown phase
+        The total number of epochs for training. Needed to determine when to enter the cooldown phase.
     comm: MPICommunication, optional
-        The MPI communicator to use for training. Defaults to the full MPI WORLD
-        Default, MPI_WORLD
+        The MPI communicator to use for training. \n
+        Default: :func:`MPI_WORLD <heat.core.comm.MPI_WORLD>`
     warmup_epochs: int, optional
         The number of epochs to complete with a blocking averaging operation after each batch before entering
-        the cycling phase.
+        the cycling phase.\n
         Default: 4
     cooldown_epochs: int, optional
-        The number of epochs with blocking averaging operations after each batch at the end of training.
+        The number of epochs with blocking averaging operations after each batch at the end of training.\n
         Default: 4
     scheduler: torch.optim.lr_scheduler, optional
         Local PyTorch learning rate scheduler. This must be used in the case that the scheduler's `step` function
-        is supposed to be called instead of the optimizer's `step` function.
+        is supposed to be called instead of the optimizer's `step` function.\n
         Default: None
     stability_level: float, optional
         This can be viewed as the percent change threshold that the loss must exceed to be judged as improving.
-        When the loss is within this percent change for 2 epochs, then it is judged as stable.
+        When the loss is within this percent change for 2 epochs, then it is judged as stable.\n
         Default: 0.05
     max_global_skips: int, optional
-        The maximum number of batches between the beginning of a global synchronization process
+        The maximum number of batches between the beginning of a global synchronization process.\n
         Default: 8
     sending_chunk_size: int, optional
         During the global synchronization step, the network parameters are split into chunks of data to overlap
-        communication and computation. This value is the maximum chunk size.
-        Default: 10_000_000
+        communication and computation. This value is the maximum chunk size.\n
+        Default: 10,000,000
     downcast_type: torch.dtype, optional
         Options: [torch.bfloat16, torch.half, torch.float]
         When the network parameters are sent during the global synchronization step, they are cast down to
         a smaller dtype, by default this is `torch.bfloat16`. Smaller torch dtypes are not implemented.
-        torch.bfloat16.
+        torch.bfloat16.\n
         Default: torch.bfloat16
     use_mpi_groups: bool, optional
-        Use MPI groups to divide the global communicator. If True, use MPI GROUPs, otherwise, use MPI SPLIT.
+        Use MPI groups to divide the global communicator. If True, use MPI GROUPs, otherwise, use MPI SPLIT.\n
         Default: True
     skip_reduction_factor: int, optional
-        How much to reduce the global/local skips by when the loss has stabilized
+        How much to reduce the global/local skips by when the loss has stabilized.\n
         Default: 2
     local_skip_factor: int, optional
-        How many local skips occur per global skip.
-        i.e. number of local skips = global_skips // local_skip_factor
+        How many local skips occur per global skip, i.e. number of local skips = global_skips // local_skip_factor.\n
         Default: 4
     verbose: bool, optional
-        If true, print out a collection of debug messages
+        If true, print out a collection of debug messages.\n
         Default: False
     """
 
@@ -245,8 +245,8 @@ class DASO:
 
     def add_scaler(self, scaler: torch.cuda.amp.GradScaler) -> None:
         """
-        Create a reference to torch's :class:`torch.cuda.amp.GradScaler` used in torch's automatic mixed
-        precision. For more information on this see https://pytorch.org/docs/stable/notes/amp_examples.html
+        Create a reference to torch's `torch.cuda.amp.GradScaler <https://pytorch.org/docs/stable/notes/amp_examples.html>`_ used in torch's automatic mixed
+        precision.
 
         Parameters
         ----------
@@ -716,7 +716,8 @@ class DASO:
     def set_model(self, model: torch.nn.Module) -> None:
         """
         Set the local model for the optimizer.
-        This should be called by the :class:`..nn.data_parappel.DataParallelMultiGPU`.
+        This should be called during the init of :func:`nn.DataParallelMultiGPU <heat.nn.data_parallel.DataParallelMultiGPU>`.
+        However, this can also be called manually.
 
         Parameters
         ----------
@@ -840,9 +841,9 @@ class DASO:
 
 class DataParallelOptimizer:
     """
-    Uses a Torch.optim.Optimizer for data parallelism. It should be used in combination with DataParallel (DP) class.
+    Uses a torch.optim.Optimizer for data parallelism. It should be used in combination with DataParallel (DP) class.
     To optimize a DP module, DP optimizer has to be passed to DP module during its initialization.
-    See :func:`..nn.DataParallel` for a basic example of usage.
+    See :func:`nn.DataParallel <heat.nn.data_parallel.DataParallel>` for a basic example of usage.
 
     Attributes
     ----------
