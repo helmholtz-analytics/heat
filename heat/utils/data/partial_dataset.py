@@ -1,3 +1,7 @@
+"""
+Tool for using a dataset which will not fit in memory with neural networks
+"""
+
 import math
 import queue
 import threading
@@ -78,7 +82,7 @@ class PartialH5Dataset(torch_data.Dataset):
         validate_set: bool = False,
         initial_load: int = 7000,
         load_length: int = 1000,
-    ):
+    ):  # noqa: D107
         import h5py
 
         super(PartialH5Dataset, self).__init__()
@@ -169,8 +173,10 @@ class PartialH5Dataset(torch_data.Dataset):
         return NotImplementedError
 
     def __getitem__(self, index: Union[int, slice, List[int], torch.Tensor]) -> torch.Tensor:
-        # this function needs to be designed such that the data is in the 0th dimension and the indexes called
-        #   are only in the 0th dim!
+        """
+        This should be defined by the user at runtime. This function needs to be designed such
+        that the data is in the 0th dimension and the indexes called are only in the 0th dim!
+        """
         raise NotImplementedError("__getitem__ must be overwritten")
 
     def __len__(self) -> int:
@@ -222,7 +228,7 @@ class PartialH5DataLoaderIter(object):
     preparation, collation, and device setting in the background.
     """
 
-    def __init__(self, loader):
+    def __init__(self, loader):  # noqa: D107
         # todo: make note that h5py is required for this...move load to dataset?
         self.dataset = loader.dataset
         self._dataset_kind = loader.DataLoader._dataset_kind
@@ -271,6 +277,9 @@ class PartialH5DataLoaderIter(object):
         )
 
     def __len__(self):
+        """
+        Get the length of the iterator
+        """
         return self.length
 
     def _next_data(self):
@@ -292,6 +301,9 @@ class PartialH5DataLoaderIter(object):
         return batch
 
     def __next__(self):
+        """
+        Get the next batch of data. Shamelessly taken from torch.
+        """
         # shamelessly taken from torch
         data = self._next_data()
         self._num_yielded += 1
@@ -300,6 +312,13 @@ class PartialH5DataLoaderIter(object):
         return data
 
     def __iter__(self):
+        """
+        Get a new iterator of this class
+
+        Returns
+        -------
+        PartialH5DataLoaderIter
+        """
         return self
 
     def __thread_convert_all(self, index_list):

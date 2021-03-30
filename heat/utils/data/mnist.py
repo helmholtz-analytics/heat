@@ -1,3 +1,7 @@
+"""
+File for the MNIST dataset definition in heat
+"""
+
 import torch
 
 from torchvision import datasets
@@ -71,7 +75,7 @@ class MNISTDataset(datasets.MNIST):
         split: int = 0,
         ishuffle: bool = False,
         test_set: bool = False,
-    ):
+    ):  # noqa: D107
         super().__init__(
             root,
             train=train,
@@ -105,12 +109,18 @@ class MNISTDataset(datasets.MNIST):
         # getitem and len are defined by torch's MNIST class
 
     def Shuffle(self):
+        """
+        Uses the :func:`datatools.dataset_shuffle` function to shuffle the data between the processes
+        """
         if not self.test_set:
             datatools.dataset_shuffle(
                 dataset=self, attrs=[["data", "htdata"], ["targets", "httargets"]]
             )
 
     def Ishuffle(self):
+        """
+        Uses the :func:`datatools.dataset_ishuffle` function to shuffle the data between the processes
+        """
         if not self.test_set:
             datatools.dataset_ishuffle(
                 dataset=self, attrs=[["data", "htdata"], ["targets", "httargets"]]
