@@ -107,7 +107,7 @@ class SplitTiles:
     @staticmethod
     def set_tile_locations(split: int, tile_dims: torch.Tensor, arr: DNDarray) -> torch.Tensor:
         """
-        Create a ``torch.Tensor`` which contains the locations of the tiles of ``arr`` for the given split
+        Create a `torch.Tensor` which contains the locations of the tiles of ``arr`` for the given split
 
         Parameters
         ----------
@@ -165,7 +165,7 @@ class SplitTiles:
 
         Examples
         --------
-        see :class:`~SplitTiles`
+        see :func:`SplitTiles`
         """
         return self.__tile_ends_g
 
@@ -343,7 +343,8 @@ class SquareDiagTiles:
     arr : DNDarray
         The array to be tiled
     tiles_per_proc : int, optional
-        The number of divisions per process,
+        The number of divisions per process
+        Default: 2
 
     Attributes
     -----------

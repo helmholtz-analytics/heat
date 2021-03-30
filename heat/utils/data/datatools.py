@@ -14,45 +14,51 @@ __all__ = ["DataLoader", "Dataset", "dataset_shuffle", "dataset_ishuffle"]
 
 
 class DataLoader:
-    """
-    The combines either a ``DNDarray`` (:class:`...core.dndarray.DNDarray`) or a torch ``Dataset`` with a sampler.
-    This provides an iterable over the local dataset and it will shuffle the data at the end of the iterator.
-    If a ``DNDarray`` is given a general, then a ``Dataset`` will be created internally.
+    r"""
+    The combines either a :func:`DNDarray <heat.core.dndarray.DNDarray>` or a torch `Dataset <https://pytorch.org/docs/stable/data.html?highlight=dataset#torch.utils.data.Dataset>`_
+    with a sampler. This provides an iterable over the local dataset and it will shuffle the data at the end of the
+    iterator. If a :func:`DNDarray <heat.core.dndarray.DNDarray>` is given, then a :func:`Dataset` will be created
+    internally.
 
     Currently, this only supports only map-style datasets with single-process loading. It uses the random
-    batch sampler. The rest of the ``DataLoader`` functionality mentioned in :func:`torch.utils.data.dataloader` applies
+    batch sampler. The rest of the ``DataLoader`` functionality mentioned in `torch.utils.data.dataloader <https://pytorch.org/docs/stable/data.html?highlight=dataset#torch.utils.data.DataLoader>`_ applies.
 
     Arguments:
-        dataset : Dataset, torch.Dataset, partial_dataset.PartialH5Dataset
+        dataset : :func:`Dataset`, torch `Dataset <https://pytorch.org/docs/stable/data.html?highlight=dataset#torch.utils.data.Dataset>`_, :func:`heat.utils.data.partial_dataset.PartialH5Dataset`
             A torch dataset from which the data will be returned by the created iterator
         batch_size : int, optional
-            How many samples per batch to load (default: 1).
+            How many samples per batch to load\n
+             Default: 1
         num_workers : int, optional
-            How many subprocesses to use for data loading. 0 means that the data will be loaded in the main process.
-            (default: 0)
+            How many subprocesses to use for data loading. 0 means that the data will be loaded in the main process.\n
+            Default: 0
         collate_fn : callable, optional
             Merges a list of samples to form a mini-batch of torch.Tensor(s).  Used when using batched loading from a
-            map-style dataset.
+            map-style dataset.\n
+            Default: None
         pin_memory : bool, optional
             If ``True``, the data loader will copy torch.Tensors into CUDA pinned memory before returning them.
             If your data elements are a custom type, or your :attr:`collate_fn` returns a batch that is a custom type,
-            see the example below.
+            see the example below. \n
+            Default: False
         drop_last : bool, optional
             Set to ``True`` to drop the last incomplete batch, if the dataset size is not divisible by
             the batch size. If ``False`` and the size of dataset is not divisible by the batch size, then
-            the last batch will be smaller. (default: ``False``)
+            the last batch will be smaller.\n
+            Default: ``False``
         timeout : int or float, optional
-            If positive, the timeout value for collecting a batch from workers. Should always be non-negative.
-            (default: 0)
+            If positive, the timeout value for collecting a batch from workers. Should always be non-negative.\n
+            Default: 0
         worker_init_fn : callable, optional
             If not ``None``, this will be called on each worker subprocess with the worker id
-            (an int in ``[0, num_workers - 1]``) as input, after seeding and before data loading. (default: ``None``)
+            (an int in ``[0, num_workers - 1]``) as input, after seeding and before data loading.\n
+            default: None
 
     Attributes
     ----------
-    dataset : torch.data.utils.data.Dataset or heat.Dataset
+    dataset : :func:`Dataset`, torch `Dataset <https://pytorch.org/docs/stable/data.html?highlight=dataset#torch.utils.data.Dataset>`_, :func:`heat.utils.data.partial_dataset.PartialH5Dataset`
         The dataset created from the local data
-    DataLoader : torch.utils.data.DataLoader
+    DataLoader : `torch.utils.data.dataloader <https://pytorch.org/docs/stable/data.html?highlight=dataset#torch.utils.data.DataLoader>`_
         The local DataLoader object. Used in the creation of the iterable and the length
     _first_iter : bool
         Flag indicating if the iterator created is the first one. If it is not, then the data will be shuffled before
@@ -144,19 +150,16 @@ class Dataset(torch_data.Dataset):
     This class is a general example for what should be done to create a Dataset. When creating a dataset all of the
     standard attributes should be set, the ``__getitem__``, ``__len__``, and ``shuffle`` functions must be defined.
 
-        - ``__getitem__`` : how an item is given to the network\n
-        - ``__len__`` : the number of data elements to be given to the network in total\n
-        - ``Shuffle()`` : how the data should be shuffled between the processes. The function shown below is for a dataset
-            composed of only data and without targets. The function :func:`dataset_shuffle` abstracts this. For this function
-            only the dataset and a list of attributes to shuffle are given.\n
-        - (optional) ``Ishuffle()`` : A non-blocking version of ``Shuffle()``, this is handled in the abstract function
-            :func:`dataset_ishuffle`. It works similarly to :func:`dataset_shuffle`.\n
+        - ``__getitem__`` : how an item is given to the network
+        - ``__len__`` : the number of data elements to be given to the network in total
+        - ``Shuffle()`` : how the data should be shuffled between the processes. The function shown below is for a dataset composed of only data and without targets. The function :func:`dataset_shuffle` abstracts this. For this function only the dataset and a list of attributes to shuffle are given.\n
+        - ``Ishuffle()`` : A non-blocking version of ``Shuffle()``, this is handled in the abstract function :func:`dataset_ishuffle`. It works similarly to :func:`dataset_shuffle`.
 
     As the amount of data across processes can be non-uniform, the dataset class will slice off the remaining elements
     on whichever processes have more data than the others. This should only be 1 element.
     The shuffle function will shuffle all of the data on the process.
 
-    It is recommended that for ``DNDarray``s, the split is either 0 or ``None``
+    It is recommended that for ``DNDarray`` s, the split is either 0 or None
 
     Parameters
     ----------
@@ -166,13 +169,13 @@ class Dataset(torch_data.Dataset):
         Transformation to call before a data item is returned
     ishuffle : bool, optional
         flag indicating whether to use non-blocking communications for shuffling the data between epochs
-        Note: if ``True``, the ``Ishuffle()`` function must be defined within the class
-        Default: ``False``
+        Note: if ``True``, the ``Ishuffle()`` function must be defined within the class\n
+        Default: False
 
     Attributes
     ----------
-    These are the required attributes. Optional attributed are whatever are required for the Dataset
-    (see :class:`heat.utils.data.mnist.py`)
+    These are the required attributes.
+
     htdata : DNDarray
         Full data
     _cut_slice : slice

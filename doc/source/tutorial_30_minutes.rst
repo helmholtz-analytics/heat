@@ -31,7 +31,7 @@ The following creates a :math:`3\times 4` matrix with zeros.
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([[0., 0., 0., 0.],
               [0., 0., 0., 0.],
@@ -46,7 +46,7 @@ Or a vector with the numbers from :math:`0-9` ascending.
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=ht.int32, device=cpu:0, split=None)
 
@@ -59,7 +59,7 @@ The following snippet creates a column vector with :math:`5` element, each posit
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([[9, 9, 9, 9, 9]], dtype=ht.int64, device=cpu:0, split=None)
 
@@ -76,7 +76,7 @@ Finally, let's load some user defined data.
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([[0.0000, 1.0000, 2.0000],
               [0.1000, 0.2000, 3.0000]], dtype=ht.float32, device=cpu:0, split=None)
@@ -92,7 +92,7 @@ Heat supports several mathematical operations, ranging from simple element-wise 
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([[10., 10., 10., 10.],
               [10., 10., 10., 10.],
@@ -106,7 +106,7 @@ Instead of operators, we can also use a functional approach.
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([[10., 10., 10., 10.],
               [10., 10., 10., 10.],
@@ -121,7 +121,7 @@ If there is no obvious operator for a function, you can also call a method on th
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([ 0.0000,  0.8415,  0.9093,  0.1411, -0.7568], dtype=ht.float32, device=cpu:0, split=None)
 
@@ -133,7 +133,7 @@ Just like other numerical computation libraries, Heat supports broadcasting. It 
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([[5., 5., 5., 5.],
               [5., 5., 5., 5.],
@@ -148,7 +148,7 @@ The scalar has been element-wise repeated for every entry within the matrix. We 
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([[0., 1., 2., 3.],
               [0., 1., 2., 3.],
@@ -163,7 +163,7 @@ The vector has been repeated for every row of the left-hand side matrix. A full 
 
 Output:
 
-.. code:: output
+.. code:: text
 
     array([0, 1, 2, 3, 4], dtype=int32)
 
@@ -176,7 +176,7 @@ And vice versa:
 
 Output:
 
-.. code:: output
+.. code:: text
 
     DNDarray([0, 1, 2, 3, 4], dtype=ht.int64, device=cpu:0, split=None)
 

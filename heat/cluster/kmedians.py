@@ -1,3 +1,6 @@
+"""
+Module Implementing the Kmedians Algorithm
+"""
 import heat as ht
 from heat.cluster._kcluster import _KCluster
 from heat.core.dndarray import DNDarray
@@ -5,6 +8,32 @@ from typing import Optional, Union, TypeVar
 
 
 class KMedians(_KCluster):
+    """
+    K-Medians clustering algorithm [1].
+    Uses the Manhattan (City-block, :math:`L_1`) metric for distance calculations
+
+    Parameters
+    ----------
+    n_clusters : int, optional, default: 8
+        The number of clusters to form as well as the number of centroids to generate.
+    init : str or DNDarray
+        Method for initialization, defaults to ‘random’:
+
+             - ‘k-medians++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
+             - ‘random’: choose k observations (rows) at random from data for the initial centroids.
+             - ``DNDarray``: gives the initial centers, should be of Shape = (n_clusters, n_features)
+    max_iter : int, default: 300
+        Maximum number of iterations of the k-means algorithm for a single run.
+    tol : float, default: 1e-4
+        Relative tolerance with regards to inertia to declare convergence.
+    random_state : int
+        Determines random number generation for centroid initialization.
+
+    References
+    -------------
+    [1] Hakimi, S., and O. Kariv. "An algorithmic approach to network location problems II: The p-medians." SIAM Journal on Applied Mathematics 37.3 (1979): 539-560.
+    """
+
     def __init__(
         self,
         n_clusters: int = 8,
@@ -13,30 +42,6 @@ class KMedians(_KCluster):
         tol: float = 1e-4,
         random_state: int = None,
     ):
-        """
-        K-Medians clustering algorithm [1].
-        Uses the Manhattan (City-block, :math:`L_1`) metric for distance calculations
-
-        Parameters
-        ----------
-        n_clusters : int, optional, default: 8
-            The number of clusters to form as well as the number of centroids to generate.
-        init : str or DNDarray
-            Method for initialization, defaults to ‘random’:
-                - ‘k-medians++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
-                - ‘random’: choose k observations (rows) at random from data for the initial centroids. \n
-                - ``DNDarray``: gives the initial centers, should be of Shape = (n_clusters, n_features)
-        max_iter : int, default: 300
-            Maximum number of iterations of the k-means algorithm for a single run.
-        tol : float, default: 1e-4
-            Relative tolerance with regards to inertia to declare convergence.
-        random_state : int
-            Determines random number generation for centroid initialization.
-
-        References
-        -------------
-        [1] Hakimi, S., and O. Kariv. "An algorithmic approach to network location problems II: The p-medians." SIAM Journal on Applied Mathematics 37.3 (1979): 539-560.
-        """
         if init == "kmedians++":
             init = "probability_based"
 
@@ -51,7 +56,8 @@ class KMedians(_KCluster):
 
     def _update_centroids(self, x: DNDarray, matching_centroids: DNDarray):
         """
-        Compute coordinates of new centroid ``ci`` as median of the data points in ``X`` that are assigned to  ``ci``
+        Compute coordinates of new centroid as median of the data points in ``x`` that are assigned to it
+
         Parameters
         ----------
         x :  DNDarray

@@ -1,3 +1,7 @@
+"""
+Module for Spectral Clustering, a graph-based machine learning algorithm
+"""
+
 import heat as ht
 import math
 import torch
@@ -17,8 +21,9 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         Kernel coefficient sigma for 'rbf', ignored for metric='euclidean'
     metric : string
         How to construct the similarity matrix.
-            - 'rbf' : construct the similarity matrix using a radial basis function (RBF) kernel. \n
-            - 'euclidean' : construct the similarity matrix as only euclidean distance \n
+
+            - 'rbf' : construct the similarity matrix using a radial basis function (RBF) kernel.
+            - 'euclidean' : construct the similarity matrix as only euclidean distance.
     laplacian : str
         How to calculate the graph laplacian (affinity)
         Currently supported : 'fully_connected', 'eNeighbour'
@@ -95,12 +100,18 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         """
         return self._labels
 
-    def _spectral_embedding(self, X: DNDarray) -> Tuple[DNDarray, DNDarray]:
+    def _spectral_embedding(self, x: DNDarray) -> Tuple[DNDarray, DNDarray]:
         """
-        Helper function for dataset X embedding.
+        Helper function for dataset x embedding.
         Returns Tupel(Eigenvalues, Eigenvectors) of the graph's Laplacian matrix.
+
+        Parameters
+        ----------
+        x : DNDarray
+            Sample Matrix for which the embedding should be calculated
+
         """
-        L = self._laplacian.construct(X)
+        L = self._laplacian.construct(x)
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
         v0 = ht.full(
             (L.shape[0],),
@@ -160,7 +171,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         return self
 
-    def predict(self, X: DNDarray) -> DNDarray:
+    def predict(self, x: DNDarray) -> DNDarray:
         """
         Return the label each sample in X belongs to.
         X is transformed to the low-dim representation by calculation of eigenspectrum (eigenvalues and eigenvectors) of
@@ -169,7 +180,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : DNDarray
+        x : DNDarray
             New data to predict. Shape = (n_samples, n_features)
 
         Warning
@@ -178,12 +189,12 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         """
         # input sanitation
-        if not isinstance(X, DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
-        if X.split is not None and X.split != 0:
+        if not isinstance(x, DNDarray):
+            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
+        if x.split is not None and x.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
 
-        _, eigenvectors = self._spectral_embedding(X)
+        _, eigenvectors = self._spectral_embedding(x)
 
         components = eigenvectors[:, : self.n_clusters].copy()
 

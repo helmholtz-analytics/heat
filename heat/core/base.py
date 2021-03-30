@@ -1,10 +1,13 @@
-"""Provides mixins for high-level algorithms, e.g. classifiers or clustering algorithms."""
+"""
+Provides mixins for high-level algorithms, e.g. classifiers or clustering algorithms.
+"""
 
 import inspect
 import json
 
 from typing import Dict, List, TypeVar
 from .dndarray import DNDarray
+
 
 self = TypeVar("self")
 

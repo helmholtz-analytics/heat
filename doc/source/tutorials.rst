@@ -1,6 +1,14 @@
 HeAT Tutorials
 ==============
 
+.. toctree::
+    :hidden:
+
+    tutorial_30_minutes
+    tutorial_parallel_computation
+    tutorial_clustering
+    tutorial_dpnn
+
 .. container:: tutorial
 
     .. container:: tutorial-image
