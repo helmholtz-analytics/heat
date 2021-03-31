@@ -1,5 +1,5 @@
 """
-This module computes exponantial and logarithmic operations.
+This module computes exponential and logarithmic operations.
 """
 
 import torch
@@ -14,7 +14,7 @@ __all__ = ["exp", "expm1", "exp2", "log", "log2", "log10", "log1p", "sqrt"]
 def exp(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Calculate the exponential of all elements in the input array.
-    Result is a :class:`DNDarray` of the same shape as ``x``.
+    Result is a :py:class:`~heat.core.dndarray.DNDarray` of the same shape as ``x``.
 
     Parameters
     ----------
@@ -22,7 +22,7 @@ def exp(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         The array for which to compute the exponential.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh array is allocated.
+        or set to :keyword:`None`, a fresh array is allocated.
 
     Examples
     --------
@@ -38,8 +38,8 @@ DNDarray.exp.__doc__ = exp.__doc__
 
 def expm1(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Calculate :math:`exp(x)-1` for all elements in the array.
-    Result is a :class:`DNDarray` of the same shape as ``x``.
+    Calculate :math:`exp(x) - 1` for all elements in the array.
+    Result is a :py:class:`~heat.core.dndarray.DNDarray` of the same shape as ``x``.
 
     Parameters
     ----------
@@ -47,7 +47,7 @@ def expm1(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         The array for which to compute the exponential.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh array is allocated.
+        or set to :keyword:`None`, a fresh array is allocated.
 
     Examples
     --------
@@ -63,16 +63,16 @@ DNDarray.expm1.__doc__ = expm1.__doc__
 
 def exp2(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Calculate the exponential of two of all elements in the input array (``2**x``) .
-    Result is a :class:`DNDarray` of the same shape as ``x``.
+    Calculate the exponential of two of all elements in the input array (:math:`2^x`).
+    Result is a :py:class:`~heat.core.dndarray.DNDarray` of the same shape as ``x``.
 
     Parameters
     ----------
     x : DNDarray
-        The array for which to compute the ``2**x``.
+        The array for which to compute the exponential of two.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh array is allocated.
+        or set to :keyword:`None`, a fresh array is allocated.
 
     Examples
     --------
@@ -93,9 +93,9 @@ DNDarray.exp2.__doc__ = exp2.__doc__
 def log(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Natural logarithm, element-wise.
-    The natural logarithm is the inverse of the exponential function, so that ``log(exp(x))=x``. The natural
-    logarithm is logarithm in base e. Result is a :class:`DNDarray` of the same shape as ``x``.
-    Negative input elements are returned as ``NaN``.
+    The natural logarithm is the inverse of the exponential function, so that :math:`log(exp(x)) = x`. The natural
+    logarithm is logarithm in base e. Result is a :py:class:`~heat.core.dndarray.DNDarray` of the same shape as ``x``.
+    Negative input elements are returned as :abbr:`NaN (Not a Number)`.
 
     Parameters
     ----------
@@ -103,7 +103,7 @@ def log(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         The array for which to compute the logarithm.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh array is allocated.
+        or set to :keyword:`None`, a fresh array is allocated.
 
     Examples
     --------
@@ -119,9 +119,9 @@ DNDarray.log.__doc__ = log.__doc__
 
 def log2(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Compute the logarithm to the base 2, element-wise.
-    Result is a :class:`DNDarray` of the same shape as ``x``.
-    Negative input elements are returned as ``NaN``.
+    Compute the logarithm to the base 2 (:math:`log_2(x)`), element-wise.
+    Result is a :py:class:`~heat.core.dndarray.DNDarray` of the same shape as ``x``.
+    Negative input elements are returned as :abbr:`NaN (Not a Number)`.
 
     Parameters
     ----------
@@ -129,7 +129,7 @@ def log2(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         The array for which to compute the logarithm.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh array is allocated.
+        or set to :keyword:`None`, a fresh array is allocated.
 
     Examples
     --------
@@ -145,9 +145,9 @@ DNDarray.log2.__doc__ = log2.__doc__
 
 def log10(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Compute logarithm to the base 10, element-wise.
-    Result is a :class:`DNDarray` of the same shape as ``x``.
-    Negative input elements are returned as ``NaN``.
+    Compute the logarithm to the base 10 (:math:`log_{10}(x)`), element-wise.
+    Result is a :py:class:`~heat.core.dndarray.DNDarray` of the same shape as ``x``.
+    Negative input elements are returned as :abbr:`NaN (Not a Number)`.
 
     Parameters
     ----------
@@ -155,7 +155,7 @@ def log10(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         The array for which to compute the logarithm.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh array is allocated.
+        or set to :keyword:`None`, a fresh array is allocated.
 
     Examples
     --------
@@ -172,8 +172,8 @@ DNDarray.log10.__doc__ = log10.__doc__
 def log1p(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Return the natural logarithm of one plus the input array, element-wise.
-    Result is a :class:`DNDarray` of the same shape as ``x``.
-    Negative input elements are returned as ``NaN``.
+    Result is a :class:`~heat.core.dndarray.DNDarray` of the same shape as ``x``.
+    Negative input elements are returned as :abbr:`NaN (Not a Number)`.
 
     Parameters
     ----------
@@ -181,7 +181,7 @@ def log1p(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         The array for which to compute the logarithm.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh array is allocated.
+        or set to :keyword:`None`, a fresh array is allocated.
 
     Examples
     --------
@@ -198,8 +198,8 @@ DNDarray.log1p.__doc__ = log1p.__doc__
 def sqrt(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Return the non-negative square-root of a tensor element-wise.
-    Result is a :class:`DNDarray` of the same shape as ``x``.
-    Negative input elements are returned as ``NaN``.
+    Result is a :py:class:`~heat.core.dndarray.DNDarray` of the same shape as ``x``.
+    Negative input elements are returned as :abbr:`NaN (Not a Number)`.
 
     Parameters
     ----------
@@ -207,7 +207,7 @@ def sqrt(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         The array for which to compute the square-roots.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh array is allocated.
+        or set to :keyword:`None`, a fresh array is allocated.
 
     Examples
     --------
