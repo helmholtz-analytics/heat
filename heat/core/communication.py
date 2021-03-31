@@ -3,13 +3,13 @@ Module implementing the communication layer of HeAT
 """
 from __future__ import annotations
 
-from mpi4py import MPI
-
 import numpy as np
 import os
 import subprocess
 import torch
-from typing import List, Tuple, Union, Any, Callable, Optional
+
+from mpi4py import MPI
+from typing import Any, Callable, Optional, List, Tuple, Union
 
 from .stride_tricks import sanitize_axis
 
@@ -24,6 +24,71 @@ CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("MV2_USE_CUDA") == "1"
 CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("MPIR_CVAR_ENABLE_HCOLL") == "1"
 # ParaStationMPI
 CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("PSP_CUDA") == "1"
+
+
+
+class MPIRequest:
+    """
+    Represents a handle on a non-blocking operation
+
+    Parameters
+    ----------
+    handle: MPI.Communicator
+        Handle for the mpi4py Communicator
+    sendbuf: DNDarray or torch.Tensor or Any
+        The buffer for the data to be send
+    recvbuf: DNDarray or torch.Tensor or Any
+        The buffer to the receive data
+    tensor: torch.Tensor
+        Internal Data
+    permutation: Tuple[int,...]
+        Permutation of the tensor axes
+    """
+
+    def __init__(
+        self,
+        handle,
+        sendbuf: Union[DNDarray, torch.Tensor, Any] = None,
+        recvbuf: Union[DNDarray, torch.Tensor, Any] = None,
+        tensor: torch.Tensor = None,
+        permutation: Tuple[int, ...] = None,
+    ):
+        self.handle = handle
+        self.tensor = tensor
+        self.recvbuf = recvbuf
+        self.sendbuf = sendbuf
+        self.permutation = permutation
+
+    def Wait(self, status: MPI.Status = None):
+        """
+        Waits for an MPI request to complete
+        """
+        self.handle.Wait(status)
+        if (
+            self.tensor is not None
+            and isinstance(self.tensor, torch.Tensor)
+            and self.tensor.is_cuda
+            and not CUDA_AWARE_MPI
+        ):
+            if self.permutation is not None:
+                self.recvbuf = self.recvbuf.permute(self.permutation)
+            self.tensor.copy_(self.recvbuf)
+
+    def __getattr__(self, name: str):
+        """
+        Default pass-through for the communicator methods.
+
+        Parameters
+        ----------
+        name : str
+            The name of the method to be called.
+
+        Returns
+        -------
+        method : function
+            The handle's method
+        """
+        return getattr(self.handle, name)
 
 
 class Communication:
@@ -250,7 +315,7 @@ class MPICommunication(Communication):
     @classmethod
     def as_buffer(
         cls, obj: torch.Tensor, counts: Tuple[int] = None, displs: Tuple[int] = None
-    ) -> List[MPI.memory, Tuple[int, int], MPI.Datatype]:
+    ) -> List[Union[MPI.memory, Tuple[int, int], MPI.Datatype]]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
 
@@ -269,7 +334,7 @@ class MPICommunication(Communication):
 
     def alltoall_sendbuffer(
         self, obj: torch.Tensor
-    ) -> List[MPI.memory, Tuple[int, int], MPI.Datatype]:
+    ) -> List[Union[MPI.memory, Tuple[int, int], MPI.Datatype]]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
         XXX: might not work for all MPI stacks. Might require multiple type commits or so
@@ -334,7 +399,7 @@ class MPICommunication(Communication):
 
     def alltoall_recvbuffer(
         self, obj: torch.Tensor
-    ) -> List[MPI.memory, Tuple[int, int], MPI.Datatype]:
+    ) -> List[Union[MPI.memory, Tuple[int, int], MPI.Datatype]]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
         XXX: might not work for all MPI stacks. Might require multiple type commits or so
@@ -404,7 +469,7 @@ class MPICommunication(Communication):
         source: int = MPI.ANY_SOURCE,
         tag: int = MPI.ANY_TAG,
         status: MPI.Status = None,
-    ) -> None:
+    ):
         """
         Blocking receive
 
@@ -435,7 +500,7 @@ class MPICommunication(Communication):
 
     def __send_like(
         self, func: Callable, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int
-    ) -> Tuple[None, Union[DNDarray, torch.Tensor, None]]:
+    ) -> Tuple[Optional[Union[DNDarray, torch.Tensor]]]:
         """
         Generic function for sending a message to process with rank "dest"
 
@@ -459,7 +524,7 @@ class MPICommunication(Communication):
         sbuf = buf if CUDA_AWARE_MPI else buf.cpu()
         return func(self.as_buffer(sbuf), dest, tag), sbuf
 
-    def Bsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0) -> None:
+    def Bsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
         """
         Blocking buffered send
 
@@ -550,7 +615,7 @@ class MPICommunication(Communication):
 
     Issend.__doc__ = MPI.Comm.Issend.__doc__
 
-    def Rsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0) -> None:
+    def Rsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
         """
         Blocking ready send
 
@@ -567,7 +632,7 @@ class MPICommunication(Communication):
 
     Rsend.__doc__ = MPI.Comm.Rsend.__doc__
 
-    def Ssend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0) -> None:
+    def Ssend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
         """
         Blocking synchronous send
 
@@ -584,7 +649,7 @@ class MPICommunication(Communication):
 
     Ssend.__doc__ = MPI.Comm.Ssend.__doc__
 
-    def Send(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0) -> None:
+    def Send(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
         """
         Blocking send
 
@@ -603,12 +668,7 @@ class MPICommunication(Communication):
 
     def __broadcast_like(
         self, func: Callable, buf: Union[DNDarray, torch.Tensor, Any], root: int
-    ) -> Tuple[
-        None,
-        Union[DNDarray, torch.Tensor, None],
-        Union[DNDarray, torch.Tensor, None],
-        Union[DNDarray, torch.Tensor, None],
-    ]:
+    ) -> Tuple[Optional[DNDarray, torch.Tensor]]:
         """
         Generic function for broadcasting a message from the process with rank "root" to all other processes of the
         communicator
@@ -673,12 +733,7 @@ class MPICommunication(Communication):
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         *args,
         **kwargs
-    ) -> Tuple[
-        None,
-        Union[DNDarray, torch.Tensor, None],
-        Union[DNDarray, torch.Tensor, None],
-        Union[DNDarray, torch.Tensor, None],
-    ]:
+    ) -> Tuple[Optional[DNDarray, torch.Tensor]]:
         """
         Generic function for reduction operations.
 
@@ -735,7 +790,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
-    ) -> None:
+    ):
         """
         Combines values from all processes and distributes the result back to all processes
 
@@ -760,7 +815,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
-    ) -> None:
+    ):
         """
         Computes the exclusive scan (partial reductions) of data on a collection of processes
 
@@ -877,7 +932,7 @@ class MPICommunication(Communication):
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
         root: int = 0,
-    ) -> None:
+    ):
         """
         Reduce values from all processes to a single value on process "root"
 
@@ -904,7 +959,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
-    ) -> None:
+    ):
         """
         Computes the scan (partial reductions) of data on a collection of processes in a nonblocking way
 
@@ -1808,70 +1863,6 @@ class MPICommunication(Communication):
         return getattr(self.handle, name)
 
 
-class MPIRequest:
-    """
-    Represents a handle on a non-blocking operation
-
-    Parameters
-    ----------
-    handle: MPI.Communicator
-        Handle for the mpi4py Communicator
-    sendbuf: DNDarray or torch.Tensor or Any
-        The buffer for the data to be send
-    recvbuf: DNDarray or torch.Tensor or Any
-        The buffer to the receive data
-    tensor: torch.Tensor
-        Internal Data
-    permutation: Tuple[int,...]
-        Permutation of the tensor axes
-    """
-
-    def __init__(
-        self,
-        handle,
-        sendbuf: Union[DNDarray, torch.Tensor, Any] = None,
-        recvbuf: Union[DNDarray, torch.Tensor, Any] = None,
-        tensor: torch.Tensor = None,
-        permutation: Tuple[int, ...] = None,
-    ):
-        self.handle = handle
-        self.tensor = tensor
-        self.recvbuf = recvbuf
-        self.sendbuf = sendbuf
-        self.permutation = permutation
-
-    def Wait(self, status: MPI.Status = None):
-        """
-        Waits for an MPI request to complete
-        """
-        self.handle.Wait(status)
-        if (
-            self.tensor is not None
-            and isinstance(self.tensor, torch.Tensor)
-            and self.tensor.is_cuda
-            and not CUDA_AWARE_MPI
-        ):
-            if self.permutation is not None:
-                self.recvbuf = self.recvbuf.permute(self.permutation)
-            self.tensor.copy_(self.recvbuf)
-
-    def __getattr__(self, name: str):
-        """
-        Default pass-through for the communicator methods.
-
-        Parameters
-        ----------
-        name : str
-            The name of the method to be called.
-
-        Returns
-        -------
-        method : function
-            The handle's method
-        """
-        return getattr(self.handle, name)
-
-
 MPI_WORLD = MPICommunication()
 MPI_SELF = MPICommunication(MPI.COMM_SELF)
 
@@ -1927,5 +1918,5 @@ def use_comm(comm: Communication = None):
     __default_comm = sanitize_comm(comm)
 
 
-# tensor is imported at the very end to break circular dependency
+# import at the end of file to break circular dependencies
 from .dndarray import DNDarray

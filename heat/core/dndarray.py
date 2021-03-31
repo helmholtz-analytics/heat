@@ -1,35 +1,18 @@
+"""Provides HeAT's core data structure, the DNDarray, a distributed n-dimensional array"""
 from __future__ import annotations
 
-import numpy as np
 import math
+import numpy as np
 import torch
 import warnings
-from typing import List, Union, Tuple
+
 from inspect import stack
+from mpi4py import MPI
 from pathlib import Path
-
-from . import arithmetics
-from . import complex_math
-from . import exponential
-from . import indexing
-from . import io
-from . import linalg
-from . import logical
-from . import manipulations
-from . import memory
-from . import relational
-from . import rounding
-from . import sanitation
-from . import statistics
-
-from . import trigonometrics
-from . import types
-
-
-# NOTE: heat module imports need to be placed at the very end of the file to avoid cyclic dependencies
-
+from typing import List, Union, Tuple
 warnings.simplefilter("always", ResourceWarning)
 
+# NOTE: heat module imports need to be placed at the very end of the file to avoid cyclic dependencies
 __all__ = ["DNDarray"]
 
 
@@ -1592,14 +1575,18 @@ class DNDarray:
 
 
 # HeAT imports at the end to break cyclic dependencies
+from . import complex_math
 from . import devices
 from . import factories
+from . import linalg
+from . import manipulations
 from . import printing
+from . import rounding
+from . import sanitation
+from . import statistics
 from . import stride_tricks
 from . import tiling
 
 from .devices import Device
-from .types import datatype, canonical_heat_type
-
-from .communication import MPI, Communication
 from .stride_tricks import sanitize_axis
+from .types import datatype, canonical_heat_type

@@ -2,19 +2,14 @@ from __future__ import annotations
 
 import torch
 
-from .communication import MPI
-from .dndarray import DNDarray
 from . import factories
 from . import manipulations
 from . import _operations
 from . import stride_tricks
-from .types import (
-    datatype,
-    heat_type_of,
-    heat_type_is_inexact,
-    heat_type_is_exact,
-    canonical_heat_type,
-)
+
+from .communication import MPI
+from .dndarray import DNDarray
+from .types import canonical_heat_type, heat_type_is_inexact, heat_type_is_exact, heat_type_of
 
 
 __all__ = [
