@@ -1,32 +1,41 @@
+"""
+This module changes the internal memory of an array.
+"""
+
 import torch
 
 from . import sanitation
-from typing import Callable
-
 from .dndarray import DNDarray
 
 __all__ = ["copy", "sanitize_memory_layout"]
 
 
-def copy(a: DNDarray) -> DNDarray:
+def copy(x: DNDarray) -> DNDarray:
     """
-    Return an array copy of the given object.
+    Return a deep copy of the given object.
 
     Parameters
     ----------
-    a : DNDarray
-        Input data to be copied.
+    x : DNDarray
+        Input array to be copied.
 
-    Returns
-    -------
-    copied : ht.DNDarray
-        A copy of the original
+    Examples
+    --------
+    >>> a = ht.array([1,2,3])
+    >>> b = ht.copy(a)
+    >>> b
+    DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
+    >>> a[0] = 4
+    >>> a
+    DNDarray([4, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
+    >>> b
+    DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     """
-    sanitation.sanitize_in(a)
-    return DNDarray(a.larray.clone(), a.shape, a.dtype, a.split, a.device, a.comm, a.balanced)
+    sanitation.sanitize_in(x)
+    return DNDarray(x.larray.clone(), x.shape, x.dtype, x.split, x.device, x.comm, x.balanced)
 
 
-DNDarray.copy: Callable[[DNDarray], DNDarray] = lambda self: copy(self)
+DNDarray.copy = lambda self: copy(self)
 DNDarray.copy.__doc__ = copy.__doc__
 
 
