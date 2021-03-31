@@ -619,6 +619,43 @@ else:
             # because that is on a different process
 
 
+def save_csv(data, path, dataset, mode="w", **kwargs):
+    """
+    Attempts to load data from a file stored on disk. Attempts to auto-detect the file format by determining the
+    extension.
+
+    Parameters
+    ----------
+    path : str
+        Path to the file to be read.
+    args/kwargs : list/dict
+        additional options passed to the particular functions.
+
+    Returns
+    -------
+    out : ht.DNDarray
+        Data read from the file.
+
+    Raises
+    -------
+    ValueError
+        If the file extension is not understood or known.
+    """
+    if not isinstance(data, dndarray.DNDarray):
+        raise TypeError("data must be heat tensor, not {}".format(type(data)))
+    if not isinstance(path, str):
+        raise TypeError("path must be str, not {}".format(type(path)))
+    if not isinstance(dataset, str):
+        raise TypeError("dataset must be str, not {}".format(type(path)))
+    # we only support a subset of possible modes
+    if mode not in __VALID_WRITE_MODES:
+        raise ValueError(
+            "mode was {}, not in possible modes {}".format(mode, __VALID_WRITE_MODES)
+        )
+    np.savetxt(path, [data], delimiter=',', fmt='%d' )
+
+
+
 def load(path, *args, **kwargs):
     """
     Attempts to load data from a file stored on disk. Attempts to auto-detect the file format by determining the
