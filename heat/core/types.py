@@ -438,6 +438,23 @@ def heat_type_is_inexact(ht_dtype: Type[datatype]) -> bool:
     return ht_dtype in _inexact
 
 
+def heat_type_is_complexfloating(ht_dtype: Type[datatype]) -> bool:
+    """
+    Check if HeAT type is a complex floading point number, i.e complex64
+
+    Parameters
+    ----------
+    ht_dtype: ht.dtype
+        HeAT type to check
+
+    Returns
+    -------
+    out: bool
+        True if ht_dtype is a complex float, False otherwise
+    """
+    return ht_dtype in _complexfloating
+
+
 def heat_type_of(
     obj: Union[str, Type[datatype], Any, Iterable[str, Type[datatype], Any]]
 ) -> Type[datatype]:

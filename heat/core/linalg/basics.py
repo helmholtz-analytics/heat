@@ -740,6 +740,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         return c
 
 
+DNDarray.__matmul__ = lambda self, other: matmul(self, other)
+
+
 def norm(a: DNDarray) -> float:
     """
     Return the vector norm (Frobenius norm) of vector ``a``.

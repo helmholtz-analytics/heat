@@ -267,14 +267,14 @@ class TestTypeConversion(TestCase):
 
     def test_issubdtype(self):
         # First level
-        self.assertTrue(ht.issubdtype(ht.bool, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.bool_, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.number, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.integer, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.signedinteger, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.unsignedinteger, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.floating, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.flexible, ht.generic))
+        self.assertTrue(ht.issubdtype(ht.bool, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.bool_, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.number, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.integer, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.signedinteger, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.unsignedinteger, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.floating, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.flexible, ht.datatype))
 
         # Second level
         self.assertTrue(ht.issubdtype(ht.integer, ht.number))

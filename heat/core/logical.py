@@ -7,7 +7,6 @@ from . import factories
 from . import manipulations
 
 from . import _operations
-from . import dndarray
 from . import stride_tricks
 from . import types
 
@@ -198,7 +197,7 @@ def any(
 
 DNDarray.any: Callable[
     [DNDarray, Optional[int], Optional[DNDarray], bool], DNDarray
-] = lambda self, axis=None, out=None, keepdim=False: allclose(self, axis, out, keepdim)
+] = lambda self, axis=None, out=None, keepdim=False: any(self, axis, out, keepdim)
 DNDarray.any.__doc__ = any.__doc__
 
 
