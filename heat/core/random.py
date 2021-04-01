@@ -387,7 +387,7 @@ def rand(
 
     # generate the random sequence
     if dtype == types.float32:
-        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, comm)
+        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, device, comm)
         x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
 
         # combine the values into one tensor and convert them to floats
@@ -395,7 +395,7 @@ def rand(
             lshape
         )
     elif dtype == types.float64:
-        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, comm)
+        x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, device, comm)
         x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
 
         # combine the values into one tensor and convert them to floats
@@ -486,7 +486,7 @@ def randint(
     balanced = True
 
     # generate the random sequence
-    x_0, x_1, lshape, lslice = __counter_sequence(shape, dtype.torch_type(), split, comm)
+    x_0, x_1, lshape, lslice = __counter_sequence(shape, dtype.torch_type(), split, device, comm)
     if torch_dtype is torch.int32:
         x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
     else:  # torch.int64
