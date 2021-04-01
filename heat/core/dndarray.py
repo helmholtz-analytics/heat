@@ -1,39 +1,22 @@
-"""
-Module for the definition of the :class:`DNDarray`, the core datatype of HeAT
-"""
+"""Provides HeAT's core data structure, the DNDarray, a distributed n-dimensional array"""
 from __future__ import annotations
 
-import numpy as np
 import math
+import numpy as np
 import torch
 import warnings
-from typing import List, Union, Tuple
+
 from inspect import stack
+from mpi4py import MPI
 from pathlib import Path
-
-from . import arithmetics
-from . import complex_math
-from . import exponential
-from . import indexing
-from . import io
-from . import linalg
-from . import logical
-from . import manipulations
-from . import memory
-from . import relational
-from . import rounding
-from . import sanitation
-from . import statistics
-
-from . import trigonometrics
-from . import types
-
-
-# NOTE: heat module imports need to be placed at the very end of the file to avoid cyclic dependencies
+from typing import List, Union, Tuple, TypeVar
 
 warnings.simplefilter("always", ResourceWarning)
 
+# NOTE: heat module imports need to be placed at the very end of the file to avoid cyclic dependencies
 __all__ = ["DNDarray"]
+
+Communication = TypeVar("Communication")
 
 
 class LocalIndex:
@@ -104,7 +87,7 @@ class DNDarray:
     @property
     def balanced(self) -> bool:
         """
-        Returns boolean value whether or not the data are evenly distributed across processes.
+        Boolean value indicating if the DNDarray is balanced between the MPI processes
         """
         return self.__balanced
 
@@ -210,7 +193,6 @@ class DNDarray:
         .. deprecated:: 0.5.0
           `numdims` will be removed in HeAT 1.0.0, it is replaced by `ndim` because the latter is numpy API compliant.
         """
-        warnings.warn("numdims is deprecated, use ndim instead", DeprecationWarning)
         return len(self.__gshape)
 
     @property
@@ -1498,14 +1480,18 @@ class DNDarray:
 
 
 # HeAT imports at the end to break cyclic dependencies
+from . import complex_math
 from . import devices
 from . import factories
+from . import linalg
+from . import manipulations
 from . import printing
+from . import rounding
+from . import sanitation
+from . import statistics
 from . import stride_tricks
 from . import tiling
 
 from .devices import Device
-from .types import datatype, canonical_heat_type
-
-from .communication import MPI, Communication
 from .stride_tricks import sanitize_axis
+from .types import datatype, canonical_heat_type

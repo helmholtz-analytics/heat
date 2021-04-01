@@ -1,13 +1,11 @@
-"""
-Provides mixins for high-level algorithms, e.g. classifiers or clustering algorithms.
-"""
+"""Provides mixins for high-level algorithms, e.g. classifiers or clustering algorithms."""
 
 import inspect
 import json
 
 from typing import Dict, List, TypeVar
-from .dndarray import DNDarray
 
+from .dndarray import DNDarray
 
 self = TypeVar("self")
 
@@ -68,7 +66,7 @@ class BaseEstimator:
         """
         return "{}({})".format(self.__class__.__name__, json.dumps(self.get_params(), indent=4))
 
-    def set_params(self, **params) -> self:
+    def set_params(self, **params: Dict[str, object]) -> self:
         """
         Set the parameters of this estimator. The method works on simple estimators as well as on nested objects
         (such as pipelines). The latter have to be nested dictionaries.

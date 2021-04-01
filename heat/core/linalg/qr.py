@@ -177,7 +177,9 @@ def qr(
 
 DNDarray.qr: Callable[
     [DNDarray, Union[int, torch.Tensor], bool, bool], Tuple[DNDarray, DNDarray]
-] = lambda self, tiles_per_proc, calc_q, overwrite_a: qr(self, tiles_per_proc, calc_q, overwrite_a)
+] = lambda self, tiles_per_proc=1, calc_q=True, overwrite_a=False: qr(
+    self, tiles_per_proc, calc_q, overwrite_a
+)
 DNDarray.qr.__doc__ = qr.__doc__
 
 
