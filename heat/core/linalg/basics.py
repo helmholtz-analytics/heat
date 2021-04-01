@@ -1,9 +1,9 @@
 """
-Basic linear algebra operations on distributed ``DNDarray``s.
+Basic linear algebra operations on distributed ``DNDarray``
 """
 import itertools
 import torch
-from typing import List, Callable, Union
+from typing import List, Callable, Union, Optional
 
 from ..communication import MPI
 from .. import arithmetics
@@ -17,9 +17,9 @@ from .. import types
 __all__ = ["dot", "matmul", "norm", "outer", "projection", "transpose", "tril", "triu"]
 
 
-def dot(a: DNDarray, b: DNDarray, out: DNDarray = None) -> Union[DNDarray, float]:
+def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDarray, float]:
     """
-    Returns the dot product of two ``DNDarray``s.
+    Returns the dot product of two ``DNDarrays``.
     Specifically,
 
         1. If both a and b are 1-D arrays, it is inner product of vectors.
@@ -73,7 +73,7 @@ def dot(a: DNDarray, b: DNDarray, out: DNDarray = None) -> Union[DNDarray, float
 
 
 def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
-    r"""
+    """
     Matrix multiplication of two ``DNDarrays``: ``a@b=c`` or ``A@B=c``.
     Returns a tensor with the result of ``a@b``. The split dimension of the returned array is
     typically the split dimension of a. However, if ``a.split=None`` then the the ``c.split`` will be
@@ -86,14 +86,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     b : DNDarray
         2 dimensional: :math:`P \\times Q`
     allow_resplit : bool, optional
-        Flag for if to resplit the DNDarray ``a`` in the case that both ``a`` and ``b`` are not split.
-
-        - Default: if both are not split then both will remain not split.
-
-        - True: if both are not split then ``a``  will be split in-place along axis 0, i.e. the split axis of ``a``  will
-            become 0 and the ``DNDarray`` will be distributed in the standard fashion.
-
-        - The default case should be the most efficient case for large matrices.
+        Whether to distribute ``a`` in the case that both ``a.split is None`` and ``b.split is None``.
+        Default is ``False``. If ``True``, if both are not split then ``a`` will be distributed in-place along axis 0.
 
     Notes
     -----
@@ -113,7 +107,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     -------
     >>> a = ht.ones((n, m), split=1)
     >>> a[0] = ht.arange(1, m + 1)
-    >>> a[:, -1] = ht.arange(1, n + 1)._DNDarray__array
+    >>> a[:, -1] = ht.arange(1, n + 1).larray
     [0/1] tensor([[1., 2.],
                   [1., 1.],
                   [1., 1.],
@@ -126,12 +120,12 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                   [1., 5.]])
     >>> b = ht.ones((j, k), split=0)
     >>> b[0] = ht.arange(1, k + 1)
-    >>> b[:, 0] = ht.arange(1, j + 1)._DNDarray__array
+    >>> b[:, 0] = ht.arange(1, j + 1).larray
     [0/1] tensor([[1., 2., 3., 4., 5., 6., 7.],
                   [2., 1., 1., 1., 1., 1., 1.]])
     [1/1] tensor([[3., 1., 1., 1., 1., 1., 1.],
                   [4., 1., 1., 1., 1., 1., 1.]])
-    >>> linalg.matmul(a, b)._DNDarray__array
+    >>> linalg.matmul(a, b).larray
     [0/1] tensor([[18.,  8.,  9., 10.],
                   [14.,  6.,  7.,  8.],
                   [18.,  7.,  8.,  9.],
@@ -746,6 +740,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         return c
 
 
+DNDarray.__matmul__ = lambda self, other: matmul(self, other)
+
+
 def norm(a: DNDarray) -> float:
     """
     Return the vector norm (Frobenius norm) of vector ``a``.
@@ -770,55 +767,58 @@ DNDarray.norm: Callable[[DNDarray], float] = lambda self: norm(self)
 DNDarray.norm.__doc__ = norm.__doc__
 
 
-def outer(a: DNDarray, b: DNDarray, out: DNDarray = None, split: int = None) -> DNDarray:
-    r"""
-    Compute the outer product of two 1-D DNDarrays: out[i, j] = a[i] * b[j].
+def outer(
+    a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None, split: Optional[int] = None
+) -> DNDarray:
+    """
+    Compute the outer product of two 1-D DNDarrays: :math:`out(i, j) = a(i) \\times b(j)`.
     Given two vectors, :math:`a = (a_0, a_1, ..., a_N)` and :math:`b = (b_0, b_1, ..., b_M)`, the outer product is:
 
     .. math::
         :nowrap:
 
         \\begin{pmatrix}
-           a_0 \\cdot b_0  & a_0 \\cdot b_1 & . & . &  a_0 \\cdot b_M \\
-           a_1 \\cdot b_0 & a_1 \\cdot b_1 & . & . & a_1 \\cdot b_M \\
-           . & . & . & . & .   \\
+           a_0 \\cdot b_0  & a_0 \\cdot b_1 & . & . &  a_0 \\cdot b_M \\\\
+           a_1 \\cdot b_0 & a_1 \\cdot b_1 & . & . & a_1 \\cdot b_M \\\\
+           . & . & . & . & .   \\\\
            a_N \\cdot b_0 & a_N \\cdot b_1 & . & . & a_N \\cdot b_M
         \\end{pmatrix}
 
     Parameters
     ----------
     a : DNDarray
-        1-dimensional: :math: `N`
+        1-dimensional: :math:`N`
         Will be flattened by default if more than 1-D.
     b : DNDarray
-        1-dimensional: :math: `M`
+        1-dimensional: :math:`M`
         Will be flattened by default if more than 1-D.
     out : DNDarray, optional
-          2-dimensional: :math: `N \\times M`
+          2-dimensional: :math:`N \\times M`
           A location where the result is stored
     split : int, optional
             Split dimension of the resulting DNDarray. Can be 0, 1, or None.
-            This is only relevant if the calculations are memory-distributed,
-            in which case default is ``split=0`` (see Note).
+            This is only relevant if the calculations are memory-distributed.
+            Default is ``split=0`` (see Notes).
 
     Notes
     -----
-    Parallel implementation of outer product, arrays are dense.
-    In the classical (dense) case, one DNDarray stays put, the other one is passed around the ranks in
-    ring communication. The slice-by-slice outer product is calculated locally (here via torch.einsum()).
-    N.B.:
-    * If ``b`` is sent around, the resulting outer product is split along the rows dimension (``split = 0``).\n
-    * If ``a`` is sent around, the resulting outer product is split along the columns (``split = 1``).\n
-    So if ``split`` is not None, ``split`` defines which DNDarray stays put and which one is passed around. No
-    communication is needed beyond ring communication of one of the DNDarrays.
-    If ``split`` is None or unspecified, the result will be distributed along axis 0, i.e. by default ``b`` is
+    Parallel implementation of outer product, assumes arrays are dense.
+    In the classical (dense) case, one of the two arrays needs to be communicated around the processes in
+    a ring.
+
+    * Sending ``b`` around in a ring results in ``outer`` being split along the rows (``outer.split = 0``).\n
+
+    * Sending ``a`` around in a ring results in ``outer`` being split along the columns (``outer.split = 1``).\n
+
+    So, if specified, ``split`` defines which ``DNDarray`` stays put and which one is passed around.
+    If ``split`` is ``None`` or unspecified, the result will be distributed along axis ``0``, i.e. by default ``b`` is
     passed around, ``a`` stays put.
 
     Examples
     --------
     >>> a = ht.arange(4)
     >>> b = ht.arange(3)
-    >>> ht.outer(a, b)._DNDarray__array
+    >>> ht.outer(a, b).larray
     (3 processes)
     [0/2]   tensor([[0, 0, 0],
                     [0, 1, 2],
@@ -834,12 +834,12 @@ def outer(a: DNDarray, b: DNDarray, out: DNDarray = None, split: int = None) -> 
                     [0, 3, 6]], dtype=torch.int32)
     >>> a = ht.arange(4, split=0)
     >>> b = ht.arange(3, split=0)
-    >>> ht.outer(a, b)._DNDarray__array
+    >>> ht.outer(a, b).larray
     [0/2]   tensor([[0, 0, 0],
                     [0, 1, 2]], dtype=torch.int32)
     [1/2]   tensor([[0, 2, 4]], dtype=torch.int32)
     [2/2]   tensor([[0, 3, 6]], dtype=torch.int32)
-    >>> ht.outer(a, b, split=1)._DNDarray__array
+    >>> ht.outer(a, b, split=1).larray
     [0/2]   tensor([[0],
                     [0],
                     [0],
@@ -856,7 +856,7 @@ def outer(a: DNDarray, b: DNDarray, out: DNDarray = None, split: int = None) -> 
     >>> b = ht.arange(4, dtype=ht.float64, split=0)
     >>> out = ht.empty((5,4), dtype=ht.float64, split=1)
     >>> ht.outer(a, b, split=1, out=out)
-    >>> out._DNDarray__array
+    >>> out.larray
     [0/2]   tensor([[0., 0.],
                     [0., 1.],
                     [0., 2.],
@@ -907,7 +907,7 @@ def outer(a: DNDarray, b: DNDarray, out: DNDarray = None, split: int = None) -> 
 
     if out is not None:
         sanitation.sanitize_out(out, outer_gshape, split, device)
-        t_out_dtype = out._DNDarray__array.dtype
+        t_out_dtype = out.larray.dtype
 
     # distributed outer product, dense arrays (TODO: sparse, #384)
     if a.comm.is_distributed() and split is not None or a.split is not None or b.split is not None:
@@ -1110,7 +1110,7 @@ def __mm_c_block_setter(
                     c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
 
 
-def transpose(a: DNDarray, axes: List[int] = None) -> DNDarray:
+def transpose(a: DNDarray, axes: Optional[List[int]] = None) -> DNDarray:
     """
     Permute the dimensions of an array.
 
