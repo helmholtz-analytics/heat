@@ -44,6 +44,7 @@ extensions = [
     "sphinx.ext.inheritance_diagram",
     "sphinx_rtd_theme",
     "sphinx.ext.napoleon",
+    "sphinx.ext.mathjax",
 ]
 
 

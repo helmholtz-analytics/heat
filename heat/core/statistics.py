@@ -1,6 +1,9 @@
+"""
+Distributed statistical operations.
+"""
 import numpy as np
 import torch
-from typing import Any, Callable, Union, Tuple, List
+from typing import Any, Callable, Union, Tuple, List, Optional
 
 from .communication import MPI
 from . import arithmetics
@@ -38,7 +41,9 @@ __all__ = [
 ]
 
 
-def argmax(x: DNDarray, axis: int = None, out: DNDarray = None, **kwargs: object) -> DNDarray:
+def argmax(
+    x: DNDarray, axis: Optional[int] = None, out: Optional[DNDarray] = None, **kwargs: object
+) -> DNDarray:
     """
     Returns an array of the indices of the maximum values along an axis. It has the same shape as ``x.shape`` with the
     dimension along axis removed.
@@ -112,7 +117,9 @@ DNDarray.argmax: Callable[
 DNDarray.argmax.__doc__ = argmax.__doc__
 
 
-def argmin(x: DNDarray, axis: int = None, out: DNDarray = None, **kwargs: object) -> DNDarray:
+def argmin(
+    x: DNDarray, axis: Optional[int] = None, out: Optional[DNDarray] = None, **kwargs: object
+) -> DNDarray:
     """
     Returns an array of the indices of the minimum values along an axis. It has the same shape as ``x.shape`` with the
     dimension along axis removed.
@@ -125,7 +132,6 @@ def argmin(x: DNDarray, axis: int = None, out: DNDarray = None, **kwargs: object
         By default, the index is into the flattened array, otherwise along the specified axis.
     out : DNDarray, optional
         Issue #100 If provided, the result will be inserted into this array. It should be of the appropriate shape and dtype.
-
 
     Examples
     --------
@@ -190,8 +196,8 @@ DNDarray.argmin.__doc__ = argmin.__doc__
 
 def average(
     x: DNDarray,
-    axis: Union[int, Tuple[int, ...]] = None,
-    weights: DNDarray = None,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    weights: Optional[DNDarray] = None,
     returned: bool = False,
 ) -> Union[DNDarray, Tuple[DNDarray, ...]]:
     """
@@ -253,7 +259,6 @@ def average(
         ...
     TypeError: Axis must be specified when shapes of x and weights differ.
     """
-
     # perform sanitation
     if not isinstance(x, DNDarray):
         raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
@@ -323,9 +328,10 @@ DNDarray.average: Callable[
 DNDarray.average.__doc__ = average.__doc__
 
 
-def bincount(x, weights=None, minlength: int = 0):
+def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0) -> DNDarray:
     """
-    Count number of occurrences of each value in array of non-negative ints.
+    Count number of occurrences of each value in array of non-negative ints. Return a
+    non-distributed ``DNDarray`` of length `max(x) + 1` if input is non-empty, else 0.
 
     The number of bins (size 1) is one larger than the largest value in `x`
     unless `x` is empty, in which case the result is a tensor of size 0.
@@ -335,16 +341,12 @@ def bincount(x, weights=None, minlength: int = 0):
 
     Parameters
     ----------
-    x : DNDarray, 1 dimensional, non-negative ints
+    x : DNDarray
+        1-dimensional, non-negative ints
     weights : DNDarray, optional
         Weight for each value in the input tensor. Array of the same shape as x. Same split as `x`.
     minlength : int, non-negative, optional
         Minimum number of bins
-
-    Returns
-    -------
-    out : DNDArray
-        An array of length `max(x) + 1` if input is non-empty, else 0. The array's `split=None`.
 
     Examples
     --------
@@ -389,7 +391,13 @@ def bincount(x, weights=None, minlength: int = 0):
     return factories.array(data, dtype=types.heat_type_of(data), device=x.device)
 
 
-def cov(m, y=None, rowvar=True, bias=False, ddof=None):
+def cov(
+    m: DNDarray,
+    y: Optional[DNDarray] = None,
+    rowvar: bool = True,
+    bias: bool = False,
+    ddof: Optional[int] = None,
+) -> DNDarray:
     """
     Estimate the covariance matrix of some data, m. For more imformation on the algorithm please see the numpy function of the same name
 
@@ -458,9 +466,11 @@ def cov(m, y=None, rowvar=True, bias=False, ddof=None):
     return c
 
 
-def histc(input, bins: int = 100, min: int = 0, max: int = 0, out=None):
+def histc(
+    input: DNDarray, bins: int = 100, min: int = 0, max: int = 0, out: Optional[DNDarray] = None
+) -> DNDarray:
     """
-    Compute the histogram of a DNDarray.
+    Return the histogram of a DNDarray.
 
     The elements are sorted into equal width bins between min and max.
     If min and max are both equal, the minimum and maximum values of the data are used.
@@ -479,11 +489,6 @@ def histc(input, bins: int = 100, min: int = 0, max: int = 0, out=None):
     out   : DNDarray, optional
             the output tensor, same dtype as input
 
-    Returns
-    -------
-    out : DNDarray
-          the histogram of the input array
-
     Examples
     --------
     >>> ht.histc(ht.array([1., 2, 1]), bins=4, min=0, max=3)
@@ -491,7 +496,6 @@ def histc(input, bins: int = 100, min: int = 0, max: int = 0, out=None):
     >>> ht.histc(ht.arange(10, dtype=ht.float64, split=0), bins=10)
     DNDarray([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.], dtype=ht.float64, device=cpu:0, split=None)
     """
-
     if min == max:
         min = float(input.min())
         max = float(input.max())
@@ -520,8 +524,13 @@ def histc(input, bins: int = 100, min: int = 0, max: int = 0, out=None):
 
 
 def histogram(
-    a, bins: int = 10, range: Tuple[int, int] = (0, 0), normed=None, weights=None, density=None
-):
+    a: DNDarray,
+    bins: int = 10,
+    range: Tuple[int, int] = (0, 0),
+    normed: Optional[bool] = None,
+    weights: Optional[DNDarray] = None,
+    density: Optional[bool] = None,
+) -> DNDarray:
     """
     Compute the histogram of a DNDarray.
 
@@ -533,22 +542,20 @@ def histogram(
               number of histogram bins
     range   : Tuple[int,int], optional
               lower and upper end of the bins. If not provided, range is simply (a.min(), a.max()).
-    normed  : Not supported
-    weights : Not supported
-    density : Not supported
-
-    Returns
-    -------
-    hist : DNDarray
-           The values of the histogram.
+    normed  : bool, optional
+              Deprecated since NumPy version 1.6. TODO: remove.
+    weights : DNDarray, optional
+              array of weights. Not implemented yet.
+    density : bool, optional
+              Not implemented yet.
 
     Notes
     -----
-    This is a wrapper function of :function:`~heat.core.statistics.histc` for some basic compatibility with the NumPy API.
+    This is a wrapper function of :func:`histc` for some basic compatibility with the NumPy API.
 
     See Also
     --------
-    :function:`~heat.core.statistics.histc`
+    :func:`histc`
     """
     # TODO: Rewrite to make it a proper implementation of the NumPy function
 
@@ -565,7 +572,7 @@ def histogram(
 
 
 def kurtosis(
-    x: DNDarray, axis: int = None, unbiased: bool = True, Fischer: bool = True
+    x: DNDarray, axis: Optional[int] = None, unbiased: bool = True, Fischer: bool = True
 ) -> DNDarray:
     """
     Compute the kurtosis (Fisher or Pearson) of a dataset.
@@ -621,9 +628,9 @@ DNDarray.kurtosis.__doc__ = average.__doc__
 
 def max(
     x: DNDarray,
-    axis: Union[int, Tuple[int, ...]] = None,
-    out: DNDarray = None,
-    keepdim: bool = None,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    out: Optional[DNDarray] = None,
+    keepdim: Optional[bool] = None,
 ) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
@@ -681,7 +688,7 @@ DNDarray.max: Callable[
 DNDarray.max.__doc__ = max.__doc__
 
 
-def maximum(x1: DNDarray, x2: DNDarray, out: DNDarray = None) -> DNDarray:
+def maximum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Compares two ``DNDarrays`` and returns a new :class:`~heat.core.dndarray.DNDarray` containing the element-wise maxima.
     The ``DNDarrays`` must have the same shape, or shapes that can be broadcast to a single shape.
@@ -731,11 +738,10 @@ def maximum(x1: DNDarray, x2: DNDarray, out: DNDarray = None) -> DNDarray:
     >>> ht.maximum(a, d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
-
     return _operations.__binary_op(torch.max, x1, x2, out)
 
 
-def mean(x: DNDarray, axis: Union[int, List, Tuple] = None) -> DNDarray:
+def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DNDarray:
     """
     Calculates and returns the mean of a ``DNDarray``.
     If an axis is given, the mean will be taken in that direction.
@@ -855,7 +861,7 @@ DNDarray.mean: Callable[[DNDarray, Union[int, List, Tuple]], DNDarray] = lambda 
 DNDarray.mean.__doc__ = mean.__doc__
 
 
-def median(x: DNDarray, axis: int = None, keepdim: bool = False) -> DNDarray:
+def median(x: DNDarray, axis: Optional[int] = None, keepdim: bool = False) -> DNDarray:
     """
     Compute the median of the data along the specified axis.
     Returns the median of the ``DNDarray`` elements.
@@ -954,9 +960,9 @@ def __merge_moments(
 
 def min(
     x: DNDarray,
-    axis: Union[int, Tuple[int, ...]] = None,
-    out: DNDarray = None,
-    keepdim: bool = None,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    out: Optional[DNDarray] = None,
+    keepdim: Optional[bool] = None,
 ) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
@@ -1015,7 +1021,7 @@ DNDarray.min: Callable[
 DNDarray.min.__doc__ = min.__doc__
 
 
-def minimum(x1: DNDarray, x2: DNDarray, out: DNDarray = None) -> DNDarray:
+def minimum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Compares two ``DNDarrays`` and returns a new :class:`~heat.core.dndarray.DNDarray`  containing the element-wise minima.
     If one of the elements being compared is ``NaN``, then that element is returned. They must have the same shape,
@@ -1063,17 +1069,16 @@ def minimum(x1: DNDarray, x2: DNDarray, out: DNDarray = None) -> DNDarray:
     >>> ht.minimum(a,d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
     """
-
     return _operations.__binary_op(torch.min, x1, x2, out)
 
 
 def __moment_w_axis(
     function: Callable,
     x: DNDarray,
-    axis: Union[None, int, list, tuple],
+    axis: Optional[Union[int, Tuple[int, ...]]],
     elementwise_function: Callable,
-    unbiased: bool = None,
-    Fischer: bool = None,
+    unbiased: Optional[bool] = None,
+    Fischer: Optional[bool] = None,
 ) -> DNDarray:
     """
     Helper function for calculating a statistical moment along a given axis.
@@ -1093,7 +1098,6 @@ def __moment_w_axis(
     Fischer : bool
         if the Fischer correction is to be applied (only used in skew and Kurtosis)
     """
-
     # helper for calculating a statistical moment with a given axis
     kwargs = {"dim": axis}
     if unbiased:
@@ -1155,7 +1159,7 @@ def __moment_w_axis(
     )
 
 
-def mpi_argmax(a: str, b: str, _: Any):
+def mpi_argmax(a: str, b: str, _: Any) -> torch.Tensor:
     """
     Create the MPI function for doing argmax, for more info see :func:`argmax <argmax>`
 
@@ -1191,7 +1195,7 @@ def mpi_argmax(a: str, b: str, _: Any):
 MPI_ARGMAX = MPI.Op.Create(mpi_argmax, commute=True)
 
 
-def mpi_argmin(a: str, b: str, _: Any):
+def mpi_argmin(a: str, b: str, _: Any) -> torch.Tensor:
     """
     Create the MPI function for doing argmin, for more info see :func:`argmin <argmin>`
 
@@ -1227,14 +1231,14 @@ MPI_ARGMIN = MPI.Op.Create(mpi_argmin, commute=True)
 
 
 def percentile(
-    x,
-    q,
-    axis: int = None,
-    out: DNDarray = None,
+    x: DNDarray,
+    q: Union[DNDarray, int, float, Tuple, List],
+    axis: Optional[int] = None,
+    out: Optional[DNDarray] = None,
     interpolation: str = "linear",
     keepdim: bool = False,
 ) -> DNDarray:
-    """
+    r"""
     Compute the q-th percentile of the data along the specified axis.
     Returns the q-th percentile(s) of the tensor elements.
 
@@ -1254,11 +1258,16 @@ def percentile(
     interpolation : str, optional
         Interpolation method to use when the desired percentile lies between two data points :math: `i < j`.
         Can be one of:
-        ‘linear’: :math: `i + (j - i) \\cdot fraction`, where fraction is the fractional part of the index surrounded by i and j.
-        ‘lower’: i.
-        ‘higher’: j.
-        ‘nearest’: i or j, whichever is nearest.
-        ‘midpoint’: :math: `(i + j) / 2`.
+
+        - ‘linear’: :math:`i + (j - i) \\cdot fraction`, where `fraction` is the fractional part of the index surrounded by `i` and `j`.
+
+        - ‘lower’: `i`.
+
+        - ‘higher’: `j`.
+
+        - ‘nearest’: `i` or `j`, whichever is nearest.
+
+        - ‘midpoint’: :math:`(i + j) / 2`.
 
     keepdim : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
@@ -1568,7 +1577,7 @@ def __torch_skew(
     torch_tensor: torch.Tensor, dim: int = None, unbiased: bool = False
 ) -> torch.Tensor:
     """
-    calculate the sample skewness of a torch tensor
+    Calculate the sample skewness of a torch tensor
     return the bias corrected Fischer-Pearson standardized moment coefficient by default
 
     Parameters
@@ -1601,7 +1610,7 @@ def __torch_kurtosis(
     torch_tensor: torch.Tensor, dim: int = None, Fischer: bool = True, unbiased: bool = False
 ) -> torch.Tensor:
     """
-    calculate the sample kurtosis of a dataset
+    Calculate the sample kurtosis of a dataset
     default is unbiased and with the Fischer correction
 
     Parameters
@@ -1694,7 +1703,6 @@ def var(
     >>> ht.var(a, 0, ddof=0)
     tensor([1.0218, 2.4422, 0.1085, 0.9032])
     """
-
     if not isinstance(ddof, int):
         raise TypeError(f"ddof must be integer, is {type(ddof)}")
     elif ddof > 1:
@@ -1718,7 +1726,6 @@ def var(
         output_shape_i : iterable
             Iterable with the dimensions of the output of the var function.
         """
-
         if x.lshape[x.split] != 0:
             mu = torch.mean(x.larray, dim=axis)
             var = torch.var(x.larray, dim=axis, unbiased=unbiased)
