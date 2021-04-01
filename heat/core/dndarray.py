@@ -10,6 +10,7 @@ from inspect import stack
 from mpi4py import MPI
 from pathlib import Path
 from typing import List, Union, Tuple
+
 warnings.simplefilter("always", ResourceWarning)
 
 # NOTE: heat module imports need to be placed at the very end of the file to avoid cyclic dependencies
@@ -74,6 +75,9 @@ class DNDarray:
 
     @property
     def balanced(self):
+        """
+        Boolean value indicating if the DNDarray is balanced between the MPI processes
+        """
         return self.__balanced
 
     @property
@@ -99,6 +103,9 @@ class DNDarray:
 
     @property
     def gshape(self):
+        """
+        Tuple containing the global shape of the DNDarray. This should be the same on every process
+        """
         return self.__gshape
 
     @property
@@ -173,7 +180,6 @@ class DNDarray:
         .. deprecated:: 0.5.0
           `numdims` will be removed in HeAT 1.0.0, it is replaced by `ndim` because the latter is numpy API compliant.
         """
-        warnings.warn("numdims is deprecated, use ndim instead", DeprecationWarning)
         return len(self.__gshape)
 
     @property
