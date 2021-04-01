@@ -268,6 +268,7 @@ def average(
         cumwgt = factories.empty(1, dtype=result.dtype)
         cumwgt.larray = torch.tensor(num_elements)
     else:
+        print("top of average", weights.lshape)
         # Weights sanitation:
         # weights (global) is either same size as x (global), or it is 1D and same size as x along chosen axis
         if x.gshape != weights.gshape:
@@ -283,6 +284,7 @@ def average(
             wgt_lshape = tuple(
                 weights.lshape[0] if dim == axis else 1 for dim in list(range(x.ndim))
             )
+            print("h", wgt_lshape)
             wgt_slice = [slice(None) if dim == axis else 0 for dim in list(range(x.ndim))]
             wgt_split = None if weights.split is None else axis
             wgt = torch.empty(
@@ -297,12 +299,13 @@ def average(
                     raise NotImplementedError(
                         "weights.split does not match data.split: not implemented yet."
                     )
+            print("in non matching weight loop")
             wgt = factories.empty_like(weights, device=x.device)
             wgt.larray = weights.larray
-
         cumwgt = wgt.sum(axis=axis)
         if logical.any(cumwgt == 0.0):
             raise ZeroDivisionError("Weights sum to zero, can't be normalized")
+        print(x.shape, wgt.shape, axis, cumwgt.gshape)
 
         result = (x * wgt).sum(axis=axis) / cumwgt
 

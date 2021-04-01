@@ -173,6 +173,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # TODO:Issue #351 allow weighted average across multiple axes
         if sample_weight is not None:
             n_new = float(sample_weight.sum())
+            print("in GNB update fn, weight shape:", sample_weight.lshape)
             new_mu = ht.average(x, axis=0, weights=sample_weight)
             new_var = ht.average((x - new_mu) ** 2, axis=0, weights=sample_weight)
         else:
@@ -364,6 +365,9 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             else:
                 sw_i = None
                 N_i = X_i.shape[0]
+            print(y_i)
+            if isinstance(sw_i, DNDarray):
+                print("here", sw_i.shape)
             new_theta, new_sigma = self.__update_mean_variance(
                 self.class_count_[i], self.theta_[i, :], self.sigma_[i, :], X_i, sw_i
             )

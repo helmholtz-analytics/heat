@@ -6,7 +6,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 import warnings
-from typing import Object, Union, Sequence, List, Tuple
+from typing import Any, Union, Sequence, List, Tuple
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -27,13 +27,13 @@ __all__ = [
 ]
 
 
-def sanitize_in(x: Object):
+def sanitize_in(x: Any):
     """
     Verify that input object is ``DNDarray``.
 
     Parameters
     ----------
-    x : Object
+    x : Any
         Input object
 
     Raises
@@ -68,13 +68,13 @@ def sanitize_infinity(x: Union[DNDarray, torch.Tensor]) -> Union[int, float]:
     return largest
 
 
-def sanitize_in_tensor(x: Object):
+def sanitize_in_tensor(x: Any):
     """
     Verify that input object is ``torch.Tensor``.
 
     Parameters
     ----------
-    x : Object
+    x : Any
         Input object.
 
     Raises
@@ -132,13 +132,13 @@ def sanitize_lshape(array: DNDarray, tensor: torch.Tensor):
     )
 
 
-def sanitize_out(out: Object, output_shape: Tuple, output_split: int, output_device: str):
+def sanitize_out(out: Any, output_shape: Tuple, output_split: int, output_device: str):
     """
     Validate output buffer ``out``.
 
     Parameters
     ----------
-    out : Object
+    out : Any
           the `out` buffer where the result of some operation will be stored
 
     output_shape : Tuple
