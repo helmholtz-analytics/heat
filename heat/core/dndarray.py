@@ -9,12 +9,14 @@ import warnings
 from inspect import stack
 from mpi4py import MPI
 from pathlib import Path
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, TypeVar
 
 warnings.simplefilter("always", ResourceWarning)
 
 # NOTE: heat module imports need to be placed at the very end of the file to avoid cyclic dependencies
 __all__ = ["DNDarray"]
+
+Communication = TypeVar("Communication")
 
 
 class LocalIndex:
@@ -42,7 +44,7 @@ class DNDarray:
     ----------
     array : torch.Tensor
         Local array elements
-    gshape : tuple
+    gshape : Tuple[int,...]
         The global shape of the array
     dtype : datatype
         The datatype of the array
@@ -54,11 +56,20 @@ class DNDarray:
         The communications object for sending and receiving data
     balanced: bool or None
         Describes whether the data are evenly distributed across processes.
-        If this information is not available (`self.balanced is None`), it
-        can be gathered via the `is_distributed()` method (requires communication).
+        If this information is not available (``self.balanced is None``), it
+        can be gathered via the :func:`is_distributed()` method (requires communication).
     """
 
-    def __init__(self, array, gshape, dtype, split, device, comm, balanced):
+    def __init__(
+        self,
+        array: DNDarray,
+        gshape: Tuple[int, ...],
+        dtype: datatype,
+        split: int,
+        device: Device,
+        comm: Communication,
+        balanced: bool,
+    ):
         self.__array = array
         self.__gshape = gshape
         self.__dtype = dtype
@@ -74,69 +85,74 @@ class DNDarray:
         assert str(array.device) == device.torch_device
 
     @property
-    def balanced(self):
+    def balanced(self) -> bool:
         """
         Boolean value indicating if the DNDarray is balanced between the MPI processes
         """
         return self.__balanced
 
     @property
-    def comm(self):
+    def comm(self) -> Communication:
         """
         The :class:`~heat.core.communication.Communication` of the ``DNDarray``
         """
         return self.__comm
 
     @property
-    def device(self):
+    def device(self) -> Device:
         """
         The :class:`~heat.core.devices.Device` of the ``DNDarray``
         """
         return self.__device
 
     @property
-    def dtype(self):
+    def dtype(self) -> datatype:
         """
         The :class:`~heat.core.types.datatype` of the ``DNDarray``
         """
         return self.__dtype
 
     @property
-    def gshape(self):
+    def gshape(self) -> Tuple:
         """
-        Tuple containing the global shape of the DNDarray. This should be the same on every process
+        Returns the global shape of the ``DNDarray`` across all processes
         """
         return self.__gshape
 
     @property
-    def halo_next(self):
+    def halo_next(self) -> torch.Tensor:
+        """
+        Returns the halo of the next process
+        """
         return self.__halo_next
 
     @property
-    def halo_prev(self):
+    def halo_prev(self) -> torch.Tensor:
+        """
+        Returns the halo of the previous process
+        """
         return self.__halo_prev
 
     @property
-    def larray(self):
+    def larray(self) -> torch.Tensor:
         """
-        Returns
-        -------
-        larray : torch.Tensor
-                the underlying local torch tensor of the DNDarray
+        Returns the underlying process-local ``torch.Tensor`` of the ``DNDarray``
         """
         return self.__array
 
     @larray.setter
-    def larray(self, array):
+    def larray(self, array: torch.Tensor):
         """
-        Setter for larray/ the underlying local torch tensor of the DNDarray.
-        Warning: Please use this function with care, as it might corrupt/invalidate the metadata in the
-        DNDarray instance.
+        Setter for ``self.larray``, the underlying local ``torch.Tensor`` of the ``DNDarray``.
 
         Parameters
         ----------
-        array : torch.tensor
-            The new underlying local torch tensor of the DNDarray
+        array : torch.Tensor
+            The new underlying local ``torch.tensor`` of the ``DNDarray``
+
+        Warning
+        -----------
+        Please use this function with care, as it might corrupt/invalidate the metadata in the ``DNDarray`` instance.
         """
         # sanitize tensor input
         sanitation.sanitize_in_tensor(array)
@@ -159,15 +175,13 @@ class DNDarray:
         self.__array = array
 
     @property
-    def nbytes(self):
+    def nbytes(self) -> int:
         """
-        Equivalent to property gnbytes.
-        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
+        Returns the number of bytes consumed by the global tensor. Equivalent to property gnbytes.
 
-        Returns
-        -------
-        global_number_of_bytes : int
-            number of bytes consumed by the global tensor
+        Note
+        ------------
+            Does not include memory consumed by non-element attributes of the ``DNDarray`` object.
         """
         return self.__array.element_size() * self.size
 
@@ -175,7 +189,6 @@ class DNDarray:
     def ndim(self) -> int:
         """
         Number of dimensions of the ``DNDarray``
-
 
         .. deprecated:: 0.5.0
           `numdims` will be removed in HeAT 1.0.0, it is replaced by `ndim` because the latter is numpy API compliant.
@@ -190,44 +203,38 @@ class DNDarray:
         return torch.prod(torch.tensor(self.gshape, device=self.device.torch_device)).item()
 
     @property
-    def gnbytes(self):
+    def gnbytes(self) -> int:
         """
-        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
+        Returns the number of bytes consumed by the global ``DNDarray``
 
-        Returns
-        -------
-        global_number_of_bytes : int
-            number of bytes consumed by the global tensor
+        Note
+        -----------
+            Does not include memory consumed by non-element attributes of the ``DNDarray`` object.
         """
         return self.nbytes
 
     @property
-    def gnumel(self):
+    def gnumel(self) -> int:
         """
-
-        Returns
-        -------
-        global_shape : int
-            number of total elements of the tensor
+        Returns the number of total elements of the ``DNDarray``
         """
         return self.size
 
     @property
-    def imag(self):
+    def imag(self) -> DNDarray:
         """
-        Return the imaginary part of the DNDarray.
+        Return the imaginary part of the ``DNDarray``.
         """
         return complex_math.imag(self)
 
     @property
-    def lnbytes(self):
+    def lnbytes(self) -> int:
         """
-        Note: Does not include memory consumed by non-element attributes of the DNDarray object.
+        Returns the number of bytes consumed by the local ``torch.Tensor``
 
-        Returns
-        -------
-        local_number_of_bytes : int
-            number of bytes consumed by the local tensor
+        Note
+        -------------------
+            Does not include memory consumed by non-element attributes of the ``DNDarray`` object.
         """
         return self.__array.element_size() * self.__array.nelement()
 
@@ -256,19 +263,19 @@ class DNDarray:
         Examples
         --------
         >>> a = ht.zeros((4, 5), split=0)
-        (1/2) tensor([[0., 0., 0., 0., 0.],
-                      [0., 0., 0., 0., 0.]])
-        (2/2) tensor([[0., 0., 0., 0., 0.],
-                      [0., 0., 0., 0., 0.]])
+        DNDarray([[0., 0., 0., 0., 0.],
+                  [0., 0., 0., 0., 0.],
+                  [0., 0., 0., 0., 0.],
+                  [0., 0., 0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=0)
         >>> a.lloc[1, 0:4]
         (1/2) tensor([0., 0., 0., 0.])
         (2/2) tensor([0., 0., 0., 0.])
         >>> a.lloc[1, 0:4] = torch.arange(1, 5)
         >>> a
-        (1/2) tensor([[0., 0., 0., 0., 0.],
-                      [1., 2., 3., 4., 0.]])
-        (2/2) tensor([[0., 0., 0., 0., 0.],
-                      [1., 2., 3., 4., 0.]])
+        DNDarray([[0., 0., 0., 0., 0.],
+                  [1., 2., 3., 4., 0.],
+                  [0., 0., 0., 0., 0.],
+                  [1., 2., 3., 4., 0.]], dtype=ht.float32, device=cpu:0, split=0)
         """
         return LocalIndex(self.__array)
 
@@ -280,9 +287,9 @@ class DNDarray:
         return tuple(self.__array.shape)
 
     @property
-    def real(self):
+    def real(self) -> DNDarray:
         """
-        Return the real part of the DNDarray.
+        Return the real part of the ``DNDarray``.
         """
         return complex_math.real(self)
 
@@ -326,7 +333,7 @@ class DNDarray:
         return linalg.transpose(self, axes=None)
 
     @property
-    def array_with_halos(self):
+    def array_with_halos(self) -> Tuple[torch.tensor, torch.tensor]:
         """
         Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next``/``self.halo_prev``
         in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
@@ -353,7 +360,7 @@ class DNDarray:
 
         return self.__array[ix].clone().contiguous()
 
-    def get_halo(self, halo_size):
+    def get_halo(self, halo_size) -> torch.Tensor:
         """
         Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next/self.halo_prev``
         in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
@@ -451,7 +458,7 @@ class DNDarray:
         dtype : datatype
             HeAT type to which the array is cast
         copy : bool, optional
-            By default the operation returns a copy of this array. If copy is set to false the cast is performed
+            By default the operation returns a copy of this array. If copy is set to ``False`` the cast is performed
             in-place and this array is returned
 
         """
@@ -467,81 +474,9 @@ class DNDarray:
 
         return self
 
-    def average(self, axis=None, weights=None, returned=False):
+    def balance_(self) -> DNDarray:
         """
-        Compute the weighted average along the specified axis.
-
-        Parameters
-        ----------
-        x : ht.tensor
-            Tensor containing data to be averaged.
-
-        axis : None or int or tuple of ints, optional
-            Axis or axes along which to average x.  The default,
-            axis=None, will average over all of the elements of the input tensor.
-            If axis is negative it counts from the last to the first axis.
-
-            #TODO Issue #351: If axis is a tuple of ints, averaging is performed on all of the axes
-            specified in the tuple instead of a single axis or all the axes as
-            before.
-
-        weights : ht.tensor, optional
-            An tensor of weights associated with the values in x. Each value in
-            x contributes to the average according to its associated weight.
-            The weights tensor can either be 1D (in which case its length must be
-            the size of x along the given axis) or of the same shape as x.
-            If weights=None, then all data in x are assumed to have a
-            weight equal to one, the result is equivalent to ht.mean(x).
-
-        returned : bool, optional
-            Default is False. If True, the tuple (average, sum_of_weights)
-            is returned, otherwise only the average is returned.
-            If weights=None, sum_of_weights is equivalent to the number of
-            elements over which the average is taken.
-
-        Returns
-        -------
-        average, [sum_of_weights] : ht.tensor or tuple of ht.tensors
-            Return the average along the specified axis. When returned=True,
-            return a tuple with the average as the first element and the sum
-            of the weights as the second element. sum_of_weights is of the
-            same type as `average`.
-
-        Raises
-        ------
-        ZeroDivisionError
-            When all weights along axis are zero.
-
-        TypeError
-            When the length of 1D weights is not the same as the shape of x
-            along axis.
-
-
-        Examples
-        --------
-        >>> data = ht.arange(1,5, dtype=float)
-        >>> data
-        tensor([1., 2., 3., 4.])
-        >>> data.average()
-        tensor(2.5000)
-        >>> ht.arange(1,11, dtype=float).average(weights=ht.arange(10,0,-1))
-        tensor([4.])
-        >>> data = ht.array([[0, 1],
-                             [2, 3],
-                            [4, 5]], dtype=float, split=1)
-        >>> weights = ht.array([1./4, 3./4])
-        >>> data.average(axis=1, weights=weights)
-        tensor([0.7500, 2.7500, 4.7500])
-        >>> data.average(weights=weights)
-        Traceback (most recent call last):
-        ...
-        TypeError: Axis must be specified when shapes of x and weights differ.
-        """
-        return statistics.average(self, axis=axis, weights=weights, returned=returned)
-
-    def balance_(self):
-        """
-        Function for balancing a :class:`DNDarray` between all nodes. To determine if this is needed use the is_balanced function.
+        Function for balancing a :class:`DNDarray` between all nodes. To determine if this is needed use the :func:`is_balanced()` function.
         If the ``DNDarray`` is already balanced this function will do nothing. This function modifies the ``DNDarray``
         itself and will not return anything.
 
@@ -587,7 +522,7 @@ class DNDarray:
 
     def __cast(self, cast_function) -> Union[float, int]:
         """
-        Implements a generic cast function for HeAT ``DNDarray`` objects.
+        Implements a generic cast function for ``DNDarray`` objects.
 
         Parameters
         ----------
@@ -611,60 +546,7 @@ class DNDarray:
 
         raise TypeError("only size-1 arrays can be converted to Python scalars")
 
-    def ceil(self, out=None):
-        """
-        Return the ceil of the input, element-wise.
-
-        The ceil of the scalar x is the smallest integer i, such that i >= x. It is often denoted as :math:`\\lceil x \\rceil`.
-
-        Parameters
-        ----------
-        out : ht.DNDarray or None, optional
-            A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-            or set to None, a fresh tensor is allocated.
-
-        Returns
-        -------
-        ceiled : ht.DNDarray
-            A tensor of the same shape as x, containing the ceiled valued of each element in this tensor. If out was
-            provided, ceiled is a reference to it.
-
-        Returns
-        -------
-        ceiled : ht.DNDarray
-            A tensor of the same shape as x, containing the floored valued of each element in this tensor. If out was
-            provided, ceiled is a reference to it.
-
-        Examples
-        --------
-        >>> ht.arange(-2.0, 2.0, 0.4).ceil()
-        tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
-        """
-        return rounding.ceil(self, out)
-
-    def clip(self, a_min, a_max, out=None):
-        """
-        Parameters
-        ----------
-        a_min : scalar or None
-            Minimum value. If None, clipping is not performed on lower interval edge. Not more than one of a_min and
-            a_max may be None.
-        a_max : scalar or None
-            Maximum value. If None, clipping is not performed on upper interval edge. Not more than one of a_min and
-            a_max may be None.
-        out : ht.DNDarray, optional
-            The results will be placed in this array. It may be the input array for in-place clipping. out must be of
-            the right shape to hold the output. Its type is preserved.
-
-        Returns
-        -------
-        clipped_values : ht.DNDarray
-            A tensor with the elements of this tensor, but where values < a_min are replaced with a_min, and those >
-            a_max with a_max.
-        """
-        return rounding.clip(self, a_min, a_max, out)
-
-    def __complex__(self):
+    def __complex__(self) -> DNDarray:
         """
         Complex scalar casting.
         """
@@ -691,17 +573,17 @@ class DNDarray:
         self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
         return lshape_map
 
-    def __float__(self) -> float:
+    def __float__(self) -> DNDarray:
         """
+        Float scalar casting.
+
         See Also
         ---------
-        :function:`~heat.core.manipulations.flatten`
-
-        Float scalar casting.
+        :func:`~heat.core.manipulations.flatten`
         """
         return self.__cast(float)
 
-    def fill_diagonal(self, value) -> DNDarray:
+    def fill_diagonal(self, value: float) -> DNDarray:
         """
         Fill the main diagonal of a 2D :class:`DNDarray`.
         This function modifies the input tensor in-place, and returns the input array.
@@ -741,13 +623,13 @@ class DNDarray:
 
         return self
 
-    def __getitem__(self, key) -> DNDarray:
+    def __getitem__(self, key: Union[int, Tuple[int, ...], List[int, ...]]) -> DNDarray:
         """
         Global getter function for DNDarrays.
         Returns a new DNDarray composed of the elements of the original tensor selected by the indices
         given. This does *NOT* redistribute or rebalance the resulting tensor. If the selection of values is
         unbalanced then the resultant tensor is also unbalanced!
-        To redistributed the tensor use balance() (issue #187)
+        To redistributed the ``DNDarray`` use :func:`balance()` (issue #187)
 
         Parameters
         ----------
@@ -981,26 +863,25 @@ class DNDarray:
             self.__device = devices.gpu
             return self
 
-    def __int__(self) -> int:
+    def __int__(self) -> DNDarray:
         """
         Integer scalar casting.
         """
         return self.__cast(int)
 
-    def is_balanced(self, force_check=False) -> bool:
+    def is_balanced(self, force_check: bool = False) -> bool:
         """
         Determine if ``self`` is balanced evenly (or as evenly as possible) across all nodes
         distributed evenly (or as evenly as possible) across all processes.
-        This is equivalent to returning `self.balanced`. If no information
-        is available (`self.balanced = None`), the balanced status will be
+        This is equivalent to returning ``self.balanced``. If no information
+        is available (``self.balanced = None``), the balanced status will be
         assessed via collective communication.
 
         Parameters
         force_check : bool, optional
-            If True, the balanced status of the DNDarray will be assessed via
+            If True, the balanced status of the ``DNDarray`` will be assessed via
             collective communication in any case.
         """
-
         if not force_check and self.balanced is not None:
             return self.balanced
 
@@ -1014,14 +895,14 @@ class DNDarray:
 
     def is_distributed(self) -> bool:
         """
-        Determines whether the data of this array is distributed across multiple processes.
+        Determines whether the data of this ``DNDarray`` is distributed across multiple processes.
         """
         return self.split is not None and self.comm.is_distributed()
 
     def item(self):
         """
         Returns the only element of a 1-element :class:`DNDarray`.
-        Mirror of the pytorch command by the same name. If size of array is >1 element, then a ``ValueError`` is
+        Mirror of the pytorch command by the same name. If size of ``DNDarray`` is >1 element, then a ``ValueError`` is
         raised (by pytorch)
 
         Examples
@@ -1035,13 +916,13 @@ class DNDarray:
 
     def __len__(self) -> int:
         """
-        The length of the DNDarray, i.e. the number of items in the first dimension.
+        The length of the ``DNDarray``, i.e. the number of items in the first dimension.
         """
         return self.shape[0]
 
     def numpy(self) -> np.array:
         """
-        Convert :class:`DNDarray` to numpy array. If the tensor is distributed it will be merged beforehand. If the array
+        Convert :class:`DNDarray` to numpy array. If the ``DNDarray`` is distributed it will be merged beforehand. If the ``DNDarray``
         resides on the GPU, it will be copied to the CPU first.
 
         Examples
@@ -1054,22 +935,18 @@ class DNDarray:
         return dist.larray.cpu().numpy()
 
     def __repr__(self, *args):
-        # TODO: document me
-        # TODO: generate none-PyTorch repr
+        """
+        Returns the ``DNDarray`` in string format
+        """
         return self.__array.__repr__(*args)
 
     def ravel(self):
         """
-        Return a flattened array with the same elements if possible.
-
-        Returns
-        -------
-        ret : DNDarray
-            flattened array with the same dtype as a, but with shape (a.size,).
+        Flattens the ``DNDarray``.
 
         See Also
         --------
-        :function:`~heat.core.manipulations.ravel`
+        :func:`~heat.core.manipulations.ravel`
 
         Examples
         --------
@@ -1081,7 +958,7 @@ class DNDarray:
         """
         return manipulations.ravel(self)
 
-    def redistribute_(self, lshape_map=None, target_map=None):
+    def redistribute_(self, lshape_map: torch.Tensor = None, target_map: torch.Tensor = None):
         """
         Redistributes the data of the :class:`DNDarray` *along the split axis* to match the given target map.
         This function does not modify the non-split dimensions of the ``DNDarray``.
@@ -1239,7 +1116,13 @@ class DNDarray:
             # (in the case that the second to last processes needs to get data from +1 and -1)
             self.redistribute_(lshape_map=lshape_map, target_map=target_map)
 
-    def __redistribute_shuffle(self, snd_pr, send_amt, rcv_pr, snd_dtype):
+    def __redistribute_shuffle(
+        self,
+        snd_pr: Union[int, torch.Tensor],
+        send_amt: Union[int, torch.Tensor],
+        rcv_pr: Union[int, torch.Tensor],
+        snd_dtype: torch.dtype,
+    ):
         """
         Function to abstract the function used during redistribute for shuffling data between
         processes along the split axis
@@ -1280,7 +1163,7 @@ class DNDarray:
             if snd_pr > rcv_pr:  # data passed from a higher rank (append to bottom)
                 self.__array = torch.cat((self.__array, data), dim=self.split)
 
-    def resplit_(self, axis=None):
+    def resplit_(self, axis: int = None):
         """
         In-place option for resplitting a :class:`DNDarray`.
 
@@ -1401,19 +1284,24 @@ class DNDarray:
         self.__split = axis
         return self
 
-    def __setitem__(self, key, value):
+    def __setitem__(
+        self,
+        key: Union[int, Tuple[int, ...], List[int, ...]],
+        value: Union[float, DNDarray, torch.Tensor],
+    ):
         """
         Global item setter
 
         Parameters
         ----------
-        key : int or Tuple or List or Slice
+        key : Union[int, Tuple[int,...], List[int,...]]
             Index/indices to be set
-        value: np.scalar or tensor or torch.Tensor
-            value to be set to the specified positions in the DNDarray (self)
+        value: Union[float, DNDarray,torch.Tensor]
+            Value to be set to the specified positions in the DNDarray (self)
+
         Notes
         -----
-        If a DNDarray is given as the value to be set then the split axes are assumed to be equal.
+        If a ``DNDarray`` is given as the value to be set then the split axes are assumed to be equal.
         If they are not, PyTorch will raise an error when the values are attempted to be set on the local array
 
         Examples
@@ -1527,7 +1415,19 @@ class DNDarray:
             else:
                 self.__setter(key, value)
 
-    def __setter(self, key, value):
+    def __setter(
+        self,
+        key: Union[int, Tuple[int, ...], List[int, ...]],
+        value: Union[float, DNDarray, torch.Tensor],
+    ):
+        """
+        Utility function for checking ``value`` and forwarding to :func:``__setitem__``
+
+        Raises
+        -------------
+        NotImplementedError
+            If the type of ``value`` ist not supported
+        """
         if np.isscalar(value):
             self.__array.__setitem__(key, value)
         elif isinstance(value, DNDarray):
@@ -1545,11 +1445,11 @@ class DNDarray:
 
     def __str__(self) -> str:
         """
-        Computes a string representation of the passed DNDarray.
+        Computes a string representation of the passed ``DNDarray``.
         """
         return printing.__str__(self)
 
-    def tolist(self, keepsplit=False) -> List:
+    def tolist(self, keepsplit: bool = False) -> List:
         """
         Return a copy of the local array data as a (nested) Python list. For scalars, a standard Python number is returned.
 
@@ -1573,7 +1473,6 @@ class DNDarray:
         (1/2) [[0], [2]]
         (2/2) [[1], [3]]
         """
-
         if not keepsplit:
             return self.resplit(axis=None).__array.tolist()
 
