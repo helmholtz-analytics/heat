@@ -595,8 +595,7 @@ def kurtosis(
 
     Warnings
     --------
-    UserWarning: Dependent on the axis given and the split configuration a UserWarning may be thrown during this
-        function as data is transferred between processes
+    UserWarning: Dependent on the axis given and the split configuration, a UserWarning may be thrown during this function as data is transferred between processes.
     """
     if axis is None or (isinstance(axis, int) and x.split == axis):  # no axis given
         # TODO: determine if this is a valid (and fast implementation)
