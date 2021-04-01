@@ -60,8 +60,6 @@ def argmax(
     Examples
     --------
     >>> import heat as ht
-    >>> import torch
-    >>> torch.manual_seed(1)
     >>> a = ht.random.randn(3,3)
     >>> a
     tensor([[-0.5631, -0.8923, -0.0583],
@@ -136,8 +134,6 @@ def argmin(
     Examples
     --------
     >>> import heat as ht
-    >>> import torch
-    >>> torch.manual_seed(1)
     >>> a = ht.random.randn(3,3)
     >>> a
     tensor([[-0.5631, -0.8923, -0.0583],
@@ -710,8 +706,6 @@ def maximum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
     Examples
     ---------
     >>> import heat as ht
-    >>> import torch
-    >>> torch.manual_seed(1)
     >>> a = ht.random.randn(3, 4)
     >>> a
     tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
@@ -1490,8 +1484,7 @@ def skew(x: DNDarray, axis: int = None, unbiased: bool = True) -> DNDarray:
 
     Warnings
     --------
-    UserWarning: Dependent on the axis given and the split configuration a UserWarning may be thrown during this
-        function as data is transferred between processes
+    UserWarning: Dependent on the axis given and the split configuration, a UserWarning may be thrown during this function as data is transferred between processes.
     """
     if axis is None or (isinstance(axis, int) and x.split == axis):  # no axis given
         # TODO: determine if this is a valid (and fast implementation)
