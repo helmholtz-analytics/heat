@@ -30,7 +30,9 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
 
     def __init__(self, n_neighbors: int = 5, effective_metric_: Callable = None):
         self.n_neighbors = n_neighbors
-        self.effective_metric_ = effective_metric_
+        self.effective_metric_ = (
+            effective_metric_ if effective_metric_ is not None else ht.spatial.cdist
+        )
 
         # init declaration to appease flake
         self.x = None
@@ -40,7 +42,7 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
         self.classes_ = None
 
     @staticmethod
-    def __one_hot_encoding(x: DNDarray) -> DNDarray:
+    def one_hot_encoding(x: DNDarray) -> DNDarray:
         """
         One-hot-encodes the passed vector or single-column matrix.
 
@@ -50,7 +52,7 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
             The data to be encoded.
         """
         n_samples = x.shape[0]
-        n_features = ht.max(x)
+        n_features = ht.max(x).item() + 1
 
         one_hot = ht.zeros((n_samples, n_features), split=x.split, device=x.device, comm=x.comm)
         one_hot.lloc[range(one_hot.lshape[0]), x.larray] = 1
@@ -102,7 +104,7 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
 
         # checks the labels for correct dimensionality and encode one-hot
         if len(y.shape) == 1:
-            self.y = self.__one_hot_encoding(y)
+            self.y = self.one_hot_encoding(y)
             self.outputs_2d_ = False
         elif len(y.shape) == 2:
             self.y = y
