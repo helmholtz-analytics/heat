@@ -188,7 +188,7 @@ class SplitTiles:
         Examples
         --------
         >>> test = torch.arange(np.prod([i + 6 for i in range(2)])).reshape([i + 6 for i in range(2)])
-        >>> a = ht.array(test, split=0)._DNDarray__array
+        >>> a = ht.array(test, split=0).larray
         [0/2] tensor([[ 0.,  1.,  2.,  3.,  4.,  5.,  6.],
         [0/2]         [ 7.,  8.,  9., 10., 11., 12., 13.]])
         [1/2] tensor([[14., 15., 16., 17., 18., 19., 20.],
@@ -968,7 +968,7 @@ class SquareDiagTiles:
         >>> a_tiles = tiling.SquareDiagTiles(a, tiles_per_proc=2)  # type: tiling.SquareDiagTiles
         >>> local = a_tiles.local_get(key=slice(None))
         >>> a_tiles.local_set(key=slice(None), value=torch.arange(local.numel()).reshape(local.shape))
-        >>> print(a)
+        >>> print(a.larray)
         [0/1] tensor([[ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.],
         [0/1]         [10., 11., 12., 13., 14., 15., 16., 17., 18., 19.],
         [0/1]         [20., 21., 22., 23., 24., 25., 26., 27., 28., 29.],
@@ -1220,7 +1220,7 @@ class SquareDiagTiles:
         >>> a_tiles[0, 0] = 22
         >>> a_tiles[2] = 33
         >>> a_tiles[3, 3] = 44
-        >>> print(a)
+        >>> print(a.larray)
         [0/1] tensor([[22., 22., 22.,  0.,  0.,  0., 11., 11.,  0.,  0.],
         [0/1]         [22., 22., 22.,  0.,  0.,  0., 11., 11.,  0.,  0.],
         [0/1]         [22., 22., 22.,  0.,  0.,  0., 11., 11.,  0.,  0.],
