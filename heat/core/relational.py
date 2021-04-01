@@ -1,3 +1,6 @@
+"""
+Functions for relational oprations, i.e. equal/no equal...
+"""
 from __future__ import annotations
 
 import torch
@@ -307,3 +310,7 @@ def ne(t1, t2) -> DNDarray:
         )
 
     return res
+
+
+DNDarray.__ne__ = lambda self, other: ne(self, other)
+DNDarray.__ne__.__doc__ = ne.__doc__
