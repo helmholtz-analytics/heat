@@ -29,7 +29,7 @@ __all__ = [
 
 def sanitize_in(x: Object):
     """
-    Verify that input object is `DNDarray`.
+    Verify that input object is ``DNDarray``.
 
     Parameters
     ----------
@@ -39,7 +39,7 @@ def sanitize_in(x: Object):
     Raises
     ------
     TypeError
-        When ``x`` is not a `DNDarray`.
+        When ``x`` is not a ``DNDarray``.
     """
     if not isinstance(x, DNDarray):
         raise TypeError("Input must be a DNDarray, is {}".format(type(x)))
@@ -47,7 +47,7 @@ def sanitize_in(x: Object):
 
 def sanitize_infinity(x: Union[DNDarray, torch.Tensor]) -> Union[int, float]:
     """
-    Returns largest possible value for the dtype of the input array.
+    Returns largest possible value for the ``dtype`` of the input array.
 
     Parameters:
     -----------
@@ -83,7 +83,7 @@ def sanitize_in_tensor(x: Object):
         When ``x`` is not a ``torch.Tensor``.
     """
     if not isinstance(x, torch.Tensor):
-        raise TypeError("input must be a torch.tensor, is {}".format(type(x)))
+        raise TypeError("Input must be a torch.Tensor, is {}".format(type(x)))
 
 
 def sanitize_lshape(array: DNDarray, tensor: torch.Tensor):
@@ -93,9 +93,9 @@ def sanitize_lshape(array: DNDarray, tensor: torch.Tensor):
     Parameters
     ----------
     array : DNDarray
-        the original, potentially distributed `DNDarray`
-    tensor : torch.tensor
-        process-local data meant to replace `array.larray`
+        the original, potentially distributed ``DNDarray``
+    tensor : torch.Tensor
+        process-local data meant to replace ``array.larray``
 
     Raises
     ------
@@ -155,7 +155,7 @@ def sanitize_out(out: Object, output_shape: Tuple, output_split: int, output_dev
     TypeError
         if ``out`` is not a ``DNDarray``.
     ValueError
-        if there is a shape, split direction, or device of the output buffer ``out`` do not match the operation result.
+        if shape, split direction, or device of the output buffer ``out`` do not match the operation result.
     """
     if not isinstance(out, DNDarray):
         raise TypeError("expected `out` to be None or a DNDarray, but was {}".format(type(out)))
@@ -175,14 +175,14 @@ def sanitize_out(out: Object, output_shape: Tuple, output_split: int, output_dev
 
 
 def sanitize_sequence(
-    seq: Union[Sequence[int, ...], Sequence[float, ...], DNDarray, torch.tensor]
+    seq: Union[Sequence[int, ...], Sequence[float, ...], DNDarray, torch.Tensor]
 ) -> List:
     """
     Check if sequence is valid, return list.
 
     Parameters
     ----------
-    seq : Union[Sequence[int, ...], Sequence[float, ...], DNDarray, torch.tensor]
+    seq : Union[Sequence[int, ...], Sequence[float, ...], DNDarray, torch.Tensor]
         Input sequence.
 
     Raises
@@ -200,7 +200,7 @@ def sanitize_sequence(
 
 def scalar_to_1d(x: DNDarray) -> DNDarray:
     """
-    Turn a scalar DNDarray into a 1-D DNDarray with 1 element.
+    Turn a scalar ``DNDarray`` into a 1-D ``DNDarray`` with 1 element.
 
     Parameters
     ----------
