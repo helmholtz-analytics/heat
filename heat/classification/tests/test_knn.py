@@ -5,7 +5,7 @@ import heat as ht
 
 from heat.core.tests.test_suites.basic_test import TestCase
 
-from heat.classification.knn import KNN
+from heat.classification.kneighborsclassifier import KNeighborsClassifier
 
 
 class TestKNN(TestCase):
@@ -22,7 +22,7 @@ class TestKNN(TestCase):
             keys.append(2)
         Y = ht.array(keys)
 
-        knn = KNN(X, Y, 5)
+        knn = KNeighborsClassifier(X, Y, 5)
 
         result = knn.predict(X)
 
@@ -44,7 +44,7 @@ class TestKNN(TestCase):
             keys.append(2)
         Y = ht.array(keys, split=0)
 
-        knn = KNN(X, Y, 5)
+        knn = KNeighborsClassifier(X, Y, 5)
 
         result = knn.predict(X)
 
@@ -58,27 +58,27 @@ class TestKNN(TestCase):
         d = ht.zeros((2, 2, 2))
 
         with self.assertRaises(ValueError):
-            knn = KNN(a, b, 1)
+            knn = KNeighborsClassifier(a, b, 1)
 
         with self.assertRaises(ValueError):
-            knn = KNN(a, b, 1)
+            knn = KNeighborsClassifier(a, b, 1)
 
-        knn = KNN(a, c, 1)
+        knn = KNeighborsClassifier(a, c, 1)
         with self.assertRaises(ValueError):
             knn.fit(a, b)
 
-        knn = KNN(a, c, 1)
+        knn = KNeighborsClassifier(a, c, 1)
         with self.assertRaises(ValueError):
             knn.fit(a, d)
 
         with self.assertRaises(ValueError):
-            knn = KNN(a, d, 1)
+            knn = KNeighborsClassifier(a, d, 1)
 
     def test_utility(self,):
         a = ht.array([1, 2, 3, 4])
         b = ht.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1]])
 
-        one_hot = KNN.label_to_one_hot(a)
+        one_hot = KNeighborsClassifier.__one_hot_encoding(a)
 
         self.assertTrue((one_hot == b).all())
 
@@ -106,7 +106,7 @@ class TestKNN(TestCase):
 
         Y = ht.array(keys)
 
-        knn = KNN(X, Y, 5)
+        knn = KNeighborsClassifier(X, Y, 5)
 
         knn.fit(X, Y)
 
