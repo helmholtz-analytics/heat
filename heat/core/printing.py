@@ -21,7 +21,7 @@ def get_printoptions():
     return copy.copy(torch._tensor_str.PRINT_OPTS.__dict__)
 
 
-def local_printing():
+def local_printing() -> None:
     """
     The builtin `print` function will now print the local PyTorch Tensor values for
     `DNDarrays` given as arguments.
@@ -36,9 +36,10 @@ def local_printing():
     """
     global LOCAL_PRINT
     LOCAL_PRINT = True
+    print0("Printing options set to LOCAL. DNDarrays will print the local PyTorch Tensors")
 
 
-def global_printing():
+def global_printing() -> None:
     """
     For `DNDarray`s, the builtin `print` function will gather all of the data, format it
     then print it on ONLY rank 0.
@@ -53,9 +54,12 @@ def global_printing():
     """
     global LOCAL_PRINT
     LOCAL_PRINT = False
+    print0(
+        "Printing options set to GLOBAL. DNDarrays will be collected on process 0 before printing"
+    )
 
 
-def print0(*args, **kwargs):
+def print0(*args, **kwargs) -> None:
     """
     Wraps the builtin `print` function in such a way that it will only run the command on
     rank 0. If this is called with DNDarrays and local printing, only the .
@@ -129,7 +133,6 @@ def __str__(dndarray):
     dndarray: DNDarray
         The array for which to obtain the corresponding string
     """
-    # print('h', LOCAL_PRINT)
     if LOCAL_PRINT:
         return torch._tensor_str._tensor_str(dndarray.larray, __INDENT + 1)
     tensor_string = _tensor_str(dndarray, __INDENT + 1)
