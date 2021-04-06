@@ -1,3 +1,7 @@
+"""
+arithmetic functions for DNDarrays
+"""
+
 from __future__ import annotations
 
 import torch
@@ -6,6 +10,7 @@ from . import factories
 from . import manipulations
 from . import _operations
 from . import stride_tricks
+from . import types
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -558,10 +563,12 @@ def left_shift(t1, t2) -> DNDarray:
     tensor([2, 4, 6])
     """
     dtypes = (heat_type_of(t1), heat_type_of(t2))
-
-    for dt in dtypes:
-        if heat_type_is_inexact(dt):
+    arrs = [t1, t2]
+    for dt in range(2):
+        if heat_type_is_inexact(dtypes[dt]):
             raise TypeError("Operation is not supported for float types")
+        elif dtypes[dt] == types.bool:
+            arrs[dt] = types.int(arrs[dt])
 
     return _operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
 
@@ -735,10 +742,12 @@ def right_shift(t1, t2) -> DNDarray:
     tensor([0, 1, 1])
     """
     dtypes = (heat_type_of(t1), heat_type_of(t2))
-
-    for dt in dtypes:
-        if not heat_type_is_exact(dt):
-            raise TypeError("Operation is supported for integer types only")
+    arrs = [t1, t2]
+    for dt in range(2):
+        if heat_type_is_inexact(dtypes[dt]):
+            raise TypeError("Operation is not supported for float types")
+        elif dtypes[dt] == types.bool:
+            arrs[dt] = types.int(arrs[dt])
 
     return _operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
 

@@ -1,3 +1,7 @@
+"""
+contains a collection of utility functions related to determining axes, shapes, and values without major computation
+"""
+
 import itertools
 import numpy as np
 

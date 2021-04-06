@@ -299,7 +299,6 @@ def average(
                     )
             wgt = factories.empty_like(weights, device=x.device)
             wgt.larray = weights.larray
-
         cumwgt = wgt.sum(axis=axis)
         if logical.any(cumwgt == 0.0):
             raise ZeroDivisionError("Weights sum to zero, can't be normalized")

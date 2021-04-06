@@ -681,9 +681,9 @@ def load(
     Examples
     --------
     >>> ht.load('data.h5', dataset='DATA')
-    DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
+    DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.load('data.nc', variable='DATA')
-    DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981])
+    DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
     """
     if not isinstance(path, str):
         raise TypeError("Expected path to be str, but was {}".format(type(path)))

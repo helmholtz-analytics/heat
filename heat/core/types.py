@@ -1,3 +1,7 @@
+"""
+implementations of the different dtypes supported in heat and the
+"""
+
 from __future__ import annotations
 
 import builtins
@@ -82,7 +86,7 @@ class datatype:
         *value,
         device: Optional[Union[str, devices.Device]] = None,
         comm: Optional[communication.Communication] = None
-    ):
+    ) -> dndarray.DNDarray:
         torch_type = cls.torch_type()
         if torch_type is NotImplemented:
             raise TypeError("cannot create '{}' instances".format(cls))
@@ -436,6 +440,23 @@ def heat_type_is_inexact(ht_dtype: Type[datatype]) -> bool:
         HeAT type to check
     """
     return ht_dtype in _inexact
+
+
+def heat_type_is_complexfloating(ht_dtype: Type[datatype]) -> bool:
+    """
+    Check if HeAT type is a complex floading point number, i.e complex64
+
+    Parameters
+    ----------
+    ht_dtype: ht.dtype
+        HeAT type to check
+
+    Returns
+    -------
+    out: bool
+        True if ht_dtype is a complex float, False otherwise
+    """
+    return ht_dtype in _complexfloating
 
 
 def heat_type_of(

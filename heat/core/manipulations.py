@@ -7,13 +7,12 @@ import numpy as np
 import torch
 import warnings
 
-from typing import Iterable, Type, List, Dict, Any, TypeVar, Union, Tuple, Sequence, Optional
+from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
 
 from .communication import MPI
 from .dndarray import DNDarray
 
 from . import arithmetics
-from . import constants
 from . import factories
 from . import indexing
 from . import linalg
@@ -2545,6 +2544,12 @@ def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     )
 
 
+DNDarray.squeeze: Callable[
+    [DNDarray, Union[int, Tuple[int, ...]]], DNDarray
+] = lambda self, axis=None: squeeze(self, axis)
+DNDarray.squeeze.__doc__ = squeeze.__doc__
+
+
 def stack(
     arrays: Sequence[DNDarray, ...], axis: int = 0, out: Optional[DNDarray] = None
 ) -> DNDarray:
@@ -2917,6 +2922,14 @@ def unique(
     return return_value
 
 
+DNDarray.unique: Callable[
+    [DNDarray, bool, bool, int], Tuple[DNDarray, torch.tensor]
+] = lambda self, sorted=False, return_inverse=False, axis=None: unique(
+    self, sorted, return_inverse, axis
+)
+DNDarray.unique.__doc__ = unique.__doc__
+
+
 def vsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:
     """
     Split array into multiple sub-DNDNarrays along the 1st axis (vertically/row-wise).
@@ -3076,6 +3089,12 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
         new_tiles[k] = rcv_waits[k][1]
 
     return new_arr
+
+
+DNDarray.resplit: Callable[[DNDarray, Optional[int]], DNDarray] = lambda self, axis=None: resplit(
+    self, axis
+)
+DNDarray.resplit.__doc__ = resplit.__doc__
 
 
 def row_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:

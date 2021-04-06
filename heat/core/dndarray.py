@@ -661,7 +661,7 @@ class DNDarray:
                 dim refer to a single element. To handle this, the key is split into the torch tensors for each dimension.
                 This signals that advanced indexing is to be used. """
             key.balance_()
-            key = key.resplit_(axis=None)
+            key = manipulations.resplit(key.copy())
             lkey = [slice(None, None, None)] * self.ndim
             kgshape_flag = True
             kgshape = [0] * len(self.gshape)
@@ -680,7 +680,7 @@ class DNDarray:
             h = [slice(None, None, None)] * self.ndim
             if isinstance(key, DNDarray):
                 key.balance_()
-                key.resplit_(axis=None)
+                key = manipulations.resplit(key.copy())
                 h[0] = key.larray.tolist()
             elif isinstance(key, torch.Tensor):
                 h[0] = key.tolist()

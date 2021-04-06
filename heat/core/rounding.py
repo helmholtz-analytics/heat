@@ -1,3 +1,7 @@
+"""
+rounding values in DNDarrays
+"""
+
 import torch
 from typing import Type, Tuple, Optional, Callable
 from .dndarray import DNDarray

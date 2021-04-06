@@ -595,7 +595,7 @@ def randperm(
     TypeError
         If ``n`` is not an integer.
 
-    Example
+    Examples
     --------
     >>> ht.random.randperm(4)
     DNDarray([2, 3, 1, 0], dtype=ht.int64, device=cpu:0, split=None)
@@ -637,7 +637,7 @@ def random(
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
 
-    Example
+    Examples
     --------
     >>> ht.random.random_sample()
     0.47108547995356098
