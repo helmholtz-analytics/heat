@@ -27,6 +27,8 @@ import torch
 from . import communication
 from . import devices
 from . import factories
+from . import _operations
+from . import sanitation
 
 
 __all__ = [
@@ -55,6 +57,8 @@ __all__ = [
     "double",
     "flexible",
     "can_cast",
+    "iscomplex",
+    "isreal",
     "issubdtype",
     "promote_types",
     "complex64",
@@ -286,7 +290,7 @@ __type_mappings = {
     "c8": complex64,
     "c16": complex128,
     # numpy types
-    np.bool: bool,
+    np.bool_: bool,
     np.uint8: uint8,
     np.int8: int8,
     np.int16: int16,
@@ -605,6 +609,42 @@ for i, operand_a in enumerate(__type_codes.keys()):
             if can_cast(operand_a, target) and can_cast(operand_b, target):
                 __type_promotions[i][j] = target
                 break
+
+
+def iscomplex(x):
+    """
+    Test element-wise if input is complex.
+
+    Parameters
+    ----------
+    x : DNDarray
+
+    Examples
+    --------
+    >>> ht.iscomplex(ht.array([1+1j, 1]))
+    DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(x)
+
+    if issubclass(x.dtype, _complexfloating):
+        return x.imag != 0
+    else:
+        return factories.zeros(x.shape, bool, split=x.split, device=x.device, comm=x.comm)
+
+
+def isreal(x):
+    """
+    Test element-wise if input is real-valued.
+
+    Parameters
+    ----------
+    x : DNDarray
+
+    Examples
+    --------
+    ht.iscomplex(ht.array([1+1j, 1]))
+    """
+    return _operations.__local_op(torch.isreal, x, None, no_cast=True)
 
 
 def issubdtype(arg1, arg2):

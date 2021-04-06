@@ -1229,7 +1229,7 @@ def percentile(x, q, axis=None, out=None, interpolation="linear", keepdim=False)
             floor_indices = torch.floor(indices).type(torch.int)
             axis_slice = axis_slice[:axis] + (floor_indices.tolist(),) + axis_slice[axis + 1 :]
             lows = data[axis_slice]
-            ceil_indices = floor_indices + 1.0
+            ceil_indices = floor_indices + 1
             axis_slice = axis_slice[:axis] + (ceil_indices.tolist(),) + axis_slice[axis + 1 :]
             if ceil_indices.max().item() == data.shape[axis]:
                 # max percentile is 100.0
