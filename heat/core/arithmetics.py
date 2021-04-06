@@ -1,10 +1,11 @@
 """
-arithmetic functions for DNDarrays
+Arithmetic functions for DNDarrays
 """
 
 from __future__ import annotations
 
 import torch
+from typing import Union, Tuple
 
 from . import factories
 from . import manipulations
@@ -14,7 +15,13 @@ from . import types
 
 from .communication import MPI
 from .dndarray import DNDarray
-from .types import canonical_heat_type, heat_type_is_inexact, heat_type_is_exact, heat_type_of
+from .types import (
+    canonical_heat_type,
+    heat_type_is_inexact,
+    heat_type_is_exact,
+    heat_type_of,
+    datatype,
+)
 
 
 __all__ = [
@@ -48,7 +55,7 @@ __all__ = [
 ]
 
 
-def add(t1, t2) -> DNDarray:
+def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise addition of values from two operands, commutative.
     Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be added
@@ -86,7 +93,7 @@ DNDarray.__radd__ = lambda self, other: add(self, other)
 DNDarray.__radd__.__doc__ = add.__doc__
 
 
-def bitwise_and(t1, t2) -> DNDarray:
+def bitwise_and(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` element-wise.
     Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape
@@ -127,7 +134,7 @@ DNDarray.__and__ = lambda self, other: bitwise_and(self, other)
 DNDarray.__and__.__doc__ = bitwise_and.__doc__
 
 
-def bitwise_or(t1, t2) -> DNDarray:
+def bitwise_or(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Compute the bit-wise OR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` element-wise.
     Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape
@@ -171,7 +178,7 @@ DNDarray.__or__ = lambda self, other: bitwise_or(self, other)
 DNDarray.__or__.__doc__ = bitwise_or.__doc__
 
 
-def bitwise_xor(t1, t2) -> DNDarray:
+def bitwise_xor(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Compute the bit-wise XOR of two arrays element-wise ``t1`` and ``t2``.
     Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape
@@ -210,7 +217,7 @@ DNDarray.__xor__ = lambda self, other: bitwise_xor(self, other)
 DNDarray.__xor__.__doc__ = bitwise_xor.__doc__
 
 
-def cumprod(a, axis, dtype=None, out=None) -> DNDarray:
+def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray:
     """
     Return the cumulative product of elements along a given axis.
 
@@ -246,7 +253,7 @@ def cumprod(a, axis, dtype=None, out=None) -> DNDarray:
 cumproduct = cumprod
 
 
-def cumsum(a, axis, dtype=None, out=None) -> DNDarray:
+def cumsum(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray:
     """
     Return the cumulative sum of the elements along a given axis.
 
@@ -278,7 +285,13 @@ def cumsum(a, axis, dtype=None, out=None) -> DNDarray:
     return _operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
 
 
-def diff(a, n=1, axis=-1, prepend=None, append=None) -> DNDarray:
+def diff(
+    a: DNDarray,
+    n: int = 1,
+    axis: int = -1,
+    prepend: Union[int, float, DNDarray] = None,
+    append: Union[int, float, DNDarray] = None,
+) -> DNDarray:
     """
     Calculate the n-th discrete difference along the given axis.
     The first difference is given by ``out[i]=a[i+1]-a[i]`` along the given axis, higher differences are calculated
@@ -295,18 +308,16 @@ def diff(a, n=1, axis=-1, prepend=None, append=None) -> DNDarray:
         ``n=2`` is equivalent to ``diff(diff(a))``
     axis : int, optional
         The axis along which the difference is taken, default is the last axis.
-    prepend, append : Optional[int, float, DNDarray]
-        Values to prepend or append along axis prior to performing the difference.
+    prepend : Union[int, float, DNDarray]
+        Value to prepend along axis prior to performing the difference.
         Scalar values are expanded to arrays with length 1 in the direction of axis and
         the shape of the input array in along all other axes. Otherwise the dimension and
         shape must match a except along axis.
-
-    Returns
-    -------
-    diff : DNDarray
-        The n-th differences. The shape of the output is the same as a except along axis where the dimension is smaller by n.
-        The type of the output is the same as the type of the difference between any two elements of a.
-        The split does not change. The output array is balanced.
+    append : Union[int, float, DNDarray]
+        Values to append along axis prior to performing the difference.
+        Scalar values are expanded to arrays with length 1 in the direction of axis and
+        the shape of the input array in along all other axes. Otherwise the dimension and
+        shape must match a except along axis.
     """
     if n == 0:
         return a
@@ -411,7 +422,7 @@ def diff(a, n=1, axis=-1, prepend=None, append=None) -> DNDarray:
     return ret
 
 
-def div(t1, t2) -> DNDarray:
+def div(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise true division of values of operand ``t1`` by values of operands ``t2`` (i.e ``t1/t2``).
     Operation is not commutative.
@@ -449,7 +460,7 @@ DNDarray.__rtruediv__.__doc__ = div.__doc__
 divide = div
 
 
-def fmod(t1, t2) -> DNDarray:
+def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. C Library function fmod).
     Result has the sign as the dividend ``t1``. Operation is not commutative.
@@ -478,7 +489,7 @@ def fmod(t1, t2) -> DNDarray:
     return _operations.__binary_op(torch.fmod, t1, t2)
 
 
-def floordiv(t1, t2) -> DNDarray:
+def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise floor division of value of operand ``t1`` by values of operands ``t2`` (i.e. ``t1//t2``), not commutative.
 
@@ -512,14 +523,14 @@ DNDarray.__rfloordiv__.__doc__ = floordiv.__doc__
 floor_divide = floordiv
 
 
-def invert(t, out=None) -> DNDarray:
+def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
     """
     Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray`. The input array must be of integral
     or Boolean types. For boolean arrays, it computes the logical NOT. Bitwise_not is an alias for invert.
 
     Parameters
     ---------
-    t: DNDarray
+    a: DNDarray
         The input array to invert. Must be of integral or Boolean types
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output.
@@ -531,12 +542,12 @@ def invert(t, out=None) -> DNDarray:
     >>> ht.bitwise_not(ht.array([-1, -2, 3], dtype=ht.int8))
     tensor([ 0,  1, -4], dtype=ht.int8)
     """
-    dt = heat_type_of(t)
+    dt = heat_type_of(a)
 
     if heat_type_is_inexact(dt):
         raise TypeError("Operation is not supported for float types")
 
-    return _operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
+    return _operations.__local_op(torch.bitwise_not, a, out, no_cast=True)
 
 
 DNDarray.__invert__ = lambda self, out=None: invert(self, out)
@@ -546,15 +557,15 @@ DNDarray.__invert__.__doc__ = invert.__doc__
 bitwise_not = invert
 
 
-def left_shift(t1, t2) -> DNDarray:
+def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Shift the bits of an integer to the left.
 
     Parameters
     ----------
     t1: DNDarray
-        Input tensor
-    t2: DNDarray or scalar
+        Input array
+    t2: DNDarray or float
         Integer number of zero bits to add
 
     Example
@@ -577,7 +588,7 @@ DNDarray.__lshift__ = lambda self, other: left_shift(self, other)
 DNDarray.__lshift__.__doc__ = left_shift.__doc__
 
 
-def mod(t1, t2) -> DNDarray:
+def mod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. ``t1%t2``).
     Operation is not commutative. Result has the same sign as the devisor ``t2``.
@@ -613,7 +624,7 @@ DNDarray.__rmod__ = lambda self, other: mod(other, self)
 DNDarray.__rmod__.__doc__ = mod.__doc__
 
 
-def mul(t1, t2) -> DNDarray:
+def mul(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise multiplication (NOT matrix multiplication) of values from two operands, commutative.
     Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be
@@ -657,7 +668,7 @@ DNDarray.__rmul__.__doc__ = mul.__doc__
 multiply = mul
 
 
-def pow(t1, t2) -> DNDarray:
+def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise exponential function of values of operand ``t1`` to the power of values of operand ``t2`` (i.e ``t1**t2``).
     Operation is not commutative.
@@ -696,7 +707,7 @@ DNDarray.__rpow__.__doc__ = pow.__doc__
 power = pow
 
 
-def remainder(t1, t2) -> DNDarray:
+def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. ``t1%t2``).
     Operation is not commutative. Result has the same sign as the devisor ``t2``.
@@ -725,7 +736,7 @@ def remainder(t1, t2) -> DNDarray:
     return _operations.__binary_op(torch.remainder, t1, t2)
 
 
-def right_shift(t1, t2) -> DNDarray:
+def right_shift(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Shift the bits of an integer to the right.
 
@@ -756,13 +767,18 @@ DNDarray.__rshift__ = lambda self, other: right_shift(self, other)
 DNDarray.__rshift__.__doc__ = right_shift.__doc__
 
 
-def prod(x, axis=None, out=None, keepdim=None) -> DNDarray:
+def prod(
+    a: DNDarray,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdim: bool = None,
+) -> DNDarray:
     """
-    Return the product of array elements over a given axis in form of an array shaped as a but with the specified axis removed.
+    Return the product of array elements over a given axis in form of a DNDarray shaped as a but with the specified axis removed.
 
     Parameters
     ----------
-    x : DNDarray
+    a : DNDarray
         Input array.
     axis : None or int or Tuple[int,...], optional
         Axis or axes along which a product is performed. The default, ``axis=None``, will calculate the product of all the
@@ -772,7 +788,7 @@ def prod(x, axis=None, out=None, keepdim=None) -> DNDarray:
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output, but
         the datatype of the output values will be cast if necessary.
-    keepdims : bool, optional
+    keepdim : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
         option, the result will broadcast correctly against the input array.
 
@@ -792,7 +808,7 @@ def prod(x, axis=None, out=None, keepdim=None) -> DNDarray:
     ht.tensor([  2.,  12.])
     """
     return _operations.__reduce_op(
-        x, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
+        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
     )
 
 
@@ -800,7 +816,7 @@ DNDarray.prod = lambda self, axis=None, out=None, keepdim=None: prod(self, axis,
 DNDarray.prod.__doc__ = prod.__doc__
 
 
-def sub(t1, t2) -> DNDarray:
+def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise subtraction of values of operand ``t2`` from values of operands ``t1`` (i.e ``t1-t2``)
     Operation is not commutative.
@@ -839,14 +855,19 @@ DNDarray.__rsub__.__doc__ = sub.__doc__
 subtract = sub
 
 
-def sum(x, axis=None, out=None, keepdim=None) -> DNDarray:
+def sum(
+    a: DNDarray,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdim: bool = None,
+) -> DNDarray:
     """
     Sum of array elements over a given axis. An array with the same shape as ``self.__array`` except for the specified
     axis which becomes one, e.g. ``a.shape=(1, 2, 3)`` => ``ht.ones((1, 2, 3)).sum(axis=1).shape=(1, 1, 3)``
 
     Parameters
     ----------
-    x : DNDarray
+    a : DNDarray
         Input array.
     axis : None or int or Tuple[int,...], optional
         Axis along which a sum is performed. The default, ``axis=None``, will sum all of the elements of the input array.
@@ -855,7 +876,7 @@ def sum(x, axis=None, out=None, keepdim=None) -> DNDarray:
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output, but
         the datatype of the output values will be cast if necessary.
-    keepdims : bool, optional
+    keepdim : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
         option, the result will broadcast correctly against the input array.
 
@@ -873,7 +894,7 @@ def sum(x, axis=None, out=None, keepdim=None) -> DNDarray:
     """
     # TODO: make me more numpy API complete Issue #101
     return _operations.__reduce_op(
-        x, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
+        a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
     )
 
 
