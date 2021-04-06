@@ -11,13 +11,15 @@ if sys.version_info.minor >= 7:
 
 
 else:
-    LambdaLR = lrs.LambdaLR
-    MultiplicativeLR = lrs.MultiplicativeLR
-    StepLR = lrs.StepLR
-    MultiStepLR = lrs.MultiStepLR
-    ExponentialLR = lrs.ExponentialLR
-    CosineAnnealingLR = lrs.CosineAnnealingLR
-    ReduceLROnPlateau = lrs.ReduceLROnPlateau
-    CyclicLR = lrs.CyclicLR
-    CosineAnnealingWarmRestarts = lrs.CosineAnnealingWarmRestarts
-    OneCycleLR = lrs.OneCycleLR
+
+    class Wrapper(object):
+        def __init__(self, wrapped):
+            self.wrapped = wrapped
+
+        def __getattr__(self, name):
+            try:
+                return lrs.__getattribute__(name)
+            except AttributeError:
+                raise AttributeError(f"name {name} is not implemented in torch.optim.lr_scheduler")
+
+    sys.modules[__name__] = Wrapper(sys.modules[__name__])

@@ -1,6 +1,8 @@
 # Pending additions
 - [#717](https://github.com/helmholtz-analytics/heat/pull/717) Switch CPU CI over to Jenkins and pre-commit to GitHub action.
 - [#720](https://github.com/helmholtz-analytics/heat/pull/720) Ignore test files in codecov report and allow drops in code coverage.
+- [#725](https://github.com/helmholtz-analytics/heat/pull/725) Add tests for expected warnings.
+- [#736](https://github.com/helmholtz-analytics/heat/pull/736) Reference Jenkins CI tests and set development status to Beta.
 
 ## New features
 - [#660](https://github.com/helmholtz-analytics/heat/pull/660) NN module for data parallel neural networks
@@ -10,6 +12,9 @@
 - [#699](https://github.com/helmholtz-analytics/heat/pull/699) Support for complex numbers; New functions: angle, real, imag, conjugate
 - [#702](https://github.com/helmholtz-analytics/heat/pull/702) Support channel stackoverflow
 - [#712](https://github.com/helmholtz-analytics/heat/pull/712) New function: `issubdtype`
+- [#728](https://github.com/helmholtz-analytics/heat/pull/728) Feature addition: `DASO` optimizer
+- [#728](https://github.com/helmholtz-analytics/heat/pull/728) New feature: `nn.DataParallelMultiGPU` which uses `torch.distributed` for local communication (for use with `optim.DASO`)
+- [#728](https://github.com/helmholtz-analytics/heat/pull/728) New feature: `optim.DetectMetricPlateau` detects when a given metric plateaus.
 
 ### Factories
 - [#707](https://github.com/helmholtz-analytics/heat/pull/707) New feature: `asarray()`
@@ -17,6 +22,7 @@
 - [#559](https://github.com/helmholtz-analytics/heat/pull/559) Enhancement: `save_netcdf` allows naming dimensions, creating unlimited dimensions, using existing dimensions and variables, slicing
 ### Manipulations
 - [#677](https://github.com/helmholtz-analytics/heat/pull/677) split, vsplit, dsplit, hsplit
+- [#690](https://github.com/helmholtz-analytics/heat/pull/690) New feature: `ravel()`
 ### Statistical Functions
 - [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``
 ### Linear Algebra
@@ -31,16 +37,25 @@
 - [#660](https://github.com/helmholtz-analytics/heat/pull/660) New feature: `utils.data.datatools.Dataset` for created a local `torch.utils.data.Dataset` for use with `ht.nn.DataParallel`
 - [#660](https://github.com/helmholtz-analytics/heat/pull/660) Added MNIST example to `example/nn` to show the use of `ht.nn.DataParallel`. The `MNISTDataset` can be found in `ht.utils.data.mnist.py`
 - [#660](https://github.com/helmholtz-analytics/heat/pull/660) New feature: Data loader for H5 datasets which shuffles data in the background during training (`utils.data.partial_dataset.PartialH5Dataset`)
+### Logical
+- [#711](https://github.com/helmholtz-analytics/heat/pull/711) `isfinite()`, `isinf()`, `isnan()`
+- [#743](https://github.com/helmholtz-analytics/heat/pull/743) `isneginf()`, `isposinf()`
+
+### Types
+- [#738](https://github.com/helmholtz-analytics/heat/pull/738) `iscomplex()`, `isreal()`
 
 
 ## Bug fixes
 - [#709](https://github.com/helmholtz-analytics/heat/pull/709) Set the encoding for README.md in setup.py explicitly.
 - [#716](https://github.com/helmholtz-analytics/heat/pull/716) Bugfix: Finding clusters by spectral gap fails when multiple diffs identical
+- [#732](https://github.com/helmholtz-analytics/heat/pull/732) Corrected logic in `DNDarray.__getitem__` to produce the correct split axis
 - [#734](https://github.com/helmholtz-analytics/heat/pull/734) Fix division by zero error in `__local_op` with out != None on empty local arrays.
 - [#735](https://github.com/helmholtz-analytics/heat/pull/735) Set return type to bool in relational functions.
+- [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
 
-# v0.5.2
-
+## Enhancements
+### Manipulations
+- [#690](https://github.com/helmholtz-analytics/heat/pull/690) Enhancement: reshape accepts shape arguments with one unknown dimension.
 - [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
 
 # v0.5.1
