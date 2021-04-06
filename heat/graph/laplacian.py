@@ -1,3 +1,6 @@
+"""
+Module for graph-based classes
+"""
 from __future__ import annotations
 
 from typing import Callable
@@ -8,7 +11,7 @@ from heat.core.dndarray import DNDarray
 
 class Laplacian:
     """
-    Graph Laplacians from a dataset
+    Graph Laplacian from a dataset
 
     Parameters
     ----------
@@ -16,15 +19,15 @@ class Laplacian:
         Metric function that defines similarity between vertices. Should accept a data matrix :math:`n \\times f` as input and
         return an :math:`n\\times n` similarity matrix. Additional required parameters can be passed via a lambda function.
     definition : str
-        Type of Laplacian
+        Type of Laplacian \n
             - ``'simple'``: Laplacian matrix for simple graphs :math:`L = D - A` \n
-            - ``'norm_sym'``: Symmetric normalized Laplacian :math:`L^{sym} = D^{-1/2} L D^{-1/2} = I - D^{-1/2} A D^{-1/2}` \n
+            - ``'norm_sym'``: Symmetric normalized Laplacian :math:`L^{sym} = I - D^{-1/2} A D^{-1/2}` \n
             - ``'norm_rw'``: Random walk normalized Laplacian :math:`L^{rw} = D^{-1} L = I - D^{-1}` \n
     mode : str
-        How to calculate adjacency from the similarity matrix
+        How to calculate adjacency from the similarity matrix \n
             - ``'fully_connected'`` is fully-connected, so :math:`A = S` \n
             - ``'eNeighbour'`` is the epsilon neighbourhood, with :math:`A_{ji} = 0` if :math:`S_{ij} > upper` or
-                :math:`S_{ij} < lower`; for eNeighbour an upper or lower boundary needs to be set \n
+            :math:`S_{ij} < lower`; for eNeighbour an upper or lower boundary needs to be set \n
     threshold_key : str
         ``'upper'`` or ``'lower'``, defining the type of threshold for the epsilon-neighborhood
     threshold_value : float
@@ -114,7 +117,7 @@ class Laplacian:
         ----------
         X : DNDarray
             The data matrix, Shape = (n_samples, n_features)
-       """
+        """
         S = self.similarity_metric(X)
         S.fill_diagonal(0.0)
 
