@@ -1,3 +1,7 @@
+"""
+Generalized MPI operations. i.e. element-wise binary operations
+"""
+
 import builtins
 import numpy as np
 import torch
@@ -12,11 +16,18 @@ from . import statistics
 from .dndarray import DNDarray
 from . import types
 
+from typing import Callable, Optional, Type, Union
+
 __all__ = []
 __BOOLEAN_OPS = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
 
 
-def __binary_op(operation, t1, t2, out=None):
+def __binary_op(
+    operation: Callable,
+    t1: Union[DNDarray, int, float],
+    t2: Union[DNDarray, int, float],
+    out: Optional[DNDarray] = None,
+) -> DNDarray:
     """
     Generic wrapper for element-wise binary operations of two operands (either can be tensor or scalar).
     Takes the operation function and the two operands involved in the operation as arguments.
@@ -26,12 +37,12 @@ def __binary_op(operation, t1, t2, out=None):
     operation : function
         The operation to be performed. Function that performs operation elements-wise on the involved tensors,
         e.g. add values from other to self
-
     t1: DNDarray or scalar
         The first operand involved in the operation,
-
     t2: DNDarray or scalar
         The second operand involved in the operation,
+    out: DNDarray, optional
+        Output buffer in which the result is placed
 
     Returns
     -------
@@ -168,9 +179,18 @@ def __binary_op(operation, t1, t2, out=None):
     )
 
 
-def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out) -> DNDarray:
+def __cum_op(
+    x: DNDarray,
+    partial_op: Callable,
+    exscan_op: Callable,
+    final_op: Callable,
+    neutral: Union[int, float],
+    axis: Union[int, float],
+    dtype: Union[str, Type[types.datatype]],
+    out: Optional[DNDarray] = None,
+) -> DNDarray:
     """
-    Generic wrapper for cumulative operations, i.e. cumsum(), cumprod(). Performs a three-stage cumulative operation. First, a partial
+    Generic wrapper for cumulative operations. Performs a three-stage cumulative operation. First, a partial
     cumulative operation is performed node-local that is combined into a global cumulative result via an MPI_Op and a final local
     reduction add or mul operation.
 
@@ -179,11 +199,11 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out) -> D
     x : DNDarray
         The heat DNDarray on which to perform the cumulative operation
     partial_op: function
-        The function performing a partial cumulative operation on the process-local data portion, e.g. cumsum().
+        The function performing a partial cumulative operation on the process-local data portion, e.g. :func:`cumsum() <heat.arithmetics.cumsum>`.
     exscan_op: mpi4py.MPI.Op
         The MPI operator for performing the exscan based on the results returned by the partial_op function.
     final_op: function
-        The local operation for the final result, e.g. add() for cumsum().
+        The local operation for the final result, e.g. :func:`add() <heat.arithmetics.add>` for :func:`cumsum() <heat.arithmetics.cumsum>`.
     neutral: scalar
         Neutral element for the cumulative operation, i.e. an element that does not change the reductions operations
         result.
@@ -256,7 +276,13 @@ def __cum_op(x, partial_op, exscan_op, final_op, neutral, axis, dtype, out) -> D
     )
 
 
-def __local_op(operation, x, out, no_cast=False, **kwargs) -> DNDarray:
+def __local_op(
+    operation: Callable,
+    x: DNDarray,
+    out: Optional[DNDarray] = None,
+    no_cast: Optional[bool] = False,
+    **kwargs
+) -> DNDarray:
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
     argument and takes only care of buffer allocation/writing. This function is intended to work on an element-wise bases
@@ -324,23 +350,27 @@ def __local_op(operation, x, out, no_cast=False, **kwargs) -> DNDarray:
     return out
 
 
-def __reduce_op(x, partial_op, reduction_op, neutral=None, **kwargs) -> DNDarray:
+def __reduce_op(
+    x: DNDarray,
+    partial_op: Callable,
+    reduction_op: Callable,
+    neutral: Optional[Union[int, float]] = None,
+    **kwargs
+) -> DNDarray:
     """
-    Generic wrapper for reduction operations, e.g. sum(), prod() etc. Performs a two-stage reduction. First, a partial
-    reduction is performed node-local that is combined into a global reduction result via an MPI_Op.
+    Generic wrapper for reduction operations, e.g. :func:`sum() <heat.arithmetics.sum>`, :func:`prod() <heat.arithmetics.prod>`
+    etc. Performs a two-stage reduction. First, a partial reduction is performed node-local that is combined into a
+    global reduction result via an MPI_Op.
 
     Parameters
     ----------
     x : DNDarray
         The DNDarray on which to perform the reduction operation
-
     partial_op: function
         The function performing a partial reduction on the process-local data portion, e.g. sum() for implementing a
         distributed mean() operation.
-
     reduction_op: mpi4py.MPI.Op
         The MPI operator for performing the full reduction based on the results returned by the partial_op function.
-
     neutral: scalar
         Neutral element, i.e. an element that does not change the result of the reduction operation. Needed for
         those cases where 'x.gshape[x.split] < x.comm.rank', that is, the shape of the distributed tensor is such
