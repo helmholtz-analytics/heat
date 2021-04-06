@@ -18,7 +18,11 @@ if sys.version_info.minor == 6:
             self.wrapped = wrapped
 
         def __getattr__(self, name):
-            # only torch function modules implemented right now
-            return torch.nn.functional.__getattribute__(name)
+            # call through to the torch.nn.functional module
+            try:
+                return torch.nn.functional.__getattribute__(name)
+            except AttributeError:
+                if name is not None:
+                    raise AttributeError("module not implemented in torch.nn.functional")
 
     sys.modules[__name__] = Wrapper(sys.modules[__name__])

@@ -1,4 +1,5 @@
 from .lr_scheduler import *
+from . import utils
 
 import sys
 import torch
