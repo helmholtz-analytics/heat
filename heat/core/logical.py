@@ -1,3 +1,7 @@
+"""
+logical functions for heat. as in are things equal or close to equal and friends
+"""
+
 import numpy as np
 import torch
 
@@ -128,7 +132,6 @@ def allclose(
     >>> ht.allclose(a, b, atol=1e-04)
     True
     """
-
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
@@ -242,14 +245,14 @@ def isclose(
     return result
 
 
-def isfinite(x):
+def isfinite(x: DNDarray) -> DNDarray:
     """
     Test element-wise for finiteness (not infinity or not Not a Number) and return result as a boolean array.
 
     Parameters
     ----------
-    x   : DNDarray
-    out : DNDarray
+    x : DNDarray
+        Input array to test
 
     Examples
     --------
@@ -259,14 +262,14 @@ def isfinite(x):
     return _operations.__local_op(torch.isfinite, x, None, no_cast=True)
 
 
-def isinf(x):
+def isinf(x: DNDarray) -> DNDarray:
     """
     Test element-wise for positive or negative infinity and return result as a boolean array.
 
     Parameters
     ----------
-    x   : DNDarray
-    out : DNDarray
+    x : DNDarray
+        Input array to test
 
     Examples
     --------
@@ -276,14 +279,16 @@ def isinf(x):
     return _operations.__local_op(torch.isinf, x, None, no_cast=True)
 
 
-def isnan(x):
+def isnan(x: DNDarray) -> DNDarray:
     """
     Test element-wise for NaN and return result as a boolean array.
 
     Parameters
     ----------
-    x   : DNDarray
+    x : DNDarray
+        Input array to test
     out : DNDarray
+        Output buffer
 
     Returns
     -------
@@ -297,13 +302,16 @@ def isnan(x):
     return _operations.__local_op(torch.isnan, x, None, no_cast=True)
 
 
-def isneginf(x, out=None):
+def isneginf(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Test if each element of `x` is negative infinite, return result as a bool array.
 
     Parameters
     ----------
     x : DNDarray
+        Input array to test
+    out: DNDarray, optional
+        DNDarray to put the result into
 
     Examples
     --------
@@ -313,13 +321,16 @@ def isneginf(x, out=None):
     return _operations.__local_op(torch.isneginf, x, out, no_cast=True)
 
 
-def isposinf(x, out=None):
+def isposinf(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Test if each element of `x` is positive infinite, return result as a bool array.
 
     Parameters
     ----------
     x : DNDarray
+        Input array to test
+    out: DNDarray, optional
+        DNDarray to put the result into
 
     Examples
     --------

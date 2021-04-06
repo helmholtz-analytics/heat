@@ -1,3 +1,7 @@
+"""
+handle different devices. Current options: CPU (default), GPU
+"""
+
 from __future__ import annotations
 
 import torch

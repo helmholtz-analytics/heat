@@ -1,3 +1,7 @@
+"""
+arithmetic functions for DNDarrays
+"""
+
 from __future__ import annotations
 
 import torch

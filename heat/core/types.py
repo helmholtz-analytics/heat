@@ -1,3 +1,7 @@
+"""
+implementations of the different dtypes supported in heat and the
+"""
+
 from __future__ import annotations
 
 import builtins
@@ -82,7 +86,7 @@ class datatype:
         *value,
         device: Optional[Union[str, devices.Device]] = None,
         comm: Optional[communication.Communication] = None
-    ):
+    ) -> dndarray.DNDarray:
         torch_type = cls.torch_type()
         if torch_type is NotImplemented:
             raise TypeError("cannot create '{}' instances".format(cls))

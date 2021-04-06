@@ -1,3 +1,7 @@
+"""
+functions related to finding indexes of values, etc.
+"""
+
 import torch
 from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence
 
