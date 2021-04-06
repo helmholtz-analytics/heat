@@ -39,6 +39,7 @@ setup(
         "torchvision>=0.5.0",
     ],
     extras_require={
+        "docutils": ["docutils>=0.16"],
         "hdf5": ["h5py>=2.8.0"],
         "netcdf": ["netCDF4>=1.4.0"],
         "dev": ["pre-commit>=1.18.3"],
