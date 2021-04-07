@@ -1,3 +1,9 @@
+"""
+Lasso algorithm implementation
+"""
+
+from typing import Optional, Union
+
 import heat as ht
 from heat.core.dndarray import DNDarray
 
@@ -40,7 +46,9 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
     # ToDo: example to be added
     """
 
-    def __init__(self, lam=0.1, max_iter=100, tol=1e-6):
+    def __init__(
+        self, lam: Optional[float] = 0.1, max_iter: Optional[int] = 100, tol: Optional[float] = 1e-6
+    ):
         """Initialize lasso parameters"""
         self.__lam = lam
         self.max_iter = max_iter
@@ -49,32 +57,59 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         self.n_iter = None
 
     @property
-    def coef_(self):
+    def coef_(self) -> Optional[DNDarray]:
+        """
+        Get the parameter vector (:math:`w` in the cost function formula).
+        Shape  = (n_targets, n_features)
+        """
         if self.__theta is None:
             return None
         else:
             return self.__theta[1:]
 
     @property
-    def intercept_(self):
+    def intercept_(self) -> Optional[Union[float, DNDarray]]:
+        """
+        Get the independent term in decision function.
+        Shape = (n_targets,)
+        """
         if self.__theta is None:
             return None
         else:
             return self.__theta[0]
 
     @property
-    def lam(self):
+    def lam(self) -> float:
+        """
+        Get lambda, i.e. the constant that multiplies the :math:`L1` term. ``lam = 0.`` is equivalent to an Ordinary
+        Least Square (OLS). For numerical reasons, using ``lam = 0.,`` with the ``Lasso`` object is not advised.
+        """
         return self.__lam
 
     @lam.setter
-    def lam(self, arg):
+    def lam(self, arg: float) -> None:
+        """
+        Set the value of lambda
+
+        Parameters
+        ----------
+        arg: float
+            The value to which lambda will be set
+        """
         self.__lam = arg
 
     @property
-    def theta(self):
+    def theta(self) -> DNDarray:
+        """
+        Get theta (First element is the interception parameter vector :math:`w`. Shape = (n_features + 1,))
+
+        Returns
+        -------
+        self.__theta
+        """
         return self.__theta
 
-    def soft_threshold(self, rho):
+    def soft_threshold(self, rho: DNDarray):
         """
         Soft threshold operator
 
@@ -82,6 +117,9 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         ----------
         rho : DNDarray
             Input model data, Shape = (1,)
+
+        Returns
+        -------
         out : DNDarray
             Thresholded model data, Shape = (1,)
         """
@@ -92,7 +130,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         else:
             return 0.0
 
-    def rmse(self, gt, yest):
+    def rmse(self, gt: DNDarray, yest: DNDarray):
         """
         Root mean square error (RMSE)
 
@@ -102,10 +140,14 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
             Input model data, Shape = (1,)
         yest : DNDarray
             Thresholded model data, Shape = (1,)
+
+        Returns
+        -------
+        RMSE of the input
         """
         return ht.sqrt((ht.mean((gt - yest) ** 2))).larray.item()
 
-    def fit(self, x, y):
+    def fit(self, x: DNDarray, y: DNDarray):
         """
         Fit lasso model with coordinate descent
 
@@ -161,7 +203,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         self.n_iter = i + 1
         self.__theta = theta
 
-    def predict(self, x):
+    def predict(self, x: DNDarray):
         """
         Apply lasso model to input data. First row data corresponds to interception
 
