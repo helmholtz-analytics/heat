@@ -1,9 +1,12 @@
+"""
+Functions relating to indices of items within DNDarrays, i.e. `where()`
+"""
+
 import torch
 from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence
 
 from .communication import MPI
 from .dndarray import DNDarray
-from . import factories
 from . import sanitation
 from . import types
 
@@ -92,9 +95,12 @@ def nonzero(x: DNDarray) -> DNDarray:
 DNDarray.nonzero = lambda self: nonzero(self)
 DNDarray.nonzero.__doc__ = nonzero.__doc__
 
-def where(cond: DNDarray,
-          x: Union[None, int, float, DNDarray] = None,
-          y: Union[None, int, float, DNDarray] = None) -> DNDarray:
+
+def where(
+    cond: DNDarray,
+    x: Union[None, int, float, DNDarray] = None,
+    y: Union[None, int, float, DNDarray] = None,
+) -> DNDarray:
     """
     Return elements chosen from ``x`` or ``y`` depending on condition.
     Result is a :class:`~heat.core.dndarray.DNDarray` with elements from ``x`` where cond is ``True``,
@@ -112,12 +118,12 @@ def where(cond: DNDarray,
     Returns
     -------
     result: DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` 
+        A :class:`~heat.core.dndarray.DNDarray`
 
     Raises
     ------
     NotImplementedError
-        if splits of the two input :class:`~heat.core.dndarray.DNDarray` differ 
+        if splits of the two input :class:`~heat.core.dndarray.DNDarray` differ
     TypeError
         if only x or y is given or both are not DNDarrays or numerical scalars
 

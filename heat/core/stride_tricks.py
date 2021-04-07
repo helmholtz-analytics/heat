@@ -1,3 +1,7 @@
+"""
+A collection of functions used for inferring or correction things before major computation
+"""
+
 import itertools
 import numpy as np
 
