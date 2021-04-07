@@ -1,3 +1,7 @@
+"""
+Creation of DNDarrays
+"""
+
 import numpy as np
 import torch
 import warnings

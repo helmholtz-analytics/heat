@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import torch
 
+from typing import Union
+
 from .communication import MPI
 from .dndarray import DNDarray
 from . import _operations
@@ -17,7 +19,7 @@ __all__ = ["eq", "equal", "ge", "gt", "le", "lt", "ne"]
 def eq(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
     Element-wise rich comparison of equality between values from two operands, commutative.
-    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be 
+    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be
     compared as argument.
 
     Parameters
@@ -103,11 +105,10 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
     return result_tensor.comm.allreduce(result_value, MPI.LAND)
 
 
-
 def ge(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
     Element-wise rich greater than or equal comparison between values from operand ``x`` with respect to values of
-    operand ``y`` (i.e. ``x>=y``), not commutative. Takes the first and second operand (scalar or 
+    operand ``y`` (i.e. ``x>=y``), not commutative. Takes the first and second operand (scalar or
     :class:`~heat.core.dndarray.DNDarray`) whose elements are to be compared as argument.
 
     Parameters
@@ -157,7 +158,7 @@ DNDarray.__ge__.__doc__ = ge.__doc__
 def gt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
     Element-wise rich greater than comparison between values from operand ``x`` with respect to values of
-    operand ``y`` (i.e. ``x>y``), not commutative. Takes the first and second operand (scalar or 
+    operand ``y`` (i.e. ``x>y``), not commutative. Takes the first and second operand (scalar or
     :class:`~heat.core.dndarray.DNDarray`) whose elements are to be compared as argument.
 
     Parameters
@@ -207,7 +208,7 @@ DNDarray.__gt__.__doc__ = gt.__doc__
 def le(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
     Element-wise rich less than or equal comparison between values from operand ``x`` with respect to values of
-    operand ``y`` (i.e. ``x<=y``), not commutative. Takes the first and second operand (scalar or 
+    operand ``y`` (i.e. ``x<=y``), not commutative. Takes the first and second operand (scalar or
     :class:`~heat.core.dndarray.DNDarray`) whose elements are to be compared as argument.
 
     Parameters
@@ -257,7 +258,7 @@ DNDarray.__le__.__doc__ = le.__doc__
 def lt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
     Element-wise rich less than comparison between values from operand ``x`` with respect to values of
-    operand ``y`` (i.e. ``x<y``), not commutative. Takes the first and second operand (scalar or 
+    operand ``y`` (i.e. ``x<y``), not commutative. Takes the first and second operand (scalar or
     :class:`~heat.core.dndarray.DNDarray`) whose elements are to be compared as argument.
 
     Parameters
@@ -307,7 +308,7 @@ DNDarray.__lt__.__doc__ = lt.__doc__
 def ne(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
     Element-wise rich comparison of non-equality between values from two operands, commutative.
-    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be 
+    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be
     compared as argument.
 
     Parameters

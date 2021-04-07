@@ -1,3 +1,7 @@
+"""
+Rounding functions for DNDarrays
+"""
+
 import torch
 from typing import Type, Tuple, Optional, Callable
 from .dndarray import DNDarray
@@ -11,9 +15,9 @@ from . import types
 __all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "modf", "round", "trunc"]
 
 
-def abs(x: DNDarray, 
-        out: Optional[DNDarray] = None, 
-        dtype: Optional[Type[datatype]] = None) -> DNDarray:
+def abs(
+    x: DNDarray, out: Optional[DNDarray] = None, dtype: Optional[Type[datatype]] = None
+) -> DNDarray:
     """
     Calculate the absolute value element-wise.
 
@@ -55,9 +59,9 @@ DNDarray.abs: Callable[
 DNDarray.abs.__doc__ = abs.__doc__
 
 
-def absolute(x: DNDarray,
-             out: Optional[DNDarray] = None,
-             dtype: Optional[Type[datatype]] = None) -> DNDarray:
+def absolute(
+    x: DNDarray, out: Optional[DNDarray] = None, dtype: Optional[Type[datatype]] = None
+) -> DNDarray:
     """
     Calculate the absolute value element-wise.
     :func:`abs` is a shorthand for this function.
@@ -91,7 +95,7 @@ DNDarray.absolute.__doc__ = absolute.__doc__
 def ceil(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Return the ceil of the input, element-wise. Result is a :class:`~heat.core.dndarray.DNDarray` of the same shape as
-    ``x``. The ceil of the scalar ``x`` is the smallest integer i, such that ``i>=x``. It is often denoted as 
+    ``x``. The ceil of the scalar ``x`` is the smallest integer i, such that ``i>=x``. It is often denoted as
     :math:`\\lceil x \\rceil`.
 
     Parameters
@@ -125,7 +129,7 @@ DNDarray.ceil.__doc__ = ceil.__doc__
 
 def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Returns a :class:`~heat.core.dndarray.DNDarray` with the elements of this array, but where values 
+    Returns a :class:`~heat.core.dndarray.DNDarray` with the elements of this array, but where values
     ``<a_min`` are replaced with ``a_min``, and those ``>a_max`` with ``a_max``.
 
     Parameters
@@ -174,7 +178,7 @@ DNDarray.clip.__doc__ = clip.__doc__
 def fabs(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Calculate the absolute value element-wise and return floating-point class:`~heat.core.dndarray.DNDarray`.
-    This function exists besides ``abs==absolute`` since it will be needed in case complex numbers will be introduced 
+    This function exists besides ``abs==absolute`` since it will be needed in case complex numbers will be introduced
     in the future.
 
     Parameters
@@ -203,7 +207,7 @@ DNDarray.fabs.__doc__ = fabs.__doc__
 def floor(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Return the floor of the input, element-wise.
-    The floor of the scalar ``x`` is the largest integer i, such that ``i<=x``. 
+    The floor of the scalar ``x`` is the largest integer i, such that ``i<=x``.
     It is often denoted as :math:`\\lfloor x \\rfloor`.
 
     Parameters
@@ -302,10 +306,12 @@ DNDarray.modf: Callable[
 DNDarray.modf.__doc__ = modf.__doc__
 
 
-def round(x: DNDarray,
-          decimals: int = 0,
-          out: Optional[DNDarray] = None,
-          dtype: Optional[Type[datatype]] = None) -> DNDarray:
+def round(
+    x: DNDarray,
+    decimals: int = 0,
+    out: Optional[DNDarray] = None,
+    dtype: Optional[Type[datatype]] = None,
+) -> DNDarray:
     """
     Calculate the rounded value element-wise.
 

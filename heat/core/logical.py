@@ -1,3 +1,7 @@
+"""
+Logical functions for the DNDarrays
+"""
+
 import numpy as np
 import torch
 
@@ -34,7 +38,8 @@ def all(
     x: DNDarray,
     axis: Union[int, Tuple[int], None] = None,
     out: Optional[DNDarray] = None,
-    keepdim: bool = False) -> Union[DNDarray, bool]:
+    keepdim: bool = False,
+) -> Union[DNDarray, bool]:
     """
     Test whether all array elements along a given axis evaluate to ``True``.
     A new boolean or :class:`~heat.core.dndarray.DNDarray` is returned unless out is specified, in which case a
@@ -58,7 +63,7 @@ def all(
     Returns
     -------
     result : DNDarray or bool
-        A DNDarray or boolean containing the result of the test whether all array elements along a given axis 
+        A DNDarray or boolean containing the result of the test whether all array elements along a given axis
         evaluate to ``True``.
 
     Examples
@@ -87,6 +92,7 @@ def all(
     >>> out
     DNDarray([False, False, False, False, False], dtype=ht.float32, device=cpu:0, split=None)
     """
+
     def local_all(t, *args, **kwargs):
         return torch.all(t != 0, *args, **kwargs)
 
@@ -94,17 +100,16 @@ def all(
         x, local_all, MPI.LAND, axis=axis, out=out, neutral=1, keepdim=keepdim
     )
 
+
 DNDarray.all: Callable[
     [Union[int, Tuple[int], None], Optional[DNDarray], bool], Union[DNDarray, bool]
 ] = lambda self, axis=None, out=None, keepdim=False: all(self, axis, out, keepdim)
 DNDarray.all.__doc__ = all.__doc__
 
 
-def allclose(x: DNDarray, 
-             y: DNDarray, 
-             rtol: float = 1e-05, 
-             atol: float = 1e-08, 
-             equal_nan: bool = False) -> bool:
+def allclose(
+    x: DNDarray, y: DNDarray, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False
+) -> bool:
     """
     Test whether two tensors are element-wise equal within a tolerance. Returns ``True`` if ``|x-y|<=atol+rtol*|y|``
     for all elements of ``x`` and ``y``, ``False`` otherwise
@@ -120,7 +125,7 @@ def allclose(x: DNDarray,
     rtol: float, optional
         Relative tolerance (with respect to ``y``).
     equal_nan: bool, optional
-        Whether to compare NaN’s as equal. If ``True``, NaN’s in ``x`` will be considered equal to NaN’s in ``y`` in 
+        Whether to compare NaN’s as equal. If ``True``, NaN’s in ``x`` will be considered equal to NaN’s in ``y`` in
         the output array.
 
     Returns
@@ -159,11 +164,9 @@ DNDarray.allclose: Callable[
 DNDarray.allclose.__doc__ = all.__doc__
 
 
-
-def any(x, 
-        axis: Optional[int] = None,
-        out: Optional[DNDarray] = None, 
-        keepdim: bool = False) -> DNDarray:
+def any(
+    x, axis: Optional[int] = None, out: Optional[DNDarray] = None, keepdim: bool = False
+) -> DNDarray:
     """
     Test whether any array element along a given axis evaluates to ``True``.
     The returning array is one dimensional unless axis is not ``None``.
@@ -185,9 +188,9 @@ def any(x,
     Returns
     -------
     result : DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the result of the test whether any array elements along a 
+        A :class:`~heat.core.dndarray.DNDarray` containing the result of the test whether any array elements along a
         given axis evaluate to ``True``.
-        
+
     Examples
     ---------
     >>> x = ht.float32([[0.3, 0, 0.5]])
@@ -204,6 +207,7 @@ def any(x,
     >>> res
     DNDarray([False, False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
+
     def local_any(t, *args, **kwargs):
         return torch.any(t != 0, *args, **kwargs)
 
@@ -218,11 +222,9 @@ DNDarray.any: Callable[
 DNDarray.any.__doc__ = any.__doc__
 
 
-def isclose(x: DNDarray,
-            y: DNDarray, 
-            rtol: float = 1e-05,
-            atol: float = 1e-08,
-            equal_nan: bool = False) -> DNDarray:
+def isclose(
+    x: DNDarray, y: DNDarray, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False
+) -> DNDarray:
     """
     Returns a boolean :class:`~heat.core.dndarray.DNDarray`, with elements ``True`` where ``a`` and ``b`` are equal
     within the given tolerance. If both ``x`` and ``y`` are scalars, returns a single boolean value.
@@ -238,13 +240,13 @@ def isclose(x: DNDarray,
     atol : float
         The absolute tolerance parameter.
     equal_nan : bool
-        Whether to compare NaN’s as equal. If ``True``, NaN’s in x will be considered equal to NaN’s in y in the output 
+        Whether to compare NaN’s as equal. If ``True``, NaN’s in x will be considered equal to NaN’s in y in the output
         array.
 
     Returns
     -------
     result : DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the result of the test whether any array elements along a 
+        A :class:`~heat.core.dndarray.DNDarray` containing the result of the test whether any array elements along a
         given axis evaluate to ``True``.
     """
     t1, t2 = __sanitize_close_input(x, y)
@@ -270,7 +272,7 @@ def isclose(x: DNDarray,
 
 def isfinite(x: DNDarray) -> DNDarray:
     """
-    Test element-wise for finiteness (not infinity or not Not a Number) and return result as a boolean 
+    Test element-wise for finiteness (not infinity or not Not a Number) and return result as a boolean
     :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
@@ -293,7 +295,7 @@ def isfinite(x: DNDarray) -> DNDarray:
 
 def isinf(x: DNDarray) -> DNDarray:
     """
-    Test element-wise for positive or negative infinity and return result as a boolean 
+    Test element-wise for positive or negative infinity and return result as a boolean
     :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
@@ -327,7 +329,7 @@ def isnan(x: DNDarray) -> DNDarray:
     Returns
     -------
     result : DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing bool variables indicating the corresponding values to be 
+        A :class:`~heat.core.dndarray.DNDarray` containing bool variables indicating the corresponding values to be
         NaN or not NaN
 
     Examples
@@ -353,7 +355,7 @@ def isneginf(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Returns
     -------
     result:  DNDarray
-        A boolean :class:`~heat.core.dndarray.DNDarray` containing the test result of any input element being negative 
+        A boolean :class:`~heat.core.dndarray.DNDarray` containing the test result of any input element being negative
         infinite
 
     Examples
@@ -362,7 +364,6 @@ def isneginf(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     DNDarray([False, False, True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.isneginf, x, out, no_cast=True)
-
 
 
 def isposinf(x: DNDarray, out: Optional[DNDarray] = None):
@@ -380,7 +381,7 @@ def isposinf(x: DNDarray, out: Optional[DNDarray] = None):
     Returns
     -------
     result:  DNDarray
-        A boolean :class:`~heat.core.dndarray.DNDarray` containing the test result of any input element being positive 
+        A boolean :class:`~heat.core.dndarray.DNDarray` containing the test result of any input element being positive
         infinite
 
     Examples
@@ -407,10 +408,10 @@ def logical_and(x: DNDarray, y: DNDarray) -> DNDarray:
     -----------
     x : DNDarray
         Input array of same shape
-    x : DNDarray
+    y : DNDarray
         Input array of same shape
 
-   Returns
+    Returns
     -------
     result : DNDarray
         A boolean :class:`~heat.core.dndarray.DNDarray` containing the truth value of ``x`` AND ``y`` element-wise.
@@ -425,7 +426,6 @@ def logical_and(x: DNDarray, y: DNDarray) -> DNDarray:
     )
 
 
-
 def logical_not(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Computes the element-wise logical NOT of the given input :class:`~heat.core.dndarray.DNDarray`.
@@ -438,10 +438,10 @@ def logical_not(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         Alternative output array in which to place the result. It must have the same shape as the expected output.
         The output is a :class:`~heat.core.dndarray.DNDarray` with ``datatype=bool``.
 
-   Returns
+    Returns
     -------
     result : DNDarray
-        A boolean :class:`~heat.core.dndarray.DNDarray` containing the element-wise logical NOT of the given 
+        A boolean :class:`~heat.core.dndarray.DNDarray` containing the element-wise logical NOT of the given
         input :class:`~heat.core.dndarray.DNDarray`.
 
     Examples
@@ -466,7 +466,7 @@ def logical_or(x: DNDarray, y: DNDarray) -> DNDarray:
     Returns
     -------
     result : DNDarray
-        A boolean :class:`~heat.core.dndarray.DNDarray` containing the element-wise logical NOT of the given 
+        A boolean :class:`~heat.core.dndarray.DNDarray` containing the element-wise logical NOT of the given
         input :class:`~heat.core.dndarray.DNDarray`.
 
     Examples
@@ -519,7 +519,7 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
     Returns
     -------
     result : Tuple[DNDarray, DNDarray]
-        Tuple of sanizized input arrays    
+        Tuple of sanizized input arrays
 
     Raises
     ------
@@ -527,8 +527,9 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
         If ``x`` is neither :class:`~heat.core.dndarray.DNDarray` or numeric scalar
     """
 
-    def sanitize_input_type(x: Union[int, float, DNDarray],
-                            y: Union[int, float, DNDarray]) -> DNDarray:
+    def sanitize_input_type(
+        x: Union[int, float, DNDarray], y: Union[int, float, DNDarray]
+    ) -> DNDarray:
         """
         Verifies that ``x`` and ``y`` are either scalar, or a :class:`~heat.core.dndarray.DNDarray`.
         In the former case, the scalar is wrapped in a :class:`~heat.core.dndarray.DNDarray`.
