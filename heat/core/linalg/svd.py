@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from collections import namedtuple
 
 from .qr import __split0_r_calc, __split0_q_loop, __split1_qr_loop
@@ -10,8 +11,7 @@ from . import utils
 
 from ..communication import MPI
 
-
-__all__ = ["block_diagonalize", "bulge_chasing"]
+__all__ = ["block_diagonalize", "bulge_chasing", "svd"]
 
 
 def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True):
@@ -830,15 +830,16 @@ def svd(a, full_matrices=True, compute_uv=True):
     Parameters
     ----------
     a : ht.DNDarray
-        2-dimensional (m x n) input on which to compute the SVD
+        At least 2-dimensional input on which to compute the SVD
     full_matrices : bool, optional
         If True, U and V have the shapes (m x m), (n x n) respectively, otherwise
         the shapes are (m x k), (k x n) where k = min(m, n)
         Default: True
     compute_uv : bool, optional
-        Whether or not to compute the transformation matrices U, VT in addition
+        Whether or not to compute the transformation matrices U, Vh in addition
         to S
         Default: True
+
 
     Returns
     -------
@@ -848,27 +849,83 @@ def svd(a, full_matrices=True, compute_uv=True):
             where the columns contain the left singular vectors
         S : ht.DNDarray
             Diagonal matrix, upholding the singular values in descending order
-        VT : ht.DNDarray
+        Vh : ht.DNDarray
             Right transformation (unitary) matrix,
             where the columns contain the right singular vectors
+
+    Notes
+    -----
+    Difference between 2D and > 2D input:
+        2D (m x n):
+        Computation of the SVD in the standard way, such that
+
+        a = U @ S @ Vh
+
+        > 2D:
+        Computation of the SVD according to applied broadcasting rules ("Stacked mode")
+        Iteration over all indices over the first a.ndim -2 dimensions, where for each combination the
+        SVD is applied to the last 2 indices
+
+        Reconstruction of a with either
+        a = (u * s[..., None, :]]) @ vh
+        or
+        a = u @ (s[..., None] * vh])
+
+    Examples
+    --------
 
     """
     sanitation.sanitize_in(a)
 
-    # Phase 1, First stage: Transformation from general to band/block matrix
-    res_stage1 = block_diagonalize(a)
-    print(res_stage1)
+    # assure input is at least 2-dimensional
+    if a.ndim < 2:
+        raise ValueError(
+            f"Incorrect number of dimensions. Input must be at least 2-, not {a.ndim}-dimensional."
+        )
+
+    # create namedtuple
+    if compute_uv:
+        svd_namedtuple = namedtuple("svd", ["U", "S", "Vh"])
+
+    # Undistributed case: call numpy
+    if a.is_distributed() is False:
+        res_np = np.linalg.svd(a.numpy(), full_matrices, compute_uv)
+
+        # convert matrices to DNDarrays
+        if compute_uv is False:
+            return factories.array(res_np, split=a.split, device=a.device, comm=a.comm)
+        else:
+            u_np, s_np, vh_np = res_np
+            u = factories.array(u_np, split=a.split, device=a.device, comm=a.comm)
+            s = factories.array(s_np, split=a.split, device=a.device, comm=a.comm)
+            vh = factories.array(vh_np, split=a.split, device=a.device, comm=a.comm)
+
+            return svd_namedtuple(u, s, vh)
+
+    # TODO compute initial QR reduction if m >> n
+    # initial_reduction = False
+    #
+    # # m >> n -> reduce input matrix with a primary QR factorization (cf. Trefethen)
+    # if m >= 3 / 5 * n:
+    #     initial_reduction = True
+
+    # --------------------------------------------------------------------------------------
+    # PHASE 1 (Preparation for QR iteration)
+    # Transformation from general to bidiagonal in 2 stages (general -> band -> bidiagonal)
+    # --------------------------------------------------------------------------------------
+
+    # Phase 1, First stage: Transformation from general to band/block-diagonalized matrix
+    # block_diagonalize(a)
 
     # Phase 1, Second stage: Transformation from band to bidiagonal
-    # res_stage2 = bulge_chasing(res_stage1[1])
-
+    # bulge_chasing
+    # --------------------------------------------------------------------------------------
+    # PHASE 2 (QR iteration)
+    # Transformation from bidiagonal to diagonal
+    # --------------------------------------------------------------------------------------
     # Phase 2, QR iteration
 
     # eventually back transform singular vectors to original basis (if needed)
     if compute_uv:
+        # store results in a svd_namedtuple and return it
         pass
-
-    # store results in a namedtuple and return it
-
-
-#  svd = namedtuple("svd", ["U", "S", "V"])
