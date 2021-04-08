@@ -261,6 +261,13 @@ class TestDNDarray(TestCase):
         data.balance_()
         self.assertTrue(data.is_balanced())
 
+        data = ht.zeros((2, 3, 4, 100), split=3)
+        data = data[:, :, :, :2]  # only rank 0 has data
+        lshape_map = data.create_lshape_map()
+        lshape_map = lshape_map[:, : data.split]  # remove split-axis
+        for lshape in lshape_map:  # all others should be the same
+            self.assertTrue(all(lshape == lshape_map[0]))
+
         data = ht.zeros((70, 20), split=0, dtype=ht.float64)
         data = data[:50]
         data.balance_()

@@ -1142,7 +1142,16 @@ class DNDarray:
         lshape_map = torch.zeros(
             (self.comm.size, len(self.gshape)), dtype=torch.int, device=self.device.torch_device
         )
-        lshape_map[self.comm.rank, :] = torch.tensor(self.lshape, device=self.device.torch_device)
+        if self.lnumel:
+            lshape_map[self.comm.rank, :] = torch.tensor(
+                self.lshape, device=self.device.torch_device
+            )
+        else:  # process is empty -> lshape is always (0,)
+            lshape_map[self.comm.rank, :] = torch.tensor(
+                self.gshape, device=self.device.torch_device
+            )
+            if self.split is not None:  # otherwise the global array has a zero in its shape
+                lshape_map[self.comm.rank, self.split] = 0
         self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
         return lshape_map
 
