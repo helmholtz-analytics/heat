@@ -2827,7 +2827,7 @@ def stack(arrays, axis=0, out=None):
     return stacked
 
 
-def unique(a, sorted=True, return_inverse=False, axis=None):
+def unique(a, return_inverse=False, axis=None):
     """
     Returns the sorted unique elements of an array.
 
@@ -2840,10 +2840,6 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         Input array.
     axis : int, optional
         The axis to operate on. If None, `a` will be flattened.
-    sorted : bool, optional
-        Sort the array in ascending order before finding the unique elements.
-        Set `sorted=False` only if `a` is already sorted (in whichever order).
-        Default: True
     return_inverse : bool, optional
         Return the indices of the unique array (for the specified `axis`, if provided)
         that can be used to reconstruct `a`.
@@ -2876,21 +2872,19 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
     Examples
     --------
     >>> x = ht.array([[3, 2], [1, 3]])
-    >>> ht.unique(x, sorted=True)
+    >>> ht.unique(x)
     array([1, 2, 3])
 
-    >>> ht.unique(x, sorted=True, axis=0)
+    >>> ht.unique(x, axis=0)
     array([[1, 3],
            [2, 3]])
 
-    >>> ht.unique(x, sorted=True, axis=1)
+    >>> ht.unique(x, axis=1)
     array([[2, 3],
            [3, 1]])
     """
     if not a.is_distributed():
-        torch_output = torch.unique(
-            a.larray, sorted=sorted, return_inverse=return_inverse, dim=axis
-        )
+        torch_output = torch.unique(a.larray, sorted=True, return_inverse=return_inverse, dim=axis)
         if isinstance(torch_output, tuple):
             heat_output = tuple(
                 factories.array(
@@ -2933,7 +2927,7 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
             inv_shape = [0]
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
     else:
-        lres = torch.unique(local_data, sorted=sorted, return_inverse=False, dim=unique_axis)
+        lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
     gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
 
     # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
@@ -2943,17 +2937,17 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         # gather local uniques
         gres.resplit_(None)
         # final round of torch.unique
-        lres = torch.unique(gres.larray, sorted=sorted, dim=unique_axis)
+        lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
         lres_split = None
         gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device)
     else:
         # balance gres if needed
         gres.balance_()
         # global sorted unique
-        lres = _pivot_sorting(gres, 0, torch.unique, sorted=sorted, return_inverse=True)
+        lres = _pivot_sorting(gres, 0, torch.unique, sorted=True, return_inverse=True)
         # second local unique
         if 0 not in lres.shape:
-            lres = torch.unique(lres, sorted=sorted, dim=unique_axis)
+            lres = torch.unique(lres, sorted=True, dim=unique_axis)
         lres_split = 0
 
     gres = factories.array(lres, dtype=a.dtype, is_split=lres_split, device=a.device)

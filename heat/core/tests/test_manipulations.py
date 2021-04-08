@@ -3071,7 +3071,7 @@ class TestManipulations(TestCase):
     def test_unique(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
-        # test "sparse" unique
+        # "sparse" data
         sparse_data = ht.array(
             torch.zeros(10, 4, dtype=torch.int32, device=self.device.torch_device), is_split=0
         )
@@ -3082,7 +3082,7 @@ class TestManipulations(TestCase):
             sparse_data.larray[random_row, random_col] = 1
         t_sparse = ht.resplit(sparse_data, axis=None).larray
 
-        # test "dense" unique
+        # "dense" data
         dense_data = ht.random.randint(0, 25, (50, 3), dtype=ht.int64, split=0)
         t_dense = ht.resplit(dense_data, axis=None).larray
 
@@ -3133,6 +3133,8 @@ class TestManipulations(TestCase):
                 self.assertTrue(unique1.split is None)
             # test inverse indices on "gathered" unique
             self.assertTrue((unique1[:, inverse1.larray].larray == data.larray).all())
+
+        # test unique on sorted data
 
         # test exceptions
         if dense_data.is_distributed():
