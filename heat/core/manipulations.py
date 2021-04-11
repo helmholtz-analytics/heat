@@ -2164,7 +2164,7 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
                     amount = int(x - send_vec[idx][:, first + i].sum())
                     send_vec[idx][proc][first + i] = amount
                     current_counts[first + i] += amount
-                    sent += amount
+                    sent = send_vec[idx][proc][: first + i + 1].sum().item()
                 if last < size:
                     # Send all left over values to the highest last process
                     amount = partition_matrix[proc][idx]
