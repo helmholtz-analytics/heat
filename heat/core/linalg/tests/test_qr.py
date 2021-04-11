@@ -80,9 +80,13 @@ class TestQR(TestCase):
                 self.assertTrue(
                     ht.allclose(ht.eye(m, dtype=ht.double), qr2.Q @ qr2.Q.T, rtol=1e-5, atol=1e-5)
                 )
-                # test if calc R alone works
-                qr = ht.qr(a2, calc_q=False, overwrite_a=True)
-                self.assertTrue(qr.Q is None)
+        # test if calc R alone works
+        a2_0 = ht.array(st2, split=0)
+        a2_1 = ht.array(st2, split=1)
+        qr_0 = ht.qr(a2_0, calc_q=False, overwrite_a=True)
+        self.assertTrue(qr_0.Q is None)
+        qr_1 = ht.qr(a2_1, calc_q=False, overwrite_a=True)
+        self.assertTrue(qr_1.Q is None)
 
         m, n = 40, 20
         st = torch.randn(m, n, device=self.device.torch_device)
