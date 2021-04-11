@@ -161,6 +161,42 @@ class TestDNDarray(TestCase):
                 self.assertTrue(data.halo_next is None)
                 self.assertEqual(data_with_halos.shape, (12, 0))
 
+        # test halo of imbalanced dndarray
+        if data.comm.size > 2:
+            t_data = torch.arange(
+                5 * data.comm.rank, dtype=torch.float64, device=data.larray.device
+            ).reshape(data.comm.rank, 5)
+            if data.comm.rank > 0:
+                prev_data = torch.arange(
+                    5 * (data.comm.rank - 1), dtype=torch.float64, device=data.larray.device
+                ).reshape(data.comm.rank - 1, 5)
+            if data.comm.rank < data.comm.size - 1:
+                next_data = torch.arange(
+                    5 * (data.comm.rank + 1), dtype=torch.float64, device=data.larray.device
+                ).reshape(data.comm.rank + 1, 5)
+            data = ht.array(t_data, is_split=0)
+            data.get_halo(1)
+            data_with_halos = data.array_with_halos
+            if data.comm.rank == 0:
+                prev_halo = None
+                next_halo = None
+                new_split_size = 0
+            elif data.comm.rank == 1:
+                prev_halo = None
+                next_halo = next_data[0]
+                new_split_size = data.larray.shape[0] + 1
+            elif data.comm.rank == data.comm.size - 1:
+                prev_halo = prev_data[-1]
+                next_halo = None
+                new_split_size = data.larray.shape[0] + 1
+            else:
+                prev_halo = prev_data[-1]
+                next_halo = next_data[0]
+                new_split_size = data.larray.shape[0] + 2
+            self.assertEqual(data_with_halos.shape, (new_split_size, 5))
+            self.assertTrue(data.halo_prev is prev_halo or (data.halo_prev == prev_halo).all())
+            self.assertTrue(data.halo_next is next_halo or (data.halo_next == next_halo).all())
+
     def test_larray(self):
         # undistributed case
         x = ht.arange(6 * 7 * 8).reshape((6, 7, 8))

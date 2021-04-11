@@ -428,16 +428,22 @@ class DNDarray:
             rank = self.comm.rank
             size = self.comm.size
 
+            first_rank = 0
+            next_rank = rank + 1
+            prev_rank = rank - 1
+            last_rank = size - 1
+
             if not self.balanced:
                 populated_ranks = torch.nonzero(lshape_map[:, 0]).squeeze().tolist()
                 if rank in populated_ranks:
-                    next_rank = populated_ranks.index(rank) + 1
-                    prev_rank = populated_ranks.index(rank) - 1
+                    first_rank = populated_ranks[0]
                     last_rank = populated_ranks[-1]
-            else:
-                next_rank = rank + 1
-                prev_rank = rank - 1
-                last_rank = size - 1
+                    next_rank = rank + 1
+                    prev_rank = rank - 1
+                    if rank != last_rank:
+                        next_rank = populated_ranks[populated_ranks.index(rank) + 1]
+                    if rank != first_rank:
+                        prev_rank = populated_ranks[populated_ranks.index(rank) - 1]
 
             # if local shape is zero
             if self.lshape[self.split] == 0:
@@ -453,7 +459,6 @@ class DNDarray:
 
             a_prev = self.__prephalo(0, halo_size)
             a_next = self.__prephalo(-halo_size, None)
-
             res_prev = None
             res_next = None
 
@@ -467,7 +472,7 @@ class DNDarray:
                 )
                 req_list.append(self.comm.Irecv(res_prev, source=next_rank))
 
-            if rank != 0:
+            if rank != first_rank:
                 self.comm.Isend(a_prev, prev_rank)
                 res_next = torch.zeros(
                     a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
