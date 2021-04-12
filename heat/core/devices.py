@@ -125,14 +125,14 @@ def get_device() -> Device:
     return __default_device
 
 
-def sanitize_device(device: Optional[Union[str, Device]]) -> Device:
+def sanitize_device(device: Optional[Union[str, Device]] = None) -> Device:
     """
     Sanitizes a device or device identifier, i.e. checks whether it is already an instance of :class:`~heat.core.device.Device` or a string with
     known device identifier and maps it to a proper :class:`~heat.core.device.Device`.
 
     Parameters
     ----------
-    device : str or Device
+    device : str or Device, optional
         The device to be sanitized
 
     Raises
