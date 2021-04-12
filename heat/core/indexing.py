@@ -62,7 +62,6 @@ def nonzero(x: DNDarray) -> DNDarray:
         x.larray = x.larray.float()
     if x.split is None:
         # if there is no split then just return the values from torch
-        # print(x.larray)
         lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
         gout = list(lcl_nonzero.size())
         is_split = None

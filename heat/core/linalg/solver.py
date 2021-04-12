@@ -27,7 +27,7 @@ def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: Optional[DNDarray] = None) -
     """
     if not isinstance(A, DNDarray) or not isinstance(b, DNDarray) or not isinstance(x0, DNDarray):
         raise TypeError(
-            "A, b and x0 need to be of type ht.dndarray, but were {}, {}, {}".format(
+            "A, b and x0 need to be of type ht.DNDarray, but were {}, {}, {}".format(
                 type(A), type(b), type(x0)
             )
         )
