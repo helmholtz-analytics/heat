@@ -140,7 +140,7 @@ class datatype:
     @classmethod
     def torch_type(cls) -> NotImplemented:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return NotImplemented
 
@@ -160,7 +160,7 @@ class bool(datatype):
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.bool
 
@@ -190,7 +190,7 @@ class integer(number):
 
 class signedinteger(integer):
     """
-    The general signedinteger datatype.
+    The general signed integer datatype.
     """
 
     pass
@@ -204,7 +204,7 @@ class int8(signedinteger):
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.int8
 
@@ -224,7 +224,7 @@ class int16(signedinteger):
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.int16
 
@@ -244,7 +244,7 @@ class int32(signedinteger):
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.int32
 
@@ -264,7 +264,7 @@ class int64(signedinteger):
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.int64
 
@@ -292,7 +292,7 @@ class uint8(unsignedinteger):
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.uint8
 
@@ -320,7 +320,7 @@ class float32(floating):
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.float32
 
@@ -376,7 +376,7 @@ class complex64(complex):
     @classmethod
     def torch_type(cls):
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.complex64
 
@@ -396,7 +396,7 @@ class complex128(complex):
     @classmethod
     def torch_type(cls):
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.complex128
 
@@ -751,7 +751,7 @@ for i, operand_a in enumerate(__type_codes.keys()):
                 break
 
 
-def iscomplex(x):
+def iscomplex(x: dndarray.DNDarray) -> dndarray.DNDarray:
     """
     Test element-wise if input is complex.
 
@@ -773,7 +773,7 @@ def iscomplex(x):
         return factories.zeros(x.shape, bool, split=x.split, device=x.device, comm=x.comm)
 
 
-def isreal(x):
+def isreal(x: dndarray.DNDarray) -> dndarray.DNDarray:
     """
     Test element-wise if input is real-valued.
 
@@ -789,7 +789,9 @@ def isreal(x):
     return _operations.__local_op(torch.isreal, x, None, no_cast=True)
 
 
-def issubdtype(arg1, arg2):
+def issubdtype(
+    arg1: Union[str, Type[datatype], Any], arg2: Union[str, Type[datatype], Any]
+) -> builtins.bool:
     """
     Returns True if first argument is a typecode lower/equal in type hierarchy.
 
@@ -827,7 +829,9 @@ def issubdtype(arg1, arg2):
     return issubclass(arg1, arg2)
 
 
-def promote_types(type1, type2):
+def promote_types(
+    type1: Union[str, Type[datatype], Any], type2: Union[str, Type[datatype], Any]
+) -> Type[datatype]:
     """
     Returns the data type with the smallest size and smallest scalar kind to which both ``type1`` and ``type2`` may be
     intuitively cast to, where intuitive casting refers to maintaining the same bit length if possible. This function
