@@ -1,5 +1,5 @@
 """
-Implementation of the LASSO regression for heat
+Implementation of the LASSO regression
 """
 
 import heat as ht
