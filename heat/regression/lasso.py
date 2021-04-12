@@ -1,6 +1,11 @@
+"""
+Implementation of the LASSO regression for heat
+"""
+
 import heat as ht
 from heat.core.dndarray import DNDarray
 from typing import Union, Optional
+
 
 class Lasso(ht.RegressionMixin, ht.BaseEstimator):
     """
@@ -41,7 +46,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
     >>> estimator = ht.regression.lasso.Lasso(max_iter=100, tol=None)
     >>> estimator.fit(X, y)
     """
-    def __init__(self, lam: Optional[float] = 0.1, max_iter: Optional[int] = 100, tol: Optional[float] = 1e-6) -> None:
+
+    def __init__(
+        self, lam: Optional[float] = 0.1, max_iter: Optional[int] = 100, tol: Optional[float] = 1e-6
+    ) -> None:
         """Initialize lasso parameters"""
         self.__lam = lam
         self.max_iter = max_iter
@@ -79,7 +87,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         """Returns regularization term lambda"""
         return self.__theta
 
-    def soft_threshold(self, rho: DNDarray)-> Union[DNDarray, float]:
+    def soft_threshold(self, rho: DNDarray) -> Union[DNDarray, float]:
         """
         Soft threshold operator
 
@@ -93,7 +101,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         Returns
         -------
         result : DNDarray or float
-            Threshold value of the shrinkage operator 
+            Threshold value of the shrinkage operator
         """
         if rho < -self.__lam:
             return rho + self.__lam
@@ -115,7 +123,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
 
         Returns
         -------
-        result : DNDarray 
+        result : DNDarray
             A :class:`~heat.core.dndarray.DNDarray` containing the RMSE
         """
         return ht.sqrt((ht.mean((gt - yest) ** 2))).larray.item()
@@ -133,7 +141,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
 
         Returns
         -------
-        None 
+        None
         """
         # Get number of model parameters
         _, n = x.shape
@@ -188,10 +196,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Input data, Shape = (n_samples, n_features)
-        
+
         Returns
         -------
-        result : DNDarray 
+        result : DNDarray
             A :class:`~heat.core.dndarray.DNDarray` containing the model prediction
         """
         return x @ self.__theta
