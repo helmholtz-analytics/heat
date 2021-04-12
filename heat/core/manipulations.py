@@ -1980,7 +1980,26 @@ def shape(a):
     return a.gshape
 
 
-def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
+def __pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
+    """
+    Parallel sorting function for :func:`sort` and :func:`unique`, based on [1].
+
+    Parameters
+    ----------
+
+    a : DNDarray
+        Distributed input data
+    axis : int or None
+        Axis along which the operation will be performed.
+    sort_op : torch operation
+        torch.sort or torch.unique
+    descending : bool
+        Whether :func:`sort` will return elements sorted in descending order. Default: `False`.
+
+    References
+    ----------
+    [1] Li et al., 1993, "On the versatility of parallel sorting by regular sampling", Parallel Computing, Volume 19, Issue 10, pages 1079-1103
+    """
     size = a.comm.Get_size()
     rank = a.comm.Get_rank()
     transposed = a.larray.transpose(axis, 0)
@@ -2289,7 +2308,7 @@ def sort(a, axis=None, descending=False, out=None):
         final_result, final_indices = torch.sort(a.larray, dim=axis, descending=descending)
 
     else:
-        final_result, final_indices = _pivot_sorting(a, axis, torch.sort, descending=descending)
+        final_result, final_indices = __pivot_sorting(a, axis, torch.sort, descending=descending)
 
     return_indices = factories.array(
         final_indices, dtype=dndarray.types.int32, is_split=a.split, device=a.device, comm=a.comm
@@ -2864,7 +2883,9 @@ def unique(a, return_inverse=False, axis=None):
     `unique` will be distributed along 0, if `axis` is specified, or along `a.split`,
     if `axis` is None.
 
-    WARNING: `inverse_indices` will always be distributed like the original data
+    Warnings
+    --------
+    `inverse_indices` will always be distributed like the original data
     (if `axis is None`) or along 0, and contains the GLOBAL indices to recreate the
     LOCAL portion of `a`. Before reconstructing an array based on `unique[inverse_indices]`,
     make sure that `unique` is local (with `unique.resplit_(axis=None)`, see `ht.resplit`).
@@ -2944,7 +2965,7 @@ def unique(a, return_inverse=False, axis=None):
         # balance gres if needed
         gres.balance_()
         # global sorted unique
-        lres = _pivot_sorting(gres, 0, torch.unique, sorted=True, return_inverse=True)
+        lres = __pivot_sorting(gres, 0, torch.unique, sorted=True, return_inverse=True)
         # second local unique
         if 0 not in lres.shape:
             lres = torch.unique(lres, sorted=True, dim=unique_axis)
