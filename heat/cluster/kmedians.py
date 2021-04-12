@@ -72,7 +72,6 @@ class KMedians(_KCluster):
             selection = (matching_centroids == i).astype(ht.int64)
             # Remove 0-element lines to avoid spoiling of median
             assigned_points = x * selection
-            # print(assigned_points.abs().sum(axis=1) == 0)
             rows = assigned_points.abs().sum(axis=1) != 0
             local = assigned_points.larray[rows.larray]
             clean = ht.array(local, is_split=x.split)
