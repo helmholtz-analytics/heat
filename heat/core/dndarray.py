@@ -4018,7 +4018,7 @@ class DNDarray:
                 "Constructing a view of the DNDarray’s memory with a different data-type not implemented yet. "
             )
 
-        new_shape = stride_tricks.sanitize_shape(args)
+        new_shape = stride_tricks.sanitize_shape(args, lval=-1)
         split = self.split
 
         if not self.is_distributed():

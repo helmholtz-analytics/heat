@@ -1768,7 +1768,7 @@ def reshape(a, *shape, **kwargs):
     new_split = kwargs.get("new_split")
     if new_split is None:
         new_split = a.split
-    shape = stride_tricks.sanitize_shape(shape)
+    shape = stride_tricks.sanitize_shape(shape, -1)
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
 
     def reshape_argsort_counts_displs(
