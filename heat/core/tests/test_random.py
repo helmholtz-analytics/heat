@@ -140,9 +140,9 @@ class TestRandom(TestCase):
         b = ht.random.rand(1)
         self.assertTrue(ht.equal(a, b))
 
-        # To big arrays cant be created
+        # Too big arrays cant be created
         with self.assertRaises(ValueError):
-            ht.random.randn(0xFFFFFFFFFFFFFFFF * 2 + 1)
+            ht.random.randn(0x7FFFFFFFFFFFFFFF)
         with self.assertRaises(ValueError):
             ht.random.rand(3, 2, -2, 5, split=1)
         with self.assertRaises(ValueError):

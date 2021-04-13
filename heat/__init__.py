@@ -7,6 +7,8 @@ from . import classification
 from . import cluster
 from . import graph
 from . import naive_bayes
+from . import nn
+from . import optim
 from . import regression
 from . import spatial
 from . import utils

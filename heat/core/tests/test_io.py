@@ -11,17 +11,17 @@ class TestIO(TestCase):
     def setUpClass(cls):
         super(TestIO, cls).setUpClass()
         pwd = os.getcwd()
-        cls.HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.h5")
+        cls.HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
         cls.HDF5_OUT_PATH = pwd + "/test.h5"
         cls.HDF5_DATASET = "data"
 
-        cls.NETCDF_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.nc")
+        cls.NETCDF_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.nc")
         cls.NETCDF_OUT_PATH = pwd + "/test.nc"
         cls.NETCDF_VARIABLE = "data"
         cls.NETCDF_DIMENSION = "data"
 
         # load comparison data from csv
-        cls.CSV_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.csv")
+        cls.CSV_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.csv")
         cls.IRIS = (
             torch.from_numpy(np.loadtxt(cls.CSV_PATH, delimiter=";"))
             .float()
@@ -159,7 +159,7 @@ class TestIO(TestCase):
 
         # unknown file extension
         with self.assertRaises(ValueError):
-            ht.load(os.path.join(os.getcwd(), "heat/datasets/data/iris.json"), "data")
+            ht.load(os.path.join(os.getcwd(), "heat/datasets/iris.json"), "data")
         with self.assertRaises(ValueError):
             ht.load("iris", "data")
 
@@ -168,7 +168,7 @@ class TestIO(TestCase):
         if ht.io.supports_hdf5():
             # local range
             local_range = ht.arange(100)
-            local_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET)
+            local_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=local_range.dtype.char())
             if local_range.comm.rank == 0:
                 with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
@@ -180,7 +180,7 @@ class TestIO(TestCase):
 
             # split range
             split_range = ht.arange(100, split=0)
-            split_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET)
+            split_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=split_range.dtype.char())
             if split_range.comm.rank == 0:
                 with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
@@ -476,7 +476,9 @@ class TestIO(TestCase):
 
         # local unsplit data
         local_data = ht.arange(100)
-        ht.save_hdf5(local_data, self.HDF5_OUT_PATH, self.HDF5_DATASET)
+        ht.save_hdf5(
+            local_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=local_data.dtype.char()
+        )
         if local_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                 comparison = torch.tensor(
@@ -486,7 +488,9 @@ class TestIO(TestCase):
 
         # distributed data range
         split_data = ht.arange(100, split=0)
-        ht.save_hdf5(split_data, self.HDF5_OUT_PATH, self.HDF5_DATASET)
+        ht.save_hdf5(
+            split_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=split_data.dtype.char()
+        )
         if split_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                 comparison = torch.tensor(

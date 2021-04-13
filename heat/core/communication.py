@@ -59,14 +59,23 @@ class MPICommunication(Communication):
         torch.int16: MPI.SHORT,
         torch.int32: MPI.INT,
         torch.int64: MPI.LONG,
+        torch.bfloat16: MPI.INT16_T,
+        torch.float16: MPI.INT16_T,
         torch.float32: MPI.FLOAT,
         torch.float64: MPI.DOUBLE,
+        torch.complex64: MPI.COMPLEX,
+        torch.complex128: MPI.DOUBLE_COMPLEX,
     }
 
     def __init__(self, handle=MPI.COMM_WORLD):
         self.handle = handle
-        self.rank = handle.Get_rank()
-        self.size = handle.Get_size()
+        try:
+            self.rank = handle.Get_rank()
+            self.size = handle.Get_size()
+        except MPI.Exception:
+            # ranks not within the group will fail with an MPI.Exception, this is expected
+            self.rank = None
+            self.size = None
 
     def is_distributed(self):
         """
@@ -153,19 +162,19 @@ class MPICommunication(Communication):
             The counts and displacements for all nodes
         """
         # the elements send/received by all nodes
-        counts = np.full((self.size,), shape[axis] // self.size)
+        counts = torch.full((self.size,), shape[axis] // self.size)
         counts[: shape[axis] % self.size] += 1
 
         # the displacements into the buffer
-        displs = np.zeros((self.size,), dtype=counts.dtype)
-        np.cumsum(counts[:-1], out=displs[1:])
+        displs = torch.zeros((self.size,), dtype=counts.dtype)
+        torch.cumsum(counts[:-1], out=displs[1:], dim=0)
 
         # helper that calculates the output shape for a receiving buffer under the assumption all nodes have an equally
         # sized input compared to this node
         output_shape = list(shape)
-        output_shape[axis] = self.size * counts[self.rank]
+        output_shape[axis] = self.size * counts[self.rank].item()
 
-        return tuple(counts), tuple(displs), tuple(output_shape)
+        return tuple(counts.tolist()), tuple(displs.tolist()), tuple(output_shape)
 
     @classmethod
     def mpi_type_and_elements_of(cls, obj, counts, displs):
