@@ -956,7 +956,7 @@ class TestDNDarray(TestCase):
         a = ht.ones((10, 25, 30), split=1)
         if a.comm.size > 1:
             self.assertEqual(a[0].split, 0)
-            self.assertEqual(a[:, 0, :].split, 0)
+            self.assertEqual(a[:, 0, :].split, 1)
             self.assertEqual(a[:, :, 0].split, 1)
 
         # set and get single value
@@ -971,14 +971,14 @@ class TestDNDarray(TestCase):
         b = a[10]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.dtype, ht.float32)
-        self.assertEqual(b.gshape, (5,))
+        self.assertEqual(b.gshape, (1, 5))
 
         a = ht.zeros((13, 5), split=0)
         a[-1] = 1
         b = a[-1]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.dtype, ht.float32)
-        self.assertEqual(b.gshape, (5,))
+        self.assertEqual(b.gshape, (1, 5))
 
         # slice in 1st dim only on 1 node
         a = ht.zeros((13, 5), split=0)
@@ -991,7 +991,7 @@ class TestDNDarray(TestCase):
             if a.comm.rank == 0:
                 self.assertEqual(a[1:4].lshape, (3, 5))
             else:
-                self.assertEqual(a[1:4].lshape, (0,))
+                self.assertEqual(a[1:4].lshape, (0, 5))
 
         a = ht.zeros((13, 5), split=0)
         a[1:2] = 1
@@ -1003,7 +1003,7 @@ class TestDNDarray(TestCase):
             if a.comm.rank == 0:
                 self.assertEqual(a[1:2].lshape, (1, 5))
             else:
-                self.assertEqual(a[1:2].lshape, (0,))
+                self.assertEqual(a[1:2].lshape, (0, 5))
 
         # slice in 1st dim only on 1 node w/ singular second dim
         a = ht.zeros((13, 5), split=0)
@@ -1107,14 +1107,14 @@ class TestDNDarray(TestCase):
         a = ht.zeros((13, 5), split=1)
         a[1:4, 1] = 1
         self.assertTrue((a[1:4, 1] == 1).all())
-        self.assertEqual(a[1:4, 1].gshape, (3,))
-        self.assertEqual(a[1:4, 1].split, 0)
+        self.assertEqual(a[1:4, 1].gshape, (3, 1))
+        self.assertEqual(a[1:4, 1].split, 1)
         self.assertEqual(a[1:4, 1].dtype, ht.float32)
         if a.comm.size == 2:
             if a.comm.rank == 0:
-                self.assertEqual(a[1:4, 1].lshape, (3,))
+                self.assertEqual(a[1:4, 1].lshape, (3, 1))
             if a.comm.rank == 1:
-                self.assertEqual(a[1:4, 1].lshape, (0,))
+                self.assertEqual(a[1:4, 1].lshape, (3, 0))
 
         # slice in 2st dim across both nodes (2 node case) w/ singular fist dim
         a = ht.zeros((13, 5), split=1)
@@ -1133,14 +1133,14 @@ class TestDNDarray(TestCase):
         a = ht.zeros((13, 5), split=1)
         a[8:12, 1] = 1
         self.assertTrue((a[8:12, 1] == 1).all())
-        self.assertEqual(a[8:12, 1].gshape, (4,))
-        self.assertEqual(a[8:12, 1].split, 0)
+        self.assertEqual(a[8:12, 1].gshape, (4, 1))
+        self.assertEqual(a[8:12, 1].split, 1)
         self.assertEqual(a[8:12, 1].dtype, ht.float32)
         if a.comm.size == 2:
             if a.comm.rank == 0:
-                self.assertEqual(a[8:12, 1].lshape, (4,))
+                self.assertEqual(a[8:12, 1].lshape, (4, 1))
             if a.comm.rank == 1:
-                self.assertEqual(a[8:12, 1].lshape, (0,))
+                self.assertEqual(a[8:12, 1].lshape, (4, 0))
 
         # slice in both directions
         a = ht.zeros((13, 5), split=1)
