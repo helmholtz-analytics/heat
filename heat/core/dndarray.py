@@ -1563,27 +1563,64 @@ class DNDarray:
                 h[0] = key
             key = tuple(h)
 
-        gout_full = [None] * len(self.gshape)
+        # gout_full = [None] * len(self.gshape)
+        # keep = []
         # below generates the expected shape of the output.
         #   If lists or torch.Tensors remain in the key, some change may be made later
         key = list(key)
+        gout_full = []
+        slice_size = 0
+        new_split = self.split
+        print(
+            "DEBUGGING: self.gshape, self.lshape, self.split = ",
+            self.gshape,
+            self.lshape,
+            self.split,
+        )
         for c, k in enumerate(key):
-            if isinstance(k, slice):
-                new_slice = stride_tricks.sanitize_slice(k, self.gshape[c])
-                gout_full[c] = math.ceil((new_slice.stop - new_slice.start) / new_slice.step)
+            if isinstance(k, int):
+                slice_size = 1
+            elif isinstance(k, slice):
+                if k == slice(None, None, None):
+                    # keep dimension even if its size is 1
+                    gout_full.append(self.gshape[c])
+                    slice_size = 0
+                else:
+                    new_slice = stride_tricks.sanitize_slice(k, self.gshape[c])
+                    slice_size = math.ceil((new_slice.stop - new_slice.start) / new_slice.step)
+                    print("DEBUGGING: k, new_slice, slice_size = ", k, new_slice, slice_size)
             elif isinstance(k, list):
-                gout_full[c] = len(k)
+                slice_size = len(k)
             elif isinstance(k, (DNDarray, torch.Tensor)):
-                gout_full[c] = k.shape[0] if not kgshape_flag else kgshape[c]
+                slice_size = k.shape[0] if not kgshape_flag else kgshape[c]
+            print("DEBUGGING: c, slice_size = ", c, slice_size)
+            if slice_size > 1:
+                print("DEBUGGING: slice_size == 1 and c == new_split")
+                gout_full.append(slice_size)
+            elif slice_size == 1:
+                if self.split is not None:
+                    if c == self.split:
+                        gout_full.append(slice_size)
+                    elif c < self.split:
+                        print("DEBUGGING: c, new_split = ", c, new_split)
+                        new_split -= 1
             if isinstance(k, DNDarray):
                 key[c] = k.larray
-        if all(g == 1 for g in gout_full):
-            gout_full = [1]
-        else:
-            # delete the dimensions from gout_full if they are not touched (they will be removed)
-            for i in range(len(gout_full) - 1, -1, -1):
-                if gout_full[i] is None:
-                    del gout_full[i]
+
+        print(
+            "DEBUGGING: key, gout_full, self.split, new_split = ",
+            key,
+            gout_full,
+            self.split,
+            new_split,
+        )
+        # if len(keep) == 0 and all(g == 1 for g in gout_full):
+        #     gout_full = [1]
+        # else:
+        #     # delete the dimensions from gout_full if they are not touched (they will be removed)
+        #     for i in range(len(gout_full) - 1, -1, -1):
+        #         if gout_full[i] is None:
+        #             del gout_full[i]
 
         key = tuple(key)
         if not self.is_distributed():
@@ -1624,16 +1661,16 @@ class DNDarray:
         chunk_end = chunk_ends[rank]
         arr = torch.tensor([], device=self.device.torch_device)
         # all keys should be tuples here
-        # handle the dimensional reduction for integers
-        int_locs = [isinstance(it, int) for it in key]
-        ints = sum(int_locs)
-        if ints > 0:
-            ints_before_split = sum(int_locs[: self.split + 1])
-            new_split = self.split - ints_before_split
-            if new_split < 0:
-                new_split = 0
-        else:
-            new_split = self.split
+        # # handle the dimensional reduction for integers
+        # int_locs = [isinstance(it, int) for it in key]
+        # ints = sum(int_locs)
+        # if ints > 0:
+        #     ints_before_split = sum(int_locs[: self.split + 1])
+        #     new_split = self.split - ints_before_split
+        #     if new_split < 0:
+        #         new_split = 0
+        # else:
+        #     new_split = self.split
         if len(key) == 0:  # handle empty list
             # this will return an array of shape (0, ...)
             arr = self.__array[key]
@@ -1706,25 +1743,36 @@ class DNDarray:
             if key[self.split] in range(chunk_start, chunk_end):
                 key[self.split] = key[self.split] - chunk_start
                 arr = self.__array[tuple(key)]
+                # keep the dimension along the split axis
+                arr.unsqueeze_(dim=new_split)
 
         if 0 in arr.shape:
             # arr is empty
-            # gout is all 0s as is the shape
+            empty_shape = gout_full
+            empty_shape[new_split] = 0
+            arr = arr.reshape(empty_shape)
             warnings.warn(
                 "This process (rank: {}) is without data after slicing, "
                 "running the .balance_() function is recommended".format(self.comm.rank),
                 ResourceWarning,
             )
-
-        return DNDarray(
+        print("DEBUGGING: arr.shape = ", arr.shape)
+        return factories.array(
             arr.type(l_dtype),
-            gout_full if isinstance(gout_full, tuple) else tuple(gout_full),
-            self.dtype,
-            new_split,
-            self.device,
-            self.comm,
-            balanced=None,
+            dtype=self.dtype,
+            is_split=new_split,
+            device=self.device,
+            comm=self.comm,
         )
+        # return DNDarray(
+        #     arr.type(l_dtype),
+        #     gout_full if isinstance(gout_full, tuple) else tuple(gout_full),
+        #     self.dtype,
+        #     self.split,
+        #     self.device,
+        #     self.comm,
+        #     balanced=None,
+        # )
 
     if torch.cuda.device_count() > 0:
 
