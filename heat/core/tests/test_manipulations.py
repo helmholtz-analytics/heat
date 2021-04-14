@@ -387,7 +387,7 @@ class TestManipulations(TestCase):
         self.assertEqual(res.lshape[res.split], 2)
         exp = torch.diag(data)
         for i in range(rank * 2, (rank + 1) * 2):
-            self.assertTrue(torch.equal(res[i, i].larray, exp[i, i]))
+            self.assertTrue(res[i, i].larray.item() == exp[i, i].item())
 
         res = ht.diag(a, offset=size)
 
@@ -396,7 +396,7 @@ class TestManipulations(TestCase):
         self.assertEqual(res.lshape[res.split], 3)
         exp = torch.diag(data, diagonal=size)
         for i in range(rank * 3, min((rank + 1) * 3, a.shape[0])):
-            self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size]))
+            self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size].unsqueeze_(0)))
 
         res = ht.diag(a, offset=-size)
         self.assertEqual(res.split, a.split)
@@ -404,7 +404,7 @@ class TestManipulations(TestCase):
         self.assertEqual(res.lshape[res.split], 3)
         exp = torch.diag(data, diagonal=-size)
         for i in range(max(size, rank * 3), (rank + 1) * 3):
-            self.assertTrue(torch.equal(res[i, i - size].larray, exp[i, i - size]))
+            self.assertTrue(torch.equal(res[i, i - size].larray, exp[i, i - size].unsqueeze_(0)))
 
         self.assertTrue(ht.equal(ht.diag(ht.diag(a)), a))
 
@@ -436,7 +436,7 @@ class TestManipulations(TestCase):
         self.assertTrue(
             torch.equal(
                 res[rank, rank].larray,
-                torch.tensor(1, dtype=torch.int32, device=self.device.torch_device),
+                torch.tensor([1], dtype=torch.int32, device=self.device.torch_device),
             )
         )
 
@@ -2445,8 +2445,8 @@ class TestManipulations(TestCase):
         first = result[0].larray
         first_indices = result_indices[0].larray
         if rank == 0:
-            self.assertTrue(torch.equal(first, exp_axis_zero))
-            self.assertTrue(torch.equal(first_indices, indices_axis_zero))
+            self.assertTrue(torch.equal(first, exp_axis_zero.unsqueeze_(0)))
+            self.assertTrue(torch.equal(first_indices, indices_axis_zero.unsqueeze_(0)))
 
         data = ht.array(tensor, split=1)
         exp_axis_one = torch.tensor([[2, 2, 3]], dtype=torch.int32, device=self.device.torch_device)
