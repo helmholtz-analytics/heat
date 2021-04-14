@@ -1586,14 +1586,16 @@ class DNDarray:
                 slice_size = 0
             elif isinstance(k, int):
                 slice_size = 1
-            elif isinstance(k, (list, DNDarray, torch.Tensor)):
+            elif isinstance(k, (list, DNDarray, torch.Tensor, np.ndarray)):
                 if not advanced_ind:
+                    # first dimension with advanced indexing: keep
                     if isinstance(k, list):
                         slice_size = len(k)
                     else:
                         slice_size = k.shape[0] if not kgshape_flag else kgshape[c]
                     advanced_ind = True
                 else:
+                    # drop dimension, correct new_split if necessary
                     slice_size = 0
                     if self.split is not None and c <= self.split:
                         new_split -= 1
@@ -1614,30 +1616,11 @@ class DNDarray:
 
         key = tuple(key)
         if not self.is_distributed():
-            if not self.comm.size == 1:
-                return factories.array(
-                    self.__array[key],
-                    dtype=self.dtype,
-                    split=self.split,
-                    device=self.device,
-                    comm=self.comm,
-                )
-            else:
-                gout = tuple(self.__array[key].shape)
-                if self.split is not None and self.split >= len(gout):
-                    new_split = len(gout) - 1 if len(gout) - 1 >= 0 else None
-                else:
-                    new_split = self.split
+            arr = self.__array[key].reshape(gout_full)
+            return DNDarray(
+                arr, tuple(gout_full), self.dtype, new_split, self.device, self.comm, self.balanced
+            )
 
-                return DNDarray(
-                    self.__array[key],
-                    gout,
-                    self.dtype,
-                    new_split,
-                    self.device,
-                    self.comm,
-                    self.balanced,
-                )
         # else: (DNDarray is distributed)
         rank = self.comm.rank
         ends = []
