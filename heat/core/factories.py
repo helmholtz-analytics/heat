@@ -49,8 +49,9 @@ def arange(
     <http://docs.python.org/lib/built-in-funcs.html>`_ function, but returns a array rather than a list.
     When using a non-integer step, such as 0.1, the results may be inconsistent due to being subject to numerical
     rounding. In the cases the usage of :func:`linspace` is recommended.
-    For floating point arguments, the length of the result is ``ceil((stop-start)/step)``. Again, due to floating
-    point rounding, this rule may result in the last element of `out` being greater than `stop` by machine epsilon.
+    For floating point arguments, the length of the result is :math:`\\lceil(stop-start)/step\\rceil`.
+    Again, due to floating point rounding, this rule may result in the last element of `out` being greater than `stop`
+    by machine epsilon.
 
     Parameters
     ----------
@@ -175,7 +176,7 @@ def array(
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        column-major order (Fortran-like).
     split : int or None, optional
         The axis along which the passed array content ``obj`` is split and distributed in memory. Mutually exclusive
         with ``is_split``.
@@ -188,6 +189,11 @@ def array(
         device).
     comm : Communication, optional
         Handle to the nodes holding distributed array chunks.
+
+    Raises
+    ------
+    NotImplementedError
+        If order is one of the NumPy options ``'K'`` or ``'A'``.
 
     Examples
     --------
@@ -507,7 +513,12 @@ def empty(
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        column-major order (Fortran-like).
+
+    Raises
+    ------
+    NotImplementedError
+        If order is one of the NumPy options ``'K'`` or ``'A'``.
 
     Examples
     --------
@@ -552,7 +563,12 @@ def empty_like(
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        column-major order (Fortran-like).
+
+    Raises
+    ------
+    NotImplementedError
+        If order is one of the NumPy options ``'K'`` or ``'A'``.
 
     Examples
     --------
@@ -596,7 +612,12 @@ def eye(
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        column-major order (Fortran-like).
+
+    Raises
+    ------
+    NotImplementedError
+        If order is one of the NumPy options ``'K'`` or ``'A'``.
 
     Examples
     --------
@@ -672,7 +693,12 @@ def __factory(
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        column-major order (Fortran-like).
+
+    Raises
+    ------
+    NotImplementedError
+        If order is one of the NumPy options ``'K'`` or ``'A'``.
     """
     # clean the user input
     shape = sanitize_shape(shape)
@@ -722,7 +748,12 @@ def __factory_like(
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        column-major order (Fortran-like).
+
+    Raises
+    ------
+    NotImplementedError
+        If order is one of the NumPy options ``'K'`` or ``'A'``.
     """
     # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     # determine the global shape of the object to create
@@ -786,7 +817,12 @@ def full(
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        column-major order (Fortran-like).
+
+    Raises
+    ------
+    NotImplementedError
+        If order is one of the NumPy options ``'K'`` or ``'A'``.
 
     Examples
     --------
@@ -838,7 +874,12 @@ def full_like(
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        column-major order (Fortran-like).
+
+    Raises
+    ------
+    NotImplementedError
+        If order is one of the NumPy options ``'K'`` or ``'A'``.
 
     Examples
     --------
@@ -968,7 +1009,7 @@ def logspace(
         If ``True``, `stop` is the last sample. Otherwise, it is not included.
     base : float, optional
         The base of the log space. The step size between the elements in :math:`ln(samples) / ln(base)` (or
-        :math:`log_base(samples)`) is uniform.
+        :math:`base(samples)`) is uniform.
     dtype : datatype, optional
         The type of the output array.  If ``dtype`` is not given, infer the data type from the other input arguments.
     split: int or None, optional
@@ -1030,7 +1071,12 @@ def ones(
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        column-major order (Fortran-like).
+
+    Raises
+    ------
+    NotImplementedError
+        If order is one of the NumPy options ``'K'`` or ``'A'``.
 
     Examples
     --------
@@ -1074,7 +1120,12 @@ def ones_like(
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        column-major order (Fortran-like).
+
+    Raises
+    ------
+    NotImplementedError
+        If order is one of the NumPy options ``'K'`` or ``'A'``.
 
     Examples
     --------
@@ -1117,7 +1168,12 @@ def zeros(
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        column-major order (Fortran-like).
+
+    Raises
+    ------
+    NotImplementedError
+        If order is one of the NumPy options ``'K'`` or ``'A'``.
 
     Examples
     --------
@@ -1161,7 +1217,12 @@ def zeros_like(
     order: str, optional
         Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        column-major order (Fortran-like).
+
+    Raises
+    ------
+    NotImplementedError
+        If order is one of the NumPy options ``'K'`` or ``'A'``.
 
     Examples
     --------
