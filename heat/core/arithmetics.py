@@ -407,9 +407,6 @@ def diff(a, n=1, axis=-1, prepend=None, append=None):
 
     axis_slice_end = [slice(None, None, None)] * len(a.shape)
     axis_slice_end[axis] = slice(None, -1 * n, None)
-    print(
-        "DEBUGGING: axis_slice_end, axis_slice_end[axis] = ", axis_slice_end, axis_slice_end[axis]
-    )
     ret = ret[tuple(axis_slice_end)]  # slice off the last element on the array (nonsense data)
     ret.balance_()  # balance the array before returning
     return ret

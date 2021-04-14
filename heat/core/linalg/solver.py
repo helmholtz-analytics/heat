@@ -161,18 +161,6 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
 
         w = ht.matmul(A, vi)
         alpha = ht.dot(w, vi)
-        print("DEBUGGING: w.lshape, w.gshape = ", w.lshape, w.gshape)
-        print(
-            "DEBUGGING: (alpha*vi).lshape, (alpha*vi).gshape = ",
-            (alpha * vi).lshape,
-            (alpha * vi).gshape,
-        )
-        print("DEBUGGING: V.lshape, V.gshape = ", V.lshape, V.gshape)
-        print(
-            "DEBUGGING: V[:, i - 1].lshape, V[:, i - 1].gshape = ",
-            V[:, i - 1].lshape,
-            V[:, i - 1].gshape,
-        )
 
         w = w - alpha * vi - beta * V[:, i - 1]
 
