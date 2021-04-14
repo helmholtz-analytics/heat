@@ -1578,13 +1578,14 @@ class DNDarray:
         # calculate new split axis accordingly
         for c, k in enumerate(key):
             if isinstance(k, slice):
+                # always keep dimension
                 if k == slice(None, None, None):
-                    # always keep dimension
                     gout_full.append(self.gshape[c])
-                    slice_size = 0
                 else:
                     new_slice = stride_tricks.sanitize_slice(k, self.gshape[c])
                     slice_size = math.ceil((new_slice.stop - new_slice.start) / new_slice.step)
+                    gout_full.append(slice_size)
+                slice_size = 0
             elif isinstance(k, int):
                 slice_size = 1
             elif isinstance(k, (list, DNDarray, torch.Tensor)):
