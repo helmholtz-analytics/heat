@@ -1563,15 +1563,13 @@ class DNDarray:
                 h[0] = key
             key = tuple(h)
 
-        # gout_full = [None] * len(self.gshape)
-        # keep = []
-        # below generates the expected shape of the output.
-        #   If lists or torch.Tensors remain in the key, some change may be made later
+        # generate the expected shape of the output.
+        # If lists or torch.Tensors remain in the key, some change may be made later
         key = list(key)
         gout_full = []
         slice_size = 0
         new_split = self.split
-        list_key = False
+        advanced_ind = False
 
         # calculate size of slice on each dimension
         # assess what dimensions should be kept in the returned DNDarray
@@ -1589,12 +1587,12 @@ class DNDarray:
             elif isinstance(k, int):
                 slice_size = 1
             elif isinstance(k, (list, DNDarray, torch.Tensor)):
-                if not list_key:
+                if not advanced_ind:
                     if isinstance(k, list):
                         slice_size = len(k)
                     else:
                         slice_size = k.shape[0] if not kgshape_flag else kgshape[c]
-                    list_key = True
+                    advanced_ind = True
                 else:
                     slice_size = 0
                     if self.split is not None and c <= self.split:
@@ -1652,17 +1650,7 @@ class DNDarray:
         chunk_start = chunk_starts[rank]
         chunk_end = chunk_ends[rank]
         arr = torch.tensor([], device=self.device.torch_device)
-        # all keys should be tuples here
-        # # handle the dimensional reduction for integers
-        # int_locs = [isinstance(it, int) for it in key]
-        # ints = sum(int_locs)
-        # if ints > 0:
-        #     ints_before_split = sum(int_locs[: self.split + 1])
-        #     new_split = self.split - ints_before_split
-        #     if new_split < 0:
-        #         new_split = 0
-        # else:
-        #     new_split = self.split
+
         if len(key) == 0:  # handle empty list
             # this will return an array of shape (0, ...)
             arr = self.__array[key]
@@ -1684,20 +1672,22 @@ class DNDarray:
                 else lkey[self.split]
             )
             loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
+            # if there are no local indices on a process, then `arr` is empty
+            # if local indices exist:
             if len(loc_inds[0]) != 0:
-                # select same local indices for other (non-split) dimensions
+                # select same local indices for other (non-split) dimensions if necessary
                 for i, k in enumerate(lkey):
                     if isinstance(k, (list, torch.Tensor, DNDarray)):
                         if i != self.split:
                             lkey[i] = k[loc_inds]
-                # if there are no local indices on a process, then `arr` is empty
+                # correct local indices for offset
                 inds = inds[loc_inds] - chunk_start
                 lkey[self.split] = inds
                 lout[new_split] = len(loc_inds[0])
                 arr = self.__array[tuple(lkey)].reshape(lout)
         elif isinstance(key[self.split], slice):
             # standard slicing along the split axis,
-            #   adjust the slice start, stop, and step, then run it on the processes which have the requested data
+            # adjust the slice start, stop, and step, then run it on the processes which have the requested data
             key = list(key)
             key_start = key[self.split].start if key[self.split].start is not None else 0
             key_stop = (
