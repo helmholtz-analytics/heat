@@ -1,8 +1,13 @@
+"""Provides high-level DNDarray initialization functions"""
+
 import numpy as np
 import torch
 import warnings
 
-from typing import Type, Callable, Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union
+
+from . import devices
+from . import types
 
 from .communication import MPI, sanitize_comm, Communication
 from .devices import Device
@@ -10,9 +15,6 @@ from .dndarray import DNDarray
 from .memory import sanitize_memory_layout
 from .stride_tricks import sanitize_axis, sanitize_shape
 from .types import datatype
-
-from . import devices
-from . import types
 
 __all__ = [
     "arange",
@@ -30,7 +32,6 @@ __all__ = [
     "zeros",
     "zeros_like",
 ]
-heat_type = datatype
 
 
 def arange(
@@ -46,29 +47,30 @@ def arange(
     Values are generated within the half-open interval ``[start, stop)`` (in other words, the interval including `start`
     but excluding `stop`). For integer arguments the function is equivalent to the Python built-in `range
     <http://docs.python.org/lib/built-in-funcs.html>`_ function, but returns a array rather than a list.
-    When using a non-integer step, such as 0.1, the results will often not be consistent. It is better to use
-    :func:`linspace` for these cases.
-    For floating point arguments, the length of the result is ``ceil((stop-start)/step)``. Because of floating
-    point overflow, this rule may result in the last element of `out` being greater than `stop`.
+    When using a non-integer step, such as 0.1, the results may be inconsistent due to being subject to numerical
+    rounding. In the cases the usage of :func:`linspace` is recommended.
+    For floating point arguments, the length of the result is ``ceil((stop-start)/step)``. Again, due to floating
+    point rounding, this rule may result in the last element of `out` being greater than `stop` by machine epsilon.
 
     Parameters
     ----------
     start : scalar, optional
         Start of interval.  The interval includes this value.  The default start value is 0.
     stop : scalar
-        End of interval.  The interval does not include this value, except in some cases where ``step`` is not an integer
-        and floating point round-off affects the length of ``out``.
+        End of interval.  The interval does not include this value, except in some cases where ``step`` is not an
+        integer and floating point round-off affects the length of ``out``.
     step : scalar, optional
         Spacing between values.  For any output ``out``, this is the distance between two adjacent values,
-        ``out[i+1]-out[i]``. The default step size is 1. If ``step`` is specified as a position argument,
-        ``start`` must also be given.
+        ``out[i+1]-out[i]``. The default step size is 1. If ``step`` is specified as a position argument, ``start``
+        must also be given.
     dtype : datatype, optional
-        The type of the output array.  If `dtype` is not given, infer the data type from the other input arguments.
+        The type of the output array.  If `dtype` is not given, it is automatically inferred from the other input
+        arguments.
     split: int or None, optional
         The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str, optional
         Specifies the device the array shall be allocated on, defaults to globally set default device.
-    comm: Communication, optional
+    comm : Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
 
     See Also
@@ -158,33 +160,33 @@ def array(
     Parameters
     ----------
     obj : array_like
-        A tensor or array, any object exposing the array interface, an object whose ``__array__`` method returns an array,
-        or any (nested) sequence.
+        A tensor or array, any object exposing the array interface, an object whose ``__array__`` method returns an
+        array, or any (nested) sequence.
     dtype : datatype, optional
         The desired data-type for the array. If not given, then the type will be determined as the minimum type required
         to hold the objects in the sequence. This argument can only be used to ‘upcast’ the array. For downcasting, use
         the :func:`~heat.core.dndarray.astype` method.
     copy : bool, optional
-        If ``True`` (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested sequence or
-        if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
+        If ``True`` (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested
+        sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
     ndmin : int, optional
         Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
-        attached to the shape if ``ndim>0`` and prefaced in case of ``ndim<0`` to meet the requirement.
+        attached to the shape if ``ndim > 0`` and prefaced in case of ``ndim < 0`` to meet the requirement.
     order: str, optional
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array.
-        Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
-        If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
     split : int or None, optional
-        The axis along which the passed array content ``obj`` is split and distributed in memory. Mutually exclusive with
-        ``is_split``.
+        The axis along which the passed array content ``obj`` is split and distributed in memory. Mutually exclusive
+        with ``is_split``.
     is_split : int or None, optional
         Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
-        interfacing with other HPC code. The shape of the global array is automatically inferred. Mutually exclusive
-        with ``split``.
+        interfacing with other distributed-memory code. The shape of the global array is automatically inferred.
+        Mutually exclusive with ``split``.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on (i.e. globally set default device).
-    comm: Communication, optional
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on (i.e. globally set default
+        device).
+    comm : Communication, optional
         Handle to the nodes holding distributed array chunks.
 
     Examples
@@ -222,7 +224,7 @@ def array(
               [3, 4, 5]], dtype=ht.int64, device=cpu:0, split=None)
     >>> b.strides
     (24, 8)
-    >>> b.larray.storage() #TODO: implement ht.view()
+    >>> b.larray.storage()
      0
      1
      2
@@ -236,7 +238,7 @@ def array(
               [3, 4, 5]], dtype=ht.int64, device=cpu:0, split=None)
     >>> c.strides
     (8, 16)
-    >>> c.larray.storage() #TODO: implement ht.view()
+    >>> c.larray.storage()
      0
      3
      1
@@ -256,7 +258,7 @@ def array(
     >>> b.strides
     [0/2] (8, 16)
     [1/2] (8, 16)
-    >>> b.larray.storage() #TODO: implement ht.view()
+    >>> b.larray.storage()
     [0/2] 0
           3
           1
@@ -272,7 +274,7 @@ def array(
           11
          [torch.LongStorage of size 6]
     """
-    # Array already exists; no copy
+    # array already exists; no copy
     if (
         isinstance(obj, DNDarray)
         and not copy
@@ -423,15 +425,21 @@ def array(
     return DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
 
 
-def asarray(obj, dtype=None, order="C", is_split=None, device=None):
+def asarray(
+    obj: Iterable,
+    dtype: Optional[Type[datatype]] = None,
+    order: str = "C",
+    is_split: Optional[bool] = None,
+    device: Optional[str, Device] = None,
+) -> DNDarray:
     """
-    Convert 'obj' to a DNDarray. If 'obj' is a `DNDarray` or `Tensor` with the same 'dtype' and 'device' or
-    if the data is an `ndarray` of the corresponding 'dtype' and the 'device' is the cpu, no copy will be performed
+    Convert ``obj`` to a DNDarray. If ``obj`` is a `DNDarray` or `Tensor` with the same `dtype` and `device` or if the
+    data is an `ndarray` of the corresponding ``dtype`` and the ``device`` is the CPU, no copy will be performed.
 
     Parameters
     ----------
-    obj : array_like
-        Input data, in any form that can be converted to an array. This includes lists, lists of tuples, tuples,
+    obj : iterable
+        Input data, in any form that can be converted to an array. This includes e.g. lists, lists of tuples, tuples,
         tuples of tuples, tuples of lists and ndarrays.
     dtype : dtype, optional
         By default, the data-type is inferred from the input data.
@@ -442,11 +450,6 @@ def asarray(obj, dtype=None, order="C", is_split=None, device=None):
         interfacing with other HPC code. The shape of the global tensor is automatically inferred.
     device : str, ht.Device or None, optional
         Specifies the device the tensor shall be allocated on. By default, it is inferred from the input data.
-
-    Returns
-    -------
-    out : ht.DNDarray
-        An array object satisfying the specified requirements.
 
     Examples
     --------
@@ -459,14 +462,14 @@ def asarray(obj, dtype=None, order="C", is_split=None, device=None):
     DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     >>> n[0] = 0
     >>> a
-    array([0, 2, 3])
+    DNDarray([0, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     >>> a = torch.tensor([1,2,3])
     >>> t = ht.asarray(a)
     >>> t
     DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     >>> t[0] = 0
     >>> a
-    tensor([0, 2, 3])
+    DNDarray([0, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     >>> a = ht.array([1,2,3,4], dtype=ht.float32)
     >>> ht.asarray(a, dtype=ht.float32) is a
     True
@@ -485,8 +488,8 @@ def empty(
     order: str = "C",
 ) -> DNDarray:
     """
-    Returns a new uninitialized :class:`~heat.core.dndarray.DNDarray` of given shape and data type.
-    May be allocated split up across multiple nodes along the specified axis.
+    Returns a new uninitialized :class:`~heat.core.dndarray.DNDarray` of given shape and data type. May be allocated
+    split up across multiple nodes along the specified axis.
 
     Parameters
     ----------
@@ -497,14 +500,14 @@ def empty(
     split: int, optional
         The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device`. the array shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device`. the array shall be allocated on, defaults to globally set
+        default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array.
-        Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
-        If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
@@ -529,28 +532,27 @@ def empty_like(
     order: str = "C",
 ) -> DNDarray:
     """
-    Returns a new uninitialized :class:`~heat.core.dndarray.DNDarray` with the same type,
-    shape and data distribution of given object. Data type and data distribution strategy can be explicitly overriden.
+    Returns a new uninitialized :class:`~heat.core.dndarray.DNDarray` with the same type, shape and data distribution
+    of given object. Data type and data distribution strategy can be explicitly overriden.
 
     Parameters
     ----------
     a : DNDarray
-        The shape and data-type of ``a`` define these same attributes of the returned array.
-        Uninitialized array with the same shape, type and split axis as ``a`` unless overriden.
+        The shape and data-type of ``a`` define these same attributes of the returned array. Uninitialized array with
+        the same shape, type and split axis as ``a`` unless overriden.
     dtype : datatype, optional
         Overrides the data type of the result.
     split: int or None, optional
         The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on,
-        defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
+        default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array.
-        Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
-        If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
@@ -574,27 +576,27 @@ def eye(
     order: str = "C",
 ) -> DNDarray:
     """
-    Returns a new 2-D :class:`~heat.core.dndarray.DNDarray` with ones on the diagonal and zeroes elsewhere
-    (i.e. an identity matrix).
+    Returns a new 2-D :class:`~heat.core.dndarray.DNDarray` with ones on the diagonal and zeroes elsewhere, i.e. an
+    identity matrix.
 
     Parameters
     ----------
     shape : int or Sequence[int,...]
-            The shape of the data-type. If only one number is provided, returning array will be square with that size.
-            In other cases, the first value represents the number rows, the second the number of columns.
+        The shape of the data-type. If only one number is provided, returning array will be square with that size. In
+        other cases, the first value represents the number rows, the second the number of columns.
     dtype : datatype, optional
-            Overrides the data type of the result.
+        Overrides the data type of the result.
     split : int or None, optional
-            The axis along which the array is split and distributed; ``None`` means no distribution.
+        The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
-            Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
+        default device.
     comm : Communication, optional
-            Handle to the nodes holding distributed parts or copies of this array.
+        Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array.
-        Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
-        If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
@@ -634,6 +636,7 @@ def eye(
         data[pos_x][pos_y] = 1
 
     data = sanitize_memory_layout(data, order=order)
+
     return DNDarray(
         data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
     )
@@ -659,17 +662,17 @@ def __factory(
         The desired HeAT data type for the array, defaults to ht.float32.
     split : int or None
         The axis along which the array is split and distributed.
-    local_factory : function
+    local_factory : callable
         Function that creates the local PyTorch tensor for the DNDarray.
     device : Device
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
-    comm: Communication
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
+        default device.
+    comm : Communication
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array.
-        Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
-        If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
     """
     # clean the user input
     shape = sanitize_shape(shape)
@@ -680,12 +683,12 @@ def __factory(
 
     # chunk the shape if necessary
     _, local_shape, _ = comm.chunk(shape, split)
-    balanced = True
 
     # create the torch data using the factory function
     data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
     data = sanitize_memory_layout(data, order=order)
-    return DNDarray(data, shape, dtype, split, device, comm, balanced)
+
+    return DNDarray(data, shape, dtype, split, device, comm, balanced=True)
 
 
 def __factory_like(
@@ -712,14 +715,14 @@ def __factory_like(
     factory : function
         Function that creates a DNDarray.
     device : str
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
+        default device.
     comm: Communication
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array.
-        Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
-        If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
     """
     # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     # determine the global shape of the object to create
@@ -776,23 +779,23 @@ def full(
     split: int or None, optional
         The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
+        default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array.
-        Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
-        If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
     >>> ht.full((2, 2), ht.inf)
     DNDarray([[inf, inf],
-          [inf, inf]], dtype=ht.float32, device=cpu:0, split=None)
+              [inf, inf]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.full((2, 2), 10)
     DNDarray([[10., 10.],
-          [10., 10.]], dtype=ht.float32, device=cpu:0, split=None)
+              [10., 10.]], dtype=ht.float32, device=cpu:0, split=None)
     """
 
     def local_factory(*args, **kwargs):
@@ -828,14 +831,14 @@ def full_like(
     split: int or None, optional
         The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
+        default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array.
-        Default is ``order='C'``, meaning the array will be stored in row-major order (C-like).
-        If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
@@ -863,8 +866,8 @@ def linspace(
 ) -> Tuple[DNDarray, float]:
     """
     Returns num evenly spaced samples, calculated over the interval ``[start, stop]``. The endpoint of the interval can
-    optionally be excluded. There are num equally spaced samples in the closed interval ``[start, stop]`` or the half-open interval
-    ``[start, stop)`` (depending on whether endpoint is ``True`` or ``False``).
+    optionally be excluded. There are num equally spaced samples in the closed interval ``[start, stop]`` or the
+    half-open interval ``[start, stop)`` (depending on whether endpoint is ``True`` or ``False``).
 
     Parameters
     ----------
@@ -885,8 +888,9 @@ def linspace(
     split: int or None, optional
         The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
-    comm: Communication, optional
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
+        default device.
+    comm : Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
 
     Examples
@@ -947,33 +951,31 @@ def logspace(
     comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
-    Return numbers spaced evenly on a log scale.
-    In linear space, the sequence starts at ``base**start``
-    (``base`` to the power of ``start``) and ends with ``base**stop``
-    (see ``endpoint`` below).
+    Return numbers spaced evenly on a log scale. In linear space, the sequence starts at ``base**start`` (``base`` to
+    the power of ``start``) and ends with ``base**stop`` (see ``endpoint`` below).
 
     Parameters
     ----------
-    start : array_like
+    start : scalar or scalar-convertible
         ``base**start`` is the starting value of the sequence.
-    stop : array_like
-        ``base**stop`` is the final value of the sequence, unless `endpoint`
-        is ``False``.  In that case, ``num+1`` values are spaced over the
-        interval in log-space, of which all but the last (a sequence of
-        length ``num``) are returned.
+    stop : scalar or scalar-convertible
+        ``base**stop`` is the final value of the sequence, unless `endpoint` is ``False``.  In that case, ``num+1``
+        values are spaced over the interval in log-space, of which all but the last (a sequence of length ``num``) are
+        returned.
     num : int, optional
         Number of samples to generate.
     endpoint : bool, optional
         If ``True``, `stop` is the last sample. Otherwise, it is not included.
     base : float, optional
-        The base of the log space. The step size between the elements in
-        ``ln(samples) / ln(base)`` (or ``log_base(samples)``) is uniform.
+        The base of the log space. The step size between the elements in :math:`ln(samples) / ln(base)` (or
+        :math:`log_base(samples)`) is uniform.
     dtype : datatype, optional
         The type of the output array.  If ``dtype`` is not given, infer the data type from the other input arguments.
     split: int or None, optional
         The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
+        default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
 
@@ -982,7 +984,8 @@ def logspace(
     :func:`arange` : Similar to :func:`linspace`, with the step size specified instead of the
         number of samples. Note that, when used with a float endpoint, the endpoint may or may not be included.
 
-    :func:`linspace` : Similar to ``logspace``, but with the samples uniformly distributed in linear space, instead of log space.
+    :func:`linspace` : Similar to ``logspace``, but with the samples uniformly distributed in linear space, instead of
+        log space.
 
     Examples
     --------
@@ -1008,8 +1011,8 @@ def ones(
     order: str = "C",
 ) -> DNDarray:
     """
-    Returns a new :class:`~heat.core.dndarray.DNDarray` of given shape and data type filled with one.
-    May be allocated split up across multiple nodes along the specified axis.
+    Returns a new :class:`~heat.core.dndarray.DNDarray` of given shape and data type filled with one. May be allocated
+    split up across multiple nodes along the specified axis.
 
     Parameters
     ----------
@@ -1020,13 +1023,14 @@ def ones(
     split : int or None, optional
         The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
+        default device.
     comm : Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``, meaning the array
-        will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
@@ -1063,13 +1067,14 @@ def ones_like(
     split: int or None, optional
         The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
+        default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``, meaning the array
-        will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
@@ -1105,13 +1110,14 @@ def zeros(
     split: int or None, optional
         The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
+        default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``, meaning the array
-        will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
@@ -1148,13 +1154,14 @@ def zeros_like(
     split: int or None, optional
         The axis along which the array is split and distributed; ``None`` means no distribution.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set default device.
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to globally set
+        default device.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``, meaning the array
-        will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in column-major order (Fortran-like).
-        Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like). Raises NotImplementedError for NumPy options ``'K'`` and ``'A'``.
 
     Examples
     --------
