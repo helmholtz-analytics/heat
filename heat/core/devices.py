@@ -1,3 +1,7 @@
+"""
+handle different devices. Current options: CPU (default), GPU
+"""
+
 from __future__ import annotations
 
 import torch
@@ -54,7 +58,7 @@ class Device:
     @property
     def torch_device(self) -> str:
         """
-        Return the type and id of :class:`~heat.core.device.Device`as a PyTorch device string object.
+        Return the type and id of :class:`~heat.core.device.Device` as a PyTorch device string object.
         """
         return self.__torch_device
 
@@ -121,14 +125,14 @@ def get_device() -> Device:
     return __default_device
 
 
-def sanitize_device(device: Union[str, Device, None]) -> Device:
+def sanitize_device(device: Optional[Union[str, Device]] = None) -> Device:
     """
     Sanitizes a device or device identifier, i.e. checks whether it is already an instance of :class:`~heat.core.device.Device` or a string with
     known device identifier and maps it to a proper :class:`~heat.core.device.Device`.
 
     Parameters
     ----------
-    device : str or Device
+    device : str or Device, optional
         The device to be sanitized
 
     Raises

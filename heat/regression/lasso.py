@@ -1,47 +1,56 @@
+"""
+Implementation of the LASSO regression
+"""
+
 import heat as ht
 from heat.core.dndarray import DNDarray
+from typing import Union, Optional
 
 
 class Lasso(ht.RegressionMixin, ht.BaseEstimator):
     """
-    `Least absolute shrinkage and selection operator` (LASSO), a linear model with :math:`L1` regularization. The optimization
+    ``Least absolute shrinkage and selection operator``(LASSO), a linear model with L1 regularization. The optimization
     objective for Lasso is:
 
-    .. math:: E(w) = (1 / (2 * m)) * ||y - Xw||^2_2 + lam * ||w\\_||_1
+    .. math:: E(w) =  \\frac{1}{2 m} ||y - Xw||^2_2 + \\lambda  ||w\\_||_1
 
     with
 
-    .. math:: w\\_=(w_1,w_2,...,w_n) \\land w=(w_0,w_1,w_2,...,w_n),
+    .. math:: w\\_=(w_1,w_2,...,w_n),  w=(w_0,w_1,w_2,...,w_n),
     .. math:: y \\in M(m \\times 1), w \\in M(n \\times 1), X \\in M(m \\times n)
 
     Parameters
     ----------
     lam : float, optional
-        Constant that multiplies the :math:`L1` term. ``lam = 0.`` is equivalent to an Ordinary
-        Least Square (OLS). For numerical reasons, using ``lam = 0.,`` with the ``Lasso`` object is not advised.
+        Constant that multiplies the L1 term. Default value: 0.1 ``lam = 0.`` is equivalent to an ordinary
+        least square (OLS). For numerical reasons, using ``lam = 0.,`` with the ``Lasso`` object is not advised.
     max_iter : int, optional
-        The maximum number of iterations.
-    tol : float, optional.
+        The maximum number of iterations. Default value: 100
+    tol : float, optional. Default value: 1e-8
         The tolerance for the optimization.
 
     Attributes
     ----------
-    __theta : DNDarray
-        First element is the interception parameter vector :math:`w`. Shape = (n_features + 1,),
-    coef_ : DNDarray
-        parameter vector (:math:`w` in the cost function formula). Shape  = (n_targets, n_features)
-    intercept_ : float or DNDarray
-        independent term in decision function. Shape = (n_targets,)
-    n_iter_ : int or None or shape (n_targets,)
-        number of iterations run by the coordinate descent solver to reach the specified tolerance. Shape = (n_targets,)
+    __theta : array, shape (n_features + 1,), first element is the interception parameter vector w.
+    coef_ : array, shape (n_features,) | (n_targets, n_features)
+        parameter vector (w in the cost function formula)
+    intercept_ : float | array, shape (n_targets,)
+        independent term in decision function.
+    n_iter_ : int or None | array-like, shape (n_targets,)
+        number of iterations run by the coordinate descent solver to reach the specified tolerance.
 
     Examples
     --------
-    # ToDo: example to be added
+    >>> X = ht.random.randn(10, 4, split=0)
+    >>> y = ht.random.randn(10,1, split=0)
+    >>> estimator = ht.regression.lasso.Lasso(max_iter=100, tol=None)
+    >>> estimator.fit(X, y)
     """
 
-    def __init__(self, lam=0.1, max_iter=100, tol=1e-6):
-        """initialize lasso parameters"""
+    def __init__(
+        self, lam: Optional[float] = 0.1, max_iter: Optional[int] = 100, tol: Optional[float] = 1e-6
+    ) -> None:
+        """Initialize lasso parameters"""
         self.__lam = lam
         self.max_iter = max_iter
         self.tol = tol
@@ -49,32 +58,36 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         self.n_iter = None
 
     @property
-    def coef_(self):
+    def coef_(self) -> Union[type(None), DNDarray]:
+        """Returns coefficients"""
         if self.__theta is None:
             return None
         else:
             return self.__theta[1:]
 
     @property
-    def intercept_(self):
+    def intercept_(self) -> Union[type(None), DNDarray]:
+        """Returns bias term"""
         if self.__theta is None:
             return None
         else:
             return self.__theta[0]
 
     @property
-    def lam(self):
+    def lam(self) -> float:
+        """Returns regularization term lambda"""
         return self.__lam
 
     @lam.setter
-    def lam(self, arg):
+    def lam(self, arg: float) -> None:
         self.__lam = arg
 
     @property
     def theta(self):
+        """Returns regularization term lambda"""
         return self.__theta
 
-    def soft_threshold(self, rho):
+    def soft_threshold(self, rho: DNDarray) -> Union[DNDarray, float]:
         """
         Soft threshold operator
 
@@ -82,8 +95,13 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         ----------
         rho : DNDarray
             Input model data, Shape = (1,)
-        out : DNDarray
+        out : DNDarray or float
             Thresholded model data, Shape = (1,)
+
+        Returns
+        -------
+        result : DNDarray or float
+            Threshold value of the shrinkage operator
         """
         if rho < -self.__lam:
             return rho + self.__lam
@@ -92,7 +110,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         else:
             return 0.0
 
-    def rmse(self, gt, yest):
+    def rmse(self, gt: DNDarray, yest: DNDarray) -> DNDarray:
         """
         Root mean square error (RMSE)
 
@@ -102,10 +120,15 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
             Input model data, Shape = (1,)
         yest : DNDarray
             Thresholded model data, Shape = (1,)
+
+        Returns
+        -------
+        result : DNDarray
+            A :class:`~heat.core.dndarray.DNDarray` containing the RMSE
         """
         return ht.sqrt((ht.mean((gt - yest) ** 2))).larray.item()
 
-    def fit(self, x, y):
+    def fit(self, x: DNDarray, y: DNDarray) -> None:
         """
         Fit lasso model with coordinate descent
 
@@ -115,6 +138,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
             Input data, Shape = (n_samples, n_features)
         y : DNDarray
             Labels, Shape = (n_samples,)
+
+        Returns
+        -------
+        None
         """
         # Get number of model parameters
         _, n = x.shape
@@ -161,7 +188,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         self.n_iter = i + 1
         self.__theta = theta
 
-    def predict(self, x):
+    def predict(self, x: DNDarray) -> DNDarray:
         """
         Apply lasso model to input data. First row data corresponds to interception
 
@@ -169,5 +196,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Input data, Shape = (n_samples, n_features)
+
+        Returns
+        -------
+        result : DNDarray
+            A :class:`~heat.core.dndarray.DNDarray` containing the model prediction
         """
         return x @ self.__theta

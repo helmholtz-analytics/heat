@@ -26,7 +26,6 @@ CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("MPIR_CVAR_ENABLE_HCOLL") == "
 CUDA_AWARE_MPI = CUDA_AWARE_MPI or os.environ.get("PSP_CUDA") == "1"
 
 
-
 class MPIRequest:
     """
     Represents a handle on a non-blocking operation

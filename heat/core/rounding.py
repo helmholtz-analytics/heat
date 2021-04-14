@@ -1,3 +1,7 @@
+"""
+Rounding functions for DNDarrays
+"""
+
 import torch
 from typing import Type, Tuple, Optional, Callable
 from .dndarray import DNDarray
@@ -27,6 +31,16 @@ def abs(
     dtype : datatype, optional
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
+
+    Returns
+    -------
+    result: DNDarray
+        A :class:`~heat.core.dndarray.DNDarray` containing the elementwise abolute values of the input array ``x``.
+
+    Raises
+    -------
+    TypeError
+        if dtype is not a heat type.
     """
     if dtype is not None and not issubclass(dtype, dtype):
         raise TypeError("dtype must be a heat data type")
@@ -62,6 +76,12 @@ def absolute(
     dtype : datatype, optional
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
+
+    Returns
+    -------
+    result: DNDarray
+        A :class:`~heat.core.dndarray.DNDarray` containing the elementwise abolute values of the input array ``x``.
+
     """
     return abs(x, out, dtype)
 
@@ -74,8 +94,9 @@ DNDarray.absolute.__doc__ = absolute.__doc__
 
 def ceil(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Return the ceil of the input, element-wise. Result is a ``DNDarray`` of the same shape as ``x``.
-    The ceil of the scalar ``x`` is the smallest integer i, such that ``i>=x``. It is often denoted as :math:`\\lceil x \\rceil`.
+    Return the ceil of the input, element-wise. Result is a :class:`~heat.core.dndarray.DNDarray` of the same shape as
+    ``x``. The ceil of the scalar ``x`` is the smallest integer i, such that ``i>=x``. It is often denoted as
+    :math:`\\lceil x \\rceil`.
 
     Parameters
     ----------
@@ -85,10 +106,17 @@ def ceil(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to ``None``, a fresh array is allocated.
 
+    Returns
+    -------
+    result: DNDarray
+        A :class:`~heat.core.dndarray.DNDarray` containing the ceil of the input, element-wise.
+
     Examples
     --------
+    >>> import heat as ht
     >>> ht.ceil(ht.arange(-2.0, 2.0, 0.4))
-    tensor([-2., -1., -1., -0., -0., -0.,  1.,  1.,  2.,  2.])
+    DNDarray([-2., -1., -1., -0., -0.,  0.,  1.,  1.,  2.,  2.], dtype=ht.float32, device=cpu:0, split=None)
+
     """
     return _operations.__local_op(torch.ceil, x, out)
 
@@ -101,8 +129,8 @@ DNDarray.ceil.__doc__ = ceil.__doc__
 
 def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Returns a :class:`~heat.core.dndarray.DNDarray` with the elements of this array, but where values ``<a_min`` are replaced with ``a_min``, and those
-    ``>a_max`` with ``a_max``.
+    Returns a :class:`~heat.core.dndarray.DNDarray` with the elements of this array, but where values
+    ``<a_min`` are replaced with ``a_min``, and those ``>a_max`` with ``a_max``.
 
     Parameters
     ----------
@@ -117,6 +145,16 @@ def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
     out : DNDarray, optional
         The results will be placed in this array. It may be the input array for in-place clipping. ``out`` must be of
         the right shape to hold the output. Its type is preserved.
+
+    Returns
+    -------
+    result: DNDarray
+        A :class:`~heat.core.dndarray.DNDarray` containing the clipped input.
+
+    Raises
+    -------
+    ValueError
+        if either min or max is not set
     """
     sanitation.sanitize_in(x)
 
@@ -139,8 +177,9 @@ DNDarray.clip.__doc__ = clip.__doc__
 
 def fabs(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Calculate the absolute value element-wise and return floating-point ``DNDarray``.
-    This function exists besides ``abs==absolute`` since it will be needed in case complex numbers will be introduced in the future.
+    Calculate the absolute value element-wise and return floating-point class:`~heat.core.dndarray.DNDarray`.
+    This function exists besides ``abs==absolute`` since it will be needed in case complex numbers will be introduced
+    in the future.
 
     Parameters
     ----------
@@ -149,8 +188,13 @@ def fabs(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     out : DNDarray, optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or ``None``, a freshly-allocated array is returned.
-    """
 
+    Returns
+    -------
+    result: DNDarray
+        A :class:`~heat.core.dndarray.DNDarray` containing the absolute value element-wise.
+
+    """
     return abs(x, out, dtype=None)
 
 
@@ -172,12 +216,18 @@ def floor(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         The array for which to compute the floored values.
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to ``None``, a fresh ``DNDarray`` is allocated.
+        or set to ``None``, a fresh :class:`~heat.core.dndarray.DNDarray` is allocated.
+
+    Returns
+    -------
+    result: DNDarray
+        A :class:`~heat.core.dndarray.DNDarray` containing the floor of the input, element-wise.
 
     Examples
     --------
+    >>> import heat as ht
     >>> ht.floor(ht.arange(-2.0, 2.0, 0.4))
-    tensor([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.])
+    DNDarray([-2., -2., -2., -1., -1.,  0.,  0.,  0.,  1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.floor, x, out)
 
@@ -190,7 +240,7 @@ DNDarray.floor.__doc__ = floor.__doc__
 
 def modf(x: DNDarray, out: Optional[Tuple[DNDarray, DNDarray]] = None) -> Tuple[DNDarray, DNDarray]:
     """
-    Return the fractional and integral parts of a ``DNDarray``, element-wise.
+    Return the fractional and integral parts of a :class:`~heat.core.dndarray.DNDarray`, element-wise.
     The fractional and integral parts are negative if the given number is negative.
 
     Parameters
@@ -201,14 +251,29 @@ def modf(x: DNDarray, out: Optional[Tuple[DNDarray, DNDarray]] = None) -> Tuple[
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or ``None``, a freshly-allocated array is returned.
 
+    Returns
+    -------
+    result: Tuple[DNDarray, DNDarray]
+        Tuple of two :class:`~heat.core.dndarray.DNDarray` containing the fractional and integral parts of a
+        :class:`~heat.core.dndarray.DNDarray`, element-wise.
+
+    Raises
+    -------
+    TypeError
+        if ``x`` is not a :class:`~heat.core.dndarray.DNDarray`
+    TypeError
+        if ``out`` is not None or a tuple of :class:`~heat.core.dndarray.DNDarray`
+    ValueError
+        if ``out`` is a tuple of length unqual 2
+
     Examples
     --------
+    >>> import heat as ht
     >>> ht.modf(ht.arange(-2.0, 2.0, 0.4))
-    (tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.]),
-    tensor([ 0.0000, -0.6000, -0.2000, -0.8000, -0.4000,  0.0000,  0.4000,  0.8000, 0.2000,  0.6000]))
+    (DNDarray([ 0.0000, -0.6000, -0.2000, -0.8000, -0.4000,  0.0000,  0.4000,  0.8000,  0.2000,  0.6000], dtype=ht.float32, device=cpu:0, split=None), DNDarray([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.], dtype=ht.float32, device=cpu:0, split=None))
     """
     if not isinstance(x, DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+        raise TypeError("expected x to be a DNDarray, but was {}".format(type(x)))
 
     integralParts = trunc(x)
     fractionalParts = x - integralParts
@@ -216,7 +281,7 @@ def modf(x: DNDarray, out: Optional[Tuple[DNDarray, DNDarray]] = None) -> Tuple[
     if out is not None:
         if not isinstance(out, tuple):
             raise TypeError(
-                "expected out to be None or a tuple of ht.DNDarray, but was {}".format(type(out))
+                "expected out to be None or a tuple of DNDarray, but was {}".format(type(out))
             )
         if len(out) != 2:
             raise ValueError(
@@ -224,7 +289,7 @@ def modf(x: DNDarray, out: Optional[Tuple[DNDarray, DNDarray]] = None) -> Tuple[
             )
         if (not isinstance(out[0], DNDarray)) or (not isinstance(out[1], DNDarray)):
             raise TypeError(
-                "expected out to be None or a tuple of ht.DNDarray, but was ({}, {})".format(
+                "expected out to be None or a tuple of DNDarray, but was ({}, {})".format(
                     type(out[0]), type(out[1])
                 )
             )
@@ -264,10 +329,21 @@ def round(
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
 
+    Returns
+    -------
+    result: DNDarray
+        A :class:`~heat.core.dndarray.DNDarray` containing the rounded value element-wise.
+
+    Raises
+    -------
+    TypeError
+        if dtype is not a heat data type
+
     Examples
     --------
+    >>> import heat as ht
     >>> ht.round(ht.arange(-2.0, 2.0, 0.4))
-    tensor([-2., -2., -1., -1., -0.,  0.,  0.,  1.,  1.,  2.])
+    DNDarray([-2., -2., -1., -1., -0.,  0.,  0.,  1.,  1.,  2.], dtype=ht.float32, device=cpu:0, split=None)
 
     """
     if dtype is not None and not issubclass(dtype, datatype):
@@ -308,10 +384,17 @@ def trunc(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to ``None``, a fresh array is allocated.
 
+    Returns
+    -------
+    result: DNDarray
+        A :class:`~heat.core.dndarray.DNDarray` containing the trunc of the input, element-wise.
+
     Examples
     --------
+    >>> import heat as ht
     >>> ht.trunc(ht.arange(-2.0, 2.0, 0.4))
-    tensor([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.])
+    DNDarray([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
+
     """
     return _operations.__local_op(torch.trunc, x, out)
 

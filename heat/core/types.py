@@ -1,3 +1,7 @@
+"""
+implementations of the different dtypes supported in heat and the
+"""
+
 from __future__ import annotations
 
 import builtins
@@ -82,7 +86,20 @@ class datatype:
         *value,
         device: Optional[Union[str, devices.Device]] = None,
         comm: Optional[communication.Communication] = None
-    ):
+    ) -> dndarray.DNDarray:
+        """
+        Create a new DNDarray. See :func:`ht.array <heat.core.factories.array>` for more info on general
+        DNDarray creation.
+
+        Parameters
+        ----------
+        value: array_like
+            The values for the DNDarray which will be created
+        device: devices.Device
+            The device on which to place the created DNDarray
+        comm: communication.Communication
+            The MPI communication object to use in distribution and further operations
+        """
         torch_type = cls.torch_type()
         if torch_type is NotImplemented:
             raise TypeError("cannot create '{}' instances".format(cls))
@@ -123,7 +140,7 @@ class datatype:
     @classmethod
     def torch_type(cls) -> NotImplemented:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return NotImplemented
 
@@ -136,10 +153,14 @@ class datatype:
 
 
 class bool(datatype):
+    """
+    The boolean datatype in Heat
+    """
+
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.bool
 
@@ -152,22 +173,38 @@ class bool(datatype):
 
 
 class number(datatype):
+    """
+    The general number datatype. Integer and Float classes will inherit from this.
+    """
+
     pass
 
 
 class integer(number):
+    """
+    The general integer datatype. Specific integer classes inherit from this.
+    """
+
     pass
 
 
 class signedinteger(integer):
+    """
+    The general signed integer datatype.
+    """
+
     pass
 
 
 class int8(signedinteger):
+    """
+    8 bit signed integer datatype
+    """
+
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.int8
 
@@ -180,10 +217,14 @@ class int8(signedinteger):
 
 
 class int16(signedinteger):
+    """
+    16 bit signed integer datatype
+    """
+
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.int16
 
@@ -196,10 +237,14 @@ class int16(signedinteger):
 
 
 class int32(signedinteger):
+    """
+    32 bit signed integer datatype
+    """
+
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.int32
 
@@ -212,10 +257,14 @@ class int32(signedinteger):
 
 
 class int64(signedinteger):
+    """
+    64 bit signed integer datatype
+    """
+
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.int64
 
@@ -228,14 +277,22 @@ class int64(signedinteger):
 
 
 class unsignedinteger(integer):
+    """
+    The general unsigned integer datatype
+    """
+
     pass
 
 
 class uint8(unsignedinteger):
+    """
+    8 bit unsigned integer datatype
+    """
+
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.uint8
 
@@ -248,14 +305,22 @@ class uint8(unsignedinteger):
 
 
 class floating(number):
+    """
+    The general floating point datatype class.
+    """
+
     pass
 
 
 class float32(floating):
+    """
+    The 32 bit floating point datatype
+    """
+
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
-        Torch Datatye
+        Torch Datatype
         """
         return torch.float32
 
@@ -268,6 +333,10 @@ class float32(floating):
 
 
 class float64(floating):
+    """
+    The 64 bit floating point datatype
+    """
+
     @classmethod
     def torch_type(cls) -> torch.dtype:
         """
@@ -284,30 +353,58 @@ class float64(floating):
 
 
 class flexible(datatype):
+    """
+    The general flexible datatype. Currently unused, placeholder for characters
+    """
+
     pass
 
 
 class complex(number):
+    """
+    The general complex datatype class.
+    """
+
     pass
 
 
 class complex64(complex):
+    """
+    The complex 64 bit datatype. Both real and imaginary are 32 bit floating point
+    """
+
     @classmethod
     def torch_type(cls):
+        """
+        Torch Datatype
+        """
         return torch.complex64
 
     @classmethod
     def char(cls):
+        """
+        Datatype short-hand name
+        """
         return "c8"
 
 
 class complex128(complex):
+    """
+    The complex 128 bit datatype. Both real and imaginary are 64 bit floating point
+    """
+
     @classmethod
     def torch_type(cls):
+        """
+        Torch Datatype
+        """
         return torch.complex128
 
     @classmethod
     def char(cls):
+        """
+        Datatype short-hand name
+        """
         return "c16"
 
 
@@ -654,13 +751,14 @@ for i, operand_a in enumerate(__type_codes.keys()):
                 break
 
 
-def iscomplex(x):
+def iscomplex(x: dndarray.DNDarray) -> dndarray.DNDarray:
     """
     Test element-wise if input is complex.
 
     Parameters
     ----------
     x : DNDarray
+        The input DNDarray
 
     Examples
     --------
@@ -675,13 +773,14 @@ def iscomplex(x):
         return factories.zeros(x.shape, bool, split=x.split, device=x.device, comm=x.comm)
 
 
-def isreal(x):
+def isreal(x: dndarray.DNDarray) -> dndarray.DNDarray:
     """
     Test element-wise if input is real-valued.
 
     Parameters
     ----------
     x : DNDarray
+        The input DNDarray
 
     Examples
     --------
@@ -690,7 +789,9 @@ def isreal(x):
     return _operations.__local_op(torch.isreal, x, None, no_cast=True)
 
 
-def issubdtype(arg1, arg2):
+def issubdtype(
+    arg1: Union[str, Type[datatype], Any], arg2: Union[str, Type[datatype], Any]
+) -> builtins.bool:
     """
     Returns True if first argument is a typecode lower/equal in type hierarchy.
 
@@ -728,7 +829,9 @@ def issubdtype(arg1, arg2):
     return issubclass(arg1, arg2)
 
 
-def promote_types(type1, type2):
+def promote_types(
+    type1: Union[str, Type[datatype], Any], type2: Union[str, Type[datatype], Any]
+) -> Type[datatype]:
     """
     Returns the data type with the smallest size and smallest scalar kind to which both ``type1`` and ``type2`` may be
     intuitively cast to, where intuitive casting refers to maintaining the same bit length if possible. This function

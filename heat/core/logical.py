@@ -1,3 +1,7 @@
+"""
+Logical functions for the DNDarrays
+"""
+
 import numpy as np
 import torch
 
@@ -56,32 +60,39 @@ def all(
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
+    Returns
+    -------
+    result : DNDarray or bool
+        A DNDarray or boolean containing the result of the test whether all array elements along a given axis
+        evaluate to ``True``.
+
     Examples
     ---------
-    >>> a = ht.random.randn(4, 5)
-    >>> a
-    DNDarray([[-0.3735, -1.0913, -1.8098,  0.1353, -1.7212],
-              [-1.1526, -0.5509, -1.2472, -1.5906,  0.2859],
-              [ 0.7492, -0.2673, -0.9219, -0.7930,  0.0224],
-              [ 1.7923,  0.3515,  0.5694, -0.2456, -0.6438]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> x = a < 0.5
+    >>> x = ht.random.randn(4, 5)
     >>> x
-    DNDarray([[ True,  True,  True,  True,  True],
-              [ True,  True,  True,  True,  True],
-              [False,  True,  True,  True,  True],
-              [False,  True, False,  True,  True]], dtype=ht.bool, device=cpu:0, split=None))
-    >>> ht.all(x)
+    DNDarray([[ 0.7199,  1.3718,  1.5008,  0.3435,  1.2884],
+              [ 0.1532, -0.0968,  0.3739,  1.7843,  0.5614],
+              [ 1.1522,  1.9076,  1.7638,  0.4110, -0.2803],
+              [-0.5475, -0.0271,  0.8564, -1.5870,  1.3108]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> y = x < 0.5
+    >>> y
+    DNDarray([[False, False, False,  True, False],
+              [ True,  True,  True, False, False],
+              [False, False, False,  True,  True],
+              [ True,  True, False,  True, False]], dtype=ht.bool, device=cpu:0, split=None)
+    >>> ht.all(y)
     DNDarray([False], dtype=ht.bool, device=cpu:0, split=None)
-    >>> ht.all(x, axis=0)
-    DNDarray([False,  True, False,  True,  True], dtype=ht.bool, device=cpu:0, split=None)
+    >>> ht.all(y, axis=0)
+    DNDarray([False, False, False, False, False], dtype=ht.bool, device=cpu:0, split=None)
     >>> ht.all(x, axis=1)
-    DNDarray([ True,  True, False, False], dtype=ht.bool, device=cpu:0, split=None)
+    DNDarray([True, True, True, True], dtype=ht.bool, device=cpu:0, split=None)
     >>> out = ht.zeros(5)
-    >>> ht.all(x, axis=0, out=out)
+    >>> ht.all(y, axis=0, out=out)
+    DNDarray([False, False, False, False, False], dtype=ht.float32, device=cpu:0, split=None)
     >>> out
-    DNDarray([False,  True, False,  True,  True], dtype=ht.bool, device=cpu:0, split=None)
+    DNDarray([False, False, False, False, False], dtype=ht.float32, device=cpu:0, split=None)
     """
-    # TODO: make me more numpy API complete. Issue #101
+
     def local_all(t, *args, **kwargs):
         return torch.all(t != 0, *args, **kwargs)
 
@@ -114,21 +125,25 @@ def allclose(
     rtol: float, optional
         Relative tolerance (with respect to ``y``).
     equal_nan: bool, optional
-        Whether to compare NaN’s as equal. If ``True``, NaN’s in a will be considered equal to NaN’s in b in the output
-        array.
+        Whether to compare NaN’s as equal. If ``True``, NaN’s in ``x`` will be considered equal to NaN’s in ``y`` in
+        the output array.
+
+    Returns
+    -------
+    result : bool
+        Boolean indicating whether two tensors are element-wise equal within a tolerance.
 
     Examples
     ---------
-    >>> a = ht.float32([[2, 2], [2, 2]])
-    >>> ht.allclose(a, a)
+    >>> x = ht.float32([[2, 2], [2, 2]])
+    >>> ht.allclose(x, x)
     True
-    >>> b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
-    >>> ht.allclose(a, b)
+    >>> y = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
+    >>> ht.allclose(x, y)
     False
-    >>> ht.allclose(a, b, atol=1e-04)
+    >>> ht.allclose(x, y, atol=1e-04)
     True
     """
-
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
@@ -170,18 +185,24 @@ def any(
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
+    Returns
+    -------
+    result : DNDarray
+        A :class:`~heat.core.dndarray.DNDarray` containing the result of the test whether any array elements along a
+        given axis evaluate to ``True``.
+
     Examples
     ---------
-    >>> t = ht.float32([[0.3, 0, 0.5]])
-    >>> t.any()
+    >>> x = ht.float32([[0.3, 0, 0.5]])
+    >>> x.any()
     DNDarray([True], dtype=ht.bool, device=cpu:0, split=None)
-    >>> t.any(axis=0)
+    >>> x.any(axis=0)
     DNDarray([ True, False,  True], dtype=ht.bool, device=cpu:0, split=None)
-    >>> t.any(axis=1)
+    >>> x.any(axis=1)
     DNDarray([True], dtype=ht.bool, device=cpu:0, split=None)
-    >>> t = ht.int32([[0, 0, 1], [0, 0, 0]])
+    >>> y = ht.int32([[0, 0, 1], [0, 0, 0]])
     >>> res = ht.zeros(3, dtype=ht.bool)
-    >>> t.any(axis=0, out=res)
+    >>> y.any(axis=0, out=res)
     DNDarray([False, False,  True], dtype=ht.bool, device=cpu:0, split=None)
     >>> res
     DNDarray([False, False,  True], dtype=ht.bool, device=cpu:0, split=None)
@@ -219,7 +240,14 @@ def isclose(
     atol : float
         The absolute tolerance parameter.
     equal_nan : bool
-        Whether to compare NaN’s as equal. If ``True``, NaN’s in x will be considered equal to NaN’s in y in the output array.
+        Whether to compare NaN’s as equal. If ``True``, NaN’s in x will be considered equal to NaN’s in y in the output
+        array.
+
+    Returns
+    -------
+    result : DNDarray
+        A :class:`~heat.core.dndarray.DNDarray` containing the result of the test whether any array elements along a
+        given axis evaluate to ``True``.
     """
     t1, t2 = __sanitize_close_input(x, y)
 
@@ -242,14 +270,20 @@ def isclose(
     return result
 
 
-def isfinite(x):
+def isfinite(x: DNDarray) -> DNDarray:
     """
-    Test element-wise for finiteness (not infinity or not Not a Number) and return result as a boolean array.
+    Test element-wise for finiteness (not infinity or not Not a Number) and return result as a boolean
+    :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
     ----------
-    x   : DNDarray
-    out : DNDarray
+    x : DNDarray
+        Input tensor
+
+    Returns
+    -------
+    result : DNDarray
+        A boolean :class:`~heat.core.dndarray.DNDarray` containing the test of element-wise for finiteness.
 
     Examples
     --------
@@ -259,14 +293,21 @@ def isfinite(x):
     return _operations.__local_op(torch.isfinite, x, None, no_cast=True)
 
 
-def isinf(x):
+def isinf(x: DNDarray) -> DNDarray:
     """
-    Test element-wise for positive or negative infinity and return result as a boolean array.
+    Test element-wise for positive or negative infinity and return result as a boolean
+    :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
     ----------
-    x   : DNDarray
-    out : DNDarray
+    x : DNDarray
+        Input tensor
+
+    Returns
+    -------
+    result : DNDarray
+        A boolean :class:`~heat.core.dndarray.DNDarray` containing the test of element-wise for positive or negative
+        infinity
 
     Examples
     --------
@@ -276,18 +317,20 @@ def isinf(x):
     return _operations.__local_op(torch.isinf, x, None, no_cast=True)
 
 
-def isnan(x):
+def isnan(x: DNDarray) -> DNDarray:
     """
-    Test element-wise for NaN and return result as a boolean array.
+    Test element-wise for NaN and return result as a boolean :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
     ----------
     x   : DNDarray
-    out : DNDarray
+          Input tensor
 
     Returns
     -------
-    DNDarray
+    result : DNDarray
+        A :class:`~heat.core.dndarray.DNDarray` containing bool variables indicating the corresponding values to be
+        NaN or not NaN
 
     Examples
     --------
@@ -297,13 +340,23 @@ def isnan(x):
     return _operations.__local_op(torch.isnan, x, None, no_cast=True)
 
 
-def isneginf(x, out=None):
+def isneginf(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Test if each element of `x` is negative infinite, return result as a bool array.
+    Test if each element of `x` is negative infinite, return result as a boolean :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
     ----------
-    x : DNDarray
+    x   : DNDarray
+          Input tensor
+    out : DNDarray, optional
+          Alternate output array in which to place the result. It must have the same shape as the expected output
+          and its type is preserved.
+
+    Returns
+    -------
+    result:  DNDarray
+        A boolean :class:`~heat.core.dndarray.DNDarray` containing the test result of any input element being negative
+        infinite
 
     Examples
     --------
@@ -313,13 +366,23 @@ def isneginf(x, out=None):
     return _operations.__local_op(torch.isneginf, x, out, no_cast=True)
 
 
-def isposinf(x, out=None):
+def isposinf(x: DNDarray, out: Optional[DNDarray] = None):
     """
-    Test if each element of `x` is positive infinite, return result as a bool array.
+    Test if each element of `x` is positive infinite, return result as a boolean :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
     ----------
-    x : DNDarray
+    x   : DNDarray
+          Input tensor
+    out : DNDarray, optional
+          Alternate output array in which to place the result. It must have the same shape as the expected output
+          and its type is preserved.
+
+    Returns
+    -------
+    result:  DNDarray
+        A boolean :class:`~heat.core.dndarray.DNDarray` containing the test result of any input element being positive
+        infinite
 
     Examples
     --------
@@ -337,16 +400,21 @@ DNDarray.isclose: Callable[
 DNDarray.isclose.__doc__ = isclose.__doc__
 
 
-def logical_and(t1: DNDarray, t2: DNDarray) -> DNDarray:
+def logical_and(x: DNDarray, y: DNDarray) -> DNDarray:
     """
-    Compute the truth value of ``t1`` AND ``t2`` element-wise.
+    Compute the truth value of ``x`` AND ``y`` element-wise.
 
     Parameters
     -----------
-    t1 : DNDarray
+    x : DNDarray
         Input array of same shape
-    t2 : DNDarray
+    y : DNDarray
         Input array of same shape
+
+    Returns
+    -------
+    result : DNDarray
+        A boolean :class:`~heat.core.dndarray.DNDarray` containing the truth value of ``x`` AND ``y`` element-wise.
 
     Examples
     ---------
@@ -354,40 +422,52 @@ def logical_and(t1: DNDarray, t2: DNDarray) -> DNDarray:
     DNDarray([False, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__binary_op(
-        torch.Tensor.__and__, types.bool(t1, device=t1.device), types.bool(t2, device=t2.device)
+        torch.Tensor.__and__, types.bool(x, device=x.device), types.bool(y, device=y.device)
     )
 
 
-def logical_not(t: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+def logical_not(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Computes the element-wise logical NOT of the given input :class:`~heat.core.dndarray.DNDarray` .
+    Computes the element-wise logical NOT of the given input :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
     -----------
-    t: DNDarray
+    x : DNDarray
         Input array
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output.
-        The output is a ``DNDarray`` with ``datatype=bool``.
+        The output is a :class:`~heat.core.dndarray.DNDarray` with ``datatype=bool``.
+
+    Returns
+    -------
+    result : DNDarray
+        A boolean :class:`~heat.core.dndarray.DNDarray` containing the element-wise logical NOT of the given
+        input :class:`~heat.core.dndarray.DNDarray`.
 
     Examples
     ---------
     >>> ht.logical_not(ht.array([True, False]))
     DNDarray([False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
-    return _operations.__local_op(torch.logical_not, t, out)
+    return _operations.__local_op(torch.logical_not, x, out)
 
 
-def logical_or(t1: DNDarray, t2: DNDarray) -> DNDarray:
+def logical_or(x: DNDarray, y: DNDarray) -> DNDarray:
     """
-    Compute the truth value of ``t1`` OR ``t2`` element-wise.
+    Compute the truth value of ``x`` OR ``y`` element-wise.
 
     Parameters
     -----------
-    t1 : DNDarray
+    x : DNDarray
         Input array of same shape
-    t2 : DNDarray
+    y : DNDarray
         Input array of same shape
+
+    Returns
+    -------
+    result : DNDarray
+        A boolean :class:`~heat.core.dndarray.DNDarray` containing the element-wise logical NOT of the given
+        input :class:`~heat.core.dndarray.DNDarray`.
 
     Examples
     ---------
@@ -395,27 +475,33 @@ def logical_or(t1: DNDarray, t2: DNDarray) -> DNDarray:
     DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__binary_op(
-        torch.Tensor.__or__, types.bool(t1, device=t1.device), types.bool(t2, device=t2.device)
+        torch.Tensor.__or__, types.bool(x, device=x.device), types.bool(y, device=y.device)
     )
 
 
-def logical_xor(t1: DNDarray, t2: DNDarray) -> DNDarray:
+def logical_xor(x: DNDarray, y: DNDarray) -> DNDarray:
     """
     Computes the element-wise logical XOR of the given input :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
     -----------
-    t1 : DNDarray
+    x : DNDarray
         Input array of same shape
-    t2 : DNDarray
+    y : DNDarray
         Input array of same shape
+
+    Returns
+    -------
+    result : DNDarray
+        A boolean :class:`~heat.core.dndarray.DNDarray` containing the element-wise logical XOR of the given input
+        :class:`~heat.core.dndarray.DNDarray`.
 
     Examples
     ---------
     >>> ht.logical_xor(ht.array([True, False, True]), ht.array([True, False, False]))
     DNDarray([False, False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.logical_xor, t1, t2)
+    return _operations.__binary_op(torch.logical_xor, x, y)
 
 
 def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray]:
@@ -430,10 +516,15 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
     y : DNDarray
         The right-hand side operand.
 
+    Returns
+    -------
+    result : Tuple[DNDarray, DNDarray]
+        Tuple of sanizized input arrays
+
     Raises
     ------
     TypeError
-        If ``x`` is neither.
+        If ``x`` is neither :class:`~heat.core.dndarray.DNDarray` or numeric scalar
     """
 
     def sanitize_input_type(
