@@ -685,6 +685,17 @@ def issubdtype(arg1, arg2):
     return issubclass(arg1, arg2)
 
 
+def result_type(arg1, arg2):
+
+    arg1 = factories.empty(0, dtype=canonical_heat_type(arg1))
+    arg2 = factories.empty(0, dtype=canonical_heat_type(arg2))
+    sanitation.sanitize_in(arg1)
+    arg1 = arg1.larray
+    sanitation.sanitize_in(arg2)
+    arg2 = arg2.larray
+    return canonical_heat_type(torch.result_type(arg1, arg2))
+
+
 def promote_types(type1, type2):
     """
     Returns the data type with the smallest size and smallest scalar kind to which both type1 and type2 may be
