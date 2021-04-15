@@ -6,15 +6,16 @@ import warnings
 
 from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union
 
-from . import devices
-from . import types
-
 from .communication import MPI, sanitize_comm, Communication
 from .devices import Device
 from .dndarray import DNDarray
 from .memory import sanitize_memory_layout
 from .stride_tricks import sanitize_axis, sanitize_shape
 from .types import datatype
+
+from . import devices
+from . import types
+
 
 __all__ = [
     "arange",
@@ -436,7 +437,7 @@ def asarray(
     dtype: Optional[Type[datatype]] = None,
     order: str = "C",
     is_split: Optional[bool] = None,
-    device: Optional[str, Device] = None,
+    device: Optional[Union[str, Device]] = None,
 ) -> DNDarray:
     """
     Convert ``obj`` to a DNDarray. If ``obj`` is a `DNDarray` or `Tensor` with the same `dtype` and `device` or if the
