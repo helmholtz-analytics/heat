@@ -9,7 +9,6 @@ from ..communication import MPICommunication
 from ..types import datatype
 from ..tiling import SquareDiagTiles
 from ..dndarray import DNDarray
-from ..devices import Device
 from .. import factories
 
 __all__ = ["qr"]
@@ -600,7 +599,7 @@ def __split0_send_q_to_diag_pr(
     key: str,
     q_dict_waits: Dict,
     q_dtype: Type[datatype],
-    q_device: Device,
+    q_device: torch.device,
 ) -> None:
     """
     Sets the values of ``q_dict_waits`` with the with *waits* for the values of Q, ``upper.shape``,
@@ -627,8 +626,8 @@ def __split0_send_q_to_diag_pr(
         Dictionary used in the collection of the Qs which are sent to the diagonal process
     q_dtype : torch.type
         Type of the Q tensor
-    q_device : torch.Device
-        Device of the Q tensor
+    q_device : torch.device
+        Torch device of the Q tensor
 
     """
     if comm.rank not in [pr0, pr1, diag_process]:
