@@ -49,11 +49,11 @@ class TestDistances(TestCase):
 
         # Case 1b: X.split == None, Y != None, Y.split == None
         d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
-        self.assertTrue(ht.allclose(d, res_XY_cdist))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_cdist)))
         self.assertEqual(d.split, None)
 
         d = ht.spatial.cdist(X, Y, quadratic_expansion=True)
-        self.assertTrue(ht.allclose(d, res_XY_cdist))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_cdist)))
         self.assertEqual(d.split, None)
 
         d = ht.spatial.rbf(X, Y, sigma=math.sqrt(2.0), quadratic_expansion=False)
@@ -65,11 +65,11 @@ class TestDistances(TestCase):
         self.assertEqual(d.split, None)
 
         d = ht.spatial.manhattan(X, Y, expand=False)
-        self.assertTrue(ht.allclose(d, res_XY_manhattan))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_manhattan)))
         self.assertEqual(d.split, None)
 
         d = ht.spatial.manhattan(X, Y, expand=True)
-        self.assertTrue(ht.allclose(d, res_XY_manhattan))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_manhattan)))
         self.assertEqual(d.split, None)
 
         # Case 1c: X.split == None, Y != None, Y.split == 0
@@ -80,11 +80,11 @@ class TestDistances(TestCase):
         res_XY_rbf = ht.ones((n * 2, n * 2), dtype=ht.float32, split=1) * math.exp(-1.0)
 
         d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
-        self.assertTrue(ht.allclose(d, res_XY_cdist))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_cdist)))
         self.assertEqual(d.split, 1)
 
         d = ht.spatial.cdist(X, Y, quadratic_expansion=True)
-        self.assertTrue(ht.allclose(d, res_XY_cdist))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_cdist)))
         self.assertEqual(d.split, 1)
 
         d = ht.spatial.rbf(X, Y, sigma=math.sqrt(2.0), quadratic_expansion=False)
@@ -96,11 +96,11 @@ class TestDistances(TestCase):
         self.assertEqual(d.split, 1)
 
         d = ht.spatial.manhattan(X, Y, expand=False)
-        self.assertTrue(ht.allclose(d, res_XY_manhattan))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_manhattan)))
         self.assertEqual(d.split, 1)
 
         d = ht.spatial.manhattan(X, Y, expand=True)
-        self.assertTrue(ht.allclose(d, res_XY_manhattan))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_manhattan)))
         self.assertEqual(d.split, 1)
 
         # Case 2a: X.split == 0, Y == None
@@ -137,11 +137,11 @@ class TestDistances(TestCase):
 
         # Case 2b: X.split == 0, Y != None, Y.split == None
         d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
-        self.assertTrue(ht.allclose(d, res_XY_cdist))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_cdist)))
         self.assertEqual(d.split, 0)
 
         d = ht.spatial.cdist(X, Y, quadratic_expansion=True)
-        self.assertTrue(ht.allclose(d, res_XY_cdist))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_cdist)))
         self.assertEqual(d.split, 0)
 
         d = ht.spatial.rbf(X, Y, sigma=math.sqrt(2.0), quadratic_expansion=False)
@@ -153,22 +153,22 @@ class TestDistances(TestCase):
         self.assertEqual(d.split, 0)
 
         d = ht.spatial.manhattan(X, Y, expand=False)
-        self.assertTrue(ht.allclose(d, res_XY_manhattan))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_manhattan)))
         self.assertEqual(d.split, 0)
 
         d = ht.spatial.manhattan(X, Y, expand=True)
-        self.assertTrue(ht.allclose(d, res_XY_manhattan))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_manhattan)))
         self.assertEqual(d.split, 0)
 
         # Case 2c: X.split == 0, Y != None, Y.split == 0
         Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=0)
 
         d = ht.spatial.cdist(X, Y, quadratic_expansion=False)
-        self.assertTrue(ht.allclose(d, res_XY_cdist))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_cdist)))
         self.assertEqual(d.split, 0)
 
         d = ht.spatial.cdist(X, Y, quadratic_expansion=True)
-        self.assertTrue(ht.allclose(d, res_XY_cdist))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_cdist)))
         self.assertEqual(d.split, 0)
 
         d = ht.spatial.rbf(X, Y, sigma=math.sqrt(2.0), quadratic_expansion=False)
@@ -180,11 +180,11 @@ class TestDistances(TestCase):
         self.assertEqual(d.split, 0)
 
         d = ht.spatial.manhattan(X, Y, expand=False)
-        self.assertTrue(ht.allclose(d, res_XY_manhattan))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_manhattan)))
         self.assertEqual(d.split, 0)
 
         d = ht.spatial.manhattan(X, Y, expand=True)
-        self.assertTrue(ht.allclose(d, res_XY_manhattan))
+        self.assertTrue(ht.allclose(d, d.dtype(res_XY_manhattan)))
         self.assertEqual(d.split, 0)
 
         # Case 3 X.split == 1
