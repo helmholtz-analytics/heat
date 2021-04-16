@@ -1583,54 +1583,64 @@ class DNDarray:
                 h[0] = key
             key = tuple(h)
 
-        gout_full = [None] * len(self.gshape)
-        # below generates the expected shape of the output.
-        #   If lists or torch.Tensors remain in the key, some change may be made later
+        # generate the expected shape of the output.
+        # If lists or torch.Tensors remain in the key, some change may be made later
         key = list(key)
+        gout_full = []
+        slice_size = 0
+        new_split = self.split
+        advanced_ind = False
+
+        # calculate size of slice on each dimension
+        # assess what dimensions should be kept in the returned DNDarray
+        # calculate new split axis accordingly
         for c, k in enumerate(key):
             if isinstance(k, slice):
-                new_slice = stride_tricks.sanitize_slice(k, self.gshape[c])
-                gout_full[c] = math.ceil((new_slice.stop - new_slice.start) / new_slice.step)
-            elif isinstance(k, list):
-                gout_full[c] = len(k)
-            elif isinstance(k, (DNDarray, torch.Tensor)):
-                gout_full[c] = k.shape[0] if not kgshape_flag else kgshape[c]
+                # always keep dimension
+                if k == slice(None, None, None):
+                    gout_full.append(self.gshape[c])
+                else:
+                    new_slice = stride_tricks.sanitize_slice(k, self.gshape[c])
+                    slice_size = math.ceil((new_slice.stop - new_slice.start) / new_slice.step)
+                    gout_full.append(slice_size)
+                slice_size = 0
+            elif isinstance(k, int):
+                slice_size = 1
+            elif isinstance(k, (list, DNDarray, torch.Tensor, np.ndarray)):
+                if not advanced_ind:
+                    # first dimension with advanced indexing: keep
+                    if isinstance(k, list):
+                        slice_size = len(k)
+                    else:
+                        slice_size = k.shape[0] if not kgshape_flag else kgshape[c]
+                    advanced_ind = True
+                else:
+                    # drop dimension, correct new_split if necessary
+                    slice_size = 0
+                    if self.split is not None and c <= self.split:
+                        new_split -= 1
+            if slice_size > 1:
+                gout_full.append(slice_size)
+            elif slice_size == 1 and self.split is not None:
+                if c == self.split:
+                    gout_full.append(slice_size)
+                elif c < self.split:
+                    new_split -= 1
             if isinstance(k, DNDarray):
                 key[c] = k.larray
-        if all(g == 1 for g in gout_full):
-            gout_full = [1]
-        else:
-            # delete the dimensions from gout_full if they are not touched (they will be removed)
-            for i in range(len(gout_full) - 1, -1, -1):
-                if gout_full[i] is None:
-                    del gout_full[i]
+
+        # finally, add back unsliced dimensions if any
+        left_overs = self.ndim - len(key)
+        if left_overs > 0:
+            gout_full = gout_full + list(self.gshape[-left_overs:])
 
         key = tuple(key)
         if not self.is_distributed():
-            if not self.comm.size == 1:
-                return factories.array(
-                    self.__array[key],
-                    dtype=self.dtype,
-                    split=self.split,
-                    device=self.device,
-                    comm=self.comm,
-                )
-            else:
-                gout = tuple(self.__array[key].shape)
-                if self.split is not None and self.split >= len(gout):
-                    new_split = len(gout) - 1 if len(gout) - 1 >= 0 else None
-                else:
-                    new_split = self.split
+            arr = self.__array[key].reshape(gout_full)
+            return DNDarray(
+                arr, tuple(gout_full), self.dtype, new_split, self.device, self.comm, self.balanced
+            )
 
-                return DNDarray(
-                    self.__array[key],
-                    gout,
-                    self.dtype,
-                    new_split,
-                    self.device,
-                    self.comm,
-                    self.balanced,
-                )
         # else: (DNDarray is distributed)
         rank = self.comm.rank
         ends = []
@@ -1643,17 +1653,7 @@ class DNDarray:
         chunk_start = chunk_starts[rank]
         chunk_end = chunk_ends[rank]
         arr = torch.tensor([], device=self.device.torch_device)
-        # all keys should be tuples here
-        # handle the dimensional reduction for integers
-        int_locs = [isinstance(it, int) for it in key]
-        ints = sum(int_locs)
-        if ints > 0:
-            ints_before_split = sum(int_locs[: self.split + 1])
-            new_split = self.split - ints_before_split
-            if new_split < 0:
-                new_split = 0
-        else:
-            new_split = self.split
+
         if len(key) == 0:  # handle empty list
             # this will return an array of shape (0, ...)
             arr = self.__array[key]
@@ -1663,6 +1663,7 @@ class DNDarray:
             each block handles the case where the element of the key along the split axis is a different type
             and converts the key from global indices to local indices.
         """
+        lout = gout_full.copy()
         if isinstance(key[self.split], (list, torch.Tensor, DNDarray)):
             # advanced indexing, elements in the split dimension are adjusted to the local indices
             lkey = list(key)
@@ -1673,16 +1674,23 @@ class DNDarray:
                 if not isinstance(lkey[self.split], torch.Tensor)
                 else lkey[self.split]
             )
-
             loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
+            # if there are no local indices on a process, then `arr` is empty
+            # if local indices exist:
             if len(loc_inds[0]) != 0:
-                # if there are no local indices on a process, then `arr` is empty
+                # select same local indices for other (non-split) dimensions if necessary
+                for i, k in enumerate(lkey):
+                    if isinstance(k, (list, torch.Tensor, DNDarray)):
+                        if i != self.split:
+                            lkey[i] = k[loc_inds]
+                # correct local indices for offset
                 inds = inds[loc_inds] - chunk_start
                 lkey[self.split] = inds
-                arr = self.__array[tuple(lkey)]
+                lout[new_split] = len(loc_inds[0])
+                arr = self.__array[tuple(lkey)].reshape(lout)
         elif isinstance(key[self.split], slice):
             # standard slicing along the split axis,
-            #   adjust the slice start, stop, and step, then run it on the processes which have the requested data
+            # adjust the slice start, stop, and step, then run it on the processes which have the requested data
             key = list(key)
             key_start = key[self.split].start if key[self.split].start is not None else 0
             key_stop = (
@@ -1713,7 +1721,12 @@ class DNDarray:
                 if isinstance(key_stop, torch.Tensor):
                     key_stop = key_stop.item()
                 key[self.split] = slice(key_start, key_stop, key_step)
-                arr = self.__array[tuple(key)]
+                lout[new_split] = (
+                    math.ceil((key_stop - key_start) / key_step)
+                    if key_step is not None
+                    else key_stop - key_start
+                )
+                arr = self.__array[tuple(key)].reshape(lout)
 
         elif isinstance(key[self.split], int):
             # if there is an integer in the key along the split axis, adjust it and then get `arr`
@@ -1725,16 +1738,12 @@ class DNDarray:
             )
             if key[self.split] in range(chunk_start, chunk_end):
                 key[self.split] = key[self.split] - chunk_start
-                arr = self.__array[tuple(key)]
-
+                lout[new_split] = 1
+                arr = self.__array[tuple(key)].reshape(lout)
         if 0 in arr.shape:
-            # arr is empty
-            # gout is all 0s as is the shape
-            warnings.warn(
-                "This process (rank: {}) is without data after slicing, "
-                "running the .balance_() function is recommended".format(self.comm.rank),
-                ResourceWarning,
-            )
+            # no data on process
+            lout[new_split] = 0
+            arr = arr.reshape(lout)
 
         return DNDarray(
             arr.type(l_dtype),

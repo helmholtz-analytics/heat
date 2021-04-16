@@ -161,6 +161,7 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
 
         w = ht.matmul(A, vi)
         alpha = ht.dot(w, vi)
+
         w = w - alpha * vi - beta * V[:, i - 1]
 
         T[i - 1, i] = beta
