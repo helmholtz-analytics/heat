@@ -1,7 +1,8 @@
 from __future__ import print_function
 import argparse
-import torch
 import sys
+import time
+import torch
 
 sys.path.append("../../")
 import heat as ht
@@ -13,9 +14,9 @@ from heat.utils.data.mnist import MNISTDataset
 
 """
 This file is an example script for how to use the HeAT DataParallel class to train a network on the MNIST dataset.
-To run this file execute:
-mpirun -np N python mnist.py
-where N is the number of processes, in the examples/nn/ directory
+To run this file execute the following in the examples/nn/ directory:
+    mpirun -np N python -u mnist.py
+where N is the number of processes.
 """
 
 
@@ -47,7 +48,9 @@ class Net(ht.nn.Module):
 
 def train(args, model, device, train_loader, optimizer, epoch):
     model.train()
+    t_list = []
     for batch_idx, (data, target) in enumerate(train_loader):
+        t = time.perf_counter()
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
@@ -61,6 +64,8 @@ def train(args, model, device, train_loader, optimizer, epoch):
             )
             if args.dry_run:
                 break
+        t_list.append(time.perf_counter() - t)
+    print("average time", sum(t_list) / len(t_list))
 
 
 def test(model, device, test_loader):
@@ -138,33 +143,24 @@ def main():
     device = torch.device("cuda" if use_cuda else "cpu")
     kwargs = {"batch_size": args.batch_size}
     if use_cuda:
-        kwargs.update({"num_workers": 1, "pin_memory": True, "shuffle": True})
+        kwargs.update({"num_workers": 0, "pin_memory": True})
     transform = ht.utils.vision_transforms.Compose(
         [vision_transforms.ToTensor(), vision_transforms.Normalize((0.1307,), (0.3081,))]
     )
-    dataset1 = MNISTDataset(
-        "../../heat/utils/data/datasets", train=True, transform=transform, ishuffle=False
-    )
+    dataset1 = MNISTDataset("../../heat/datasets", train=True, transform=transform, ishuffle=False)
     dataset2 = MNISTDataset(
-        "../../heat/utils/data/datasets",
-        train=False,
-        transform=transform,
-        ishuffle=False,
-        test_set=True,
+        "../../heat/datasets", train=False, transform=transform, ishuffle=False, test_set=True
     )
 
-    train_loader = ht.utils.data.datatools.DataLoader(
-        dataset1.data, local_dataset=dataset1, **kwargs
-    )
-    test_loader = ht.utils.data.datatools.DataLoader(
-        dataset2.data, local_dataset=dataset2, **kwargs
-    )
+    train_loader = ht.utils.data.datatools.DataLoader(dataset=dataset1, **kwargs)
+    test_loader = ht.utils.data.datatools.DataLoader(dataset=dataset2, **kwargs)
     model = Net().to(device)
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
-    dp_optim = ht.optim.DataParallelOptimizer(optimizer)
+    blocking = False
+    dp_optim = ht.optim.DataParallelOptimizer(optimizer, blocking=blocking)
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     dp_model = ht.nn.DataParallel(
-        model, comm=dataset1.comm, optimizer=dp_optim, blocking_parameter_updates=False
+        model, comm=dataset1.comm, optimizer=dp_optim, blocking_parameter_updates=blocking
     )
 
     for epoch in range(1, args.epochs + 1):

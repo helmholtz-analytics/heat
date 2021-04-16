@@ -12,6 +12,9 @@
 - [#699](https://github.com/helmholtz-analytics/heat/pull/699) Support for complex numbers; New functions: angle, real, imag, conjugate
 - [#702](https://github.com/helmholtz-analytics/heat/pull/702) Support channel stackoverflow
 - [#712](https://github.com/helmholtz-analytics/heat/pull/712) New function: `issubdtype`
+- [#728](https://github.com/helmholtz-analytics/heat/pull/728) Feature addition: `DASO` optimizer
+- [#728](https://github.com/helmholtz-analytics/heat/pull/728) New feature: `nn.DataParallelMultiGPU` which uses `torch.distributed` for local communication (for use with `optim.DASO`)
+- [#728](https://github.com/helmholtz-analytics/heat/pull/728) New feature: `optim.DetectMetricPlateau` detects when a given metric plateaus.
 
 ### Factories
 - [#707](https://github.com/helmholtz-analytics/heat/pull/707) New feature: `asarray()`
@@ -19,6 +22,7 @@
 - [#559](https://github.com/helmholtz-analytics/heat/pull/559) Enhancement: `save_netcdf` allows naming dimensions, creating unlimited dimensions, using existing dimensions and variables, slicing
 ### Manipulations
 - [#677](https://github.com/helmholtz-analytics/heat/pull/677) split, vsplit, dsplit, hsplit
+- [#690](https://github.com/helmholtz-analytics/heat/pull/690) New feature: `ravel()`
 ### Statistical Functions
 - [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``
 ### Linear Algebra
@@ -44,11 +48,15 @@
 - [#732](https://github.com/helmholtz-analytics/heat/pull/732) Corrected logic in `DNDarray.__getitem__` to produce the correct split axis
 - [#734](https://github.com/helmholtz-analytics/heat/pull/734) Fix division by zero error in `__local_op` with out != None on empty local arrays.
 - [#735](https://github.com/helmholtz-analytics/heat/pull/735) Set return type to bool in relational functions.
+- [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
+- [#756](https://github.com/helmholtz-analytics/heat/pull/756) Keep track of sent items while balancing within `sort()`
 
-# v0.5.2
-
+## Enhancements
+### Manipulations
+- [#690](https://github.com/helmholtz-analytics/heat/pull/690) Enhancement: reshape accepts shape arguments with one unknown dimension.
 - [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
 - [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
+- [#749](https://github.com/helmholtz-analytics/heat/pull/749) Distributed sorted `ht.unique`
 
 # v0.5.1
 

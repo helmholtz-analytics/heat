@@ -51,7 +51,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
     >>> print(clf.predict(ht.array([[-0.8, -1]])))
     tensor([1])
     >>> clf_pf = GaussianNB()
-    >>> clf_pf.partial_fit(X, Y, ht.unique(Y, sorted=True))
+    >>> clf_pf.partial_fit(X, Y, ht.unique(Y))
     <heat.naive_bayes.gaussianNB.GaussianNB object at 0x1a249fbe10>
     >>> print(clf_pf.predict(ht.array([[-0.8, -1]])))
     tensor([1])
@@ -93,7 +93,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                         type(sample_weight)
                     )
                 )
-        classes = ht.unique(y, sorted=True)
+        classes = ht.unique(y)
         if classes.split is not None:
             classes = ht.resplit(classes, axis=None)
 
@@ -334,7 +334,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         classes = self.classes_
 
-        unique_y = ht.unique(y, sorted=True)
+        unique_y = ht.unique(y)
         if unique_y.split is not None:
             unique_y = ht.resplit(unique_y, axis=None)
         unique_y_in_classes = ht.eq(unique_y, classes)

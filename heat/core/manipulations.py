@@ -30,6 +30,7 @@ __all__ = [
     "hsplit",
     "hstack",
     "pad",
+    "ravel",
     "repeat",
     "reshape",
     "resplit",
@@ -773,10 +774,16 @@ def flatten(a):
     ----------
     a : DNDarray
         array to collapse
+
     Returns
     -------
     ret : DNDarray
         flattened copy
+
+    See Also
+    --------
+    :function:`~heat.core.manipulations.ravel`
+
     Examples
     --------
     >>> a = ht.array([[[1,2],[3,4]],[[5,6],[7,8]]])
@@ -1393,6 +1400,66 @@ def pad(array, pad_width, mode="constant", constant_values=0):
     return padded_tensor
 
 
+def ravel(a):
+    """
+    Return a flattened view of `a` if possible. A copy is returned otherwise.
+
+    Parameters
+    ----------
+    a : DNDarray
+        array to collapse
+
+    Returns
+    -------
+    ret : DNDarray
+        flattened array with the same dtype as a, but with shape (a.size,).
+
+    Notes
+    ------
+    Returning a view of distributed data is only possible when `split != 0`. The returned DNDarray may be unbalanced.
+    Otherwise, data must be communicated among processes, and `ravel` falls back to `flatten`.
+
+
+    See Also
+    --------
+    :function:`~heat.core.manipulations.flatten`
+
+    Examples
+    --------
+    >>> a = ht.ones((2,3), split=0)
+    >>> b = ht.ravel(a)
+    >>> a[0,0] = 4
+    >>> b
+    DNDarray([4., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
+    """
+    sanitation.sanitize_in(a)
+
+    if a.split is None:
+        return factories.array(
+            torch.flatten(a._DNDarray__array),
+            dtype=a.dtype,
+            copy=False,
+            is_split=None,
+            device=a.device,
+            comm=a.comm,
+        )
+
+    # Redistribution necessary
+    if a.split != 0:
+        return flatten(a)
+
+    result = factories.array(
+        torch.flatten(a._DNDarray__array),
+        dtype=a.dtype,
+        copy=False,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm,
+    )
+
+    return result
+
+
 def repeat(a, repeats, axis=None):
     """
     Creates a new DNDarray by repeating elements of array a.
@@ -1668,6 +1735,10 @@ def reshape(a, shape, new_split=None):
     reshaped : ht.DNDarray
         The DNDarray with the specified shape
 
+    See Also
+    --------
+    :function:`~heat.core.manipulations.ravel`
+
     Raises
     ------
     ValueError
@@ -1689,17 +1760,8 @@ def reshape(a, shape, new_split=None):
     """
     if not isinstance(a, dndarray.DNDarray):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
-    if not isinstance(shape, (list, tuple)):
-        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
-        # check new_split parameter
-    if new_split is None:
-        new_split = a.split
-    stride_tricks.sanitize_axis(shape, new_split)
+
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
-    # Check the type of shape and number elements
-    shape = stride_tricks.sanitize_shape(shape)
-    if torch.prod(torch.tensor(shape, device=tdevice)) != a.size:
-        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
     def reshape_argsort_counts_displs(
         shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
@@ -1735,6 +1797,34 @@ def reshape(a, shape, new_split=None):
             plz += counts[i]
         displs[1:] = torch.cumsum(counts[:-1], dim=0)
         return argsort, counts, displs
+
+    if shape == -1:
+        shape = (a.gnumel,)
+
+    if not isinstance(shape, (list, tuple)):
+        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
+
+    # check new_split parameter
+    if new_split is None:
+        new_split = a.split
+    stride_tricks.sanitize_axis(shape, new_split)
+
+    # Check the type of shape and number elements
+    shape = stride_tricks.sanitize_shape(shape, -1)
+
+    shape = list(shape)
+    shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
+
+    # infer unknown dimension
+    if shape.count(-1) > 1:
+        raise ValueError("too many unknown dimensions")
+    elif shape.count(-1) == 1:
+        pos = shape.index(-1)
+        shape[pos] = int(-(a.size / shape_size).item())
+        shape_size *= -shape[pos]
+
+    if shape_size != a.size:
+        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
     # Forward to Pytorch directly
     if a.split is None:
@@ -1891,7 +1981,26 @@ def shape(a):
     return a.gshape
 
 
-def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
+def __pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
+    """
+    Parallel sorting function for :func:`sort` and :func:`unique`, based on [1].
+
+    Parameters
+    ----------
+
+    a : DNDarray
+        Distributed input data
+    axis : int or None
+        Axis along which the operation will be performed.
+    sort_op : torch operation
+        torch.sort or torch.unique
+    descending : bool
+        Whether :func:`sort` will return elements sorted in descending order. Default: `False`.
+
+    References
+    ----------
+    [1] Li et al., 1993, "On the versatility of parallel sorting by regular sampling", Parallel Computing, Volume 19, Issue 10, pages 1079-1103
+    """
     size = a.comm.Get_size()
     rank = a.comm.Get_rank()
     transposed = a.larray.transpose(axis, 0)
@@ -1901,19 +2010,19 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
         actual_indices = local_indices.to(dtype=local_sorted.dtype) + disp[rank]
     elif sort_op is torch.unique:
         local_sorted = sort_op(transposed, dim=0, **kwargs)[0]
+        local_shape = local_sorted.shape
+        if 0 in local_shape:
+            local_shape = transposed.shape
         lshape_map = torch.empty(
-            (size, local_sorted.ndim), dtype=torch.int64, device=local_sorted.device
+            (size, transposed.ndim), dtype=torch.int64, device=transposed.device
         )
-        a.comm.Allgather(torch.tensor(local_sorted.shape), lshape_map)
+        a.comm.Allgather(torch.tensor(local_shape), lshape_map)
         counts = lshape_map[:, 0]
         displs = torch.cumsum(
             torch.cat((torch.tensor([0], device=counts.device), counts[:-1])), dim=0
         )
         counts, displs = tuple(counts.tolist()), tuple(displs.tolist())
-    else:
-        raise ValueError(
-            "sorting operation can be torch.sort or torch.unique, was {}".format(sort_op)
-        )
+
     unique_along_axis = True if sort_op is torch.unique and axis is not None else False
 
     length = local_sorted.size()[0]
@@ -2075,7 +2184,7 @@ def _pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
                     amount = int(x - send_vec[idx][:, first + i].sum())
                     send_vec[idx][proc][first + i] = amount
                     current_counts[first + i] += amount
-                    sent += amount
+                    sent = send_vec[idx][proc][: first + i + 1].sum().item()
                 if last < size:
                     # Send all left over values to the highest last process
                     amount = partition_matrix[proc][idx]
@@ -2200,7 +2309,7 @@ def sort(a, axis=None, descending=False, out=None):
         final_result, final_indices = torch.sort(a.larray, dim=axis, descending=descending)
 
     else:
-        final_result, final_indices = _pivot_sorting(a, axis, torch.sort, descending=descending)
+        final_result, final_indices = __pivot_sorting(a, axis, torch.sort, descending=descending)
 
     return_indices = factories.array(
         final_indices, dtype=dndarray.types.int32, is_split=a.split, device=a.device, comm=a.comm
@@ -2738,7 +2847,7 @@ def stack(arrays, axis=0, out=None):
     return stacked
 
 
-def unique(a, sorted=True, return_inverse=False, axis=None):
+def unique(a, return_inverse=False, axis=None):
     """
     Returns the sorted unique elements of an array.
 
@@ -2751,10 +2860,6 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         Input array.
     axis : int, optional
         The axis to operate on. If None, `a` will be flattened.
-    sorted : bool, optional
-        Sort the array in ascending order before finding the unique elements.
-        Set `sorted=False` only if `a` is already sorted (in whichever order).
-        Default: True
     return_inverse : bool, optional
         Return the indices of the unique array (for the specified `axis`, if provided)
         that can be used to reconstruct `a`.
@@ -2779,7 +2884,9 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
     `unique` will be distributed along 0, if `axis` is specified, or along `a.split`,
     if `axis` is None.
 
-    WARNING: `inverse_indices` will always be distributed like the original data
+    Warnings
+    --------
+    `inverse_indices` will always be distributed like the original data
     (if `axis is None`) or along 0, and contains the GLOBAL indices to recreate the
     LOCAL portion of `a`. Before reconstructing an array based on `unique[inverse_indices]`,
     make sure that `unique` is local (with `unique.resplit_(axis=None)`, see `ht.resplit`).
@@ -2787,24 +2894,25 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
     Examples
     --------
     >>> x = ht.array([[3, 2], [1, 3]])
-    >>> ht.unique(x, sorted=True)
+    >>> ht.unique(x)
     array([1, 2, 3])
 
-    >>> ht.unique(x, sorted=True, axis=0)
+    >>> ht.unique(x, axis=0)
     array([[1, 3],
            [2, 3]])
 
-    >>> ht.unique(x, sorted=True, axis=1)
+    >>> ht.unique(x, axis=1)
     array([[2, 3],
            [3, 1]])
     """
     if not a.is_distributed():
-        torch_output = torch.unique(
-            a.larray, sorted=sorted, return_inverse=return_inverse, dim=axis
-        )
+        torch_output = torch.unique(a.larray, sorted=True, return_inverse=return_inverse, dim=axis)
         if isinstance(torch_output, tuple):
             heat_output = tuple(
-                factories.array(i, dtype=a.dtype, split=None, device=a.device) for i in torch_output
+                factories.array(
+                    i, dtype=types.canonical_heat_type(i.dtype), split=None, device=a.device
+                )
+                for i in torch_output
             )
         else:
             heat_output = factories.array(torch_output, dtype=a.dtype, split=None, device=a.device)
@@ -2814,22 +2922,19 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
     size = a.comm.size
 
     local_data = a.larray
-
+    inv_shape = local_data.shape if axis is None else (local_data.shape[axis],)
     unique_axis = None
-
     if axis is not None:
         if axis != a.split:
-            raise ValueError(
-                "Operation axis must match distribution axis of the array: axis is {}, array.split is {}".format(
+            raise NotImplementedError(
+                "Not implemented yet: Operation axis differs from distribution axis: axis is {}, array.split is {}".format(
                     axis, a.split
                 )
             )
         if axis != 0:
             # transpose so we can work along the 0 axis
             local_data = local_data.transpose(0, axis)
-            unique_axis = 0
-        else:
-            unique_axis = axis
+        unique_axis = 0
 
     # Calculate local uniques
     if a.lshape[a.split] == 0:
@@ -2844,8 +2949,7 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
             inv_shape = [0]
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
     else:
-        lres = torch.unique(local_data, sorted=sorted, return_inverse=False, dim=unique_axis)
-        inv_shape = local_data.shape if axis is None else (local_data.shape[unique_axis],)
+        lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
     gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
 
     # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
@@ -2855,23 +2959,31 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
         # gather local uniques
         gres.resplit_(None)
         # final round of torch.unique
-        lres = torch.unique(gres.larray, sorted=sorted, dim=unique_axis)
+        lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
+        lres_split = None
         gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device)
     else:
         # balance gres if needed
         gres.balance_()
         # global sorted unique
-        lres = _pivot_sorting(gres, 0, torch.unique, sorted=sorted, return_inverse=True)
+        lres = __pivot_sorting(gres, 0, torch.unique, sorted=True, return_inverse=True)
         # second local unique
-        lres = torch.unique(lres, sorted=sorted, dim=unique_axis)
-        gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
-        gres.balance_()
+        if 0 not in lres.shape:
+            lres = torch.unique(lres, sorted=True, dim=unique_axis)
+        lres_split = 0
 
-    # inverse indices
+    gres = factories.array(lres, dtype=a.dtype, is_split=lres_split, device=a.device)
+    gres.balance_()
+
     if return_inverse:
+        # inverse indices
         # allocate local tensors and global DNDarray
         inverse = torch.empty(inv_shape, dtype=torch.int64, device=local_data.device)
-        global_inverse = factories.array(inverse, is_split=a.split, device=gres.device)
+        if a.is_distributed():
+            inv_split = 0 if inverse.ndim == 1 else a.split
+        else:
+            inv_split = None
+        global_inverse = factories.array(inverse, is_split=inv_split, device=gres.device)
 
         unique_ranks = size if gres.is_distributed() else 1
         if unique_ranks > 1:
@@ -2911,10 +3023,11 @@ def unique(a, sorted=True, return_inverse=False, axis=None):
                 queue.Wait()
                 gres.comm.Recv(tmp, recv_from_rank, tag=recv_from_rank)
                 lres = tmp[slice(None, incoming_size)]
+        gres.larray = lres
 
     if axis is not None and axis != 0:
-        # transpose back to original dimensions
-        gres = gres.transpose(0, axis)
+        # transpose back to original
+        gres = linalg.basics.transpose(gres, (axis, 0))
 
     if return_inverse:
         return (gres, global_inverse)

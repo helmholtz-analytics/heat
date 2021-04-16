@@ -84,7 +84,7 @@ class DNDarray:
         self.__split = split
         self.__device = device
         self.__comm = comm
-        self.__balanced = None
+        self.__balanced = balanced
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None
@@ -428,16 +428,22 @@ class DNDarray:
             rank = self.comm.rank
             size = self.comm.size
 
+            first_rank = 0
+            next_rank = rank + 1
+            prev_rank = rank - 1
+            last_rank = size - 1
+
             if not self.balanced:
                 populated_ranks = torch.nonzero(lshape_map[:, 0]).squeeze().tolist()
                 if rank in populated_ranks:
-                    next_rank = populated_ranks.index(rank) + 1
-                    prev_rank = populated_ranks.index(rank) - 1
+                    first_rank = populated_ranks[0]
                     last_rank = populated_ranks[-1]
-            else:
-                next_rank = rank + 1
-                prev_rank = rank - 1
-                last_rank = size - 1
+                    next_rank = rank + 1
+                    prev_rank = rank - 1
+                    if rank != last_rank:
+                        next_rank = populated_ranks[populated_ranks.index(rank) + 1]
+                    if rank != first_rank:
+                        prev_rank = populated_ranks[populated_ranks.index(rank) - 1]
 
             # if local shape is zero
             if self.lshape[self.split] == 0:
@@ -453,7 +459,6 @@ class DNDarray:
 
             a_prev = self.__prephalo(0, halo_size)
             a_next = self.__prephalo(-halo_size, None)
-
             res_prev = None
             res_next = None
 
@@ -467,7 +472,7 @@ class DNDarray:
                 )
                 req_list.append(self.comm.Irecv(res_prev, source=next_rank))
 
-            if rank != 0:
+            if rank != first_rank:
                 self.comm.Isend(a_prev, prev_rank)
                 res_next = torch.zeros(
                     a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
@@ -1333,6 +1338,10 @@ class DNDarray:
         -------
         flattened : ht.DNDarray
             The flattened tensor
+
+        See Also
+        ---------
+        :function:`~heat.core.manipulations.flatten`
 
         Examples
         --------
@@ -2579,6 +2588,29 @@ class DNDarray:
         return linalg.qr(
             self, tiles_per_proc=tiles_per_proc, calc_q=calc_q, overwrite_a=overwrite_a
         )
+
+    def ravel(self):
+        """
+        Return a flattened array with the same elements if possible.
+
+        Returns
+        -------
+        ret : DNDarray
+            flattened array with the same dtype as a, but with shape (a.size,).
+
+        See Also
+        --------
+        :function:`~heat.core.manipulations.ravel`
+
+        Examples
+        --------
+        >>> a = ht.ones((2,3), split=0)
+        >>> b = a.ravel()
+        >>> a[0,0] = 4
+        >>> b
+        DNDarray([4., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
+        """
+        return manipulations.ravel(self)
 
     def __repr__(self) -> str:
         """
