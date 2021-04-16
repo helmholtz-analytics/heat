@@ -41,7 +41,7 @@ setup(
     extras_require={
         "docutils": ["docutils>=0.16"],
         "hdf5": ["h5py>=2.8.0"],
-        "netcdf": ["netCDF4>=1.4.0"],
+        "netcdf": ["netCDF4>=1.5.6"],
         "dev": ["pre-commit>=1.18.3"],
     },
 )
