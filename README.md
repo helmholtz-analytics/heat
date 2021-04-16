@@ -121,7 +121,7 @@ If you find HeAT helpful for your research, please mention it in your academic p
       Simon Hanselmann and
       Martin Siggel and
       Achim Basermann and
-      Achim Streit 
+      Achim Streit
     },
     booktitle={Proceedings of the 19th IEEE International Conference on Big Data},
     year={2020},
