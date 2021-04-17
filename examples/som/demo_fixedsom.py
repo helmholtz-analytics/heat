@@ -11,7 +11,7 @@ import heat as ht
 from heat.som.som import FixedSOM
 
 # Load Dataset from hdf5 file
-X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
+X = ht.load_hdf5("../../heat/datasets/iris.h5", dataset="data", split=0)
 
 # Generate Keys for the iris.h5 dataset
 keys = []

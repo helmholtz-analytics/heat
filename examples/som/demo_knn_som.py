@@ -10,7 +10,7 @@ import heat as ht
 from heat.som.som import FixedSOM
 from heat.classification.knn import KNN
 
-X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
+X = ht.load_hdf5("../../heat/datasets/iris.h5", dataset="data", split=0)
 
 keys = []
 for i in range(50):
@@ -90,18 +90,18 @@ def test_net(som, x, y, split_number, split_size, seed=None):
 
 
 som = FixedSOM(
-    2,
-    2,
+    10,
+    10,
     4,
     initial_learning_rate=0.1,
     target_learning_rate=0.01,
-    initial_radius=12,
+    initial_radius=8,
     target_radius=2,
-    max_epoch=2,
+    max_epoch=100,
     batch_size=150,
     seed=1,
 )
 
 som.fit(X)
 # print(som.umatrix())
-# print(test_net(som, X, Y, 10, 30), 0)
+print(test_net(som, X, Y, 10, 30), 0)
