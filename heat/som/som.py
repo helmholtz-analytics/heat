@@ -7,20 +7,30 @@ import random
 
 class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
     """
-    HeAT implementation of a self-organizing map, reducing the n-dimensional data vectors onto a 2-D fixed grid of
-    size height x width.
+    HeAT implementation of a self-organizing map using the batch computation described by Kohonen [1].
+    This algorithm is reducing n-dimensional data vectors onto a two dimensional fixed grid of size height x width.
 
     Parameters
     ----------
     height: int
         Height of the fixed grid
-    width:
+    width: int
         Width of the fixed grid
-    data_dim:
+    data_dim: int
         dimension of the data vectors
-    learning_rate: float
-        the learning rate
+    initial_learning_rate: float
+        How much the network adapts per iteration
+    target_learning_rate: float
+        How much the network adapts in the last iteration (decreases monotonous from initial_learning_rate)
+    max_epoch: int
+        Number of learning iterations
+    seed: int
+        Can be used to seed the random network initialization
+    batch_size: int
+        Size of batches used for minibatching. Has to be a divisor of the length of the training data.
+    References
     --------
+    [1] Teuvo Kohonen. „Essentials of the self-organizing map“. In: Neural networks 37 (2013), S. 52–65. doi: 10.1016/j.neunet.2012.09.018
     """
 
     def __init__(
@@ -35,22 +45,20 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         max_epoch,
         seed,
         batch_size=1,
-        data_split=None,
     ):
         self.height = height
         self.width = width
         self.data_dim = data_dim
         self.initial_learning_rate = initial_learning_rate
         self.learning_rate = initial_learning_rate
-        self.target_learning_rate = target_learning_rate
         self.initial_radius = initial_radius
         self.radius = initial_radius
         self.target_radius = target_radius
+        self.target_learning_rate = target_learning_rate
         self.max_epoch = max_epoch
 
         ht.core.random.seed(seed)
 
-        self.network = ht.random.rand(height * width, data_dim, dtype=ht.float64, split=data_split)
         self.batch_size = batch_size
 
         self.network_indices = ht.array(
@@ -58,63 +66,44 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         )
         self.distances = self.precompute_distances()
 
-    def fit_iterative(self, X):
-        self.learning_rate = self.initial_learning_rate
+    def fit(self, X):
+        """
+        Adapts the network with a new dataset.
+        The resulting network will be split along the same axis as the input data.
+
+        Parameters
+        --------
+        X: ht.array
+            The samples to be used for learning
+        """
+
         self.radius = self.initial_radius
+        self.learning_rate = self.initial_learning_rate
+
+        self.network = ht.random.rand(
+            self.height * self.width, self.data_dim, dtype=ht.float64, split=0
+        )
 
         batch_count = int(X.gshape[0] / self.batch_size)
-        offset = 0
-        batches = []
 
-        for count in range(1, batch_count + 1):
-            batches.append(X[offset : count * self.batch_size])
-            offset = count * self.batch_size
-        for batch in batches:
-            batch.balance_()
-        del X
+        X = ht.resplit(X, axis=1)
+        for epoch in range(1, self.max_epoch + 1):
+            for count in range(1, batch_count + 1):
 
-        for epoch in range(1, self.max_epoch):
-            for count in range(batch_count):
-                batch = batches[count]
+                batch = X[(count - 1) * self.batch_size : count * self.batch_size]
+                batch.balance_()
+                batch = ht.resplit(batch, axis=0)
                 distances = ht.spatial.cdist(batch, self.network)
                 row_min = ht.argmin(distances, axis=1)
 
-                self.update_weights(row_min.flatten(), batch)
-
-                self.update_learning_rate(epoch)
-                self.update_radius(epoch)
-
-    def fit_batch(self, X, c):
-
-        self.radius = self.initial_radius
-        self.learning_rate = self.initial_learning_rate
-
-        batches = []
-        offset = 0
-        batch_count = int(X.gshape[0] / self.batch_size)
-
-        for count in range(1, batch_count + 1):
-            batches.append(X[offset : count * self.batch_size])
-            offset = count * self.batch_size
-        for batch in batches:
-            batch.balance_()
-        del X
-
-        for epoch in range(1, self.max_epoch + 1):
-            for batch in batches:
-                distances = ht.spatial.cdist(batch, self.network)
-                row_min = ht.min(distances, axis=1, keepdim=True)
-
                 scalars = self.in_radius()
-                distances = ht.where(distances == row_min, 1, 0)
-                scalars = ht.matmul(distances, scalars)
+                scalars = scalars[row_min]
+                scalars.balance_()
+
                 scaled_weights = ht.matmul(batch.T, scalars)
                 scalar_sum = ht.sum(scalars, axis=0, keepdim=True)
-                new_network = scaled_weights.T / scalar_sum.T
-                dist = ht.sum(ht.spatial.cdist(self.network, new_network))
 
-                if dist <= c:
-                    break
+                new_network = ht.div(scaled_weights.T, scalar_sum.T)
 
                 self.network = new_network
 
@@ -122,45 +111,70 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
             self.update_radius(epoch)
 
     def predict(self, X):
+        """
+        Returns the x,y coordinates of the best matching unit in the network.
+
+        Parameters
+        --------
+        X: ht.array
+            The samples to be reduced in dimension
+        """
         distances = ht.spatial.cdist(X, self.network)
-        winner_ind = ht.argmin(distances, 1, axis=1)
-        translated_winner_ind = self.network_indices[winner_ind.tolist()]
+        winner_ind = ht.argmin(distances, 1)
+        winner_ind = ht.resplit(winner_ind, None)
+        translated_winner_ind = self.network_indices[winner_ind]
         translated_winner_ind.balance_()
         return translated_winner_ind
 
     def update_learning_rate(self, epoch):
+        """
+        Reduces the learning rate for each further epoch/iteration.
+
+        Parameters
+        --------
+        epoch: int
+            The iteration
+        """
         self.learning_rate = self.initial_learning_rate + (
             self.target_learning_rate - self.initial_learning_rate
         ) * (epoch / self.max_epoch)
 
     def update_radius(self, epoch):
+        """
+        Returns the radius for each epoch/iteration.
+
+        Parameters
+        --------
+        epoch: int
+            The iteration
+        """
         self.radius = self.initial_radius * (
             (self.target_radius / self.initial_radius) ** (epoch / self.max_epoch)
         )
 
     def in_radius(self,):
+        """
+        Calculates the Neighbourhood adaptaion rate for each cell based on the current radius
+        """
         dist = ht.exp((ht.pow(self.distances, 2) * -1) / (2 * ht.pow(self.radius, 2)))
         return dist
 
     def precompute_distances(self,):
+        """
+        Utility method to precompute the distances between all the network nodes.
+        """
         return ht.spatial.cdist(self.network_indices, self.network_indices)
-
-    def update_weights(self, winner_cells, weights):
-        scalars = self.learning_rate * self.in_radius()
-        scalars = ht.where(self.distances <= self.radius, scalars, 0)
-        scalars = scalars[winner_cells]
-        scalars.balance_()
-        weights = ht.expand_dims(weights, 1)
-        distances = ht.sub(weights, self.network)
-        scalars = ht.expand_dims(scalars, 2)
-        scaled_distances = scalars * distances
-        scaled_distances = ht.sum(scaled_distances, axis=0)
-        self.network = self.network + scaled_distances
 
     def umatrix(self,):
         """
-        Returns a umatrix representation of the network. Each Cell contains the distance to the neighbouring weights.
+        Returns a umatrix representation of the network.
+        Each cell contains the sum of distances to the neighbouring weights.
         Neighbours are cells in the moore neighbourhood 1.
+
+        Returns
+        -------
+        result: ht.DNDarray
+            A DNDarray of shape (height, width) containing the umatrix
         """
         network_distances = ht.spatial.cdist(self.network, self.network)
         radius = ht.where(self.distances != 0, self.distances, 2)
@@ -172,8 +186,26 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
 
         return distances
 
-    def get_2d_network(self, array):
-        array = self.network_indices[array]
-        array.balance_()
+    def create_batches(self, X):
+        """
+        Utility method to create equally sized, balanced batches
+        Parameters
+        --------
+        X: ht.array
+            The Data to be distributed
+        """
+        if self.batch_size > 1:
+            batch_count = int(X.gshape[0] / self.batch_size)
+            batches = ht.stack(
+                [
+                    X[(count - 1) * self.batch_size : count * self.batch_size]
+                    for count in range(1, batch_count + 1)
+                ],
+                axis=0,
+            )
+            batches.balance_()
 
-        return array
+        else:
+            batches = ht.resplit(ht.expand_dims(X, axis=-1), axis=0)
+            batches.balance_()
+        return batches

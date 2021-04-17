@@ -9,7 +9,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(curdir, "../../")))
 
 import heat as ht
 from heat.som.som import FixedSOM
-from heat.cluster.kmeans import KMeans
 
 # Load Dataset from hdf5 file
 X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
@@ -30,13 +29,12 @@ som = FixedSOM(
     4,
     initial_learning_rate=0.1,
     target_learning_rate=0.01,
-    initial_radius=8,
+    initial_radius=6,
     target_radius=2,
     max_epoch=400,
-    batch_size=5,
+    batch_size=75,
     seed=1,
-    data_split=0,
 )
-som.fit_batch(X, 1)
+som.fit(X)
 
-print(som.umatrix(), "batch")
+print(som.umatrix())

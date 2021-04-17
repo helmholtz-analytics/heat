@@ -74,24 +74,13 @@ def create_fold(dataset_x, dataset_y, size, seed=None):
     return fold_x, fold_y, verification_x, verification_y
 
 
-def get_bmu(som, x):
-    distances = ht.spatial.cdist(x, som.network)
-    min_dist = ht.argmin(distances, axis=1)
-
-    new_x = som.network_indices[min_dist.flatten()]
-    new_x.balance_()
-
-    return new_x
-
-
 def test_net(som, x, y, split_number, split_size, seed=None):
     accuracies = []
     for split in range(split_number):
         fold_x, fold_y, verification_x, verification_y = create_fold(x, y, split_size, seed)
 
-        new_x = get_bmu(som, fold_x)
-        verification_x = get_bmu(som, verification_x)
-
+        new_x = som.predict(fold_x)
+        verification_x = som.predict(verification_x)
         knn = KNN(new_x, fold_y, 5)
         result = knn.predict(verification_x)
         accuracies.append(
@@ -101,39 +90,18 @@ def test_net(som, x, y, split_number, split_size, seed=None):
 
 
 som = FixedSOM(
-    10,
-    10,
+    2,
+    2,
     4,
     initial_learning_rate=0.1,
     target_learning_rate=0.01,
-    initial_radius=8,
-    target_radius=1,
-    max_epoch=200,
-    batch_size=25,
+    initial_radius=12,
+    target_radius=2,
+    max_epoch=2,
+    batch_size=150,
     seed=1,
-    data_split=0,
 )
 
-som.fit_batch(X, 1)
-
-random.seed(2)
-print(test_net(som, X, Y, 10, 30))
-
-som = FixedSOM(
-    10,
-    10,
-    4,
-    initial_learning_rate=0.1,
-    target_learning_rate=0.01,
-    initial_radius=8,
-    target_radius=1,
-    max_epoch=200,
-    batch_size=25,
-    seed=1,
-    data_split=0,
-)
-
-som.fit_iterative(X)
-
-random.seed(2)
-print(test_net(som, X, Y, 10, 30))
+som.fit(X)
+# print(som.umatrix())
+# print(test_net(som, X, Y, 10, 30), 0)
