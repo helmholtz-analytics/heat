@@ -37,7 +37,7 @@ def __counter_sequence(shape, dtype, split, device, comm):
         The data type of the elements to be generated. Needs to be either torch.int32 or torch.int64.
     split : int or None
         The split axis along which the random number tensor is split
-    device : 'str'
+    device : devices.Device
         Specifies the device the tensor shall be allocated on.
     comm: ht.Communication
         Handle to the nodes holding distributed parts or copies of this tensor.
@@ -69,12 +69,12 @@ def __counter_sequence(shape, dtype, split, device, comm):
         c_0 = (__counter & (max_count << 64)) >> 64
         c_1 = __counter & max_count
 
-    total_elements = np.prod(shape)
-    if total_elements > 2 * max_count:
+    total_elements = torch.prod(torch.tensor(shape))
+    if total_elements.item() > 2 * max_count:
         raise ValueError("Shape is to big with {} elements".format(total_elements))
 
     if split is None:
-        values = np.ceil(total_elements / 2)
+        values = torch.ceil(total_elements / 2)
         even_end = total_elements % 2 == 0
         lslice = slice(None) if even_end else slice(None, -1)
         start = c_1
@@ -86,7 +86,7 @@ def __counter_sequence(shape, dtype, split, device, comm):
 
         # Calculate number of local elements per process
         local_elements = [total_elements / shape[split] * counts[i] for i in range(size)]
-        cum_elements = np.cumsum(local_elements)
+        cum_elements = torch.cumsum(torch.tensor(local_elements, device=device.torch_device), dim=0)
 
         # Calculate the correct borders and slices
         even_start = True if rank == 0 else cum_elements[rank - 1] % 2 == 0
@@ -152,12 +152,12 @@ def __counter_sequence(shape, dtype, split, device, comm):
             x_0[-(end - max_count - 1) :] += 1
 
     # Correctly increase the counter variable
-    used_values = int(np.ceil(total_elements / 2))
+    used_values = int(torch.ceil(total_elements / 2))
     # Increase counter but not over 128 bit
     tmp_counter += used_values
     __counter = tmp_counter & 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF  # 128bit mask
 
-    return x_0, x_1, lshape, lslice
+    return x_0.contiguous(), x_1.contiguous(), lshape, lslice
 
 
 def get_state():
@@ -354,11 +354,12 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
     split = stride_tricks.sanitize_axis(shape, split)
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
+    balanced = True
 
     # generate the random sequence
     if dtype == types.float32:
         x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int32, split, device, comm)
-        x_0, x_1 = __threefry32(x_0, x_1)
+        x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
 
         # combine the values into one tensor and convert them to floats
         values = __int32_to_float32(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(
@@ -366,7 +367,7 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
         )
     elif dtype == types.float64:
         x_0, x_1, lshape, lslice = __counter_sequence(shape, torch.int64, split, device, comm)
-        x_0, x_1 = __threefry64(x_0, x_1)
+        x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
 
         # combine the values into one tensor and convert them to floats
         values = __int64_to_float64(torch.stack([x_0, x_1], dim=1).flatten()[lslice]).reshape(
@@ -376,7 +377,7 @@ def rand(*args, dtype=types.float32, split=None, device=None, comm=None):
         # Unsupported type
         raise ValueError("dtype is none of ht.float32 or ht.float64 but was {}".format(dtype))
 
-    return dndarray.DNDarray(values, shape, dtype, split, device, comm)
+    return dndarray.DNDarray(values, shape, dtype, split, device, comm, balanced)
 
 
 def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm=None):
@@ -438,19 +439,21 @@ def randint(low, high=None, size=None, dtype=None, split=None, device=None, comm
     split = stride_tricks.sanitize_axis(shape, split)
     device = devices.sanitize_device(device)
     comm = communication.sanitize_comm(comm)
+    balanced = True
+
     # generate the random sequence
     x_0, x_1, lshape, lslice = __counter_sequence(shape, dtype.torch_type(), split, device, comm)
     if torch_dtype is torch.int32:
-        x_0, x_1 = __threefry32(x_0, x_1)
+        x_0, x_1 = __threefry32(x_0, x_1, seed=__seed)
     else:  # torch.int64
-        x_0, x_1 = __threefry64(x_0, x_1)
+        x_0, x_1 = __threefry64(x_0, x_1, seed=__seed)
 
     # stack the resulting sequence and normalize to given range
     values = torch.stack([x_0, x_1], dim=1).flatten()[lslice].reshape(lshape)
     # ATTENTION: this is biased and known, bias-free rejection sampling is difficult to do in parallel
     values = (values.abs_() % span) + low
 
-    return dndarray.DNDarray(values, shape, dtype, split, device, comm)
+    return dndarray.DNDarray(values, shape, dtype, split, device, comm, balanced)
 
 
 # alias
@@ -632,7 +635,8 @@ def set_state(state):
     __counter = int(state[2])
 
 
-def __threefry32(X_0, X_1):
+# @torch.jit.script
+def __threefry32(X_0: torch.Tensor, X_1: torch.Tensor, seed: int):
     """
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. This is the
     32-bit version.
@@ -658,14 +662,15 @@ def __threefry32(X_0, X_1):
     samples = len(X_0)
 
     # Seed is > 32 bit
-    seed_32 = __seed & 0x7FFFFFFF
+    seed_32 = seed & 0x7FFFFFFF
 
     # set up key buffer
     ks_0 = torch.full((samples,), seed_32, dtype=torch.int32, device=X_0.device)
     ks_1 = torch.full((samples,), seed_32, dtype=torch.int32, device=X_1.device)
     ks_2 = torch.full((samples,), 466688986, dtype=torch.int32, device=X_0.device)
-    ks_2 ^= ks_0
-    ks_2 ^= ks_0
+    # ks_2 ^= ks_0
+    # ks_2 ^= ks_1
+    ks_2 = torch.bitwise_xor(torch.bitwise_xor(ks_2, ks_0), ks_1)
 
     # initialize output using the key
     X_0 += ks_0
@@ -674,20 +679,24 @@ def __threefry32(X_0, X_1):
     # perform rounds
     # round 1
     X_0 += X_1
-    X_1 = (X_1 << 13) | (X_1 >> 19)
-    X_1 ^= X_0
+    X_1 = (X_1 << 13) | ((X_1 >> 19) & 0x1FFF)
+    X_1 = torch.bitwise_xor(X_1, X_0)
+    # X_1 ^= X_0
     # round 2
     X_0 += X_1
-    X_1 = (X_1 << 15) | (X_1 >> 17)
-    X_1 ^= X_0
+    X_1 = (X_1 << 15) | ((X_1 >> 17) & 0x7FFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 3
     X_0 += X_1
-    X_1 = (X_1 << 26) | (X_1 >> 6)
-    X_1 ^= X_0
+    X_1 = (X_1 << 26) | ((X_1 >> 6) & 0x3FFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 4
     X_0 += X_1
-    X_1 = (X_1 << 6) | (X_1 >> 26)
-    X_1 ^= X_0
+    X_1 = (X_1 << 6) | ((X_1 >> 26) & 0x3F)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
 
     # inject key
     X_0 += ks_1
@@ -695,20 +704,24 @@ def __threefry32(X_0, X_1):
 
     # round 5
     X_0 += X_1
-    X_1 = (X_1 << 17) | (X_1 >> 15)
-    X_1 ^= X_0
+    X_1 = (X_1 << 17) | ((X_1 >> 15) & 0x1FFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 6
     X_0 += X_1
-    X_1 = (X_1 << 29) | (X_1 >> 3)
-    X_1 ^= X_0
+    X_1 = (X_1 << 29) | ((X_1 >> 3) & 0x1FFFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 7
     X_0 += X_1
-    X_1 = (X_1 << 16) | (X_1 >> 16)
-    X_1 ^= X_0
+    X_1 = (X_1 << 16) | ((X_1 >> 16) & 0xFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 8
     X_0 += X_1
-    X_1 = (X_1 << 24) | (X_1 >> 8)
-    X_1 ^= X_0
+    X_1 = (X_1 << 24) | ((X_1 >> 8) & 0xFFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
 
     # inject key
     # X_0 += ks_2; X_1 += (ks_0 + 2)
@@ -725,7 +738,8 @@ def __threefry32(X_0, X_1):
     return X_0, X_1
 
 
-def __threefry64(X_0, X_1):
+# @torch.jit.script
+def __threefry64(X_0: torch.Tensor, X_1: torch.Tensor, seed: int):
     """
     Counter-based pseudo random number generator. Based on a 12-round Threefry "encryption" algorithm [1]. This is the
     64-bit version.
@@ -751,11 +765,12 @@ def __threefry64(X_0, X_1):
     samples = len(X_0)
 
     # set up key buffer
-    ks_0 = torch.full((samples,), __seed, dtype=torch.int64, device=X_0.device)
-    ks_1 = torch.full((samples,), __seed, dtype=torch.int64, device=X_1.device)
+    ks_0 = torch.full((samples,), seed, dtype=torch.int64, device=X_0.device)
+    ks_1 = torch.full((samples,), seed, dtype=torch.int64, device=X_1.device)
     ks_2 = torch.full((samples,), 2004413935125273122, dtype=torch.int64, device=X_0.device)
-    ks_2 ^= ks_0
-    ks_2 ^= ks_0
+    # ks_2 ^= ks_0
+    # ks_2 ^= ks_1
+    ks_2 = torch.bitwise_xor(torch.bitwise_xor(ks_2, ks_0), ks_1)
 
     # initialize output using the key
     X_0 += ks_0
@@ -764,20 +779,24 @@ def __threefry64(X_0, X_1):
     # perform rounds
     # round 1
     X_0 += X_1
-    X_1 = (X_1 << 16) | (X_1 >> 48)
-    X_1 ^= X_0
+    X_1 = (X_1 << 16) | ((X_1 >> 48) & 0xFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 2
     X_0 += X_1
-    X_1 = (X_1 << 42) | (X_1 >> 22)
-    X_1 ^= X_0
+    X_1 = (X_1 << 42) | ((X_1 >> 22) & 0x3FFFFFFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 3
     X_0 += X_1
-    X_1 = (X_1 << 12) | (X_1 >> 52)
-    X_1 ^= X_0
+    X_1 = (X_1 << 12) | ((X_1 >> 52) & 0xFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 4
     X_0 += X_1
-    X_1 = (X_1 << 31) | (X_1 >> 33)
-    X_1 ^= X_0
+    X_1 = (X_1 << 31) | ((X_1 >> 33) & 0x7FFFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
 
     # inject key
     X_0 += ks_1
@@ -785,20 +804,24 @@ def __threefry64(X_0, X_1):
 
     # round 5
     X_0 += X_1
-    X_1 = (X_1 << 16) | (X_1 >> 48)
-    X_1 ^= X_0
+    X_1 = (X_1 << 16) | ((X_1 >> 48) & 0xFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 6
     X_0 += X_1
-    X_1 = (X_1 << 32) | (X_1 >> 32)
-    X_1 ^= X_0
+    X_1 = (X_1 << 32) | ((X_1 >> 32) & 0xFFFFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 7
     X_0 += X_1
-    X_1 = (X_1 << 24) | (X_1 >> 40)
-    X_1 ^= X_0
+    X_1 = (X_1 << 24) | ((X_1 >> 40) & 0xFFFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
     # round 8
     X_0 += X_1
-    X_1 = (X_1 << 21) | (X_1 >> 43)
-    X_1 ^= X_0
+    X_1 = (X_1 << 21) | ((X_1 >> 43) & 0x1FFFFF)
+    # X_1 ^= X_0
+    X_1 = torch.bitwise_xor(X_1, X_0)
 
     # inject key
     # X_0 += ks_2; X_1 += (ks_0 + 2)

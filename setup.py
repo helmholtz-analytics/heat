@@ -1,7 +1,8 @@
 from setuptools import setup, find_packages
+import codecs
 
 
-with open("README.md", "r") as handle:
+with codecs.open("README.md", "r", "utf-8") as handle:
     long_description = handle.read()
 
 __version__ = None  # appeases flake, assignment in exec() below
@@ -22,7 +23,7 @@ setup(
     keywords=["data", "analytics", "tensors", "distributed", "gpu"],
     python_requires="~=3.6",
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
@@ -30,10 +31,17 @@ setup(
         "Intended Audience :: Science/Research",
         "Topic :: Scientific/Engineering",
     ],
-    install_requires=["mpi4py>=3.0.0", "numpy>=1.13.0", "torch==1.6.0", "scipy>=0.14.0"],
+    install_requires=[
+        "mpi4py>=3.0.0",
+        "numpy>=1.13.0",
+        "torch>=1.7.0",
+        "scipy>=0.14.0",
+        "pillow>=6.0.0",
+        "torchvision>=0.5.0",
+    ],
     extras_require={
         "hdf5": ["h5py>=2.8.0"],
-        "netcdf": ["netCDF4>=1.4.0,<=1.5.2"],
+        "netcdf": ["netCDF4>=1.4.0"],
         "dev": ["pre-commit>=1.18.3"],
     },
 )

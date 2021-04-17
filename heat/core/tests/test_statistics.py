@@ -53,7 +53,6 @@ class TestStatistics(TestCase):
         self.assertEqual(result.larray.dtype, torch.int64)
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4,))
-        self.assertEqual(result.split, 0 if ht.MPI_WORLD.size > 1 else None)
         self.assertTrue((result.larray == expected).all())
 
         # 2D split tensor, across the axis
@@ -76,7 +75,7 @@ class TestStatistics(TestCase):
         size = ht.MPI_WORLD.size * 2
         data = ht.tril(ht.ones((size, size), split=0), k=-1)
 
-        output = ht.empty((size,))
+        output = ht.empty((size,), dtype=ht.int64)
         result = ht.argmax(data, axis=0, out=output)
         expected = torch.tensor(np.argmax(data.numpy(), axis=0))
         self.assertIsInstance(result, ht.DNDarray)
@@ -98,6 +97,9 @@ class TestStatistics(TestCase):
             data.argmax(axis="y")
         with self.assertRaises(ValueError):
             ht.argmax(data, axis=-4)
+        output = ht.empty((size,), dtype=ht.float32)
+        with self.assertRaises(TypeError):
+            ht.argmax(data, axis=0, out=output)
 
     def test_argmin(self):
         torch.manual_seed(1)
@@ -142,7 +144,6 @@ class TestStatistics(TestCase):
         self.assertEqual(result.larray.dtype, torch.int64)
         self.assertEqual(result.shape, (ht.MPI_WORLD.size * 4,))
         self.assertEqual(result.lshape, (4,))
-        self.assertEqual(result.split, 0 if ht.MPI_WORLD.size > 1 else None)
         self.assertTrue((result.larray == expected).all())
 
         # 2D split tensor, across the axis
@@ -165,7 +166,7 @@ class TestStatistics(TestCase):
         size = ht.MPI_WORLD.size * 2
         data = ht.triu(ht.ones((size, size), split=0), k=1)
 
-        output = ht.empty((size,))
+        output = ht.empty((size,), dtype=ht.int64)
         result = ht.argmin(data, axis=0, out=output)
         expected = torch.tensor(np.argmin(data.numpy(), axis=0))
         self.assertIsInstance(result, ht.DNDarray)
@@ -367,11 +368,11 @@ class TestStatistics(TestCase):
             actual = ht.array([[1, -1], [-1, 1]], split=0)
             self.assertTrue(ht.equal(cov, actual))
 
-        data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
+        data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
         np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
 
         # split = None tests
-        htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=None)
+        htdata = ht.load("heat/datasets/iris.csv", sep=";", split=None)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
         comp = ht.array(np_cov, dtype=ht.float)
         self.assertTrue(ht.allclose(comp - ht_cov, 0, atol=1e-4))
@@ -389,10 +390,10 @@ class TestStatistics(TestCase):
         self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float) - ht_cov, 0, atol=1e-4))
 
         # split = 0 tests
-        data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
+        data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
         np_cov = np.cov(data[:, 0], data[:, 1:3], rowvar=False)
 
-        htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
+        htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
         comp = ht.array(np_cov, dtype=ht.float)
         self.assertTrue(ht.allclose(comp - ht_cov, 0, atol=1e-4))
@@ -411,18 +412,18 @@ class TestStatistics(TestCase):
 
         if 1 < x.comm.size < 5:
             # split 1 tests
-            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=1)
+            htdata = ht.load("heat/datasets/iris.csv", sep=";", split=1)
             np_cov = np.cov(data, rowvar=False)
             ht_cov = ht.cov(htdata, rowvar=False)
             self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
 
             np_cov = np.cov(data, data, rowvar=True)
 
-            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
+            htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
             ht_cov = ht.cov(htdata, htdata, rowvar=True)
             self.assertTrue(ht.allclose(ht.array(np_cov, dtype=ht.float), ht_cov, atol=1e-4))
 
-            htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
+            htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
             with self.assertRaises(RuntimeError):
                 ht.cov(htdata[1:], rowvar=False)
             with self.assertRaises(RuntimeError):
@@ -869,7 +870,7 @@ class TestStatistics(TestCase):
         # values for the iris dataset mean measured by libreoffice calc
         ax0 = ht.array([5.84333333333333, 3.054, 3.75866666666667, 1.19866666666667])
         for sp in [None, 0, 1]:
-            iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=sp)
+            iris = ht.load("heat/datasets/iris.csv", sep=";", split=sp)
             self.assertTrue(ht.allclose(ht.mean(iris), 3.46366666666667))
             self.assertTrue(ht.allclose(ht.mean(iris, axis=0), ax0))
 
@@ -879,7 +880,7 @@ class TestStatistics(TestCase):
         ht_array = ht.array(data)
         comparison = torch.tensor(data, device=self.device.torch_device)
 
-        # check global max
+        # check global min
         minimum = ht.min(ht_array)
 
         self.assertIsInstance(minimum, ht.DNDarray)
@@ -890,7 +891,7 @@ class TestStatistics(TestCase):
         self.assertEqual(minimum.larray.dtype, torch.int64)
         self.assertEqual(minimum, 1)
 
-        # maximum along first axis
+        # min along first axis
         ht_array = ht.array(data, dtype=ht.int8)
         minimum_vertical = ht.min(ht_array, axis=0)
 
@@ -902,7 +903,7 @@ class TestStatistics(TestCase):
         self.assertEqual(minimum_vertical.larray.dtype, torch.int8)
         self.assertTrue((minimum_vertical.larray == comparison.min(dim=0, keepdim=True)[0]).all())
 
-        # maximum along second axis
+        # min along second axis
         ht_array = ht.array(data, dtype=ht.int16)
         minimum_horizontal = ht.min(ht_array, axis=1, keepdim=True)
 
@@ -914,7 +915,7 @@ class TestStatistics(TestCase):
         self.assertEqual(minimum_horizontal.larray.dtype, torch.int16)
         self.assertTrue((minimum_horizontal.larray == comparison.min(dim=1, keepdim=True)[0]).all())
 
-        # check max over all float elements of split 3d tensor, across split axis
+        # check min over all float elements of split 3d tensor, across split axis
         size = ht.MPI_WORLD.size
         random_volume = ht.random.randn(3, 3 * size, 3, split=1)
         minimum_volume = ht.min(random_volume, axis=1)
@@ -938,7 +939,7 @@ class TestStatistics(TestCase):
         self.assertEqual(minimum_volume.split, 0)
         self.assertTrue((minimum_volume == alt_minimum_volume).all())
 
-        # check max over all float elements of split 5d tensor, along split axis
+        # check min over all float elements of split 5d tensor, along split axis
         random_5d = ht.random.randn(1 * size, 2, 3, 4, 5, split=0)
         minimum_5d = ht.min(random_5d, axis=1)
 
@@ -1329,5 +1330,5 @@ class TestStatistics(TestCase):
 
         # values for the iris dataset var measured by libreoffice calc
         for sp in [None, 0, 1]:
-            iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=sp)
+            iris = ht.load("heat/datasets/iris.csv", sep=";", split=sp)
             self.assertTrue(ht.allclose(ht.var(iris, bessel=True), 3.90318519755147))

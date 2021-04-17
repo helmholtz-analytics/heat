@@ -9,9 +9,11 @@ HeAT is a distributed tensor framework for high performance data analytics.
 Project Status
 --------------
 
-[![Build Status](https://travis-ci.com/helmholtz-analytics/heat.svg?branch=master)](https://travis-ci.com/helmholtz-analytics/heat)
+[![Jenkins](https://img.shields.io/jenkins/build?jobUrl=https%3A%2F%2Fheat-ci.fz-juelich.de%2Fjob%2Fheat%2Fjob%2Fheat%2Fjob%2Fmaster%2F&label=CPU)](https://heat-ci.fz-juelich.de/blue/organizations/jenkins/heat%2Fheat/activity?branch=master)
+[![Jenkins](https://img.shields.io/jenkins/build?jobUrl=https%3A%2F%2Fheat-ci.fz-juelich.de%2Fjob%2FGPU%2520Cluster%2Fjob%2Fmaster%2F&label=GPU)](https://heat-ci.fz-juelich.de/blue/organizations/jenkins/GPU%20Cluster%2Fmaster/activity)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/helmholtz-analytics/heat/branch/master/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
 [![Mattermost Chat](https://img.shields.io/badge/chat-on%20mattermost-blue.svg)](https://mattermost-haf.fz-juelich.de/signup_user_complete/?id=iqrr6pmxb38fzqffa51qqhcu8w)
@@ -23,7 +25,7 @@ HeAT is a flexible and seamless open-source software for high performance data
 analytics and machine learning. It provides highly optimized algorithms and data
 structures for tensor computations using CPUs, GPUs and distributed cluster
 systems on top of MPI. The goal of HeAT is to fill the gap between data
-analytics and machine learning libraries with a strong focus on on single-node
+analytics and machine learning libraries with a strong focus on single-node
 performance, and traditional high-performance computing (HPC). HeAT's generic
 Python-first programming interface integrates seamlessly with the existing data
 science ecosystem and makes it as effortless as using numpy to write scalable
@@ -49,6 +51,13 @@ right here on Github or in the /scripts directory.
 
 The complete documentation of the latest version is always deployed on
 [Read the Docs](https://heat.readthedocs.io/).
+
+Support Channels
+----------------
+
+We use [StackOverflow](https://stackoverflow.com/tags/pyheat/) as a forum for questions about Heat.
+If you do not find an answer to your question, then please ask a new question there and be sure to
+tag it with "pyheat".
 
 Requirements
 ------------
@@ -95,7 +104,32 @@ Citing HeAT
 
 If you find HeAT helpful for your research, please mention it in your academic publications. You can cite:
 
-- Götz, M., Debus, C., Coquelin, D., et al., "HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics." 2020 IEEE International Conference on Big Data (Big Data). IEEE, 2020 (accepted). [[Download](https://arxiv.org/abs/2007.13552)]
+- Götz, M., Debus, C., Coquelin, D., Krajsek, K., Comito, C., Knechtges, P., .Hagemeier, B., Tarnawa, M., Hanselmann, S., Siggel, S., Basermann, A. & Streit, A. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In Proceedings of the 19th IEEE International Conference on Big Data (BigData) (pp. 276-288). IEEE.
+
+```
+@inproceedings{heat20,
+    title={{HeAT -- a Distributed and GPU-accelerated Tensor Framework for Data Analytics}},
+    author={
+      Markus Götz and
+      Charlotte Debus and
+      Daniel Coquelin and
+      Kai Krajsek and
+      Claudia Comito and
+      Philipp Knechtges and
+      Björn Hagemeier and
+      Michael Tarnawa and
+      Simon Hanselmann and
+      Martin Siggel and
+      Achim Basermann and
+      Achim Streit
+    },
+    booktitle={Proceedings of the 19th IEEE International Conference on Big Data},
+    year={2020},
+    pages={276-288},
+    month={December},
+    publisher={IEEE}
+}
+```
 
 Acknowledgements
 ----------------
