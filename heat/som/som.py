@@ -85,14 +85,15 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         )
 
         batch_count = int(X.gshape[0] / self.batch_size)
+        batches = self.create_batches(batch_count, X)
+        del X
 
-        X = ht.resplit(X, axis=1)
         for epoch in range(1, self.max_epoch + 1):
-            for count in range(1, batch_count + 1):
-
-                batch = X[(count - 1) * self.batch_size : count * self.batch_size]
-                batch.balance_()
+            for count in range(batch_count):
+                batch = batches[count]
                 batch = ht.resplit(batch, axis=0)
+                batch.balance_()
+
                 distances = ht.spatial.cdist(batch, self.network)
                 row_min = ht.argmin(distances, axis=1)
 
@@ -186,7 +187,7 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
 
         return distances
 
-    def create_batches(self, X):
+    def create_batches(self, batch_count, X):
         """
         Utility method to create equally sized, balanced batches
         Parameters
@@ -194,8 +195,8 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         X: ht.array
             The Data to be distributed
         """
-        if self.batch_size > 1:
-            batch_count = int(X.gshape[0] / self.batch_size)
+        if batch_count > 1:
+            X = ht.resplit(X, axis=1)
             batches = ht.stack(
                 [
                     X[(count - 1) * self.batch_size : count * self.batch_size]
