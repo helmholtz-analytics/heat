@@ -83,6 +83,8 @@ class TestBatchNormalization1D(unittest.TestCase):
                 self.dp_optim.step()
                 self.optimizer_torch.step()
 
+            dp_model.end_of_training()
+
 
 class TestBatchNormalization2D(unittest.TestCase):
 
@@ -653,5 +655,4 @@ class TestBatchNormalization3DNoMoment(unittest.TestCase):
 
                 self.dp_optim.step()
                 self.optimizer_torch.step()
-
 
