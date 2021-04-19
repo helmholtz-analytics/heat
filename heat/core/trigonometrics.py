@@ -142,10 +142,6 @@ def arctan2(x1: DNDarray, x2: DNDarray) -> DNDarray:
     x2 : DNDarray
          x-coordinates. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape (which becomes the shape of the output).
 
-    Returns
-    -------
-    DNDarray
-
     Examples
     --------
     >>> x = ht.array([-1, +1, +1, -1])
@@ -178,12 +174,6 @@ def cos(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     out : ht.DNDarray or None, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    cosine : ht.DNDarray
-        A tensor of the same shape as x, containing the trigonometric cosine of each element in this tensor.
-        Negative input elements are returned as nan. If out was provided, square_roots is a reference to it.
 
     Examples
     --------
@@ -284,7 +274,6 @@ def rad2deg(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to ``None``, a fresh array is allocated.
-
 
     Examples
     --------

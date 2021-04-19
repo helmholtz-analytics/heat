@@ -97,11 +97,6 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
             Input model data, Shape = (1,)
         out : DNDarray or float
             Thresholded model data, Shape = (1,)
-
-        Returns
-        -------
-        result : DNDarray or float
-            Threshold value of the shrinkage operator
         """
         if rho < -self.__lam:
             return rho + self.__lam
@@ -120,11 +115,6 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
             Input model data, Shape = (1,)
         yest : DNDarray
             Thresholded model data, Shape = (1,)
-
-        Returns
-        -------
-        result : DNDarray
-            A :class:`~heat.core.dndarray.DNDarray` containing the RMSE
         """
         return ht.sqrt((ht.mean((gt - yest) ** 2))).larray.item()
 
@@ -138,10 +128,6 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
             Input data, Shape = (n_samples, n_features)
         y : DNDarray
             Labels, Shape = (n_samples,)
-
-        Returns
-        -------
-        None
         """
         # Get number of model parameters
         _, n = x.shape
@@ -196,10 +182,5 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         ----------
         x : DNDarray
             Input data, Shape = (n_samples, n_features)
-
-        Returns
-        -------
-        result : DNDarray
-            A :class:`~heat.core.dndarray.DNDarray` containing the model prediction
         """
         return x @ self.__theta

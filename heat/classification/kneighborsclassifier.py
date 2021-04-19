@@ -17,9 +17,9 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
 
     Parameters
     ----------
-    n_neighbors : int, optional
-        Number of neighbours to consider when choosing label, defaults to 5.
-    effective_metric_ : callable, optional
+    n_neighbors : int, optional, default: 5
+        Number of neighbours to consider when choosing label.
+    effective_metric_ : Callable, optional
         The distance function used to identify the nearest neighbors, defaults to the Euclidean distance.
 
     References

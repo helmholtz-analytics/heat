@@ -49,15 +49,10 @@ def sanitize_infinity(x: Union[DNDarray, torch.Tensor]) -> Union[int, float]:
     """
     Returns largest possible value for the ``dtype`` of the input array.
 
-    Parameters:
+    Parameters
     -----------
     x: Union[DNDarray, torch.Tensor]
         Input object.
-
-    Returns:
-    --------
-    largest: Union[int, float]
-        Largest possible value for the given dtype.
     """
     dtype = x.dtype if isinstance(x, torch.Tensor) else x.larray.dtype
     try:

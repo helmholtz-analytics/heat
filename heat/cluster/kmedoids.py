@@ -17,12 +17,12 @@ class KMedoids(_KCluster):
     ----------
     n_clusters : int, optional, default: 8
         The number of clusters to form as well as the number of centroids to generate.
-    init : str or DNDarray
-        Method for initialization, defaults to ‘random’:
+    init : str or DNDarray, default: ‘random’
+        Method for initialization:
 
             - ‘k-medoids++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
             - ‘random’: choose k observations (rows) at random from data for the initial centroids.
-            - ``DNDarray``: gives the initial centers, should be of Shape = (n_clusters, n_features)
+            - DNDarray: gives the initial centers, should be of Shape = (n_clusters, n_features)
     max_iter : int, default: 300
         Maximum number of iterations of the  algorithm for a single run.
     random_state : int

@@ -625,7 +625,6 @@ def eye(
     >>> ht.eye(2)
     DNDarray([[1., 0.],
               [0., 1.]], dtype=ht.float32, device=cpu:0, split=None)
-
     >>> ht.eye((2, 3), dtype=ht.int32)
     DNDarray([[1, 0, 0],
               [0, 1, 0]], dtype=ht.int32, device=cpu:0, split=None)

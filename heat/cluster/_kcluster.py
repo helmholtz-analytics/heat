@@ -18,8 +18,8 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         One of the distance metrics in ht.spatial.distance. Needs to be passed as lambda function to take only two arrays as input
     n_clusters : int
         The number of clusters to form as well as the number of centroids to generate.
-    init : str or DNDarray
-        Method for initialization, defaults to ‘random’:
+    init : str or DNDarray, default: ‘random’
+        Method for initialization:
 
         - ‘probability_based’ : selects initial cluster centers for the clustering in a smart way to speed up convergence (k-means++)
         - ‘random’: choose k observations (rows) at random from data for the initial centroids.

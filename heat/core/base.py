@@ -40,9 +40,8 @@ class BaseEstimator:
 
         Parameters
         ----------
-        deep : bool
-            If ``True``, will return the parameters for this estimator and contained sub-objects that are estimators
-            (default=True).
+        deep : bool, default: True
+            If ``True``, will return the parameters for this estimator and contained sub-objects that are estimators.
         """
         params = dict()
 
@@ -61,8 +60,8 @@ class BaseEstimator:
 
         Parameters
         ----------
-        indent : int
-            Indicates the indentation for the top-level output (default=1).
+        indent : int, default: 1
+            Indicates the indentation for the top-level output.
         """
         return "{}({})".format(self.__class__.__name__, json.dumps(self.get_params(), indent=4))
 

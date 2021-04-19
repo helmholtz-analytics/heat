@@ -669,9 +669,9 @@ def can_cast(
 
     Parameters
     ----------
-    from_ : scalar or DNDarray or datatype or str or type
+    from_ : Union[str, Type[datatype], Any]
         Scalar, data type or type specifier to cast from.
-    to : type or str or datatype
+    to : Union[str, Type[datatype], Any]
         Target type to cast to.
     casting: str, optional
         options: {"no", "safe", "same_kind", "unsafe", "intuitive"}, optional
@@ -784,7 +784,7 @@ def isreal(x: dndarray.DNDarray) -> dndarray.DNDarray:
 
     Examples
     --------
-    ht.iscomplex(ht.array([1+1j, 1]))
+    >>> ht.iscomplex(ht.array([1+1j, 1]))
     """
     return _operations.__local_op(torch.isreal, x, None, no_cast=True)
 
@@ -802,10 +802,6 @@ def issubdtype(
     arg2 : type, str, ht.dtype
         A description representing the type. It may be a a Python builtin type, string or an HeAT type already.
 
-    Returns
-    -------
-    out : bool
-        Result of the stated comparison
 
     Examples
     --------
@@ -814,13 +810,10 @@ def issubdtype(
     True
     >>> ht.issubdype(ints.dtype, ht.floating)
     False
-
     >>> ht.issubdtype(ht.float64, ht.float32)
     False
-
     >>> ht.issubdtype('i', ht.integer)
     True
-
     """
     # Assure that each argument is a ht.dtype
     arg1 = canonical_heat_type(arg1)

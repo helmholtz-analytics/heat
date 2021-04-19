@@ -33,17 +33,18 @@ class KMeans(_KCluster):
 
     Notes
     -----
-    The average complexity is given by :math:`O(k \\cdot n \\cdot T)`, were n is the number of samples and :math:`T` is the number of iterations.
+    The average complexity is given by :math:`O(k \cdot n \cdot T)`, were n is the number of samples and :math:`T` is the number of iterations.
     In practice, the k-means algorithm is very fast, but it may fall into local minima. That is why it can be useful
     to restart it several times. If the algorithm stops before fully converging (because of ``tol`` or ``max_iter``),
-    labels_ and cluster_centers_ will not be consistent, i.e. the cluster_centers_ will not be the means of the
-    points in each cluster. Also, the estimator will reassign labels_ after the last iteration to make labels_
+    ``labels_`` and ``cluster_centers_`` will not be consistent, i.e. the ``cluster_centers_`` will not be the means of the
+    points in each cluster. Also, the estimator will reassign ``labels_`` after the last iteration to make ``labels_``
     consistent with predict on the training set.
 
     References
     ----------
     [1] Lloyd, Stuart P., "Least squares quantization in PCM", IEEE Transactions on Information Theory, 28 (2), pp.
-    129–137, 1982. \n
+    129–137, 1982.
+
     [2] Arthur, D., Vassilvitskii, S., "k-means++: The Advantages of Careful Seeding", Proceedings of the Eighteenth
     Annual ACM-SIAM Symposium on Discrete Algorithms, Society for Industrial and Applied Mathematics
     Philadelphia, PA, USA. pp. 1027–1035, 2007.

@@ -19,7 +19,7 @@ def abs(
     x: DNDarray, out: Optional[DNDarray] = None, dtype: Optional[Type[datatype]] = None
 ) -> DNDarray:
     """
-    Calculate the absolute value element-wise.
+    Returns :class:`~heat.core.dndarray.DNDarray` containing the elementwise abolute values of the input array ``x``.
 
     Parameters
     ----------
@@ -32,15 +32,10 @@ def abs(
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
 
-    Returns
-    -------
-    result: DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the elementwise abolute values of the input array ``x``.
-
     Raises
     -------
     TypeError
-        if dtype is not a heat type.
+        If dtype is not a heat type.
     """
     if dtype is not None and not issubclass(dtype, dtype):
         raise TypeError("dtype must be a heat data type")
@@ -76,12 +71,6 @@ def absolute(
     dtype : datatype, optional
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
-
-    Returns
-    -------
-    result: DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the elementwise abolute values of the input array ``x``.
-
     """
     return abs(x, out, dtype)
 
@@ -105,11 +94,6 @@ def ceil(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to ``None``, a fresh array is allocated.
-
-    Returns
-    -------
-    result: DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the ceil of the input, element-wise.
 
     Examples
     --------
@@ -145,11 +129,6 @@ def clip(x: DNDarray, min, max, out: Optional[DNDarray] = None) -> DNDarray:
     out : DNDarray, optional
         The results will be placed in this array. It may be the input array for in-place clipping. ``out`` must be of
         the right shape to hold the output. Its type is preserved.
-
-    Returns
-    -------
-    result: DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the clipped input.
 
     Raises
     -------
@@ -189,11 +168,6 @@ def fabs(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or ``None``, a freshly-allocated array is returned.
 
-    Returns
-    -------
-    result: DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the absolute value element-wise.
-
     """
     return abs(x, out, dtype=None)
 
@@ -217,11 +191,6 @@ def floor(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to ``None``, a fresh :class:`~heat.core.dndarray.DNDarray` is allocated.
-
-    Returns
-    -------
-    result: DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the floor of the input, element-wise.
 
     Examples
     --------
@@ -250,12 +219,6 @@ def modf(x: DNDarray, out: Optional[Tuple[DNDarray, DNDarray]] = None) -> Tuple[
     out : Tuple[DNDarray, DNDarray], optional
         A location into which the result is stored. If provided, it must have a shape that the inputs broadcast to.
         If not provided or ``None``, a freshly-allocated array is returned.
-
-    Returns
-    -------
-    result: Tuple[DNDarray, DNDarray]
-        Tuple of two :class:`~heat.core.dndarray.DNDarray` containing the fractional and integral parts of a
-        :class:`~heat.core.dndarray.DNDarray`, element-wise.
 
     Raises
     -------
@@ -329,11 +292,6 @@ def round(
         Determines the data type of the output array. The values are cast to this type with potential loss of
         precision.
 
-    Returns
-    -------
-    result: DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the rounded value element-wise.
-
     Raises
     -------
     TypeError
@@ -383,11 +341,6 @@ def trunc(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to ``None``, a fresh array is allocated.
-
-    Returns
-    -------
-    result: DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the trunc of the input, element-wise.
 
     Examples
     --------

@@ -104,11 +104,8 @@ class DataLoader:
 
     def __iter__(self) -> Iterator:
         """
-        Generate a new iterator of a type dependent on the type of dataset
-
-        Returns
-        -------
-        :class:`partial_dataset.PartialH5DataLoaderIter` if the dataset is a :class:`partial_dataset.PartialH5Dataset`
+        Generate a new iterator of a type dependent on the type of dataset.
+        Returns a :class:`partial_dataset.PartialH5DataLoaderIter` if the dataset is a :class:`partial_dataset.PartialH5Dataset`
         :func:`self._full_dataset_shuffle_iter` otherwise
         """
         if isinstance(self.dataset, partial_dataset.PartialH5Dataset):
@@ -250,12 +247,8 @@ def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[lis
     """
     Shuffle the given attributes of a dataset across multiple processes. This will send half of the data to rank + 1.
     Once the new data is received, it will be shuffled into the existing data on the process.
-
     This function will be called by the DataLoader automatically if ``dataset.ishuffle = False``.
-
-    attrs should have the form [[torch.Tensor, DNDarray], ...]
-          i.e. [['data', 'htdata`]]
-    assume that all of the attrs have the same dim0 shape as the local data
+    attrs should have the form [[torch.Tensor, DNDarray], ... i.e. [['data', 'htdata`]] assume that all of the attrs have the same dim0 shape as the local data
 
     Parameters
     ----------
