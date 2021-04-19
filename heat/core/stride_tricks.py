@@ -20,11 +20,6 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
     shape_b : Tuple[int,...]
         Shape of second operand
 
-    Returns
-    -------
-    result: Tuple[int, ...]
-        A tuple of ``int`` indicating the broadcast output shape of two operands.
-
     Raises
     -------
     ValueError
@@ -72,11 +67,6 @@ def sanitize_axis(
         Shape of an array
     axis : ints or Tuple[int, ...] or None
         The axis to be sanitized
-
-    Returns
-    -------
-    result: Tuple[int, ...]
-        A tuple of ``int`` or None or int indicating conformity of an axis with respect to a given shape.
 
     Raises
     -------
@@ -138,11 +128,6 @@ def sanitize_shape(shape: Union[int, Tuple[int, ...]], lval: int = 0) -> Tuple[i
     lval : int
         Lowest legal value
 
-    Returns
-    -------
-    result: Tuple[int, ...]
-        A tuple of ``int`` indicating normalized given shape.
-
     Raises
     -------
     ValueError
@@ -187,11 +172,6 @@ def sanitize_slice(sl: slice, max_dim: int) -> slice:
         slice to adjust
     max_dim : int
         maximum index for the given slice
-
-    Returns
-    -------
-    result: slice
-        ``slice`` with removed Non-types from the given input ``slice``
 
     Raises
     ------

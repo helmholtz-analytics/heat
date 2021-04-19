@@ -60,12 +60,6 @@ def all(
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
-    Returns
-    -------
-    result : DNDarray or bool
-        A DNDarray or boolean containing the result of the test whether all array elements along a given axis
-        evaluate to ``True``.
-
     Examples
     ---------
     >>> x = ht.random.randn(4, 5)
@@ -128,11 +122,6 @@ def allclose(
         Whether to compare NaN’s as equal. If ``True``, NaN’s in ``x`` will be considered equal to NaN’s in ``y`` in
         the output array.
 
-    Returns
-    -------
-    result : bool
-        Boolean indicating whether two tensors are element-wise equal within a tolerance.
-
     Examples
     ---------
     >>> x = ht.float32([[2, 2], [2, 2]])
@@ -168,7 +157,8 @@ def any(
     x, axis: Optional[int] = None, out: Optional[DNDarray] = None, keepdim: bool = False
 ) -> DNDarray:
     """
-    Test whether any array element along a given axis evaluates to ``True``.
+    Returns a :class:`~heat.core.dndarray.DNDarray` containing the result of the test whether any array elements along a
+    given axis evaluate to ``True``.
     The returning array is one dimensional unless axis is not ``None``.
 
     Parameters
@@ -184,12 +174,6 @@ def any(
     keepdim : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
-
-    Returns
-    -------
-    result : DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the result of the test whether any array elements along a
-        given axis evaluate to ``True``.
 
     Examples
     ---------
@@ -242,12 +226,6 @@ def isclose(
     equal_nan : bool
         Whether to compare NaN’s as equal. If ``True``, NaN’s in x will be considered equal to NaN’s in y in the output
         array.
-
-    Returns
-    -------
-    result : DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the result of the test whether any array elements along a
-        given axis evaluate to ``True``.
     """
     t1, t2 = __sanitize_close_input(x, y)
 
@@ -280,11 +258,6 @@ def isfinite(x: DNDarray) -> DNDarray:
     x : DNDarray
         Input tensor
 
-    Returns
-    -------
-    result : DNDarray
-        A boolean :class:`~heat.core.dndarray.DNDarray` containing the test of element-wise for finiteness.
-
     Examples
     --------
     >>> ht.isfinite(ht.array([1, ht.inf, -ht.inf, ht.nan]))
@@ -303,12 +276,6 @@ def isinf(x: DNDarray) -> DNDarray:
     x : DNDarray
         Input tensor
 
-    Returns
-    -------
-    result : DNDarray
-        A boolean :class:`~heat.core.dndarray.DNDarray` containing the test of element-wise for positive or negative
-        infinity
-
     Examples
     --------
     >>> ht.isinf(ht.array([1, ht.inf, -ht.inf, ht.nan]))
@@ -325,12 +292,6 @@ def isnan(x: DNDarray) -> DNDarray:
     ----------
     x   : DNDarray
           Input tensor
-
-    Returns
-    -------
-    result : DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing bool variables indicating the corresponding values to be
-        NaN or not NaN
 
     Examples
     --------
@@ -352,12 +313,6 @@ def isneginf(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
           Alternate output array in which to place the result. It must have the same shape as the expected output
           and its type is preserved.
 
-    Returns
-    -------
-    result:  DNDarray
-        A boolean :class:`~heat.core.dndarray.DNDarray` containing the test result of any input element being negative
-        infinite
-
     Examples
     --------
     >>> ht.isnan(ht.array([1, ht.inf, -ht.inf, ht.nan]))
@@ -378,12 +333,6 @@ def isposinf(x: DNDarray, out: Optional[DNDarray] = None):
           Alternate output array in which to place the result. It must have the same shape as the expected output
           and its type is preserved.
 
-    Returns
-    -------
-    result:  DNDarray
-        A boolean :class:`~heat.core.dndarray.DNDarray` containing the test result of any input element being positive
-        infinite
-
     Examples
     --------
     >>> ht.isnan(ht.array([1, ht.inf, -ht.inf, ht.nan]))
@@ -402,7 +351,7 @@ DNDarray.isclose.__doc__ = isclose.__doc__
 
 def logical_and(x: DNDarray, y: DNDarray) -> DNDarray:
     """
-    Compute the truth value of ``x`` AND ``y`` element-wise.
+    Compute the truth value of ``x`` AND ``y`` element-wise. Returns a boolean :class:`~heat.core.dndarray.DNDarray` containing the truth value of ``x`` AND ``y`` element-wise.
 
     Parameters
     -----------
@@ -410,11 +359,6 @@ def logical_and(x: DNDarray, y: DNDarray) -> DNDarray:
         Input array of same shape
     y : DNDarray
         Input array of same shape
-
-    Returns
-    -------
-    result : DNDarray
-        A boolean :class:`~heat.core.dndarray.DNDarray` containing the truth value of ``x`` AND ``y`` element-wise.
 
     Examples
     ---------
@@ -438,12 +382,6 @@ def logical_not(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         Alternative output array in which to place the result. It must have the same shape as the expected output.
         The output is a :class:`~heat.core.dndarray.DNDarray` with ``datatype=bool``.
 
-    Returns
-    -------
-    result : DNDarray
-        A boolean :class:`~heat.core.dndarray.DNDarray` containing the element-wise logical NOT of the given
-        input :class:`~heat.core.dndarray.DNDarray`.
-
     Examples
     ---------
     >>> ht.logical_not(ht.array([True, False]))
@@ -454,7 +392,8 @@ def logical_not(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
 def logical_or(x: DNDarray, y: DNDarray) -> DNDarray:
     """
-    Compute the truth value of ``x`` OR ``y`` element-wise.
+    Returns boolean :class:`~heat.core.dndarray.DNDarray` containing the element-wise logical NOT of the given
+    input :class:`~heat.core.dndarray.DNDarray`.
 
     Parameters
     -----------
@@ -462,12 +401,6 @@ def logical_or(x: DNDarray, y: DNDarray) -> DNDarray:
         Input array of same shape
     y : DNDarray
         Input array of same shape
-
-    Returns
-    -------
-    result : DNDarray
-        A boolean :class:`~heat.core.dndarray.DNDarray` containing the element-wise logical NOT of the given
-        input :class:`~heat.core.dndarray.DNDarray`.
 
     Examples
     ---------
@@ -490,12 +423,6 @@ def logical_xor(x: DNDarray, y: DNDarray) -> DNDarray:
     y : DNDarray
         Input array of same shape
 
-    Returns
-    -------
-    result : DNDarray
-        A boolean :class:`~heat.core.dndarray.DNDarray` containing the element-wise logical XOR of the given input
-        :class:`~heat.core.dndarray.DNDarray`.
-
     Examples
     ---------
     >>> ht.logical_xor(ht.array([True, False, True]), ht.array([True, False, False]))
@@ -516,11 +443,6 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
     y : DNDarray
         The right-hand side operand.
 
-    Returns
-    -------
-    result : Tuple[DNDarray, DNDarray]
-        Tuple of sanizized input arrays
-
     Raises
     ------
     TypeError
@@ -533,6 +455,13 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
         """
         Verifies that ``x`` and ``y`` are either scalar, or a :class:`~heat.core.dndarray.DNDarray`.
         In the former case, the scalar is wrapped in a :class:`~heat.core.dndarray.DNDarray`.
+
+        Parameters
+        -----------
+        x : Union[int, float, DNDarray]
+            The left-hand side operand.
+        y : Union[int, float, DNDarray]
+            The right-hand side operand.
 
         Raises
         ------

@@ -343,17 +343,17 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
     minlength : int, non-negative, optional
         Minimum number of bins
 
+    Raises
+    ------
+    ValueError
+        If `x` and `weights` don't have the same distribution.
+
     Examples
     --------
     >>> ht.bincount(ht.arange(5))
     DNDarray([1, 1, 1, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bincount(ht.array([0, 1, 3, 2, 1]), weights=ht.array([0, 0.5, 1, 1.5, 2]))
     DNDarray([0.0000, 2.5000, 1.5000, 1.0000], dtype=ht.float32, device=cpu:0, split=None)
-
-    Raises
-    ------
-    ValueError
-        If `x` and `weights` don't have the same distribution.
     """
     if isinstance(weights, DNDarray):
         if weights.split != x.split:
@@ -763,7 +763,6 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
     tensor([[-1.2435,  1.1813,  0.3509]])
     >>> ht.mean(a)
     tensor(0.0962)
-
     >>> a = ht.random.randn(4,4)
     >>> a
     tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
@@ -774,7 +773,6 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
     tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
     >>> ht.mean(a, 0)
     tensor([-0.2835,  0.6026,  0.4746, -0.0921])
-
     >>> a = ht.random.randn(4,4)
     >>> a
     tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
@@ -1248,10 +1246,10 @@ def percentile(
         Output buffer.
 
     interpolation : str, optional
-        Interpolation method to use when the desired percentile lies between two data points :math: `i < j`.
+        Interpolation method to use when the desired percentile lies between two data points :math:`i < j`.
         Can be one of:
 
-        - ‘linear’: :math:`i + (j - i) \\cdot fraction`, where `fraction` is the fractional part of the index surrounded by `i` and `j`.
+        - ‘linear’: :math:`i + (j - i) \cdot fraction`, where `fraction` is the fractional part of the index surrounded by `i` and `j`.
 
         - ‘lower’: `i`.
 
@@ -1678,7 +1676,6 @@ def var(
     tensor(1.2710)
     >>> ht.var(a, ddof=1)
     tensor(1.9065)
-
     >>> a = ht.random.randn(4,4)
     >>> a
     tensor([[-0.8665, -2.6848, -0.0215, -1.7363],

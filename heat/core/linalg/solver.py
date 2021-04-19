@@ -75,11 +75,12 @@ def lanczos(
     r"""
     The Lanczos algorithm is an iterative approximation of the solution to the eigenvalue problem, as an adaptation of
     power methods to find the m "most useful" (tending towards extreme highest/lowest) eigenvalues and eigenvectors of
-    an :math: `n \\times n` Hermitian matrix, where often :math: `m<<n`.
-    It returns two matrices :math: `V` and :math: `T`, where:
-        - :math: `V` is a Matrix of size :math: `n\\times m`, with orthonormal columns, that span the Krylow subspace \n
-        - :math: `T` is a Tridiagonal matrix of size :math: `m\\times m`, with coefficients :math: '\\alpha_1,..., \\alpha_n`
-          on the diagonal and coefficients :math: `\\beta_1,...,\\beta_{n-1}` on the side-diagonals\n
+    an :math:`n \times n` Hermitian matrix, where often :math:`m<<n`.
+    It returns two matrices :math:`V` and :math:`T`, where:
+
+        - :math:`V` is a Matrix of size :math:`n\times m`, with orthonormal columns, that span the Krylow subspace \n
+        - :math:`T` is a Tridiagonal matrix of size :math:`m\times m`, with coefficients :math:`\alpha_1,..., \alpha_n`
+          on the diagonal and coefficients :math:`\beta_1,...,\beta_{n-1}` on the side-diagonals\n
 
     Parameters
     ----------

@@ -73,7 +73,7 @@ class MPIRequest:
                 self.recvbuf = self.recvbuf.permute(self.permutation)
             self.tensor.copy_(self.recvbuf)
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Callable:
         """
         Default pass-through for the communicator methods.
 
@@ -81,11 +81,6 @@ class MPIRequest:
         ----------
         name : str
             The name of the method to be called.
-
-        Returns
-        -------
-        method : function
-            The handle's method
         """
         return getattr(self.handle, name)
 
@@ -1872,11 +1867,6 @@ __default_comm = MPI_WORLD
 def get_comm() -> Communication:
     """
     Retrieves the currently globally set default communication.
-
-    Returns
-    -------
-    comm : Communication
-        The currently set default communication.
     """
     return __default_comm
 

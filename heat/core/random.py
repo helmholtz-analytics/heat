@@ -279,10 +279,8 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
     ----------
     >>> ht.random.permutation(10)
     DNDarray([9, 1, 5, 4, 8, 2, 7, 6, 3, 0], dtype=ht.int64, device=cpu:0, split=None)
-
     >>> ht.random.permutation(ht.array([1, 4, 9, 12, 15]))
     DNDarray([ 9,  1, 12,  4, 15], dtype=ht.int64, device=cpu:0, split=None)
-
     >>> arr = ht.arange(9).reshape((3, 3))
     >>> ht.random.permutation(arr)
     DNDarray([[3, 4, 5],

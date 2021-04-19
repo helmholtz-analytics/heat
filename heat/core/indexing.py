@@ -15,7 +15,7 @@ __all__ = ["nonzero", "where"]
 
 def nonzero(x: DNDarray) -> DNDarray:
     """
-    Return the indices of the elements that are non-zero. (using ``torch.nonzero``)
+    Return a :class:`~heat.core.dndarray.DNDarray` containing the indices of the elements that are non-zero.. (using ``torch.nonzero``)
     If ``x`` is split then the result is split in the 0th dimension. However, this :class:`~heat.core.dndarray.DNDarray`
     can be UNBALANCED as it contains the indices of the non-zero elements on each node.
     Returns an array with one entry for each dimension of ``x``, containing the indices of the non-zero elements in that dimension.
@@ -26,11 +26,6 @@ def nonzero(x: DNDarray) -> DNDarray:
     ----------
     x: DNDarray
         Input array
-
-    Returns
-    -------
-    result: DNDarray
-        A :class:`~heat.core.dndarray.DNDarray` containing the indices of the elements that are non-zero.
 
     Examples
     --------
@@ -101,7 +96,7 @@ def where(
     y: Union[None, int, float, DNDarray] = None,
 ) -> DNDarray:
     """
-    Return elements chosen from ``x`` or ``y`` depending on condition.
+    Return a :class:`~heat.core.dndarray.DNDarray` containing elements chosen from ``x`` or ``y`` depending on condition.
     Result is a :class:`~heat.core.dndarray.DNDarray` with elements from ``x`` where cond is ``True``,
     and elements from ``y`` elsewhere (``False``).
 
@@ -113,11 +108,6 @@ def where(
         Values from which to choose. ``x``, ``y`` and condition need to be broadcastable to some shape.
     y : DNDarray or int or float, optional
         Values from which to choose. ``x``, ``y`` and condition need to be broadcastable to some shape.
-
-    Returns
-    -------
-    result: DNDarray
-        A :class:`~heat.core.dndarray.DNDarray`
 
     Raises
     ------
