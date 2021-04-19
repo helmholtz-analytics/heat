@@ -5,6 +5,8 @@ Utility functions for the heat optimizers
 import math
 import torch
 
+from typing import Optional, Dict
+
 
 __all__ = ["DetectMetricPlateau"]
 
@@ -47,7 +49,12 @@ class DetectMetricPlateau(object):
     """
 
     def __init__(
-        self, mode="min", patience=10, threshold=1e-4, threshold_mode="rel", cooldown=0
+        self,
+        mode: Optional[str] = "min",
+        patience: Optional[int] = 10,
+        threshold: Optional[float] = 1e-4,
+        threshold_mode: Optional[str] = "rel",
+        cooldown: Optional[int] = 0,
     ):  # noqa: D107
         self.patience = patience
         self.cooldown = cooldown
@@ -62,7 +69,7 @@ class DetectMetricPlateau(object):
         self._init_is_better(mode=mode, threshold=threshold, threshold_mode=threshold_mode)
         self.reset()
 
-    def get_state(self):
+    def get_state(self) -> Dict:
         """
         Get a dictionary of the class parameters. This is useful for checkpointing.
         """
@@ -79,7 +86,7 @@ class DetectMetricPlateau(object):
             "last_epoch": self.last_epoch,
         }
 
-    def set_state(self, dic):
+    def set_state(self, dic: Dict) -> None:
         """
         Load a dictionary with the status of the class. Typically used in checkpointing.
 
@@ -99,7 +106,7 @@ class DetectMetricPlateau(object):
         self.mode_worse = dic["mode_worse"]
         self.last_epoch = dic["last_epoch"]
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Resets num_bad_epochs counter and cooldown counter.
         """
@@ -107,7 +114,7 @@ class DetectMetricPlateau(object):
         self.cooldown_counter = 0
         self.num_bad_epochs = 0
 
-    def test_if_improving(self, metrics):
+    def test_if_improving(self, metrics: torch.Tensor) -> bool:
         """
         Test if the metric/s is/are improving. If the metrics are better than the adjusted best value, they
         are set as the best for future testing.
@@ -144,15 +151,26 @@ class DetectMetricPlateau(object):
         return False
 
     @property
-    def in_cooldown(self):
+    def in_cooldown(self) -> bool:
         """
         Test if the class is in the cool down period
         """
         return self.cooldown_counter > 0
 
-    def is_better(self, a, best):
+    def is_better(self, a: float, best: float) -> bool:
         """
         Test if the given value is better than the current best value. The best value is adjusted with the threshold
+
+        Parameters
+        ----------
+        a: float
+            the metric value
+        best: float
+            the current best value for the metric
+
+        Returns
+        -------
+        boolean indicating if the metric is improving
         """
         if self.mode == "min" and self.threshold_mode == "rel":
             rel_epsilon = 1.0 - self.threshold
@@ -169,7 +187,10 @@ class DetectMetricPlateau(object):
         else:  # mode == 'max' and epsilon_mode == 'abs':
             return a > best + self.threshold
 
-    def _init_is_better(self, mode, threshold, threshold_mode):
+    def _init_is_better(self, mode: str, threshold: float, threshold_mode: str) -> None:
+        """
+        Initialize the is_better function for comparisons later
+        """
         if mode not in {"min", "max"}:
             raise ValueError("mode " + mode + " is unknown!")
         if threshold_mode not in {"rel", "abs"}:
