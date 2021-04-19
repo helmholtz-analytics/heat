@@ -165,3 +165,109 @@ class HeatSyncBatchNorm(_BatchNorm):
                 exponential_average_factor,
                 comm,
             )
+
+class SyncBatchNorm(Function):
+    @staticmethod
+    def forward(
+        self,
+        input: torch.Tensor,
+        weight: Optional[torch.Tensor],
+        bias: Optional[torch.Tensor],
+        running_mean: Optional[torch.Tensor],
+        running_var: Optional[torch.Tensor],
+        eps: Optional[float],
+        momentum: Optional[float],
+        comm: MPICommunication,
+    ) -> torch.Tensor:
+        input = input.contiguous()
+        self.comm = comm
+        size = input.numel() // input.size(1)
+        count = torch.tensor([size]).to(input.device)
+
+        # calculate mean/invstd for input.
+        mean, invstd = torch.batch_norm_stats(input, eps)
+
+        count_shape = count.shape
+        count = count.unsqueeze(0)
+        count_all = torch.zeros((comm.size,) + count_shape, device=count.device, dtype=torch.int64)
+        comm.Allgather(count, count_all)
+
+        mean_shape = mean.shape
+        mean = mean.unsqueeze(0)
+        mean_all = torch.zeros((comm.size,) + mean_shape, dtype=input.dtype, device=mean.device)
+        comm.Allgather(mean, mean_all)
+
+        invstd_shape = invstd.shape
+        invstd = invstd.unsqueeze(0)
+        invstd_all = torch.zeros((comm.size,) + invstd_shape,  dtype=input.dtype, device=invstd.device)
+        comm.Allgather(invstd, invstd_all)
+
+        counts_for_bngswc = count_all.view(-1).to(dtype=input.dtype)
+
+        # calculate global mean & invstd
+        mean, invstd = torch.batch_norm_gather_stats_with_counts(
+            input, mean_all, invstd_all, running_mean, running_var, momentum, eps, counts_for_bngswc
+        )
+
+        self.save_for_backward(input, weight, running_mean, running_var, count)
+        # apply element-wise normalization
+        return torch.batch_norm_elemt(input, weight, bias, mean, invstd, eps)
+
+    @staticmethod
+    def backward(
+        self, grad_output: torch.Tensor
+    ) -> Tuple[
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    ]:
+        grad_output = grad_output.contiguous()
+        saved_input, weight, mean, invstd, count_all = self.saved_tensors
+        # calculate local stats as well as grad_weight / grad_bias
+        sum_dy, sum_dy_xmu, grad_weight, grad_bias = torch.batch_norm_backward_reduce(
+            grad_output,
+            saved_input,
+            mean,
+            invstd,
+            weight,
+            self.needs_input_grad[0],
+            self.needs_input_grad[1],
+            self.needs_input_grad[2],
+        )
+
+        if self.needs_input_grad[0]:
+            # synchronizing stats used to calculate input gradient.
+            comm = self.comm
+
+            sum_dy_reduced = torch.zeros_like(sum_dy, device=grad_output.device, dtype=grad_output.dtype)
+            comm.Allreduce(sum_dy, sum_dy_reduced, op=MPI.SUM)
+
+            sum_dy_xmu_reduced = torch.zeros_like(sum_dy_xmu, device=grad_output.device, dtype=grad_output.dtype)
+            comm.Allreduce(sum_dy_xmu, sum_dy_xmu_reduced, op=MPI.SUM)
+
+            mean_dy = sum_dy_reduced / comm.size
+            mean_dy_xmu = sum_dy_xmu_reduced / comm.size
+
+            # backward pass for gradient calculation
+            grad_input = torch.batch_norm_backward_elemt(
+                grad_output, saved_input, mean, invstd, weight, mean_dy, mean_dy_xmu
+            )
+
+        else:
+            grad_input = None
+
+        # synchronizing of grad_weight / grad_bias is not needed as distributed
+        # training would handle all reduce.
+        if weight is None or not self.needs_input_grad[1]:
+            grad_weight = None
+
+        if weight is None or not self.needs_input_grad[2]:
+            grad_bias = None
+
+        return grad_input, grad_weight, grad_bias, None, None, None, None, None, None
