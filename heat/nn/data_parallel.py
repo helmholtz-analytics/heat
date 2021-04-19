@@ -18,16 +18,6 @@ from ..core.communication import MPICommunication
 __all__ = ["DataParallel", "DataParallelMultiGPU"]
 
 
-def __sum_f16_cb(buffer_a, buffer_b, _):
-    tens_a = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_a, "native"))
-    tens_b = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_b, "native"))
-    tens_b += tens_a
-
-
-# create new OP
-mpi_sum_bf16 = MPI.Op.Create(__sum_f16_cb, commute=True)
-
-
 class DataParallel(tnn.Module):
     """
     Implements data parallelism across multiple processes. This means that the same model will be run locally
@@ -243,11 +233,11 @@ class DataParallel(tnn.Module):
         ----------
         [1] (cf. https://pytorch.org/docs/stable/tensors.html#torch.Tensor.register_hook).
         """
-        grad_loc_bf = grad_loc.to(torch.bfloat16)
+        grad_loc_bf = grad_loc.to(torch.float)  # bfloat16)
         # average local gradients
         grad_loc_bf *= 1 / float(self.comm.size)
         # perform MPI Allreduce to compute global gradient
-        self.comm.Allreduce(MPI.IN_PLACE, grad_loc_bf, mpi_sum_bf16)
+        self.comm.Allreduce(MPI.IN_PLACE, grad_loc_bf, MPI.SUM)  # mpi_sum_bf16)
         return grad_loc_bf.to(grad_loc.dtype)
 
     def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
@@ -264,11 +254,11 @@ class DataParallel(tnn.Module):
         # hook function for blocking gradient data exchange
         def _hook(grad_loc: torch.Tensor) -> torch.Tensor:
             with torch.no_grad():
-                wrk = grad_loc.to(torch.bfloat16)
+                wrk = grad_loc.to(torch.float)  # bfloat16)
             # counterbalance local gradient averaging
             wrk *= 1 / float(self.comm.size)
             # perform MPI IAllreduce to compute global gradient, returns wait handle
-            wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, wrk, mpi_sum_bf16)
+            wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, wrk, MPI.SUM)  # mpi_sum_bf16)
             # if layer wait handle dict does not contain the layer, add it -> automatically tracks reversed layer order
             if layer_name not in self._layer_wait_handles:
                 self._layer_wait_handles[layer_name] = list()
