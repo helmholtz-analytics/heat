@@ -25,7 +25,7 @@ def __sum_f16_cb(buffer_a, buffer_b, _):
 
 
 # create new OP
-mpi_sum_f16 = MPI.Op.Create(__sum_f16_cb, commute=True)
+mpi_sum_bf16 = MPI.Op.Create(__sum_f16_cb, commute=True)
 
 
 class DataParallel(tnn.Module):
@@ -247,7 +247,7 @@ class DataParallel(tnn.Module):
         # average local gradients
         grad_loc_bf *= 1 / float(self.comm.size)
         # perform MPI Allreduce to compute global gradient
-        self.comm.Allreduce(MPI.IN_PLACE, grad_loc_bf, mpi_sum_f16)
+        self.comm.Allreduce(MPI.IN_PLACE, grad_loc_bf, mpi_sum_bf16)
         return grad_loc_bf.to(grad_loc.dtype)
 
     def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
@@ -268,7 +268,7 @@ class DataParallel(tnn.Module):
             # counterbalance local gradient averaging
             wrk *= 1 / float(self.comm.size)
             # perform MPI IAllreduce to compute global gradient, returns wait handle
-            wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, wrk, mpi_sum_f16)
+            wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, wrk, mpi_sum_bf16)
             # if layer wait handle dict does not contain the layer, add it -> automatically tracks reversed layer order
             if layer_name not in self._layer_wait_handles:
                 self._layer_wait_handles[layer_name] = list()
