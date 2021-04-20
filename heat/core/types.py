@@ -855,7 +855,9 @@ def promote_types(
     return __type_promotions[typecode_type1][typecode_type2]
 
 
-def result_type(*arrays_and_types):
+def result_type(
+    *arrays_and_types: Tuple[Union[dndarray.DNDarray, Type[datatype], Any]]
+) -> Type[datatype]:
     """
     Returns the data type that results from type promotions rules performed in an arithmetic operation.
 
