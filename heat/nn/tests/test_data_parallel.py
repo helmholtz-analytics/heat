@@ -90,7 +90,7 @@ class TestDataParallel(unittest.TestCase):
 
             for p in ht_model.parameters():
                 p0dim = p.shape[0]
-                hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
+                hld = ht.resplit(ht.array(p, is_split=0)).larray.clone()
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
                     self.assertTrue(torch.allclose(hld_list[0], hld_list[i], rtol=lim, atol=lim))
@@ -121,7 +121,7 @@ class TestDataParallel(unittest.TestCase):
                 dp_optimizer.step()
             for p in ht_model.parameters():
                 p0dim = p.shape[0]
-                hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
+                hld = ht.resplit(ht.array(p, is_split=0)).larray.clone()
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
                     self.assertTrue(torch.allclose(hld_list[0], hld_list[i], rtol=lim, atol=lim))
@@ -148,7 +148,7 @@ class TestDataParallel(unittest.TestCase):
                 dp_optimizer.step()
             for p in ht_model.parameters():
                 p0dim = p.shape[0]
-                hld = ht.resplit(ht.array(p, is_split=0))._DNDarray__array
+                hld = ht.resplit(ht.array(p, is_split=0)).larray.clone()
                 hld_list = [hld[i * p0dim : (i + 1) * p0dim] for i in range(ht.MPI_WORLD.size - 1)]
                 for i in range(1, len(hld_list)):
                     self.assertTrue(torch.allclose(hld_list[0], hld_list[i], rtol=lim, atol=lim))

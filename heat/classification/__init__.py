@@ -1,1 +1,3 @@
-from .knn import *
+"""Provides classification algorithms."""
+
+from .kneighborsclassifier import *

@@ -8,7 +8,7 @@ from .test_suites.basic_test import TestCase
 class TestTypes(TestCase):
     def assert_is_heat_type(self, heat_type):
         self.assertIsInstance(heat_type, type)
-        self.assertTrue(issubclass(heat_type, ht.generic))
+        self.assertTrue(issubclass(heat_type, ht.datatype))
 
     def assert_non_instantiable_heat_type(self, heat_type):
         self.assert_is_heat_type(heat_type)
@@ -47,7 +47,7 @@ class TestTypes(TestCase):
             heat_type(ground_truth, ground_truth)
 
     def test_generic(self):
-        self.assert_non_instantiable_heat_type(ht.generic)
+        self.assert_non_instantiable_heat_type(ht.datatype)
 
     def test_bool(self):
         self.assert_is_instantiable_heat_type(ht.bool, torch.bool)
@@ -267,14 +267,14 @@ class TestTypeConversion(TestCase):
 
     def test_issubdtype(self):
         # First level
-        self.assertTrue(ht.issubdtype(ht.bool, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.bool_, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.number, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.integer, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.signedinteger, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.unsignedinteger, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.floating, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.flexible, ht.generic))
+        self.assertTrue(ht.issubdtype(ht.bool, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.bool_, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.number, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.integer, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.signedinteger, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.unsignedinteger, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.floating, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.flexible, ht.datatype))
 
         # Second level
         self.assertTrue(ht.issubdtype(ht.integer, ht.number))
