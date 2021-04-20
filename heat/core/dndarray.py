@@ -1571,9 +1571,24 @@ class DNDarray:
         new_split = self.split
         advanced_ind = False
 
+        # ellipsis stuff
+        key_classes = [type(n) for n in key]
+        # if any(isinstance(n, ellipsis) for n in key):
+        n_elips = key_classes.count(type(...))
+        if n_elips > 1:
+            raise ValueError("key can only contain 1 ellipsis")
+        elif n_elips == 1:
+            # get which item is the ellipsis
+            ell_ind = key_classes.index(type(...))
+            kst = key[:ell_ind]
+            kend = key[ell_ind + 1 :]
+            slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
+            key = kst + slices + kend
+
         # calculate size of slice on each dimension
         # assess what dimensions should be kept in the returned DNDarray
         # calculate new split axis accordingly
+
         for c, k in enumerate(key):
             if isinstance(k, slice):
                 # always keep dimension
@@ -3285,6 +3300,22 @@ class DNDarray:
             h = [slice(None, None, None)] * self.ndim
             h[0] = key
             key = tuple(h)
+
+        key = list(key)
+        # ellipsis stuff
+        key_classes = [type(n) for n in key]
+        # if any(isinstance(n, ellipsis) for n in key):
+        n_elips = key_classes.count(type(...))
+        if n_elips > 1:
+            raise ValueError("key can only contain 1 ellipsis")
+        elif n_elips == 1:
+            # get which item is the ellipsis
+            ell_ind = key_classes.index(type(...))
+            kst = key[:ell_ind]
+            kend = key[ell_ind + 1 :]
+            slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
+            key = kst + slices + kend
+        key = tuple(key)
 
         if not self.is_distributed():
             self.__setter(key, value)

@@ -1155,6 +1155,18 @@ class TestDNDarray(TestCase):
             if a.comm.rank == 0:
                 self.assertEqual(a[3:13, 2:5:2].lshape, (10, 1))
 
+        a = ht.zeros((13, 5), split=1)
+        a[..., 2::2] = 1
+        self.assertTrue((a[:, 2:5:2] == 1).all())
+        self.assertEqual(a[..., 2:5:2].gshape, (13, 2))
+        self.assertEqual(a[..., 2:5:2].split, 1)
+        self.assertEqual(a[..., 2:5:2].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[..., 2:5:2].lshape, (13, 1))
+            if a.comm.rank == 0:
+                self.assertEqual(a[:, 2:5:2].lshape, (13, 1))
+
         # setting with heat tensor
         a = ht.zeros((4, 5), split=1)
         a[1, 0:4] = ht.arange(4)
@@ -1180,6 +1192,17 @@ class TestDNDarray(TestCase):
                 self.assertEqual(a[10, :, :].lshape, (5, 4))
             if a.comm.rank == 1:
                 self.assertEqual(a[10, :, :].lshape, (5, 3))
+
+        a = ht.zeros((13, 5, 7), split=2)
+        # # set value on one node
+        a[10, ...] = 1
+        self.assertEqual(a[10, ...].dtype, ht.float32)
+        self.assertEqual(a[10, ...].gshape, (5, 7))
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[10, ...].lshape, (5, 4))
+            if a.comm.rank == 1:
+                self.assertEqual(a[10, ...].lshape, (5, 3))
 
         a = ht.zeros((13, 5, 8), split=2)
         # # set value on one node
@@ -1249,6 +1272,11 @@ class TestDNDarray(TestCase):
         a = ht.ones((4, 5), split=0).tril()
         a[0] = ht.array([6, 6, 6, 6, 6])
         self.assertTrue((a[ht.array((0,))] == 6).all())
+
+        with self.assertRaises(ValueError):
+            a[..., ...]
+        with self.assertRaises(ValueError):
+            a[..., ...] = 1
 
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
