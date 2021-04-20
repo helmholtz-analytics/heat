@@ -400,7 +400,9 @@ def main():
     # model = tDDP(model) -> done in the ht model initialization
     # Scale learning rate based on global batch size
     # todo: change the learning rate adjustments to be reduce on plateau
-    args.lr = 0.0125  # (1. / args.world_size * (5 * (args.world_size - 1) / 6.)) * 0.0125 * args.world_size
+    args.lr = (
+        0.0125
+    )  # (1. / args.world_size * (5 * (args.world_size - 1) / 6.)) * 0.0125 * args.world_size
     # args.lr = (1. / args.world_size * (5 * (args.world_size - 1) / 6.)) * 0.0125 * args.world_size
     optimizer = torch.optim.SGD(
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay

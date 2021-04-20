@@ -131,6 +131,7 @@ class HeatSyncBatchNorm(_BatchNorm):
         else:
             bn_training = (self.running_mean is None) and (self.running_var is None)
 
+
         need_sync = bn_training
         if need_sync:
             if self.comm:
@@ -199,9 +200,7 @@ class SyncBatchNorm(Function):
 
         invstd_shape = invstd.shape
         invstd = invstd.unsqueeze(0)
-        invstd_all = torch.zeros(
-            (comm.size,) + invstd_shape, dtype=input.dtype, device=invstd.device
-        )
+        invstd_all = torch.zeros((comm.size,) + invstd_shape,  dtype=input.dtype, device=invstd.device)
         comm.Allgather(invstd, invstd_all)
 
         counts_for_bngswc = count_all.view(-1).to(dtype=input.dtype)
@@ -247,14 +246,10 @@ class SyncBatchNorm(Function):
             # synchronizing stats used to calculate input gradient.
             comm = self.comm
 
-            sum_dy_reduced = torch.zeros_like(
-                sum_dy, device=grad_output.device, dtype=grad_output.dtype
-            )
+            sum_dy_reduced = torch.zeros_like(sum_dy, device=grad_output.device, dtype=grad_output.dtype)
             comm.Allreduce(sum_dy, sum_dy_reduced, op=MPI.SUM)
 
-            sum_dy_xmu_reduced = torch.zeros_like(
-                sum_dy_xmu, device=grad_output.device, dtype=grad_output.dtype
-            )
+            sum_dy_xmu_reduced = torch.zeros_like(sum_dy_xmu, device=grad_output.device, dtype=grad_output.dtype)
             comm.Allreduce(sum_dy_xmu, sum_dy_xmu_reduced, op=MPI.SUM)
 
             mean_dy = sum_dy_reduced / comm.size

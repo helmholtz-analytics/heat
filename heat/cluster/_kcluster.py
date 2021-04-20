@@ -219,12 +219,12 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
     def fit(self, X):
         """
-        Computes the centroid of the clustering algorithm to fit the data X. The full pipeline is algorithm specific.
+       Computes the centroid of the clustering algorithm to fit the data X. The full pipeline is algorithm specific.
 
-         Parameters
-         ----------
-         X : DNDarray
-             Training instances to cluster. Shape = (n_samples, n_features)
+        Parameters
+        ----------
+        X : DNDarray
+            Training instances to cluster. Shape = (n_samples, n_features)
 
         """
         raise NotImplementedError()
@@ -240,7 +240,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         ----------
         X : DNDarray
             New data to predict. Shape = (n_samples, n_features)
-        """
+       """
         # input sanitation
         if not isinstance(X, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(X)))
