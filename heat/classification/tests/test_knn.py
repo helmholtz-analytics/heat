@@ -51,7 +51,9 @@ class TestKNN(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, Y.shape)
 
-    def test_exception(self,):
+    def test_exception(
+        self,
+    ):
         a = ht.zeros((3,))
         b = ht.zeros((1,))
         c = ht.zeros((3,))
@@ -74,7 +76,9 @@ class TestKNN(TestCase):
         with self.assertRaises(ValueError):
             knn = KNN(a, d, 1)
 
-    def test_utility(self,):
+    def test_utility(
+        self,
+    ):
         a = ht.array([1, 2, 3, 4])
         b = ht.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1]])
 
@@ -82,7 +86,9 @@ class TestKNN(TestCase):
 
         self.assertTrue((one_hot == b).all())
 
-    def test_fit_one_hot(self,):
+    def test_fit_one_hot(
+        self,
+    ):
         X = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
         # Keys as label array

@@ -9,15 +9,13 @@ from heat.utils import vision_transforms
 from heat.utils.data.mnist import MNISTDataset
 
 
-
 class TestBatchNormalization1D(unittest.TestCase):
-
     def setUp(self):
-
         class Net(ht.nn.Module):
             def __init__(self):
                 super(Net, self).__init__()
                 self.batch = ht.nn.SyncBatchNorm(16)
+
             def forward(self, x):
                 return self.batch(x)
 
@@ -29,12 +27,10 @@ class TestBatchNormalization1D(unittest.TestCase):
             def forward(self, x):
                 return self.batch(x)
 
-
-
         self.no_cuda = False
         self.lr = 2.0
         self.iterations = 10
-        self.use_cuda = True #not self.no_cuda and torch.cuda.is_available()
+        self.use_cuda = True  # not self.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if self.use_cuda else "cpu")
 
         self.model = Net().to(self.device)
@@ -45,12 +41,14 @@ class TestBatchNormalization1D(unittest.TestCase):
 
         self.dp_optim = ht.optim.DataParallelOptimizer(self.optimizer, blocking=False)
         self.dp_model = ht.nn.DataParallel(
-            self.model, comm=ht.MPICommunication(), optimizer=self.dp_optim, blocking_parameter_updates=False
+            self.model,
+            comm=ht.MPICommunication(),
+            optimizer=self.dp_optim,
+            blocking_parameter_updates=False,
         )
 
-
     def test_batchnorm_float32_1d(self):
-       
+
         if torch.cuda.is_available():
 
             self.model.train()
@@ -70,13 +68,15 @@ class TestBatchNormalization1D(unittest.TestCase):
                 self.optimizer_torch.zero_grad()
                 output = self.dp_model(data_list[ht.MPI_WORLD.rank])
                 output_torch = self.model_torch(data)
-                output_torch = output_torch[32*rank:32*(rank+1)]
+                output_torch = output_torch[32 * rank : 32 * (rank + 1)]
                 loss = F.mse_loss(output.mean(), target)
                 loss_torch = F.mse_loss(output_torch.mean(), target)
                 self.assertNotAlmostEqual(output.std().item(), 1.0)
                 self.assertEqual(output.shape, (32, 16, 28))
                 self.assertEqual(data.dtype, output.dtype)
-                self.assertLess(torch.norm(output-output_torch).item()/(32.*16.*28.), 1e-4)
+                self.assertLess(
+                    torch.norm(output - output_torch).item() / (32.0 * 16.0 * 28.0), 1e-4
+                )
                 loss.backward
                 loss_torch.backward()
 
@@ -85,13 +85,12 @@ class TestBatchNormalization1D(unittest.TestCase):
 
 
 class TestBatchNormalization2D(unittest.TestCase):
-
     def setUp(self):
-
         class Net(ht.nn.Module):
             def __init__(self):
                 super(Net, self).__init__()
                 self.batch = ht.nn.SyncBatchNorm(16)
+
             def forward(self, x):
                 return self.batch(x)
 
@@ -102,13 +101,11 @@ class TestBatchNormalization2D(unittest.TestCase):
 
             def forward(self, x):
                 return self.batch(x)
-                
-
 
         self.no_cuda = False
         self.lr = 2.0
         self.iterations = 10
-        self.use_cuda = True #not self.no_cuda and torch.cuda.is_available()
+        self.use_cuda = True  # not self.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if self.use_cuda else "cpu")
 
         self.model = Net().to(self.device)
@@ -119,19 +116,21 @@ class TestBatchNormalization2D(unittest.TestCase):
 
         self.dp_optim = ht.optim.DataParallelOptimizer(self.optimizer, blocking=False)
         self.dp_model = ht.nn.DataParallel(
-            self.model, comm=ht.MPICommunication(), optimizer=self.dp_optim, blocking_parameter_updates=False
+            self.model,
+            comm=ht.MPICommunication(),
+            optimizer=self.dp_optim,
+            blocking_parameter_updates=False,
         )
 
-
     def test_batchnorm_float32_2d(self):
-    
+
         if torch.cuda.is_available():
 
             self.model.train()
             data_list = list()
-            
+
             for tt1 in range(ht.MPI_WORLD.size):
-                torch.manual_seed(tt1)   
+                torch.manual_seed(tt1)
                 data_list.append(torch.randn(32, 16, 28, 28).to(self.device))
 
             target = data_list[ht.MPI_WORLD.rank].mean()
@@ -144,27 +143,29 @@ class TestBatchNormalization2D(unittest.TestCase):
                 self.optimizer_torch.zero_grad()
                 output = self.dp_model(data_list[ht.MPI_WORLD.rank])
                 output_torch = self.model_torch(data)
-                output_torch = output_torch[32*rank:32*(rank+1)]
+                output_torch = output_torch[32 * rank : 32 * (rank + 1)]
                 loss = F.mse_loss(output.mean(), target)
                 loss_torch = F.mse_loss(output_torch.mean(), target)
                 self.assertNotAlmostEqual(output.std().item(), 1.0)
                 self.assertEqual(output.shape, (32, 16, 28, 28))
                 self.assertEqual(data.dtype, output.dtype)
-                self.assertLess(torch.norm(output-output_torch).item()/(32.*16.*28.*28.), 1e-4)
+                self.assertLess(
+                    torch.norm(output - output_torch).item() / (32.0 * 16.0 * 28.0 * 28.0), 1e-4
+                )
                 loss.backward()
                 loss_torch.backward()
 
                 self.dp_optim.step()
                 self.optimizer_torch.step()
 
+
 class TestBatchNormalization3D(unittest.TestCase):
-
     def setUp(self):
-
         class Net(ht.nn.Module):
             def __init__(self):
                 super(Net, self).__init__()
                 self.batch = ht.nn.SyncBatchNorm(16)
+
             def forward(self, x):
                 return self.batch(x)
 
@@ -175,13 +176,11 @@ class TestBatchNormalization3D(unittest.TestCase):
 
             def forward(self, x):
                 return self.batch(x)
-                
-
 
         self.no_cuda = False
         self.lr = 2.0
         self.iterations = 10
-        self.use_cuda = True #not self.no_cuda and torch.cuda.is_available()
+        self.use_cuda = True  # not self.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if self.use_cuda else "cpu")
 
         self.model = Net().to(self.device)
@@ -192,19 +191,21 @@ class TestBatchNormalization3D(unittest.TestCase):
 
         self.dp_optim = ht.optim.DataParallelOptimizer(self.optimizer, blocking=False)
         self.dp_model = ht.nn.DataParallel(
-            self.model, comm=ht.MPICommunication(), optimizer=self.dp_optim, blocking_parameter_updates=False
+            self.model,
+            comm=ht.MPICommunication(),
+            optimizer=self.dp_optim,
+            blocking_parameter_updates=False,
         )
 
-
     def test_batchnorm_float32_3d(self):
-    
+
         if torch.cuda.is_available():
 
             self.model.train()
             data_list = list()
-            
+
             for tt1 in range(ht.MPI_WORLD.size):
-                torch.manual_seed(tt1)   
+                torch.manual_seed(tt1)
                 data_list.append(torch.randn(32, 16, 28, 28, 28).to(self.device))
 
             target = data_list[ht.MPI_WORLD.rank].mean()
@@ -217,13 +218,16 @@ class TestBatchNormalization3D(unittest.TestCase):
                 self.optimizer_torch.zero_grad()
                 output = self.dp_model(data_list[ht.MPI_WORLD.rank])
                 output_torch = self.model_torch(data)
-                output_torch = output_torch[32*rank:32*(rank+1)]
+                output_torch = output_torch[32 * rank : 32 * (rank + 1)]
                 loss = F.mse_loss(output.mean(), target)
                 loss_torch = F.mse_loss(output_torch.mean(), target)
                 self.assertNotAlmostEqual(output.std().item(), 1.0)
                 self.assertEqual(output.shape, (32, 16, 28, 28, 28))
                 self.assertEqual(data.dtype, output.dtype)
-                self.assertLess(torch.norm(output-output_torch).item()/(32.*16.*28.*28.*28.), 1e-4)
+                self.assertLess(
+                    torch.norm(output - output_torch).item() / (32.0 * 16.0 * 28.0 * 28.0 * 28.0),
+                    1e-4,
+                )
                 loss.backward()
                 loss_torch.backward()
 
@@ -231,16 +235,14 @@ class TestBatchNormalization3D(unittest.TestCase):
                 self.optimizer_torch.step()
 
 
-
 class TestBatchNormalization1DNoAffine(unittest.TestCase):
-
     def setUp(self):
-
         class Net(ht.nn.Module):
             def __init__(self):
                 super(Net, self).__init__()
                 self.conv1 = ht.nn.Conv2d(1, 1, 3, 1)
                 self.batch = ht.nn.SyncBatchNorm(16, affine=False)
+
             def forward(self, x):
                 return self.batch(x)
 
@@ -253,12 +255,10 @@ class TestBatchNormalization1DNoAffine(unittest.TestCase):
             def forward(self, x):
                 return self.batch(x)
 
-
-
         self.no_cuda = False
         self.lr = 2.0
         self.iterations = 10
-        self.use_cuda = True #not self.no_cuda and torch.cuda.is_available()
+        self.use_cuda = True  # not self.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if self.use_cuda else "cpu")
 
         self.model = Net().to(self.device)
@@ -269,14 +269,14 @@ class TestBatchNormalization1DNoAffine(unittest.TestCase):
 
         self.dp_optim = ht.optim.DataParallelOptimizer(self.optimizer, blocking=False)
         self.dp_model = ht.nn.DataParallel(
-            self.model, comm=ht.MPICommunication(), optimizer=self.dp_optim, blocking_parameter_updates=False
+            self.model,
+            comm=ht.MPICommunication(),
+            optimizer=self.dp_optim,
+            blocking_parameter_updates=False,
         )
 
-
-
-
     def test_batchnorm_float32_1d_noaffine(self):
-       
+
         if torch.cuda.is_available():
 
             self.model.train()
@@ -290,24 +290,23 @@ class TestBatchNormalization1DNoAffine(unittest.TestCase):
             data = torch.cat(data_list, 0)
             rank = ht.MPI_WORLD.rank
 
-
             output = self.dp_model(data_list[ht.MPI_WORLD.rank])
             output_torch = self.model_torch(data)
-            output_torch = output_torch[32*rank:32*(rank+1)]
+            output_torch = output_torch[32 * rank : 32 * (rank + 1)]
             self.assertNotAlmostEqual(output.std().item(), 1.0)
             self.assertEqual(output.shape, (32, 16, 28))
             self.assertEqual(data.dtype, output.dtype)
-            self.assertLess(torch.norm(output-output_torch).item()/(32.*16.*28.), 1e-4)
+            self.assertLess(torch.norm(output - output_torch).item() / (32.0 * 16.0 * 28.0), 1e-4)
+
 
 class TestBatchNormalization2DNoAffine(unittest.TestCase):
-
     def setUp(self):
-
         class Net(ht.nn.Module):
             def __init__(self):
                 super(Net, self).__init__()
                 self.conv1 = ht.nn.Conv2d(1, 1, 3, 1)
                 self.batch = ht.nn.SyncBatchNorm(16, affine=False)
+
             def forward(self, x):
                 return self.batch(x)
 
@@ -319,13 +318,11 @@ class TestBatchNormalization2DNoAffine(unittest.TestCase):
 
             def forward(self, x):
                 return self.batch(x)
-                
-
 
         self.no_cuda = False
         self.lr = 2.0
         self.iterations = 10
-        self.use_cuda = True #not self.no_cuda and torch.cuda.is_available()
+        self.use_cuda = True  # not self.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if self.use_cuda else "cpu")
 
         self.model = Net().to(self.device)
@@ -336,19 +333,21 @@ class TestBatchNormalization2DNoAffine(unittest.TestCase):
 
         self.dp_optim = ht.optim.DataParallelOptimizer(self.optimizer, blocking=False)
         self.dp_model = ht.nn.DataParallel(
-            self.model, comm=ht.MPICommunication(), optimizer=self.dp_optim, blocking_parameter_updates=False
+            self.model,
+            comm=ht.MPICommunication(),
+            optimizer=self.dp_optim,
+            blocking_parameter_updates=False,
         )
 
-
     def test_batchnorm_float32_2d_noaffine(self):
-    
+
         if torch.cuda.is_available():
 
             self.model.train()
             data_list = list()
-            
+
             for tt1 in range(ht.MPI_WORLD.size):
-                torch.manual_seed(tt1)   
+                torch.manual_seed(tt1)
                 data_list.append(torch.randn(32, 16, 28, 28).to(self.device))
 
             target = data_list[ht.MPI_WORLD.rank].mean()
@@ -357,23 +356,25 @@ class TestBatchNormalization2DNoAffine(unittest.TestCase):
 
             output = self.dp_model(data_list[ht.MPI_WORLD.rank])
             output_torch = self.model_torch(data)
-            output_torch = output_torch[32*rank:32*(rank+1)]
+            output_torch = output_torch[32 * rank : 32 * (rank + 1)]
             loss = F.mse_loss(output.mean(), target)
             loss_torch = F.mse_loss(output_torch.mean(), target)
             self.assertNotAlmostEqual(output.std().item(), 1.0)
             self.assertEqual(output.shape, (32, 16, 28, 28))
             self.assertEqual(data.dtype, output.dtype)
-            self.assertLess(torch.norm(output-output_torch).item()/(32.*16.*28.*28.), 1e-4)
+            self.assertLess(
+                torch.norm(output - output_torch).item() / (32.0 * 16.0 * 28.0 * 28.0), 1e-4
+            )
+
 
 class TestBatchNormalization3DNoAffine(unittest.TestCase):
-
     def setUp(self):
-
         class Net(ht.nn.Module):
             def __init__(self):
                 super(Net, self).__init__()
                 self.conv1 = ht.nn.Conv2d(1, 1, 3, 1)
                 self.batch = ht.nn.SyncBatchNorm(16, affine=False)
+
             def forward(self, x):
                 return self.batch(x)
 
@@ -385,13 +386,11 @@ class TestBatchNormalization3DNoAffine(unittest.TestCase):
 
             def forward(self, x):
                 return self.batch(x)
-                
-
 
         self.no_cuda = False
         self.lr = 2.0
         self.iterations = 10
-        self.use_cuda = True #not self.no_cuda and torch.cuda.is_available()
+        self.use_cuda = True  # not self.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if self.use_cuda else "cpu")
 
         self.model = Net().to(self.device)
@@ -402,46 +401,47 @@ class TestBatchNormalization3DNoAffine(unittest.TestCase):
 
         self.dp_optim = ht.optim.DataParallelOptimizer(self.optimizer, blocking=False)
         self.dp_model = ht.nn.DataParallel(
-            self.model, comm=ht.MPICommunication(), optimizer=self.dp_optim, blocking_parameter_updates=False
+            self.model,
+            comm=ht.MPICommunication(),
+            optimizer=self.dp_optim,
+            blocking_parameter_updates=False,
         )
 
-
     def test_batchnorm_float32_3d_noaffine(self):
-    
+
         if torch.cuda.is_available():
 
             self.model.train()
             data_list = list()
-            
+
             for tt1 in range(ht.MPI_WORLD.size):
-                torch.manual_seed(tt1)   
+                torch.manual_seed(tt1)
                 data_list.append(torch.randn(32, 16, 28, 28, 28).to(self.device))
 
             target = data_list[ht.MPI_WORLD.rank].mean()
             data = torch.cat(data_list, 0)
             rank = ht.MPI_WORLD.rank
 
-
             output = self.dp_model(data_list[ht.MPI_WORLD.rank])
             output_torch = self.model_torch(data)
-            output_torch = output_torch[32*rank:32*(rank+1)]
+            output_torch = output_torch[32 * rank : 32 * (rank + 1)]
             loss = F.mse_loss(output.mean(), target)
             loss_torch = F.mse_loss(output_torch.mean(), target)
             self.assertNotAlmostEqual(output.std().item(), 1.0)
             self.assertEqual(output.shape, (32, 16, 28, 28, 28))
             self.assertEqual(data.dtype, output.dtype)
-            self.assertLess(torch.norm(output-output_torch).item()/(32.*16.*28.*28.*28.), 1e-4)
-
+            self.assertLess(
+                torch.norm(output - output_torch).item() / (32.0 * 16.0 * 28.0 * 28.0 * 28.0), 1e-4
+            )
 
 
 class TestBatchNormalization1DNoMoment(unittest.TestCase):
-
     def setUp(self):
-
         class Net(ht.nn.Module):
             def __init__(self):
                 super(Net, self).__init__()
                 self.batch = ht.nn.SyncBatchNorm(16, momentum=None)
+
             def forward(self, x):
                 return self.batch(x)
 
@@ -453,12 +453,10 @@ class TestBatchNormalization1DNoMoment(unittest.TestCase):
             def forward(self, x):
                 return self.batch(x)
 
-
-
         self.no_cuda = False
         self.lr = 2.0
         self.iterations = 10
-        self.use_cuda = True #not self.no_cuda and torch.cuda.is_available()
+        self.use_cuda = True  # not self.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if self.use_cuda else "cpu")
 
         self.model = Net().to(self.device)
@@ -469,12 +467,14 @@ class TestBatchNormalization1DNoMoment(unittest.TestCase):
 
         self.dp_optim = ht.optim.DataParallelOptimizer(self.optimizer, blocking=False)
         self.dp_model = ht.nn.DataParallel(
-            self.model, comm=ht.MPICommunication(), optimizer=self.dp_optim, blocking_parameter_updates=False
+            self.model,
+            comm=ht.MPICommunication(),
+            optimizer=self.dp_optim,
+            blocking_parameter_updates=False,
         )
 
-
     def test_batchnorm_float32_1d_nomoment(self):
-       
+
         if torch.cuda.is_available():
 
             self.model.train()
@@ -494,13 +494,15 @@ class TestBatchNormalization1DNoMoment(unittest.TestCase):
                 self.optimizer_torch.zero_grad()
                 output = self.dp_model(data_list[ht.MPI_WORLD.rank])
                 output_torch = self.model_torch(data)
-                output_torch = output_torch[32*rank:32*(rank+1)]
+                output_torch = output_torch[32 * rank : 32 * (rank + 1)]
                 loss = F.mse_loss(output.mean(), target)
                 loss_torch = F.mse_loss(output_torch.mean(), target)
                 self.assertNotAlmostEqual(output.std().item(), 1.0)
                 self.assertEqual(output.shape, (32, 16, 28))
                 self.assertEqual(data.dtype, output.dtype)
-                self.assertLess(torch.norm(output-output_torch).item()/(32.*16.*28.), 1e-4)
+                self.assertLess(
+                    torch.norm(output - output_torch).item() / (32.0 * 16.0 * 28.0), 1e-4
+                )
                 loss.backward
                 loss_torch.backward()
 
@@ -509,13 +511,12 @@ class TestBatchNormalization1DNoMoment(unittest.TestCase):
 
 
 class TestBatchNormalization2DNoMoment(unittest.TestCase):
-
     def setUp(self):
-
         class Net(ht.nn.Module):
             def __init__(self):
                 super(Net, self).__init__()
                 self.batch = ht.nn.SyncBatchNorm(16, momentum=None)
+
             def forward(self, x):
                 return self.batch(x)
 
@@ -526,13 +527,11 @@ class TestBatchNormalization2DNoMoment(unittest.TestCase):
 
             def forward(self, x):
                 return self.batch(x)
-                
-
 
         self.no_cuda = False
         self.lr = 2.0
         self.iterations = 10
-        self.use_cuda = True #not self.no_cuda and torch.cuda.is_available()
+        self.use_cuda = True  # not self.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if self.use_cuda else "cpu")
 
         self.model = Net().to(self.device)
@@ -543,19 +542,21 @@ class TestBatchNormalization2DNoMoment(unittest.TestCase):
 
         self.dp_optim = ht.optim.DataParallelOptimizer(self.optimizer, blocking=False)
         self.dp_model = ht.nn.DataParallel(
-            self.model, comm=ht.MPICommunication(), optimizer=self.dp_optim, blocking_parameter_updates=False
+            self.model,
+            comm=ht.MPICommunication(),
+            optimizer=self.dp_optim,
+            blocking_parameter_updates=False,
         )
 
-
     def test_batchnorm_float32_2d(self):
-    
+
         if torch.cuda.is_available():
 
             self.model.train()
             data_list = list()
-            
+
             for tt1 in range(ht.MPI_WORLD.size):
-                torch.manual_seed(tt1)   
+                torch.manual_seed(tt1)
                 data_list.append(torch.randn(32, 16, 28, 28).to(self.device))
 
             target = data_list[ht.MPI_WORLD.rank].mean()
@@ -568,27 +569,29 @@ class TestBatchNormalization2DNoMoment(unittest.TestCase):
                 self.optimizer_torch.zero_grad()
                 output = self.dp_model(data_list[ht.MPI_WORLD.rank])
                 output_torch = self.model_torch(data)
-                output_torch = output_torch[32*rank:32*(rank+1)]
+                output_torch = output_torch[32 * rank : 32 * (rank + 1)]
                 loss = F.mse_loss(output.mean(), target)
                 loss_torch = F.mse_loss(output_torch.mean(), target)
                 self.assertNotAlmostEqual(output.std().item(), 1.0)
                 self.assertEqual(output.shape, (32, 16, 28, 28))
                 self.assertEqual(data.dtype, output.dtype)
-                self.assertLess(torch.norm(output-output_torch).item()/(32.*16.*28.*28.), 1e-4)
+                self.assertLess(
+                    torch.norm(output - output_torch).item() / (32.0 * 16.0 * 28.0 * 28.0), 1e-4
+                )
                 loss.backward()
                 loss_torch.backward()
 
                 self.dp_optim.step()
                 self.optimizer_torch.step()
 
+
 class TestBatchNormalization3DNoMoment(unittest.TestCase):
-
     def setUp(self):
-
         class Net(ht.nn.Module):
             def __init__(self):
                 super(Net, self).__init__()
                 self.batch = ht.nn.SyncBatchNorm(16, momentum=None)
+
             def forward(self, x):
                 return self.batch(x)
 
@@ -599,13 +602,11 @@ class TestBatchNormalization3DNoMoment(unittest.TestCase):
 
             def forward(self, x):
                 return self.batch(x)
-                
-
 
         self.no_cuda = False
         self.lr = 2.0
         self.iterations = 10
-        self.use_cuda = True #not self.no_cuda and torch.cuda.is_available()
+        self.use_cuda = True  # not self.no_cuda and torch.cuda.is_available()
         self.device = torch.device("cuda" if self.use_cuda else "cpu")
 
         self.model = Net().to(self.device)
@@ -616,19 +617,21 @@ class TestBatchNormalization3DNoMoment(unittest.TestCase):
 
         self.dp_optim = ht.optim.DataParallelOptimizer(self.optimizer, blocking=False)
         self.dp_model = ht.nn.DataParallel(
-            self.model, comm=ht.MPICommunication(), optimizer=self.dp_optim, blocking_parameter_updates=False
+            self.model,
+            comm=ht.MPICommunication(),
+            optimizer=self.dp_optim,
+            blocking_parameter_updates=False,
         )
 
-
     def test_batchnorm_float32_3d(self):
-    
+
         if torch.cuda.is_available():
 
             self.model.train()
             data_list = list()
-            
+
             for tt1 in range(ht.MPI_WORLD.size):
-                torch.manual_seed(tt1)   
+                torch.manual_seed(tt1)
                 data_list.append(torch.randn(32, 16, 28, 28, 28).to(self.device))
 
             target = data_list[ht.MPI_WORLD.rank].mean()
@@ -641,17 +644,18 @@ class TestBatchNormalization3DNoMoment(unittest.TestCase):
                 self.optimizer_torch.zero_grad()
                 output = self.dp_model(data_list[ht.MPI_WORLD.rank])
                 output_torch = self.model_torch(data)
-                output_torch = output_torch[32*rank:32*(rank+1)]
+                output_torch = output_torch[32 * rank : 32 * (rank + 1)]
                 loss = F.mse_loss(output.mean(), target)
                 loss_torch = F.mse_loss(output_torch.mean(), target)
                 self.assertNotAlmostEqual(output.std().item(), 1.0)
                 self.assertEqual(output.shape, (32, 16, 28, 28, 28))
                 self.assertEqual(data.dtype, output.dtype)
-                self.assertLess(torch.norm(output-output_torch).item()/(32.*16.*28.*28.*28.), 1e-4)
+                self.assertLess(
+                    torch.norm(output - output_torch).item() / (32.0 * 16.0 * 28.0 * 28.0 * 28.0),
+                    1e-4,
+                )
                 loss.backward()
                 loss_torch.backward()
 
                 self.dp_optim.step()
                 self.optimizer_torch.step()
-
-

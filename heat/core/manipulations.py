@@ -869,58 +869,58 @@ def flip(a, axis=None):
 
 def fliplr(a):
     """
-        Flip array in the left/right direction. If a.ndim > 2, flip along dimension 1.
+    Flip array in the left/right direction. If a.ndim > 2, flip along dimension 1.
 
-        Parameters
-        ----------
-        a: ht.DNDarray
-            Input array to be flipped, must be at least 2-D
+    Parameters
+    ----------
+    a: ht.DNDarray
+        Input array to be flipped, must be at least 2-D
 
-        Returns
-        -------
-        res: ht.DNDarray
-            The flipped array.
+    Returns
+    -------
+    res: ht.DNDarray
+        The flipped array.
 
-        Examples
-        --------
-        >>> a = ht.array([[0,1],[2,3]])
-        >>> ht.fliplr(a)
-        tensor([[1, 0],
-                [3, 2]])
+    Examples
+    --------
+    >>> a = ht.array([[0,1],[2,3]])
+    >>> ht.fliplr(a)
+    tensor([[1, 0],
+            [3, 2]])
 
-        >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
-        >>> ht.fliplr(b)
-        (1/2) tensor([[2, 1, 0]])
-        (2/2) tensor([[5, 4, 3]])
+    >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
+    >>> ht.fliplr(b)
+    (1/2) tensor([[2, 1, 0]])
+    (2/2) tensor([[5, 4, 3]])
     """
     return flip(a, 1)
 
 
 def flipud(a):
     """
-        Flip array in the up/down direction.
+    Flip array in the up/down direction.
 
-        Parameters
-        ----------
-        a: ht.DNDarray
-            Input array to be flipped
+    Parameters
+    ----------
+    a: ht.DNDarray
+        Input array to be flipped
 
-        Returns
-        -------
-        res: ht.DNDarray
-            The flipped array.
+    Returns
+    -------
+    res: ht.DNDarray
+        The flipped array.
 
-        Examples
-        --------
-        >>> a = ht.array([[0,1],[2,3]])
-        >>> ht.flipud(a)
-        tensor([[2, 3],
-            [0, 1]])
+    Examples
+    --------
+    >>> a = ht.array([[0,1],[2,3]])
+    >>> ht.flipud(a)
+    tensor([[2, 3],
+        [0, 1]])
 
-        >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
-        >>> ht.flipud(b)
-        (1/2) tensor([3,4,5])
-        (2/2) tensor([0,1,2])
+    >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
+    >>> ht.flipud(b)
+    (1/2) tensor([3,4,5])
+    (2/2) tensor([0,1,2])
     """
     return flip(a, 0)
 
@@ -990,7 +990,7 @@ def hsplit(ary, indices_or_sections):
             DNDarray([[[ 9, 10, 11]],
 
                       [[21, 22, 23]]])]
-       """
+    """
     sanitation.sanitize_in(ary)
 
     if len(ary.lshape) < 2:
@@ -3052,7 +3052,7 @@ def vsplit(ary, indices_or_sections):
                        [20, 21],
                        [22, 23]]])]
 
-           """
+    """
     return split(ary, indices_or_sections, 0)
 
 
@@ -3290,50 +3290,50 @@ def vstack(tup):
 
 def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     """
-    Returns the k highest entries in the array.
-    (Not Stable for split arrays)
+     Returns the k highest entries in the array.
+     (Not Stable for split arrays)
 
-    Parameters:
-    -------
-    a: DNDarray
-        Array to take items from
-    k: int
-        Number of items to take
-    dim: int
-        Dimension along which to take, per default the last dimension
-    largest: bool
-        Return either the k largest or smallest items
-    sorted: bool
-        Whether to sort the output (descending if largest=True, else ascending)
-    out: tuple of ht.DNDarrays
-        (items, indices) to put the result in
+     Parameters:
+     -------
+     a: DNDarray
+         Array to take items from
+     k: int
+         Number of items to take
+     dim: int
+         Dimension along which to take, per default the last dimension
+     largest: bool
+         Return either the k largest or smallest items
+     sorted: bool
+         Whether to sort the output (descending if largest=True, else ascending)
+     out: tuple of ht.DNDarrays
+         (items, indices) to put the result in
 
-    Returns
-    -------
-    items: ht.DNDarray of shape (k,)
-        The selected items
-    indices: ht.DNDarray of shape (k,)
-        The respective indices
+     Returns
+     -------
+     items: ht.DNDarray of shape (k,)
+         The selected items
+     indices: ht.DNDarray of shape (k,)
+         The respective indices
 
-    Examples
-    --------
-    >>> a = ht.array([1, 2, 3])
-    >>> ht.topk(a,2)
-    (tensor([3, 2]), tensor([2, 1]))
-    >>> a = ht.array([[1,2,3],[1,2,3]])
-    >>> ht.topk(a,2,dim=1)
-   (tensor([[3, 2],
-        [3, 2]]),
-    tensor([[2, 1],
-        [2, 1]]))
-    >>> a = ht.array([[1,2,3],[1,2,3]], split=1)
-    >>> ht.topk(a,2,dim=1)
-   (tensor([[3],
-        [3]]), tensor([[1],
-        [1]]))
-    (tensor([[2],
-        [2]]), tensor([[1],
-        [1]]))
+     Examples
+     --------
+     >>> a = ht.array([1, 2, 3])
+     >>> ht.topk(a,2)
+     (tensor([3, 2]), tensor([2, 1]))
+     >>> a = ht.array([[1,2,3],[1,2,3]])
+     >>> ht.topk(a,2,dim=1)
+    (tensor([[3, 2],
+         [3, 2]]),
+     tensor([[2, 1],
+         [2, 1]]))
+     >>> a = ht.array([[1,2,3],[1,2,3]], split=1)
+     >>> ht.topk(a,2,dim=1)
+    (tensor([[3],
+         [3]]), tensor([[1],
+         [1]]))
+     (tensor([[2],
+         [2]]), tensor([[1],
+         [1]]))
     """
 
     if dim is None:

@@ -1532,9 +1532,9 @@ class DNDarray:
         l_dtype = self.dtype.torch_type()
         kgshape_flag = False
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
-            """ if the key is a DNDarray and it has as many dimensions as self, then each of the entries in the 0th
-                dim refer to a single element. To handle this, the key is split into the torch tensors for each dimension.
-                This signals that advanced indexing is to be used. """
+            """if the key is a DNDarray and it has as many dimensions as self, then each of the entries in the 0th
+            dim refer to a single element. To handle this, the key is split into the torch tensors for each dimension.
+            This signals that advanced indexing is to be used."""
             key.balance_()
             key = manipulations.resplit(key.copy())
             lkey = [slice(None, None, None)] * self.ndim
@@ -1549,9 +1549,9 @@ class DNDarray:
                 lkey[0] = key.larray
             key = tuple(lkey)
         elif not isinstance(key, tuple):
-            """ this loop handles all other cases. DNDarrays which make it to here refer to advanced indexing slices,
-                as do the torch tensors. Both DNDaarrys and torch.Tensors are cast into lists here by PyTorch.
-                lists mean advanced indexing will be used"""
+            """this loop handles all other cases. DNDarrays which make it to here refer to advanced indexing slices,
+            as do the torch tensors. Both DNDaarrys and torch.Tensors are cast into lists here by PyTorch.
+            lists mean advanced indexing will be used"""
             h = [slice(None, None, None)] * self.ndim
             if isinstance(key, DNDarray):
                 key.balance_()
