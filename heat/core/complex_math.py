@@ -1,27 +1,32 @@
+"""
+This module handles operations focussing on complex numbers.
+"""
+
 import torch
+from typing import Optional
 
 from . import _operations
 from . import constants
 from . import factories
 from . import trigonometrics
 from . import types
+from .dndarray import DNDarray
 
 __all__ = ["angle", "conj", "conjugate", "imag", "real"]
 
 
-def angle(z, deg: bool = False, out=None):
+def angle(x: DNDarray, deg: bool = False, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Calculate the element-wise angle of the complex argument.
 
     Parameters
     ----------
-    z : DNDarray
+    x : DNDarray
+        Input array for which to compute the angle.
     deg : bool, optional
+        Return the angle in degrees (True) or radiands (False).
     out : DNDarray, optional
-
-    Returns
-    -------
-    out : DNDarray
+        Output array with the angles.
 
     Examples
     --------
@@ -30,7 +35,7 @@ def angle(z, deg: bool = False, out=None):
     >>> ht.angle(ht.array([1.0, 1.0j, 1+1j, -2+2j, 3 - 3j]), deg=True)
     DNDarray([  0.,  90.,  45., 135., -45.], dtype=ht.float32, device=cpu:0, split=None)
     """
-    a = _operations.__local_op(torch.angle, z, out)
+    a = _operations.__local_op(torch.angle, x, out)
 
     if deg:
         a *= 180 / constants.pi
@@ -38,18 +43,16 @@ def angle(z, deg: bool = False, out=None):
     return a
 
 
-def conjugate(x, out=None):
+def conjugate(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Compute the complex conjugate, element-wise.
 
     Parameters
     ----------
     x : DNDarray
+        Input array for which to compute the complex conjugate.
     out : DNDarray, optional
-
-    Returns
-    -------
-    DNDarray
+        Output array with the complex conjugates.
 
     Examples
     --------
@@ -63,48 +66,41 @@ def conjugate(x, out=None):
 conj = conjugate
 
 
-def imag(val):
+def imag(x: DNDarray) -> DNDarray:
     """
     Return the imaginary part of the complex argument. The returned DNDarray and the input DNDarray share the same underlying storage.
 
     Parameters
     ----------
-    val : DNDarray
-
-    Returns
-    --------
-    DNDarray
+    x : DNDarray
+        Input array for which the imaginary part is returned.
 
     Examples
     --------
     >>> ht.imag(ht.array([1.0, 1.0j, 1+1j, -2+2j, 3 - 3j]))
     DNDarray([ 0.,  1.,  1.,  2., -3.], dtype=ht.float32, device=cpu:0, split=None)
     """
-    if types.heat_type_is_complexfloating(val.dtype):
-        return _operations.__local_op(torch.imag, val, None)
+    if types.heat_type_is_complexfloating(x.dtype):
+        return _operations.__local_op(torch.imag, x, None)
     else:
-        return factories.zeros_like(val)
+        return factories.zeros_like(x)
 
 
-def real(val):
+def real(x: DNDarray) -> DNDarray:
     """
     Return the real part of the complex argument. The returned DNDarray and the input DNDarray share the same underlying storage.
 
     Parameters
     ----------
-    val : DNDarray
-        input
-
-    Returns
-    ------
-    DNDarray
+    x : DNDarray
+        Input array for which the real part is returned.
 
     Examples
     --------
     >>> ht.real(ht.array([1.0, 1.0j, 1+1j, -2+2j, 3 - 3j]))
     DNDarray([ 1.,  0.,  1., -2.,  3.], dtype=ht.float32, device=cpu:0, split=None)
     """
-    if types.heat_type_is_complexfloating(val.dtype):
-        return _operations.__local_op(torch.real, val, None)
+    if types.heat_type_is_complexfloating(x.dtype):
+        return _operations.__local_op(torch.real, x, None)
     else:
-        return val
+        return x
