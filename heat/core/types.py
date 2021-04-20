@@ -61,6 +61,7 @@ __all__ = [
     "isreal",
     "issubdtype",
     "promote_types",
+    "result_type",
     "complex64",
     "cfloat",
     "csingle",
@@ -685,17 +686,6 @@ def issubdtype(arg1, arg2):
     return issubclass(arg1, arg2)
 
 
-def result_type(arg1, arg2):
-
-    arg1 = factories.empty(0, dtype=canonical_heat_type(arg1))
-    arg2 = factories.empty(0, dtype=canonical_heat_type(arg2))
-    sanitation.sanitize_in(arg1)
-    arg1 = arg1.larray
-    sanitation.sanitize_in(arg2)
-    arg2 = arg2.larray
-    return canonical_heat_type(torch.result_type(arg1, arg2))
-
-
 def promote_types(type1, type2):
     """
     Returns the data type with the smallest size and smallest scalar kind to which both type1 and type2 may be
@@ -729,6 +719,93 @@ def promote_types(type1, type2):
     typecode_type2 = __type_codes[canonical_heat_type(type2)]
 
     return __type_promotions[typecode_type1][typecode_type2]
+
+
+def result_type(*arrays_and_types):
+    """
+    Returns the data type that results from type promotions rules performed in an arithmetic operation.
+
+    Parameters
+    ----------
+    arrays_and_types: List of arrays and types
+        Input arrays, types or numbers of the operation.
+
+    Examples
+    --------
+    >>> ht.result_type(ht.array([1], dtype=ht.int32), 1)
+    ht.int32
+    >>> ht.result_type(ht.float32, ht.array(1, dtype=ht.int8))
+    ht.float32
+    >>> ht.result_type("i8", "f4")
+    ht.float64
+    """
+
+    def result_type_rec(*arrays_and_types):
+        # derive type
+        arg = arrays_and_types[0]
+        try:
+            sanitation.sanitize_in(arg)
+            type1 = arg.dtype
+            if len(arg.shape) > 0:
+                prec1 = 0
+            else:
+                prec1 = 2
+        except Exception:
+            if isinstance(arg, builtins.bool):
+                type1 = bool
+                prec1 = 3
+            elif isinstance(arg, builtins.int):
+                type1 = int64
+                prec1 = 3
+            elif isinstance(arg, builtins.float):
+                type1 = float32
+                prec1 = 3
+            elif isinstance(arg, builtins.complex):
+                type1 = complex64
+                prec1 = 3
+            else:
+                type1 = canonical_heat_type(arg)
+                prec1 = 1
+
+        # multiple arguments
+        if len(arrays_and_types) > 1:
+            type2, prec2 = result_type_rec(*arrays_and_types[1:])
+
+            if type1 == type2:
+                return type1, min(prec1, prec2)
+            else:
+                if prec1 == prec2:
+                    return promote_types(type1, type2), prec1
+
+                for sclass in (bool, integer, float):
+                    if issubdtype(type1, sclass) and issubdtype(type2, sclass):
+                        if prec1 < prec2:
+                            return type1, min(prec1, prec2)
+                        if prec1 > prec2:
+                            return type2, min(prec1, prec2)
+
+                tc1 = __type_codes[type1]
+                tc2 = __type_codes[type2]
+
+                if tc1 < tc2:
+                    return type2, min(prec1, prec2)
+                if tc1 > tc2:
+                    return type1, min(prec1, prec2)
+
+                raise RuntimeError("Something went wrong")
+
+        # single argument
+        return type1, prec1
+
+    for i in arrays_and_types:
+        if isinstance(i, torch.Tensor):
+            raise TypeError("Torch tensors are not supported.")
+        if isinstance(i, np.ndarray):
+            raise TypeError("Numpy arrays are not supported.")
+        if isinstance(i, np.dtype):
+            raise TypeError("Numpy dtype objects are not supported.")
+
+    return result_type_rec(*arrays_and_types)[0]
 
 
 class finfo:
