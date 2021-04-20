@@ -128,7 +128,7 @@ class DataParallel(tnn.Module):
                 param.register_hook(self._nonblocking_hook(layer_name, name))
         self._param_slices[layer_name_prev] = slice(start_idx, len(self._param_indices))
 
-    def __setattr__(self, name: str, value: Union[torch.Module, torch.Tensor, ...]) -> None:
+    def __setattr__(self, name: str, value: Union[torch.nn.Module, torch.Tensor, ...]) -> None:
         """
         Overwrite the current torch.nn.Module.__setattr__ so that it auto-detects the end of epoch's
         training phase and finalize wait handles (only relevant for non-blocking)
