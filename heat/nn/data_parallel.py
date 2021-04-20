@@ -7,7 +7,7 @@ import torch.distributed
 import torch.nn as tnn
 
 from collections import OrderedDict
-from typing import Callable, Dict, List, Union, Tuple
+from typing import Any, Callable, Dict, List, Union, Tuple
 
 from .. import optim
 from ..core.communication import MPI
@@ -128,7 +128,7 @@ class DataParallel(tnn.Module):
                 param.register_hook(self._nonblocking_hook(layer_name, name))
         self._param_slices[layer_name_prev] = slice(start_idx, len(self._param_indices))
 
-    def __setattr__(self, name: str, value: Union[torch.nn.Module, torch.Tensor, ...]) -> None:
+    def __setattr__(self, name: str, value: Union[torch.nn.Module, torch.Tensor, Any]) -> None:
         """
         Overwrite the current torch.nn.Module.__setattr__ so that it auto-detects the end of epoch's
         training phase and finalize wait handles (only relevant for non-blocking)
