@@ -23,6 +23,14 @@ All configurations regarding the documentation build are set in `doc/source/conf
 API Documentation is generated using the `sphinx-autoapi extension <https://sphinx-autoapi.readthedocs.io>`_ . This is
 done via custom templates, defined in `source/_templates/autoapi/python`.
 
+To build the documentation locally please run the following commands in the HeAT home directory:
+
+* ``pip install doc/requirements.txt``
+* ``sphinx-build -T -E -b html doc/source doc/build/html``
+
+The second command will build a local rendering of the documentation in the ``doc/build/html/autoapi`` folder. These
+should be checked before creating pull requests
+
 Docstring Guidelines
 --------------------
 
