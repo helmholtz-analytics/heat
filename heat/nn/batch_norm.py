@@ -68,13 +68,7 @@ class HeatSyncBatchNorm(_BatchNorm):
             (i.e. simple average). Default: 0.1
         affine: a boolean value that when set to ``True``, this module has
             learnable affine parameters. Default: ``True``
-        track_running_stats: a boolean value that when set to ``True``, this
-            module tracks the running mean and variance, and when set to ``False``,
-            this module does not track such statistics, and initializes statistics
-            buffers :attr:`running_mean` and :attr:`running_var` as ``None``.
-            When these buffers are ``None``, this module always uses batch statistics.
-            in both training and eval modes. Default: ``True``
-        process_group: synchronization of stats happen within each process group
+        comm: synchronization of stats happen within each process group
             individually. Default behavior is synchronization across the whole
             world
 
@@ -97,10 +91,9 @@ class HeatSyncBatchNorm(_BatchNorm):
         eps: Optional[float] = 1e-5,
         momentum: Optional[float] = 0.1,
         affine: Optional[bool] = True,
-        track_running_stats: Optional[bool] = True,
         comm: Optional[Any] = None,
     ) -> None:
-        super().__init__(num_features, eps, momentum, affine, track_running_stats)
+        super().__init__(num_features, eps, momentum, affine)
         self.comm = comm
 
     def _check_input_dim(self, input: torch.Tensor) -> None:
@@ -122,7 +115,7 @@ class HeatSyncBatchNorm(_BatchNorm):
         else:
             exponential_average_factor = self.momentum
 
-        if self.training and self.track_running_stats:
+        if self.training:
             self.num_batches_tracked = self.num_batches_tracked + 1
             if self.momentum is None:  # use cumulative moving average
                 exponential_average_factor = 1.0 / self.num_batches_tracked.item()
@@ -138,18 +131,6 @@ class HeatSyncBatchNorm(_BatchNorm):
         else:
             bn_training = (self.running_mean is None) and (self.running_var is None)
 
-        r"""
-        Buffers are only updated if they are to be tracked and we are in training mode. Thus they only need to be
-        passed when the update should occur (i.e. in training mode when they are tracked), or when buffer stats are
-        used for normalization (i.e. in eval mode when buffers are not None).
-        """
-        # If buffers are not to be tracked, ensure that they won't be updated
-        self.running_mean = (
-            self.running_mean if not self.training or self.track_running_stats else None
-        )
-        self.running_var = (
-            self.running_var if not self.training or self.track_running_stats else None
-        )
 
         need_sync = bn_training
         if need_sync:
@@ -214,15 +195,15 @@ class SyncBatchNorm(Function):
 
         mean_shape = mean.shape
         mean = mean.unsqueeze(0)
-        mean_all = torch.zeros((comm.size,) + mean_shape, device=mean.device)
+        mean_all = torch.zeros((comm.size,) + mean_shape, dtype=input.dtype, device=mean.device)
         comm.Allgather(mean, mean_all)
 
         invstd_shape = invstd.shape
         invstd = invstd.unsqueeze(0)
-        invstd_all = torch.zeros((comm.size,) + invstd_shape, device=invstd.device)
+        invstd_all = torch.zeros((comm.size,) + invstd_shape,  dtype=input.dtype, device=invstd.device)
         comm.Allgather(invstd, invstd_all)
 
-        counts_for_bngswc = count_all.view(-1).float()
+        counts_for_bngswc = count_all.view(-1).to(dtype=input.dtype)
 
         # calculate global mean & invstd
         mean, invstd = torch.batch_norm_gather_stats_with_counts(
@@ -265,10 +246,10 @@ class SyncBatchNorm(Function):
             # synchronizing stats used to calculate input gradient.
             comm = self.comm
 
-            sum_dy_reduced = torch.zeros_like(sum_dy, device=grad_output.device)
+            sum_dy_reduced = torch.zeros_like(sum_dy, device=grad_output.device, dtype=grad_output.dtype)
             comm.Allreduce(sum_dy, sum_dy_reduced, op=MPI.SUM)
 
-            sum_dy_xmu_reduced = torch.zeros_like(sum_dy_xmu, device=grad_output.device)
+            sum_dy_xmu_reduced = torch.zeros_like(sum_dy_xmu, device=grad_output.device, dtype=grad_output.dtype)
             comm.Allreduce(sum_dy_xmu, sum_dy_xmu_reduced, op=MPI.SUM)
 
             mean_dy = sum_dy_reduced / comm.size
@@ -279,7 +260,6 @@ class SyncBatchNorm(Function):
                 grad_output, saved_input, mean, invstd, weight, mean_dy, mean_dy_xmu
             )
 
-            grad_input = grad_output
         else:
             grad_input = None
 
