@@ -40,6 +40,7 @@
 
 ### Types
 - [#738](https://github.com/helmholtz-analytics/heat/pull/738) `iscomplex()`, `isreal()`
+- [#761](https://github.com/helmholtz-analytics/heat/pull/761) `result_type`
 
 
 ## Bug fixes
