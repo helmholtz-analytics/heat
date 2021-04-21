@@ -142,7 +142,8 @@ class TestDASO(TestCase):
         os.environ["MASTER_ADDR"] = "localhost"
         os.environ["MASTER_PORT"] = "29500"
         os.environ["NCCL_SOCKET_IFNAME"] = "ib"
-        torch.distributed.init_process_group(backend="nccl", rank=loc_rank, world_size=gpus)
+        if not torch.distributed.is_initialized():
+            torch.distributed.init_process_group(backend="nccl", rank=loc_rank, world_size=gpus)
         torch.cuda.set_device(device)
         device = torch.device("cuda")
 
