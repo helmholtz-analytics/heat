@@ -349,11 +349,8 @@ class TestTypeConversion(TestCase):
             ),
             ht.complex128,
         )
+        self.assertEqual(ht.result_type(np.array([1, 2, 3]), torch.tensor([1, 2, 3])), ht.int64)
 
-        with self.assertRaises(TypeError):
-            ht.result_type(torch.tensor(1))
-        with self.assertRaises(TypeError):
-            ht.result_type(np.array([1]))
         with self.assertRaises(TypeError):
             ht.result_type(np.dtype("int32"))
 
