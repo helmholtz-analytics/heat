@@ -879,6 +879,10 @@ def result_type(
     def result_type_rec(*arrays_and_types):
         # derive type
         arg = arrays_and_types[0]
+
+        if isinstance(i, torch.Tensor) or isinstance(i, np.ndarray):
+            arg = factories.asarray(arg)
+
         try:
             sanitation.sanitize_in(arg)
             type1 = arg.dtype
@@ -934,10 +938,6 @@ def result_type(
         return type1, prec1
 
     for i in arrays_and_types:
-        if isinstance(i, torch.Tensor):
-            raise TypeError("Torch tensors are not supported.")
-        if isinstance(i, np.ndarray):
-            raise TypeError("Numpy arrays are not supported.")
         if isinstance(i, np.dtype):
             raise TypeError("Numpy dtype objects are not supported.")
 
