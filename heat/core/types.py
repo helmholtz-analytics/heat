@@ -880,7 +880,7 @@ def result_type(
         # derive type
         arg = arrays_and_types[0]
 
-        if isinstance(i, torch.Tensor) or isinstance(i, np.ndarray):
+        if isinstance(arg, torch.Tensor) or isinstance(arg, np.ndarray):
             arg = factories.asarray(arg)
 
         try:
