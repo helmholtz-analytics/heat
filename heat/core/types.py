@@ -479,7 +479,7 @@ __type_mappings = {
     builtins.bool: bool,
     builtins.int: int32,
     builtins.float: float32,
-    builtins.complex: complex128,
+    builtins.complex: complex64,
 }
 
 
@@ -880,32 +880,19 @@ def result_type(
         # derive type
         arg = arrays_and_types[0]
 
-        if isinstance(arg, torch.Tensor) or isinstance(arg, np.ndarray):
-            arg = factories.asarray(arg)
-
         try:
-            sanitation.sanitize_in(arg)
-            type1 = arg.dtype
+            type1 = canonical_heat_type(arg.dtype)
             if len(arg.shape) > 0:
                 prec1 = 0
             else:
                 prec1 = 2
         except Exception:
-            if isinstance(arg, builtins.bool):
-                type1 = bool
-                prec1 = 3
-            elif isinstance(arg, builtins.int):
-                type1 = int64
-                prec1 = 3
-            elif isinstance(arg, builtins.float):
-                type1 = float32
-                prec1 = 3
-            elif isinstance(arg, builtins.complex):
-                type1 = complex64
-                prec1 = 3
-            else:
+            try:
                 type1 = canonical_heat_type(arg)
                 prec1 = 1
+            except Exception:
+                type1 = canonical_heat_type(type(arg))
+                prec1 = 3
 
         # multiple arguments
         if len(arrays_and_types) > 1:
@@ -938,6 +925,8 @@ def result_type(
         return type1, prec1
 
     for i in arrays_and_types:
+        if isinstance(i, np.ndarray):
+            raise TypeError("Numpy arrays are not supported.")
         if isinstance(i, np.dtype):
             raise TypeError("Numpy dtype objects are not supported.")
 

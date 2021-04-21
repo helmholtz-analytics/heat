@@ -329,8 +329,8 @@ class TestTypeConversion(TestCase):
             ht.promote_types(ht.float32, "hello world")
 
     def test_result_type(self):
-        self.assertEqual(ht.result_type(1), ht.int64)
-        self.assertEqual(ht.result_type(1, 1.0), ht.float64)
+        self.assertEqual(ht.result_type(1), ht.int32)
+        self.assertEqual(ht.result_type(1, 1.0), ht.float32)
         self.assertEqual(ht.result_type(1.0, True, 1 + 1j), ht.complex64)
         self.assertEqual(ht.result_type(ht.array(1, dtype=ht.int32), 1), ht.int32)
         self.assertEqual(ht.result_type(1.0, ht.array(1, dtype=ht.int32)), ht.float32)
@@ -349,8 +349,10 @@ class TestTypeConversion(TestCase):
             ),
             ht.complex128,
         )
-        self.assertEqual(ht.result_type(np.array([1, 2, 3]), torch.tensor([1, 2, 3])), ht.int64)
+        self.assertEqual(ht.result_type(torch.tensor([1, 2, 3])), ht.int64)
 
+        with self.assertRaises(TypeError):
+            ht.result_type(np.array([1, 2, 3]))
         with self.assertRaises(TypeError):
             ht.result_type(np.dtype("int32"))
 
