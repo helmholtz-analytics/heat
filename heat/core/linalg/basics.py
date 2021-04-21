@@ -1052,9 +1052,12 @@ def trace(
         Input array, from which the diagonals are taken
     offset : int, optional
         Offsets of the diagonal from the main diagonal. Can be both positive and negative. Defaults to 0.
-    axis1, axis2 : int, optional
-        Axes to be used as the first and the second axis of the 2D-sub-arrays from which the diagonals
-        should be taken. Defaults are the first two axes of `a`
+    axis1: int, optional
+        Axis to be used as the first axis of the 2D-sub-arrays from which the diagonals
+        should be taken. Default is the first axis of `a`
+    axis2 : int, optional
+        Axis to be used as the second axis of the 2D-sub-arrays from which the diagonals
+        should be taken. Default is the second two axis of `a`
     dtype : dtype, optional
         Determines the data-type of the returned array and of the accumulator where the elements are
         summed. If `dtype` has value None than the dtype is the same as that of `a`
