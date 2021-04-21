@@ -439,16 +439,22 @@ _exact = (uint8, int8, int16, int32, int64)
 __type_mappings = {
     # type strings
     "?": bool,
+    "B": uint8,
     "b": int8,
+    "h": int16,
     "i": int32,
+    "l": int64,
+    "f": float32,
+    "d": float64,
+    "F": complex64,
+    "D": complex128,
+    "b1": bool,
+    "u": uint8,
+    "u1": uint8,
     "i1": int8,
     "i2": int16,
     "i4": int32,
     "i8": int64,
-    "B": uint8,
-    "u": uint8,
-    "u1": uint8,
-    "f": float32,
     "f4": float32,
     "f8": float64,
     "c8": complex64,
@@ -881,16 +887,25 @@ def result_type(
         arg = arrays_and_types[0]
 
         try:
-            type1 = canonical_heat_type(arg.dtype)
+            # array / tensor
+            if isinstance(arg, np.ndarray):
+                type1 = canonical_heat_type(arg.dtype.char)
+            else:
+                type1 = canonical_heat_type(arg.dtype)
+
             if len(arg.shape) > 0:
                 prec1 = 0
             else:
                 prec1 = 2
         except Exception:
+            # type
+            if isinstance(arg, np.dtype):
+                arg = arg.char
             try:
                 type1 = canonical_heat_type(arg)
                 prec1 = 1
             except Exception:
+                # instance
                 type1 = canonical_heat_type(type(arg))
                 prec1 = 3
 
@@ -923,12 +938,6 @@ def result_type(
 
         # single argument
         return type1, prec1
-
-    for i in arrays_and_types:
-        if isinstance(i, np.ndarray):
-            raise TypeError("Numpy arrays are not supported.")
-        if isinstance(i, np.dtype):
-            raise TypeError("Numpy dtype objects are not supported.")
 
     return result_type_rec(*arrays_and_types)[0]
 
