@@ -587,8 +587,8 @@ class TestDNDarray(TestCase):
 
         with self.assertRaises(TypeError):
             int_tensor << 2.4
-        with self.assertRaises(TypeError):
-            ht.array([True]) << 2
+        res = ht.left_shift(ht.array([True]), 2)
+        self.assertTrue(res == 4)
 
     def test_nbytes(self):
         # undistributed case
@@ -926,8 +926,8 @@ class TestDNDarray(TestCase):
 
         with self.assertRaises(TypeError):
             int_tensor >> 2.4
-        with self.assertRaises(TypeError):
-            ht.array([True]) >> 2
+        res = ht.right_shift(ht.array([True]), 2)
+        self.assertTrue(res == 0)
 
     def test_setitem_getitem(self):
         # tests for bug 730:

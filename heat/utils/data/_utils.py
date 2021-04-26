@@ -1,11 +1,55 @@
-import base64
-import os
+"""
+This file contains functions which may be useful for certain datatypes, but are not test in the heat framework
+This file contains standalone utilities for data preparation which may be useful
+The functions contained within are not tested, nor actively supported
+"""
 
+import base64
 import numpy as np
+import os
+import struct
+
+
+def dali_tfrecord2idx(train_dir, train_idx_dir, val_dir, val_idx_dir):
+    """
+    WARNING: This function likely requires adjustments and it is by no means a final product !!!
+    this file contains standalone utilities for data preparation which may be useful
+    this function contained within are not tested, nor actively supported
+
+    prepare TFRecords indexes for use with DALI. It will produce indexes for all files in the
+    given ``train_dir`` and ``val_dir`` directories
+    """
+    for tv in [train_dir, val_dir]:
+        dir_list = os.listdir(tv)
+        out = train_idx_dir if tv == train_dir else val_idx_dir
+        for file in dir_list:
+            with open(file, "rb") as f, open(out + file, "w") as idx:
+                while True:
+                    current = f.tell()
+                    try:
+                        # length
+                        byte_len = f.read(8)
+                        if len(byte_len) == 0:
+                            break
+                        # crc
+                        f.read(4)
+                        proto_len = struct.unpack("q", byte_len)[0]
+                        # proto
+                        f.read(proto_len)
+                        # crc
+                        f.read(4)
+                        idx.write(str(current) + " " + str(f.tell() - current) + "\n")
+                    except Exception:
+                        print("Not a valid TFRecord file")
+                        break
 
 
 def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
     """
+    WARNING: This function likely requires adjustments and it is by no means a final product !!!
+    this file contains standalone utilities for data preparation which may be useful
+    this function contained within are not tested, nor actively supported
+
     merge multiple preprocessed imagenet TFRecord files together,
     result is one HDF5 file with all of the images stacked in the 0th dimension
 
@@ -53,8 +97,8 @@ def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
         https://github.com/tensorflow/models/blob/master/research/inception/inception/data/download_and_preprocess_imagenet.sh
 
     """
-    import tensorflow as tf
     import h5py
+    import tensorflow as tf
 
     """
     labels:

@@ -381,8 +381,8 @@ class TestArithmetics(TestCase):
 
         with self.assertRaises(TypeError):
             ht.left_shift(int_tensor, 2.4)
-        with self.assertRaises(TypeError):
-            ht.left_shift(ht.array([True]), 2)
+        res = ht.left_shift(ht.array([True]), 2)
+        self.assertTrue(res == 4)
 
     def test_mod(self):
         a_tensor = ht.array([[1, 4], [2, 2]])
@@ -539,9 +539,10 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.right_shift(int_tensor.copy().resplit_(0), 1), int_result))
 
         with self.assertRaises(TypeError):
-            ht.left_shift(int_tensor, 2.4)
-        with self.assertRaises(TypeError):
-            ht.left_shift(ht.array([True]), 2)
+            ht.right_shift(int_tensor, 2.4)
+
+        res = ht.right_shift(ht.array([True]), 2)
+        self.assertTrue(res == 0)
 
     def test_sub(self):
         result = ht.array([[-1.0, 0.0], [1.0, 2.0]])
@@ -622,6 +623,15 @@ class TestArithmetics(TestCase):
         self.assertEqual(split_axis_sum.dtype, ht.float32)
         self.assertEqual(split_axis_sum.larray.dtype, torch.float32)
         self.assertEqual(split_axis_sum.split, None)
+
+        # check split semantics
+        shape_noaxis_split_axis = ht.ones((3, 3, 3), split=2)
+        split_axis_sum = shape_noaxis_split_axis.sum(axis=1)
+        self.assertIsInstance(split_axis_sum, ht.DNDarray)
+        self.assertEqual(split_axis_sum.shape, (3, 3))
+        self.assertEqual(split_axis_sum.dtype, ht.float32)
+        self.assertEqual(split_axis_sum.larray.dtype, torch.float32)
+        self.assertEqual(split_axis_sum.split, 1)
 
         out_noaxis = ht.zeros((3, 3))
         ht.sum(shape_noaxis, axis=0, out=out_noaxis)

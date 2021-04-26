@@ -7,7 +7,7 @@ curdir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(curdir, "../../")))
 
 import heat as ht
-from heat.classification.knn import KNN
+from heat.classification.kneighborsclassifier import KNeighborsClassifier
 
 # Load dataset from hdf5 file
 X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
@@ -118,9 +118,9 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
     split_number: int
         the number of test iterations
     split_size : int
-        the number of vectors used by the KNN-Algorithm
+        the number of vectors used by the KNeighborsClassifier-Algorithm
     k : int
-        The number of neighbours for KNN-Algorithm
+        The number of neighbours for KNeighborsClassifier-Algorithm
     seed : int
         Seed for the random generator used in creating folds. Used for deterministic testing purposes.
     Returns
@@ -136,7 +136,7 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
 
     for split_index in range(split_number):
         fold_x, fold_y, verification_x, verification_y = create_fold(x, y, split_size, seed)
-        classifier = KNN(fold_x, fold_y, k)
+        classifier = KNeighborsClassifier(fold_x, fold_y, k)
         result_y = classifier.predict(verification_x)
         accuracies.append(calculate_accuracy(result_y, verification_y).item())
     return accuracies
