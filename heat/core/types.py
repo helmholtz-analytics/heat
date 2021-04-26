@@ -898,10 +898,10 @@ def result_type(
             else:
                 prec1 = 2
         except Exception:
-            # type
-            if isinstance(arg, np.dtype):
-                arg = arg.char
             try:
+                # type
+                if isinstance(arg, np.dtype):
+                    arg = arg.char
                 type1 = canonical_heat_type(arg)
                 prec1 = 1
             except Exception:
@@ -934,7 +934,7 @@ def result_type(
                 if tc1 > tc2:
                     return type1, min(prec1, prec2)
 
-                raise RuntimeError("Something went wrong")
+                raise RuntimeError("Something went wrong")  # pragma: no cover
 
         # single argument
         return type1, prec1
