@@ -16,11 +16,13 @@
 - [#735](https://github.com/helmholtz-analytics/heat/pull/735) Set return type to bool in relational functions.
 - [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
 - [#756](https://github.com/helmholtz-analytics/heat/pull/756) Keep track of sent items while balancing within `sort()`
+- [#764](https://github.com/helmholtz-analytics/heat/pull/764) Fixed an issue where `repr` was giving the wrong output.
+
 
 ### DNDarray
-- [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: larray
-- [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: nbytes, gnbytes, lnbytes
-- [#687](https://github.com/helmholtz-analytics/heat/pull/687) New property: balanced
+- [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: `larray`: extract local torch.Tensor
+- [#683](https://github.com/helmholtz-analytics/heat/pull/683) New properties: `nbytes`, `gnbytes`, `lnbytes`
+- [#687](https://github.com/helmholtz-analytics/heat/pull/687) New property: `balanced`
 
 ### Factories
 - [#707](https://github.com/helmholtz-analytics/heat/pull/707) New feature: `asarray()`
@@ -34,7 +36,10 @@
 ### Manipulations
 - [#677](https://github.com/helmholtz-analytics/heat/pull/677) New features: `split`, `vsplit`, `dsplit`, `hsplit`
 - [#690](https://github.com/helmholtz-analytics/heat/pull/690) New feature: `ravel`
-- [#690](https://github.com/helmholtz-analytics/heat/pull/690) Enhancement: `reshape` accepts shape arguments with one unknown dimension.
+- [#690](https://github.com/helmholtz-analytics/heat/pull/690) Enhancement: `reshape` accepts shape arguments with one unknown dimension
+- [#690](https://github.com/helmholtz-analytics/heat/pull/690) Enhancement: reshape accepts shape arguments with one unknown dimension.
+- [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
+
 ### NN
 - [#660](https://github.com/helmholtz-analytics/heat/pull/660) New submodule: `nn.DataParallel` for creating and training data parallel neural networks
 - [#660](https://github.com/helmholtz-analytics/heat/pull/660) New feature: Synchronous and Asynchronous gradient updates availble for `ht.nn.DataParallel`
@@ -47,6 +52,7 @@
 
 ### Statistical Functions
 - [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``
+
 ### Types
 - [#712](https://github.com/helmholtz-analytics/heat/pull/712) New function: `issubdtype`
 - [#738](https://github.com/helmholtz-analytics/heat/pull/738) `iscomplex()`, `isreal()`
@@ -130,7 +136,7 @@
 - [#519](https://github.com/helmholtz-analytics/heat/pull/519) Bugfix: distributed slicing with empty list or scalar as input; distributed nonzero() of empty (local) tensor.
 - [#520](https://github.com/helmholtz-analytics/heat/pull/520) Bugfix: Resplit returns correct values now.
 - [#520](https://github.com/helmholtz-analytics/heat/pull/520) Feature: SplitTiles class, used in new resplit, tiles with theoretical and actual split axes
-- [#521](https://github.com/helmholtz-analytics/heat/pull/521) Add documentation for the generic reduce_op in Heat's core
+- [#521](https://github.com/helmholtz-analytics/heat/pull/521) Add documentation for the dtype reduce_op in Heat's core
 - [#522](https://github.com/helmholtz-analytics/heat/pull/522) Added CUDA-aware MPI detection for MVAPICH, MPICH and ParaStation.
 - [#524](https://github.com/helmholtz-analytics/heat/pull/524) New Feature: cumsum & cumprod
 - [#526](https://github.com/helmholtz-analytics/heat/pull/526) float32 is now consistent default dtype for factories.
