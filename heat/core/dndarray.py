@@ -934,11 +934,11 @@ class DNDarray:
         dist = self.copy().resplit_(axis=None)
         return dist.larray.cpu().numpy()
 
-    def __repr__(self, *args):
+    def __repr__(self) -> str:
         """
-        Returns the ``DNDarray`` in string format
+        Computes a printable representation of the passed DNDarray.
         """
-        return self.__array.__repr__(*args)
+        return printing.__str__(self)
 
     def ravel(self):
         """
