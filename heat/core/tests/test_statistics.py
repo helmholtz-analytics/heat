@@ -1260,6 +1260,8 @@ class TestStatistics(TestCase):
             x.var(axis=[-4])
         with self.assertRaises(TypeError):
             ht.var(x, axis="01")
+        with self.assertRaises(TypeError):
+            ht.var(x, ddof="01")
         with self.assertRaises(ValueError):
             ht.var(x, axis=(0, "10"))
         with self.assertRaises(ValueError):
