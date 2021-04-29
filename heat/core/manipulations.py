@@ -92,8 +92,8 @@ def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     >>> b = ht.array([2, 3, 4])
     >>> ht.column_stack((a, b)).larray
     tensor([[1, 2],
-        [2, 3],
-        [3, 4]])
+            [2, 3],
+            [3, 4]])
     >>> # 1-D and 2-D tensors
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([[2, 5], [3, 6], [4, 7]])
@@ -498,17 +498,17 @@ def diag(a: DNDarray, offset: int = 0) -> DNDarray:
     >>> import heat as ht
     >>> a = ht.array([1, 2])
     >>> ht.diag(a)
-    tensor([[1, 0],
-           [0, 2]])
+    DNDarray([[1, 0],
+              [0, 2]], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.diag(a, offset=1)
-    tensor([[0, 1, 0],
-           [0, 0, 2],
-           [0, 0, 0]])
+    DNDarray([[0, 1, 0],
+              [0, 0, 2],
+              [0, 0, 0]], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.equal(ht.diag(ht.diag(a)), a)
     True
     >>> a = ht.array([[1, 2], [3, 4]])
     >>> ht.diag(a)
-    tensor([1, 4])
+    DNDarray([1, 4], dtype=ht.int64, device=cpu:0, split=None)
     """
     sanitation.sanitize_in(a)
 
@@ -572,18 +572,18 @@ def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDa
     >>> import heat as ht
     >>> a = ht.array([[1, 2], [3, 4]])
     >>> ht.diagonal(a)
-    tensor([1, 4])
+    DNDarray([1, 4], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.diagonal(a, offset=1)
-    tensor([2])
+    DNDarray([2], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.diagonal(a, offset=-1)
-    tensor([3])
+    DNDarray([3], dtype=ht.int64, device=cpu:0, split=None)
     >>> a = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
     >>> ht.diagonal(a)
-    tensor([[0, 6],
-           [1, 7]])
+    DNDarray([[0, 6],
+              [1, 7]], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.diagonal(a, dim2=2)
-    tensor([[0, 5],
-           [2, 7]])
+    DNDarray([[0, 5],
+              [2, 7]], dtype=ht.int64, device=cpu:0, split=None)
     """
     dim1, dim2 = stride_tricks.sanitize_axis(a.shape, (dim1, dim2))
 
@@ -766,7 +766,7 @@ def flatten(a: DNDarray) -> DNDarray:
     --------
     >>> a = ht.array([[[1,2],[3,4]],[[5,6],[7,8]]])
     >>> ht.flatten(a)
-    tensor([1,2,3,4,5,6,7,8])
+    DNDarray([1, 2, 3, 4, 5, 6, 7, 8], dtype=ht.int64, device=cpu:0, split=None)
     """
     if a.split is None:
         return factories.array(
@@ -809,8 +809,8 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     --------
     >>> a = ht.array([[0,1],[2,3]])
     >>> ht.flip(a, [0])
-    tensor([[2, 3],
-        [0, 1]])
+    DNDarray([[2, 3],
+              [0, 1]], dtype=ht.int64, device=cpu:0, split=None)
     >>> b = ht.array([[0,1,2],[3,4,5]], split=1)
     >>> ht.flip(a, [0,1])
     (1/2) tensor([5,4,3])
@@ -866,8 +866,8 @@ def fliplr(a: DNDarray) -> DNDarray:
     --------
     >>> a = ht.array([[0,1],[2,3]])
     >>> ht.fliplr(a)
-    tensor([[1, 0],
-            [3, 2]])
+    DNDarray([[1, 0],
+              [3, 2]], dtype=ht.int64, device=cpu:0, split=None)
     >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
     >>> ht.fliplr(b)
     (1/2) tensor([[2, 1, 0]])
@@ -894,8 +894,8 @@ def flipud(a: DNDarray) -> DNDarray:
     --------
     >>> a = ht.array([[0,1],[2,3]])
     >>> ht.flipud(a)
-    tensor([[2, 3],
-            [0, 1]])
+    DNDarray([[2, 3],
+              [0, 1]], dtype=ht.int64, device=cpu:0, split=None))
     >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
     >>> ht.flipud(b)
     (1/2) tensor([3,4,5])
@@ -1084,36 +1084,41 @@ def pad(
          [ 1,  1, 20, 21, 22, 23,  1]]])
     Pad last 2 dimensions
     >>> d = ht.pad(b, [(1,0), (2,1)])
-    tensor([[[ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0,  0,  1,  2,  3,  0],
-         [ 0,  0,  4,  5,  6,  7,  0],
-         [ 0,  0,  8,  9, 10, 11,  0]],
-        [[ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0, 12, 13, 14, 15,  0],
-         [ 0,  0, 16, 17, 18, 19,  0],
-         [ 0,  0, 20, 21, 22, 23,  0]]])
+    DNDarray([[[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  1,  2,  3,  0],
+               [ 0,  0,  4,  5,  6,  7,  0],
+               [ 0,  0,  8,  9, 10, 11,  0]],
+
+              [[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0, 12, 13, 14, 15,  0],
+               [ 0,  0, 16, 17, 18, 19,  0],
+               [ 0,  0, 20, 21, 22, 23,  0]]], dtype=ht.int64, device=cpu:0, split=0)
     Pad last 3 dimensions
     >>> e = ht.pad(b, ((2,1), [1,0], (2,1)))
-    tensor([[[ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0,  0,  0,  0,  0,  0]],
-        [[ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0,  0,  0,  0,  0,  0]],
-        [[ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0,  0,  1,  2,  3,  0],
-         [ 0,  0,  4,  5,  6,  7,  0],
-         [ 0,  0,  8,  9, 10, 11,  0]],
-        [[ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0, 12, 13, 14, 15,  0],
-         [ 0,  0, 16, 17, 18, 19,  0],
-         [ 0,  0, 20, 21, 22, 23,  0]],
-        [[ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0,  0,  0,  0,  0,  0],
-         [ 0,  0,  0,  0,  0,  0,  0]]])
+    DNDarray([[[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0]],
+
+              [[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0]],
+
+              [[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  1,  2,  3,  0],
+               [ 0,  0,  4,  5,  6,  7,  0],
+               [ 0,  0,  8,  9, 10, 11,  0]],
+
+              [[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0, 12, 13, 14, 15,  0],
+               [ 0,  0, 16, 17, 18, 19,  0],
+               [ 0,  0, 20, 21, 22, 23,  0]],
+
+              [[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0]]], dtype=ht.int64, device=cpu:0, split=0)
     """
     if not isinstance(array, DNDarray):
         raise TypeError("expected array to be a ht.DNDarray, but was {}".format(type(array)))
@@ -1677,10 +1682,10 @@ def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None
     --------
     >>> a = ht.zeros((3,4))
     >>> ht.reshape(a, (4,3))
-    tensor([[0,0,0],
-            [0,0,0],
-            [0,0,0],
-            [0,0,0]])
+    DNDarray([[0., 0., 0.],
+              [0., 0., 0.],
+              [0., 0., 0.],
+              [0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> a = ht.linspace(0, 14, 8, split=0)
     >>> ht.reshape(a, (2,4))
     (1/2) tensor([[0., 2., 4., 6.]])
@@ -1812,7 +1817,7 @@ def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarra
         Axes must be different.
 
     Raises
-    ----------
+    ------
     ValueError
         If `len(axis)!=2`.
     ValueError
@@ -1821,7 +1826,7 @@ def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarra
         If axes are out of range.
 
     Notes
-    --------
+    -----
     - ``rot90(m, k=1, axes=(1,0))`` is the reverse of ``rot90(m, k=1, axes=(0,1))``.\n
     - ``rot90(m, k=1, axes=(1,0))`` is equivalent to ``rot90(m, k=-1, axes=(0,1))``.
 
@@ -1831,20 +1836,21 @@ def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarra
     --------
     >>> m = ht.array([[1,2],[3,4]], dtype=ht.int)
     >>> m
-    tensor([[1, 2],
-            [3, 4]], dtype=torch.int32)
+    DNDarray([[1, 2],
+              [3, 4]], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.rot90(m)
-    tensor([[2, 4],
-            [1, 3]], dtype=torch.int32)
+    DNDarray([[2, 4],
+              [1, 3]], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.rot90(m, 2)
-    tensor([[4, 3],
-            [2, 1]], dtype=torch.int32)
+    DNDarray([[4, 3],
+              [2, 1]], dtype=ht.int32, device=cpu:0, split=None)
     >>> m = ht.arange(8).reshape((2,2,2))
     >>> ht.rot90(m, 1, (1,2))
-    tensor([[[1, 3],
-             [0, 2]],
-            [[5, 7],
-             [4, 6]]], dtype=torch.int32)
+    DNDarray([[[1, 3],
+               [0, 2]],
+
+              [[5, 7],
+               [4, 6]]], dtype=ht.int32, device=cpu:0, split=None)
     """
     axes = tuple(axes)
     if len(axes) != 2:
@@ -2432,22 +2438,19 @@ def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     Examples
     ---------
     >>> import heat as ht
-    >>> import torch
-    >>> torch.manual_seed(1)
-    <torch._C.Generator object at 0x115704ad0>
     >>> a = ht.random.randn(1,3,1,5)
     >>> a
-    tensor([[[[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232]],
-            [[ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255]],
-            [[-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]]]])
+    DNDarray([[[[-0.2604,  1.3512,  0.1175,  0.4197,  1.3590]],
+               [[-0.2777, -1.1029,  0.0697, -1.3074, -1.1931]],
+               [[-0.4512, -1.2348, -1.1479, -0.0242,  0.4050]]]], dtype=ht.float32, device=cpu:0, split=None)
     >>> a.shape
     (1, 3, 1, 5)
     >>> ht.squeeze(a).shape
     (3, 5)
     >>> ht.squeeze(a)
-    tensor([[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232],
-            [ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255],
-            [-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]])
+    DNDarray([[-0.2604,  1.3512,  0.1175,  0.4197,  1.3590],
+              [-0.2777, -1.1029,  0.0697, -1.3074, -1.1931],
+              [-0.4512, -1.2348, -1.1479, -0.0242,  0.4050]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.squeeze(a,axis=0).shape
     (3, 1, 5)
     >>> ht.squeeze(a,axis=-2).shape
@@ -2562,8 +2565,8 @@ def stack(
 
     Examples
     --------
-    >>> a = ht.arange(20).reshape(4, 5)
-    >>> b = ht.arange(20, 40).reshape(4, 5)
+    >>> a = ht.arange(20).reshape((4, 5))
+    >>> b = ht.arange(20, 40).reshape((4, 5))
     >>> ht.stack((a,b), axis=0).larray
     tensor([[[ 0,  1,  2,  3,  4],
              [ 5,  6,  7,  8,  9],
@@ -3233,21 +3236,19 @@ def topk(
     --------
     >>> a = ht.array([1, 2, 3])
     >>> ht.topk(a,2)
-    (tensor([3, 2]), tensor([2, 1]))
+    (DNDarray([3, 2], dtype=ht.int64, device=cpu:0, split=None), DNDarray([2, 1], dtype=ht.int64, device=cpu:0, split=None))
     >>> a = ht.array([[1,2,3],[1,2,3]])
     >>> ht.topk(a,2,dim=1)
-    (tensor([[3, 2],
-        [3, 2]]),
-    tensor([[2, 1],
-        [2, 1]]))
+    (DNDarray([[3, 2],
+               [3, 2]], dtype=ht.int64, device=cpu:0, split=None),
+     DNDarray([[2, 1],
+               [2, 1]], dtype=ht.int64, device=cpu:0, split=None))
     >>> a = ht.array([[1,2,3],[1,2,3]], split=1)
     >>> ht.topk(a,2,dim=1)
-    (tensor([[3],
-        [3]]), tensor([[1],
-        [1]]))
-    (tensor([[2],
-        [2]]), tensor([[1],
-        [1]]))
+    (DNDarray([[3, 2],
+               [3, 2]], dtype=ht.int64, device=cpu:0, split=1),
+     DNDarray([[2, 1],
+               [2, 1]], dtype=ht.int64, device=cpu:0, split=1))
     """
     dim = stride_tricks.sanitize_axis(a.gshape, dim)
 

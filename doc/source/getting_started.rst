@@ -72,7 +72,7 @@ Optionally, you can enable and install HDF5 and/or NetCDF support by adding the 
 
 .. code:: bash
 
-    pip install 'heat[hdf5, netcdf]'
+    pip install 'heat[hdf5,netcdf]'
 
 Verification
 ^^^^^^^^^^^^
