@@ -472,19 +472,19 @@ def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand by whose values is divided (may be floats)
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.fmod(2.0, 2.0)
-    tensor([0.])
+    DNDarray([0.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.fmod(T1, T2)
-    tensor([[1., 0.],
-            [1., 0.]])
+    DNDarray([[1., 0.],
+          [1., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
     >>> ht.fmod(s, T1)
-    tensor([[0., 0.]
-            [2., 2.]])
+    DNDarray([[0., 0.],
+          [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.fmod, t1, t2)
 
@@ -535,12 +535,12 @@ def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output.
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.invert(ht.array([13], dtype=ht.uint8))
-    tensor([242], dtype=ht.uint8)
+    DNDarray([242], dtype=ht.uint8, device=cpu:0, split=None)
     >>> ht.bitwise_not(ht.array([-1, -2, 3], dtype=ht.int8))
-    tensor([ 0,  1, -4], dtype=ht.int8)
+    DNDarray([ 0,  1, -4], dtype=ht.int8, device=cpu:0, split=None)
     """
     dt = heat_type_of(a)
 
@@ -568,10 +568,10 @@ def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or float
         Integer number of zero bits to add
 
-    Example
-    ---------
-    >>> ht.left_shift(ht.array[1,2,3], 1)
-    tensor([2, 4, 6])
+    Examples
+    --------
+    >>> ht.left_shift(ht.array([1,2,3]), 1)
+    DNDarray([2, 4, 6], dtype=ht.int64, device=cpu:0, split=None)
     """
     dtypes = (heat_type_of(t1), heat_type_of(t2))
     arrs = [t1, t2]
@@ -601,19 +601,19 @@ def mod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand by whose values is divided
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.mod(2, 2)
-    tensor([0])
+    DNDarray([0], dtype=ht.int64, device=cpu:0, split=None)
     >>> T1 = ht.int32([[1, 2], [3, 4]])
     >>> T2 = ht.int32([[2, 2], [2, 2]])
     >>> ht.mod(T1, T2)
-    tensor([[1, 0],
-            [1, 0]], dtype=torch.int32)
+    DNDarray([[1, 0],
+          [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
     >>> s = 2
     >>> ht.mod(s, T1)
-    tensor([[0, 0]
-            [2, 2]], dtype=torch.int32)
+    DNDarray([[0, 0],
+          [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
     """
     return remainder(t1, t2)
 
@@ -637,24 +637,24 @@ def mul(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand involved in the multiplication
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.mul(2.0, 4.0)
-    tensor([8.])
+    DNDarray([8.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> s = 3.0
     >>> ht.mul(T1, s)
-    tensor([[3., 6.],
-            [9., 12.]])
+    DNDarray([[ 3.,  6.],
+          [ 9., 12.]], dtype=ht.float32, device=cpu:0, split=None)
 
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.mul(T1, T2)
-    tensor([[2., 4.],
-            [6., 8.]])
+    DNDarray([[2., 4.],
+          [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.mul(T1, T2)
-    tensor([[2., 4.],
-            [6., 8.]])
+    DNDarray([[2., 4.],
+          [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.mul, t1, t2)
 
@@ -680,19 +680,19 @@ def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand by whose values represent the exponent
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.pow (3.0, 2.0)
-    tensor([9.])
+    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[3, 3], [2, 2]])
     >>> ht.pow(T1, T2)
-    tensor([[1., 8.],
-            [9., 16.]])
+    DNDarray([[ 1.,  8.],
+          [ 9., 16.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 3.0
     >>> ht.pow(T1, s)
-    tensor([[1., 8.],
-            [27., 64.]])
+    DNDarray([[ 1.,  8.],
+          [27., 64.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.pow, t1, t2)
 
@@ -719,19 +719,19 @@ def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarra
     t2: DNDarray or scalar
         The second operand by whose values is divided
 
-    Example
-    ---------
-    >>> ht.mod(2, 2)
-    tensor([0])
+    Examples
+    --------
+    >>> ht.remainder(2, 2)
+    DNDarray([0], dtype=ht.int64, device=cpu:0, split=None)
     >>> T1 = ht.int32([[1, 2], [3, 4]])
     >>> T2 = ht.int32([[2, 2], [2, 2]])
-    >>> ht.mod(T1, T2)
-    tensor([[1, 0],
-            [1, 0]], dtype=torch.int32)
+    >>> ht.remainder(T1, T2)
+    DNDarray([[1, 0],
+          [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
     >>> s = 2
-    >>> ht.mod(s, T1)
-    tensor([[0, 0]
-            [2, 2]], dtype=torch.int32)
+    >>> ht.remainder(s, T1)
+    DNDarray([[0, 0],
+          [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.remainder, t1, t2)
 
@@ -747,10 +747,10 @@ def right_shift(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
     t2: DNDarray or scalar
         Integer number of bits to remove
 
-    Example
-    ---------
-    >>> ht.right_shift(ht.array[1,2,3], 1)
-    tensor([0, 1, 1])
+    Examples
+    --------
+    >>> ht.right_shift(ht.array([1,2,3]), 1)
+    DNDarray([0, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
     """
     dtypes = (heat_type_of(t1), heat_type_of(t2))
     arrs = [t1, t2]
