@@ -51,6 +51,7 @@
 - [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
 - [#756](https://github.com/helmholtz-analytics/heat/pull/756) Keep track of sent items while balancing within `sort()`
 - [#764](https://github.com/helmholtz-analytics/heat/pull/764) Fixed an issue where `repr` was giving the wrong output.
+- [#767](https://github.com/helmholtz-analytics/heat/pull/767) Corrected `std` to not use numpy
 
 ## Enhancements
 ### Manipulations
