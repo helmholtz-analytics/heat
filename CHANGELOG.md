@@ -17,6 +17,7 @@
 - [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
 - [#756](https://github.com/helmholtz-analytics/heat/pull/756) Keep track of sent items while balancing within `sort()`
 - [#764](https://github.com/helmholtz-analytics/heat/pull/764) Fixed an issue where `repr` was giving the wrong output.
+- [#767](https://github.com/helmholtz-analytics/heat/pull/767) Corrected `std` to not use numpy
 
 ### DNDarray
 - [#680](https://github.com/helmholtz-analytics/heat/pull/680) New property: `larray`: extract local torch.Tensor
@@ -32,6 +33,7 @@
 ### Logical
 - [#711](https://github.com/helmholtz-analytics/heat/pull/711) `isfinite()`, `isinf()`, `isnan()`
 - [#743](https://github.com/helmholtz-analytics/heat/pull/743) `isneginf()`, `isposinf()`
+
 ### Manipulations
 - [#677](https://github.com/helmholtz-analytics/heat/pull/677) New features: `split`, `vsplit`, `dsplit`, `hsplit`
 - [#690](https://github.com/helmholtz-analytics/heat/pull/690) New feature: `ravel`
@@ -61,22 +63,6 @@
 - [#720](https://github.com/helmholtz-analytics/heat/pull/720) Ignore test files in codecov report and allow drops in code coverage.
 - [#725](https://github.com/helmholtz-analytics/heat/pull/725) Add tests for expected warnings.
 - [#736](https://github.com/helmholtz-analytics/heat/pull/736) Reference Jenkins CI tests and set development status to Beta.
-
-## Bug fixes
-- [#709](https://github.com/helmholtz-analytics/heat/pull/709) Set the encoding for README.md in setup.py explicitly.
-- [#716](https://github.com/helmholtz-analytics/heat/pull/716) Bugfix: Finding clusters by spectral gap fails when multiple diffs identical
-- [#732](https://github.com/helmholtz-analytics/heat/pull/732) Corrected logic in `DNDarray.__getitem__` to produce the correct split axis
-- [#734](https://github.com/helmholtz-analytics/heat/pull/734) Fix division by zero error in `__local_op` with out != None on empty local arrays.
-- [#735](https://github.com/helmholtz-analytics/heat/pull/735) Set return type to bool in relational functions.
-- [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
-- [#756](https://github.com/helmholtz-analytics/heat/pull/756) Keep track of sent items while balancing within `sort()`
-- [#764](https://github.com/helmholtz-analytics/heat/pull/764) Fixed an issue where `repr` was giving the wrong output.
-- [#767](https://github.com/helmholtz-analytics/heat/pull/767) Corrected `std` to not use numpy
-
-## Enhancements
-### Manipulations
-- [#690](https://github.com/helmholtz-analytics/heat/pull/690) Enhancement: reshape accepts shape arguments with one unknown dimension.
-- [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
 
 # v0.5.1
 
