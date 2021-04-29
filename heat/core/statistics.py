@@ -1535,10 +1535,24 @@ def std(
     >>> ht.std(a, 1)
     DNDarray([1.2961, 0.3362, 1.0739, 0.9820], dtype=ht.float32, device=cpu:0, split=None)
     """
-    if not axis:
-        return np.sqrt(var(x, axis, ddof, **kwargs))
+    if not isinstance(ddof, int):
+        raise TypeError(f"ddof must be integer, is {type(ddof)}")
+    # elif ddof > 1:
+    #     raise NotImplementedError("Not implemented for ddof > 1.")
+    elif ddof < 0:
+        raise ValueError(f"Expected ddof >= 0, got {ddof}")
     else:
-        return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
+        if kwargs.get("bessel"):
+            unbiased = kwargs.get("bessel")
+        else:
+            unbiased = bool(ddof)
+        ddof = 1 if unbiased else ddof
+    if not x.is_distributed() and str(x.device)[:3] == "cpu":
+        loc = np.std(x.larray.numpy(), axis=axis, ddof=ddof)
+        if loc.size == 1:
+            return loc.item()
+        return factories.array(loc)
+    return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
 DNDarray.std: Callable[
