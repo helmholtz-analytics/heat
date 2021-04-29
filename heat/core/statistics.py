@@ -59,20 +59,17 @@ def argmax(
 
     Examples
     --------
-    >>> import heat as ht
-    >>> a = ht.random.randn(3,3)
+    >>> a = ht.random.randn(3, 3)
     >>> a
-    tensor([[-0.5631, -0.8923, -0.0583],
-            [-0.1955, -0.9656,  0.4224],
-            [ 0.2673, -0.4212, -0.5107]])
+    DNDarray([[ 1.0661,  0.7036, -2.0908],
+              [-0.7534, -0.4986, -0.7751],
+              [-0.4815,  1.9436,  0.6400]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.argmax(a)
-    tensor([5])
+    DNDarray([7], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.argmax(a, axis=0)
-    tensor([[2, 2, 1]])
+    DNDarray([0, 2, 2], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.argmax(a, axis=1)
-    tensor([[2],
-            [2],
-            [0]])
+    DNDarray([0, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
     """
 
     def local_argmax(*args, **kwargs):
@@ -133,20 +130,17 @@ def argmin(
 
     Examples
     --------
-    >>> import heat as ht
-    >>> a = ht.random.randn(3,3)
+    >>> a = ht.random.randn(3, 3)
     >>> a
-    tensor([[-0.5631, -0.8923, -0.0583],
-    [-0.1955, -0.9656,  0.4224],
-    [ 0.2673, -0.4212, -0.5107]])
+    DNDarray([[ 1.0661,  0.7036, -2.0908],
+              [-0.7534, -0.4986, -0.7751],
+              [-0.4815,  1.9436,  0.6400]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.argmin(a)
-    tensor([4])
+    DNDarray([2], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.argmin(a, axis=0)
-    tensor([[0, 1, 2]])
+    DNDarray([1, 1, 0], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.argmin(a, axis=1)
-    tensor([[1],
-            [1],
-            [2]])
+    DNDarray([2, 2, 0], dtype=ht.int64, device=cpu:0, split=None)
     """
 
     def local_argmin(*args, **kwargs):
@@ -234,22 +228,21 @@ def average(
         When the length of 1D weights is not the same as the shape of ``x``
         along axis.
 
-
     Examples
     --------
     >>> data = ht.arange(1,5, dtype=float)
     >>> data
-    tensor([1., 2., 3., 4.])
+    DNDarray([1., 2., 3., 4.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.average(data)
-    tensor(2.5000)
+    DNDarray(2.5000, dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.average(ht.arange(1,11, dtype=float), weights=ht.arange(10,0,-1))
-    tensor([4.])
+    DNDarray([4.], dtype=ht.float64, device=cpu:0, split=None)
     >>> data = ht.array([[0, 1],
                          [2, 3],
                         [4, 5]], dtype=float, split=1)
     >>> weights = ht.array([1./4, 3./4])
     >>> ht.average(data, axis=1, weights=weights)
-    tensor([0.7500, 2.7500, 4.7500])
+    DNDarray([0.7500, 2.7500, 4.7500], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.average(data, weights=weights)
     Traceback (most recent call last):
         ...
@@ -654,14 +647,11 @@ def max(
         [10, 11, 12]
     ])
     >>> ht.max(a)
-    tensor([12.])
-    >>> ht.min(a, axis=0)
-    tensor([[10., 11., 12.]])
-    >>> ht.min(a, axis=1)
-    tensor([[ 3.],
-            [ 6.],
-            [ 9.],
-            [12.]])
+    DNDarray([12.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.max(a, axis=0)
+    DNDarray([10., 11., 12.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.max(a, axis=1)
+    DNDarray([ 3.,  6.,  9., 12.], dtype=ht.float32, device=cpu:0, split=None)
     """
 
     def local_max(*args, **kwargs):
@@ -707,25 +697,25 @@ def maximum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
     >>> import heat as ht
     >>> a = ht.random.randn(3, 4)
     >>> a
-    tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
-            [-0.4212, -0.5107, -1.5727, -0.1232],
-            [ 3.5870, -1.8313,  1.5987, -1.2770]])
+    DNDarray([[ 0.2701, -0.6993,  1.2197,  0.0579],
+              [ 0.6815,  0.4722, -0.3947, -0.3030],
+              [ 1.0101, -1.2460, -1.3953, -0.6879]], dtype=ht.float32, device=cpu:0, split=None)
     >>> b = ht.random.randn(3, 4)
     >>> b
-    tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
-            [ 0.2857,  0.6898, -0.6331,  0.8795],
-            [-0.6842,  0.4533,  0.2912, -0.8317]])
+    DNDarray([[ 0.9664,  0.6159, -0.8555,  0.8204],
+              [-1.2200, -0.0759,  0.0437,  0.4700],
+              [ 1.2271,  1.0530,  0.1095,  0.8386]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.maximum(a, b)
-    tensor([[ 0.8310, -0.2477,  0.4224,  0.2673],
-            [ 0.2857,  0.6898, -0.6331,  0.8795],
-            [ 3.5870,  0.4533,  1.5987, -0.8317]])
+    DNDarray([[0.9664, 0.6159, 1.2197, 0.8204],
+              [0.6815, 0.4722, 0.0437, 0.4700],
+              [1.2271, 1.0530, 0.1095, 0.8386]], dtype=ht.float32, device=cpu:0, split=None)
     >>> c = ht.random.randn(1, 4)
     >>> c
-    tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
+    DNDarray([[-0.5363, -0.9765,  0.4099,  0.3520]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.maximum(a, c)
-    tensor([[-0.1955,  0.9803,  0.4224,  0.2673],
-            [-0.4212,  0.9803, -0.0421, -0.1232],
-            [ 3.5870,  0.9803,  1.5987, -0.8206]])
+    DNDarray([[ 0.2701, -0.6993,  1.2197,  0.3520],
+              [ 0.6815,  0.4722,  0.4099,  0.3520],
+              [ 1.0101, -0.9765,  0.4099,  0.3520]], dtype=ht.float32, device=cpu:0, split=None)
     >>> d = ht.random.randn(3, 4, 5)
     >>> ht.maximum(a, d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
@@ -760,27 +750,27 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
     --------
     >>> a = ht.random.randn(1,3)
     >>> a
-    tensor([[-1.2435,  1.1813,  0.3509]])
+    DNDarray([[-0.1164,  1.0446, -0.4093]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.mean(a)
-    tensor(0.0962)
+    DNDarray(0.1730, dtype=ht.float32, device=cpu:0, split=None)
     >>> a = ht.random.randn(4,4)
     >>> a
-    tensor([[ 0.0518,  0.9550,  0.3755,  0.3564],
-            [ 0.8182,  1.2425,  1.0549, -0.1926],
-            [-0.4997, -1.1940, -0.2812,  0.4060],
-            [-1.5043,  1.4069,  0.7493, -0.9384]])
+    DNDarray([[-1.0585,  0.7541, -1.1011,  0.5009],
+              [-1.3575,  0.3344,  0.4506,  0.7379],
+              [-0.4337, -0.6516, -1.3690, -0.8772],
+              [ 0.6929, -1.0989, -0.9961,  0.3547]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.mean(a, 1)
-    tensor([ 0.4347,  0.7307, -0.3922, -0.0716])
+    DNDarray([-0.2262,  0.0413, -0.8328, -0.2619], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.mean(a, 0)
-    tensor([-0.2835,  0.6026,  0.4746, -0.0921])
+    DNDarray([-0.5392, -0.1655, -0.7539,  0.1791], dtype=ht.float32, device=cpu:0, split=None)
     >>> a = ht.random.randn(4,4)
     >>> a
-    tensor([[ 2.5893,  1.5934, -0.2870, -0.6637],
-            [-0.0344,  0.6412, -0.3619,  0.6516],
-            [ 0.2801,  0.6798,  0.3004,  0.3018],
-            [ 2.0528, -0.1121, -0.8847,  0.8214]])
+    DNDarray([[-0.1441,  0.5016,  0.8907,  0.6318],
+              [-1.1690, -1.2657,  1.4840, -0.1014],
+              [ 0.4133,  1.4168,  1.3499,  1.0340],
+              [-0.9236, -0.7535, -0.2466, -0.9703]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.mean(a, (0,1))
-    tensor(0.4730)
+    DNDarray(0.1342, dtype=ht.float32, device=cpu:0, split=None)
     """
 
     def reduce_means_elementwise(output_shape_i: torch.Tensor) -> DNDarray:
@@ -983,14 +973,11 @@ def min(
             [10, 11, 12]
         ])
     >>> ht.min(a)
-    tensor([1.])
+    DNDarray([1.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.min(a, axis=0)
-    tensor([[1., 2., 3.]])
+    DNDarray([1., 2., 3.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.min(a, axis=1)
-    tensor([[ 1.],
-        [ 4.],
-        [ 7.],
-        [10.]])
+    DNDarray([ 1.,  4.,  7., 10.], dtype=ht.float32, device=cpu:0, split=None)
     """
 
     def local_min(*args, **kwargs):
@@ -1036,25 +1023,25 @@ def minimum(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDar
     >>> import heat as ht
     >>> a = ht.random.randn(3,4)
     >>> a
-    tensor([[-0.1955, -0.9656,  0.4224,  0.2673],
-            [-0.4212, -0.5107, -1.5727, -0.1232],
-            [ 3.5870, -1.8313,  1.5987, -1.2770]])
+    DNDarray([[-0.5462,  0.0079,  1.2828,  1.4980],
+              [ 0.6503, -1.1069,  1.2131,  1.4003],
+              [-0.3203, -0.2318,  1.0388,  0.4439]], dtype=ht.float32, device=cpu:0, split=None)
     >>> b = ht.random.randn(3,4)
     >>> b
-    tensor([[ 0.8310, -0.2477, -0.8029,  0.2366],
-            [ 0.2857,  0.6898, -0.6331,  0.8795],
-            [-0.6842,  0.4533,  0.2912, -0.8317]])
+    DNDarray([[ 1.8505,  2.3055, -0.2825, -1.4718],
+              [-0.3684,  1.6866, -0.8570, -0.4779],
+              [ 1.0532,  0.3775, -0.8669, -1.7275]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.minimum(a,b)
-    tensor([[-0.1955, -0.9656, -0.8029,  0.2366],
-            [-0.4212, -0.5107, -1.5727, -0.1232],
-            [-0.6842, -1.8313,  0.2912, -1.2770]])
+    DNDarray([[-0.5462,  0.0079, -0.2825, -1.4718],
+              [-0.3684, -1.1069, -0.8570, -0.4779],
+              [-0.3203, -0.2318, -0.8669, -1.7275]], dtype=ht.float32, device=cpu:0, split=None)
     >>> c = ht.random.randn(1,4)
     >>> c
-    tensor([[-1.6428,  0.9803, -0.0421, -0.8206]])
+    DNDarray([[-1.4358,  1.2914, -0.6042, -1.4009]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.minimum(a,c)
-    tensor([[-1.6428, -0.9656, -0.0421, -0.8206],
-            [-1.6428, -0.5107, -1.5727, -0.8206],
-            [-1.6428, -1.8313, -0.0421, -1.2770]])
+    DNDarray([[-1.4358,  0.0079, -0.6042, -1.4009],
+              [-1.4358, -1.1069, -0.6042, -1.4009],
+              [-1.4358, -0.2318, -0.6042, -1.4009]], dtype=ht.float32, device=cpu:0, split=None)
     >>> d = ht.random.randn(3,4,5)
     >>> ht.minimum(a,d)
     ValueError: operands could not be broadcast, input shapes (3, 4) (3, 4, 5)
@@ -1532,23 +1519,21 @@ def std(
 
     Examples
     --------
-    >>> a = ht.random.randn(1,3)
+    >>> a = ht.random.randn(1, 3)
     >>> a
-    tensor([[ 0.3421,  0.5736, -2.2377]])
+    DNDarray([[ 0.5714,  0.0048, -0.2942]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.std(a)
-    tensor(1.2742)
+    DNDarray(0.3590, dtype=ht.float32, device=cpu:0, split=None)
     >>> a = ht.random.randn(4,4)
     >>> a
-    tensor([[-1.0206,  0.3229,  1.1800,  1.5471],
-            [ 0.2732, -0.0965, -0.1087, -1.3805],
-            [ 0.2647,  0.5998, -0.1635, -0.0848],
-            [ 0.0343,  0.1618, -0.8064, -0.1031]])
-    >>> ht.std(a, 0, ddof=1)
-    tensor([0.6157, 0.2918, 0.8324, 1.1996])
+    DNDarray([[ 0.8488,  1.2225,  1.2498, -1.4592],
+              [-0.5820, -0.3928,  0.1509, -0.0174],
+              [ 0.6426, -1.8149,  0.1369,  0.0042],
+              [-0.6043, -0.0523, -1.6653,  0.6631]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.std(a, 1, ddof=1)
-    tensor([1.1405, 0.7236, 0.3506, 0.4324])
+    DNDarray([1.2961, 0.3362, 1.0739, 0.9820], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.std(a, 1)
-    tensor([0.9877, 0.6267, 0.3037, 0.3745])
+    DNDarray([1.2961, 0.3362, 1.0739, 0.9820], dtype=ht.float32, device=cpu:0, split=None)
     """
     if not axis:
         return np.sqrt(var(x, axis, ddof, **kwargs))
@@ -1671,25 +1656,25 @@ def var(
     --------
     >>> a = ht.random.randn(1,3)
     >>> a
-    tensor([[-1.9755,  0.3522,  0.4751]])
+    DNDarray([[-2.3589, -0.2073,  0.8806]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.var(a)
-    tensor(1.2710)
+    DNDarray(1.8119, dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.var(a, ddof=1)
-    tensor(1.9065)
+    DNDarray(2.7179, dtype=ht.float32, device=cpu:0, split=None)
     >>> a = ht.random.randn(4,4)
     >>> a
-    tensor([[-0.8665, -2.6848, -0.0215, -1.7363],
-            [ 0.5886,  0.5712,  0.4582,  0.5323],
-            [ 1.9754,  1.2958,  0.5957,  0.0418],
-            [ 0.8196, -1.2911, -0.2026,  0.6212]])
+    DNDarray([[-0.8523, -1.4982, -0.5848, -0.2554],
+              [ 0.8458, -0.3125, -0.2430,  1.9016],
+              [-0.6778, -0.3584, -1.5112,  0.6545],
+              [-0.9161,  0.0168,  0.0462,  0.5964]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.var(a, 1)
-    tensor([1.3092, 0.0034, 0.7061, 0.9217])
+    DNDarray([0.2777, 1.0957, 0.8015, 0.3936], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.var(a, 0)
-    tensor([1.3624, 3.2563, 0.1447, 1.2042])
+    DNDarray([0.7001, 0.4376, 0.4576, 0.7890], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.var(a, 0, ddof=1)
-    tensor([1.3624, 3.2563, 0.1447, 1.2042])
+    DNDarray([0.7001, 0.4376, 0.4576, 0.7890], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.var(a, 0, ddof=0)
-    tensor([1.0218, 2.4422, 0.1085, 0.9032])
+    DNDarray([0.7001, 0.4376, 0.4576, 0.7890], dtype=ht.float32, device=cpu:0, split=None)
     """
     if not isinstance(ddof, int):
         raise TypeError(f"ddof must be integer, is {type(ddof)}")
