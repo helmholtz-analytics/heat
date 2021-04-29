@@ -68,21 +68,20 @@ def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand involved in the addition
 
-    Example
-    ---------
+    Examples
+    --------
     >>> import heat as ht
     >>> ht.add(1.0, 4.0)
-    tensor([5.])
+    DNDarray([5.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.add(T1, T2)
-    tensor([[3., 4.],
-            [5., 6.]])
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
     >>> ht.add(T1, s)
-    tensor([[3., 4.],
-            [5., 6.]])
-
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.add, t1, t2)
 
@@ -106,20 +105,20 @@ def bitwise_and(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
     t2: DNDarray or scalar
         Input tensor
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.bitwise_and(13, 17)
-    tensor([1])
+    DNDarray([1], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(14, 13)
-    tensor([12])
+    DNDarray([12], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([14,3]), 13)
-    tensor([12,  1])
+    DNDarray([12,  1], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([11,7]), ht.array([4,25]))
-    tensor([0, 1])
+    DNDarray([0, 1], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([2,5,255]), ht.array([3,14,16]))
-    tensor([ 2,  4, 16])
+    DNDarray([ 2,  4, 16], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([True, True]), ht.array([False, True]))
-    tensor([False,  True])
+    DNDarray([False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
     dtypes = (heat_type_of(t1), heat_type_of(t2))
 
@@ -147,23 +146,23 @@ def bitwise_or(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarr
     t2: DNDarray or scalar
         Input tensor
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.bitwise_or(13, 16)
-    tensor([29])
+    DNDarray([29], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(32, 2)
-    tensor([34])
+    DNDarray([34], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([33, 4]), 1)
-    tensor([33,  5])
+    DNDarray([33,  5], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([33, 4]), ht.array([1, 2]))
-    tensor([33,  6])
+    DNDarray([33,  6], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([2, 5, 255]), ht.array([4, 4, 4]))
-    tensor([  6,   5, 255])
+    DNDarray([  6,   5, 255], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([2, 5, 255, 2147483647], dtype=ht.int32),
-    ...               ht.array([4, 4, 4, 2147483647], dtype=ht.int32))
-    tensor([         6,          5,        255, 2147483647])
+                      ht.array([4, 4, 4, 2147483647], dtype=ht.int32))
+    DNDarray([         6,          5,        255, 2147483647], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([True, True]), ht.array([False, True]))
-    tensor([ True,  True])
+    DNDarray([True, True], dtype=ht.bool, device=cpu:0, split=None)
     """
     dtypes = (heat_type_of(t1), heat_type_of(t2))
 
@@ -191,18 +190,18 @@ def bitwise_xor(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
     t2: DNDarray or scalar
         Input tensor
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.bitwise_xor(13, 17)
-    tensor([28])
+    DNDarray([28], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(31, 5)
-    tensor([26])
-    >>> ht.bitwise_xor(ht.array[31,3], 5)
-    tensor([26,  6])
+    DNDarray([26], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.bitwise_xor(ht.array([31,3]), 5)
+    DNDarray([26,  6], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(ht.array([31,3]), ht.array([5,6]))
-    tensor([26,  5])
+    DNDarray([26,  5], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(ht.array([True, True]), ht.array([False, True]))
-    tensor([ True, False])
+    DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     dtypes = (heat_type_of(t1), heat_type_of(t2))
 
@@ -238,13 +237,13 @@ def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarra
         have the same shape and buffer length as the expected output
         but the type of the resulting values will be cast if necessary.
 
-    Example
+    Examples
     --------
     >>> a = ht.full((3,3), 2)
     >>> ht.cumprod(a, 0)
-    tensor([[2., 2., 2.],
+    DNDarray([[2., 2., 2.],
             [4., 4., 4.],
-            [8., 8., 8.])
+            [8., 8., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__cum_op(a, torch.cumprod, MPI.PROD, torch.mul, 1, axis, dtype, out)
 
@@ -274,13 +273,13 @@ def cumsum(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray
         have the same shape and buffer length as the expected output
         but the type will be cast if necessary.
 
-    Example
+    Examples
     --------
     >>> a = ht.ones((3,3))
     >>> ht.cumsum(a, 0)
-    tensor([[1., 1., 1.],
-            [2., 2., 2.],
-            [3., 3., 3.])
+    DNDarray([[1., 1., 1.],
+              [2., 2., 2.],
+              [3., 3., 3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
 
@@ -437,16 +436,16 @@ def div(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     Example
     ---------
     >>> ht.div(2.0, 2.0)
-    tensor([1.])
+    DNDarray([1.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.div(T1, T2)
-    tensor([[0.5000, 1.0000],
-            [1.5000, 2.0000]])
+    DNDarray([[0.5000, 1.0000],
+              [1.5000, 2.0000]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
     >>> ht.div(s, T1)
-    tensor([[2.0000, 1.0000],
-            [0.6667, 0.5000]])
+    DNDarray([[2.0000, 1.0000],
+              [0.6667, 0.5000]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.true_divide, t1, t2)
 
@@ -472,19 +471,19 @@ def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand by whose values is divided (may be floats)
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.fmod(2.0, 2.0)
-    tensor([0.])
+    DNDarray([0.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.fmod(T1, T2)
-    tensor([[1., 0.],
-            [1., 0.]])
+    DNDarray([[1., 0.],
+          [1., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
     >>> ht.fmod(s, T1)
-    tensor([[0., 0.]
-            [2., 2.]])
+    DNDarray([[0., 0.],
+          [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.fmod, t1, t2)
 
@@ -500,16 +499,16 @@ def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray
     t2: DNDarray or scalar
         The second operand by whose values is divided
 
-    Example
-    ---------
+    Examples
+    --------
     >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
     >>> ht.floordiv(T1, 1)
-    tensor([[1., 2.],
-            [1., 4.]])
+    DNDarray([[1., 2.],
+              [1., 4.]], dtype=ht.float64, device=cpu:0, split=None)
     >>> T2 = ht.float32([1.5, 2.5])
     >>> ht.floordiv(T1, T2)
-    tensor([[1., 0.],
-            [1., 1.]])
+    DNDarray([[1., 0.],
+              [1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.floor_divide, t1, t2)
 
@@ -535,12 +534,12 @@ def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output.
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.invert(ht.array([13], dtype=ht.uint8))
-    tensor([242], dtype=ht.uint8)
+    DNDarray([242], dtype=ht.uint8, device=cpu:0, split=None)
     >>> ht.bitwise_not(ht.array([-1, -2, 3], dtype=ht.int8))
-    tensor([ 0,  1, -4], dtype=ht.int8)
+    DNDarray([ 0,  1, -4], dtype=ht.int8, device=cpu:0, split=None)
     """
     dt = heat_type_of(a)
 
@@ -568,10 +567,10 @@ def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or float
         Integer number of zero bits to add
 
-    Example
-    ---------
-    >>> ht.left_shift(ht.array[1,2,3], 1)
-    tensor([2, 4, 6])
+    Examples
+    --------
+    >>> ht.left_shift(ht.array([1,2,3]), 1)
+    DNDarray([2, 4, 6], dtype=ht.int64, device=cpu:0, split=None)
     """
     dtypes = (heat_type_of(t1), heat_type_of(t2))
     arrs = [t1, t2]
@@ -601,19 +600,19 @@ def mod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand by whose values is divided
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.mod(2, 2)
-    tensor([0])
+    DNDarray([0], dtype=ht.int64, device=cpu:0, split=None)
     >>> T1 = ht.int32([[1, 2], [3, 4]])
     >>> T2 = ht.int32([[2, 2], [2, 2]])
     >>> ht.mod(T1, T2)
-    tensor([[1, 0],
-            [1, 0]], dtype=torch.int32)
+    DNDarray([[1, 0],
+              [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
     >>> s = 2
     >>> ht.mod(s, T1)
-    tensor([[0, 0]
-            [2, 2]], dtype=torch.int32)
+    DNDarray([[0, 0],
+              [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
     """
     return remainder(t1, t2)
 
@@ -637,24 +636,23 @@ def mul(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand involved in the multiplication
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.mul(2.0, 4.0)
-    tensor([8.])
+    DNDarray([8.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> s = 3.0
     >>> ht.mul(T1, s)
-    tensor([[3., 6.],
-            [9., 12.]])
-
+    DNDarray([[ 3.,  6.],
+              [ 9., 12.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.mul(T1, T2)
-    tensor([[2., 4.],
-            [6., 8.]])
+    DNDarray([[2., 4.],
+              [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.mul(T1, T2)
-    tensor([[2., 4.],
-            [6., 8.]])
+    DNDarray([[2., 4.],
+              [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.mul, t1, t2)
 
@@ -680,19 +678,19 @@ def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand by whose values represent the exponent
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.pow (3.0, 2.0)
-    tensor([9.])
+    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[3, 3], [2, 2]])
     >>> ht.pow(T1, T2)
-    tensor([[1., 8.],
-            [9., 16.]])
+    DNDarray([[ 1.,  8.],
+            [ 9., 16.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 3.0
     >>> ht.pow(T1, s)
-    tensor([[1., 8.],
-            [27., 64.]])
+    DNDarray([[ 1.,  8.],
+            [27., 64.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.pow, t1, t2)
 
@@ -719,19 +717,19 @@ def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarra
     t2: DNDarray or scalar
         The second operand by whose values is divided
 
-    Example
-    ---------
-    >>> ht.mod(2, 2)
-    tensor([0])
+    Examples
+    --------
+    >>> ht.remainder(2, 2)
+    DNDarray([0], dtype=ht.int64, device=cpu:0, split=None)
     >>> T1 = ht.int32([[1, 2], [3, 4]])
     >>> T2 = ht.int32([[2, 2], [2, 2]])
-    >>> ht.mod(T1, T2)
-    tensor([[1, 0],
-            [1, 0]], dtype=torch.int32)
+    >>> ht.remainder(T1, T2)
+    DNDarray([[1, 0],
+            [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
     >>> s = 2
-    >>> ht.mod(s, T1)
-    tensor([[0, 0]
-            [2, 2]], dtype=torch.int32)
+    >>> ht.remainder(s, T1)
+    DNDarray([[0, 0],
+            [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.remainder, t1, t2)
 
@@ -747,10 +745,10 @@ def right_shift(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
     t2: DNDarray or scalar
         Integer number of bits to remove
 
-    Example
-    ---------
-    >>> ht.right_shift(ht.array[1,2,3], 1)
-    tensor([0, 1, 1])
+    Examples
+    --------
+    >>> ht.right_shift(ht.array([1,2,3]), 1)
+    DNDarray([0, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
     """
     dtypes = (heat_type_of(t1), heat_type_of(t2))
     arrs = [t1, t2]
@@ -792,20 +790,19 @@ def prod(
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
         option, the result will broadcast correctly against the input array.
 
-    Example
+    Examples
     --------
-    >>> ht.prod([1.,2.])
-    ht.tensor([2.0])
-    >>> ht.prod([
+    >>> ht.prod(ht.array([1.,2.]))
+    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.prod(ht.array([
+        [1.,2.],
+        [3.,4.]]))
+    DNDarray([24.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.prod(ht.array([
         [1.,2.],
         [3.,4.]
-    ])
-    ht.tensor([24.0])
-    >>> ht.prod([
-        [1.,2.],
-        [3.,4.]
-    ], axis=1)
-    ht.tensor([  2.,  12.])
+    ]), axis=1)
+    DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__reduce_op(
         a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
@@ -828,19 +825,19 @@ def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand whose values are subtracted
 
-    Example
-    ---------
+    Examples
+    --------
     >>> ht.sub(4.0, 1.0)
-    tensor([3.])
+    DNDarray([3.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.sub(T1, T2)
-    tensor([[-1., 0.],
-            [1., 2.]])
+    DNDarray([[-1.,  0.],
+              [ 1.,  2.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
     >>> ht.sub(s, T1)
-    tensor([[ 1.,  0.],
-            [-1., -2.]])
+    DNDarray([[ 1.,  0.],
+              [-1., -2.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.sub, t1, t2)
 
@@ -880,17 +877,17 @@ def sum(
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
         option, the result will broadcast correctly against the input array.
 
-    Example
+    Examples
     --------
     >>> ht.sum(ht.ones(2))
-    tensor([2.])
+    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)))
-    tensor([9.])
+    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)).astype(ht.int))
-    tensor([9])
+    DNDarray([9], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,2,1)), axis=-3)
-    tensor([[[3.],
-             [3.]]])
+    DNDarray([[3.],
+              [3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     # TODO: make me more numpy API complete Issue #101
     return _operations.__reduce_op(

@@ -1,14 +1,14 @@
-Feel the HeAT - A 30 Minutes Welcome
+Feel the Heat - A 30 Minutes Welcome
 ====================================
 
-HeAT is a flexible and seamless open-source software for high performance data analytics and machine learning in Python.
+Heat is a flexible and seamless open-source software for high performance data analytics and machine learning in Python.
 
 Our main audience are scientists, engineers and AI enthusiats with computational and numerical problems exceeding the boundaries of a laptop or workstation.
 
 Getting Started
 ---------------
 
-Make sure that you have HeAT installed on your system. For detailed description of your options, see our full :ref:`Getting Started <Installation>` section. For now, this should suffice:
+Make sure that you have Heat installed on your system. For detailed description of your options, see our full :ref:`Getting Started <Installation>` section. For now, this should suffice:
 
 .. code:: bash
 
@@ -68,7 +68,7 @@ Finally, let's load some user defined data.
 
 .. note::
 
-    HeAT takes care of automatically inferring the shape, i.e. the tensor dimensions, and data types from the user provided input.
+    Heat takes care of automatically inferring the shape, i.e. the tensor dimensions, and data types from the user provided input.
 
 .. code:: python
 
