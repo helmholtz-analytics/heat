@@ -1,6 +1,5 @@
 Cluster Analysis
 ================
-**Author**: `Charlotte Debus <https://github.com/Cdebus>`_
 
 This tutorial will demonstrate analysis with k-means and k-medians from the ``cluster`` module.
 We will use matplotlib for visualization of data and results. ::
@@ -47,6 +46,7 @@ all processes) and transform it into a numpy array. Plotting can only be done on
     data_np = ht.resplit(data, axis=None).numpy()
     if ht.MPI_WORLD.rank == 0:
         plt.plot(data_np[:,0], data_np[:,1], 'bo')
+        plt.show()
 
 This will render something like
 
@@ -91,6 +91,7 @@ Let's plot the assigned clusters and the respective centroids:
         plt.plot(c2_np[:,0], c2_np[:,1], 'x', color='#5a696e')
         plt.plot(centroids[0,0],centroids[0,1], '^', markersize=10, markeredgecolor='black', color='#f0781e' )
         plt.plot(centroids[1,0],centroids[1,1], '^', markersize=10, markeredgecolor='black',color='#5a696e')
+        plt.show()
 
 .. image:: ../images/clustering.png
 
@@ -109,8 +110,8 @@ We can also cluster the data with kmedians. The respective advanced initial cent
     c1.balance_()
     c2.balance_()
 
-    print("Number of points assigned to c1: {} \n
-           Number of points assigned to c2: {}".format(c1.shape[0], c2.shape[0]))
+    print("""Number of points assigned to c1: {}
+    Number of points assigned to c2: {}""".format(c1.shape[0], c2.shape[0]))
 Plotting the assigned clusters and the respective centroids:
 
 .. code:: python
@@ -122,12 +123,15 @@ Plotting the assigned clusters and the respective centroids:
         plt.plot(c2_np[:,0], c2_np[:,1], 'x', color='#5a696e')
         plt.plot(centroids[0,0],centroids[0,1], '^', markersize=10, markeredgecolor='black', color='#f0781e' )
         plt.plot(centroids[1,0],centroids[1,1], '^', markersize=10, markeredgecolor='black',color='#5a696e')
+        plt.show()
+
+.. image:: ../images/clustering_kmeans.png
 
 The Iris Dataset
 ------------------------------
 The _iris_ dataset is a well known example for clustering analysis. It contains 4 measured features for samples from
-three different types of iris flowers. A subset of 150 samples is included in formats h5, csv and netcdf in heat,
-located under 'heat/heat/datasets/data/iris.h5', and can be loaded in a distributed manner with heat's parallel
+three different types of iris flowers. A subset of 150 samples is included in formats h5, csv and netcdf in Heat,
+located under 'heat/heat/datasets/data/iris.h5', and can be loaded in a distributed manner with Heat's parallel
 dataloader
 
 .. code:: python

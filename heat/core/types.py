@@ -785,6 +785,7 @@ def isreal(x: dndarray.DNDarray) -> dndarray.DNDarray:
     Examples
     --------
     >>> ht.iscomplex(ht.array([1+1j, 1]))
+    DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.isreal, x, None, no_cast=True)
 
@@ -840,13 +841,13 @@ def promote_types(
     Examples
     --------
     >>> ht.promote_types(ht.uint8, ht.uint8)
-    ht.uint8
+    <class 'heat.core.types.uint8'>
     >>> ht.promote_types(ht.int32, ht.float32)
-    ht.float32
+    <class 'heat.core.types.float32'>
     >>> ht.promote_types(ht.int8, ht.uint8)
-    ht.int16
+    <class 'heat.core.types.int16'>
     >>> ht.promote_types("i8", "f4")
-    ht.float64
+    <class 'heat.core.types.float64'>
     """
     typecode_type1 = __type_codes[canonical_heat_type(type1)]
     typecode_type2 = __type_codes[canonical_heat_type(type2)]
