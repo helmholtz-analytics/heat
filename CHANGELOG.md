@@ -51,6 +51,7 @@
 - [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
 - [#756](https://github.com/helmholtz-analytics/heat/pull/756) Keep track of sent items while balancing within `sort()`
 - [#758](https://github.com/helmholtz-analytics/heat/pull/758) Fix indexing inconsistencies in `DNDarray.__getitem__`
+- [#764](https://github.com/helmholtz-analytics/heat/pull/764) Fixed an issue where `repr` was giving the wrong output.
 
 ## Enhancements
 ### Manipulations
@@ -130,7 +131,7 @@
 - [#519](https://github.com/helmholtz-analytics/heat/pull/519) Bugfix: distributed slicing with empty list or scalar as input; distributed nonzero() of empty (local) tensor.
 - [#520](https://github.com/helmholtz-analytics/heat/pull/520) Bugfix: Resplit returns correct values now.
 - [#520](https://github.com/helmholtz-analytics/heat/pull/520) Feature: SplitTiles class, used in new resplit, tiles with theoretical and actual split axes
-- [#521](https://github.com/helmholtz-analytics/heat/pull/521) Add documentation for the generic reduce_op in Heat's core
+- [#521](https://github.com/helmholtz-analytics/heat/pull/521) Add documentation for the dtype reduce_op in Heat's core
 - [#522](https://github.com/helmholtz-analytics/heat/pull/522) Added CUDA-aware MPI detection for MVAPICH, MPICH and ParaStation.
 - [#524](https://github.com/helmholtz-analytics/heat/pull/524) New Feature: cumsum & cumprod
 - [#526](https://github.com/helmholtz-analytics/heat/pull/526) float32 is now consistent default dtype for factories.

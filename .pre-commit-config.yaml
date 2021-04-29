@@ -13,3 +13,8 @@ repos:
     rev: 19.3b0
     hooks:
     -   id: black
+-   repo: https://github.com/pycqa/pydocstyle
+    rev: 5.0.1  # pick a git hash / tag to point to
+    hooks:
+    -   id: pydocstyle
+        exclude: 'tests|benchmarks|examples|scripts|setup.py'  #|heat/utils/data/mnist.py|heat/utils/data/_utils.py  ?

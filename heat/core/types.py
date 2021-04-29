@@ -1,23 +1,8 @@
 """
-types: Defines the basic heat data types in the hierarchy as shown below. Design inspired by the Python package numpy.
-
-As part of the type-hierarchy: xx -- is bit-width
-generic
- +-> bool, bool_                                (kind=?)
- +-> number
- |   +-> integer
- |   |   +-> signedinteger         (intxx)      (kind=b, i)
- |   |   |     int8, byte
- |   |   |     int16, short
- |   |   |     int32, int
- |   |   |     int64, long
- |   |   \\-> unsignedinteger      (uintxx)     (kind=B, u)
- |   |         uint8, ubyte
- |   \\-> floating                 (floatxx)    (kind=f)
- |         float32, float, float_
- |         float64, double         (double)
- \\-> flexible (currently unused, placeholder for characters)
+implementations of the different dtypes supported in heat and the
 """
+
+from __future__ import annotations
 
 import builtins
 import collections
@@ -30,9 +15,10 @@ from . import factories
 from . import _operations
 from . import sanitation
 
+from typing import Type, Union, Tuple, Any, Iterable, Optional
 
 __all__ = [
-    "generic",
+    "datatype",
     "number",
     "integer",
     "signedinteger",
@@ -57,9 +43,13 @@ __all__ = [
     "double",
     "flexible",
     "can_cast",
+    "canonical_heat_type",
+    "heat_type_is_exact",
+    "heat_type_is_inexact",
     "iscomplex",
     "isreal",
     "issubdtype",
+    "heat_type_of",
     "promote_types",
     "complex64",
     "cfloat",
@@ -67,10 +57,49 @@ __all__ = [
     "complex128",
     "cdouble",
 ]
+__api__ = []
 
 
-class generic:
-    def __new__(cls, *value, device=None, comm=None):
+class datatype:
+    """
+    Defines the basic heat data types in the hierarchy as shown below. Design inspired by the Python package numpy.
+    As part of the type-hierarchy: xx -- is bit-width \n
+        - generic \n
+            - bool, bool_ (kind=?) \n
+            - number \n
+                - integer \n
+                    - signedinteger (intxx)(kind=b, i) \n
+                        - int8, byte \n
+                        - int16, short \n
+                        - int32, int \n
+                        - int64, long
+                    - unsignedinteger (uintxx)(kind=B, u) \n
+                        - uint8, ubyte
+                - floating (floatxx) (kind=f) \n
+                    - float32, float, float_ \n
+                    - float64, double (double)
+            - flexible (currently unused, placeholder for characters) \n
+    """
+
+    def __new__(
+        cls,
+        *value,
+        device: Optional[Union[str, devices.Device]] = None,
+        comm: Optional[communication.Communication] = None
+    ) -> dndarray.DNDarray:
+        """
+        Create a new DNDarray. See :func:`ht.array <heat.core.factories.array>` for more info on general
+        DNDarray creation.
+
+        Parameters
+        ----------
+        value: array_like
+            The values for the DNDarray which will be created
+        device: devices.Device
+            The device on which to place the created DNDarray
+        comm: communication.Communication
+            The MPI communication object to use in distribution and further operations
+        """
         torch_type = cls.torch_type()
         if torch_type is NotImplemented:
             raise TypeError("cannot create '{}' instances".format(cls))
@@ -109,139 +138,273 @@ class generic:
         )
 
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> NotImplemented:
+        """
+        Torch Datatype
+        """
         return NotImplemented
 
     @classmethod
-    def char(cls):
+    def char(cls) -> NotImplemented:
+        """
+        Datatype short-hand name
+        """
         return NotImplemented
 
 
-class bool(generic):
+class bool(datatype):
+    """
+    The boolean datatype in Heat
+    """
+
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatype
+        """
         return torch.bool
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "u1"
 
 
-class number(generic):
+class number(datatype):
+    """
+    The general number datatype. Integer and Float classes will inherit from this.
+    """
+
     pass
 
 
 class integer(number):
+    """
+    The general integer datatype. Specific integer classes inherit from this.
+    """
+
     pass
 
 
 class signedinteger(integer):
+    """
+    The general signed integer datatype.
+    """
+
     pass
 
 
 class int8(signedinteger):
+    """
+    8 bit signed integer datatype
+    """
+
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatype
+        """
         return torch.int8
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "i1"
 
 
 class int16(signedinteger):
+    """
+    16 bit signed integer datatype
+    """
+
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatype
+        """
         return torch.int16
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "i2"
 
 
 class int32(signedinteger):
+    """
+    32 bit signed integer datatype
+    """
+
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatype
+        """
         return torch.int32
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "i4"
 
 
 class int64(signedinteger):
+    """
+    64 bit signed integer datatype
+    """
+
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatype
+        """
         return torch.int64
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "i8"
 
 
 class unsignedinteger(integer):
+    """
+    The general unsigned integer datatype
+    """
+
     pass
 
 
 class uint8(unsignedinteger):
+    """
+    8 bit unsigned integer datatype
+    """
+
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatype
+        """
         return torch.uint8
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "u1"
 
 
 class floating(number):
+    """
+    The general floating point datatype class.
+    """
+
     pass
 
 
 class float32(floating):
+    """
+    The 32 bit floating point datatype
+    """
+
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatype
+        """
         return torch.float32
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "f4"
 
 
 class float64(floating):
+    """
+    The 64 bit floating point datatype
+    """
+
     @classmethod
-    def torch_type(cls):
+    def torch_type(cls) -> torch.dtype:
+        """
+        Torch Datatye
+        """
         return torch.float64
 
     @classmethod
-    def char(cls):
+    def char(cls) -> str:
+        """
+        Datatype short-hand name
+        """
         return "f8"
 
 
-class flexible(generic):
+class flexible(datatype):
+    """
+    The general flexible datatype. Currently unused, placeholder for characters
+    """
+
     pass
 
 
 class complex(number):
+    """
+    The general complex datatype class.
+    """
+
     pass
 
 
 class complex64(complex):
+    """
+    The complex 64 bit datatype. Both real and imaginary are 32 bit floating point
+    """
+
     @classmethod
     def torch_type(cls):
+        """
+        Torch Datatype
+        """
         return torch.complex64
 
     @classmethod
     def char(cls):
+        """
+        Datatype short-hand name
+        """
         return "c8"
 
 
 class complex128(complex):
+    """
+    The complex 128 bit datatype. Both real and imaginary are 64 bit floating point
+    """
+
     @classmethod
     def torch_type(cls):
+        """
+        Torch Datatype
+        """
         return torch.complex128
 
     @classmethod
     def char(cls):
+        """
+        Datatype short-hand name
+        """
         return "c16"
 
 
@@ -319,20 +482,15 @@ __type_mappings = {
 }
 
 
-def canonical_heat_type(a_type):
+def canonical_heat_type(a_type: Union[str, Type[datatype], Any]) -> Type[datatype]:
     """
     Canonicalize the builtin Python type, type string or HeAT type into a canonical HeAT type.
 
     Parameters
     ----------
-    a_type : type, str, ht.dtype
+    a_type : type, str, datatype
         A description for the type. It may be a a Python builtin type, string or an HeAT type already.
         In the three former cases the according mapped type is looked up, in the latter the type is simply returned.
-
-    Returns
-    -------
-    out : ht.dtype
-        The canonical HeAT type.
 
     Raises
     -------
@@ -341,7 +499,7 @@ def canonical_heat_type(a_type):
     """
     # already a heat type
     try:
-        if issubclass(a_type, generic):
+        if issubclass(a_type, datatype):
             return a_type
     except TypeError:
         pass
@@ -353,43 +511,33 @@ def canonical_heat_type(a_type):
         raise TypeError("data type {} is not understood".format(a_type))
 
 
-def heat_type_is_exact(ht_dtype):
+def heat_type_is_exact(ht_dtype: Type[datatype]) -> bool:
     """
-    Check if HeAT type is an exact type, i.e an integer type
+    Check if HeAT type is an exact type, i.e an integer type. True if ht_dtype is an integer, False otherwise
 
     Parameters
     ----------
-    ht_dtype: ht.dtype
+    ht_dtype: Type[datatype]
         HeAT type to check
-
-    Returns
-    -------
-    out: bool
-        True if ht_dtype is an integer, False otherwise
     """
     return ht_dtype in _exact
 
 
-def heat_type_is_inexact(ht_dtype):
+def heat_type_is_inexact(ht_dtype: Type[datatype]) -> bool:
     """
-    Check if HeAT type is an inexact type, i.e floating point type
+    Check if HeAT type is an inexact type, i.e floating point type. True if ht_dtype is a float, False otherwise
 
     Parameters
     ----------
-    ht_dtype: ht.dtype
+    ht_dtype: Type[datatype]
         HeAT type to check
-
-    Returns
-    -------
-    out: bool
-        True if ht_dtype is a float, False otherwise
     """
     return ht_dtype in _inexact
 
 
-def heat_type_is_complexfloating(ht_dtype):
+def heat_type_is_complexfloating(ht_dtype: Type[datatype]) -> bool:
     """
-    Check if HeAT type is an inexact type, i.e floating point type
+    Check if HeAT type is a complex floading point number, i.e complex64
 
     Parameters
     ----------
@@ -399,12 +547,14 @@ def heat_type_is_complexfloating(ht_dtype):
     Returns
     -------
     out: bool
-        True if ht_dtype is a float, False otherwise
+        True if ht_dtype is a complex float, False otherwise
     """
     return ht_dtype in _complexfloating
 
 
-def heat_type_of(obj):
+def heat_type_of(
+    obj: Union[str, Type[datatype], Any, Iterable[str, Type[datatype], Any]]
+) -> Type[datatype]:
     """
     Returns the corresponding HeAT data type of given object, i.e. scalar, array or iterable. Attempts to determine the
     canonical data type based on the following priority list:
@@ -414,13 +564,8 @@ def heat_type_of(obj):
 
     Parameters
     ----------
-    obj : scalar, array, iterable
+    obj : scalar or DNDarray or iterable
         The object for which to infer the type.
-
-    Returns
-    -------
-    out : ht.dtype
-        The object's corresponding HeAT type.
 
     Raises
     -------
@@ -513,18 +658,23 @@ __same_kind = [
 __cast_kinds = ["no", "safe", "same_kind", "unsafe", "intuitive"]
 
 
-def can_cast(from_, to, casting="intuitive"):
+def can_cast(
+    from_: Union[str, Type[datatype], Any],
+    to: Union[str, Type[datatype], Any],
+    casting: str = "intuitive",
+) -> bool:
     """
     Returns True if cast between data types can occur according to the casting rule. If from is a scalar or array
     scalar, also returns True if the scalar value can be cast without overflow or truncation to an integer.
 
     Parameters
     ----------
-    from_ : scalar, tensor, type, str, ht.dtype
+    from_ : Union[str, Type[datatype], Any]
         Scalar, data type or type specifier to cast from.
-    to : type, str, ht.dtype
+    to : Union[str, Type[datatype], Any]
         Target type to cast to.
-    casting: str {"no", "safe", "same_kind", "unsafe", "intuitive"}, optional
+    casting: str, optional
+        options: {"no", "safe", "same_kind", "unsafe", "intuitive"}, optional
         Controls the way the cast is evaluated
             * "no" the types may not be cast, i.e. they need to be identical
             * "safe" allows only casts that can preserve values with complete precision
@@ -532,10 +682,6 @@ def can_cast(from_, to, casting="intuitive"):
             * "unsafe" means any conversion can be performed, i.e. this casting is always possible
             * "intuitive" allows all of the casts of safe plus casting from int32 to float32
 
-    Returns
-    -------
-    out : bool
-        True if cast can occur according to the casting rules, False otherwise.
 
     Raises
     -------
@@ -546,23 +692,17 @@ def can_cast(from_, to, casting="intuitive"):
 
     Examples
     --------
-    Basic examples with types
-
     >>> ht.can_cast(ht.int32, ht.int64)
     True
     >>> ht.can_cast(ht.int64, ht.float64)
     True
     >>> ht.can_cast(ht.int16, ht.int8)
     False
-
-    The usage of scalars is also possible
     >>> ht.can_cast(1, ht.float64)
     True
     >>> ht.can_cast(2.0e200, "u1")
     False
-
-    can_cast supports different casting rules
-    >>> ht.can_cast("i8", "i4", "no")
+    >>> ht.can_cast('i8', 'i4', 'no')
     False
     >>> ht.can_cast("i8", "i4", "safe")
     False
@@ -611,13 +751,14 @@ for i, operand_a in enumerate(__type_codes.keys()):
                 break
 
 
-def iscomplex(x):
+def iscomplex(x: dndarray.DNDarray) -> dndarray.DNDarray:
     """
     Test element-wise if input is complex.
 
     Parameters
     ----------
     x : DNDarray
+        The input DNDarray
 
     Examples
     --------
@@ -632,22 +773,25 @@ def iscomplex(x):
         return factories.zeros(x.shape, bool, split=x.split, device=x.device, comm=x.comm)
 
 
-def isreal(x):
+def isreal(x: dndarray.DNDarray) -> dndarray.DNDarray:
     """
     Test element-wise if input is real-valued.
 
     Parameters
     ----------
     x : DNDarray
+        The input DNDarray
 
     Examples
     --------
-    ht.iscomplex(ht.array([1+1j, 1]))
+    >>> ht.iscomplex(ht.array([1+1j, 1]))
     """
     return _operations.__local_op(torch.isreal, x, None, no_cast=True)
 
 
-def issubdtype(arg1, arg2):
+def issubdtype(
+    arg1: Union[str, Type[datatype], Any], arg2: Union[str, Type[datatype], Any]
+) -> builtins.bool:
     """
     Returns True if first argument is a typecode lower/equal in type hierarchy.
 
@@ -658,10 +802,6 @@ def issubdtype(arg1, arg2):
     arg2 : type, str, ht.dtype
         A description representing the type. It may be a a Python builtin type, string or an HeAT type already.
 
-    Returns
-    -------
-    out : bool
-        Result of the stated comparison
 
     Examples
     --------
@@ -670,13 +810,10 @@ def issubdtype(arg1, arg2):
     True
     >>> ht.issubdype(ints.dtype, ht.floating)
     False
-
     >>> ht.issubdtype(ht.float64, ht.float32)
     False
-
     >>> ht.issubdtype('i', ht.integer)
     True
-
     """
     # Assure that each argument is a ht.dtype
     arg1 = canonical_heat_type(arg1)
@@ -685,23 +822,20 @@ def issubdtype(arg1, arg2):
     return issubclass(arg1, arg2)
 
 
-def promote_types(type1, type2):
+def promote_types(
+    type1: Union[str, Type[datatype], Any], type2: Union[str, Type[datatype], Any]
+) -> Type[datatype]:
     """
-    Returns the data type with the smallest size and smallest scalar kind to which both type1 and type2 may be
-    intuitively cast to, where intuitive casting refers to maintaining the same bit length if possible. This
-    function is symmetric.
+    Returns the data type with the smallest size and smallest scalar kind to which both ``type1`` and ``type2`` may be
+    intuitively cast to, where intuitive casting refers to maintaining the same bit length if possible. This function
+    is symmetric.
 
     Parameters
     ----------
-    type1 : type, str, ht.dtype
+    type1 : type or str or datatype
         type of first operand
-    type2 : type, str, ht.dtype
+    type2 : type or str or datatype
         type of second operand
-
-    Returns
-    -------
-    out : ht.dtype
-        The promoted data type.
 
     Examples
     --------
@@ -722,8 +856,6 @@ def promote_types(type1, type2):
 
 class finfo:
     """
-    finfo(dtype)
-
     Class describing machine limits (bit representation) of floating point types.
 
     Attributes
@@ -732,33 +864,32 @@ class finfo:
         The number of bits occupied by the type.
     eps : float
         The smallest representable positive number such that
-        ``1.0 + eps != 1.0``.  Type of `eps` is an appropriate floating
+        ``1.0 + eps != 1.0``.  Type of ``eps`` is an appropriate floating
         point type.
-    max : floating point number of the appropriate type
+    max : float
         The largest representable number.
-    min : floating point number of the appropriate type
+    min : float
         The smallest representable number, typically ``-max``.
     tiny : float
-        The smallest positive usable number.  Type of `tiny` is an
+        The smallest positive usable number.  Type of ``tiny`` is an
         appropriate floating point type.
 
     Parameters
     ----------
-    dtype : ht.dtype
+    dtype : datatype
         Kind of floating point data-type about which to get information.
 
-    Examples:
+    Examples
     ---------
     >>> import heat as ht
     >>> info = ht.types.finfo(ht.float32)
     >>> info.bits
     32
-
     >>> info.eps
     1.1920928955078125e-07
     """
 
-    def __new__(cls, dtype):
+    def __new__(cls, dtype: Type[datatype]):
         try:
             dtype = heat_type_of(dtype)
         except (KeyError, IndexError, TypeError):
@@ -770,7 +901,7 @@ class finfo:
 
         return super(finfo, cls).__new__(cls)._init(dtype)
 
-    def _init(self, dtype):
+    def _init(self, dtype: Type[datatype]):
         _torch_finfo = torch.finfo(dtype.torch_type())
         for word in ["bits", "eps", "max", "tiny"]:
             setattr(self, word, getattr(_torch_finfo, word))
@@ -782,33 +913,31 @@ class finfo:
 
 class iinfo:
     """
-    iinfo(dtype)
-
     Class describing machine limits (bit representation) of integer types.
 
     Attributes
     ----------
     bits : int
         The number of bits occupied by the type.
-    max : floating point number of the appropriate type
+    max : float
         The largest representable number.
-    min : floating point number of the appropriate type
+    min : float
         The smallest representable number, typically ``-max``.
 
     Parameters
     ----------
-    dtype : ht.dtype
+    dtype : datatype
         Kind of floating point data-type about which to get information.
 
-    Examples:
+    Examples
     ---------
     >>> import heat as ht
-    >>> info = ht.types.finfo(ht.int32)
+    >>> info = ht.types.iinfo(ht.int32)
     >>> info.bits
     32
     """
 
-    def __new__(cls, dtype):
+    def __new__(cls, dtype: Type[datatype]):
         try:
             dtype = heat_type_of(dtype)
         except (KeyError, IndexError, TypeError):
@@ -820,7 +949,7 @@ class iinfo:
 
         return super(iinfo, cls).__new__(cls)._init(dtype)
 
-    def _init(self, dtype):
+    def _init(self, dtype: Type[datatype]):
         _torch_iinfo = torch.iinfo(dtype.torch_type())
         for word in ["bits", "max"]:
             setattr(self, word, getattr(_torch_iinfo, word))
