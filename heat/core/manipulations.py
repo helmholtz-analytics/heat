@@ -2438,9 +2438,6 @@ def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     Examples
     ---------
     >>> import heat as ht
-    >>> import torch
-    >>> torch.manual_seed(1)
-    <torch._C.Generator object at 0x115704ad0>
     >>> a = ht.random.randn(1,3,1,5)
     >>> a
     DNDarray([[[[-0.2604,  1.3512,  0.1175,  0.4197,  1.3590]],
