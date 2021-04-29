@@ -831,16 +831,16 @@ def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     Example
     ---------
     >>> ht.sub(4.0, 1.0)
-    tensor([3.])
+    DNDarray([3.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.sub(T1, T2)
-    tensor([[-1., 0.],
-            [1., 2.]])
+    DNDarray([[-1.,  0.],
+              [ 1.,  2.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
     >>> ht.sub(s, T1)
-    tensor([[ 1.,  0.],
-            [-1., -2.]])
+    DNDarray([[ 1.,  0.],
+              [-1., -2.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.sub, t1, t2)
 
@@ -883,14 +883,14 @@ def sum(
     Example
     --------
     >>> ht.sum(ht.ones(2))
-    tensor([2.])
+    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)))
-    tensor([9.])
+    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)).astype(ht.int))
-    tensor([9])
+    DNDarray([9], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,2,1)), axis=-3)
-    tensor([[[3.],
-             [3.]]])
+    DNDarray([[3.],
+              [3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     # TODO: make me more numpy API complete Issue #101
     return _operations.__reduce_op(
