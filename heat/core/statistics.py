@@ -1105,7 +1105,9 @@ def __moment_w_axis(
         output_shape = output_shape if output_shape else (1,)
 
         if x.split is None:  # x is *not* distributed -> no need to distribute
-            return factories.array(function(x.larray, **kwargs), dtype=x.dtype, device=x.device)
+            ret = factories.array(function(x.larray, **kwargs), dtype=x.dtype, device=x.device)
+            print("here", type(ret))
+            return ret
         elif axis == x.split:  # x is distributed and axis chosen is == to split
             return elementwise_function(output_shape)
         # singular axis given (axis) not equal to split direction (x.split)
@@ -1550,10 +1552,24 @@ def std(
     >>> ht.std(a, 1)
     tensor([0.9877, 0.6267, 0.3037, 0.3745])
     """
-    if not axis:
-        return np.sqrt(var(x, axis, ddof, **kwargs))
+    if not isinstance(ddof, int):
+        raise TypeError(f"ddof must be integer, is {type(ddof)}")
+    elif ddof > 1:
+        raise NotImplementedError("Not implemented for ddof > 1.")
+    elif ddof < 0:
+        raise ValueError(f"Expected ddof=0 or ddof=1, got {ddof}")
     else:
-        return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
+        if kwargs.get("bessel"):
+            unbiased = kwargs.get("bessel")
+        else:
+            unbiased = bool(ddof)
+        ddof = 1 if unbiased else ddof
+    if not x.is_distributed() and str(x.device)[:3] == "cpu":
+        loc = np.std(x._DNDarray__array.numpy(), axis=axis, ddof=ddof)
+        if loc.size == 1:
+            return loc.item()
+        return factories.array(loc)
+    return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
 DNDarray.std: Callable[
