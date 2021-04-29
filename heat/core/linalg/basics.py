@@ -1347,22 +1347,22 @@ def trace(
 
         return sum_along_diagonals
 
-    # inline function
 
-    DNDarray.trace: Callable[
-        [
-            DNDarray,
-            Optional[int],
-            Optional[int],
-            Optional[int],
-            Optional[types.datatype],
-            Optional[DNDarray],
-        ],
-        Union[DNDarray, float],
-    ] = lambda self, offset=0, axis1=0, axis2=1, dtype=None, out=None: trace(
-        self, offset, axis1, axis2, dtype, out
-    )
-    DNDarray.trace.__doc__ = trace.__doc__
+# inline function
+DNDarray.trace: Callable[
+    [
+        DNDarray,
+        Optional[int],
+        Optional[int],
+        Optional[int],
+        Optional[types.datatype],
+        Optional[DNDarray],
+    ],
+    Union[DNDarray, float],
+] = lambda self, offset=0, axis1=0, axis2=1, dtype=None, out=None: trace(
+    self, offset, axis1, axis2, dtype, out
+)
+DNDarray.trace.__doc__ = trace.__doc__
 
 
 @torch.jit.script
