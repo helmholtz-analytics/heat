@@ -884,7 +884,7 @@ def result_type(
     """
 
     def result_type_rec(*arrays_and_types):
-        # derive type
+        # derive type and set precedence (lower number, higher precedence)
         arg = arrays_and_types[0]
 
         try:
@@ -895,9 +895,9 @@ def result_type(
                 type1 = canonical_heat_type(arg.dtype)
 
             if len(arg.shape) > 0:
-                prec1 = 0
+                prec1 = 0  # array
             else:
-                prec1 = 2
+                prec1 = 2  # scalar
         except Exception:
             try:
                 # type
@@ -906,7 +906,7 @@ def result_type(
                 type1 = canonical_heat_type(arg)
                 prec1 = 1
             except Exception:
-                # instance
+                # type instance
                 type1 = canonical_heat_type(type(arg))
                 prec1 = 3
 
@@ -914,28 +914,29 @@ def result_type(
         if len(arrays_and_types) > 1:
             type2, prec2 = result_type_rec(*arrays_and_types[1:])
 
+            # fast check same type
             if type1 == type2:
                 return type1, min(prec1, prec2)
+            # fast check same precedence
+            if prec1 == prec2:
+                return promote_types(type1, type2), prec1
+
+            # check if parent type is identical and decide by precedence
+            for sclass in (bool, integer, floating, complex):
+                if issubdtype(type1, sclass) and issubdtype(type2, sclass):
+                    if prec1 < prec2:
+                        return type1, min(prec1, prec2)
+                    else:
+                        return type2, min(prec1, prec2)
+
+            # different parent type: bool < int < float < complex
+            tc1 = __type_codes[type1]
+            tc2 = __type_codes[type2]
+
+            if tc1 < tc2:
+                return type2, min(prec1, prec2)
             else:
-                if prec1 == prec2:
-                    return promote_types(type1, type2), prec1
-
-                for sclass in (bool, integer, float):
-                    if issubdtype(type1, sclass) and issubdtype(type2, sclass):
-                        if prec1 < prec2:
-                            return type1, min(prec1, prec2)
-                        if prec1 > prec2:
-                            return type2, min(prec1, prec2)
-
-                tc1 = __type_codes[type1]
-                tc2 = __type_codes[type2]
-
-                if tc1 < tc2:
-                    return type2, min(prec1, prec2)
-                if tc1 > tc2:
-                    return type1, min(prec1, prec2)
-
-                raise RuntimeError("Something went wrong")  # pragma: no cover
+                return type1, min(prec1, prec2)
 
         # single argument
         return type1, prec1
