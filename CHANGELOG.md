@@ -1,3 +1,8 @@
+# Pending Additions
+## New features
+### Types
+- [#761](https://github.com/helmholtz-analytics/heat/pull/761) `result_type`
+
 # v1.0.0
 
 ## New features / Highlights
@@ -57,7 +62,6 @@
 ### Types
 - [#712](https://github.com/helmholtz-analytics/heat/pull/712) New function: `issubdtype`
 - [#738](https://github.com/helmholtz-analytics/heat/pull/738) `iscomplex()`, `isreal()`
-- [#761](https://github.com/helmholtz-analytics/heat/pull/761) `result_type`
 
 ### Unit testing / CI
 - [#717](https://github.com/helmholtz-analytics/heat/pull/717) Switch CPU CI over to Jenkins and pre-commit to GitHub action.
