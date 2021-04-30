@@ -1,4 +1,4 @@
-HeAT Tutorials
+Heat Tutorials
 ==============
 
 .. toctree::

@@ -54,7 +54,7 @@ def arccos(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.arccos(ht.array([-1.,-0., 0.83]))
-    tensor([3.1416, 1.5708, 0.5917])
+    DNDarray([3.1416, 1.5708, 0.5917], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.acos, x, out)
 
@@ -84,7 +84,7 @@ def arcsin(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.arcsin(ht.array([-1.,-0., 0.83]))
-    tensor([-1.5708,  0.0000,  0.9791])
+    DNDarray([-1.5708, -0.0000,  0.9791], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.asin, x, out)
 
@@ -115,8 +115,7 @@ def arctan(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.arctan(ht.arange(-6, 7, 2))
-    tensor([-1.4056, -1.3258, -1.1071,  0.0000,  1.1071,  1.3258,  1.4056],
-    dtype=torch.float64)
+    DNDarray([-1.4056, -1.3258, -1.1071,  0.0000,  1.1071,  1.3258,  1.4056], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.atan, x, out)
 
@@ -147,7 +146,7 @@ def arctan2(x1: DNDarray, x2: DNDarray) -> DNDarray:
     >>> x = ht.array([-1, +1, +1, -1])
     >>> y = ht.array([-1, -1, +1, +1])
     >>> ht.arctan2(y, x) * 180 / ht.pi
-    tensor([-135.0000,  -45.0000,   45.0000,  135.0000], dtype=torch.float64)
+    DNDarray([-135.0000,  -45.0000,   45.0000,  135.0000], dtype=ht.float64, device=cpu:0, split=None)
     """
     # Cast integer to float because torch.atan2() only supports integer types on PyTorch 1.5.0.
     x1 = x1.astype(types.promote_types(x1.dtype, types.float))
@@ -178,7 +177,7 @@ def cos(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.cos(ht.arange(-6, 7, 2))
-    tensor([0.96017029, -0.65364362, -0.41614684,  1., -0.41614684, -0.65364362,  0.96017029])
+    DNDarray([ 0.9602, -0.6536, -0.4161,  1.0000, -0.4161, -0.6536,  0.9602], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.cos, x, out)
 
@@ -206,7 +205,7 @@ def cosh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.cosh(ht.arange(-6, 7, 2))
-    tensor([201.7156,  27.3082,   3.7622,   1.0000,   3.7622,  27.3082, 201.7156])
+    DNDarray([201.7156,  27.3082,   3.7622,   1.0000,   3.7622,  27.3082, 201.7156], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.cosh, x, out)
 
@@ -232,7 +231,7 @@ def deg2rad(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.deg2rad(ht.array([0.,20.,45.,78.,94.,120.,180., 270., 311.]))
-    tensor([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280])
+    DNDarray([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280], dtype=ht.float32, device=cpu:0, split=None)
     """
     # deg2rad torch version
     def torch_deg2rad(torch_tensor):
@@ -258,7 +257,7 @@ def degrees(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.degrees(ht.array([0.,0.2,0.6,0.9,1.2,2.7,3.14]))
-    tensor([  0.0000,  11.4592,  34.3775,  51.5662,  68.7549, 154.6986, 179.9088])
+    DNDarray([  0.0000,  11.4592,  34.3775,  51.5662,  68.7549, 154.6986, 179.9088], dtype=ht.float32, device=cpu:0, split=None)
     """
     return rad2deg(x, out=out)
 
@@ -278,7 +277,7 @@ def rad2deg(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.rad2deg(ht.array([0.,0.2,0.6,0.9,1.2,2.7,3.14]))
-    tensor([  0.0000,  11.4592,  34.3775,  51.5662,  68.7549, 154.6986, 179.9088])
+    DNDarray([  0.0000,  11.4592,  34.3775,  51.5662,  68.7549, 154.6986, 179.9088], dtype=ht.float32, device=cpu:0, split=None)
     """
     # rad2deg torch version
     def torch_rad2deg(torch_tensor):
@@ -304,7 +303,7 @@ def radians(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.radians(ht.array([0., 20., 45., 78., 94., 120., 180., 270., 311.]))
-    tensor([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280])
+    DNDarray([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280], dtype=ht.float32, device=cpu:0, split=None)
     """
     return deg2rad(x, out)
 
@@ -326,7 +325,7 @@ def sin(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.sin(ht.arange(-6, 7, 2))
-    tensor([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794])
+    DNDarray([ 0.2794,  0.7568, -0.9093,  0.0000,  0.9093, -0.7568, -0.2794], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.sin, x, out)
 
@@ -354,7 +353,7 @@ def sinh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.sinh(ht.arange(-6, 7, 2))
-    tensor([[-201.7132,  -27.2899,   -3.6269,    0.0000,    3.6269,   27.2899,  201.7132])
+    DNDarray([-201.7132,  -27.2899,   -3.6269,    0.0000,    3.6269,   27.2899,  201.7132], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.sinh, x, out)
 
@@ -383,7 +382,7 @@ def tan(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.tan(ht.arange(-6, 7, 2))
-    tensor([ 0.29100619, -1.15782128,  2.18503986,  0., -2.18503986, 1.15782128, -0.29100619])
+    DNDarray([ 0.2910, -1.1578,  2.1850,  0.0000, -2.1850,  1.1578, -0.2910], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.tan, x, out)
 
@@ -411,7 +410,7 @@ def tanh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     Examples
     --------
     >>> ht.tanh(ht.arange(-6, 7, 2))
-    tensor([-1.0000, -0.9993, -0.9640,  0.0000,  0.9640,  0.9993,  1.0000])
+    DNDarray([-1.0000, -0.9993, -0.9640,  0.0000,  0.9640,  0.9993,  1.0000], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.tanh, x, out)
 
