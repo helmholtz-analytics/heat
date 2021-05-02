@@ -1,7 +1,7 @@
 Parallel Computation
 ====================
 
-One of HeAT's strength lies in its ability to heavily parallelize computations. By default, HeAT utilizes all available cores in your processor via OpenMP multi-threading. However, it is also possible to further speed-up processing with GPU acceleration or by scale-out in a cluster system using MPI. In the following tutorial you will learn how to exploit HeAT's parallel processing features.
+One of Heat's strength lies in its ability to heavily parallelize computations. By default, Heat utilizes all available cores in your processor via OpenMP multi-threading. However, it is also possible to further speed-up processing with GPU acceleration or by scale-out in a cluster system using MPI. In the following tutorial you will learn how to exploit Heat's parallel processing features.
 
 GPU Acceleration
 ----------------
@@ -9,7 +9,7 @@ GPU Acceleration
 .. warning::
     Please make sure that you have an NVidia GPU in your system for the following code snippets.
 
-GPUs can accelerate applications running on the CPU by offloading some or all of the time consuming portions of the code. This is particularly for highly compute-intensive programs with low to medium memory consumption. From a user's perspective, the application runs faster because it's using the massively parallel processing power of the GPU to boost performance. HeAT allows you to allocate ``DNDarrays`` on the GPU as follows.
+GPUs can accelerate applications running on the CPU by offloading some or all of the time consuming portions of the code. This is particularly for highly compute-intensive programs with low to medium memory consumption. From a user's perspective, the application runs faster because it's using the massively parallel processing power of the GPU to boost performance. Heat allows you to allocate ``DNDarrays`` on the GPU as follows.
 
 .. code:: python
 

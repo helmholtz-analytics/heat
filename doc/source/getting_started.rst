@@ -11,7 +11,7 @@ Prerequisites
 Python
 ^^^^^^
 
-Heat requires Python 3.6 or greater, which is pre-installed by default on most Linux distributions. You can check your Python by running:
+Heat requires Python 3.7 or greater. You can check your Python by running:
 
 .. code:: bash
 
@@ -72,7 +72,7 @@ Optionally, you can enable and install HDF5 and/or NetCDF support by adding the 
 
 .. code:: bash
 
-    pip install 'heat[hdf5, netcdf]'
+    pip install 'heat[hdf5,netcdf]'
 
 Verification
 ^^^^^^^^^^^^
