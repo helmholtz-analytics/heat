@@ -584,12 +584,12 @@ class DNDarray:
         Generate a 'map' of the lshapes of the data on all processes.
         Units are ``(process rank, lshape)``
         """
-        if not self.is_distributed:
-            return torch.tensor(self.gshape).reshape(1, self.ndim)
-
         lshape_map = torch.zeros(
-            (self.comm.size, len(self.gshape)), dtype=torch.int, device=self.device.torch_device
+            (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
         )
+        if not self.is_distributed:
+            lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
+            return lshape_map
 
         if self.is_balanced():
             for i in range(self.comm.size):
