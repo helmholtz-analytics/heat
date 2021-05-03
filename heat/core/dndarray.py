@@ -685,24 +685,33 @@ class DNDarray:
         """
         key = getattr(key, "copy()", key)
         l_dtype = self.dtype.torch_type()
+        advanced_ind = False
         # kgshape_flag = False
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
             """ if the key is a DNDarray and it has as many dimensions as self, then each of the entries in the 0th
                 dim refer to a single element. To handle this, the key is split into the torch tensors for each dimension.
                 This signals that advanced indexing is to be used. """
+            # TODO later: do not balance the key by default.
             key.balance_()
             key = manipulations.resplit(key.copy())
-            lkey = [slice(None, None, None)] * self.ndim
-            # kgshape_flag = True
-            kgshape = [0] * len(self.gshape)
             if key.ndim > 1:
-                for i in range(key.ndim):
-                    kgshape[i] = key.gshape[i]
-                    lkey[i] = key.larray[..., i]
-            else:
-                kgshape[0] = key.gshape[0]
-                lkey[0] = key.larray
-            key = tuple(lkey)
+                key = list(key.larray.split(1, dim=1))
+                # key is now a list of tensors with dimensions (key.ndim, 1)
+                # squeeze singleton dimension:
+                key = tuple(key[i].squeeze_(1) for i in range(len(key)))
+            advanced_ind = True
+
+            # lkey = [slice(None, None, None)] * self.ndim
+            # kgshape_flag = True
+            # kgshape = [0] * len(self.gshape)
+            # if key.ndim > 1:
+            #     for i in range(key.ndim):
+            #         kgshape[i] = key.gshape[i]
+            #         lkey[i] = key.larray[..., i]
+            # else:
+            #     kgshape[0] = key.gshape[0]
+            #     lkey[0] = key.larray
+            # key = tuple(lkey)
         elif not isinstance(key, tuple):
             """ this loop handles all other cases. DNDarrays which make it to here refer to advanced indexing slices,
                 as do the torch tensors. Both DNDaarrys and torch.Tensors are cast into lists here by PyTorch.
@@ -787,9 +796,14 @@ class DNDarray:
         new_split = self.split
         # when slicing, squeezed singleton dimensions may affect new split axis
         if self.split is not None and self.split > 0 and len(gout_full) < self.ndim:
-            for i in range(len(key[: self.split + 1])):
-                if not isinstance(key[i], slice) and (isinstance(key[i], int) or len(key[i]) == 1):
-                    new_split = None if i == self.split else new_split - 1
+            if advanced_ind:
+                new_split = 0
+            else:
+                for i in range(len(key[: self.split + 1])):
+                    if not isinstance(key[i], slice) and (
+                        isinstance(key[i], int) or len(key[i]) == 1
+                    ):
+                        new_split = None if i == self.split else new_split - 1
 
         key = tuple(key)
         if not self.is_distributed():
