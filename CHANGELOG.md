@@ -47,6 +47,9 @@ Example on 2 processes:
 ### Misc.
 - [#761](https://github.com/helmholtz-analytics/heat/pull/761) New feature: `result_type`
 
+# v1.0.1
+
+## Bug fixes
 
 # v1.0.0
 
