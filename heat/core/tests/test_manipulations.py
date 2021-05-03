@@ -395,9 +395,18 @@ class TestManipulations(TestCase):
         self.assertEqual(res.shape, (size * 3, size * 3))
         self.assertEqual(res.lshape[res.split], 3)
         exp = torch.diag(data, diagonal=size)
-        for i in range(rank * 3, min((rank + 1) * 3, a.shape[0])):
-            self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size].unsqueeze_(0)))
-
+        for i in range(a.shape[0]):
+            print(
+                "DEBUGGING: res[i, i + size].larray, res[i, i + size].larray.shape = ",
+                res[i, i + size].larray,
+                res[i, i + size].larray.shape,
+            )
+            print(
+                "DEBUGGING: exp[i, i + size].unsqueeze_(0), exp[i, i + size].unsqueeze_(0).shape = ",
+                exp[i, i + size],
+                exp[i, i + size].shape,
+            )
+            self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size]))
         res = ht.diag(a, offset=-size)
         self.assertEqual(res.split, a.split)
         self.assertEqual(res.shape, (size * 3, size * 3))
