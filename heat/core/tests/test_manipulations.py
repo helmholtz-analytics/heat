@@ -406,7 +406,7 @@ class TestManipulations(TestCase):
                 exp[i, i + size],
                 exp[i, i + size].shape,
             )
-            self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size]))
+            self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size].unsqueeze_(0)))
         res = ht.diag(a, offset=-size)
         self.assertEqual(res.split, a.split)
         self.assertEqual(res.shape, (size * 3, size * 3))
@@ -2454,8 +2454,8 @@ class TestManipulations(TestCase):
         first = result[0].larray
         first_indices = result_indices[0].larray
         if rank == 0:
-            self.assertTrue(torch.equal(first, exp_axis_zero.unsqueeze_(0)))
-            self.assertTrue(torch.equal(first_indices, indices_axis_zero.unsqueeze_(0)))
+            self.assertTrue(torch.equal(first, exp_axis_zero))
+            self.assertTrue(torch.equal(first_indices, indices_axis_zero))
 
         data = ht.array(tensor, split=1)
         exp_axis_one = torch.tensor([[2, 2, 3]], dtype=torch.int32, device=self.device.torch_device)
