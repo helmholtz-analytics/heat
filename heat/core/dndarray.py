@@ -721,6 +721,8 @@ class DNDarray:
         # assess final global shape
         self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
         gout_full = list(self_proxy[key].shape)
+        if len(gout_full) == 0:
+            gout_full = [1]
 
         # ellipsis stuff
         key = list(key)
@@ -791,7 +793,7 @@ class DNDarray:
 
         key = tuple(key)
         if not self.is_distributed():
-            arr = self.__array[key]
+            arr = self.__array[key].reshape(gout_full)
             return DNDarray(
                 arr, tuple(gout_full), self.dtype, new_split, self.device, self.comm, self.balanced
             )
@@ -908,7 +910,6 @@ class DNDarray:
             else:
                 arr = torch.empty(tuple(lout), dtype=self.larray.dtype, device=self.larray.device)
             # broadcast result
-            #            self.comm.Barrier()
             arr = self.comm.bcast(arr, root=active_rank)
 
         if 0 in arr.shape:
