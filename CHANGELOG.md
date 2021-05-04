@@ -1,3 +1,12 @@
+# Pending additions
+
+## Highlights
+
+## Breaking Changes
+
+## Bug fixes
+
+
 # v1.0.0
 
 ## New features / Highlights
