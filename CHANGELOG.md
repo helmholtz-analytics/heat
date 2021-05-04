@@ -1,7 +1,12 @@
-# Pending Additions
-## New features
-### Types
-- [#761](https://github.com/helmholtz-analytics/heat/pull/761) `result_type`
+# Pending additions
+
+## Highlights
+- [#761](https://github.com/helmholtz-analytics/heat/pull/761) New feature: `result_type`
+
+## Breaking Changes
+
+## Bug fixes
+
 
 # v1.0.0
 
