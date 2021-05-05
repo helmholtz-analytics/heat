@@ -355,8 +355,11 @@ class TestCase(unittest.TestCase):
         ValueError if the dtype is not a subtype of numpy.integer or numpy.floating
         """
         seed = np.random.randint(1000000, size=(1,))
+        print("DEBUGGING: BEFORE BCAST: seed = ", seed)
         # print("using seed {} for random values".format(seed))
-        seed = self.comm.Bcast(seed, root=0)
+        ht.communication.MPI_WORLD.Bcast(seed, root=0)
+        #        self.comm.Bcast(seed, root=0)
+        print("DEBUGGING: AFTER BCAST: seed = ", seed)
         np.random.seed(seed=seed.item())
         if issubclass(dtype, np.floating):
             array = np.random.randn(*shape)

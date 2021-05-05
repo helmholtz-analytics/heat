@@ -395,25 +395,19 @@ class TestManipulations(TestCase):
         self.assertEqual(res.shape, (size * 3, size * 3))
         self.assertEqual(res.lshape[res.split], 3)
         exp = torch.diag(data, diagonal=size)
-        for i in range(a.shape[0]):
-            print(
-                "DEBUGGING: res[i, i + size].larray, res[i, i + size].larray.shape = ",
-                res[i, i + size].larray,
-                res[i, i + size].larray.shape,
-            )
-            print(
-                "DEBUGGING: exp[i, i + size].unsqueeze_(0), exp[i, i + size].unsqueeze_(0).shape = ",
-                exp[i, i + size],
-                exp[i, i + size].shape,
-            )
-            self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size].unsqueeze_(0)))
+
+        torch.manual_seed(size)
+        i = torch.randint(a.shape[0], ()).item()
+        self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size].unsqueeze_(0)))
+
         res = ht.diag(a, offset=-size)
         self.assertEqual(res.split, a.split)
         self.assertEqual(res.shape, (size * 3, size * 3))
         self.assertEqual(res.lshape[res.split], 3)
         exp = torch.diag(data, diagonal=-size)
-        for i in range(max(size, rank * 3), (rank + 1) * 3):
-            self.assertTrue(torch.equal(res[i, i - size].larray, exp[i, i - size].unsqueeze_(0)))
+        counts, displs = res.counts_displs()
+        local_exp = exp[displs[rank] : displs[rank] + counts[rank]]
+        self.assertTrue(torch.equal(res.larray, local_exp))
 
         self.assertTrue(ht.equal(ht.diag(ht.diag(a)), a))
 
@@ -458,7 +452,7 @@ class TestManipulations(TestCase):
         )
 
         self.assert_func_equal(
-            (27,),
+            (5,),
             heat_func=ht.diag,
             numpy_func=np.diag,
             heat_args={"offset": -3},
