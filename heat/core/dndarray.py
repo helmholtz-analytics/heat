@@ -715,6 +715,14 @@ class DNDarray:
                 h[0] = key
             key = tuple(h)
 
+        # key must be torch-proof
+        key = list(key)
+        for i, k in enumerate(key):
+            if isinstance(k, DNDarray):
+                # extract torch tensor
+                key[i] = k.larray.type(torch.int64)
+        key = tuple(key)
+
         # assess final global shape
         self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
         gout_full = list(self_proxy[key].shape)
