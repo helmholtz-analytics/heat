@@ -356,7 +356,7 @@ class TestCase(unittest.TestCase):
         """
         seed = np.random.randint(1000000, size=(1,))
         # print("using seed {} for random values".format(seed))
-        self.comm.Bcast(seed, root=0)
+        seed = self.comm.Bcast(seed, root=0)
         np.random.seed(seed=seed.item())
         if issubclass(dtype, np.floating):
             array = np.random.randn(*shape)
