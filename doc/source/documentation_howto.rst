@@ -11,7 +11,7 @@ enforced. The following sections summarize the key features of Heats API documen
 Prerequisites
 -------------
 
-The heat documentation is build using Sphinx (Version 3.0.3), with a custom derivation of the Sphinx-RTD-Theme
+The Heat documentation is build using Sphinx (Version 3.0.3), with a custom derivation of the Sphinx-RTD-Theme
 (defined in `_static/css/custom.css`).
 There are three main colors available for formatting:
 
@@ -23,7 +23,7 @@ All configurations regarding the documentation build are set in `doc/source/conf
 API Documentation is generated using the `sphinx-autoapi extension <https://sphinx-autoapi.readthedocs.io>`_ . This is
 done via custom templates, defined in `source/_templates/autoapi/python`.
 
-To build the documentation locally please run the following commands in the HeAT home directory:
+To build the documentation locally please run the following commands in the Heat home directory:
 
 * ``pip install doc/requirements.txt``
 * ``sphinx-build -T -E -b html doc/source doc/build/html``

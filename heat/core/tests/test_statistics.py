@@ -1240,8 +1240,6 @@ class TestStatistics(TestCase):
             ht.std(x, axis=10)
         with self.assertRaises(TypeError):
             ht.std(x, axis="01")
-        with self.assertRaises(NotImplementedError):
-            ht.std(x, ddof=2)
         with self.assertRaises(ValueError):
             ht.std(x, ddof=-2)
 
@@ -1262,6 +1260,8 @@ class TestStatistics(TestCase):
             x.var(axis=[-4])
         with self.assertRaises(TypeError):
             ht.var(x, axis="01")
+        with self.assertRaises(TypeError):
+            ht.var(x, ddof="01")
         with self.assertRaises(ValueError):
             ht.var(x, axis=(0, "10"))
         with self.assertRaises(ValueError):
