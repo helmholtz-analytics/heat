@@ -699,6 +699,8 @@ class DNDarray:
                 # key is now a list of tensors with dimensions (key.ndim, 1)
                 # squeeze singleton dimension:
                 key = tuple(key[i].squeeze_(1) for i in range(len(key)))
+            else:
+                key = (key,)
             advanced_ind = True
         elif not isinstance(key, tuple):
             """ this loop handles all other cases. DNDarrays which make it to here refer to advanced indexing slices,
@@ -716,18 +718,17 @@ class DNDarray:
             key = tuple(h)
 
         # key must be torch-proof
-        key = list(key)
-        for i, k in enumerate(key):
-            if isinstance(k, DNDarray):
-                # extract torch tensor
-                key[i] = k.larray.type(torch.int64)
-        key = tuple(key)
+        if isinstance(key, (list, tuple)):
+            key = list(key)
+            for i, k in enumerate(key):
+                if isinstance(k, DNDarray):
+                    # extract torch tensor
+                    key[i] = k.larray.type(torch.int64)
+            key = tuple(key)
 
         # assess final global shape
         self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
         gout_full = list(self_proxy[key].shape)
-        if len(gout_full) == 0:
-            gout_full = [1]
 
         # ellipsis stuff
         key = list(key)
@@ -890,7 +891,7 @@ class DNDarray:
             new_split,
             self.device,
             self.comm,
-            balanced=None,
+            balanced=True if new_split is None else None,
         )
 
     if torch.cuda.device_count() > 0:
