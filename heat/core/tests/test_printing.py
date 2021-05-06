@@ -101,9 +101,9 @@ class TestPrinting(TestCase):
         dndarray = ht.arange(2 * 3 * 4, split=0).reshape((2, 3, 4))
         if dndarray.comm.size == 2:
             comparison = (
-                "DNDarray([[[ 0,  1,  2,  3],\n"
-                "           [ 4,  5,  6,  7],\n"
-                "           [ 8,  9, 10, 11]]], dtype=ht.int32, device=cpu:0, split=0)"
+                "DNDarray([[ 0,  1,  2,  3],\n"
+                "          [ 4,  5,  6,  7],\n"
+                "          [ 8,  9, 10, 11]], dtype=ht.int32, device=cpu:0, split=None)"
             )
             __str = str(dndarray[0])
             if dndarray.comm.rank == 0:
