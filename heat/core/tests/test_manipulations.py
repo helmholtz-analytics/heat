@@ -386,8 +386,9 @@ class TestManipulations(TestCase):
         self.assertEqual(res.shape, (size * 2, size * 2))
         self.assertEqual(res.lshape[res.split], 2)
         exp = torch.diag(data)
-        for i in range(rank * 2, (rank + 1) * 2):
-            self.assertTrue(res[i, i].larray.item() == exp[i, i].item())
+        counts, displs = res.counts_displs()
+        local_exp = exp[displs[rank] : displs[rank] + counts[rank]]
+        self.assertTrue(torch.equal(res.larray, local_exp))
 
         res = ht.diag(a, offset=size)
 
@@ -436,9 +437,10 @@ class TestManipulations(TestCase):
             data = torch.empty(0, dtype=torch.int32, device=self.device.torch_device)
         a = ht.array(data, is_split=0)
         res = ht.diag(a)
+        i = torch.randint(size, ()).item()
         self.assertTrue(
             torch.equal(
-                res[rank, rank].larray,
+                res[i, i].larray,
                 torch.tensor([1], dtype=torch.int32, device=self.device.torch_device),
             )
         )
