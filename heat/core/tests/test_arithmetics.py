@@ -412,6 +412,32 @@ class TestArithmetics(TestCase):
         with self.assertRaises(TypeError):
             ht.mul("T", "s")
 
+    def test_neg(self):
+        self.assertTrue(ht.equal(ht.neg(ht.array([-1, 1])), ht.array([1, -1])))
+        self.assertTrue(ht.equal(-ht.array([-1.0, 1.0]), ht.array([1.0, -1.0])))
+
+        a = ht.array([1 + 1j, 2 - 2j, 3, 4j, 5], split=0)
+        b = out = ht.empty(5, dtype=ht.complex64, split=0)
+        ht.negative(a, out=out)
+        self.assertTrue(ht.equal(out, ht.array([-1 - 1j, -2 + 2j, -3, -4j, -5], split=0)))
+        self.assertIs(out, b)
+
+        with self.assertRaises(TypeError):
+            ht.neg(1)
+
+    def test_pos(self):
+        self.assertTrue(ht.equal(ht.pos(ht.array([-1, 1])), ht.array([-1, 1])))
+        self.assertTrue(ht.equal(+ht.array([-1.0, 1.0]), ht.array([-1.0, 1.0])))
+
+        a = ht.array([1 + 1j, 2 - 2j, 3, 4j, 5], split=0)
+        b = out = ht.empty(5, dtype=ht.complex64, split=0)
+        ht.positive(a, out=out)
+        self.assertTrue(ht.equal(out, a))
+        self.assertIs(out, b)
+
+        with self.assertRaises(TypeError):
+            ht.pos(1)
+
     def test_pow(self):
         result = ht.array([[1.0, 4.0], [9.0, 16.0]])
         commutated_result = ht.array([[2.0, 4.0], [8.0, 16.0]])
