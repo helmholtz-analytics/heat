@@ -898,14 +898,14 @@ def result_type(
                 prec1 = 0  # array
             else:
                 prec1 = 2  # scalar
-        except Exception:
+        except (AttributeError, TypeError):
             try:
                 # type
                 if isinstance(arg, np.dtype):
                     arg = arg.char
                 type1 = canonical_heat_type(arg)
                 prec1 = 1
-            except Exception:
+            except TypeError:
                 # type instance
                 type1 = canonical_heat_type(type(arg))
                 prec1 = 3
