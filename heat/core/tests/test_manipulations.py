@@ -399,7 +399,7 @@ class TestManipulations(TestCase):
 
         torch.manual_seed(size)
         i = torch.randint(a.shape[0], ()).item()
-        self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size].unsqueeze_(0)))
+        self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size]))
 
         res = ht.diag(a, offset=-size)
         self.assertEqual(res.split, a.split)
@@ -441,7 +441,7 @@ class TestManipulations(TestCase):
         self.assertTrue(
             torch.equal(
                 res[i, i].larray,
-                torch.tensor([1], dtype=torch.int32, device=self.device.torch_device),
+                torch.tensor(1, dtype=torch.int32, device=self.device.torch_device),
             )
         )
 
