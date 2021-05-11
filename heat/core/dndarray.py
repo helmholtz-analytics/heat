@@ -583,6 +583,12 @@ class DNDarray:
         """
         Generate a 'map' of the lshapes of the data on all processes.
         Units are ``(process rank, lshape)``
+
+        Notes
+        -----
+        In the case of constants in the DNDarray, there was confusion in where the data resides.
+        As an empty process would appear the same as one with a constant value, DNDarrays which contain
+        constants appear in the lshape_map as ``[1]``
         """
         dims = self.ndim if self.ndim > 0 else 1
         lshape_map = torch.zeros(
