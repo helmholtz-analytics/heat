@@ -812,7 +812,7 @@ class DNDarray:
             loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
             # if there are no local indices on a process, then `arr` is empty
             # if local indices exist:
-            print("DEBUGGING: loc_inds = ", loc_inds, len(loc_inds))
+            # print("DEBUGGING: loc_inds = ", loc_inds, len(loc_inds))
             if len(loc_inds[0]) != 0:
                 # select same local indices for other (non-split) dimensions if necessary
                 for i, k in enumerate(lkey):
@@ -822,7 +822,7 @@ class DNDarray:
                 # correct local indices for offset
                 inds = inds[loc_inds] - chunk_start
                 lkey[self.split] = inds
-                print("DEBUGGING: inds = ", inds)
+                # print("DEBUGGING: inds = ", inds)
                 arr = self.__array[tuple(lkey)].reshape(tuple(lout))
             elif len(loc_inds[0]) == 0:
                 if new_split is not None:
@@ -852,6 +852,7 @@ class DNDarray:
             sp_pr = torch.where(key_stop >= chunk_starts)[0]
             sp_pr = sp_pr[-1] if len(sp_pr) > 0 else 0
             actives = list(range(st_pr, sp_pr + 1))
+
             if len(actives) == 1:
                 active_rank = actives[0]
             if rank in actives:
@@ -901,7 +902,7 @@ class DNDarray:
             else:
                 arr = torch.empty(tuple(lout), dtype=self.larray.dtype, device=self.larray.device)
 
-        if gout_full == (1,) or gout_full == [1]:
+        if (gout_full == (1,) or gout_full == [1]) and new_split is not None:
             # broadcast result if the output is a single element (constant)
             arr = self.comm.bcast(arr, root=active_rank)
             new_split = None
