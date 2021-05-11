@@ -799,6 +799,7 @@ class DNDarray:
             loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
             # if there are no local indices on a process, then `arr` is empty
             # if local indices exist:
+            print("DEBUGGING: loc_inds = ", loc_inds, len(loc_inds))
             if len(loc_inds[0]) != 0:
                 # select same local indices for other (non-split) dimensions if necessary
                 for i, k in enumerate(lkey):
@@ -808,9 +809,17 @@ class DNDarray:
                 # correct local indices for offset
                 inds = inds[loc_inds] - chunk_start
                 lkey[self.split] = inds
+                print("DEBUGGING: inds = ", inds)
+                arr = self.__array[tuple(lkey)].reshape(tuple(lout))
+            elif len(loc_inds[0]) == 0:
                 if new_split is not None:
                     lout[new_split] = len(loc_inds[0])
-                arr = self.__array[tuple(lkey)].reshape(lout)
+                else:
+                    lout = [0] * len(gout_full)
+                arr = torch.tensor([], dtype=self.larray.dtype, device=self.larray.device).reshape(
+                    tuple(lout)
+                )
+
         elif isinstance(key[self.split], slice):
             # standard slicing along the split axis,
             # adjust the slice start, stop, and step, then run it on the processes which have the requested data
@@ -879,10 +888,10 @@ class DNDarray:
             # broadcast result
             arr = self.comm.bcast(arr, root=active_rank)
 
-        if 0 in arr.shape:
-            # no data on process
-            lout[new_split] = 0
-            arr = arr.reshape(lout)
+        # if 0 in arr.shape:
+        #     # no data on process
+        #     lout[new_split] = 0
+        #     arr = arr.reshape(lout)
 
         return DNDarray(
             arr.type(l_dtype),
