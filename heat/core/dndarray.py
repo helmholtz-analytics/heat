@@ -552,7 +552,7 @@ class DNDarray:
         """
         return self.__cast(complex)
 
-    def counts_displs(self):
+    def counts_displs(self) -> Tuple(torch.Tensor, torch.Tensor):
         """
         Return actual counts and displacements of the DNDarray. Do not assume load balance.
 
@@ -583,24 +583,13 @@ class DNDarray:
         """
         Generate a 'map' of the lshapes of the data on all processes.
         Units are ``(process rank, lshape)``
-
-        Notes
-        -----
-        In the case of constants in the DNDarray, there was confusion in where the data resides.
-        As an empty process would appear the same as one with a constant value, DNDarrays which contain
-        constants appear in the lshape_map as ``[1]``
         """
-        dims = self.ndim if self.ndim > 0 else 1
         lshape_map = torch.zeros(
-            (self.comm.size, dims), dtype=torch.int, device=self.device.torch_device
+            (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
         )
-        if not self.is_distributed():
-            if self.larray.numel() == 1:
-                lshape_map[:] = torch.tensor(1, device=self.device.torch_device)
-            else:
-                lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
+        if not self.is_distributed:
+            lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
             return lshape_map
-
         if self.is_balanced():
             for i in range(self.comm.size):
                 _, lshape, _ = self.comm.chunk(self.gshape, self.split, rank=i)
@@ -877,7 +866,7 @@ class DNDarray:
             or isinstance(key[self.split], (list, torch.Tensor, DNDarray, np.ndarray))
             and len(key[self.split]) == 1
         ):
-            # slicing one item along split axis:
+            # getting one item along split axis:
             key = list(key)
             if isinstance(key[self.split], list):
                 key[self.split] = key[self.split].pop()
