@@ -782,7 +782,6 @@ class DNDarray:
         chunk_ends = chunk_starts + counts
         chunk_start = chunk_starts[rank]
         chunk_end = chunk_ends[rank]
-        active_rank = None
 
         if len(key) == 0:  # handle empty list
             # this will return an array of shape (0, ...)
@@ -799,8 +798,6 @@ class DNDarray:
             and len(key[self.split]) > 1
         ):
             # advanced indexing, elements in the split dimension are adjusted to the local indices
-            # todo: handle the single element return...for loop? need to find which
-            #       process the data is on
             lkey = list(key)
             if isinstance(key[self.split], DNDarray):
                 lkey[self.split] = key[self.split].larray
@@ -852,9 +849,6 @@ class DNDarray:
             sp_pr = torch.where(key_stop >= chunk_starts)[0]
             sp_pr = sp_pr[-1] if len(sp_pr) > 0 else 0
             actives = list(range(st_pr, sp_pr + 1))
-
-            if len(actives) == 1:
-                active_rank = actives[0]
             if rank in actives:
                 key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
                 key_stop = counts[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
@@ -901,11 +895,8 @@ class DNDarray:
                 arr = self.__array[tuple(key)].reshape(tuple(lout))
             else:
                 arr = torch.empty(tuple(lout), dtype=self.larray.dtype, device=self.larray.device)
-
-        if (gout_full == (1,) or gout_full == [1]) and new_split is not None:
-            # broadcast result if the output is a single element (constant)
+            # broadcast result
             arr = self.comm.bcast(arr, root=active_rank)
-            new_split = None
 
         # if 0 in arr.shape:
         #     # no data on process
