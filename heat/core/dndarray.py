@@ -583,12 +583,22 @@ class DNDarray:
         """
         Generate a 'map' of the lshapes of the data on all processes.
         Units are ``(process rank, lshape)``
+
+        Notes
+        -----
+        In the case of constants in the DNDarray, there was confusion in where the data resides.
+        As an empty process would appear the same as one with a constant value, DNDarrays which contain
+        constants appear in the lshape_map as ``[1]``
         """
+        dims = self.ndim if self.ndim > 0 else 1
         lshape_map = torch.zeros(
-            (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
+            (self.comm.size, dims), dtype=torch.int, device=self.device.torch_device
         )
-        if not self.is_distributed:
-            lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
+        if not self.is_distributed():
+            if self.larray.numel() == 1:
+                lshape_map[:] = torch.tensor(1, device=self.device.torch_device)
+            else:
+                lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
             return lshape_map
 
         if self.is_balanced():
