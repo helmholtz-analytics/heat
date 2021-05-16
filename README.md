@@ -108,7 +108,7 @@ If you find Heat helpful for your research, please mention it in your academic p
 - Götz, M., Debus, C., Coquelin, D., Krajsek, K., Comito, C., Knechtges, P., .Hagemeier, B., Tarnawa, M., Hanselmann, S., Siggel, S., Basermann, A. & Streit, A. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In Proceedings of the 19th IEEE International Conference on Big Data (BigData) (pp. 276-288). IEEE.
 
 ```
-@inproceedings{heat20,
+@inproceedings{heat2020,
     title={{HeAT -- a Distributed and GPU-accelerated Tensor Framework for Data Analytics}},
     author={
       Markus Götz and
@@ -124,11 +124,12 @@ If you find Heat helpful for your research, please mention it in your academic p
       Achim Basermann and
       Achim Streit
     },
-    booktitle={Proceedings of the 19th IEEE International Conference on Big Data},
+    booktitle={2020 IEEE International Conference on Big Data (Big Data)}, 
     year={2020},
-    pages={276-288},
+    pages={276-287},
     month={December},
-    publisher={IEEE}
+    publisher={IEEE},
+    doi={10.1109/BigData50022.2020.9378050}
 }
 ```
 
