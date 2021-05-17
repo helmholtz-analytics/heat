@@ -555,8 +555,6 @@ class DNDarray:
     def counts_displs(self) -> Tuple(torch.Tensor, torch.Tensor):
         """
         Return actual counts and displacements of the DNDarray. Do not assume load balance.
-
-        Returns tuple of torch.Tensor
         """
         if self.split is not None:
             counts = self.create_lshape_map()[:, self.split]
