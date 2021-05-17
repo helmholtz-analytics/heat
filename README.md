@@ -124,7 +124,7 @@ If you find Heat helpful for your research, please mention it in your academic p
       Achim Basermann and
       Achim Streit
     },
-    booktitle={2020 IEEE International Conference on Big Data (Big Data)}, 
+    booktitle={2020 IEEE International Conference on Big Data (Big Data)},
     year={2020},
     pages={276-287},
     month={December},
