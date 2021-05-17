@@ -351,6 +351,30 @@ class TestDNDarray(TestCase):
             with self.assertRaises(TypeError):
                 complex(ht.full((ht.MPI_WORLD.size,), 2, split=0))
 
+    def test_counts_displs(self):
+        # balanced distributed DNDarray
+        a = ht.arange(128, split=0).reshape((8, 8, 2))
+        counts, displs = a.counts_displs()
+        comm_counts, comm_displs, _ = a.comm.counts_displs_shape(a.gshape, a.split)
+        self.assertTrue(tuple(counts.tolist()) == comm_counts)
+        self.assertTrue(tuple(displs.tolist()) == comm_displs)
+
+        # non-balanced distributed DNDarray
+        rank = a.comm.rank
+        size = a.comm.size
+        t_a = torch.ones(8, rank * 2, 2)
+        comp_counts = torch.arange(0, size) * 2
+        comp_displs = torch.cumsum(comp_counts, dim=0)
+        a = ht.array(t_a, is_split=1)
+        counts, displs = a.counts_displs()
+        self.assertTrue((counts == comp_counts).all())
+        self.assertTrue((displs[1:] == comp_displs[:-1]).all())
+
+        # exception
+        a_nosplit = ht.arange(128).reshape((8, 8, 2))
+        with self.assertRaises(ValueError):
+            a_nosplit.counts_displs()
+
     def test_flatten(self):
         a = ht.ones((4, 4, 4), split=1)
         result = ht.ones((64,), split=0)
