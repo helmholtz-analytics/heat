@@ -138,11 +138,7 @@ Acknowledgements
 
 *This work is supported by the [Helmholtz Association Initiative and
 Networking Fund](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
-under project number ZT-I-0003.*
-
-*This work is supported by the [Helmholtz Association Initiative and
-Networking Fund](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
-under the Helmholtz AI platform grant.*
+under project number ZT-I-0003 and the Helmholtz AI platform grant.*
 
 ---
 
