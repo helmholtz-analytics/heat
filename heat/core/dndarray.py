@@ -82,7 +82,7 @@ class DNDarray:
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None
-        self.__partitioned__ = None
+        self.__partitions_dict__ = None
 
         # check for inconsistencies between torch and heat devices
         assert str(array.device) == device.torch_device
@@ -199,7 +199,7 @@ class DNDarray:
         return len(self.__gshape)
 
     @property
-    def partitioned(self) -> dict:
+    def __partitioned__(self) -> dict:
         """
         This will return a dictionary containing information useful for working with the partitioned
         data. These items include the shape of the data on each process, the starting index of the data
@@ -212,9 +212,9 @@ class DNDarray:
         -------
         dictionary with the partition interface
         """
-        if self.__partitioned__ is None:
-            self.__partitioned__ = self.create_partition_interface()
-        return self.__partitioned__
+        if self.__partitions_dict__ is None:
+            self.__partitions_dict__ = self.create_partition_interface()
+        return self.__partitions_dict__
 
     @property
     def size(self) -> int:
