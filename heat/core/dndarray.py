@@ -58,8 +58,8 @@ class DNDarray:
         Describes whether the data are evenly distributed across processes.
         If this information is not available (``self.balanced is None``), it
         can be gathered via the :func:`is_distributed()` method (requires communication).
-    partition_interface: bool, Optional
-        If true, a partition interface will be created
+    # generate_partitioned: bool, Optional
+    #     If true, a partition interface will be created
     """
 
     def __init__(
@@ -82,7 +82,7 @@ class DNDarray:
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None
-        self.__partition_interface__ = None
+        self.__partitioned__ = None
 
         # check for inconsistencies between torch and heat devices
         assert str(array.device) == device.torch_device
