@@ -639,6 +639,7 @@ class DNDarray:
                     'device': 'cpu'
                 }
             },
+            'locals': [(rank, 0, 0)],
         }
 
         Returns
@@ -666,10 +667,13 @@ class DNDarray:
                 "device": self.device.torch_device,
             }
 
+        locals = [0] * self.ndim
+        locals[self.split] = self.comm.rank
         partition_dict = {
             "shape": self.gshape,
             "partition_tiling": tuple(part_tiling),
             "partitions": partitions,
+            "locals": locals,
         }
         return partition_dict
 
