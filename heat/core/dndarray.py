@@ -199,7 +199,7 @@ class DNDarray:
         return len(self.__gshape)
 
     @property
-    def partition_interface(self) -> dict:
+    def partitioned(self) -> dict:
         """
         This will return a dictionary containing information useful for working with the partitioned
         data. These items include the shape of the data on each process, the starting index of the data
@@ -212,9 +212,9 @@ class DNDarray:
         -------
         dictionary with the partition interface
         """
-        if self.__partition_interface__ is None:
-            self.__partition_interface__ = self.create_partition_interface()
-        return self.__partition_interface__
+        if self.__partitioned__ is None:
+            self.__partitioned__ = self.create_partition_interface()
+        return self.__partitioned__
 
     @property
     def size(self) -> int:
@@ -646,29 +646,41 @@ class DNDarray:
         -------
         dictionary containing the partition interface as shown above.
         """
+        # sp =
         lshape_map = self.create_lshape_map()
         start_idx_map = torch.zeros_like(lshape_map)
-        z = torch.tensor([0], device=self.device.torch_device, dtype=self.dtype.torch_type())
-        starts = torch.cat((z, torch.cumsum(lshape_map[:, self.split], dim=0)[:-1]), dim=0)
-        start_idx_map[:, self.split] = starts
+
         part_tiling = [1] * self.ndim
-        part_tiling[self.split] = self.comm.size
+        lcls = [0] * self.ndim
+
+        z = torch.tensor([0], device=self.device.torch_device, dtype=self.dtype.torch_type())
+        if self.split is not None:
+            starts = torch.cat((z, torch.cumsum(lshape_map[:, self.split], dim=0)[:-1]), dim=0)
+            lcls[self.split] = self.comm.rank
+            part_tiling[self.split] = self.comm.size
+        else:
+            starts = torch.zeros(self.ndim, dtype=torch.int, device=self.device.torch_device)
+
+        start_idx_map[:, self.split] = starts
 
         partitions = {}
         base_key = [0] * self.ndim
         for r in range(self.comm.size):
-            base_key[self.split] = r
+            if self.split is not None:
+                base_key[self.split] = r
+                dat = None if r != self.comm.rank else self.larray
+            else:
+                dat = self.larray
+
             partitions[tuple(base_key)] = {
                 "start": tuple(start_idx_map[r].tolist()),
                 "shape": tuple(lshape_map[r].tolist()),
-                "data": None if r != self.comm.rank else self.larray,
+                "data": dat,
                 "location": r,
                 "dtype": self.dtype.torch_type(),
                 "device": self.device.torch_device,
             }
 
-        lcls = [0] * self.ndim
-        lcls[self.split] = self.comm.rank
         partition_dict = {
             "shape": self.gshape,
             "partition_tiling": tuple(part_tiling),
