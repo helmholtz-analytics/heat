@@ -667,13 +667,13 @@ class DNDarray:
                 "device": self.device.torch_device,
             }
 
-        locals = [0] * self.ndim
-        locals[self.split] = self.comm.rank
+        lcls = [0] * self.ndim
+        lcls[self.split] = self.comm.rank
         partition_dict = {
             "shape": self.gshape,
             "partition_tiling": tuple(part_tiling),
             "partitions": partitions,
-            "locals": locals,
+            "locals": lcls,
         }
         return partition_dict
 
