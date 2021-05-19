@@ -673,7 +673,7 @@ class DNDarray:
             "shape": self.gshape,
             "partition_tiling": tuple(part_tiling),
             "partitions": partitions,
-            "locals": lcls,
+            "locals": [tuple(lcls)],
         }
         return partition_dict
 
