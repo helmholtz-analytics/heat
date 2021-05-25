@@ -381,8 +381,8 @@ class TestArithmetics(TestCase):
 
         with self.assertRaises(TypeError):
             ht.left_shift(int_tensor, 2.4)
-        with self.assertRaises(TypeError):
-            ht.left_shift(ht.array([True]), 2)
+        res = ht.left_shift(ht.array([True]), 2)
+        self.assertTrue(res == 4)
 
     def test_mod(self):
         a_tensor = ht.array([[1, 4], [2, 2]])
@@ -553,9 +553,10 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.right_shift(int_tensor.copy().resplit_(0), 1), int_result))
 
         with self.assertRaises(TypeError):
-            ht.left_shift(int_tensor, 2.4)
-        with self.assertRaises(TypeError):
-            ht.left_shift(ht.array([True]), 2)
+            ht.right_shift(int_tensor, 2.4)
+
+        res = ht.right_shift(ht.array([True]), 2)
+        self.assertTrue(res == 0)
 
     def test_sub(self):
         result = ht.array([[-1.0, 0.0], [1.0, 2.0]])

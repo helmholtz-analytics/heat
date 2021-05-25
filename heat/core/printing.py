@@ -1,6 +1,9 @@
+"""Allows to output DNDarrays to stdout."""
+
 import copy
-import io
 import torch
+
+from .dndarray import DNDarray
 
 __all__ = ["get_printoptions", "set_printoptions"]
 
@@ -9,10 +12,14 @@ __all__ = ["get_printoptions", "set_printoptions"]
 _DEFAULT_LINEWIDTH = 120
 torch.set_printoptions(profile="default", linewidth=_DEFAULT_LINEWIDTH)
 
+# printing
+__PREFIX = "DNDarray"
+__INDENT = len(__PREFIX)
 
-def get_printoptions():
+
+def get_printoptions() -> dict:
     """
-    Returns the currently configured printing options.
+    Returns the currently configured printing options as key-value pairs.
     """
     return copy.copy(torch._tensor_str.PRINT_OPTS.__dict__)
 
@@ -25,18 +32,18 @@ def set_printoptions(
 
     Parameters
     ----------
-    precision: int
+    precision : int, optional
         Number of digits of precision for floating point output (default=4).
-    threshold: int
+    threshold : int, optional
         Total number of array elements which trigger summarization rather than full `repr` string (default=1000).
-    edgeitems: int
+    edgeitems : int, optional
         Number of array items in summary at beginning and end of each dimension (default=3).
-    linewidth: int
+    linewidth : int, optional
         The number of characters per line for the purpose of inserting line breaks (default = 80).
-    profile: str
+    profile : str, optional
         Sane defaults for pretty printing. Can override with any of the above options. Can be any one of `default`,
         `short`, `full`.
-    sci_mode: bool
+    sci_mode : bool, optional
         Enable (True) or disable (False) scientific notation. If None (default) is specified, the value is automatically
         inferred by HeAT.
     """
@@ -51,17 +58,13 @@ def set_printoptions(
         torch._tensor_str.PRINT_OPTS.linewidth = _DEFAULT_LINEWIDTH
 
 
-__PREFIX = "DNDarray"
-__INDENT = len(__PREFIX)
-
-
-def __str__(dndarray):
+def __str__(dndarray) -> str:
     """
     Computes a printable representation of the passed DNDarray.
 
     Parameters
     ----------
-    dndarray: DNDarray
+    dndarray : DNDarray
         The array for which to obtain the corresponding string
     """
     tensor_string = _tensor_str(dndarray, __INDENT + 1)
@@ -74,15 +77,15 @@ def __str__(dndarray):
     )
 
 
-def _torch_data(dndarray, summarize):
+def _torch_data(dndarray, summarize) -> DNDarray:
     """
     Extracts the data to be printed from the DNDarray in form of a torch tensor and returns it.
 
     Parameters
     ----------
-    dndarray: DNDarray
+    dndarray : DNDarray
         The HeAT DNDarray to be printed.
-    summarize: bool
+    summarize : bool
         Flag indicating whether to print the full data or summarized, i.e. ellipsed, version of the data.
     """
     if not dndarray.is_balanced():
@@ -133,7 +136,7 @@ def _torch_data(dndarray, summarize):
     return data
 
 
-def _tensor_str(dndarray, indent):
+def _tensor_str(dndarray, indent: int) -> str:
     """
     Computes a string representation of the passed DNDarray.
 
