@@ -1222,132 +1222,128 @@ def trace(
     # -------------------------------
     # CASE > 2D => DNDArray
     # -------------------------------
+
+    # sanitize axis1, axis2 (make sure axis1 < axis2)
+    if axis1 > axis2:
+        tmp = axis1
+        axis1 = axis2
+        axis2 = tmp
+
+    # ----------------------------------
+    # CASE split axis NOT IN trace axes
+    # ----------------------------------
+    # compute each diagonal sum
+    if not (a.is_distributed() and a.split in (axis1, axis2)):
+        # extract diagonals
+        diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+
+        # sum them up along the last axis (and convert to given dtype)
+        last_axis = diag_t.ndim - 1
+        sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype.torch_type())
+    # -----------------------------
+    # CASE split axis IN trace axes
+    # -----------------------------
     else:
-        # sanitize axis1, axis2 (make sure axis1 < axis2)
-        if axis1 > axis2:
-            tmp = axis1
-            axis1 = axis2
-            axis2 = tmp
+        # combination that would NOT result into array of zeros
+        if -offset < a.gshape[axis1] or offset < a.gshape[axis2]:
+            # adapt the offset to distribution
+            # (to result into required diagonal elements on each process)
+            offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
 
-        # ----------------------------------
-        # CASE split axis NOT IN trace axes
-        # ----------------------------------
-        # compute each diagonal sum
-        if not (a.is_distributed() and a.split in (axis1, axis2)):
-            # extract diagonals
-            diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+            if a.split == axis1:
+                offset += offset_split
+            else:  # a.split == axis2
+                offset -= offset_split
 
-            # sum them up along the last axis (and convert to given dtype)
-            last_axis = diag_t.ndim - 1
-            sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype.torch_type())
-        # -----------------------------
-        # CASE split axis IN trace axes
-        # -----------------------------
+        diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+
+        # empty diagonal => create an array of zeros for following summation
+        if 0 in diag_t.shape:
+            res_shape = [1 if i == 0 else i for i in diag_t.shape]
+            diag_t = torch.zeros(res_shape, device=a.device.torch_device)
+
+        # create recvbuffer (with correct resulting shape)
+        sum_along_diagonals_t = torch.clone(diag_t)
+        res_shape = list(sum_along_diagonals_t.shape)
+        del res_shape[-1]  # as summed up along the last axis
+        sum_along_diagonals_t = torch.reshape(sum_along_diagonals_t, res_shape)
+
+        # Sum up all partial sums (and gather them)
+        # in out
+        if out is not None:
+            result_array = out
+        # in a
         else:
-            # combination that would NOT result into array of zeros
-            if -offset < a.gshape[axis1] or offset < a.gshape[axis2]:
-                # adapt the offset to distribution
-                # (to result into required diagonal elements on each process)
-                offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
+            result_array = a
 
-                if a.split == axis1:
-                    offset += offset_split
-                else:  # a.split == axis2
-                    offset -= offset_split
+        result_array.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
 
-            diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
-
-            # empty diagonal => create an array of zeros for following summation
-            if 0 in diag_t.shape:
-                res_shape = [1 if i == 0 else i for i in diag_t.shape]
-                diag_t = torch.zeros(res_shape, device=a.device.torch_device)
-
-            # create recvbuffer (with correct resulting shape)
-            sum_along_diagonals_t = torch.clone(diag_t)
-            res_shape = list(sum_along_diagonals_t.shape)
-            del res_shape[-1]  # as summed up along the last axis
-            sum_along_diagonals_t = torch.reshape(sum_along_diagonals_t, res_shape)
-
-            # Sum up all partial sums (and gather them)
-            # in out
-            if out is not None:
-                result_array = out
-            # in a
-            else:
-                result_array = a
-
-            result_array.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
-
-            if result_array.split is None:
-                split_axis = None
-            else:
-                last_axis = sum_along_diagonals_t.ndim - 1
-                split_axis = result_array.split if result_array.split <= last_axis else last_axis
-
-            sum_along_diagonals = factories.array(
-                sum_along_diagonals_t,
-                dtype=dtype,
-                split=split_axis,
-                comm=result_array.comm,
-                device=result_array.device,
-            )
-
-            if out is not None:
-                sanitation.sanitize_out(out, tuple(res_shape), out.split, result_array.device)
-                out.larray = sum_along_diagonals.larray
-
-            return sum_along_diagonals
-
-        if a.is_distributed():
-            # (...and a.split not in (axis1, axis2))
-            if a.split < axis2:
-                gather_axis = a.split
-            else:
-                gather_axis = a.split - 2
-
-            # check if gather_axis is in range of result
-            if gather_axis >= sum_along_diagonals_t.ndim:
-                gather_axis = sum_along_diagonals_t.ndim - 1
-
-            # Stack all partial results back together along the correct axis
-            sum_along_diagonals = factories.array(
-                sum_along_diagonals_t,
-                dtype=dtype,
-                is_split=gather_axis,
-                comm=a.comm,
-                device=a.device,
-            )
-        # input not distributed
+        if result_array.split is None:
+            split_axis = None
         else:
-            # check if split axis is in range of result
-            if a.split is not None and a.split >= sum_along_diagonals_t.ndim:
-                gather_axis = sum_along_diagonals_t.ndim - 1
-            else:
-                gather_axis = a.split
+            last_axis = sum_along_diagonals_t.ndim - 1
+            split_axis = result_array.split if result_array.split <= last_axis else last_axis
 
-            # convert torch result back to DNDarray
-            sum_along_diagonals = factories.array(
-                sum_along_diagonals_t, dtype=dtype, split=gather_axis, comm=a.comm, device=a.device
-            )
+        sum_along_diagonals = factories.array(
+            sum_along_diagonals_t,
+            dtype=dtype,
+            split=split_axis,
+            comm=result_array.comm,
+            device=result_array.device,
+        )
 
         if out is not None:
-            # resplit to guarantee correct results
-            if out.split != gather_axis:
-                warnings.warn(
-                    f"Split axis of `out` will be changed from {out.split} to {gather_axis} to "
-                    f"guarantee correct results."
-                )
-                out.resplit_(gather_axis)
-            # sanitize out
-            output_gshape = list(a.gshape)
-            del output_gshape[axis1], output_gshape[axis2 - 1]
-            sanitation.sanitize_out(out, tuple(output_gshape), gather_axis, out.device)
-
-            # store result
-            out.larray = sum_along_diagonals_t
-            return out
+            sanitation.sanitize_out(out, tuple(res_shape), out.split, out.device)
+            out.larray = sum_along_diagonals.larray
 
         return sum_along_diagonals
+
+    if a.is_distributed():
+        # (...and a.split not in (axis1, axis2))
+        if a.split < axis2:
+            gather_axis = a.split
+        else:
+            gather_axis = a.split - 2
+
+        # check if gather_axis is in range of result
+        if gather_axis >= sum_along_diagonals_t.ndim:
+            gather_axis = sum_along_diagonals_t.ndim - 1
+
+        # Stack all partial results back together along the correct axis
+        sum_along_diagonals = factories.array(
+            sum_along_diagonals_t, dtype=dtype, is_split=gather_axis, comm=a.comm, device=a.device
+        )
+    # input not distributed
+    else:
+        # check if split axis is in range of result
+        if a.split is not None and a.split >= sum_along_diagonals_t.ndim:
+            gather_axis = sum_along_diagonals_t.ndim - 1
+        else:
+            gather_axis = a.split
+
+        # convert torch result back to DNDarray
+        sum_along_diagonals = factories.array(
+            sum_along_diagonals_t, dtype=dtype, split=gather_axis, comm=a.comm, device=a.device
+        )
+
+    if out is not None:
+        # resplit to guarantee correct results
+        if out.split != gather_axis:
+            warnings.warn(
+                f"Split axis of `out` will be changed from {out.split} to {gather_axis} to "
+                f"guarantee correct results."
+            )
+            out.resplit_(gather_axis)
+        # sanitize out
+        output_gshape = list(a.gshape)
+        del output_gshape[axis1], output_gshape[axis2 - 1]
+        sanitation.sanitize_out(out, tuple(output_gshape), gather_axis, out.device)
+
+        # store result
+        out.larray = sum_along_diagonals_t
+        return out
+
+    return sum_along_diagonals
 
 
 # inline function
