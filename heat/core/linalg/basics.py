@@ -1204,25 +1204,20 @@ def trace(
                 sum_along_diagonals_t = torch.trace(a_sub.larray)
 
                 # make sure result is of correct dtype
-                sum_along_diagonals_t = sum_along_diagonals_t.type(a_sub.dtype.torch_type())
+                sum_along_diagonals_t = sum_along_diagonals_t.type(dtype.torch_type())
 
             # empty array => result = 0
             else:
                 sum_along_diagonals_t = torch.tensor(
-                    0, dtype=a_sub.dtype.torch_type(), device=a_sub.device.torch_device
+                    0, dtype=dtype.torch_type(), device=a_sub.device.torch_device
                 )
 
         # sum up all partial sums
         if a.is_distributed():
             a.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
 
-        # cast to DNDarray of correct dtype
-        sum_along_diagonals = factories.array(
-            sum_along_diagonals_t, split=a.split, dtype=dtype, device=a.device, comm=a.comm
-        )
-
-        # convert resulting 0-d DNDarray to scalar
-        return sum_along_diagonals.item()
+        # convert resulting 0-d tensor to (python) scalar
+        return sum_along_diagonals_t.item()
 
     # -------------------------------
     # CASE > 2D => DNDArray
