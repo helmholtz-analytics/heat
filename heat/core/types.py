@@ -51,6 +51,7 @@ __all__ = [
     "issubdtype",
     "heat_type_of",
     "promote_types",
+    "result_type",
     "complex64",
     "cfloat",
     "csingle",
@@ -438,16 +439,22 @@ _exact = (uint8, int8, int16, int32, int64)
 __type_mappings = {
     # type strings
     "?": bool,
+    "B": uint8,
     "b": int8,
+    "h": int16,
     "i": int32,
+    "l": int64,
+    "f": float32,
+    "d": float64,
+    "F": complex64,
+    "D": complex128,
+    "b1": bool,
+    "u": uint8,
+    "u1": uint8,
     "i1": int8,
     "i2": int16,
     "i4": int32,
     "i8": int64,
-    "B": uint8,
-    "u": uint8,
-    "u1": uint8,
-    "f": float32,
     "f4": float32,
     "f8": float64,
     "c8": complex64,
@@ -478,7 +485,7 @@ __type_mappings = {
     builtins.bool: bool,
     builtins.int: int32,
     builtins.float: float32,
-    builtins.complex: complex128,
+    builtins.complex: complex64,
 }
 
 
@@ -853,6 +860,88 @@ def promote_types(
     typecode_type2 = __type_codes[canonical_heat_type(type2)]
 
     return __type_promotions[typecode_type1][typecode_type2]
+
+
+def result_type(
+    *arrays_and_types: Tuple[Union[dndarray.DNDarray, Type[datatype], Any]]
+) -> Type[datatype]:
+    """
+    Returns the data type that results from type promotions rules performed in an arithmetic operation.
+
+    Parameters
+    ----------
+    arrays_and_types: List of arrays and types
+        Input arrays, types or numbers of the operation.
+
+    Examples
+    --------
+    >>> ht.result_type(ht.array([1], dtype=ht.int32), 1)
+    ht.int32
+    >>> ht.result_type(ht.float32, ht.array(1, dtype=ht.int8))
+    ht.float32
+    >>> ht.result_type("i8", "f4")
+    ht.float64
+    """
+
+    def result_type_rec(*arrays_and_types):
+        # derive type and set precedence (lower number, higher precedence)
+        arg = arrays_and_types[0]
+
+        try:
+            # array / tensor
+            if isinstance(arg, np.ndarray):
+                type1 = canonical_heat_type(arg.dtype.char)
+            else:
+                type1 = canonical_heat_type(arg.dtype)
+
+            if len(arg.shape) > 0:
+                prec1 = 0  # array
+            else:
+                prec1 = 2  # scalar
+        except (AttributeError, TypeError):
+            try:
+                # type
+                if isinstance(arg, np.dtype):
+                    arg = arg.char
+                type1 = canonical_heat_type(arg)
+                prec1 = 1
+            except TypeError:
+                # type instance
+                type1 = canonical_heat_type(type(arg))
+                prec1 = 3
+
+        # multiple arguments
+        if len(arrays_and_types) > 1:
+            type2, prec2 = result_type_rec(*arrays_and_types[1:])
+
+            # fast check same type
+            if type1 == type2:
+                return type1, min(prec1, prec2)
+            # fast check same precedence
+            if prec1 == prec2:
+                return promote_types(type1, type2), prec1
+
+            # check if parent type is identical and decide by precedence
+            for sclass in (bool, integer, floating, complex):
+                if issubdtype(type1, sclass) and issubdtype(type2, sclass):
+                    if prec1 < prec2:
+                        return type1, min(prec1, prec2)
+                    else:
+                        return type2, min(prec1, prec2)
+
+            # different parent type: bool < int < float < complex
+            tc1 = __type_codes[type1]
+            tc2 = __type_codes[type2]
+
+            if tc1 < tc2:
+                return type2, min(prec1, prec2)
+            else:
+                return type1, min(prec1, prec2)
+
+        # single argument
+        return type1, prec1
+
+    return result_type_rec(*arrays_and_types)[0]
 
 
 class finfo:

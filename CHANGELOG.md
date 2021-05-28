@@ -1,9 +1,12 @@
 # Pending additions
 
 ## Highlights
+
 ### Linear Algebra
 - [#718](https://github.com/helmholtz-analytics/heat/pull/718) New feature: `trace()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
+### Misc.
+- [#761](https://github.com/helmholtz-analytics/heat/pull/761) New feature: `result_type`
 
 ## Breaking Changes
 
