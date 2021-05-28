@@ -1168,7 +1168,7 @@ def trace(
     # ---------------------------------------------
     # CASE 2D input (ignore axis1, axis) => scalar
     # ---------------------------------------------
-    if len(a.lshape) == 2:
+    if a.ndim == 2:
         # CASE 1.1: offset results into an empty array
         if offset <= -a.gshape[0] or offset >= a.gshape[1]:
             sum_along_diagonals_t = torch.tensor(
