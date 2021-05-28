@@ -1269,27 +1269,32 @@ def trace(
             sum_along_diagonals_t = torch.reshape(sum_along_diagonals_t, res_shape)
 
             # Sum up all partial sums (and gather them)
-            a.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
-
-            # Store result in out if provided
+            # in out
             if out is not None:
-                if out.split is not None:
-                    warnings.warn(
-                        f"Split axis of `out` will be changed from {out.split} to None to "
-                        f"guarantee correct results."
-                    )
-                    # Allgather of out - necessary as whole result is on all processes after Allreduce
-                    out.resplit_(None)
-                sanitation.sanitize_out(out, tuple(res_shape), out.split, a.device)
-                out.larray = sum_along_diagonals_t
-                return out
+                result_array = out
+            # in a
+            else:
+                result_array = a
 
-            last_axis = sum_along_diagonals_t.ndim - 1
-            split_axis = a.split if a.split <= last_axis else last_axis
+            result_array.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
+
+            if result_array.split is None:
+                split_axis = None
+            else:
+                last_axis = sum_along_diagonals_t.ndim - 1
+                split_axis = result_array.split if result_array.split <= last_axis else last_axis
 
             sum_along_diagonals = factories.array(
-                sum_along_diagonals_t, dtype=dtype, split=split_axis, comm=a.comm, device=a.device
+                sum_along_diagonals_t,
+                dtype=dtype,
+                split=split_axis,
+                comm=result_array.comm,
+                device=result_array.device,
             )
+
+            if out is not None:
+                sanitation.sanitize_out(out, tuple(res_shape), out.split, result_array.device)
+                out.larray = sum_along_diagonals.larray
 
             return sum_along_diagonals
 
@@ -1336,7 +1341,7 @@ def trace(
             # sanitize out
             output_gshape = list(a.gshape)
             del output_gshape[axis1], output_gshape[axis2 - 1]
-            sanitation.sanitize_out(out, tuple(output_gshape), gather_axis, a.device)
+            sanitation.sanitize_out(out, tuple(output_gshape), gather_axis, out.device)
 
             # store result
             out.larray = sum_along_diagonals_t
