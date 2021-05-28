@@ -1151,11 +1151,16 @@ def trace(
         else:
             dtype = types.canonical_heat_type(dtype)
     except TypeError:  # type cannot be converted to ht.type
-        raise ValueError(f"dtype must be a datatype or None, not {type(dtype)}")
+        raise ValueError(f"`dtype` must be a datatype or None, not {type(dtype)}")
 
     # sanitize out
-    if out is not None and not isinstance(out, DNDarray):
-        raise TypeError(f"out must be a ht.DNDarray or None not {type(out)}")
+    if out is not None:
+        if not isinstance(out, DNDarray):
+            raise TypeError(f"`out` must be a ht.DNDarray or None not {type(out)}")
+        elif a.ndim == 2:
+            raise ValueError(
+                "`out` is not applicable if result is a scalar / input `a` is 2-dimensional"
+            )
 
     # ----------------------------------------------------------------------------
     # ALGORITHM
@@ -1173,7 +1178,7 @@ def trace(
         # CASE 1.2: non-zero array, call torch.trace on concerned sub-DNDarray
         else:
             # determine the additional offset created by distribution of `a`
-            a_sub = a.copy()
+            a_sub = a
             if a.is_distributed():
                 offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
                 if a.split == 0:
@@ -1206,9 +1211,6 @@ def trace(
                 sum_along_diagonals_t = torch.tensor(
                     0, dtype=a_sub.dtype.torch_type(), device=a_sub.device.torch_device
                 )
-
-        if out is not None:
-            raise ValueError("`out` not applicable (/must be None) if result is a scalar/ input 2D")
 
         # sum up all partial sums
         if a.is_distributed():

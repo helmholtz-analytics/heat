@@ -740,6 +740,7 @@ class TestLinalgBasics(TestCase):
         with self.assertRaises(TypeError):
             ht.trace(x, out=[])
         with self.assertRaises(ValueError):
+            # As result is scalar
             out = ht.array([])
             ht.trace(x, out=out)
         with self.assertRaises(ValueError):
@@ -937,6 +938,7 @@ class TestLinalgBasics(TestCase):
         with self.assertRaises(TypeError):
             ht.trace(x, out=[])
         with self.assertRaises(ValueError):
+            # As result is scalar
             out = ht.array([])
             ht.trace(x, out=out)
 
