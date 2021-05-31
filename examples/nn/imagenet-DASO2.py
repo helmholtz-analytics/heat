@@ -253,17 +253,64 @@ class HybridPipe(Pipeline):
                 "image/object/bbox/ymax": tfrecord.VarLenFeature(tfrecord.float32, 0.0),
             },
         )
+        self.crop = crop
+        self.dali_cpu = dali_cpu
         # let user decide which pipeline works him bets for RN version he runs
         dali_device = "cpu" if dali_cpu else "gpu"
-        decoder_device = "cpu" if dali_cpu else "mixed"
+        # decoder_device = "cpu" if dali_cpu else "mixed"
         # This padding sets the size of the internal nvJPEG buffers to be able to
         # handle all images from full-sized ImageNet without additional reallocations
         # leaving the padding in for now to allow for the case for loading to GPUs
         # todo: move info to GPUs
+        # device_memory_padding = 211025920 if decoder_device == "mixed" else 0
+        # host_memory_padding = 140544512 if decoder_device == "mixed" else 0
+        # if training:
+        #     self.decode = fn.decoders.image_random_crop(
+        #         device="cpu",  # decoder_device,
+        #         output_type=types.RGB,
+        #         device_memory_padding=device_memory_padding,
+        #         host_memory_padding=host_memory_padding,
+        #         random_aspect_ratio=[0.75, 1.33],
+        #         random_area=[0.05, 1.0],
+        #         num_attempts=100,
+        #     )
+        #     self.resize = fn.Resize(
+        #         device="cpu",  # dali_device,
+        #         resize_x=crop,
+        #         resize_y=crop,
+        #         interp_type=types.INTERP_TRIANGULAR,
+        #     )
+        # else:
+        #     self.decode = fn.decoders.image(device="cpu", output_type=types.RGB)
+        #     self.resize = fn.Resize(
+        #         device="cpu", resize_shorter=crop, interp_type=types.INTERP_TRIANGULAR
+        #     )
+        # # should this be CPU or GPU? -> if prefetching then do it on CPU before sending
+        # self.normalize = fn.CropMirrorNormalize(
+        #     device="cpu",  # need to make this work with the define graph
+        #     # dtype=dali.types.FLOAT,  # todo: not implemented on test system (old version of DALI)
+        #     output_layout=types.NCHW,
+        #     crop=(crop, crop),
+        #     mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
+        #     std=[0.229 * 255, 0.224 * 255, 0.225 * 255],
+        # )
+        self.coin = fn.random.coin_flip(probability=0.5)
+        self.training = training
+        print0(f"Completed init of DALI Dataset on '{dali_device}', is training set? -> {training}")
+
+    def define_graph(self):
+        inputs = self.input(name="Reader")
+        images = inputs["image/encoded"]
+        labels = inputs["image/class/label"] - 1
+
+        # dali_device = "cpu" if self.dali_cpu else "gpu"
+        decoder_device = "cpu" if self.dali_cpu else "mixed"
+
         device_memory_padding = 211025920 if decoder_device == "mixed" else 0
         host_memory_padding = 140544512 if decoder_device == "mixed" else 0
-        if training:
-            self.decode = fn.decoders.image_random_crop(
+        if self.training:
+            images = fn.decoders.image_random_crop(
+                images,
                 device="cpu",  # decoder_device,
                 output_type=types.RGB,
                 device_memory_padding=device_memory_padding,
@@ -273,39 +320,38 @@ class HybridPipe(Pipeline):
                 num_attempts=100,
             )
             self.resize = fn.Resize(
+                images,
                 device="cpu",  # dali_device,
-                resize_x=crop,
-                resize_y=crop,
+                resize_x=self.crop,
+                resize_y=self.crop,
                 interp_type=types.INTERP_TRIANGULAR,
             )
         else:
-            self.decode = fn.decoders.image(device="cpu", output_type=types.RGB)
-            self.resize = fn.Resize(
-                device="cpu", resize_shorter=crop, interp_type=types.INTERP_TRIANGULAR
+            images = fn.decoders.image(images, device="cpu", output_type=types.RGB)
+            images = fn.Resize(
+                images, device="cpu", resize_shorter=self.crop, interp_type=types.INTERP_TRIANGULAR
             )
         # should this be CPU or GPU? -> if prefetching then do it on CPU before sending
-        self.normalize = fn.CropMirrorNormalize(
+        coin = fn.random.coin_flip(probability=0.5)
+
+        # images = self.decode(images)
+        # images = self.resize(images)
+        # if self.training:
+        #     images = self.normalize(images, mirror=self.coin())
+        # else:
+        #     images = self.normalize(images)
+
+        images = fn.CropMirrorNormalize(
+            images,
             device="cpu",  # need to make this work with the define graph
             # dtype=dali.types.FLOAT,  # todo: not implemented on test system (old version of DALI)
             output_layout=types.NCHW,
-            crop=(crop, crop),
+            crop=(self.crop, self.crop),
             mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
             std=[0.229 * 255, 0.224 * 255, 0.225 * 255],
+            mirror=coin,
         )
-        self.coin = fn.random.coin_flip(probability=0.5)
-        self.training = training
-        print0(f"Completed init of DALI Dataset on '{dali_device}', is training set? -> {training}")
 
-    def define_graph(self):
-        inputs = self.input(name="Reader")
-        images = inputs["image/encoded"]
-        labels = inputs["image/class/label"] - 1
-        images = self.decode(images)
-        images = self.resize(images)
-        if self.training:
-            images = self.normalize(images, mirror=self.coin())
-        else:
-            images = self.normalize(images)
         return images, labels
 
 
