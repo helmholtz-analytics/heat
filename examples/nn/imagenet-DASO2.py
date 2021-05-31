@@ -360,7 +360,7 @@ def create_dali_pipeline(
             random_area=[0.05, 1.0],
             num_attempts=100,
         )
-        images = fn.Resize(
+        images = fn.resize(
             images,
             device=dali_device,
             resize_x=crop,
@@ -369,7 +369,7 @@ def create_dali_pipeline(
         )
         coin = fn.random.coin_flip(probability=0.5)
 
-        images = fn.CropMirrorNormalize(
+        images = fn.crop_mirror_normalize(
             images,
             device=dali_device,  # need to make this work with the define graph
             dtype=types.FLOAT,  # todo: not implemented on test system (old version of DALI)
@@ -381,10 +381,10 @@ def create_dali_pipeline(
         )
     else:
         images = fn.decoders.image(images, device="cpu", output_type=types.RGB)
-        images = fn.Resize(
+        images = fn.resize(
             images, device="cpu", resize_shorter=crop, interp_type=types.INTERP_TRIANGULAR
         )
-        images = fn.CropMirrorNormalize(
+        images = fn.crop_mirror_normalize(
             images,
             device=dali_device,  # need to make this work with the define graph
             dtype=types.FLOAT,  # todo: not implemented on test system (old version of DALI)
