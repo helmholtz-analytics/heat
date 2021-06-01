@@ -5,11 +5,12 @@ Arithmetic functions for DNDarrays
 from __future__ import annotations
 
 import torch
-from typing import Union, Tuple
+from typing import Optional, Union, Tuple
 
 from . import factories
 from . import manipulations
 from . import _operations
+from . import sanitation
 from . import stride_tricks
 from . import types
 
@@ -44,6 +45,10 @@ __all__ = [
     "mod",
     "mul",
     "multiply",
+    "neg",
+    "negative",
+    "pos",
+    "positive",
     "pow",
     "power",
     "prod",
@@ -250,6 +255,7 @@ def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarra
 
 # Alias support
 cumproduct = cumprod
+"""Alias for :py:func:`cumprod`"""
 
 
 def cumsum(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray:
@@ -457,6 +463,7 @@ DNDarray.__rtruediv__.__doc__ = div.__doc__
 
 # Alias in compliance with numpy API
 divide = div
+"""Alias for :py:func:`div`"""
 
 
 def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
@@ -520,6 +527,7 @@ DNDarray.__rfloordiv__.__doc__ = floordiv.__doc__
 
 # Alias in compliance with numpy API
 floor_divide = floordiv
+"""Alias for :py:func:`floordiv`"""
 
 
 def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
@@ -554,6 +562,7 @@ DNDarray.__invert__.__doc__ = invert.__doc__
 
 # alias for invert
 bitwise_not = invert
+"""Alias for :py:func:`invert`"""
 
 
 def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
@@ -664,6 +673,81 @@ DNDarray.__rmul__.__doc__ = mul.__doc__
 
 # Alias in compliance with numpy API
 multiply = mul
+"""Alias for :py:func:`mul`"""
+
+
+def neg(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Element-wise negative of `a`.
+
+    Parameters
+    ----------
+    a:   DNDarray
+         The input array.
+    out: DNDarray, optional
+         The output array. It must have a shape that the inputs broadcast to
+
+    Examples
+    --------
+    >>> ht.neg(ht.array([-1, 1]))
+    DNDarray([ 1, -1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> -ht.array([-1., 1.])
+    DNDarray([ 1., -1.], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(a)
+
+    return _operations.__local_op(torch.neg, a, out, no_cast=True)
+
+
+DNDarray.__neg__ = lambda self: neg(self)
+DNDarray.__neg__.__doc__ = neg.__doc__
+
+# Alias in compliance with numpy API
+negative = neg
+"""Alias for :py:func:`neg`"""
+
+
+def pos(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Element-wise positive of `a`.
+
+    Parameters
+    ----------
+    a:   DNDarray
+         The input array.
+    out: DNDarray, optional
+         The output array. It must have a shape that the inputs broadcast to.
+
+    Notes
+    -----
+    Equivalent to a.copy().
+
+    Examples
+    --------
+    >>> ht.pos(ht.array([-1, 1]))
+    DNDarray([-1,  1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> +ht.array([-1., 1.])
+    DNDarray([-1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(a)
+
+    def torch_pos(torch_tensor, out=None):
+        if not torch.is_tensor(torch_tensor):
+            raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
+        return out.copy_(torch_tensor)
+
+    if out is not None:
+        return _operations.__local_op(torch_pos, a, out, no_cast=True)
+
+    return a.copy()
+
+
+DNDarray.__pos__ = lambda self: pos(self)
+DNDarray.__pos__.__doc__ = pos.__doc__
+
+# Alias in compliance with numpy API
+positive = pos
+"""Alias for :py:func:`pos`"""
 
 
 def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
@@ -703,6 +787,7 @@ DNDarray.__rpow__.__doc__ = pow.__doc__
 
 # Alias in compliance with numpy API
 power = pow
+"""Alias for :py:func:`pow`"""
 
 
 def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
@@ -850,6 +935,9 @@ DNDarray.__rsub__.__doc__ = sub.__doc__
 
 # Alias in compliance with numpy API
 subtract = sub
+"""
+Alias for :py:func:`sub`
+"""
 
 
 def sum(

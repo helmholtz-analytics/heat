@@ -2,7 +2,10 @@
 Basic linear algebra operations on distributed ``DNDarray``
 """
 import itertools
+import numpy as np
 import torch
+import warnings
+
 from typing import List, Callable, Union, Optional
 
 from ..communication import MPI
@@ -14,7 +17,7 @@ from .. import manipulations
 from .. import sanitation
 from .. import types
 
-__all__ = ["dot", "matmul", "norm", "outer", "projection", "transpose", "tril", "triu"]
+__all__ = ["dot", "matmul", "norm", "outer", "projection", "trace", "transpose", "tril", "triu"]
 
 
 def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDarray, float]:
@@ -1028,6 +1031,342 @@ def projection(a: DNDarray, b: DNDarray) -> DNDarray:
         )
 
     return (dot(a, b) / dot(b, b)) * b
+
+
+def trace(
+    a: DNDarray,
+    offset: Optional[int] = 0,
+    axis1: Optional[int] = 0,
+    axis2: Optional[int] = 1,
+    dtype: Optional[types.datatype] = None,
+    out: Optional[DNDarray] = None,
+) -> Union[DNDarray, float]:
+    """
+
+    Return the sum along diagonals of the array
+
+    If `a` is 2D, the sum along its diagonal with the given offset is returned, i.e. the sum of
+    elements a[i, i+offset] for all i.
+
+    If `a` has more than two dimensions, then the axes specified by `axis1` and `axis2` are used
+    to determine the 2D-sub-DNDarrays whose traces are returned.
+    The shape of the resulting array is the same as that of `a` with `axis1` and `axis2` removed.
+
+    Parameters
+    ----------
+    a : array_like
+        Input array, from which the diagonals are taken
+    offset : int, optional
+        Offsets of the diagonal from the main diagonal. Can be both positive and negative. Defaults to 0.
+    axis1: int, optional
+        Axis to be used as the first axis of the 2D-sub-arrays from which the diagonals
+        should be taken. Default is the first axis of `a`
+    axis2 : int, optional
+        Axis to be used as the second axis of the 2D-sub-arrays from which the diagonals
+        should be taken. Default is the second two axis of `a`
+    dtype : dtype, optional
+        Determines the data-type of the returned array and of the accumulator where the elements are
+        summed. If `dtype` has value None than the dtype is the same as that of `a`
+    out: ht.DNDarray, optional
+        Array into which the output is placed. Its type is preserved and it must be of the right shape
+        to hold the output
+        Only applicable if `a` has more than 2 dimensions, thus the result is not a scalar.
+        If distributed, its split axis might change eventually.
+
+    Returns
+    -------
+    sum_along_diagonals : number (of defined dtype) or ht.DNDarray
+        If `a` is 2D, the sum along the diagonal is returned as a scalar
+        If `a` has more than 2 dimensions, then a DNDarray of sums along diagonals is returned
+
+    Examples
+    --------
+    2D-case
+    >>> x = ht.arange(24).reshape((4, 6))
+    >>> x
+        DNDarray([[ 0,  1,  2,  3,  4,  5],
+                  [ 6,  7,  8,  9, 10, 11],
+                  [12, 13, 14, 15, 16, 17],
+                  [18, 19, 20, 21, 22, 23]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.trace(x)
+        42
+    >>> ht.trace(x, 1)
+        46
+    >>> ht.trace(x, -2)
+        31
+
+    > 2D-case
+    >>> x = x.reshape((2, 3, 4))
+    >>> x
+        DNDarray([[[ 0,  1,  2,  3],
+                   [ 4,  5,  6,  7],
+                   [ 8,  9, 10, 11]],
+
+                  [[12, 13, 14, 15],
+                   [16, 17, 18, 19],
+                   [20, 21, 22, 23]]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.trace(x)
+        DNDarray([16, 18, 20, 22], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.trace(x, 1)
+        DNDarray([24, 26, 28, 30], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.trace(x, axis1=0, axis2=2)
+        DNDarray([13, 21, 29], dtype=ht.int32, device=cpu:0, split=None)
+    """
+    # ----------------------------------------------------------------------------
+    # SANITATION
+    # ----------------------------------------------------------------------------
+    if not isinstance(a, (DNDarray, torch.Tensor, np.ndarray, list, tuple)):
+        raise TypeError(
+            f"`a` must be a DNDarray, torch.Tensor, np.ndarray, list or tuple, is {type(a)}"
+        )
+    # cast input `a` to DNDarray
+    elif not isinstance(a, DNDarray):
+        a = factories.array(a)
+
+    # assure correct dimensionality of input
+    if len(a.lshape) < 2:
+        raise ValueError(f"`a` must contain at least 2 dimensions, not {len(a.lshape)}")
+
+    # sanitize axis1, axis2
+    if not isinstance(axis1, int):
+        raise TypeError(f"`axis1` must be integer, not {type(axis1)}")
+    if not isinstance(axis2, int):
+        raise TypeError(f"`axis2` must be integer, not {type(axis2)}")
+
+    # translate negative to positive indexing (trace axes)
+    if axis1 < 0:
+        axis1 = axis1 % a.ndim
+    if axis2 < 0:
+        axis2 = axis2 % a.ndim
+
+    if axis1 == axis2:
+        raise ValueError(f"axis1 ({axis1}) and axis2 ({axis2}) cannot be the same.")
+    if axis1 >= a.ndim:
+        raise ValueError(f"`axis1` ({axis1}) out of bounds for {a.ndim}-dimensional array.")
+    if axis2 >= a.ndim:
+        raise ValueError(f"`axis2` ({axis2}) out of bounds for {a.ndim}-dimensional array.")
+
+    # sanitize offset
+    if not isinstance(offset, int):
+        raise TypeError(f"`offset` must be an integer, not {type(offset)}")
+
+    # sanitize dtype
+    try:
+        if dtype is None:
+            dtype = a.dtype
+        else:
+            dtype = types.canonical_heat_type(dtype)
+    except TypeError:  # type cannot be converted to ht.type
+        raise ValueError(f"`dtype` must be a datatype or None, not {type(dtype)}")
+
+    # sanitize out
+    if out is not None:
+        if not isinstance(out, DNDarray):
+            raise TypeError(f"`out` must be a ht.DNDarray or None not {type(out)}")
+        elif a.ndim == 2:
+            raise ValueError(
+                "`out` is not applicable if result is a scalar / input `a` is 2-dimensional"
+            )
+
+    # ----------------------------------------------------------------------------
+    # ALGORITHM
+    # ----------------------------------------------------------------------------
+    # ---------------------------------------------
+    # CASE 2D input (ignore axis1, axis) => scalar
+    # ---------------------------------------------
+    if a.ndim == 2:
+        # CASE 1.1: offset results into an empty array
+        if offset <= -a.gshape[0] or offset >= a.gshape[1]:
+            sum_along_diagonals_t = torch.tensor(
+                0, dtype=dtype.torch_type(), device=a.device.torch_device
+            )
+
+        # CASE 1.2: non-zero array, call torch.trace on concerned sub-DNDarray
+        else:
+            # determine the additional offset created by distribution of `a`
+            a_sub = a
+            if a.is_distributed():
+                offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
+                if a.split == 0:
+                    offset += offset_split
+                # a.split == 1
+                else:
+                    offset -= offset_split
+
+            # Calculate resulting/concerned sub-array `a_sub`
+            if offset > 0:
+                offset = min(offset, a_sub.lshape[1])
+                a_sub = factories.array(
+                    a_sub.larray[:, offset:], device=a_sub.device, comm=a_sub.comm
+                )
+            elif offset < 0:
+                offset = min(-offset, a_sub.lshape[0])
+                a_sub = factories.array(
+                    a_sub.larray[offset:, :], device=a_sub.device, comm=a_sub.comm
+                )
+
+            # calculate trace /partial sum on that sub-array
+            if 0 not in a_sub.lshape:
+                sum_along_diagonals_t = torch.trace(a_sub.larray)
+
+                # make sure result is of correct dtype
+                sum_along_diagonals_t = sum_along_diagonals_t.type(dtype.torch_type())
+
+            # empty array => result = 0
+            else:
+                sum_along_diagonals_t = torch.tensor(
+                    0, dtype=dtype.torch_type(), device=a_sub.device.torch_device
+                )
+
+        # sum up all partial sums
+        if a.is_distributed():
+            a.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
+
+        # convert resulting 0-d tensor to (python) scalar
+        return sum_along_diagonals_t.item()
+
+    # -------------------------------
+    # CASE > 2D => DNDArray
+    # -------------------------------
+
+    # sanitize axis1, axis2 (make sure axis1 < axis2)
+    if axis1 > axis2:
+        tmp = axis1
+        axis1 = axis2
+        axis2 = tmp
+
+    # ----------------------------------
+    # CASE split axis NOT IN trace axes
+    # ----------------------------------
+    # compute each diagonal sum
+    if not (a.is_distributed() and a.split in (axis1, axis2)):
+        # extract diagonals
+        diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+
+        # sum them up along the last axis (and convert to given dtype)
+        last_axis = diag_t.ndim - 1
+        sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype.torch_type())
+    # -----------------------------
+    # CASE split axis IN trace axes
+    # -----------------------------
+    else:
+        # combination that would NOT result into array of zeros
+        if -offset < a.gshape[axis1] or offset < a.gshape[axis2]:
+            # adapt the offset to distribution
+            # (to result into required diagonal elements on each process)
+            offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
+
+            if a.split == axis1:
+                offset += offset_split
+            else:  # a.split == axis2
+                offset -= offset_split
+
+        diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+
+        # empty diagonal => create an array of zeros for following summation
+        if 0 in diag_t.shape:
+            res_shape = [1 if i == 0 else i for i in diag_t.shape]
+            diag_t = torch.zeros(res_shape, device=a.device.torch_device)
+
+        # create recvbuffer (with correct resulting shape)
+        sum_along_diagonals_t = torch.clone(diag_t)
+        res_shape = list(sum_along_diagonals_t.shape)
+        del res_shape[-1]  # as summed up along the last axis
+        sum_along_diagonals_t = torch.reshape(sum_along_diagonals_t, res_shape)
+
+        # Sum up all partial sums (and gather them)
+        # in out
+        if out is not None:
+            result_array = out
+        # in a
+        else:
+            result_array = a
+
+        result_array.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
+
+        if result_array.split is None:
+            split_axis = None
+        else:
+            last_axis = sum_along_diagonals_t.ndim - 1
+            split_axis = result_array.split if result_array.split <= last_axis else last_axis
+
+        sum_along_diagonals = factories.array(
+            sum_along_diagonals_t,
+            dtype=dtype,
+            split=split_axis,
+            comm=result_array.comm,
+            device=result_array.device,
+        )
+
+        if out is not None:
+            sanitation.sanitize_out(out, tuple(res_shape), out.split, out.device)
+            out.larray = sum_along_diagonals.larray
+
+        return sum_along_diagonals
+
+    if a.is_distributed():
+        # (...and a.split not in (axis1, axis2))
+        if a.split < axis2:
+            gather_axis = a.split
+        else:
+            gather_axis = a.split - 2
+
+        # check if gather_axis is in range of result
+        if gather_axis >= sum_along_diagonals_t.ndim:
+            gather_axis = sum_along_diagonals_t.ndim - 1
+
+        # Stack all partial results back together along the correct axis
+        sum_along_diagonals = factories.array(
+            sum_along_diagonals_t, dtype=dtype, is_split=gather_axis, comm=a.comm, device=a.device
+        )
+    # input not distributed
+    else:
+        # check if split axis is in range of result
+        if a.split is not None and a.split >= sum_along_diagonals_t.ndim:
+            gather_axis = sum_along_diagonals_t.ndim - 1
+        else:
+            gather_axis = a.split
+
+        # convert torch result back to DNDarray
+        sum_along_diagonals = factories.array(
+            sum_along_diagonals_t, dtype=dtype, split=gather_axis, comm=a.comm, device=a.device
+        )
+
+    if out is not None:
+        # resplit to guarantee correct results
+        if out.split != gather_axis:
+            warnings.warn(
+                f"Split axis of `out` will be changed from {out.split} to {gather_axis} to "
+                f"guarantee correct results."
+            )
+            out.resplit_(gather_axis)
+        # sanitize out
+        output_gshape = list(a.gshape)
+        del output_gshape[axis1], output_gshape[axis2 - 1]
+        sanitation.sanitize_out(out, tuple(output_gshape), gather_axis, out.device)
+
+        # store result
+        out.larray = sum_along_diagonals_t
+        return out
+
+    return sum_along_diagonals
+
+
+# inline function
+DNDarray.trace: Callable[
+    [
+        DNDarray,
+        Optional[int],
+        Optional[int],
+        Optional[int],
+        Optional[types.datatype],
+        Optional[DNDarray],
+    ],
+    Union[DNDarray, float],
+] = lambda self, offset=0, axis1=0, axis2=1, dtype=None, out=None: trace(
+    self, offset, axis1, axis2, dtype, out
+)
+DNDarray.trace.__doc__ = trace.__doc__
 
 
 @torch.jit.script

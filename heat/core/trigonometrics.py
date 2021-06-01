@@ -233,13 +233,7 @@ def deg2rad(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     >>> ht.deg2rad(ht.array([0.,20.,45.,78.,94.,120.,180., 270., 311.]))
     DNDarray([0.0000, 0.3491, 0.7854, 1.3614, 1.6406, 2.0944, 3.1416, 4.7124, 5.4280], dtype=ht.float32, device=cpu:0, split=None)
     """
-    # deg2rad torch version
-    def torch_deg2rad(torch_tensor):
-        if not torch.is_tensor(torch_tensor):
-            raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
-        return torch_tensor * pi / 180.0
-
-    return local_op(torch_deg2rad, x, out)
+    return local_op(torch.deg2rad, x, out)
 
 
 def degrees(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
@@ -279,13 +273,7 @@ def rad2deg(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     >>> ht.rad2deg(ht.array([0.,0.2,0.6,0.9,1.2,2.7,3.14]))
     DNDarray([  0.0000,  11.4592,  34.3775,  51.5662,  68.7549, 154.6986, 179.9088], dtype=ht.float32, device=cpu:0, split=None)
     """
-    # rad2deg torch version
-    def torch_rad2deg(torch_tensor):
-        if not torch.is_tensor(torch_tensor):
-            raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
-        return 180.0 * torch_tensor / pi
-
-    return local_op(torch_rad2deg, x, out=out)
+    return local_op(torch.rad2deg, x, out=out)
 
 
 def radians(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
