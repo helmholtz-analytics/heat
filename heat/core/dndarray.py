@@ -684,12 +684,10 @@ class DNDarray:
         key = getattr(key, "copy()", key)
         l_dtype = self.dtype.torch_type()
         advanced_ind = False
-        # kgshape_flag = False
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
             """ if the key is a DNDarray and it has as many dimensions as self, then each of the entries in the 0th
                 dim refer to a single element. To handle this, the key is split into the torch tensors for each dimension.
                 This signals that advanced indexing is to be used. """
-            # TODO later: do not balance the key by default.
             key.balance_()
             key = manipulations.resplit(key.copy())
             if key.ndim > 1:

@@ -1,3 +1,15 @@
+# Pending additions
+
+## Highlights
+
+
+## Breaking Changes
+- [#758](https://github.com/helmholtz-analytics/heat/pull/758) Indexing a distributed `DNDarray` along the `DNDarray.split` dimension now returns a non-distributed `DNDarray`, i.e. the indexed element is MPI-broadcasted.
+
+## Bug Fixes
+- [#758](https://github.com/helmholtz-analytics/heat/pull/758) Fix indexing inconsistencies in `DNDarray.__getitem__()`
+
+
 # v1.0.0
 
 ## New features / Highlights
@@ -67,7 +79,6 @@
 - [#735](https://github.com/helmholtz-analytics/heat/pull/735) Set return type to bool in relational functions.
 - [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
 - [#756](https://github.com/helmholtz-analytics/heat/pull/756) Keep track of sent items while balancing within `sort()`
-- [#758](https://github.com/helmholtz-analytics/heat/pull/758) Fix indexing inconsistencies in `DNDarray.__getitem__`
 - [#764](https://github.com/helmholtz-analytics/heat/pull/764) Fixed an issue where `repr` was giving the wrong output.
 
 ## Enhancements
