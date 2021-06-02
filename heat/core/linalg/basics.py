@@ -50,9 +50,15 @@ def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDar
         # 1. If both a and b are 1-D arrays, it is inner product of vectors.
         if a.split is None and b.split is None:
             sl = slice(None)
+            asl = bsl = sl
+            # st = 0
         else:  # at least one of them is split
-            sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)[2]
-        ret = torch.dot(a[sl].larray, b[sl].larray)
+            # todo: scale this by the starting index of the vector and do a lloc getitem
+            st, _, sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)
+            asl = sl if a.split is None else slice(sl[0].start - st, sl[0].stop - st)
+            bsl = sl if b.split is None else slice(sl[0].start - st, sl[0].stop - st)
+
+        ret = torch.dot(a.lloc[asl], b.lloc[bsl])
         if a.is_distributed() or b.is_distributed():
             a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
 

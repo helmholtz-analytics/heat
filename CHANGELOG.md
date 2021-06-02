@@ -2,6 +2,42 @@
 
 ## Highlights
 
+
+## Breaking Changes
+- [#758](https://github.com/helmholtz-analytics/heat/pull/758) Indexing a distributed `DNDarray` along the `DNDarray.split` dimension now returns a non-distributed `DNDarray`, i.e. the indexed element is MPI-broadcasted.
+Example on 2 processes:
+  ```python
+  a = ht.arange(5 * 5, split=0).reshape((5, 5))
+  print(a.larray)
+  >>> [0] tensor([[ 0,  1,  2,  3,  4],
+  >>> [0]         [ 5,  6,  7,  8,  9],
+  >>> [0]         [10, 11, 12, 13, 14]], dtype=torch.int32)
+  >>> [1] tensor([[15, 16, 17, 18, 19],
+  >>> [1]         [20, 21, 22, 23, 24]], dtype=torch.int32)
+  b = a[:, 2]
+  print(b.larray)
+  >>> [0] tensor([ 2,  7, 12], dtype=torch.int32)
+  >>> [1] tensor([17, 22], dtype=torch.int32)
+  print(b.shape)
+  >>> [0] (5,)
+  >>> [1] (5,)
+  print(b.split)
+  >>> [0] 0
+  >>> [1] 0
+  c = a[4]
+  print(c.larray)
+  >>> [0] tensor([20, 21, 22, 23, 24], dtype=torch.int32)
+  >>> [1] tensor([20, 21, 22, 23, 24], dtype=torch.int32)
+  print(c.shape)
+  >>> [0] (5,)
+  >>> [1] (5,)
+  print(c.split)
+  >>> [0] None
+  >>> [1] None
+  ```
+
+## Bug Fixes
+- [#758](https://github.com/helmholtz-analytics/heat/pull/758) Fix indexing inconsistencies in `DNDarray.__getitem__()`
 ### Linear Algebra
 - [#718](https://github.com/helmholtz-analytics/heat/pull/718) New feature: `trace()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
@@ -77,6 +113,21 @@
 - [#712](https://github.com/helmholtz-analytics/heat/pull/712) New function: `issubdtype`
 - [#738](https://github.com/helmholtz-analytics/heat/pull/738) `iscomplex()`, `isreal()`
 
+
+## Bug fixes
+- [#709](https://github.com/helmholtz-analytics/heat/pull/709) Set the encoding for README.md in setup.py explicitly.
+- [#716](https://github.com/helmholtz-analytics/heat/pull/716) Bugfix: Finding clusters by spectral gap fails when multiple diffs identical
+- [#732](https://github.com/helmholtz-analytics/heat/pull/732) Corrected logic in `DNDarray.__getitem__` to produce the correct split axis
+- [#734](https://github.com/helmholtz-analytics/heat/pull/734) Fix division by zero error in `__local_op` with out != None on empty local arrays.
+- [#735](https://github.com/helmholtz-analytics/heat/pull/735) Set return type to bool in relational functions.
+- [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
+- [#756](https://github.com/helmholtz-analytics/heat/pull/756) Keep track of sent items while balancing within `sort()`
+- [#764](https://github.com/helmholtz-analytics/heat/pull/764) Fixed an issue where `repr` was giving the wrong output.
+
+## Enhancements
+### Manipulations
+- [#690](https://github.com/helmholtz-analytics/heat/pull/690) Enhancement: reshape accepts shape arguments with one unknown dimension.
+- [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
 ### Unit testing / CI
 - [#717](https://github.com/helmholtz-analytics/heat/pull/717) Switch CPU CI over to Jenkins and pre-commit to GitHub action.
 - [#720](https://github.com/helmholtz-analytics/heat/pull/720) Ignore test files in codecov report and allow drops in code coverage.

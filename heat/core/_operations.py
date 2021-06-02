@@ -114,9 +114,9 @@ def __binary_op(
             # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
             if t1.split is not None:
                 if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
-                    warnings.warn(
-                        "Broadcasting requires transferring data of first operator between MPI ranks!"
-                    )
+                    # warnings.warn(
+                    #     "Broadcasting requires transferring data of first operator between MPI ranks!"
+                    # )
                     if t1.comm.rank > 0:
                         t1.larray = torch.zeros(
                             t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
@@ -125,9 +125,9 @@ def __binary_op(
 
             if t2.split is not None:
                 if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
-                    warnings.warn(
-                        "Broadcasting requires transferring data of second operator between MPI ranks!"
-                    )
+                    # warnings.warn(
+                    #     "Broadcasting requires transferring data of second operator between MPI ranks!"
+                    # )
                     if t2.comm.rank > 0:
                         t2.larray = torch.zeros(
                             t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
