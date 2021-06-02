@@ -5,6 +5,36 @@
 
 ## Breaking Changes
 - [#758](https://github.com/helmholtz-analytics/heat/pull/758) Indexing a distributed `DNDarray` along the `DNDarray.split` dimension now returns a non-distributed `DNDarray`, i.e. the indexed element is MPI-broadcasted.
+Example on 2 processes:
+  ```python
+  a = ht.arange(5 * 5, split=0).reshape((5, 5))
+  print(a.larray)
+  >>> [0] tensor([[ 0,  1,  2,  3,  4],
+  >>> [0]         [ 5,  6,  7,  8,  9],
+  >>> [0]         [10, 11, 12, 13, 14]], dtype=torch.int32)
+  >>> [1] tensor([[15, 16, 17, 18, 19],
+  >>> [1]         [20, 21, 22, 23, 24]], dtype=torch.int32)
+  b = a[:, 2]
+  print(b.larray)
+  >>> [0] tensor([ 2,  7, 12], dtype=torch.int32)
+  >>> [1] tensor([17, 22], dtype=torch.int32)
+  print(b.shape)
+  >>> [0] (5,)
+  >>> [1] (5,)
+  print(b.split)
+  >>> [0] 0
+  >>> [1] 0
+  c = a[4]
+  print(c.larray)
+  >>> [0] tensor([20, 21, 22, 23, 24], dtype=torch.int32)
+  >>> [1] tensor([20, 21, 22, 23, 24], dtype=torch.int32)
+  print(c.shape)
+  >>> [0] (5,)
+  >>> [1] (5,)
+  print(c.split)
+  >>> [0] None
+  >>> [1] None
+  ```
 
 ## Bug Fixes
 - [#758](https://github.com/helmholtz-analytics/heat/pull/758) Fix indexing inconsistencies in `DNDarray.__getitem__()`
