@@ -277,9 +277,13 @@ class MPICommunication(Communication):
         elements = obj.shape[0]
         shape = obj.shape[1:]
         strides = [1] * len(shape)
-        strides[0] = obj.stride()[-1]
-        strides = strides[::-1]
-        offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
+        if obj.ndim > 1:
+            strides[0] = obj.stride()[-1]
+            strides = strides[::-1]
+            offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
+        else:
+            strides = obj.stride()
+            offsets = [0]
 
         # chain the types based on the
         for i in range(len(shape) - 1, -1, -1):
@@ -302,7 +306,7 @@ class MPICommunication(Communication):
             The tensor to be converted into a MPI memory view.
         """
         pointer = obj.data_ptr()
-        pointer += obj.storage_offset()
+        # pointer += obj.storage_offset()
 
         return MPI.memory.fromaddress(pointer, 0)
 
