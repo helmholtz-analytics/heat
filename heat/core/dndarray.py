@@ -877,10 +877,11 @@ class DNDarray:
             # slice `self` on `active_rank`, allocate `arr` on all other ranks in preparation for Bcast
             if rank == active_rank:
                 key[self.split] -= chunk_start.item()
-                arr = self.__array[tuple(key)].reshape(tuple(lout))
+                arr = self.__array[tuple(key)].clone().reshape(tuple(lout))
             else:
                 arr = torch.empty(tuple(lout), dtype=self.larray.dtype, device=self.larray.device)
             # broadcast result
+            # TODO: Replace with `self.comm.Bcast(arr, root=active_rank)` after fixing #784
             arr = self.comm.bcast(arr, root=active_rank)
 
         return DNDarray(
