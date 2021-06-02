@@ -881,6 +881,7 @@ class DNDarray:
             else:
                 arr = torch.empty(tuple(lout), dtype=self.larray.dtype, device=self.larray.device)
             # broadcast result
+            # TODO: Replace with `self.comm.Bcast(arr, root=active_rank)` after fixing #784
             arr = self.comm.bcast(arr, root=active_rank)
 
         return DNDarray(
