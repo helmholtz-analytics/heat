@@ -262,13 +262,11 @@ class TestDNDarray(TestCase):
         self.assertTrue(data.is_balanced())
 
         data = ht.zeros((70, 20), split=0, dtype=ht.float64)
-        data = data[:50]
-        data.balance_()
+        data = ht.balance(data[:50], copy=True)
         self.assertTrue(data.is_balanced())
 
         data = ht.zeros((4, 120), split=1, dtype=ht.int64)
-        data = data[:, 40:70]
-        data.balance_()
+        data = data[:, 40:70].balance()
         self.assertTrue(data.is_balanced())
 
         data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
