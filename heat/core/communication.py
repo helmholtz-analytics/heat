@@ -258,11 +258,12 @@ class MPICommunication(Communication):
         # ToDo: The option to explicitely specify the counts and displacements to be send still needs propper implementation
         """
         mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
+        unsqueeze = False
 
         # simple case, continuous memory can be transmitted as is
         if obj.is_contiguous():
             if counts is None:
-                return mpi_type, elements
+                return mpi_type, elements, unsqueeze
             else:
                 factor = np.prod(obj.shape[1:])
                 return (
@@ -271,19 +272,20 @@ class MPICommunication(Communication):
                         tuple(factor * ele for ele in counts),
                         (tuple(factor * ele for ele in displs)),
                     ),
+                    unsqueeze,
                 )
 
         # non-continuous memory, e.g. after a transpose, has to be packed in derived MPI types
+        if obj.ndim == 1:
+            # this makes the math work below this function.
+            obj.unsqueeze_(-1)
+            unsqueeze = True
         elements = obj.shape[0]
         shape = obj.shape[1:]
         strides = [1] * len(shape)
-        if obj.ndim > 1:
-            strides[0] = obj.stride()[-1]
-            strides = strides[::-1]
-            offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
-        else:
-            strides = obj.stride()
-            offsets = [0]
+        strides[0] = obj.stride()[-1]
+        strides = strides[::-1]
+        offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
 
         # chain the types based on the
         for i in range(len(shape) - 1, -1, -1):
@@ -291,9 +293,9 @@ class MPICommunication(Communication):
             mpi_type.Commit()
 
         if counts is not None:
-            return mpi_type, (counts, displs)
+            return mpi_type, (counts, displs), unsqueeze
 
-        return mpi_type, elements
+        return mpi_type, elements, unsqueeze
 
     @classmethod
     def as_mpi_memory(cls, obj) -> MPI.memory:
@@ -326,9 +328,14 @@ class MPICommunication(Communication):
         displs : Tuple[int,...], optional
             Optional displacements arguments for variable MPI-calls (e.g. Alltoallv)
         """
-        mpi_type, elements = cls.mpi_type_and_elements_of(obj, counts, displs)
+        mpi_type, elements, unsqueeze = cls.mpi_type_and_elements_of(obj, counts, displs)
 
-        return [cls.as_mpi_memory(obj), elements, mpi_type]
+        mpi_mem = cls.as_mpi_memory(obj)
+        if unsqueeze:
+            # the squeeze happens in the mpi_type_and_elements_of function in the case of a
+            # non-contiguous 1D tensor. Squeezing it puts the memory back to where it should be
+            obj.squeeze_(-1)
+        return [mpi_mem, elements, mpi_type]
 
     def alltoall_sendbuffer(
         self, obj: torch.Tensor
@@ -342,7 +349,7 @@ class MPICommunication(Communication):
         obj: torch.Tensor
              The object to be transformed into a custom MPI datatype
         """
-        mpi_type, _ = self.__mpi_type_mappings[obj.dtype], torch.numel(obj)
+        mpi_type = self.__mpi_type_mappings[obj.dtype]
 
         nproc = self.size
         shape = obj.shape
@@ -1238,7 +1245,7 @@ class MPICommunication(Communication):
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
 
-        # Simple case, continuos buffers can be transmitted as is
+        # Simple case, continuous buffers can be transmitted as is
         if send_axis < 2 and recv_axis < 2:
             send_axis_permutation = list(range(recvbuf.ndimension()))
             recv_axis_permutation = list(range(recvbuf.ndimension()))

@@ -968,6 +968,14 @@ class TestDNDarray(TestCase):
         self.assertEqual(resplit_a.dtype, ht.int64)
         del a
 
+        # 1D non-contiguous resplit testing
+        t1 = ht.arange(10 * 10, split=0).reshape((10, 10))
+        t1_sub = t1[:, 1]  # .expand_dims(0)
+        res = ht.array([1, 11, 21, 31, 41, 51, 61, 71, 81, 91])
+        t1_sub.resplit_(axis=None)
+        self.assertTrue(ht.all(t1_sub == res))
+        self.assertEqual(t1_sub.split, None)
+
     def test_rshift(self):
         int_tensor = ht.array([[0, 2], [4, 8]])
         int_result = ht.array([[0, 0], [1, 2]])
