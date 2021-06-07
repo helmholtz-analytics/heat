@@ -258,12 +258,11 @@ class MPICommunication(Communication):
         # ToDo: The option to explicitely specify the counts and displacements to be send still needs propper implementation
         """
         mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
-        unsqueeze = False
 
         # simple case, continuous memory can be transmitted as is
         if obj.is_contiguous():
             if counts is None:
-                return mpi_type, elements, unsqueeze
+                return mpi_type, elements
             else:
                 factor = np.prod(obj.shape[1:])
                 return (
@@ -272,14 +271,9 @@ class MPICommunication(Communication):
                         tuple(factor * ele for ele in counts),
                         (tuple(factor * ele for ele in displs)),
                     ),
-                    unsqueeze,
                 )
 
         # non-continuous memory, e.g. after a transpose, has to be packed in derived MPI types
-        if obj.ndim == 1:
-            # this makes the math work below this function.
-            obj.unsqueeze_(-1)
-            unsqueeze = True
         elements = obj.shape[0]
         shape = obj.shape[1:]
         strides = [1] * len(shape)
@@ -293,9 +287,9 @@ class MPICommunication(Communication):
             mpi_type.Commit()
 
         if counts is not None:
-            return mpi_type, (counts, displs), unsqueeze
+            return mpi_type, (counts, displs)
 
-        return mpi_type, elements, unsqueeze
+        return mpi_type, elements
 
     @classmethod
     def as_mpi_memory(cls, obj) -> MPI.memory:
@@ -307,10 +301,7 @@ class MPICommunication(Communication):
         obj : torch.Tensor
             The tensor to be converted into a MPI memory view.
         """
-        pointer = obj.data_ptr()
-        # pointer += obj.storage_offset()
-
-        return MPI.memory.fromaddress(pointer, 0)
+        return MPI.memory.fromaddress(obj.data_ptr(), 0)
 
     @classmethod
     def as_buffer(
@@ -328,10 +319,15 @@ class MPICommunication(Communication):
         displs : Tuple[int,...], optional
             Optional displacements arguments for variable MPI-calls (e.g. Alltoallv)
         """
-        mpi_type, elements, unsqueeze = cls.mpi_type_and_elements_of(obj, counts, displs)
+        squ = False
+        if not obj.is_contiguous() and obj.ndim == 1:
+            # this makes the math work below this function.
+            obj.unsqueeze_(-1)
+            squ = True
+        mpi_type, elements = cls.mpi_type_and_elements_of(obj, counts, displs)
 
         mpi_mem = cls.as_mpi_memory(obj)
-        if unsqueeze:
+        if squ:
             # the squeeze happens in the mpi_type_and_elements_of function in the case of a
             # non-contiguous 1D tensor. Squeezing it puts the memory back to where it should be
             obj.squeeze_(-1)
