@@ -23,7 +23,7 @@ __HDF5_EXTENSIONS = frozenset([".h5", ".hdf5"])
 __NETCDF_EXTENSIONS = frozenset([".nc", ".nc4", "netcdf"])
 __NETCDF_DIM_TEMPLATE = "{}_dim_{}"
 
-__all__ = ["load", "load_csv", "save", "supports_hdf5", "supports_netcdf", "save_hdf5"]
+__all__ = ["load", "load_csv", "save", "supports_hdf5", "supports_netcdf"]
 
 try:
     import h5py

@@ -415,7 +415,7 @@ class TestIO(TestCase):
     def test_load_hdf5(self):
         # HDF5 support is optional
         if not ht.io.supports_hdf5():
-            return
+            self.skipTest("Requires HDF5")
 
         # default parameters
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET)
@@ -453,7 +453,7 @@ class TestIO(TestCase):
     def test_load_hdf5_exception(self):
         # HDF5 support is optional
         if not ht.io.supports_hdf5():
-            return
+            self.skipTest("Requires HDF5")
 
         # improper argument types
         with self.assertRaises(TypeError):
@@ -501,7 +501,7 @@ class TestIO(TestCase):
     def test_save_hdf5_exception(self):
         # HDF5 support is optional
         if not ht.io.supports_hdf5():
-            return
+            self.skipTest("Requires HDF5")
 
         # dummy data
         data = ht.arange(1)
@@ -516,7 +516,7 @@ class TestIO(TestCase):
     def test_load_netcdf(self):
         # netcdf support is optional
         if not ht.io.supports_netcdf():
-            return
+            self.skipTest("Requires NetCDF")
 
         # default parameters
         iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE)
@@ -554,7 +554,7 @@ class TestIO(TestCase):
     def test_load_netcdf_exception(self):
         # netcdf support is optional
         if not ht.io.supports_netcdf():
-            return
+            self.skipTest("Requires NetCDF")
 
         # improper argument types
         with self.assertRaises(TypeError):
@@ -573,7 +573,7 @@ class TestIO(TestCase):
     def test_save_netcdf(self):
         # netcdf support is optional
         if not ht.io.supports_netcdf():
-            return
+            self.skipTest("Requires NetCDF")
 
         # local unsplit data
         local_data = ht.arange(100)
@@ -602,7 +602,7 @@ class TestIO(TestCase):
     def test_save_netcdf_exception(self):
         # netcdf support is optional
         if not ht.io.supports_netcdf():
-            return
+            self.skipTest("Requires NetCDF")
 
         # dummy data
         data = ht.arange(1)

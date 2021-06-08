@@ -1,3 +1,4 @@
+import unittest
 import heat as ht
 
 from heat.classification.kneighborsclassifier import KNeighborsClassifier
@@ -5,6 +6,7 @@ from heat.core.tests.test_suites.basic_test import TestCase
 
 
 class TestKNN(TestCase):
+    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_split_none(self):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
@@ -27,6 +29,7 @@ class TestKNN(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, y.shape)
 
+    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_split_zero(self):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data", split=0)
 
@@ -73,6 +76,7 @@ class TestKNN(TestCase):
         one_hot = KNeighborsClassifier.one_hot_encoding(a)
         self.assertTrue((one_hot == b).all())
 
+    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_fit_one_hot(self,):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
