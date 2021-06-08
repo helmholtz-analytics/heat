@@ -64,7 +64,7 @@ class TestIO(TestCase):
             # content
             self.assertTrue((self.IRIS == iris.larray).all())
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(ImportError):
                 _ = ht.load(self.HDF5_PATH, dataset=self.HDF5_DATASET)
 
         # netCDF
@@ -80,7 +80,7 @@ class TestIO(TestCase):
             # content
             self.assertTrue((self.IRIS == iris.larray).all())
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(ImportError):
                 _ = ht.load(self.NETCDF_PATH, variable=self.NETCDF_VARIABLE)
 
     def test_load_csv(self):
@@ -147,14 +147,14 @@ class TestIO(TestCase):
             with self.assertRaises(IOError):
                 ht.load("foo.h5", "data")
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(ImportError):
                 ht.load("foo.h5", "data")
 
         if ht.io.supports_netcdf():
             with self.assertRaises(IOError):
                 ht.load("foo.nc", "data")
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(ImportError):
                 ht.load("foo.nc", "data")
 
         # unknown file extension
@@ -378,7 +378,7 @@ class TestIO(TestCase):
             with self.assertRaises(TypeError):
                 ht.save(data, self.HDF5_OUT_PATH, 1)
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(ImportError):
                 ht.save(data, self.HDF5_OUT_PATH, self.HDF5_DATASET)
 
         if ht.io.supports_netcdf():
@@ -409,8 +409,11 @@ class TestIO(TestCase):
                     mode="a",
                 )
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(ImportError):
                 ht.save(data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
+
+        with self.assertRaises(ValueError):
+            ht.save(1, "data.dat")
 
     def test_load_hdf5(self):
         # HDF5 support is optional

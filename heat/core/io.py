@@ -691,10 +691,16 @@ def load(
 
     if extension in __CSV_EXTENSION:
         return load_csv(path, *args, **kwargs)
-    elif supports_hdf5() and extension in __HDF5_EXTENSIONS:
-        return load_hdf5(path, *args, **kwargs)
-    elif supports_netcdf() and extension in __NETCDF_EXTENSIONS:
-        return load_netcdf(path, *args, **kwargs)
+    elif extension in __HDF5_EXTENSIONS:
+        if supports_hdf5():
+            return load_hdf5(path, *args, **kwargs)
+        else:
+            raise ImportError("hdf5 is required for file extension {}".format(extension))
+    elif extension in __NETCDF_EXTENSIONS:
+        if supports_netcdf():
+            return load_netcdf(path, *args, **kwargs)
+        else:
+            raise ImportError("netcdf is required for file extension {}".format(extension))
     else:
         raise ValueError("Unsupported file extension {}".format(extension))
 
@@ -944,10 +950,16 @@ def save(
         raise TypeError("Expected path to be str, but was {}".format(type(path)))
     extension = os.path.splitext(path)[-1].strip().lower()
 
-    if supports_hdf5() and extension in __HDF5_EXTENSIONS:
-        save_hdf5(data, path, *args, **kwargs)
-    elif supports_netcdf() and extension in __NETCDF_EXTENSIONS:
-        save_netcdf(data, path, *args, **kwargs)
+    if extension in __HDF5_EXTENSIONS:
+        if supports_hdf5():
+            save_hdf5(data, path, *args, **kwargs)
+        else:
+            raise ImportError("hdf5 is required for file extension {}".format(extension))
+    elif extension in __NETCDF_EXTENSIONS:
+        if supports_netcdf():
+            save_netcdf(data, path, *args, **kwargs)
+        else:
+            raise ImportError("netcdf is required for file extension {}".format(extension))
     else:
         raise ValueError("Unsupported file extension {}".format(extension))
 
