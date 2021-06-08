@@ -22,7 +22,7 @@ class TestRelational(TestCase):
     def test_eq(self):
         result = ht.array([[False, True], [False, False]])
 
-        self.assertTrue(ht.equal(ht.eq(self.a_scalar, self.a_scalar), ht.array([True])))
+        self.assertTrue(ht.equal(ht.eq(self.a_scalar, self.a_scalar), ht.array(True)))
         self.assertTrue(ht.equal(ht.eq(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.eq(self.a_scalar, self.a_tensor), result))
         self.assertTrue(ht.equal(ht.eq(self.a_tensor, self.another_tensor), result))
@@ -49,7 +49,7 @@ class TestRelational(TestCase):
         result = ht.uint8([[False, True], [True, True]])
         commutated_result = ht.array([[True, True], [False, False]])
 
-        self.assertTrue(ht.equal(ht.ge(self.a_scalar, self.a_scalar), ht.array([True])))
+        self.assertTrue(ht.equal(ht.ge(self.a_scalar, self.a_scalar), ht.array(True)))
         self.assertTrue(ht.equal(ht.ge(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.ge(self.a_scalar, self.a_tensor), commutated_result))
         self.assertTrue(ht.equal(ht.ge(self.a_tensor, self.another_tensor), result))
@@ -70,7 +70,7 @@ class TestRelational(TestCase):
         result = ht.array([[False, False], [True, True]])
         commutated_result = ht.array([[True, False], [False, False]])
 
-        self.assertTrue(ht.equal(ht.gt(self.a_scalar, self.a_scalar), ht.array([False])))
+        self.assertTrue(ht.equal(ht.gt(self.a_scalar, self.a_scalar), ht.array(False)))
         self.assertTrue(ht.equal(ht.gt(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.gt(self.a_scalar, self.a_tensor), commutated_result))
         self.assertTrue(ht.equal(ht.gt(self.a_tensor, self.another_tensor), result))
@@ -91,7 +91,7 @@ class TestRelational(TestCase):
         result = ht.array([[True, True], [False, False]])
         commutated_result = ht.array([[False, True], [True, True]])
 
-        self.assertTrue(ht.equal(ht.le(self.a_scalar, self.a_scalar), ht.array([True])))
+        self.assertTrue(ht.equal(ht.le(self.a_scalar, self.a_scalar), ht.array(True)))
         self.assertTrue(ht.equal(ht.le(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.le(self.a_scalar, self.a_tensor), commutated_result))
         self.assertTrue(ht.equal(ht.le(self.a_tensor, self.another_tensor), result))
@@ -112,7 +112,7 @@ class TestRelational(TestCase):
         result = ht.array([[True, False], [False, False]])
         commutated_result = ht.array([[False, False], [True, True]])
 
-        self.assertTrue(ht.equal(ht.lt(self.a_scalar, self.a_scalar), ht.array([False])))
+        self.assertTrue(ht.equal(ht.lt(self.a_scalar, self.a_scalar), ht.array(False)))
         self.assertTrue(ht.equal(ht.lt(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.lt(self.a_scalar, self.a_tensor), commutated_result))
         self.assertTrue(ht.equal(ht.lt(self.a_tensor, self.another_tensor), result))

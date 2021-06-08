@@ -1,6 +1,57 @@
-# v1.0.1
+# Pending additions
 
-## Bug fixes
+## Highlights
+
+
+## Breaking Changes
+- [#758](https://github.com/helmholtz-analytics/heat/pull/758) Indexing a distributed `DNDarray` along the `DNDarray.split` dimension now returns a non-distributed `DNDarray`, i.e. the indexed element is MPI-broadcasted.
+Example on 2 processes:
+  ```python
+  a = ht.arange(5 * 5, split=0).reshape((5, 5))
+  print(a.larray)
+  >>> [0] tensor([[ 0,  1,  2,  3,  4],
+  >>> [0]         [ 5,  6,  7,  8,  9],
+  >>> [0]         [10, 11, 12, 13, 14]], dtype=torch.int32)
+  >>> [1] tensor([[15, 16, 17, 18, 19],
+  >>> [1]         [20, 21, 22, 23, 24]], dtype=torch.int32)
+  b = a[:, 2]
+  print(b.larray)
+  >>> [0] tensor([ 2,  7, 12], dtype=torch.int32)
+  >>> [1] tensor([17, 22], dtype=torch.int32)
+  print(b.shape)
+  >>> [0] (5,)
+  >>> [1] (5,)
+  print(b.split)
+  >>> [0] 0
+  >>> [1] 0
+  c = a[4]
+  print(c.larray)
+  >>> [0] tensor([20, 21, 22, 23, 24], dtype=torch.int32)
+  >>> [1] tensor([20, 21, 22, 23, 24], dtype=torch.int32)
+  print(c.shape)
+  >>> [0] (5,)
+  >>> [1] (5,)
+  print(c.split)
+  >>> [0] None
+  >>> [1] None
+  ```
+
+## Bug Fixes
+- [#758](https://github.com/helmholtz-analytics/heat/pull/758) Fix indexing inconsistencies in `DNDarray.__getitem__()`
+- [#768](https://github.com/helmholtz-analytics/heat/pull/768) Fixed an issue where `deg2rad` and `rad2deg`are not working with the 'out' parameter.
+- [#785](https://github.com/helmholtz-analytics/heat/pull/785) Removed `storage_offset` when finding the mpi buffer (`communication. MPICommunication.as_mpi_memory()`).
+- [#785](https://github.com/helmholtz-analytics/heat/pull/785) added allowance for 1 dimensional non-contiguous local tensors in `communication. MPICommunication.mpi_type_and_elements_of()`
+
+### Linear Algebra
+- [#718](https://github.com/helmholtz-analytics/heat/pull/718) New feature: `trace()`
+- [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
+
+### Manipulations
+- [#749](https://github.com/helmholtz-analytics/heat/pull/749) Distributed sorted `ht.unique`
+
+### Misc.
+- [#761](https://github.com/helmholtz-analytics/heat/pull/761) New feature: `result_type`
+
 
 # v1.0.0
 
@@ -30,10 +81,13 @@
 
 ### Factories
 - [#707](https://github.com/helmholtz-analytics/heat/pull/707) New feature: `asarray()`
+
 ### I/O
 - [#559](https://github.com/helmholtz-analytics/heat/pull/559) Enhancement: `save_netcdf` allows naming dimensions, creating unlimited dimensions, using existing dimensions and variables, slicing
+
 ### Linear Algebra
 - [#658](https://github.com/helmholtz-analytics/heat/pull/658) Bugfix: `matmul` on GPU will cast away from `int`s to `float`s for the operation and cast back upon its completion. This may result in numerical inaccuracies for very large `int64` DNDarrays
+
 ### Logical
 - [#711](https://github.com/helmholtz-analytics/heat/pull/711) `isfinite()`, `isinf()`, `isnan()`
 - [#743](https://github.com/helmholtz-analytics/heat/pull/743) `isneginf()`, `isposinf()`
@@ -71,13 +125,13 @@
 - [#735](https://github.com/helmholtz-analytics/heat/pull/735) Set return type to bool in relational functions.
 - [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
 - [#756](https://github.com/helmholtz-analytics/heat/pull/756) Keep track of sent items while balancing within `sort()`
+- [#764](https://github.com/helmholtz-analytics/heat/pull/764) Fixed an issue where `repr` was giving the wrong output.
 
 ## Enhancements
 ### Manipulations
 - [#690](https://github.com/helmholtz-analytics/heat/pull/690) Enhancement: reshape accepts shape arguments with one unknown dimension.
 - [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
 - [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
-- [#749](https://github.com/helmholtz-analytics/heat/pull/749) Distributed sorted `ht.unique`
 ### Unit testing / CI
 - [#717](https://github.com/helmholtz-analytics/heat/pull/717) Switch CPU CI over to Jenkins and pre-commit to GitHub action.
 - [#720](https://github.com/helmholtz-analytics/heat/pull/720) Ignore test files in codecov report and allow drops in code coverage.

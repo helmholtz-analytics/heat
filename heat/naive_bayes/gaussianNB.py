@@ -298,8 +298,9 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             self.theta_ = ht.zeros((n_classes, n_features), dtype=x.dtype, device=x.device)
             self.sigma_ = ht.zeros((n_classes, n_features), dtype=x.dtype, device=x.device)
 
-            self.class_count_ = ht.zeros((n_classes,), dtype=ht.float64, device=x.device)
-
+            self.class_count_ = ht.zeros(
+                (x.comm.size, n_classes), dtype=ht.float64, device=x.device, split=0
+            )
             # Initialise the class prior
             # Take into account the priors
             if self.priors is not None:
@@ -344,20 +345,22 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 "The target label(s) {} in y do not exist in the "
                 "initial classes {}".format(unique_y[~unique_y_in_classes], classes)
             )
-        for y_i in unique_y:
+        # from now on: extract torch tensors for local operations
+        # DNDarrays for distributed operations only
+        for y_i in unique_y.larray:
             # assuming classes.split is None
-            if y_i in classes:
-                i = ht.where(classes == y_i).item()
+            if y_i in classes.larray:
+                i = torch.where(classes.larray == y_i)[0].item()
             else:
-                classes_ext = torch.cat((classes._DNDarray__array, y_i.larray.unsqueeze(0)))
+                classes_ext = torch.cat((classes.larray, y_i.larray.unsqueeze(0)))
                 i = torch.argsort(classes_ext)[-1].item()
-            where_y_i = ht.where(y == y_i)
+            where_y_i = torch.where(y.larray == y_i)[0]
             X_i = x[where_y_i, :]
 
             if sample_weight is not None:
                 sw_i = sample_weight[where_y_i]
                 if 0 not in sw_i.shape:
-                    N_i = sw_i.sum()
+                    N_i = sw_i.sum().item()
                 else:
                     N_i = 0.0
                     sw_i = None
@@ -366,18 +369,24 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 N_i = X_i.shape[0]
 
             new_theta, new_sigma = self.__update_mean_variance(
-                self.class_count_[i], self.theta_[i, :], self.sigma_[i, :], X_i, sw_i
+                self.class_count_.larray[:, i].item(),
+                self.theta_[i, :],
+                self.sigma_[i, :],
+                X_i,
+                sw_i,
             )
             self.theta_[i, :] = new_theta
             self.sigma_[i, :] = new_sigma
-            self.class_count_[i] += N_i
+            self.class_count_.larray[:, i] += N_i
 
         self.sigma_[:, :] += self.epsilon_
 
-        # Update if only no priors is provided
+        # Update only if no priors are provided
         if self.priors is None:
+            # distributed class_count_: sum along distribution axis
+            self.class_count_ = self.class_count_.sum(axis=0, keepdim=True)
             # Empirical prior, with sample_weight taken into account
-            self.class_prior_ = self.class_count_ / self.class_count_.sum()
+            self.class_prior_ = (self.class_count_ / self.class_count_.sum()).squeeze(0)
 
         return self
 
@@ -485,7 +494,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         if not isinstance(x, ht.DNDarray):
             raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
         jll = self.__joint_log_likelihood(x)
-        return self.classes_[ht.argmax(jll, axis=1).numpy()]
+        return self.classes_[ht.argmax(jll, axis=1)]
 
     def predict_log_proba(self, x: DNDarray) -> DNDarray:
         """

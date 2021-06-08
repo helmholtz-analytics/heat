@@ -301,10 +301,7 @@ class MPICommunication(Communication):
         obj : torch.Tensor
             The tensor to be converted into a MPI memory view.
         """
-        pointer = obj.data_ptr()
-        pointer += obj.storage_offset()
-
-        return MPI.memory.fromaddress(pointer, 0)
+        return MPI.memory.fromaddress(obj.data_ptr(), 0)
 
     @classmethod
     def as_buffer(
@@ -322,9 +319,19 @@ class MPICommunication(Communication):
         displs : Tuple[int,...], optional
             Optional displacements arguments for variable MPI-calls (e.g. Alltoallv)
         """
+        squ = False
+        if not obj.is_contiguous() and obj.ndim == 1:
+            # this makes the math work below this function.
+            obj.unsqueeze_(-1)
+            squ = True
         mpi_type, elements = cls.mpi_type_and_elements_of(obj, counts, displs)
 
-        return [cls.as_mpi_memory(obj), elements, mpi_type]
+        mpi_mem = cls.as_mpi_memory(obj)
+        if squ:
+            # the squeeze happens in the mpi_type_and_elements_of function in the case of a
+            # non-contiguous 1D tensor. Squeezing it puts the memory back to where it should be
+            obj.squeeze_(-1)
+        return [mpi_mem, elements, mpi_type]
 
     def alltoall_sendbuffer(
         self, obj: torch.Tensor
@@ -338,7 +345,7 @@ class MPICommunication(Communication):
         obj: torch.Tensor
              The object to be transformed into a custom MPI datatype
         """
-        mpi_type, _ = self.__mpi_type_mappings[obj.dtype], torch.numel(obj)
+        mpi_type = self.__mpi_type_mappings[obj.dtype]
 
         nproc = self.size
         shape = obj.shape
@@ -1234,7 +1241,7 @@ class MPICommunication(Communication):
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
 
-        # Simple case, continuos buffers can be transmitted as is
+        # Simple case, continuous buffers can be transmitted as is
         if send_axis < 2 and recv_axis < 2:
             send_axis_permutation = list(range(recvbuf.ndimension()))
             recv_axis_permutation = list(range(recvbuf.ndimension()))
