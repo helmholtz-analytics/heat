@@ -50,6 +50,7 @@ Example on 2 processes:
 # v1.0.1
 
 ## Bug fixes
+- [#787](https://github.com/helmholtz-analytics/heat/pull/787) Fixed an issue where Heat cannot be imported when some optional dependencies are not available.
 
 # v1.0.0
 
