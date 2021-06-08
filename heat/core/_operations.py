@@ -49,15 +49,17 @@ def __binary_op(
     result: ht.DNDarray
         A DNDarray containing the results of element-wise operation.
     """
+    promoted_type = types.result_type(t1, t2).torch_type()
+
     if np.isscalar(t1):
         try:
-            t1 = factories.array([t1], device=t2.device if isinstance(t2, DNDarray) else None)
+            t1 = factories.array(t1, device=t2.device if isinstance(t2, DNDarray) else None)
         except (ValueError, TypeError):
             raise TypeError("Data type not supported, input was {}".format(type(t1)))
 
         if np.isscalar(t2):
             try:
-                t2 = factories.array([t2])
+                t2 = factories.array(t2)
             except (ValueError, TypeError):
                 raise TypeError(
                     "Only numeric scalars are supported, but input was {}".format(type(t2))
@@ -82,7 +84,7 @@ def __binary_op(
     elif isinstance(t1, DNDarray):
         if np.isscalar(t2):
             try:
-                t2 = factories.array([t2], device=t1.device)
+                t2 = factories.array(t2, device=t1.device)
                 output_shape = t1.shape
                 output_split = t1.split
                 output_device = t1.device
@@ -112,9 +114,9 @@ def __binary_op(
             # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
             if t1.split is not None:
                 if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
-                    warnings.warn(
-                        "Broadcasting requires transferring data of first operator between MPI ranks!"
-                    )
+                    # warnings.warn(
+                    #     "Broadcasting requires transferring data of first operator between MPI ranks!"
+                    # )
                     if t1.comm.rank > 0:
                         t1.larray = torch.zeros(
                             t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
@@ -123,9 +125,9 @@ def __binary_op(
 
             if t2.split is not None:
                 if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
-                    warnings.warn(
-                        "Broadcasting requires transferring data of second operator between MPI ranks!"
-                    )
+                    # warnings.warn(
+                    #     "Broadcasting requires transferring data of second operator between MPI ranks!"
+                    # )
                     if t2.comm.rank > 0:
                         t2.larray = torch.zeros(
                             t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
@@ -143,7 +145,7 @@ def __binary_op(
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, output_device)
 
-    promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
+    # promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
     if t1.split is not None:
         if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
             result = t1.larray.type(promoted_type)

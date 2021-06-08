@@ -26,7 +26,7 @@ class TestArithmetics(TestCase):
     def test_add(self):
         result = ht.array([[3.0, 4.0], [5.0, 6.0]])
 
-        self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_scalar), ht.float32([4.0])))
+        self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_scalar), ht.float32(4.0)))
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_tensor), result))
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.another_tensor), result))
@@ -311,7 +311,7 @@ class TestArithmetics(TestCase):
         result = ht.array([[0.5, 1.0], [1.5, 2.0]])
         commutated_result = ht.array([[2.0, 1.0], [2.0 / 3.0, 0.5]])
 
-        self.assertTrue(ht.equal(ht.div(self.a_scalar, self.a_scalar), ht.float32([1.0])))
+        self.assertTrue(ht.equal(ht.div(self.a_scalar, self.a_scalar), ht.float32(1.0)))
         self.assertTrue(ht.equal(ht.div(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.div(self.a_scalar, self.a_tensor), commutated_result))
         self.assertTrue(ht.equal(ht.div(self.a_tensor, self.another_tensor), result))
@@ -337,7 +337,7 @@ class TestArithmetics(TestCase):
         another_float = ht.array([1.9])
         result_float = ht.array([1.5])
 
-        self.assertTrue(ht.equal(ht.fmod(self.a_scalar, self.a_scalar), ht.float32([0.0])))
+        self.assertTrue(ht.equal(ht.fmod(self.a_scalar, self.a_scalar), ht.float32(0.0)))
         self.assertTrue(ht.equal(ht.fmod(self.a_tensor, self.a_tensor), zero_tensor))
         self.assertTrue(ht.equal(ht.fmod(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.fmod(self.a_tensor, self.another_tensor), result))
@@ -397,7 +397,7 @@ class TestArithmetics(TestCase):
     def test_mul(self):
         result = ht.array([[2.0, 4.0], [6.0, 8.0]])
 
-        self.assertTrue(ht.equal(ht.mul(self.a_scalar, self.a_scalar), ht.array([4.0])))
+        self.assertTrue(ht.equal(ht.mul(self.a_scalar, self.a_scalar), ht.array(4.0)))
         self.assertTrue(ht.equal(ht.mul(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.mul(self.a_scalar, self.a_tensor), result))
         self.assertTrue(ht.equal(ht.mul(self.a_tensor, self.another_tensor), result))
@@ -442,7 +442,7 @@ class TestArithmetics(TestCase):
         result = ht.array([[1.0, 4.0], [9.0, 16.0]])
         commutated_result = ht.array([[2.0, 4.0], [8.0, 16.0]])
 
-        self.assertTrue(ht.equal(ht.pow(self.a_scalar, self.a_scalar), ht.array([4.0])))
+        self.assertTrue(ht.equal(ht.pow(self.a_scalar, self.a_scalar), ht.array(4.0)))
         self.assertTrue(ht.equal(ht.pow(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.pow(self.a_scalar, self.a_tensor), commutated_result))
         self.assertTrue(ht.equal(ht.pow(self.a_tensor, self.another_tensor), result))
@@ -579,7 +579,7 @@ class TestArithmetics(TestCase):
         result = ht.array([[-1.0, 0.0], [1.0, 2.0]])
         minus_result = ht.array([[1.0, 0.0], [-1.0, -2.0]])
 
-        self.assertTrue(ht.equal(ht.sub(self.a_scalar, self.a_scalar), ht.array([0.0])))
+        self.assertTrue(ht.equal(ht.sub(self.a_scalar, self.a_scalar), ht.array(0.0)))
         self.assertTrue(ht.equal(ht.sub(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.sub(self.a_scalar, self.a_tensor), minus_result))
         self.assertTrue(ht.equal(ht.sub(self.a_tensor, self.another_tensor), result))
