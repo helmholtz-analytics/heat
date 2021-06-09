@@ -884,6 +884,7 @@ class DNDarray:
             # TODO: Replace with `self.comm.Bcast(arr, root=active_rank)` after fixing #784
             arr = self.comm.bcast(arr, root=active_rank)
             if arr.device != self.larray.device:
+                # todo: remove when unnecessary (also after #784)
                 arr = arr.to(device=self.larray.device)
 
         return DNDarray(
