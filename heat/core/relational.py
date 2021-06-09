@@ -13,7 +13,20 @@ from . import _operations
 from . import dndarray
 from . import types
 
-__all__ = ["eq", "equal", "ge", "gt", "le", "lt", "ne"]
+__all__ = [
+    "eq",
+    "equal",
+    "ge",
+    "greater",
+    "greater_equal",
+    "gt",
+    "le",
+    "less",
+    "less_equal",
+    "lt",
+    "ne",
+    "not_equal",
+]
 
 
 def eq(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
@@ -140,6 +153,38 @@ DNDarray.__ge__ = lambda self, other: ge(self, other)
 DNDarray.__ge__.__doc__ = ge.__doc__
 
 
+def greater_equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
+    """
+    Returns a D:class:`~heat.core.dndarray.DNDarray` containing the results of element-wise rich greater than or equal comparison between values from operand ``x`` with respect to values of
+    operand ``y`` (i.e. ``x>=y``), not commutative. Takes the first and second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) whose elements are to be compared as argument.
+
+    Parameters
+    ----------
+    x: DNDarray or scalar
+        The first operand to be compared greater than or equal to second operand
+    y: DNDarray or scalar
+       The second operand to be compared less than or equal to first operand
+
+    Examples
+    -------
+    >>> import heat as ht
+    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> ht.ge(x, 3.0)
+    DNDarray([[False, False],
+              [ True,  True]], dtype=ht.bool, device=cpu:0, split=None)
+    >>> y = ht.float32([[2, 2], [2, 2]])
+    >>> ht.ge(x, y)
+    DNDarray([[False,  True],
+              [ True,  True]], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return ge(x, y)
+
+
+DNDarray.__greater_equal__ = lambda self, other: ge(self, other)
+DNDarray.__greater_equal__.__doc__ = ge.__doc__
+
+
 def gt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
     Returns a :class:`~heat.core.dndarray.DNDarray` containing the results of element-wise rich greater than comparison between values from operand ``x`` with respect to values of
@@ -183,6 +228,38 @@ def gt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 
 DNDarray.__gt__ = lambda self, other: gt(self, other)
 DNDarray.__gt__.__doc__ = gt.__doc__
+
+
+def greater(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
+    """
+    Returns a :class:`~heat.core.dndarray.DNDarray` containing the results of element-wise rich greater than comparison between values from operand ``x`` with respect to values of
+    operand ``y`` (i.e. ``x>y``), not commutative. Takes the first and second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) whose elements are to be compared as argument.
+
+    Parameters
+    ----------
+    x: DNDarray or scalar
+       The first operand to be compared greater than second operand
+    y: DNDarray or scalar
+       The second operand to be compared less than first operand
+
+    Examples
+    -------
+    >>> import heat as ht
+    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> ht.gt(x, 3.0)
+    DNDarray([[False, False],
+              [False,  True]], dtype=ht.bool, device=cpu:0, split=None)
+    >>> y = ht.float32([[2, 2], [2, 2]])
+    >>> ht.gt(x, y)
+    DNDarray([[False, False],
+              [ True,  True]], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return gt(x, y)
+
+
+DNDarray.__greater__ = lambda self, other: gt(self, other)
+DNDarray.__greater__.__doc__ = gt.__doc__
 
 
 def le(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
@@ -230,6 +307,38 @@ DNDarray.__le__ = lambda self, other: le(self, other)
 DNDarray.__le__.__doc__ = le.__doc__
 
 
+def less_equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
+    """
+    Return a :class:`~heat.core.dndarray.DNDarray` containing the results of element-wise rich less than or equal comparison between values from operand ``x`` with respect to values of
+    operand ``y`` (i.e. ``x<=y``), not commutative. Takes the first and second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) whose elements are to be compared as argument.
+
+    Parameters
+    ----------
+    x: DNDarray or scalar
+       The first operand to be compared less than or equal to second operand
+    y: DNDarray or scalar
+       The second operand to be compared greater than or equal to first operand
+
+    Examples
+    -------
+    >>> import heat as ht
+    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> ht.le(x, 3.0)
+    DNDarray([[ True,  True],
+              [ True, False]], dtype=ht.bool, device=cpu:0, split=None)
+    >>> y = ht.float32([[2, 2], [2, 2]])
+    >>> ht.le(x, y)
+    DNDarray([[ True,  True],
+              [False, False]], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return le(x, y)
+
+
+DNDarray.__less_equal__ = lambda self, other: le(self, other)
+DNDarray.__less_equal__.__doc__ = le.__doc__
+
+
 def lt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
     Returns a :class:`~heat.core.dndarray.DNDarray` containing the results of element-wise rich less than comparison between values from operand ``x`` with respect to values of
@@ -275,6 +384,38 @@ DNDarray.__lt__ = lambda self, other: lt(self, other)
 DNDarray.__lt__.__doc__ = lt.__doc__
 
 
+def less(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
+    """
+    Returns a :class:`~heat.core.dndarray.DNDarray` containing the results of element-wise rich less than comparison between values from operand ``x`` with respect to values of
+    operand ``y`` (i.e. ``x<y``), not commutative. Takes the first and second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) whose elements are to be compared as argument.
+
+    Parameters
+    ----------
+    x: DNDarray or scalar
+        The first operand to be compared less than second operand
+    y: DNDarray or scalar
+        The second operand to be compared greater than first operand
+
+    Examples
+    -------
+    >>> import heat as ht
+    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> ht.lt(x, 3.0)
+    DNDarray([[ True,  True],
+              [False, False]], dtype=ht.bool, device=cpu:0, split=None)
+    >>> y = ht.float32([[2, 2], [2, 2]])
+    >>> ht.lt(x, y)
+    DNDarray([[ True, False],
+              [False, False]], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return lt(x, y)
+
+
+DNDarray.__less__ = lambda self, other: lt(self, other)
+DNDarray.__less__.__doc__ = lt.__doc__
+
+
 def ne(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
     Returns a :class:`~heat.core.dndarray.DNDarray` containing the results of element-wise rich comparison of non-equality between values from two operands, commutative.
@@ -318,3 +459,35 @@ def ne(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 
 DNDarray.__ne__ = lambda self, other: ne(self, other)
 DNDarray.__ne__.__doc__ = ne.__doc__
+
+
+def not_equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
+    """
+    Returns a :class:`~heat.core.dndarray.DNDarray` containing the results of element-wise rich comparison of non-equality between values from two operands, commutative.
+    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be
+    compared as argument.
+
+    Parameters
+    ----------
+    x: DNDarray or scalar
+        The first operand involved in the comparison
+    y: DNDarray or scalar
+        The second operand involved in the comparison
+
+    Examples
+    ---------
+    >>> import heat as ht
+    >>> x = ht.float32([[1, 2],[3, 4]])
+    >>> ht.ne(x, 3.0)
+    DNDarray([[ True,  True],
+              [False,  True]], dtype=ht.bool, device=cpu:0, split=None)
+    >>> y = ht.float32([[2, 2], [2, 2]])
+    >>> ht.ne(x, y)
+    DNDarray([[ True, False],
+              [ True,  True]], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return ne(x, y)
+
+
+DNDarray.__not_equal__ = lambda self, other: ne(self, other)
+DNDarray.__not_equal__.__doc__ = ne.__doc__
