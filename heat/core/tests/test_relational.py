@@ -66,6 +66,29 @@ class TestRelational(TestCase):
         with self.assertRaises(TypeError):
             ht.ge("self.a_tensor", "s")
 
+    def test_greater_equal(self):
+        result = ht.uint8([[False, True], [True, True]])
+        commutated_result = ht.array([[True, True], [False, False]])
+
+        self.assertTrue(ht.equal(ht.greater_equal(self.a_scalar, self.a_scalar), ht.array(True)))
+        self.assertTrue(ht.equal(ht.greater_equal(self.a_tensor, self.a_scalar), result))
+        self.assertTrue(ht.equal(ht.greater_equal(self.a_scalar, self.a_tensor), commutated_result))
+        self.assertTrue(ht.equal(ht.greater_equal(self.a_tensor, self.another_tensor), result))
+        self.assertTrue(ht.equal(ht.greater_equal(self.a_tensor, self.a_vector), result))
+        self.assertTrue(ht.equal(ht.greater_equal(self.a_tensor, self.an_int_scalar), result))
+        self.assertTrue(
+            ht.equal(ht.greater_equal(self.a_split_tensor, self.a_tensor), commutated_result)
+        )
+
+        self.assertEqual(ht.greater_equal(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
+
+        with self.assertRaises(ValueError):
+            ht.greater_equal(self.a_tensor, self.another_vector)
+        with self.assertRaises(TypeError):
+            ht.greater_equal(self.a_tensor, self.errorneous_type)
+        with self.assertRaises(TypeError):
+            ht.greater_equal("self.a_tensor", "s")
+
     def test_gt(self):
         result = ht.array([[False, False], [True, True]])
         commutated_result = ht.array([[True, False], [False, False]])
@@ -86,6 +109,27 @@ class TestRelational(TestCase):
             ht.gt(self.a_tensor, self.errorneous_type)
         with self.assertRaises(TypeError):
             ht.gt("self.a_tensor", "s")
+
+    def test_greater(self):
+        result = ht.array([[False, False], [True, True]])
+        commutated_result = ht.array([[True, False], [False, False]])
+
+        self.assertTrue(ht.equal(ht.greater(self.a_scalar, self.a_scalar), ht.array(False)))
+        self.assertTrue(ht.equal(ht.greater(self.a_tensor, self.a_scalar), result))
+        self.assertTrue(ht.equal(ht.greater(self.a_scalar, self.a_tensor), commutated_result))
+        self.assertTrue(ht.equal(ht.greater(self.a_tensor, self.another_tensor), result))
+        self.assertTrue(ht.equal(ht.greater(self.a_tensor, self.a_vector), result))
+        self.assertTrue(ht.equal(ht.greater(self.a_tensor, self.an_int_scalar), result))
+        self.assertTrue(ht.equal(ht.greater(self.a_split_tensor, self.a_tensor), commutated_result))
+
+        self.assertEqual(ht.greater(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
+
+        with self.assertRaises(ValueError):
+            ht.greater(self.a_tensor, self.another_vector)
+        with self.assertRaises(TypeError):
+            ht.greater(self.a_tensor, self.errorneous_type)
+        with self.assertRaises(TypeError):
+            ht.greater("self.a_tensor", "s")
 
     def test_le(self):
         result = ht.array([[True, True], [False, False]])
@@ -108,6 +152,29 @@ class TestRelational(TestCase):
         with self.assertRaises(TypeError):
             ht.le("self.a_tensor", "s")
 
+    def test_less_equal(self):
+        result = ht.array([[True, True], [False, False]])
+        commutated_result = ht.array([[False, True], [True, True]])
+
+        self.assertTrue(ht.equal(ht.less_equal(self.a_scalar, self.a_scalar), ht.array(True)))
+        self.assertTrue(ht.equal(ht.less_equal(self.a_tensor, self.a_scalar), result))
+        self.assertTrue(ht.equal(ht.less_equal(self.a_scalar, self.a_tensor), commutated_result))
+        self.assertTrue(ht.equal(ht.less_equal(self.a_tensor, self.another_tensor), result))
+        self.assertTrue(ht.equal(ht.less_equal(self.a_tensor, self.a_vector), result))
+        self.assertTrue(ht.equal(ht.less_equal(self.a_tensor, self.an_int_scalar), result))
+        self.assertTrue(
+            ht.equal(ht.less_equal(self.a_split_tensor, self.a_tensor), commutated_result)
+        )
+
+        self.assertEqual(ht.le(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
+
+        with self.assertRaises(ValueError):
+            ht.less_equal(self.a_tensor, self.another_vector)
+        with self.assertRaises(TypeError):
+            ht.less_equal(self.a_tensor, self.errorneous_type)
+        with self.assertRaises(TypeError):
+            ht.less_equal("self.a_tensor", "s")
+
     def test_lt(self):
         result = ht.array([[True, False], [False, False]])
         commutated_result = ht.array([[False, False], [True, True]])
@@ -129,6 +196,27 @@ class TestRelational(TestCase):
         with self.assertRaises(TypeError):
             ht.lt("self.a_tensor", "s")
 
+    def test_less(self):
+        result = ht.array([[True, False], [False, False]])
+        commutated_result = ht.array([[False, False], [True, True]])
+
+        self.assertTrue(ht.equal(ht.less(self.a_scalar, self.a_scalar), ht.array(False)))
+        self.assertTrue(ht.equal(ht.less(self.a_tensor, self.a_scalar), result))
+        self.assertTrue(ht.equal(ht.less(self.a_scalar, self.a_tensor), commutated_result))
+        self.assertTrue(ht.equal(ht.less(self.a_tensor, self.another_tensor), result))
+        self.assertTrue(ht.equal(ht.less(self.a_tensor, self.a_vector), result))
+        self.assertTrue(ht.equal(ht.less(self.a_tensor, self.an_int_scalar), result))
+        self.assertTrue(ht.equal(ht.less(self.a_split_tensor, self.a_tensor), commutated_result))
+
+        self.assertEqual(ht.less(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
+
+        with self.assertRaises(ValueError):
+            ht.less(self.a_tensor, self.another_vector)
+        with self.assertRaises(TypeError):
+            ht.less(self.a_tensor, self.errorneous_type)
+        with self.assertRaises(TypeError):
+            ht.less("self.a_tensor", "s")
+
     def test_ne(self):
         result = ht.array([[True, False], [True, True]])
 
@@ -142,6 +230,16 @@ class TestRelational(TestCase):
         self.assertTrue(ht.equal(self.a_split_tensor != self.a_tensor, result))
 
         self.assertEqual(ht.ne(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
+
+        with self.assertRaises(ValueError):
+            ht.ne(self.a_tensor, self.another_vector)
+        with self.assertRaises(TypeError):
+            ht.ne(self.a_tensor, self.errorneous_type)
+        with self.assertRaises(TypeError):
+            ht.ne("self.a_tensor", "s")
+
+    def test_not_equal(self):
+        self.assertEqual(ht.not_equal(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
         with self.assertRaises(ValueError):
             ht.ne(self.a_tensor, self.another_vector)
