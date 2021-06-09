@@ -51,7 +51,7 @@ Output:
     DNDarray([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=ht.int32, device=cpu:0, split=None)
 
 
-The following snippet creates a column vector with :math:`5` element, each position filled with the value :math:`9` and the ``ht.int64`` data type.
+The following snippet creates a column vector with :math:`5` elements, each position filled with the value :math:`9` and the ``ht.int64`` data type.
 
 .. code:: python
 
