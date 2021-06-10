@@ -451,7 +451,6 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.pow(self.a_split_tensor, self.a_tensor), commutated_result))
 
         with self.assertRaises(RuntimeError):
-            # print(self.a_tensor.shape, self.another_vector.shape)
             ht.pow(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.pow(self.a_tensor, self.errorneous_type)
