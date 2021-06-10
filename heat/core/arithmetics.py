@@ -776,6 +776,24 @@ def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[ 1.,  8.],
             [27., 64.]], dtype=ht.float32, device=cpu:0, split=None)
     """
+    if isinstance(t1, DNDarray):
+        ret = factories.zeros_like(t1)
+        try:
+            t2.resplit_(t1.split)
+            exponent = t2.larray
+        except AttributeError:  # it isnt a DNDarray
+            exponent = t2
+        ret.lloc[:] = torch.pow(t1.larray, exponent)
+        return ret
+    elif isinstance(t2, DNDarray):
+        ret = factories.zeros_like(t2)
+        if isinstance(t1, DNDarray):
+            t1.resplit_(t2.split)
+            base = t1.larray
+        else:
+            base = t1
+        ret.lloc[:] = torch.pow(base, t2.larray)
+        return ret
     return _operations.__binary_op(torch.pow, t1, t2)
 
 
