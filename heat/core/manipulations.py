@@ -1685,7 +1685,7 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
     return repeated_array
 
 
-def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None) -> DNDarray:
+def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
     """
     Returns an array with the same data and number of elements as `a`, but with the specified shape.
 
@@ -1723,6 +1723,10 @@ def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None
     """
     if not isinstance(a, DNDarray):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
+
+    # check for nested sequence
+    if isinstance(shape[0], (tuple, list)):
+        shape = shape[0]
 
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
 
@@ -1768,9 +1772,10 @@ def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None
         raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
 
     # check new_split parameter
+    new_split = kwargs.get("new_split")
     if new_split is None:
         new_split = a.split
-    stride_tricks.sanitize_axis(shape, new_split)
+    new_split = stride_tricks.sanitize_axis(shape, new_split)
 
     # Check the type of shape and number elements
     shape = stride_tricks.sanitize_shape(shape, -1)
@@ -1791,8 +1796,27 @@ def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None
 
     # Forward to Pytorch directly
     if a.split is None:
-        return factories.array(
-            torch.reshape(a.larray, shape), dtype=a.dtype, device=a.device, comm=a.comm
+        local_reshape = torch.reshape(a.larray, shape)
+        if new_split is None:
+            return DNDarray(
+                local_reshape,
+                tuple(shape),
+                dtype=a.dtype,
+                split=None,
+                device=a.device,
+                comm=a.comm,
+                balanced=True,
+            )
+        _, _, local_slice = a.comm.chunk(shape, new_split)
+        local_reshape = local_reshape[local_slice]
+        return DNDarray(
+            local_reshape,
+            tuple(shape),
+            dtype=a.dtype,
+            split=new_split,
+            comm=a.comm,
+            device=a.device,
+            balanced=True,
         )
 
     # Create new flat result tensor
@@ -1824,10 +1848,19 @@ def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None
     # Reshape local tensor
     data = data.reshape(local_shape)
 
-    return factories.array(data, dtype=a.dtype, is_split=new_split, device=a.device, comm=a.comm)
+    # return factories.array(data, dtype=a.dtype, is_split=new_split, device=a.device, comm=a.comm)
+    return DNDarray(
+        data,
+        tuple(shape),
+        dtype=a.dtype,
+        split=new_split,
+        device=a.device,
+        comm=a.comm,
+        balanced=True,
+    )
 
 
-DNDarray.reshape = lambda self, shape, axis=None: reshape(self, shape, axis)
+DNDarray.reshape = lambda self, *shape, **kwargs: reshape(self, *shape, **kwargs)
 DNDarray.reshape.__doc__ = reshape.__doc__
 
 
