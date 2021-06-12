@@ -103,7 +103,7 @@ class TestPrinting(TestCase):
             comparison = (
                 "DNDarray([[ 0,  1,  2,  3],\n"
                 "          [ 4,  5,  6,  7],\n"
-                "          [ 8,  9, 10, 11]], dtype=ht.int32, device=cpu:0, split=0)"
+                "          [ 8,  9, 10, 11]], dtype=ht.int32, device=cpu:0, split=None)"
             )
             __str = str(dndarray[0])
             if dndarray.comm.rank == 0:

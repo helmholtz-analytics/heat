@@ -1,3 +1,7 @@
+"""
+File for the MNIST dataset definition in heat
+"""
+
 import torch
 
 from torchvision import datasets
@@ -11,9 +15,9 @@ __all__ = ["MNISTDataset"]
 
 class MNISTDataset(datasets.MNIST):
     """
-    Dataset wrapper for :class:`torchvision.datasets.MNIST`. This implements all of the required functions mentioned in
-    :class:`heat.utils.data.Dataset`. The ``__getitem__`` and ``__len__`` functions are inherited from
-    :class:`torchvision.datasets.MNIST`.
+    Dataset wrapper for `torchvision.datasets.MNIST <https://pytorch.org/vision/stable/datasets.html#torchvision.datasets.MNIST>`_.
+    This implements all of the required functions mentioned in :class:`heat.utils.data.Dataset`. The ``__getitem__`` and ``__len__`` functions are inherited from
+    `torchvision.datasets.MNIST <https://pytorch.org/vision/stable/datasets.html#torchvision.datasets.MNIST>`_.
 
     Parameters
     ----------
@@ -58,7 +62,9 @@ class MNISTDataset(datasets.MNIST):
     test_set : bool
         if this dataset is the testing set then keep all of the data local
 
-    For other attributes see :class:`torchvision.datasets.MNIST`.
+    Notes
+    -----
+    For other attributes see `torchvision.datasets.MNIST <https://pytorch.org/vision/stable/datasets.html#torchvision.datasets.MNIST>`_.
     """
 
     def __init__(
@@ -71,7 +77,7 @@ class MNISTDataset(datasets.MNIST):
         split: int = 0,
         ishuffle: bool = False,
         test_set: bool = False,
-    ):
+    ):  # noqa: D107
         super().__init__(
             root,
             train=train,
@@ -105,12 +111,18 @@ class MNISTDataset(datasets.MNIST):
         # getitem and len are defined by torch's MNIST class
 
     def Shuffle(self):
+        """
+        Uses the :func:`datatools.dataset_shuffle` function to shuffle the data between the processes
+        """
         if not self.test_set:
             datatools.dataset_shuffle(
                 dataset=self, attrs=[["data", "htdata"], ["targets", "httargets"]]
             )
 
     def Ishuffle(self):
+        """
+        Uses the :func:`datatools.dataset_ishuffle` function to shuffle the data between the processes
+        """
         if not self.test_set:
             datatools.dataset_ishuffle(
                 dataset=self, attrs=[["data", "htdata"], ["targets", "httargets"]]
