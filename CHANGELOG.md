@@ -47,6 +47,7 @@ Example on 2 processes:
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
 ### Misc.
 - [#761](https://github.com/helmholtz-analytics/heat/pull/761) New feature: `result_type`
+- [#794](https://github.com/helmholtz-analytics/heat/pull/794) New feature: `meshgrid`
 
 
 # v1.0.0
