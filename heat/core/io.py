@@ -677,6 +677,8 @@ def load(
     -------
     ValueError
         If the file extension is not understood or known.
+    RuntimeError
+        If the optional dependency for a file extension is not available.
 
     Examples
     --------
@@ -695,12 +697,12 @@ def load(
         if supports_hdf5():
             return load_hdf5(path, *args, **kwargs)
         else:
-            raise ImportError("hdf5 is required for file extension {}".format(extension))
+            raise RuntimeError("hdf5 is required for file extension {}".format(extension))
     elif extension in __NETCDF_EXTENSIONS:
         if supports_netcdf():
             return load_netcdf(path, *args, **kwargs)
         else:
-            raise ImportError("netcdf is required for file extension {}".format(extension))
+            raise RuntimeError("netcdf is required for file extension {}".format(extension))
     else:
         raise ValueError("Unsupported file extension {}".format(extension))
 
@@ -940,6 +942,8 @@ def save(
     -------
     ValueError
         If the file extension is not understood or known.
+    RuntimeError
+        If the optional dependency for a file extension is not available.
 
     Examples
     --------
@@ -954,12 +958,12 @@ def save(
         if supports_hdf5():
             save_hdf5(data, path, *args, **kwargs)
         else:
-            raise ImportError("hdf5 is required for file extension {}".format(extension))
+            raise RuntimeError("hdf5 is required for file extension {}".format(extension))
     elif extension in __NETCDF_EXTENSIONS:
         if supports_netcdf():
             save_netcdf(data, path, *args, **kwargs)
         else:
-            raise ImportError("netcdf is required for file extension {}".format(extension))
+            raise RuntimeError("netcdf is required for file extension {}".format(extension))
     else:
         raise ValueError("Unsupported file extension {}".format(extension))
 

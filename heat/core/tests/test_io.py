@@ -64,7 +64,7 @@ class TestIO(TestCase):
             # content
             self.assertTrue((self.IRIS == iris.larray).all())
         else:
-            with self.assertRaises(ImportError):
+            with self.assertRaises(RuntimeError):
                 _ = ht.load(self.HDF5_PATH, dataset=self.HDF5_DATASET)
 
         # netCDF
@@ -80,7 +80,7 @@ class TestIO(TestCase):
             # content
             self.assertTrue((self.IRIS == iris.larray).all())
         else:
-            with self.assertRaises(ImportError):
+            with self.assertRaises(RuntimeError):
                 _ = ht.load(self.NETCDF_PATH, variable=self.NETCDF_VARIABLE)
 
     def test_load_csv(self):
@@ -378,7 +378,7 @@ class TestIO(TestCase):
             with self.assertRaises(TypeError):
                 ht.save(data, self.HDF5_OUT_PATH, 1)
         else:
-            with self.assertRaises(ImportError):
+            with self.assertRaises(RuntimeError):
                 ht.save(data, self.HDF5_OUT_PATH, self.HDF5_DATASET)
 
         if ht.io.supports_netcdf():
@@ -409,7 +409,7 @@ class TestIO(TestCase):
                     mode="a",
                 )
         else:
-            with self.assertRaises(ImportError):
+            with self.assertRaises(RuntimeError):
                 ht.save(data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
 
         with self.assertRaises(ValueError):
