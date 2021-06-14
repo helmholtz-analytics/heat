@@ -45,8 +45,8 @@ extensions = [
     "sphinx_rtd_theme",
     "sphinx.ext.napoleon",
     "sphinx.ext.mathjax",
+    "sphinx_copybutton",
 ]
-
 
 # Document Python Code
 autoapi_type = "python"
@@ -87,6 +87,9 @@ def setup(sphinx):
 templates_path = ["_templates"]
 napoleon_numpy_docstring = True
 napoleon_use_ivar = True
+
+copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
+copybutton_prompt_is_regexp = True
 
 html_show_sourcelink = True
 
