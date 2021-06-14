@@ -1848,7 +1848,6 @@ def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
     # Reshape local tensor
     data = data.reshape(local_shape)
 
-    # return factories.array(data, dtype=a.dtype, is_split=new_split, device=a.device, comm=a.comm)
     return DNDarray(
         data,
         tuple(shape),
