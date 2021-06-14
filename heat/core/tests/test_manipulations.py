@@ -2086,6 +2086,21 @@ class TestManipulations(TestCase):
         self.assertTrue(ht.equal(reshaped, result))
         self.assertEqual(reshaped.device, result.device)
 
+        b = ht.arange(4 * 5 * 6, dtype=ht.float64)
+        # test *shape input
+        reshaped = b.reshape(4, 5, 6)
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
+        # test new_split not None
+        reshaped = b.reshape(4, 5, -1, new_split=-1)
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, 2)
+        self.assertEqual(reshaped.device, b.device)
+        self.assertEqual(reshaped.balanced, b.is_balanced(force_check=True))
+
         # shape = -1
         result = ht.zeros(12, device=self.device)
         reshaped = ht.reshape(a, -1)
