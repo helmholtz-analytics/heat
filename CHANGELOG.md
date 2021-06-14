@@ -42,6 +42,7 @@ Example on 2 processes:
 - [#785](https://github.com/helmholtz-analytics/heat/pull/785) Removed `storage_offset` when finding the mpi buffer (`communication. MPICommunication.as_mpi_memory()`).
 - [#785](https://github.com/helmholtz-analytics/heat/pull/785) added allowance for 1 dimensional non-contiguous local tensors in `communication. MPICommunication.mpi_type_and_elements_of()`
 - [#787](https://github.com/helmholtz-analytics/heat/pull/787) Fixed an issue where Heat cannot be imported when some optional dependencies are not available.
+- [#790](https://github.com/helmholtz-analytics/heat/pull/790) catch incorrect device after `bcast` in `DNDarray.__getitem__`
 ### Linear Algebra
 - [#718](https://github.com/helmholtz-analytics/heat/pull/718) New feature: `trace()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
