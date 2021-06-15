@@ -1053,13 +1053,9 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
     ----------
     arrays : Sequence[ DNDarray ]
         one-dimensional arrays representing grid coordinates. If exactly one vector is distributed, the returned matrices will
-        be distributed along the axis equal to the index of this vector in the input list. See Note for special case.
+        be distributed along the axis equal to the index of this vector in the input list.
     indexing : str, optional
         Cartesian ‘xy’ or matrix ‘ij’ indexing of output. It is ignored if zero or one one-dimensional arrays are provided. Default: 'xy' .
-
-    Note
-    ----
-    If `indexing == xy` and the vector at position 0 or 1 is distributed, the split axis for the returned arrays will be switched.
 
     Raises
     ------
@@ -1103,9 +1099,11 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
     if indexing == "xy" and len(arrays) > 1:
         arrays[0], arrays[1] = arrays[1], arrays[0]
         if splitted == 0:
-            splitted = 1
+            arrays[0] = arrays[0].resplit(0)
+            arrays[1] = arrays[1].resplit(None)
         elif splitted == 1:
-            splitted = 0
+            arrays[0] = arrays[0].resplit(None)
+            arrays[1] = arrays[1].resplit(0)
 
     grids = torch.meshgrid(*(array.larray for array in arrays))
 

@@ -740,26 +740,26 @@ class TestFactories(TestCase):
         # 3 arrays
         z = ht.linspace(0, 1, 3, split=0)
 
-        # special case 'xy' split 1
+        # split 0
         zz, xx, yy = ht.meshgrid(z, x, y)
 
         res_zz, res_xx, res_yy = np.meshgrid(z.numpy(), x.numpy(), y.numpy())
 
-        self.assertEqual(xx.split, 1)
-        self.assertEqual(yy.split, 1)
-        self.assertEqual(zz.split, 1)
+        self.assertEqual(xx.split, 0)
+        self.assertEqual(yy.split, 0)
+        self.assertEqual(zz.split, 0)
         self.assertTrue(ht.equal(xx, ht.array(res_xx)))
         self.assertTrue(ht.equal(yy, ht.array(res_yy)))
         self.assertTrue(ht.equal(zz, ht.array(res_zz)))
 
-        # special case 'xy' split 0
+        # split 1
         xx, zz, yy = ht.meshgrid(x, z, y)
 
         res_xx, res_zz, res_yy = np.meshgrid(x.numpy(), z.numpy(), y.numpy())
 
-        self.assertEqual(xx.split, 0)
-        self.assertEqual(yy.split, 0)
-        self.assertEqual(zz.split, 0)
+        self.assertEqual(xx.split, 1)
+        self.assertEqual(yy.split, 1)
+        self.assertEqual(zz.split, 1)
         self.assertTrue(ht.equal(xx, ht.array(res_xx)))
         self.assertTrue(ht.equal(yy, ht.array(res_yy)))
         self.assertTrue(ht.equal(zz, ht.array(res_zz)))
