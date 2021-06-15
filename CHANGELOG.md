@@ -37,16 +37,21 @@ Example on 2 processes:
   ```
 
 ## Bug Fixes
+- [#796](https://github.com/helmholtz-analytics/heat/pull/796) `heat.reshape(a, shape, new_split)` now always returns a distributed `DNDarray` if `new_split is not None` (inlcuding when the original input `a` is not distributed)
 - [#758](https://github.com/helmholtz-analytics/heat/pull/758) Fix indexing inconsistencies in `DNDarray.__getitem__()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) Fixed an issue where `deg2rad` and `rad2deg`are not working with the 'out' parameter.
 - [#785](https://github.com/helmholtz-analytics/heat/pull/785) Removed `storage_offset` when finding the mpi buffer (`communication. MPICommunication.as_mpi_memory()`).
 - [#785](https://github.com/helmholtz-analytics/heat/pull/785) added allowance for 1 dimensional non-contiguous local tensors in `communication. MPICommunication.mpi_type_and_elements_of()`
+- [#787](https://github.com/helmholtz-analytics/heat/pull/787) Fixed an issue where Heat cannot be imported when some optional dependencies are not available.
+- [#790](https://github.com/helmholtz-analytics/heat/pull/790) catch incorrect device after `bcast` in `DNDarray.__getitem__`
+
 ### Linear Algebra
 - [#718](https://github.com/helmholtz-analytics/heat/pull/718) New feature: `trace()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
+### Manipulations
+- [#796](https://github.com/helmholtz-analytics/heat/pull/796) `DNDarray.reshape(shape)`: method now allows shape elements to be passed in as single arguments.
 ### Misc.
 - [#761](https://github.com/helmholtz-analytics/heat/pull/761) New feature: `result_type`
-
 
 # v1.0.0
 
@@ -103,6 +108,9 @@ Example on 2 processes:
 - [#660](https://github.com/helmholtz-analytics/heat/pull/660) New feature: Data loader for H5 datasets which shuffles data in the background during training (`utils.data.partial_dataset.PartialH5Dataset`)
 - [#728](https://github.com/helmholtz-analytics/heat/pull/728) New feature: `nn.DataParallelMultiGPU` which uses `torch.distributed` for local communication (for use with `optim.DASO`)
 - [#728](https://github.com/helmholtz-analytics/heat/pull/728) New feature: `optim.DetectMetricPlateau` detects when a given metric plateaus.
+
+### Relational
+- [#792](https://github.com/helmholtz-analytics/heat/pull/792) API extension (aliases): `greater`,`greater_equal`, `less`, `less_equal`, `not_equal`
 
 ### Statistical Functions
 - [#679](https://github.com/helmholtz-analytics/heat/pull/679) New feature: ``histc()`` and ``histogram()``

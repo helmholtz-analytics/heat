@@ -143,7 +143,7 @@ class TestDNDarray(TestCase):
                 self.assertTrue(data.halo_next is None)
                 self.assertEqual(data_with_halos.shape, (0, 12))
 
-            data = data.reshape((12, 2), axis=1)
+            data = data.reshape((12, 2), new_split=1)
             data.get_halo(1)
 
             data_with_halos = data.array_with_halos

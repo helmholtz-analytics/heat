@@ -13,7 +13,20 @@ from . import _operations
 from . import dndarray
 from . import types
 
-__all__ = ["eq", "equal", "ge", "gt", "le", "lt", "ne"]
+__all__ = [
+    "eq",
+    "equal",
+    "ge",
+    "greater",
+    "greater_equal",
+    "gt",
+    "le",
+    "less",
+    "less_equal",
+    "lt",
+    "ne",
+    "not_equal",
+]
 
 
 def eq(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
@@ -139,6 +152,10 @@ def ge(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 DNDarray.__ge__ = lambda self, other: ge(self, other)
 DNDarray.__ge__.__doc__ = ge.__doc__
 
+# alias
+greater_equal = ge
+greater_equal.__doc__ = ge.__doc__
+
 
 def gt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
@@ -183,6 +200,10 @@ def gt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 
 DNDarray.__gt__ = lambda self, other: gt(self, other)
 DNDarray.__gt__.__doc__ = gt.__doc__
+
+# alias
+greater = gt
+greater.__doc__ = gt.__doc__
 
 
 def le(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
@@ -229,6 +250,10 @@ def le(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 DNDarray.__le__ = lambda self, other: le(self, other)
 DNDarray.__le__.__doc__ = le.__doc__
 
+# alias
+less_equal = le
+less_equal.__doc__ = le.__doc__
+
 
 def lt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
@@ -274,6 +299,10 @@ def lt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 DNDarray.__lt__ = lambda self, other: lt(self, other)
 DNDarray.__lt__.__doc__ = lt.__doc__
 
+# alias
+less = lt
+less.__doc__ = lt.__doc__
+
 
 def ne(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
@@ -318,3 +347,7 @@ def ne(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 
 DNDarray.__ne__ = lambda self, other: ne(self, other)
 DNDarray.__ne__.__doc__ = ne.__doc__
+
+# alias
+not_equal = ne
+not_equal.__doc__ = ne.__doc__
