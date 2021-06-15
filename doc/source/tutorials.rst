@@ -38,7 +38,7 @@ Heat Tutorials
 
         <a class="reference external" href="tutorial_parallel_computation.html">
             <div class="tutorial-text">
-                <strong>Parallel Computing</strong>
+                <strong>Turn up the Heat - Parallel Computing</strong>
                 <p/>
                 <p>Speed up Heat even further with GPUs acceleration or distributed MPI computation.</p>
                 <em>Well-suited for beginners.</em>
@@ -57,7 +57,7 @@ Heat Tutorials
 
         <a class="reference external" href="tutorial_clustering.html">
             <div class="tutorial-text">
-                <strong>Cluster Analysis</strong>
+                <strong>Keep the Heat - Cluster Analysis</strong>
                 <p/>
                 <p>Automatically identify clusters in your data by employing unsupervised clustering methods.</p>
                 <em>For intermediate analysts.</em>
