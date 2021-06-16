@@ -3063,11 +3063,15 @@ def unique(a, return_inverse=False, axis=None):
                     f"UNIQUE: AFTER Recv: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
                 )
                 lres = tmp[slice(None, incoming_size)]
+        current, peak = tracemalloc.get_traced_memory()
+        print(
+            f"UNIQUE: AFTER MPI ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        )
         gres.larray = lres
-    current, peak = tracemalloc.get_traced_memory()
-    print(
-        f"UNIQUE: AFTER MPI ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-    )
+        current, peak = tracemalloc.get_traced_memory()
+        print(
+            f"UNIQUE: AFTER gres.larray=lres: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        )
     if axis is not None and axis != 0:
         # transpose back to original
         gres = linalg.basics.transpose(gres, (axis, 0))
