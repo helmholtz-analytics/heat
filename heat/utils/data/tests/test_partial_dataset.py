@@ -4,6 +4,7 @@ import unittest
 
 
 class TestPartialDataset(unittest.TestCase):
+    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_partial_h5_dataset(self):
         # load h5 data and get the total shape
         full_data = ht.load("heat/datasets/iris.h5", dataset="data", split=None)
