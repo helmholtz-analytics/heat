@@ -159,18 +159,18 @@ class DNDarray:
         # sanitize tensor input
         current, peak = tracemalloc.get_traced_memory()
         print(
-            f"UNIQUE: BEFORE SANITATION: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+            f"LARRAY.SETTER: BEFORE SANITATION: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
         )
         sanitation.sanitize_in_tensor(array)
         current, peak = tracemalloc.get_traced_memory()
         print(
-            f"UNIQUE: AFTER sanitize_in_tensor: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+            f"LARRAY.SETTER: AFTER sanitize_in_tensor: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
         )
         # verify consistency of tensor shape with global DNDarray
         sanitation.sanitize_lshape(self, array)
         current, peak = tracemalloc.get_traced_memory()
         print(
-            f"UNIQUE: AFTER sanitize_lshape: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+            f"LARRAY.SETTER: AFTER sanitize_lshape: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
         )
         # set balanced status
         split = self.split
@@ -178,13 +178,13 @@ class DNDarray:
             self.__balanced = None
         current, peak = tracemalloc.get_traced_memory()
         print(
-            f"UNIQUE: AFTER balanced check: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+            f"LARRAY.SETTER: AFTER balanced check: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
         )
         # raise warning if function was called by user/not out of 'heat/core/*'
         caller = stack()[1]
         current, peak = tracemalloc.get_traced_memory()
         print(
-            f"UNIQUE: AFTER stack(): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+            f"LARRAY.SETTER: AFTER stack(): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
         )
         abs_heat_path = Path("heat", "core").resolve()
         abs_path_caller = Path(caller.filename).resolve()
@@ -196,12 +196,12 @@ class DNDarray:
             )
         current, peak = tracemalloc.get_traced_memory()
         print(
-            f"UNIQUE: AFTER warnings: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+            f"LARRAY.SETTER: AFTER warnings: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
         )
         self.__array = array
         current, peak = tracemalloc.get_traced_memory()
         print(
-            f"UNIQUE: AFTER __array=array: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+            f"LARRAY.SETTER: AFTER __array=array: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
         )
 
     @property
