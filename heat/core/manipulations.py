@@ -22,6 +22,8 @@ from . import tiling
 from . import types
 from . import _operations
 
+import tracemalloc
+
 __all__ = [
     "balance",
     "column_stack",
@@ -3010,10 +3012,17 @@ def unique(a, return_inverse=False, axis=None):
                 gres.comm.Recv(tmp, recv_from_rank, tag=recv_from_rank)
                 lres = tmp[slice(None, incoming_size)]
         gres.larray = lres
-
+    current, peak = tracemalloc.get_traced_memory()
+    print(
+        f"UNIQUE: BEFORE ht.transpose: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
     if axis is not None and axis != 0:
         # transpose back to original
         gres = linalg.basics.transpose(gres, (axis, 0))
+    current, peak = tracemalloc.get_traced_memory()
+    print(
+        f"UNIQUE: AFTER ht.transpose: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
 
     if return_inverse:
         return (gres, global_inverse)
