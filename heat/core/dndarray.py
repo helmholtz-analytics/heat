@@ -181,23 +181,23 @@ class DNDarray:
             f"LARRAY.SETTER: AFTER balanced check: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
         )
         # raise warning if function was called by user/not out of 'heat/core/*'
-        caller = stack()[1]
-        current, peak = tracemalloc.get_traced_memory()
-        print(
-            f"LARRAY.SETTER: AFTER stack(): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
-        abs_heat_path = Path("heat", "core").resolve()
-        abs_path_caller = Path(caller.filename).resolve()
+        # caller = stack()[1]
+        # current, peak = tracemalloc.get_traced_memory()
+        # print(
+        #     f"LARRAY.SETTER: AFTER stack(): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        # )
+        # abs_heat_path = Path("heat", "core").resolve()
+        # abs_path_caller = Path(caller.filename).resolve()
 
-        if not (abs_heat_path < abs_path_caller):
-            warnings.warn(
-                "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
-                "might corrupt/invalidate the metadata in a DNDarray instance"
-            )
-        current, peak = tracemalloc.get_traced_memory()
-        print(
-            f"LARRAY.SETTER: AFTER warnings: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
+        # if not (abs_heat_path < abs_path_caller):
+        #     warnings.warn(
+        #         "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
+        #         "might corrupt/invalidate the metadata in a DNDarray instance"
+        #     )
+        # current, peak = tracemalloc.get_traced_memory()
+        # print(
+        #     f"LARRAY.SETTER: AFTER warnings: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        # )
         self.__array = array
         current, peak = tracemalloc.get_traced_memory()
         print(
