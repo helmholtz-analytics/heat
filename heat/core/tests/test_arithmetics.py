@@ -450,6 +450,25 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.pow(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.pow(self.a_split_tensor, self.a_tensor), commutated_result))
 
+        # split=1 base split=0 DNDarray vector
+        tbase = torch.arange(150).reshape(10, 15)
+        texp = torch.arange(15)
+        base = ht.array(tbase, split=1)
+        exp = ht.array(texp, split=0)
+        res = ht.pow(base, exp)
+        tres = torch.pow(tbase, texp)
+        self.assertTrue(ht.equal(res, ht.array(tres)))
+
+        # split=1 base split=0 DNDarray vector
+        tbase = torch.arange(150 * 5).reshape(15, 10, 5)
+        texp = torch.ones((10, 5))
+        for sp in range(2):
+            base = ht.array(tbase, split=sp)
+            exp = ht.array(texp, split=0)
+            res = ht.pow(base, exp)
+            tres = torch.pow(tbase, texp)
+            self.assertTrue(ht.equal(res, ht.array(tres)))
+
         with self.assertRaises(RuntimeError):
             ht.pow(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):

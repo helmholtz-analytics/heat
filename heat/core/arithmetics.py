@@ -778,8 +778,15 @@ def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     if isinstance(t1, DNDarray):
         ret = factories.zeros_like(t1)
-        try:
-            t2 = manipulations.resplit(t2, t1.split)
+        try:  # both DNDarrays
+            # t1.ndim >= t2.ndim for pow
+            if t1.split is None:
+                resplit_axis = None
+            else:
+                resplit_axis = t1.split - (t1.ndim - t2.ndim)
+                if resplit_axis < 0:
+                    resplit_axis = None
+            t2 = manipulations.resplit(t2, resplit_axis)
             exponent = t2.larray
         except AttributeError:  # it isn't a DNDarray
             exponent = t2
@@ -788,11 +795,8 @@ def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
         return ret
     elif isinstance(t2, DNDarray):
         ret = factories.zeros_like(t2)
-        try:
-            t1 = manipulations.resplit(t1, t2.split)
-            base = t1.larray
-        except AttributeError:
-            base = t1
+        # t1 is not a DNDarray, t2 *is* a DNDarray
+        base = t1
         ret.larray = torch.pow(base, t2.larray)
         ret.__dtype = types.canonical_heat_type(ret.larray.dtype)
         return ret
