@@ -162,16 +162,6 @@ class DNDarray:
         split = self.split
         if split is not None and array.shape[split] != self.lshape[split]:
             self.__balanced = None
-        # raise warning if function was called by user/not out of 'heat/core/*'
-        caller = stack()[1]
-        abs_heat_path = Path("heat", "core").resolve()
-        abs_path_caller = Path(caller.filename).resolve()
-
-        if not (abs_heat_path < abs_path_caller):
-            warnings.warn(
-                "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
-                "might corrupt/invalidate the metadata in a DNDarray instance"
-            )
         self.__array = array
 
     @property
