@@ -3007,6 +3007,10 @@ def unique(a, return_inverse=False, axis=None):
             gres_offsets = torch.cat(
                 (torch.tensor([0], device=gres_map.device), gres_map[:-1, gres.split])
             ).cumsum(dim=0)
+            current, peak = tracemalloc.get_traced_memory()
+            print(
+                f"UNIQUE: AFTER gres_offsets alloc: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+            )
         else:
             gres_map = torch.tensor(gres.gshape, device=inverse.device)
             gres_offsets = torch.tensor([0], device=gres_map.device)
@@ -3020,6 +3024,10 @@ def unique(a, return_inverse=False, axis=None):
                 tmp = torch.empty(
                     gres_map[0].tolist(), dtype=local_data.dtype, device=local_data.device
                 )
+            current, peak = tracemalloc.get_traced_memory()
+            print(
+                f"UNIQUE: AFTER tmp alloc: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+            )
             # loop through unique elements, find matching position in data
             for i, el in enumerate(lres):
                 counts = torch.zeros_like(local_data, dtype=torch.int8, device=local_data.device)
