@@ -88,6 +88,11 @@ def acosh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to ``None``, a fresh array is allocated.
+
+    Examples
+    --------
+    >>> ht.acosh(ht.array([1., 10., 20.]))
+    DNDarray([0.0000, 2.9932, 3.6883], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.acosh, x, out)
 
@@ -141,6 +146,11 @@ def asinh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to ``None``, a fresh array is allocated.
+
+    Examples
+    --------
+    >>> ht.asinh(ht.array([-10., 0., 10.]))
+    DNDarray([-2.9982,  0.0000,  2.9982], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.asinh, x, out)
 
@@ -230,6 +240,11 @@ def atanh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
         or set to ``None``, a fresh array is allocated.
+
+    Examples
+    --------
+    >>> ht.atanh(ht.array([-1.,-0., 0.83]))
+    DNDarray([  -inf, -0.0000, 1.1881], dtype=ht.float32, device=cpu:0, split=None)
     """
     return local_op(torch.atanh, x, out)
 
