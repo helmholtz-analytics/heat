@@ -2908,7 +2908,10 @@ def unique(a, return_inverse=False, axis=None):
 
     rank = a.comm.rank
     size = a.comm.size
-
+    current, peak = tracemalloc.get_traced_memory()
+    print(
+        f"UNIQUE: BEFORE checks: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
     local_data = a.larray
     inv_shape = local_data.shape if axis is None else (local_data.shape[axis],)
     unique_axis = None
@@ -2923,6 +2926,10 @@ def unique(a, return_inverse=False, axis=None):
             # transpose so we can work along the 0 axis
             local_data = local_data.transpose(0, axis)
         unique_axis = 0
+    current, peak = tracemalloc.get_traced_memory()
+    print(
+        f"UNIQUE: AFTER checks: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
 
     # Calculate local uniques
     if a.lshape[a.split] == 0:
@@ -2939,6 +2946,10 @@ def unique(a, return_inverse=False, axis=None):
     else:
         lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
     gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
+    current, peak = tracemalloc.get_traced_memory()
+    print(
+        f"UNIQUE: AFTER local uniques 1: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
 
     # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
     _, data_max_lshape, _ = a.comm.chunk(a.gshape, a.split, rank=0)
@@ -2950,6 +2961,10 @@ def unique(a, return_inverse=False, axis=None):
         lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
         lres_split = None
         gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device)
+        current, peak = tracemalloc.get_traced_memory()
+        print(
+            f"UNIQUE: AFTER local uniques 2: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        )
     else:
         # balance gres if needed
         gres.balance_()
@@ -2961,7 +2976,16 @@ def unique(a, return_inverse=False, axis=None):
         lres_split = 0
 
     gres = factories.array(lres, dtype=a.dtype, is_split=lres_split, device=a.device)
+    current, peak = tracemalloc.get_traced_memory()
+    print(
+        f"UNIQUE: AFTER array(lres): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
+
     gres.balance_()
+    current, peak = tracemalloc.get_traced_memory()
+    print(
+        f"UNIQUE: AFTER balance(): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
 
     if return_inverse:
         # inverse indices
@@ -2972,6 +2996,10 @@ def unique(a, return_inverse=False, axis=None):
         else:
             inv_split = None
         global_inverse = factories.array(inverse, is_split=inv_split, device=gres.device)
+        current, peak = tracemalloc.get_traced_memory()
+        print(
+            f"UNIQUE: AFTER global_inverse: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        )
 
         unique_ranks = size if gres.is_distributed() else 1
         if unique_ranks > 1:
@@ -3014,7 +3042,7 @@ def unique(a, return_inverse=False, axis=None):
         gres.larray = lres
     current, peak = tracemalloc.get_traced_memory()
     print(
-        f"UNIQUE: BEFORE ht.transpose: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        f"UNIQUE: AFTER MPI ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
     )
     if axis is not None and axis != 0:
         # transpose back to original
