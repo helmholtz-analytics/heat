@@ -62,7 +62,7 @@ class DNDarray:
 
     def __init__(
         self,
-        array: DNDarray,
+        array: torch.Tensor,
         gshape: Tuple[int, ...],
         dtype: datatype,
         split: int,
@@ -542,7 +542,7 @@ class DNDarray:
         """
         return self.__cast(complex)
 
-    def counts_displs(self) -> Tuple(torch.Tensor, torch.Tensor):
+    def counts_displs(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns actual counts (number of items per process) and displacements (offsets) of the DNDarray.
         Does not assume load balance.
