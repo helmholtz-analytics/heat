@@ -3030,22 +3030,38 @@ def unique(a, return_inverse=False, axis=None):
             )
             # loop through unique elements, find matching position in data
             for i, el in enumerate(lres):
+                current, peak = tracemalloc.get_traced_memory()
+                print(
+                    f"UNIQUE: AFTER enumerate: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+                )
                 counts = torch.zeros_like(local_data, dtype=torch.int8, device=local_data.device)
                 counts[torch.where(local_data == el)] = 1
                 if lres.ndim > 1:
                     counts = torch.sum(counts, dim=tuple(range(lres.ndim))[1:])
                 cond = torch.where(counts == el.numel())
                 global_inverse.larray[cond] = i + incoming_offset
+                current, peak = tracemalloc.get_traced_memory()
+                print(
+                    f"UNIQUE: AFTER local global_inverse: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+                )
             # if necessary, prepare to send lres to rank+1 and receive from rank-1
             if unique_ranks > 1:
                 dest_rank = (rank + 1) % unique_ranks
                 tmp[slice(None, lres.shape[0])] = lres
                 queue = gres.comm.Isend(tmp, dest_rank, tag=rank)
+                current, peak = tracemalloc.get_traced_memory()
+                print(
+                    f"UNIQUE: AFTER Isend: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+                )
                 recv_from_rank = (rank - 1) % unique_ranks
                 next_origin = (origin - 1) % unique_ranks
                 incoming_size = gres_map[next_origin].tolist()[0]
                 queue.Wait()
                 gres.comm.Recv(tmp, recv_from_rank, tag=recv_from_rank)
+                current, peak = tracemalloc.get_traced_memory()
+                print(
+                    f"UNIQUE: AFTER Recv: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+                )
                 lres = tmp[slice(None, incoming_size)]
         gres.larray = lres
     current, peak = tracemalloc.get_traced_memory()
