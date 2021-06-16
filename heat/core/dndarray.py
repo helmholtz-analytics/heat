@@ -176,6 +176,10 @@ class DNDarray:
         split = self.split
         if split is not None and array.shape[split] != self.lshape[split]:
             self.__balanced = None
+        current, peak = tracemalloc.get_traced_memory()
+        print(
+            f"UNIQUE: AFTER balanced check: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        )
         # raise warning if function was called by user/not out of 'heat/core/*'
         caller = stack()[1]
         current, peak = tracemalloc.get_traced_memory()
