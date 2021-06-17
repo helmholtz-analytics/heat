@@ -2945,11 +2945,13 @@ def unique(a, return_inverse=False, axis=None):
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
     else:
         lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
+    print("UNIQUE: lres.shape = ", lres.shape)
     gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
-    current, peak = tracemalloc.get_traced_memory()
-    print(
-        f"UNIQUE: AFTER local uniques 1: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-    )
+    print("UNIQUE: gres.shape = ", gres.shape)
+    # current, peak = tracemalloc.get_traced_memory()
+    # print(
+    #     f"UNIQUE: AFTER local uniques 1: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    # )
 
     # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
     _, data_max_lshape, _ = a.comm.chunk(a.gshape, a.split, rank=0)
@@ -2957,14 +2959,15 @@ def unique(a, return_inverse=False, axis=None):
     if gres.nbytes <= data_max_lbytes:
         # gather local uniques
         gres.resplit_(None)
+        print("UNIQUE: AFTER GATHERING: gres.shape = ", gres.shape)
         # final round of torch.unique
         lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
         lres_split = None
         gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device)
-        current, peak = tracemalloc.get_traced_memory()
-        print(
-            f"UNIQUE: AFTER local uniques 2: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
+        # current, peak = tracemalloc.get_traced_memory()
+        # print(
+        #     f"UNIQUE: AFTER local uniques 2: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        # )
     else:
         # balance gres if needed
         gres.balance_()
@@ -2976,16 +2979,16 @@ def unique(a, return_inverse=False, axis=None):
         lres_split = 0
 
     gres = factories.array(lres, dtype=a.dtype, is_split=lres_split, device=a.device)
-    current, peak = tracemalloc.get_traced_memory()
-    print(
-        f"UNIQUE: AFTER array(lres): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-    )
+    # current, peak = tracemalloc.get_traced_memory()
+    # print(
+    #     f"UNIQUE: AFTER array(lres): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    # )
 
     gres.balance_()
-    current, peak = tracemalloc.get_traced_memory()
-    print(
-        f"UNIQUE: AFTER balance(): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-    )
+    # current, peak = tracemalloc.get_traced_memory()
+    # print(
+    #     f"UNIQUE: AFTER balance(): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    # )
 
     if return_inverse:
         # inverse indices
@@ -2996,10 +2999,10 @@ def unique(a, return_inverse=False, axis=None):
         else:
             inv_split = None
         global_inverse = factories.array(inverse, is_split=inv_split, device=gres.device)
-        current, peak = tracemalloc.get_traced_memory()
-        print(
-            f"UNIQUE: AFTER global_inverse: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
+        # current, peak = tracemalloc.get_traced_memory()
+        # print(
+        #     f"UNIQUE: AFTER global_inverse: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        # )
 
         unique_ranks = size if gres.is_distributed() else 1
         if unique_ranks > 1:
@@ -3007,10 +3010,10 @@ def unique(a, return_inverse=False, axis=None):
             gres_offsets = torch.cat(
                 (torch.tensor([0], device=gres_map.device), gres_map[:-1, gres.split])
             ).cumsum(dim=0)
-            current, peak = tracemalloc.get_traced_memory()
-            print(
-                f"UNIQUE: AFTER gres_offsets alloc: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-            )
+            # current, peak = tracemalloc.get_traced_memory()
+            # print(
+            #     f"UNIQUE: AFTER gres_offsets alloc: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+            # )
         else:
             gres_map = torch.tensor(gres.gshape, device=inverse.device)
             gres_offsets = torch.tensor([0], device=gres_map.device)
@@ -3024,61 +3027,61 @@ def unique(a, return_inverse=False, axis=None):
                 tmp = torch.empty(
                     gres_map[0].tolist(), dtype=local_data.dtype, device=local_data.device
                 )
-            current, peak = tracemalloc.get_traced_memory()
-            print(
-                f"UNIQUE: AFTER tmp alloc: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-            )
+            # current, peak = tracemalloc.get_traced_memory()
+            # print(
+            #     f"UNIQUE: AFTER tmp alloc: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+            # )
             # loop through unique elements, find matching position in data
             for i, el in enumerate(lres):
-                current, peak = tracemalloc.get_traced_memory()
-                print(
-                    f"UNIQUE: AFTER enumerate: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-                )
+                # current, peak = tracemalloc.get_traced_memory()
+                # print(
+                #     f"UNIQUE: AFTER enumerate: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+                # )
                 counts = torch.zeros_like(local_data, dtype=torch.int8, device=local_data.device)
                 counts[torch.where(local_data == el)] = 1
                 if lres.ndim > 1:
                     counts = torch.sum(counts, dim=tuple(range(lres.ndim))[1:])
                 cond = torch.where(counts == el.numel())
                 global_inverse.larray[cond] = i + incoming_offset
-                current, peak = tracemalloc.get_traced_memory()
-                print(
-                    f"UNIQUE: AFTER local global_inverse: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-                )
+                # current, peak = tracemalloc.get_traced_memory()
+                # print(
+                #     f"UNIQUE: AFTER local global_inverse: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+                # )
             # if necessary, prepare to send lres to rank+1 and receive from rank-1
             if unique_ranks > 1:
                 dest_rank = (rank + 1) % unique_ranks
                 tmp[slice(None, lres.shape[0])] = lres
                 queue = gres.comm.Isend(tmp, dest_rank, tag=rank)
-                current, peak = tracemalloc.get_traced_memory()
-                print(
-                    f"UNIQUE: AFTER Isend: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-                )
+                # current, peak = tracemalloc.get_traced_memory()
+                # print(
+                #     f"UNIQUE: AFTER Isend: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+                # )
                 recv_from_rank = (rank - 1) % unique_ranks
                 next_origin = (origin - 1) % unique_ranks
                 incoming_size = gres_map[next_origin].tolist()[0]
                 queue.Wait()
                 gres.comm.Recv(tmp, recv_from_rank, tag=recv_from_rank)
-                current, peak = tracemalloc.get_traced_memory()
-                print(
-                    f"UNIQUE: AFTER Recv: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-                )
+                # current, peak = tracemalloc.get_traced_memory()
+                # print(
+                #     f"UNIQUE: AFTER Recv: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+                # )
                 lres = tmp[slice(None, incoming_size)]
-        current, peak = tracemalloc.get_traced_memory()
-        print(
-            f"UNIQUE: AFTER MPI ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
+        # current, peak = tracemalloc.get_traced_memory()
+        # print(
+        #     f"UNIQUE: AFTER MPI ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        # )
         gres.larray = lres
-        current, peak = tracemalloc.get_traced_memory()
-        print(
-            f"UNIQUE: AFTER gres.larray=lres: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
+        # current, peak = tracemalloc.get_traced_memory()
+        # print(
+        #     f"UNIQUE: AFTER gres.larray=lres: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        # )
     if axis is not None and axis != 0:
         # transpose back to original
         gres = linalg.basics.transpose(gres, (axis, 0))
-    current, peak = tracemalloc.get_traced_memory()
-    print(
-        f"UNIQUE: AFTER ht.transpose: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-    )
+    # current, peak = tracemalloc.get_traced_memory()
+    # print(
+    #     f"UNIQUE: AFTER ht.transpose: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    # )
 
     if return_inverse:
         return (gres, global_inverse)
