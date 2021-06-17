@@ -2947,6 +2947,7 @@ def unique(a, return_inverse=False, axis=None):
         print(
             "UNIQUE: local_data.shape, a.gshape, a.lshape = ", local_data.shape, a.gshape, a.lshape
         )
+        print("UNIQUE: local_data.dtype, a.dtype = ", local_data.dtype, a.dtype)
         lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
     print("UNIQUE: lres.shape = ", lres.shape)
     gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
