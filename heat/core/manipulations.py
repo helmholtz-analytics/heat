@@ -2908,10 +2908,10 @@ def unique(a, return_inverse=False, axis=None):
 
     rank = a.comm.rank
     size = a.comm.size
-    current, peak = tracemalloc.get_traced_memory()
-    print(
-        f"UNIQUE: BEFORE checks: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-    )
+    # current, peak = tracemalloc.get_traced_memory()
+    # print(
+    #     f"UNIQUE: BEFORE checks: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    # )
     local_data = a.larray
     inv_shape = local_data.shape if axis is None else (local_data.shape[axis],)
     unique_axis = None
@@ -2926,10 +2926,10 @@ def unique(a, return_inverse=False, axis=None):
             # transpose so we can work along the 0 axis
             local_data = local_data.transpose(0, axis)
         unique_axis = 0
-    current, peak = tracemalloc.get_traced_memory()
-    print(
-        f"UNIQUE: AFTER checks: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-    )
+    # current, peak = tracemalloc.get_traced_memory()
+    # print(
+    #     f"UNIQUE: AFTER checks: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    # )
 
     # Calculate local uniques
     if a.lshape[a.split] == 0:
@@ -2944,6 +2944,9 @@ def unique(a, return_inverse=False, axis=None):
             inv_shape = [0]
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
     else:
+        print(
+            "UNIQUE: local_data.shape, a.gshape, a.lshape = ", local_data.shape, a.gshape, a.lshape
+        )
         lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
     print("UNIQUE: lres.shape = ", lres.shape)
     gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
