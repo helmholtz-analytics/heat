@@ -11,8 +11,6 @@ from mpi4py import MPI
 from pathlib import Path
 from typing import List, Union, Tuple, TypeVar
 
-import tracemalloc
-
 warnings.simplefilter("always", ResourceWarning)
 
 # NOTE: heat module imports need to be placed at the very end of the file to avoid cyclic dependencies
@@ -64,7 +62,7 @@ class DNDarray:
 
     def __init__(
         self,
-        array: DNDarray,
+        array: torch.Tensor,
         gshape: Tuple[int, ...],
         dtype: datatype,
         split: int,
@@ -157,52 +155,14 @@ class DNDarray:
         Please use this function with care, as it might corrupt/invalidate the metadata in the ``DNDarray`` instance.
         """
         # sanitize tensor input
-        current, peak = tracemalloc.get_traced_memory()
-        print(
-            f"LARRAY.SETTER: BEFORE SANITATION: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
         sanitation.sanitize_in_tensor(array)
-        current, peak = tracemalloc.get_traced_memory()
-        print(
-            f"LARRAY.SETTER: AFTER sanitize_in_tensor: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
         # verify consistency of tensor shape with global DNDarray
         sanitation.sanitize_lshape(self, array)
-        current, peak = tracemalloc.get_traced_memory()
-        print(
-            f"LARRAY.SETTER: AFTER sanitize_lshape: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
         # set balanced status
         split = self.split
         if split is not None and array.shape[split] != self.lshape[split]:
             self.__balanced = None
-        current, peak = tracemalloc.get_traced_memory()
-        print(
-            f"LARRAY.SETTER: AFTER balanced check: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
-        # raise warning if function was called by user/not out of 'heat/core/*'
-        # caller = stack()[1]
-        # current, peak = tracemalloc.get_traced_memory()
-        # print(
-        #     f"LARRAY.SETTER: AFTER stack(): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        # )
-        # abs_heat_path = Path("heat", "core").resolve()
-        # abs_path_caller = Path(caller.filename).resolve()
-
-        # if not (abs_heat_path < abs_path_caller):
-        #     warnings.warn(
-        #         "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
-        #         "might corrupt/invalidate the metadata in a DNDarray instance"
-        #     )
-        # current, peak = tracemalloc.get_traced_memory()
-        # print(
-        #     f"LARRAY.SETTER: AFTER warnings: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        # )
         self.__array = array
-        current, peak = tracemalloc.get_traced_memory()
-        print(
-            f"LARRAY.SETTER: AFTER __array=array: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
 
     @property
     def nbytes(self) -> int:
@@ -591,7 +551,7 @@ class DNDarray:
         """
         return self.__cast(complex)
 
-    def counts_displs(self) -> Tuple(torch.Tensor, torch.Tensor):
+    def counts_displs(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns actual counts (number of items per process) and displacements (offsets) of the DNDarray.
         Does not assume load balance.

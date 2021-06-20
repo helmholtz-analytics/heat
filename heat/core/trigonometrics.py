@@ -17,13 +17,19 @@ from . import types
 
 __all__ = [
     "acos",
+    "acosh",
     "asin",
+    "asinh",
     "atan",
     "atan2",
+    "atanh",
     "arccos",
+    "arccosh",
     "arcsin",
+    "arcsinh",
     "arctan",
     "arctan2",
+    "arctanh",
     "cos",
     "cosh",
     "deg2rad",
@@ -60,6 +66,7 @@ def arccos(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
 
 acos = arccos
+"""Alias for :py:func:`arccos`"""
 acos.__doc__ = arccos.__doc__
 
 DNDarray.acos: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: acos(
@@ -68,8 +75,35 @@ DNDarray.acos: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self,
 DNDarray.acos.__doc__ = acos.__doc__
 
 
+def acosh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Compute the inverse hyperbolic cosine, element-wise.
+    Result is a ``DNDarray`` of the same shape as ``x``.
+    Input elements outside [1., +infinity] are returned as ``NaN``. If ``out`` was provided, ``acosh`` is a reference to it.
+
+    Parameters
+    ----------
+    x : DNDarray
+        The array for which to compute the inverse hyperbolic cosine.
+    out : DNDarray, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to ``None``, a fresh array is allocated.
+
+    Examples
+    --------
+    >>> ht.acosh(ht.array([1., 10., 20.]))
+    DNDarray([0.0000, 2.9932, 3.6883], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    return local_op(torch.acosh, x, out)
+
+
+arccosh = acosh
+"""Alias for :py:func:`acosh`"""
+
+
 def arcsin(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
+    Compute the trigonometric arcsin, element-wise.
     Result is a ``DNDarray`` of the same shape as ``x``.
     Input elements outside [-1., 1.] are returned as ``NaN``. If ``out`` was provided, ``arcsin`` is a reference to it.
 
@@ -90,12 +124,39 @@ def arcsin(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
 
 asin = arcsin
+"""Alias for :py:func:`arcsin`"""
 asin.__doc__ = arcsin.__doc__
 
 DNDarray.asin: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: asin(
     self, out
 )
 DNDarray.asin.__doc__ = asin.__doc__
+
+
+def asinh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Compute the inverse hyperbolic sine, element-wise.
+    Result is a ``DNDarray`` of the same shape as ``x``.
+    Input elements outside [-infinity., +infinity] are returned as ``NaN``. If ``out`` was provided, ``asinh`` is a reference to it.
+
+    Parameters
+    ----------
+    x : DNDarray
+        The array for which to compute the inverse hyperbolic sine.
+    out : DNDarray, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to ``None``, a fresh array is allocated.
+
+    Examples
+    --------
+    >>> ht.asinh(ht.array([-10., 0., 10.]))
+    DNDarray([-2.9982,  0.0000,  2.9982], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    return local_op(torch.asinh, x, out)
+
+
+arcsinh = asinh
+"""Alias for :py:func:`asinh`"""
 
 
 def arctan(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
@@ -121,7 +182,9 @@ def arctan(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
 
 atan = arctan
+"""Alias for :py:func:`arctan`"""
 atan.__doc__ = arctan.__doc__
+
 
 DNDarray.atan: Callable[[DNDarray, Optional[DNDarray]], DNDarray] = lambda self, out=None: atan(
     self, out
@@ -156,10 +219,38 @@ def arctan2(x1: DNDarray, x2: DNDarray) -> DNDarray:
 
 
 atan2 = arctan2
+"""Alias for :py:func:`arctan2`"""
 atan2.__doc__ = arctan2.__doc__
+
 
 DNDarray.atan2: Callable[[DNDarray, DNDarray], DNDarray] = lambda self, x2: atan2(self, x2)
 DNDarray.atan2.__doc__ = atan2.__doc__
+
+
+def atanh(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Compute the inverse hyperbolic tangent, element-wise.
+    Result is a ``DNDarray`` of the same shape as ``x``.
+    Input elements outside [-1., 1.] are returned as ``NaN``. If ``out`` was provided, ``atanh`` is a reference to it.
+
+    Parameters
+    ----------
+    x : DNDarray
+        The array for which to compute the inverse hyperbolic tangent.
+    out : DNDarray, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to ``None``, a fresh array is allocated.
+
+    Examples
+    --------
+    >>> ht.atanh(ht.array([-1.,-0., 0.83]))
+    DNDarray([  -inf, -0.0000, 1.1881], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    return local_op(torch.atanh, x, out)
+
+
+arctanh = atanh
+"""Alias for :py:func:`atanh`"""
 
 
 def cos(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
