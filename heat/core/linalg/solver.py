@@ -1,39 +1,33 @@
+"""
+Collection of solvers for systems of linear equations.
+"""
 import heat as ht
+from ..dndarray import DNDarray
+from typing import List, Dict, Any, TypeVar, Union, Tuple, Optional
 
 import torch
 
 __all__ = ["cg", "lanczos"]
 
 
-def cg(A, b, x0, out=None):
+def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Conjugate gradients method for solving a system of linear equations Ax = b
+    Conjugate gradients method for solving a system of linear equations :math: `Ax = b`
 
     Parameters
     ----------
-    A : ht.DNDarray
+    A : DNDarray
         2D symmetric, positive definite Matrix
-    b : ht.DNDarray
+    b : DNDarray
         1D vector
-    x0 : ht.DNDarray
+    x0 : DNDarray
         Arbitrary 1D starting vector
-    out : ht.DNDarray, optional
+    out : DNDarray, optional
         Output Vector
-
-
-    Returns
-    -------
-    ht.DNDarray
-        Returns the solution x of the system of linear equations. If out is given, it is returned
     """
-
-    if (
-        not isinstance(A, ht.DNDarray)
-        or not isinstance(b, ht.DNDarray)
-        or not isinstance(x0, ht.DNDarray)
-    ):
+    if not isinstance(A, DNDarray) or not isinstance(b, DNDarray) or not isinstance(x0, DNDarray):
         raise TypeError(
-            "A, b and x0 need to be of type ht.dndarra, but were {}, {}, {}".format(
+            "A, b and x0 need to be of type ht.DNDarray, but were {}, {}, {}".format(
                 type(A), type(b), type(x0)
             )
         )
@@ -71,32 +65,37 @@ def cg(A, b, x0, out=None):
     return x
 
 
-def lanczos(A, m, v0=None, V_out=None, T_out=None):
-    """
-    Lanczos algorithm for iterative approximation of the solution to the eigenvalue problem,  an adaptation of power methods to find the m "most useful" (tending towards extreme highest/lowest) eigenvalues and eigenvectors of an n x n Hermitian matrix, where often m<<n
+def lanczos(
+    A: DNDarray,
+    m: int,
+    v0: Optional[DNDarray] = None,
+    V_out: Optional[DNDarray] = None,
+    T_out: Optional[DNDarray] = None,
+) -> Tuple[DNDarray, DNDarray]:
+    r"""
+    The Lanczos algorithm is an iterative approximation of the solution to the eigenvalue problem, as an adaptation of
+    power methods to find the m "most useful" (tending towards extreme highest/lowest) eigenvalues and eigenvectors of
+    an :math:`n \times n` Hermitian matrix, where often :math:`m<<n`.
+    It returns two matrices :math:`V` and :math:`T`, where:
+
+        - :math:`V` is a Matrix of size :math:`n\times m`, with orthonormal columns, that span the Krylow subspace \n
+        - :math:`T` is a Tridiagonal matrix of size :math:`m\times m`, with coefficients :math:`\alpha_1,..., \alpha_n`
+          on the diagonal and coefficients :math:`\beta_1,...,\beta_{n-1}` on the side-diagonals\n
+
     Parameters
     ----------
-    A : ht.DNDarray
+    A : DNDarray
         2D symmetric, positive definite Matrix
     m : int
-        number of Lanczos iterations
-    v0 : ht.DNDarray, optiona
-        1D starting vector of euclidian norm 1. If not provided, a random vector will be used to start the algorithm
-    V_out ht.DNDarray, optional
-        Output Matrix of size (n, m) for the Krylow vectors
-    T_out ht.DNDarray, optional
-        Output Matrix of size (m, m) for the Tridiagonal matrix
-
-
-    Returns
-    -------
-    V ht.DNDarray
-        Matrix of size nxm, with orthonormal columns, that span the Krylow subspace. If V_out is given, it is returned
-    T ht.DNDarray
-        Tridiagonal matrix of size mxm, with coefficients alpha_1,...alpha_n on the diagonal and coefficients beta_1,...,beta_n-1 on the side-diagonals. If T_out is given, it is returned
-
+        Number of Lanczos iterations
+    v0 : DNDarray, optional
+        1D starting vector of Euclidian norm 1. If not provided, a random vector will be used to start the algorithm
+    V_out : DNDarray, optional
+        Output Matrix for the Krylow vectors, Shape = (n, m)
+    T_out : DNDarray, optional
+        Output Matrix for the Tridiagonal matrix, Shape = (m, m)
     """
-    if not isinstance(A, ht.DNDarray):
+    if not isinstance(A, DNDarray):
         raise TypeError("A needs to be of type ht.dndarra, but was {}".format(type(A)))
 
     if not (A.ndim == 2):
@@ -135,12 +134,12 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
             vr = ht.random.rand(n, dtype=A.dtype, split=V.split)
             # orthogonalize v_r with respect to all vectors v[i]
             for j in range(i):
-                vi_loc = V._DNDarray__array[:, j]
-                a = torch.dot(vr._DNDarray__array, vi_loc)
+                vi_loc = V.larray[:, j]
+                a = torch.dot(vr.larray, vi_loc)
                 b = torch.dot(vi_loc, vi_loc)
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
-                vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
+                vr.larray = vr.larray - a / b * vi_loc
             # normalize v_r to Euclidian norm 1 and set as ith vector v
             vi = vr / ht.norm(vr)
         else:
@@ -150,18 +149,19 @@ def lanczos(A, m, v0=None, V_out=None, T_out=None):
             # ToDo: Rethink this; mask torch calls, See issue #494
             # This is the fast solution, using item access on the ht.dndarray level is way slower
             for j in range(i):
-                vi_loc = V._DNDarray__array[:, j]
+                vi_loc = V.larray[:, j]
                 a = torch.dot(vr._DNDarray__array, vi_loc)
                 b = torch.dot(vi_loc, vi_loc)
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
-                vr._DNDarray__array -= a / b * vi_loc
+                vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
 
             vi = vr / ht.norm(vr)
 
         w = ht.matmul(A, vi)
         alpha = ht.dot(w, vi)
-        w -= alpha * vi - beta * V[:, i - 1]
+
+        w = w - alpha * vi - beta * V[:, i - 1]
 
         T[i - 1, i] = beta
         T[i, i - 1] = beta

@@ -11,8 +11,8 @@ class TestLaplacian(TestCase):
         size = ht.communication.MPI_WORLD.size
         rank = ht.communication.MPI_WORLD.rank
         X = ht.ones((size * 2, 4), split=0)
-        X._DNDarray__array[0, :] *= rank
-        X._DNDarray__array[1, :] *= rank + 0.5
+        X.larray[0, :] *= rank
+        X.larray[1, :] *= rank + 0.5
 
         L = ht.graph.Laplacian(lambda x: ht.spatial.cdist(x, quadratic_expansion=True))
         res = L.construct(X)

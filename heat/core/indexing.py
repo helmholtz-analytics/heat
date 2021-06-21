@@ -1,153 +1,153 @@
+"""
+Functions relating to indices of items within DNDarrays, i.e. `where()`
+"""
+
 import torch
+from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence
 
 from .communication import MPI
-from . import dndarray
-from . import factories
+from .dndarray import DNDarray
+from . import sanitation
 from . import types
 
 __all__ = ["nonzero", "where"]
 
 
-def nonzero(a):
+def nonzero(x: DNDarray) -> DNDarray:
     """
-    Return the indices of the elements that are non-zero. (using torch.nonzero)
-
-    Returns a tuple of arrays, one for each dimension of a, containing the indices of the non-zero elements in that dimension.
-    The values in a are always tested and returned in row-major, C-style order. The corresponding non-zero values can be obtained with: a[nonzero(a)].
+    Return a :class:`~heat.core.dndarray.DNDarray` containing the indices of the elements that are non-zero.. (using ``torch.nonzero``)
+    If ``x`` is split then the result is split in the 0th dimension. However, this :class:`~heat.core.dndarray.DNDarray`
+    can be UNBALANCED as it contains the indices of the non-zero elements on each node.
+    Returns an array with one entry for each dimension of ``x``, containing the indices of the non-zero elements in that dimension.
+    The values in ``x`` are always tested and returned in row-major, C-style order.
+    The corresponding non-zero values can be obtained with: ``x[nonzero(x)]``.
 
     Parameters
     ----------
-    a: ht.DNDarray
+    x: DNDarray
         Input array
-
-    Returns
-    -------
-    result: ht.DNDarray
-        Indices of elements that are non-zero.
-        If 'a' is split then the result is split in the 0th dimension. However, this DNDarray can be UNBALANCED as it contains the indices of the
-        non-zero elements on each node.
 
     Examples
     --------
+    >>> import heat as ht
     >>> x = ht.array([[3, 0, 0], [0, 4, 1], [0, 6, 0]], split=0)
-    [0/2] tensor([[3, 0, 0]])
-    [1/2] tensor([[0, 4, 1]])
-    [2/2] tensor([[0, 6, 0]])
     >>> ht.nonzero(x)
-    [0/2] tensor([[0, 0]])
-    [1/2] tensor([[1, 1],
-    [1/2]         [1, 2]])
-    [2/2] tensor([[2, 1]])
-
-    >>> a = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=0)
-    [0/1] tensor([[1, 2, 3],
-    [0/1]         [4, 5, 6]])
-    [1/1] tensor([[7, 8, 9]])
-    >>> a > 3
-    [0/1] tensor([[0, 0, 0],
-    [0/1]         [1, 1, 1]], dtype=torch.uint8)
-    [1/1] tensor([[1, 1, 1]], dtype=torch.uint8)
-    >>> ht.nonzero(a > 3)
-    [0/1] tensor([[1, 0],
-    [0/1]         [1, 1],
-    [0/1]         [1, 2]])
-    [1/1] tensor([[2, 0],
-    [1/1]         [2, 1],
-    [1/1]         [2, 2]])
-    >>> a[ht.nonzero(a > 3)]
-    [0/1] tensor([[4, 5, 6]])
-    [1/1] tensor([[7, 8, 9]])
+    DNDarray([[0, 0],
+              [1, 1],
+              [1, 2],
+              [2, 1]], dtype=ht.int64, device=cpu:0, split=0)
+    >>> y = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=0)
+    >>> y > 3
+    DNDarray([[False, False, False],
+              [ True,  True,  True],
+              [ True,  True,  True]], dtype=ht.bool, device=cpu:0, split=0)
+    >>> ht.nonzero(y > 3)
+    DNDarray([[1, 0],
+              [1, 1],
+              [1, 2],
+              [2, 0],
+              [2, 1],
+              [2, 2]], dtype=ht.int64, device=cpu:0, split=0)
+    >>> y[ht.nonzero(y > 3)]
+    DNDarray([4, 5, 6, 7, 8, 9], dtype=ht.int64, device=cpu:0, split=0)
     """
-    if a.dtype == types.bool:
-        a._DNDarray__array = a._DNDarray__array.float()
-    if a.split is None:
+    sanitation.sanitize_in(x)
+
+    if x.dtype == types.bool:
+        x.larray = x.larray.float()
+    if x.split is None:
         # if there is no split then just return the values from torch
-        # print(a._DNDarray__array)
-        lcl_nonzero = torch.nonzero(input=a._DNDarray__array, as_tuple=False)
+        lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
         gout = list(lcl_nonzero.size())
         is_split = None
     else:
         # a is split
-        lcl_nonzero = torch.nonzero(input=a._DNDarray__array, as_tuple=False)
-        _, _, slices = a.comm.chunk(a.shape, a.split)
-        lcl_nonzero[..., a.split] += slices[a.split].start
+        lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
+        _, _, slices = x.comm.chunk(x.shape, x.split)
+        lcl_nonzero[..., x.split] += slices[x.split].start
         gout = list(lcl_nonzero.size())
-        gout[0] = a.comm.allreduce(gout[0], MPI.SUM)
+        gout[0] = x.comm.allreduce(gout[0], MPI.SUM)
         is_split = 0
 
-    if a.ndim == 1:
+    if x.ndim == 1:
         lcl_nonzero = lcl_nonzero.squeeze(dim=1)
     for g in range(len(gout) - 1, -1, -1):
         if gout[g] == 1:
             del gout[g]
 
-    return dndarray.DNDarray(
+    return DNDarray(
         lcl_nonzero,
         gshape=tuple(gout),
         dtype=types.canonical_heat_type(lcl_nonzero.dtype),
         split=is_split,
-        device=a.device,
-        comm=a.comm,
+        device=x.device,
+        comm=x.comm,
+        balanced=False,
     )
 
 
-def where(cond, x=None, y=None):
+DNDarray.nonzero = lambda self: nonzero(self)
+DNDarray.nonzero.__doc__ = nonzero.__doc__
+
+
+def where(
+    cond: DNDarray,
+    x: Union[None, int, float, DNDarray] = None,
+    y: Union[None, int, float, DNDarray] = None,
+) -> DNDarray:
     """
-    Return elements chosen from x or y depending on condition.
-    **NOTE** When only condition is provided, this function is a shorthand for ht.nonzero(cond).
+    Return a :class:`~heat.core.dndarray.DNDarray` containing elements chosen from ``x`` or ``y`` depending on condition.
+    Result is a :class:`~heat.core.dndarray.DNDarray` with elements from ``x`` where cond is ``True``,
+    and elements from ``y`` elsewhere (``False``).
 
     Parameters
     ----------
-    cond: DNDarray
-        condition of interest, where true yield x otherwise yield y
-    x, y: DNDarray, int, float
-        Values from which to choose. x, y and condition need to be broadcastable to some shape.
+    cond : DNDarray
+        Condition of interest, where true yield ``x`` otherwise yield ``y``
+    x : DNDarray or int or float, optional
+        Values from which to choose. ``x``, ``y`` and condition need to be broadcastable to some shape.
+    y : DNDarray or int or float, optional
+        Values from which to choose. ``x``, ``y`` and condition need to be broadcastable to some shape.
 
-    Returns
+    Raises
+    ------
+    NotImplementedError
+        if splits of the two input :class:`~heat.core.dndarray.DNDarray` differ
+    TypeError
+        if only x or y is given or both are not DNDarrays or numerical scalars
+
+    Notes
     -------
-    out: DNDarray
-        A DNDarray with elements from x where cond is True(1), and elements from y elsewhere (False/0).
+    When only condition is provided, this function is a shorthand for :func:`nonzero`.
 
     Examples
     --------
-    >>> a = ht.arange(10, split=0)
-    [0/1] tensor([0, 1, 2, 3, 4], dtype=torch.int32)
-    [1/1] tensor([5, 6, 7, 8, 9], dtype=torch.int32)
-    >>> ht.where(a < 5, a, 10*a)
-    [0/1] tensor([0, 1, 2, 3, 4], dtype=torch.int32)
-    [1/1] tensor([50, 60, 70, 80, 90], dtype=torch.int32)
-
-    >>> a = np.array([[0, 1, 2], [0, 2, 4], [0, 3, 6]])
-    [0/1] tensor([[ 0.,  1.,  2.],
-    [0/1]         [ 0.,  2.,  4.]])
-    [1/1] tensor([[ 0.,  3.,  6.]])
-    >>> ht.where(a < 4, a, -1)
-    [0/1] tensor([[ 0.,  1.,  2.],
-    [0/1]         [ 0.,  2., -1.]])
-    [1/1] tensor([[ 0.,  3., -1.]])
-
+    >>> import heat as ht
+    >>> x = ht.arange(10, split=0)
+    >>> ht.where(x < 5, x, 10*x)
+    DNDarray([ 0,  1,  2,  3,  4, 50, 60, 70, 80, 90], dtype=ht.int64, device=cpu:0, split=0)
+    >>> y = ht.array([[0, 1, 2], [0, 2, 4], [0, 3, 6]])
+    >>> ht.where(y < 4, y, -1)
+    DNDarray([[ 0,  1,  2],
+              [ 0,  2, -1],
+              [ 0,  3, -1]], dtype=ht.int64, device=cpu:0, split=None)
     """
-    if cond.split is not None and (
-        isinstance(x, dndarray.DNDarray) or isinstance(y, dndarray.DNDarray)
-    ):
-        if (isinstance(x, dndarray.DNDarray) and cond.split != x.split) or (
-            isinstance(y, dndarray.DNDarray) and cond.split != y.split
+    if cond.split is not None and (isinstance(x, DNDarray) or isinstance(y, DNDarray)):
+        if (isinstance(x, DNDarray) and cond.split != x.split) or (
+            isinstance(y, DNDarray) and cond.split != y.split
         ):
             if len(y.shape) >= 1 and y.shape[0] > 1:
                 raise NotImplementedError("binary op not implemented for different split axes")
-    if isinstance(x, (dndarray.DNDarray, int, float)) and isinstance(
-        y, (dndarray.DNDarray, int, float)
-    ):
-        if isinstance(y, int):
-            y = float(y)
-        if isinstance(x, int):
-            x = float(x)
-        return cond.dtype((cond == 0)) * y + cond * x
+    if isinstance(x, (DNDarray, int, float)) and isinstance(y, (DNDarray, int, float)):
+        for var in [x, y]:
+            if isinstance(var, int):
+                var = float(var)
+        return cond.dtype(cond == 0) * y + cond * x
     elif x is None and y is None:
         return nonzero(cond)
     else:
         raise TypeError(
-            "either both or neither x and y must be given and both must be DNDarrays or ints({}, {})".format(
+            "either both or neither x and y must be given and both must be DNDarrays or numerical scalars({}, {})".format(
                 type(x), type(y)
             )
         )

@@ -1,44 +1,55 @@
-import numpy as np
+"""
+This module changes the internal memory of an array.
+"""
+
 import torch
-from . import dndarray
+
+from . import sanitation
+from .dndarray import DNDarray
 
 __all__ = ["copy", "sanitize_memory_layout"]
 
 
-def copy(a):
+def copy(x: DNDarray) -> DNDarray:
     """
-    Return an array copy of the given object.
+    Return a deep copy of the given object.
 
     Parameters
     ----------
-    a : ht.DNDarray
-        Input data to be copied.
+    x : DNDarray
+        Input array to be copied.
 
-    Returns
-    -------
-    copied : ht.DNDarray
-        A copy of the original
+    Examples
+    --------
+    >>> a = ht.array([1,2,3])
+    >>> b = ht.copy(a)
+    >>> b
+    DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
+    >>> a[0] = 4
+    >>> a
+    DNDarray([4, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
+    >>> b
+    DNDarray([1, 2, 3], dtype=ht.int64, device=cpu:0, split=None)
     """
-    if not isinstance(a, dndarray.DNDarray):
-        raise TypeError("input needs to be a tensor")
-    return dndarray.DNDarray(
-        a._DNDarray__array.clone(), a.shape, a.dtype, a.split, a.device, a.comm
-    )
+    sanitation.sanitize_in(x)
+    return DNDarray(x.larray.clone(), x.shape, x.dtype, x.split, x.device, x.comm, x.balanced)
 
 
-def sanitize_memory_layout(x, order="C"):
+DNDarray.copy = lambda self: copy(self)
+DNDarray.copy.__doc__ = copy.__doc__
+
+
+def sanitize_memory_layout(x: torch.Tensor, order: str = "C") -> torch.Tensor:
     """
     Return the given object with memory layout as defined below. The default memory distribution is assumed.
 
     Parameters
     -----------
-
-    x: torch.tensor
+    x: torch.Tensor
         Input data
-
     order: str, optional.
-        Default is 'C' as in C-like (row-major) memory layout. The array is stored first dimension first (rows first if ndim=2).
-        Alternative is 'F', as in Fortran-like (column-major) memory layout. The array is stored last dimension first (columns first if ndim=2).
+        Default is ``'C'`` as in C-like (row-major) memory layout. The array is stored first dimension first (rows first if ``ndim=2``).
+        Alternative is ``'F'``, as in Fortran-like (column-major) memory layout. The array is stored last dimension first (columns first if ``ndim=2``).
     """
     if order == "K":
         raise NotImplementedError(

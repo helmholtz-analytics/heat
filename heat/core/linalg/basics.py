@@ -1,35 +1,44 @@
+"""
+Basic linear algebra operations on distributed ``DNDarray``
+"""
 import itertools
+import numpy as np
 import torch
+import warnings
+
+from typing import List, Callable, Union, Optional
 
 from ..communication import MPI
 from .. import arithmetics
 from .. import exponential
-from .. import dndarray
+from ..dndarray import DNDarray
 from .. import factories
 from .. import manipulations
+from .. import sanitation
 from .. import types
 
-__all__ = ["dot", "matmul", "norm", "outer", "projection", "transpose", "tril", "triu"]
+__all__ = ["dot", "matmul", "norm", "outer", "projection", "trace", "transpose", "tril", "triu"]
 
 
-def dot(a, b, out=None):
+def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDarray, float]:
     """
-    Dot product of two arrays. Specifically,
+    Returns the dot product of two ``DNDarrays``.
+    Specifically,
 
-    1. If both a and b are 1-D arrays, it is inner product of vectors.
-    2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or `a @ b` is preferred.
-    3. If either a or b is 0-D (scalar), it is equivalent to multiply and using `ht.multiply(a, b)` or `a * b` is preferred.
+        1. If both a and b are 1-D arrays, it is inner product of vectors.
+
+        2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or ``a@b`` is preferred.
+
+        3. If either a or b is 0-D (scalar), it is equivalent to multiply and using ``multiply(a, b)`` or ``a*b`` is preferred.
 
     Parameters
     ----------
-    a : ht.DNDarray
-    b : ht.DNDarray
-
-    Returns
-    -------
-    ht.DNDarray or single value (float or int)
-        Returns the dot product of a and b. If a and b are both scalars or both 1-D arrays then a scalar is returned;
-        otherwise an array is returned. If out is given, then it is returned.
+    a : DNDarray
+        First input DNDarray
+    b : DNDarray
+        Second input DNDarray
+    out : DNDarray, optional
+        Output buffer.
     """
     if isinstance(a, (float, int)) or isinstance(b, (float, int)) or a.ndim == 0 or b.ndim == 0:
         # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
@@ -41,9 +50,15 @@ def dot(a, b, out=None):
         # 1. If both a and b are 1-D arrays, it is inner product of vectors.
         if a.split is None and b.split is None:
             sl = slice(None)
+            asl = bsl = sl
+            # st = 0
         else:  # at least one of them is split
-            sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)[2]
-        ret = torch.dot(a[sl]._DNDarray__array, b[sl]._DNDarray__array)
+            # todo: scale this by the starting index of the vector and do a lloc getitem
+            st, _, sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)
+            asl = sl if a.split is None else slice(sl[0].start - st, sl[0].stop - st)
+            bsl = sl if b.split is None else slice(sl[0].start - st, sl[0].stop - st)
+
+        ret = torch.dot(a.lloc[asl], b.lloc[bsl])
         if a.is_distributed() or b.is_distributed():
             a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
 
@@ -55,84 +70,77 @@ def dot(a, b, out=None):
         # 2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
         ret = matmul(a, b)
         if out is not None:
-            if out is not None:
-                out._DNDarray__array = ret._DNDarray__array
-                out._DNDarray__dtype = ret.dtype
-                out._DNDarray__split = ret.split
-                out._DNDarray__device = ret.device
-                out._DNDarray__comm = ret.comm
+            out.larray = ret.larray
+            out._DNDarray__dtype = ret.dtype
+            out._DNDarray__split = ret.split
+            out._DNDarray__device = ret.device
+            out._DNDarray__comm = ret.comm
             return out
         return ret
     else:
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
 
 
-def matmul(a, b, allow_resplit=False):
+def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     """
-    Matrix multiplication of two DNDarrays
-    for comment context -> a @ b = c or A @ B = c
+    Matrix multiplication of two ``DNDarrays``: ``a@b=c`` or ``A@B=c``.
+    Returns a tensor with the result of ``a@b``. The split dimension of the returned array is
+    typically the split dimension of a. However, if ``a.split=None`` then the the ``c.split`` will be
+    set as the split dimension of ``b``. If both are ``None`` then ``c.split`` is also ``None``.
 
     Parameters
     ----------
-    a : ht.DNDarray
-        2 dimensional: L x P
-    b : ht.DNDarray
-        2 dimensional: P x Q
+    a : DNDarray
+        2 dimensional: :math:`L \\times P`
+    b : DNDarray
+        2 dimensional: :math:`P \\times Q`
     allow_resplit : bool, optional
-        Flag for if to resplit the DNDarray 'a' in the case that both 'a' and 'b' are not split.
-        Default: if both are not split then both will remain not split.
-        True: if both are not split then 'a' will be split in-place along axis 0, i.e. the split
-            axis of 'a' will become 0 and the DNDarray will be distributed in the standard fashion.
-            The default case should be the most efficient case for large matrices.
-    Returns
-    -------
-    ht.DNDarray
-        returns a tensor with the result of a @ b. The split dimension of the returned array is
-        typically the split dimension of a. However, if a.split = None then the the c.split will be
-        set as the split dimension of b. If both are None then c.split is also None.
+        Whether to distribute ``a`` in the case that both ``a.split is None`` and ``b.split is None``.
+        Default is ``False``. If ``True``, if both are not split then ``a`` will be distributed in-place along axis 0.
+
     Notes
     -----
-    - If a is a split vector then the returned vector will be of shape (1xQ) and will be split in
-        the 1st dimension
-    - If b is a vector and either a or b is split, then the returned vector will be of shape (Lx1)
-        and will be split in the 0th dimension
+    - If ``a`` is a split vector then the returned vector will be of shape (:math:`1xQ`) and will be split in the 1st dimension
+    - If ``b`` is a vector and either ``a`` or ``b`` is split, then the returned vector will be of shape (:math:`Lx1`) and will be split in the 0th dimension
+
     References
     ----------
     [1] R. Gu, et al., "Improving Execution Concurrency of Large-scale Matrix Multiplication on
-        Distributed Data-parallel Platforms," IEEE Transactions on Parallel and Distributed Systems,
-         vol 28, no. 9. 2017.
+    Distributed Data-parallel Platforms," IEEE Transactions on Parallel and Distributed Systems,
+    vol 28, no. 9. 2017. \n
     [2] S. Ryu and D. Kim, "Parallel Huge Matrix Multiplication on a Cluster with GPGPU
-        Accelerators," 2018 IEEE International Parallel and Distributed Processing Symposium
-        Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
+    Accelerators," 2018 IEEE International Parallel and Distributed Processing Symposium
+    Workshops (IPDPSW), Vancouver, BC, 2018, pp. 877-882.
+
     Example
     -------
     >>> a = ht.ones((n, m), split=1)
     >>> a[0] = ht.arange(1, m + 1)
-    >>> a[:, -1] = ht.arange(1, n + 1)
-    (0/1) tensor([[1., 2.],
+    >>> a[:, -1] = ht.arange(1, n + 1).larray
+    [0/1] tensor([[1., 2.],
                   [1., 1.],
                   [1., 1.],
                   [1., 1.],
                   [1., 1.]])
-    (1/1) tensor([[3., 1.],
+    [1/1] tensor([[3., 1.],
                   [1., 2.],
                   [1., 3.],
                   [1., 4.],
                   [1., 5.]])
     >>> b = ht.ones((j, k), split=0)
     >>> b[0] = ht.arange(1, k + 1)
-    >>> b[:, 0] = ht.arange(1, j + 1)
-    (0/1) tensor([[1., 2., 3., 4., 5., 6., 7.],
+    >>> b[:, 0] = ht.arange(1, j + 1).larray
+    [0/1] tensor([[1., 2., 3., 4., 5., 6., 7.],
                   [2., 1., 1., 1., 1., 1., 1.]])
-    (1/1) tensor([[3., 1., 1., 1., 1., 1., 1.],
+    [1/1] tensor([[3., 1., 1., 1., 1., 1., 1.],
                   [4., 1., 1., 1., 1., 1., 1.]])
-    >>> linalg.matmul(a, b)
-    (0/1) tensor([[18.,  8.,  9., 10.],
+    >>> linalg.matmul(a, b).larray
+    [0/1] tensor([[18.,  8.,  9., 10.],
                   [14.,  6.,  7.,  8.],
                   [18.,  7.,  8.,  9.],
                   [22.,  8.,  9., 10.],
                   [26.,  9., 10., 11.]])
-    (1/1) tensor([[11., 12., 13.],
+    [1/1] tensor([[11., 12., 13.],
                   [ 9., 10., 11.],
                   [10., 11., 12.],
                   [11., 12., 13.],
@@ -147,6 +155,16 @@ def matmul(a, b, allow_resplit=False):
 
     # determine if a larger type is needed for c
     c_type = types.promote_types(a.dtype, b.dtype)
+    gpu_int_flag = False
+    if str(a.device)[:3] == "gpu":
+        og_type = c_type
+        if c_type in [types.uint8, types.int8, types.int16, types.int32]:
+            c_type = types.float32
+            gpu_int_flag = True
+        elif c_type == types.int64:
+            c_type = types.float64
+            gpu_int_flag = True
+
     if a.dtype != c_type:
         a = c_type(a, device=a.device)
     if b.dtype != c_type:
@@ -155,17 +173,20 @@ def matmul(a, b, allow_resplit=False):
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
             # if either of A or B is a vector
-            return factories.array(
-                torch.matmul(a._DNDarray__array, b._DNDarray__array), device=a.device
-            )
+            ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device)
+            if gpu_int_flag:
+                ret = og_type(ret, device=a.device)
+            return ret
         else:
             a.resplit_(0)
             slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
-            hold = a._DNDarray__array @ b._DNDarray__array
+            hold = a.larray @ b.larray
 
             c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device)
-            c._DNDarray__array[slice_0.start : slice_0.stop, :] += hold
+            c.larray[slice_0.start : slice_0.stop, :] += hold
             c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+            if gpu_int_flag:
+                c = og_type(c, device=a.device)
             return c
 
     # if they are vectors they need to be expanded to be the proper dimensions
@@ -174,9 +195,12 @@ def matmul(a, b, allow_resplit=False):
         # make both split 0, do a local mm then a sum
         a.resplit_(0)
         b.resplit_(0)
-        res = a._DNDarray__array @ b._DNDarray__array
+        res = a.larray @ b.larray
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
-        return factories.array(res, split=None, device=a.device)
+        ret = factories.array(res, split=None, device=a.device)
+        if gpu_int_flag:
+            ret = og_type(ret, device=a.device)
+        return ret
     elif len(a.gshape) < 2:
         a = manipulations.expand_dims(a, axis=0)
         vector_flag = True
@@ -189,70 +213,69 @@ def matmul(a, b, allow_resplit=False):
     split_01_flag = False
     split_10_flag = False
 
+    tdev = a.device.torch_device
+
     if (
         (a.split == 0 and b.split is None) or (a.split is None and b.split == 1)
     ) and not vector_flag:
         split = a.split if a.split is not None else b.split
         split = split if not vector_flag else 0
         c = factories.zeros((a.gshape[-2], b.gshape[1]), split=split, dtype=c_type, device=a.device)
-        c._DNDarray__array += a._DNDarray__array @ b._DNDarray__array
+        c.larray += a.larray @ b.larray
 
-        return c if not vector_flag else c.squeeze()
+        ret = c if not vector_flag else c.squeeze()
+        if gpu_int_flag:
+            ret = og_type(ret, device=a.device)
+        return ret
 
     elif a.split == 1 and b.split is None:
-        c = torch.zeros(
-            (a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=a.device.torch_device
-        )
+        c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=tdev)
 
         a_idx = a.comm.chunk(a.shape, a.split)[2]
-        c += (
-            a._DNDarray__array
-            @ b._DNDarray__array[a_idx[1].start : a_idx[1].start + a.lshape[-1], :]
-        )
+        c += a.larray @ b.larray[a_idx[1].start : a_idx[1].start + a.lshape[-1], :]
         a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         c = c if not vector_flag else c.squeeze()
-        c = factories.array(c, split=a.split if b.gshape[1] > 1 else 0, device=a.device)
-        return c
+        ret = factories.array(c, split=a.split if b.gshape[1] > 1 else 0, device=a.device)
+        if gpu_int_flag:
+            ret = og_type(ret, device=a.device)
+        return ret
 
     elif a.split is None and b.split == 0:
-        c = torch.zeros(
-            (a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=a.device.torch_device
-        )
+        c = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=tdev)
         b_idx = b.comm.chunk(b.shape, b.split)[2]
-        c += (
-            a._DNDarray__array[:, b_idx[0].start : b_idx[0].start + b.lshape[0]]
-            @ b._DNDarray__array
-        )
+        c += a.larray[:, b_idx[0].start : b_idx[0].start + b.lshape[0]] @ b.larray
         b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         c = c if not vector_flag else c.squeeze()
-        c = factories.array(c, split=b.split if a.gshape[-2] > 1 else 0, device=a.device)
-        return c
+        ret = factories.array(c, split=b.split if a.gshape[-2] > 1 else 0, device=a.device)
+        if gpu_int_flag:
+            ret = og_type(ret, device=a.device)
+        return ret
 
     elif (
         a.split == 0 and b.split is None
     ):  # this case and the one below will only be reaching if one of them is a vector
-        c = torch.zeros(
-            (a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type(), device=a.device.torch_device
-        )
+        c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type(), device=tdev)
         a_idx = a.comm.chunk(a.shape, a.split)[2]
-        c[a_idx[0]] += a._DNDarray__array @ b._DNDarray__array
+        c[a_idx[0]] += a.larray @ b.larray
         a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         c = c if not vector_flag else c.squeeze()
         split = a.split if b.gshape[1] > 1 else 0
         split = split if not vector_flag else 0
-        c = factories.array(c, split=split, device=a.device)
-        return c
+        ret = factories.array(c, split=split, device=a.device)
+        if gpu_int_flag:
+            ret = og_type(ret, device=a.device)
+        return ret
 
     elif a.split is None and b.split == 1:
-        c = torch.zeros(
-            (a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type(), device=a.device.torch_device
-        )
-        c += a._DNDarray__array @ b._DNDarray__array
+        c = torch.zeros((a.gshape[-2], b.lshape[1]), dtype=c_type.torch_type(), device=tdev)
+        c += a.larray @ b.larray
         c = c if not vector_flag else c.squeeze()
         split = b.split if a.gshape[1] > 1 else 0
         split = split if not vector_flag else 0
-        c = factories.array(c, is_split=split, device=a.device)
-        return c
+        ret = factories.array(c, is_split=split, device=a.device)
+        if gpu_int_flag:
+            ret = og_type(ret, device=a.device)
+        return ret
 
     elif a.split == 0 and b.split == 0:
         split_0_flag = True
@@ -288,11 +311,9 @@ def matmul(a, b, allow_resplit=False):
 
     # get the lshape map to determine what needs to be sent where as well as M and N
     # lshape map dims -> {node, a=0, b=1, lshape}
-    lshape_map = torch.zeros(
-        (a.comm.size, 2, len(a.gshape)), dtype=int, device=a.device.torch_device
-    )
-    lshape_map[a.comm.rank, 0, :] = torch.tensor(a.lshape, device=a.device.torch_device)
-    lshape_map[b.comm.rank, 1, :] = torch.tensor(b.lshape, device=a.device.torch_device)
+    lshape_map = torch.zeros((a.comm.size, 2, len(a.gshape)), dtype=int, device=tdev)
+    lshape_map[a.comm.rank, 0, :] = torch.tensor(a.lshape, device=tdev)
+    lshape_map[b.comm.rank, 1, :] = torch.tensor(b.lshape, device=tdev)
     a.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
     # find mB (first blocking dim for a) and nB (2nd blocking dim for b)
@@ -310,26 +331,19 @@ def matmul(a, b, allow_resplit=False):
     # rem_map dims guide -> {process number, a/b (0/1), True/False (1/0)
     #   if there is a remainder in this dimension
     rem_map = torch.zeros((a.comm.size, 2, 2))
-    rem_map[a.comm.rank, 0, :] = torch.tensor((rem_a_out, rem_a), device=a._DNDarray__array.device)
-    rem_map[a.comm.rank, 1, :] = torch.tensor((rem_b, rem_b_out), device=a._DNDarray__array.device)
+    rem_map[a.comm.rank, 0, :] = torch.tensor((rem_a_out, rem_a), device=tdev)
+    rem_map[a.comm.rank, 1, :] = torch.tensor((rem_b, rem_b_out), device=tdev)
     rem_map_comm = a.comm.Iallreduce(MPI.IN_PLACE, rem_map, MPI.SUM)
 
     # index_map dims guide -> {process number, a=0/b=1, relevent 1st index, 2nd index}
-    index_map = torch.zeros((a.comm.size, 2, 2, 2), dtype=int, device=b._DNDarray__array.device)
+    index_map = torch.zeros((a.comm.size, 2, 2, 2), dtype=int, device=tdev)
     a_idx = a.comm.chunk(a.shape, a.split)[2]
-    index_map[a.comm.rank, 0, 0] = torch.tensor(
-        (a_idx[0].start, a_idx[0].stop), device=b._DNDarray__array.device
-    )
-    index_map[a.comm.rank, 0, 1] = torch.tensor(
-        (a_idx[1].start, a_idx[1].stop), device=b._DNDarray__array.device
-    )
+    index_map[a.comm.rank, 0, 0] = torch.tensor((a_idx[0].start, a_idx[0].stop), device=tdev)
+    index_map[a.comm.rank, 0, 1] = torch.tensor((a_idx[1].start, a_idx[1].stop), device=tdev)
     b_idx = b.comm.chunk(b.shape, b.split)[2]
-    index_map[b.comm.rank, 1, 0] = torch.tensor(
-        (b_idx[0].start, b_idx[0].stop), device=b._DNDarray__array.device
-    )
-    index_map[b.comm.rank, 1, 1] = torch.tensor(
-        (b_idx[1].start, b_idx[1].stop), device=b._DNDarray__array.device
-    )
+    index_map[b.comm.rank, 1, 0] = torch.tensor((b_idx[0].start, b_idx[0].stop), device=tdev)
+    index_map[b.comm.rank, 1, 1] = torch.tensor((b_idx[1].start, b_idx[1].stop), device=tdev)
+
     index_map_comm = a.comm.Iallreduce(MPI.IN_PLACE, index_map, MPI.SUM)
 
     # for the communication scheme, the output array needs to be created
@@ -347,13 +361,13 @@ def matmul(a, b, allow_resplit=False):
         a_block_map = torch.zeros(
             (a.comm.size, a.shape[-2] // mB // a.comm.size, a.shape[-1] // kB, 2),
             dtype=torch.int,
-            device=a.device.torch_device,
+            device=tdev,
         )
     elif a.split == 1:
         a_block_map = torch.zeros(
             (a.comm.size, a.shape[-2] // mB, a.shape[-1] // kB // a.comm.size, 2),
             dtype=torch.int,
-            device=a.device.torch_device,
+            device=tdev,
         )
     # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
@@ -364,7 +378,7 @@ def matmul(a, b, allow_resplit=False):
     if any(lshape_map[:, 0, :][:, 1] == 1):
         a_d1_1s_flag = True
 
-    index_map_comm.wait()
+    index_map_comm.Wait()
     for pr in range(a.comm.size):
         start0 = index_map[pr, 0, 0, 0].item()
         stop0 = index_map[pr, 0, 0, 1].item()
@@ -380,9 +394,9 @@ def matmul(a, b, allow_resplit=False):
             ):
                 # loop over the number of blocks in the 1st dimension
                 a_block_map[pr, dim0, dim1] = torch.tensor(
-                    (dim0 * mB, dim1 * kB), dtype=torch.int, device=a._DNDarray__array.device
+                    (dim0 * mB, dim1 * kB), dtype=torch.int, device=tdev
                 )
-    rem_map_comm.wait()
+    rem_map_comm.Wait()
     if b.split == 0:
         # the blocks are shifted in the 2nd dimension of A for as many remainders
         # there are between the blocks in the first dim of B
@@ -396,13 +410,13 @@ def matmul(a, b, allow_resplit=False):
         b_block_map = torch.zeros(
             (b.comm.size, b.shape[-2] // kB // b.comm.size, b.shape[-1] // nB, 2),
             dtype=torch.int,
-            device=b.device.torch_device,
+            device=tdev,
         )
     elif b.split == 1:
         b_block_map = torch.zeros(
             (b.comm.size, b.shape[-2] // kB, b.shape[-1] // nB // b.comm.size, 2),
             dtype=torch.int,
-            device=b.device.torch_device,
+            device=tdev,
         )
     # units-> [process, dim0 block number, dim1 block number, start coord] **indices are local
 
@@ -428,7 +442,7 @@ def matmul(a, b, allow_resplit=False):
                 (stop1 - start1) // nB // b.comm.size if b_d1_1s_flag else (stop1 - start1) // nB
             ):
                 b_block_map[pr, dim0, dim1] = torch.tensor(
-                    (dim0 * kB, dim1 * nB), dtype=torch.int, device=b._DNDarray__array.device
+                    (dim0 * kB, dim1 * nB), dtype=torch.int, device=tdev
                 )
 
     if a.split == 1:
@@ -440,7 +454,7 @@ def matmul(a, b, allow_resplit=False):
                 b_block_map[:, cnt:, :, 0] += 1
 
     # work loop: loop over all processes (also will incorporate the remainder calculations)
-    c_wait.wait()
+    c_wait.Wait()
 
     if split_0_flag:
         # need to send b here and not a
@@ -449,18 +463,15 @@ def matmul(a, b, allow_resplit=False):
         b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
         a_rem_locs0 = torch.nonzero(rem_map[:, 0, 0] == 1, as_tuple=False)
         # remainders for a in the
-        a_node_rem_s0 = a._DNDarray__array[:mB, kB : (kB + 1) * b_rem_locs0.numel() : kB + 1]
+        a_node_rem_s0 = a.larray[:mB, kB : (kB + 1) * b_rem_locs0.numel() : kB + 1]
         b_rem = torch.empty(
-            b_rem_locs0.numel(),
-            b.lshape[-1],
-            dtype=a.dtype.torch_type(),
-            device=b.device.torch_device,
+            b_rem_locs0.numel(), b.lshape[-1], dtype=a.dtype.torch_type(), device=tdev
         )
 
         # this if/elif/else loop is for the handling of
         if a.comm.rank in a_rem_locs0:
             # if A is split in dim0 and the rank has a remainder in this direction
-            r = a._DNDarray__array[-1]
+            r = a.larray[-1]
             r_loc = index_map[a.comm.rank, 0, 0, 1] - index_map[a.comm.rank, 0, 0, 0] - 1
         else:
             r = None
@@ -471,12 +482,12 @@ def matmul(a, b, allow_resplit=False):
         for pr in range(b.comm.size):
             # ibcast data on node first
             if b.comm.rank == pr:
-                b_lp_data[pr] = b._DNDarray__array.clone()
+                b_lp_data[pr] = b.larray.clone()
             else:
                 b_lp_data[pr] = torch.zeros(
                     (lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()),
                     dtype=b.dtype.torch_type(),
-                    device=b.device.torch_device,
+                    device=tdev,
                 )
 
             # sending a to all nodes for b to operate with
@@ -484,12 +495,12 @@ def matmul(a, b, allow_resplit=False):
 
             # receive the data from the last loop and do the calculation with that
             if pr != 0:
-                req[pr - 1].wait()
+                req[pr - 1].Wait()
                 # after receiving the last loop's bcast
                 __mm_c_block_setter(
                     b_proc=pr - 1,
                     a_proc=a.comm.rank,
-                    a_data=a._DNDarray__array,
+                    a_data=a.larray,
                     b_data=b_lp_data[pr - 1],
                     b_block_map=b_block_map,
                     a_block_map=a_block_map,
@@ -498,7 +509,7 @@ def matmul(a, b, allow_resplit=False):
                     mB=mB,
                     kB=kB,
                     nB=nB,
-                    c=c._DNDarray__array,
+                    c=c.larray,
                 )
 
                 # check if there is a remainder on b in the previous node
@@ -512,17 +523,16 @@ def matmul(a, b, allow_resplit=False):
                     if r_loc is not None:
                         st = index_map[pr - 1, 1, 0, 0].item()
                         sp = index_map[pr - 1, 1, 0, 1].item()
-                        c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
-
+                        c.larray[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
                 del b_lp_data[pr - 1]
 
             # need to wait if its the last loop, also need to collect the remainders
             if pr == b.comm.size - 1:
-                req[pr].wait()
+                req[pr].Wait()
                 __mm_c_block_setter(
                     b_proc=pr,
                     a_proc=a.comm.rank,
-                    a_data=a._DNDarray__array,
+                    a_data=a.larray,
                     b_data=b_lp_data[pr],
                     b_block_map=b_block_map,
                     a_block_map=a_block_map,
@@ -531,7 +541,7 @@ def matmul(a, b, allow_resplit=False):
                     mB=mB,
                     kB=kB,
                     nB=nB,
-                    c=c._DNDarray__array,
+                    c=c.larray,
                 )
                 # check if there is a remainder on b on the last node (there shouldnt be)
                 if pr in b_rem_locs0:
@@ -547,23 +557,24 @@ def matmul(a, b, allow_resplit=False):
                         if split_01_flag:
                             st1 = index_map[pr, 1, 1, 0].item()
                             sp1 = index_map[pr, 1, 1, 1].item()
-                            c._DNDarray__array[r_loc.item(), st1:sp1] += r[st:sp] @ b_lp_data[pr]
+                            c.larray[r_loc.item(), st1:sp1] += r[st:sp] @ b_lp_data[pr]
                         else:
-                            c._DNDarray__array[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr]
+                            c.larray[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr]
 
                 # set the final blocks on the last loop, then adjust for the
                 # the remainders which were collected in b_rem
                 if b_rem_locs0.numel():
-                    c._DNDarray__array[: a_node_rem_s0.shape[0]] += a_node_rem_s0 @ b_rem
-
+                    c.larray[: a_node_rem_s0.shape[0]] += a_node_rem_s0 @ b_rem
                 del b_lp_data[pr]
 
         if vector_flag:
-            c_loc = c._DNDarray__array.squeeze()
+            c_loc = c.larray.squeeze()
             if c_loc.nelement() == 1:
-                c = torch.tensor(c_loc, device=c._DNDarray__array.device)
-            c = factories.array(c_loc, is_split=0, device=a.device)
+                c_loc = torch.tensor(c_loc, device=tdev)
 
+            c = factories.array(c_loc, is_split=0, device=a.device)
+        if gpu_int_flag:
+            c = og_type(c, device=a.device)
         return c
 
     elif split_1_flag:
@@ -572,50 +583,43 @@ def matmul(a, b, allow_resplit=False):
         # locations of the remainders in b
         b_rem_locs1 = torch.nonzero(rem_map[:, 1, 1] == 1, as_tuple=False)
         a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
-        b_node_rem_s1 = b._DNDarray__array[
-            kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB
-        ]  # remainders for a in the
-        a_rem = torch.empty(
-            a.lshape[-2],
-            a_rem_locs1.numel(),
-            dtype=b.dtype.torch_type(),
-            device=a.device.torch_device,
-        )
+        b_node_rem_s1 = b.larray[kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB]
+        # b_node_rem_s1 -> remainders for a in the
 
+        a_rem = torch.empty(
+            a.lshape[-2], a_rem_locs1.numel(), dtype=b.dtype.torch_type(), device=tdev
+        )
         # this if/elif/else loop is for the handling of
         if b.comm.rank in b_rem_locs1:
             # if b is split in dim1 and the rank has a remainder in this direction
-            r = b._DNDarray__array[:, -1]
+            r = b.larray[:, -1]
             r_loc = index_map[a.comm.rank, 1, 1, 1] - index_map[a.comm.rank, 1, 1, 0] - 1
         else:
             r = None
             r_loc = None
-
         req = {}
         a_lp_data = {}
         for pr in range(a.comm.size):
             # ibcast data on node first
             if a.comm.rank == pr:
-                a_lp_data[pr] = a._DNDarray__array.clone()
+                a_lp_data[pr] = a.larray.clone()
             else:
                 a_lp_data[pr] = torch.zeros(
                     (lshape_map[pr, 0, 0].item(), lshape_map[pr, 0, 1].item()),
                     dtype=a.dtype.torch_type(),
-                    device=a.device.torch_device,
+                    device=tdev,
                 )
-
             # sending a to all nodes for b to operate with
             req[pr] = a.comm.Ibcast(a_lp_data[pr], root=pr)
-
             # receive the data from the last loop and do the calculation with that
             if pr != 0:
                 # after receiving the last loop's bcast
-                req[pr - 1].wait()
+                req[pr - 1].Wait()
                 __mm_c_block_setter(
                     a_proc=pr - 1,
                     b_proc=b.comm.rank,
                     a_data=a_lp_data[pr - 1],
-                    b_data=b._DNDarray__array,
+                    b_data=b.larray,
                     b_block_map=b_block_map,
                     a_block_map=a_block_map,
                     b_split=b.split,
@@ -623,34 +627,31 @@ def matmul(a, b, allow_resplit=False):
                     mB=mB,
                     kB=kB,
                     nB=nB,
-                    c=c._DNDarray__array,
+                    c=c.larray,
                 )
-
                 # check if there is a remainder on b in the previous node
                 # this loop is intended to get the remainders of b since it is the one being passed
                 if pr - 1 in a_rem_locs1:
                     # takes care of the remainders in b as well as dim0 of a
                     a_rem[:, pr - 1] = a_lp_data[pr - 1][:, -1]
-
                 # this loop is to take care of the remainders in dim1 of B
                 if b_rem_locs1.nelement() != 0:
                     if r_loc is not None:
                         st = index_map[pr - 1, 0, 1, 0].item()
                         sp = index_map[pr - 1, 0, 1, 1].item()
-                        c._DNDarray__array[:, r_loc.item()] += (
-                            a_lp_data[pr - 1] @ r[st:sp, None]
-                        ).flatten()
+
+                        c.larray[:, r_loc.item()] += (a_lp_data[pr - 1] @ r[st:sp, None]).flatten()
 
                 del a_lp_data[pr - 1]
 
             # need to wait if its the last loop, also need to collect the remainders
             if pr == b.comm.size - 1:
-                req[pr].wait()
+                req[pr].Wait()
                 __mm_c_block_setter(
                     a_proc=pr,
                     b_proc=a.comm.rank,
                     a_data=a_lp_data[pr],
-                    b_data=b._DNDarray__array,
+                    b_data=b.larray,
                     b_block_map=b_block_map,
                     a_block_map=a_block_map,
                     b_split=b.split,
@@ -658,32 +659,26 @@ def matmul(a, b, allow_resplit=False):
                     mB=mB,
                     kB=kB,
                     nB=nB,
-                    c=c._DNDarray__array,
+                    c=c.larray,
                 )
                 # check if there is a remainder on b on the last node (there shouldnt be)
                 if pr in a_rem_locs1:
                     # this is to save the data from B required by the remainders from dim1 of A
                     a_rem[:, pr] = a_lp_data[pr][:, -1]
-
                 # this loop is to take care of the remainders in the 0th dimension of A
                 if b_rem_locs1.nelement() != 0:
                     if r_loc is not None:
                         st = index_map[pr, 0, 1, 0].item()
                         sp = index_map[pr, 0, 1, 1].item()
-                        c._DNDarray__array[:, r_loc.item()] += (
-                            a_lp_data[pr] @ r[st:sp, None]
-                        ).flatten()
-
+                        c.larray[:, r_loc.item()] += (a_lp_data[pr] @ r[st:sp, None]).flatten()
                 # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
                 if a_rem_locs1.numel():
-                    c._DNDarray__array[:, : b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1
-
+                    c.larray[:, : b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1
                 del a_lp_data[pr]
-        c = (
-            c
-            if not vector_flag
-            else factories.array(c._DNDarray__array.squeeze(), is_split=0, device=a.device)
-        )
+        if vector_flag:
+            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device)
+        if gpu_int_flag:
+            c = og_type(c, device=a.device)
         return c
 
     elif split_01_flag:
@@ -693,44 +688,41 @@ def matmul(a, b, allow_resplit=False):
         for pr in range(a.comm.size):
             # ibcast data on node first
             if b.comm.rank == pr:
-                b_lp_data[pr] = b._DNDarray__array.clone()
+                b_lp_data[pr] = b.larray.clone()
             else:
                 b_lp_data[pr] = torch.empty(
                     (lshape_map[pr, 1, 0].item(), lshape_map[pr, 1, 1].item()),
                     dtype=b.dtype.torch_type(),
-                    device=b.device.torch_device,
+                    device=tdev,
                 )
-
             # sending a to all nodes for b to operate with
             req[pr] = b.comm.Ibcast(b_lp_data[pr], root=pr)
 
             # receive the data from the last loop and do the calculation with that
             if pr != 0:
-                req[pr - 1].wait()
+                req[pr - 1].Wait()
                 # after receiving the last loop's bcast
                 st0 = index_map[pr - 1, 0, 0, 0].item()
                 sp0 = index_map[pr - 1, 0, 0, 1].item() + 1
                 st1 = index_map[pr - 1, 1, 1, 0].item()
                 sp1 = index_map[pr - 1, 1, 1, 1].item()
-                c._DNDarray__array[: sp0 - st0, st1:sp1] += a._DNDarray__array @ b_lp_data[pr - 1]
+
+                c.larray[: sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr - 1]
 
                 del b_lp_data[pr - 1]
-
             if pr == b.comm.size - 1:
-                req[pr].wait()
+                req[pr].Wait()
                 st0 = index_map[pr, 0, 0, 0].item()
                 sp0 = index_map[pr, 0, 0, 1].item() + 1
                 st1 = index_map[pr, 1, 1, 0].item()
                 sp1 = index_map[pr, 1, 1, 1].item()
-                c._DNDarray__array[: sp0 - st0, st1:sp1] += a._DNDarray__array @ b_lp_data[pr]
-
+                c.larray[: sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr]
                 del b_lp_data[pr]
+        if vector_flag:
+            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device)
+        if gpu_int_flag:
+            c = og_type(c, device=a.device)
 
-        c = (
-            c
-            if not vector_flag
-            else factories.array(c._DNDarray__array.squeeze(), is_split=0, device=a.device)
-        )
         return c
 
     elif split_10_flag:
@@ -739,84 +731,37 @@ def matmul(a, b, allow_resplit=False):
         a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
         # locations of the remainders in b
         b_rem_locs0 = torch.nonzero(rem_map[:, 1, 0] == 1, as_tuple=False)
-        res = torch.zeros(
-            (a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=c.device.torch_device
-        )
+        res = torch.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type.torch_type(), device=tdev)
         for i in range(a.lshape[-1] // kB):
-            res += (
-                a._DNDarray__array[:mB, i * kB : i * kB + kB]
-                @ b._DNDarray__array[i * kB : i * kB + kB, :nB]
-            )
+            res += a.larray[:mB, i * kB : i * kB + kB] @ b.larray[i * kB : i * kB + kB, :nB]
         if a.comm.rank in a_rem_locs1 and b.comm.rank in b_rem_locs0 and kB > 1:
             # these Nones are used to change the dims if the full process is not covered
-            res += a._DNDarray__array[:, -1, None] @ b._DNDarray__array[None, -1, :]
+            res += a.larray[:, -1, None] @ b.larray[None, -1, :]
 
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
         split = a.split if b.gshape[1] > 1 else 0
-        split = split if not vector_flag else 0
-        res = res if not vector_flag else res.squeeze()
+        if vector_flag:
+            split = 0
+            res = res.squeeze()
         c = factories.array(res, split=split, device=a.device)
+        if gpu_int_flag:
+            c = og_type(c, device=a.device)
         return c
 
 
-@torch.jit.script
-def __mm_c_block_setter(
-    b_proc, a_proc, a_data, b_data, b_block_map, a_block_map, b_split, a_split, mB, kB, nB, c
-):
-    # type: (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
-    shp_b = b_block_map.shape
-    offset_a = b_proc * shp_b[1] if b_proc != 0 else 0
-    shp_a = a_block_map.shape
-    offset_b = a_proc * shp_a[2] if a_proc != 0 else 0
-    # offsets are the number of blocks in the multiplication direction on previous nodes
-    # print(a_block_map[a_proc].shape[0])
-    for bl_1_a in (
-        torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long, device=c.device)
-        if b_split == 0
-        else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device)
-    ):
-        # offset is the number of blocks on the previous node in the direction of multiplication
-        for bl_0_a in torch.arange(
-            a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device
-        ):  # dim0
-            for bl_1_b in torch.arange(
-                b_block_map[b_proc].shape[1], dtype=torch.long, device=c.device
-            ):
-                for bl_0_b in (
-                    torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.long, device=c.device)
-                    if a_split == 1
-                    else torch.arange(
-                        b_block_map[b_proc].shape[0], dtype=torch.long, device=c.device
-                    )
-                ):
-                    # this offset is the same as before but for b
-                    a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
-                    a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
-                    a_block = a_data[a_start0 : a_start0 + mB, a_start1 : a_start1 + kB]
-
-                    b_start0 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 0].item())
-                    b_start1 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 1].item())
-                    b_block = b_data[b_start0 : b_start0 + kB, b_start1 : b_start1 + nB]
-
-                    c_start0 = a_start0
-                    c_start1 = b_start1
-                    c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
+DNDarray.__matmul__ = lambda self, other: matmul(self, other)
 
 
-def norm(a):
+def norm(a: DNDarray) -> float:
     """
-    Frobenius norm of vector a
+    Return the vector norm (Frobenius norm) of vector ``a``.
 
     Parameters
     ----------
-    a : ht.DNDarray
-
-    Returns
-    -------
-    float
-        Returns the vector norm (lenght) of a
-    """
-    if not isinstance(a, dndarray.DNDarray):
+    a : DNDarray
+        Input vector
+    """  # noqa: D402
+    if not isinstance(a, DNDarray):
         raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
 
     d = a ** 2
@@ -827,94 +772,92 @@ def norm(a):
     return exponential.sqrt(d).item()
 
 
-def outer(a, b, out=None, split=None):
-    """
-    Compute the outer product of two 1-D DNDarrays.
+DNDarray.norm: Callable[[DNDarray], float] = lambda self: norm(self)
+DNDarray.norm.__doc__ = norm.__doc__
 
+
+def outer(
+    a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None, split: Optional[int] = None
+) -> DNDarray:
+    """
+    Compute the outer product of two 1-D DNDarrays: :math:`out(i, j) = a(i) \\times b(j)`.
     Given two vectors, :math:`a = (a_0, a_1, ..., a_N)` and :math:`b = (b_0, b_1, ..., b_M)`, the outer product is:
 
     .. math::
         :nowrap:
 
         \\begin{pmatrix}
-           a_0 \\cdot b_0  & a_0 \\cdot b_1 & . & . &  a_0 \\cdot b_M \\
-           a_1 \\cdot b_0 & a_1 \\cdot b_1 & . & . & a_1 \\cdot b_M \\
-           . & . & . & . & .   \\
+           a_0 \\cdot b_0  & a_0 \\cdot b_1 & . & . &  a_0 \\cdot b_M \\\\
+           a_1 \\cdot b_0 & a_1 \\cdot b_1 & . & . & a_1 \\cdot b_M \\\\
+           . & . & . & . & .   \\\\
            a_N \\cdot b_0 & a_N \\cdot b_1 & . & . & a_N \\cdot b_M
         \\end{pmatrix}
 
     Parameters
     ----------
-
     a : DNDarray
-        1-dimensional: :math: `N`
+        1-dimensional: :math:`N`
         Will be flattened by default if more than 1-D.
-
     b : DNDarray
-        1-dimensional: :math: `M`
+        1-dimensional: :math:`M`
         Will be flattened by default if more than 1-D.
-
     out : DNDarray, optional
-          2-dimensional: :math: `N \\times M`
+          2-dimensional: :math:`N \\times M`
           A location where the result is stored
-
     split : int, optional
             Split dimension of the resulting DNDarray. Can be 0, 1, or None.
-            This is only relevant if the calculations are memory-distributed,
-            in which case default is ``split=0`` (see Note).
+            This is only relevant if the calculations are memory-distributed.
+            Default is ``split=0`` (see Notes).
 
-    Note: parallel implementation of outer product, arrays are dense.
-        In the classical (dense) case, one DNDarray stays put, the other one is passed around the ranks in
-        ring communication. The slice-by-slice outer product is calculated locally (here via torch.einsum()).
-        N.B.: if ``b`` is sent around, the resulting outer product is split along the rows dimension (``split = 0``).
-              if ``a`` is sent around, the resulting outer product is split along the columns (``split = 1``).
-        So if ``split`` is not None, ``split`` defines which DNDarray stays put and which one is passed around. No
-        communication is needed beyond ring communication of one of the DNDarrays.
-        If ``split`` is None or unspecified, the result will be distributed along axis 0, i.e. by default ``b`` is
-        passed around, ``a`` stays put.
+    Notes
+    -----
+    Parallel implementation of outer product, assumes arrays are dense.
+    In the classical (dense) case, one of the two arrays needs to be communicated around the processes in
+    a ring.
 
-    Returns
-    -------
+    * Sending ``b`` around in a ring results in ``outer`` being split along the rows (``outer.split = 0``).\n
 
-    out(n, m): DNDarray
+    * Sending ``a`` around in a ring results in ``outer`` being split along the columns (``outer.split = 1``).\n
 
-        out[i, j] = a[i] * b[j]
+    So, if specified, ``split`` defines which ``DNDarray`` stays put and which one is passed around.
+    If ``split`` is ``None`` or unspecified, the result will be distributed along axis ``0``, i.e. by default ``b`` is
+    passed around, ``a`` stays put.
 
     Examples
     --------
     >>> a = ht.arange(4)
     >>> b = ht.arange(3)
-    >>> ht.outer(a, b)
+    >>> ht.outer(a, b).larray
     (3 processes)
-    (0/3)   tensor([[0, 0, 0],
+    [0/2]   tensor([[0, 0, 0],
                     [0, 1, 2],
                     [0, 2, 4],
                     [0, 3, 6]], dtype=torch.int32)
-    (1/3)   tensor([[0, 0, 0],
+    [1/2]   tensor([[0, 0, 0],
                     [0, 1, 2],
                     [0, 2, 4],
                     [0, 3, 6]], dtype=torch.int32)
-    (2/3)   tensor([[0, 0, 0],
+    [2/2]   tensor([[0, 0, 0],
                     [0, 1, 2],
                     [0, 2, 4],
                     [0, 3, 6]], dtype=torch.int32)
     >>> a = ht.arange(4, split=0)
     >>> b = ht.arange(3, split=0)
-    >>> ht.outer(a, b)
-    (0/3)   tensor([[0, 0, 0],
+    >>> ht.outer(a, b).larray
+    [0/2]   tensor([[0, 0, 0],
                     [0, 1, 2]], dtype=torch.int32)
-    (1/3)   tensor([[0, 2, 4]], dtype=torch.int32)
-    (2/3)   tensor([[0, 3, 6]], dtype=torch.int32)
-    >>> ht.outer(a, b, split=1)
-    (0/3)   tensor([[0],
+    [1/2]   tensor([[0, 2, 4]], dtype=torch.int32)
+    [2/2]   tensor([[0, 3, 6]], dtype=torch.int32)
+    >>> ht.outer(a, b, split=1).larray
+    [0/2]   tensor([[0],
                     [0],
                     [0],
                     [0]], dtype=torch.int32)
-    (1/3)   tensor([[0],
+    [1/2]   tensor([[0],
                     [1],
                     [2],
                     [3]], dtype=torch.int32)
-    (2/3)   tensor([[0],
+    [2/2]   tensor([[0],
                     [2],
                     [4],
                     [6]], dtype=torch.int32)
@@ -922,31 +865,39 @@ def outer(a, b, out=None, split=None):
     >>> b = ht.arange(4, dtype=ht.float64, split=0)
     >>> out = ht.empty((5,4), dtype=ht.float64, split=1)
     >>> ht.outer(a, b, split=1, out=out)
-    >>> out
-    (0/3)   tensor([[0., 0.],
+    >>> out.larray
+    [0/2]   tensor([[0., 0.],
                     [0., 1.],
                     [0., 2.],
                     [0., 3.],
                     [0., 4.]], dtype=torch.float64)
-    (1/3)   tensor([[0.],
+    [1/2]   tensor([[0.],
                     [2.],
                     [4.],
                     [6.],
                     [8.]], dtype=torch.float64)
-    (2/3)   tensor([[ 0.],
+    [2/2]   tensor([[ 0.],
                     [ 3.],
                     [ 6.],
                     [ 9.],
                     [12.]], dtype=torch.float64)
     """
     # sanitize input
-    if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
-        raise TypeError(
-            "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
+    devices = []
+    for array in [a, b]:
+        sanitation.sanitize_in(array)
+        devices.append(array.device)
+    if devices.count(devices[0]) == 2:
+        device = devices[0]
+    else:
+        raise RuntimeError(
+            "input arrays on different devices: input 0 on {}, input 1 on {}".format(
+                devices[0], devices[1]
+            )
         )
 
     # sanitize dimensions
-    # TODO move to sanitation module #468
+    # TODO implement is_1D in sanitation module #468
     if a.ndim > 1:
         a = manipulations.flatten(a)
     if b.ndim > 1:
@@ -957,25 +908,15 @@ def outer(a, b, out=None, split=None):
         )
 
     outer_gshape = (a.gshape[0], b.gshape[0])
-    t_a = a._DNDarray__array
-    t_b = b._DNDarray__array
+    t_a = a.larray
+    t_b = b.larray
     t_outer_dtype = torch.promote_types(t_a.dtype, t_b.dtype)
     t_a, t_b = t_a.type(t_outer_dtype), t_b.type(t_outer_dtype)
     outer_dtype = types.canonical_heat_type(t_outer_dtype)
 
     if out is not None:
-        if not isinstance(out, dndarray.DNDarray):
-            raise TypeError("out must be of type ht.DNDarray, was {}".format(type(out)))
-        if out.dtype is not outer_dtype:
-            raise TypeError(
-                "Wrong datatype for out: expected {}, got {}".format(outer_dtype, out.dtype)
-            )
-        if out.gshape != outer_gshape:
-            raise ValueError("out must have shape {}, got {}".format(outer_gshape, out.gshape))
-        if out.split is not split:
-            raise ValueError(
-                "Split dimension mismatch for out: expected {}, got {}".format(split, out.split)
-            )
+        sanitation.sanitize_out(out, outer_gshape, split, device)
+        t_out_dtype = out.larray.dtype
 
     # distributed outer product, dense arrays (TODO: sparse, #384)
     if a.comm.is_distributed() and split is not None or a.split is not None or b.split is not None:
@@ -986,10 +927,10 @@ def outer(a, b, out=None, split=None):
 
         if a.split is None:
             a.resplit_(axis=0)
-            t_a = a._DNDarray__array.type(t_outer_dtype)
+            t_a = a.larray.type(t_outer_dtype)
         if b.split is None:
             b.resplit_(axis=0)
-            t_b = b._DNDarray__array.type(t_outer_dtype)
+            t_b = b.larray.type(t_outer_dtype)
         if split is None:
             # Split semantics: default out.split = a.split
             split = a.split
@@ -1051,32 +992,35 @@ def outer(a, b, out=None, split=None):
         t_outer = torch.einsum("i,j->ij", t_a, t_b)
         split = None
 
-    outer = dndarray.DNDarray(
-        t_outer, gshape=outer_gshape, dtype=outer_dtype, split=split, device=a.device, comm=a.comm
+    outer = DNDarray(
+        t_outer,
+        gshape=outer_gshape,
+        dtype=outer_dtype,
+        split=split,
+        device=a.device,
+        comm=a.comm,
+        balanced=True,
     )
 
     if out is not None:
-        out._DNDarray__array = outer._DNDarray__array
+        out.larray = outer.larray.type(t_out_dtype)
         return out
 
     return outer
 
 
-def projection(a, b):
+def projection(a: DNDarray, b: DNDarray) -> DNDarray:
     """
-    Projection of vector a onto vector b
+    Projection of vector ``a`` onto vector ``b``
 
     Parameters
     ----------
-    a : ht.DNDarray (1D)
-    b : ht.DNDarray (1D)
-
-    Returns
-    -------
-    ht.DNDarray
-        Returns the vector projection of b in the direction of a
+    a : DNDarray
+        The vector to be projected. Must be a 1D ``DNDarray``
+    b : DNDarray
+        The vector to project onto. Must be a 1D ``DNDarray``
     """
-    if not isinstance(a, dndarray.DNDarray) or not isinstance(b, dndarray.DNDarray):
+    if not isinstance(a, DNDarray) or not isinstance(b, DNDarray):
         raise TypeError(
             "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
         )
@@ -1089,26 +1033,441 @@ def projection(a, b):
     return (dot(a, b) / dot(b, b)) * b
 
 
-def transpose(a, axes=None):
+def trace(
+    a: DNDarray,
+    offset: Optional[int] = 0,
+    axis1: Optional[int] = 0,
+    axis2: Optional[int] = 1,
+    dtype: Optional[types.datatype] = None,
+    out: Optional[DNDarray] = None,
+) -> Union[DNDarray, float]:
     """
 
-    Permute the dimensions of an array.
+    Return the sum along diagonals of the array
+
+    If `a` is 2D, the sum along its diagonal with the given offset is returned, i.e. the sum of
+    elements a[i, i+offset] for all i.
+
+    If `a` has more than two dimensions, then the axes specified by `axis1` and `axis2` are used
+    to determine the 2D-sub-DNDarrays whose traces are returned.
+    The shape of the resulting array is the same as that of `a` with `axis1` and `axis2` removed.
 
     Parameters
     ----------
     a : array_like
-        Input array.
-    axes : None or list of ints, optional
-        By default, reverse the dimensions, otherwise permute the axes according to the values given.
+        Input array, from which the diagonals are taken
+    offset : int, optional
+        Offsets of the diagonal from the main diagonal. Can be both positive and negative. Defaults to 0.
+    axis1: int, optional
+        Axis to be used as the first axis of the 2D-sub-arrays from which the diagonals
+        should be taken. Default is the first axis of `a`
+    axis2 : int, optional
+        Axis to be used as the second axis of the 2D-sub-arrays from which the diagonals
+        should be taken. Default is the second two axis of `a`
+    dtype : dtype, optional
+        Determines the data-type of the returned array and of the accumulator where the elements are
+        summed. If `dtype` has value None than the dtype is the same as that of `a`
+    out: ht.DNDarray, optional
+        Array into which the output is placed. Its type is preserved and it must be of the right shape
+        to hold the output
+        Only applicable if `a` has more than 2 dimensions, thus the result is not a scalar.
+        If distributed, its split axis might change eventually.
 
     Returns
     -------
-    p : ht.DNDarray
-        a with its axes permuted.
+    sum_along_diagonals : number (of defined dtype) or ht.DNDarray
+        If `a` is 2D, the sum along the diagonal is returned as a scalar
+        If `a` has more than 2 dimensions, then a DNDarray of sums along diagonals is returned
+
+    Examples
+    --------
+    2D-case
+    >>> x = ht.arange(24).reshape((4, 6))
+    >>> x
+        DNDarray([[ 0,  1,  2,  3,  4,  5],
+                  [ 6,  7,  8,  9, 10, 11],
+                  [12, 13, 14, 15, 16, 17],
+                  [18, 19, 20, 21, 22, 23]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.trace(x)
+        42
+    >>> ht.trace(x, 1)
+        46
+    >>> ht.trace(x, -2)
+        31
+
+    > 2D-case
+    >>> x = x.reshape((2, 3, 4))
+    >>> x
+        DNDarray([[[ 0,  1,  2,  3],
+                   [ 4,  5,  6,  7],
+                   [ 8,  9, 10, 11]],
+
+                  [[12, 13, 14, 15],
+                   [16, 17, 18, 19],
+                   [20, 21, 22, 23]]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.trace(x)
+        DNDarray([16, 18, 20, 22], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.trace(x, 1)
+        DNDarray([24, 26, 28, 30], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.trace(x, axis1=0, axis2=2)
+        DNDarray([13, 21, 29], dtype=ht.int32, device=cpu:0, split=None)
+    """
+    # ----------------------------------------------------------------------------
+    # SANITATION
+    # ----------------------------------------------------------------------------
+    if not isinstance(a, (DNDarray, torch.Tensor, np.ndarray, list, tuple)):
+        raise TypeError(
+            f"`a` must be a DNDarray, torch.Tensor, np.ndarray, list or tuple, is {type(a)}"
+        )
+    # cast input `a` to DNDarray
+    elif not isinstance(a, DNDarray):
+        a = factories.array(a)
+
+    # assure correct dimensionality of input
+    if len(a.lshape) < 2:
+        raise ValueError(f"`a` must contain at least 2 dimensions, not {len(a.lshape)}")
+
+    # sanitize axis1, axis2
+    if not isinstance(axis1, int):
+        raise TypeError(f"`axis1` must be integer, not {type(axis1)}")
+    if not isinstance(axis2, int):
+        raise TypeError(f"`axis2` must be integer, not {type(axis2)}")
+
+    # translate negative to positive indexing (trace axes)
+    if axis1 < 0:
+        axis1 = axis1 % a.ndim
+    if axis2 < 0:
+        axis2 = axis2 % a.ndim
+
+    if axis1 == axis2:
+        raise ValueError(f"axis1 ({axis1}) and axis2 ({axis2}) cannot be the same.")
+    if axis1 >= a.ndim:
+        raise ValueError(f"`axis1` ({axis1}) out of bounds for {a.ndim}-dimensional array.")
+    if axis2 >= a.ndim:
+        raise ValueError(f"`axis2` ({axis2}) out of bounds for {a.ndim}-dimensional array.")
+
+    # sanitize offset
+    if not isinstance(offset, int):
+        raise TypeError(f"`offset` must be an integer, not {type(offset)}")
+
+    # sanitize dtype
+    try:
+        if dtype is None:
+            dtype = a.dtype
+        else:
+            dtype = types.canonical_heat_type(dtype)
+    except TypeError:  # type cannot be converted to ht.type
+        raise ValueError(f"`dtype` must be a datatype or None, not {type(dtype)}")
+
+    # sanitize out
+    if out is not None:
+        if not isinstance(out, DNDarray):
+            raise TypeError(f"`out` must be a ht.DNDarray or None not {type(out)}")
+        elif a.ndim == 2:
+            raise ValueError(
+                "`out` is not applicable if result is a scalar / input `a` is 2-dimensional"
+            )
+
+    # ----------------------------------------------------------------------------
+    # ALGORITHM
+    # ----------------------------------------------------------------------------
+    # ---------------------------------------------
+    # CASE 2D input (ignore axis1, axis) => scalar
+    # ---------------------------------------------
+    if a.ndim == 2:
+        # CASE 1.1: offset results into an empty array
+        if offset <= -a.gshape[0] or offset >= a.gshape[1]:
+            sum_along_diagonals_t = torch.tensor(
+                0, dtype=dtype.torch_type(), device=a.device.torch_device
+            )
+
+        # CASE 1.2: non-zero array, call torch.trace on concerned sub-DNDarray
+        else:
+            # determine the additional offset created by distribution of `a`
+            a_sub = a
+            if a.is_distributed():
+                offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
+                if a.split == 0:
+                    offset += offset_split
+                # a.split == 1
+                else:
+                    offset -= offset_split
+
+            # Calculate resulting/concerned sub-array `a_sub`
+            if offset > 0:
+                offset = min(offset, a_sub.lshape[1])
+                a_sub = factories.array(
+                    a_sub.larray[:, offset:], device=a_sub.device, comm=a_sub.comm
+                )
+            elif offset < 0:
+                offset = min(-offset, a_sub.lshape[0])
+                a_sub = factories.array(
+                    a_sub.larray[offset:, :], device=a_sub.device, comm=a_sub.comm
+                )
+
+            # calculate trace /partial sum on that sub-array
+            if 0 not in a_sub.lshape:
+                sum_along_diagonals_t = torch.trace(a_sub.larray)
+
+                # make sure result is of correct dtype
+                sum_along_diagonals_t = sum_along_diagonals_t.type(dtype.torch_type())
+
+            # empty array => result = 0
+            else:
+                sum_along_diagonals_t = torch.tensor(
+                    0, dtype=dtype.torch_type(), device=a_sub.device.torch_device
+                )
+
+        # sum up all partial sums
+        if a.is_distributed():
+            a.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
+
+        # convert resulting 0-d tensor to (python) scalar
+        return sum_along_diagonals_t.item()
+
+    # -------------------------------
+    # CASE > 2D => DNDArray
+    # -------------------------------
+
+    # sanitize axis1, axis2 (make sure axis1 < axis2)
+    if axis1 > axis2:
+        tmp = axis1
+        axis1 = axis2
+        axis2 = tmp
+
+    # ----------------------------------
+    # CASE split axis NOT IN trace axes
+    # ----------------------------------
+    # compute each diagonal sum
+    if not (a.is_distributed() and a.split in (axis1, axis2)):
+        # extract diagonals
+        diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+
+        # sum them up along the last axis (and convert to given dtype)
+        last_axis = diag_t.ndim - 1
+        sum_along_diagonals_t = torch.sum(diag_t, last_axis, dtype=dtype.torch_type())
+    # -----------------------------
+    # CASE split axis IN trace axes
+    # -----------------------------
+    else:
+        # combination that would NOT result into array of zeros
+        if -offset < a.gshape[axis1] or offset < a.gshape[axis2]:
+            # adapt the offset to distribution
+            # (to result into required diagonal elements on each process)
+            offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
+
+            if a.split == axis1:
+                offset += offset_split
+            else:  # a.split == axis2
+                offset -= offset_split
+
+        diag_t = torch.diagonal(a.larray, offset=offset, dim1=axis1, dim2=axis2)
+
+        # empty diagonal => create an array of zeros for following summation
+        if 0 in diag_t.shape:
+            res_shape = [1 if i == 0 else i for i in diag_t.shape]
+            diag_t = torch.zeros(res_shape, device=a.device.torch_device)
+
+        # create recvbuffer (with correct resulting shape)
+        sum_along_diagonals_t = torch.clone(diag_t)
+        res_shape = list(sum_along_diagonals_t.shape)
+        del res_shape[-1]  # as summed up along the last axis
+        sum_along_diagonals_t = torch.reshape(sum_along_diagonals_t, res_shape)
+
+        # Sum up all partial sums (and gather them)
+        # in out
+        if out is not None:
+            result_array = out
+        # in a
+        else:
+            result_array = a
+
+        result_array.comm.Allreduce(MPI.IN_PLACE, sum_along_diagonals_t, MPI.SUM)
+
+        if result_array.split is None:
+            split_axis = None
+        else:
+            last_axis = sum_along_diagonals_t.ndim - 1
+            split_axis = result_array.split if result_array.split <= last_axis else last_axis
+
+        sum_along_diagonals = factories.array(
+            sum_along_diagonals_t,
+            dtype=dtype,
+            split=split_axis,
+            comm=result_array.comm,
+            device=result_array.device,
+        )
+
+        if out is not None:
+            sanitation.sanitize_out(out, tuple(res_shape), out.split, out.device)
+            out.larray = sum_along_diagonals.larray
+
+        return sum_along_diagonals
+
+    if a.is_distributed():
+        # (...and a.split not in (axis1, axis2))
+        if a.split < axis2:
+            gather_axis = a.split
+        else:
+            gather_axis = a.split - 2
+
+        # check if gather_axis is in range of result
+        if gather_axis >= sum_along_diagonals_t.ndim:
+            gather_axis = sum_along_diagonals_t.ndim - 1
+
+        # Stack all partial results back together along the correct axis
+        sum_along_diagonals = factories.array(
+            sum_along_diagonals_t, dtype=dtype, is_split=gather_axis, comm=a.comm, device=a.device
+        )
+    # input not distributed
+    else:
+        # check if split axis is in range of result
+        if a.split is not None and a.split >= sum_along_diagonals_t.ndim:
+            gather_axis = sum_along_diagonals_t.ndim - 1
+        else:
+            gather_axis = a.split
+
+        # convert torch result back to DNDarray
+        sum_along_diagonals = factories.array(
+            sum_along_diagonals_t, dtype=dtype, split=gather_axis, comm=a.comm, device=a.device
+        )
+
+    if out is not None:
+        # resplit to guarantee correct results
+        if out.split != gather_axis:
+            warnings.warn(
+                f"Split axis of `out` will be changed from {out.split} to {gather_axis} to "
+                f"guarantee correct results."
+            )
+            out.resplit_(gather_axis)
+        # sanitize out
+        output_gshape = list(a.gshape)
+        del output_gshape[axis1], output_gshape[axis2 - 1]
+        sanitation.sanitize_out(out, tuple(output_gshape), gather_axis, out.device)
+
+        # store result
+        out.larray = sum_along_diagonals_t
+        return out
+
+    return sum_along_diagonals
+
+
+# inline function
+DNDarray.trace: Callable[
+    [
+        DNDarray,
+        Optional[int],
+        Optional[int],
+        Optional[int],
+        Optional[types.datatype],
+        Optional[DNDarray],
+    ],
+    Union[DNDarray, float],
+] = lambda self, offset=0, axis1=0, axis2=1, dtype=None, out=None: trace(
+    self, offset, axis1, axis2, dtype, out
+)
+DNDarray.trace.__doc__ = trace.__doc__
+
+
+@torch.jit.script
+def __mm_c_block_setter(
+    b_proc: int,
+    a_proc: int,
+    a_data: torch.Tensor,
+    b_data: torch.Tensor,
+    b_block_map: torch.Tensor,
+    a_block_map: torch.Tensor,
+    b_split: int,
+    a_split: int,
+    mB: int,
+    kB: int,
+    nB: int,
+    c: torch.Tensor,
+) -> None:
+    """
+    Helper function for multiplying elements of A and B (see :func:'matmul <matmul>') and putting the results into the
+    correct place in C.
+
+    Parameters
+    ----------
+    b_proc : int
+        process with the data for the data for element b
+    a_proc : int
+        process with the data for the data for element a
+    a_data : torch.Tensor
+        data from A
+    b_data : torch.Tensor
+        data from B
+    b_block_map : torch.Tensor
+        block map for B
+    a_block_map : torch.Tensor
+        block map for A
+    b_split : int
+        split of B
+    a_split : int
+        split of A
+    mB : int
+        block size of m
+    kB : int
+        block size of K
+    nB : int
+        block size of n
+    c : torch.Tensor
+        the local data for C
+    """
+    # # (int, int, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int, int, int, int, torch.Tensor) -> None
+    shp_b = b_block_map.shape
+    offset_a = b_proc * shp_b[1] if b_proc != 0 else 0
+    shp_a = a_block_map.shape
+    offset_b = a_proc * shp_a[2] if a_proc != 0 else 0
+    # offsets are the number of blocks in the multiplication direction on previous nodes
+    # print(a_block_map[a_proc].shape[0])
+    for bl_1_a in (
+        torch.arange(offset_a, offset_a + shp_b[1], dtype=torch.long, device=c.device)
+        if b_split == 0
+        else torch.arange(a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device)
+    ):
+        # offset is the number of blocks on the previous node in the direction of multiplication
+        for bl_0_a in torch.arange(
+            a_block_map[a_proc].shape[0], dtype=torch.long, device=c.device
+        ):  # dim0
+            for bl_1_b in torch.arange(
+                b_block_map[b_proc].shape[1], dtype=torch.long, device=c.device
+            ):
+                for bl_0_b in (
+                    torch.arange(offset_b, offset_b + shp_a[1], dtype=torch.long, device=c.device)
+                    if a_split == 1
+                    else torch.arange(
+                        b_block_map[b_proc].shape[0], dtype=torch.long, device=c.device
+                    )
+                ):
+                    # this offset is the same as before but for b
+                    a_start1 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 1].item())
+                    a_start0 = int(a_block_map[a_proc, bl_0_a, bl_1_a, 0].item())
+                    a_block = a_data[a_start0 : a_start0 + mB, a_start1 : a_start1 + kB]
+
+                    b_start0 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 0].item())
+                    b_start1 = int(b_block_map[b_proc, bl_0_b, bl_1_b, 1].item())
+                    b_block = b_data[b_start0 : b_start0 + kB, b_start1 : b_start1 + nB]
+
+                    c_start0 = a_start0
+                    c_start1 = b_start1
+                    c[c_start0 : c_start0 + mB, c_start1 : c_start1 + nB] += a_block @ b_block
+
+
+def transpose(a: DNDarray, axes: Optional[List[int]] = None) -> DNDarray:
+    """
+    Permute the dimensions of an array.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axes : None or List[int,...], optional
+        By default, reverse the dimensions, otherwise permute the axes according to the values given.
     """
     # type check the input tensor
-    if not isinstance(a, dndarray.DNDarray):
-        raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
+    sanitation.sanitize_in(a)
 
     # set default value for axes permutations
     dimensions = len(a.shape)
@@ -1138,47 +1497,54 @@ def transpose(a, axes=None):
 
     # try to rearrange the tensor and return a new transposed variant
     try:
-        transposed_data = a._DNDarray__array.permute(*axes)
+        transposed_data = a.larray.permute(*axes)
         transposed_shape = tuple(a.shape[axis] for axis in axes)
 
-        return dndarray.DNDarray(
-            transposed_data, transposed_shape, a.dtype, transposed_split, a.device, a.comm
+        return DNDarray(
+            transposed_data,
+            transposed_shape,
+            a.dtype,
+            transposed_split,
+            a.device,
+            a.comm,
+            a.balanced,
         )
     # if not possible re- raise any torch exception as ValueError
     except (RuntimeError, IndexError) as exception:
         raise ValueError(str(exception))
 
 
+DNDarray.transpose: Callable[[DNDarray, List[int]], DNDarray] = lambda self, axes=None: transpose(
+    self, axes
+)
+DNDarray.transpose.__doc__ = transpose.__doc__
+
+DNDarray.T = property(transpose)
+
 # statically allocated index slices for non-iterable dimensions in triangular operations
 __index_base = (slice(None), slice(None))
 
 
-def __tri_op(m, k, op):
+def __tri_op(m: DNDarray, k: int, op: Callable) -> DNDarray:
     """
-    Generic implementation of triangle operations on tensors. It takes care of input sanitation and non-standard
+    Generic implementation of triangle operations on a ``DNDarray``. It takes care of input sanitation and non-standard
     broadcast behavior of the 2D triangle-operators.
 
     Parameters
     ----------
-    m : ht.DNDarray
-        Input tensor for which to compute the triangle operator.
+    m : DNDarray
+        Input array for which to compute the triangle operator.
     k : int, optional
-        Diagonal above which to apply the triangle operator, k<0 is below and k>0 is above.
+        Diagonal above which to apply the triangle operator, ``k<0`` is below and ``k>0`` is above.
     op : callable
         Implementation of the triangle operator.
-
-    Returns
-    -------
-    triangle_tensor : ht.DNDarray
-        DNDarray with the applied triangle operation
 
     Raises
     ------
     TypeError
         If the input is not a tensor or the diagonal offset cannot be converted to an integral value.
     """
-    if not isinstance(m, dndarray.DNDarray):
-        raise TypeError("Expected m to be a tensor but was {}".format(type(m)))
+    sanitation.sanitize_in(m)
 
     try:
         k = int(k)
@@ -1191,20 +1557,21 @@ def __tri_op(m, k, op):
 
     # manually repeat the input for vectors
     if dimensions == 1:
-        triangle = m._DNDarray__array.expand(m.shape[0], -1)
+        triangle = m.larray.expand(m.shape[0], -1)
         if torch.numel(triangle > 0):
             triangle = op(triangle, k - offset)
 
-        return dndarray.DNDarray(
+        return DNDarray(
             triangle,
             (m.shape[0], m.shape[0]),
             m.dtype,
             None if m.split is None else 1,
             m.device,
             m.comm,
+            m.balanced,
         )
 
-    original = m._DNDarray__array
+    original = m.larray
     output = original.clone()
 
     # modify k to account for tensor splits
@@ -1225,54 +1592,49 @@ def __tri_op(m, k, op):
             index = partial_index + __index_base
             op(original[index], k, out=output[index])
 
-    return dndarray.DNDarray(output, m.shape, m.dtype, m.split, m.device, m.comm)
+    return DNDarray(output, m.shape, m.dtype, m.split, m.device, m.comm, m.balanced)
 
 
-def tril(m, k=0):
+def tril(m: DNDarray, k: int = 0) -> DNDarray:
     """
-    Returns the lower triangular part of the tensor, the other elements of the result tensor are set to 0.
-
-    The lower triangular part of the tensor is defined as the elements on and below the diagonal.
-
-    The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
+    Returns the lower triangular part of the ``DNDarray``.
+    The lower triangular part of the array is defined as the elements on and below the diagonal, the other elements of
+    the result array are set to 0.
+    The argument ``k`` controls which diagonal to consider. If ``k=0``, all elements on and below the main diagonal are
     retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
     value excludes just as many diagonals below the main diagonal.
 
     Parameters
     ----------
-    m : ht.DNDarray
-        Input tensor for which to compute the lower triangle.
+    m : DNDarray
+        Input array for which to compute the lower triangle.
     k : int, optional
-        Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
-
-    Returns
-    -------
-    lower_triangle : ht.DNDarray
-        Lower triangle of the input tensor.
+        Diagonal above which to zero elements. ``k=0`` (default) is the main diagonal, ``k<0`` is below and ``k>0`` is above.
     """
     return __tri_op(m, k, torch.tril)
 
 
-def triu(m, k=0):
+DNDarray.tril: Callable[[DNDarray, int], DNDarray] = lambda self, k=0: tril(self, k)
+DNDarray.tril.__doc__ = tril.__doc__
+
+
+def triu(m: DNDarray, k: int = 0) -> DNDarray:
     """
-    Returns the upper triangular part of the tensor, the other elements of the result tensor are set to 0.
-
-    The upper triangular part of the tensor is defined as the elements on and below the diagonal.
-
-    The argument k controls which diagonal to consider. If k=0, all elements on and below the main diagonal are
+    Returns the upper triangular part of the ``DNDarray``.
+    The upper triangular part of the array is defined as the elements on and below the diagonal, the other elements of the result array are set to 0.
+    The argument ``k`` controls which diagonal to consider. If ``k=0``, all elements on and below the main diagonal are
     retained. A positive value includes just as many diagonals above the main diagonal, and similarly a negative
     value excludes just as many diagonals below the main diagonal.
 
     Parameters
     ----------
-    m : ht.DNDarray
-        Input tensor for which to compute the upper triangle.
+    m : DNDarray
+        Input array for which to compute the upper triangle.
     k : int, optional
-        Diagonal above which to zero elements. k=0 (default) is the main diagonal, k<0 is below and k>0 is above.
-
-    Returns
-    -------
-    upper_triangle : ht.DNDarray
-        Upper triangle of the input tensor.
+        Diagonal above which to zero elements. ``k=0`` (default) is the main diagonal, ``k<0`` is below and ``k>0`` is above.
     """
     return __tri_op(m, k, torch.triu)
+
+
+DNDarray.triu: Callable[[DNDarray, int], DNDarray] = lambda self, k=0: triu(self, k)
+DNDarray.triu.__doc__ = triu.__doc__

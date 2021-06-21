@@ -381,6 +381,19 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, None)
 
+            a = ht.ones((n, m), split=None, dtype=ht.int64)
+            b = ht.ones((j), split=None, dtype=ht.int64)
+            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
+            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
+            self.assertTrue(ht.equal(ret00, ret_comp))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n,))
+            self.assertEqual(ret00.dtype, ht.int64)
+            self.assertEqual(ret00.split, None)
+
             # splits 0 None
             a = ht.ones((n, m), split=0)
             b = ht.ones((j), split=None)
@@ -393,6 +406,19 @@ class TestLinalgBasics(TestCase):
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n,))
             self.assertEqual(ret00.dtype, ht.float)
+            self.assertEqual(ret00.split, 0)
+
+            a = ht.ones((n, m), split=0, dtype=ht.int64)
+            b = ht.ones((j), split=None, dtype=ht.int64)
+            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
+            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
+            self.assertTrue(ht.equal(ret00, ret_comp))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n,))
+            self.assertEqual(ret00.dtype, ht.int64)
             self.assertEqual(ret00.split, 0)
 
             # splits 1 None
@@ -409,6 +435,19 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
+            a = ht.ones((n, m), split=1, dtype=ht.int64)
+            b = ht.ones((j), split=None, dtype=ht.int64)
+            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
+            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
+            self.assertTrue(ht.equal(ret00, ret_comp))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n,))
+            self.assertEqual(ret00.dtype, ht.int64)
+            self.assertEqual(ret00.split, 0)
+
             # splits None 0
             a = ht.ones((n, m), split=None)
             b = ht.ones((j), split=0)
@@ -421,6 +460,19 @@ class TestLinalgBasics(TestCase):
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n,))
             self.assertEqual(ret00.dtype, ht.float)
+            self.assertEqual(ret00.split, 0)
+
+            a = ht.ones((n, m), split=None, dtype=ht.int64)
+            b = ht.ones((j), split=0, dtype=ht.int64)
+            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
+            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
+            self.assertTrue(ht.equal(ret00, ret_comp))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n,))
+            self.assertEqual(ret00.dtype, ht.int64)
             self.assertEqual(ret00.split, 0)
 
             # splits 0 0
@@ -437,6 +489,19 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret00.dtype, ht.float)
             self.assertEqual(ret00.split, 0)
 
+            a = ht.ones((n, m), split=0, dtype=ht.int64)
+            b = ht.ones((j), split=0, dtype=ht.int64)
+            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
+            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
+            self.assertTrue(ht.equal(ret00, ret_comp))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n,))
+            self.assertEqual(ret00.dtype, ht.int64)
+            self.assertEqual(ret00.split, 0)
+
             # splits 1 0
             a = ht.ones((n, m), split=1)
             b = ht.ones((j), split=0)
@@ -449,6 +514,19 @@ class TestLinalgBasics(TestCase):
             self.assertIsInstance(ret00, ht.DNDarray)
             self.assertEqual(ret00.shape, (n,))
             self.assertEqual(ret00.dtype, ht.float)
+            self.assertEqual(ret00.split, 0)
+
+            a = ht.ones((n, m), split=1, dtype=ht.int64)
+            b = ht.ones((j), split=0, dtype=ht.int64)
+            a[0] = ht.arange(1, m + 1, dtype=ht.int64)
+            a[:, -1] = ht.arange(1, n + 1, dtype=ht.int64)
+            ret00 = ht.matmul(a, b)
+
+            ret_comp = ht.array((a_torch @ b_torch), split=None)
+            self.assertTrue(ht.equal(ret00, ret_comp))
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n,))
+            self.assertEqual(ret00.dtype, ht.int64)
             self.assertEqual(ret00.split, 0)
 
             with self.assertRaises(NotImplementedError):
@@ -485,9 +563,9 @@ class TestLinalgBasics(TestCase):
         b = ht.arange(8, dtype=ht.float32)
         ht_outer = ht.outer(a, b, split=None)
         np_outer = np.outer(a.numpy(), b.numpy())
-        t_outer = torch.einsum("i,j->ij", a._DNDarray__array, b._DNDarray__array)
+        t_outer = torch.einsum("i,j->ij", a.larray, b.larray)
         self.assertTrue((ht_outer.numpy() == np_outer).all())
-        self.assertTrue(ht_outer._DNDarray__array.dtype is t_outer.dtype)
+        self.assertTrue(ht_outer.larray.dtype is t_outer.dtype)
 
         # test outer, a and b distributed, no data on some ranks
         a_split = ht.arange(3, dtype=ht.float32, split=0)
@@ -496,30 +574,30 @@ class TestLinalgBasics(TestCase):
 
         # a and b split 0, outer split 1
         ht_outer_split = ht.outer(a_split, b_split, split=1)
-        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 1)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # a and b distributed, outer split unspecified
         ht_outer_split = ht.outer(a_split, b_split, split=None)
-        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 0)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # a not distributed, outer.split = 1
         ht_outer_split = ht.outer(a, b_split, split=1)
-        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 1)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # b not distributed, outer.split = 0
         ht_outer_split = ht.outer(a_split, b, split=0)
-        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 0)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # a_split.ndim > 1 and a.split != 0
         a_split_3d = ht.random.randn(3, 3, 3, dtype=ht.float64, split=2)
         ht_outer_split = ht.outer(a_split_3d, b_split)
         np_outer_3d = np.outer(a_split_3d.numpy(), b_split.numpy())
-        self.assertTrue((ht_outer_split.numpy() == np_outer_3d).all())
         self.assertTrue(ht_outer_split.split == 0)
+        self.assertTrue((ht_outer_split.numpy() == np_outer_3d).all())
 
         # write to out buffer
         ht_out = ht.empty((a.gshape[0], b.gshape[0]), dtype=ht.float32)
@@ -542,9 +620,6 @@ class TestLinalgBasics(TestCase):
         t_out = torch.empty((a.gshape[0], b.gshape[0]), dtype=torch.float32)
         with self.assertRaises(TypeError):
             ht.outer(a, b, out=t_out)
-        ht_out_wrong_dtype = ht.empty((a.gshape[0], b.gshape[0]), dtype=ht.float64)
-        with self.assertRaises(TypeError):
-            ht.outer(a, b, out=ht_out_wrong_dtype)
         ht_out_wrong_shape = ht.empty((7, b.gshape[0]), dtype=ht.float32)
         with self.assertRaises(ValueError):
             ht.outer(a, b, out=ht_out_wrong_shape)
@@ -577,6 +652,515 @@ class TestLinalgBasics(TestCase):
         with self.assertRaises(RuntimeError):
             ht.linalg.projection(a, e1)
 
+    def test_trace(self):
+        # ------------------------------------------------
+        # UNDISTRIBUTED CASE
+        # ------------------------------------------------
+        # CASE 2-D
+        # ------------------------------------------------
+        x = ht.arange(24).reshape((6, 4))
+        x_np = x.numpy()
+        dtype = ht.float32
+
+        result = ht.trace(x)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # direct call
+        result = x.trace()
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist())
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # dtype
+        result = ht.trace(x, dtype=dtype)
+        result_np = np.trace(x_np, dtype=np.float32)
+        self.assertIsInstance(result, float)
+        self.assertEqual(result, result_np)
+
+        # offset != 0
+        # negative offset
+        o = -(x.gshape[0] - 1)
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # positive offset
+        o = x.gshape[1] - 1
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # offset resulting into empty array
+        # negative
+        o = -x.gshape[0]
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, 0)
+        self.assertEqual(result, result_np)
+
+        # positive
+        o = x.gshape[1]
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, 0)
+        self.assertEqual(result, result_np)
+
+        # Exceptions
+        with self.assertRaises(TypeError):
+            x = "[[1, 2], [3, 4]]"
+            ht.trace(x)
+        with self.assertRaises(ValueError):
+            x = ht.arange(24)
+            ht.trace(x)
+        with self.assertRaises(TypeError):
+            x = ht.arange(24).reshape((6, 4))
+            ht.trace(x, axis1=0.2)
+        with self.assertRaises(TypeError):
+            ht.trace(x, axis2=1.4)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis1=2)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis2=2)
+        with self.assertRaises(TypeError):
+            ht.trace(x, offset=1.2)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis1=1, axis2=1)
+        with self.assertRaises(ValueError):
+            ht.trace(x, dtype="ht.int64")
+        with self.assertRaises(TypeError):
+            ht.trace(x, out=[])
+        with self.assertRaises(ValueError):
+            # As result is scalar
+            out = ht.array([])
+            ht.trace(x, out=out)
+        with self.assertRaises(ValueError):
+            ht.trace(x, dtype="ht.float32")
+
+        # ------------------------------------------------
+        # CASE > 2-D (4D)
+        # ------------------------------------------------
+        x = ht.arange(24).reshape((1, 2, 3, 4))
+        x_np = x.numpy()
+        out = ht.empty((3, 4))
+        axis1 = 1
+        axis2 = 3
+
+        result = ht.trace(x)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist())
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # out
+        result = ht.trace(x, out=out)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+        self.assert_array_equal(out, result_np)
+
+        result = ht.trace(x, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # reversed axes order
+        result = ht.trace(x, axis1=axis2, axis2=axis1)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # negative axes
+        axis1 = 1
+        axis2 = 2
+        result = ht.trace(x, axis1=axis1, axis2=-axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=-axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        result = ht.trace(x, axis1=-axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=-axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        result = ht.trace(x, axis1=-axis1, axis2=-axis2)
+        result_np = np.trace(x_np, axis1=-axis1, axis2=-axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # different axes
+        axis1 = 1
+        axis2 = 2
+        o = 0
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2, dtype=dtype)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2, dtype=np.float32)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset != 0
+        # negative offset
+        o = -(x.gshape[0] - 1)
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # positive offset
+        o = x.gshape[1] - 1
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset resulting into zero array
+        axis1 = 1
+        axis2 = 2
+        # negative
+        o = -x.gshape[axis1]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros((1, 4)))
+        self.assert_array_equal(result, result_np)
+
+        # positive
+        o = x.gshape[axis2]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros((1, 4)))
+        self.assert_array_equal(result, result_np)
+
+        # Exceptions
+        with self.assertRaises(ValueError):
+            out = ht.array([])
+            ht.trace(x, out=out)
+
+        # ------------------------------------------------
+        # DISTRIBUTED CASE
+        # ------------------------------------------------
+        # CASE 2-D
+        # ------------------------------------------------
+        x = ht.arange(24, split=0).reshape((6, 4))
+        x_np = np.arange(24).reshape((6, 4))
+        dtype = ht.float32
+
+        result = ht.trace(x)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # different split axis
+        x_2 = ht.array(torch.arange(24).reshape((6, 4)), split=1)
+        result = ht.trace(x_2)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist())
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # dtype
+        result = ht.trace(x, dtype=dtype)
+        result_np = np.trace(x_np, dtype=np.float32)
+        self.assertIsInstance(result, float)
+        self.assertEqual(result, result_np)
+
+        # offset != 0
+        # negative offset
+        o = -(x.gshape[0] - 1)
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # positive offset
+        o = x.gshape[1] - 1
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # offset resulting into empty array
+        # negative
+        o = -x.gshape[0]
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, 0)
+        self.assertEqual(result, result_np)
+
+        # positive
+        o = x.gshape[1]
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, 0)
+        self.assertEqual(result, result_np)
+
+        # Exceptions
+        with self.assertRaises(TypeError):
+            x = "[[1, 2], [3, 4]]"
+            ht.trace(x)
+        with self.assertRaises(ValueError):
+            x = ht.arange(24)
+            ht.trace(x)
+        with self.assertRaises(TypeError):
+            x = ht.arange(24).reshape((6, 4))
+            ht.trace(x, axis1=0.2)
+        with self.assertRaises(TypeError):
+            ht.trace(x, axis2=1.4)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis1=2)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis2=2)
+        with self.assertRaises(TypeError):
+            ht.trace(x, offset=1.2)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis1=1, axis2=1)
+        with self.assertRaises(ValueError):
+            ht.trace(x, dtype="ht.int64")
+        with self.assertRaises(TypeError):
+            ht.trace(x, out=[])
+        with self.assertRaises(ValueError):
+            # As result is scalar
+            out = ht.array([])
+            ht.trace(x, out=out)
+
+        # ------------------------------------------------
+        # CASE > 2-D (4D)
+        # ------------------------------------------------
+        x = ht.arange(24, split=0).reshape((1, 2, 3, 4))
+        x_np = x.numpy()
+        # ------------------------------------------------
+        # CASE split axis NOT in (axis1, axis2)
+        # ------------------------------------------------
+        axis1 = 1
+        axis2 = 2
+        out = ht.empty((1, 4), split=0, dtype=x.dtype)
+
+        result = ht.trace(x, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist(), axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # out
+        result = ht.trace(x, out=out, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+        self.assert_array_equal(out, result_np)
+
+        # reversed axes order
+        result = ht.trace(x, axis1=axis2, axis2=axis1)
+        result_np = np.trace(x_np, axis1=axis2, axis2=axis1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # different axes (still not in x.split = 0)
+        axis1 = 1
+        axis2 = 3
+        result = ht.trace(x, offset=0, axis1=axis1, axis2=axis2, dtype=dtype)
+        result_np = np.trace(x_np, offset=0, axis1=axis1, axis2=axis2, dtype=np.float32)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # negative axes
+        axis1 = 1
+        axis2 = 2
+        result = ht.trace(x, axis1=axis1, axis2=-axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=-axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        result = ht.trace(x, axis1=-axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=-axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        result = ht.trace(x, axis1=-axis1, axis2=-axis2)
+        result_np = np.trace(x_np, axis1=-axis1, axis2=-axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset != 0
+        # negative offset
+        axis1 = 1
+        axis2 = 2
+        o = -(x.gshape[axis1] - 1)
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # positive offset
+        o = x.gshape[axis2] - 1
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset resulting into zero array
+        axis1 = 1
+        axis2 = 2
+        # negative
+        o = -x.gshape[axis1]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros((1, 4)))
+        self.assert_array_equal(result, result_np)
+
+        # positive
+        o = x.gshape[axis2]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros((1, 4)))
+        self.assert_array_equal(result, result_np)
+
+        # different split axis (that is still not in (axis1, axis2))
+        x = ht.arange(24).reshape((1, 2, 3, 4, 1))
+        x = ht.array(x, split=2, dtype=dtype)
+        x_np = x.numpy()
+        axis1 = 0
+        axis2 = 1
+        out = ht.empty((3, 4, 1), split=2, dtype=x.dtype)
+        result = ht.trace(x, axis1=axis1, axis2=axis2, out=out)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+        self.assert_array_equal(out, result_np)
+
+        # different split axis (that is still not in (axis1, axis2))
+        x = ht.arange(24).reshape((1, 2, 3, 4, 1))
+        x = ht.array(x, split=3, dtype=dtype)
+        x_np = x.numpy()
+        axis1 = 2
+        axis2 = 4
+        out = ht.empty((1, 2, 4), split=1, dtype=x.dtype)
+        result = ht.trace(x, axis1=axis1, axis2=axis2, out=out)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # Exceptions
+        with self.assertRaises(ValueError):
+            out = ht.array([])
+            ht.trace(x, out=out, axis1=axis1, axis2=axis2)
+
+        # ------------------------------------------------
+        # CASE split axis IN (axis1, axis2)
+        # ------------------------------------------------
+        x = ht.arange(24).reshape((1, 2, 3, 4))
+        split_axis = 1
+        x = ht.array(x, split=split_axis, dtype=dtype)
+        x_np = x.numpy()
+        axis1 = 1
+        axis2 = 2
+        result_shape = list(x.gshape)
+        del result_shape[axis1], result_shape[axis2 - 1]
+        out = ht.empty(tuple(result_shape), split=split_axis, dtype=x.dtype)
+
+        result = ht.trace(x, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist(), axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # out
+        result = ht.trace(x, out=out, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+        self.assert_array_equal(out, result_np)
+
+        # reversed axes order
+        result = ht.trace(x, axis1=axis2, axis2=axis1)
+        result_np = np.trace(x_np, axis1=axis2, axis2=axis1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # axis2 = a.split
+        axis1 = 0
+        axis2 = 1
+        result = ht.trace(x, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset != 0
+        # negative offset
+        o = -(x.gshape[0] - 1)
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # positive offset
+        o = x.gshape[1] - 1
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # different axes
+        axis1 = 1
+        axis2 = 2
+        result_shape = list(x.gshape)
+        del result_shape[axis1], result_shape[axis2 - 1]
+        o = 0
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2, dtype=dtype)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2, dtype=np.float32)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset resulting into zero array
+        # negative
+        o = -x.gshape[axis1]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros(result_shape, dtype=result_np.dtype))
+        self.assert_array_equal(result, result_np)
+
+        # positive
+        o = x.gshape[axis2]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros(result_shape, dtype=result_np.dtype))
+        self.assert_array_equal(result, result_np)
+
+        # Exceptions
+        with self.assertRaises(ValueError):
+            out = ht.array([])
+            ht.trace(x, out=out, axis1=axis1, axis2=axis2)
+
     def test_transpose(self):
         # vector transpose, not distributed
         vector = ht.arange(10)
@@ -593,7 +1177,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(simple_matrix_t.dtype, ht.float32)
         self.assertEqual(simple_matrix_t.split, None)
         self.assertEqual(simple_matrix_t.shape, (4, 2))
-        self.assertEqual(simple_matrix_t._DNDarray__array.shape, (4, 2))
+        self.assertEqual(simple_matrix_t.larray.shape, (4, 2))
 
         # 4D array, not distributed, with given axis
         array_4d = ht.zeros((2, 3, 4, 5))
@@ -602,7 +1186,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(array_4d_t.dtype, ht.float32)
         self.assertEqual(array_4d_t.split, None)
         self.assertEqual(array_4d_t.shape, (5, 2, 4, 3))
-        self.assertEqual(array_4d_t._DNDarray__array.shape, (5, 2, 4, 3))
+        self.assertEqual(array_4d_t.larray.shape, (5, 2, 4, 3))
 
         # vector transpose, distributed
         vector_split = ht.arange(10, split=0)
@@ -660,7 +1244,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         # 1D case, positive offset, data is not split, module-level call
         result = ht.tril(local_ones, k=2)
@@ -669,7 +1253,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         # 1D case, negative offset, data is not split, module-level call
         result = ht.tril(local_ones, k=-2)
@@ -678,7 +1262,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         local_ones = ht.ones((4, 5))
 
@@ -689,7 +1273,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         # 2D case, positive offset, data is not split, method
         result = local_ones.tril(k=2)
@@ -698,7 +1282,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         # 2D case, negative offset, data is not split, method
         result = local_ones.tril(k=-2)
@@ -707,7 +1291,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         local_ones = ht.ones((3, 4, 5, 6))
 
@@ -720,7 +1304,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.split, None)
         for i in range(3):
             for j in range(4):
-                self.assertTrue((result._DNDarray__array[i, j] == comparison).all())
+                self.assertTrue((result.larray[i, j] == comparison).all())
 
         # 2D+ case, positive offset, data is not split, module-level call
         result = local_ones.tril(k=2)
@@ -731,7 +1315,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.split, None)
         for i in range(3):
             for j in range(4):
-                self.assertTrue((result._DNDarray__array[i, j] == comparison).all())
+                self.assertTrue((result.larray[i, j] == comparison).all())
 
         # # 2D+ case, negative offset, data is not split, module-level call
         result = local_ones.tril(k=-2)
@@ -742,7 +1326,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.split, None)
         for i in range(3):
             for j in range(4):
-                self.assertTrue((result._DNDarray__array[i, j] == comparison).all())
+                self.assertTrue((result.larray[i, j] == comparison).all())
 
         distributed_ones = ht.ones((5,), split=0)
 
@@ -755,9 +1339,9 @@ class TestLinalgBasics(TestCase):
         self.assertLessEqual(result.lshape[1], 5)
         self.assertTrue(result.sum(), 15)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 1)
+            self.assertTrue(result.larray[-1, 0] == 1)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[0, -1] == 0)
+            self.assertTrue(result.larray[0, -1] == 0)
 
         # 1D case, positive offset, data is split, method
         result = distributed_ones.tril(k=2)
@@ -768,9 +1352,9 @@ class TestLinalgBasics(TestCase):
         self.assertLessEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 22)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 1)
+            self.assertTrue(result.larray[-1, 0] == 1)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[0, -1] == 0)
+            self.assertTrue(result.larray[0, -1] == 0)
 
         # 1D case, negative offset, data is split, method
         result = distributed_ones.tril(k=-2)
@@ -781,9 +1365,9 @@ class TestLinalgBasics(TestCase):
         self.assertLessEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 6)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 1)
+            self.assertTrue(result.larray[-1, 0] == 1)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[0, -1] == 0)
+            self.assertTrue(result.larray[0, -1] == 0)
 
         distributed_ones = ht.ones((4, 5), split=0)
 
@@ -796,9 +1380,9 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 10)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[0, -1] == 0)
+            self.assertTrue(result.larray[0, -1] == 0)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 1)
+            self.assertTrue(result.larray[-1, 0] == 1)
 
         # 2D case, positive offset, data is horizontally split, method
         result = distributed_ones.tril(k=2)
@@ -809,9 +1393,9 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 17)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[0, -1] == 0)
+            self.assertTrue(result.larray[0, -1] == 0)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 1)
+            self.assertTrue(result.larray[-1, 0] == 1)
 
         # 2D case, negative offset, data is horizontally split, method
         result = distributed_ones.tril(k=-2)
@@ -822,9 +1406,9 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 3)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[0, -1] == 0)
+            self.assertTrue(result.larray[0, -1] == 0)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 1)
+            self.assertTrue(result.larray[-1, 0] == 1)
 
         distributed_ones = ht.ones((4, 5), split=1)
 
@@ -837,9 +1421,9 @@ class TestLinalgBasics(TestCase):
         self.assertLessEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 10)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 1)
+            self.assertTrue(result.larray[-1, 0] == 1)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[0, -1] == 0)
+            self.assertTrue(result.larray[0, -1] == 0)
 
         # 2D case, positive offset, data is horizontally split, method
         result = distributed_ones.tril(k=2)
@@ -850,9 +1434,9 @@ class TestLinalgBasics(TestCase):
         self.assertLessEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 17)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 1)
+            self.assertTrue(result.larray[-1, 0] == 1)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[0, -1] == 0)
+            self.assertTrue(result.larray[0, -1] == 0)
 
         # 2D case, negative offset, data is horizontally split, method
         result = distributed_ones.tril(k=-2)
@@ -863,9 +1447,9 @@ class TestLinalgBasics(TestCase):
         self.assertLessEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 3)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 1)
+            self.assertTrue(result.larray[-1, 0] == 1)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[0, -1] == 0)
+            self.assertTrue(result.larray[0, -1] == 0)
 
         with self.assertRaises(TypeError):
             ht.tril("asdf")
@@ -882,7 +1466,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         # 1D case, positive offset, data is not split, module-level call
         result = ht.triu(local_ones, k=2)
@@ -891,7 +1475,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         # 1D case, negative offset, data is not split, module-level call
         result = ht.triu(local_ones, k=-2)
@@ -900,7 +1484,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (5, 5))
         self.assertEqual(result.lshape, (5, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         local_ones = ht.ones((4, 5))
 
@@ -911,7 +1495,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         # 2D case, positive offset, data is not split, method
         result = local_ones.triu(k=2)
@@ -920,7 +1504,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         # 2D case, negative offset, data is not split, method
         result = local_ones.triu(k=-2)
@@ -929,7 +1513,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.shape, (4, 5))
         self.assertEqual(result.lshape, (4, 5))
         self.assertEqual(result.split, None)
-        self.assertTrue((result._DNDarray__array == comparison).all())
+        self.assertTrue((result.larray == comparison).all())
 
         local_ones = ht.ones((3, 4, 5, 6))
 
@@ -942,7 +1526,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.split, None)
         for i in range(3):
             for j in range(4):
-                self.assertTrue((result._DNDarray__array[i, j] == comparison).all())
+                self.assertTrue((result.larray[i, j] == comparison).all())
 
         # 2D+ case, positive offset, data is not split, module-level call
         result = local_ones.triu(k=2)
@@ -953,7 +1537,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.split, None)
         for i in range(3):
             for j in range(4):
-                self.assertTrue((result._DNDarray__array[i, j] == comparison).all())
+                self.assertTrue((result.larray[i, j] == comparison).all())
 
         # # 2D+ case, negative offset, data is not split, module-level call
         result = local_ones.triu(k=-2)
@@ -964,7 +1548,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.split, None)
         for i in range(3):
             for j in range(4):
-                self.assertTrue((result._DNDarray__array[i, j] == comparison).all())
+                self.assertTrue((result.larray[i, j] == comparison).all())
 
         distributed_ones = ht.ones((5,), split=0)
 
@@ -977,9 +1561,9 @@ class TestLinalgBasics(TestCase):
         self.assertLessEqual(result.lshape[1], 5)
         self.assertTrue(result.sum(), 15)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 0)
+            self.assertTrue(result.larray[-1, 0] == 0)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[0, -1] == 1)
+            self.assertTrue(result.larray[0, -1] == 1)
 
         # 1D case, positive offset, data is split, method
         result = distributed_ones.triu(k=2)
@@ -990,9 +1574,9 @@ class TestLinalgBasics(TestCase):
         self.assertLessEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 6)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 0)
+            self.assertTrue(result.larray[-1, 0] == 0)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[0, -1] == 1)
+            self.assertTrue(result.larray[0, -1] == 1)
 
         # 1D case, negative offset, data is split, method
         result = distributed_ones.triu(k=-2)
@@ -1003,9 +1587,9 @@ class TestLinalgBasics(TestCase):
         self.assertLessEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 22)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 0)
+            self.assertTrue(result.larray[-1, 0] == 0)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[0, -1] == 1)
+            self.assertTrue(result.larray[0, -1] == 1)
 
         distributed_ones = ht.ones((4, 5), split=0)
 
@@ -1018,9 +1602,9 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 14)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[0, -1] == 1)
+            self.assertTrue(result.larray[0, -1] == 1)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 0)
+            self.assertTrue(result.larray[-1, 0] == 0)
 
         # # 2D case, positive offset, data is horizontally split, method
         result = distributed_ones.triu(k=2)
@@ -1031,9 +1615,9 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 6)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[0, -1] == 1)
+            self.assertTrue(result.larray[0, -1] == 1)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 0)
+            self.assertTrue(result.larray[-1, 0] == 0)
 
         # # 2D case, negative offset, data is horizontally split, method
         result = distributed_ones.triu(k=-2)
@@ -1044,9 +1628,9 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 19)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[0, -1] == 1)
+            self.assertTrue(result.larray[0, -1] == 1)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 0)
+            self.assertTrue(result.larray[-1, 0] == 0)
 
         distributed_ones = ht.ones((4, 5), split=1)
 
@@ -1059,9 +1643,9 @@ class TestLinalgBasics(TestCase):
         self.assertLessEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 14)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 0)
+            self.assertTrue(result.larray[-1, 0] == 0)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[0, -1] == 1)
+            self.assertTrue(result.larray[0, -1] == 1)
 
         # 2D case, positive offset, data is horizontally split, method
         result = distributed_ones.triu(k=2)
@@ -1072,9 +1656,9 @@ class TestLinalgBasics(TestCase):
         self.assertLessEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 6)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 0)
+            self.assertTrue(result.larray[-1, 0] == 0)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[0, -1] == 1)
+            self.assertTrue(result.larray[0, -1] == 1)
 
         # 2D case, negative offset, data is horizontally split, method
         result = distributed_ones.triu(k=-2)
@@ -1085,6 +1669,6 @@ class TestLinalgBasics(TestCase):
         self.assertLessEqual(result.lshape[1], 5)
         self.assertEqual(result.sum(), 19)
         if result.comm.rank == 0:
-            self.assertTrue(result._DNDarray__array[-1, 0] == 0)
+            self.assertTrue(result.larray[-1, 0] == 0)
         if result.comm.rank == result.shape[0] - 1:
-            self.assertTrue(result._DNDarray__array[0, -1] == 1)
+            self.assertTrue(result.larray[0, -1] == 1)

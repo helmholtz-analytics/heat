@@ -1,86 +1,135 @@
+"""
+Manipulation operations for (potentially distributed) `DNDarray`s.
+"""
+from __future__ import annotations
+
 import numpy as np
 import torch
 import warnings
 
-from .communication import MPI
+from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
 
-from . import constants
-from . import dndarray
+from .communication import MPI
+from .dndarray import DNDarray
+
+from . import arithmetics
 from . import factories
+from . import indexing
 from . import linalg
+from . import sanitation
 from . import stride_tricks
 from . import tiling
 from . import types
 from . import _operations
-from . import sanitation
-
 
 __all__ = [
+    "balance",
     "column_stack",
     "concatenate",
     "diag",
     "diagonal",
+    "dsplit",
     "expand_dims",
     "flatten",
     "flip",
     "fliplr",
     "flipud",
+    "hsplit",
     "hstack",
+    "pad",
+    "ravel",
+    "repeat",
     "reshape",
     "resplit",
     "rot90",
     "row_stack",
     "shape",
     "sort",
+    "split",
     "squeeze",
     "stack",
     "tile",
     "topk",
     "unique",
+    "vsplit",
     "vstack",
 ]
 
 
-def column_stack(arrays):
+def balance(array: DNDarray, copy=False) -> DNDarray:
     """
-    Stack 1-D or 2-D ``DNDarray``s as columns into a 2-D ``DNDarray``.
+    Out of place balance function. More information on the meaning of balance can be found in
+    :func:`DNDarray.balance_() <heat.core.dndarray.DNDarray.balance_()>`.
+
+    Parameters
+    ----------
+    array : DNDarray
+        the DNDarray to be balanced
+    copy : bool, optional
+        if the DNDarray should be copied before being balanced. If false (default) this will balance
+        the original array and return that array. Otherwise (true), a balanced copy of the array
+        will be returned.
+        Default: False
+
+    Returns
+    -------
+    balanced : DNDarray
+        The balanced DNDarray
+    """
+    cpy = array.copy() if copy else array
+    cpy.balance_()
+    return cpy
+
+
+DNDarray.balance = lambda self, copy=False: balance(self, copy)
+DNDarray.balance.__doc__ = balance.__doc__
+
+
+def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
+    """
+    Stack 1-D or 2-D `DNDarray`s as columns into a 2-D `DNDarray`.
     If the input arrays are 1-D, they will be stacked as columns. If they are 2-D,
     they will be concatenated along the second axis.
 
     Parameters
     ----------
-    arrays : Sequence[DNDarrays,...]
+    arrays : Sequence[DNDarray, ...]
+        Sequence of `DNDarray`s.
 
     Raises
     ------
     ValueError
         If arrays have more than 2 dimensions
 
-    Returns
-    -------
-    DNDarray
+    Notes
+    -----
+    All `DNDarray`s in the sequence must have the same number of rows.
+    All `DNDarray`s must be split along the same axis! Note that distributed
+    1-D arrays (`split = 0`) by default will be transposed into distributed
+    column arrays with `split == 1`.
 
-    Note
-    ----
-    All ``DNDarray``s in the sequence must have the same number of rows.
-    All ``DNDarray``s must be split along the same axis! Note that distributed
-    1-D arrays (``split = 0``) by default will be transposed into distributed
-    column arrays with ``split == 1``.
+    See Also
+    --------
+    :func:`concatenate`
+    :func:`hstack`
+    :func:`row_stack`
+    :func:`stack`
+    :func:`vstack`
 
     Examples
     --------
     >>> # 1-D tensors
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([2, 3, 4])
-    >>> ht.column_stack((a, b))._DNDarray__array
+    >>> ht.column_stack((a, b)).larray
     tensor([[1, 2],
-        [2, 3],
-        [3, 4]])
+            [2, 3],
+            [3, 4]])
     >>> # 1-D and 2-D tensors
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([[2, 5], [3, 6], [4, 7]])
     >>> c = ht.array([[7, 10], [8, 11], [9, 12]])
-    >>> ht.column_stack((a, b, c))._DNDarray__array
+    >>> ht.column_stack((a, b, c)).larray
     tensor([[ 1,  2,  5,  7, 10],
             [ 2,  3,  6,  8, 11],
             [ 3,  4,  7,  9, 12]])
@@ -88,7 +137,7 @@ def column_stack(arrays):
     >>> a = ht.arange(10, split=0).reshape((5, 2))
     >>> b = ht.arange(5, 20, split=0).reshape((5, 3))
     >>> c = ht.arange(20, 40, split=0).reshape((5, 4))
-    >>> ht_column_stack((a, b, c))._DNDarray__array
+    >>> ht_column_stack((a, b, c)).larray
     [0/2] tensor([[ 0,  1,  5,  6,  7, 20, 21, 22, 23],
     [0/2]         [ 2,  3,  8,  9, 10, 24, 25, 26, 27]], dtype=torch.int32)
     [1/2] tensor([[ 4,  5, 11, 12, 13, 28, 29, 30, 31],
@@ -97,7 +146,7 @@ def column_stack(arrays):
     >>> # distributed 1-D and 2-D DNDarrays, 3 processes
     >>> a = ht.arange(5, split=0)
     >>> b = ht.arange(5, 20, split=1).reshape((5, 3))
-    >>> ht_column_stack((a, b))._DNDarray__array
+    >>> ht_column_stack((a, b)).larray
     [0/2] tensor([[ 0,  5],
     [0/2]         [ 1,  8],
     [0/2]         [ 2, 11],
@@ -132,28 +181,23 @@ def column_stack(arrays):
         return concatenate(arrays, axis=1)
 
 
-def concatenate(arrays, axis=0):
+def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     """
-    Join a sequence of arrays along an existing axis.
+    Join 2 or more `DNDarrays` along an existing axis.
 
     Parameters
     ----------
-    arrays : Sequence[DNDarrays,...]
-        The arrays must have the same shape, except in the dimension corresponding to axis (the first, by default).
-    axis : int, optional
-        The axis along which the arrays will be joined. Default is 0.
-
-    Returns
-    -------
-    res: DNDarray
-        The concatenated DNDarray
+    arrays: Sequence[DNDarray, ...]
+        The arrays must have the same shape, except in the dimension corresponding to axis.
+    axis: int, optional
+        The axis along which the arrays will be joined (default is 0).
 
     Raises
     ------
     RuntimeError
-        If the concatted DNDarray meta information, e.g. split or comm, does not match.
+        If the concatenated :class:`~heat.core.dndarray.DNDarray` meta information, e.g. `split` or `comm`, does not match.
     TypeError
-        If the passed parameters are not of correct type (see documentation above).
+        If the passed parameters are not of correct type.
     ValueError
         If the number of passed arrays is less than two or their shapes do not match.
 
@@ -174,7 +218,6 @@ def concatenate(arrays, axis=0):
     [0/1] tensor([[0., 0., 0., 0., 0., 1., 1., 1., 1., 1., 1.],
     [0/1]         [0., 0., 0., 0., 0., 1., 1., 1., 1., 1., 1.]])
     [1/1] tensor([[0., 0., 0., 0., 0., 1., 1., 1., 1., 1., 1.]])
-
     >>> x = ht.zeros((4, 5), split=1)
     [0/1] tensor([[0., 0., 0.],
     [0/1]         [0., 0., 0.],
@@ -207,8 +250,10 @@ def concatenate(arrays, axis=0):
     [1/1]         [1., 1.],
     [1/1]         [1., 1.]])
     """
-    if not isinstance(arrays, (tuple, list)):
-        raise TypeError("arrays must be a list or a tuple")
+    # input sanitation
+    arrays = sanitation.sanitize_sequence(arrays)
+    for arr in arrays:
+        sanitation.sanitize_in(arr)
 
     # a single array cannot be concatenated
     if len(arrays) < 2:
@@ -221,11 +266,8 @@ def concatenate(arrays, axis=0):
         return res
 
     # unpack the arrays
-    arr0, arr1 = arrays[0], arrays[1]
+    arr0, arr1 = arrays
 
-    # input sanitation
-    if not isinstance(arr0, dndarray.DNDarray) or not isinstance(arr1, dndarray.DNDarray):
-        raise TypeError("Both arrays must be DNDarrays")
     if not isinstance(axis, int):
         raise TypeError("axis must be an integer, currently: {}".format(type(axis)))
     axis = stride_tricks.sanitize_axis(arr0.gshape, axis)
@@ -254,9 +296,7 @@ def concatenate(arrays, axis=0):
     # no splits, local concat
     if s0 is None and s1 is None:
         return factories.array(
-            torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis),
-            device=arr0.device,
-            comm=arr0.comm,
+            torch.cat((arr0.larray, arr1.larray), dim=axis), device=arr0.device, comm=arr0.comm
         )
 
     # non-matching splits when both arrays are split
@@ -267,20 +307,15 @@ def concatenate(arrays, axis=0):
 
     # unsplit and split array
     elif (s0 is None and s1 != axis) or (s1 is None and s0 != axis):
-        out_shape = tuple(
-            arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
-            for x in range(len(arr1.gshape))
-        )
-        out = factories.empty(
-            out_shape, split=s1 if s1 is not None else s0, device=arr1.device, comm=arr0.comm
-        )
-
         _, _, arr0_slice = arr1.comm.chunk(arr0.shape, arr1.split)
         _, _, arr1_slice = arr0.comm.chunk(arr1.shape, arr0.split)
-        out._DNDarray__array = torch.cat(
-            (arr0._DNDarray__array[arr0_slice], arr1._DNDarray__array[arr1_slice]), dim=axis
+        out = factories.array(
+            torch.cat((arr0.larray[arr0_slice], arr1.larray[arr1_slice]), dim=axis),
+            dtype=out_dtype,
+            is_split=s1 if s1 is not None else s0,
+            device=arr1.device,
+            comm=arr0.comm,
         )
-        out._DNDarray__comm = arr0.comm
 
         return out
 
@@ -288,20 +323,19 @@ def concatenate(arrays, axis=0):
         if s0 != axis and all([s is not None for s in [s0, s1]]):
             # the axis is different than the split axis, this case can be easily implemented
             # torch cat arrays together and return a new array that is_split
-            out_shape = tuple(
-                arr1.gshape[x] if x != axis else arr0.gshape[x] + arr1.gshape[x]
-                for x in range(len(arr1.gshape))
+
+            out = factories.array(
+                torch.cat((arr0.larray, arr1.larray), dim=axis),
+                dtype=out_dtype,
+                is_split=s0,
+                device=arr0.device,
+                comm=arr0.comm,
             )
-            out = factories.empty(out_shape, split=s0, dtype=out_dtype, device=arr0.device)
-            out._DNDarray__array = torch.cat(
-                (arr0._DNDarray__array, arr1._DNDarray__array), dim=axis
-            )
-            out._DNDarray__comm = arr0.comm
             return out
 
         else:
-            arr0 = arr0.copy()
-            arr1 = arr1.copy()
+            t_arr0 = arr0.larray
+            t_arr1 = arr1.larray
             # maps are created for where the data is and the output shape is calculated
             lshape_map = torch.zeros((2, arr0.comm.size, len(arr0.gshape)), dtype=torch.int)
             lshape_map[0, arr0.comm.rank, :] = torch.Tensor(arr0.lshape)
@@ -312,15 +346,15 @@ def concatenate(arrays, axis=0):
             arr0_shape[axis] += arr1_shape[axis]
             out_shape = tuple(arr0_shape)
 
-            # the chunk map is used for determine how much data should be on each process
+            # the chunk map is used to determine how much data should be on each process
             chunk_map = torch.zeros((arr0.comm.size, len(arr0.gshape)), dtype=torch.int)
             _, _, chk = arr0.comm.chunk(out_shape, s0 if s0 is not None else s1)
             for i in range(len(out_shape)):
                 chunk_map[arr0.comm.rank, i] = chk[i].stop - chk[i].start
             chunk_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
 
-            lshape_map_comm.wait()
-            chunk_map_comm.wait()
+            lshape_map_comm.Wait()
+            chunk_map_comm.Wait()
 
             if s0 is not None:
                 send_slice = [slice(None)] * arr0.ndim
@@ -331,19 +365,18 @@ def concatenate(arrays, axis=0):
                         for pr in range(spr):
                             send_amt = abs((chunk_map[pr, axis] - lshape_map[0, pr, axis]).item())
                             send_amt = (
-                                send_amt if send_amt < arr0.lshape[axis] else arr0.lshape[axis]
+                                send_amt if send_amt < t_arr0.shape[axis] else t_arr0.shape[axis]
                             )
                             if send_amt:
                                 send_slice[arr0.split] = slice(0, send_amt)
-                                keep_slice[arr0.split] = slice(send_amt, arr0.lshape[axis])
-
+                                keep_slice[arr0.split] = slice(send_amt, t_arr0.shape[axis])
                                 send = arr0.comm.Isend(
-                                    arr0.lloc[send_slice].clone(),
+                                    t_arr0[send_slice].clone(),
                                     dest=pr,
                                     tag=pr + arr0.comm.size + spr,
                                 )
-                                arr0._DNDarray__array = arr0.lloc[keep_slice].clone()
-                                send.wait()
+                                t_arr0 = t_arr0[keep_slice].clone()
+                                send.Wait()
                     for pr in range(spr):
                         snt = abs((chunk_map[pr, s0] - lshape_map[0, pr, s0]).item())
                         snt = (
@@ -359,15 +392,14 @@ def concatenate(arrays, axis=0):
                             )
 
                             arr0.comm.Recv(data, source=spr, tag=pr + arr0.comm.size + spr)
-                            arr0._DNDarray__array = torch.cat(
-                                (arr0._DNDarray__array, data), dim=arr0.split
-                            )
+                            t_arr0 = torch.cat((t_arr0, data), dim=arr0.split)
                         lshape_map[0, pr, arr0.split] += snt
                         lshape_map[0, spr, arr0.split] -= snt
 
             if s1 is not None:
                 send_slice = [slice(None)] * arr0.ndim
                 keep_slice = [slice(None)] * arr0.ndim
+
                 # push the data backwards (arr1), making the data the proper size for arr1 on the last nodes
                 # the data is "compressed" on np/2 processes. data is sent from
                 for spr in range(arr0.comm.size - 1, -1, -1):
@@ -376,21 +408,20 @@ def concatenate(arrays, axis=0):
                             # calculate the amount of data to send from the chunk map
                             send_amt = abs((chunk_map[pr, axis] - lshape_map[1, pr, axis]).item())
                             send_amt = (
-                                send_amt if send_amt < arr1.lshape[axis] else arr1.lshape[axis]
+                                send_amt if send_amt < t_arr1.shape[axis] else t_arr1.shape[axis]
                             )
                             if send_amt:
                                 send_slice[axis] = slice(
-                                    arr1.lshape[axis] - send_amt, arr1.lshape[axis]
+                                    t_arr1.shape[axis] - send_amt, t_arr1.shape[axis]
                                 )
-                                keep_slice[axis] = slice(0, arr1.lshape[axis] - send_amt)
-
+                                keep_slice[axis] = slice(0, t_arr1.shape[axis] - send_amt)
                                 send = arr1.comm.Isend(
-                                    arr1.lloc[send_slice].clone(),
+                                    t_arr1[send_slice].clone(),
                                     dest=pr,
                                     tag=pr + arr1.comm.size + spr,
                                 )
-                                arr1._DNDarray__array = arr1.lloc[keep_slice].clone()
-                                send.wait()
+                                t_arr1 = t_arr1[keep_slice].clone()
+                                send.Wait()
                     for pr in range(arr1.comm.size - 1, spr, -1):
                         snt = abs((chunk_map[pr, axis] - lshape_map[1, pr, axis]).item())
                         snt = (
@@ -406,9 +437,7 @@ def concatenate(arrays, axis=0):
                                 shp, dtype=out_dtype.torch_type(), device=arr1.device.torch_device
                             )
                             arr1.comm.Recv(data, source=spr, tag=pr + arr1.comm.size + spr)
-                            arr1._DNDarray__array = torch.cat(
-                                (data, arr1._DNDarray__array), dim=axis
-                            )
+                            t_arr1 = torch.cat((data, t_arr1), dim=axis)
                         lshape_map[1, pr, axis] += snt
                         lshape_map[1, spr, axis] -= snt
 
@@ -425,18 +454,18 @@ def concatenate(arrays, axis=0):
                 if arr0.comm.rank == 0:
                     lcl_slice = [slice(None)] * arr0.ndim
                     lcl_slice[axis] = slice(chunk_map[0, axis].item())
-                    arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
+                    t_arr0 = t_arr0[lcl_slice].clone().squeeze()
                 ttl = chunk_map[0, axis].item()
                 for en in range(1, arr0.comm.size):
                     sz = chunk_map[en, axis]
                     if arr0.comm.rank == en:
                         lcl_slice = [slice(None)] * arr0.ndim
                         lcl_slice[axis] = slice(ttl, sz.item() + ttl, 1)
-                        arr0._DNDarray__array = arr0._DNDarray__array[lcl_slice].clone().squeeze()
+                        t_arr0 = t_arr0[lcl_slice].clone().squeeze()
                     ttl += sz.item()
 
-                if len(arr0.lshape) < len(arr1.lshape):
-                    arr0._DNDarray__array.unsqueeze_(axis)
+                if len(t_arr0.shape) < len(t_arr1.shape):
+                    t_arr0.unsqueeze_(axis)
 
             if s1 is None:
                 arb_slice = [None] * len(arr0.shape)
@@ -448,84 +477,78 @@ def concatenate(arrays, axis=0):
                 if arr1.comm.rank == arr1.comm.size - 1:
                     lcl_slice = [slice(None)] * arr1.ndim
                     lcl_slice[axis] = slice(
-                        arr1.lshape[axis] - chunk_map[-1, axis].item(), arr1.lshape[axis], 1
+                        t_arr1.shape[axis] - chunk_map[-1, axis].item(), t_arr1.shape[axis], 1
                     )
-                    arr1._DNDarray__array = arr1._DNDarray__array[lcl_slice].clone().squeeze()
+                    t_arr1 = t_arr1[lcl_slice].clone().squeeze()
                 ttl = chunk_map[-1, axis].item()
                 for en in range(arr1.comm.size - 2, -1, -1):
                     sz = chunk_map[en, axis]
                     if arr1.comm.rank == en:
                         lcl_slice = [slice(None)] * arr1.ndim
                         lcl_slice[axis] = slice(
-                            arr1.lshape[axis] - (sz.item() + ttl), arr1.lshape[axis] - ttl, 1
+                            t_arr1.shape[axis] - (sz.item() + ttl), t_arr1.shape[axis] - ttl, 1
                         )
-                        arr1._DNDarray__array = arr1._DNDarray__array[lcl_slice].clone().squeeze()
+                        t_arr1 = t_arr1[lcl_slice].clone().squeeze()
                     ttl += sz.item()
-                if len(arr1.lshape) < len(arr0.lshape):
-                    arr1._DNDarray__array.unsqueeze_(axis)
+                if len(t_arr1.shape) < len(t_arr0.shape):
+                    t_arr1.unsqueeze_(axis)
 
-            # now that the data is in the proper shape, need to concatenate them on the nodes where they both exist for
-            # the others, just set them equal
-            out = factories.empty(
-                out_shape,
-                split=s0 if s0 is not None else s1,
+            res = torch.cat((t_arr0, t_arr1), dim=axis)
+            out = factories.array(
+                res,
+                is_split=s0 if s0 is not None else s1,
                 dtype=out_dtype,
                 device=arr0.device,
                 comm=arr0.comm,
             )
-            res = torch.cat((arr0._DNDarray__array, arr1._DNDarray__array), dim=axis)
-            out._DNDarray__array = res
 
             return out
 
 
-def diag(a, offset=0):
+def diag(a: DNDarray, offset: int = 0) -> DNDarray:
     """
     Extract a diagonal or construct a diagonal array.
-    See the documentation for `heat.diagonal` for more information about extracting the diagonal.
+    See the documentation for :func:`diagonal` for more information about extracting the diagonal.
 
     Parameters
     ----------
-    a: ht.DNDarray
+    a: DNDarray
         The array holding data for creating a diagonal array or extracting a diagonal.
-        If a is a 1-dimensional array a diagonal 2d-array will be returned.
-        If a is a n-dimensional array with n > 1 the diagonal entries will be returned in an n-1 dimensional array.
+        If `a` is a 1-dimensional array, a diagonal 2d-array will be returned.
+        If `a` is a n-dimensional array with n > 1 the diagonal entries will be returned in an n-1 dimensional array.
     offset: int, optional
         The offset from the main diagonal.
         Offset greater than zero means above the main diagonal, smaller than zero is below the main diagonal.
 
-    Returns
-    -------
-    res: ht.DNDarray
-        The extracted diagonal or the constructed diagonal array
+    See Also
+    --------
+    :func:`diagonal`
 
     Examples
     --------
     >>> import heat as ht
     >>> a = ht.array([1, 2])
     >>> ht.diag(a)
-    tensor([[1, 0],
-           [0, 2]])
-
+    DNDarray([[1, 0],
+              [0, 2]], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.diag(a, offset=1)
-    tensor([[0, 1, 0],
-           [0, 0, 2],
-           [0, 0, 0]])
-
+    DNDarray([[0, 1, 0],
+              [0, 0, 2],
+              [0, 0, 0]], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.equal(ht.diag(ht.diag(a)), a)
     True
     >>> a = ht.array([[1, 2], [3, 4]])
     >>> ht.diag(a)
-    tensor([1, 4])
+    DNDarray([1, 4], dtype=ht.int64, device=cpu:0, split=None)
     """
+    sanitation.sanitize_in(a)
+
     if len(a.shape) > 1:
         return diagonal(a, offset=offset)
     elif len(a.shape) < 1:
         raise ValueError("input array must be of dimension 1 or greater")
     if not isinstance(offset, int):
         raise ValueError("offset must be an integer, got", type(offset))
-    if not isinstance(a, dndarray.DNDarray):
-        raise ValueError("a must be a DNDarray, got", type(a))
 
     # 1-dimensional array, must be extended to a square diagonal matrix
     gshape = (a.shape[0] + abs(offset),) * 2
@@ -552,19 +575,19 @@ def diag(a, offset=0):
     a.balance_()
 
     local = torch.zeros(lshape, dtype=a.dtype.torch_type(), device=a.device.torch_device)
-    local[indices_x, indices_y] = a._DNDarray__array[indices_x]
+    local[indices_x, indices_y] = a.larray[indices_x]
 
     return factories.array(local, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
 
 
-def diagonal(a, offset=0, dim1=0, dim2=1):
+def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDarray:
     """
     Extract a diagonal of an n-dimensional array with n > 1.
     The returned array will be of dimension n-1.
 
     Parameters
     ----------
-    a: ht.DNDarray
+    a: DNDarray
         The array of which the diagonal should be extracted.
     offset: int, optional
         The offset from the main diagonal.
@@ -572,42 +595,32 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
         Default is 0 which means the main diagonal will be selected.
     dim1: int, optional
         First dimension with respect to which to take the diagonal.
-        Default is 0.
     dim2: int, optional
         Second dimension with respect to which to take the diagonal.
-        Default is 1.
-    Returns
-    -------
-    res: ht.DNDarray
-        An array holding the extracted diagonal.
 
     Examples
     --------
     >>> import heat as ht
     >>> a = ht.array([[1, 2], [3, 4]])
     >>> ht.diagonal(a)
-    tensor([1, 4])
-
+    DNDarray([1, 4], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.diagonal(a, offset=1)
-    tensor([2])
-
+    DNDarray([2], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.diagonal(a, offset=-1)
-    tensor([3])
-
+    DNDarray([3], dtype=ht.int64, device=cpu:0, split=None)
     >>> a = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
     >>> ht.diagonal(a)
-    tensor([[0, 6],
-           [1, 7]])
-
+    DNDarray([[0, 6],
+              [1, 7]], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.diagonal(a, dim2=2)
-    tensor([[0, 5],
-           [2, 7]])
+    DNDarray([[0, 5],
+              [2, 7]], dtype=ht.int64, device=cpu:0, split=None)
     """
     dim1, dim2 = stride_tricks.sanitize_axis(a.shape, (dim1, dim2))
 
     if dim1 == dim2:
         raise ValueError("Dim1 and dim2 need to be different")
-    if not isinstance(a, dndarray.DNDarray):
+    if not isinstance(a, DNDarray):
         raise ValueError("a must be a DNDarray, got", type(a))
     if not isinstance(offset, int):
         raise ValueError("offset must be an integer, got", type(offset))
@@ -633,49 +646,107 @@ def diagonal(a, offset=0, dim1=0, dim2=1):
         split = len(shape) - 1
 
     if a.split is None or a.split not in (dim1, dim2):
-        result = torch.diagonal(a._DNDarray__array, offset=offset, dim1=dim1, dim2=dim2)
+        result = torch.diagonal(a.larray, offset=offset, dim1=dim1, dim2=dim2)
     else:
         vz = 1 if a.split == dim1 else -1
         off, _, _ = a.comm.chunk(a.shape, a.split)
-        result = torch.diagonal(a._DNDarray__array, offset=offset + vz * off, dim1=dim1, dim2=dim2)
+        result = torch.diagonal(a.larray, offset=offset + vz * off, dim1=dim1, dim2=dim2)
     return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
 
 
-def expand_dims(a, axis):
+def dsplit(x: Sequence[DNDarray, ...], indices_or_sections: Iterable) -> List[DNDarray, ...]:
     """
-    Expand the shape of an array.
-
-    Insert a new axis that will appear at the axis position in the expanded array shape.
+    Split array into multiple sub-DNDarrays along the 3rd axis (depth).
+    Returns a list of sub-DNDarrays as copies of parts of `x`.
 
     Parameters
     ----------
-    a : ht.DNDarray
-        Input array to be expanded.
-    axis : int
-        Position in the expanded axes where the new axis is placed.
-
-    Returns
-    -------
-    res : ht.DNDarray
-        Output array. The number of dimensions is one greater than that of the input array.
+    x : DNDarray
+        DNDArray to be divided into sub-DNDarrays.
+    indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
+        If `indices_or_sections` is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 3rd axis.
+        If such a split is not possible, an error is raised.
+        If `indices_or_sections` is a 1-D DNDarray of sorted integers, the entries indicate where along the 3rd axis
+        the array is split.
+        If an index exceeds the dimension of the array along the 3rd axis, an empty sub-DNDarray is returned correspondingly.
 
     Raises
     ------
     ValueError
-        If the axis is not in range of the axes.
+        If `indices_or_sections` is given as integer, but a split does not result in equal division.
+
+    Notes
+    -----
+    Please refer to the split documentation. dsplit is equivalent to split with axis=2,
+    the array is always split along the third axis provided the array dimension is greater than or equal to 3.
+
+    See Also
+    ------
+    :func:`split`
+    :func:`hsplit`
+    :func:`vsplit`
+
+    Examples
+    --------
+    >>> x = ht.array(24).reshape((2, 3, 4))
+    >>> ht.dsplit(x, 2)
+        [DNDarray([[[ 0,  1],
+                   [ 4,  5],
+                   [ 8,  9]],
+                   [[12, 13],
+                   [16, 17],
+                   [20, 21]]]),
+        DNDarray([[[ 2,  3],
+                   [ 6,  7],
+                   [10, 11]],
+                   [[14, 15],
+                   [18, 19],
+                   [22, 23]]])]
+    >>> ht.dsplit(x, [1, 4])
+        [DNDarray([[[ 0],
+                    [ 4],
+                    [ 8]],
+                   [[12],
+                    [16],
+                    [20]]]),
+        DNDarray([[[ 1,  2,  3],
+                    [ 5,  6,  7],
+                    [ 9, 10, 11]],
+                    [[13, 14, 15],
+                     [17, 18, 19],
+                     [21, 22, 23]]]),
+        DNDarray([])]
+    """
+    return split(x, indices_or_sections, 2)
+
+
+def expand_dims(a: DNDarray, axis: int) -> DNDarray:
+    """
+    Expand the shape of an array.
+    Insert a new axis that will appear at the axis position in the expanded array shape.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array to be expanded.
+    axis : int
+        Position in the expanded axes where the new axis is placed.
+
+    Raises
+    ------
+    ValueError
+        If `axis` is not consistent with the available dimensions.
 
     Examples
     --------
     >>> x = ht.array([1,2])
     >>> x.shape
     (2,)
-
     >>> y = ht.expand_dims(x, axis=0)
     >>> y
     array([[1, 2]])
     >>> y.shape
     (1, 2)
-
     >>> y = ht.expand_dims(x, axis=1)
     >>> y
     array([[1],
@@ -683,91 +754,94 @@ def expand_dims(a, axis):
     >>> y.shape
     (2, 1)
     """
-    # ensure type consistency
-    if not isinstance(a, dndarray.DNDarray):
-        raise TypeError("expected ht.DNDarray, but was {}".format(type(a)))
+    # sanitize input
+    sanitation.sanitize_in(a)
 
     # sanitize axis, introduce arbitrary dummy dimension to model expansion
     axis = stride_tricks.sanitize_axis(a.shape + (1,), axis)
 
-    return dndarray.DNDarray(
-        a._DNDarray__array.unsqueeze(dim=axis),
+    return DNDarray(
+        a.larray.unsqueeze(dim=axis),
         a.shape[:axis] + (1,) + a.shape[axis:],
         a.dtype,
         a.split if a.split is None or a.split < axis else a.split + 1,
         a.device,
         a.comm,
+        a.balanced,
     )
 
 
-def flatten(a):
+DNDarray.expand_dims = lambda self, axis: expand_dims(self, axis)
+DNDarray.expand_dims.__doc__ = expand_dims.__doc__
+
+
+def flatten(a: DNDarray) -> DNDarray:
     """
     Flattens an array into one dimension.
-    WARNING: if a.split > 0, then the array must be resplit.
 
     Parameters
     ----------
     a : DNDarray
-        array to collapse
-    Returns
-    -------
-    ret : DNDarray
-        flattened copy
+        Array to collapse
+
+    Warning
+    ----------
+    If `a.split>0`, the array must be redistributed along the first axis (see :func:`resplit`).
+
+
+    See Also
+    --------
+    :func:`ravel`
+
     Examples
     --------
     >>> a = ht.array([[[1,2],[3,4]],[[5,6],[7,8]]])
     >>> ht.flatten(a)
-    tensor([1,2,3,4,5,6,7,8])
+    DNDarray([1, 2, 3, 4, 5, 6, 7, 8], dtype=ht.int64, device=cpu:0, split=None)
     """
     if a.split is None:
         return factories.array(
-            torch.flatten(a._DNDarray__array),
-            dtype=a.dtype,
-            is_split=None,
-            device=a.device,
-            comm=a.comm,
+            torch.flatten(a.larray), dtype=a.dtype, is_split=None, device=a.device, comm=a.comm
         )
 
     if a.split > 0:
         a = resplit(a, 0)
 
     a = factories.array(
-        torch.flatten(a._DNDarray__array),
-        dtype=a.dtype,
-        is_split=a.split,
-        device=a.device,
-        comm=a.comm,
+        torch.flatten(a.larray), dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
     )
     a.balance_()
 
     return a
 
 
-def flip(a, axis=None):
+DNDarray.flatten = lambda self: flatten(self)
+DNDarray.flatten.__doc__ = flatten.__doc__
+
+
+def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     """
     Reverse the order of elements in an array along the given axis.
-
     The shape of the array is preserved, but the elements are reordered.
 
     Parameters
     ----------
-    a: ht.DNDarray
+    a: DNDarray
         Input array to be flipped
-    axis: int, tuple
+    axis: int or Tuple[int,...]
         A list of axes to be flipped
 
-    Returns
-    -------
-    res: ht.DNDarray
-        The flipped array.
+    See Also
+    --------
+    :func:`fliplr`
+    :func:`flipud`
 
     Examples
     --------
     >>> a = ht.array([[0,1],[2,3]])
     >>> ht.flip(a, [0])
-    tensor([[2, 3],
-        [0, 1]])
-
+    DNDarray([[2, 3],
+              [0, 1]], dtype=ht.int64, device=cpu:0, split=None)
     >>> b = ht.array([[0,1,2],[3,4,5]], split=1)
     >>> ht.flip(a, [0,1])
     (1/2) tensor([5,4,3])
@@ -781,7 +855,7 @@ def flip(a, axis=None):
     if isinstance(axis, int):
         axis = [axis]
 
-    flipped = torch.flip(a._DNDarray__array, axis)
+    flipped = torch.flip(a.larray, axis)
 
     if a.split not in axis:
         return factories.array(
@@ -796,7 +870,7 @@ def flip(a, axis=None):
 
     # Exchange local tensors
     req = a.comm.Isend(flipped, dest=dest_proc)
-    received = torch.empty(new_lshape, dtype=a._DNDarray__array.dtype, device=a.device.torch_device)
+    received = torch.empty(new_lshape, dtype=a.larray.dtype, device=a.device.torch_device)
     a.comm.Recv(received, source=dest_proc)
 
     res = factories.array(received, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
@@ -805,165 +879,853 @@ def flip(a, axis=None):
     return res
 
 
-def fliplr(a):
+def fliplr(a: DNDarray) -> DNDarray:
     """
-        Flip array in the left/right direction. If a.ndim > 2, flip along dimension 1.
+    Flip array in the left/right direction. If `a.ndim>2`, flip along dimension 1.
 
-        Parameters
-        ----------
-        a: ht.DNDarray
-            Input array to be flipped, must be at least 2-D
+    Parameters
+    ----------
+    a: DNDarray
+        Input array to be flipped, must be at least 2-D
 
-        Returns
-        -------
-        res: ht.DNDarray
-            The flipped array.
+    See Also
+    --------
+    :func:`flip`
+    :func:`flipud`
 
-        Examples
-        --------
-        >>> a = ht.array([[0,1],[2,3]])
-        >>> ht.fliplr(a)
-        tensor([[1, 0],
-                [3, 2]])
-
-        >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
-        >>> ht.fliplr(b)
-        (1/2) tensor([[2, 1, 0]])
-        (2/2) tensor([[5, 4, 3]])
+    Examples
+    --------
+    >>> a = ht.array([[0,1],[2,3]])
+    >>> ht.fliplr(a)
+    DNDarray([[1, 0],
+              [3, 2]], dtype=ht.int64, device=cpu:0, split=None)
+    >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
+    >>> ht.fliplr(b)
+    (1/2) tensor([[2, 1, 0]])
+    (2/2) tensor([[5, 4, 3]])
     """
     return flip(a, 1)
 
 
-def flipud(a):
+def flipud(a: DNDarray) -> DNDarray:
     """
-        Flip array in the up/down direction.
+    Flip array in the up/down direction.
 
-        Parameters
-        ----------
-        a: ht.DNDarray
-            Input array to be flipped
+    Parameters
+    ----------
+    a: DNDarray
+        Input array to be flipped
 
-        Returns
-        -------
-        res: ht.DNDarray
-            The flipped array.
+    See Also
+    --------
+    :func:`flip`
+    :func:`fliplr`
 
-        Examples
-        --------
-        >>> a = ht.array([[0,1],[2,3]])
-        >>> ht.flipud(a)
-        tensor([[2, 3],
-            [0, 1]])
-
-        >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
-        >>> ht.flipud(b)
-        (1/2) tensor([3,4,5])
-        (2/2) tensor([0,1,2])
+    Examples
+    --------
+    >>> a = ht.array([[0,1],[2,3]])
+    >>> ht.flipud(a)
+    DNDarray([[2, 3],
+              [0, 1]], dtype=ht.int64, device=cpu:0, split=None))
+    >>> b = ht.array([[0,1,2],[3,4,5]], split=0)
+    >>> ht.flipud(b)
+    (1/2) tensor([3,4,5])
+    (2/2) tensor([0,1,2])
     """
     return flip(a, 0)
 
 
-def hstack(tup):
+def hsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:
     """
-    Stack arrays in sequence horizontally (column wise).
-    This is equivalent to concatenation along the second axis, except for 1-D
-    arrays where it concatenates along the first axis. Rebuilds arrays divided
-    by `hsplit`.
+    Split array into multiple sub-DNDarrays along the 2nd axis (horizontally/column-wise).
+    Returns a list of sub-DNDarrays as copies of parts of `x`.
 
     Parameters
     ----------
-    tup : sequence of DNDarrays
+    x : DNDarray
+        DNDArray to be divided into sub-DNDarrays.
+    indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
+        If `indices_or_sections` is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 2nd axis.
+        If such a split is not possible, an error is raised.
+        If `indices_or_sections` is a 1-D DNDarray of sorted integers, the entries indicate where along the 2nd axis
+        the array is split.
+        If an index exceeds the dimension of the array along the 2nd axis, an empty sub-DNDarray is returned correspondingly.
+
+    Raises
+    ------
+    ValueError
+        If `indices_or_sections` is given as integer, but a split does not result in equal division.
+
+    Notes
+    -----
+    Please refer to the split documentation. hsplit is nearly equivalent to split with axis=1,
+    the array is always split along the second axis though, in contrary to split, regardless of the array dimension.
+
+    See Also
+    --------
+    :func:`split`
+    :func:`dsplit`
+    :func:`vsplit`
+
+    Examples
+    --------
+    >>> x = ht.arange(24).reshape((2, 4, 3))
+    >>> ht.hsplit(x, 2)
+        [DNDarray([[[ 0,  1,  2],
+                   [ 3,  4,  5]],
+                  [[12, 13, 14],
+                   [15, 16, 17]]]),
+        DNDarray([[[ 6,  7,  8],
+                   [ 9, 10, 11]],
+                  [[18, 19, 20],
+                   [21, 22, 23]]])]
+    >>> ht.hsplit(x, [1, 3])
+        [DNDarray([[[ 0,  1,  2]],
+                  [[12, 13, 14]]]),
+        DNDarray([[[ 3,  4,  5],
+                   [ 6,  7,  8]],
+                  [[15, 16, 17],
+                   [18, 19, 20]]]),
+        DNDarray([[[ 9, 10, 11]],
+                  [[21, 22, 23]]])]
+    """
+    sanitation.sanitize_in(x)
+
+    if len(x.lshape) < 2:
+        x = reshape(x, (1, x.lshape[0]))
+        result = split(x, indices_or_sections, 1)
+        result = [flatten(sub_array) for sub_array in result]
+    else:
+        result = split(x, indices_or_sections, 1)
+
+    return result
+
+
+def hstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
+    """
+    Stack arrays in sequence horizontally (column-wise).
+    This is equivalent to concatenation along the second axis, except for 1-D
+    arrays where it concatenates along the first axis.
+
+    Parameters
+    ----------
+    arrays : Sequence[DNDarray, ...]
         The arrays must have the same shape along all but the second axis,
         except 1-D arrays which can be any length.
-    Returns
-    -------
-    stacked : DNDarray
-        The array formed by stacking the given arrays.
+
+    See Also
+    --------
+    :func:`concatenate`
+    :func:`stack`
+    :func:`vstack`
+    :func:`column_stack`
+    :func:`row_stack`
 
     Examples
     --------
     >>> a = ht.array((1,2,3))
     >>> b = ht.array((2,3,4))
-    >>> ht.hstack((a,b))._DNDarray__array
+    >>> ht.hstack((a,b)).larray
     [0/1] tensor([1, 2, 3, 2, 3, 4])
     [1/1] tensor([1, 2, 3, 2, 3, 4])
     >>> a = ht.array((1,2,3), split=0)
     >>> b = ht.array((2,3,4), split=0)
-    >>> ht.hstack((a,b))._DNDarray__array
+    >>> ht.hstack((a,b)).larray
     [0/1] tensor([1, 2, 3])
     [1/1] tensor([2, 3, 4])
     >>> a = ht.array([[1],[2],[3]], split=0)
     >>> b = ht.array([[2],[3],[4]], split=0)
-    >>> ht.hstack((a,b))._DNDarray__array
+    >>> ht.hstack((a,b)).larray
     [0/1] tensor([[1, 2],
     [0/1]         [2, 3]])
     [1/1] tensor([[3, 4]])
     """
-    tup = list(tup)
+    arrays = list(arrays)
     axis = 1
     all_vec = False
-    if len(tup) == 2 and all(len(x.gshape) == 1 for x in tup):
+    if len(arrays) == 2 and all(len(x.gshape) == 1 for x in arrays):
         axis = 0
         all_vec = True
     if not all_vec:
-        for cn, arr in enumerate(tup):
+        for cn, arr in enumerate(arrays):
             if len(arr.gshape) == 1:
-                tup[cn] = arr.expand_dims(1)
+                arrays[cn] = arr.expand_dims(1)
 
-    return concatenate(tup, axis=axis)
+    return concatenate(arrays, axis=axis)
 
 
-def reshape(a, shape, new_split=None):
+def pad(
+    array: DNDarray,
+    pad_width: Union[int, Sequence[Sequence[int, int], ...]],
+    mode: str = "constant",
+    constant_values: int = 0,
+) -> DNDarray:
     """
-    Returns a tensor with the same data and number of elements as a, but with the specified shape.
+    Pads tensor with a specific value (default=0).
+    (Not all dimensions supported)
 
     Parameters
     ----------
-    a : ht.DNDarray
-        The input tensor
-    shape : tuple, list
-        Shape of the new tensor
+    array : DNDarray
+        Array to be padded
+    pad_width: Union[int, Sequence[Sequence[int, int], ...]]
+        Number of values padded to the edges of each axis. ((before_1, after_1),...(before_N, after_N)) unique pad widths for each axis.
+        Determines how many elements are padded along which dimension.\n
+        Shortcuts:
+
+            - ((before, after),)  or (before, after): before and after pad width for each axis.
+            - (pad_width,) or int: before = after = pad width for all axes.
+
+        Therefore:
+
+        - pad last dimension: (padding_left, padding_right)
+        - pad last 2 dimensions: ((padding_top, padding_bottom),(padding_left, padding_right))
+        - pad last 3 dimensions: ((padding_front, padding_back),(padding_top, padding_bottom),(paddling_left, padding_right) )
+        - ... (same pattern)
+    mode : str, optional
+        - 'constant' (default): Pads the input tensor boundaries with a constant value. This is available for arbitrary dimensions
+    constant_values: Union[int, float, Sequence[Sequence[int,int], ...], Sequence[Sequence[float,float], ...]]
+        Number or tuple of 2-element-sequences (containing numbers), optional (default=0)
+        The fill values for each axis (1 tuple per axis).
+        ((before_1, after_1), ... (before_N, after_N)) unique pad values for each axis.
+
+        Shortcuts:
+
+            - ((before, after),) or (before, after): before and after padding values for each axis.
+            - (value,) or int: before = after = padding value for all axes.
+
+
+    Notes
+    -----------
+    This function follows the principle of datatype integrity.
+    Therefore, an array can only be padded with values of the same datatype.
+    All values that violate this rule are implicitly cast to the datatype of the `DNDarray`.
+
+    Examples
+    --------
+    >>> a = torch.arange(2 * 3 * 4).reshape(2, 3, 4)
+    >>> b = ht.array(a, split = 0)
+    Pad last dimension
+    >>> c = ht.pad(b, (2,1), constant_values=1)
+    tensor([[[ 1,  1,  0,  1,  2,  3,  1],
+         [ 1,  1,  4,  5,  6,  7,  1],
+         [ 1,  1,  8,  9, 10, 11,  1]],
+        [[ 1,  1, 12, 13, 14, 15,  1],
+         [ 1,  1, 16, 17, 18, 19,  1],
+         [ 1,  1, 20, 21, 22, 23,  1]]])
+    Pad last 2 dimensions
+    >>> d = ht.pad(b, [(1,0), (2,1)])
+    DNDarray([[[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  1,  2,  3,  0],
+               [ 0,  0,  4,  5,  6,  7,  0],
+               [ 0,  0,  8,  9, 10, 11,  0]],
+
+              [[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0, 12, 13, 14, 15,  0],
+               [ 0,  0, 16, 17, 18, 19,  0],
+               [ 0,  0, 20, 21, 22, 23,  0]]], dtype=ht.int64, device=cpu:0, split=0)
+    Pad last 3 dimensions
+    >>> e = ht.pad(b, ((2,1), [1,0], (2,1)))
+    DNDarray([[[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0]],
+
+              [[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0]],
+
+              [[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  1,  2,  3,  0],
+               [ 0,  0,  4,  5,  6,  7,  0],
+               [ 0,  0,  8,  9, 10, 11,  0]],
+
+              [[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0, 12, 13, 14, 15,  0],
+               [ 0,  0, 16, 17, 18, 19,  0],
+               [ 0,  0, 20, 21, 22, 23,  0]],
+
+              [[ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0],
+               [ 0,  0,  0,  0,  0,  0,  0]]], dtype=ht.int64, device=cpu:0, split=0)
+    """
+    if not isinstance(array, DNDarray):
+        raise TypeError("expected array to be a ht.DNDarray, but was {}".format(type(array)))
+
+    if not isinstance(mode, str):
+        raise TypeError("expected mode to be a string, but was {}".format(type(mode)))
+
+    # shortcut int for all dimensions
+    if isinstance(pad_width, int):
+        pad = (pad_width,) * 2 * len(array.shape)
+
+    elif not isinstance(pad_width, (tuple, list)):
+        raise TypeError(
+            "expected pad_width to be an integer or a sequence (tuple or list), but was {}".format(
+                type(pad_width)
+            )
+        )
+
+    # shortcut one sequence within a sequence for all dimensions - ((before,after), ) = pad_width
+    elif len(pad_width) == 1:
+        if isinstance(pad_width[0], int):
+            pad = (pad_width[0],) * 2 * len(array.shape)
+        elif not (isinstance(pad_width[0], tuple) or isinstance(pad_width[0], list)):
+            raise TypeError(
+                "For shortcut option '1 sequence for all dimensions', expected element within pad_width to be a tuple or list, but was {}".format(
+                    type(pad_width[0])
+                )
+            )
+        elif len(pad_width[0]) == 2:
+            pad = pad_width[0] * len(array.shape)
+        else:
+            raise ValueError(
+                f"Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "
+                "each sequence within pad_width must contain 2 elements."
+            )
+    # shortcut - one sequence for all dimensions - (before,after) = pad_width
+    elif len(pad_width) == 2 and isinstance(pad_width[0], int) and isinstance(pad_width[1], int):
+        pad_width = tuple(pad_width)
+        pad = pad_width * len(array.shape)
+
+    # no shortcut - padding of various dimensions
+    else:
+        if any(
+            not (isinstance(pad_tuple, tuple) or isinstance(pad_tuple, list))
+            for pad_tuple in pad_width
+        ):
+            raise TypeError(
+                f"Invalid type for pad_width {pad_width}.\nApart from shortcut options (--> documentation),"
+                "pad_width has to be a sequence of (2 elements) sequences (sequence=tuple or list)."
+            )
+        pad = tuple()
+        # Transform numpy pad_width to torch pad (--> one tuple containing all padding spans)
+        for pad_tuple in pad_width:
+            if isinstance(pad_tuple, list):
+                pad_tuple = tuple(pad_tuple)
+            pad = pad_tuple + pad
+
+        if len(pad) % 2 != 0:
+            raise ValueError(
+                f"Pad_width {pad_width} invalid.\n Apart from shortcut options (--> documentation), "
+                "each sequence within pad_width must contain 2 elements."
+            )
+
+        if len(pad) // 2 > len(array.shape):
+            raise ValueError(
+                f"Not enough dimensions to pad.\n"
+                f"Padding a {len(array.shape)}-dimensional tensor for {len(pad) // 2}"
+                f" dimensions is not possible."
+            )
+
+    # value_tuple = all padding values stored in 1 tuple
+    if isinstance(constant_values, tuple) or isinstance(constant_values, list):
+        value_tuple = tuple()
+        # sequences for each dimension defined within one sequence
+        if isinstance(constant_values[0], tuple) or isinstance(constant_values[0], list):
+            # one sequence for all dimensions - values = ((before, after),)
+            if len(constant_values) == 1:
+                value_tuple = constant_values[0] * (len(pad) // 2)
+            else:
+                for value_pair in constant_values:
+                    if isinstance(value_pair, tuple):
+                        pass
+                    elif isinstance(value_pair, list):
+                        value_pair = tuple(value_pair)
+                    else:
+                        raise TypeError(
+                            f"Value pair {value_pair} within values invalid. Expected all elements within values to be sequences(list/tuple),"
+                            f"but one was: {type(value_pair)}"
+                        )
+                    value_tuple = value_pair + value_tuple
+
+            if len(value_tuple) % 2 != 0:
+                raise ValueError(
+                    f"Expected values to contain an even amount of elements, but got {len(value_tuple)}"
+                )
+
+        # One sequence for all dimensions - values = (before, after)
+        elif len(constant_values) == 2:
+            value_tuple = constant_values * (len(pad) // 2)
+
+    rank_array = len(array.shape)
+    amount_pad_dim = len(pad) // 2
+    pad_dim = [rank_array - i for i in range(1, amount_pad_dim + 1)]
+
+    array_torch = array.larray
+
+    if array.split is not None:
+        counts = array.comm.counts_displs_shape(array.gshape, array.split)[0]
+        amount_of_processes = len(counts)
+
+    # calculate gshape for output tensor
+    output_shape_list = list(array.gshape)
+
+    for i in range(0, len(pad), 2):
+        output_shape_list[-((i // 2) + 1)] += sum(pad[i : i + 2])
+
+    output_shape = tuple(output_shape_list)
+
+    # -------------------------------------------------------------------------------------------------------------------
+    # CASE 1: Padding in non split dimension or no distribution at all
+    # ------------------------------------------------------------------------------------------------------------------
+    # no data
+    if 0 in list(array.lshape):
+        adapted_lshape_list = [
+            0 if i == array.split else output_shape[i] for i in range(len(output_shape))
+        ]
+        adapted_lshape = tuple(adapted_lshape_list)
+        padded_torch_tensor = torch.empty(
+            adapted_lshape, dtype=array._DNDarray__array.dtype, device=array.device.torch_device
+        )
+    else:
+        if array.split is None or array.split not in pad_dim or amount_of_processes == 1:
+            # values = scalar
+            if isinstance(constant_values, int) or isinstance(constant_values, float):
+                padded_torch_tensor = torch.nn.functional.pad(
+                    array_torch, pad, mode, constant_values
+                )
+            # values = sequence with one value for all dimensions
+            elif len(constant_values) == 1 and (
+                isinstance(constant_values[0], int) or isinstance(constant_values[0], float)
+            ):
+                padded_torch_tensor = torch.nn.functional.pad(
+                    array_torch, pad, mode, constant_values[0]
+                )
+            else:
+                padded_torch_tensor = array_torch
+                for i in range(len(value_tuple) - 1, -1, -1):
+                    pad_list = [0] * 2 * rank_array
+                    pad_list[i] = pad[i]
+                    pad_tuple = tuple(pad_list)
+                    padded_torch_tensor = torch.nn.functional.pad(
+                        padded_torch_tensor, pad_tuple, mode, value_tuple[i]
+                    )
+        else:
+            # ------------------------------------------------------------------------------------------------------------------
+            # CASE 2: padding in split dimension and function runs on more than 1 process
+            #
+            # Pad only first/last tensor portion on node (i.e. only beginning/end in split dimension)
+            # --> "Calculate" pad tuple for the corresponding tensor portion/ the two indices which have to be set to zero
+            #      in different paddings depending on the dimension
+            #       Calculate the index of the first element in tuple that has to change/set to zero in
+            #       some dimensions (the following is the second)
+            # ------------------------------------------------------------------------------------------------------------------
+
+            pad_beginning_list = list(pad)
+            pad_end_list = list(pad)
+            pad_middle_list = list(pad)
+
+            # calculate the corresponding pad tuples
+            first_idx_set_zero = 2 * (rank_array - array.split - 1)
+
+            pad_end_list[first_idx_set_zero] = 0
+            pad_beginning_list[first_idx_set_zero + 1] = 0
+            pad_middle_list[first_idx_set_zero : first_idx_set_zero + 2] = [0, 0]
+
+            pad_beginning = tuple(pad_beginning_list)
+            pad_end = tuple(pad_end_list)
+            pad_middle = tuple(pad_middle_list)
+
+            if amount_of_processes >= array.shape[array.split]:
+                last_ps_with_data = array.shape[array.split] - 1
+            else:
+                last_ps_with_data = amount_of_processes - 1
+
+            rank = array.comm.rank
+
+            # first process - pad beginning
+            if rank == 0:
+                pad_tuple_curr_rank = pad_beginning
+
+            # last process - pad end
+            elif rank == last_ps_with_data:
+                pad_tuple_curr_rank = pad_end
+
+            # pad middle
+            else:
+                pad_tuple_curr_rank = pad_middle
+
+            if isinstance(constant_values, (int, float)):
+                padded_torch_tensor = torch.nn.functional.pad(
+                    array_torch, pad_tuple_curr_rank, mode, constant_values
+                )
+
+            elif len(constant_values) == 1 and isinstance(constant_values[0], (int, float)):
+                padded_torch_tensor = torch.nn.functional.pad(
+                    array_torch, pad_tuple_curr_rank, mode, constant_values[0]
+                )
+
+            else:
+                padded_torch_tensor = array_torch
+                for i in range(len(value_tuple) - 1, -1, -1):
+                    pad_list = [0] * 2 * rank_array
+                    pad_list[i] = pad_tuple_curr_rank[i]
+                    pad_tuple = tuple(pad_list)
+                    padded_torch_tensor = torch.nn.functional.pad(
+                        padded_torch_tensor, pad_tuple, mode, value_tuple[i]
+                    )
+
+    padded_tensor = factories.array(
+        padded_torch_tensor,
+        dtype=array.dtype,
+        is_split=array.split,
+        device=array.device,
+        comm=array.comm,
+    )
+
+    padded_tensor.balance_()
+
+    return padded_tensor
+
+
+def ravel(a: DNDarray) -> DNDarray:
+    """
+    Return a flattened view of `a` if possible. A copy is returned otherwise.
+
+    Parameters
+    ----------
+    a : DNDarray
+        array to collapse
+
+    Notes
+    ------
+    Returning a view of distributed data is only possible when `split != 0`. The returned DNDarray may be unbalanced.
+    Otherwise, data must be communicated among processes, and `ravel` falls back to `flatten`.
+
+    See Also
+    --------
+    :func:`flatten`
+
+    Examples
+    --------
+    >>> a = ht.ones((2,3), split=0)
+    >>> b = ht.ravel(a)
+    >>> a[0,0] = 4
+    >>> b
+    DNDarray([4., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
+    """
+    sanitation.sanitize_in(a)
+
+    if a.split is None:
+        return factories.array(
+            torch.flatten(a._DNDarray__array),
+            dtype=a.dtype,
+            copy=False,
+            is_split=None,
+            device=a.device,
+            comm=a.comm,
+        )
+
+    # Redistribution necessary
+    if a.split != 0:
+        return flatten(a)
+
+    result = factories.array(
+        torch.flatten(a._DNDarray__array),
+        dtype=a.dtype,
+        copy=False,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm,
+    )
+
+    return result
+
+
+def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarray:
+    """
+    Creates a new `DNDarray` by repeating elements of array `a`. The output has
+    the same shape as `a`, except along the given axis. If axis is None, this
+    function returns a flattened `DNDarray`.
+
+    Parameters
+    ----------
+    a : array_like (i.e. int, float, or tuple/ list/ np.ndarray/ ht.DNDarray of ints/floats)
+        Array containing the elements to be repeated.
+    repeats : int, or 1-dimensional/ DNDarray/ np.ndarray/ list/ tuple of ints
+        The number of repetitions for each element, indicates broadcast if int or array_like of 1 element.
+        In this case, the given value is broadcasted to fit the shape of the given axis.
+        Otherwise, its length must be the same as a in the specified axis. To put it differently, the
+        amount of repetitions has to be determined for each element in the corresponding dimension
+        (or in all dimensions if axis is None).
+    axis: int, optional
+        The axis along which to repeat values. By default, use the flattened input array and return a flat output
+        array.
+
+    Examples
+    --------
+    >>> ht.repeat(3, 4)
+    DNDarray([3, 3, 3, 3])
+
+    >>> x = ht.array([[1,2],[3,4]])
+    >>> ht.repeat(x, 2)
+    DNDarray([1, 1, 2, 2, 3, 3, 4, 4])
+
+    >>> x = ht.array([[1,2],[3,4]])
+    >>> ht.repeat(x, [0, 1, 2, 0])
+    DNDarray([2, 3, 3])
+
+    >>> ht.repeat(x, [1,2], axis=0)
+    DNDarray([[1, 2],
+            [3, 4],
+            [3, 4]])
+    """
+    # sanitation `a`
+    if not isinstance(a, DNDarray):
+        if isinstance(a, (int, float)):
+            a = factories.array([a])
+        elif isinstance(a, (tuple, list, np.ndarray)):
+            a = factories.array(a)
+        else:
+            raise TypeError(
+                "`a` must be a ht.DNDarray, np.ndarray, list, tuple, integer, or float, currently: {}".format(
+                    type(a)
+                )
+            )
+
+    # sanitation `axis`
+    if axis is not None and not isinstance(axis, int):
+        raise TypeError("`axis` must be an integer or None, currently: {}".format(type(axis)))
+
+    if axis is not None and (axis >= len(a.shape) or axis < 0):
+        raise ValueError(
+            "Invalid input for `axis`. Value has to be either None or between 0 and {}, not {}.".format(
+                len(a.shape) - 1, axis
+            )
+        )
+
+    # sanitation `repeats`
+    if not isinstance(repeats, (int, list, tuple, np.ndarray, DNDarray)):
+        raise TypeError(
+            "`repeats` must be an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
+                type(repeats)
+            )
+        )
+
+    # no broadcast implied
+    if not isinstance(repeats, int):
+        # make sure everything inside `repeats` is int
+        if isinstance(repeats, DNDarray):
+            if repeats.dtype == types.int64:
+                pass
+            elif types.can_cast(repeats.dtype, types.int64):
+                repeats = factories.array(
+                    repeats,
+                    dtype=types.int64,
+                    is_split=repeats.split,
+                    device=repeats.device,
+                    comm=repeats.comm,
+                )
+            else:
+                raise TypeError(
+                    "Invalid dtype for ht.DNDarray `repeats`. Has to be integer,"
+                    " but was {}".format(repeats.dtype)
+                )
+        elif isinstance(repeats, np.ndarray):
+            if not types.can_cast(repeats.dtype.type, types.int64):
+                raise TypeError(
+                    "Invalid dtype for np.ndarray `repeats`. Has to be integer,"
+                    " but was {}".format(repeats.dtype.type)
+                )
+            repeats = factories.array(
+                repeats, dtype=types.int64, is_split=None, device=a.device, comm=a.comm
+            )
+        # invalid list/tuple
+        elif not all(isinstance(r, int) for r in repeats):
+            raise TypeError(
+                "Invalid type within `repeats`. All components of `repeats` must be integers."
+            )
+        # valid list/tuple
+        else:
+            repeats = factories.array(
+                repeats, dtype=types.int64, is_split=None, device=a.device, comm=a.comm
+            )
+
+        # check `repeats` is not empty
+        if repeats.gnumel == 0:
+            raise ValueError("Invalid input for `repeats`. `repeats` must contain data.")
+
+        # check `repeats` is 1-dimensional
+        if len(repeats.shape) != 1:
+            raise ValueError(
+                "Invalid input for `repeats`. `repeats` must be a 1d-object or integer, but "
+                "was {}-dimensional.".format(len(repeats.shape))
+            )
+
+    # start of algorithm
+
+    if 0 in a.gshape:
+        return a
+
+    # Broadcast (via int or 1-element DNDarray)
+    if isinstance(repeats, int) or repeats.gnumel == 1:
+        if axis is None and a.split is not None and a.split != 0:
+            warnings.warn(
+                "If axis is None, `a` has to be split along axis 0 (not {}) if distributed.\n`a` will be "
+                "copied with new split axis 0.".format(a.split)
+            )
+            a = resplit(a, 0)
+        if isinstance(repeats, int):
+            repeated_array_torch = torch.repeat_interleave(a._DNDarray__array, repeats, axis)
+        else:
+            if repeats.split is not None:
+                warnings.warn(
+                    "For broadcast via array_like repeats, `repeats` must not be "
+                    "distributed (along axis {}).\n`repeats` will be "
+                    "copied with new split axis None.".format(repeats.split)
+                )
+                repeats = resplit(repeats, None)
+            repeated_array_torch = torch.repeat_interleave(
+                a._DNDarray__array, repeats._DNDarray__array, axis
+            )
+    # No broadcast
+    else:
+        # check if the data chunks of `repeats` and/or `a` have to be (re)distributed before call of torch function.
+
+        # UNDISTRIBUTED CASE (a not distributed)
+        if a.split is None:
+            if repeats.split is not None:
+                warnings.warn(
+                    "If `a` is undistributed, `repeats` also has to be undistributed (not split along axis {}).\n`repeats` will be copied "
+                    "with new split axis None.".format(repeats.split)
+                )
+                repeats = resplit(repeats, None)
+
+            # Check correct input
+            if axis is None:
+                # check matching shapes (repetition defined for every element)
+                if a.gnumel != repeats.gnumel:
+                    raise ValueError(
+                        "Invalid input. Sizes of flattened `a` ({}) and `repeats` ({}) are not same. "
+                        "Please revise your definition specifying repetitions for all elements "
+                        "of the DNDarray `a` or replace repeats with a single"
+                        " scalar.".format(a.gnumel, repeats.gnumel)
+                    )
+            # axis is not None
+            elif a.lshape[axis] != repeats.lnumel:
+                raise ValueError(
+                    "Invalid input. Amount of elements of `repeats` ({}) and of `a` in the specified axis ({}) "
+                    "are not the same. Please revise your definition specifying repetitions for all elements "
+                    "of the DNDarray `a` or replace `repeats` with a single scalar".format(
+                        repeats.lnumel, a.lshape[axis]
+                    )
+                )
+        # DISTRIBUTED CASE (a distributed)
+        else:
+            if axis is None:
+                if a.gnumel != repeats.gnumel:
+                    raise ValueError(
+                        "Invalid input. Sizes of flattened `a` ({}) and `repeats` ({}) are not same. "
+                        "Please revise your definition specifying repetitions for all elements "
+                        "of the DNDarray `a` or replace `repeats` with a single"
+                        " scalar.".format(a.gnumel, repeats.gnumel)
+                    )
+
+                if a.split != 0:
+                    warnings.warn(
+                        "If `axis` is None, `a` has to be split along axis 0 (not {}) if distributed.\n`a` will be copied"
+                        " with new split axis 0.".format(a.split)
+                    )
+                    a = resplit(a, 0)
+
+                repeats = repeats.reshape(a.gshape)
+                if repeats.split != 0:
+                    warnings.warn(
+                        "If `axis` is None, `repeats` has to be split along axis 0 (not {}) if distributed.\n`repeats` will be copied"
+                        " with new split axis 0.".format(repeats.split)
+                    )
+                    repeats = resplit(repeats, 0)
+                flatten_repeats_t = torch.flatten(repeats._DNDarray__array)
+                repeats = factories.array(
+                    flatten_repeats_t,
+                    is_split=repeats.split,
+                    device=repeats.device,
+                    comm=repeats.comm,
+                )
+
+            # axis is not None
+            else:
+                if a.split == axis:
+                    if repeats.split != 0:
+                        warnings.warn(
+                            "If `axis` equals `a.split`, `repeats` has to be split along axis 0 (not {}) if distributed.\n"
+                            "`repeats` will be copied with new split axis 0".format(repeats.split)
+                        )
+                        repeats = resplit(repeats, 0)
+
+                # a.split != axis
+                else:
+                    if repeats.split is not None:
+                        warnings.warn(
+                            "If `axis` != `a.split`, `repeast` must not be distributed (along axis {}).\n`repeats` will be copied with new"
+                            " split axis None.".format(repeats.split)
+                        )
+                        repeats = resplit(repeats, None)
+
+                    if a.lshape[axis] != repeats.lnumel:
+                        raise ValueError(
+                            "Invalid input. Amount of elements of `repeats` ({}) and of `a` in the specified axis ({}) "
+                            "are not the same. Please revise your definition specifying repetitions for all elements "
+                            "of the DNDarray `a` or replace `repeats` with a single scalar".format(
+                                repeats.lnumel, a.lshape[axis]
+                            )
+                        )
+
+        repeated_array_torch = torch.repeat_interleave(
+            a._DNDarray__array, repeats._DNDarray__array, axis
+        )
+
+    repeated_array = factories.array(
+        repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+    )
+    repeated_array.balance_()
+
+    return repeated_array
+
+
+def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None) -> DNDarray:
+    """
+    Returns an array with the same data and number of elements as `a`, but with the specified shape.
+
+    Parameters
+    ----------
+    a : DNDarray
+        The input array
+    shape : Tuple[int,...]
+        Shape of the new array
     new_split : int, optional
         The new split axis if `a` is a split DNDarray. None denotes same axis.
         Default : None
 
-    Returns
-    -------
-    reshaped : ht.DNDarray
-        The DNDarray with the specified shape
-
     Raises
     ------
     ValueError
-        If the number of elements changes in the new shape.
+        If the number of elements in the new shape is inconsistent with the input data.
+
+    See Also
+    --------
+    :func:`ravel`
 
     Examples
     --------
     >>> a = ht.zeros((3,4))
     >>> ht.reshape(a, (4,3))
-    tensor([[0,0,0],
-            [0,0,0],
-            [0,0,0],
-            [0,0,0]])
-
+    DNDarray([[0., 0., 0.],
+              [0., 0., 0.],
+              [0., 0., 0.],
+              [0., 0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> a = ht.linspace(0, 14, 8, split=0)
     >>> ht.reshape(a, (2,4))
     (1/2) tensor([[0., 2., 4., 6.]])
     (2/2) tensor([[ 8., 10., 12., 14.]])
     """
-    if not isinstance(a, dndarray.DNDarray):
+    if not isinstance(a, DNDarray):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
-    if not isinstance(shape, (list, tuple)):
-        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
-        # check new_split parameter
-    if new_split is None:
-        new_split = a.split
-    stride_tricks.sanitize_axis(shape, new_split)
+
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
-    # Check the type of shape and number elements
-    shape = stride_tricks.sanitize_shape(shape)
-    if torch.prod(torch.tensor(shape, device=tdevice)) != a.size:
-        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
     def reshape_argsort_counts_displs(
         shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
@@ -971,9 +1733,9 @@ def reshape(a, shape, new_split=None):
         """
         Compute the send order, counts, and displacements.
         """
-        shape1 = torch.tensor(shape1, dtype=tdtype, device=tdevice)
-        lshape1 = torch.tensor(lshape1, dtype=tdtype, device=tdevice)
-        shape2 = torch.tensor(shape2, dtype=tdtype, device=tdevice)
+        shape1 = torch.tensor(shape1, dtype=torch.int)
+        lshape1 = torch.tensor(lshape1, dtype=torch.int)
+        shape2 = torch.tensor(shape2, dtype=torch.int)
         # constants
         width = torch.prod(lshape1[axis1:], dtype=torch.int)
         height = torch.prod(lshape1[:axis1], dtype=torch.int)
@@ -988,7 +1750,7 @@ def reshape(a, shape, new_split=None):
         mask = mask.flatten()
 
         # Compute return values
-        counts = torch.zeros(comm.size, dtype=torch.int, device=tdevice)
+        counts = torch.zeros(comm.size, dtype=torch.int)
         displs = torch.zeros_like(counts)
         argsort = torch.empty_like(mask, dtype=torch.long)
         plz = 0
@@ -1000,10 +1762,38 @@ def reshape(a, shape, new_split=None):
         displs[1:] = torch.cumsum(counts[:-1], dim=0)
         return argsort, counts, displs
 
+    if shape == -1:
+        shape = (a.gnumel,)
+
+    if not isinstance(shape, (list, tuple)):
+        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
+
+    # check new_split parameter
+    if new_split is None:
+        new_split = a.split
+    stride_tricks.sanitize_axis(shape, new_split)
+
+    # Check the type of shape and number elements
+    shape = stride_tricks.sanitize_shape(shape, -1)
+
+    shape = list(shape)
+    shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
+
+    # infer unknown dimension
+    if shape.count(-1) > 1:
+        raise ValueError("too many unknown dimensions")
+    elif shape.count(-1) == 1:
+        pos = shape.index(-1)
+        shape[pos] = int(-(a.size / shape_size).item())
+        shape_size *= -shape[pos]
+
+    if shape_size != a.size:
+        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
+
     # Forward to Pytorch directly
     if a.split is None:
         return factories.array(
-            torch.reshape(a._DNDarray__array, shape), dtype=a.dtype, device=a.device, comm=a.comm
+            torch.reshape(a.larray, shape), dtype=a.dtype, device=a.device, comm=a.comm
         )
 
     # Create new flat result tensor
@@ -1025,7 +1815,7 @@ def reshape(a, shape, new_split=None):
     )
 
     # rearange order
-    send = a._DNDarray__array.flatten()[sendsort]
+    send = a.larray.flatten()[sendsort]
     a.comm.Alltoallv((send, sendcounts, senddispls), (data, recvcounts, recvdispls))
 
     # original order
@@ -1038,9 +1828,13 @@ def reshape(a, shape, new_split=None):
     return factories.array(data, dtype=a.dtype, is_split=new_split, device=a.device, comm=a.comm)
 
 
-def rot90(m, k=1, axes=(0, 1)):
+DNDarray.reshape = lambda self, shape, axis=None: reshape(self, shape, axis)
+DNDarray.reshape.__doc__ = reshape.__doc__
+
+
+def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarray:
     """
-    Rotate an array by 90 degrees in the plane specified by axes.
+    Rotate an array by 90 degrees in the plane specified by `axes`.
     Rotation direction is from the first towards the second axis.
 
     Parameters
@@ -1049,58 +1843,51 @@ def rot90(m, k=1, axes=(0, 1)):
         Array of two or more dimensions.
     k : integer
         Number of times the array is rotated by 90 degrees.
-    axes: (2,) int list or tuple
+    axes: (2,) Sequence[int, int]
         The array is rotated in the plane defined by the axes.
         Axes must be different.
 
-    Returns
-    -------
-    DNDarray
-
-    Notes
-    -----
-    rot90(m, k=1, axes=(1,0)) is the reverse of rot90(m, k=1, axes=(0,1))
-    rot90(m, k=1, axes=(1,0)) is equivalent to rot90(m, k=-1, axes=(0,1))
-
-    May change the split axis on distributed tensors
-
     Raises
     ------
-    TypeError
-        If first parameter is not a :class:DNDarray.
-    TypeError
-        If parameter ``k`` is not castable to integer.
     ValueError
-        If ``len(axis)!=2``.
+        If `len(axis)!=2`.
     ValueError
         If the axes are the same.
     ValueError
         If axes are out of range.
 
+    Notes
+    -----
+    - ``rot90(m, k=1, axes=(1,0))`` is the reverse of ``rot90(m, k=1, axes=(0,1))``.\n
+    - ``rot90(m, k=1, axes=(1,0))`` is equivalent to ``rot90(m, k=-1, axes=(0,1))``.
+
+    May change the split axis on distributed tensors.
+
     Examples
     --------
     >>> m = ht.array([[1,2],[3,4]], dtype=ht.int)
     >>> m
-    tensor([[1, 2],
-            [3, 4]], dtype=torch.int32)
+    DNDarray([[1, 2],
+              [3, 4]], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.rot90(m)
-    tensor([[2, 4],
-            [1, 3]], dtype=torch.int32)
+    DNDarray([[2, 4],
+              [1, 3]], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.rot90(m, 2)
-    tensor([[4, 3],
-            [2, 1]], dtype=torch.int32)
+    DNDarray([[4, 3],
+              [2, 1]], dtype=ht.int32, device=cpu:0, split=None)
     >>> m = ht.arange(8).reshape((2,2,2))
     >>> ht.rot90(m, 1, (1,2))
-    tensor([[[1, 3],
-             [0, 2]],
-            [[5, 7],
-             [4, 6]]], dtype=torch.int32)
+    DNDarray([[[1, 3],
+               [0, 2]],
+
+              [[5, 7],
+               [4, 6]]], dtype=ht.int32, device=cpu:0, split=None)
     """
     axes = tuple(axes)
     if len(axes) != 2:
         raise ValueError("len(axes) must be 2.")
 
-    if not isinstance(m, dndarray.DNDarray):
+    if not isinstance(m, DNDarray):
         raise TypeError("expected m to be a ht.DNDarray, but was {}".format(type(m)))
 
     if axes[0] == axes[1] or np.absolute(axes[0] - axes[1]) == m.ndim:
@@ -1111,7 +1898,7 @@ def rot90(m, k=1, axes=(0, 1)):
 
     if m.split is None:
         return factories.array(
-            torch.rot90(m._DNDarray__array, k, axes), dtype=m.dtype, device=m.device, comm=m.comm
+            torch.rot90(m.larray, k, axes), dtype=m.dtype, device=m.device, comm=m.comm
         )
 
     try:
@@ -1136,59 +1923,51 @@ def rot90(m, k=1, axes=(0, 1)):
         return flip(linalg.transpose(m, axes_list), axes[1])
 
 
-def shape(a):
+DNDarray.rot90 = lambda self, k=1, axis=(0, 1): rot90(self, k, axis)
+DNDarray.rot90.__doc__ = rot90.__doc__
+
+
+def shape(a: DNDarray) -> Tuple[int, ...]:
     """
-    Returns the shape of a DNDarray `a`.
+    Returns the global shape of a (potentially distributed) `DNDarray` as a tuple.
 
     Parameters
     ----------
     a : DNDarray
-
-    Returns
-    -------
-    tuple of ints
+        The input `DNDarray`.
     """
     # sanitize input
-    if not isinstance(a, dndarray.DNDarray):
+    if not isinstance(a, DNDarray):
         raise TypeError("Expected a to be a DNDarray but was {}".format(type(a)))
 
     return a.gshape
 
 
-def sort(a, axis=None, descending=False, out=None):
+def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DNDarray] = None):
     """
-    Sorts the elements of the DNDarray a along the given dimension (by default in ascending order) by their value.
-
+    Sorts the elements of `a` along the given dimension (by default in ascending order) by their value.
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
     original array.
-
-    Sorting where `axis == a.split` needs a lot of communication between the processes of MPI.
+    Sorting where `axis==a.split` needs a lot of communication between the processes of MPI.
+    Returns a tuple `(values, indices)` with the sorted local results and the indices of the elements in the original data
 
     Parameters
     ----------
-    a : ht.DNDarray
+    a : DNDarray
         Input array to be sorted.
     axis : int, optional
         The dimension to sort along.
         Default is the last axis.
     descending : bool, optional
-        If set to true values are sorted in descending order
-        Default is false
-    out : ht.DNDarray or None, optional
+        If set to `True`, values are sorted in descending order.
+    out : DNDarray, optional
         A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    values : ht.DNDarray
-        The sorted local results.
-    indices
-        The indices of the elements in the original data
+        or set to `None`, a fresh array is allocated.
 
     Raises
     ------
     ValueError
-        If the axis is not in range of the axes.
+        If `axis` is not consistent with the available dimensions.
 
     Examples
     --------
@@ -1196,32 +1975,24 @@ def sort(a, axis=None, descending=False, out=None):
     >>> x.shape
     (1, 2)
     (1, 2)
-
     >>> y = ht.sort(x, axis=0)
     >>> y
     (array([[2, 1]], array([[1, 0]]))
     (array([[4, 3]], array([[0, 1]]))
-
     >>> ht.sort(x, descending=True)
     (array([[4, 1]], array([[0, 1]]))
     (array([[3, 2]], array([[1, 0]]))
     """
-    # default: using last axis
-    if axis is None:
-        axis = len(a.shape) - 1
-
     stride_tricks.sanitize_axis(a.shape, axis)
 
     if a.split is None or axis != a.split:
         # sorting is not affected by split -> we can just sort along the axis
-        final_result, final_indices = torch.sort(
-            a._DNDarray__array, dim=axis, descending=descending
-        )
+        final_result, final_indices = torch.sort(a.larray, dim=axis, descending=descending)
 
     else:
         # sorting is affected by split, processes need to communicate results
         # transpose so we can work along the 0 axis
-        transposed = a._DNDarray__array.transpose(axis, 0)
+        transposed = a.larray.transpose(axis, 0)
         local_sorted, local_indices = torch.sort(transposed, dim=0, descending=descending)
 
         size = a.comm.Get_size()
@@ -1349,7 +2120,7 @@ def sort(a, axis=None, descending=False, out=None):
                         amount = int(x - send_vec[idx][:, first + i].sum())
                         send_vec[idx][proc][first + i] = amount
                         current_counts[first + i] += amount
-                        sent += amount
+                        sent = send_vec[idx][proc][: first + i + 1].sum().item()
                     if last < size:
                         # Send all left over values to the highest last process
                         amount = partition_matrix[proc][idx]
@@ -1414,10 +2185,10 @@ def sort(a, axis=None, descending=False, out=None):
             final_indices[idx] = second_indices[val.item()][idx[1:]]
         final_indices = final_indices.transpose(0, axis)
     return_indices = factories.array(
-        final_indices, dtype=dndarray.types.int32, is_split=a.split, device=a.device, comm=a.comm
+        final_indices, dtype=types.int32, is_split=a.split, device=a.device, comm=a.comm
     )
     if out is not None:
-        out._DNDarray__array = final_result
+        out.larray = final_result
         return return_indices
     else:
         tensor = factories.array(
@@ -1426,48 +2197,291 @@ def sort(a, axis=None, descending=False, out=None):
         return tensor, return_indices
 
 
-def squeeze(x, axis=None):
+def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DNDarray, ...]:
     """
-    Remove single-dimensional entries from the shape of a tensor.
+    Split a DNDarray into multiple sub-DNDarrays.
+    Returns a list of sub-DNDarrays as copies of parts of `x`.
 
-    Parameters:
-    -----------
-    x : ht.DNDarray
-        Input data.
+    Parameters
+    ----------
+    x : DNDarray
+        DNDArray to be divided into sub-DNDarrays.
+    indices_or_sections : int or 1-dimensional array_like (i.e. undistributed DNDarray, list or tuple)
+        If `indices_or_sections` is an integer, N, the DNDarray will be divided into N equal DNDarrays along axis.
+        If such a split is not possible, an error is raised.
+        If `indices_or_sections` is a 1-D DNDarray of sorted integers, the entries indicate where along axis
+        the array is split.
+        For example, `indices_or_sections = [2, 3]` would, for `axis = 0`, result in
 
-    axis : None or int or tuple of ints, optional
-           Selects a subset of the single-dimensional entries in the shape.
-           If axis is None, all single-dimensional entries will be removed from the shape.
-           If an axis is selected with shape entry greater than one, a ValueError is raised.
+        - `x[:2]`
+        - `x[2:3]`
+        - `x[3:]`
 
+        If an index exceeds the dimension of the array along axis, an empty sub-array is returned correspondingly.
+    axis : int, optional
+        The axis along which to split, default is 0.
+        `axis` is not allowed to equal `x.split` if `x` is distributed.
 
-    Returns:
+    Raises
+    ------
+    ValueError
+        If `indices_or_sections` is given as integer, but a split does not result in equal division.
+
+    Warnings
     --------
-    squeezed : ht.DNDarray
-               The input tensor, but with all or a subset of the dimensions of length 1 removed.
-               Split semantics: see note below.
+    Though it is possible to distribute `x`, this function has nothing to do with the split
+    parameter of a DNDarray.
 
-    Examples:
+    See Also
+    --------
+    :func:`dsplit`
+    :func:`hsplit`
+    :func:`vsplit`
+
+    Examples
+    --------
+    >>> x = ht.arange(12).reshape((4,3))
+    >>> ht.split(x, 2)
+        [ DNDarray([[0, 1, 2],
+                    [3, 4, 5]]),
+          DNDarray([[ 6,  7,  8],
+                    [ 9, 10, 11]])]
+    >>> ht.split(x, [2, 3, 5])
+        [ DNDarray([[0, 1, 2],
+                    [3, 4, 5]]),
+          DNDarray([[6, 7, 8]]
+          DNDarray([[ 9, 10, 11]]),
+          DNDarray([])]
+    >>> ht.split(x, [1, 2], 1)
+        [DNDarray([[0],
+                [3],
+                [6],
+                [9]]),
+        DNDarray([[ 1],
+                [ 4],
+                [ 7],
+                [10]],
+        DNDarray([[ 2],
+                [ 5],
+                [ 8],
+                [11]])]
+    """
+    # sanitize x
+    sanitation.sanitize_in(x)
+
+    # sanitize axis
+    if not isinstance(axis, int):
+        raise TypeError("Expected `axis` to be an integer, but was {}".format(type(axis)))
+    if axis < 0 or axis > len(x.gshape) - 1:
+        raise ValueError(
+            "Invalid input for `axis`. Valid range is between 0 and {}, but was {}".format(
+                len(x.gshape) - 1, axis
+            )
+        )
+
+    # sanitize indices_or_sections
+    if isinstance(indices_or_sections, int):
+        if x.gshape[axis] % indices_or_sections != 0:
+            raise ValueError(
+                "DNDarray with shape {} can't be divided equally into {} chunks along axis {}".format(
+                    x.gshape, indices_or_sections, axis
+                )
+            )
+        # np to torch mapping - calculate size of resulting data chunks
+        indices_or_sections_t = x.gshape[axis] // indices_or_sections
+
+    elif isinstance(indices_or_sections, (list, tuple, DNDarray)):
+        if isinstance(indices_or_sections, (list, tuple)):
+            indices_or_sections = factories.array(indices_or_sections)
+        if len(indices_or_sections.gshape) != 1:
+            raise ValueError(
+                "Expected indices_or_sections to be 1-dimensional, but was {}-dimensional instead.".format(
+                    len(indices_or_sections.gshape) - 1
+                )
+            )
+    else:
+        raise TypeError(
+            "Expected `indices_or_sections` to be array_like (DNDarray, list or tuple), but was {}".format(
+                type(indices_or_sections)
+            )
+        )
+
+    # start of actual algorithm
+
+    if x.split == axis and x.is_distributed():
+
+        if isinstance(indices_or_sections, int):
+            # CASE 1 number of processes == indices_or_selections -> split already done due to distribution
+            if x.comm.size == indices_or_sections:
+                new_lshape = list(x.lshape)
+                new_lshape[axis] = 0
+                sub_arrays_t = [
+                    torch.empty(new_lshape) if i != x.comm.rank else x._DNDarray__array
+                    for i in range(indices_or_sections)
+                ]
+
+            # # CASE 2 number of processes != indices_or_selections -> reorder (and split) chunks correctly
+            else:
+                # no data
+                if x.lshape[axis] == 0:
+                    sub_arrays_t = [torch.empty(x.lshape) for i in range(indices_or_sections)]
+                else:
+                    offset, local_shape, slices = x.comm.chunk(x.gshape, axis)
+                    idx_frst_chunk_affctd = offset // indices_or_sections_t
+                    left_data_chunk = indices_or_sections_t - (offset % indices_or_sections_t)
+                    left_data_process = x.lshape[axis]
+
+                    new_indices = torch.zeros(indices_or_sections, dtype=int)
+
+                    if left_data_chunk >= left_data_process:
+                        new_indices[idx_frst_chunk_affctd] = left_data_process
+                    else:
+                        new_indices[idx_frst_chunk_affctd] = left_data_chunk
+                        left_data_process -= left_data_chunk
+                        idx_frst_chunk_affctd += 1
+
+                        # calculate chunks which can be filled completely
+                        left_chunks_to_fill = left_data_process // indices_or_sections_t
+                        new_indices[
+                            idx_frst_chunk_affctd : (left_chunks_to_fill + idx_frst_chunk_affctd)
+                        ] = indices_or_sections_t
+
+                        # assign residual to following process
+                        new_indices[left_chunks_to_fill + idx_frst_chunk_affctd] = (
+                            left_data_process % indices_or_sections_t
+                        )
+
+                    sub_arrays_t = torch.split(x._DNDarray__array, new_indices.tolist(), axis)
+        # indices or sections == DNDarray
+        else:
+            if indices_or_sections.split is not None:
+                warnings.warn(
+                    "`indices_or_sections` might not be distributed (along axis {}) if `x` is not distributed.\n"
+                    "`indices_or_sections` will be copied with new split axis None.".format(
+                        indices_or_sections.split
+                    )
+                )
+                indices_or_sections = resplit(indices_or_sections, None)
+
+            offset, local_shape, slices = x.comm.chunk(x.gshape, axis)
+            slice_axis = slices[axis]
+
+            # reduce information to the (chunk) relevant
+            indices_or_sections_t = indexing.where(
+                indices_or_sections <= slice_axis.start, slice_axis.start, indices_or_sections
+            )
+
+            indices_or_sections_t = indexing.where(
+                indices_or_sections_t >= slice_axis.stop, slice_axis.stop, indices_or_sections_t
+            )
+
+            # np to torch mapping
+
+            # 2. add first and last value to DNDarray
+            # 3. calculate the 1-st discrete difference therefore corresponding chunk sizes
+            indices_or_sections_t = arithmetics.diff(
+                indices_or_sections_t, prepend=slice_axis.start, append=slice_axis.stop
+            )
+            indices_or_sections_t = factories.array(
+                indices_or_sections_t,
+                dtype=types.int64,
+                is_split=indices_or_sections_t.split,
+                comm=indices_or_sections_t.comm,
+                device=indices_or_sections_t.device,
+            )
+
+            # 4. transform the result into a list (torch requirement)
+            indices_or_sections_t = indices_or_sections_t.tolist()
+
+            sub_arrays_t = torch.split(x._DNDarray__array, indices_or_sections_t, axis)
+    else:
+        if isinstance(indices_or_sections, int):
+            sub_arrays_t = torch.split(x._DNDarray__array, indices_or_sections_t, axis)
+        else:
+            if indices_or_sections.split is not None:
+                warnings.warn(
+                    "`indices_or_sections` might not be distributed (along axis {}) if `x` is not distributed.\n"
+                    "`indices_or_sections` will be copied with new split axis None.".format(
+                        indices_or_sections.split
+                    )
+                )
+                indices_or_sections = resplit(indices_or_sections, None)
+
+            # np to torch mapping
+
+            # 1. replace all values out of range with gshape[axis] to generate size 0
+            indices_or_sections_t = indexing.where(
+                indices_or_sections <= x.gshape[axis], indices_or_sections, x.gshape[axis]
+            )
+
+            # 2. add first and last value to DNDarray
+            # 3. calculate the 1-st discrete difference therefore corresponding chunk sizes
+            indices_or_sections_t = arithmetics.diff(
+                indices_or_sections_t, prepend=0, append=x.gshape[axis]
+            )
+            indices_or_sections_t = factories.array(
+                indices_or_sections_t,
+                dtype=types.int64,
+                is_split=indices_or_sections_t.split,
+                comm=indices_or_sections_t.comm,
+                device=indices_or_sections_t.device,
+            )
+
+            # 4. transform the result into a list (torch requirement)
+            indices_or_sections_t = indices_or_sections_t.tolist()
+
+            sub_arrays_t = torch.split(x._DNDarray__array, indices_or_sections_t, axis)
+
+    sub_arrays_ht = [
+        factories.array(sub_DNDarray, dtype=x.dtype, is_split=x.split, device=x.device, comm=x.comm)
+        for sub_DNDarray in sub_arrays_t
+    ]
+
+    for sub_DNDarray in sub_arrays_ht:
+        sub_DNDarray.balance_()
+
+    return sub_arrays_ht
+
+
+def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
+    """
+    Remove single-element entries from the shape of a `DNDarray`.
+    Returns the input array, but with all or a subset (indicated by `axis`) of the dimensions of length 1 removed.
+    Split semantics: see Notes below.
+
+    Parameters
+    -----------
+    x : DNDarray
+        Input data.
+    axis : None or int or Tuple[int,...], optional
+           Selects a subset of the single-element entries in the shape.
+           If axis is `None`, all single-element entries will be removed from the shape.
+
+    Raises
+    ------
+    `ValueError`, if an axis is selected with shape entry greater than one.
+
+    Notes
+    -----
+    Split semantics: a distributed DNDarray will keep its original split dimension after "squeezing",
+    which, depending on the squeeze axis, may result in a lower numerical `split` value (see Examples).
+
+    Examples
     ---------
     >>> import heat as ht
-    >>> import torch
-    >>> torch.manual_seed(1)
-    <torch._C.Generator object at 0x115704ad0>
     >>> a = ht.random.randn(1,3,1,5)
     >>> a
-    tensor([[[[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232]],
-
-            [[ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255]],
-
-            [[-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]]]])
+    DNDarray([[[[-0.2604,  1.3512,  0.1175,  0.4197,  1.3590]],
+               [[-0.2777, -1.1029,  0.0697, -1.3074, -1.1931]],
+               [[-0.4512, -1.2348, -1.1479, -0.0242,  0.4050]]]], dtype=ht.float32, device=cpu:0, split=None)
     >>> a.shape
     (1, 3, 1, 5)
     >>> ht.squeeze(a).shape
     (3, 5)
     >>> ht.squeeze(a)
-    tensor([[ 0.2673, -0.4212, -0.5107, -1.5727, -0.1232],
-            [ 3.5870, -1.8313,  1.5987, -1.2770,  0.3255],
-            [-0.4791,  1.3790,  2.5286,  0.4107, -0.9880]])
+    DNDarray([[-0.2604,  1.3512,  0.1175,  0.4197,  1.3590],
+              [-0.2777, -1.1029,  0.0697, -1.3074, -1.1931],
+              [-0.4512, -1.2348, -1.1479, -0.0242,  0.4050]], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.squeeze(a,axis=0).shape
     (3, 1, 5)
     >>> ht.squeeze(a,axis=-2).shape
@@ -1476,11 +2490,6 @@ def squeeze(x, axis=None):
     Traceback (most recent call last):
     ...
     ValueError: Dimension along axis 1 is not 1 for shape (1, 3, 1, 5)
-
-    Note:
-    -----
-    Split semantics: a distributed tensor will keep its original split dimension after "squeezing",
-    which, depending on the squeeze axis, may result in a lower numerical 'split' value, as in:
     >>> x.shape
     (10, 1, 12, 13)
     >>> x.split
@@ -1490,10 +2499,8 @@ def squeeze(x, axis=None):
     >>> x.squeeze().split
     1
     """
-
     # Sanitize input
-    if not isinstance(x, dndarray.DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+    sanitation.sanitize_in(x)
     # Sanitize axis
     axis = stride_tricks.sanitize_axis(x.shape, axis)
     if axis is not None:
@@ -1514,7 +2521,7 @@ def squeeze(x, axis=None):
 
     out_lshape = tuple(x.lshape[dim] for dim in range(x.ndim) if dim not in axis)
     out_gshape = tuple(x.gshape[dim] for dim in range(x.ndim) if dim not in axis)
-    x_lsqueezed = x._DNDarray__array.reshape(out_lshape)
+    x_lsqueezed = x.larray.reshape(out_lshape)
 
     # Calculate new split axis according to squeezed shape
     if x.split is not None:
@@ -1522,22 +2529,35 @@ def squeeze(x, axis=None):
     else:
         split = None
 
-    return dndarray.DNDarray(
-        x_lsqueezed, out_gshape, x.dtype, split=split, device=x.device, comm=x.comm
+    return DNDarray(
+        x_lsqueezed,
+        out_gshape,
+        x.dtype,
+        split=split,
+        device=x.device,
+        comm=x.comm,
+        balanced=x.balanced,
     )
 
 
-def stack(arrays, axis=0, out=None):
-    """
-    Join a sequence of ``DNDarray``s along a new axis.
+DNDarray.squeeze: Callable[
+    [DNDarray, Union[int, Tuple[int, ...]]], DNDarray
+] = lambda self, axis=None: squeeze(self, axis)
+DNDarray.squeeze.__doc__ = squeeze.__doc__
 
-    The ``axis`` parameter specifies the index of the new axis in the dimensions of the result.
-    For example, if ``axis=0``, the arrays will be stacked along the first dimension; if ``axis=-1``,
+
+def stack(
+    arrays: Sequence[DNDarray, ...], axis: int = 0, out: Optional[DNDarray] = None
+) -> DNDarray:
+    """
+    Join a sequence of `DNDarray`s along a new axis.
+    The `axis` parameter specifies the index of the new axis in the dimensions of the result.
+    For example, if `axis=0`, the arrays will be stacked along the first dimension; if `axis=-1`,
     they will be stacked along the last dimension. See Notes below for split semantics.
 
     Parameters
     ----------
-    arrays : Sequence[DNDarrays,...]
+    arrays : Sequence[DNDarrays, ...]
         Each DNDarray must have the same shape, must be split along the same axis, and must be balanced.
     axis : int, optional
         The axis in the result array along which the input arrays are stacked.
@@ -1548,17 +2568,13 @@ def stack(arrays, axis=0, out=None):
     Raises
     ------
     TypeError
-        If arrays in sequence are not ``DNDarray``s, or if their ``dtype`` attribute does not match.
+        If arrays in sequence are not `DNDarray`s, or if their `dtype` attribute does not match.
     ValueError
-        If ``arrays`` contains less than 2 ``DNDarray``s.
+        If `arrays` contains less than 2 `DNDarray`s.
     ValueError
-        If the ``DNDarray``s are of different shapes, or if they are split along different axes (``split`` attribute).
+        If the `DNDarray`s are of different shapes, or if they are split along different axes (`split` attribute).
     RuntimeError
-        If the ``DNDarrays`` reside of different devices, or if they are unevenly distributed across ranks (method ``is_balanced()`` returns ``False``)
-
-    Returns
-    -------
-    DNDarray
+        If the `DNDarrays` reside of different devices, or if they are unevenly distributed across ranks (method `is_balanced()` returns `False`)
 
     Notes
     -----
@@ -1570,16 +2586,23 @@ def stack(arrays, axis=0, out=None):
 
     - if :math:`axis > split`, output will be distributed along `split`
 
+    See Also
+    --------
+    :func:`column_stack`
+    :func:`concatenate`
+    :func:`hstack`
+    :func:`row_stack`
+    :func:`vstack`
+
     Examples
     --------
-    >>> a = ht.arange(20).reshape(4, 5)
-    >>> b = ht.arange(20, 40).reshape(4, 5)
-    >>> ht.stack((a,b), axis=0)._DNDarray__array
+    >>> a = ht.arange(20).reshape((4, 5))
+    >>> b = ht.arange(20, 40).reshape((4, 5))
+    >>> ht.stack((a,b), axis=0).larray
     tensor([[[ 0,  1,  2,  3,  4],
              [ 5,  6,  7,  8,  9],
              [10, 11, 12, 13, 14],
              [15, 16, 17, 18, 19]],
-
             [[20, 21, 22, 23, 24],
              [25, 26, 27, 28, 29],
              [30, 31, 32, 33, 34],
@@ -1587,13 +2610,12 @@ def stack(arrays, axis=0, out=None):
     >>> # distributed DNDarrays, 3 processes, stack along last dimension
     >>> a = ht.arange(20, split=0).reshape(4, 5)
     >>> b = ht.arange(20, 40, split=0).reshape(4, 5)
-    >>> ht.stack((a,b), axis=-1)._DNDarray__array
+    >>> ht.stack((a,b), axis=-1).larray
     [0/2] tensor([[[ 0, 20],
     [0/2]          [ 1, 21],
     [0/2]          [ 2, 22],
     [0/2]          [ 3, 23],
     [0/2]          [ 4, 24]],
-    [0/2]
     [0/2]         [[ 5, 25],
     [0/2]          [ 6, 26],
     [0/2]          [ 7, 27],
@@ -1610,22 +2632,17 @@ def stack(arrays, axis=0, out=None):
     [2/2]          [18, 38],
     [2/2]          [19, 39]]])
     """
-
     # sanitation
-    if not isinstance(arrays, (tuple, list)):
-        raise TypeError("arrays must be a list or a tuple")
+    sanitation.sanitize_sequence(arrays)
 
     if len(arrays) < 2:
         raise ValueError("stack expects a sequence of at least 2 DNDarrays")
 
     for i, array in enumerate(arrays):
-        if not isinstance(array, dndarray.DNDarray):
-            raise TypeError(
-                "all arrays in sequence must be DNDarrays, array {} was {}".format(i, type(array))
-            )
+        sanitation.sanitize_in(array)
 
     arrays_metadata = list(
-        [array.gshape, array.split, array.device, array.is_balanced()] for array in arrays
+        [array.gshape, array.split, array.device, array.balanced] for array in arrays
     )
     num_arrays = len(arrays)
     # metadata must be identical for all arrays
@@ -1644,20 +2661,14 @@ def stack(arrays, axis=0, out=None):
         devices = list(array.device for array in arrays)
         if devices.count(devices[0]) != num_arrays:
             raise RuntimeError(
-                "DNDarrays in sequence must reside on the same device, got devices {}".format(
-                    devices
+                "DNDarrays in sequence must reside on the same device, got devices {} {} {}".format(
+                    devices, devices[0].device_id, devices[1].device_id
                 )
             )
-        balance = list(array.is_balanced() for array in arrays)
-        if balance.count(balance[0]) != num_arrays:
-            raise RuntimeError(
-                "DNDarrays distribution must be balanced across ranks, is_balanced() returns {}"
-                "You can balance a DNDarray with the balance_() method.".format(balance)
-            )
     else:
-        array_shape, array_split, array_device = arrays_metadata[0][:3]
+        array_shape, array_split, array_device, array_balanced = arrays_metadata[0][:4]
         # extract torch tensors
-        t_arrays = list(array._DNDarray__array for array in arrays)
+        t_arrays = list(array.larray for array in arrays)
         # output dtype
         t_dtypes = list(t_array.dtype for t_array in t_arrays)
         t_array_dtype = t_dtypes[0]
@@ -1671,7 +2682,7 @@ def stack(arrays, axis=0, out=None):
             t_arrays = list(t_array.type(t_array_dtype) for t_array in t_arrays)
         array_dtype = types.canonical_heat_type(t_array_dtype)
 
-    # sanitate axis
+    # sanitize axis
     axis = stride_tricks.sanitize_axis(array_shape + (num_arrays,), axis)
 
     # output shape and split
@@ -1681,85 +2692,64 @@ def stack(arrays, axis=0, out=None):
     else:
         stacked_split = None
 
-    # sanitate output
-    if out is not None:
-        if not isinstance(out, dndarray.DNDarray):
-            raise TypeError("expected out to be None or ht.DNDarray, but was {}".format(type(out)))
-        if out.dtype is not array_dtype:
-            raise TypeError("expected out to be {}, but was {}".format(array_dtype, out.dtype))
-        if out.gshape != stacked_shape:
-            raise ValueError(
-                "expected out.shape to be {}, got {}".format(out.gshape, stacked_shape)
-            )
-        if out.split is not stacked_split:
-            raise ValueError("expected out.split to be {}, got {}".format(out.split, stacked_split))
-    # end of sanitation
-
     # stack locally
     t_stacked = torch.stack(t_arrays, dim=axis)
 
     # return stacked DNDarrays
     if out is not None:
-        out._DNDarray__array = t_stacked
+        sanitation.sanitize_out(out, stacked_shape, stacked_split, array_device)
+        out.larray = t_stacked.type(out.larray.dtype)
         return out
 
-    stacked = dndarray.DNDarray(
+    stacked = DNDarray(
         t_stacked,
         gshape=stacked_shape,
         dtype=array_dtype,
         split=stacked_split,
         device=array_device,
         comm=arrays[0].comm,
+        balanced=array_balanced,
     )
     return stacked
 
 
-def unique(a, sorted=False, return_inverse=False, axis=None):
+def unique(
+    a: DNDarray, sorted: bool = False, return_inverse: bool = False, axis: int = None
+) -> Tuple[DNDarray, torch.tensor]:
     """
-    Finds and returns the unique elements of an array.
-
-    Works most effective if axis != a.split.
+    Finds and returns the unique elements of a `DNDarray`.
+    If return_inverse is `True`, the second tensor will hold the list of inverse indices
+    If distributed, it is most efficient if `axis!=a.split`.
 
     Parameters
     ----------
-    a : ht.DNDarray
-        Input array where unique elements should be found.
+    a : DNDarray
+        Input array.
     sorted : bool, optional
         Whether the found elements should be sorted before returning as output.
-        Warning: sorted is not working if 'axis != None and axis != a.split'
-        Default: False
+        Warning: sorted is not working if `axis!=None and axis!=a.split`
     return_inverse : bool, optional
         Whether to also return the indices for where elements in the original input ended up in the returned
         unique list.
-        Default: False
     axis : int, optional
-        Axis along which unique elements should be found. Default to None, which will return a one dimensional list of
+        Axis along which unique elements should be found. Default to `None`, which will return a one dimensional list of
         unique values.
-
-    Returns
-    -------
-    res : ht.DNDarray
-        Output array. The unique elements. Elements are distributed the same way as the input tensor.
-    inverse_indices : torch.tensor (optional)
-        If return_inverse is True, this tensor will hold the list of inverse indices
 
     Examples
     --------
     >>> x = ht.array([[3, 2], [1, 3]])
     >>> ht.unique(x, sorted=True)
     array([1, 2, 3])
-
     >>> ht.unique(x, sorted=True, axis=0)
     array([[1, 3],
            [2, 3]])
-
     >>> ht.unique(x, sorted=True, axis=1)
     array([[2, 3],
            [3, 1]])
     """
     if a.split is None:
         torch_output = torch.unique(
-            a._DNDarray__array, sorted=sorted, return_inverse=return_inverse, dim=axis
+            a.larray, sorted=sorted, return_inverse=return_inverse, dim=axis
         )
         if isinstance(torch_output, tuple):
             heat_output = tuple(
@@ -1769,7 +2759,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
             heat_output = factories.array(torch_output, dtype=a.dtype, split=None, device=a.device)
         return heat_output
 
-    local_data = a._DNDarray__array
+    local_data = a.larray
     unique_axis = None
     inverse_indices = None
 
@@ -1812,7 +2802,7 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
         # Gather all unique vectors
         counts = list(uniques_buf.tolist())
         displs = list([0] + uniques_buf.cumsum(0).tolist()[:-1])
-        gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type())
+        gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type(), device=a.device.torch_device)
         a.comm.Allgatherv(lres, (gres_buf, counts, displs), recv_axis=0)
 
         if return_inverse:
@@ -1925,24 +2915,94 @@ def unique(a, sorted=False, return_inverse=False, axis=None):
     return return_value
 
 
-def resplit(arr, axis=None):
+DNDarray.unique: Callable[
+    [DNDarray, bool, bool, int], Tuple[DNDarray, torch.tensor]
+] = lambda self, sorted=False, return_inverse=False, axis=None: unique(
+    self, sorted, return_inverse, axis
+)
+DNDarray.unique.__doc__ = unique.__doc__
+
+
+def vsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:
     """
-    Out-of-place redistribution of the content of the tensor. Allows to "unsplit" (i.e. gather) all values from all
-    nodes as well as the definition of new axis along which the tensor is split without changes to the values.
-    WARNING: this operation might involve a significant communication overhead. Use it sparingly and preferably for
-    small tensors.
+    Split array into multiple sub-DNDNarrays along the 1st axis (vertically/row-wise).
+    Returns a list of sub-DNDarrays as copies of parts of ``x``.
 
     Parameters
     ----------
-    arr : ht.DNDarray
-        The tensor from which to resplit
-    axis : int, None
-        The new split axis, None denotes gathering, an int will set the new split axis
+    x : DNDarray
+        DNDArray to be divided into sub-DNDarrays.
+    indices_or_sections : Iterable
+        If `indices_or_sections` is an integer, N, the DNDarray will be divided into N equal DNDarrays along the 1st axis.\n
+        If such a split is not possible, an error is raised.\n
+        If `indices_or_sections` is a 1-D DNDarray of sorted integers, the entries indicate where along the 1st axis the array is split.\n
+        If an index exceeds the dimension of the array along the 1st axis, an empty sub-DNDarray is returned correspondingly.\n
 
-    Returns
-    -------
-    resplit: ht.DNDarray
-        A new tensor that is a copy of 'arr', but split along 'axis'
+    Raises
+    ------
+    ValueError
+        If `indices_or_sections` is given as integer, but a split does not result in equal division.
+
+    Notes
+    -----
+    Please refer to the split documentation. :func:`hsplit` is equivalent to split with `axis=0`,
+    the array is always split along the first axis regardless of the array dimension.
+
+    See Also
+    --------
+    :func:`split`
+    :func:`dsplit`
+    :func:`hsplit`
+
+    Examples
+    --------
+    >>> x = ht.arange(24).reshape((4, 3, 2))
+    >>> ht.vsplit(x, 2)
+        [DNDarray([[[ 0,  1],
+                   [ 2,  3],
+                   [ 4,  5]],
+                  [[ 6,  7],
+                   [ 8,  9],
+                   [10, 11]]]),
+        DNDarray([[[12, 13],
+                   [14, 15],
+                   [16, 17]],
+                  [[18, 19],
+                   [20, 21],
+                   [22, 23]]])]
+        >>> ht.vsplit(x, [1, 3])
+        [DNDarray([[[0, 1],
+                   [2, 3],
+                   [4, 5]]]),
+        DNDarray([[[ 6,  7],
+                   [ 8,  9],
+                   [10, 11]],
+                  [[12, 13],
+                   [14, 15],
+                   [16, 17]]]),
+        DNDarray([[[18, 19],
+                   [20, 21],
+                   [22, 23]]])]
+    """
+    return split(x, indices_or_sections, 0)
+
+
+def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
+    """
+    Out-of-place redistribution of the content of the `DNDarray`. Allows to "unsplit" (i.e. gather) all values from all
+    nodes,  as well as to define a new axis along which the array is split without changes to the values.
+
+    Parameters
+    ----------
+    arr : DNDarray
+        The array from which to resplit
+    axis : int or None
+        The new split axis, `None` denotes gathering, an int will set the new split axis
+
+    Warning
+    ----------
+    This operation might involve a significant communication overhead. Use it sparingly and preferably for
+    small arrays.
 
     Examples
     --------
@@ -1979,12 +3039,12 @@ def resplit(arr, axis=None):
             arr.shape, dtype=arr.dtype.torch_type(), device=arr.device.torch_device
         )
         counts, displs, _ = arr.comm.counts_displs_shape(arr.shape, arr.split)
-        arr.comm.Allgatherv(arr._DNDarray__array, (gathered, counts, displs), recv_axis=arr.split)
+        arr.comm.Allgatherv(arr.larray, (gathered, counts, displs), recv_axis=arr.split)
         new_arr = factories.array(gathered, is_split=axis, device=arr.device, dtype=arr.dtype)
         return new_arr
     # tensor needs be split/sliced locally
     if arr.split is None:
-        temp = arr._DNDarray__array[arr.comm.chunk(arr.shape, axis)[2]]
+        temp = arr.larray[arr.comm.chunk(arr.shape, axis)[2]]
         new_arr = factories.array(temp, is_split=axis, device=arr.device, dtype=arr.dtype)
         return new_arr
 
@@ -2012,51 +3072,62 @@ def resplit(arr, axis=None):
                 buf = torch.zeros_like(new_tiles[key])
                 rcv_waits[key] = [arr.comm.Irecv(buf=buf, source=spr, tag=spr), buf]
     for w in waits:
-        w.wait()
+        w.Wait()
     for k in rcv_waits.keys():
-        rcv_waits[k][0].wait()
+        rcv_waits[k][0].Wait()
         new_tiles[k] = rcv_waits[k][1]
 
     return new_arr
 
 
-def row_stack(arrays):
+DNDarray.resplit: Callable[[DNDarray, Optional[int]], DNDarray] = lambda self, axis=None: resplit(
+    self, axis
+)
+DNDarray.resplit.__doc__ = resplit.__doc__
+
+
+def row_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     """
-    Stack 1-D or 2-D ``DNDarray``s as rows into a 2-D ``DNDarray``.
+    Stack 1-D or 2-D `DNDarray`s as rows into a 2-D `DNDarray`.
     If the input arrays are 1-D, they will be stacked as rows. If they are 2-D,
     they will be concatenated along the first axis.
 
     Parameters
     ----------
-    arrays : Sequence[DNDarrays,...]
+    arrays : Sequence[DNDarrays, ...]
+        Sequence of `DNDarray`s.
 
     Raises
     ------
     ValueError
         If arrays have more than 2 dimensions
 
-    Returns
-    -------
-    DNDarray
-
-    Note
-    ----
+    Notes
+    -----
     All ``DNDarray``s in the sequence must have the same number of columns.
     All ``DNDarray``s must be split along the same axis!
+
+    See Also
+    --------
+    :func:`column_stack`
+    :func:`concatenate`
+    :func:`hstack`
+    :func:`stack`
+    :func:`vstack`
 
     Examples
     --------
     >>> # 1-D tensors
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([2, 3, 4])
-    >>> ht.row_stack((a, b))._DNDarray__array
+    >>> ht.row_stack((a, b)).larray
     tensor([[1, 2, 3],
             [2, 3, 4]])
     >>> # 1-D and 2-D tensors
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([[2, 3, 4], [5, 6, 7]])
     >>> c = ht.array([[7, 8, 9], [10, 11, 12]])
-    >>> ht.row_stack((a, b, c))._DNDarray__array
+    >>> ht.row_stack((a, b, c)).larray
     tensor([[ 1,  2,  3],
             [ 2,  3,  4],
             [ 5,  6,  7],
@@ -2066,7 +3137,7 @@ def row_stack(arrays):
     >>> a = ht.arange(10, split=0).reshape((2, 5))
     >>> b = ht.arange(5, 20, split=0).reshape((3, 5))
     >>> c = ht.arange(20, 40, split=0).reshape((4, 5))
-    >>> ht.row_stack((a, b, c))._DNDarray__array
+    >>> ht.row_stack((a, b, c)).larray
     [0/2] tensor([[0, 1, 2, 3, 4],
     [0/2]         [5, 6, 7, 8, 9],
     [0/2]         [5, 6, 7, 8, 9]], dtype=torch.int32)
@@ -2079,7 +3150,7 @@ def row_stack(arrays):
     >>> # distributed 1-D and 2-D DNDarrays, 3 processes
     >>> a = ht.arange(5, split=0)
     >>> b = ht.arange(5, 20, split=0).reshape((3, 5))
-    >>> ht.row_stack((a, b))._DNDarray__array
+    >>> ht.row_stack((a, b)).larray
     [0/2] tensor([[0, 1, 2, 3, 4],
     [0/2]         [5, 6, 7, 8, 9]])
     [1/2] tensor([[10, 11, 12, 13, 14]])
@@ -2103,61 +3174,69 @@ def row_stack(arrays):
         return concatenate(arrays, axis=0)
 
 
-def vstack(tup):
+def vstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     """
     Stack arrays in sequence vertically (row wise).
     This is equivalent to concatenation along the first axis.
     This function makes most sense for arrays with up to 3 dimensions. For
     instance, for pixel-data with a height (first axis), width (second axis),
-    and r/g/b channels (third axis). The functions `concatenate`, `stack` and
-    `block` provide more general stacking and concatenation operations.
+    and r/g/b channels (third axis). The :func:`concatenate` function provides more general
+    stacking operations.
 
-    NOTE: the split axis will be switched to 1 in the case that both elements are 1D and split=0
     Parameters
     ----------
-    tup : sequence of DNDarrays
+    arrays : Sequence[DNDarray,...]
         The arrays must have the same shape along all but the first axis.
         1-D arrays must have the same length.
-    Returns
+
+    Notes
     -------
-    stacked : ndarray
-        The array formed by stacking the given arrays, will be at least 2-D.
+    The split axis will be switched to 1 in the case that both elements are 1D and split=0
+
+    See Also
+    --------
+    :func:`concatenate`
+    :func:`stack`
+    :func:`hstack`
+    :func:`column_stack`
+    :func:`row_stack`
+
 
     Examples
     --------
     >>> a = ht.array([1, 2, 3])
     >>> b = ht.array([2, 3, 4])
-    >>> ht.vstack((a,b))._DNDarray__array
+    >>> ht.vstack((a,b)).larray
     [0/1] tensor([[1, 2, 3],
     [0/1]         [2, 3, 4]])
     [1/1] tensor([[1, 2, 3],
     [1/1]         [2, 3, 4]])
     >>> a = ht.array([1, 2, 3], split=0)
     >>> b = ht.array([2, 3, 4], split=0)
-    >>> ht.vstack((a,b))._DNDarray__array
+    >>> ht.vstack((a,b)).larray
     [0/1] tensor([[1, 2],
     [0/1]         [2, 3]])
     [1/1] tensor([[3],
     [1/1]         [4]])
     >>> a = ht.array([[1], [2], [3]], split=0)
     >>> b = ht.array([[2], [3], [4]], split=0)
-    >>> ht.vstack((a,b))._DNDarray__array
-    [0/1] tensor([[1],
-    [0/1]         [2],
-    [0/1]         [3]])
-    [1/1] tensor([[2],
-    [1/1]         [3],
-    [1/1]         [4]])
+    >>> ht.vstack((a,b)).larray
+    [0] tensor([[1],
+    [0]         [2],
+    [0]         [3]])
+    [1] tensor([[2],
+    [1]         [3],
+    [1]         [4]])
     """
-    tup = list(tup)
-    for cn, arr in enumerate(tup):
+    arrays = list(arrays)
+    for cn, arr in enumerate(arrays):
         if len(arr.gshape) == 1:
-            tup[cn] = arr.expand_dims(0).resplit_(arr.split)
+            arrays[cn] = arr.expand_dims(0).resplit_(arr.split)
 
-    return concatenate(tup, axis=0)
+    return concatenate(arrays, axis=0)
 
 
-def tile(x, reps):
+def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
     """
     Construct a new DNDarray by repeating 'x' the number of times given by 'reps'.
 
@@ -2174,8 +3253,10 @@ def tile(x, reps):
     Parameters
     ----------
     x : DNDarray
+        Input
 
     reps : Sequence[ints,...]
+        Repetitions
 
     Returns
     -------
@@ -2330,61 +3411,56 @@ def tile(x, reps):
         return tiled
 
 
-def topk(a, k, dim=None, largest=True, sorted=True, out=None):
+def topk(
+    a: DNDarray,
+    k: int,
+    dim: int = -1,
+    largest: bool = True,
+    sorted: bool = True,
+    out: Optional[Tuple[DNDarray, DNDarray]] = None,
+) -> Tuple[DNDarray, DNDarray]:
     """
-    Returns the k highest entries in the array.
+    Returns the :math:`k` highest entries in the array.
     (Not Stable for split arrays)
 
-    Parameters:
-    -------
+    Parameters
+    -----------
     a: DNDarray
-        Array to take items from
+        Input data
     k: int
-        Number of items to take
-    dim: int
-        Dimension along which to take, per default the last dimension
-    largest: bool
-        Return either the k largest or smallest items
-    sorted: bool
-        Whether to sort the output (descending if largest=True, else ascending)
-    out: tuple of ht.DNDarrays
-        (items, indices) to put the result in
-
-    Returns
-    -------
-    items: ht.DNDarray of shape (k,)
-        The selected items
-    indices: ht.DNDarray of shape (k,)
-        The respective indices
+        Desired number of output items
+    dim: int, optional
+        Dimension along which to sort, per default the last dimension
+    largest: bool, optional
+        If `True`, return the :math:`k` largest items, otherwise return the :math:`k` smallest items
+    sorted: bool, optional
+        Whether to sort the output (descending if `largest` is `True`, else ascending)
+    out: Tuple[DNDarray, ...], optional
+        output buffer
 
     Examples
     --------
     >>> a = ht.array([1, 2, 3])
     >>> ht.topk(a,2)
-    (tensor([3, 2]), tensor([2, 1]))
+    (DNDarray([3, 2], dtype=ht.int64, device=cpu:0, split=None), DNDarray([2, 1], dtype=ht.int64, device=cpu:0, split=None))
     >>> a = ht.array([[1,2,3],[1,2,3]])
     >>> ht.topk(a,2,dim=1)
-   (tensor([[3, 2],
-        [3, 2]]),
-    tensor([[2, 1],
-        [2, 1]]))
+    (DNDarray([[3, 2],
+               [3, 2]], dtype=ht.int64, device=cpu:0, split=None),
+     DNDarray([[2, 1],
+               [2, 1]], dtype=ht.int64, device=cpu:0, split=None))
     >>> a = ht.array([[1,2,3],[1,2,3]], split=1)
     >>> ht.topk(a,2,dim=1)
-   (tensor([[3],
-        [3]]), tensor([[1],
-        [1]]))
-    (tensor([[2],
-        [2]]), tensor([[1],
-        [1]]))
+    (DNDarray([[3, 2],
+               [3, 2]], dtype=ht.int64, device=cpu:0, split=1),
+     DNDarray([[2, 1],
+               [2, 1]], dtype=ht.int64, device=cpu:0, split=1))
     """
+    dim = stride_tricks.sanitize_axis(a.gshape, dim)
 
-    if dim is None:
-        dim = len(a.shape) - 1
-
+    neutral_value = sanitation.sanitize_infinity(a)
     if largest:
-        neutral_value = -constants.sanitize_infinity(a._DNDarray__array.dtype)
-    else:
-        neutral_value = constants.sanitize_infinity(a._DNDarray__array.dtype)
+        neutral_value = -neutral_value
 
     def local_topk(*args, **kwargs):
         shape = a.lshape
@@ -2438,7 +3514,7 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
     )
 
     # Split data again to return a tuple
-    local_result = gres._DNDarray__array
+    local_result = gres.larray
     shape_len = int(local_result[4])
 
     gres, gindices = local_result[5 + shape_len :].chunk(2)
@@ -2457,7 +3533,7 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
         gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split
     )
     final_indices = factories.array(
-        gindices, dtype=torch.int64, device=a.device, split=split, is_split=is_split
+        gindices, dtype=types.int64, device=a.device, split=split, is_split=is_split
     )
 
     if out is not None:
@@ -2467,8 +3543,8 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
                     gres.shape, gindices.shape, out[0].shape, out[1].shape
                 )
             )
-        out[0]._DNDarray__array.storage().copy_(final_array._DNDarray__array.storage())
-        out[1]._DNDarray__array.storage().copy_(final_indices._DNDarray__array.storage())
+        out[0].larray.storage().copy_(final_array.larray.storage())
+        out[1].larray.storage().copy_(final_indices.larray.storage())
 
         out[0]._DNDarray__dtype = a.dtype
         out[1]._DNDarray__dtype = types.int64
@@ -2477,6 +3553,9 @@ def topk(a, k, dim=None, largest=True, sorted=True, out=None):
 
 
 def mpi_topk(a, b, mpi_type):
+    """
+    MPI function for distributed :func:`topk`
+    """
     # Parse Buffer
     a_parsed = torch.from_numpy(np.frombuffer(a, dtype=np.float64))
     b_parsed = torch.from_numpy(np.frombuffer(b, dtype=np.float64))
@@ -2497,13 +3576,13 @@ def mpi_topk(a, b, mpi_type):
     a_values, a_indices = a_parsed[len_shape_a + 5 :].chunk(2)
     b_values, b_indices = b_parsed[len_shape_b + 5 :].chunk(2)
 
-    # reconstruct the flatened data by shape
+    # reconstruct the flattened data by shape
     a_values = a_values.reshape(shape_a)
     a_indices = a_indices.reshape(shape_a)
     b_values = b_values.reshape(shape_b)
     b_indices = b_indices.reshape(shape_b)
 
-    # stack the data to actually run topk on
+    # concatenate the data to actually run topk on
     values = torch.cat((a_values, b_values), dim=dim)
     indices = torch.cat((a_indices, b_indices), dim=dim)
 
