@@ -1685,7 +1685,7 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
     return repeated_array
 
 
-def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
+def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDarray:
     """
     Returns an array with the same data and number of elements as `a`, but with the specified shape.
 
@@ -1693,7 +1693,7 @@ def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
     ----------
     a : DNDarray
         The input array
-    shape : Tuple[int,...]
+    shape : Union[int, Tuple[int,...]]
         Shape of the new array
     new_split : int, optional
         The new split axis if `a` is a split DNDarray. None denotes same axis.
@@ -1725,10 +1725,34 @@ def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
 
     # check for nested sequence
-    if isinstance(shape[0], (tuple, list)):
+    if not np.isscalar(shape[0]):
         shape = shape[0]
+    if shape == -1:
+        shape = (a.gnumel,)
 
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
+
+    # check for valid shape type, shape size
+    a_proxy = torch.ones((1,)).as_strided(a.gshape, [0] * a.ndim)
+    try:
+        a_proxy.reshape(shape)
+    except TypeError as e:
+        raise TypeError(e)
+    except (RuntimeError, ValueError):
+        shape = list(shape)
+        shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
+        if shape.count(-1) > 1:
+            raise ValueError("too many unknown dimensions")
+        elif shape.count(-1) == 1:
+            if a.size % shape_size != 0:
+                raise ValueError(
+                    "cannot reshape array of size {} into shape {}".format(a.size, shape)
+                )
+        else:
+            if a.size != shape_size:
+                raise ValueError(
+                    "cannot reshape array of size {} into shape {}".format(a.size, shape)
+                )
 
     def reshape_argsort_counts_displs(
         shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
@@ -1765,34 +1789,19 @@ def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
         displs[1:] = torch.cumsum(counts[:-1], dim=0)
         return argsort, counts, displs
 
-    if shape == -1:
-        shape = (a.gnumel,)
-
-    if not isinstance(shape, (list, tuple)):
-        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
-
     # check new_split parameter
     new_split = kwargs.get("new_split")
     if new_split is None:
         new_split = a.split
     new_split = stride_tricks.sanitize_axis(shape, new_split)
 
-    # Check the type of shape and number elements
-    shape = stride_tricks.sanitize_shape(shape, -1)
-
     shape = list(shape)
     shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
 
-    # infer unknown dimension
-    if shape.count(-1) > 1:
-        raise ValueError("too many unknown dimensions")
-    elif shape.count(-1) == 1:
+    if shape.count(-1) == 1:
         pos = shape.index(-1)
         shape[pos] = int(-(a.size / shape_size).item())
         shape_size *= -shape[pos]
-
-    if shape_size != a.size:
-        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
     # Forward to Pytorch directly
     if a.split is None:
@@ -1837,7 +1846,7 @@ def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
         shape, local_shape, new_displs, new_split, a.shape, old_displs, a.split, a.comm
     )
 
-    # rearange order
+    # rearrange order
     send = a.larray.flatten()[sendsort]
     a.comm.Alltoallv((send, sendcounts, senddispls), (data, recvcounts, recvdispls))
 
