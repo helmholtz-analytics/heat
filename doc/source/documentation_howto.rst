@@ -25,7 +25,7 @@ done via custom templates, defined in `source/_templates/autoapi/python`.
 
 To build the documentation locally please run the following commands in the Heat home directory:
 
-* ``pip install doc/requirements.txt``
+* ``pip install -r doc/requirements.txt``
 * ``sphinx-build -T -E -b html doc/source doc/build/html``
 
 The second command will build a local rendering of the documentation in the ``doc/build/html/autoapi`` folder. These
