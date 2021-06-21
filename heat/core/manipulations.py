@@ -1737,6 +1737,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     try:
         a_proxy.reshape(shape)
     except TypeError as e:
+        # allow array-like shape
         try:
             shape = shape.tolist()
         except AttributeError:
