@@ -288,3 +288,30 @@ def sqrt(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
 DNDarray.sqrt = lambda self, out=None: sqrt(self, out)
 DNDarray.sqrt.__doc__ = sqrt.__doc__
+
+
+def square(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Return a new tensor with the squares of the elements of input.
+
+    Parameters
+    ----------
+    x : DNDarray
+        The array for which to compute the squares.
+    out : DNDarray, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to :keyword:`None`, a fresh array is allocated.
+
+    Examples:
+    --------
+    >>> a = ht.random.rand(4)
+    >>> a
+    DNDarray([0.8654, 0.1432, 0.9164, 0.6179], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.square(a)
+    DNDarray([0.7488, 0.0205, 0.8397, 0.3818], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.square, x, out)
+
+
+DNDarray.square = lambda self, out=None: square(self, out)
+DNDarray.square.__doc__ = square.__doc__

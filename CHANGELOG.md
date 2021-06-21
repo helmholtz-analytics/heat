@@ -45,10 +45,13 @@ Example on 2 processes:
 - [#790](https://github.com/helmholtz-analytics/heat/pull/790) catch incorrect device after `bcast` in `DNDarray.__getitem__`
 ### Exponential
 - [#812](https://github.com/helmholtz-analytics/heat/pull/712) New feature: `logaddexp`, `logaddexp2`
+- [#811](https://github.com/helmholtz-analytics/heat/pull/811) Fixed memory leak in `DNDarray.larray`
+
 ### Linear Algebra
 - [#718](https://github.com/helmholtz-analytics/heat/pull/718) New feature: `trace()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
-### Trigonometrics
+### Trigonometrics / Arithmetic
+- [#806](https://github.com/helmholtz-analytics/heat/pull/809) New feature: `square`
 - [#809](https://github.com/helmholtz-analytics/heat/pull/809) New feature: `acosh`, `asinh`, `atanh`
 ### Misc.
 - [#761](https://github.com/helmholtz-analytics/heat/pull/761) New feature: `result_type`
