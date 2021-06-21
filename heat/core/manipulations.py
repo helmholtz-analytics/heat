@@ -1737,7 +1737,10 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     try:
         a_proxy.reshape(shape)
     except TypeError as e:
-        raise TypeError(e)
+        try:
+            shape = shape.tolist()
+        except AttributeError:
+            raise TypeError(e)
     except (RuntimeError, ValueError):
         shape = list(shape)
         shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
