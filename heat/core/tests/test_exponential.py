@@ -294,6 +294,58 @@ class TestExponential(TestCase):
         with self.assertRaises(TypeError):
             ht.log1p("hello world")
 
+    def test_logaddexp(self):
+        elements = 15
+        tmp = torch.arange(1, elements, dtype=torch.float64, device=self.device.torch_device)
+        tmp = tmp.logaddexp(tmp)
+        comparison = ht.array(tmp)
+
+        # logaddexp of float32
+        float32_tensor = ht.arange(1, elements, dtype=ht.float32)
+        float32_logaddexp = ht.logaddexp(float32_tensor, float32_tensor)
+        self.assertIsInstance(float32_logaddexp, ht.DNDarray)
+        self.assertEqual(float32_logaddexp.dtype, ht.float32)
+        self.assertTrue(ht.allclose(float32_logaddexp, comparison.astype(ht.float32)))
+
+        # logaddexp of float64
+        float64_tensor = ht.arange(1, elements, dtype=ht.float64)
+        float64_logaddexp = ht.logaddexp(float64_tensor, float64_tensor)
+        self.assertIsInstance(float64_logaddexp, ht.DNDarray)
+        self.assertEqual(float64_logaddexp.dtype, ht.float64)
+        self.assertTrue(ht.allclose(float64_logaddexp, comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.logaddexp([1, 2, 3], [1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.logaddexp("hello world", "hello world")
+
+    def test_logaddexp2(self):
+        elements = 15
+        tmp = torch.arange(1, elements, dtype=torch.float64, device=self.device.torch_device)
+        tmp = tmp.logaddexp2(tmp)
+        comparison = ht.array(tmp)
+
+        # logaddexp2 of float32
+        float32_tensor = ht.arange(1, elements, dtype=ht.float32)
+        float32_logaddexp2 = ht.logaddexp2(float32_tensor, float32_tensor)
+        self.assertIsInstance(float32_logaddexp2, ht.DNDarray)
+        self.assertEqual(float32_logaddexp2.dtype, ht.float32)
+        self.assertTrue(ht.allclose(float32_logaddexp2, comparison.astype(ht.float32)))
+
+        # logaddexp2 of float64
+        float64_tensor = ht.arange(1, elements, dtype=ht.float64)
+        float64_logaddexp2 = ht.logaddexp2(float64_tensor, float64_tensor)
+        self.assertIsInstance(float64_logaddexp2, ht.DNDarray)
+        self.assertEqual(float64_logaddexp2.dtype, ht.float64)
+        self.assertTrue(ht.allclose(float64_logaddexp2, comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.logaddexp2([1, 2, 3], [1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.logaddexp2("hello world", "hello world")
+
     def test_sqrt(self):
         elements = 25
         tmp = torch.arange(elements, dtype=torch.float64, device=self.device.torch_device).sqrt()
