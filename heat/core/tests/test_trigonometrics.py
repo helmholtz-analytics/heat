@@ -40,6 +40,46 @@ class TestTrigonometrics(TestCase):
         with self.assertRaises(TypeError):
             ht.arccos("hello world")
 
+    def test_acosh(self):
+        # base elements
+        comparison = torch.arange(
+            1, 31, dtype=torch.float64, device=self.device.torch_device
+        ).acosh()
+
+        # acosh of float32
+        float32_tensor = ht.arange(1, 31, dtype=ht.float32)
+        float32_acosh = ht.acosh(float32_tensor)
+        self.assertIsInstance(float32_acosh, ht.DNDarray)
+        self.assertEqual(float32_acosh.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_acosh.larray.double(), comparison))
+
+        # acosh of float64
+        float64_tensor = ht.arange(1, 31, dtype=ht.float64)
+        float64_acosh = ht.acosh(float64_tensor)
+        self.assertIsInstance(float64_acosh, ht.DNDarray)
+        self.assertEqual(float64_acosh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_acosh.larray.double(), comparison))
+
+        # acosh of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.arange(1, 31, dtype=ht.int32)
+        int32_acosh = ht.acosh(int32_tensor)
+        self.assertIsInstance(int32_acosh, ht.DNDarray)
+        self.assertEqual(int32_acosh.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_acosh.larray.double(), comparison))
+
+        # acosh of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.arange(1, 31, dtype=ht.int64)
+        int64_acosh = ht.arccosh(int64_tensor)
+        self.assertIsInstance(int64_acosh, ht.DNDarray)
+        self.assertEqual(int64_acosh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(int64_acosh.larray.double(), comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.acosh([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.acosh("hello world")
+
     def test_arcsin(self):
         # base elements
         elements = [-1.0, -0.83, -0.12, 0.0, 0.24, 0.67, 1.0]
@@ -73,6 +113,47 @@ class TestTrigonometrics(TestCase):
             ht.arcsin([1, 2, 3])
         with self.assertRaises(TypeError):
             ht.arcsin("hello world")
+
+    def test_asinh(self):
+        # base elements
+        elements = 30
+        comparison = torch.linspace(
+            -28, 30, elements, dtype=torch.float64, device=self.device.torch_device
+        ).asinh()
+
+        # asinh of float32
+        float32_tensor = ht.linspace(-28, 30, elements, dtype=ht.float32)
+        float32_asinh = ht.asinh(float32_tensor)
+        self.assertIsInstance(float32_asinh, ht.DNDarray)
+        self.assertEqual(float32_asinh.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_asinh.larray.double(), comparison))
+
+        # asinh of float64
+        float64_tensor = ht.linspace(-28, 30, elements, dtype=ht.float64)
+        float64_asinh = ht.asinh(float64_tensor)
+        self.assertIsInstance(float64_asinh, ht.DNDarray)
+        self.assertEqual(float64_asinh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_asinh.larray.double(), comparison))
+
+        # asinh of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.linspace(-28, 30, elements, dtype=ht.int32)
+        int32_asinh = ht.asinh(int32_tensor)
+        self.assertIsInstance(int32_asinh, ht.DNDarray)
+        self.assertEqual(int32_asinh.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_asinh.larray.double(), comparison))
+
+        # asinh of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.linspace(-28, 30, elements, dtype=ht.int64)
+        int64_asinh = ht.arcsinh(int64_tensor)
+        self.assertIsInstance(int64_asinh, ht.DNDarray)
+        self.assertEqual(int64_asinh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(int64_asinh.larray.double(), comparison))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.asinh([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.asinh("hello world")
 
     def test_arctan(self):
         # base elements
@@ -156,6 +237,40 @@ class TestTrigonometrics(TestCase):
         self.assertIsInstance(int16_arctan2, ht.DNDarray)
         self.assertEqual(int16_arctan2.dtype, ht.float32)
         self.assertTrue(ht.allclose(int16_arctan2, int16_comparison))
+
+    def test_atanh(self):
+        # base elements
+        elements = [-1.0, -0.83, -0.12, 0.0, 0.24, 0.67, 1.0]
+        comparison = torch.tensor(
+            elements, dtype=torch.float64, device=self.device.torch_device
+        ).atanh()
+
+        # atanh of float32
+        float32_tensor = ht.array(elements, dtype=ht.float32)
+        float32_atanh = ht.atanh(float32_tensor)
+        self.assertIsInstance(float32_atanh, ht.DNDarray)
+        self.assertEqual(float32_atanh.dtype, ht.float32)
+        self.assertTrue(torch.allclose(float32_atanh.larray.double(), comparison))
+
+        # atanh of float64
+        float64_tensor = ht.array(elements, dtype=ht.float64)
+        float64_atanh = ht.atanh(float64_tensor)
+        self.assertIsInstance(float64_atanh, ht.DNDarray)
+        self.assertEqual(float64_atanh.dtype, ht.float64)
+        self.assertTrue(torch.allclose(float64_atanh.larray.double(), comparison))
+
+        # atanh of value out of domain
+        nan_tensor = ht.array([1.2])
+        nan_atanh = ht.arctanh(nan_tensor)
+        self.assertIsInstance(float64_atanh, ht.DNDarray)
+        self.assertEqual(nan_atanh.dtype, ht.float32)
+        self.assertTrue(math.isnan(nan_atanh.larray.item()))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.atanh([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.atanh("hello world")
 
     def test_degrees(self):
         # base elements

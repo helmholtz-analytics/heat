@@ -395,3 +395,44 @@ class TestExponential(TestCase):
         # exception
         with self.assertRaises(TypeError):
             ht.sqrt(number_range, "hello world")
+
+    def test_square(self):
+        elements = 25
+        tmp = torch.square(
+            torch.arange(elements, dtype=torch.float64, device=self.device.torch_device)
+        )
+        comparison = ht.array(tmp)
+
+        # squares of float32
+        float32_tensor = ht.arange(elements, dtype=ht.float32)
+        float32_square = ht.square(float32_tensor)
+        self.assertIsInstance(float32_square, ht.DNDarray)
+        self.assertEqual(float32_square.dtype, ht.float32)
+        self.assertTrue(ht.allclose(float32_square, comparison.astype(ht.float32), 1e-09))
+
+        # squares of float64
+        float64_tensor = ht.arange(elements, dtype=ht.float64)
+        float64_square = ht.square(float64_tensor)
+        self.assertIsInstance(float64_square, ht.DNDarray)
+        self.assertEqual(float64_square.dtype, ht.float64)
+        self.assertTrue(ht.allclose(float64_square, comparison, 1e-09))
+
+        # squares of ints, automatic conversion to intermediate floats
+        int32_tensor = ht.arange(elements, dtype=ht.int32)
+        int32_square = ht.square(int32_tensor)
+        self.assertIsInstance(int32_square, ht.DNDarray)
+        self.assertEqual(int32_square.dtype, ht.float32)
+        self.assertTrue(ht.allclose(int32_square, ht.float32(comparison), 1e-09))
+
+        # squares of longs, automatic conversion to intermediate floats
+        int64_tensor = ht.arange(elements, dtype=ht.int64)
+        int64_square = int64_tensor.square()
+        self.assertIsInstance(int64_square, ht.DNDarray)
+        self.assertEqual(int64_square.dtype, ht.float64)
+        self.assertTrue(ht.allclose(int64_square, comparison, 1e-09))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.square([1, 2, 3])
+        with self.assertRaises(TypeError):
+            ht.square("hello world")
