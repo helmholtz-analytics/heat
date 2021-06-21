@@ -1737,14 +1737,14 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     try:
         a_proxy.reshape(shape)
     except TypeError as e:
-        # allow array-like shape
+        # allow array-like `shape`
         try:
             shape = shape.tolist()
         except AttributeError:
             raise TypeError(e)
     except (RuntimeError, ValueError):
         shape = list(shape)
-        shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
+        shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice)).item()
         if shape.count(-1) > 1:
             raise ValueError("too many unknown dimensions")
         elif shape.count(-1) == 1:
