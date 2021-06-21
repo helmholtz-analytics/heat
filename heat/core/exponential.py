@@ -19,6 +19,7 @@ __all__ = [
     "logaddexp",
     "logaddexp2",
     "sqrt",
+    "square",
 ]
 
 
