@@ -1729,7 +1729,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     try:
         np_proxy.reshape(shape)  # numpy defines their own _ShapeLike
     except TypeError as e:  # handle Tensors and DNDarrays
-        try:
+        try:  # make shape a np.ndarray
             if len(shape) == 1:
                 shape = shape[0]
             if hasattr(shape, "cpu"):  # move to cpu
@@ -1787,21 +1787,13 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         new_split = a.split
     new_split = stride_tricks.sanitize_axis(shape, new_split)
 
-    shape = list(shape)
-    shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
-
-    if shape.count(-1) == 1:
-        pos = shape.index(-1)
-        shape[pos] = int(-(a.size / shape_size).item())
-        shape_size *= -shape[pos]
-
     # Forward to Pytorch directly
     if a.split is None:
         local_reshape = torch.reshape(a.larray, shape)
         if new_split is None:
             return DNDarray(
                 local_reshape,
-                tuple(shape),
+                shape,
                 dtype=a.dtype,
                 split=None,
                 device=a.device,
@@ -1812,7 +1804,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         local_reshape = local_reshape[local_slice]
         return DNDarray(
             local_reshape,
-            tuple(shape),
+            shape,
             dtype=a.dtype,
             split=new_split,
             comm=a.comm,
@@ -1850,13 +1842,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     data = data.reshape(local_shape)
 
     return DNDarray(
-        data,
-        tuple(shape),
-        dtype=a.dtype,
-        split=new_split,
-        device=a.device,
-        comm=a.comm,
-        balanced=True,
+        data, shape, dtype=a.dtype, split=new_split, device=a.device, comm=a.comm, balanced=True
     )
 
 
