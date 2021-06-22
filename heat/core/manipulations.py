@@ -801,15 +801,27 @@ def flatten(a: DNDarray) -> DNDarray:
     DNDarray([1, 2, 3, 4, 5, 6, 7, 8], dtype=ht.int64, device=cpu:0, split=None)
     """
     if a.split is None:
-        return factories.array(
-            torch.flatten(a.larray), dtype=a.dtype, is_split=None, device=a.device, comm=a.comm
+        return DNDarray(
+            torch.flatten(a.larray),
+            (a.size,),
+            dtype=a.dtype,
+            split=None,
+            device=a.device,
+            comm=a.comm,
+            balanced=True,
         )
 
     if a.split > 0:
         a = resplit(a, 0)
 
-    a = factories.array(
-        torch.flatten(a.larray), dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+    a = DNDarray(
+        torch.flatten(a.larray),
+        (a.size,),
+        dtype=a.dtype,
+        split=a.split,
+        device=a.device,
+        comm=a.comm,
+        balanced=None,
     )
     a.balance_()
 
