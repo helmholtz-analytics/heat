@@ -1724,39 +1724,20 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     if not isinstance(a, DNDarray):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
 
-    # check for nested sequence
-    if not np.isscalar(shape[0]):
-        shape = shape[0]
-    if shape == -1:
-        shape = (a.gnumel,)
+    # use numpys _ShapeLike but expand to handle torch and heat Tensors
+    np_proxy = np.lib.stride_tricks.as_strided(np.ones(1), a.gshape, [0] * a.ndim, writeable=False)
+    try:
+        np_proxy.reshape(shape)  # numpy defines their own _ShapeLike
+    except Exception:  # handle Tensors and DNDarrays
+        if hasattr(shape, "detach"):  # sometimes torch.Tensors have to detach before numpy call
+            shape = shape.detach().numpy()
+        elif hasattr(shape, "numpy"):  # for DNDarrays
+            shape = shape.numpy()
+        else:  # Try to coerce everything else. Can this break something?
+            shape = np.asarray(shape)
+    shape = np_proxy.reshape(shape).shape  # sanitized shape according to numpy
 
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
-
-    # check for valid shape type, shape size
-    a_proxy = torch.ones((1,)).as_strided(a.gshape, [0] * a.ndim)
-    try:
-        a_proxy.reshape(shape)
-    except TypeError as e:
-        # allow array-like `shape`
-        try:
-            shape = shape.tolist()
-        except AttributeError:
-            raise TypeError(e)
-    except (RuntimeError, ValueError):
-        shape = list(shape)
-        shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice)).item()
-        if shape.count(-1) > 1:
-            raise ValueError("too many unknown dimensions")
-        elif shape.count(-1) == 1:
-            if a.size % shape_size != 0:
-                raise ValueError(
-                    "cannot reshape array of size {} into shape {}".format(a.size, shape)
-                )
-        else:
-            if a.size != shape_size:
-                raise ValueError(
-                    "cannot reshape array of size {} into shape {}".format(a.size, shape)
-                )
 
     def reshape_argsort_counts_displs(
         shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
