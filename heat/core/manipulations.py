@@ -1399,12 +1399,14 @@ def pad(
                         padded_torch_tensor, pad_tuple, mode, value_tuple[i]
                     )
 
-    padded_tensor = factories.array(
+    padded_tensor = DNDarray(
         padded_torch_tensor,
+        output_shape,
         dtype=array.dtype,
-        is_split=array.split,
+        split=array.split,
         device=array.device,
         comm=array.comm,
+        balanced=None,
     )
 
     padded_tensor.balance_()
