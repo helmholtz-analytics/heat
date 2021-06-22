@@ -1728,8 +1728,8 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     np_proxy = np.lib.stride_tricks.as_strided(np.ones(1), a.gshape, [0] * a.ndim, writeable=False)
     try:
         np_proxy.reshape(shape)  # numpy defines their own _ShapeLike
-    except Exception:  # handle Tensors and DNDarrays
-        if hasattr(shape, "detach"):  # sometimes torch.Tensors have to detach before numpy call
+    except TypeError:  # handle Tensors and DNDarrays
+        if hasattr(shape, "detach"):  # torch.Tensors have to detach before numpy call
             shape = shape.detach().numpy()
         elif hasattr(shape, "numpy"):  # for DNDarrays
             shape = shape.numpy()
