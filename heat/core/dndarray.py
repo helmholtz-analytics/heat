@@ -620,7 +620,7 @@ class DNDarray:
 
         An example of the output and shape is shown below.
 
-        __partitioned_interface__ = {
+        __partitioned__ = {
             'shape': (27, 3, 2),
             'partition_tiling': (4, 1, 1),
             'partitions': {
@@ -1353,6 +1353,9 @@ class DNDarray:
         # early out for unchanged content
         if axis == self.split:
             return self
+
+        self.__partitions_dict__ = None
+
         if axis is None:
             gathered = torch.empty(
                 self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device

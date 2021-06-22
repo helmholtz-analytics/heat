@@ -744,8 +744,10 @@ class TestDNDarray(TestCase):
         self.assertEqual(parted["shape"], (120, 120))
         self.assertEqual(parted["partition_tiling"], (a.comm.size, 1))
         self.assertEqual(parted["shape"], (120, 120))
-        if a.comm.rank == 0:
-            self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
+        self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
+
+        a.resplit_(1)
+        self.assertIsNone(a.__partitions_dict__)
 
     def test_redistribute(self):
         # need to test with 1, 2, 3, and 4 dims
