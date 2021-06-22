@@ -1930,8 +1930,15 @@ def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarra
         raise ValueError("Axes={} out of range for array of ndim={}.".format(axes, m.ndim))
 
     if m.split is None:
-        return factories.array(
-            torch.rot90(m.larray, k, axes), dtype=m.dtype, device=m.device, comm=m.comm
+        rotated = torch.rot90(m.larray, k, axes)
+        return DNDarray(
+            rotated,
+            tuple(rotated.shape),
+            dtype=m.dtype,
+            split=None,
+            device=m.device,
+            comm=m.comm,
+            balanced=True,
         )
 
     try:
