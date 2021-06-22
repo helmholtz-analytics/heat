@@ -738,6 +738,15 @@ class TestDNDarray(TestCase):
             ht.equal(int16_tensor | int16_vector, ht.bitwise_or(int16_tensor, int16_vector))
         )
 
+    def test_partitioned(self):
+        a = ht.zeros((120, 120), split=0)
+        parted = a.__partitioned__
+        self.assertEqual(parted["shape"], (120, 120))
+        self.assertEqual(parted["partition_tiling"], (a.comm.size, 1))
+        self.assertEqual(parted["shape"], (120, 120))
+        if a.comm.rank == 0:
+            self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
+
     def test_redistribute(self):
         # need to test with 1, 2, 3, and 4 dims
         st = ht.zeros((50,), split=0)
