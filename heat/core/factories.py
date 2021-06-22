@@ -1112,7 +1112,20 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
         grids = list(grids)
         grids[0], grids[1] = grids[1], grids[0]
 
-    return list(asarray(grid, is_split=splitted) for grid in grids)
+    shape = tuple(array.size for array in arrays)
+
+    return list(
+        DNDarray(
+            array=grid,
+            gshape=shape,
+            dtype=types.heat_type_of(grid),
+            split=splitted,
+            device=devices.sanitize_device(grid.device.type),
+            comm=sanitize_comm(None),
+            balanced=True,
+        )
+        for grid in grids
+    )
 
 
 def ones(
