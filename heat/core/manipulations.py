@@ -576,7 +576,9 @@ def diag(a: DNDarray, offset: int = 0) -> DNDarray:
     local = torch.zeros(lshape, dtype=a.dtype.torch_type(), device=a.device.torch_device)
     local[indices_x, indices_y] = a.larray[indices_x]
 
-    return factories.array(local, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
+    return DNDarray(
+        local, gshape, dtype=a.dtype, split=a.split, device=a.device, comm=a.comm, balanced=True
+    )
 
 
 def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDarray:
