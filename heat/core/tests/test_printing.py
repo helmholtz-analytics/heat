@@ -52,6 +52,7 @@ class TestPrinting(TestCase):
         ht.global_printing()  # needed to keep things correct for the other tests
 
     def test_get_default_options(self):
+        ht.global_printing()
         print_options = ht.get_printoptions()
         comparison = {
             "precision": 4,
@@ -66,6 +67,7 @@ class TestPrinting(TestCase):
             self.assertEqual(value, comparison[key])
 
     def test_set_get_short_options(self):
+        ht.global_printing()
         ht.set_printoptions(profile="short")
 
         print_options = ht.get_printoptions()
@@ -82,6 +84,7 @@ class TestPrinting(TestCase):
             self.assertEqual(value, comparison[key])
 
     def test_set_get_full_options(self):
+        ht.global_printing()
         ht.set_printoptions(profile="full")
 
         print_options = ht.get_printoptions()
@@ -98,26 +101,32 @@ class TestPrinting(TestCase):
             self.assertEqual(value, comparison[key])
 
     def test_set_get_precision(self):
+        ht.global_printing()
         ht.set_printoptions(precision=6)
         self.assertEqual(6, ht.get_printoptions()["precision"])
 
     def test_set_get_threshold(self):
+        ht.global_printing()
         ht.set_printoptions(threshold=7)
         self.assertEqual(7, ht.get_printoptions()["threshold"])
 
     def test_set_get_edgeitems(self):
+        ht.global_printing()
         ht.set_printoptions(edgeitems=8)
         self.assertEqual(8, ht.get_printoptions()["edgeitems"])
 
     def test_set_get_linewidth(self):
+        ht.global_printing()
         ht.set_printoptions(linewidth=9)
         self.assertEqual(9, ht.get_printoptions()["linewidth"])
 
     def test_set_get_sci_mode(self):
+        ht.global_printing()
         ht.set_printoptions(sci_mode=True)
         self.assertEqual(True, ht.get_printoptions()["sci_mode"])
 
     def test_empty(self):
+        ht.global_printing()
         tensor = ht.array([], dtype=ht.int64)
         comparison = "DNDarray([], dtype=ht.int64, device=cpu:0, split=None)"
         __str = str(tensor)
@@ -126,6 +135,7 @@ class TestPrinting(TestCase):
             self.assertEqual(comparison, __str)
 
     def test_scalar(self):
+        ht.global_printing()
         tensor = ht.array(42)
         comparison = "DNDarray(42, dtype=ht.int64, device=cpu:0, split=None)"
         __str = str(tensor)
@@ -134,6 +144,7 @@ class TestPrinting(TestCase):
             self.assertEqual(comparison, __str)
 
     def test_unbalanced(self):
+        ht.global_printing()
         dndarray = ht.arange(2 * 3 * 4, split=0).reshape((2, 3, 4))
         if dndarray.comm.size == 2:
             comparison = (
@@ -146,6 +157,7 @@ class TestPrinting(TestCase):
                 self.assertEqual(comparison, __str)
 
     def test_unsplit_below_threshold(self):
+        ht.global_printing()
         dndarray = ht.arange(2 * 3 * 4).reshape((2, 3, 4))
         comparison = (
             "DNDarray([[[ 0,  1,  2,  3],\n"
@@ -162,6 +174,7 @@ class TestPrinting(TestCase):
             self.assertEqual(comparison, __str)
 
     def test_unsplit_above_threshold(self):
+        ht.global_printing()
         dndarray = ht.arange(12 * 13 * 14).reshape((12, 13, 14))
         comparison = (
             "DNDarray([[[   0,    1,    2,  ...,   11,   12,   13],\n"
@@ -220,6 +233,7 @@ class TestPrinting(TestCase):
             self.assertEqual(comparison, __str)
 
     def test_split_0_below_threshold(self):
+        ht.global_printing()
         ht.set_printoptions(precision=2)
         dndarray = ht.arange(0.5, 2 * 3 * 4 + 0.5, split=0).reshape((2, 3, 4))
         comparison = (
@@ -237,6 +251,7 @@ class TestPrinting(TestCase):
             self.assertEqual(comparison, __str)
 
     def test_split_0_above_threshold(self):
+        ht.global_printing()
         ht.set_printoptions(precision=1)
         dndarray = ht.arange(0.2, 10 * 11 * 12 + 0.2).reshape((10, 11, 12)).resplit_(0)
         self.maxDiff = None
@@ -298,6 +313,7 @@ class TestPrinting(TestCase):
             self.assertEqual(comparison, __str)
 
     def test_split_1_below_threshold(self):
+        ht.global_printing()
         ht.set_printoptions(sci_mode=True)
         dndarray = ht.arange(0.5, 4 * 5 * 6 + 0.5, dtype=ht.float64).reshape((4, 5, 6)).resplit_(1)
         comparison = (
@@ -331,6 +347,7 @@ class TestPrinting(TestCase):
             self.assertEqual(comparison, __str)
 
     def test_split_1_above_threshold(self):
+        ht.global_printing()
         ht.set_printoptions(edgeitems=2)
         dndarray = ht.arange(10 * 11 * 12).reshape((10, 11, 12)).resplit_(1)
         comparison = (
@@ -366,6 +383,7 @@ class TestPrinting(TestCase):
             self.assertEqual(comparison, __str)
 
     def test_split_2_below_threshold(self):
+        ht.global_printing()
         dndarray = ht.arange(4 * 5 * 6, dtype=ht.uint8).reshape((4, 5, 6)).resplit_(2)
         comparison = (
             "DNDarray([[[  0,   1,   2,   3,   4,   5],\n"
@@ -398,6 +416,7 @@ class TestPrinting(TestCase):
             self.assertEqual(comparison, __str)
 
     def test_split_2_above_threshold(self):
+        ht.global_printing()
         ht.set_printoptions(threshold=1)
         dndarray = ht.arange(3 * 10 * 12).reshape((3, 10, 12)).resplit_(2)
         comparison = (
