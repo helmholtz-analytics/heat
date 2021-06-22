@@ -2100,7 +2100,22 @@ class TestManipulations(TestCase):
         self.assertEqual(reshaped.split, 2)
         self.assertEqual(reshaped.device, b.device)
         self.assertEqual(reshaped.balanced, b.is_balanced(force_check=True))
-
+        # test shape types
+        reshaped = b.reshape(ht.asarray([4, 5, 6], dtype=ht.int))
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
+        reshaped = b.reshape(torch.as_tensor([4, 5, 6], dtype=torch.int32))
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
+        reshaped = b.reshape(np.asarray([4, 5, 6], dtype=np.int32))
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
         # shape = -1
         result = ht.zeros(12, device=self.device)
         reshaped = ht.reshape(a, -1)
