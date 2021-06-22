@@ -868,11 +868,21 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     if isinstance(axis, int):
         axis = [axis]
 
+    # assess final gshape via proxy
+    proxy_a = torch.ones((1,)).as_strided(a.gshape, [0] * a.ndim)
+    out_gshape = tuple(torch.flip(proxy_a, axis).shape)
+
     flipped = torch.flip(a.larray, axis)
 
     if a.split not in axis:
-        return factories.array(
-            flipped, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+        return DNDarray(
+            flipped,
+            out_gshape,
+            dtype=a.dtype,
+            split=a.split,
+            device=a.device,
+            comm=a.comm,
+            balanced=None,
         )
 
     # Need to redistribute tensors on split axis
@@ -886,7 +896,15 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     received = torch.empty(new_lshape, dtype=a.larray.dtype, device=a.device.torch_device)
     a.comm.Recv(received, source=dest_proc)
 
-    res = factories.array(received, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
+    res = DNDarray(
+        received,
+        out_gshape,
+        dtype=a.dtype,
+        split=a.split,
+        device=a.device,
+        comm=a.comm,
+        balanced=False,
+    )
     res.balance_()  # after swapping, first processes may be empty
     req.Wait()
     return res
