@@ -1723,6 +1723,8 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     """
     if not isinstance(a, DNDarray):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
+    if len(shape) == 1:
+        shape = shape[0]
 
     # use numpys _ShapeLike but expand to handle torch and heat Tensors
     np_proxy = np.lib.stride_tricks.as_strided(np.ones(1), a.gshape, [0] * a.ndim, writeable=False)
@@ -1734,7 +1736,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         elif hasattr(shape, "numpy"):  # for DNDarrays
             shape = shape.numpy()
         else:  # Try to coerce everything else. Can this break something?
-            shape = np.asarray(shape)
+            shape = np.asarray(shape).squeeze()
     shape = np_proxy.reshape(shape).shape  # sanitized shape according to numpy
 
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device

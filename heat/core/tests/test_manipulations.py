@@ -2279,8 +2279,8 @@ class TestManipulations(TestCase):
             ht.reshape(ht.zeros((4, 3)), (-1, -1, 3))
         with self.assertRaises(ValueError):
             ht.reshape(ht.zeros((4, 3)), (5, -1))
-        with self.assertRaises(ValueError):
-            ht.reshape(ht.zeros((4, 3)), (3, -2))
+        # with self.assertRaises(ValueError):   actually this works in numpy
+        #    ht.reshape(ht.zeros((4, 3)), (3, -2))
         with self.assertRaises(TypeError):
             ht.reshape(ht.zeros((4, 3)), (3.4, 3.2))
 
