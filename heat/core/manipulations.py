@@ -1728,17 +1728,20 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     np_proxy = np.lib.stride_tricks.as_strided(np.ones(1), a.gshape, [0] * a.ndim, writeable=False)
     try:
         np_proxy.reshape(shape)  # numpy defines their own _ShapeLike
-    except TypeError:  # handle Tensors and DNDarrays
-        if len(shape) == 1:
-            shape = shape[0]
-        if hasattr(shape, "cpu"):  # move to cpu
-            shape = shape.cpu()
-        if hasattr(shape, "detach"):  # torch.Tensors have to detach before numpy call
-            shape = shape.detach()
-        if hasattr(shape, "numpy"):  # for DNDarrays
-            shape = shape.numpy()
-        else:  # Try to coerce everything else. Can this break something?
-            shape = np.asarray(shape).squeeze()
+    except TypeError as e:  # handle Tensors and DNDarrays
+        try:
+            if len(shape) == 1:
+                shape = shape[0]
+            if hasattr(shape, "cpu"):  # move to cpu
+                shape = shape.cpu()
+            if hasattr(shape, "detach"):  # torch.Tensors have to detach before numpy call
+                shape = shape.detach()
+            if hasattr(shape, "numpy"):  # for DNDarrays
+                shape = shape.numpy()
+            else:  # Try to coerce everything else.
+                shape = np.asarray(shape)
+        except Exception:
+            raise TypeError(e)
     shape = np_proxy.reshape(shape).shape  # sanitized shape according to numpy
 
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
