@@ -1731,6 +1731,8 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     except TypeError:  # handle Tensors and DNDarrays
         if len(shape) == 1:
             shape = shape[0]
+        if hasattr(shape, "cpu"):  # move to cpu
+            shape = shape.cpu()
         if hasattr(shape, "detach"):  # torch.Tensors have to detach before numpy call
             shape = shape.detach()
         if hasattr(shape, "numpy"):  # for DNDarrays
