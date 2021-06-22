@@ -23,6 +23,7 @@ from . import types
 from . import _operations
 
 __all__ = [
+    "balance",
     "column_stack",
     "concatenate",
     "diag",
@@ -52,6 +53,35 @@ __all__ = [
     "vsplit",
     "vstack",
 ]
+
+
+def balance(array: DNDarray, copy=False) -> DNDarray:
+    """
+    Out of place balance function. More information on the meaning of balance can be found in
+    :func:`DNDarray.balance_() <heat.core.dndarray.DNDarray.balance_()>`.
+
+    Parameters
+    ----------
+    array : DNDarray
+        the DNDarray to be balanced
+    copy : bool, optional
+        if the DNDarray should be copied before being balanced. If false (default) this will balance
+        the original array and return that array. Otherwise (true), a balanced copy of the array
+        will be returned.
+        Default: False
+
+    Returns
+    -------
+    balanced : DNDarray
+        The balanced DNDarray
+    """
+    cpy = array.copy() if copy else array
+    cpy.balance_()
+    return cpy
+
+
+DNDarray.balance = lambda self, copy=False: balance(self, copy)
+DNDarray.balance.__doc__ = balance.__doc__
 
 
 def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:

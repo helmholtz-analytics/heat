@@ -64,7 +64,7 @@ class DNDarray:
 
     def __init__(
         self,
-        array: DNDarray,
+        array: torch.Tensor,
         gshape: Tuple[int, ...],
         dtype: datatype,
         split: int,
@@ -165,16 +165,6 @@ class DNDarray:
         split = self.split
         if split is not None and array.shape[split] != self.lshape[split]:
             self.__balanced = None
-        # raise warning if function was called by user/not out of 'heat/core/*'
-        caller = stack()[1]
-        abs_heat_path = Path("heat", "core").resolve()
-        abs_path_caller = Path(caller.filename).resolve()
-
-        if not (abs_heat_path < abs_path_caller):
-            warnings.warn(
-                "!!! WARNING !!! Manipulating the local contents of a DNDarray needs to be done with care and "
-                "might corrupt/invalidate the metadata in a DNDarray instance"
-            )
         self.__array = array
 
     @property
@@ -573,7 +563,7 @@ class DNDarray:
         """
         return self.__cast(complex)
 
-    def counts_displs(self) -> Tuple(torch.Tensor, torch.Tensor):
+    def counts_displs(self) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns actual counts (number of items per process) and displacements (offsets) of the DNDarray.
         Does not assume load balance.
@@ -999,6 +989,9 @@ class DNDarray:
             # broadcast result
             # TODO: Replace with `self.comm.Bcast(arr, root=active_rank)` after fixing #784
             arr = self.comm.bcast(arr, root=active_rank)
+            if arr.device != self.larray.device:
+                # todo: remove when unnecessary (also after #784)
+                arr = arr.to(device=self.larray.device)
 
         return DNDarray(
             arr.type(l_dtype),

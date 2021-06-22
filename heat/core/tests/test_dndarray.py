@@ -262,13 +262,11 @@ class TestDNDarray(TestCase):
         self.assertTrue(data.is_balanced())
 
         data = ht.zeros((70, 20), split=0, dtype=ht.float64)
-        data = data[:50]
-        data.balance_()
+        data = ht.balance(data[:50], copy=True)
         self.assertTrue(data.is_balanced())
 
         data = ht.zeros((4, 120), split=1, dtype=ht.int64)
-        data = data[:, 40:70]
-        data.balance_()
+        data = data[:, 40:70].balance()
         self.assertTrue(data.is_balanced())
 
         data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
@@ -967,6 +965,14 @@ class TestDNDarray(TestCase):
         self.assertEqual(resplit_a.split, 0)
         self.assertEqual(resplit_a.dtype, ht.int64)
         del a
+
+        # 1D non-contiguous resplit testing
+        t1 = ht.arange(10 * 10, split=0).reshape((10, 10))
+        t1_sub = t1[:, 1]  # .expand_dims(0)
+        res = ht.array([1, 11, 21, 31, 41, 51, 61, 71, 81, 91])
+        t1_sub.resplit_(axis=None)
+        self.assertTrue(ht.all(t1_sub == res))
+        self.assertEqual(t1_sub.split, None)
 
     def test_rshift(self):
         int_tensor = ht.array([[0, 2], [4, 8]])
