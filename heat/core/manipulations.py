@@ -1771,39 +1771,27 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     if not isinstance(a, DNDarray):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
 
-    # check for nested sequence
-    if not np.isscalar(shape[0]):
-        shape = shape[0]
-    if shape == -1:
-        shape = (a.gnumel,)
+    # use numpys _ShapeLike but expand to handle torch and heat Tensors
+    np_proxy = np.lib.stride_tricks.as_strided(np.ones(1), a.gshape, [0] * a.ndim, writeable=False)
+    try:
+        np_proxy.reshape(shape)  # numpy defines their own _ShapeLike
+    except TypeError as e:  # handle Tensors and DNDarrays
+        try:  # make shape a np.ndarray
+            if len(shape) == 1:
+                shape = shape[0]
+            if hasattr(shape, "cpu"):  # move to cpu
+                shape = shape.cpu()
+            if hasattr(shape, "detach"):  # torch.Tensors have to detach before numpy call
+                shape = shape.detach()
+            if hasattr(shape, "numpy"):  # for DNDarrays
+                shape = shape.numpy()
+            else:  # Try to coerce everything else.
+                shape = np.asarray(shape)
+        except Exception:
+            raise TypeError(e)
+    shape = np_proxy.reshape(shape).shape  # sanitized shape according to numpy
 
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
-
-    # check for valid shape type, shape size
-    a_proxy = torch.ones((1,)).as_strided(a.gshape, [0] * a.ndim)
-    try:
-        a_proxy.reshape(shape)
-    except TypeError as e:
-        # allow array-like `shape`
-        try:
-            shape = shape.tolist()
-        except AttributeError:
-            raise TypeError(e)
-    except (RuntimeError, ValueError):
-        shape = list(shape)
-        shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice)).item()
-        if shape.count(-1) > 1:
-            raise ValueError("too many unknown dimensions")
-        elif shape.count(-1) == 1:
-            if a.size % shape_size != 0:
-                raise ValueError(
-                    "cannot reshape array of size {} into shape {}".format(a.size, shape)
-                )
-        else:
-            if a.size != shape_size:
-                raise ValueError(
-                    "cannot reshape array of size {} into shape {}".format(a.size, shape)
-                )
 
     def reshape_argsort_counts_displs(
         shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
@@ -1846,21 +1834,13 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         new_split = a.split
     new_split = stride_tricks.sanitize_axis(shape, new_split)
 
-    shape = list(shape)
-    shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
-
-    if shape.count(-1) == 1:
-        pos = shape.index(-1)
-        shape[pos] = int(-(a.size / shape_size).item())
-        shape_size *= -shape[pos]
-
     # Forward to Pytorch directly
     if a.split is None:
         local_reshape = torch.reshape(a.larray, shape)
         if new_split is None:
             return DNDarray(
                 local_reshape,
-                tuple(shape),
+                shape,
                 dtype=a.dtype,
                 split=None,
                 device=a.device,
@@ -1871,7 +1851,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         local_reshape = local_reshape[local_slice]
         return DNDarray(
             local_reshape,
-            tuple(shape),
+            shape,
             dtype=a.dtype,
             split=new_split,
             comm=a.comm,
@@ -1909,13 +1889,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     data = data.reshape(local_shape)
 
     return DNDarray(
-        data,
-        tuple(shape),
-        dtype=a.dtype,
-        split=new_split,
-        device=a.device,
-        comm=a.comm,
-        balanced=True,
+        data, shape, dtype=a.dtype, split=new_split, device=a.device, comm=a.comm, balanced=True
     )
 
 
