@@ -299,8 +299,14 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     s0, s1 = arr0.split, arr1.split
     # no splits, local concat
     if s0 is None and s1 is None:
-        return factories.array(
-            torch.cat((arr0.larray, arr1.larray), dim=axis), device=arr0.device, comm=arr0.comm
+        return DNDarray(
+            torch.cat((arr0.larray, arr1.larray), dim=axis),
+            out_shape,
+            dtype=out_dtype,
+            split=None,
+            device=arr0.device,
+            comm=arr0.comm,
+            balanced=True,
         )
 
     # non-matching splits when both arrays are split
