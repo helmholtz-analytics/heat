@@ -1895,7 +1895,7 @@ class TestManipulations(TestCase):
         # -------------------
         # axis = None
         # -------------------
-        a = ht.arange(12, split=0).reshape((2, 2, 3), axis=1)
+        a = ht.arange(12, split=0).reshape((2, 2, 3), new_split=1)
         a_np = a.numpy()
 
         # repeats = scalar
@@ -2086,6 +2086,21 @@ class TestManipulations(TestCase):
         self.assertTrue(ht.equal(reshaped, result))
         self.assertEqual(reshaped.device, result.device)
 
+        b = ht.arange(4 * 5 * 6, dtype=ht.float64)
+        # test *shape input
+        reshaped = b.reshape(4, 5, 6)
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
+        # test new_split not None
+        reshaped = b.reshape(4, 5, -1, new_split=-1)
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, 2)
+        self.assertEqual(reshaped.device, b.device)
+        self.assertEqual(reshaped.balanced, b.is_balanced(force_check=True))
+
         # shape = -1
         result = ht.zeros(12, device=self.device)
         reshaped = ht.reshape(a, -1)
@@ -2214,8 +2229,15 @@ class TestManipulations(TestCase):
 
         # unknown dimension
         a = ht.ones((4, 4, 4), split=0, device=self.device)
-        result = ht.ones((4, 16), split=0, device=self.device)
 
+        result = ht.ones((64), split=0, device=self.device)
+        reshaped = ht.reshape(a, -1)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
+
+        result = ht.ones((4, 16), split=0, device=self.device)
         reshaped = ht.reshape(a, (4, -1))
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
@@ -2255,6 +2277,8 @@ class TestManipulations(TestCase):
             ht.reshape(ht.zeros((4, 3)), "(5, 7)")
         with self.assertRaises(ValueError):
             ht.reshape(ht.zeros((4, 3)), (-1, -1, 3))
+        with self.assertRaises(ValueError):
+            ht.reshape(ht.zeros((4, 3)), (5, -1))
         with self.assertRaises(ValueError):
             ht.reshape(ht.zeros((4, 3)), (3, -2))
         with self.assertRaises(TypeError):
