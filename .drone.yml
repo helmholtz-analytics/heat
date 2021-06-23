@@ -1,0 +1,33 @@
+name: drone-test
+kind: pipeline
+type: docker
+
+steps:
+- name: test
+  image: dhna/mpi4py
+  commands:
+    - pip install -U numpy pytest coverage
+    - pip install .
+    - mpirun -n 1 coverage run --source=heat --parallel-mode -m pytest heat/
+    - mpirun -n 2 coverage run --source=heat --parallel-mode -m pytest heat/
+    - mpirun -n 3 coverage run --source=heat --parallel-mode -m pytest heat/
+    - mpirun -n 4 coverage run --source=heat --parallel-mode -m pytest heat/
+    - mpirun -n 5 coverage run --source=heat --parallel-mode -m pytest heat/
+    - mpirun -n 6 coverage run --source=heat --parallel-mode -m pytest heat/
+    - coverage combine
+    - coverage xml
+
+- name: coverage
+  image: plugins/codecov
+  settings:
+    token:
+      from_secret: token
+    flags: unit
+
+trigger:
+    branch:
+      - master
+    event:
+      include:
+        - push
+        - pull_request
