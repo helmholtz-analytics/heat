@@ -291,6 +291,11 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     if arr1.dtype != out_dtype:
         arr1 = out_dtype(arr1, device=arr1.device)
 
+    # calculate global output shape
+    arr0_shape, arr1_shape = list(arr0.shape), list(arr1.shape)
+    arr0_shape[axis] += arr1_shape[axis]
+    out_shape = tuple(arr0_shape)
+
     s0, s1 = arr0.split, arr1.split
     # no splits, local concat
     if s0 is None and s1 is None:
@@ -308,12 +313,14 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     elif (s0 is None and s1 != axis) or (s1 is None and s0 != axis):
         _, _, arr0_slice = arr1.comm.chunk(arr0.shape, arr1.split)
         _, _, arr1_slice = arr0.comm.chunk(arr1.shape, arr0.split)
-        out = factories.array(
+        out = DNDarray(
             torch.cat((arr0.larray[arr0_slice], arr1.larray[arr1_slice]), dim=axis),
+            out_shape,
             dtype=out_dtype,
-            is_split=s1 if s1 is not None else s0,
+            split=s1 if s1 is not None else s0,
             device=arr1.device,
             comm=arr0.comm,
+            balanced=True,
         )
 
         return out
@@ -323,12 +330,14 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
             # the axis is different than the split axis, this case can be easily implemented
             # torch cat arrays together and return a new array that is_split
 
-            out = factories.array(
+            out = DNDarray(
                 torch.cat((arr0.larray, arr1.larray), dim=axis),
+                out_shape,
                 dtype=out_dtype,
-                is_split=s0,
+                split=s0,
                 device=arr0.device,
                 comm=arr0.comm,
+                balanced=None,
             )
             return out
 
@@ -340,10 +349,6 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
             lshape_map[0, arr0.comm.rank, :] = torch.Tensor(arr0.lshape)
             lshape_map[1, arr0.comm.rank, :] = torch.Tensor(arr1.lshape)
             lshape_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
-
-            arr0_shape, arr1_shape = list(arr0.shape), list(arr1.shape)
-            arr0_shape[axis] += arr1_shape[axis]
-            out_shape = tuple(arr0_shape)
 
             # the chunk map is used to determine how much data should be on each process
             chunk_map = torch.zeros((arr0.comm.size, len(arr0.gshape)), dtype=torch.int)
@@ -493,12 +498,14 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                     t_arr1.unsqueeze_(axis)
 
             res = torch.cat((t_arr0, t_arr1), dim=axis)
-            out = factories.array(
+            out = DNDarray(
                 res,
-                is_split=s0 if s0 is not None else s1,
+                out_shape,
+                split=s0 if s0 is not None else s1,
                 dtype=out_dtype,
                 device=arr0.device,
                 comm=arr0.comm,
+                balanced=True,
             )
 
             return out
