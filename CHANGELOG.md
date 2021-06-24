@@ -43,12 +43,22 @@ Example on 2 processes:
 - [#785](https://github.com/helmholtz-analytics/heat/pull/785) added allowance for 1 dimensional non-contiguous local tensors in `communication. MPICommunication.mpi_type_and_elements_of()`
 - [#787](https://github.com/helmholtz-analytics/heat/pull/787) Fixed an issue where Heat cannot be imported when some optional dependencies are not available.
 - [#790](https://github.com/helmholtz-analytics/heat/pull/790) catch incorrect device after `bcast` in `DNDarray.__getitem__`
+- [#811](https://github.com/helmholtz-analytics/heat/pull/811) Fixed memory leak in `DNDarray.larray`
+- [#821](https://github.com/helmholtz-analytics/heat/pull/821) Fixed `__getitem__` handling of distributed `DNDarray` key element
+
+### Exponential
+- [#812](https://github.com/helmholtz-analytics/heat/pull/712) New feature: `logaddexp`, `logaddexp2`
+
 ### Linear Algebra
 - [#718](https://github.com/helmholtz-analytics/heat/pull/718) New feature: `trace()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
+### Trigonometrics / Arithmetic
+- [#806](https://github.com/helmholtz-analytics/heat/pull/809) New feature: `square`
+- [#809](https://github.com/helmholtz-analytics/heat/pull/809) New feature: `acosh`, `asinh`, `atanh`
 ### Misc.
 - [#761](https://github.com/helmholtz-analytics/heat/pull/761) New feature: `result_type`
 - [#794](https://github.com/helmholtz-analytics/heat/pull/794) New feature: `meshgrid`
+- [#821](https://github.com/helmholtz-analytics/heat/pull/821) Enhancement: it is no longer necessary to load-balance an imbalanced `DNDarray` before gathering it onto all processes. In short: `ht.resplit(array, None)` now works on imbalanced arrays as well.
 
 # v1.0.0
 
