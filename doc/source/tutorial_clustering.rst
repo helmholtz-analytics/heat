@@ -131,12 +131,12 @@ The Iris Dataset
 ------------------------------
 The _iris_ dataset is a well known example for clustering analysis. It contains 4 measured features for samples from
 three different types of iris flowers. A subset of 150 samples is included in formats h5, csv and netcdf in Heat,
-located under 'heat/heat/datasets/data/iris.h5', and can be loaded in a distributed manner with Heat's parallel
+located under 'heat/heat/datasets/iris.h5', and can be loaded in a distributed manner with Heat's parallel
 dataloader
 
 .. code:: python
 
-    iris = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
+    iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
 Fitting the dataset with kmeans:
 
 .. code:: python
