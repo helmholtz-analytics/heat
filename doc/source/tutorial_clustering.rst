@@ -68,9 +68,9 @@ initial centroids.
     c1.balance_()
     c2.balance_()
 
-    print("""Number of points assigned to c1: {}
-    Number of points assigned to c2: {}
-    Centroids = {}""".format(c1.shape[0], c2.shape[0], centroids))
+    print(f"Number of points assigned to c1: {c1.shape[0]} "
+          f"Number of points assigned to c2: {c2.shape[0]} "
+          f"Centroids = {centroids}")
 
 .. code:: text
 
@@ -110,8 +110,9 @@ We can also cluster the data with kmedians. The respective advanced initial cent
     c1.balance_()
     c2.balance_()
 
-    print("""Number of points assigned to c1: {}
-    Number of points assigned to c2: {}""".format(c1.shape[0], c2.shape[0]))
+    print(f"Number of points assigned to c1: {c1.shape[0]}"
+          f"Number of points assigned to c2: {c2.shape[0]}")
+
 Plotting the assigned clusters and the respective centroids:
 
 .. code:: python
@@ -160,6 +161,6 @@ Let's see what the results are. In theory, there are 50 samples of each of the 3
     c2.balance_()
     c3.balance_()
 
-    print("Number of points assigned to c1: {} \n
-           Number of points assigned to c2: {} \n
-           Number of points assigned to c3: {} ".format(c1.shape[0], c2.shape[0], c3.shape[0]))
+    print(f"Number of points assigned to c1: {c1.shape[0]} \n"
+          f"Number of points assigned to c2: {c2.shape[0]} \n"
+          f"Number of points assigned to c3: {c3.shape[0]}")
