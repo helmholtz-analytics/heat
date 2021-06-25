@@ -87,8 +87,9 @@ def start():
         
 def fini():
     'Control sends end-tag. Workers will sys.exit'
-    header = [END]
-    header = _comm.bcast(header, 0)
+    if _comm.rank == 0:
+        header = [END]
+        header = _comm.bcast(header, 0)
 
 
 def go():

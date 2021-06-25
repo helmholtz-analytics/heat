@@ -49,6 +49,7 @@
 # and non-array-types arguments separately.
 ###############################################################################
 
+import atexit
 from . import distributor
 from .arrayapi import (
     aa_attributes,
@@ -69,16 +70,9 @@ dndarray_str = "impl.DNDarray"
 
 def init():
     '''
-    Initialize distribution engine.
+    Initialize distribution engine. Automatically when when importing cw4heat.
     For now we assume all ranks (controller and workers) are started through mpirun,
     workers will never leave distributor.start() and so this function.
-    Call this as the very first thing in your program. For now it is recommended
-    to start your program with
-
-    import heat.cw4heat as ht
-    ht.init()
-
-    Also call fini() before exiting.
     '''
     distributor.init()
     distributor.start()
@@ -86,7 +80,7 @@ def init():
 
 def fini():
     '''
-    Finalize/shutdown distribution engine.
+    Finalize/shutdown distribution engine. Automatically called at exit.
     When called on controller, workers will sys.exit from init().
     '''
     distributor.fini()
@@ -254,3 +248,9 @@ class random:
     for method, obj in impl.random.__dict__.items():
         if callable(obj):
             exec(f"{method} = staticmethod(lambda *args, **kwargs: DDParray(_submit('{impl_str}.random.{method}', args, kwargs)))")
+
+
+#######################################################################
+#######################################################################
+atexit.register(fini)
+init()
