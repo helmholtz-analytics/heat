@@ -41,7 +41,8 @@ def qr(
 
     Notes
     -----
-    This function is built on top of PyTorch's QR function. ``torch.qr()`` using LAPACK on the backend.
+    This function is built on top of PyTorch's QR function. ``torch.linalg.qr()`` using LAPACK on
+    the backend.
     Basic information about QR factorization/decomposition can be found at
     https://en.wikipedia.org/wiki/QR_factorization. The algorithms are based on the CAQR and TSQRalgorithms. For more information see references.
 
@@ -93,7 +94,7 @@ def qr(
     QR = collections.namedtuple("QR", "Q, R")
 
     if a.split is None:
-        q, r = a.larray.qr(some=False)
+        q, r = torch.linalg.qr(a.larray, mode="complete")
         q = factories.array(q, device=a.device)
         r = factories.array(r, device=a.device)
         ret = QR(q if calc_q else None, r)
@@ -350,7 +351,7 @@ def __split0_r_calc(
 
     # --------------- local QR calc -----------------------------------------------------
     base_tile = r_tiles.local_get(key=(slice(lcl_tile_row, None), col_num))
-    q1, r1 = base_tile.qr(some=False)
+    q1, r1 = torch.linalg.qr(base_tile, mode="complete")
     q_dict[col_num]["l0"] = [q1, base_tile.shape]
     r_tiles.local_set(key=(slice(lcl_tile_row, None), col_num), value=r1)
     if col_num != r_tiles.tile_columns - 1:
@@ -377,7 +378,7 @@ def __split0_r_calc(
         if rank not in loop_size_remaining and rank not in [rem1, rem2]:
             break  # if the rank is done then exit the loop
         # send the data to the corresponding processes
-        half_prs_rem = torch.floor_divide(procs_remaining, 2)
+        half_prs_rem = torch.div(procs_remaining, 2, rounding_mode="floor")
         zipped = zip(
             loop_size_remaining.flatten()[:half_prs_rem],
             loop_size_remaining.flatten()[half_prs_rem:],
@@ -548,7 +549,7 @@ def __split0_merge_tile_rows(
         comm.Recv(upper, source=pr0, tag=986)
         comm.Send(lower.clone(), dest=pr0, tag=4363)
 
-    q_merge, r = torch.cat((upper, lower), dim=0).qr(some=False)
+    q_merge, r = torch.linalg.qr(torch.cat((upper, lower), dim=0), mode="complete")
     upp = r[: upper.shape[0]]
     low = r[upper.shape[0] :]
     if rank == pr0:
@@ -884,7 +885,7 @@ def __split1_qr_loop(
     # 1st qr: only on diagonal tile + apply to the row
     if rank == diag_process:
         # do qr on diagonal process
-        q1, r1 = r_tiles[dcol, dcol].qr(some=False)
+        q1, r1 = torch.linalg.qr(r_tiles[dcol, dcol], mode="complete")
         r_tiles.arr.comm.Bcast(q1.clone(), root=diag_process)
         r_tiles[dcol, dcol] = r1
         # apply q1 to the trailing matrix (other processes)
@@ -939,7 +940,7 @@ def __split1_qr_loop(
             loop_tile = r_tiles[row, dcol]
             loop_cat = torch.cat((diag_tile, loop_tile), dim=0)
             # qr
-            ql, rl = loop_cat.qr(some=False)
+            ql, rl = torch.linalg.qr(loop_cat, mode="complete")
             # send ql to all
             r_tiles.arr.comm.Bcast(ql.clone().contiguous(), root=diag_process)
             # set rs

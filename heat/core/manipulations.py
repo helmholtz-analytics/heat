@@ -1745,7 +1745,7 @@ def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None
         # Get axis position on new split axis
         mask = torch.arange(width, device=tdevice) + gindex
         mask = mask + torch.arange(height, device=tdevice).reshape([height, 1]) * global_len
-        mask = (torch.floor_divide(mask, ulen)) % shape2[axis2]
+        mask = (torch.divide(mask, ulen, rounding_mode="floor")) % shape2[axis2]
         mask = mask.flatten()
 
         # Compute return values

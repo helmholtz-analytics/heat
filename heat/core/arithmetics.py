@@ -517,7 +517,7 @@ def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray
     DNDarray([[1., 0.],
               [1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.floor_divide, t1, t2)
+    return _operations.__binary_op(torch.div, t1, t2, fn_kwargs={"rounding_mode": "floor"})
 
 
 DNDarray.__floordiv__ = lambda self, other: floordiv(self, other)
