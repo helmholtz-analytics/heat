@@ -986,6 +986,17 @@ class TestDNDarray(TestCase):
         self.assertTrue(res == 0)
 
     def test_setitem_getitem(self):
+        # tests for bug #825
+        a = ht.ones((102, 102), split=0)
+        setting = ht.zeros((100, 100), split=0)
+        a[1:-1, 1:-1] = setting
+        self.assertTrue(ht.all(a[1:-1, 1:-1] == 0))
+
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((100, 100), split=1)
+        a[1:-1, 1:-1] = setting
+        self.assertTrue(ht.all(a[1:-1, 1:-1] == 0))
+
         # tests for bug 730:
         a = ht.ones((10, 25, 30), split=1)
         if a.comm.size > 1:
