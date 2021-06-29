@@ -55,6 +55,8 @@ Example on 2 processes:
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
 ### Manipulations
 - [#796](https://github.com/helmholtz-analytics/heat/pull/796) `DNDarray.reshape(shape)`: method now allows shape elements to be passed in as single arguments.
+### Rounding
+- [#827](https://github.com/helmholtz-analytics/heat/pull/827) New feature: `sign`, `sgn`
 ### Trigonometrics / Arithmetic
 - [#806](https://github.com/helmholtz-analytics/heat/pull/809) New feature: `square`
 - [#809](https://github.com/helmholtz-analytics/heat/pull/809) New feature: `acosh`, `asinh`, `atanh`

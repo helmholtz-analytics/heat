@@ -12,7 +12,19 @@ from . import dndarray
 from . import sanitation
 from . import types
 
-__all__ = ["abs", "absolute", "ceil", "clip", "fabs", "floor", "modf", "round", "trunc"]
+__all__ = [
+    "abs",
+    "absolute",
+    "ceil",
+    "clip",
+    "fabs",
+    "floor",
+    "modf",
+    "round",
+    "sign",
+    "sgn",
+    "trunc",
+]
 
 
 def abs(
@@ -326,6 +338,87 @@ DNDarray.round: Callable[
     [DNDarray, int, Optional[DNDarray], Optional[datatype]], DNDarray
 ] = lambda self, decimals=0, out=None, dtype=None: round(self, decimals, out, dtype)
 DNDarray.round.__doc__ = round.__doc__
+
+
+def sign(x: DNDarray, out: Optional[DNDarray] = None):
+    """
+    Returns an indication of the sign of a number, element-wise. The definition for complex values is equivalent to :math:`x / \\sqrt{x \\cdot x}`.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array
+    out : DNDarray, optional
+        A location in which to store the results.
+
+    See Also
+    --------
+    :func:`sgn`
+        Equivalent function on non-complex arrays. The definition for complex values is equivalent to :math:`x / |x|`.
+
+    Examples
+    --------
+    >>> a = ht.array([-1, -0.5, 0, 0.5, 1])
+    >>> ht.sign(a)
+    DNDarray([-1., -1.,  0.,  1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.sign(ht.array([5-2j, 3+4j]))
+    DNDarray([(1+0j), (1+0j)], dtype=ht.complex64, device=cpu:0, split=None)
+    """
+    # special case for complex values
+    if types.heat_type_is_complexfloating(x.dtype):
+        sanitation.sanitize_in(x)
+        if out is not None:
+            sanitation.sanitize_out(out, x.shape, x.split, x.device)
+            out.larray.copy_(x.larray)
+            data = out.larray
+        else:
+            data = torch.clone(x.larray)
+
+        indices = torch.nonzero(data)
+        pos = torch.split(indices, 1, 1)
+        data[pos] = x.larray[pos] / torch.sqrt(torch.square(x.larray[pos]))
+
+        if out is not None:
+            out.__dtype = types.heat_type_of(data)
+            return out
+        return DNDarray(
+            data,
+            gshape=x.shape,
+            dtype=types.heat_type_of(data),
+            split=x.split,
+            device=x.device,
+            comm=x.comm,
+            balanced=x.balanced,
+        )
+
+    return _operations.__local_op(torch.sign, x, out)
+
+
+def sgn(x: DNDarray, out: Optional[DNDarray] = None):
+    """
+    Returns an indication of the sign of a number, element-wise. The definition for complex values is equivalent to :math:`x / |x|`.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array
+    out : DNDarray, optional
+        A location in which to store the results.
+
+    See Also
+    --------
+    :func:`sign`
+        Equivalent function on non-complex arrays. The definition for complex values is equivalent to :math:`x / \\sqrt{x \\cdot x}`
+
+    Examples
+    --------
+    >>> a = ht.array([-1, -0.5, 0, 0.5, 1])
+    >>> ht.sign(a)
+    DNDarray([-1., -1.,  0.,  1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.sgn(ht.array([5-2j, 3+4j]))
+    DNDarray([(0.9284766912460327-0.3713906705379486j),  (0.6000000238418579+0.800000011920929j)], dtype=ht.complex64, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.sgn, x, out)
 
 
 def trunc(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
