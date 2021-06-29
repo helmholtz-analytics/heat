@@ -372,9 +372,9 @@ def sign(x: DNDarray, out: Optional[DNDarray] = None):
             out.larray.copy_(x.larray)
             data = out.larray
         else:
-            data = torch.clone(x.larray)
+            data = torch.clone(x.larray.cpu())
 
-        indices = torch.nonzero(data)
+        indices = torch.nonzero(data.cpu())  # nonzero_cuda not implemented for complex
         pos = torch.split(indices, 1, 1)
         data[pos] = x.larray[pos] / torch.sqrt(torch.square(x.larray[pos]))
 
