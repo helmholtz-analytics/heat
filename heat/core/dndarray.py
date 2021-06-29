@@ -1520,8 +1520,7 @@ class DNDarray:
             if isinstance(key_stop, torch.Tensor):
                 key_stop = key_stop.item()
             key[self.split] = slice(key_start, key_stop, key_step)
-            # key = local_keys[rank]
-            # print(key, chunk_starts)
+
             # todo: need to slice the values to be the right size...
             if isinstance(value, (torch.Tensor, type(self))):
                 # if its a torch tensor, it is assumed to exist on all processes
@@ -1535,57 +1534,7 @@ class DNDarray:
                 value_slice[slice_loc] = slice(
                     key_start, math.ceil(torch.true_divide(key_stop, step2)), 1
                 )
-                # print(key, value_slice)
                 self.__setter(tuple(key), value[tuple(value_slice)])
-            # if isinstance(value, type(self)):
-            #     # need to make sure that the data is in the right place here.
-            #     # get expected shape (key is a tuple):
-            #     # exp_shape = []
-            #     # ints = 0
-            #     # for c, k in enumerate(key):
-            #     #     if isinstance(k, int):
-            #     #         ints += 1
-            #     #     elif isinstance(k, slice):
-            #     #         stp = k.stop if k.stop > 0 else self.gshape[c] + k.stop
-            #     #         start = k.start if k.start > 0 else self.gshape[c] + k.start
-            #     #         exp_shape.append((stp - start) // k.step)
-            #     # if len(exp_shape) - ints > self.ndim:
-            #     #     for r in range(len(exp_shape) - ints - 1, self.ndim):
-            #     #         exp_shape.append(self.gshape[r])
-            #     # # todo: above needs to be modified to only do things for the split dim!!
-            #
-            #     # next objective is finding the location of all of elements in self to set
-            #     # only need to do this in the split dimension
-            #
-            #     # compare the key dims/splits to the set/splits
-            #     self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
-            #     gout_full = torch.tensor(self_proxy[key].shape, device=self.device.torch_device)
-            #     target_reshape_map = torch.zeros(
-            #         (self.comm.size, self.ndim),
-            #         dtype=torch.int,
-            #         device=self.device.torch_device,
-            #     )
-            #     target_reshape_map[self.comm.rank] = gout_full
-            #     # self.comm.Allreduce(MPI.IN_PLACE, target_reshape_map, MPI.SUM)
-            #     print(target_reshape_map)
-            #     # value = value.redistribute(target_map=target_reshape_map)
-            #     # print('h', value.lshape, key)
-            #     # # print('h', gout_full, key)
-            #     #
-            #     # value_slice = [slice(None, None, None)] * value.ndim
-            #     # step2 = key_step if key_step is not None else 1
-            #     # key_start = (chunk_starts[rank] - og_key_start).item()
-            #     # if key_start < 0:
-            #     #     key_start = 0
-            #     # key_stop = key_start + key_stop
-            #     # slice_loc = (
-            #     #     value.ndim - 1 if self.split > value.ndim - 1 else self.split
-            #     # )
-            #     # value_slice[slice_loc] = slice(
-            #     #     key_start, math.ceil(torch.true_divide(key_stop, step2)), 1
-            #     # )
-            #     # print('v', value_slice)
-            #     # self.__setter(tuple(key), value[tuple(value_slice)])
             else:
                 self.__setter(tuple(key), value)
         elif isinstance(key[self.split], torch.Tensor):

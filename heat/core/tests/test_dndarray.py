@@ -993,9 +993,19 @@ class TestDNDarray(TestCase):
         self.assertTrue(ht.all(a[1:-1, 1:-1] == 0))
 
         a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((30, 100), split=1)
+        a[-30:, 1:-1] = setting
+        self.assertTrue(ht.all(a[-30:, 1:-1] == 0))
+
+        a = ht.ones((102, 102), split=1)
         setting = ht.zeros((100, 100), split=1)
         a[1:-1, 1:-1] = setting
         self.assertTrue(ht.all(a[1:-1, 1:-1] == 0))
+
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((100, 20), split=1)
+        a[1:-1, :20] = setting
+        self.assertTrue(ht.all(a[1:-1, :20] == 0))
 
         # tests for bug 730:
         a = ht.ones((10, 25, 30), split=1)
