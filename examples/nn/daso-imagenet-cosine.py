@@ -12,7 +12,6 @@ import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 import torch.optim
 import torch.utils.data
-import torchvision.models as models
 import pickle
 import sys
 
@@ -27,16 +26,8 @@ def print0(*args, **kwargs):
         print(*args, **kwargs)
 
 
-try:
-    from nvidia.dali.plugin.pytorch import DALIClassificationIterator
-    from nvidia.dali.pipeline import Pipeline
-    import nvidia.dali as dali
-    import nvidia.dali.ops as ops
-    import nvidia.dali.tfrecord as tfrec
-except ImportError:
-    print0("Please install DALI from https://www.github.com/NVIDIA/DALI to run this example.")
-    ht.MPI.Finalize()
-    sys.exit(0)
+import torch.utils.data.distributed
+from torchvision import datasets, transforms, models
 
 
 def parse():
@@ -212,98 +203,6 @@ def to_python_float(t):
         return t.item()
     else:
         return t[0]
-
-
-class HybridPipe(Pipeline):
-    def __init__(
-        self,
-        batch_size,
-        num_threads,
-        device_id,
-        data_dir,
-        label_dir,
-        crop,
-        dali_cpu=False,
-        training=True,
-    ):
-        shard_id = ht.MPI_WORLD.rank
-        num_shards = ht.MPI_WORLD.size
-        super(HybridPipe, self).__init__(batch_size, num_threads, device_id, seed=68 + shard_id)
-
-        data_dir_list = [data_dir + d for d in os.listdir(data_dir)]
-        label_dir_list = [label_dir + d for d in os.listdir(label_dir)]
-
-        self.input = dali.ops.TFRecordReader(
-            path=data_dir_list,
-            index_path=label_dir_list,
-            random_shuffle=True if training else False,
-            shard_id=shard_id,
-            num_shards=num_shards,
-            initial_fill=10000,
-            features={
-                "image/encoded": dali.tfrecord.FixedLenFeature((), dali.tfrecord.string, ""),
-                "image/class/label": dali.tfrecord.FixedLenFeature([1], dali.tfrecord.int64, -1),
-                "image/class/text": dali.tfrecord.FixedLenFeature([], dali.tfrecord.string, ""),
-                "image/object/bbox/xmin": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
-                "image/object/bbox/ymin": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
-                "image/object/bbox/xmax": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
-                "image/object/bbox/ymax": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
-            },
-        )
-        # let user decide which pipeline works him bets for RN version he runs
-        dali_device = "cpu" if dali_cpu else "gpu"
-        decoder_device = "cpu" if dali_cpu else "mixed"
-        # This padding sets the size of the internal nvJPEG buffers to be able to
-        # handle all images from full-sized ImageNet without additional reallocations
-        # leaving the padding in for now to allow for the case for loading to GPUs
-        # todo: move info to GPUs
-        device_memory_padding = 211025920 if decoder_device == "mixed" else 0
-        host_memory_padding = 140544512 if decoder_device == "mixed" else 0
-        if training:
-            self.decode = ops.ImageDecoderRandomCrop(
-                device="cpu",  # decoder_device,
-                output_type=dali.types.RGB,
-                device_memory_padding=device_memory_padding,
-                host_memory_padding=host_memory_padding,
-                random_aspect_ratio=[0.75, 1.33],
-                random_area=[0.05, 1.0],
-                num_attempts=100,
-            )
-            self.resize = ops.Resize(
-                device="cpu",  # dali_device,
-                resize_x=crop,
-                resize_y=crop,
-                interp_type=dali.types.INTERP_TRIANGULAR,
-            )
-        else:
-            self.decode = dali.ops.ImageDecoder(device="cpu", output_type=dali.types.RGB)
-            self.resize = ops.Resize(
-                device="cpu", resize_shorter=crop, interp_type=dali.types.INTERP_TRIANGULAR
-            )
-        # should this be CPU or GPU? -> if prefetching then do it on CPU before sending
-        self.normalize = ops.CropMirrorNormalize(
-            device="cpu",  # need to make this work with the define graph
-            # dtype=dali.types.FLOAT,  # todo: not implemented on test system (old version of DALI)
-            output_layout=dali.types.NCHW,
-            crop=(crop, crop),
-            mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
-            std=[0.229 * 255, 0.224 * 255, 0.225 * 255],
-        )
-        self.coin = ops.CoinFlip(probability=0.5)
-        self.training = training
-        print0(f"Completed init of DALI Dataset on '{dali_device}', is training set? -> {training}")
-
-    def define_graph(self):
-        inputs = self.input(name="Reader")
-        images = inputs["image/encoded"]
-        labels = inputs["image/class/label"] - 1
-        images = self.decode(images)
-        images = self.resize(images)
-        if self.training:
-            images = self.normalize(images, mirror=self.coin())
-        else:
-            images = self.normalize(images)
-        return images, labels
 
 
 def save_obj(obj, name):
@@ -507,32 +406,52 @@ def main():
         crop_size = 224  # should this be 256?
         val_size = 256
 
-    pipe = HybridPipe(
-        batch_size=args.batch_size,
-        num_threads=args.workers,
-        device_id=args.loc_rank if not args.manual_dist else 0,
-        data_dir=args.train,
-        label_dir=args.train_indexes,
-        crop=crop_size,
-        dali_cpu=args.dali_cpu,
-        training=True,
+    train_dataset = datasets.ImageFolder(
+        args.train,
+        transform=transforms.Compose(
+            [
+                transforms.RandomResizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        ),
     )
-    pipe.build()
-
-    train_loader = DALIClassificationIterator(pipe, reader_name="Reader", last_batch_policy=False)
-
-    pipe = HybridPipe(
-        batch_size=args.batch_size,
-        num_threads=args.workers,
-        device_id=args.loc_rank if not args.manual_dist else 0,
-        data_dir=args.validate,
-        label_dir=args.validate_indexes,
-        crop=val_size,
-        dali_cpu=args.dali_cpu,
-        training=False,
+    train_sampler = torch.utils.data.distributed.DistributedSampler(
+        train_dataset, num_replicas=args.world_size, rank=rank
     )
-    pipe.build()
-    val_loader = DALIClassificationIterator(pipe, reader_name="Reader", last_batch_policy=False)
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        sampler=train_sampler,
+        num_workers=2,
+        pin_memory=True,
+        multiprocessing_context="fork",  # helps with infiniband issues?? (from hvd)
+    )
+
+    val_dataset = datasets.ImageFolder(
+        args.validate,
+        transform=transforms.Compose(
+            [
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        ),
+    )
+    val_sampler = torch.utils.data.distributed.DistributedSampler(
+        val_dataset, num_replicas=args.world_size, rank=rank
+    )
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset,
+        batch_size=args.batch_size,
+        sampler=val_sampler,
+        num_workers=2,
+        pin_memory=True,
+        multiprocessing_context="fork",
+        # 'forkserver',  # helps with infiniband issues?? (from hvd)
+    )
 
     if args.evaluate:
         validate(device, val_loader, htmodel, criterion)
