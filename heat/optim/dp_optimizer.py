@@ -197,6 +197,14 @@ class DASO2:
             print(layer, cos_sim, sdif)
             layer += 1
 
+    def zero_grad(self) -> None:
+        """
+        Reset gradients of local optimizer's parameters.
+        """
+        # reset view onto params in order to reset all gradients
+        self.local_optimizer.param_groups[0]["params"] = self.params_ref[:]
+        self.local_optimizer.zero_grad()
+
     # def stop_local_sync(self) -> None:
     #     """
     #     Stop local synchronizations for the next batches
