@@ -310,6 +310,7 @@ def main():
         total_epochs=args.epochs,
         max_global_skips=4,
         stability_level=0.05,
+        module=model,
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, factor=0.5, patience=5, threshold=0.05, min_lr=1e-4

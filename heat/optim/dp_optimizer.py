@@ -47,6 +47,7 @@ class DASO2:
     def __init__(
         self,
         local_optimizer: torch.optim.Optimizer,
+        module,
         total_epochs: int,
         comm: MPICommunication = MPI_WORLD,
         warmup_epochs: int = 4,
@@ -150,7 +151,9 @@ class DASO2:
         self.cosine_dists = []
         self.sum_diffs = []
 
-        self.print("Finished DASO init")
+        self.module = module
+
+        print("Finished DASO init")
 
     def set_model(self, model: torch.nn.Module) -> None:
         """
@@ -194,14 +197,14 @@ class DASO2:
             print(layer, cos_sim, sdif)
             layer += 1
 
-    def stop_local_sync(self) -> None:
-        """
-        Stop local synchronizations for the next batches
-        """
-        if not isinstance(self.module, tDDP) or not self.module.require_backward_grad_sync:
-            # this has no effect if the module is not locally distributed in torch
-            return
-        self.module.require_backward_grad_sync = False
+    # def stop_local_sync(self) -> None:
+    #     """
+    #     Stop local synchronizations for the next batches
+    #     """
+    #     if not isinstance(self.module, tDDP) or not self.module.require_backward_grad_sync:
+    #         # this has no effect if the module is not locally distributed in torch
+    #         return
+    #     self.module.require_backward_grad_sync = False
 
 
 class DASO:
