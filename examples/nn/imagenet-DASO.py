@@ -524,7 +524,7 @@ def main():
     )
 
     if args.no_cycling:
-        daso_optimizer.disable_cycling(global_skips=args.global_skip_decay,
+        daso_optimizer.disable_cycling(global_skips=args.gs,
             batches_to_wait=args.batch_skip)
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
