@@ -362,7 +362,10 @@ class DASO:
             boolean if the loss is already globally averaged
         """
         if not self.cycling:
-            self.print0(f"Finished this epoch, Global Skips {self.global_skip}, Batches to wait {self.batches_to_wait}" 
+            self.print0(
+                f"Finished this epoch, Global Skips {self.global_skip}, Batches to wait "
+                f"{self.batches_to_wait}"
+            )
             return
 
         if not loss_globally_averaged:
