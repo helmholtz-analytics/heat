@@ -30,6 +30,11 @@ def print0(*args, **kwargs):
 try:
     from nvidia.dali.plugin.pytorch import DALIClassificationIterator
     from nvidia.dali.pipeline import Pipeline
+    
+    from nvidia.dali.pipeline import pipeline_def
+    import nvidia.dali.types as types
+    import nvidia.dali.fn as fn
+
     import nvidia.dali as dali
     import nvidia.dali.ops as ops
     import nvidia.dali.tfrecord as tfrec
@@ -205,6 +210,9 @@ def parse():
         action="store_true",
         help="manually override the local distribution attributes, must also set the number of local GPUs",
     )
+    parser.add_argument(
+        "--no-cycling", action="store_true", help="stop the cycling of the DASO optimizer"
+    )
     args = parser.parse_args()
     return args
 
@@ -309,6 +317,105 @@ class HybridPipe(Pipeline):
         return images, labels
 
 
+@pipeline_def
+def create_dali_pipeline(
+    data_dir,
+    crop,
+    size,
+    label_dir,
+    shard_id=ht.MPI_WORLD.rank,
+    num_shards=ht.MPI_WORLD.size,
+    dali_cpu=False,
+    is_training=True,
+):
+    shard_id = ht.MPI_WORLD.rank
+    num_shards = ht.MPI_WORLD.size
+
+    data_dir_list = [data_dir + d for d in os.listdir(data_dir)]
+    label_dir_list = [label_dir + d for d in os.listdir(label_dir)]
+
+    inp = fn.readers.tfrecord(
+            path=data_dir_list,
+            index_path=label_dir_list,
+            name="Reader",
+            random_shuffle=True if is_training else False,
+            shard_id=shard_id,
+            num_shards=num_shards,
+            initial_fill=10000,
+            features={
+                "image/encoded": dali.tfrecord.FixedLenFeature((), dali.tfrecord.string, ""),
+                "image/class/label": dali.tfrecord.FixedLenFeature([1], dali.tfrecord.int64, -1),
+                "image/class/text": dali.tfrecord.FixedLenFeature([], dali.tfrecord.string, ""),
+                "image/object/bbox/xmin": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
+                "image/object/bbox/ymin": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
+                "image/object/bbox/xmax": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
+                "image/object/bbox/ymax": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
+            },
+        )
+
+
+    #images, labels = fn.readers.file(
+    #    file_root=data_dir,
+    #    shard_id=shard_id,
+    #    num_shards=num_shards,
+    #    random_shuffle=is_training,
+    #    pad_last_batch=True,
+    #    name="Reader",
+    #)
+    images = inp["image/encoded"]
+    labels = inp["image/class/label"]
+
+    dali_device = "cpu" if dali_cpu else "gpu"
+    decoder_device = "cpu" if dali_cpu else "mixed"
+    device_memory_padding = 211025920 if decoder_device == "mixed" else 0
+    host_memory_padding = 140544512 if decoder_device == "mixed" else 0
+    if is_training:
+        images = fn.decoders.image_random_crop(
+            images,
+            device="cpu", #decoder_device,
+            output_type=types.RGB,
+            device_memory_padding=device_memory_padding,
+            host_memory_padding=host_memory_padding,
+            random_aspect_ratio=[0.8, 1.25],
+            random_area=[0.1, 1.0],
+            num_attempts=100,
+        )
+        images = fn.resize(
+            images,
+            device="cpu", #dali_device,
+            resize_x=crop,
+            resize_y=crop,
+            interp_type=types.INTERP_TRIANGULAR,
+        )
+        mirror = fn.random.coin_flip(probability=0.5)
+    else:
+        images = fn.decoders.image(
+            images, 
+            device="cpu", #decoder_device, 
+            output_type=types.RGB
+        )
+        images = fn.resize(
+            images,
+            device="cpu", #dali_device,
+            size=size,
+            mode="not_smaller",
+            interp_type=types.INTERP_TRIANGULAR,
+        )
+        mirror = False
+
+    images = fn.crop_mirror_normalize(
+        images.gpu(),
+        dtype=types.FLOAT,
+        output_layout="CHW",
+        crop=(crop, crop),
+        mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
+        std=[0.229 * 255, 0.224 * 255, 0.225 * 255],
+        mirror=mirror,
+    )
+    labels = labels.gpu()
+    return images, labels
+
+
 def save_obj(obj, name):
     with open(name + ".pkl", "wb") as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
@@ -344,6 +451,11 @@ def main():
         print0("deterministic==True, seed set to global rank")
     else:
         torch.manual_seed(999999999)
+
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.deterministic = False
+    torch.backends.cudnn.allow_tf32 = True
 
     args.gpu = 0
     args.world_size = ht.MPI_WORLD.size
@@ -509,10 +621,11 @@ def main():
         crop_size = 224  # should this be 256?
         val_size = 256
 
+    # data_dir = "/hkfs/work/workspace/scratch/qv2382-heat/imagenet-raw/ILSVRC/Data/CLS-LOC/"
     pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
-        device_id=args.loc_rank if not args.manual_dist else 0,
+        device_id=args.loc_rank,
         data_dir=args.train,
         label_dir=args.train_indexes,
         crop=crop_size,
@@ -526,7 +639,7 @@ def main():
     pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
-        device_id=args.loc_rank if not args.manual_dist else 0,
+        device_id=args.loc_rank,
         data_dir=args.validate,
         label_dir=args.validate_indexes,
         crop=val_size,
@@ -535,6 +648,46 @@ def main():
     )
     pipe.build()
     val_loader = DALIClassificationIterator(pipe, reader_name="Reader", last_batch_policy=False)
+
+    """
+    pipe = create_dali_pipeline(
+        batch_size=args.batch_size,
+        num_threads=args.workers,
+        device_id=args.local_rank,
+        seed=12 + args.local_rank,
+        data_dir=args.train,  # data_dir + "train/",
+        label_dir=args.train_indexes,
+        crop=crop_size,
+        size=val_size,
+        dali_cpu=args.dali_cpu,
+        # shard_id=args.local_rank,
+        # num_shards=args.world_size,
+        is_training=True,
+    )
+    pipe.build()
+    train_loader = DALIClassificationIterator(
+        pipe, reader_name="Reader", last_batch_policy="PARTIAL"
+    )
+
+    pipe = create_dali_pipeline(
+        batch_size=args.batch_size,
+        num_threads=args.workers,
+        device_id=args.local_rank,
+        seed=12 + args.local_rank,
+        data_dir=args.validate,
+        label_dir=args.validate_indexes,
+        crop=crop_size,
+        size=val_size,
+        dali_cpu=args.dali_cpu,
+        # shard_id=args.local_rank,
+        # num_shards=args.world_size,
+        is_training=False,
+    )
+    pipe.build()
+    val_loader = DALIClassificationIterator(
+        pipe, reader_name="Reader", last_batch_policy="PARTIAL"
+    )
+    """
 
     if args.evaluate:
         validate(device, val_loader, htmodel, criterion)
