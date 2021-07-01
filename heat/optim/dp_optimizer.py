@@ -253,8 +253,10 @@ class DASO:
     def enable_cycling(self):
         self.cycling = True
 
-    def disable_cycling(self):
+    def disable_cycling(self, global_skips=0, batches_to_wait=0):
         self.cycling = False
+        self.global_skip = global_skips
+        self.batches_to_wait = batches_to_wait
 
     @staticmethod
     def __init_checktypes(args: Dict) -> None:
