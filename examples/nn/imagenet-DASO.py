@@ -201,9 +201,7 @@ def parse():
         help="save the results to a benchmarking csv with the node count",
     )
     parser.add_argument(
-        "--manual_dist",
-        action="store_true",
-        help="manually override the local distribution attributes, must also set the number of local GPUs",
+        "--no-cycling", action="store_true", help="stop the cycling of the DASO optimizer"
     )
     args = parser.parse_args()
     return args
@@ -236,7 +234,7 @@ class HybridPipe(Pipeline):
         data_dir_list = [data_dir + d for d in os.listdir(data_dir)]
         label_dir_list = [label_dir + d for d in os.listdir(label_dir)]
 
-        self.input = dali.ops.TFRecordReader(
+        self.input = dali.ops.readers.tfrecord(
             path=data_dir_list,
             index_path=label_dir_list,
             random_shuffle=True if training else False,
@@ -263,7 +261,7 @@ class HybridPipe(Pipeline):
         device_memory_padding = 211025920 if decoder_device == "mixed" else 0
         host_memory_padding = 140544512 if decoder_device == "mixed" else 0
         if training:
-            self.decode = ops.ImageDecoderRandomCrop(
+            self.decode = ops.decoders.image_random_crop(
                 device="cpu",  # decoder_device,
                 output_type=dali.types.RGB,
                 device_memory_padding=device_memory_padding,
@@ -292,7 +290,7 @@ class HybridPipe(Pipeline):
             mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
             std=[0.229 * 255, 0.224 * 255, 0.225 * 255],
         )
-        self.coin = ops.CoinFlip(probability=0.5)
+        self.coin = ops.random.coin_flip(probability=0.5)
         self.training = training
         print0(f"Completed init of DALI Dataset on '{dali_device}', is training set? -> {training}")
 
