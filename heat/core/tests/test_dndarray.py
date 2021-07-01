@@ -149,7 +149,7 @@ class TestDNDarray(TestCase):
                 self.assertTrue(data.halo_next is None)
                 self.assertEqual(data_with_halos.shape, (0, 12))
 
-            data = data.reshape((12, 2), axis=1)
+            data = data.reshape((12, 2), new_split=1)
             data.get_halo(1)
 
             data_with_halos = data.array_with_halos
@@ -354,8 +354,8 @@ class TestDNDarray(TestCase):
         a = ht.arange(128, split=0).reshape((8, 8, 2))
         counts, displs = a.counts_displs()
         comm_counts, comm_displs, _ = a.comm.counts_displs_shape(a.gshape, a.split)
-        self.assertTrue(tuple(counts.tolist()) == comm_counts)
-        self.assertTrue(tuple(displs.tolist()) == comm_displs)
+        self.assertTrue(counts == comm_counts)
+        self.assertTrue(displs == comm_displs)
 
         # non-balanced distributed DNDarray
         rank = a.comm.rank
@@ -365,8 +365,8 @@ class TestDNDarray(TestCase):
         comp_displs = torch.cumsum(comp_counts, dim=0)
         a = ht.array(t_a, is_split=1)
         counts, displs = a.counts_displs()
-        self.assertTrue((counts == comp_counts).all())
-        self.assertTrue((displs[1:] == comp_displs[:-1]).all())
+        self.assertTrue((torch.tensor(counts) == comp_counts).all())
+        self.assertTrue((torch.tensor(displs[1:]) == comp_displs[:-1]).all())
 
         # exception
         a_nosplit = ht.arange(128).reshape((8, 8, 2))

@@ -563,7 +563,7 @@ class DNDarray:
         """
         return self.__cast(complex)
 
-    def counts_displs(self) -> Tuple[torch.Tensor, torch.Tensor]:
+    def counts_displs(self) -> Tuple[Tuple[int], Tuple[int]]:
         """
         Returns actual counts (number of items per process) and displacements (offsets) of the DNDarray.
         Does not assume load balance.
@@ -576,7 +576,7 @@ class DNDarray:
                     torch.cumsum(counts, dim=0)[:-1],
                 )
             )
-            return (counts, displs)
+            return (tuple(counts.tolist()), tuple(displs.tolist()))
         else:
             raise ValueError("Non-distributed DNDarray. Cannot calculate counts and displacements.")
 
@@ -794,7 +794,6 @@ class DNDarray:
             """ if the key is a DNDarray and it has as many dimensions as self, then each of the entries in the 0th
                 dim refer to a single element. To handle this, the key is split into the torch tensors for each dimension.
                 This signals that advanced indexing is to be used. """
-            key.balance_()
             key = manipulations.resplit(key.copy())
             if key.ndim > 1:
                 key = list(key.larray.split(1, dim=1))
@@ -810,7 +809,6 @@ class DNDarray:
                 lists mean advanced indexing will be used"""
             h = [slice(None, None, None)] * self.ndim
             if isinstance(key, DNDarray):
-                key.balance_()
                 key = manipulations.resplit(key.copy())
                 h[0] = key.larray.tolist()
             elif isinstance(key, torch.Tensor):
@@ -825,6 +823,7 @@ class DNDarray:
             for i, k in enumerate(key):
                 if isinstance(k, DNDarray):
                     # extract torch tensor
+                    k = manipulations.resplit(k.copy())
                     key[i] = k.larray.type(torch.int64)
             key = tuple(key)
 
@@ -832,7 +831,7 @@ class DNDarray:
         self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
         gout_full = list(self_proxy[key].shape)
 
-        # ellipsis stuff
+        # ellipsis
         key = list(key)
         key_classes = [type(n) for n in key]
         # if any(isinstance(n, ellipsis) for n in key):
@@ -871,6 +870,7 @@ class DNDarray:
         arr = torch.tensor([], dtype=self.__array.dtype, device=self.__array.device)
         rank = self.comm.rank
         counts, chunk_starts = self.counts_displs()
+        counts, chunk_starts = torch.tensor(counts), torch.tensor(chunk_starts)
         chunk_ends = chunk_starts + counts
         chunk_start = chunk_starts[rank]
         chunk_end = chunk_ends[rank]
@@ -1360,7 +1360,7 @@ class DNDarray:
             gathered = torch.empty(
                 self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
             )
-            counts, displs, _ = self.comm.counts_displs_shape(self.shape, self.split)
+            counts, displs = self.counts_displs()
             self.comm.Allgatherv(self.__array, (gathered, counts, displs), recv_axis=self.split)
             self.__array = gathered
             self.__split = axis
