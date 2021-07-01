@@ -235,6 +235,8 @@ class DASO:
         self.amp = False
         self.print0("Finished DASO init")
 
+        self.cycling = True
+
     def add_scaler(self, scaler: torch.cuda.amp.GradScaler) -> None:
         """
         Create a reference to torch's `torch.cuda.amp.GradScaler <https://pytorch.org/docs/stable/notes/amp_examples.html>`_ used in torch's automatic mixed
@@ -247,6 +249,12 @@ class DASO:
         """
         self.scaler = scaler
         self.amp = True
+
+    def enable_cycling(self):
+        self.cycling = True
+
+    def disable_cycling(self):
+        self.cycling = False
 
     @staticmethod
     def __init_checktypes(args: Dict) -> None:
@@ -351,6 +359,9 @@ class DASO:
         loss_globally_averaged: bool, optional
             boolean if the loss is already globally averaged
         """
+        if not self.cycling:
+            return
+
         if not loss_globally_averaged:
             loss_send = torch.zeros(self.comm.size)
             # loss.data -> this will get the raw number from the lass value and nothing else

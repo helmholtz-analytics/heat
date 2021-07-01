@@ -370,6 +370,7 @@ def main():
         device = "cuda:0"
         args.local_rank = 0
         torch.cuda.set_device(device)
+
     torch.cuda.empty_cache()
 
     args.total_batch_size = args.world_size * args.batch_size
@@ -413,6 +414,8 @@ def main():
         max_global_skips=4,
         stability_level=0.05,
     )
+    if args.no_cycling:
+        daso_optimizer.disable_cycling()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, factor=0.5, patience=5, threshold=0.05, min_lr=1e-4
     )
