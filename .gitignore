@@ -305,3 +305,4 @@ MANIFEST
 travis_wait_*.log
 testing.py
 heat/datasets/MNISTDataset
+daso_benchmarking_plotting.py

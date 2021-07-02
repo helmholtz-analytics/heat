@@ -15,6 +15,7 @@ import unittest
 
 if sys.version_info.minor >= 7:
     from .dp_optimizer import *
+    from .daso_angles import *
 
     def __getattr__(name):
         """
