@@ -730,6 +730,32 @@ class DNDarray:
             slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
             key = kst + slices + kend
 
+        def _is_singular(obj: any) -> bool:
+            """
+            Checks if obj has size one, and thereby reduces the dimensionalty of
+            the output
+            """
+            try:
+                int(obj)
+                return True
+            except Exception:
+                pass
+            if hasattr(obj, "__len__") and len(obj) == 1:
+                return True
+            if hasattr(obj, "shape") and len(obj.shape) == 0:
+                return True
+            if hasattr(obj, "numel"):
+                return obj.numel() == 1
+            if hasattr(obj, "size"):
+                return obj.size == 1
+            if hasattr(obj, "item"):
+                try:
+                    obj.item()
+                    return True
+                except Exception:
+                    pass
+            return False
+
         # calculate new split axis
         new_split = self.split
         # when slicing, squeezed singleton dimensions may affect new split axis
@@ -738,11 +764,7 @@ class DNDarray:
                 new_split = 0
             else:
                 for i in range(len(key[: self.split + 1])):
-                    if not isinstance(key[i], slice) and (
-                        isinstance(key[i], int)
-                        or (hasattr(key[i], "shape") and len(key[i].shape) == 0)
-                        or len(key[i]) == 1
-                    ):
+                    if _is_singular(key[i]):
                         new_split = None if i == self.split else new_split - 1
 
         key = tuple(key)
@@ -850,11 +872,7 @@ class DNDarray:
                 lout[new_split] = 0
                 arr = torch.empty(lout, dtype=self.__array.dtype, device=self.__array.device)
 
-        elif (
-            isinstance(key[self.split], int)
-            or (hasattr(key[self.split], "shape") and len(key[self.split].shape) == 0)
-            or len(key[self.split]) == 1
-        ):
+        elif _is_singular(key[self.split]):
             # getting one item along split axis:
             key = list(key)
             if isinstance(key[self.split], list):
