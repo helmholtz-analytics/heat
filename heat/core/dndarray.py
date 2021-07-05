@@ -739,7 +739,9 @@ class DNDarray:
             else:
                 for i in range(len(key[: self.split + 1])):
                     if not isinstance(key[i], slice) and (
-                        isinstance(key[i], int) or len(key[i].shape == 0) or len(key[i]) == 1
+                        isinstance(key[i], int)
+                        or (hasattr(key[i], "shape") and len(key[i].shape) == 0)
+                        or len(key[i]) == 1
                     ):
                         new_split = None if i == self.split else new_split - 1
 
@@ -850,8 +852,8 @@ class DNDarray:
 
         elif (
             isinstance(key[self.split], int)
-            or isinstance(key[self.split], (list, torch.Tensor, DNDarray, np.ndarray))
-            and len(key[self.split]) == 1
+            or (hasattr(key[self.split], "shape") and len(key[self.split].shape) == 0)
+            or len(key[self.split]) == 1
         ):
             # getting one item along split axis:
             key = list(key)
