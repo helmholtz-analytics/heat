@@ -43,14 +43,7 @@ aa_creators = [
     "zeros_like",  # (x, /, *, dtype=None, device=None)
 ]
 
-aa_attributes = [
-    "dtype",
-    "device",
-    "ndim",
-    "shape",
-    "size",
-    "T",
-]
+aa_attributes = ["dtype", "device", "ndim", "shape", "size", "T"]
 
 aa_inplace_operators = [
     "__iadd__",
@@ -159,14 +152,7 @@ aa_creators = [
     "zeros_like",  # (x, /, *, dtype=None, device=None)
 ]
 
-aa_attributes = [
-    "dtype",
-    "device",
-    "ndim",
-    "shape",
-    "size",
-    "T",
-]
+aa_attributes = ["dtype", "device", "ndim", "shape", "size", "T"]
 
 aa_methods_a = [
     "__abs__",  # (self, /)
@@ -277,33 +263,15 @@ aa_statisticals = [
     "var",  # (x, /, *, axis=None, correction=0.0, keepdims=False)
 ]
 
-aa_searching = [
-    "argmax",
-    "argmin",
-    "nonzero",
-    "where",
-]
+aa_searching = ["argmax", "argmin", "nonzero", "where"]
 
-aa_sorting = [
-    "argsort",
-    "sort",
-]
+aa_sorting = ["argsort", "sort"]
 
-aa_set = [
-    "unique",
-]
+aa_set = ["unique"]
 
-aa_utility = [
-    "all",
-    "any",
-]
+aa_utility = ["all", "any"]
 
-aa_constants = [
-    "e",
-    "inf",
-    "nan",
-    "pi",
-]
+aa_constants = ["e", "inf", "nan", "pi"]
 
 aa_tlfuncs = (
     aa_creators
