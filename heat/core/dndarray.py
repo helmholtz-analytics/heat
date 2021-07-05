@@ -744,10 +744,10 @@ class DNDarray:
                 return True
             if hasattr(obj, "shape") and len(obj.shape) == 0:
                 return True
+            if hasattr(obj, "numel"):
+                return obj.numel() == 1
             if hasattr(obj, "size"):
                 return obj.size == 1
-            if hasattr(obj, "numel"):
-                return obj.numel == 1
             if hasattr(obj, "item"):
                 try:
                     obj.item()
