@@ -739,7 +739,7 @@ class DNDarray:
             else:
                 for i in range(len(key[: self.split + 1])):
                     if not isinstance(key[i], slice) and (
-                        isinstance(key[i], int) or len(key[i]) == 1
+                        isinstance(key[i], int) or len(key[i].shape == 0) or len(key[i]) == 1
                     ):
                         new_split = None if i == self.split else new_split - 1
 
