@@ -66,7 +66,7 @@ def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDar
             out = ret.item()
             return out
         return ret.item()
-    elif a.ndim == 2 and b.ndim == 2:
+    elif a.ndim <= 2 and b.ndim <= 2:
         # 2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
         ret = matmul(a, b)
         if out is not None:
