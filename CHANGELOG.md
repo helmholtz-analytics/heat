@@ -58,7 +58,7 @@ Example on 2 processes:
 
 ### Manipulations
 - [#796](https://github.com/helmholtz-analytics/heat/pull/796) `DNDarray.reshape(shape)`: method now allows shape elements to be passed in as single arguments.
-- [#829] (https://github.com/helmholtz-analytics/heat/pull/796) New feature: `roll`
+- [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
 
 ### Trigonometrics / Arithmetic
 - [#806](https://github.com/helmholtz-analytics/heat/pull/809) New feature: `square`
