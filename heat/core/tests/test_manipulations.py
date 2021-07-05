@@ -2348,7 +2348,7 @@ class TestManipulations(TestCase):
         self.assertTrue(torch.equal(rolled.larray, compare))
 
         rolled = ht.roll(a, -2, (0, 1))
-        compare = np.roll(a.larray.numpy(), -2, (0, 1))
+        compare = np.roll(a.larray.cpu().numpy(), -2, (0, 1))
         self.assertEqual(rolled.device, a.device)
         self.assertEqual(rolled.size, a.size)
         self.assertEqual(rolled.dtype, a.dtype)
