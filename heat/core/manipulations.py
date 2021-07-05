@@ -41,6 +41,7 @@ __all__ = [
     "repeat",
     "reshape",
     "resplit",
+    "roll",
     "rot90",
     "row_stack",
     "shape",
@@ -1848,6 +1849,174 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
 
 DNDarray.reshape = lambda self, *shape, **kwargs: reshape(self, *shape, **kwargs)
 DNDarray.reshape.__doc__ = reshape.__doc__
+
+
+def roll(x: DNDarray, shift: Union[int, Tuple[int]], axis: Optional[Union[int, Tuple[int]]] = None):
+    """
+    Rolls array elements along a specified axis. Array elements that roll beyond the last position are re-introduced at the first position.
+    Array elements that roll beyond the first position are re-introduced at the last position.
+
+    Parameters
+    ----------
+    x : DNDarray
+        input array
+    shift : Union[int, Tuple[int, ...]]
+        number of places by which the elements are shifted. If 'shift' is a tuple, then 'axis' must be a tuple of the same size, and each of
+        the given axes is shifted by the corrresponding element in 'shift'. If 'shift' is an `int` and 'axis' a `tuple`, then the same shift
+        is used for all specified axes.
+    axis : Optional[Union[int, Tuple[int, ...]]]
+        axis (or axes) along which elements to shift. If 'axis' is `None`, the array is flattened, shifted, and then restored to its original shape.
+        Default: `None`.
+
+    Raises
+    ------
+    TypeError
+        If 'shift' or 'axis' is not of type `int`, `list` or `tuple`.
+    ValueError
+        If 'shift' and 'axis' are tuples with different sizes.
+
+    Examples
+    --------
+    >>> a = ht.arange(20).reshape((4,5))
+    >>> a
+    DNDarray([[ 0,  1,  2,  3,  4],
+          [ 5,  6,  7,  8,  9],
+          [10, 11, 12, 13, 14],
+          [15, 16, 17, 18, 19]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.roll(a, 1)
+    DNDarray([[19,  0,  1,  2,  3],
+          [ 4,  5,  6,  7,  8],
+          [ 9, 10, 11, 12, 13],
+          [14, 15, 16, 17, 18]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.roll(a, -1, 0)
+    DNDarray([[ 5,  6,  7,  8,  9],
+          [10, 11, 12, 13, 14],
+          [15, 16, 17, 18, 19],
+          [ 0,  1,  2,  3,  4]], dtype=ht.int32, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(x)
+
+    if axis is None:
+        return roll(x.ravel(), shift, 0).reshape(x.shape)
+
+    # inputs are ints
+    if isinstance(shift, int):
+        if isinstance(axis, int):
+            if x.split is not None and (axis == x.split or (axis + x.ndim) == x.split):
+                # roll along split axis
+                size = x.comm.Get_size()
+                rank = x.comm.Get_rank()
+
+                lshape_map = x.create_lshape_map()[:, x.split]  # local elements along axis
+                cumsum_map = torch.cumsum(lshape_map, dim=0)  # cumulate along axis
+                indices = torch.arange(size)
+                index_map = torch.repeat_interleave(indices, lshape_map)  # index -> process
+
+                # compute index positions
+                index_old = torch.arange(lshape_map[rank])
+                if rank > 0:
+                    index_old += cumsum_map[rank - 1]
+
+                send_index = (index_old + shift) % x.gshape[x.split]
+                recv_index = (index_old - shift) % x.gshape[x.split]
+
+                # exchange arrays
+                recv = torch.empty_like(x.larray)
+                recv_splits = torch.split(recv, 1, dim=x.split)
+                recv_requests = [None for i in range(x.lshape[x.split])]
+
+                for i in range(x.lshape[x.split]):
+                    recv_requests[i] = x.comm.Irecv(
+                        recv_splits[i], index_map[recv_index[i]], index_old[i]
+                    )
+
+                send_splits = torch.split(x.larray, 1, dim=x.split)
+                send_requests = [None for i in range(x.lshape[x.split])]
+
+                for i in range(x.lshape[x.split]):
+                    send_requests[i] = x.comm.Isend(
+                        send_splits[i], index_map[send_index[i]], send_index[i]
+                    )
+
+                for i in range(x.lshape[x.split]):
+                    recv_requests[i].Wait()
+                for i in range(x.lshape[x.split]):
+                    send_requests[i].Wait()
+
+                return DNDarray(recv, x.gshape, x.dtype, x.split, x.device, x.comm, x.balanced)
+
+            # use pytorch if it's not the split axis
+            rolled = torch.roll(x.larray, shift, axis)
+            return DNDarray(
+                rolled,
+                gshape=x.shape,
+                dtype=x.dtype,
+                split=x.split,
+                device=x.device,
+                comm=x.comm,
+                balanced=x.balanced,
+            )
+
+        # pytorch does not support int / sequence combo at the time, make shift a list instead
+        try:
+            axis = sanitation.sanitize_sequence(axis)
+        except TypeError:
+            raise TypeError("axis must be a int, list or a tuple, got {}".format(type(axis)))
+
+        shift = [shift] * len(axis)
+
+    # input must be tuples now
+    try:
+        shift = sanitation.sanitize_sequence(shift)
+    except TypeError:
+        raise TypeError("shift must be an integer, list or a tuple, got {}".format(type(shift)))
+
+    try:
+        axis = sanitation.sanitize_sequence(axis)
+    except TypeError:
+        raise TypeError("axis must be an integer, list or a tuple, got {}".format(type(axis)))
+
+    if len(shift) != len(axis):
+        raise ValueError(
+            "shift and axis length must be the same, got {} and {}".format(len(shift), len(axis))
+        )
+
+    for i in range(len(shift)):
+        if not isinstance(shift[i], int):
+            raise TypeError(
+                "Element {} in shift is not an integer, got {}".format(i, type(shift[i]))
+            )
+        if not isinstance(axis[i], int):
+            raise TypeError("Element {} in axis is not an integer, got {}".format(i, type(axis[i])))
+
+    if x.split is not None and (x.split in axis or (x.split - x.ndim) in axis):
+        # remove split axis elements
+        shift_split = 0
+        for y in (x.split, x.split - x.ndim):
+            idx = [i for i in range(len(axis)) if axis[i] == y]
+            for i in idx:
+                shift_split += shift[i]
+            for i in reversed(idx):
+                axis.remove(y)
+                del shift[i]
+
+        # compute new array
+        rolled = roll(x, shift_split, x.split)
+        if len(axis) > 0:
+            rolled = roll(rolled, shift, axis)
+        return rolled
+
+    # use ptorch if it's not the split axis
+    rolled = torch.roll(x.larray, shift, axis)
+    return DNDarray(
+        rolled,
+        gshape=x.shape,
+        dtype=x.dtype,
+        split=x.split,
+        device=x.device,
+        comm=x.comm,
+        balanced=x.balanced,
+    )
 
 
 def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarray:
