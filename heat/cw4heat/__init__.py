@@ -69,26 +69,26 @@ impl_str = "impl"
 dndarray_str = "impl.DNDarray"
 
 def init():
-    '''
+    """
     Initialize distribution engine. Automatically when when importing cw4heat.
     For now we assume all ranks (controller and workers) are started through mpirun,
     workers will never leave distributor.start() and so this function.
-    '''
+    """
     distributor.init()
     distributor.start()
 
 
 def fini():
-    '''
+    """
     Finalize/shutdown distribution engine. Automatically called at exit.
     When called on controller, workers will sys.exit from init().
-    '''
+    """
     distributor.fini()
 
 
 class _Task:
-    'A work item, executing functions provided as code.'
-    def __init__(self, func, args, kwargs, unwrap='*'):
+    "A work item, executing functions provided as code."
+    def __init__(self, func, args, kwargs, unwrap="*"):
         self._func = func
         self._args = args
         self._kwargs = kwargs
@@ -102,7 +102,7 @@ class _Task:
 
 
 class _PropertyTask:
-    'A work item, executing class properties provided as code.'
+    "A work item, executing class properties provided as code."
     def __init__(self, func):
         self._func = func
 
@@ -110,19 +110,19 @@ class _PropertyTask:
         return eval(f"deps[0].{self._func}")
 
 
-def _submit(name, args, kwargs, unwrap='*'):
-    '''
+def _submit(name, args, kwargs, unwrap="*", numout=1):
+    """
     Create a _Task and submit, return PManager/Future.
-    '''
+    """
     scalar_args = tuple(x for x in args if not isinstance(x, DDParray))
     deps = [x._handle.getId() for x in args if isinstance(x, DDParray)]
-    return distributor.submitPP(_Task(name, scalar_args, kwargs, unwrap=unwrap), deps)
+    return distributor.submitPP(_Task(name, scalar_args, kwargs, unwrap=unwrap), deps, numout)
 
 
 def _submitProperty(name, self):
-    '''
+    """
     Create a _PropertyTask (property) and submit, return PManager/Future.
-    '''
+    """
     t = _PropertyTask(name)
     try:
         res = distributor.submitPP(t, [self._handle.getId()])
@@ -142,41 +142,41 @@ def _setitem_normalized(self, value, key):
 # allow delayed execution.
 #######################################################################
 class DDParray:
-    '''
+    """
     Shallow wrapper class representing a distributed array.
     It will be filled dynamically from lists extracted from the array-API.
     All functionality is delegated to the underlying implementation,
     executed in tasks.
-    '''
+    """
 
     #######################################################################
     # first define methods/properties which need special care.
     #######################################################################
 
     def __init__(self, handle):
-        'Do not use this array. Use creator functions instead.'
+        "Do not use this array. Use creator functions instead."
         self._handle = handle
 
     def heat(self):
-        '''
+        """
         Return heat native array.
         With delayed execution, triggers computation as needed and blocks until array is available.
-        '''
+        """
         return self._handle.get()
 
     def __getitem__(self, key):
-        'Return item/slice as array.'
-        return DDParray(_submit(f'{dndarray_str}.__getitem__', (self, key), {}))
+        "Return item/slice as array."
+        return DDParray(_submit(f"{dndarray_str}.__getitem__", (self, key), {}))
 
     # bring args in the order we can process and feed into normal process
     # using global normalized version
     def __setitem__(self, key, value):
-        'set item/slice to given value'
-        _submit(f'_setitem_normalized', (self, value, key), {})
+        "set item/slice to given value"
+        _submit(f"_setitem_normalized", (self, value, key), {})
 
     @property
     def T(self):
-        return DDParray(_submitProperty('T', self))
+        return DDParray(_submitProperty("T", self))
 
 
     #######################################################################
@@ -186,9 +186,9 @@ class DDParray:
     # dynamically generate class methods from list of methods in array-API
     # we simply make lambdas which submit appropriate Tasks
     # FIXME: aa_inplace_operators,others?
-    fixme_afuncs = ['squeeze', 'astype', 'balance',]
+    fixme_afuncs = ["squeeze", "astype", "balance", "resplit",]
     for method in aa_methods_a + aa_reflected_operators + fixme_afuncs:
-        if method not in ['__getitem__', '__setitem__'] and hasattr(dndarray, method):
+        if method not in ["__getitem__", "__setitem__"] and hasattr(dndarray, method):
             exec(f"{method} = lambda self, *args, **kwargs: DDParray(_submit('{dndarray_str}.{method}', (self, *args), kwargs))")
 
     for method in aa_methods_s:
@@ -196,7 +196,7 @@ class DDParray:
             exec(f"{method} = lambda self, *args, **kwargs: _submit('{dndarray_str}.{method}', (self, *args), kwargs).get()")
 
     for attr in aa_attributes:
-        if attr != 'T' and hasattr(dndarray, attr):
+        if attr != "T" and hasattr(dndarray, attr):
             exec(f"{attr} = property(lambda self: self._handle.get().{attr})")
 
     def __getattr__(self, attr):
@@ -212,7 +212,7 @@ class DDParray:
 # np.concatenate accepts a list of arrays (not individual arrays)
 # so we let the task not unwrap the list of deps
 def concatenate(*args, **kwargs):
-    return DDParray(_submit(f'{impl_str}.concatenate', *args, kwargs, unwrap=''))
+    return DDParray(_submit(f"{impl_str}.concatenate", *args, kwargs, unwrap=""))
 
 
 #######################################################################
@@ -224,13 +224,16 @@ def concatenate(*args, **kwargs):
 # (lists taken from list of methods in array-API)
 # Again, we simply make lambdas which submit appropriate Tasks
 
-fixme_funcs = ['load_csv']
+fixme_funcs = ["load_csv", "array", "triu"]
 for func in aa_tlfuncs + fixme_funcs:
-    exec(f"{func} = lambda *args, **kwargs: DDParray(_submit('{impl_str}.{func}', args, kwargs))")
+    if func == "meshgrid":
+        exec(f"{func} = lambda *args, **kwargs: list(DDParray(x) for x in _submit('{impl_str}.{func}', args, kwargs, numout=len(args)))")
+    else:
+        exec(f"{func} = lambda *args, **kwargs: DDParray(_submit('{impl_str}.{func}', args, kwargs))")
 
 
-def concatenate(*args, **kwargs):
-    return DDParray(_submit(f'{impl_str}.concatenate', *args, kwargs, unwrap=''))
+for func in ["concatenate", "hstack",]:
+    exec(f"{func} = lambda *args, **kwargs: DDParray(_submit(f'{impl_str}.{func}', *args, kwargs, unwrap=''))")
 
 
 # Here we data types and constants
