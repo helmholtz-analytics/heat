@@ -22,31 +22,33 @@
 
 
 ###############################################################################
-# Distribution engine.
-#   - schedules same tasks on all workers
-#   - handles dependences seperately
-#
-# Whe tasks are submitted on root rank they are pushed on a queue and a
-# handle/future is returned. When computation is requested by calling go()
-# all tasks on the queue are sent to workers and executed on all ranks
-# sequentially.
-#
-# We store tasks in the same order as they are submitted on the root rank.
-# For any valid program this must be a legal ordering there is no need to check
-# if dependent objects are ready when a task is executed. A more sophisticated
-# scheduler could potentially try to parallelize. It remains to be invistigated
-# if this would be a profitable feature, though.
-#
-# Dependent objects have a unique identifier, assigned when a handle to it is
-# created. We assume that all workers execute handle-creation in identical order.
-# Such dependences are assumed to be global entities, e.g. each worker holds
-# a handle/reference to it (e.g. like a heat.DNDarray). The local handles
-# exist on each, stored in a worker-local dictionary. Thsi allows identifying
-# dependences through simple integers.
-#
-# Notice, mpi4py does not provide ibcast, so we cannot overlap. This makes the
-# above aggregation particularly promising. Another option woujld be to write
-# this in C/C++ and use ibcast.
+"""
+Distribution engine.
+  - schedules same tasks on all workers
+  - handles dependences seperately
+
+Whe tasks are submitted on root rank they are pushed on a queue and a
+handle/future is returned. When computation is requested by calling go()
+all tasks on the queue are sent to workers and executed on all ranks
+sequentially.
+
+We store tasks in the same order as they are submitted on the root rank.
+For any valid program this must be a legal ordering there is no need to check
+if dependent objects are ready when a task is executed. A more sophisticated
+scheduler could potentially try to parallelize. It remains to be invistigated
+if this would be a profitable feature, though.
+
+Dependent objects have a unique identifier, assigned when a handle to it is
+created. We assume that all workers execute handle-creation in identical order.
+Such dependences are assumed to be global entities, e.g. each worker holds
+a handle/reference to it (e.g. like a heat.DNDarray). The local handles
+exist on each, stored in a worker-local dictionary. Thsi allows identifying
+dependences through simple integers.
+
+Notice, mpi4py does not provide ibcast, so we cannot overlap. This makes the
+above aggregation particularly promising. Another option woujld be to write
+this in C/C++ and use ibcast.
+"""
 ###############################################################################
 
 
@@ -68,9 +70,10 @@ class _TaskQueue:
     We currently dissallow submitting tasks by on-root ranks.
     Non-root ranks get their TaskQueue set in the recv-lop if init().
     """
+
     def __init__(self):
         # here we store all tasks that have not been executed yet
-       self._taskQueue = deque()
+        self._taskQueue = deque()
 
     def submit(self, rtask):
         """
@@ -110,8 +113,7 @@ def start():
     if _comm.rank != 0:
         done = False
         header = None
-        rtask = None
-        while(not done):
+        while not done:
             # wait in bcast for work
             header = _comm.bcast(header, 0)
             # then see what we need to do
@@ -142,7 +144,7 @@ def go():
     Trigger execution of all tasks which are still in flight.
     """
     assert _comm.rank == 0
-    header = [TASK, _tQueue._taskQueue ]
+    header = [TASK, _tQueue._taskQueue]
     _, _ = _comm.bcast(header, 0)
     header = [GO]
     _ = _comm.bcast(header, 0)
@@ -177,15 +179,21 @@ class Handle:
         Handle._nextId += 1
 
     def set(self, obj):
-        "Make object available."
+        """
+        Make object available.
+        """
         self._obj = obj
 
     def getId(self):
-        "Return future/handle id"
+        """
+        Return future/handle id
+        """
         return self._id
 
     def get(self):
-        "Return object or None"
+        """
+        Return object or None
+        """
         go()
         return self._obj
 
@@ -212,7 +220,6 @@ class _RemoteTask:
             self._handle = Handle()
         else:
             self._handle = tuple(Handle() for _ in range(self._nOut))
-
 
     # here we store objects that are input dependences to tasks
     s_pms = {}
