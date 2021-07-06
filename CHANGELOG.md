@@ -2,7 +2,6 @@
 
 ## Highlights
 
-
 ## Breaking Changes
 - [#758](https://github.com/helmholtz-analytics/heat/pull/758) Indexing a distributed `DNDarray` along the `DNDarray.split` dimension now returns a non-distributed `DNDarray`, i.e. the indexed element is MPI-broadcasted.
 Example on 2 processes:
@@ -37,6 +36,7 @@ Example on 2 processes:
   ```
 
 ## Bug Fixes
+- [#796](https://github.com/helmholtz-analytics/heat/pull/796) `heat.reshape(a, shape, new_split)` now always returns a distributed `DNDarray` if `new_split is not None` (inlcuding when the original input `a` is not distributed)
 - [#758](https://github.com/helmholtz-analytics/heat/pull/758) Fix indexing inconsistencies in `DNDarray.__getitem__()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) Fixed an issue where `deg2rad` and `rad2deg`are not working with the 'out' parameter.
 - [#785](https://github.com/helmholtz-analytics/heat/pull/785) Removed `storage_offset` when finding the mpi buffer (`communication. MPICommunication.as_mpi_memory()`).
@@ -44,7 +44,10 @@ Example on 2 processes:
 - [#787](https://github.com/helmholtz-analytics/heat/pull/787) Fixed an issue where Heat cannot be imported when some optional dependencies are not available.
 - [#790](https://github.com/helmholtz-analytics/heat/pull/790) catch incorrect device after `bcast` in `DNDarray.__getitem__`
 - [#811](https://github.com/helmholtz-analytics/heat/pull/811) Fixed memory leak in `DNDarray.larray`
+- [#820](https://github.com/helmholtz-analytics/heat/pull/820) `randn` values are pushed away from 0 by the minimum value the given dtype before being transformed into the Gaussian shape
+- [#821](https://github.com/helmholtz-analytics/heat/pull/821) Fixed `__getitem__` handling of distributed `DNDarray` key element
 
+## Feature additions
 ### Exponential
 - [#812](https://github.com/helmholtz-analytics/heat/pull/712) New feature: `logaddexp`, `logaddexp2`
 
@@ -54,12 +57,19 @@ Example on 2 processes:
 
 ### Manipulations
 - [#749](https://github.com/helmholtz-analytics/heat/pull/749) Distributed sorted `ht.unique`
+- [#820](https://github.com/helmholtz-analytics/heat/pull/820) `dot` can handle matrix vector operation now
+
+### Manipulations
+- [#796](https://github.com/helmholtz-analytics/heat/pull/796) `DNDarray.reshape(shape)`: method now allows shape elements to be passed in as single arguments.
 
 ### Trigonometrics / Arithmetic
 - [#806](https://github.com/helmholtz-analytics/heat/pull/809) New feature: `square`
 - [#809](https://github.com/helmholtz-analytics/heat/pull/809) New feature: `acosh`, `asinh`, `atanh`
+
 ### Misc.
 - [#761](https://github.com/helmholtz-analytics/heat/pull/761) New feature: `result_type`
+- [#794](https://github.com/helmholtz-analytics/heat/pull/794) New feature: `meshgrid`
+- [#821](https://github.com/helmholtz-analytics/heat/pull/821) Enhancement: it is no longer necessary to load-balance an imbalanced `DNDarray` before gathering it onto all processes. In short: `ht.resplit(array, None)` now works on imbalanced arrays as well.
 
 # v1.0.0
 
