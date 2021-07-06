@@ -6,6 +6,7 @@ import inspect
 import math
 import torch
 import torch.distributed
+from collections import OrderedDict
 from torch.nn.parallel import DistributedDataParallel as tDDP
 from typing import Union, List, Tuple, Dict
 
@@ -94,37 +95,63 @@ class DASO_angles:
         self.sum_diffs = []
 
         self.module = module
-        self.num_layers = len(self.module._parameters)
+        layers = 0
+        for l in module.parameters():
+            if l.requires_grad():
+                layers += 1
+        self.num_layers = layers
+
+        self.angles_wait = None
+        self.cos_angles = None
+
+        self.sent_layers = OrderedDict()
+
+        self.angle_buffer = None  # torch.zeros(layers, )
 
         print("Finished DASO init")
+
+    def add_scaler(self, scaler: torch.cuda.amp.GradScaler) -> None:
+        """
+        Create a reference to torch's `torch.cuda.amp.GradScaler <https://pytorch.org/docs/stable/notes/amp_examples.html>`_ used in torch's automatic mixed
+        precision.
+
+        Parameters
+        ----------
+        scaler: torch.cuda.amp.GradScaler
+            the gradient scaler to be used
+        """
+        self.scaler = scaler
+        self.amp = True
 
     @torch.no_grad()
     def save_master_model_state(self):
         self.last_synced_model = self.module._parameters.copy()
 
+    # @torch.jit.script  TODO: jit this function for speed
     @torch.no_grad()
-    def cos_dist_and_sum_diff_calc(self):
+    def cos_dist(self):
         """
         calculate the cosine difference and sum difference of the current model state
 
         Returns
         -------
-
+        a list/torch tensor if the
         """
         cos_dists = []
-        sum_diffs = []
-        layer = 0
-        for p_new, p_old in zip(self.module.parameters(), self.last_synced_model.parameters):
+
+        # layer = 0
+        for p_new, p_old in zip(self.module.parameters(), self.last_synced_model):
             # todo: more efficient to flatten and do it properly, or to just do it then take the
             #   average?
-            pnf = p_new.flatten()
-            pof = p_old.flatten()
-            cos_sim = self.cos_sim(pnf, pof)
-            cos_dists.append(cos_sim)
-            sdif = torch.sum(pnf - pof)
-            sum_diffs.append(sdif)
-            print(layer, cos_sim, sdif)
-            layer += 1
+            if p_new.requires_grad:
+                pnf = p_new.flatten()
+                pof = p_old.flatten()
+                cos_sim = self.cos_sim(pnf, pof)
+                cos_dists.append(cos_sim)
+            # layer += 1
+            dev = p_new.device
+        # todo: what dtype should this be? does it really matter since its small?
+        return torch.tensor(cos_dists, device=dev)
 
     def zero_grad(self) -> None:
         """
@@ -134,11 +161,65 @@ class DASO_angles:
         self.local_optimizer.param_groups[0]["params"] = self.params_ref[:]
         self.local_optimizer.zero_grad()
 
-    def stop_local_sync(self) -> None:
-        """
-        Stop local synchronizations for the next batches
-        """
-        if not isinstance(self.module, tDDP) or not self.module.require_backward_grad_sync:
-            # this has no effect if the module is not locally distributed in torch
+    # def stop_local_sync(self) -> None:
+    #     """
+    #     Stop local synchronizations for the next batches
+    #     """
+    #     if not isinstance(self.module, tDDP) or not self.module.require_backward_grad_sync:
+    #         # this has no effect if the module is not locally distributed in torch
+    #         return
+    #     self.module.require_backward_grad_sync = False
+
+    def step(self):
+
+        # cos distance after the step function?? # todo: after or before the step?
+
+        if self.amp:
+            self.scaler.step(self.local_optimizer)
+            # todo: add something to tell if the grads have infs or nans
+            # Updates the scale for next iteration.
+            self.scaler.update()
+        elif self.scheduler is None:
+            self.local_optimizer.step()
+        else:
+            self.scheduler.step()
+
+        if self.last_synced_model is None:
+            # should only happen on the first batch
+            hold = []
+            for par in self.module.named_parameters():
+                hold.append(par)
+            self.last_synced_model = tuple(hold)
             return
-        self.module.require_backward_grad_sync = False
+
+        # this wont get here if the top loop is true
+        if self.angles_wait is None:
+            # if there is not wait object for the angles then calc and send them
+            self.cos_angles = self.cos_dist()
+            self.angles_wait = self.comm.Iallreduce(MPI.IN_PLACE, self.cos_angles, MPI.SUM)
+            return  # nothing else happens in this step now
+
+        # this is the place to test if there are parameters being sent alreadyf
+
+        # else: wait for the angles if they were sent last time
+        self.angles_wait.Wait()
+        self.cos_angles /= float(self.comm.size)
+
+        # todo: skip the next bit if some params are already sent
+
+        # cos angles is not the average
+        # todo: average difference or max?
+        # determine which layers need to be sent
+        # TODO: THIS NUMBER IS WHAT DETERMINES WHAT IS SENT: need to tune/benchmark/exp
+        layers_to_send = self.cos_angles > 0.005
+
+        # todo: this should be outside of the gradients
+        for num, layer in enumerate(self.module.parameters()):
+            if layers_to_send[num]:
+                # send the layer for this one
+                # self.sent_layer_parameters -> [layer, wait object, params] for each layer being sent
+                param = layer.clone().detach()  # clone or create an empty buffer?
+                lwait = self.comm.Iallreduce(MPI.IN_PLACE, param, MPI.SUM)
+                self.sent_layers[num] = [lwait, param]
+
+        # have the cosine
