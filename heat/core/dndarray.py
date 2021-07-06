@@ -730,7 +730,7 @@ class DNDarray:
             slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
             key = kst + slices + kend
 
-        def _is_singular(obj: any) -> bool:
+        def __is_singular(obj: any) -> bool:
             """
             Checks if obj has size one, and thereby reduces the dimensionalty of
             the output
@@ -764,7 +764,7 @@ class DNDarray:
                 new_split = 0
             else:
                 for i in range(len(key[: self.split + 1])):
-                    if _is_singular(key[i]):
+                    if __is_singular(key[i]):
                         new_split = None if i == self.split else new_split - 1
 
         key = tuple(key)
@@ -872,7 +872,7 @@ class DNDarray:
                 lout[new_split] = 0
                 arr = torch.empty(lout, dtype=self.__array.dtype, device=self.__array.device)
 
-        elif _is_singular(key[self.split]):
+        elif __is_singular(key[self.split]):
             # getting one item along split axis:
             key = list(key)
             if isinstance(key[self.split], list):
