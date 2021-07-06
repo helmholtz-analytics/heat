@@ -43,178 +43,6 @@ mpi_sum_f16 = MPI.Op.Create(__sum_f16_cb, commute=True)
 mpi_sum_bfloat = MPI.Op.Create(__sum_bfloat_cb, commute=True)
 
 
-class DASO2:
-    def __init__(
-        self,
-        local_optimizer: torch.optim.Optimizer,
-        module,
-        total_epochs: int,
-        comm: MPICommunication = MPI_WORLD,
-        warmup_epochs: int = 4,
-        cooldown_epochs: int = 4,
-        scheduler: torch.optim.lr_scheduler = None,
-        stability_level: float = 0.05,
-        max_global_skips: int = 8,
-        sending_chunk_size: int = 10_000_000,
-        downcast_type: torch.dtype = torch.bfloat16,
-        use_mpi_groups: bool = True,
-        skip_reduction_factor: int = 2,
-        local_skip_factor: int = 4,
-        verbose: bool = False,
-    ):  # noqa: D107
-        # check dtypes
-        # frame = inspect.currentframe()
-        # init_args = inspect.getargvalues(frame)[3]
-        # self.__init_checktypes(init_args)
-
-        self.cast_dtype = downcast_type
-        if downcast_type == torch.bfloat16:
-            self.cast_fn = mpi_sum_bfloat
-        elif downcast_type == torch.half:
-            self.cast_fn = mpi_sum_f16
-        else:
-            self.cast_fn = MPI.SUM
-
-        self.comm = comm
-        self.verbose = verbose
-        self.local_optimizer = local_optimizer
-        self.params_ref = local_optimizer.param_groups[0]["params"]
-        # reference of optimizer's params
-        self.scheduler = scheduler
-
-        rank = self.comm.rank
-        loc_gpus = torch.cuda.device_count()
-        # this assumes that there are an equal number of GPUs per node,
-        #   if a change is desired a comm her to find the lowest number would work for this, however
-        #   a change would also need to be made in heat.nn.DataParallelMultiGPU
-        # self.loc_gpus = loc_gpus
-        # local_rank = rank % loc_gpus
-        # self.local_skip = 1
-        # if loc_gpus > 1:
-        #     base_loc_ranks = list(range(0, self.comm.size, loc_gpus))
-        #     reduced_comms, reduced_ranks = [], []
-        #     for i in range(loc_gpus):
-        #         lp_ranks = [j + i for j in base_loc_ranks]
-        #         if use_mpi_groups:
-        #             new_group = self.comm.group.Incl(lp_ranks)
-        #             new_comm = self.comm.Create_group(new_group)
-        #             reduced_comms.append(MPICommunication(new_comm))
-        #         else:
-        #             color = 111 + i if rank in lp_ranks else 222 + i
-        #             key = 0 + i if rank in lp_ranks else 444 + i
-        #             reduced_comms.append(MPICommunication(self.comm.Split(color, key)))
-        #         reduced_ranks.append(tuple(lp_ranks))
-        #     self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
-        #     self.base_loc_ranks = base_loc_ranks
-        #     self.device = "cuda:" + str(local_rank)
-        #     torch.cuda.set_device(device=self.device)
-
-        self.current_batch, self.last_batch = 0, None
-
-        self._prev_params = []
-        self.epoch = 0
-        self._send_mod, self._send_mod_m1 = 0, None
-
-        self.global_skip = 0
-        self.local_skip = 0
-        self.batches_to_wait = 0
-        self.max_gs = max_global_skips
-
-        self.warmup_epochs = warmup_epochs
-        self.cooldown_epochs = cooldown_epochs
-        self.total_epochs = total_epochs
-
-        # used in the sending of the params
-        self._param_send_buffer_size = None
-        self.param_dict, self.shapes = None, None
-        self._param_send_shp = None
-        self.split = None
-
-        self.skip_reduction_factor = skip_reduction_factor
-        # the local_skip_factor is the factor by which the global skips are divided by initially
-        # and upon reset
-        self.local_skip_factor = local_skip_factor
-
-        self.stability = DetectMetricPlateau(patience=2, threshold=stability_level)
-
-        self._gs8_waits = 3
-        self._gs8_waited = 0
-
-        self.split_val = sending_chunk_size
-
-        # TODO: its possible that the split indexes could be used to avoid the concatenating method used currently
-        self.split_inds = None
-        self.amp = False
-
-        self.last_synced_model = None
-        self.cos_sim = torch.nn.CosineSimilarity(dim=0, eps=1e-6)
-        self.cosine_dists = []
-        self.sum_diffs = []
-
-        self.module = module
-
-        print("Finished DASO init")
-
-    def set_model(self, model: torch.nn.Module) -> None:
-        """
-        Set the local model for the optimizer.
-        This should be called during the init of :func:`nn.DataParallelMultiGPU <heat.nn.data_parallel.DataParallelMultiGPU>`.
-        However, this can also be called manually.
-
-        Parameters
-        ----------
-        model: torch.nn.Module
-            the local torch model.
-        """
-        self.module = model
-        self.num_layers = len(self.module._parameters)
-
-    @torch.no_grad()
-    def save_master_model_state(self):
-        self.last_synced_model = self.module._parameters.copy()
-
-    @torch.no_grad()
-    def cos_dist_and_sum_diff_calc(self):
-        """
-        calculate the cosine difference and sum difference of the current model state
-
-        Returns
-        -------
-
-        """
-        cos_dists = []
-        sum_diffs = []
-        layer = 0
-        for p_new, p_old in zip(self.module.parameters(), self.last_synced_model.parameters):
-            # todo: more efficient to flatten and do it properly, or to just do it then take the
-            #   average?
-            pnf = p_new.flatten()
-            pof = p_old.flatten()
-            cos_sim = self.cos_sim(pnf, pof)
-            cos_dists.append(cos_sim)
-            sdif = torch.sum(pnf - pof)
-            sum_diffs.append(sdif)
-            print(layer, cos_sim, sdif)
-            layer += 1
-
-    def zero_grad(self) -> None:
-        """
-        Reset gradients of local optimizer's parameters.
-        """
-        # reset view onto params in order to reset all gradients
-        self.local_optimizer.param_groups[0]["params"] = self.params_ref[:]
-        self.local_optimizer.zero_grad()
-
-    # def stop_local_sync(self) -> None:
-    #     """
-    #     Stop local synchronizations for the next batches
-    #     """
-    #     if not isinstance(self.module, tDDP) or not self.module.require_backward_grad_sync:
-    #         # this has no effect if the module is not locally distributed in torch
-    #         return
-    #     self.module.require_backward_grad_sync = False
-
-
 class DASO:
     r"""
     Optimizer wrapper to use the Distributed Asynchronous and Selective Optimization (DASO) method.
@@ -310,17 +138,19 @@ class DASO:
         local_optimizer: torch.optim.Optimizer,
         total_epochs: int,
         comm: MPICommunication = MPI_WORLD,
-        warmup_epochs: int = 4,
-        cooldown_epochs: int = 4,
+        warmup_epochs: int = 0,
+        cooldown_epochs: int = 1,
         scheduler: torch.optim.lr_scheduler = None,
         stability_level: float = 0.05,
         max_global_skips: int = 8,
+        batches_to_wait: int = 1,
         sending_chunk_size: int = 10_000_000,
         downcast_type: torch.dtype = torch.bfloat16,
         use_mpi_groups: bool = True,
         skip_reduction_factor: int = 2,
         local_skip_factor: int = 4,
         verbose: bool = False,
+        cycling: bool = True,
     ):  # noqa: D107
         # check dtypes
         frame = inspect.currentframe()
@@ -375,10 +205,16 @@ class DASO:
         self.epoch = 0
         self._send_mod, self._send_mod_m1 = 0, None
 
-        self.global_skip = 0
-        self.local_skip = 0
-        self.batches_to_wait = 0
+        if warmup_epochs > 0:
+            self.global_skip = max_global_skips
+            self.batches_to_wait = batches_to_wait
+        else:
+            self.global_skip = 0
+            self.batches_to_wait = 0
         self.max_gs = max_global_skips
+
+        # todo: remove local skip?
+        self.local_skip = 0
 
         self.warmup_epochs = warmup_epochs
         self.cooldown_epochs = cooldown_epochs
@@ -411,7 +247,28 @@ class DASO:
         self.cosine_dists = []
         self.sum_diffs = []
 
+        self.cycling = cycling
+
         self.print0("Finished DASO init")
+
+    def enable_cycling(self):
+        """
+        Signal that DASO optimizer to cycling through the number of skips beginning with the number
+        of warmup epochs given on initialization.
+
+        TODO: improce docs
+        """
+        self.cycling = True
+
+    def disable_cycling(self, global_skips=0, batches_to_wait=0):
+        """
+        set the number of global skips and the batches to wait and disable cycling
+
+        TODO: improce docs
+        """
+        self.cycling = False
+        self.global_skip = global_skips
+        self.batches_to_wait = batches_to_wait
 
     def set_model(self, model: torch.nn.Module) -> None:
         """
@@ -426,34 +283,6 @@ class DASO:
         """
         self.module = model
         self.num_layers = len(self.module._parameters)
-
-    @torch.no_grad()
-    def save_master_model_state(self):
-        self.last_synced_model = self.module._parameters.copy()
-
-    @torch.no_grad()
-    def cos_dist_and_sum_diff_calc(self):
-        """
-        calculate the cosine difference and sum difference of the current model state
-
-        Returns
-        -------
-
-        """
-        cos_dists = []
-        sum_diffs = []
-        layer = 0
-        for p_new, p_old in zip(self.module.parameters(), self.last_synced_model.parameters):
-            # todo: more efficient to flatten and do it properly, or to just do it then take the
-            #   average?
-            pnf = p_new.flatten()
-            pof = p_old.flatten()
-            cos_sim = self.cos_sim(pnf, pof)
-            cos_dists.append(cos_sim)
-            sdif = torch.sum(pnf - pof)
-            sum_diffs.append(sdif)
-            print(layer, cos_sim, sdif)
-            layer += 1
 
     def add_scaler(self, scaler: torch.cuda.amp.GradScaler) -> None:
         """
@@ -571,6 +400,13 @@ class DASO:
         loss_globally_averaged: bool, optional
             boolean if the loss is already globally averaged
         """
+        if not self.cycling:
+            self.print0(
+                f"Finished this epoch, Global Skips {self.global_skip}, Batches to wait "
+                f"{self.batches_to_wait}"
+            )
+            return
+
         if not loss_globally_averaged:
             loss_send = torch.zeros(self.comm.size)
             # loss.data -> this will get the raw number from the lass value and nothing else
@@ -592,16 +428,31 @@ class DASO:
             return
 
         elif self.warmup_epochs == self.epoch:
-            self.global_skip = 4
-            self.local_skip = 1
-            self.batches_to_wait = 1
+            if self.warmup_epochs > 0:
+                self.global_skip = 4
+                self.local_skip = 1
+                self.batches_to_wait = 1
+            # else is covered in the init
 
             self.print0(
                 f"End of Warmup Phase, parameters of next epoch\n\t Global Skips: {self.global_skip}, "
                 f" Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
             )
 
+        if self.epoch >= self.total_epochs - (self.cooldown_epochs + 2):
+            # semi - cooldown epochs
+            self.global_skip = 1
+            self.local_skip = 0
+            self.batches_to_wait = 1
+
+            self.print0(
+                f"Cooldown Phase, parameters of next epoch:\n\tGlobal Skips: {self.global_skip}, "
+                f" Local Skips {self.local_skip:.4f}, Batches to wait: {self.batches_to_wait}"
+            )
+            return
+
         if self.epoch >= self.total_epochs - self.cooldown_epochs:
+            # cooldown epochs
             self.global_skip = 0
             self.local_skip = 0
             self.batches_to_wait = 0
@@ -626,20 +477,16 @@ class DASO:
             # drop gs by factor of 2
             self.global_skip //= self.skip_reduction_factor
             self.local_skip //= self.skip_reduction_factor
-            self.batches_to_wait -= 1  # old was //= 2
 
             self.print0("dropping skips")
 
             if self.global_skip > 0:
-                if self.batches_to_wait == 0:
-                    self.batches_to_wait = 1
                 if self.local_skip == 0:
                     self.local_skip = 1
             self._gs8_waited = 0
         elif self.global_skip == 1 and stable:
             self.global_skip = self.max_gs
             self.local_skip = self.max_gs // self.local_skip_factor
-            self.batches_to_wait = self.max_gs // self.local_skip_factor
 
             self._gs8_waited = 0
         self.print0(

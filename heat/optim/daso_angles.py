@@ -15,7 +15,7 @@ from ..core.communication import MPI_WORLD
 from .utils import DetectMetricPlateau
 
 
-__all__ = ["DataParallelOptimizer", "DASO", "DASO2"]
+__all__ = ["DASO_angles"]
 
 
 def __sum_f16_cb(buffer_a, buffer_b, _):
@@ -43,7 +43,7 @@ mpi_sum_f16 = MPI.Op.Create(__sum_f16_cb, commute=True)
 mpi_sum_bfloat = MPI.Op.Create(__sum_bfloat_cb, commute=True)
 
 
-class DASO2:
+class DASO_angles:
     def __init__(
         self,
         local_optimizer: torch.optim.Optimizer,

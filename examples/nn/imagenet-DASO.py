@@ -30,7 +30,7 @@ def print0(*args, **kwargs):
 try:
     from nvidia.dali.plugin.pytorch import DALIClassificationIterator
     from nvidia.dali.pipeline import Pipeline
-    
+
     from nvidia.dali.pipeline import pipeline_def
     import nvidia.dali.types as types
     import nvidia.dali.fn as fn
@@ -115,15 +115,13 @@ def parse():
         help="mini-batch size per process (default: 256)",
     )
     parser.add_argument(
-        "-s",
-        "--batch-skip",
+        "--batch-skips",
         default=2,
         type=int,
         metavar="N",
         help="number of batches between global parameter synchronizations",
     )
     parser.add_argument(
-        "-L",
         "--local-batch-skip",
         default=1,
         type=int,
@@ -131,8 +129,7 @@ def parse():
         help="number of batches between local parameter synchronizations",
     )
     parser.add_argument(
-        "--gs",
-        "--global-skip-decay",
+        "--global-send-delay",
         default=1,
         type=int,
         metavar="GS",
@@ -204,11 +201,6 @@ def parse():
         default=False,
         type=bool,
         help="save the results to a benchmarking csv with the node count",
-    )
-    parser.add_argument(
-        "--manual_dist",
-        action="store_true",
-        help="manually override the local distribution attributes, must also set the number of local GPUs",
     )
     parser.add_argument(
         "--no-cycling", action="store_true", help="stop the cycling of the DASO optimizer"
@@ -318,16 +310,7 @@ class HybridPipe(Pipeline):
 
 
 @pipeline_def
-def create_dali_pipeline(
-    data_dir,
-    crop,
-    size,
-    label_dir,
-    shard_id=ht.MPI_WORLD.rank,
-    num_shards=ht.MPI_WORLD.size,
-    dali_cpu=False,
-    is_training=True,
-):
+def create_dali_pipeline(data_dir, crop, size, label_dir, dali_cpu=False, is_training=True):
     shard_id = ht.MPI_WORLD.rank
     num_shards = ht.MPI_WORLD.size
 
@@ -335,33 +318,32 @@ def create_dali_pipeline(
     label_dir_list = [label_dir + d for d in os.listdir(label_dir)]
 
     inp = fn.readers.tfrecord(
-            path=data_dir_list,
-            index_path=label_dir_list,
-            name="Reader",
-            random_shuffle=True if is_training else False,
-            shard_id=shard_id,
-            num_shards=num_shards,
-            initial_fill=10000,
-            features={
-                "image/encoded": dali.tfrecord.FixedLenFeature((), dali.tfrecord.string, ""),
-                "image/class/label": dali.tfrecord.FixedLenFeature([1], dali.tfrecord.int64, -1),
-                "image/class/text": dali.tfrecord.FixedLenFeature([], dali.tfrecord.string, ""),
-                "image/object/bbox/xmin": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
-                "image/object/bbox/ymin": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
-                "image/object/bbox/xmax": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
-                "image/object/bbox/ymax": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
-            },
-        )
+        path=data_dir_list,
+        index_path=label_dir_list,
+        name="Reader",
+        random_shuffle=True if is_training else False,
+        shard_id=shard_id,
+        num_shards=num_shards,
+        initial_fill=10000,
+        features={
+            "image/encoded": dali.tfrecord.FixedLenFeature((), dali.tfrecord.string, ""),
+            "image/class/label": dali.tfrecord.FixedLenFeature([1], dali.tfrecord.int64, -1),
+            "image/class/text": dali.tfrecord.FixedLenFeature([], dali.tfrecord.string, ""),
+            "image/object/bbox/xmin": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
+            "image/object/bbox/ymin": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
+            "image/object/bbox/xmax": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
+            "image/object/bbox/ymax": dali.tfrecord.VarLenFeature(dali.tfrecord.float32, 0.0),
+        },
+    )
 
-
-    #images, labels = fn.readers.file(
+    # images, labels = fn.readers.file(
     #    file_root=data_dir,
     #    shard_id=shard_id,
     #    num_shards=num_shards,
     #    random_shuffle=is_training,
     #    pad_last_batch=True,
     #    name="Reader",
-    #)
+    # )
     images = inp["image/encoded"]
     labels = inp["image/class/label"]
 
@@ -372,7 +354,7 @@ def create_dali_pipeline(
     if is_training:
         images = fn.decoders.image_random_crop(
             images,
-            device="cpu", #decoder_device,
+            device="cpu",  # decoder_device,
             output_type=types.RGB,
             device_memory_padding=device_memory_padding,
             host_memory_padding=host_memory_padding,
@@ -382,21 +364,17 @@ def create_dali_pipeline(
         )
         images = fn.resize(
             images,
-            device="cpu", #dali_device,
+            device="cpu",  # dali_device,
             resize_x=crop,
             resize_y=crop,
             interp_type=types.INTERP_TRIANGULAR,
         )
         mirror = fn.random.coin_flip(probability=0.5)
     else:
-        images = fn.decoders.image(
-            images, 
-            device="cpu", #decoder_device, 
-            output_type=types.RGB
-        )
+        images = fn.decoders.image(images, device="cpu", output_type=types.RGB)  # decoder_device,
         images = fn.resize(
             images,
-            device="cpu", #dali_device,
+            device="cpu",  # dali_device,
             size=size,
             mode="not_smaller",
             interp_type=types.INTERP_TRIANGULAR,
@@ -520,12 +498,20 @@ def main():
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
 
+    global_skips = args.batch_skips
+    # local_skips = args.local_batch_skip
+    batches_to_wait = args.global_send_delay
+
     # create DP optimizer and model:
     daso_optimizer = ht.optim.DASO(
         local_optimizer=optimizer,
         total_epochs=args.epochs,
-        max_global_skips=4,
+        max_global_skips=global_skips,
+        batches_to_wait=batches_to_wait,
         stability_level=0.05,
+        warmup_epochs=0,
+        cooldown_epochs=1,
+        cycling=-args.no_cycling,
     )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, factor=0.5, patience=5, threshold=0.05, min_lr=1e-4
