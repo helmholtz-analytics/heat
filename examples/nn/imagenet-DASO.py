@@ -522,10 +522,12 @@ def main():
         max_global_skips=4,
         stability_level=0.05,
     )
+    
+    daso_optimizer.print0(f"World Size: {args.world_size}, Global Skips: {args.batch_skip}, Batches to wait: {args.gs}, Cycling? {not args.no_cycling}")
 
     if args.no_cycling:
-        daso_optimizer.disable_cycling(global_skips=args.gs,
-            batches_to_wait=args.batch_skip)
+        daso_optimizer.disable_cycling(global_skips=args.batch_skip,
+            batches_to_wait=args.gs)
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, factor=0.5, patience=5, threshold=0.05, min_lr=1e-4
@@ -573,7 +575,7 @@ def main():
     # import pandas as pd
     nodes = str(int(daso_optimizer.comm.size / torch.cuda.device_count()))
     cwd = os.getcwd()
-    fname = cwd + "/" + nodes + "imagenet-benchmark"
+    fname = cwd + "/" + nodes + f"imagenet-benchmark-n-{nodes}-skips-{args.batch_skip}-btw-{args.gs}"
     if args.resume and rank == 0 and os.path.isfile(fname + ".pkl"):
         with open(fname + ".pkl", "rb") as f:
             out_dict = pickle.load(f)
@@ -763,11 +765,11 @@ def main():
             print(df)
         if args.benchmarking:
             try:
-                fulldf = pd.read_csv(cwd + "/bench-results.csv")
+                fulldf = pd.read_csv(cwd + f"/bench-results-n-{args.world_size / 4}-skips-{args.batch_skip}-btw-{args.gs}.csv")
                 fulldf = pd.concat([df, fulldf], axis=1)
             except FileNotFoundError:
                 fulldf = df
-            fulldf.to_csv(cwd + "/bench-results.csv")
+            fulldf.to_csv(cwd + f"/bench-results-n-{args.world_size / 4}-skips-{args.batch_skip}-btw-{args.gs}.csv")
 
 
 def train(dev, train_loader, model, criterion, optimizer, epoch):
