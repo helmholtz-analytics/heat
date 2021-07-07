@@ -1042,7 +1042,7 @@ class TestDNDarray(TestCase):
         # slice in 1st dim only on 1 node w/ singular second dim
         a = ht.zeros((13, 5), split=0)
         a[1:4, 1] = 1
-        b = a[1:4, np.array(1)]
+        b = a[1:4, np.int64(1)]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.gshape, (3,))
         self.assertEqual(b.split, 0)
