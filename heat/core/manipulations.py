@@ -1897,7 +1897,7 @@ def roll(x: DNDarray, shift: Union[int, Tuple[int]], axis: Optional[Union[int, T
     sanitation.sanitize_in(x)
 
     if axis is None:
-        return roll(x.ravel(), shift, 0).reshape(x.shape, new_split=x.split)
+        return roll(x.flatten(), shift, 0).reshape(x.shape, new_split=x.split)
 
     # inputs are ints
     if isinstance(shift, int):
