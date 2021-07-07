@@ -730,31 +730,9 @@ class DNDarray:
             slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
             key = kst + slices + kend
 
-        def __is_singular(obj: any) -> bool:
-            """
-            Checks if obj has size one, and thereby reduces the dimensionalty of
-            the output
-            """
-            try:
-                int(obj)
-                return True
-            except Exception:
-                pass
-            if hasattr(obj, "__len__") and len(obj) == 1:
-                return True
-            if hasattr(obj, "shape") and len(obj.shape) == 0:
-                return True
-            if hasattr(obj, "numel"):
-                return obj.numel() == 1
-            if hasattr(obj, "size"):
-                return obj.size == 1
-            if hasattr(obj, "item"):
-                try:
-                    obj.item()
-                    return True
-                except Exception:
-                    pass
-            return False
+        def __is_singular(key: any, axis: int, self_proxy: DNDarray = self_proxy) -> bool:
+            zeros = tuple([0] * (self.ndim - 1))
+            return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
 
         # calculate new split axis
         new_split = self.split
@@ -764,7 +742,7 @@ class DNDarray:
                 new_split = 0
             else:
                 for i in range(len(key[: self.split + 1])):
-                    if __is_singular(key[i]):
+                    if __is_singular(key, i):
                         new_split = None if i == self.split else new_split - 1
 
         key = tuple(key)
@@ -872,7 +850,7 @@ class DNDarray:
                 lout[new_split] = 0
                 arr = torch.empty(lout, dtype=self.__array.dtype, device=self.__array.device)
 
-        elif __is_singular(key[self.split]):
+        elif __is_singular(key, self.split):
             # getting one item along split axis:
             key = list(key)
             if isinstance(key[self.split], list):
