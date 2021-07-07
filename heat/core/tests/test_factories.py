@@ -2,7 +2,6 @@ import numpy as np
 import torch
 
 import heat as ht
-from torch._C import Value
 from .test_suites.basic_test import TestCase
 
 
