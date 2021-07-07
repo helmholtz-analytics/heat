@@ -715,7 +715,7 @@ def load_csv(
     encoding: str = "utf-8",
     split: Optional[int] = None,
     device: Optional[str] = None,
-    comm: Communication = MPI_WORLD,
+    comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
     Loads data from a CSV file. The data will be distributed along the axis 0.
@@ -738,7 +738,7 @@ def load_csv(
     device : str, optional
         The device id on which to place the data, defaults to globally set default device.
     comm : Communication, optional
-        The communication to use for the data distribution, defaults to ``MPI_COMM_WORLD``.
+        The communication to use for the data distribution, defaults to global default
 
     Raises
     -------
