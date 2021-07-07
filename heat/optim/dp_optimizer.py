@@ -205,7 +205,7 @@ class DASO:
         self.epoch = 0
         self._send_mod, self._send_mod_m1 = 0, None
 
-        if warmup_epochs > 0:
+        if warmup_epochs == 0:
             self.global_skip = max_global_skips
             self.batches_to_wait = batches_to_wait
         else:
@@ -262,27 +262,13 @@ class DASO:
 
     def disable_cycling(self, global_skips=0, batches_to_wait=0):
         """
-        set the number of global skips and the batches to wait and disable cycling
+        Set the number of global skips and the batches to wait and disable cycling
 
         TODO: improce docs
         """
         self.cycling = False
         self.global_skip = global_skips
         self.batches_to_wait = batches_to_wait
-
-    def set_model(self, model: torch.nn.Module) -> None:
-        """
-        Set the local model for the optimizer.
-        This should be called during the init of :func:`nn.DataParallelMultiGPU <heat.nn.data_parallel.DataParallelMultiGPU>`.
-        However, this can also be called manually.
-
-        Parameters
-        ----------
-        model: torch.nn.Module
-            the local torch model.
-        """
-        self.module = model
-        self.num_layers = len(self.module._parameters)
 
     def add_scaler(self, scaler: torch.cuda.amp.GradScaler) -> None:
         """
@@ -453,7 +439,7 @@ class DASO:
 
         if self.epoch >= self.total_epochs - self.cooldown_epochs:
             # cooldown epochs
-            self.global_skip = 0
+            self.global_skip = 1
             self.local_skip = 0
             self.batches_to_wait = 0
 
