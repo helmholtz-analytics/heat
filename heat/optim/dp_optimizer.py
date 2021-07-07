@@ -15,7 +15,7 @@ from ..core.communication import MPI_WORLD
 from .utils import DetectMetricPlateau
 
 
-__all__ = ["DataParallelOptimizer", "DASO", "DASO2"]
+__all__ = ["DataParallelOptimizer", "DASO"]
 
 
 def __sum_f16_cb(buffer_a, buffer_b, _):
