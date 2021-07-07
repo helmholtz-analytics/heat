@@ -56,12 +56,12 @@ from mpi4py import MPI
 import sys
 from collections import deque
 
-_comm = MPI.COMM_WORLD
 
 # define identifiers
 END = 0
 TASK = 1
 GO = 2
+GET = 3
 
 
 class _TaskQueue:
@@ -79,7 +79,6 @@ class _TaskQueue:
         """
         Sumbit a task to queue. Will not run it.
         """
-        assert _comm.rank == 0
         self._taskQueue.append(rtask)
         return rtask._handle
 
@@ -89,74 +88,107 @@ class _TaskQueue:
         We assume tasks were submitted in in a valid order, e.g. in an order
         that guarntees no task is dependent on another task that is behind it in the queue.
         """
+        print("Executing tasks", len(self._taskQueue), flush=True)
         while len(self._taskQueue):
             self._taskQueue.popleft().go()
 
+    def len(self):
+        return len(self._taskQueue)
 
-# Our queue of tasks.
-_tQueue = _TaskQueue()
+    def clear(self):
+        self._taskQueue.clear()
 
 
-def init():
+class Distributor:
     """
-    Init distributor.
+    Instances of this class distribute work from controller to workers.
+    Work-items are treated as dependent tasks.
     """
-    pass
 
+    def __init__(self, comm=MPI.COMM_WORLD):
+        """
+        Init distributor, optionally accepts MPI communicator.
+        """
+        self._comm = comm
+        # Our queue of tasks.
+        self._tQueue = _TaskQueue()
 
-def start():
-    """
-    Start distribution engine.
-    Controller inits and returns.
-    Workers enter recv-loop and exit program when fini si called.
-    """
-    if _comm.rank != 0:
-        done = False
-        header = None
-        while not done:
-            # wait in bcast for work
-            header = _comm.bcast(header, 0)
-            # then see what we need to do
-            if header[0] == END:
-                done = True
-                break
-            elif header[0] == TASK:
-                _tQueue._taskQueue = header[1]
-            elif header[0] == GO:
-                # no delayed execution for now -> nothing to do
-                _tQueue.go()
-            else:
-                raise Exception("Worker received unknown tag")
-        sys.exit()
+    def start(self, doExit=True, initImpl=None):
+        """
+        Start distribution engine.
+        Controller inits and returns.
+        Workers enter recv-loop and exit program when fini is called.
+        """
+        if initImpl:
+            initImpl(self._comm)
+        if self._comm.rank != 0:
+            done = False
+            header = None
+            while not done:
+                # wait in bcast for work
+                header = self._comm.bcast(header, 0)
+                # then see what we need to do
+                if header[0] == END:
+                    done = True
+                    break
+                elif header[0] == TASK:
+                    self._tQueue._taskQueue = header[1]
+                elif header[0] == GO:
+                    self._tQueue.go()
+                elif header[0] == GET:
+                    if self._comm.rank == 1:
+                        val = _RemoteTask.getVal(header[1])
+                        self._comm.send(val, dest=0, tag=GET)
+                else:
+                    raise Exception("Worker received unknown tag")
+            self._comm.Barrier()
+            MPI.Finalize()
+            if doExit:
+                sys.exit()
 
+    def fini(self):
+        """
+        Control sends end-tag. Workers will sys.exit.
+        """
+        if MPI.Is_initialized() and self._comm.rank == 0:
+            header = [END]
+            header = self._comm.bcast(header, 0)
+            self._comm.Barrier()
+            MPI.Finalize()
 
-def fini():
-    """
-    Control sends end-tag. Workers will sys.exit.
-    """
-    if _comm.rank == 0:
-        header = [END]
-        header = _comm.bcast(header, 0)
+    def go(self):
+        """
+        Trigger execution of all tasks which are still in flight.
+        """
+        assert self._comm.rank == 0
+        if self._tQueue.len():
+            header = [TASK, self._tQueue._taskQueue]
+            _, _ = self._comm.bcast(header, 0)
+            header = [GO]
+            _ = self._comm.bcast(header, 0)
+            self._tQueue.clear()
 
+    def get(self, handle):
+        """
+        Get actualy value from handle.
+        Requires communication.
+        We get the value from worker 0 (rank 1 in global comm).
+        Does not work for arrays (yet).
+        """
+        assert self._comm.rank == 0
+        self.go()
+        header = [GET, handle.getId()]
+        _ = self._comm.bcast(header, 0)
+        val = self._comm.recv(source=1, tag=GET)
+        handle.set(val)
+        return val
 
-def go():
-    """
-    Trigger execution of all tasks which are still in flight.
-    """
-    assert _comm.rank == 0
-    header = [TASK, _tQueue._taskQueue]
-    _, _ = _comm.bcast(header, 0)
-    header = [GO]
-    _ = _comm.bcast(header, 0)
-    _tQueue.go()
-
-
-def submitPP(task, deps, numout=1):
-    """
-    Submit a process-parallel task and return a handle/future.
-    """
-    rtask = _RemoteTask(task, deps, numout)
-    return _tQueue.submit(rtask)
+    def submitPP(self, task, deps, numout=1):
+        """
+        Submit a process-parallel task and return a handle/future.
+        """
+        rtask = _RemoteTask(task, deps, numout)
+        return self._tQueue.submit(rtask)
 
 
 class Handle:
@@ -194,7 +226,6 @@ class Handle:
         """
         Return object or None
         """
-        go()
         return self._obj
 
 
@@ -240,3 +271,7 @@ class _RemoteTask:
                 _RemoteTask.s_pms[h.getId()] = res[i]
                 i += 1
         return self._handle
+
+    @staticmethod
+    def getVal(id):
+        return _RemoteTask.s_pms[id]

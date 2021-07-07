@@ -51,8 +51,10 @@ and non-array-types arguments separately.
 """
 ###############################################################################
 
+from mpi4py import MPI
+from os import getenv, getpid
 import atexit
-from . import distributor
+from .distributor import Distributor
 from .arrayapi import (
     aa_attributes,
     aa_tlfuncs,
@@ -71,6 +73,10 @@ from heat import DNDarray as dndarray
 impl_str = "impl"
 dndarray_str = "impl.DNDarray"
 
+_distributor = None
+_comm = None
+_fini = None
+
 
 def init():
     """
@@ -78,8 +84,31 @@ def init():
     For now we assume all ranks (controller and workers) are started through mpirun,
     workers will never leave distributor.start() and so this function.
     """
-    distributor.init()
-    distributor.start()
+    global _distributor
+    global _comm
+    global _fini
+
+    if _distributor is not None:
+        return
+
+    _launcher = getenv("CW4H_LAUNCHER", default="mpi").lower()
+
+    def _setComm(c):
+        return impl.use_comm(impl.MPICommunication(c.Create(c.group.Excl([0]))))
+
+    # atexit.register(fini)
+    if _launcher == "ray":
+        from .ray_runner import init as ray_init, fini as ray_fini
+
+        _comm, _distributor, _futures = ray_init(_setComm)
+        _distributor.start(initImpl=_setComm)
+        _fini = ray_fini
+    elif _launcher == "mpi":
+        _comm = MPI.COMM_WORLD
+        _distributor = Distributor(_comm)
+        _distributor.start(initImpl=_setComm)
+    else:
+        raise Exception(f"unknown launcher {_launcher}. CW4H_LAUNCHER must be 'mpi', or 'ray'.")
 
 
 def fini():
@@ -87,7 +116,9 @@ def fini():
     Finalize/shutdown distribution engine. Automatically called at exit.
     When called on controller, workers will sys.exit from init().
     """
-    distributor.fini()
+    _distributor.fini()
+    if _fini:
+        _fini()
 
 
 class _Task:
@@ -126,7 +157,7 @@ def _submit(name, args, kwargs, unwrap="*", numout=1):
     """
     scalar_args = tuple(x for x in args if not isinstance(x, DDParray))
     deps = [x._handle.getId() for x in args if isinstance(x, DDParray)]
-    return distributor.submitPP(_Task(name, scalar_args, kwargs, unwrap=unwrap), deps, numout)
+    return _distributor.submitPP(_Task(name, scalar_args, kwargs, unwrap=unwrap), deps, numout)
 
 
 def _submitProperty(name, self):
@@ -135,7 +166,7 @@ def _submitProperty(name, self):
     """
     t = _PropertyTask(name)
     try:
-        res = distributor.submitPP(t, [self._handle.getId()])
+        res = _distributor.submitPP(t, [self._handle.getId()])
     except Exception:
         assert False
     return res
@@ -168,13 +199,14 @@ class DDParray:
         Do not use this array. Use creator functions instead.
         """
         self._handle = handle
+        self._attributes = None
 
-    def heat(self):
-        """
-        Return heat native array.
-        With delayed execution, triggers computation as needed and blocks until array is available.
-        """
-        return self._handle.get()
+    # def heat(self):
+    #     """
+    #     Return heat native array.
+    #     With delayed execution, triggers computation as needed and blocks until array is available.
+    #     """
+    #     return _distributor.get(self._handle)
 
     def __getitem__(self, key):
         """
@@ -211,40 +243,31 @@ class DDParray:
                 f"{method} = lambda self, *args, **kwargs: DDParray(_submit('{dndarray_str}.{method}', (self, *args), kwargs))"
             )
 
-    for method in aa_methods_s:
+    for method in aa_methods_s + ["__str__"]:
         if hasattr(dndarray, method):
             exec(
-                f"{method} = lambda self, *args, **kwargs: _submit('{dndarray_str}.{method}', (self, *args), kwargs).get()"
+                f"{method} = lambda self, *args, **kwargs: _distributor.get(_submit('{dndarray_str}.{method}', (self, *args), kwargs))"
             )
 
-    for attr in aa_attributes:
-        if attr != "T" and hasattr(dndarray, attr):
-            exec(f"{attr} = property(lambda self: self._handle.get().{attr})")
-
     def __getattr__(self, attr):
-        # attributes are special
-        if attr not in aa_attributes:
-            raise Exception(f"unknown method/attribute {attr} requested")
-
-
-#######################################################################
-# first define top-level functions which need special care.
-#######################################################################
-
-# np.concatenate accepts a list of arrays (not individual arrays)
-# so we let the task not unwrap the list of deps
-def concatenate(*args, **kwargs):
-    """
-    Wrapper for impl.concatenate.
-    """
-    return DDParray(_submit(f"{impl_str}.concatenate", *args, kwargs, unwrap=""))
+        """
+        Get attributes.
+        Caches attributes from workers, so we communicate only once.
+        """
+        if self._attributes is None:
+            self._attributes = _distributor.get(
+                _submit(
+                    "(lambda a: {x: getattr(a, x) for x in aa_attributes if x != 'T'})", (self,), {}
+                )
+            )
+        return self._attributes[attr]
 
 
 #######################################################################
 # first define top-level functions through the standard process.
 #######################################################################
 #   - creating arrays
-#   - elementswise operations
+#   - elementwise operations
 #   - statistical operations
 # (lists taken from list of methods in array-API)
 # Again, we simply make lambdas which submit appropriate Tasks
@@ -261,13 +284,15 @@ for func in aa_tlfuncs + fixme_funcs:
         )
 
 
+# np.concatenate/hstack accept a list of arrays (not individual arrays)
+# so we let the task not unwrap the list of deps
 for func in ["concatenate", "hstack"]:
     exec(
         f"{func} = lambda *args, **kwargs: DDParray(_submit(f'{impl_str}.{func}', *args, kwargs, unwrap=''))"
     )
 
 
-# Here we data types and constants
+# Here we define data types and constants
 for attr in aa_datatypes + aa_constants:
     if hasattr(impl, attr):
         exec(f"{attr} = {impl_str}.{attr}")
@@ -292,5 +317,3 @@ class random:
 
 #######################################################################
 #######################################################################
-atexit.register(fini)
-init()
