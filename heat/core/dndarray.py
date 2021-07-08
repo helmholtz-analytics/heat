@@ -1607,7 +1607,6 @@ class DNDarray:
     ) -> Tuple[int, int]:
         # this does some basic logic for adjusting the starting and stoping of the a key for
         #   setitem and getitem
-        start, stop = None, None
         if step is not None and rank > actives[0]:
             offset = (ends[rank - 1] - og_key_st) % step
             if step > 2 and offset > 0:
@@ -1615,10 +1614,10 @@ class DNDarray:
             elif step == 2 and offset > 0:
                 key_st += (ends[rank - 1] - og_key_st) % step
         if isinstance(key_st, torch.Tensor):
-            start = key_st.item()
+            key_st = key_st.item()
         if isinstance(key_sp, torch.Tensor):
-            stop = key_sp.item()
-        return start, stop
+            key_sp = key_sp.item()
+        return key_st, key_sp
 
 
 # HeAT imports at the end to break cyclic dependencies
