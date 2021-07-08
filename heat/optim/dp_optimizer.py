@@ -449,6 +449,9 @@ class DASO:
             )
             return
 
+        if not self.cycling:
+            return
+
         if self.global_skip == self.max_gs and self.max_gs > 4:
             self._gs8_waited += 1
 
