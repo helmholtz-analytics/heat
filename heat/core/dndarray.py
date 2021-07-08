@@ -280,7 +280,7 @@ class DNDarray:
     @property
     def lshape_map(self) -> torch.Tensor:
         """
-        Returns the lshape map. if it has been previously created then it will be created here
+        Returns the lshape map. If it has been previously created then it will be created here
         """
         return self.create_lshape_map()
 
@@ -576,7 +576,7 @@ class DNDarray:
         self.__device = devices.cpu
         return self
 
-    def create_lshape_map(self, recreate: Optional[bool] = True) -> torch.Tensor:
+    def create_lshape_map(self, recreate: bool = True) -> torch.Tensor:
         """
         Generate a 'map' of the lshapes of the data on all processes.
         Units are ``(process rank, lshape)``
@@ -586,7 +586,6 @@ class DNDarray:
         recreate : bool, optional
             if False (default) and the lshape map has already been created, use the previous
             result. Otherwise, create the lshape_map
-            Default: False
         """
         if not recreate and self.__lshape_map is not None:
             return self.__lshape_map
@@ -1013,7 +1012,9 @@ class DNDarray:
         """
         return manipulations.ravel(self)
 
-    def redistribute_(self, lshape_map: torch.Tensor = None, target_map: torch.Tensor = None):
+    def redistribute_(
+        self, lshape_map: Optional[torch.Tensor] = None, target_map: Optional[torch.Tensor] = None
+    ):
         """
         Redistributes the data of the :class:`DNDarray` *along the split axis* to match the given target map.
         This function does not modify the non-split dimensions of the ``DNDarray``.
@@ -1424,7 +1425,6 @@ class DNDarray:
         #   this means that we need to know how much data is where for both DNDarrays
         #   if the value data is not in the right place, then it will need to be moved
 
-        # if isinstance(key, tuple):
         if isinstance(key[self.split], slice):
             key = list(key)
             key_start = key[self.split].start if key[self.split].start is not None else 0
@@ -1463,16 +1463,9 @@ class DNDarray:
                     else:
                         key_start_l = 0 if r != actives[0] else key_start - chunk_starts[r]
                         key_stop_l = ends[r] if r != actives[-1] else key_stop - chunk_starts[r]
-                        if key_step is not None and r > actives[0]:
-                            offset = (chunk_ends[r - 1] - og_key_start) % key_step
-                            if key_step > 2 and offset > 0:
-                                key_start_l += key_step - offset
-                            elif key_step == 2 and offset > 0:
-                                key_start_l += (chunk_ends[r - 1] - og_key_start) % key_step
-                        if isinstance(key_start_l, torch.Tensor):
-                            key_start_l = key_start_l.item()
-                        if isinstance(key_stop_l, torch.Tensor):
-                            key_stop_l = key_stop_l.item()
+                        key_start_l, key_stop_l = self.__setitem_get_key_start_stop(
+                            r, actives, key_start_l, key_stop_l, key_step, chunk_ends, og_key_start
+                        )
                         loc_key = key.copy()
                         loc_key[self.split] = slice(key_start_l, key_stop_l, key_step)
 
@@ -1509,16 +1502,9 @@ class DNDarray:
                 return  # non-active ranks can exit here
             key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
             key_stop = ends[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
-            if key_step is not None and rank > actives[0]:
-                offset = (chunk_ends[rank - 1] - og_key_start) % key_step
-                if key_step > 2 and offset > 0:
-                    key_start += key_step - offset
-                elif key_step == 2 and offset > 0:
-                    key_start += (chunk_ends[rank - 1] - og_key_start) % key_step
-            if isinstance(key_start, torch.Tensor):
-                key_start = key_start.item()
-            if isinstance(key_stop, torch.Tensor):
-                key_stop = key_stop.item()
+            key_start, key_stop = self.__setitem_get_key_start_stop(
+                rank, actives, key_start, key_stop, key_step, chunk_ends, og_key_start
+            )
             key[self.split] = slice(key_start, key_stop, key_step)
 
             # todo: need to slice the values to be the right size...
@@ -1552,6 +1538,21 @@ class DNDarray:
             if self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
                 key[self.split] = key[self.split] + self.shape[self.split] - chunk_start
                 self.__setter(tuple(key), value)
+
+    @staticmethod
+    def __setitem_get_key_start_stop(rank, actives, key_st, key_sp, step, ends, og_key_st):
+        start, stop = None, None
+        if step is not None and rank > actives[0]:
+            offset = (ends[rank - 1] - og_key_st) % step
+            if step > 2 and offset > 0:
+                key_st += step - offset
+            elif step == 2 and offset > 0:
+                key_st += (ends[rank - 1] - og_key_st) % step
+        if isinstance(key_st, torch.Tensor):
+            start = key_st.item()
+        if isinstance(key_sp, torch.Tensor):
+            stop = key_sp.item()
+        return start, stop
 
     def __setter(
         self,
