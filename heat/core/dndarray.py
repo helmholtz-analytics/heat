@@ -675,9 +675,10 @@ class DNDarray:
         l_dtype = self.dtype.torch_type()
         advanced_ind = False
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
-            """ if the key is a DNDarray and it has as many dimensions as self, then each of the entries in the 0th
-                dim refer to a single element. To handle this, the key is split into the torch tensors for each dimension.
-                This signals that advanced indexing is to be used. """
+            """ if the key is a DNDarray and it has as many dimensions as self, then each of the
+                entries in the 0th dim refer to a single element. To handle this, the key is split
+                into the torch tensors for each dimension. This signals that advanced indexing is
+                to be used. """
             key = manipulations.resplit(key.copy())
             if key.ndim > 1:
                 key = list(key.larray.split(1, dim=1))
@@ -688,9 +689,9 @@ class DNDarray:
                 key = (key,)
             advanced_ind = True
         elif not isinstance(key, tuple):
-            """ this loop handles all other cases. DNDarrays which make it to here refer to advanced indexing slices,
-                as do the torch tensors. Both DNDaarrys and torch.Tensors are cast into lists here by PyTorch.
-                lists mean advanced indexing will be used"""
+            """ this loop handles all other cases. DNDarrays which make it to here refer to
+                advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
+                are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
             h = [slice(None, None, None)] * self.ndim
             if isinstance(key, DNDarray):
                 key = manipulations.resplit(key.copy())
@@ -730,10 +731,6 @@ class DNDarray:
             slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
             key = kst + slices + kend
 
-        def __is_singular(key: any, axis: int, self_proxy: DNDarray = self_proxy) -> bool:
-            zeros = tuple([0] * (self.ndim - 1))
-            return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
-
         # calculate new split axis
         new_split = self.split
         # when slicing, squeezed singleton dimensions may affect new split axis
@@ -742,7 +739,7 @@ class DNDarray:
                 new_split = 0
             else:
                 for i in range(len(key[: self.split + 1])):
-                    if __is_singular(key, i):
+                    if self.__getitem_is_key_singular(key, i, self_proxy):
                         new_split = None if i == self.split else new_split - 1
 
         key = tuple(key)
@@ -766,9 +763,8 @@ class DNDarray:
             arr = self.__array[key]
 
         """ At the end of the following if/elif/elif block the output array will be set.
-            each block handles the case where the element of the key along the split axis is a different type
-            and converts the key from global indices to local indices.
-        """
+            each block handles the case where the element of the key along the split axis
+            is a different type and converts the key from global indices to local indices. """
         lout = gout_full.copy()
 
         if (
@@ -850,7 +846,7 @@ class DNDarray:
                 lout[new_split] = 0
                 arr = torch.empty(lout, dtype=self.__array.dtype, device=self.__array.device)
 
-        elif __is_singular(key, self.split):
+        elif self.__getitem_is_key_singular(key, self.split, self_proxy):
             # getting one item along split axis:
             key = list(key)
             if isinstance(key[self.split], list):
@@ -884,6 +880,12 @@ class DNDarray:
             self.comm,
             balanced=True if new_split is None else None,
         )
+
+    @staticmethod
+    def __getitem_is_key_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+        # determine if the key gets a singular item
+        zeros = tuple([0] * (self_proxy.ndim - 1))
+        return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
 
     if torch.cuda.device_count() > 0:
 
