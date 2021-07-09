@@ -2100,7 +2100,29 @@ class TestManipulations(TestCase):
         self.assertEqual(reshaped.split, 2)
         self.assertEqual(reshaped.device, b.device)
         self.assertEqual(reshaped.balanced, b.is_balanced(force_check=True))
-
+        # test shape types
+        reshaped = b.reshape(ht.array([4, 5, 6], dtype=ht.int, device=self.device, split=None))
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
+        reshaped = b.reshape(ht.array([4, 5, 6], dtype=ht.int, device=self.device, split=0))
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
+        reshaped = b.reshape(
+            torch.as_tensor([4, 5, 6], dtype=torch.int32, device=self.device.torch_device)
+        )
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
+        reshaped = b.reshape(np.asarray([4, 5, 6], dtype=np.int32))
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
         # shape = -1
         result = ht.zeros(12, device=self.device)
         reshaped = ht.reshape(a, -1)
@@ -2229,8 +2251,15 @@ class TestManipulations(TestCase):
 
         # unknown dimension
         a = ht.ones((4, 4, 4), split=0, device=self.device)
-        result = ht.ones((4, 16), split=0, device=self.device)
 
+        result = ht.ones((64), split=0, device=self.device)
+        reshaped = ht.reshape(a, -1)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
+
+        result = ht.ones((4, 16), split=0, device=self.device)
         reshaped = ht.reshape(a, (4, -1))
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
@@ -2271,7 +2300,9 @@ class TestManipulations(TestCase):
         with self.assertRaises(ValueError):
             ht.reshape(ht.zeros((4, 3)), (-1, -1, 3))
         with self.assertRaises(ValueError):
-            ht.reshape(ht.zeros((4, 3)), (3, -2))
+            ht.reshape(ht.zeros((4, 3)), (5, -1))
+        # with self.assertRaises(ValueError):   actually this works in numpy
+        #    ht.reshape(ht.zeros((4, 3)), (3, -2))
         with self.assertRaises(TypeError):
             ht.reshape(ht.zeros((4, 3)), (3.4, 3.2))
 

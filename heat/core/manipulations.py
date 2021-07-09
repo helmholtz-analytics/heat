@@ -1688,7 +1688,7 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
     return repeated_array
 
 
-def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
+def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDarray:
     """
     Returns an array with the same data and number of elements as `a`, but with the specified shape.
 
@@ -1696,7 +1696,7 @@ def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
     ----------
     a : DNDarray
         The input array
-    shape : Tuple[int,...]
+    shape : Union[int, Tuple[int,...]]
         Shape of the new array
     new_split : int, optional
         The new split axis if `a` is a split DNDarray. None denotes same axis.
@@ -1727,9 +1727,25 @@ def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
     if not isinstance(a, DNDarray):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
 
-    # check for nested sequence
-    if isinstance(shape[0], (tuple, list)):
-        shape = shape[0]
+    # use numpys _ShapeLike but expand to handle torch and heat Tensors
+    np_proxy = np.lib.stride_tricks.as_strided(np.ones(1), a.gshape, [0] * a.ndim, writeable=False)
+    try:
+        np_proxy.reshape(shape)  # numpy defines their own _ShapeLike
+    except TypeError as e:  # handle Tensors and DNDarrays
+        try:  # make shape a np.ndarray
+            if len(shape) == 1:
+                shape = shape[0]
+            if hasattr(shape, "cpu"):  # move to cpu
+                shape = shape.cpu()
+            if hasattr(shape, "detach"):  # torch.Tensors have to detach before numpy call
+                shape = shape.detach()
+            if hasattr(shape, "numpy"):  # for DNDarrays
+                shape = shape.numpy()
+            else:  # Try to coerce everything else.
+                shape = np.asarray(shape)
+        except Exception:
+            raise TypeError(e)
+    shape = np_proxy.reshape(shape).shape  # sanitized shape according to numpy
 
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
 
@@ -1768,34 +1784,11 @@ def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
         displs[1:] = torch.cumsum(counts[:-1], dim=0)
         return argsort, counts, displs
 
-    if shape == -1:
-        shape = (a.gnumel,)
-
-    if not isinstance(shape, (list, tuple)):
-        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
-
     # check new_split parameter
     new_split = kwargs.get("new_split")
     if new_split is None:
         new_split = a.split
     new_split = stride_tricks.sanitize_axis(shape, new_split)
-
-    # Check the type of shape and number elements
-    shape = stride_tricks.sanitize_shape(shape, -1)
-
-    shape = list(shape)
-    shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
-
-    # infer unknown dimension
-    if shape.count(-1) > 1:
-        raise ValueError("too many unknown dimensions")
-    elif shape.count(-1) == 1:
-        pos = shape.index(-1)
-        shape[pos] = int(-(a.size / shape_size).item())
-        shape_size *= -shape[pos]
-
-    if shape_size != a.size:
-        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
 
     # Forward to Pytorch directly
     if a.split is None:
@@ -1803,7 +1796,7 @@ def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
         if new_split is None:
             return DNDarray(
                 local_reshape,
-                tuple(shape),
+                shape,
                 dtype=a.dtype,
                 split=None,
                 device=a.device,
@@ -1814,7 +1807,7 @@ def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
         local_reshape = local_reshape[local_slice]
         return DNDarray(
             local_reshape,
-            tuple(shape),
+            shape,
             dtype=a.dtype,
             split=new_split,
             comm=a.comm,
@@ -1840,7 +1833,7 @@ def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
         shape, local_shape, new_displs, new_split, a.shape, old_displs, a.split, a.comm
     )
 
-    # rearange order
+    # rearrange order
     send = a.larray.flatten()[sendsort]
     a.comm.Alltoallv((send, sendcounts, senddispls), (data, recvcounts, recvdispls))
 
@@ -1852,13 +1845,7 @@ def reshape(a: DNDarray, *shape: Tuple[int, ...], **kwargs) -> DNDarray:
     data = data.reshape(local_shape)
 
     return DNDarray(
-        data,
-        tuple(shape),
-        dtype=a.dtype,
-        split=new_split,
-        device=a.device,
-        comm=a.comm,
-        balanced=True,
+        data, shape, dtype=a.dtype, split=new_split, device=a.device, comm=a.comm, balanced=True
     )
 
 
@@ -3145,14 +3132,7 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
         gathered = torch.empty(
             arr.shape, dtype=arr.dtype.torch_type(), device=arr.device.torch_device
         )
-        if arr.is_balanced():
-            counts, displs, _ = arr.comm.counts_displs_shape(arr.shape, arr.split)
-        else:
-            counts = arr.create_lshape_map()[:, arr.split]
-            displs = torch.cumsum(
-                torch.cat((torch.tensor([0], device=counts.device), counts[:-1])), dim=0
-            )
-            counts, displs = tuple(counts.tolist()), tuple(displs.tolist())
+        counts, displs = arr.counts_displs()
         arr.comm.Allgatherv(arr.larray, (gathered, counts, displs), recv_axis=arr.split)
         new_arr = factories.array(gathered, is_split=axis, device=arr.device, dtype=arr.dtype)
         return new_arr

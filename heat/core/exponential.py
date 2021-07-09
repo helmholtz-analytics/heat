@@ -8,7 +8,19 @@ from typing import Optional
 from . import _operations
 from .dndarray import DNDarray
 
-__all__ = ["exp", "expm1", "exp2", "log", "log2", "log10", "log1p", "sqrt"]
+__all__ = [
+    "exp",
+    "expm1",
+    "exp2",
+    "log",
+    "log2",
+    "log10",
+    "log1p",
+    "logaddexp",
+    "logaddexp2",
+    "sqrt",
+    "square",
+]
 
 
 def exp(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
@@ -195,6 +207,62 @@ DNDarray.log1p = lambda self, out=None: log1p(self, out)
 DNDarray.log1p.__doc__ = log1p.__doc__
 
 
+def logaddexp(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Calculates the logarithm of the sum of exponentiations :math:`log(exp(x1) + exp(x2))` for each element :math:`{x1}_i` of
+    the input array x1 with the respective element :math:`{x2}_i` of the input array x2.
+
+    Parameters
+    ----------
+    x1 : DNDarray
+        first input array. Should have a floating-point data type.
+    x2 : DNDarray
+        second input array. Must be compatible with x1. Should have a floating-point data type.
+    out : DNDarray, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to :keyword:`None`, a fresh array is allocated.
+
+    See Also
+    --------
+    :func:`logaddexp2`
+        Logarithm of the sum of exponentiations of inputs in base-2.
+
+    Examples
+    --------
+    >>> ht.logaddexp(ht.array([-1.0]), ht.array([-1.0, -2, -3]))
+    DNDarray([-0.3069, -0.6867, -0.8731], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    return _operations.__binary_op(torch.logaddexp, x1, x2, out)
+
+
+def logaddexp2(x1: DNDarray, x2: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Calculates the logarithm of the sum of exponentiations in base-2 :math:`log2(exp(x1) + exp(x2))` for each element :math:`{x1}_i` of
+    the input array x1 with the respective element :math:`{x2}_i` of the input array x2.
+
+    Parameters
+    ----------
+    x1 : DNDarray
+        first input array. Should have a floating-point data type.
+    x2 : DNDarray
+        second input array. Must be compatible with x1. Should have a floating-point data type.
+    out : DNDarray, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to :keyword:`None`, a fresh array is allocated.
+
+    See Also
+    --------
+    :func:`logaddexp`
+        Logarithm of the sum of exponentiations of inputs.
+
+    Examples
+    --------
+    >>> ht.logaddexp2(ht.array([-1.0]), ht.array([-1.0, -2, -3]))
+    DNDarray([ 0.0000, -0.4150, -0.6781], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    return _operations.__binary_op(torch.logaddexp2, x1, x2, out)
+
+
 def sqrt(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Return the non-negative square-root of a tensor element-wise.
@@ -221,3 +289,30 @@ def sqrt(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
 DNDarray.sqrt = lambda self, out=None: sqrt(self, out)
 DNDarray.sqrt.__doc__ = sqrt.__doc__
+
+
+def square(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Return a new tensor with the squares of the elements of input.
+
+    Parameters
+    ----------
+    x : DNDarray
+        The array for which to compute the squares.
+    out : DNDarray, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to :keyword:`None`, a fresh array is allocated.
+
+    Examples:
+    --------
+    >>> a = ht.random.rand(4)
+    >>> a
+    DNDarray([0.8654, 0.1432, 0.9164, 0.6179], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.square(a)
+    DNDarray([0.7488, 0.0205, 0.8397, 0.3818], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.square, x, out)
+
+
+DNDarray.square = lambda self, out=None: square(self, out)
+DNDarray.square.__doc__ = square.__doc__
