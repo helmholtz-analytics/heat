@@ -3068,9 +3068,9 @@ class TestManipulations(TestCase):
         # len(reps) > x.ndim
         split = 0
         x = ht.random.randn(4, 3, split=split)
-        reps = ht.random.randint(2, 10, size=(4,))
+        reps = ht.random.randint(2, 10, size=(4,)).tolist()
         tiled_along_split = ht.tile(x, reps)
-        np_tiled_along_split = np.tile(x.numpy(), reps.numpy())
+        np_tiled_along_split = np.tile(x.numpy(), reps)
         self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
         self.assertTrue(tiled_along_split.dtype is x.dtype)
 
@@ -3078,9 +3078,9 @@ class TestManipulations(TestCase):
         # len(reps) < x.ndim
         split = 1
         x = ht.random.randn(4, 5, 3, 10, dtype=ht.float64, split=split)
-        reps = torch.tensor((2, 2))
+        reps = (2, 2)
         tiled_along_split = ht.tile(x, reps)
-        np_tiled_along_split = np.tile(x.numpy(), reps.numpy())
+        np_tiled_along_split = np.tile(x.numpy(), reps)
         self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
         self.assertTrue(tiled_along_split.dtype is x.dtype)
 
