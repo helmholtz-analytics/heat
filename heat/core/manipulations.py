@@ -3404,7 +3404,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
         active_recv_counts = active_recv_counts.sum(0)
         send_slices -= offset_x
         recv_slices -= offset_tiled
-        recv_data = t_tiled.clone()
+        recv_buf = t_tiled.clone()
         # we need as many Alltoallv calls as repeats along the split axis
         for rep in range(reps[split]):
             # send_data, send_counts, send_displs on rank
@@ -3419,7 +3419,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
             local_send_slice[split] = slice(
                 all_send_displs[0], all_send_displs[0] + sum(all_send_counts)
             )
-            send_data = t_x[local_send_slice].clone()
+            send_buf = t_x[local_send_slice].clone()
 
             # recv_data, recv_counts, recv_displs on rank
             all_recv_counts = [0] * size
@@ -3434,10 +3434,10 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
                 all_recv_displs[0], all_recv_displs[0] + sum(all_recv_counts)
             )
             x.comm.Alltoallv(
-                (send_data, all_send_counts, all_send_displs),
-                (recv_data, all_recv_counts, all_recv_displs),
+                (send_buf, all_send_counts, all_send_displs),
+                (recv_buf, all_recv_counts, all_recv_displs),
             )
-            t_tiled[local_recv_slice] = recv_data[local_recv_slice]
+            t_tiled[local_recv_slice] = recv_buf[local_recv_slice]
 
         # finally tile along non-split axes if needed
         reps[split] = 1
