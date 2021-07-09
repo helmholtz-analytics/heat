@@ -62,6 +62,7 @@ END = 0
 TASK = 1
 GO = 2
 GET = 3
+GETPART = 4
 
 
 class _TaskQueue:
@@ -121,30 +122,38 @@ class Distributor:
         """
         if initImpl:
             initImpl(self._comm)
-        if self._comm.rank != 0:
+        if self._comm.rank == 0:
+            return True
+        else:
             done = False
             header = None
             while not done:
                 # wait in bcast for work
                 header = self._comm.bcast(header, 0)
                 # then see what we need to do
-                if header[0] == END:
-                    done = True
-                    break
-                elif header[0] == TASK:
+                if header[0] == TASK:
                     self._tQueue._taskQueue = header[1]
-                elif header[0] == GO:
-                    self._tQueue.go()
                 elif header[0] == GET:
                     if self._comm.rank == 1:
                         val = _RemoteTask.getVal(header[1])
                         self._comm.send(val, dest=0, tag=GET)
+                elif header[0] == GO:
+                    self._tQueue.go()
+                elif header[0] == GETPART:
+                    if self._comm.rank == header[1]:
+                        val = _RemoteTask.getVal(header[2])
+                        attr = getattr(val, header[3])
+                        self._comm.send(attr, dest=0, tag=GETPART)
+                elif header[0] == END:
+                    done = True
+                    break
                 else:
                     raise Exception("Worker received unknown tag")
             self._comm.Barrier()
-            MPI.Finalize()
+            # MPI.Finalize()
             if doExit:
                 sys.exit()
+            return False
 
     def fini(self):
         """
@@ -154,7 +163,7 @@ class Distributor:
             header = [END]
             header = self._comm.bcast(header, 0)
             self._comm.Barrier()
-            MPI.Finalize()
+            # MPI.Finalize()
 
     def go(self):
         """
@@ -181,6 +190,17 @@ class Distributor:
         _ = self._comm.bcast(header, 0)
         val = self._comm.recv(source=1, tag=GET)
         handle.set(val)
+        return val
+
+    def getPart(self, handle, attr):
+        """
+        Get local raw partition data for given handle.
+        """
+        assert self._comm.rank == 0
+        self.go()
+        header = [GETPART, handle.rank, handle.id, attr]
+        _ = self._comm.bcast(header, 0)
+        val = self._comm.recv(source=handle.rank, tag=GETPART)
         return val
 
     def submitPP(self, task, deps, numout=1):

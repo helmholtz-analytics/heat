@@ -53,6 +53,7 @@ and non-array-types arguments separately.
 
 from mpi4py import MPI
 from os import getenv, getpid
+from collections import namedtuple
 import atexit
 from .distributor import Distributor
 from .arrayapi import (
@@ -78,7 +79,11 @@ _comm = None
 _fini = None
 
 
-def init():
+def _setComm(c):
+    return impl.use_comm(impl.MPICommunication(c.Create(c.group.Excl([0]))))
+
+
+def init(doStart=True):
     """
     Initialize distribution engine. Automatically when when importing cw4heat.
     For now we assume all ranks (controller and workers) are started through mpirun,
@@ -93,9 +98,6 @@ def init():
 
     _launcher = getenv("CW4H_LAUNCHER", default="mpi").lower()
 
-    def _setComm(c):
-        return impl.use_comm(impl.MPICommunication(c.Create(c.group.Excl([0]))))
-
     # atexit.register(fini)
     if _launcher == "ray":
         from .ray_runner import init as ray_init, fini as ray_fini
@@ -106,9 +108,19 @@ def init():
     elif _launcher == "mpi":
         _comm = MPI.COMM_WORLD
         _distributor = Distributor(_comm)
-        _distributor.start(initImpl=_setComm)
+        if doStart:
+            _distributor.start(initImpl=_setComm)
     else:
         raise Exception(f"unknown launcher {_launcher}. CW4H_LAUNCHER must be 'mpi', or 'ray'.")
+
+
+def asController():
+    """
+    Enter controller-worker region.
+    Rank 0 becomes controller, all others act as workers.
+    """
+    init(False)
+    return _distributor.start(initImpl=_setComm, doExit=False)
 
 
 def fini():
@@ -248,6 +260,36 @@ class DDParray:
             exec(
                 f"{method} = lambda self, *args, **kwargs: _distributor.get(_submit('{dndarray_str}.{method}', (self, *args), kwargs))"
             )
+
+    partRef = namedtuple("partRef", ("id", "rank"))
+
+    # @property
+    def __partitioned__(self):
+        """
+        Return partitioning meta data.
+        """
+
+        def getPartForRef(pref):
+            """
+            Return actual partition data for given partRef.
+            """
+            # FIXME Ray
+            # only supported on root rank right now
+            # Notice: HeAT does not use COMM_WORLD, we have to translate to global rank
+            assert MPI.COMM_WORLD.rank == 0
+            return _distributor.getPart(pref, "larray")
+
+        parts = _distributor.get(
+            _submit(f"{dndarray_str}.create_partition_interface", (self, True), {})
+        )
+        # Provide all data as handle/reference
+        for _, p in parts["partitions"].items():
+            p["data"] = self.partRef(self._handle._id, p["location"] + 1)
+        # set getter
+        parts["get"] = getPartForRef
+        # remove SPMD local key
+        del parts["locals"]
+        return parts
 
     def __getattr__(self, attr):
         """
