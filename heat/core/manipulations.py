@@ -3330,67 +3330,241 @@ def vstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     return concatenate(arrays, axis=0)
 
 
-def tile(x, reps):
+def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
     """
-    Construct an array by repeating A the number of times given by reps.
+    Construct a new DNDarray by repeating 'x' the number of times given by 'reps'.
 
-    If reps has length d, the result will have dimension of max(d, A.ndim).
+    If 'reps' has length 'd', the result will have 'max(d, x.ndim)' dimensions:
 
-    If A.ndim < d, A is promoted to be d-dimensional by prepending new axes. So a shape (3,) array is promoted to (1, 3) for 2-D replication, or shape (1, 1, 3) for 3-D replication. If this is not the desired behavior, promote A to d-dimensions manually before calling this function.
+    - if 'x.ndim < d', 'x' is promoted to be d-dimensional by prepending new axes.
+    So a shape (3,) array is promoted to (1, 3) for 2-D replication, or shape (1, 1, 3)
+    for 3-D replication (if this is not the desired behavior, promote 'x' to d-dimensions
+    manually before calling this function);
 
-    If A.ndim > d, reps is promoted to A.ndim by pre-pending 1’s to it. Thus for an A of shape (2, 3, 4, 5), a reps of (2, 2) is treated as (1, 1, 2, 2).
+    - if 'x.ndim > d', 'reps' will replicate the last 'd' dimensions of 'x', i.e., if
+    'x.shape' is (2, 3, 4, 5), a 'reps' of (2, 2) will be expanded to (1, 1, 2, 2).
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input
+
+    reps : Sequence[ints,...]
+        Repetitions
+
+    Returns
+    -------
+    tiled : DNDarray
+            Split semantics: if `x` is distributed, the tiled data will be distributed along the
+            same dimension. Note that nominally `tiled.split != x.split` in the case where
+            `len(reps) > x.ndim`.  See example below.
+
+    Examples
+    --------
+    >>> x = ht.arange(12).reshape((4,3)).resplit_(0)
+    >>> x
+    DNDarray([[ 0,  1,  2],
+              [ 3,  4,  5],
+              [ 6,  7,  8],
+              [ 9, 10, 11]], dtype=ht.int32, device=cpu:0, split=0)
+    >>> reps = (1, 2, 2)
+    >>> tiled = ht.tile(x, reps)
+    >>> tiled
+    DNDarray([[[ 0,  1,  2,  0,  1,  2],
+               [ 3,  4,  5,  3,  4,  5],
+               [ 6,  7,  8,  6,  7,  8],
+               [ 9, 10, 11,  9, 10, 11],
+               [ 0,  1,  2,  0,  1,  2],
+               [ 3,  4,  5,  3,  4,  5],
+               [ 6,  7,  8,  6,  7,  8],
+               [ 9, 10, 11,  9, 10, 11]]], dtype=ht.int32, device=cpu:0, split=1)
     """
-    # input sanitation
-    # x is DNDarray
-    # x.dim >= 1
+    # check that input is DNDarray
+    sanitation.sanitize_in(x)
+    # check dimensions
+    if x.ndim == 0:
+        x = sanitation.scalar_to_1d(x)
+    # reps to list
+    reps = sanitation.sanitize_sequence(reps)
+    if not all(isinstance(rep, int) for rep in reps):
+        raise TypeError("reps must be a sequence of integers, got {}".format(reps))
 
-    # calculate map of new gshape, lshape
-
-    if len(reps) > x.ndim:
-        added_dims = len(reps) - x.ndim
-        new_shape = added_dims * (1,) + x.gshape
-        new_split = None if x.split is None else x.split + added_dims
-        x = x.reshape(new_shape, axis=new_split)
+    # calculate new gshape, split
+    if len(reps) != x.ndim:
+        added_dims = abs(len(reps) - x.ndim)
+        if len(reps) > x.ndim:
+            new_shape = added_dims * (1,) + x.gshape
+            new_split = None if x.split is None else x.split + added_dims
+            x = x.reshape(new_shape, axis=new_split)
+        else:
+            reps = added_dims * [1] + reps
     split = x.split
+    # "t_" indicates process-local torch tensors
+    t_x = x.larray
+    out_gshape = tuple(
+        torch.tensor(x.shape, device=t_x.device) * torch.tensor(reps, device=t_x.device)
+    )
     if split is None or reps[split] == 1:
         # no repeats along the split axis: local operation
-        t_x = x._DNDarray__array
         t_tiled = t_x.repeat(reps)
-        return factories.array(t_tiled, dtype=x.dtype, is_split=split, comm=x.comm)
+        return DNDarray(
+            t_tiled,
+            out_gshape,
+            dtype=x.dtype,
+            split=split,
+            device=x.device,
+            comm=x.comm,
+            balanced=x.balanced,
+        )
     else:
-        raise NotImplementedError("ht.tile() not implemented yet for repeats along the split axis")
-        # size = x.comm.Get_size()
-        # rank = x.comm.Get_rank()
-        # # repeats along the split axis: communication needed
-        # output_shape = tuple(s * r for s, r in zip(x.gshape, reps))
-        # tiled = factories.empty(output_shape, dtype=x.dtype, split=split, comm=x.comm)
-        # current_offset, current_lshape, current_slice = x.comm.chunk(x.gshape, split)
-        # tiled_offset, tiled_lshape, tiled_slice = tiled.comm.chunk(tiled.gshape, split)
-        # t_current_map = x.create_lshape_map()
-        # t_tiled_map = tiled.create_lshape_map()
-        # # map offsets (torch tensor with shape (size, 2) )
-        # t_offset_map = torch.stack(
-        #     (
-        #         t_current_map[:, split].cumsum(0) - t_current_map[:, split],
-        #         t_tiled_map[:, split].cumsum(0) - t_tiled_map[:, split],
-        #         t_tiled_map[rank, split] - t_current_map[:, split] + 1,
-        #     ),
-        #     dim=1,
-        # )
+        # repeats along the split axis
+        size = x.comm.Get_size()
+        rank = x.comm.Get_rank()
+        # make sure we work along dim 0
+        trans_axes = list(range(x.ndim))
+        if split != 0:
+            trans_axes[0], trans_axes[split] = split, 0
+            reps[0], reps[split] = reps[split], reps[0]
+            x = linalg.transpose(x, trans_axes)
+            split = 0
+            out_gshape = tuple(
+                torch.tensor(x.shape, device=t_x.device) * torch.tensor(reps, device=t_x.device)
+            )
+        x_shape = x.gshape
+        # allocate tiled DNDarray, at first tiled along split axis only
+        split_reps = [rep if i == split else 1 for i, rep in enumerate(reps)]
+        split_tiled_shape = tuple(s * r for s, r in zip(x_shape, split_reps))
+        tiled = factories.empty(split_tiled_shape, dtype=x.dtype, split=split, comm=x.comm)
+        # collect slicing information from all processes.
+        slices_map = []
+        for array in [x, tiled]:
+            counts, displs = array.counts_displs()
+            t_slices_starts = torch.tensor(displs, device=t_x.device)
+            t_slices_ends = t_slices_starts + torch.tensor(counts, device=t_x.device)
+            slices_map.append([t_slices_starts, t_slices_ends])
 
-        # # col 0 = current offsets, col 1 = tiled offsets
-        # recv_rank = torch.where(
-        #     0
-        #     <= t_offset_map[:, 0] - t_offset_map[:, 1]
-        #     <= t_tiled_map[:, split] - t_current_map[:, split] + 1
-        # )
+        t_slices_x, t_slices_tiled = slices_map
 
-        # # use distributed setitem!
-        # # then torch.repeat on non-distributed dimensions
-        # pass
+        # keep track of repetitions:
+        # t_x_starts.shape, t_x_ends.shape changing from (size,) to (reps[split], size)
+        reps_indices = list(x_shape[split] * rep for rep in (range(reps[split])))
+        t_reps_indices = torch.tensor(reps_indices, dtype=torch.int32, device=t_x.device).reshape(
+            len(reps_indices), 1
+        )
+        for i, t in enumerate(t_slices_x):
+            t = t.repeat((reps[split], 1))
+            t += t_reps_indices
+            t_slices_x[i] = t
+
+        # distribution logic on current rank:
+        distr_map = []
+        slices_map = []
+        for i in range(2):
+            if i == 0:
+                # send logic for x slices on rank
+                t_x_starts = t_slices_x[0][:, rank].reshape(reps[split], 1)
+                t_x_ends = t_slices_x[1][:, rank].reshape(reps[split], 1)
+                t_tiled_starts, t_tiled_ends = t_slices_tiled
+            else:
+                # recv logic for tiled slices on rank
+                t_x_starts, t_x_ends = t_slices_x
+                t_tiled_starts = t_slices_tiled[0][rank]
+                t_tiled_ends = t_slices_tiled[1][rank]
+            t_max_starts = torch.max(t_x_starts, t_tiled_starts)
+            t_min_ends = torch.min(t_x_ends, t_tiled_ends)
+            coords = torch.where(t_min_ends - t_max_starts > 0)
+            # remove repeat offset from slices if sending
+            if i == 0:
+                t_max_starts -= t_reps_indices
+                t_min_ends -= t_reps_indices
+            starts = t_max_starts[coords].unsqueeze_(0)
+            ends = t_min_ends[coords].unsqueeze_(0)
+            slices_map.append(torch.cat((starts, ends), dim=0))
+            distr_map.append(coords)
+
+        # bookkeeping in preparation for Alltoallv
+        send_map, recv_map = distr_map
+        send_rep, send_to_ranks = send_map
+        recv_rep, recv_from_ranks = recv_map
+        send_slices, recv_slices = slices_map
+
+        # do not assume that `x` is balanced
+        _, displs = x.counts_displs()
+        offset_x = displs[rank]
+        # impose load-balance on output
+        offset_tiled, _, _ = tiled.comm.chunk(tiled.gshape, tiled.split)
+        t_tiled = tiled.larray
+
+        active_send_counts = send_slices.clone()
+        active_send_counts[0] *= -1
+        active_send_counts = active_send_counts.sum(0)
+        active_recv_counts = recv_slices.clone()
+        active_recv_counts[0] *= -1
+        active_recv_counts = active_recv_counts.sum(0)
+        send_slices -= offset_x
+        recv_slices -= offset_tiled
+        recv_buf = t_tiled.clone()
+        # we need as many Alltoallv calls as repeats along the split axis
+        for rep in range(reps[split]):
+            # send_data, send_counts, send_displs on rank
+            all_send_counts = [0] * size
+            all_send_displs = [0] * size
+            send_this_rep = torch.where(send_rep == rep)[0].tolist()
+            dest_this_rep = send_to_ranks[send_this_rep].tolist()
+            for i, j in zip(send_this_rep, dest_this_rep):
+                all_send_counts[j] = active_send_counts[i].item()
+                all_send_displs[j] = send_slices[0][i].item()
+            local_send_slice = [slice(None)] * x.ndim
+            local_send_slice[split] = slice(
+                all_send_displs[0], all_send_displs[0] + sum(all_send_counts)
+            )
+            send_buf = t_x[local_send_slice].clone()
+
+            # recv_data, recv_counts, recv_displs on rank
+            all_recv_counts = [0] * size
+            all_recv_displs = [0] * size
+            recv_this_rep = torch.where(recv_rep == rep)[0].tolist()
+            orig_this_rep = recv_from_ranks[recv_this_rep].tolist()
+            for i, j in zip(recv_this_rep, orig_this_rep):
+                all_recv_counts[j] = active_recv_counts[i].item()
+                all_recv_displs[j] = recv_slices[0][i].item()
+            local_recv_slice = [slice(None)] * x.ndim
+            local_recv_slice[split] = slice(
+                all_recv_displs[0], all_recv_displs[0] + sum(all_recv_counts)
+            )
+            x.comm.Alltoallv(
+                (send_buf, all_send_counts, all_send_displs),
+                (recv_buf, all_recv_counts, all_recv_displs),
+            )
+            t_tiled[local_recv_slice] = recv_buf[local_recv_slice]
+
+        # finally tile along non-split axes if needed
+        reps[split] = 1
+        tiled = DNDarray(
+            t_tiled.repeat(reps),
+            out_gshape,
+            dtype=x.dtype,
+            split=split,
+            device=x.device,
+            comm=x.comm,
+            balanced=True,
+        )
+        if trans_axes != list(range(x.ndim)):
+            # transpose back to original shape
+            x = linalg.transpose(x, trans_axes)
+            tiled = linalg.transpose(tiled, trans_axes)
+
+        return tiled
 
 
-def topk(a, k, dim=None, largest=True, sorted=True, out=None):
+def topk(
+    a: DNDarray,
+    k: int,
+    dim: int = -1,
+    largest: bool = True,
+    sorted: bool = True,
+    out: Optional[Tuple[DNDarray, DNDarray]] = None,
+) -> Tuple[DNDarray, DNDarray]:
     """
     Returns the :math:`k` highest entries in the array.
     (Not Stable for split arrays)
