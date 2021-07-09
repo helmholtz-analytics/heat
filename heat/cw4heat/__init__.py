@@ -53,7 +53,6 @@ and non-array-types arguments separately.
 
 from mpi4py import MPI
 from os import getenv, getpid
-from collections import namedtuple
 import atexit
 from .distributor import Distributor
 from .arrayapi import (
@@ -80,10 +79,11 @@ _fini = None
 
 
 def _setComm(c):
-    return impl.use_comm(impl.MPICommunication(c.Create(c.group.Excl([0]))))
+    # return impl.use_comm(impl.MPICommunication(c.Create(c.group.Excl([0]))))
+    return impl.use_comm(impl.MPICommunication(c))
 
 
-def init(doStart=True):
+def init(doStart=True, ctxt=False):
     """
     Initialize distribution engine. Automatically when when importing cw4heat.
     For now we assume all ranks (controller and workers) are started through mpirun,
@@ -100,6 +100,7 @@ def init(doStart=True):
 
     # atexit.register(fini)
     if _launcher == "ray":
+        assert ctxt is False, "Controller-worker context is useless with ray launcher."
         from .ray_runner import init as ray_init, fini as ray_fini
 
         _comm, _distributor, _futures = ray_init(_setComm)
@@ -114,15 +115,6 @@ def init(doStart=True):
         raise Exception(f"unknown launcher {_launcher}. CW4H_LAUNCHER must be 'mpi', or 'ray'.")
 
 
-def asController():
-    """
-    Enter controller-worker region.
-    Rank 0 becomes controller, all others act as workers.
-    """
-    init(False)
-    return _distributor.start(initImpl=_setComm, doExit=False)
-
-
 def fini():
     """
     Finalize/shutdown distribution engine. Automatically called at exit.
@@ -131,6 +123,40 @@ def fini():
     _distributor.fini()
     if _fini:
         _fini()
+
+
+class cw4h:
+    """
+    Contextmanager to establish controller-worker regions within SPMD runs.
+    Not that useful for HeAT, but demonstrates the concept.
+
+    >>> import heat.cw4heat as ht
+    >>> with ht.cw4h() as cw:
+    >>>   if cw.controller():
+    >>>     a = ht.arange(8)
+    """
+
+    def __init__(self):
+        init(False, True)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        if _comm.rank == 0:
+            fini()
+
+    def controller(self):
+        """
+        Sends non root ranks/workers into reicv-loop and lets root rank execute
+        the code block protected as controller.
+        Non-root workers will not finish until self gets deleted.
+        """
+        if _comm.rank == 0:
+            return True
+        else:
+            _distributor.start(doExit=False, initImpl=_setComm)
+            return False
 
 
 class _Task:
@@ -188,6 +214,14 @@ def _submitProperty(name, self):
 # we need to provide a function accepting the inverse order
 def _setitem_normalized(self, value, key):
     self.__setitem__(key, value)
+
+
+def _getPartForRef(pref):
+    """
+    Return actual partition data for given partRef.
+    """
+    # FIXME Ray
+    return _distributor.getPart(pref, "larray")
 
 
 #######################################################################
@@ -261,32 +295,28 @@ class DDParray:
                 f"{method} = lambda self, *args, **kwargs: _distributor.get(_submit('{dndarray_str}.{method}', (self, *args), kwargs))"
             )
 
-    partRef = namedtuple("partRef", ("id", "rank"))
+    class partRef:
+        """
+        Handle used in __partitioned__. Identifies one chunk of a distributed array.
+        """
+
+        def __init__(self, id_, rank_):
+            self.id = id_
+            self.rank = rank_
 
     # @property
     def __partitioned__(self):
         """
         Return partitioning meta data.
         """
-
-        def getPartForRef(pref):
-            """
-            Return actual partition data for given partRef.
-            """
-            # FIXME Ray
-            # only supported on root rank right now
-            # Notice: HeAT does not use COMM_WORLD, we have to translate to global rank
-            assert MPI.COMM_WORLD.rank == 0
-            return _distributor.getPart(pref, "larray")
-
         parts = _distributor.get(
             _submit(f"{dndarray_str}.create_partition_interface", (self, True), {})
         )
         # Provide all data as handle/reference
         for _, p in parts["partitions"].items():
-            p["data"] = self.partRef(self._handle._id, p["location"] + 1)
+            p["data"] = self.partRef(self._handle._id, p["location"])
         # set getter
-        parts["get"] = getPartForRef
+        parts["get"] = _getPartForRef
         # remove SPMD local key
         del parts["locals"]
         return parts

@@ -31,6 +31,7 @@ import ray
 from ray.services import get_node_ip_address as getIP
 from .distributor import Distributor
 import os
+from os import getenv, getpid
 
 _actors = {}
 
@@ -45,13 +46,11 @@ class RayActor:
         self.node = node
         self._commWorld = MPI.COMM_SELF
         self._distributor = None
-        print("Actor up", flush=True)
 
     def connect(self, port, nWorkers):
         """
         Let nWorkers-many processes connect to controller process.
         """
-        print("Actor connecting", flush=True)
         # workers go here
         # initial connect
         intercomm = self._commWorld.Connect(port)
@@ -59,7 +58,6 @@ class RayActor:
         self._commWorld = intercomm.Merge(1)
         intercomm.Disconnect()
         rank = self._commWorld.rank
-        print(f"Yey, rank {rank} connected!")
         # collectively accept connections from all (other) clients
         for i in range(rank, nWorkers):
             # connect to next worker (collectively)
@@ -76,9 +74,7 @@ class RayActor:
         """
         Enter receive-loop as provided by distributor.
         """
-        print("actor.start", self._distributor, flush=True)
         self._distributor.start(doExit=False, initImpl=initImpl)
-        print("Actor done!")
 
 
 def _initActors(initImpl=None):
@@ -91,16 +87,20 @@ def _initActors(initImpl=None):
     global _actors
     if not ray.is_initialized():
         ray.init(address="auto")
+    ppn = int(getenv("CW4H_PPN", default="1"))
+    assert ppn >= 1
+    my_ip = getIP()
     # first create one actor per node in the ray cluster
     for node in ray.cluster_resources():
         if "node" in node:
             name = node.split(":")[-1]
-            print(os.getpid(), "starting", name, flush=True)
-            _actors[name] = RayActor.options(resources={node: 1}).remote(
-                name
-            )  # runtime_env={"I_MPI_FABRICS": "ofi"}
+            _ppn = ppn - 1 if name == my_ip else ppn
+            if _ppn >= 1:
+                for i in range(_ppn):
+                    _actors[name] = RayActor.options(resources={node: 1}).remote(
+                        name
+                    )  # runtime_env={"I_MPI_FABRICS": "ofi"}
     nw = len(_actors)  # number of workers
-    print(nw, flush=True)
     comm = MPI.COMM_SELF
     # Get Port for MPI connections
     port = MPI.Open_port(MPI.INFO_NULL)
@@ -112,12 +112,10 @@ def _initActors(initImpl=None):
         # merge communicators
         comm = intercomm.Merge(0)
         intercomm.Disconnect()
-        print("Connected", i, flush=True)
     # wait for connections to be established
-    r = ray.get(x)
-    print("All connected", r, _actors, flush=True)
+    _ = ray.get(x)
     x = [_actors[a].start.remote(initImpl) for a in _actors]
-    print("All started", flush=True)
+    print("All actors started", flush=True)
     # setup our distributor
     return (comm, Distributor(comm), x)
 

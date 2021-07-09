@@ -89,7 +89,6 @@ class _TaskQueue:
         We assume tasks were submitted in in a valid order, e.g. in an order
         that guarntees no task is dependent on another task that is behind it in the queue.
         """
-        print("Executing tasks", len(self._taskQueue), flush=True)
         while len(self._taskQueue):
             self._taskQueue.popleft().go()
 
@@ -134,9 +133,8 @@ class Distributor:
                 if header[0] == TASK:
                     self._tQueue._taskQueue = header[1]
                 elif header[0] == GET:
-                    if self._comm.rank == 1:
-                        val = _RemoteTask.getVal(header[1])
-                        self._comm.send(val, dest=0, tag=GET)
+                    # We do not support arrays yet, scalars do not need communication
+                    assert False
                 elif header[0] == GO:
                     self._tQueue.go()
                 elif header[0] == GETPART:
@@ -146,10 +144,10 @@ class Distributor:
                         self._comm.send(attr, dest=0, tag=GETPART)
                 elif header[0] == END:
                     done = True
+                    self._comm.Barrier()
                     break
                 else:
                     raise Exception("Worker received unknown tag")
-            self._comm.Barrier()
             # MPI.Finalize()
             if doExit:
                 sys.exit()
@@ -175,7 +173,7 @@ class Distributor:
             _, _ = self._comm.bcast(header, 0)
             header = [GO]
             _ = self._comm.bcast(header, 0)
-            self._tQueue.clear()
+            self._tQueue.go()
 
     def get(self, handle):
         """
@@ -186,21 +184,21 @@ class Distributor:
         """
         assert self._comm.rank == 0
         self.go()
-        header = [GET, handle.getId()]
-        _ = self._comm.bcast(header, 0)
-        val = self._comm.recv(source=1, tag=GET)
-        handle.set(val)
-        return val
+        return handle.get()
 
     def getPart(self, handle, attr):
         """
         Get local raw partition data for given handle.
         """
-        assert self._comm.rank == 0
-        self.go()
-        header = [GETPART, handle.rank, handle.id, attr]
-        _ = self._comm.bcast(header, 0)
-        val = self._comm.recv(source=handle.rank, tag=GETPART)
+        if handle.rank == self._comm.rank:
+            val = _RemoteTask.getVal(handle.id)
+            val = getattr(val, attr)
+        else:
+            # FIXME what if left CW-context (SPMD mode) ?
+            assert self._comm.rank == 0
+            header = [GETPART, handle.rank, handle.id, attr]
+            _ = self._comm.bcast(header, 0)
+            val = self._comm.recv(source=handle.rank, tag=GETPART)
         return val
 
     def submitPP(self, task, deps, numout=1):
