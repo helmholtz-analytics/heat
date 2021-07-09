@@ -3305,7 +3305,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
                [ 9, 10, 11,  9, 10, 11]]], dtype=ht.int32, device=cpu:0, split=1)
     """
     # check that input is DNDarray
-    sanitation.sanitize_input(x)
+    sanitation.sanitize_in(x)
     # check dimensions
     if x.ndim == 0:
         x = sanitation.scalar_to_1d(x)
@@ -3325,7 +3325,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
             reps = added_dims * [1] + reps
     split = x.split
     # "t_" indicates process-local torch tensors
-    t_x = x._DNDarray__array
+    t_x = x.larray
     if split is None or reps[split] == 1:
         # no repeats along the split axis: local operation
         t_tiled = t_x.repeat(reps)
@@ -3342,13 +3342,13 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
         # collect slicing information from all processes.
         lshape_maps = []
         slices_map = []
-        t_0 = torch.tensor([0], dtype=torch.int32, device=t_x.device)
         for array in [x, tiled]:
+            counts, displs = array.counts_displs()
+            t_slices_starts = torch.tensor(displs, device=t_x.device)
+            t_slices_ends = t_slices_starts + torch.tensor(counts, device=t_x.device)
+            # TODO: replace following with lshape_map property when available
             t_lshape_map = array.create_lshape_map()
             lshape_maps.append(t_lshape_map)
-            t_slices = torch.cat((t_0, t_lshape_map[:, split])).cumsum(0)
-            t_slices_starts = t_slices[:size]
-            t_slices_ends = t_slices[1:]
             slices_map.append([t_slices_starts, t_slices_ends])
 
         t_slices_x, t_slices_tiled = slices_map
@@ -3385,44 +3385,63 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
             if i == 0:
                 t_max_starts -= t_reps_indices
                 t_min_ends -= t_reps_indices
-            starts = t_max_starts[coords]
-            ends = t_min_ends[coords]
-            slices_map.append([starts, ends])
+            starts = t_max_starts[coords].unsqueeze_(0)
+            ends = t_min_ends[coords].unsqueeze_(0)
+            slices_map.append(torch.cat((starts, ends), dim=0))
             distr_map.append(coords)
 
+        # bookkeeping in preparation for Alltoallv
         send_map, recv_map = distr_map
+        send_rep, send_to_ranks = send_map
+        recv_rep, recv_from_ranks = recv_map
         send_slices, recv_slices = slices_map
-        send_to_ranks = send_map[1].tolist()
-        recv_from_ranks = recv_map[1].tolist()
 
-        # allocate local buffers for incoming data
-        t_local_tile = torch.zeros(
-            tuple(lshape_maps[1][0].tolist()), dtype=x._DNDarray__array.dtype
-        )
-        t_tiled = tiled._DNDarray__array
+        offset_x, _, _ = x.comm.chunk(x.gshape, x.split)
+        offset_tiled, _, _ = tiled.comm.chunk(tiled.gshape, tiled.split)
+        t_tiled = tiled.larray
 
-        offset_x, _, send_slice = x.comm.chunk(x.gshape, x.split)
-        offset_tiled, _, recv_slice = tiled.comm.chunk(tiled.gshape, tiled.split)
-        local_slice = send_slice
-
-        for i, r in enumerate(send_to_ranks):
-            start = send_slices[0][i] - offset_x
-            stop = send_slices[1][i] - offset_x
-            send_slice = send_slice[:split] + (slice(start, stop, None),) + send_slice[split + 1 :]
-            local_slice = (
-                local_slice[:split] + (slice(0, stop - start, None),) + local_slice[split + 1 :]
+        active_send_counts = send_slices.clone()
+        active_send_counts[0] *= -1
+        active_send_counts = active_send_counts.sum(0)
+        active_recv_counts = recv_slices.clone()
+        active_recv_counts[0] *= -1
+        active_recv_counts = active_recv_counts.sum(0)
+        send_slices -= offset_x
+        recv_slices -= offset_tiled
+        recv_data = t_tiled.clone()
+        # we need as many Alltoallv calls as repeats along the split axis
+        for rep in range(reps[split]):
+            # send_data, send_counts, send_displs on rank
+            all_send_counts = [0] * size
+            all_send_displs = [0] * size
+            send_this_rep = torch.where(send_rep == rep)[0].tolist()
+            dest_this_rep = send_to_ranks[send_this_rep].tolist()
+            for i, j in zip(send_this_rep, dest_this_rep):
+                all_send_counts[j] = active_send_counts[i].item()
+                all_send_displs[j] = send_slices[0][i].item()
+            local_send_slice = [slice(None)] * x.ndim
+            local_send_slice[split] = slice(
+                all_send_displs[0], all_send_displs[0] + sum(all_send_counts)
             )
-            t_local_tile[local_slice] = t_x[send_slice]
-            x.comm.Send(t_local_tile, r)
-        for i, r in enumerate(recv_from_ranks):
-            start = recv_slices[0][i] - offset_tiled
-            stop = recv_slices[1][i] - offset_tiled
-            recv_slice = recv_slice[:split] + (slice(start, stop, None),) + recv_slice[split + 1 :]
-            local_slice = (
-                local_slice[:split] + (slice(0, stop - start, None),) + local_slice[split + 1 :]
+            send_data = t_x[local_send_slice].clone()
+
+            # recv_data, recv_counts, recv_displs on rank
+            all_recv_counts = [0] * size
+            all_recv_displs = [0] * size
+            recv_this_rep = torch.where(recv_rep == rep)[0].tolist()
+            orig_this_rep = recv_from_ranks[recv_this_rep].tolist()
+            for i, j in zip(recv_this_rep, orig_this_rep):
+                all_recv_counts[j] = active_recv_counts[i].item()
+                all_recv_displs[j] = recv_slices[0][i].item()
+            local_recv_slice = [slice(None)] * x.ndim
+            local_recv_slice[split] = slice(
+                all_recv_displs[0], all_recv_displs[0] + sum(all_recv_counts)
             )
-            x.comm.Recv(t_local_tile, r)
-            t_tiled[recv_slice] = t_local_tile[local_slice]
+            x.comm.Alltoallv(
+                (send_data, all_send_counts, all_send_displs),
+                (recv_data, all_recv_counts, all_recv_displs),
+            )
+            t_tiled[local_recv_slice] = recv_data[local_recv_slice]
 
         # finally tile along non-split axes if needed
         reps[split] = 1
