@@ -3065,6 +3065,16 @@ class TestManipulations(TestCase):
 
         # test distributed tile along split axis
         # len(reps) > x.ndim
+        split = 1
+        x = ht.random.randn(4, 3, split=split)
+        reps = ht.random.randint(2, 10, size=(4,)).tolist()
+        tiled_along_split = ht.tile(x, reps)
+        np_tiled_along_split = np.tile(x.numpy(), reps)
+        self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
+        self.assertTrue(tiled_along_split.dtype is x.dtype)
+
+        # test distributed tile along non-zero split axis
+        # len(reps) > x.ndim
         split = 0
         x = ht.random.randn(4, 3, split=split)
         reps = ht.random.randint(2, 10, size=(4,)).tolist()
@@ -3074,7 +3084,7 @@ class TestManipulations(TestCase):
         self.assertTrue(tiled_along_split.dtype is x.dtype)
 
         # test distributed tile() on imbalanced DNDarray
-        x = ht.random.randn(100, split=split)
+        x = ht.random.randn(100, split=0)
         x = x[ht.where(x > 0)]
         reps = (5,)
         imbalanced_tiled_along_split = ht.tile(x, reps)
