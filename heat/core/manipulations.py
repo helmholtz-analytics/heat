@@ -3402,7 +3402,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
     # "t_" indicates process-local torch tensors
     t_x = x.larray
     out_gshape = tuple(
-        torch.tensor(x.shape, device=t_x.device) * torch.tensor(reps, device=t_x.device)
+        (torch.tensor(x.shape, device=t_x.device) * torch.tensor(reps, device=t_x.device)).tolist()
     )
     if split is None or reps[split] == 1:
         # no repeats along the split axis: local operation
@@ -3428,7 +3428,9 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
             x = linalg.transpose(x, trans_axes)
             split = 0
             out_gshape = tuple(
-                torch.tensor(x.shape, device=t_x.device) * torch.tensor(reps, device=t_x.device)
+                (
+                    torch.tensor(x.shape, device=t_x.device) * torch.tensor(reps, device=t_x.device)
+                ).tolist()
             )
         x_shape = x.gshape
         # allocate tiled DNDarray, at first tiled along split axis only
