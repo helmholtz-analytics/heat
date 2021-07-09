@@ -12,7 +12,9 @@ import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 import torch.optim
 import torch.utils.data
-import torchvision.models as models
+
+# import torchvision.models as models
+from torchvision import models, datasets, transforms
 import pickle
 import sys
 
@@ -608,72 +610,78 @@ def main():
         val_size = 256
 
     # data_dir = "/hkfs/work/workspace/scratch/qv2382-heat/imagenet-raw/ILSVRC/Data/CLS-LOC/"
-    pipe = HybridPipe(
-        batch_size=args.batch_size,
-        num_threads=args.workers,
-        device_id=args.loc_rank,
-        data_dir=args.train,
-        label_dir=args.train_indexes,
-        crop=crop_size,
-        dali_cpu=args.dali_cpu,
-        training=True,
-    )
-    pipe.build()
-
-    train_loader = DALIClassificationIterator(pipe, reader_name="Reader", last_batch_policy=False)
-
-    pipe = HybridPipe(
-        batch_size=args.batch_size,
-        num_threads=args.workers,
-        device_id=args.loc_rank,
-        data_dir=args.validate,
-        label_dir=args.validate_indexes,
-        crop=val_size,
-        dali_cpu=args.dali_cpu,
-        training=False,
-    )
-    pipe.build()
-    val_loader = DALIClassificationIterator(pipe, reader_name="Reader", last_batch_policy=False)
-
-    """
-    pipe = create_dali_pipeline(
-        batch_size=args.batch_size,
-        num_threads=args.workers,
-        device_id=args.local_rank,
-        seed=12 + args.local_rank,
-        data_dir=args.train,  # data_dir + "train/",
-        label_dir=args.train_indexes,
-        crop=crop_size,
-        size=val_size,
-        dali_cpu=args.dali_cpu,
-        # shard_id=args.local_rank,
-        # num_shards=args.world_size,
-        is_training=True,
-    )
-    pipe.build()
-    train_loader = DALIClassificationIterator(
-        pipe, reader_name="Reader", last_batch_policy="PARTIAL"
+    # pipe = HybridPipe(
+    #     batch_size=args.batch_size,
+    #     num_threads=args.workers,
+    #     device_id=args.loc_rank,
+    #     data_dir=args.train,
+    #     label_dir=args.train_indexes,
+    #     crop=crop_size,
+    #     dali_cpu=args.dali_cpu,
+    #     training=True,
+    # )
+    # pipe.build()
+    #
+    # train_loader = DALIClassificationIterator(pipe, reader_name="Reader", last_batch_policy=False)
+    #
+    # pipe = HybridPipe(
+    #     batch_size=args.batch_size,
+    #     num_threads=args.workers,
+    #     device_id=args.loc_rank,
+    #     data_dir=args.validate,
+    #     label_dir=args.validate_indexes,
+    #     crop=val_size,
+    #     dali_cpu=args.dali_cpu,
+    #     training=False,
+    # )
+    # pipe.build()
+    # val_loader = DALIClassificationIterator(pipe, reader_name="Reader", last_batch_policy=False)
+    train_dataset = datasets.ImageFolder(
+        args.train,
+        transform=transforms.Compose(
+            [
+                transforms.RandomResizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        ),
     )
 
-    pipe = create_dali_pipeline(
+    train_sampler = torch.utils.data.distributed.DistributedSampler(
+        train_dataset, num_replicas=args.world_size, rank=args.rank
+    )
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset,
         batch_size=args.batch_size,
-        num_threads=args.workers,
-        device_id=args.local_rank,
-        seed=12 + args.local_rank,
-        data_dir=args.validate,
-        label_dir=args.validate_indexes,
-        crop=crop_size,
-        size=val_size,
-        dali_cpu=args.dali_cpu,
-        # shard_id=args.local_rank,
-        # num_shards=args.world_size,
-        is_training=False,
+        sampler=train_sampler,
+        num_workers=8,
+        pin_memory=True,
+        multiprocessing_context="fork",
     )
-    pipe.build()
-    val_loader = DALIClassificationIterator(
-        pipe, reader_name="Reader", last_batch_policy="PARTIAL"
+
+    val_dataset = datasets.ImageFolder(
+        args.validate,
+        transform=transforms.Compose(
+            [
+                transforms.Resize(256),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ]
+        ),
     )
-    """
+    val_sampler = torch.utils.data.distributed.DistributedSampler(
+        val_dataset, num_replicas=args.world_size, rank=args.rank
+    )
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset,
+        batch_size=args.val_batch_size,
+        sampler=val_sampler,
+        num_workers=8,
+        pin_memory=True,
+        multiprocessing_context="fork",
+    )
 
     if args.evaluate:
         validate(device, val_loader, htmodel, criterion)
