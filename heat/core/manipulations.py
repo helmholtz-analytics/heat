@@ -3332,7 +3332,6 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
     if split is None or reps[split] == 1:
         # no repeats along the split axis: local operation
         t_tiled = t_x.repeat(reps)
-        #        return factories.array(t_tiled, dtype=x.dtype, is_split=split, comm=x.comm)
         return DNDarray(
             t_tiled,
             out_gshape,
@@ -3404,7 +3403,10 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
         recv_rep, recv_from_ranks = recv_map
         send_slices, recv_slices = slices_map
 
-        offset_x, _, _ = x.comm.chunk(x.gshape, x.split)
+        # do not assume that `x` is balanced
+        _, displs = x.counts_displs()
+        offset_x = displs[rank]
+        # impose load-balance on output
         offset_tiled, _, _ = tiled.comm.chunk(tiled.gshape, tiled.split)
         t_tiled = tiled.larray
 
