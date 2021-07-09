@@ -3326,10 +3326,22 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
     split = x.split
     # "t_" indicates process-local torch tensors
     t_x = x.larray
+    out_gshape = tuple(
+        torch.tensor(x.shape, device=t_x.device) * torch.tensor(reps, device=t_x.device)
+    )
     if split is None or reps[split] == 1:
         # no repeats along the split axis: local operation
         t_tiled = t_x.repeat(reps)
-        return factories.array(t_tiled, dtype=x.dtype, is_split=split, comm=x.comm)
+        #        return factories.array(t_tiled, dtype=x.dtype, is_split=split, comm=x.comm)
+        return DNDarray(
+            t_tiled,
+            out_gshape,
+            dtype=x.dtype,
+            split=split,
+            device=x.device,
+            comm=x.comm,
+            balanced=x.balanced,
+        )
     else:
         # repeats along the split axis: communication of the split-axis repeats only
         size = x.comm.Get_size()
@@ -3441,8 +3453,15 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
 
         # finally tile along non-split axes if needed
         reps[split] = 1
-        tiled = factories.array(t_tiled.repeat(reps), dtype=x.dtype, is_split=split, comm=x.comm)
-        return tiled
+        return DNDarray(
+            t_tiled.repeat(reps),
+            out_gshape,
+            dtype=x.dtype,
+            split=split,
+            device=x.device,
+            comm=x.comm,
+            balanced=True,
+        )
 
 
 def topk(
