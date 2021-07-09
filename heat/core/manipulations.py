@@ -3342,9 +3342,19 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
             balanced=x.balanced,
         )
     else:
-        # repeats along the split axis: communication of the split-axis repeats only
+        # repeats along the split axis
         size = x.comm.Get_size()
         rank = x.comm.Get_rank()
+        # make sure we work along dim 0
+        trans_axes = list(range(x.ndim))
+        if split != 0:
+            trans_axes[0], trans_axes[split] = split, 0
+            reps[0], reps[split] = reps[split], reps[0]
+            x = linalg.transpose(x, trans_axes)
+            split = 0
+            out_gshape = tuple(
+                torch.tensor(x.shape, device=t_x.device) * torch.tensor(reps, device=t_x.device)
+            )
         x_shape = x.gshape
         # allocate tiled DNDarray, at first tiled along split axis only
         split_reps = [rep if i == split else 1 for i, rep in enumerate(reps)]
@@ -3455,7 +3465,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
 
         # finally tile along non-split axes if needed
         reps[split] = 1
-        return DNDarray(
+        tiled = DNDarray(
             t_tiled.repeat(reps),
             out_gshape,
             dtype=x.dtype,
@@ -3464,6 +3474,12 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
             comm=x.comm,
             balanced=True,
         )
+        if trans_axes != list(range(x.ndim)):
+            # transpose back to original shape
+            x = linalg.transpose(x, trans_axes)
+            tiled = linalg.transpose(tiled, trans_axes)
+
+        return tiled
 
 
 def topk(
