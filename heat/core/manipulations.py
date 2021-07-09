@@ -3340,15 +3340,11 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
         split_tiled_shape = tuple(s * r for s, r in zip(x_shape, split_reps))
         tiled = factories.empty(split_tiled_shape, dtype=x.dtype, split=split, comm=x.comm)
         # collect slicing information from all processes.
-        lshape_maps = []
         slices_map = []
         for array in [x, tiled]:
             counts, displs = array.counts_displs()
             t_slices_starts = torch.tensor(displs, device=t_x.device)
             t_slices_ends = t_slices_starts + torch.tensor(counts, device=t_x.device)
-            # TODO: replace following with lshape_map property when available
-            t_lshape_map = array.create_lshape_map()
-            lshape_maps.append(t_lshape_map)
             slices_map.append([t_slices_starts, t_slices_ends])
 
         t_slices_x, t_slices_tiled = slices_map
