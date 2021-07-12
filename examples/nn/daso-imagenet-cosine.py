@@ -484,55 +484,9 @@ def main():
         crop_size = 224  # should this be 256?
         val_size = 256
 
-        # train_dataset = datasets.ImageFolder(
-        #     args.train,
-        #     transform=transforms.Compose(
-        #         [
-        #             transforms.RandomResizedCrop(224),
-        #             transforms.RandomHorizontalFlip(),
-        #             transforms.ToTensor(),
-        #             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        #         ]
-        #     ),
-        # )
-        # train_sampler = torch.utils.data.distributed.DistributedSampler(
-        #     train_dataset, num_replicas=args.world_size, rank=rank
-        # )
-        # train_loader = torch.utils.data.DataLoader(
-        #     train_dataset,
-        #     batch_size=args.batch_size,
-        #     sampler=train_sampler,
-        #     num_workers=2,
-        #     pin_memory=True,
-        #     multiprocessing_context="fork",  # helps with infiniband issues?? (from hvd)
-        # )
-        #
-        # val_dataset = datasets.ImageFolder(
-        #     args.validate,
-        #     transform=transforms.Compose(
-        #         [
-        #             transforms.Resize(256),
-        #             transforms.CenterCrop(224),
-        #             transforms.ToTensor(),
-        #             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        #         ]
-        #     ),
-        # )
-        # val_sampler = torch.utils.data.distributed.DistributedSampler(
-        #     val_dataset, num_replicas=args.world_size, rank=rank
-        # )
-        # val_loader = torch.utils.data.DataLoader(
-        #     val_dataset,
-        #     batch_size=args.batch_size,
-        #     sampler=val_sampler,
-        #     num_workers=2,
-        #     pin_memory=True,
-        #     multiprocessing_context="fork",
-        #     # 'forkserver',  # helps with infiniband issues?? (from hvd)
-        # )
-
         data_dir = "/hkfs/work/workspace/scratch/qv2382-heat/imagenet-raw/ILSVRC/Data/CLS-LOC/"
 
+    # todo: change this to be the old DALI loader to work on the booster
     pipe = create_dali_pipeline(
         batch_size=args.batch_size,
         num_threads=args.workers,

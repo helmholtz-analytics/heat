@@ -15,7 +15,7 @@ from ..core.communication import MPI_WORLD
 from ..core.communication import MPICommunication
 
 
-__all__ = ["DataParallel", "DataParallelMultiGPU"]
+__all__ = ["DataParallel", "DataParallelDASO"]
 
 
 class DataParallel(tnn.Module):
@@ -311,7 +311,7 @@ class DataParallel(tnn.Module):
             module.reset_parameters()
 
 
-class DataParallelMultiGPU(tnn.Module):
+class DataParallelDASO(tnn.Module):
     """
     This creates data parallel networks local to each node using PyTorch's distributed class. This does NOT
     do any global synchronizations. To make optimal use of this structure, use :func:`ht.optim.DASO <heat.optim.dp_optimizer.DASO>`.
@@ -335,7 +335,8 @@ class DataParallelMultiGPU(tnn.Module):
     def __init__(
         self, module: torch.nn.Module, optimizer: optim.DASO, comm: MPICommunication = MPI_WORLD
     ):  # noqa: D107
-        super(DataParallelMultiGPU, self).__init__()
+        super(DataParallelDASO, self).__init__()
+
         rank = comm.rank
         if torch.cuda.device_count() > 1:
             self.loc_gpus = torch.cuda.device_count()
