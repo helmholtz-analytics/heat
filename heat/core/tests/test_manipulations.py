@@ -386,8 +386,9 @@ class TestManipulations(TestCase):
         self.assertEqual(res.shape, (size * 2, size * 2))
         self.assertEqual(res.lshape[res.split], 2)
         exp = torch.diag(data)
-        for i in range(rank * 2, (rank + 1) * 2):
-            self.assertTrue(torch.equal(res[i, i].larray, exp[i, i]))
+        counts, displs = res.counts_displs()
+        local_exp = exp[displs[rank] : displs[rank] + counts[rank]]
+        self.assertTrue(torch.equal(res.larray, local_exp))
 
         res = ht.diag(a, offset=size)
 
@@ -395,16 +396,19 @@ class TestManipulations(TestCase):
         self.assertEqual(res.shape, (size * 3, size * 3))
         self.assertEqual(res.lshape[res.split], 3)
         exp = torch.diag(data, diagonal=size)
-        for i in range(rank * 3, min((rank + 1) * 3, a.shape[0])):
-            self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size]))
+
+        torch.manual_seed(size)
+        i = torch.randint(a.shape[0], ()).item()
+        self.assertTrue(torch.equal(res[i, i + size].larray, exp[i, i + size]))
 
         res = ht.diag(a, offset=-size)
         self.assertEqual(res.split, a.split)
         self.assertEqual(res.shape, (size * 3, size * 3))
         self.assertEqual(res.lshape[res.split], 3)
         exp = torch.diag(data, diagonal=-size)
-        for i in range(max(size, rank * 3), (rank + 1) * 3):
-            self.assertTrue(torch.equal(res[i, i - size].larray, exp[i, i - size]))
+        counts, displs = res.counts_displs()
+        local_exp = exp[displs[rank] : displs[rank] + counts[rank]]
+        self.assertTrue(torch.equal(res.larray, local_exp))
 
         self.assertTrue(ht.equal(ht.diag(ht.diag(a)), a))
 
@@ -433,9 +437,10 @@ class TestManipulations(TestCase):
             data = torch.empty(0, dtype=torch.int32, device=self.device.torch_device)
         a = ht.array(data, is_split=0)
         res = ht.diag(a)
+        i = torch.randint(size, ()).item()
         self.assertTrue(
             torch.equal(
-                res[rank, rank].larray,
+                res[i, i].larray,
                 torch.tensor(1, dtype=torch.int32, device=self.device.torch_device),
             )
         )
@@ -449,7 +454,7 @@ class TestManipulations(TestCase):
         )
 
         self.assert_func_equal(
-            (27,),
+            (5,),
             heat_func=ht.diag,
             numpy_func=np.diag,
             heat_args={"offset": -3},
@@ -1890,7 +1895,7 @@ class TestManipulations(TestCase):
         # -------------------
         # axis = None
         # -------------------
-        a = ht.arange(12, split=0).reshape((2, 2, 3), axis=1)
+        a = ht.arange(12, split=0).reshape((2, 2, 3), new_split=1)
         a_np = a.numpy()
 
         # repeats = scalar
@@ -2081,6 +2086,43 @@ class TestManipulations(TestCase):
         self.assertTrue(ht.equal(reshaped, result))
         self.assertEqual(reshaped.device, result.device)
 
+        b = ht.arange(4 * 5 * 6, dtype=ht.float64)
+        # test *shape input
+        reshaped = b.reshape(4, 5, 6)
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
+        # test new_split not None
+        reshaped = b.reshape(4, 5, -1, new_split=-1)
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, 2)
+        self.assertEqual(reshaped.device, b.device)
+        self.assertEqual(reshaped.balanced, b.is_balanced(force_check=True))
+        # test shape types
+        reshaped = b.reshape(ht.array([4, 5, 6], dtype=ht.int, device=self.device, split=None))
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
+        reshaped = b.reshape(ht.array([4, 5, 6], dtype=ht.int, device=self.device, split=0))
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
+        reshaped = b.reshape(
+            torch.as_tensor([4, 5, 6], dtype=torch.int32, device=self.device.torch_device)
+        )
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
+        reshaped = b.reshape(np.asarray([4, 5, 6], dtype=np.int32))
+        self.assertTrue(reshaped.gshape == (4, 5, 6))
+        self.assertEqual(reshaped.dtype, b.dtype)
+        self.assertEqual(reshaped.split, b.split)
+        self.assertEqual(reshaped.device, b.device)
         # shape = -1
         result = ht.zeros(12, device=self.device)
         reshaped = ht.reshape(a, -1)
@@ -2209,8 +2251,15 @@ class TestManipulations(TestCase):
 
         # unknown dimension
         a = ht.ones((4, 4, 4), split=0, device=self.device)
-        result = ht.ones((4, 16), split=0, device=self.device)
 
+        result = ht.ones((64), split=0, device=self.device)
+        reshaped = ht.reshape(a, -1)
+        self.assertEqual(reshaped.size, result.size)
+        self.assertEqual(reshaped.shape, result.shape)
+        self.assertTrue(ht.equal(reshaped, result))
+        self.assertEqual(reshaped.device, result.device)
+
+        result = ht.ones((4, 16), split=0, device=self.device)
         reshaped = ht.reshape(a, (4, -1))
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)
@@ -2251,7 +2300,9 @@ class TestManipulations(TestCase):
         with self.assertRaises(ValueError):
             ht.reshape(ht.zeros((4, 3)), (-1, -1, 3))
         with self.assertRaises(ValueError):
-            ht.reshape(ht.zeros((4, 3)), (3, -2))
+            ht.reshape(ht.zeros((4, 3)), (5, -1))
+        # with self.assertRaises(ValueError):   actually this works in numpy
+        #    ht.reshape(ht.zeros((4, 3)), (3, -2))
         with self.assertRaises(TypeError):
             ht.reshape(ht.zeros((4, 3)), (3.4, 3.2))
 

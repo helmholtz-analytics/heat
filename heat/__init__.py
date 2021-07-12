@@ -1,3 +1,7 @@
+"""
+add modules/namespaces to the heat namespace
+"""
+
 from .core import *
 from .core.linalg import *
 from .core import __version__
