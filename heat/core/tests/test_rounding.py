@@ -363,6 +363,7 @@ class TestRounding(TestCase):
         a = ht.array([[1 - 2j, -0.5 + 1j], [0 - 3j, 4 + 6j]], split=0)
         signed = ht.sgn(a)
         comparison = torch.sgn(torch.tensor([[1 - 2j, -0.5 + 1j], [0 - 3j, 4 + 6j]]))
+        comparison = comparison.to(a.device.torch_device)
 
         self.assertEqual(signed.dtype, ht.heat_type_of(comparison))
         self.assertEqual(signed.shape, a.shape)
