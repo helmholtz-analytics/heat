@@ -664,7 +664,6 @@ class DNDarray:
         -------
         dictionary containing the partition interface as shown above.
         """
-        # sp =
         lshape_map = self.create_lshape_map()
         start_idx_map = torch.zeros_like(lshape_map)
 
@@ -705,6 +704,12 @@ class DNDarray:
             "partitions": partitions,
             "locals": [tuple(lcls)],
         }
+
+        def _partition_getter(key):
+            return partition_dict["partitions"][key]["data"]
+
+        partition_dict["get"] = _partition_getter
+
         return partition_dict
 
     def __float__(self) -> DNDarray:
