@@ -739,7 +739,7 @@ class DNDarray:
                 new_split = 0
             else:
                 for i in range(len(key[: self.split + 1])):
-                    if self.__getitem_is_key_singular(key, i, self_proxy):
+                    if self.__is_key_singular(key, i, self_proxy):
                         new_split = None if i == self.split else new_split - 1
 
         key = tuple(key)
@@ -846,7 +846,7 @@ class DNDarray:
                 lout[new_split] = 0
                 arr = torch.empty(lout, dtype=self.__array.dtype, device=self.__array.device)
 
-        elif self.__getitem_is_key_singular(key, self.split, self_proxy):
+        elif self.__is_key_singular(key, self.split, self_proxy):
             # getting one item along split axis:
             key = list(key)
             if isinstance(key[self.split], list):
