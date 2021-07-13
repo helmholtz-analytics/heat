@@ -1402,6 +1402,13 @@ class DNDarray:
             kend = key[ell_ind + 1 :]
             slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
             key = kst + slices + kend
+
+        for c, k in enumerate(key):
+            try:
+                key[c] = k.item()
+            except AttributeError:
+                pass
+
         key = tuple(key)
 
         if not self.is_distributed():
@@ -1420,6 +1427,8 @@ class DNDarray:
         _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
         chunk_start = chunk_slice[self.split].start
         chunk_end = chunk_slice[self.split].stop
+
+        self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
 
         if not isinstance(key, tuple):
             return self.__setter(key, value)  # returns None
@@ -1458,7 +1467,6 @@ class DNDarray:
                 target_reshape_map = torch.zeros(
                     (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
                 )
-                self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
                 for r in range(self.comm.size):
                     if r not in actives:
                         loc_key = key.copy()
