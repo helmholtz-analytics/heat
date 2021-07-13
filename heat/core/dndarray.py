@@ -576,18 +576,18 @@ class DNDarray:
         self.__device = devices.cpu
         return self
 
-    def create_lshape_map(self, recreate: bool = True) -> torch.Tensor:
+    def create_lshape_map(self, force_check: bool = True) -> torch.Tensor:
         """
         Generate a 'map' of the lshapes of the data on all processes.
         Units are ``(process rank, lshape)``
 
         Parameters
         ----------
-        recreate : bool, optional
+        force_check : bool, optional
             if False (default) and the lshape map has already been created, use the previous
             result. Otherwise, create the lshape_map
         """
-        if not recreate and self.__lshape_map is not None:
+        if not force_check and self.__lshape_map is not None:
             return self.__lshape_map
 
         lshape_map = torch.zeros(
@@ -1367,6 +1367,16 @@ class DNDarray:
                           [0., 1., 0., 0., 0.]])
         """
         key = getattr(key, "copy()", key)
+        try:
+            if value.split != self.split:
+                warnings.warn(
+                    f"\nvalue.split {value.split} not equal to this DNDarray's split:"
+                    f" {self.split}. this may cause errors or unwanted behavior",
+                    category=RuntimeWarning,
+                )
+        except AttributeError:
+            pass
+
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
             # this splits the key into torch.Tensors in each dimension for advanced indexing
             lkey = [slice(None, None, None)] * self.ndim
