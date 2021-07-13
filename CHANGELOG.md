@@ -65,6 +65,7 @@ Example on 2 processes:
 
 ### Misc.
 - [#761](https://github.com/helmholtz-analytics/heat/pull/761) New feature: `result_type`
+- [#788](https://github.com/helmholtz-analytics/heat/pull/788) Added the partition interface `DNDarray` for use with DPPY
 - [#794](https://github.com/helmholtz-analytics/heat/pull/794) New feature: `meshgrid`
 - [#821](https://github.com/helmholtz-analytics/heat/pull/821) Enhancement: it is no longer necessary to load-balance an imbalanced `DNDarray` before gathering it onto all processes. In short: `ht.resplit(array, None)` now works on imbalanced arrays as well.
 
