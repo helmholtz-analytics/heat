@@ -1369,12 +1369,14 @@ class DNDarray:
         key = getattr(key, "copy()", key)
         try:
             if value.split != self.split:
+                val_split = int(value.split)
+                sp = self.split
                 warnings.warn(
-                    f"\nvalue.split {value.split} not equal to this DNDarray's split:"
-                    f" {self.split}. this may cause errors or unwanted behavior",
+                    f"\nvalue.split {val_split} not equal to this DNDarray's split:"
+                    f" {sp}. this may cause errors or unwanted behavior",
                     category=RuntimeWarning,
                 )
-        except AttributeError:
+        except (AttributeError, TypeError):
             pass
 
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
@@ -1406,7 +1408,7 @@ class DNDarray:
         for c, k in enumerate(key):
             try:
                 key[c] = k.item()
-            except AttributeError:
+            except (AttributeError, ValueError):
                 pass
 
         key = tuple(key)
