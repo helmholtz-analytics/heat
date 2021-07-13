@@ -219,60 +219,56 @@ class DASOLayers:
 
     def __prepare_buckets(self):
         # determine the buckets for sending and receiving the global update steps
-        # bucket key:
-        #       names -> names in bucket
-        #       bucket -> buffer to put result int
-        #       wait -> wait object
+        # buckets dict:
+        #       "names": dictionary
+        #           layer name: dictionary
+        #               "slice": slice(where to slice the buffer)
+        #               "shape": the shape of the parameter
+        #       "bucket": torch buffer to put result int
+        #       "wait": wait object
         bucket_size = self._base_bucket_size
-        buckets_key = {}
         buckets = {}
 
+        bucket_key = {}
         current_bucket_size = 0
         current_bucket_number = 0
-        names = []
-        # iterate backwards through the network to make the first bucket smaller (less time required)
-        reved_iter = reversed([(n, p) for n, p in self.local_model.named_parameters()])
-        for name, param in reved_iter:
+        sl_st = 0
+        for name, param in self.local_model.named_parameters():
             if param.requires_grad:
-                names.append(name)
                 pnumel = param.numel()
-                param_slice = slice(current_bucket_number, pnumel)
-                param_shape = param.shape
                 current_bucket_size += pnumel
 
-                # if current_bucket_number in buckets.keys():
-                buckets_key[name] = {
-                    "number": current_bucket_number,
-                    "slice": param_slice,
-                    "shape": param_shape,
-                }
+                bucket_key[name] = {"slice": slice(sl_st, sl_st + pnumel), "shape": param.shape}
+                sl_st += pnumel
 
                 if current_bucket_size >= bucket_size:
                     buckets[current_bucket_number] = {
-                        "names": names,
                         "bucket": torch.empty(
                             current_bucket_size, dtype=self.sending_buffer_dtype, device=self.device
                         ),
                         "wait": None,
+                        "names": bucket_key,
                     }
-                    names = []
                     current_bucket_size = 0
+                    current_bucket_number += 1
+                    bucket_key = {}
+                    sl_st = 0
 
-        # this handles any remaining buckets at the end
-        if current_bucket_size > 0:
+        if current_bucket_size:
             buckets[current_bucket_number] = {
-                "names": names,
                 "bucket": torch.empty(
                     current_bucket_size, dtype=self.sending_buffer_dtype, device=self.device
                 ),
                 "wait": None,
+                "names": bucket_key,
             }
+
         # dont need to reverse any of them, the buffers stand alone
         self.buckets = buckets
-        self.buckets_key = buckets_key
 
-    class WaitLayer(torch.nn.Module):
+    class BucketReceiveLayer(torch.nn.Module):
         # this is a NN layer which is built to receive the network weights
+        # todo: init this for each bucket, not for each layer
         def __init__(
             self,
             comm_group,
@@ -308,14 +304,18 @@ class DASOLayers:
             if self.batch_number == 0 or not self.data_sent:
                 self.batch_number += 1
                 return
+
             # if we are waiting
             if self.batches_waited < self.batches_to_wait:
                 self.batches_waited += 1
                 return
+
             # if going to receive: are there any other cases?
             if self.batches_waited == self.batches_to_wait:
                 # need to receive the bias and the weight
                 # make this a try except with the weights and biases
+
+                # todo: get the names of the layers for this bucket
 
                 for name in [".bias", ".weight"]:
                     if self.buckets[self.next_layer_name + name]["wait"] is not None:
