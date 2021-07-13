@@ -257,7 +257,9 @@ def __kundu_transform(values: torch.Tensor) -> torch.Tensor:
     ----------
     [1] Boiroju, N. K. and Reddy, K. M., "Generation of Standard Normal Random Numbers", Interstat, vol 5., 2012.
     """
-    return (torch.log(-torch.log(1 - values ** 0.0775)) - 1.0821) * __KUNDU_INVERSE
+    inner = 1 - values ** 0.0775
+    tiny = torch.finfo(inner.dtype).tiny
+    return (torch.log(-torch.log(inner + tiny) + tiny) - 1.0821) * __KUNDU_INVERSE
 
 
 def permutation(x: Union[int, DNDarray]) -> DNDarray:
