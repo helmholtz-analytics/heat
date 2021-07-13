@@ -10,14 +10,28 @@ from typing import List, Callable, Union, Optional
 
 from ..communication import MPI
 from .. import arithmetics
+from .. import constants
 from .. import exponential
 from ..dndarray import DNDarray
 from .. import factories
 from .. import manipulations
+from .. import rounding
 from .. import sanitation
+from .. import statistics
 from .. import types
 
-__all__ = ["dot", "matmul", "norm", "outer", "projection", "trace", "transpose", "tril", "triu"]
+__all__ = [
+    "dot",
+    "matmul",
+    "norm",
+    "outer",
+    "projection",
+    "trace",
+    "transpose",
+    "tril",
+    "triu",
+    "vector_norm",
+]
 
 
 def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDarray, float]:
@@ -63,9 +77,17 @@ def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDar
             a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
 
         if out is not None:
-            out = ret.item()
+            out.larray = ret
             return out
-        return ret.item()
+        return DNDarray(
+            ret,
+            (),
+            dtype=types.heat_type_of(ret),
+            split=None,
+            device=a.device,
+            comm=a.comm,
+            balanced=True,
+        )
     elif a.ndim <= 2 and b.ndim <= 2:
         # 2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
         ret = matmul(a, b)
@@ -1638,3 +1660,33 @@ def triu(m: DNDarray, k: int = 0) -> DNDarray:
 
 DNDarray.triu: Callable[[DNDarray, int], DNDarray] = lambda self, k=0: triu(self, k)
 DNDarray.triu.__doc__ = triu.__doc__
+
+
+def vector_norm(x, axis=None, keepdims=False, ord=None) -> DNDarray:
+    """
+    Docstring
+    """
+    if ord is None:
+        ord == 2
+    #    ndim = x.ndim
+    #    if types.issubdtype(x.dtype, types.complex):
+    #        sqnorm = dot(x.real, x.real) + dot(x.imag, x.imag)
+    #    else:
+    #        sqnorm = dot(x, x)
+    #    ret = exponential.sqrt(sqnorm)
+    #    if keepdims:
+    #        ret = ret.reshape(ndim*[1])
+    #    return ret
+
+    if ord == constants.INF:
+        return statistics.max(rounding.abs(x), axis=axis, keepdim=keepdims)
+    if ord == -constants.INF:
+        return statistics.min(rounding.abs(x), axis=axis, keepdim=keepdims)
+    if ord == 0:
+        return arithmetics.sum(x != 0, axis=axis, keepdim=keepdims)
+
+    ret = arithmetics.pow(rounding.abs(x), ord)
+    ret = arithmetics.sum(ret, axis=axis, keepdim=keepdims)
+    ret = arithmetics.pow(ret, 1.0 / ord)
+
+    return ret
