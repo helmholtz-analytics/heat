@@ -693,9 +693,10 @@ class DNDarray:
         l_dtype = self.dtype.torch_type()
         advanced_ind = False
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
-            """ if the key is a DNDarray and it has as many dimensions as self, then each of the entries in the 0th
-                dim refer to a single element. To handle this, the key is split into the torch tensors for each dimension.
-                This signals that advanced indexing is to be used. """
+            """ if the key is a DNDarray and it has as many dimensions as self, then each of the
+                entries in the 0th dim refer to a single element. To handle this, the key is split
+                into the torch tensors for each dimension. This signals that advanced indexing is
+                to be used. """
             key = manipulations.resplit(key.copy())
             if key.ndim > 1:
                 key = list(key.larray.split(1, dim=1))
@@ -706,9 +707,9 @@ class DNDarray:
                 key = (key,)
             advanced_ind = True
         elif not isinstance(key, tuple):
-            """ this loop handles all other cases. DNDarrays which make it to here refer to advanced indexing slices,
-                as do the torch tensors. Both DNDaarrys and torch.Tensors are cast into lists here by PyTorch.
-                lists mean advanced indexing will be used"""
+            """ this loop handles all other cases. DNDarrays which make it to here refer to
+                advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
+                are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
             h = [slice(None, None, None)] * self.ndim
             if isinstance(key, DNDarray):
                 key = manipulations.resplit(key.copy())
@@ -756,9 +757,7 @@ class DNDarray:
                 new_split = 0
             else:
                 for i in range(len(key[: self.split + 1])):
-                    if not isinstance(key[i], slice) and (
-                        isinstance(key[i], int) or len(key[i]) == 1
-                    ):
+                    if self.__is_key_singular(key, i, self_proxy):
                         new_split = None if i == self.split else new_split - 1
 
         key = tuple(key)
@@ -782,9 +781,8 @@ class DNDarray:
             arr = self.__array[key]
 
         """ At the end of the following if/elif/elif block the output array will be set.
-            each block handles the case where the element of the key along the split axis is a different type
-            and converts the key from global indices to local indices.
-        """
+            each block handles the case where the element of the key along the split axis
+            is a different type and converts the key from global indices to local indices. """
         lout = gout_full.copy()
 
         if (
@@ -859,11 +857,7 @@ class DNDarray:
                 lout[new_split] = 0
                 arr = torch.empty(lout, dtype=self.__array.dtype, device=self.__array.device)
 
-        elif (
-            isinstance(key[self.split], int)
-            or isinstance(key[self.split], (list, torch.Tensor, DNDarray, np.ndarray))
-            and len(key[self.split]) == 1
-        ):
+        elif self.__is_key_singular(key, self.split, self_proxy):
             # getting one item along split axis:
             key = list(key)
             if isinstance(key[self.split], list):
@@ -945,6 +939,12 @@ class DNDarray:
         Determines whether the data of this ``DNDarray`` is distributed across multiple processes.
         """
         return self.split is not None and self.comm.is_distributed()
+
+    @staticmethod
+    def __is_key_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+        # determine if the key gets a singular item
+        zeros = tuple([0] * (self_proxy.ndim - 1))
+        return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
 
     def item(self):
         """
