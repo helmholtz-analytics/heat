@@ -703,12 +703,8 @@ class DNDarray:
             "partition_tiling": tuple(part_tiling),
             "partitions": partitions,
             "locals": [tuple(lcls)],
+            "get": lambda x: x,
         }
-
-        def _partition_getter(key):
-            return partition_dict["partitions"][key]["data"]
-
-        partition_dict["get"] = _partition_getter
 
         return partition_dict
 
