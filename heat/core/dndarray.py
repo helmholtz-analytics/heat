@@ -881,12 +881,6 @@ class DNDarray:
             balanced=True if new_split is None else None,
         )
 
-    @staticmethod
-    def __getitem_is_key_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
-        # determine if the key gets a singular item
-        zeros = tuple([0] * (self_proxy.ndim - 1))
-        return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
-
     if torch.cuda.device_count() > 0:
 
         def gpu(self) -> DNDarray:
@@ -934,6 +928,12 @@ class DNDarray:
         Determines whether the data of this ``DNDarray`` is distributed across multiple processes.
         """
         return self.split is not None and self.comm.is_distributed()
+
+    @staticmethod
+    def __is_key_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+        # determine if the key gets a singular item
+        zeros = tuple([0] * (self_proxy.ndim - 1))
+        return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
 
     def item(self):
         """
