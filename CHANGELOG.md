@@ -1,6 +1,8 @@
-# Pending additions
+# v1.1.0
 
 ## Highlights
+- Slicing/indexing overhaul for a more NumPy-like user experience
+- More flexibility in handling non-load-balanced distributed arrays.
 
 ## Breaking Changes
 - [#758](https://github.com/helmholtz-analytics/heat/pull/758) Indexing a distributed `DNDarray` along the `DNDarray.split` dimension now returns a non-distributed `DNDarray`, i.e. the indexed element is MPI-broadcasted.
