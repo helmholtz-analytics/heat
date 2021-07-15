@@ -34,7 +34,7 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.add(self.a_split_tensor, self.a_tensor), result))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.add(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.add(self.a_tensor, self.errorneous_type)
@@ -319,7 +319,7 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.div(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.div(self.a_split_tensor, self.a_tensor), commutated_result))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.div(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.div(self.a_tensor, self.errorneous_type)
@@ -405,7 +405,7 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.mul(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.mul(self.a_split_tensor, self.a_tensor), result))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.mul(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.mul(self.a_tensor, self.errorneous_type)
@@ -606,7 +606,7 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.sub(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.sub(self.a_split_tensor, self.a_tensor), minus_result))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.sub(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.sub(self.a_tensor, self.errorneous_type)

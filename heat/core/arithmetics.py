@@ -16,13 +16,7 @@ from . import types
 
 from .communication import MPI
 from .dndarray import DNDarray
-from .types import (
-    canonical_heat_type,
-    heat_type_is_inexact,
-    heat_type_is_exact,
-    heat_type_of,
-    datatype,
-)
+from .types import canonical_heat_type, heat_type_is_inexact, heat_type_of, datatype
 
 
 __all__ = [
@@ -88,6 +82,64 @@ def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[3., 4.],
               [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
     """
+    # if isinstance(t1, DNDarray):
+    #     try:  # both DNDarrays
+    #         # t1.ndim >= t2.ndim for pow
+    #         if t1.split is None:
+    #             resplit_axis = None
+    #         else:
+    #             resplit_axis = t1.split - (t1.ndim - t2.ndim)
+    #             if resplit_axis < 0:
+    #                 resplit_axis = None
+    #         t2 = manipulations.resplit(t2, resplit_axis)
+    #         right = t2.larray
+    #         t1numel = t1.lnumel
+    #         rnumel = right.numel()
+    #     except AttributeError:  # one isn't a DNDarray
+    #         try:  # is t1 a torch tensor?
+    #             t1numel = t1.numel()
+    #         except AttributeError:
+    #             # its not a torch tensor so it must be a scalar
+    #             t1numel = 1
+    #
+    #         right = t2
+    #         try:  # is t1 a torch tensor?
+    #             rnumel = right.numel()
+    #         except AttributeError:
+    #             # its not a torch tensor so it must be a scalar
+    #             rnumel = 1
+    #     dev = t1.device
+    #     if t1numel and rnumel:
+    #         larray = torch.add(t1.larray, right).to(dev.torch_device)
+    #     else:
+    #         torch_dtype = torch.promote_types(t1.larray.dtype, right.dtype)
+    #         larray = torch.tensor([], dtype=torch_dtype, device=dev.torch_device)
+    #         empty_shape = list(t1.lshape)
+    #         empty_shape[t1.split] = 0
+    #         larray = larray.reshape(empty_shape)
+    #
+    #     return DNDarray(
+    #         larray,
+    #         split=t1.split,
+    #         dtype=types.canonical_heat_type(larray.dtype),
+    #         comm=t1.comm,
+    #         device=dev,
+    #         gshape=t1.gshape,
+    #         balanced=True,
+    #     )
+    # elif isinstance(t2, DNDarray):
+    #     # t1 is not a DNDarray, t2 *is* a DNDarray
+    #     dev = t2.device
+    #     larray = torch.add(t1, t2.larray).to(dev.torch_device)
+    #     return DNDarray(
+    #         larray,
+    #         split=t2.split,
+    #         dtype=types.canonical_heat_type(larray.dtype),
+    #         comm=t2.comm,
+    #         device=dev,
+    #         gshape=t2.gshape,
+    #         balanced=True,
+    #     )
     return _operations.__binary_op(torch.add, t1, t2)
 
 
@@ -453,6 +505,61 @@ def div(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[2.0000, 1.0000],
               [0.6667, 0.5000]], dtype=ht.float32, device=cpu:0, split=None)
     """
+    # if isinstance(t1, DNDarray):
+    #     try:  # both DNDarrays
+    #         # t1.ndim >= t2.ndim for pow
+    #         if t1.split is None:
+    #             resplit_axis = None
+    #         else:
+    #             resplit_axis = t1.split - (t1.ndim - t2.ndim)
+    #             if resplit_axis < 0:
+    #                 resplit_axis = None
+    #         t2 = manipulations.resplit(t2, resplit_axis)
+    #         right = t2.larray
+    #         t1numel = t1.lnumel
+    #         rnumel = right.numel()
+    #     except AttributeError:  # one isn't a DNDarray
+    #         try:  # is t1 a torch tensor?
+    #             t1numel = t1.numel()
+    #         except AttributeError:
+    #             # its not a torch tensor so it must be a scalar
+    #             t1numel = 1
+    #
+    #         right = t2
+    #         try:  # is t1 a torch tensor?
+    #             rnumel = right.numel()
+    #         except AttributeError:
+    #             # its not a torch tensor so it must be a scalar
+    #             rnumel = 1
+    #     dev = t1.device
+    #     if t1numel and rnumel:
+    #         larray = torch.true_divide(t1.larray, right).to(dev.torch_device)
+    #     else:
+    #         torch_dtype = torch.promote_types(t1.larray.dtype, right.dtype)
+    #         larray = torch.tensor([], dtype=torch_dtype, device=dev.torch_device)
+    #
+    #     return DNDarray(
+    #         larray,
+    #         split=t1.split,
+    #         dtype=types.canonical_heat_type(larray.dtype),
+    #         comm=t1.comm,
+    #         device=dev,
+    #         gshape=t1.gshape,
+    #         balanced=True,
+    #     )
+    # elif isinstance(t2, DNDarray):
+    #     # t1 is not a DNDarray, t2 *is* a DNDarray
+    #     dev = t2.device
+    #     larray = torch.true_divide(t1, t2.larray).to(dev.torch_device)
+    #     return DNDarray(
+    #         larray,
+    #         split=t2.split,
+    #         dtype=types.canonical_heat_type(larray.dtype),
+    #         comm=t2.comm,
+    #         device=dev,
+    #         gshape=t2.gshape,
+    #         balanced=True,
+    #     )
     return _operations.__binary_op(torch.true_divide, t1, t2)
 
 
@@ -517,6 +624,61 @@ def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray
     DNDarray([[1., 0.],
               [1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
+    # if isinstance(t1, DNDarray):
+    #     try:  # both DNDarrays
+    #         # t1.ndim >= t2.ndim for pow
+    #         if t1.split is None:
+    #             resplit_axis = None
+    #         else:
+    #             resplit_axis = t1.split - (t1.ndim - t2.ndim)
+    #             if resplit_axis < 0:
+    #                 resplit_axis = None
+    #         t2 = manipulations.resplit(t2, resplit_axis)
+    #         right = t2.larray
+    #         t1numel = t1.lnumel
+    #         rnumel = right.numel()
+    #     except AttributeError:  # one isn't a DNDarray
+    #         try:  # is t1 a torch tensor?
+    #             t1numel = t1.numel()
+    #         except AttributeError:
+    #             # its not a torch tensor so it must be a scalar
+    #             t1numel = 1
+    #
+    #         right = t2
+    #         try:  # is t1 a torch tensor?
+    #             rnumel = right.numel()
+    #         except AttributeError:
+    #             # its not a torch tensor so it must be a scalar
+    #             rnumel = 1
+    #     dev = t1.device
+    #     if t1numel and rnumel:
+    #         larray = torch.floor_divide(t1.larray, right).to(dev.torch_device)
+    #     else:
+    #         torch_dtype = torch.promote_types(t1.larray.dtype, right.dtype)
+    #         larray = torch.tensor([], dtype=torch_dtype, device=dev.torch_device)
+    #
+    #     return DNDarray(
+    #         larray,
+    #         split=t1.split,
+    #         dtype=types.canonical_heat_type(larray.dtype),
+    #         comm=t1.comm,
+    #         device=dev,
+    #         gshape=t1.gshape,
+    #         balanced=True,
+    #     )
+    # elif isinstance(t2, DNDarray):
+    #     # t1 is not a DNDarray, t2 *is* a DNDarray
+    #     dev = t2.device
+    #     larray = torch.floor_divide(t1, t2.larray).to(dev.torch_device)
+    #     return DNDarray(
+    #         larray,
+    #         split=t2.split,
+    #         dtype=types.canonical_heat_type(larray.dtype),
+    #         comm=t2.comm,
+    #         device=dev,
+    #         gshape=t2.gshape,
+    #         balanced=True,
+    #     )
     return _operations.__binary_op(torch.floor_divide, t1, t2)
 
 
@@ -663,6 +825,61 @@ def mul(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[2., 4.],
               [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     """
+    # if isinstance(t1, DNDarray):
+    #     try:  # both DNDarrays
+    #         # t1.ndim >= t2.ndim for pow
+    #         if t1.split is None:
+    #             resplit_axis = None
+    #         else:
+    #             resplit_axis = t1.split - (t1.ndim - t2.ndim)
+    #             if resplit_axis < 0:
+    #                 resplit_axis = None
+    #         t2 = manipulations.resplit(t2, resplit_axis)
+    #         right = t2.larray
+    #         t1numel = t1.lnumel
+    #         rnumel = right.numel()
+    #     except AttributeError:  # one isn't a DNDarray
+    #         try:  # is t1 a torch tensor?
+    #             t1numel = t1.numel()
+    #         except AttributeError:
+    #             # its not a torch tensor so it must be a scalar
+    #             t1numel = 1
+    #
+    #         right = t2
+    #         try:  # is t1 a torch tensor?
+    #             rnumel = right.numel()
+    #         except AttributeError:
+    #             # its not a torch tensor so it must be a scalar
+    #             rnumel = 1
+    #     dev = t1.device
+    #     if t1numel and rnumel:
+    #         larray = torch.mul(t1.larray, right).to(dev.torch_device)
+    #     else:
+    #         torch_dtype = torch.promote_types(t1.larray.dtype, right.dtype)
+    #         larray = torch.tensor([], dtype=torch_dtype, device=dev.torch_device)
+    #
+    #     return DNDarray(
+    #         larray,
+    #         split=t1.split,
+    #         dtype=types.canonical_heat_type(larray.dtype),
+    #         comm=t1.comm,
+    #         device=dev,
+    #         gshape=t1.gshape,
+    #         balanced=True,
+    #     )
+    # elif isinstance(t2, DNDarray):
+    #     # t1 is not a DNDarray, t2 *is* a DNDarray
+    #     dev = t2.device
+    #     larray = torch.mul(t1, t2.larray).to(dev.torch_device)
+    #     return DNDarray(
+    #         larray,
+    #         split=t2.split,
+    #         dtype=types.canonical_heat_type(larray.dtype),
+    #         comm=t2.comm,
+    #         device=dev,
+    #         gshape=t2.gshape,
+    #         balanced=True,
+    #     )
     return _operations.__binary_op(torch.mul, t1, t2)
 
 
@@ -948,6 +1165,65 @@ def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[ 1.,  0.],
               [-1., -2.]], dtype=ht.float32, device=cpu:0, split=None)
     """
+    # if isinstance(t1, DNDarray):
+    #     try:  # both DNDarrays
+    #         # t1.ndim >= t2.ndim for pow
+    #         if t1.split is None:
+    #             resplit_axis = None
+    #         else:
+    #             resplit_axis = t1.split - (t1.ndim - t2.ndim)
+    #             if resplit_axis < 0:
+    #                 resplit_axis = None
+    #         t2 = manipulations.resplit(t2, resplit_axis)
+    #         right = t2.larray
+    #         t1numel = t1.lnumel
+    #         rnumel = right.numel()
+    #     except AttributeError:  # one isn't a DNDarray
+    #         try:  # is t1 a torch tensor?
+    #             t1numel = t1.numel()
+    #         except AttributeError:
+    #             # its not a torch tensor so it must be a scalar
+    #             t1numel = 1
+    #
+    #         right = t2
+    #         try:  # is t1 a torch tensor?
+    #             rnumel = right.numel()
+    #         except AttributeError:
+    #             # its not a torch tensor so it must be a scalar
+    #             rnumel = 1
+    #     dev = t1.device
+    #     if t1numel and rnumel:
+    #         larray = torch.sub(t1.larray, right).to(dev.torch_device)
+    #     else:
+    #         print(t1numel, rnumel)
+    #         torch_dtype = torch.promote_types(t1.larray.dtype, right.dtype)
+    #         larray = torch.tensor([], dtype=torch_dtype, device=dev.torch_device)
+    #         empty_shape = list(t1.lshape)
+    #         empty_shape[t1.split] = 0
+    #         larray = larray.reshape(empty_shape)
+    #
+    #     return DNDarray(
+    #         larray,
+    #         split=t1.split,
+    #         dtype=types.canonical_heat_type(larray.dtype),
+    #         comm=t1.comm,
+    #         device=dev,
+    #         gshape=t1.gshape,
+    #         balanced=True,
+    #     )
+    # elif isinstance(t2, DNDarray):
+    #     # t1 is not a DNDarray, t2 *is* a DNDarray
+    #     dev = t2.device
+    #     larray = torch.sub(t1, t2.larray).to(dev.torch_device)
+    #     return DNDarray(
+    #         larray,
+    #         split=t2.split,
+    #         dtype=types.canonical_heat_type(larray.dtype),
+    #         comm=t2.comm,
+    #         device=dev,
+    #         gshape=t2.gshape,
+    #         balanced=True,
+    #     )
     return _operations.__binary_op(torch.sub, t1, t2)
 
 

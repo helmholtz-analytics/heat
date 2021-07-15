@@ -396,6 +396,8 @@ class TestStatistics(TestCase):
         htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
         ht_cov = ht.cov(htdata[:, 0], htdata[:, 1:3], rowvar=False)
         comp = ht.array(np_cov, dtype=ht.float)
+        print(comp)
+        print(ht_cov)
         self.assertTrue(ht.allclose(comp - ht_cov, 0, atol=1e-4))
 
         np_cov = np.cov(data, rowvar=False)
