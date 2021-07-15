@@ -292,6 +292,41 @@ class DASOLayers:
                 MPI.IN_PLACE, self.buckets[b]['bucket'], self.mpi_sum_function_for_reduce
             )
 
+    @torch.no_grad()
+    def __recv_bucket(self, bucket_number):
+
+        # todo: define the last sending ranks in the step function
+        # need to make sure that all ranks know which ranks are t
+
+        # todo: find something to calculate the comm group which was in change of sending the last rank
+
+        prev_ranks = self.reduced_ranks[self._send_mod_m1]
+
+        if self.comm.rank not in self.last_sending_ranks:
+            # split off the ranks which didnt just sent the data
+            return
+        if self.buckets[bucket_number]['wait'] is not None:
+            # wait for the bucket to finish sending
+            self.buckets[bucket_number]['wait'].Wait()
+
+        # update the received parameters
+        # NOTE: this assumes that the number of batches to wait DOES NOT CHANGE during an epoch
+        batches_between = self.batches_to_wait
+        numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
+        denom = float(len(self.last_sending_ranks) + numer)
+        factor = numer / denom
+
+        self.buckets[bucket_number]['bucket'] /= denom
+        bucket = self.buckets[bucket_number]['bucket']
+
+        for n in self.buckets[bucket_number]['names']:
+            get_slice = self.buckets[bucket_number]["names"][n]["slice"]
+            shp = self.buckets[bucket_number]["names"][n]["shape"]
+            update = bucket[get_slice].view(shp)
+            param = self.local_model.get_parameter(n)
+            param *= factor
+            param += update
+
     class BucketReceiveLayer(torch.nn.Module):
         # this is a NN layer which is built to receive the network weights
         # todo: init this for each bucket, not for each layer
@@ -365,36 +400,6 @@ class DASOLayers:
 
     def __insert_recv_layers(self, bucket_number):
         pass
-
-    @torch.no_grad()
-    def __recv_bucket(self, bucket_number):
-
-        # todo: define the last sending ranks in the step function
-
-        if self.comm.rank not in self.last_sending_ranks:
-            # split off the ranks which didnt just sent the data
-            return
-        if self.buckets[bucket_number]['wait'] is not None:
-            # wait for
-            self.buckets[bucket_number]['wait'].Wait()
-
-        # update the received parameters
-        # NOTE: this assumes that the
-        batches_between = self.batches_to_wait
-        numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
-        denom = float(len(self.last_sending_ranks) + numer)
-        factor = numer / denom
-
-        self.buckets[bucket_number]['bucket'] /= denom
-        bucket = self.buckets[bucket_number]['bucket']
-
-        for n in self.buckets[bucket_number]['names']:
-            get_slice = self.buckets[bucket_number]["names"][n]["slice"]
-            shp = self.buckets[bucket_number]["names"][n]["shape"]
-            update = bucket[get_slice].view(shp)
-            param = self.local_model.get_parameter(n)
-            param *= factor
-            param += update
 
     def __prepare_mpi_groups(self, use_mpi_groups: bool):
         # initialize the MPI Groups. This will create N MPI groups where N is the number of GPUs on each node (assumed
