@@ -156,30 +156,43 @@ class DASOLayers:
         init_args = inspect.getargvalues(frame)[3]
         self.__init_checktypes(init_args)
 
-        self.sending_buffer_dtype = downcast_type
-        if downcast_type == torch.bfloat16:
-            self.cast_fn = mpi_sum_bfloat
-            downcast_type_bits = 4
-        elif downcast_type == torch.half:
-            self.cast_fn = mpi_sum_f16
-            downcast_type_bits = 4
-        else:
-            self.cast_fn = MPI.SUM
-            downcast_type_bits = 8
-
-        self.comm = comm
+        self.local_model = local_model
         self.verbose = verbose
         self.local_optimizer = local_optimizer
         self.params_ref = local_optimizer.param_groups[0]["params"]
+
         # reference of optimizer's params
         self.scheduler = scheduler
 
+        self.amp = False
+
+        # ============ comm controls ================================
         if not use_mpi_groups:
             raise NotImplementedError(
-                "DASO is intended for use with MPI groups. Not using this is not implemented"
+                "DASOLayers is intended for use with MPI groups. Not using this is not implemented"
             )
 
+        self.comm = comm
+        self.sending_buffer_dtype = downcast_type
+        if downcast_type == torch.bfloat16:
+            self.mpi_sum_function_for_reduce = mpi_sum_bfloat
+            downcast_type_bits = 4
+        elif downcast_type == torch.half:
+            self.mpi_sum_function_for_reduce = mpi_sum_f16
+            downcast_type_bits = 4
+        else:
+            self.mpi_sum_function_for_reduce = MPI.SUM
+            downcast_type_bits = 8
+
         self.__prepare_mpi_groups(use_mpi_groups)
+
+        # generate the buckets to use
+        self._base_bucket_size = int(bucket_size_mb * 1024 * 1024) / downcast_type_bits
+        self.__prepare_buckets()
+
+        self.current_sending_ranks = None
+        self.current_sending_comms = None
+        # ===========================================================
 
         self.current_batch, self.last_batch = 0, None
 
@@ -193,26 +206,10 @@ class DASOLayers:
         self.cooldown_epochs = cooldown_epochs
         self.total_epochs = total_epochs
 
-        # used in the sending of the params
-        # todo: calculate bucket size (based off the sending chunk size)
-        #       this should be done by either rounding up or rounding down to contain full layers
-        self._param_send_buffer_size = None
-        self.param_dict, self.shapes = None, None
-        self._param_send_shp = None
-        self.split = None
-
-        self.split_val = sending_chunk_size
-
-        # TODO: its possible that the split indexes could be used to avoid the concatenating method used currently
-        self.split_inds = None
-        self.amp = False
-
-        self.local_model = local_model
-        # generate the buckets to use
-        self._base_bucket_size = int(bucket_size_mb * 1024 * 1024) / downcast_type_bits
-        self.__prepare_buckets()
         # insert receiving layers into the network ==========================
         # todo: how to set the number of skips and such in the added layers
+        # NOTE: need two types of layers:
+        #       1: receive the bucket and do the update to the parameters
         # ===================================================================
 
         self.print0("Finished DASO init")
@@ -265,6 +262,35 @@ class DASOLayers:
 
         # dont need to reverse any of them, the buffers stand alone
         self.buckets = buckets
+
+    @torch.no_grad()
+    def __fill_n_send_buckets(self):
+        # TODO: this function should only be called when sending
+        #       this means that self._send_mod should be set before this
+
+        # this will fill all of the buckets with the current network parameters
+        #   but only on the ranks which will do the comms
+
+        # remove the ranks not in the current group
+        current_ranks = self.reduced_ranks[self._send_mod]
+        if self.comm.rank not in current_ranks:
+            return
+
+        # prepare to send the data
+        for b in self.buckets:
+            # reset bucket values to 0.
+            self.buckets[b]['bucket'] *= 0.
+
+            for n in self.buckets[b]['names']:
+                set_slice = self.buckets[b]["names"][n]["slice"]
+                param = self.local_model.get_parameter(n).flatten().to(self.sending_buffer_dtype)
+                # todo: check for nans?
+                self.buckets[b]['bucket'][set_slice] += param
+
+            # buckets are filled, time to send each one
+            self.buckets[b]['wait'] = self.comm.Iallreduce(
+                MPI.IN_PLACE, self.buckets[b]['bucket'], self.mpi_sum_function_for_reduce
+            )
 
     class BucketReceiveLayer(torch.nn.Module):
         # this is a NN layer which is built to receive the network weights
@@ -337,9 +363,38 @@ class DASOLayers:
 
             pass
 
-    def __insert_recv_layers(self):
-        # todo: splice out the layer name from the weight/bias tags
+    def __insert_recv_layers(self, bucket_number):
         pass
+
+    @torch.no_grad()
+    def __recv_bucket(self, bucket_number):
+
+        # todo: define the last sending ranks in the step function
+
+        if self.comm.rank not in self.last_sending_ranks:
+            # split off the ranks which didnt just sent the data
+            return
+        if self.buckets[bucket_number]['wait'] is not None:
+            # wait for
+            self.buckets[bucket_number]['wait'].Wait()
+
+        # update the received parameters
+        # NOTE: this assumes that the
+        batches_between = self.batches_to_wait
+        numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
+        denom = float(len(self.last_sending_ranks) + numer)
+        factor = numer / denom
+
+        self.buckets[bucket_number]['bucket'] /= denom
+        bucket = self.buckets[bucket_number]['bucket']
+
+        for n in self.buckets[bucket_number]['names']:
+            get_slice = self.buckets[bucket_number]["names"][n]["slice"]
+            shp = self.buckets[bucket_number]["names"][n]["shape"]
+            update = bucket[get_slice].view(shp)
+            param = self.local_model.get_parameter(n)
+            param *= factor
+            param += update
 
     def __prepare_mpi_groups(self, use_mpi_groups: bool):
         # initialize the MPI Groups. This will create N MPI groups where N is the number of GPUs on each node (assumed
@@ -352,27 +407,26 @@ class DASOLayers:
         #   if a change is desired a comm her to find the lowest number would work for this, however
         #   a change would also need to be made in heat.nn.DataParallelMultiGPU
         local_rank = rank % loc_gpus
-        if loc_gpus > 1:
-            base_loc_ranks = list(range(0, self.comm.size, loc_gpus))
-            reduced_comms, reduced_ranks = [], []
-            for i in range(loc_gpus):
-                lp_ranks = [j + i for j in base_loc_ranks]
-                if use_mpi_groups:
-                    new_group = self.comm.group.Incl(lp_ranks)
-                    new_comm = self.comm.Create_group(new_group)
-                    reduced_comms.append(MPICommunication(new_comm))
-                else:
-                    color = 111 + i if rank in lp_ranks else 222 + i
-                    key = 0 + i if rank in lp_ranks else 444 + i
-                    reduced_comms.append(MPICommunication(self.comm.Split(color, key)))
-                reduced_ranks.append(tuple(lp_ranks))
-            self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
-            self.base_loc_ranks = base_loc_ranks
-            self.device = "cuda:" + str(local_rank)
-            torch.cuda.set_device(device=self.device)
-        else:
-            self.reduced_ranks = None
-            self.reduced_comms = None
+        if loc_gpus <= 1:
+            raise RuntimeError(f"{loc_gpus} GPUs found. DASO requires multiple GPUs.")
+
+        base_loc_ranks = list(range(0, self.comm.size, loc_gpus))
+        reduced_comms, reduced_ranks = [], []
+        for i in range(loc_gpus):
+            lp_ranks = [j + i for j in base_loc_ranks]
+            if use_mpi_groups:
+                new_group = self.comm.group.Incl(lp_ranks)
+                new_comm = self.comm.Create_group(new_group)
+                reduced_comms.append(MPICommunication(new_comm))
+            else:  # use splits if not groups
+                color = 111 + i if rank in lp_ranks else 222 + i
+                key = 0 + i if rank in lp_ranks else 444 + i
+                reduced_comms.append(MPICommunication(self.comm.Split(color, key)))
+            reduced_ranks.append(tuple(lp_ranks))
+        self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
+        self.base_loc_ranks = base_loc_ranks
+        self.device = "cuda:" + str(local_rank)
+        torch.cuda.set_device(device=self.device)
 
     def __update_parameters_after_global_recv(self):
         # todo: fix me!
@@ -704,7 +758,7 @@ class DASOLayers:
         if self.global_skip < 1:
             # op = mpi_sum_bfloat
             cast = True
-            op = self.cast_fn
+            op = self.mpi_sum_function_for_reduce
             if self.sending_buffer_dtype == torch.bfloat16:
                 cast_int = 0
             elif self.sending_buffer_dtype == torch.half:
