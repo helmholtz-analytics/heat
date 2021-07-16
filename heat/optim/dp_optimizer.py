@@ -14,7 +14,7 @@ from ..core.communication import MPI
 from ..core.communication import MPI_WORLD
 from .utils import DetectMetricPlateau
 
-from collections import OrderedDict
+from collections import deque
 
 
 __all__ = ["DataParallelOptimizer", "DASO"]
@@ -145,7 +145,6 @@ class DASOLayers:
         scheduler: torch.optim.lr_scheduler = None,
         global_skips: int = 8,
         batches_to_wait: int = 1,
-        sending_chunk_size: int = 10_000_000,
         bucket_size_mb: int = 25,
         downcast_type: torch.dtype = torch.bfloat16,
         use_mpi_groups: bool = True,
@@ -190,19 +189,29 @@ class DASOLayers:
         self._base_bucket_size = int(bucket_size_mb * 1024 * 1024) / downcast_type_bits
         self.__prepare_buckets()
 
-        self.current_sending_ranks = None
+        self.receiving = False
+        # this is the flag that will be LOCALLY set when a process has started an allreduce
+        # operation receive data
+
         self.current_sending_comms = None
+        self.current_sending_ranks = 0
+        self.current_sending_ranks_minus1 = None
+        self.__recv_during_batch = -1
+        self.sync_params_deque = deque()
         # ===========================================================
 
         self.current_batch, self.last_batch = 0, None
 
         self._prev_params = []
         self.epoch = 0
+
+        # send mod holds the index of the comm group
         self._send_mod, self._send_mod_m1 = 0, None
 
-        self.global_skip = global_skips
+        self.global_skips = global_skips
         self.batches_to_wait = batches_to_wait
 
+        self.total_batches = None
         self.cooldown_epochs = cooldown_epochs
         self.total_epochs = total_epochs
 
@@ -272,131 +281,224 @@ class DASOLayers:
         #   but only on the ranks which will do the comms
 
         # remove the ranks not in the current group
-        current_ranks = self.reduced_ranks[self._send_mod]
+        current_ranks = self.reduced_ranks[self.current_sending_ranks]
         if self.comm.rank not in current_ranks:
             return
 
         # prepare to send the data
         for b in self.buckets:
             # reset bucket values to 0.
-            self.buckets[b]['bucket'] *= 0.
+            self.buckets[b]["bucket"] *= 0.0
 
-            for n in self.buckets[b]['names']:
+            for n in self.buckets[b]["names"]:
                 set_slice = self.buckets[b]["names"][n]["slice"]
                 param = self.local_model.get_parameter(n).flatten().to(self.sending_buffer_dtype)
                 # todo: check for nans?
-                self.buckets[b]['bucket'][set_slice] += param
+                self.buckets[b]["bucket"][set_slice] += param
 
             # buckets are filled, time to send each one
-            self.buckets[b]['wait'] = self.comm.Iallreduce(
-                MPI.IN_PLACE, self.buckets[b]['bucket'], self.mpi_sum_function_for_reduce
+            self.buckets[b]["wait"] = self.comm.Iallreduce(
+                MPI.IN_PLACE, self.buckets[b]["bucket"], self.mpi_sum_function_for_reduce
             )
+
+        self.receiving = True
 
     @torch.no_grad()
     def __recv_bucket(self, bucket_number):
 
         # todo: define the last sending ranks in the step function
-        # need to make sure that all ranks know which ranks are t
 
-        # todo: find something to calculate the comm group which was in change of sending the last rank
+        # check to see if this is the next syncing batch
+        next_rcv_batch = self.sync_params_deque[0][0]
 
-        prev_ranks = self.reduced_ranks[self._send_mod_m1]
-
-        if self.comm.rank not in self.last_sending_ranks:
-            # split off the ranks which didnt just sent the data
+        if next_rcv_batch != self.current_batch:
+            # waiting for the next sync still
             return
-        if self.buckets[bucket_number]['wait'] is not None:
-            # wait for the bucket to finish sending
-            self.buckets[bucket_number]['wait'].Wait()
 
-        # update the received parameters
-        # NOTE: this assumes that the number of batches to wait DOES NOT CHANGE during an epoch
-        batches_between = self.batches_to_wait
-        numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
-        denom = float(len(self.last_sending_ranks) + numer)
-        factor = numer / denom
+        # take the leftmost sync parameters
+        sync_params = self.sync_params_deque.popleft()
+        # self.current_batch + btw + 1, btw, self.current_sending_ranks
+        batches_between = self.reduced_ranks[sync_params[1]]
+        loc_comm_rank = sync_params[2]
+        prev_ranks = self.reduced_ranks[loc_comm_rank]
 
-        self.buckets[bucket_number]['bucket'] /= denom
-        bucket = self.buckets[bucket_number]['bucket']
+        if self.comm.rank in prev_ranks:
+            if self.buckets[bucket_number]["wait"] is not None:
+                # wait for the bucket to finish sending
+                self.buckets[bucket_number]["wait"].Wait()
 
-        for n in self.buckets[bucket_number]['names']:
-            get_slice = self.buckets[bucket_number]["names"][n]["slice"]
-            shp = self.buckets[bucket_number]["names"][n]["shape"]
-            update = bucket[get_slice].view(shp)
-            param = self.local_model.get_parameter(n)
-            param *= factor
-            param += update
+            # update the received parameters
+            # NOTE: this assumes that the number of batches to wait DOES NOT CHANGE during an epoch
+            numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
+            denom = float(self.loc_gpus + numer)
+            factor = numer / denom
 
-    class BucketReceiveLayer(torch.nn.Module):
-        # this is a NN layer which is built to receive the network weights
-        # todo: init this for each bucket, not for each layer
-        def __init__(
-            self,
-            comm_group,
-            comm_full,
-            global_skips,
-            batches_to_wait,
-            buckets_key,
-            buckets,
-            next_layer,
-            update_fn,
-        ):
-            # super(WaitLayer, self).__init__()
-            # this should get the comm object and the
-            self.comm_group = comm_group
-            self.comm_full = comm_full
-            self.global_skips = global_skips
-            self.batches_to_wait = batches_to_wait
-            self.batches_waited = 0
-            # note: the buckets should be created with the __prepare_buckets function of this class
-            # bucket key:
-            #       names -> names in bucket
-            #       bucket -> buffer to put result int
-            #       wait -> wait object
-            self.buckets_key = buckets_key
-            self.buckets = buckets
-            self.data_sent = False
-            self.next_layer_name = next_layer
-            self.update_fn = update_fn
+            self.buckets[bucket_number]["bucket"] /= denom
+            bucket = self.buckets[bucket_number]["bucket"]
 
-        @torch.no_grad()
-        def forward(self):
-            # need to know there is data to receive
-            if self.batch_number == 0 or not self.data_sent:
-                self.batch_number += 1
-                return
+            for n in self.buckets[bucket_number]["names"]:
+                get_slice = self.buckets[bucket_number]["names"][n]["slice"]
+                shp = self.buckets[bucket_number]["names"][n]["shape"]
+                update = bucket[get_slice].view(shp)
 
-            # if we are waiting
-            if self.batches_waited < self.batches_to_wait:
-                self.batches_waited += 1
-                return
+                param = self.local_model.get_parameter(n)  # get the parameter from the network
+                param *= factor
+                param += update
 
-            # if going to receive: are there any other cases?
-            if self.batches_waited == self.batches_to_wait:
-                # need to receive the bias and the weight
-                # make this a try except with the weights and biases
+        # start the local bcast op here
+        local_waits = {}
+        for n in self.buckets[bucket_number]["names"]:
+            param = self.local_model.get_parameter(n)  # get the parameter from the network
+            # param = self.local_model.get_parameter(param_name)
+            local_waits[n] = torch.distributed.broadcast(
+                param, loc_comm_rank, async_op=True
+            )  # default is SUM
+        # todo: issue the local waits to the respective layers
 
-                # todo: get the names of the layers for this bucket
+    @torch.no_grad()
+    def __in_layer_local_sync_start(self, param_name, root_process):
+        # todo: this should be in the network layer class
+        # do a bcast from the root process
+        param = self.local_model.get_parameter(param_name)
+        wait = torch.distributed.broadcast(param, root_process, async_op=True)  # default is SUM
+        # for name, param in self.module.named_parameters():
+        #     if param.requires_grad:
+        #         snds[name].wait()
+        # pass
+        return wait
 
-                for name in [".bias", ".weight"]:
-                    if self.buckets[self.next_layer_name + name]["wait"] is not None:
-                        self.buckets[self.next_layer_name + name]["wait"].Wait()
-                    # get the slice of the data from bucket
+    # def __in_layer_local_sync_wait(self):
 
-                # current position: after the first batch, after waiting for data to be sent
+    def set_total_batches_and_global_skips(self, total_batches=None, new_global_skips=None):
+        # this will build the number of
+        if total_batches is None and new_global_skips is None:
+            return  # no-op if neither are set
+        elif total_batches is not None:
+            self.total_batches = total_batches
+        elif new_global_skips is not None:
+            self.global_skips = new_global_skips
 
-                # next step: do the update after getting the data
+    def step(self) -> None:
+        """
+        Perform a single optimization step.
+        This will perform the `step` operations of the local optimizer,
+        local learning rate scheduler (if defined), and the gradient scaler used in automatic mixed
+        precision (if defined).
 
-                # need to reset the number of batches waited
-                self.batches_waited = 0
-                self.data_sent = False
+        Also in the step is the logic used for when to send and receive the global/local synchronizations.
+        Global Syncs occur on batches for which the modulus of the batch number and the `global_skip` number is 0.
+        If `batches_to_wait` > 0, the next batches have only local syncs. After that number of batches,
+        the data during the global sync phase is received.
 
+        Local synchronization can also be turned off if desired by increasing `local_skips` above 1.
+
+        Notes
+        -----
+        self.last_batch must be set!
+        """
+        if self.last_batch is None:
+            raise ValueError(
+                "self.last_batch must be set as the number of batches (len(dataloader))"
+            )
+
+        if self.amp:
+            self.scaler.step(self.local_optimizer)
+            # todo: add something to tell if the grads have infs or nans
+            # Updates the scale for next iteration.
+            self.scaler.update()
+        elif self.scheduler is None:
+            self.local_optimizer.step()
+        else:
+            self.scheduler.step()
+        batch = self.current_batch
+        # knowing next_batch is important to make sure that the local sync is on
+        #       or if the next is the last batch
+        next_batch = batch + 1
+        gs = self.global_skips
+        # ls = self.local_skip
+        # determine if to do the syncs
+        gmod = batch % gs if gs > 0 else 0
+        # lmod = batch % ls if ls > 0 else 0
+
+        batches_to_wait = self.batches_to_wait
+        # ensure that the batch that will receive will be before the end of the training loop
+        btw = (
+            batches_to_wait
+            if batches_to_wait + batch <= self.last_batch
+            else self.last_batch - batch
+        )
+
+        # if next_batch % gs == 0:
+        #     self._start_local_sync()
+        #     self.current_batch += 1
+        #     return
+
+        # todo: need to handle the last batch
+        if batch == self.last_batch:
+            # todo: last batch function (send and recv in same function)
             pass
 
-        @torch.no_grad()
-        def backward(self):
+        if gmod == 0:
+            # this is where to start the global send (w/ local sync, the params are equal)
+            # split off the other ranks
+            # current_comm = self.reduced_comms[self.current_sending_ranks]
+            current_ranks = self.reduced_ranks[self.current_sending_ranks]
 
-            pass
+            # set an indicator on ALL RANKS about when this is done (for the local bcast
+            self.sync_params_deque.append(
+                (self.current_batch + btw + 1, btw, self.current_sending_ranks)
+            )
+
+            if self.comm.rank in current_ranks:
+                self.__fill_n_send_buckets()
+                self.__recv_during_batch = self.current_batch + btw + 1
+
+            # if self.batches_to_wait != 0:
+            #     # update parameters from the last sending (if there)
+            #     self._gs_rcv_update_params()  # -> splits off irrelevant ranks
+            #     # needs to happen on all ranks:
+            #     self._local_update(self.current_sending_ranks_minus1)
+
+            # send the parameters
+            self.current_batch += 1
+            return
+
+        # determine the sending group
+        # todo: keep the
+
+        # todo: put the batches to wait logic in the init
+        # do full sync on global skips and on the last batch
+        # if batch == self.last_batch or gmod == 0:
+        #     return self._global_sync(btw)
+        #
+        #
+        # if gmod < btw:
+        #     # do nothing on these batches (maintain the local sync)
+        #     self.current_batch += 1
+        #     if next_batch == self.last_batch:
+        #         self._start_local_sync()
+        #     return
+        # elif gmod == btw:
+        #     # local updates should be on before this is called!
+        #     self._gs_rcv_update_params()
+        #     self._local_update(self._send_mod_m1)
+        #     if ls > 1:
+        #         self._stop_local_sync()
+        #
+        # if ls == 1 and next_batch != self.last_batch:
+        #     self.current_batch += 1
+        #     self._start_local_sync()
+        #     return
+        #
+        # if lmod == 0:
+        #     self._stop_local_sync()
+        # elif next_batch % ls == 0:
+        #     self._start_local_sync()
+        #
+        # if next_batch == self.last_batch:
+        #     self._start_local_sync()
+
+        self.current_batch += 1
 
     def __insert_recv_layers(self, bucket_number):
         pass
@@ -432,6 +534,7 @@ class DASOLayers:
         self.base_loc_ranks = base_loc_ranks
         self.device = "cuda:" + str(local_rank)
         torch.cuda.set_device(device=self.device)
+        # todo: change loc_gpus to be the number of groups
 
     def __update_parameters_after_global_recv(self):
         # todo: fix me!
@@ -551,44 +654,6 @@ class DASOLayers:
             raise ValueError(
                 f"local_skip_factor must be > 0, currently {args['local_skip_factor']}"
             )
-
-    @torch.no_grad()
-    def epoch_loss_logic(self) -> None:
-        """
-        Function controlling the number of batches between global synchronizations and the batches to wait before
-        receiving the sent parameters. The warm-up and cool-down phases are also controlled here.
-
-        This function should be called at the end of each epoch with the training loss value at the end of the epoch.
-
-        The number of batches between local synchronizations can also be modified here with minor code adjustments.
-        """
-        self.print0(
-            f"Finished epoch: {self.epoch}, Global Skips: {self.global_skip}, Batches to wait: "
-            f"{self.batches_to_wait}"
-        )
-
-        if self.epoch >= self.total_epochs - (self.cooldown_epochs + 2):
-            # semi - cooldown epochs
-            # todo: determine the best values for this
-            self.global_skip = 1
-            self.batches_to_wait = 1
-
-            self.print0(
-                f"Cooldown Phase pt 1, parameters of next epoch:\n\tGlobal Skips: {self.global_skip}, "
-                f" Local Skips {self.local_skip:.4f}, Batches to wait: {self.batches_to_wait}"
-            )
-            return
-
-        if self.epoch >= self.total_epochs - self.cooldown_epochs:
-            # cooldown epochs
-            self.global_skip = 1
-            self.batches_to_wait = 0
-
-            self.print0(
-                f"Cooldown Phase pt 2, parameters of next epoch:\n\tGlobal Skips: {self.global_skip}, "
-                f" Local Skips {self.local_skip:.4f}, Batches to wait: {self.batches_to_wait}"
-            )
-            return
 
     @torch.no_grad()
     def _global_sync(self, batches_to_wait: int) -> None:
@@ -826,26 +891,6 @@ class DASOLayers:
             if param.requires_grad:
                 snds[name].wait()
 
-    @staticmethod
-    @torch.no_grad()
-    @torch.jit.script
-    def __pack_data(
-        jtparams: torch.Tensor, iter_dict: Dict[str, torch.Tensor], cast: int
-    ) -> torch.Tensor:
-        """
-        Jitted loop to pack the data into a flattened buffer to be sent
-        """
-        st = 0
-        cast_type = torch.float if cast == 2 else torch.bfloat16 if cast == 0 else torch.half
-        for name, par in iter_dict.items():
-            if par.requires_grad:
-                # flatten and prep the data for sending
-                p = torch.flatten(par)
-                p = p.to(cast_type)
-                jtparams[st : st + par.numel()] = p
-                st += par.numel()
-        return jtparams
-
     def print0(self, *args, **kwargs) -> None:
         """
         Print a message on rank 0 if the class parameter `verbose` is set.
@@ -857,14 +902,12 @@ class DASOLayers:
         """
         Reset the optimizer to its base state
         """
-        self.stability.reset()
+        # todo: update with new parameters
         self.global_skip = 0
-        self.local_skip = 0
         self.batches_to_wait = 0
         self.current_batch = 0
         self._prev_params = []
         self.epoch = 0
-        self._gs8_waited = 0
         self.zero_grad()
 
     def set_model(self, model: torch.nn.Module) -> None:
@@ -889,91 +932,91 @@ class DASOLayers:
             return
         self.module.require_backward_grad_sync = True
 
-    def step(self) -> None:
-        """
-        Perform a single optimization step.
-        This will perform the `step` operations of the local optimizer,
-        local learning rate scheduler (if defined), and the gradient scaler used in automatic mixed
-        precision (if defined).
-
-        Also in the step is the logic used for when to send and receive the global/local synchronizations.
-        Global Syncs occur on batches for which the modulus of the batch number and the `global_skip` number is 0.
-        If `batches_to_wait` > 0, the next batches have only local syncs. After that number of batches,
-        the data during the global sync phase is received.
-
-        Local synchronization can also be turned off if desired by increasing `local_skips` above 1.
-
-        Notes
-        -----
-        self.last_batch must be set!
-        """
-        if self.last_batch is None:
-            raise ValueError(
-                "self.last_batch must be set as the number of batches (len(dataloader))"
-            )
-
-        if self.amp:
-            self.scaler.step(self.local_optimizer)
-            # todo: add something to tell if the grads have infs or nans
-            # Updates the scale for next iteration.
-            self.scaler.update()
-        elif self.scheduler is None:
-            self.local_optimizer.step()
-        else:
-            self.scheduler.step()
-        batch = self.current_batch
-        # knowing next_batch is important to make sure that the local sync is on
-        #       or if the next is the last batch
-        next_batch = batch + 1
-        gs = self.global_skip
-        ls = self.local_skip
-        # determine if to do the syncs
-        gmod = batch % gs if gs > 0 else 0
-        lmod = batch % ls if ls > 0 else 0
-
-        batches_to_wait = self.batches_to_wait
-        # ensure that the batch that will receive will be before the end of the training loop
-        btw = (
-            batches_to_wait
-            if batches_to_wait + batch <= self.last_batch
-            else self.last_batch - batch
-        )
-        # do full sync on global skips and on the last batch
-        if batch == self.last_batch or gmod == 0:
-            return self._global_sync(btw)
-
-        if next_batch % gs == 0:
-            self._start_local_sync()
-            self.current_batch += 1
-            return
-
-        if gmod < btw:
-            # do nothing on these batches (maintain the local sync)
-            self.current_batch += 1
-            if next_batch == self.last_batch:
-                self._start_local_sync()
-            return
-        elif gmod == btw:
-            # local updates should be on before this is called!
-            self._gs_rcv_update_params()
-            self._local_update(self._send_mod_m1)
-            if ls > 1:
-                self._stop_local_sync()
-
-        if ls == 1 and next_batch != self.last_batch:
-            self.current_batch += 1
-            self._start_local_sync()
-            return
-
-        if lmod == 0:
-            self._stop_local_sync()
-        elif next_batch % ls == 0:
-            self._start_local_sync()
-
-        if next_batch == self.last_batch:
-            self._start_local_sync()
-
-        self.current_batch += 1
+    # def step(self) -> None:
+    #     """
+    #     Perform a single optimization step.
+    #     This will perform the `step` operations of the local optimizer,
+    #     local learning rate scheduler (if defined), and the gradient scaler used in automatic mixed
+    #     precision (if defined).
+    #
+    #     Also in the step is the logic used for when to send and receive the global/local synchronizations.
+    #     Global Syncs occur on batches for which the modulus of the batch number and the `global_skip` number is 0.
+    #     If `batches_to_wait` > 0, the next batches have only local syncs. After that number of batches,
+    #     the data during the global sync phase is received.
+    #
+    #     Local synchronization can also be turned off if desired by increasing `local_skips` above 1.
+    #
+    #     Notes
+    #     -----
+    #     self.last_batch must be set!
+    #     """
+    #     if self.last_batch is None:
+    #         raise ValueError(
+    #             "self.last_batch must be set as the number of batches (len(dataloader))"
+    #         )
+    #
+    #     if self.amp:
+    #         self.scaler.step(self.local_optimizer)
+    #         # todo: add something to tell if the grads have infs or nans
+    #         # Updates the scale for next iteration.
+    #         self.scaler.update()
+    #     elif self.scheduler is None:
+    #         self.local_optimizer.step()
+    #     else:
+    #         self.scheduler.step()
+    #     batch = self.current_batch
+    #     # knowing next_batch is important to make sure that the local sync is on
+    #     #       or if the next is the last batch
+    #     next_batch = batch + 1
+    #     gs = self.global_skip
+    #     ls = self.local_skip
+    #     # determine if to do the syncs
+    #     gmod = batch % gs if gs > 0 else 0
+    #     lmod = batch % ls if ls > 0 else 0
+    #
+    #     batches_to_wait = self.batches_to_wait
+    #     # ensure that the batch that will receive will be before the end of the training loop
+    #     btw = (
+    #         batches_to_wait
+    #         if batches_to_wait + batch <= self.last_batch
+    #         else self.last_batch - batch
+    #     )
+    #     # do full sync on global skips and on the last batch
+    #     if batch == self.last_batch or gmod == 0:
+    #         return self._global_sync(btw)
+    #
+    #     if next_batch % gs == 0:
+    #         self._start_local_sync()
+    #         self.current_batch += 1
+    #         return
+    #
+    #     if gmod < btw:
+    #         # do nothing on these batches (maintain the local sync)
+    #         self.current_batch += 1
+    #         if next_batch == self.last_batch:
+    #             self._start_local_sync()
+    #         return
+    #     elif gmod == btw:
+    #         # local updates should be on before this is called!
+    #         self._gs_rcv_update_params()
+    #         self._local_update(self._send_mod_m1)
+    #         if ls > 1:
+    #             self._stop_local_sync()
+    #
+    #     if ls == 1 and next_batch != self.last_batch:
+    #         self.current_batch += 1
+    #         self._start_local_sync()
+    #         return
+    #
+    #     if lmod == 0:
+    #         self._stop_local_sync()
+    #     elif next_batch % ls == 0:
+    #         self._start_local_sync()
+    #
+    #     if next_batch == self.last_batch:
+    #         self._start_local_sync()
+    #
+    #     self.current_batch += 1
 
     def _stop_local_sync(self) -> None:
         """
