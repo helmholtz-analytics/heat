@@ -26,7 +26,7 @@ analytics and machine learning. It provides highly optimized algorithms and data
 structures for tensor computations using CPUs, GPUs and distributed cluster
 systems on top of MPI. The goal of Heat is to fill the gap between data
 analytics and machine learning libraries with a strong focus on single-node
-performance, and traditional high-performance computing (HPC). Heat's dtype
+performance, and traditional high-performance computing (HPC). Heat's generic
 Python-first programming interface integrates seamlessly with the existing data
 science ecosystem and makes it as effortless as using numpy to write scalable
 scientific and data science applications.
