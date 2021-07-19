@@ -187,6 +187,7 @@ class DASOLayers:
 
         # generate the buckets to use
         self._base_bucket_size = int(bucket_size_mb * 1024 * 1024) / downcast_type_bits
+        self._local_waits = {}
         self.__prepare_buckets()
 
         self.receiving = False
@@ -197,7 +198,7 @@ class DASOLayers:
         self.current_sending_ranks = 0
         self.current_sending_ranks_minus1 = None
         self.__recv_during_batch = -1
-        self.sync_params_deque = deque()
+        self.sync_params_deque = (deque(),) * self.number_of_buckets
         # ===========================================================
 
         self.current_batch, self.last_batch = 0, None
@@ -268,15 +269,15 @@ class DASOLayers:
                 "wait": None,
                 "names": bucket_key,
             }
+            current_bucket_number += 1
+
+        self.number_of_buckets = current_bucket_number
 
         # dont need to reverse any of them, the buffers stand alone
         self.buckets = buckets
 
     @torch.no_grad()
     def __fill_n_send_buckets(self):
-        # TODO: this function should only be called when sending
-        #       this means that self._send_mod should be set before this
-
         # this will fill all of the buckets with the current network parameters
         #   but only on the ranks which will do the comms
 
@@ -304,30 +305,54 @@ class DASOLayers:
         self.receiving = True
 
     @torch.no_grad()
-    def __recv_bucket(self, bucket_number):
+    def recv_bucket(self, bucket_number: int, layer: torch.nn.Module):
+        # recv steps:
+        # 1. is data to be received during this batch?
+        #    - determined by if this is equal to the next recv batch (which is known during the sending process)
+        # 2. has the update already happened during another layer?
+        #   - determined by if self._local_waits has the members for this batch/bucket
+        # 2. Am I (rank) a member of the communications group used to do the global sync
+        # 3. (in MPI group) check if the data has been received
+        #   - if no: wait for it + update rule
+        #   - if it has already been received: then the nonblocking bcast should have already been started
+        # 4. do a local nonblocking bcast with torch's local processes
+        # 5. wait for the parameters for the given `layer` here (future layers will not happen here!)
 
-        # todo: define the last sending ranks in the step function
+        # possible speedups:
+        # 3a. -> put the Iallreduce.Wait() onto a thread
+        # 4.  -> use local MPI.Groups + windows to speed this up
 
-        # check to see if this is the next syncing batch
-        next_rcv_batch = self.sync_params_deque[0][0]
+        # todo: add recv_bucket hook to each layer in the network
+        next_rcv_batch = self.sync_params_deque[bucket_number][0][0]
 
         if next_rcv_batch != self.current_batch:
-            # waiting for the next sync still
+            # if 1. is not true then wait for more batches
+            # if not the correct number of batches after sending data
+            return
+
+        # todo: possible bug here: bucket number may not be in the dictionary self._local_waits[batch num]
+        # pos. fix: if bucket_number in self._local_waits[next_rcv_batch]:
+        if len(self._local_waits[self.current_batch][bucket_number]) > 0:
+            for n, _ in layer.named_parameters():
+                self._local_waits[self.current_batch][bucket_number][n].wait()
+                del self._local_waits[self.current_batch][bucket_number][n]
+
             return
 
         # take the leftmost sync parameters
-        sync_params = self.sync_params_deque.popleft()
+        sync_params = self.sync_params_deque[bucket_number][0]
         # self.current_batch + btw + 1, btw, self.current_sending_ranks
         batches_between = self.reduced_ranks[sync_params[1]]
         loc_comm_rank = sync_params[2]
         prev_ranks = self.reduced_ranks[loc_comm_rank]
 
-        if self.comm.rank in prev_ranks:
-            if self.buckets[bucket_number]["wait"] is not None:
-                # wait for the bucket to finish sending
-                self.buckets[bucket_number]["wait"].Wait()
+        if self.comm.rank in prev_ranks and self.buckets[bucket_number]["wait"] is not None:
+            # is the rank in the MPI group? + do we need to wait for the bucket
+            # NOTE: this assumed that Iallreduce is used for the buckets
+            # wait for the bucket to finish sending
+            self.buckets[bucket_number]["wait"].Wait()
 
-            # update the received parameters
+            # ======= update rule for the received parameters =============
             # NOTE: this assumes that the number of batches to wait DOES NOT CHANGE during an epoch
             numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
             denom = float(self.loc_gpus + numer)
@@ -344,30 +369,27 @@ class DASOLayers:
                 param = self.local_model.get_parameter(n)  # get the parameter from the network
                 param *= factor
                 param += update
+            # ============== end of update rule ===========================
 
+        if self.number_of_buckets == bucket_number - 1:
+            # if this is the last bucket sent, then get rid of these parameters
+            # to avoid extra issues on the back end
+            self.sync_params_deque[bucket_number].popleft()
+
+        # on all processes: do the non-blocking bcast in torch (local)
         # start the local bcast op here
-        local_waits = {}
+        self._local_waits[next_rcv_batch][bucket_number] = {}
         for n in self.buckets[bucket_number]["names"]:
             param = self.local_model.get_parameter(n)  # get the parameter from the network
             # param = self.local_model.get_parameter(param_name)
-            local_waits[n] = torch.distributed.broadcast(
+            self._local_waits[next_rcv_batch][bucket_number][n] = torch.distributed.broadcast(
                 param, loc_comm_rank, async_op=True
-            )  # default is SUM
-        # todo: issue the local waits to the respective layers
-
-    @torch.no_grad()
-    def __in_layer_local_sync_start(self, param_name, root_process):
-        # todo: this should be in the network layer class
-        # do a bcast from the root process
-        param = self.local_model.get_parameter(param_name)
-        wait = torch.distributed.broadcast(param, root_process, async_op=True)  # default is SUM
-        # for name, param in self.module.named_parameters():
-        #     if param.requires_grad:
-        #         snds[name].wait()
-        # pass
-        return wait
-
-    # def __in_layer_local_sync_wait(self):
+            )
+        # NOTE: the local sync does not need to be held long: it should be received during the same forward step
+        # wait for the current layer's parameters to be received
+        for n, _ in layer.named_parameters():
+            self._local_waits[self.current_batch][bucket_number][n].wait()
+            del self._local_waits[self.current_batch][bucket_number][n]
 
     def set_total_batches_and_global_skips(self, total_batches=None, new_global_skips=None):
         # this will build the number of
@@ -413,7 +435,6 @@ class DASOLayers:
         batch = self.current_batch
         # knowing next_batch is important to make sure that the local sync is on
         #       or if the next is the last batch
-        next_batch = batch + 1
         gs = self.global_skips
         # ls = self.local_skip
         # determine if to do the syncs
@@ -436,6 +457,11 @@ class DASOLayers:
         # todo: need to handle the last batch
         if batch == self.last_batch:
             # todo: last batch function (send and recv in same function)
+
+            # todo: possible memory leak with not deleting the wait objects until here
+            # for b in range(self.number_of_buckets):
+            #     self._local_waits[b] = {}
+            self._local_waits = {}
             pass
 
         if gmod == 0:
@@ -443,11 +469,13 @@ class DASOLayers:
             # split off the other ranks
             # current_comm = self.reduced_comms[self.current_sending_ranks]
             current_ranks = self.reduced_ranks[self.current_sending_ranks]
+            self._local_waits[self.current_batch + btw + 1] = {}
 
             # set an indicator on ALL RANKS about when this is done (for the local bcast
-            self.sync_params_deque.append(
-                (self.current_batch + btw + 1, btw, self.current_sending_ranks)
-            )
+            for b in range(self.number_of_buckets):
+                self.sync_params_deque[b].append(
+                    [self.current_batch + btw + 1, btw, self.current_sending_ranks, False]
+                )
 
             if self.comm.rank in current_ranks:
                 self.__fill_n_send_buckets()

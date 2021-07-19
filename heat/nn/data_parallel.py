@@ -375,3 +375,73 @@ class DataParallelDASO(tnn.Module):
         """
         if callable(getattr(module, "reset_parameters", None)):
             module.reset_parameters()
+
+
+class DataParallelDASOLayers(tnn.Module):
+    """
+    This creates data parallel networks local to each node using PyTorch's distributed class. This does NOT
+    do any global synchronizations. To make optimal use of this structure, use :func:`ht.optim.DASO <heat.optim.dp_optimizer.DASO>`.
+
+    Notes
+    -----
+    The PyTorch distributed process group must already exist before this class is initialized.
+
+    Parameters
+    ----------
+    module: torch.nn.Module
+        an implemented PyTorch model
+    optimizer: optim.DASO
+        A DASO optimizer. Other optimizers are not yet implemented. The DASO optimizer should be
+        defined prior to calling this class.
+    comm: MPICommunication, optional
+        A global communicator.
+        Default: :func:`MPICommunication <heat.core.comm.MPICommunication>`
+    """
+
+    def __init__(
+        self, module: torch.nn.Module, optimizer: optim.DASO, comm: MPICommunication = MPI_WORLD
+    ):  # noqa: D107
+        super(DataParallelDASOLayers, self).__init__()
+
+        rank = comm.rank
+        if torch.cuda.device_count() > 1:
+            self.loc_gpus = torch.cuda.device_count()
+            local_rank = rank % self.loc_gpus
+            device = "cuda:" + str(local_rank)
+            torch.cuda.set_device(device=device)
+            module = tnn.parallel.DistributedDataParallel(module, device_ids=[local_rank])
+        else:
+            warnings.warn(
+                "DataParallelMultiGPU should be used with multiple GPUs per node", UserWarning
+            )
+        self.module = module
+        self.comm = comm
+
+        # unify parameters across nodes by unifying the random seed and resetting parameters
+        self.module.apply(self._reset_parameters)
+
+        optimizer.set_model(self.module)
+
+    def forward(self, *inputs: Tuple, **kwargs: Dict) -> torch.Tensor:
+        """
+        Calls the forward method for the torch model
+        """
+        return self.module(*inputs, **kwargs)
+
+    def set_hooks(self):
+        # function to put the forward hooks on every layer
+        pass
+
+    @staticmethod
+    def _reset_parameters(module: tnn.Module) -> None:
+        """
+        Reset parameters of given torch submodule. Only works for basic module types containing ``reset_parameters``
+        function.
+
+        Parameters
+        ----------
+        module: torch.nn.Module
+            Submodule whose parameters are to be reset
+        """
+        if callable(getattr(module, "reset_parameters", None)):
+            module.reset_parameters()
