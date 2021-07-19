@@ -63,7 +63,7 @@ Example on 2 processes:
 ### Linear Algebra
 - [#718](https://github.com/helmholtz-analytics/heat/pull/718) New feature: `trace()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
-- [#820](https://github.com/helmholtz-analytics/heat/pull/820) `dot` can handle matrix vector operation now
+- [#820](https://github.com/helmholtz-analytics/heat/pull/820) `dot` can handle matrix-vector operation now
 
 ### Manipulations
 - [#796](https://github.com/helmholtz-analytics/heat/pull/796) `DNDarray.reshape(shape)`: method now allows shape elements to be passed in as single arguments.
