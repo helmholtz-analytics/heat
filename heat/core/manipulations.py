@@ -798,6 +798,8 @@ def flatten(a: DNDarray) -> DNDarray:
     >>> ht.flatten(a)
     DNDarray([1, 2, 3, 4, 5, 6, 7, 8], dtype=ht.int64, device=cpu:0, split=None)
     """
+    sanitation.sanitize_in(a)
+
     if a.split is None:
         return factories.array(
             torch.flatten(a.larray), dtype=a.dtype, is_split=None, device=a.device, comm=a.comm

@@ -10,6 +10,7 @@ from typing import List, Callable, Union, Optional
 
 from ..communication import MPI
 from .. import arithmetics
+from .. import complex_math
 from .. import exponential
 from ..dndarray import DNDarray
 from .. import factories
@@ -17,7 +18,18 @@ from .. import manipulations
 from .. import sanitation
 from .. import types
 
-__all__ = ["dot", "matmul", "norm", "outer", "projection", "trace", "transpose", "tril", "triu"]
+__all__ = [
+    "dot",
+    "matmul",
+    "norm",
+    "outer",
+    "projection",
+    "trace",
+    "transpose",
+    "tril",
+    "triu",
+    "vdot",
+]
 
 
 def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDarray, float]:
@@ -1638,3 +1650,46 @@ def triu(m: DNDarray, k: int = 0) -> DNDarray:
 
 DNDarray.triu: Callable[[DNDarray, int], DNDarray] = lambda self, k=0: triu(self, k)
 DNDarray.triu.__doc__ = triu.__doc__
+
+
+def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
+    """
+    Computes the dot product of two vectors. Higher-dimensional arrays will be flattened.
+
+    Parameters
+    ----------
+    x1 : DNDarray
+        first input array. If it's complex, it's complex conjugate will be used.
+    x2 : DNDarray
+        second input array.
+
+    Raises
+    ------
+    ValueError
+        If the number of elements is inconsistent.
+
+    See Also
+    --------
+    dot
+        Return the dot product without using the complex conjugate.
+
+    Examples
+    --------
+    >>> a = ht.array([1+1j, 2+2j])
+    >>> b = ht.array([1+2j, 3+4j])
+    >>> ht.linalg.vdot(a,b)
+    DNDarray([(17+3j)], dtype=ht.complex64, device=cpu:0, split=None)
+    >>> ht.linalg.vdot(b,a)
+    DNDarray([(17-3j)], dtype=ht.complex64, device=cpu:0, split=None)
+    """
+    x1 = manipulations.flatten(x1)
+    x2 = manipulations.flatten(x2)
+
+    if x1.gnumel != x2.gnumel:
+        raise ValueError(
+            "The number of elements of x1 and x2 doesn't match, got {} != {}".format(
+                x1.gnumel, x2.gnumel
+            )
+        )
+
+    return arithmetics.sum(arithmetics.multiply(complex_math.conjugate(x1), x2))
