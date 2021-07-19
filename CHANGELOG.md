@@ -3,7 +3,6 @@
 ### Linear Algebra
 - [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
 
-
 # v1.1.0
 
 ## Highlights
