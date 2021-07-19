@@ -1945,68 +1945,61 @@ def roll(x: DNDarray, shift: Union[int, Tuple[int]], axis: Optional[Union[int, T
 
                 return DNDarray(recv, x.gshape, x.dtype, x.split, x.device, x.comm, x.balanced)
 
-            # use pytorch if it's not the split axis
-            rolled = torch.roll(x.larray, shift, axis)
-            return DNDarray(
-                rolled,
-                gshape=x.shape,
-                dtype=x.dtype,
-                split=x.split,
-                device=x.device,
-                comm=x.comm,
-                balanced=x.balanced,
-            )
+        else:  # pytorch does not support int / sequence combo at the time, make shift a list instead
+            try:
+                axis = sanitation.sanitize_sequence(axis)
+            except TypeError:
+                raise TypeError("axis must be a int, list or a tuple, got {}".format(type(axis)))
 
-        # pytorch does not support int / sequence combo at the time, make shift a list instead
+            shift = [shift] * len(axis)
+
+            return roll(x, shift, axis)
+
+    else:  # input must be tuples now
+        try:
+            shift = sanitation.sanitize_sequence(shift)
+        except TypeError:
+            raise TypeError("shift must be an integer, list or a tuple, got {}".format(type(shift)))
+
         try:
             axis = sanitation.sanitize_sequence(axis)
         except TypeError:
-            raise TypeError("axis must be a int, list or a tuple, got {}".format(type(axis)))
+            raise TypeError("axis must be an integer, list or a tuple, got {}".format(type(axis)))
 
-        shift = [shift] * len(axis)
-
-    # input must be tuples now
-    try:
-        shift = sanitation.sanitize_sequence(shift)
-    except TypeError:
-        raise TypeError("shift must be an integer, list or a tuple, got {}".format(type(shift)))
-
-    try:
-        axis = sanitation.sanitize_sequence(axis)
-    except TypeError:
-        raise TypeError("axis must be an integer, list or a tuple, got {}".format(type(axis)))
-
-    if len(shift) != len(axis):
-        raise ValueError(
-            "shift and axis length must be the same, got {} and {}".format(len(shift), len(axis))
-        )
-
-    for i in range(len(shift)):
-        if not isinstance(shift[i], int):
-            raise TypeError(
-                "Element {} in shift is not an integer, got {}".format(i, type(shift[i]))
+        if len(shift) != len(axis):
+            raise ValueError(
+                "shift and axis length must be the same, got {} and {}".format(
+                    len(shift), len(axis)
+                )
             )
-        if not isinstance(axis[i], int):
-            raise TypeError("Element {} in axis is not an integer, got {}".format(i, type(axis[i])))
 
-    if x.split is not None and (x.split in axis or (x.split - x.ndim) in axis):
-        # remove split axis elements
-        shift_split = 0
-        for y in (x.split, x.split - x.ndim):
-            idx = [i for i in range(len(axis)) if axis[i] == y]
-            for i in idx:
-                shift_split += shift[i]
-            for i in reversed(idx):
-                axis.remove(y)
-                del shift[i]
+        for i in range(len(shift)):
+            if not isinstance(shift[i], int):
+                raise TypeError(
+                    "Element {} in shift is not an integer, got {}".format(i, type(shift[i]))
+                )
+            if not isinstance(axis[i], int):
+                raise TypeError(
+                    "Element {} in axis is not an integer, got {}".format(i, type(axis[i]))
+                )
 
-        # compute new array
-        rolled = roll(x, shift_split, x.split)
-        if len(axis) > 0:
-            rolled = roll(rolled, shift, axis)
-        return rolled
+        if x.split is not None and (x.split in axis or (x.split - x.ndim) in axis):
+            # remove split axis elements
+            shift_split = 0
+            for y in (x.split, x.split - x.ndim):
+                idx = [i for i in range(len(axis)) if axis[i] == y]
+                for i in idx:
+                    shift_split += shift[i]
+                for i in reversed(idx):
+                    axis.remove(y)
+                    del shift[i]
 
-    # use ptorch if it's not the split axis
+            # compute new array along split axis
+            x = roll(x, shift_split, x.split)
+            if len(axis) == 0:
+                return x
+
+    # use PyTorch for all other axes
     rolled = torch.roll(x.larray, shift, axis)
     return DNDarray(
         rolled,
