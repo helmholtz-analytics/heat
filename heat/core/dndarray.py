@@ -692,6 +692,7 @@ class DNDarray:
         key = getattr(key, "copy()", key)
         l_dtype = self.dtype.torch_type()
         advanced_ind = False
+        # key, self_proxy, gout_full = self.__xitem_prepare_key(key)
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
             """ if the key is a DNDarray and it has as many dimensions as self, then each of the
                 entries in the 0th dim refer to a single element. To handle this, the key is split
@@ -1379,18 +1380,49 @@ class DNDarray:
         except (AttributeError, TypeError):
             pass
 
+        # NOTE: for whatever reason, there is an inplace op which interferes with the abstraction
+        # of this next block of code. this is shared with __getitem__. I attempted to abstract it
+        # in a standard way, but it was causing errors in the test suite. If someone else is
+        # motived to do this they are welcome to, but i have no time right now
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
-            # this splits the key into torch.Tensors in each dimension for advanced indexing
-            lkey = [slice(None, None, None)] * self.ndim
-            for i in range(key.ndim):
-                lkey[i] = key.larray[..., i]
-            key = tuple(lkey)
+            """ if the key is a DNDarray and it has as many dimensions as self, then each of the
+                entries in the 0th dim refer to a single element. To handle this, the key is split
+                into the torch tensors for each dimension. This signals that advanced indexing is
+                to be used. """
+            key = manipulations.resplit(key.copy())
+            if key.ndim > 1:
+                key = list(key.larray.split(1, dim=1))
+                # key is now a list of tensors with dimensions (key.ndim, 1)
+                # squeeze singleton dimension:
+                key = tuple(key[i].squeeze_(1) for i in range(len(key)))
+            else:
+                key = (key,)
         elif not isinstance(key, tuple):
+            """ this loop handles all other cases. DNDarrays which make it to here refer to
+                advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
+                are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
             h = [slice(None, None, None)] * self.ndim
-            h[0] = key
+            if isinstance(key, DNDarray):
+                key = manipulations.resplit(key.copy())
+                h[0] = key.larray.tolist()
+            elif isinstance(key, torch.Tensor):
+                h[0] = key.tolist()
+            else:
+                h[0] = key
             key = tuple(h)
 
+        # key must be torch-proof
+        if isinstance(key, (list, tuple)):
+            key = list(key)
+            for i, k in enumerate(key):
+                if isinstance(k, DNDarray):
+                    # extract torch tensor
+                    k = manipulations.resplit(k.copy())
+                    key[i] = k.larray.type(torch.int64)
+            key = tuple(key)
+
         key = list(key)
+
         # ellipsis stuff
         key_classes = [type(n) for n in key]
         # if any(isinstance(n, ellipsis) for n in key):
@@ -1410,6 +1442,29 @@ class DNDarray:
                 key[c] = k.item()
             except (AttributeError, ValueError):
                 pass
+
+        rank = self.comm.rank
+        if self.split is not None:
+            counts, chunk_starts = self.counts_displs()
+        else:
+            counts, chunk_starts = 0, [0] * self.comm.size
+        counts, chunk_starts = torch.tensor(counts), torch.tensor(chunk_starts)
+        chunk_ends = chunk_starts + counts
+        chunk_start = chunk_starts[rank]
+        chunk_end = chunk_ends[rank]
+        # determine which elements are on the local process (if the key is a torch tensor)
+        try:
+            if isinstance(key[self.split], torch.Tensor):
+                filter_key = torch.nonzero(
+                    (chunk_start <= key[self.split]) & (key[self.split] < chunk_end)
+                )
+                for k in range(len(key)):
+                    try:
+                        key[k] = key[k][filter_key].flatten()
+                    except TypeError:
+                        pass
+        except TypeError:  # this will happen if the key doesnt have that many
+            pass
 
         key = tuple(key)
 
@@ -1533,7 +1588,7 @@ class DNDarray:
                 self.__setter(tuple(key), value[tuple(value_slice)])
             else:
                 self.__setter(tuple(key), value)
-        elif isinstance(key[self.split], torch.Tensor):
+        elif isinstance(key[self.split], (torch.Tensor, list)):
             key = list(key)
             key[self.split] -= chunk_start
             self.__setter(tuple(key), value)
