@@ -1,4 +1,8 @@
-# Pending Additions
+# Pending additions
+
+## Bug Fixes
+- [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
+
 ## Feature Additions
 ### Linear Algebra
 - [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
