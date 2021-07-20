@@ -1333,6 +1333,10 @@ class TestDNDarray(TestCase):
             a[..., ...]
         with self.assertRaises(ValueError):
             a[..., ...] = 1
+        with self.assertRaises(ValueError):
+            x = ht.ones((10, 10), split=0)
+            setting = ht.zeros((8, 8), split=1)
+            x[1:-1, 1:-1] = setting
 
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
