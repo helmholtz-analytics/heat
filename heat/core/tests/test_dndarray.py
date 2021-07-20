@@ -245,7 +245,8 @@ class TestDNDarray(TestCase):
     def test_balance_and_lshape_map(self):
         data = ht.zeros((70, 20), split=0)
         data = data[:50]
-        lshape_map = data.create_lshape_map()
+        data.lshape_map
+        lshape_map = data.create_lshape_map(force_check=False)  # tests the property
         self.assertEqual(sum(lshape_map[..., 0]), 50)
         if sum(data.lshape) == 0:
             self.assertTrue(all(lshape_map[data.comm.rank] == 0))
