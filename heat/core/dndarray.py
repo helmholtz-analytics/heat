@@ -280,7 +280,7 @@ class DNDarray:
     @property
     def lshape_map(self) -> torch.Tensor:
         """
-        Returns the lshape map. If it has been previously created then it will be created here
+        Returns the lshape map. If it hasn't been previously created then it will be created here.
         """
         return self.create_lshape_map()
 
