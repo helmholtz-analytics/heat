@@ -1910,6 +1910,9 @@ def roll(x: DNDarray, shift: Union[int, Tuple[int]], axis: Optional[Union[int, T
                 lshape_map = x.create_lshape_map()[:, x.split]  # local elements along axis
                 cumsum_map = torch.cumsum(lshape_map, dim=0)  # cumulate along axis
                 indices = torch.arange(size, device=x.device.torch_device)
+                # NOTE Can be removed when min version>=1.9
+                if "1.7." in torch.__version__ or "1.8." in torch.__version__:
+                    lshape_map = lshape_map.to(torch.int64)
                 index_map = torch.repeat_interleave(indices, lshape_map)  # index -> process
 
                 # compute index positions
