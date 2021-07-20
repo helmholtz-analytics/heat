@@ -996,13 +996,13 @@ class TestDNDarray(TestCase):
         # set and get single value
         a = ht.zeros((13, 5), split=0)
         # set value on one node
-        a[10, 0] = 1
+        a[10, np.array(0)] = 1
         self.assertEqual(a[10, 0], 1)
         self.assertEqual(a[10, 0].dtype, ht.float32)
 
         a = ht.zeros((13, 5), split=0)
         a[10] = 1
-        b = a[10]
+        b = a[torch.tensor(10)]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.dtype, ht.float32)
         self.assertEqual(b.gshape, (5,))
@@ -1042,7 +1042,7 @@ class TestDNDarray(TestCase):
         # slice in 1st dim only on 1 node w/ singular second dim
         a = ht.zeros((13, 5), split=0)
         a[1:4, 1] = 1
-        b = a[1:4, 1]
+        b = a[1:4, np.int64(1)]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.gshape, (3,))
         self.assertEqual(b.split, 0)
@@ -1058,7 +1058,7 @@ class TestDNDarray(TestCase):
         a[1:11, 1] = 1
         self.assertTrue((a[1:11, 1] == 1).all())
         self.assertEqual(a[1:11, 1].gshape, (10,))
-        self.assertEqual(a[1:11, 1].split, 0)
+        self.assertEqual(a[1:11, torch.tensor(1)].split, 0)
         self.assertEqual(a[1:11, 1].dtype, ht.float32)
         if a.comm.size == 2:
             if a.comm.rank == 1:
@@ -1069,7 +1069,7 @@ class TestDNDarray(TestCase):
         # slice in 1st dim across 1 node (2nd) w/ singular second dim
         c = ht.zeros((13, 5), split=0)
         c[8:12, 1] = 1
-        b = c[8:12, 1]
+        b = c[8:12, np.int64(1)]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.gshape, (4,))
         self.assertEqual(b.split, 0)
