@@ -1,3 +1,8 @@
+# Pending Additions
+## Feature Additions
+### Rounding
+- [#827](https://github.com/helmholtz-analytics/heat/pull/827) New feature: `sign`, `sgn`
+
 # v1.1.0
 
 ## Highlights
@@ -62,8 +67,6 @@ Example on 2 processes:
 
 ### Manipulations
 - [#796](https://github.com/helmholtz-analytics/heat/pull/796) `DNDarray.reshape(shape)`: method now allows shape elements to be passed in as single arguments.
-### Rounding
-- [#827](https://github.com/helmholtz-analytics/heat/pull/827) New feature: `sign`, `sgn`
 
 ### Trigonometrics / Arithmetic
 - [#806](https://github.com/helmholtz-analytics/heat/pull/809) New feature: `square`
