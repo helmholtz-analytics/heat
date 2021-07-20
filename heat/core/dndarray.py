@@ -1432,9 +1432,6 @@ class DNDarray:
 
         self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
 
-        if not isinstance(key, tuple):
-            return self.__setter(key, value)  # returns None
-
         # if the value is a DNDarray, the divisions need to be balanced:
         #   this means that we need to know how much data is where for both DNDarrays
         #   if the value data is not in the right place, then it will need to be moved
@@ -1498,7 +1495,7 @@ class DNDarray:
                 value_slice = [slice(None, None, None)] * value.ndim
                 step2 = key_step if key_step is not None else 1
                 key_start = (chunk_starts_v[rank] - og_key_start).item()
-                # print(key_start)
+
                 if key_start < 0:
                     key_start = 0
                 key_stop = key_start + key_stop
