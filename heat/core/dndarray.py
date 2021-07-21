@@ -692,7 +692,6 @@ class DNDarray:
         # key = getattr(key, "copy()", key)
         l_dtype = self.dtype.torch_type()
         advanced_ind = False
-        # key, self_proxy, gout_full = self.__xitem_prepare_key(key)
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
             """ if the key is a DNDarray and it has as many dimensions as self, then each of the
                 entries in the 0th dim refer to a single element. To handle this, the key is split
@@ -724,9 +723,10 @@ class DNDarray:
         if isinstance(key, (list, tuple)):
             key = list(key)
             for i, k in enumerate(key):
+                # this might be a good place to check if the dtype is there
                 try:
                     k = manipulations.resplit(k)
-                    key[i] = k.larray  # .to(torch.int64)
+                    key[i] = k.larray
                 except AttributeError:
                     pass
 
@@ -796,7 +796,6 @@ class DNDarray:
             if isinstance(key[self.split], DNDarray):
                 lkey[self.split] = key[self.split].larray
 
-            # adjust the bools to be ints
             if not isinstance(lkey[self.split], torch.Tensor):
                 inds = torch.tensor(
                     lkey[self.split], dtype=torch.long, device=self.device.torch_device
@@ -807,13 +806,7 @@ class DNDarray:
                     inds = torch.nonzero(lkey[self.split])
                 else:
                     inds = lkey[self.split]
-            # if lkey[self.split]
-
-            # inds = (
-            #     torch.tensor(lkey[self.split], dtype=torch.long, device=self.device.torch_device)
-            #     if not isinstance(lkey[self.split], torch.Tensor)
-            #     else lkey[self.split]
-            # )
+            # todo: remove where in favor of nonzero? might be a speed upgrade. testing required
             loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
             # if there are no local indices on a process, then `arr` is empty
             # if local indices exist:
@@ -1450,14 +1443,11 @@ class DNDarray:
         if isinstance(key, (list, tuple)):
             key = list(key)
             for i, k in enumerate(key):
-                # if isinstance(k, DNDarray):
-                #     # extract torch tensor
-                try:
+                try:  # extract torch tensor
                     k = manipulations.resplit(k)
-                    key[i] = k.larray  # .to(torch.int64)
+                    key[i] = k.larray
                 except AttributeError:
                     pass
-            # key = tuple(key)
 
         key = list(key)
 
