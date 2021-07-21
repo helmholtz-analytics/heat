@@ -689,7 +689,7 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        key = getattr(key, "copy()", key)
+        # key = getattr(key, "copy()", key)
         l_dtype = self.dtype.torch_type()
         advanced_ind = False
         # key, self_proxy, gout_full = self.__xitem_prepare_key(key)
@@ -795,11 +795,25 @@ class DNDarray:
             lkey = list(key)
             if isinstance(key[self.split], DNDarray):
                 lkey[self.split] = key[self.split].larray
-            inds = (
-                torch.tensor(lkey[self.split], dtype=torch.long, device=self.device.torch_device)
-                if not isinstance(lkey[self.split], torch.Tensor)
-                else lkey[self.split]
-            )
+
+            # adjust the bools to be ints
+            if not isinstance(lkey[self.split], torch.Tensor):
+                inds = torch.tensor(
+                    lkey[self.split], dtype=torch.long, device=self.device.torch_device
+                )
+            else:
+                if lkey[self.split].dtype in [torch.bool, torch.uint8]:  # or torch.byte?
+                    # need to convert the bools to indices
+                    inds = torch.nonzero(lkey[self.split])
+                else:
+                    inds = lkey[self.split]
+            # if lkey[self.split]
+
+            # inds = (
+            #     torch.tensor(lkey[self.split], dtype=torch.long, device=self.device.torch_device)
+            #     if not isinstance(lkey[self.split], torch.Tensor)
+            #     else lkey[self.split]
+            # )
             loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
             # if there are no local indices on a process, then `arr` is empty
             # if local indices exist:
@@ -947,6 +961,26 @@ class DNDarray:
         # determine if the key gets a singular item
         zeros = tuple([0] * (self_proxy.ndim - 1))
         return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
+        # try:
+        #     int(obj)
+        #     return True
+        # except Exception:
+        #     pass
+        # if hasattr(obj, "__len__") and len(obj) == 1:
+        #     return True
+        # if hasattr(obj, "shape") and len(obj.shape) == 0:
+        #     return True
+        # if hasattr(obj, "numel"):
+        #     return obj.numel() == 1
+        # if hasattr(obj, "size"):
+        #     return obj.size == 1
+        # if hasattr(obj, "item"):
+        #     try:
+        #         obj.item()
+        #         return True
+        #     except Exception:
+        #         pass
+        # return False
 
     def item(self):
         """
