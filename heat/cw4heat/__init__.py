@@ -73,9 +73,26 @@ from heat import DNDarray as dndarray
 impl_str = "impl"
 dndarray_str = "impl.DNDarray"
 
-_distributor = None
-_comm = None
-_fini = None
+_runner = None
+
+
+class _partRef:
+    """
+    Handle used in __partitioned__. Identifies one chunk of a distributed array.
+    """
+
+    def __init__(self, id_, rank_):
+        self.id = id_
+        self.rank = rank_
+
+
+def _getPartForRef(pref):
+    """
+    Return actual partition data for given _partRef.
+    """
+    # FIXME Ray
+    ret = _runner.distributor.getPart(pref, "larray")
+    return ret
 
 
 def _setComm(c):
@@ -89,11 +106,9 @@ def init(doStart=True, ctxt=False):
     For now we assume all ranks (controller and workers) are started through mpirun,
     workers will never leave distributor.start() and so this function.
     """
-    global _distributor
-    global _comm
-    global _fini
+    global _runner
 
-    if _distributor is not None:
+    if _runner is not None:
         return
 
     _launcher = getenv("CW4H_LAUNCHER", default="mpi").lower()
@@ -101,16 +116,28 @@ def init(doStart=True, ctxt=False):
     # atexit.register(fini)
     if _launcher == "ray":
         assert ctxt is False, "Controller-worker context is useless with ray launcher."
-        from .ray_runner import init as ray_init, fini as ray_fini
+        from .ray_runner import init as ray_init
 
-        _comm, _distributor, _futures = ray_init(_setComm)
-        _distributor.start(initImpl=_setComm)
-        _fini = ray_fini
+        _runner = ray_init(_setComm)
+        _runner.distributor.start(initImpl=_setComm)
     elif _launcher == "mpi":
-        _comm = MPI.COMM_WORLD
-        _distributor = Distributor(_comm)
+
+        class MPIRunner:
+            def __init__(self, dist, comm):
+                self.comm = comm
+                self.distributor = dist
+                self.publish = lambda id, distributor: [
+                    (i, _partRef(id, i)) for i in range(self.comm.size)
+                ]
+                self.get = _getPartForRef
+
+            def fini(self):
+                pass
+
+        c = MPI.COMM_WORLD
+        _runner = MPIRunner(Distributor(c), c)
         if doStart:
-            _distributor.start(initImpl=_setComm)
+            _runner.distributor.start(initImpl=_setComm)
     else:
         raise Exception(f"unknown launcher {_launcher}. CW4H_LAUNCHER must be 'mpi', or 'ray'.")
 
@@ -120,9 +147,10 @@ def fini():
     Finalize/shutdown distribution engine. Automatically called at exit.
     When called on controller, workers will sys.exit from init().
     """
-    _distributor.fini()
-    if _fini:
-        _fini()
+    global _runner
+    _runner.distributor.fini()
+    if _runner:
+        _runner.fini()
 
 
 class cw4h:
@@ -143,7 +171,7 @@ class cw4h:
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        if _comm.rank == 0:
+        if _runner.comm.rank == 0:
             fini()
 
     def controller(self):
@@ -152,10 +180,10 @@ class cw4h:
         the code block protected as controller.
         Non-root workers will not finish until self gets deleted.
         """
-        if _comm.rank == 0:
+        if _runner.comm.rank == 0:
             return True
         else:
-            _distributor.start(doExit=False, initImpl=_setComm)
+            _runner.distributor.start(doExit=False, initImpl=_setComm)
             return False
 
 
@@ -195,7 +223,9 @@ def _submit(name, args, kwargs, unwrap="*", numout=1):
     """
     scalar_args = tuple(x for x in args if not isinstance(x, DDParray))
     deps = [x._handle.getId() for x in args if isinstance(x, DDParray)]
-    return _distributor.submitPP(_Task(name, scalar_args, kwargs, unwrap=unwrap), deps, numout)
+    return _runner.distributor.submitPP(
+        _Task(name, scalar_args, kwargs, unwrap=unwrap), deps, numout
+    )
 
 
 def _submitProperty(name, self):
@@ -204,7 +234,7 @@ def _submitProperty(name, self):
     """
     t = _PropertyTask(name)
     try:
-        res = _distributor.submitPP(t, [self._handle.getId()])
+        res = _runner.distributor.submitPP(t, [self._handle.getId()])
     except Exception:
         assert False
     return res
@@ -214,14 +244,6 @@ def _submitProperty(name, self):
 # we need to provide a function accepting the inverse order
 def _setitem_normalized(self, value, key):
     self.__setitem__(key, value)
-
-
-def _getPartForRef(pref):
-    """
-    Return actual partition data for given partRef.
-    """
-    # FIXME Ray
-    return _distributor.getPart(pref, "larray")
 
 
 #######################################################################
@@ -252,7 +274,7 @@ class DDParray:
     #     Return heat native array.
     #     With delayed execution, triggers computation as needed and blocks until array is available.
     #     """
-    #     return _distributor.get(self._handle)
+    #     return _runner.distributor.get(self._handle)
 
     def __getitem__(self, key):
         """
@@ -275,48 +297,23 @@ class DDParray:
         """
         return DDParray(_submitProperty("T", self))
 
-    #######################################################################
-    # Now we add methods/properties through the standard process.
-    #######################################################################
-
-    # dynamically generate class methods from list of methods in array-API
-    # we simply make lambdas which submit appropriate Tasks
-    # FIXME: aa_inplace_operators,others?
-    fixme_afuncs = ["squeeze", "astype", "balance", "resplit"]
-    for method in aa_methods_a + aa_reflected_operators + fixme_afuncs:
-        if method not in ["__getitem__", "__setitem__"] and hasattr(dndarray, method):
-            exec(
-                f"{method} = lambda self, *args, **kwargs: DDParray(_submit('{dndarray_str}.{method}', (self, *args), kwargs))"
-            )
-
-    for method in aa_methods_s + ["__str__"]:
-        if hasattr(dndarray, method):
-            exec(
-                f"{method} = lambda self, *args, **kwargs: _distributor.get(_submit('{dndarray_str}.{method}', (self, *args), kwargs))"
-            )
-
-    class partRef:
-        """
-        Handle used in __partitioned__. Identifies one chunk of a distributed array.
-        """
-
-        def __init__(self, id_, rank_):
-            self.id = id_
-            self.rank = rank_
-
-    # @property
+    @property
     def __partitioned__(self):
         """
         Return partitioning meta data.
         """
-        parts = _distributor.get(
+        global _runner
+
+        parts = _runner.distributor.get(
             _submit(f"{dndarray_str}.create_partition_interface", (self, True), {})
         )
         # Provide all data as handle/reference
-        for _, p in parts["partitions"].items():
-            p["data"] = self.partRef(self._handle._id, p["location"])
+        futures = _runner.publish(self._handle._id, _runner.distributor)
+        for i, p in enumerate(parts["partitions"].values()):
+            p["location"] = futures[i][0]
+            p["data"] = futures[i][1]
         # set getter
-        parts["get"] = _getPartForRef
+        parts["get"] = _runner.get
         # remove SPMD local key
         del parts["locals"]
         return parts
@@ -327,12 +324,32 @@ class DDParray:
         Caches attributes from workers, so we communicate only once.
         """
         if self._attributes is None:
-            self._attributes = _distributor.get(
+            self._attributes = _runner.distributor.get(
                 _submit(
                     "(lambda a: {x: getattr(a, x) for x in aa_attributes if x != 'T'})", (self,), {}
                 )
             )
         return self._attributes[attr]
+
+    #######################################################################
+    # Now we add methods/properties through the standard process.
+    #######################################################################
+
+    # dynamically generate class methods from list of methods in array-API
+    # we simply make lambdas which submit appropriate Tasks
+    # FIXME: aa_inplace_operators,others?
+    fixme_afuncs = ["squeeze", "astype", "balance", "resplit", "reshape"]
+    for method in aa_methods_a + aa_reflected_operators + fixme_afuncs:
+        if method not in ["__getitem__", "__setitem__"] and hasattr(dndarray, method):
+            exec(
+                f"{method} = lambda self, *args, **kwargs: DDParray(_submit('{dndarray_str}.{method}', (self, *args), kwargs))"
+            )
+
+    for method in aa_methods_s + ["__str__"]:
+        if hasattr(dndarray, method):
+            exec(
+                f"{method} = lambda self, *args, **kwargs: _runner.distributor.get(_submit('{dndarray_str}.{method}', (self, *args), kwargs))"
+            )
 
 
 #######################################################################
@@ -344,7 +361,7 @@ class DDParray:
 # (lists taken from list of methods in array-API)
 # Again, we simply make lambdas which submit appropriate Tasks
 
-fixme_funcs = ["load_csv", "array", "triu"]
+fixme_funcs = ["load_csv", "array", "triu", "copy", "repeat"]
 for func in aa_tlfuncs + fixme_funcs:
     if func == "meshgrid":
         exec(

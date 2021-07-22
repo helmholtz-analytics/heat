@@ -63,6 +63,7 @@ TASK = 1
 GO = 2
 GET = 3
 GETPART = 4
+PUBPART = 5
 
 
 class _TaskQueue:
@@ -124,6 +125,7 @@ class Distributor:
         if self._comm.rank == 0:
             return True
         else:
+            print("Entering worker loop", flush=True)
             done = False
             header = None
             while not done:
@@ -142,6 +144,10 @@ class Distributor:
                         val = _RemoteTask.getVal(header[2])
                         attr = getattr(val, header[3])
                         self._comm.send(attr, dest=0, tag=GETPART)
+                elif header[0] == PUBPART:
+                    val = _RemoteTask.getVal(header[1])
+                    attr = header[3](getattr(val, header[2]))
+                    self._comm.gather(attr, root=0)
                 elif header[0] == END:
                     done = True
                     self._comm.Barrier()
@@ -200,6 +206,16 @@ class Distributor:
             _ = self._comm.bcast(header, 0)
             val = self._comm.recv(source=handle.rank, tag=GETPART)
         return val
+
+    def publishParts(self, id, attr, publish):
+        """
+        Publish array's attribute for each partition and gather handles on root.
+        """
+        assert self._comm.rank == 0
+        header = [PUBPART, id, attr, publish]
+        _ = self._comm.bcast(header, 0)
+        val = publish(getattr(_RemoteTask.getVal(id), attr))
+        return self._comm.gather(val, root=0)
 
     def submitPP(self, task, deps, numout=1):
         """
@@ -277,6 +293,7 @@ class _RemoteTask:
         """
         Actually run the task.
         """
+        # print(self._task._func)
         deps = [_RemoteTask.s_pms[i] for i in self._depIds]
         res = self._task.run(deps)
         if self._nOut == 1:

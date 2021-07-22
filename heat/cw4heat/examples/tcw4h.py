@@ -10,8 +10,9 @@ with ht.cw4h() as cw:
         a = ht.arange(8, split=0)
         b = ht.ones(8, split=0)
         c = a @ b
-        assert hasattr(c, "__partitioned__")
-        p = a.__partitioned__()
+        # assert hasattr(c, "__partitioned__")
+        print(type(c))
+        p = c.__partitioned__()
         print(c.shape, c, p)
         for k, v in p["partitions"].items():
             print(k, p["get"](v["data"]))
@@ -23,8 +24,8 @@ with ht.cw4h() as cw:
         a = ht.arange(8, split=0)
         b = ht.ones(8, split=0)
         c = a @ b
-        assert hasattr(c, "__partitioned__")
-        p = a.__partitioned__()
+        # assert hasattr(c, "__partitioned__")
+        p = c.__partitioned__()
         print(c.shape, c, p)
         for k, v in p["partitions"].items():
             print(k, p["get"](v["data"]))

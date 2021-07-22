@@ -28,12 +28,11 @@ A Ray backend for HeAT controller-worker wrapper.
 
 from mpi4py import MPI
 import ray
+import ray.cloudpickle
 from ray.services import get_node_ip_address as getIP
 from .distributor import Distributor
 import os
 from os import getenv, getpid
-
-_actors = {}
 
 
 @ray.remote
@@ -77,59 +76,92 @@ class RayActor:
         self._distributor.start(doExit=False, initImpl=initImpl)
 
 
-def _initActors(initImpl=None):
-    """
-    Initalize our (SPMD) actors, one per node in ray cluster and make them
-    connect through MPI.
-    Controller (calling process) gets connection config and then
-    passes it to init function on each actor.
-    """
-    global _actors
-    if not ray.is_initialized():
-        ray.init(address="auto")
-    ppn = int(getenv("CW4H_PPN", default="1"))
-    assert ppn >= 1
-    my_ip = getIP()
-    # first create one actor per node in the ray cluster
-    for node in ray.cluster_resources():
-        if "node" in node:
-            name = node.split(":")[-1]
-            _ppn = ppn - 1 if name == my_ip else ppn
-            if _ppn >= 1:
-                for i in range(_ppn):
-                    _actors[name] = RayActor.options(resources={node: 1}).remote(
-                        name
-                    )  # runtime_env={"I_MPI_FABRICS": "ofi"}
-    nw = len(_actors)  # number of workers
-    comm = MPI.COMM_SELF
-    # Get Port for MPI connections
-    port = MPI.Open_port(MPI.INFO_NULL)
-    # make all actors connect
-    x = [_actors[a].connect.remote(port, nw) for a in _actors]
-    for i in range(nw):
-        # connect to next worker (collectively)
-        intercomm = comm.Accept(port)
-        # merge communicators
-        comm = intercomm.Merge(0)
-        intercomm.Disconnect()
-    # wait for connections to be established
-    _ = ray.get(x)
-    x = [_actors[a].start.remote(initImpl) for a in _actors]
-    print("All actors started", flush=True)
-    # setup our distributor
-    return (comm, Distributor(comm), x)
+def _pub(x):
+    return ray.cloudpickle.dumps((getIP(), ray.put(x)))
 
 
-def _finiActors():
+def _ray_publish(id, distributor):
     """
-    Finalize Ray Actors: killing actor processes.
+    Return ray ObjRef for obj to be used in ray.
     """
-    global _actors
-    if ray.is_initialized():
-        print("Killing actors")
-        for a in _actors.values():
-            ray.kill(a)
+    vals = distributor.publishParts(id, "larray", _pub)
+    return [ray.cloudpickle.loads(x) for x in vals]
 
 
-init = _initActors
-fini = _finiActors
+def _ray_get(x):
+    return ray.get(x)
+
+
+class RayRunner:
+    """
+    Using ray to launch ranks by using ray actors.
+    """
+
+    def __init__(self, initImpl=None):
+        """
+        Initalize our (SPMD) actors, one per node in ray cluster and make them
+        connect through MPI.
+        Controller (calling process) gets connection config and then
+        passes it to init function on each actor.
+        """
+        self.publish = _ray_publish
+        self.get = _ray_get
+        self._actors = {}
+        self._init(initImpl)
+
+    def fini(self):
+        """
+        Finalize Ray Actors: killing actor processes.
+        """
+        if ray.is_initialized():
+            print("Killing actors")
+            if self._handles:
+                ray.get(self._handles)
+            if self._actors:
+                for a in self._actors.values():
+                    ray.kill(a)
+
+    def _init(self, initImpl=None):
+        if not ray.is_initialized():
+            ray.init(address="auto")
+        ppn = int(getenv("CW4H_PPN", default="1"))
+        assert ppn >= 1
+        my_ip = getIP()
+        # first create one actor per node in the ray cluster
+        for node in ray.cluster_resources():
+            if "node" in node:
+                name = node.split(":")[-1]
+                _ppn = ppn - 1 if name == my_ip else ppn
+                if _ppn >= 1:
+                    for i in range(_ppn):
+                        self._actors[f"{name}{i}"] = RayActor.options(resources={node: 1}).remote(
+                            name
+                        )  # runtime_env={"I_MPI_FABRICS": "ofi"}
+        nw = len(self._actors)  # number of workers
+        self.comm = MPI.COMM_SELF
+        # Get Port for MPI connections
+        port = MPI.Open_port(MPI.INFO_NULL)
+        # make all actors connect
+        x = [a.connect.remote(port, nw) for a in self._actors.values()]
+        for i in range(nw):
+            # connect to next worker (collectively)
+            intercomm = self.comm.Accept(port)
+            # merge communicators
+            self.comm = intercomm.Merge(0)
+            intercomm.Disconnect()
+        # wait for connections to be established
+        _ = ray.get(x)
+        self._handles = [a.start.remote(initImpl) for a in self._actors.values()]
+        print("All actors started", flush=True)
+        # setup our distributor
+        self.distributor = Distributor(self.comm)
+
+        return self
+
+
+def init(initImpl=None):
+    """
+    Return a Ray Runner.
+    Ray runner will launch actors and connect them throuh MPI.
+    """
+    return RayRunner(initImpl)
