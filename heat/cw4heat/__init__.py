@@ -310,7 +310,7 @@ class DDParray:
         # Provide all data as handle/reference
         futures = _runner.publish(self._handle._id, _runner.distributor)
         for i, p in enumerate(parts["partitions"].values()):
-            p["location"] = futures[i][0]
+            p["location"] = [futures[i][0]]
             p["data"] = futures[i][1]
         # set getter
         parts["get"] = _runner.get
