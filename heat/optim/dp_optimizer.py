@@ -670,10 +670,6 @@ class DASOLayers:
             )
         if not isinstance(args["total_epochs"], int):
             raise TypeError(f"total_epochs must be an int, currently {type(args['total_epochs'])}")
-        if not isinstance(args["warmup_epochs"], int):
-            raise TypeError(
-                f"warmup_epochs must be an int, currently {type(args['warmup_epochs'])}"
-            )
         if not isinstance(args["cooldown_epochs"], int):
             raise TypeError(
                 f"cooldown_epochs must be an int, currently {type(args['cooldown_epochs'])}"
@@ -684,17 +680,9 @@ class DASOLayers:
             raise TypeError(
                 f"scheduler must be a torch learning rate scheduler, currently {args['scheduler']}"
             )
-        if not isinstance(args["stability_level"], float):
+        if not isinstance(args["bucket_size_mb"], int):
             raise TypeError(
-                f"stability_level must be a float, currently {type(args['stability_level'])}"
-            )
-        if not isinstance(args["max_global_skips"], int):
-            raise TypeError(
-                f"max_global_skips must be an int, currently {type(args['max_global_skips'])}"
-            )
-        if not isinstance(args["sending_chunk_size"], int):
-            raise TypeError(
-                f"sending_chunk_size must be an int, currently {type(args['sending_chunk_size'])}"
+                f"sending_chunk_size must be an int, currently {type(args['bucket_size_mb'])}"
             )
         if not isinstance(args["verbose"], bool):
             raise TypeError(f"verbose must be a bool, currently {type(args['verbose'])}")
@@ -711,35 +699,15 @@ class DASOLayers:
                 f"downcast_type must be one of [torch.bfloat16, torch.half, torch.float], "
                 f"currently {args['downcast_type']}"
             )
-        if not isinstance(args["skip_reduction_factor"], int):
-            raise TypeError(
-                f"skip_reduction_factor must be an integer, currently {type(args['skip_reduction_factor'])}"
-            )
-        if not isinstance(args["local_skip_factor"], int):
-            raise TypeError(
-                f"local_skip_factor must be an integer, currently {type(args['local_skip_factor'])}"
-            )
 
-        if args["warmup_epochs"] < 0:
-            raise ValueError(f"warmup_epochs must be >= 0, currently {args['warmup_epochs']}")
         if args["cooldown_epochs"] < 0:
             raise ValueError(f"cooldown_epochs must be >= 0, currently {args['cooldown_epochs']}")
-        if args["max_global_skips"] < 0:
-            raise ValueError(f"stablitiy_level must be >= 0, currently {args['max_global_skips']}")
-        if args["sending_chunk_size"] <= 0:
+        if args["bucket_size_mb"] <= 0:
             raise ValueError(
                 f"sending_chunk_size must be > 0, currently {args['sending_chunk_size']}"
             )
         if args["total_epochs"] <= 0:
             raise ValueError(f"total_epochs must be > 0, currently {args['total_epochs']}")
-        if args["skip_reduction_factor"] <= 0:
-            raise ValueError(
-                f"skip_reduction_factor must be > 0, currently {args['skip_reduction_factor']}"
-            )
-        if args["local_skip_factor"] <= 0:
-            raise ValueError(
-                f"local_skip_factor must be > 0, currently {args['local_skip_factor']}"
-            )
 
     def print0(self, *args, **kwargs) -> None:
         """
