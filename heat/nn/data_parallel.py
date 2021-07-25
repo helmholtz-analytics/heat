@@ -15,7 +15,7 @@ from ..core.communication import MPI_WORLD
 from ..core.communication import MPICommunication
 
 
-__all__ = ["DataParallel", "DataParallelDASO"]
+__all__ = ["DataParallel", "DataParallelDASO", "DataParallelDASOLayers"]
 
 
 class DataParallel(tnn.Module):
@@ -399,7 +399,10 @@ class DataParallelDASOLayers(tnn.Module):
     """
 
     def __init__(
-        self, module: torch.nn.Module, optimizer: optim.DASO, comm: MPICommunication = MPI_WORLD
+        self,
+        module: torch.nn.Module,
+        optimizer: optim.DASOLayers,
+        comm: MPICommunication = MPI_WORLD,
     ):  # noqa: D107
         super(DataParallelDASOLayers, self).__init__()
 
@@ -421,16 +424,13 @@ class DataParallelDASOLayers(tnn.Module):
         self.module.apply(self._reset_parameters)
 
         optimizer.set_model(self.module)
+        optimizer.prepare_buckets()
 
     def forward(self, *inputs: Tuple, **kwargs: Dict) -> torch.Tensor:
         """
         Calls the forward method for the torch model
         """
         return self.module(*inputs, **kwargs)
-
-    def set_hooks(self):
-        # function to put the forward hooks on every layer
-        pass
 
     @staticmethod
     def _reset_parameters(module: tnn.Module) -> None:

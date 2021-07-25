@@ -17,7 +17,7 @@ from .utils import DetectMetricPlateau
 from collections import deque
 
 
-__all__ = ["DataParallelOptimizer", "DASO"]
+__all__ = ["DataParallelOptimizer", "DASO", "DASOLayers"]
 
 
 def __sum_f16_cb(buffer_a, buffer_b, _):
@@ -188,7 +188,10 @@ class DASOLayers:
         # generate the buckets to use
         self._base_bucket_size = int(bucket_size_mb * 1024 * 1024) / downcast_type_bits
         self._local_waits = {}
-        self.__prepare_buckets()
+        self._are_buckets_prepared = False
+        self.number_of_buckets = None
+        self.buckets = None
+        # self.__prepare_buckets()
 
         self.receiving = False
         # this is the flag that will be LOCALLY set when a process has started an allreduce
@@ -198,7 +201,7 @@ class DASOLayers:
         self.current_sending_ranks = 0
         self.current_sending_ranks_minus1 = None
         self.__recv_during_batch = -1
-        self.sync_params_deque = (deque(),) * self.number_of_buckets
+        self.sync_params_deque = None
         # ===========================================================
 
         self.current_batch, self.last_batch = 0, None
@@ -224,7 +227,12 @@ class DASOLayers:
 
         self.print0("Finished DASO init")
 
-    def __prepare_buckets(self):
+    def prepare_buckets(self):
+        """
+        Prepare the buckets for receiving buckets
+        """
+        self._are_buckets_prepared = True
+        # TODO: set this to be called before the forward step
         # determine the buckets for sending and receiving the global update steps
         # buckets dict:
         #       "names": dictionary
@@ -236,12 +244,35 @@ class DASOLayers:
         bucket_size = self._base_bucket_size
         buckets = {}
 
+        bucket_layers = ()
+        last_name = ""
+
         bucket_key = {}
         current_bucket_size = 0
         current_bucket_number = 0
         sl_st = 0
+
         for name, param in self.local_model.named_parameters():
             if param.requires_grad:
+                if name[-6:] == "weight":
+                    cut_name = name[:-7]
+                else:  # ends in bias
+                    cut_name = name[:-5]
+
+                if last_name == "" or last_name != cut_name:
+                    last_name = cut_name
+                    # insert the hooks here. `register_forward_pre_hood`
+                    #       need the layer (self.local_model.get_submodule(cut_name))
+                    #       and the bucket number
+                    module = self.local_model.get_submodule(cut_name)
+                    module.register_forward_pre_hook(
+                        self.DPDLHook(layer_name=cut_name, bucket_number=current_bucket_number)
+                    )
+                    bucket_layers += (module,)
+
+                # todo: its possible that a single layer could have two buckets associated with it
+                #       do i need to do anything about this?
+
                 pnumel = param.numel()
                 current_bucket_size += pnumel
 
@@ -250,16 +281,16 @@ class DASOLayers:
 
                 if current_bucket_size >= bucket_size:
                     buckets[current_bucket_number] = {
-                        "bucket": torch.empty(
-                            current_bucket_size, dtype=self.sending_buffer_dtype, device=self.device
-                        ),
+                        "bucket": torch.empty(current_bucket_size),
                         "wait": None,
                         "names": bucket_key,
+                        "layers": tuple(bucket_layers),
                     }
                     current_bucket_size = 0
                     current_bucket_number += 1
                     bucket_key = {}
                     sl_st = 0
+                    bucket_layers = ()
 
         if current_bucket_size:
             buckets[current_bucket_number] = {
@@ -268,6 +299,7 @@ class DASOLayers:
                 ),
                 "wait": None,
                 "names": bucket_key,
+                "layers": tuple(bucket_layers),
             }
             current_bucket_number += 1
 
@@ -275,6 +307,7 @@ class DASOLayers:
 
         # dont need to reverse any of them, the buffers stand alone
         self.buckets = buckets
+        self.sync_params_deque = (deque(),) * self.number_of_buckets
 
     @torch.no_grad()
     def __fill_n_send_buckets(self):
@@ -305,7 +338,10 @@ class DASOLayers:
         self.receiving = True
 
     @torch.no_grad()
-    def recv_bucket(self, bucket_number: int, layer: torch.nn.Module):
+    def recv_bucket(self, bucket_number: int, layer_name: str):
+        """
+        Function to receive the buckets
+        """
         # recv steps:
         # 1. is data to be received during this batch?
         #    - determined by if this is equal to the next recv batch (which is known during the sending process)
@@ -323,12 +359,19 @@ class DASOLayers:
         # 4.  -> use local MPI.Groups + windows to speed this up
 
         # todo: add recv_bucket hook to each layer in the network
-        next_rcv_batch = self.sync_params_deque[bucket_number][0][0]
+
+        try:
+            next_rcv_batch = self.sync_params_deque[bucket_number][0][0]
+        except IndexError:
+            # if there is nothing in the queue, then
+            return
 
         if next_rcv_batch != self.current_batch:
             # if 1. is not true then wait for more batches
             # if not the correct number of batches after sending data
             return
+
+        layer = self.local_model.get_submodule(layer_name)
 
         # todo: possible bug here: bucket number may not be in the dictionary self._local_waits[batch num]
         # pos. fix: if bucket_number in self._local_waits[next_rcv_batch]:
@@ -391,7 +434,43 @@ class DASOLayers:
             self._local_waits[self.current_batch][bucket_number][n].wait()
             del self._local_waits[self.current_batch][bucket_number][n]
 
+    class DPDLHook:
+        """
+        Class to hold the layer names and bucket numbers for the hook functions
+        """
+
+        # need to have the layer_name and the
+        # this is intended to be used with
+        def __init__(self, layer_name, bucket_number, hook_fn):
+            self.layer_name = layer_name
+            self.bucket_number = bucket_number
+            # THE HOOK FUNCTION SHOULD ONLY BE recv_bucket
+            self.hook_fn = hook_fn
+
+        def __call__(self, *args, **kwargs):
+            """
+            Make the class callable
+            """
+            return self.hook_fn(self.bucket_number, self.layer_name)
+
+    # def set_forward_hooks_on_all_layers(self):
+    #     # for bn in self.buckets:
+    #     #     for lay in self.buckets[bn]['layers']:
+    #     #     print('\n', k, buckets[k]['bucket'].shape)
+    #     #     print('\t', k, buckets[k]['layers'])
+    #     pass
+
     def set_total_batches_and_global_skips(self, total_batches=None, new_global_skips=None):
+        """
+        Set the number of batches and the global skips
+
+        Parameters
+        ----------
+        total_batches
+            number of total batches
+        new_global_skips
+            set the number of global skips
+        """
         # this will build the number of
         if total_batches is None and new_global_skips is None:
             return  # no-op if neither are set
@@ -418,6 +497,11 @@ class DASOLayers:
         -----
         self.last_batch must be set!
         """
+        if not self._are_buckets_prepared:
+            raise RuntimeError(
+                "Buckets must be initialized to used this! use `DASOLayers.prepare_buckets()` before training."
+            )
+
         if self.last_batch is None:
             raise ValueError(
                 "self.last_batch must be set as the number of batches (len(dataloader))"
@@ -526,9 +610,6 @@ class DASOLayers:
         #     self._start_local_sync()
 
         self.current_batch += 1
-
-    def __insert_recv_layers(self, bucket_number):
-        pass
 
     def __prepare_mpi_groups(self, use_mpi_groups: bool):
         # initialize the MPI Groups. This will create N MPI groups where N is the number of GPUs on each node (assumed
@@ -690,16 +771,16 @@ class DASOLayers:
         model: torch.nn.Module
             the local torch model.
         """
-        self.module = model
+        self.local_model = model
 
     def _start_local_sync(self) -> None:
         """
         *Start* local synchronizations for the next batches
         """
-        if not isinstance(self.module, tDDP) or self.module.require_backward_grad_sync:
+        if not isinstance(self.local_model, tDDP) or self.local_model.require_backward_grad_sync:
             # this has no effect if the module is not locally distributed in torch
             return
-        self.module.require_backward_grad_sync = True
+        self.local_model.require_backward_grad_sync = True
 
     # def step(self) -> None:
     #     """
@@ -791,10 +872,13 @@ class DASOLayers:
         """
         Stop local synchronizations for the next batches
         """
-        if not isinstance(self.module, tDDP) or not self.module.require_backward_grad_sync:
+        if (
+            not isinstance(self.local_model, tDDP)
+            or not self.local_model.require_backward_grad_sync
+        ):
             # this has no effect if the module is not locally distributed in torch
             return
-        self.module.require_backward_grad_sync = False
+        self.local_model.require_backward_grad_sync = False
 
     def zero_grad(self) -> None:
         """
