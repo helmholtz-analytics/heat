@@ -521,6 +521,7 @@ def main():
     # htmodel = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
 
     daso_optimizer = ht.optim.DASOLayers(
+        local_model=model,
         local_optimizer=optimizer,
         total_epochs=args.epochs,
         global_skips=global_skips,

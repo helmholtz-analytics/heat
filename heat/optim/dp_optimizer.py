@@ -137,7 +137,7 @@ class DASOLayers:
 
     def __init__(
         self,
-        # local_model: torch.nn.Module,
+        local_model: torch.nn.Module,
         local_optimizer: torch.optim.Optimizer,
         total_epochs: int,
         comm: MPICommunication = MPI_WORLD,
@@ -155,7 +155,7 @@ class DASOLayers:
         init_args = inspect.getargvalues(frame)[3]
         self.__init_checktypes(init_args)
 
-        self.local_model = None  # this needs to be set later!
+        self.local_model = local_model  # this needs to be set later!
         self.verbose = verbose
         self.local_optimizer = local_optimizer
         self.params_ref = local_optimizer.param_groups[0]["params"]
@@ -191,7 +191,6 @@ class DASOLayers:
         self._are_buckets_prepared = False
         self.number_of_buckets = None
         self.buckets = None
-        # self.__prepare_buckets()
 
         self.receiving = False
         # this is the flag that will be LOCALLY set when a process has started an allreduce
@@ -224,6 +223,8 @@ class DASOLayers:
         # NOTE: need two types of layers:
         #       1: receive the bucket and do the update to the parameters
         # ===================================================================
+        # todo: figure out where to put this bit... (cleanup)
+        self.prepare_buckets()
 
         self.print0("Finished DASO init")
 

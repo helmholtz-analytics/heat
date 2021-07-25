@@ -423,8 +423,8 @@ class DataParallelDASOLayers(tnn.Module):
         # unify parameters across nodes by unifying the random seed and resetting parameters
         self.module.apply(self._reset_parameters)
 
-        optimizer.set_model(self.module)
-        optimizer.prepare_buckets()
+        # optimizer.set_model(self.module)
+        # optimizer.prepare_buckets()
 
     def forward(self, *inputs: Tuple, **kwargs: Dict) -> torch.Tensor:
         """
