@@ -505,21 +505,28 @@ def main():
     batches_to_wait = args.global_send_delay
 
     # create DP optimizer and model:
-    daso_optimizer = ht.optim.DASO(
-        local_optimizer=optimizer,
-        total_epochs=args.epochs,
-        max_global_skips=global_skips,
-        batches_to_wait=batches_to_wait,
-        stability_level=0.05,
-        warmup_epochs=0,
-        cooldown_epochs=1,
-        cycling=-args.no_cycling,
-    )
+    # daso_optimizer = ht.optim.DASO(
+    #     local_optimizer=optimizer,
+    #     total_epochs=args.epochs,
+    #     max_global_skips=global_skips,
+    #     batches_to_wait=batches_to_wait,
+    #     stability_level=0.05,
+    #     warmup_epochs=0,
+    #     cooldown_epochs=1,
+    #     cycling=-args.no_cycling,
+    # )
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, factor=0.5, patience=5, threshold=0.05, min_lr=1e-4
     )
-    htmodel = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
+    # htmodel = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
 
+    daso_optimizer = ht.optim.DASOLayers(
+        local_optimizer=optimizer,
+        total_epochs=args.epochs,
+        global_skips=global_skips,
+        batches_to_wait=batches_to_wait,
+    )
+    htmodel = ht.nn.DataParallelDASOLayers(model, daso_optimizer)
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda(device)
 
@@ -636,6 +643,9 @@ def main():
     # )
     # pipe.build()
     # val_loader = DALIClassificationIterator(pipe, reader_name="Reader", last_batch_policy=False)
+    args.train = "/p/scratch/haf/imagenet/ILSVRC/Data/CLS-LOC/train/"
+    args.validate = "/p/scratch/haf/imagenet/ILSVRC/Data/CLS-LOC/val/"
+
     train_dataset = datasets.ImageFolder(
         args.train,
         transform=transforms.Compose(
@@ -747,8 +757,8 @@ def main():
             # save the dict to pick up after the checkpoint
             save_obj(out_dict, fname)
 
-        train_loader.reset()
-        val_loader.reset()
+        # train_loader.reset()
+        # val_loader.reset()
 
     if args.rank == 0:
         print("\nRESULTS\n")
@@ -776,7 +786,8 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     # switch to train mode
     model.train()
     end = time.time()
-    train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
+    # train_loader_len = int(math.ceil(train_loader._size / args.batch_size))
+    train_loader_len = len(train_loader)
     # must set last batch for the model to work properly
     # TODO: how to handle this?
     optimizer.last_batch = train_loader_len - 1
@@ -891,10 +902,11 @@ def validate(dev, val_loader, model, criterion):
 
     end = time.time()
 
+    # val_loader_len = int(val_loader._size / args.batch_size)
+    val_loader_len = len(val_loader)
     for i, data in enumerate(val_loader):
         input = data[0]["data"].cuda(dev)
         target = data[0]["label"].squeeze().cuda(dev).long()
-        val_loader_len = int(val_loader._size / args.batch_size)
 
         # compute output
         with torch.no_grad():
