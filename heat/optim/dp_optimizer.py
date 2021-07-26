@@ -138,11 +138,10 @@ class DASO:
         local_optimizer: torch.optim.Optimizer,
         total_epochs: int,
         comm: MPICommunication = MPI_WORLD,
-        warmup_epochs: int = 4,
-        cooldown_epochs: int = 4,
+        cooldown_epochs: int = 2,
         scheduler: torch.optim.lr_scheduler = None,
         stability_level: float = 0.05,
-        max_global_skips: int = 8,
+        max_global_skips: int = 4,
         sending_chunk_size: int = 10_000_000,
         downcast_type: torch.dtype = torch.bfloat16,
         use_mpi_groups: bool = True,
@@ -203,12 +202,11 @@ class DASO:
         self.epoch = 0
         self._send_mod, self._send_mod_m1 = 0, None
 
-        self.global_skip = 0
+        self.global_skip = max_global_skips
         self.local_skip = 0
-        self.batches_to_wait = 0
+        self.batches_to_wait = 1
         self.max_gs = max_global_skips
 
-        self.warmup_epochs = warmup_epochs
         self.cooldown_epochs = cooldown_epochs
         self.total_epochs = total_epochs
 
@@ -235,7 +233,8 @@ class DASO:
         self.amp = False
         self.print0("Finished DASO init")
 
-        self.cycling = True
+        # TURNED CYCLING OFF (NEEDS TO BE CLEANED UP)
+        self.cycling = False
 
     def add_scaler(self, scaler: torch.cuda.amp.GradScaler) -> None:
         """
@@ -271,10 +270,6 @@ class DASO:
             )
         if not isinstance(args["total_epochs"], int):
             raise TypeError(f"total_epochs must be an int, currently {type(args['total_epochs'])}")
-        if not isinstance(args["warmup_epochs"], int):
-            raise TypeError(
-                f"warmup_epochs must be an int, currently {type(args['warmup_epochs'])}"
-            )
         if not isinstance(args["cooldown_epochs"], int):
             raise TypeError(
                 f"cooldown_epochs must be an int, currently {type(args['cooldown_epochs'])}"
@@ -320,9 +315,6 @@ class DASO:
             raise TypeError(
                 f"local_skip_factor must be an integer, currently {type(args['local_skip_factor'])}"
             )
-
-        if args["warmup_epochs"] < 0:
-            raise ValueError(f"warmup_epochs must be >= 0, currently {args['warmup_epochs']}")
         if args["cooldown_epochs"] < 0:
             raise ValueError(f"cooldown_epochs must be >= 0, currently {args['cooldown_epochs']}")
         if args["max_global_skips"] < 0:
@@ -361,12 +353,46 @@ class DASO:
         loss_globally_averaged: bool, optional
             boolean if the loss is already globally averaged
         """
-        if not self.cycling:
+        # if self.epoch == 0:
+        #     self.global_skip = self.max_gs
+        #     self.local_skip = 0
+        #     self.batches_to_wait = self.batches_to_wait
+        #
+        #     self.print0(
+        #         f"Parameters of next epoch\n\t Global Skips: {self.global_skip}, "
+        #         f" Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
+        #     )
+
+        if self.epoch >= (self.total_epochs - self.cooldown_epochs - 2):
+            self.global_skip = 2
+            self.local_skip = 0
+            self.batches_to_wait = 1
+
             self.print0(
-                f"Finished this epoch, Global Skips {self.global_skip}, Batches to wait "
-                f"{self.batches_to_wait}"
+                f"Soft cooldown Phase, parameters of next epoch:\n\tGlobal Skips: {self.global_skip}, "
+                f" Local Skips {self.local_skip:.4f}, Batches to wait: {self.batches_to_wait}"
             )
             return
+
+        elif self.epoch >= self.total_epochs - self.cooldown_epochs:
+            self.global_skip = 0
+            self.local_skip = 0
+            self.batches_to_wait = 0
+
+            self.print0(
+                f"Cooldown Phase, parameters of next epoch:\n\tGlobal Skips: {self.global_skip}, "
+                f" Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
+            )
+            return
+
+        if not self.cycling:
+            self.print0(
+                f"Global Skips {self.global_skip}, Batches to wait " f"{self.batches_to_wait}"
+            )
+            return
+
+        if self.global_skip == self.max_gs and self.max_gs > 4:
+            self._gs8_waited += 1
 
         if not loss_globally_averaged:
             loss_send = torch.zeros(self.comm.size)
@@ -376,41 +402,6 @@ class DASO:
             avg_loss = torch.mean(loss_send)
         else:
             avg_loss = torch.tensor(loss)
-
-        if self.epoch < self.warmup_epochs:
-            self.global_skip = 0
-            self.local_skip = 0
-            self.batches_to_wait = 0
-
-            self.print0(
-                f"Warmup Phase, parameters of next epoch\n\t Global Skips: {self.global_skip}, "
-                f" Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
-            )
-            return
-
-        elif self.warmup_epochs == self.epoch:
-            self.global_skip = 4
-            self.local_skip = 1
-            self.batches_to_wait = 1
-
-            self.print0(
-                f"End of Warmup Phase, parameters of next epoch\n\t Global Skips: {self.global_skip}, "
-                f" Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
-            )
-
-        if self.epoch >= self.total_epochs - self.cooldown_epochs:
-            self.global_skip = 0
-            self.local_skip = 0
-            self.batches_to_wait = 0
-
-            self.print0(
-                f"Cooldown Phase, parameters of next epoch:\n\tGlobal Skips: {self.global_skip}, "
-                f" Local Skips {self.local_skip:.4f}, Batches to wait: {self.batches_to_wait}"
-            )
-            return
-
-        if self.global_skip == self.max_gs and self.max_gs > 4:
-            self._gs8_waited += 1
 
         self.print0(
             f"Best loss value: {self.stability.best * (1.0 - self.stability.threshold):.4f}"
