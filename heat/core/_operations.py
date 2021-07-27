@@ -439,7 +439,7 @@ def __reduce_op(
             balanced = True
             if x.comm.is_distributed():
                 x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
-        elif axis is not None:
+        elif axis is not None and not keepdim:
             down_dims = len(tuple(dim for dim in axis if dim < x.split))
             split -= down_dims
             balanced = x.balanced
