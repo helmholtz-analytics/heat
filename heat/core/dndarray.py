@@ -689,7 +689,7 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        # key = getattr(key, "copy()", key)
+        key = getattr(key, "copy()", key)
         l_dtype = self.dtype.torch_type()
         advanced_ind = False
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
@@ -1395,7 +1395,7 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
-        # key = getattr(key, "copy()", key)
+        key = getattr(key, "copy()", key)
         try:
             if value.split != self.split:
                 val_split = int(value.split)
