@@ -1,4 +1,9 @@
 # Pending additions
+## Bug fixes
+- [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in _reduce_op when axis and keepdim were set.
+## Feature additions
+### Linear Algebra
+- [#846](https://github.com/helmholtz-analytics/heat/pull/846) New features `norm`, `vector_norm`, `matrix_norm`
 
 ## Highlights
 
