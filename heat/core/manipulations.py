@@ -38,6 +38,7 @@ __all__ = [
     "hstack",
     "pad",
     "ravel",
+    "redistribute",
     "repeat",
     "reshape",
     "resplit",
@@ -1432,6 +1433,63 @@ def ravel(a: DNDarray) -> DNDarray:
     )
 
     return result
+
+
+def redistribute(
+    arr: DNDarray, lshape_map: torch.Tensor = None, target_map: torch.Tensor = None
+) -> DNDarray:
+    """
+    Redistributes the data of the :class:`DNDarray` *along the split axis* to match the given target map.
+    This function does not modify the non-split dimensions of the ``DNDarray``.
+    This is an abstraction and extension of the balance function.
+
+    Parameters
+    ----------
+    arr: DNDarray
+        DNDarray to redistribute
+    lshape_map : torch.Tensor, optional
+        The current lshape of processes.
+        Units are ``[rank, lshape]``.
+    target_map : torch.Tensor, optional
+        The desired distribution across the processes.
+        Units are ``[rank, target lshape]``.
+        Note: the only important parts of the target map are the values along the split axis,
+        values which are not along this axis are there to mimic the shape of the ``lshape_map``.
+
+    Examples
+    --------
+    >>> st = ht.ones((50, 81, 67), split=2)
+    >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+    >>> target_map[0, 2] = 67
+    >>> print(target_map)
+    [0/2] tensor([[ 0,  0, 67],
+    [0/2]         [ 0,  0,  0],
+    [0/2]         [ 0,  0,  0]], dtype=torch.int32)
+    [1/2] tensor([[ 0,  0, 67],
+    [1/2]         [ 0,  0,  0],
+    [1/2]         [ 0,  0,  0]], dtype=torch.int32)
+    [2/2] tensor([[ 0,  0, 67],
+    [2/2]         [ 0,  0,  0],
+    [2/2]         [ 0,  0,  0]], dtype=torch.int32)
+    >>> print(st.lshape)
+    [0/2] (50, 81, 23)
+    [1/2] (50, 81, 22)
+    [2/2] (50, 81, 22)
+    >>> ht.redistribute_(st, target_map=target_map)
+    >>> print(st.lshape)
+    [0/2] (50, 81, 67)
+    [1/2] (50, 81, 0)
+    [2/2] (50, 81, 0)
+    """
+    arr2 = arr.copy()
+    arr2.redistribute_(lshape_map=lshape_map, target_map=target_map)
+    return arr2
+
+
+DNDarray.redistribute = lambda arr, lshape_map=None, target_map=None: redistribute(
+    arr, lshape_map, target_map
+)
+DNDarray.redistribute.__doc__ = redistribute.__doc__
 
 
 def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarray:
