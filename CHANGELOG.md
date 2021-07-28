@@ -3,6 +3,11 @@
 ## Bug Fixes
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
 
+## Feature additions
+### Printing
+- [#816](https://github.com/helmholtz-analytics/heat/pull/816) New feature: Local printing (`ht.local_printing()`) and global printing options
+- [#816](https://github.com/helmholtz-analytics/heat/pull/816) New feature: print only on process 0 with `print0(...)` and `ht.print0(...)`
+
 
 # v1.1.0
 
@@ -76,8 +81,6 @@ Example on 2 processes:
 ### Misc.
 - [#761](https://github.com/helmholtz-analytics/heat/pull/761) New feature: `result_type`
 - [#794](https://github.com/helmholtz-analytics/heat/pull/794) New feature: `meshgrid`
-- [#816](https://github.com/helmholtz-analytics/heat/pull/816) New feature: Local printing (`ht.local_printing()`) and global printing options
-- [#816](https://github.com/helmholtz-analytics/heat/pull/816) New feature: print only on process 0 with `print0(...)` and `ht.print0(...)`
 - [#821](https://github.com/helmholtz-analytics/heat/pull/821) Enhancement: it is no longer necessary to load-balance an imbalanced `DNDarray` before gathering it onto all processes. In short: `ht.resplit(array, None)` now works on imbalanced arrays as well.
 
 # v1.0.0
