@@ -38,6 +38,7 @@ __all__ = [
     "hstack",
     "pad",
     "ravel",
+    "redistribute",
     "repeat",
     "reshape",
     "resplit",
@@ -1434,6 +1435,63 @@ def ravel(a: DNDarray) -> DNDarray:
     return result
 
 
+def redistribute(
+    arr: DNDarray, lshape_map: torch.Tensor = None, target_map: torch.Tensor = None
+) -> DNDarray:
+    """
+    Redistributes the data of the :class:`DNDarray` *along the split axis* to match the given target map.
+    This function does not modify the non-split dimensions of the ``DNDarray``.
+    This is an abstraction and extension of the balance function.
+
+    Parameters
+    ----------
+    arr: DNDarray
+        DNDarray to redistribute
+    lshape_map : torch.Tensor, optional
+        The current lshape of processes.
+        Units are ``[rank, lshape]``.
+    target_map : torch.Tensor, optional
+        The desired distribution across the processes.
+        Units are ``[rank, target lshape]``.
+        Note: the only important parts of the target map are the values along the split axis,
+        values which are not along this axis are there to mimic the shape of the ``lshape_map``.
+
+    Examples
+    --------
+    >>> st = ht.ones((50, 81, 67), split=2)
+    >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+    >>> target_map[0, 2] = 67
+    >>> print(target_map)
+    [0/2] tensor([[ 0,  0, 67],
+    [0/2]         [ 0,  0,  0],
+    [0/2]         [ 0,  0,  0]], dtype=torch.int32)
+    [1/2] tensor([[ 0,  0, 67],
+    [1/2]         [ 0,  0,  0],
+    [1/2]         [ 0,  0,  0]], dtype=torch.int32)
+    [2/2] tensor([[ 0,  0, 67],
+    [2/2]         [ 0,  0,  0],
+    [2/2]         [ 0,  0,  0]], dtype=torch.int32)
+    >>> print(st.lshape)
+    [0/2] (50, 81, 23)
+    [1/2] (50, 81, 22)
+    [2/2] (50, 81, 22)
+    >>> ht.redistribute_(st, target_map=target_map)
+    >>> print(st.lshape)
+    [0/2] (50, 81, 67)
+    [1/2] (50, 81, 0)
+    [2/2] (50, 81, 0)
+    """
+    arr2 = arr.copy()
+    arr2.redistribute_(lshape_map=lshape_map, target_map=target_map)
+    return arr2
+
+
+DNDarray.redistribute = lambda arr, lshape_map=None, target_map=None: redistribute(
+    arr, lshape_map, target_map
+)
+DNDarray.redistribute.__doc__ = redistribute.__doc__
+
+
 def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarray:
     """
     Creates a new `DNDarray` by repeating elements of array `a`. The output has
@@ -1685,7 +1743,7 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
     return repeated_array
 
 
-def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None) -> DNDarray:
+def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDarray:
     """
     Returns an array with the same data and number of elements as `a`, but with the specified shape.
 
@@ -1693,7 +1751,7 @@ def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None
     ----------
     a : DNDarray
         The input array
-    shape : Tuple[int,...]
+    shape : Union[int, Tuple[int,...]]
         Shape of the new array
     new_split : int, optional
         The new split axis if `a` is a split DNDarray. None denotes same axis.
@@ -1723,6 +1781,26 @@ def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None
     """
     if not isinstance(a, DNDarray):
         raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
+
+    # use numpys _ShapeLike but expand to handle torch and heat Tensors
+    np_proxy = np.lib.stride_tricks.as_strided(np.ones(1), a.gshape, [0] * a.ndim, writeable=False)
+    try:
+        np_proxy.reshape(shape)  # numpy defines their own _ShapeLike
+    except TypeError as e:  # handle Tensors and DNDarrays
+        try:  # make shape a np.ndarray
+            if len(shape) == 1:
+                shape = shape[0]
+            if hasattr(shape, "cpu"):  # move to cpu
+                shape = shape.cpu()
+            if hasattr(shape, "detach"):  # torch.Tensors have to detach before numpy call
+                shape = shape.detach()
+            if hasattr(shape, "numpy"):  # for DNDarrays
+                shape = shape.numpy()
+            else:  # Try to coerce everything else.
+                shape = np.asarray(shape)
+        except Exception:
+            raise TypeError(e)
+    shape = np_proxy.reshape(shape).shape  # sanitized shape according to numpy
 
     tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
 
@@ -1761,38 +1839,35 @@ def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None
         displs[1:] = torch.cumsum(counts[:-1], dim=0)
         return argsort, counts, displs
 
-    if shape == -1:
-        shape = (a.gnumel,)
-
-    if not isinstance(shape, (list, tuple)):
-        raise TypeError("shape must be list, tuple, currently {}".format(type(shape)))
-
     # check new_split parameter
+    new_split = kwargs.get("new_split")
     if new_split is None:
         new_split = a.split
-    stride_tricks.sanitize_axis(shape, new_split)
-
-    # Check the type of shape and number elements
-    shape = stride_tricks.sanitize_shape(shape, -1)
-
-    shape = list(shape)
-    shape_size = torch.prod(torch.tensor(shape, dtype=torch.int, device=tdevice))
-
-    # infer unknown dimension
-    if shape.count(-1) > 1:
-        raise ValueError("too many unknown dimensions")
-    elif shape.count(-1) == 1:
-        pos = shape.index(-1)
-        shape[pos] = int(-(a.size / shape_size).item())
-        shape_size *= -shape[pos]
-
-    if shape_size != a.size:
-        raise ValueError("cannot reshape array of size {} into shape {}".format(a.size, shape))
+    new_split = stride_tricks.sanitize_axis(shape, new_split)
 
     # Forward to Pytorch directly
     if a.split is None:
-        return factories.array(
-            torch.reshape(a.larray, shape), dtype=a.dtype, device=a.device, comm=a.comm
+        local_reshape = torch.reshape(a.larray, shape)
+        if new_split is None:
+            return DNDarray(
+                local_reshape,
+                shape,
+                dtype=a.dtype,
+                split=None,
+                device=a.device,
+                comm=a.comm,
+                balanced=True,
+            )
+        _, _, local_slice = a.comm.chunk(shape, new_split)
+        local_reshape = local_reshape[local_slice]
+        return DNDarray(
+            local_reshape,
+            shape,
+            dtype=a.dtype,
+            split=new_split,
+            comm=a.comm,
+            device=a.device,
+            balanced=True,
         )
 
     # Create new flat result tensor
@@ -1813,7 +1888,7 @@ def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None
         shape, local_shape, new_displs, new_split, a.shape, old_displs, a.split, a.comm
     )
 
-    # rearange order
+    # rearrange order
     send = a.larray.flatten()[sendsort]
     a.comm.Alltoallv((send, sendcounts, senddispls), (data, recvcounts, recvdispls))
 
@@ -1824,10 +1899,12 @@ def reshape(a: DNDarray, shape: Tuple[int, ...], new_split: Optional[int] = None
     # Reshape local tensor
     data = data.reshape(local_shape)
 
-    return factories.array(data, dtype=a.dtype, is_split=new_split, device=a.device, comm=a.comm)
+    return DNDarray(
+        data, shape, dtype=a.dtype, split=new_split, device=a.device, comm=a.comm, balanced=True
+    )
 
 
-DNDarray.reshape = lambda self, shape, axis=None: reshape(self, shape, axis)
+DNDarray.reshape = lambda self, *shape, **kwargs: reshape(self, *shape, **kwargs)
 DNDarray.reshape.__doc__ = reshape.__doc__
 
 
