@@ -419,7 +419,9 @@ def __reduce_op(
     else:
         output_shape = x.gshape
         for dim in axis:
-            if partial.shape.numel() > 0:
+            if not (
+                partial.shape.numel() == 0 and partial_op.__name__ in ("local_max", "local_min")
+            ):  # no neutral element for max/min
                 partial = partial_op(partial, dim=dim, keepdim=True)
             output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
         if not keepdim and not len(partial.shape) == 1:
