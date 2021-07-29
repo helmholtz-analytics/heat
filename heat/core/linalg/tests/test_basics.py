@@ -8,6 +8,50 @@ from ...tests.test_suites.basic_test import TestCase
 
 
 class TestLinalgBasics(TestCase):
+    def test_cross(self):
+        a = ht.eye(3)
+        b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
+
+        # different types
+        cross = ht.cross(a, b)
+        self.assertEqual(cross.shape, a.shape)
+        self.assertEqual(cross.dtype, a.dtype)
+        self.assertEqual(cross.split, a.split)
+        self.assertEqual(cross.comm, a.comm)
+        self.assertEqual(cross.device, a.device)
+        self.assertTrue(ht.equal(cross, ht.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])))
+
+        # axis
+        a = ht.eye(3, split=0)
+        b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]], dtype=ht.float, split=0)
+
+        cross = ht.cross(a, b)
+        self.assertEqual(cross.shape, a.shape)
+        self.assertEqual(cross.dtype, a.dtype)
+        self.assertEqual(cross.split, a.split)
+        self.assertEqual(cross.comm, a.comm)
+        self.assertEqual(cross.device, a.device)
+        self.assertTrue(ht.equal(cross, ht.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])))
+
+        a = ht.eye(3, dtype=ht.int8, split=1)
+        b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]], dtype=ht.int8, split=1)
+
+        cross = ht.cross(a, b, axis=0)
+        self.assertEqual(cross.shape, a.shape)
+        self.assertEqual(cross.dtype, a.dtype)
+        self.assertEqual(cross.split, a.split)
+        self.assertEqual(cross.comm, a.comm)
+        self.assertEqual(cross.device, a.device)
+        self.assertTrue(ht.equal(cross, ht.array([[0, 0, -1], [-1, 0, 0], [0, -1, 0]])))
+
+        with self.assertRaises(ValueError):
+            ht.cross(ht.eye(3), ht.eye(4))
+        with self.assertRaises(ValueError):
+            ht.cross(ht.eye(3, split=0), ht.eye(3, split=1))
+        if torch.cuda.is_available():
+            with self.assertRaises(ValueError):
+                ht.cross(ht.eye(3, device="gpu"), ht.eye(3, device="cpu"))
+
     def test_dot(self):
         # ONLY TESTING CORRECTNESS! ALL CALLS IN DOT ARE PREVIOUSLY TESTED
         # cases to test:

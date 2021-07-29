@@ -3,6 +3,9 @@
 ## Bug Fixes
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
 
+# Feature additions
+## Linear Algebra
+- [#850](https://github.com/helmholtz-analytics/heat/pull/850) New Feature `cross`
 
 # v1.1.0
 

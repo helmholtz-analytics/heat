@@ -15,9 +15,93 @@ from ..dndarray import DNDarray
 from .. import factories
 from .. import manipulations
 from .. import sanitation
+from .. import stride_tricks
 from .. import types
 
-__all__ = ["dot", "matmul", "norm", "outer", "projection", "trace", "transpose", "tril", "triu"]
+__all__ = [
+    "cross",
+    "dot",
+    "matmul",
+    "norm",
+    "outer",
+    "projection",
+    "trace",
+    "transpose",
+    "tril",
+    "triu",
+]
+
+
+def cross(x1: DNDarray, x2: DNDarray, axis: int = -1):
+    """
+    Returns the cross product.
+
+    Parameters
+    ----------
+    x1 : DNDarray
+        First input array.
+    x2 : DNDarray
+        Second input array. Must have the same shape as 'x1'.
+    axis : int
+        Axis that defines the vectors for which to compute the cross product. Default: -1
+
+    Note
+    ----
+    Small arrays (up to 3x3) with split along the axis will be unsplitted.
+
+    Raises
+    ------
+    ValueError
+        If the two input arrays don't match in shape, split, device, or comm. If the vectors are along the split axis.
+    TypeError
+        If 'axis' is not an integer.
+
+    Examples
+    --------
+    >>> a = ht.eye(3)
+    >>> b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
+    >>> cross = ht.cross(a, b)
+    DNDarray([[0., 0., 1.],
+              [1., 0., 0.],
+              [0., 1., 0.]], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(x1)
+    sanitation.sanitize_in(x2)
+
+    if x1.gshape != x2.gshape:
+        raise ValueError(
+            "'x1' and 'x2' must have the same shape, {} != {}".format(x1.gshape, x2.gshape)
+        )
+    if x1.split != x2.split:
+        raise ValueError(
+            "'x1' and 'x2' must have the same split, {} != {}".format(x1.split, x2.split)
+        )
+    if x1.device != x2.device:
+        raise ValueError(
+            "'x1' and 'x2' must have the same device type, {} != {}".format(x1.device, x2.device)
+        )
+    if x1.comm != x2.comm:  # pragma: no cover
+        raise ValueError("'x1' and 'x2' must have the same comm, {} != {}".format(x1.comm, x2.comm))
+
+    if not isinstance(axis, int):
+        raise TypeError("'axis' is not an int.")
+
+    axis = stride_tricks.sanitize_axis(x1.shape, axis)
+
+    if x1.split == axis:
+        raise ValueError(
+            "The computation of the cross product with vectors along the split axis is not supported."
+        )
+    else:
+        x1.balance_()
+        x2.balance_()
+
+    promoted = torch.promote_types(x1.larray.dtype, x2.larray.dtype)
+
+    ret = torch.cross(x1.larray.type(promoted), x2.larray.type(promoted), dim=axis)
+    ret = DNDarray(ret, x1.gshape, types.heat_type_of(ret), x1.split, x1.device, x1.comm, True)
+
+    return ret
 
 
 def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDarray, float]:
