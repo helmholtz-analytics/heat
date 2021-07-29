@@ -1,3 +1,4 @@
+from typing import Type
 import torch
 import os
 import unittest
@@ -51,6 +52,10 @@ class TestLinalgBasics(TestCase):
         if torch.cuda.is_available():
             with self.assertRaises(ValueError):
                 ht.cross(ht.eye(3, device="gpu"), ht.eye(3, device="cpu"))
+        with self.assertRaises(TypeError):
+            ht.cross(ht.eye(3), ht.eye(3), axis="wasd")
+        with self.assertRaises(ValueError):
+            ht.cross(ht.eye(3, split=0), ht.eye(3, split=0), axis=0)
 
     def test_dot(self):
         # ONLY TESTING CORRECTNESS! ALL CALLS IN DOT ARE PREVIOUSLY TESTED

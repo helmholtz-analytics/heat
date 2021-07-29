@@ -80,7 +80,10 @@ def cross(x1: DNDarray, x2: DNDarray, axis: int = -1):
         raise ValueError("'x1' and 'x2' must have the same comm, {} != {}".format(x1.comm, x2.comm))
 
     if not isinstance(axis, int):
-        raise TypeError("'axis' is not an int.")
+        try:
+            axis = int(axis)
+        except Exception:
+            raise TypeError("'axis' must be an integer.")
 
     axis = stride_tricks.sanitize_axis(x1.shape, axis)
 
