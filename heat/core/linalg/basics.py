@@ -45,10 +45,6 @@ def cross(x1: DNDarray, x2: DNDarray, axis: int = -1):
     axis : int
         Axis that defines the vectors for which to compute the cross product. Default: -1
 
-    Note
-    ----
-    Small arrays (up to 3x3) with split along the axis will be unsplitted.
-
     Raises
     ------
     ValueError
