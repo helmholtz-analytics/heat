@@ -1656,7 +1656,9 @@ DNDarray.triu: Callable[[DNDarray, int], DNDarray] = lambda self, k=0: triu(self
 DNDarray.triu.__doc__ = triu.__doc__
 
 
-def vecdot(x1: DNDarray, x2: DNDarray, axis: Optional[int] = None, keepdim: Optional[bool] = None):
+def vecdot(
+    x1: DNDarray, x2: DNDarray, axis: Optional[int] = None, keepdim: Optional[bool] = None
+) -> DNDarray:
     """
     Computes the (vector) dot product of two DNDarrays.
 
