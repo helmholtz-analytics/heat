@@ -1909,7 +1909,9 @@ DNDarray.reshape = lambda self, *shape, **kwargs: reshape(self, *shape, **kwargs
 DNDarray.reshape.__doc__ = reshape.__doc__
 
 
-def roll(x: DNDarray, shift: Union[int, Tuple[int]], axis: Optional[Union[int, Tuple[int]]] = None):
+def roll(
+    x: DNDarray, shift: Union[int, Tuple[int]], axis: Optional[Union[int, Tuple[int]]] = None
+) -> DNDarray:
     """
     Rolls array elements along a specified axis. Array elements that roll beyond the last position are re-introduced at the first position.
     Array elements that roll beyond the first position are re-introduced at the last position.
