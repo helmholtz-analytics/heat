@@ -1,3 +1,4 @@
+from typing import Type
 import numpy as np
 import torch
 
@@ -3045,6 +3046,17 @@ class TestManipulations(TestCase):
         out_wrong_split = ht.empty((3, 5, 4), dtype=ht.float32, split=0)
         with self.assertRaises(ValueError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_split)
+
+    def test_swapaxes(self):
+        x = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
+        swapped = ht.swapaxes(x, 0, 1)
+
+        self.assertTrue(
+            ht.equal(swapped, ht.array([[[0, 1], [4, 5]], [[2, 3], [6, 7]]], dtype=ht.int64))
+        )
+
+        with self.assertRaises(TypeError):
+            ht.swapaxes(x, 4.9, "abc")
 
     def test_topk(self):
         size = ht.MPI_WORLD.size
