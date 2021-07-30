@@ -2790,9 +2790,9 @@ def stack(
     return stacked
 
 
-def swapaxes(x: DNDarray, axis1: int, axis2: int):
+def swapaxes(x: DNDarray, axis1: int, axis2: int) -> DNDarray:
     """
-    Interchanges two axes of an array. This function is an alias for :func:`ht.transpose` for two axes.
+    Interchanges two axes of an array.
 
     Parameters
     ----------
@@ -2805,7 +2805,7 @@ def swapaxes(x: DNDarray, axis1: int, axis2: int):
 
     See Also
     --------
-    ht.transpose
+    :func:`~heat.core.linalg.basics.transpose`
         Permute the dimensions of an array.
 
     Examples
