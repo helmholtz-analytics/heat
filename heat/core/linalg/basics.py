@@ -32,7 +32,7 @@ __all__ = [
 ]
 
 
-def cross(x1: DNDarray, x2: DNDarray, axis: int = -1):
+def cross(x1: DNDarray, x2: DNDarray, axis: int = -1) -> DNDarray:
     """
     Returns the cross product.
 
