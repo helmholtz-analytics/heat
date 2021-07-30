@@ -3,6 +3,9 @@
 ## Bug Fixes
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
 
+## New Features
+### Manipulations
+- [#854](https://github.com/helmholtz-analytics/heat/pull/854) New Feature: `moveaxis`
 
 # v1.1.0
 
