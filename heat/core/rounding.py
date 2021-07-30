@@ -340,7 +340,7 @@ DNDarray.round: Callable[
 DNDarray.round.__doc__ = round.__doc__
 
 
-def sign(x: DNDarray, out: Optional[DNDarray] = None):
+def sign(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Returns an indication of the sign of a number, element-wise. The definition for complex values is equivalent to :math:`x / \\sqrt{x \\cdot x}`.
 
@@ -397,7 +397,7 @@ def sign(x: DNDarray, out: Optional[DNDarray] = None):
     return _operations.__local_op(torch.sign, x, out)
 
 
-def sgn(x: DNDarray, out: Optional[DNDarray] = None):
+def sgn(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Returns an indication of the sign of a number, element-wise. The definition for complex values is equivalent to :math:`x / |x|`.
 
