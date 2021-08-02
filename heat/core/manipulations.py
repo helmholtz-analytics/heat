@@ -1967,7 +1967,8 @@ def roll(
                 size = x.comm.Get_size()
                 rank = x.comm.Get_rank()
 
-                lshape_map = x.create_lshape_map()[:, x.split]  # local elements along axis
+                # local elements along axis:
+                lshape_map = x.create_lshape_map(force_check=False)[:, x.split]
                 cumsum_map = torch.cumsum(lshape_map, dim=0)  # cumulate along axis
                 indices = torch.arange(size, device=x.device.torch_device)
                 # NOTE Can be removed when min version>=1.9

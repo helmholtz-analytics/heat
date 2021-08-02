@@ -2452,6 +2452,41 @@ class TestManipulations(TestCase):
         self.assertEqual(rolled.split, a.split)
         self.assertTrue(np.array_equal(rolled.numpy(), compare))
 
+        # added 3D test, only a quick test for functionality
+        a = ht.arange(4 * 5 * 6, dtype=ht.complex64).reshape((4, 5, 6), new_split=2)
+
+        rolled = ht.roll(a, -1)
+        compare = np.roll(a.numpy(), -1)
+        self.assertEqual(rolled.device, a.device)
+        self.assertEqual(rolled.size, a.size)
+        self.assertEqual(rolled.dtype, a.dtype)
+        self.assertEqual(rolled.split, a.split)
+        self.assertTrue(np.array_equal(rolled.numpy(), compare))
+
+        rolled = ht.roll(a, 1, 0)
+        compare = np.roll(a.numpy(), 1, 0)
+        self.assertEqual(rolled.device, a.device)
+        self.assertEqual(rolled.size, a.size)
+        self.assertEqual(rolled.dtype, a.dtype)
+        self.assertEqual(rolled.split, a.split)
+        self.assertTrue(np.array_equal(rolled.numpy(), compare))
+
+        rolled = ht.roll(a, -2, [0, 1])
+        compare = np.roll(a.numpy(), -2, [0, 1])
+        self.assertEqual(rolled.device, a.device)
+        self.assertEqual(rolled.size, a.size)
+        self.assertEqual(rolled.dtype, a.dtype)
+        self.assertEqual(rolled.split, a.split)
+        self.assertTrue(np.array_equal(rolled.numpy(), compare))
+
+        rolled = ht.roll(a, [1, 2, 1], [0, 1, -2])
+        compare = np.roll(a.numpy(), [1, 2, 1], [0, 1, -2])
+        self.assertEqual(rolled.device, a.device)
+        self.assertEqual(rolled.size, a.size)
+        self.assertEqual(rolled.dtype, a.dtype)
+        self.assertEqual(rolled.split, a.split)
+        self.assertTrue(np.array_equal(rolled.numpy(), compare))
+
         with self.assertRaises(TypeError):
             ht.roll(a, 1.0, 0)
         with self.assertRaises(TypeError):
