@@ -468,7 +468,7 @@ def main():
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
 
-    blocking = True  # choose blocking or non-blocking parameter updates
+    blocking = False  # choose blocking or non-blocking parameter updates
     dp_optimizer = ht.optim.dp_optimizer.DataParallelOptimizer(optimizer, blocking)
     htmodel = ht.nn.DataParallel(
         model, ht.MPI_WORLD, dp_optimizer, blocking_parameter_updates=blocking
