@@ -7,6 +7,9 @@
 ### Linear Algebra
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) New features `norm`, `vector_norm`, `matrix_norm`
 
+# Feature Additions
+## Manipulations
+- [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
 
 # v1.1.0
 
