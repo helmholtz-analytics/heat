@@ -17,7 +17,18 @@ from .. import manipulations
 from .. import sanitation
 from .. import types
 
-__all__ = ["dot", "matmul", "norm", "outer", "projection", "trace", "transpose", "tril", "triu"]
+__all__ = [
+    "dot",
+    "matmul",
+    "norm",
+    "outer",
+    "projection",
+    "trace",
+    "transpose",
+    "tril",
+    "triu",
+    "vecdot",
+]
 
 
 def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDarray, float]:
@@ -39,6 +50,11 @@ def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDar
         Second input DNDarray
     out : DNDarray, optional
         Output buffer.
+
+    See Also
+    --------
+    vecdot
+        Supports (vector) dot along an axis.
     """
     if isinstance(a, (float, int)) or isinstance(b, (float, int)) or a.ndim == 0 or b.ndim == 0:
         # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
@@ -1638,3 +1654,40 @@ def triu(m: DNDarray, k: int = 0) -> DNDarray:
 
 DNDarray.triu: Callable[[DNDarray, int], DNDarray] = lambda self, k=0: triu(self, k)
 DNDarray.triu.__doc__ = triu.__doc__
+
+
+def vecdot(
+    x1: DNDarray, x2: DNDarray, axis: Optional[int] = None, keepdim: Optional[bool] = None
+) -> DNDarray:
+    """
+    Computes the (vector) dot product of two DNDarrays.
+
+    Parameters
+    ----------
+    x1 : DNDarray
+        first input array.
+    x2 : DNDarray
+        second input array. Must be compatible with x1.
+    axis : int, optional
+        axis over which to compute the dot product. The last dimension is used if 'None'.
+    keepdim : bool, optional
+        If this is set to 'True', the axes which are reduced are left in the result as dimensions with size one.
+
+    See Also
+    --------
+    dot
+        NumPy-like dot function.
+
+    Examples
+    --------
+    >>> ht.vecdot(ht.full((3,3,3),3), ht.ones((3,3)), axis=0)
+    DNDarray([[9., 9., 9.],
+              [9., 9., 9.],
+              [9., 9., 9.]], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    m = arithmetics.mul(x1, x2)
+
+    if axis is None:
+        axis = m.ndim - 1
+
+    return arithmetics.sum(m, axis=axis, keepdim=keepdim)
