@@ -3261,9 +3261,9 @@ class TestManipulations(TestCase):
         # len(reps) > x.ndim
         split = 1
         x = ht.random.randn(4, 3, split=split)
-        reps = ht.random.randint(2, 10, size=(4,)).tolist()
+        reps = ht.random.randint(2, 10, size=(4,))
         tiled_along_split = ht.tile(x, reps)
-        np_tiled_along_split = np.tile(x.numpy(), reps)
+        np_tiled_along_split = np.tile(x.numpy(), reps.tolist())
         self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
         self.assertTrue(tiled_along_split.dtype is x.dtype)
 
@@ -3271,7 +3271,7 @@ class TestManipulations(TestCase):
         # len(reps) > x.ndim
         split = 0
         x = ht.random.randn(4, 3, split=split)
-        reps = ht.random.randint(2, 10, size=(4,)).tolist()
+        reps = np.random.randint(2, 10, size=(4,))
         tiled_along_split = ht.tile(x, reps)
         np_tiled_along_split = np.tile(x.numpy(), reps)
         self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
@@ -3280,7 +3280,7 @@ class TestManipulations(TestCase):
         # test distributed tile() on imbalanced DNDarray
         x = ht.random.randn(100, split=0)
         x = x[ht.where(x > 0)]
-        reps = (5,)
+        reps = 5
         imbalanced_tiled_along_split = ht.tile(x, reps)
         np_imbalanced_tiled_along_split = np.tile(x.numpy(), reps)
         self.assertTrue(
@@ -3294,6 +3294,16 @@ class TestManipulations(TestCase):
         split = 1
         x = ht.random.randn(4, 5, 3, 10, dtype=ht.float64, split=split)
         reps = (2, 2)
+        tiled_along_non_split = ht.tile(x, reps)
+        np_tiled_along_non_split = np.tile(x.numpy(), reps)
+        self.assertTrue((tiled_along_non_split.numpy() == np_tiled_along_non_split).all())
+        self.assertTrue(tiled_along_non_split.dtype is x.dtype)
+
+        # test tile along split axis
+        # len(reps) = x.ndim
+        split = 1
+        x = ht.random.randn(3, 3, dtype=ht.float64, split=split)
+        reps = (2, 3)
         tiled_along_split = ht.tile(x, reps)
         np_tiled_along_split = np.tile(x.numpy(), reps)
         self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
@@ -3303,6 +3313,9 @@ class TestManipulations(TestCase):
         float_reps = (1, 2, 2, 1.5)
         with self.assertRaises(TypeError):
             tiled_along_split = ht.tile(x, float_reps)
+        arraylike_float_reps = torch.tensor(float_reps)
+        with self.assertRaises(TypeError):
+            tiled_along_split = ht.tile(x, arraylike_float_reps)
 
     def test_topk(self):
         size = ht.MPI_WORLD.size
