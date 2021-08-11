@@ -3530,82 +3530,110 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
                [ 6,  7,  8,  6,  7,  8],
                [ 9, 10, 11,  9, 10, 11]]], dtype=ht.int32, device=cpu:0, split=1)
     """
-    # check that input is DNDarray
-    sanitation.sanitize_in(x)
-    # check dimensions
-    if x.ndim == 0:
-        x = sanitation.scalar_to_1d(x)
-    # reps to list
-    reps = sanitation.sanitize_sequence(reps)
-    if not all(isinstance(rep, int) for rep in reps):
-        raise TypeError("reps must be a sequence of integers, got {}".format(reps))
+    # x can be DNDarray or scalar
+    try:
+        _ = x.larray
+    except AttributeError:
+        try:
+            _ = x.shape
+            raise TypeError("Input can be a DNDarray or a scalar, is {}".format(type(x)))
+        except AttributeError:
+            x = factories.array(x).reshape(1)
 
-    # calculate new gshape, split
+    x_proxy = torch.ones((1,)).as_strided(x.gshape, [0] * x.ndim)
+
+    # torch-proof args/kwargs:
+    # torch `reps`: int or sequence of ints; numpy `reps`: can be array-like
+    try:
+        _ = x_proxy.repeat(reps)
+    except TypeError:
+        # `reps` is array-like or contains non-int elements
+        try:
+            reps = resplit(reps, None).tolist()
+        except AttributeError:
+            try:
+                reps = reps.tolist()
+            except AttributeError:
+                try:
+                    _ = x_proxy.repeat(reps)
+                except TypeError:
+                    raise TypeError(
+                        "reps must be a sequence of ints, got {}".format(
+                            list(type(i) for i in reps)
+                        )
+                    )
+                except RuntimeError:
+                    pass
+    except RuntimeError:
+        pass
+
+    try:
+        reps = list(reps)
+    except TypeError:
+        # scalar to list
+        reps = [reps]
+
+    # torch reps vs. numpy reps: dimensions
     if len(reps) != x.ndim:
         added_dims = abs(len(reps) - x.ndim)
         if len(reps) > x.ndim:
             new_shape = added_dims * (1,) + x.gshape
             new_split = None if x.split is None else x.split + added_dims
-            x = x.reshape(new_shape, axis=new_split)
+            x = x.reshape(new_shape, new_split=new_split)
         else:
             reps = added_dims * [1] + reps
-    split = x.split
-    # "t_" indicates process-local torch tensors
-    t_x = x.larray
-    out_gshape = tuple(
-        (torch.tensor(x.shape, device=t_x.device) * torch.tensor(reps, device=t_x.device)).tolist()
-    )
-    if split is None or reps[split] == 1:
+
+    out_gshape = tuple(x_proxy.repeat(reps).shape)
+
+    if not x.is_distributed() or reps[x.split] == 1:
         # no repeats along the split axis: local operation
-        t_tiled = t_x.repeat(reps)
+        t_tiled = x.larray.repeat(reps)
+        out_gshape = tuple(x_proxy.repeat(reps).shape)
         return DNDarray(
             t_tiled,
             out_gshape,
             dtype=x.dtype,
-            split=split,
+            split=x.split,
             device=x.device,
             comm=x.comm,
             balanced=x.balanced,
         )
     else:
-        # repeats along the split axis
+        # repeats along the split axis, work along dim 0
         size = x.comm.Get_size()
         rank = x.comm.Get_rank()
-        # make sure we work along dim 0
         trans_axes = list(range(x.ndim))
-        if split != 0:
-            trans_axes[0], trans_axes[split] = split, 0
-            reps[0], reps[split] = reps[split], reps[0]
+        if x.split != 0:
+            trans_axes[0], trans_axes[x.split] = x.split, 0
+            reps[0], reps[x.split] = reps[x.split], reps[0]
             x = linalg.transpose(x, trans_axes)
-            split = 0
-            out_gshape = tuple(
-                (
-                    torch.tensor(x.shape, device=t_x.device) * torch.tensor(reps, device=t_x.device)
-                ).tolist()
-            )
-        x_shape = x.gshape
+            x_proxy = torch.ones((1,)).as_strided(x.gshape, [0] * x.ndim)
+            out_gshape = tuple(x_proxy.repeat(reps).shape)
+
+        local_x = x.larray
+
         # allocate tiled DNDarray, at first tiled along split axis only
-        split_reps = [rep if i == split else 1 for i, rep in enumerate(reps)]
-        split_tiled_shape = tuple(s * r for s, r in zip(x_shape, split_reps))
-        tiled = factories.empty(split_tiled_shape, dtype=x.dtype, split=split, comm=x.comm)
+        split_reps = [rep if i == x.split else 1 for i, rep in enumerate(reps)]
+        split_tiled_shape = tuple(x_proxy.repeat(split_reps).shape)
+        tiled = factories.empty(split_tiled_shape, dtype=x.dtype, split=x.split, comm=x.comm)
         # collect slicing information from all processes.
         slices_map = []
         for array in [x, tiled]:
             counts, displs = array.counts_displs()
-            t_slices_starts = torch.tensor(displs, device=t_x.device)
-            t_slices_ends = t_slices_starts + torch.tensor(counts, device=t_x.device)
+            t_slices_starts = torch.tensor(displs, device=local_x.device)
+            t_slices_ends = t_slices_starts + torch.tensor(counts, device=local_x.device)
             slices_map.append([t_slices_starts, t_slices_ends])
 
         t_slices_x, t_slices_tiled = slices_map
 
         # keep track of repetitions:
-        # t_x_starts.shape, t_x_ends.shape changing from (size,) to (reps[split], size)
-        reps_indices = list(x_shape[split] * rep for rep in (range(reps[split])))
-        t_reps_indices = torch.tensor(reps_indices, dtype=torch.int32, device=t_x.device).reshape(
-            len(reps_indices), 1
-        )
+        # local_x_starts.shape, local_x_ends.shape changing from (size,) to (reps[split], size)
+        reps_indices = list(x.gshape[x.split] * rep for rep in (range(reps[x.split])))
+        t_reps_indices = torch.tensor(
+            reps_indices, dtype=torch.int32, device=local_x.device
+        ).reshape(len(reps_indices), 1)
         for i, t in enumerate(t_slices_x):
-            t = t.repeat((reps[split], 1))
+            t = t.repeat((reps[x.split], 1))
             t += t_reps_indices
             t_slices_x[i] = t
 
@@ -3615,16 +3643,16 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
         for i in range(2):
             if i == 0:
                 # send logic for x slices on rank
-                t_x_starts = t_slices_x[0][:, rank].reshape(reps[split], 1)
-                t_x_ends = t_slices_x[1][:, rank].reshape(reps[split], 1)
+                local_x_starts = t_slices_x[0][:, rank].reshape(reps[x.split], 1)
+                local_x_ends = t_slices_x[1][:, rank].reshape(reps[x.split], 1)
                 t_tiled_starts, t_tiled_ends = t_slices_tiled
             else:
                 # recv logic for tiled slices on rank
-                t_x_starts, t_x_ends = t_slices_x
+                local_x_starts, local_x_ends = t_slices_x
                 t_tiled_starts = t_slices_tiled[0][rank]
                 t_tiled_ends = t_slices_tiled[1][rank]
-            t_max_starts = torch.max(t_x_starts, t_tiled_starts)
-            t_min_ends = torch.min(t_x_ends, t_tiled_ends)
+            t_max_starts = torch.max(local_x_starts, t_tiled_starts)
+            t_min_ends = torch.min(local_x_ends, t_tiled_ends)
             coords = torch.where(t_min_ends - t_max_starts > 0)
             # remove repeat offset from slices if sending
             if i == 0:
@@ -3658,7 +3686,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
         recv_slices -= offset_tiled
         recv_buf = t_tiled.clone()
         # we need as many Alltoallv calls as repeats along the split axis
-        for rep in range(reps[split]):
+        for rep in range(reps[x.split]):
             # send_data, send_counts, send_displs on rank
             all_send_counts = [0] * size
             all_send_displs = [0] * size
@@ -3668,10 +3696,10 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
                 all_send_counts[j] = active_send_counts[i].item()
                 all_send_displs[j] = send_slices[0][i].item()
             local_send_slice = [slice(None)] * x.ndim
-            local_send_slice[split] = slice(
+            local_send_slice[x.split] = slice(
                 all_send_displs[0], all_send_displs[0] + sum(all_send_counts)
             )
-            send_buf = t_x[local_send_slice].clone()
+            send_buf = local_x[local_send_slice].clone()
 
             # recv_data, recv_counts, recv_displs on rank
             all_recv_counts = [0] * size
@@ -3682,7 +3710,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
                 all_recv_counts[j] = active_recv_counts[i].item()
                 all_recv_displs[j] = recv_slices[0][i].item()
             local_recv_slice = [slice(None)] * x.ndim
-            local_recv_slice[split] = slice(
+            local_recv_slice[x.split] = slice(
                 all_recv_displs[0], all_recv_displs[0] + sum(all_recv_counts)
             )
             x.comm.Alltoallv(
@@ -3692,12 +3720,12 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
             t_tiled[local_recv_slice] = recv_buf[local_recv_slice]
 
         # finally tile along non-split axes if needed
-        reps[split] = 1
+        reps[x.split] = 1
         tiled = DNDarray(
             t_tiled.repeat(reps),
             out_gshape,
             dtype=x.dtype,
-            split=split,
+            split=x.split,
             device=x.device,
             comm=x.comm,
             balanced=True,
