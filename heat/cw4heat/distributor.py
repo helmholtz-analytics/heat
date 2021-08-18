@@ -154,7 +154,7 @@ class Distributor:
                     break
                 else:
                     raise Exception("Worker received unknown tag")
-            # MPI.Finalize()
+            MPI.Finalize()
             if doExit:
                 sys.exit()
             return False
@@ -262,6 +262,18 @@ class Handle:
         """
         return self._obj
 
+    def __getstate__(self):
+        # we do not pickle the actual object
+        return {"_id": self._id}
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._obj = None
+
+
+# here we store objects that are input dependences to tasks
+_s_pms = {}
+
 
 class _RemoteTask:
     """
@@ -286,27 +298,24 @@ class _RemoteTask:
         else:
             self._handle = tuple(Handle() for _ in range(self._nOut))
 
-    # here we store objects that are input dependences to tasks
-    s_pms = {}
-
     def go(self):
         """
         Actually run the task.
         """
         # print(self._task._func)
-        deps = [_RemoteTask.s_pms[i] for i in self._depIds]
+        deps = [_s_pms[i] for i in self._depIds]
         res = self._task.run(deps)
         if self._nOut == 1:
             self._handle.set(res)
-            _RemoteTask.s_pms[self._handle.getId()] = res
+            _s_pms[self._handle.getId()] = res
         else:
             i = 0
             for h in self._handle:
                 h.set(res[i])
-                _RemoteTask.s_pms[h.getId()] = res[i]
+                _s_pms[h.getId()] = res[i]
                 i += 1
         return self._handle
 
     @staticmethod
     def getVal(id):
-        return _RemoteTask.s_pms[id]
+        return _s_pms[id]

@@ -135,9 +135,12 @@ def init(doStart=True, ctxt=False):
                 pass
 
         c = MPI.COMM_WORLD
+        if c.size <= 1:
+            raise Exception("At least 2 ranks required for cw4heat")
         _runner = MPIRunner(Distributor(c), c)
         if doStart:
             _runner.distributor.start(initImpl=_setComm)
+            atexit.register(fini)
     else:
         raise Exception(f"unknown launcher {_launcher}. CW4H_LAUNCHER must be 'mpi', or 'ray'.")
 
