@@ -1095,17 +1095,19 @@ def moveaxis(
         source = (source,)
     if isinstance(source, list):
         source = tuple(source)
+    try:
+        source = stride_tricks.sanitize_axis(x.shape, source)
+    except TypeError:
+        raise TypeError("'source' must be ints, lists or tuples.")
 
     if isinstance(destination, int):
         destination = (destination,)
     if isinstance(destination, list):
         destination = tuple(destination)
-
-    if not (isinstance(source, tuple) and isinstance(destination, tuple)):
-        raise TypeError("'source' and 'destination' must be ints, lists or tuples.")
-
-    source = stride_tricks.sanitize_axis(x.shape, source)
-    destination = stride_tricks.sanitize_axis(x.shape, destination)
+    try:
+        destination = stride_tricks.sanitize_axis(x.shape, destination)
+    except TypeError:
+        raise TypeError("'destination' must be ints, lists or tuples.")
 
     if len(source) != len(destination):
         raise ValueError("'source' and 'destination' must have the same number of elements.")
