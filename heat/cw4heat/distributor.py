@@ -349,4 +349,4 @@ class _RemoteTask:
         Reset internal state.
         """
         global _s_pms
-        _s_pms = {}
+        _s_pms.clear()
