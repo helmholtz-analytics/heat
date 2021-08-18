@@ -64,6 +64,10 @@ GO = 2
 GET = 3
 GETPART = 4
 PUBPART = 5
+RESET = 6
+
+# here we store objects that are input dependences to tasks
+_s_pms = {}
 
 
 class _TaskQueue:
@@ -148,6 +152,11 @@ class Distributor:
                     val = _RemoteTask.getVal(header[1])
                     attr = header[3](getattr(val, header[2]))
                     self._comm.gather(attr, root=0)
+                elif header[0] == RESET:
+                    print("reset", flush=True)
+                    _RemoteTask.reset()
+                    self._tQueue.clear()
+                    Handle.reset()
                 elif header[0] == END:
                     done = True
                     self._comm.Barrier()
@@ -159,9 +168,20 @@ class Distributor:
                 sys.exit()
             return False
 
+    def reset(self):
+        """
+        Reset task queues.
+        """
+        assert self._comm.rank == 0
+        header = [RESET]
+        header = self._comm.bcast(header, 0)
+        _RemoteTask.reset()
+        self._tQueue.clear()
+        Handle.reset()
+
     def fini(self):
         """
-        Control sends end-tag. Workers will sys.exit.
+        Controler sends end-tag. Workers will sys.exit.
         """
         if MPI.Is_initialized() and self._comm.rank == 0:
             header = [END]
@@ -270,9 +290,12 @@ class Handle:
         self.__dict__.update(state)
         self._obj = None
 
-
-# here we store objects that are input dependences to tasks
-_s_pms = {}
+    @staticmethod
+    def reset():
+        """
+        Reset internal state.
+        """
+        Handle._nextId = 1
 
 
 class _RemoteTask:
@@ -319,3 +342,11 @@ class _RemoteTask:
     @staticmethod
     def getVal(id):
         return _s_pms[id]
+
+    @staticmethod
+    def reset():
+        """
+        Reset internal state.
+        """
+        global _s_pms
+        _s_pms = {}

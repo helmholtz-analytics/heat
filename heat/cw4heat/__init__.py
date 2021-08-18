@@ -156,6 +156,14 @@ def fini():
         _runner.fini()
 
 
+def reset():
+    """
+    Reset all internal state.
+    Distributed objects created before calling reset cannot be used afterwards.
+    """
+    _runner.distributor.reset()
+
+
 class cw4h:
     """
     Contextmanager to establish controller-worker regions within SPMD runs.
