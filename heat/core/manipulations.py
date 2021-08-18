@@ -2990,17 +2990,21 @@ def swapaxes(x: DNDarray, axis1: int, axis2: int) -> DNDarray:
               [[1, 5],
                [3, 7]]], dtype=ht.int64, device=cpu:0, split=None)
     """
-    if not isinstance(axis1, int) or not isinstance(axis2, int):
+    axes = list(range(x.ndim))
+    try:
+        axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
+    except TypeError:
         raise TypeError(
             "'axis1' and 'axis2' must be of type int, found {} and {}".format(
                 type(axis1), type(axis2)
             )
         )
 
-    axes = list(range(x.ndim))
-    axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
-
     return linalg.transpose(x, axes)
+
+
+DNDarray.swapaxes = lambda self, axis1, axis2: swapaxes(self, axis1, axis2)
+DNDarray.swapaxes.__doc__ = swapaxes.__doc__
 
 
 def unique(
