@@ -2031,7 +2031,7 @@ def vector_norm(
     elif ord == -constants.INF:
         return statistics.min(rounding.abs(x), axis=axis, keepdim=keepdims)
     elif ord == 0:
-        return arithmetics.sum(x != 0, axis=axis, keepdim=keepdims)
+        return arithmetics.sum(x != 0, axis=axis, keepdim=keepdims).astype(types.float)
     elif ord == 1:
         return arithmetics.sum(rounding.abs(x), axis=axis, keepdim=keepdims)
     elif ord is None or ord == 2:

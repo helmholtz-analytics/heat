@@ -559,32 +559,29 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(mn.device, b.device)
         self.assertEqual(mn.item(), 6.0)
 
-        mn = ht.linalg.matrix_norm(b1, ord=ht.inf)
+        mn = ht.linalg.matrix_norm(b1)
         self.assertEqual(mn.split, b.split)
         self.assertEqual(mn.dtype, b.dtype)
         self.assertEqual(mn.device, b.device)
-        self.assertEqual(mn.item(), 9.0)
-
-        mn = ht.linalg.matrix_norm(b1, ord=-ht.inf)
-        self.assertEqual(mn.split, b.split)
-        self.assertEqual(mn.dtype, b.dtype)
-        self.assertEqual(mn.device, b.device)
-        self.assertEqual(mn.item(), 2.0)
+        self.assertTrue(ht.allclose(mn, ht.array(7.745966692414834)))
 
         # higher dimension + different dtype
         m = ht.arange(8).reshape(2, 2, 2)
-        mn = ht.linalg.matrix_norm(m, axis=(1, 2))
+        mn = ht.linalg.matrix_norm(m, axis=(2, 1), ord=ht.inf)
         self.assertEqual(mn.split, m.split)
         self.assertEqual(mn.dtype, ht.float)
         self.assertEqual(mn.device, m.device)
-        self.assertTrue(ht.equal(mn, ht.array([3.74165739, 11.22497216])))
+        self.assertTrue(ht.equal(mn, ht.array([4.0, 12.0])))
 
-        mn = ht.linalg.matrix_norm(m, axis=(1, 2))
+        mn = ht.linalg.matrix_norm(m, axis=(2, 1), ord=-ht.inf)
         self.assertEqual(mn.split, m.split)
         self.assertEqual(mn.dtype, ht.float)
         self.assertEqual(mn.device, m.device)
-        self.assertTrue(ht.equal(mn, ht.array([3.74165739, 11.22497216])))
+        self.assertTrue(ht.equal(mn, ht.array([2.0, 10.0])))
 
+        # too many axis to infer
+        with self.assertRaises(ValueError):
+            ht.linalg.matrix_norm(ht.ones((2, 2, 2)))
         # bad axis
         with self.assertRaises(TypeError):
             ht.linalg.matrix_norm(ht.ones((2, 2)), axis=1)
@@ -619,7 +616,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(gn.item(), 20.0)
 
         # complex type
-        gn = ht.linalg.norm(a0)
+        gn = ht.linalg.norm(a0, keepdims=True)
         self.assertEqual(gn.split, None)
         self.assertEqual(gn.dtype, ht.float)
         self.assertEqual(gn.device, a0.device)
@@ -1801,6 +1798,13 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(vn.dtype, a.dtype)
         self.assertEqual(vn.device, a.device)
         self.assertEqual(vn.item(), 4.0)
+
+        # vector 0 norm
+        vn = ht.vector_norm(a, ord=0)
+        self.assertEqual(vn.split, a.split)
+        self.assertEqual(vn.dtype, a.dtype)
+        self.assertEqual(vn.device, a.device)
+        self.assertEqual(vn.item(), 8.0)
 
         # split vector -infinity
         vn = ht.vector_norm(a_split, ord=-ht.inf)
