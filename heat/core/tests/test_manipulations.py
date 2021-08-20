@@ -1199,7 +1199,9 @@ class TestManipulations(TestCase):
         self.assertEquals(moved.shape, (5, 4, 3))
 
         with self.assertRaises(TypeError):
-            ht.moveaxis(a, source="r", destination=3.6)
+            ht.moveaxis(a, source="r", destination=3)
+        with self.assertRaises(TypeError):
+            ht.moveaxis(a, source=2, destination=3.6)
         with self.assertRaises(ValueError):
             ht.moveaxis(a, source=[0, 1, 2], destination=[0, 1])
 
