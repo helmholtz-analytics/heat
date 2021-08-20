@@ -36,6 +36,7 @@ __all__ = [
     "flipud",
     "hsplit",
     "hstack",
+    "moveaxis",
     "pad",
     "ravel",
     "redistribute",
@@ -1053,6 +1054,71 @@ def hstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
                 arrays[cn] = arr.expand_dims(1)
 
     return concatenate(arrays, axis=axis)
+
+
+def moveaxis(
+    x: DNDarray, source: Union[int, Sequence[int]], destination: Union[int, Sequence[int]]
+) -> DNDarray:
+    """
+    Moves axes at the positions in `source` to new positions.
+
+    Parameters
+    ----------
+    x : DNDarray
+        The input array.
+    source : int or Sequence[int, ...]
+        Original positions of the axes to move. These must be unique.
+    destination : int or Sequence[int, ...]
+        Destination positions for each of the original axes. These must also be unique.
+
+    See Also
+    --------
+    ~heat.core.linalg.basics.transpose
+        Permute the dimensions of an array.
+
+    Raises
+    ------
+    TypeError
+        If `source` or `destination` are not ints, lists or tuples.
+    ValueError
+        If `source` and `destination` do not have the same number of elements.
+
+
+    Examples
+    --------
+    >>> x = ht.zeros((3, 4, 5))
+    >>> ht.moveaxis(x, 0, -1).shape
+    (4, 5, 3)
+    >>> ht.moveaxis(x, -1, 0).shape
+    (5, 3, 4)
+    """
+    if isinstance(source, int):
+        source = (source,)
+    if isinstance(source, list):
+        source = tuple(source)
+    try:
+        source = stride_tricks.sanitize_axis(x.shape, source)
+    except TypeError:
+        raise TypeError("'source' must be ints, lists or tuples.")
+
+    if isinstance(destination, int):
+        destination = (destination,)
+    if isinstance(destination, list):
+        destination = tuple(destination)
+    try:
+        destination = stride_tricks.sanitize_axis(x.shape, destination)
+    except TypeError:
+        raise TypeError("'destination' must be ints, lists or tuples.")
+
+    if len(source) != len(destination):
+        raise ValueError("'source' and 'destination' must have the same number of elements.")
+
+    order = [n for n in range(x.ndim) if n not in source]
+
+    for dest, src in sorted(zip(destination, source)):
+        order.insert(dest, src)
+
+    return linalg.transpose(x, order)
 
 
 def pad(
