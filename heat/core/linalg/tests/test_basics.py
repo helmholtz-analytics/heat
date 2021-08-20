@@ -1687,3 +1687,21 @@ class TestLinalgBasics(TestCase):
 
         with self.assertRaises(ValueError):
             ht.vdot(ht.array([1, 2, 3]), ht.array([[1, 2], [3, 4]]))
+
+    def test_vecdot(self):
+        a = ht.array([1, 1, 1])
+        b = ht.array([1, 2, 3])
+
+        c = ht.linalg.vecdot(a, b)
+
+        self.assertEqual(c.dtype, ht.int64)
+        self.assertEqual(c.device, a.device)
+        self.assertTrue(ht.equal(c, ht.array([6])))
+
+        a = ht.full((4, 4), 2, split=0)
+        b = ht.ones(4)
+
+        c = ht.linalg.vecdot(a, b, axis=0, keepdim=True)
+        self.assertEqual(c.dtype, ht.float32)
+        self.assertEqual(c.device, a.device)
+        self.assertTrue(ht.equal(c, ht.array([[8, 8, 8, 8]])))

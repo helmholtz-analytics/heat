@@ -7,6 +7,11 @@
 ### Linear Algebra
 - [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
 
+### Linear Algebra
+- [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
+## Manipulations
+- [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
+
 # v1.1.0
 
 ## Highlights
