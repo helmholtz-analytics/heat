@@ -1,7 +1,8 @@
 # Pending additions
-
 ## Bug Fixes
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
+- [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `_reduce_op` when axis and keepdim were set.
+- [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `min`, `max` where DNDarrays with empty processes can't be computed.
 
 ## Feature Additions
 ### Linear Algebra
@@ -9,8 +10,12 @@
 
 ### Linear Algebra
 - [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
-## Manipulations
+- [#846](https://github.com/helmholtz-analytics/heat/pull/846) New features `norm`, `vector_norm`, `matrix_norm`
+### Manipulations
 - [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
+- [#853](https://github.com/helmholtz-analytics/heat/pull/853) New Feature: `swapaxes`
+- [#854](https://github.com/helmholtz-analytics/heat/pull/854) New Feature: `moveaxis`
+
 
 # v1.1.0
 
@@ -221,6 +226,8 @@ Example on 2 processes:
 - [#664](https://github.com/helmholtz-analytics/heat/pull/664) New feature / enhancement: distributed `random.random_sample`, `random.random`, `random.sample`, `random.ranf`, `random.random_integer`
 - [#666](https://github.com/helmholtz-analytics/heat/pull/666) New feature: distributed prepend/append for `diff()`.
 - [#667](https://github.com/helmholtz-analytics/heat/pull/667) Enhancement `reshape`: rename axis parameter
+- [#678](https://github.com/helmholtz-analytics/heat/pull/678) New feature: distributed `tile`
+- [#670](https://github.com/helmholtz-analytics/heat/pull/670) New Feature: `bincount()`
 - [#674](https://github.com/helmholtz-analytics/heat/pull/674) New feature: `repeat`
 - [#670](https://github.com/helmholtz-analytics/heat/pull/670) New Feature: distributed `bincount()`
 - [#672](https://github.com/helmholtz-analytics/heat/pull/672) Bug / Enhancement: Remove `MPIRequest.wait()`, rewrite calls with capital letters. lower case `wait()` now falls back to the `mpi4py` function

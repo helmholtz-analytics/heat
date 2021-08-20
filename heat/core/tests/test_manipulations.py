@@ -1189,6 +1189,22 @@ class TestManipulations(TestCase):
         res = ht.hstack((a, b))
         self.assertEqual(res.shape, (24,))
 
+    def test_moveaxis(self):
+        a = ht.zeros((3, 4, 5))
+
+        moved = ht.moveaxis(a, 0, -1)
+        self.assertEquals(moved.shape, (4, 5, 3))
+
+        moved = ht.moveaxis(a, [0, 1], [-1, -2])
+        self.assertEquals(moved.shape, (5, 4, 3))
+
+        with self.assertRaises(TypeError):
+            ht.moveaxis(a, source="r", destination=3)
+        with self.assertRaises(TypeError):
+            ht.moveaxis(a, source=2, destination=3.6)
+        with self.assertRaises(ValueError):
+            ht.moveaxis(a, source=[0, 1, 2], destination=[0, 1])
+
     def test_pad(self):
         # ======================================
         # test padding of non-distributed tensor
@@ -3239,6 +3255,94 @@ class TestManipulations(TestCase):
         out_wrong_split = ht.empty((3, 5, 4), dtype=ht.float32, split=0)
         with self.assertRaises(ValueError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_split)
+
+    def test_swapaxes(self):
+        x = ht.array([[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
+        swapped = ht.swapaxes(x, 0, 1)
+
+        self.assertTrue(
+            ht.equal(swapped, ht.array([[[0, 1], [4, 5]], [[2, 3], [6, 7]]], dtype=ht.int64))
+        )
+
+        with self.assertRaises(TypeError):
+            ht.swapaxes(x, 4.9, "abc")
+
+    def test_tile(self):
+        # test local tile, tuple reps
+        x = ht.arange(12).reshape((4, 3))
+        reps = (2, 1)
+        ht_tiled = ht.tile(x, reps)
+        np_tiled = np.tile(x.numpy(), reps)
+        self.assertTrue((np_tiled == ht_tiled.numpy()).all())
+        self.assertTrue(ht_tiled.dtype is x.dtype)
+
+        # test scalar x
+        x = ht.array(9.0)
+        reps = (2, 1)
+        ht_tiled = ht.tile(x, reps)
+        np_tiled = np.tile(x.numpy(), reps)
+        self.assertTrue((np_tiled == ht_tiled.numpy()).all())
+        self.assertTrue(ht_tiled.dtype is x.dtype)
+
+        # test distributed tile along split axis
+        # len(reps) > x.ndim
+        split = 1
+        x = ht.random.randn(4, 3, split=split)
+        reps = ht.random.randint(2, 10, size=(4,))
+        tiled_along_split = ht.tile(x, reps)
+        np_tiled_along_split = np.tile(x.numpy(), reps.tolist())
+        self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
+        self.assertTrue(tiled_along_split.dtype is x.dtype)
+
+        # test distributed tile along non-zero split axis
+        # len(reps) > x.ndim
+        split = 0
+        x = ht.random.randn(4, 3, split=split)
+        reps = np.random.randint(2, 10, size=(4,))
+        tiled_along_split = ht.tile(x, reps)
+        np_tiled_along_split = np.tile(x.numpy(), reps)
+        self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
+        self.assertTrue(tiled_along_split.dtype is x.dtype)
+
+        # test distributed tile() on imbalanced DNDarray
+        x = ht.random.randn(100, split=0)
+        x = x[ht.where(x > 0)]
+        reps = 5
+        imbalanced_tiled_along_split = ht.tile(x, reps)
+        np_imbalanced_tiled_along_split = np.tile(x.numpy(), reps)
+        self.assertTrue(
+            (imbalanced_tiled_along_split.numpy() == np_imbalanced_tiled_along_split).all()
+        )
+        self.assertTrue(imbalanced_tiled_along_split.dtype is x.dtype)
+        self.assertTrue(imbalanced_tiled_along_split.is_balanced(force_check=True))
+
+        # test tile along non-split axis
+        # len(reps) < x.ndim
+        split = 1
+        x = ht.random.randn(4, 5, 3, 10, dtype=ht.float64, split=split)
+        reps = (2, 2)
+        tiled_along_non_split = ht.tile(x, reps)
+        np_tiled_along_non_split = np.tile(x.numpy(), reps)
+        self.assertTrue((tiled_along_non_split.numpy() == np_tiled_along_non_split).all())
+        self.assertTrue(tiled_along_non_split.dtype is x.dtype)
+
+        # test tile along split axis
+        # len(reps) = x.ndim
+        split = 1
+        x = ht.random.randn(3, 3, dtype=ht.float64, split=split)
+        reps = (2, 3)
+        tiled_along_split = ht.tile(x, reps)
+        np_tiled_along_split = np.tile(x.numpy(), reps)
+        self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
+        self.assertTrue(tiled_along_split.dtype is x.dtype)
+
+        # test exceptions
+        float_reps = (1, 2, 2, 1.5)
+        with self.assertRaises(TypeError):
+            tiled_along_split = ht.tile(x, float_reps)
+        arraylike_float_reps = torch.tensor(float_reps)
+        with self.assertRaises(TypeError):
+            tiled_along_split = ht.tile(x, arraylike_float_reps)
 
     def test_topk(self):
         size = ht.MPI_WORLD.size
