@@ -51,6 +51,7 @@ __all__ = [
     "split",
     "squeeze",
     "stack",
+    "swapaxes",
     "topk",
     "unique",
     "vsplit",
@@ -3021,6 +3022,55 @@ def stack(
         balanced=array_balanced,
     )
     return stacked
+
+
+def swapaxes(x: DNDarray, axis1: int, axis2: int) -> DNDarray:
+    """
+    Interchanges two axes of an array.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array.
+    axis1 : int
+        First axis.
+    axis2 : int
+        Second axis.
+
+    See Also
+    --------
+    :func:`~heat.core.linalg.basics.transpose`
+        Permute the dimensions of an array.
+
+    Examples
+    --------
+    >>> x = ht.array([[[0,1],[2,3]],[[4,5],[6,7]]])
+    >>> ht.swapaxes(x, 0, 1)
+    DNDarray([[[0, 1],
+               [4, 5]],
+              [[2, 3],
+               [6, 7]]], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.swapaxes(x, 0, 2)
+    DNDarray([[[0, 4],
+               [2, 6]],
+              [[1, 5],
+               [3, 7]]], dtype=ht.int64, device=cpu:0, split=None)
+    """
+    axes = list(range(x.ndim))
+    try:
+        axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
+    except TypeError:
+        raise TypeError(
+            "'axis1' and 'axis2' must be of type int, found {} and {}".format(
+                type(axis1), type(axis2)
+            )
+        )
+
+    return linalg.transpose(x, axes)
+
+
+DNDarray.swapaxes = lambda self, axis1, axis2: swapaxes(self, axis1, axis2)
+DNDarray.swapaxes.__doc__ = swapaxes.__doc__
 
 
 def unique(
