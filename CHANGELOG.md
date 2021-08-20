@@ -7,9 +7,10 @@
 
 ### Linear Algebra
 - [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
-## Manipulations
+### Manipulations
 - [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
 - [#853](https://github.com/helmholtz-analytics/heat/pull/853) New Feature: `swapaxes`
+- [#854](https://github.com/helmholtz-analytics/heat/pull/854) New Feature: `moveaxis`
 
 
 # v1.1.0
