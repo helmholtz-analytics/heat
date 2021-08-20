@@ -372,7 +372,7 @@ class DDParray:
 # (lists taken from list of methods in array-API)
 # Again, we simply make lambdas which submit appropriate Tasks
 
-fixme_funcs = ["load_csv", "array", "triu", "copy", "repeat"]
+fixme_funcs = ["load_csv", "array", "triu", "copy", "repeat", "dot"]
 for func in aa_tlfuncs + fixme_funcs:
     if func == "meshgrid":
         exec(
