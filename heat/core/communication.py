@@ -1903,7 +1903,7 @@ def sanitize_comm(comm: Optional[Communication]) -> Communication:
 
 def use_comm(comm: Communication = None):
     """
-    Sets the globally used default communication.
+    Sets the globally used default communicator.
 
     Parameters
     ----------
