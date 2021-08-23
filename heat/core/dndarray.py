@@ -951,26 +951,6 @@ class DNDarray:
         # determine if the key gets a singular item
         zeros = tuple([0] * (self_proxy.ndim - 1))
         return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
-        # try:
-        #     int(obj)
-        #     return True
-        # except Exception:
-        #     pass
-        # if hasattr(obj, "__len__") and len(obj) == 1:
-        #     return True
-        # if hasattr(obj, "shape") and len(obj.shape) == 0:
-        #     return True
-        # if hasattr(obj, "numel"):
-        #     return obj.numel() == 1
-        # if hasattr(obj, "size"):
-        #     return obj.size == 1
-        # if hasattr(obj, "item"):
-        #     try:
-        #         obj.item()
-        #         return True
-        #     except Exception:
-        #         pass
-        # return False
 
     def item(self):
         """
@@ -1081,7 +1061,7 @@ class DNDarray:
         # units -> {pr, 1st index, 2nd index}
         if lshape_map is None:
             # NOTE: giving an lshape map which is incorrect will result in an incorrect distribution
-            lshape_map = self.create_lshape_map()
+            lshape_map = self.create_lshape_map(force_check=True)
         else:
             if not isinstance(lshape_map, torch.Tensor):
                 raise TypeError(
@@ -1283,6 +1263,7 @@ class DNDarray:
             self.comm.Allgatherv(self.__array, (gathered, counts, displs), recv_axis=self.split)
             self.__array = gathered
             self.__split = axis
+            self.__lshape_map = None
             return self
         # tensor needs be split/sliced locally
         if self.split is None:
@@ -1293,6 +1274,7 @@ class DNDarray:
             # necessary to clear storage of local __array
             self.__array = temp.clone().detach()
             self.__split = axis
+            self.__lshape_map = None
             return self
 
         tiles = tiling.SplitTiles(self)
@@ -1356,6 +1338,7 @@ class DNDarray:
 
         self.__array = arrays
         self.__split = axis
+        self.__lshape_map = None
         return self
 
     def __setitem__(
@@ -1616,11 +1599,6 @@ class DNDarray:
         elif isinstance(key[self.split], (torch.Tensor, list)):
             key = list(key)
             key[self.split] -= chunk_start
-            #
-            # try:
-            #     print('h', key[self.split].shape, value.lshape)
-            # except:
-            #     pass
 
             if len(key[self.split]) != 0:
                 self.__setter(tuple(key), value)
