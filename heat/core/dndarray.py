@@ -1455,7 +1455,7 @@ class DNDarray:
                 # remove bools from a torch tensor in favor of indexes
                 try:
                     if key[i].dtype in [torch.bool, torch.uint8]:
-                        key[i] = torch.nonzero(key[i])
+                        key[i] = torch.nonzero(key[i]).flatten()
                 except (AttributeError, TypeError):
                     pass
 
@@ -1636,7 +1636,6 @@ class DNDarray:
         elif isinstance(key[self.split], (torch.Tensor, list)):
             key = list(key)
             key[self.split] -= chunk_start
-
             if len(key[self.split]) != 0:
                 self.__setter(tuple(key), value)
 
