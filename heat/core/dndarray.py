@@ -715,11 +715,19 @@ class DNDarray:
             h = [slice(None, None, None)] * self.ndim
             if isinstance(key, DNDarray):
                 key = manipulations.resplit(key)
-                h[0] = key.larray.tolist()
+                if key.larray.dtype in [torch.bool, torch.uint8]:
+                    h[0] = torch.nonzero(key.larray).flatten()  # .tolist()
+                else:
+                    h[0] = key.larray.tolist()
             elif isinstance(key, torch.Tensor):
-                h[0] = key.tolist()
+                if key.dtype in [torch.bool, torch.uint8]:
+                    # (coquelin77) i am not certain why this works without being a list. but it works...for now
+                    h[0] = torch.nonzero(key).flatten()  # .tolist()
+                else:
+                    h[0] = key.tolist()
             else:
                 h[0] = key
+
             key = list(h)
 
         if isinstance(key, (list, tuple)):
@@ -1397,6 +1405,7 @@ class DNDarray:
         # of this next block of code. this is shared with __getitem__. I attempted to abstract it
         # in a standard way, but it was causing errors in the test suite. If someone else is
         # motived to do this they are welcome to, but i have no time right now
+        # print(key)
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
             """ if the key is a DNDarray and it has as many dimensions as self, then each of the
                 entries in the 0th dim refer to a single element. To handle this, the key is split
@@ -1420,9 +1429,16 @@ class DNDarray:
             h = [slice(None, None, None)] * self.ndim
             if isinstance(key, DNDarray):
                 key = manipulations.resplit(key)
-                h[0] = key.larray.tolist()
+                if key.larray.dtype in [torch.bool, torch.uint8]:
+                    h[0] = torch.nonzero(key.larray).flatten()  # .tolist()
+                else:
+                    h[0] = key.larray.tolist()
             elif isinstance(key, torch.Tensor):
-                h[0] = key.tolist()
+                if key.dtype in [torch.bool, torch.uint8]:
+                    # (coquelin77) im not sure why this works without being a list...but it does...for now
+                    h[0] = torch.nonzero(key).flatten()  # .tolist()
+                else:
+                    h[0] = key.tolist()
             else:
                 h[0] = key
             key = list(h)
@@ -1433,18 +1449,14 @@ class DNDarray:
             for i, k in enumerate(key):
                 try:  # extract torch tensor
                     k = manipulations.resplit(k)
-                    if key[i].dtype in [torch.bool, torch.uint8]:
-                        k = torch.nonzero(k.larray)
-                    else:
-                        k = k.larray
-                    key[i] = k
+                    key[i] = k.larray
                 except AttributeError:
                     pass
                 # remove bools from a torch tensor in favor of indexes
                 try:
                     if key[i].dtype in [torch.bool, torch.uint8]:
-                        key[i] = torch.nonzero(k)
-                except AttributeError:
+                        key[i] = torch.nonzero(key[i])
+                except (AttributeError, TypeError):
                     pass
 
         key = list(key)
@@ -1462,6 +1474,7 @@ class DNDarray:
             kend = key[ell_ind + 1 :]
             slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
             key = kst + slices + kend
+        # ---------- end ellipsis stuff -------------
 
         for c, k in enumerate(key):
             try:
@@ -1511,6 +1524,8 @@ class DNDarray:
         _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
         chunk_start = chunk_slice[self.split].start
         chunk_end = chunk_slice[self.split].stop
+
+        # print('hhh', key)
 
         self_proxy = self.__torch_proxy__()
 
@@ -1615,6 +1630,9 @@ class DNDarray:
                 self.__setter(tuple(key), value[tuple(value_slice)])
             else:
                 self.__setter(tuple(key), value)
+        # elif isinstance(key[self.split], list):
+        #     key = list(key)
+        #
         elif isinstance(key[self.split], (torch.Tensor, list)):
             key = list(key)
             key[self.split] -= chunk_start
