@@ -1338,6 +1338,17 @@ class TestDNDarray(TestCase):
         arr[ht_key] = 10.0
         np_arr[np_key] = 10.0
         self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
 
         split = 0
         arr = ht.random.random((20, 20, 10)).resplit(split)
@@ -1347,6 +1358,7 @@ class TestDNDarray(TestCase):
         arr[ht_key] = 10.0
         np_arr[np_key] = 10.0
         self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
 
         split = 2
         arr = ht.random.random((15, 20, 20)).resplit(split)
@@ -1356,6 +1368,7 @@ class TestDNDarray(TestCase):
         arr[ht_key] = 10.0
         np_arr[np_key] = 10.0
         self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
 
         with self.assertRaises(ValueError):
             a[..., ...]

@@ -697,7 +697,7 @@ class DNDarray:
             # NOTE: this gathers the entire key on every process!!
             # TODO: remove this resplit!!
             key = manipulations.resplit(key)
-            if key.larray.dtype == torch.bool:
+            if key.larray.dtype in [torch.bool, torch.uint8]:
                 key = indexing.nonzero(key)
 
             if key.ndim > 1:
@@ -1403,7 +1403,7 @@ class DNDarray:
                 into the torch tensors for each dimension. This signals that advanced indexing is
                 to be used. """
             key = manipulations.resplit(key)
-            if key.larray.dtype == torch.bool:
+            if key.larray.dtype in [torch.bool, torch.uint8]:
                 key = indexing.nonzero(key)
 
             if key.ndim > 1:
@@ -1433,7 +1433,17 @@ class DNDarray:
             for i, k in enumerate(key):
                 try:  # extract torch tensor
                     k = manipulations.resplit(k)
-                    key[i] = k.larray
+                    if key[i].dtype in [torch.bool, torch.uint8]:
+                        k = torch.nonzero(k.larray)
+                    else:
+                        k = k.larray
+                    key[i] = k
+                except AttributeError:
+                    pass
+                # remove bools from a torch tensor in favor of indexes
+                try:
+                    if key[i].dtype in [torch.bool, torch.uint8]:
+                        key[i] = torch.nonzero(k)
                 except AttributeError:
                     pass
 
