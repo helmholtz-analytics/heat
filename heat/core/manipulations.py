@@ -3730,7 +3730,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
         except AttributeError:
             x = factories.array(x).reshape(1)
 
-    x_proxy = torch.ones((1,)).as_strided(x.gshape, [0] * x.ndim)
+    x_proxy = x.__torch_proxy__()
 
     # torch-proof args/kwargs:
     # torch `reps`: int or sequence of ints; numpy `reps`: can be array-like
@@ -3796,7 +3796,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
         trans_axes[0], trans_axes[x.split] = x.split, 0
         reps[0], reps[x.split] = reps[x.split], reps[0]
         x = linalg.transpose(x, trans_axes)
-        x_proxy = torch.ones((1,)).as_strided(x.gshape, [0] * x.ndim)
+        x_proxy = x.__torch_proxy__()
         out_gshape = tuple(x_proxy.repeat(reps).shape)
 
     local_x = x.larray
