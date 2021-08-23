@@ -316,7 +316,7 @@ class TestRounding(TestCase):
         # complex + 2d + split
         a = ht.array([[1 - 2j, -0.5 + 1j], [0, 4 + 6j]], split=0)
         signed = ht.sign(a)
-        comparison = ht.array([[1 + 0j, -1 + 0j], [0 + 0j, 1 + 0j]])
+        comparison = ht.array([[1 + 0j, -1 + 0j], [0 + 0j, 1 + 0j]], split=0)
 
         self.assertEqual(signed.dtype, comparison.dtype)
         self.assertEqual(signed.shape, comparison.shape)
@@ -328,7 +328,7 @@ class TestRounding(TestCase):
         a = ht.array([[1 - 2j, -0.5 + 1j], [0, 4 + 6j]], split=1)
         b = ht.empty_like(a)
         signed = ht.sign(a, b)
-        comparison = ht.array([[1 + 0j, -1 + 0j], [0 + 0j, 1 + 0j]])
+        comparison = ht.array([[1 + 0j, -1 + 0j], [0 + 0j, 1 + 0j]], split=1)
 
         self.assertIs(b, signed)
         self.assertEqual(signed.dtype, comparison.dtype)
@@ -340,7 +340,7 @@ class TestRounding(TestCase):
         # zeros + 3d + complex + split
         a = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
         signed = ht.sign(a)
-        comparison = ht.zeros((4, 4, 4), dtype=ht.complex128)
+        comparison = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
 
         self.assertEqual(signed.dtype, comparison.dtype)
         self.assertEqual(signed.shape, comparison.shape)
@@ -362,13 +362,14 @@ class TestRounding(TestCase):
         # complex
         a = ht.array([[1 - 2j, -0.5 + 1j], [0 - 3j, 4 + 6j]], split=0)
         signed = ht.sgn(a)
-        comparison = torch.sgn(torch.tensor([[1 - 2j, -0.5 + 1j], [0 - 3j, 4 + 6j]]))
-        comparison = comparison.to(a.device.torch_device)
+        comparison = ht.array(
+            torch.sgn(torch.tensor([[1 - 2j, -0.5 + 1j], [0 - 3j, 4 + 6j]])), split=0
+        )
 
-        self.assertEqual(signed.dtype, ht.heat_type_of(comparison))
+        self.assertEqual(signed.dtype, comparison.dtype)
         self.assertEqual(signed.shape, a.shape)
         self.assertEqual(signed.device, a.device)
-        self.assertTrue(ht.equal(signed, ht.array(comparison)))
+        self.assertTrue(ht.equal(signed, comparison))
 
     def test_trunc(self):
         base_array = np.random.randn(20)
