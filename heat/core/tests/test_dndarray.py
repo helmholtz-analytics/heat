@@ -245,7 +245,8 @@ class TestDNDarray(TestCase):
     def test_balance_and_lshape_map(self):
         data = ht.zeros((70, 20), split=0)
         data = data[:50]
-        lshape_map = data.create_lshape_map()
+        data.lshape_map
+        lshape_map = data.create_lshape_map(force_check=False)  # tests the property
         self.assertEqual(sum(lshape_map[..., 0]), 50)
         if sum(data.lshape) == 0:
             self.assertTrue(all(lshape_map[data.comm.rank] == 0))
@@ -986,6 +987,27 @@ class TestDNDarray(TestCase):
         self.assertTrue(res == 0)
 
     def test_setitem_getitem(self):
+        # tests for bug #825
+        a = ht.ones((102, 102), split=0)
+        setting = ht.zeros((100, 100), split=0)
+        a[1:-1, 1:-1] = setting
+        self.assertTrue(ht.all(a[1:-1, 1:-1] == 0))
+
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((30, 100), split=1)
+        a[-30:, 1:-1] = setting
+        self.assertTrue(ht.all(a[-30:, 1:-1] == 0))
+
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((100, 100), split=1)
+        a[1:-1, 1:-1] = setting
+        self.assertTrue(ht.all(a[1:-1, 1:-1] == 0))
+
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((100, 20), split=1)
+        a[1:-1, :20] = setting
+        self.assertTrue(ht.all(a[1:-1, :20] == 0))
+
         # tests for bug 730:
         a = ht.ones((10, 25, 30), split=1)
         if a.comm.size > 1:
@@ -1068,7 +1090,7 @@ class TestDNDarray(TestCase):
 
         # slice in 1st dim across 1 node (2nd) w/ singular second dim
         c = ht.zeros((13, 5), split=0)
-        c[8:12, 1] = 1
+        c[8:12, ht.array(1)] = 1
         b = c[8:12, np.int64(1)]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.gshape, (4,))
@@ -1311,6 +1333,11 @@ class TestDNDarray(TestCase):
             a[..., ...]
         with self.assertRaises(ValueError):
             a[..., ...] = 1
+        if a.comm.size > 1:
+            with self.assertRaises(ValueError):
+                x = ht.ones((10, 10), split=0)
+                setting = ht.zeros((8, 8), split=1)
+                x[1:-1, 1:-1] = setting
 
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
