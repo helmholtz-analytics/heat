@@ -697,6 +697,9 @@ class DNDarray:
             # NOTE: this gathers the entire key on every process!!
             # TODO: remove this resplit!!
             key = manipulations.resplit(key)
+            if key.larray.dtype == torch.bool:
+                key = indexing.nonzero(key)
+
             if key.ndim > 1:
                 key = list(key.larray.split(1, dim=1))
                 # key is now a list of tensors with dimensions (key.ndim, 1)
@@ -1400,6 +1403,9 @@ class DNDarray:
                 into the torch tensors for each dimension. This signals that advanced indexing is
                 to be used. """
             key = manipulations.resplit(key)
+            if key.larray.dtype == torch.bool:
+                key = indexing.nonzero(key)
+
             if key.ndim > 1:
                 key = list(key.larray.split(1, dim=1))
                 # key is now a list of tensors with dimensions (key.ndim, 1)
@@ -1718,6 +1724,7 @@ class DNDarray:
 from . import complex_math
 from . import devices
 from . import factories
+from . import indexing
 from . import linalg
 from . import manipulations
 from . import printing

@@ -1332,30 +1332,30 @@ class TestDNDarray(TestCase):
         # ======================= indexing with bools =================================
         split = None
         arr = ht.random.random((20, 20)).resplit(split)
-        np_arr = a.numpy()
+        np_arr = arr.numpy()
         np_key = np_arr < 0.5
         ht_key = ht.array(np_key, split=split)
         arr[ht_key] = 10.0
         np_arr[np_key] = 10.0
-        self.assertEqual(arr.numpy(), np_arr)
+        self.assertTrue(np.all(arr.numpy() == np_arr))
 
         split = 0
         arr = ht.random.random((20, 20, 10)).resplit(split)
-        np_arr = a.numpy()
+        np_arr = arr.numpy()
         np_key = np_arr < 0.5
         ht_key = ht.array(np_key, split=split)
         arr[ht_key] = 10.0
         np_arr[np_key] = 10.0
-        self.assertEqual(arr.numpy(), np_arr)
+        self.assertTrue(np.all(arr.numpy() == np_arr))
 
         split = 2
         arr = ht.random.random((15, 20, 20)).resplit(split)
-        np_arr = a.numpy()
+        np_arr = arr.numpy()
         np_key = np_arr < 0.5
         ht_key = ht.array(np_key, split=split)
         arr[ht_key] = 10.0
         np_arr[np_key] = 10.0
-        self.assertEqual(arr.numpy(), np_arr)
+        self.assertTrue(np.all(arr.numpy() == np_arr))
 
         with self.assertRaises(ValueError):
             a[..., ...]
