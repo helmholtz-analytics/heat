@@ -556,14 +556,9 @@ class DNDarray:
         Does not assume load balance.
         """
         if self.split is not None:
-            counts = self.create_lshape_map()[:, self.split]
-            displs = torch.cat(
-                (
-                    torch.zeros((1,), dtype=counts.dtype, device=counts.device),
-                    torch.cumsum(counts, dim=0)[:-1],
-                )
-            )
-            return (tuple(counts.tolist()), tuple(displs.tolist()))
+            counts = self.lshape_map[:, self.split]
+            displs = [0] + torch.cumsum(counts, dim=0)[:-1].tolist()
+            return tuple(counts.tolist()), tuple(displs)
         else:
             raise ValueError("Non-distributed DNDarray. Cannot calculate counts and displacements.")
 
@@ -576,7 +571,7 @@ class DNDarray:
         self.__device = devices.cpu
         return self
 
-    def create_lshape_map(self, force_check: bool = True) -> torch.Tensor:
+    def create_lshape_map(self, force_check: bool = False) -> torch.Tensor:
         """
         Generate a 'map' of the lshapes of the data on all processes.
         Units are ``(process rank, lshape)``
@@ -697,6 +692,8 @@ class DNDarray:
                 entries in the 0th dim refer to a single element. To handle this, the key is split
                 into the torch tensors for each dimension. This signals that advanced indexing is
                 to be used. """
+            # NOTE: this gathers the entire key on every process!!
+            # TODO: remove this resplit!!
             key = manipulations.resplit(key)
             if key.ndim > 1:
                 key = list(key.larray.split(1, dim=1))
@@ -730,12 +727,6 @@ class DNDarray:
                 except AttributeError:
                     pass
 
-        key = list(key)
-
-        # assess final global shape
-        self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
-        gout_full = list(self_proxy[key].shape)
-
         # ellipsis
         key = list(key)
         key_classes = [type(n) for n in key]
@@ -750,6 +741,12 @@ class DNDarray:
             kend = key[ell_ind + 1 :]
             slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
             key = kst + slices + kend
+
+        key = tuple(key)
+
+        # assess final global shape
+        self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
+        gout_full = list(self_proxy[key].shape)
 
         # calculate new split axis
         new_split = self.split
@@ -1619,7 +1616,14 @@ class DNDarray:
         elif isinstance(key[self.split], (torch.Tensor, list)):
             key = list(key)
             key[self.split] -= chunk_start
-            self.__setter(tuple(key), value)
+            #
+            # try:
+            #     print('h', key[self.split].shape, value.lshape)
+            # except:
+            #     pass
+
+            if len(key[self.split]) != 0:
+                self.__setter(tuple(key), value)
 
         elif key[self.split] in range(chunk_start, chunk_end):
             key = list(key)
