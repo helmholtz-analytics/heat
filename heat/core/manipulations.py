@@ -2285,18 +2285,9 @@ def __pivot_sorting(
         actual_indices = local_indices.to(dtype=local_sorted.dtype) + disp[rank]
     elif sort_op is torch.unique:
         local_sorted = sort_op(transposed, dim=0, **kwargs)[0]
-        local_shape = local_sorted.shape
-        if 0 in local_shape:
-            local_shape = transposed.shape
-        lshape_map = torch.empty(
-            (size, transposed.ndim), dtype=torch.int64, device=transposed.device
-        )
-        a.comm.Allgather(torch.tensor(local_shape), lshape_map)
-        counts = lshape_map[:, 0]
-        displs = torch.cumsum(
-            torch.cat((torch.tensor([0], device=counts.device), counts[:-1])), dim=0
-        )
-        counts, displs = tuple(counts.tolist()), tuple(displs.tolist())
+        local_sorted = factories.array(local_sorted, is_split=0, device=a.device)
+        counts, _ = local_sorted.counts_displs()
+        local_sorted = local_sorted.larray
 
     unique_along_axis = True if sort_op is torch.unique and axis is not None else False
 
