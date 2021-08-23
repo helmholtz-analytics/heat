@@ -731,7 +731,7 @@ class DNDarray:
             key = tuple(key)
 
         # assess final global shape
-        self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
+        self_proxy = self.__torch_proxy__()
         gout_full = list(self_proxy[key].shape)
 
         # ellipsis
@@ -1430,7 +1430,7 @@ class DNDarray:
         chunk_start = chunk_slice[self.split].start
         chunk_end = chunk_slice[self.split].stop
 
-        self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
+        self_proxy = self.__torch_proxy__()
 
         # if the value is a DNDarray, the divisions need to be balanced:
         #   this means that we need to know how much data is where for both DNDarrays
@@ -1611,6 +1611,13 @@ class DNDarray:
             return self.resplit(axis=None).__array.tolist()
 
         return self.__array.tolist()
+
+    def __torch_proxy__(self) -> torch.Tensor:
+        """
+        Return a 1-element `torch.Tensor` strided as the global `self` shape.
+        Used internally for sanitation purposes.
+        """
+        return torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
 
     @staticmethod
     def __xitem_get_key_start_stop(
