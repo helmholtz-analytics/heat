@@ -1458,7 +1458,8 @@ class DNDarray:
             counts, chunk_starts = self.counts_displs()
         else:
             counts, chunk_starts = 0, [0] * self.comm.size
-        counts, chunk_starts = torch.tensor(counts), torch.tensor(chunk_starts)
+        counts = torch.tensor(counts, device=self.device.torch_device)
+        chunk_starts = torch.tensor(chunk_starts, device=self.device.torch_device)
         chunk_ends = chunk_starts + counts
         chunk_start = chunk_starts[rank]
         chunk_end = chunk_ends[rank]
