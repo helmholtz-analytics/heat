@@ -1619,7 +1619,9 @@ class DNDarray:
         Return a 1-element `torch.Tensor` strided as the global `self` shape.
         Used internally for sanitation purposes.
         """
-        return torch.ones((1,), dtype=torch.int8).as_strided(self.gshape, [0] * self.ndim)
+        return torch.ones((1,), dtype=torch.int8, device=self.larray.device).as_strided(
+            self.gshape, [0] * self.ndim
+        )
 
     @staticmethod
     def __xitem_get_key_start_stop(
