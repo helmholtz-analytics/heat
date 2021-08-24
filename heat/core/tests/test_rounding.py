@@ -1,3 +1,4 @@
+from heat.core.rounding import sign
 import numpy as np
 import torch
 
@@ -322,6 +323,7 @@ class TestRounding(TestCase):
         self.assertEqual(signed.shape, comparison.shape)
         self.assertEqual(signed.device, a.device)
         self.assertEqual(signed.split, a.split)
+        print(signed, comparison)
         self.assertTrue(ht.allclose(signed.real, comparison.real))
         self.assertTrue(ht.allclose(signed.imag, comparison.imag))
 
