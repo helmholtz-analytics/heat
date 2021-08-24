@@ -1364,7 +1364,7 @@ class TestDNDarray(TestCase):
         arr = ht.random.random((20, 20)).resplit(split)
         np_arr = arr.numpy()
         np_key = (np_arr < 0.5)[0]
-        t_key = torch.tensor(np_key)
+        t_key = torch.tensor(np_key, device=arr.larray.device)
         arr[t_key, 4] = 10.0
         np_arr[np_key, 4] = 10.0
         self.assertTrue(np.all(arr.numpy() == np_arr))
