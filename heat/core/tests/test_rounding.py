@@ -323,7 +323,7 @@ class TestRounding(TestCase):
         self.assertEqual(signed.device, a.device)
         self.assertEqual(signed.split, a.split)
         self.assertTrue(ht.allclose(signed.real, comparison.real))
-        self.assertTrue(ht.allclose(signed.imag, comparison.imag, rtol=1e-4))
+        self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
 
         # complex + split + out
         a = ht.array([[1 - 2j, -0.5 + 1j], [0, 4 + 6j]], split=1)
@@ -337,7 +337,7 @@ class TestRounding(TestCase):
         self.assertEqual(signed.device, a.device)
         self.assertEqual(signed.split, a.split)
         self.assertTrue(ht.allclose(signed.real, comparison.real))
-        self.assertTrue(ht.allclose(signed.imag, comparison.imag, rtol=1e-4))
+        self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
 
         # zeros + 3d + complex + split
         a = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
@@ -349,7 +349,7 @@ class TestRounding(TestCase):
         self.assertEqual(signed.device, a.device)
         self.assertEqual(signed.split, a.split)
         self.assertTrue(ht.allclose(signed.real, comparison.real))
-        self.assertTrue(ht.allclose(signed.imag, comparison.imag, rtol=1e-4))
+        self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
 
     def test_sgn(self):
         # floats
