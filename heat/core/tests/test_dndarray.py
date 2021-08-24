@@ -1350,6 +1350,7 @@ class TestDNDarray(TestCase):
         self.assertTrue(np.all(arr.numpy() == np_arr))
         self.assertTrue(ht.all(arr[ht_key] == 10.0))
 
+        # key -> tuple(ht.bool, int)
         split = 0
         arr = ht.random.random((20, 20)).resplit(split)
         np_arr = arr.numpy()
@@ -1360,6 +1361,7 @@ class TestDNDarray(TestCase):
         self.assertTrue(np.all(arr.numpy() == np_arr))
         self.assertTrue(ht.all(arr[ht_key, 4] == 10.0))
 
+        # key -> tuple(torch.bool, int)
         split = 0
         arr = ht.random.random((20, 20)).resplit(split)
         np_arr = arr.numpy()
@@ -1369,6 +1371,17 @@ class TestDNDarray(TestCase):
         np_arr[np_key, 4] = 10.0
         self.assertTrue(np.all(arr.numpy() == np_arr))
         self.assertTrue(ht.all(arr[t_key, 4] == 10.0))
+
+        # key -> torch.bool
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        t_key = torch.tensor(np_key, device=arr.larray.device)
+        arr[t_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[t_key] == 10.0))
 
         split = 1
         arr = ht.random.random((20, 20, 10)).resplit(split)
