@@ -16,7 +16,8 @@
 - [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
 - [#853](https://github.com/helmholtz-analytics/heat/pull/853) New Feature: `swapaxes`
 - [#854](https://github.com/helmholtz-analytics/heat/pull/854) New Feature: `moveaxis`
-
+### Random
+- [#858](https://github.com/helmholtz-analytics/heat/pull/858) New Feature: `standard_normal`, `normal`
 
 # v1.1.0
 
