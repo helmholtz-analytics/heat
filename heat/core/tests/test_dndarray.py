@@ -1474,6 +1474,22 @@ class TestDNDarray(TestCase):
         ]
         self.assertListEqual(a.tolist(keepsplit=True), res)
 
+    def test_torch_proxy(self):
+        scalar_array = ht.array(1)
+        scalar_proxy = scalar_array.__torch_proxy__()
+        self.assertTrue(scalar_proxy.ndim == 0)
+        scalar_proxy_nbytes = scalar_proxy.storage().size() * scalar_proxy.storage().element_size()
+        self.assertTrue(scalar_proxy_nbytes == 1)
+
+        dndarray = ht.zeros((4, 7, 6), split=1)
+        dndarray_proxy = dndarray.__torch_proxy__()
+        self.assertTrue(dndarray_proxy.ndim == dndarray.ndim)
+        self.assertTrue(tuple(dndarray_proxy.shape) == dndarray.gshape)
+        dndarray_proxy_nbytes = (
+            dndarray_proxy.storage().size() * dndarray_proxy.storage().element_size()
+        )
+        self.assertTrue(dndarray_proxy_nbytes == 1)
+
     def test_xor(self):
         int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16)
         int16_vector = ht.array([[3, 4]], dtype=ht.int16)
