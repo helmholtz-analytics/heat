@@ -34,6 +34,7 @@ __all__ = [
     "ones_like",
     "zeros",
     "zeros_like",
+    "from_partitioned",
 ]
 
 
@@ -42,7 +43,7 @@ def arange(
     dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
     device: Optional[Union[str, Device]] = None,
-    comm: Optional[Communication] = None
+    comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
     Return evenly spaced values within a given interval.
@@ -727,7 +728,7 @@ def __factory_like(
     device: Device,
     comm: Communication,
     order: str = "C",
-    **kwargs
+    **kwargs,
 ) -> DNDarray:
     """
     Abstracted '...-like' factory function for HeAT :class:`~heat.core.dndarray.DNDarray` initialization
@@ -1321,3 +1322,83 @@ def zeros_like(
     """
     # TODO: implement 'K' option when torch.clone() fix to preserve memory layout is released.
     return __factory_like(a, dtype, split, zeros, device, comm, order=order)
+
+
+def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:
+    """
+    Return a newly created DNDarray constructed from the '__partitioned__' attributed of the input object.
+    Memory of local partitions will be shared (zero-copy) as long as supported by data objects.
+    Currently supports numpy ndarrays and torch tensors as data objects.
+    Current limitations:
+      * Partitions must be ordered in the partition-grid by rank
+      * Only one split-axis
+      * Only one partition per rank
+      * Only SPMD-style __partitioned__
+
+    Parameters
+    ----------
+    x : object
+        Requires x.__partitioned__
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+
+    See also
+    --------
+    :func:`ht.core.DNDarray.create_partition_interface <ht.core.DNDarray.create_partition_interface>`.
+
+    Raises
+    ------
+    AttributeError
+        If not hasattr(x, "__partitioned__") or if underlying data has no dtype.
+    TypeError
+        If it finds an unsupported array types
+    RuntimeError
+        If other unsupported content is found.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.ones((44,55), split=0)
+    >>> b = ht.from_partitioned(a)
+    >>> assert (a==b).all()
+    >>> a[40] = 4711
+    >>> assert (a==b).all()
+    """
+    comm = sanitize_comm(comm)
+    parted = x.__partitioned__
+    if "locals" not in parted:
+        raise RuntimeError("Non-SPMD __partitioned__ not supported")
+
+    gshape = parted["shape"]
+    split = [x for x in range(len(gshape)) if x != 1]
+    if len(split) != 1:
+        raise RuntimeError("Only exactly one split-axis supported")
+    split = split[0]
+
+    lparts = parted["locals"]
+    if len(lparts) != 1:
+        raise RuntimeError("Only exactly one partition per rank supported (yet)")
+    parts = parted["partitions"]
+    lpart = parted["get"](parts[lparts[0]]["data"])
+    if isinstance(lpart, np.ndarray):
+        data = torch.from_numpy(lpart)
+    elif isinstance(lpart, torch.Tensor):
+        data = lpart
+    else:
+        raise TypeError(f"Only numpy arrays and torch tensors supported (not {type(lpart)}")
+    htype = types.canonical_heat_type(data.dtype)
+
+    expected = {
+        int(x["location"][0]): (
+            comm.chunk(gshape, split, x["location"][0])[1:],
+            (x["shape"], x["start"]),
+        )
+        for x in parts.values()
+    }
+    if any(i > 0 and expected[i][1][1][split] < expected[i - 1][1][1][split] for i in expected):
+        raise RuntimeError("__partitioned__ supported only if partitions are ordered by rank")
+    balanced = all(x[0][0] == x[1][0] for x in expected.values())
+
+    return DNDarray(
+        data, gshape, htype, split, devices.sanitize_device(None), sanitize_comm(comm), balanced
+    )
