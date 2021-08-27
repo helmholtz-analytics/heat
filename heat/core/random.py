@@ -273,7 +273,7 @@ def normal(
     split: Optional[int] = None,
     device: Optional[str] = None,
     comm: Optional[Communication] = None,
-):
+) -> DNDarray:
     """
     Returns an array filled with random numbers from a normal distribution whose mean and standard deviation are given.
     If `std` and `mean` are DNDarrays, they have to match `shape`.
@@ -818,7 +818,7 @@ def standard_normal(
     split: Optional[int] = None,
     device: Optional[str] = None,
     comm: Optional[Communication] = None,
-):
+) -> DNDarray:
     """
     Returns an array filled with random numbers from a standard normal distribution with zero mean and variance of one.
 
