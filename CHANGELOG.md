@@ -78,6 +78,10 @@ Example on 2 processes:
 ### Linear Algebra
 - [#718](https://github.com/helmholtz-analytics/heat/pull/718) New feature: `trace()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
+
+### Manipulations
+- [#749](https://github.com/helmholtz-analytics/heat/pull/749) Distributed sorted `ht.unique`
+- [#820](https://github.com/helmholtz-analytics/heat/pull/820) `dot` can handle matrix vector operation now
 - [#820](https://github.com/helmholtz-analytics/heat/pull/820) `dot` can handle matrix-vector operation now
 
 ### Manipulations
@@ -174,7 +178,6 @@ Example on 2 processes:
 - [#690](https://github.com/helmholtz-analytics/heat/pull/690) Enhancement: reshape accepts shape arguments with one unknown dimension.
 - [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
 - [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
-- [#749](https://github.com/helmholtz-analytics/heat/pull/749) Distributed sorted `ht.unique`
 ### Unit testing / CI
 - [#717](https://github.com/helmholtz-analytics/heat/pull/717) Switch CPU CI over to Jenkins and pre-commit to GitHub action.
 - [#720](https://github.com/helmholtz-analytics/heat/pull/720) Ignore test files in codecov report and allow drops in code coverage.
