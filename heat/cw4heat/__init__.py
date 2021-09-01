@@ -135,8 +135,8 @@ def init(doStart=True, ctxt=False):
                 pass
 
         c = MPI.COMM_WORLD
-        if c.size <= 1:
-            raise Exception("At least 2 ranks required for cw4heat")
+        # if c.size <= 1:
+        #    raise Exception("At least 2 ranks required for cw4heat")
         _runner = MPIRunner(Distributor(c), c)
         if doStart:
             _runner.distributor.start(initImpl=_setComm)
@@ -390,6 +390,14 @@ for func in ["concatenate", "hstack"]:
     exec(
         f"{func} = lambda *args, **kwargs: DDParray(_submit(f'{impl_str}.{func}', *args, kwargs, unwrap=''))"
     )
+
+
+def __local_op_normalized(a, f):
+    return impl.core._operations.__local_op(f, a)
+
+
+def __local_op(*args, **kwargs):
+    return DDParray(_submit("__local_op_normalized", args, kwargs))
 
 
 # Here we define data types and constants
