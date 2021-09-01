@@ -155,7 +155,7 @@ class Distributor:
                 elif header[0] == RESET:
                     _RemoteTask.reset()
                     self._tQueue.clear()
-                    Handle.reset()
+                    # Handle._reset()
                 elif header[0] == END:
                     done = True
                     self._comm.Barrier()
@@ -176,7 +176,7 @@ class Distributor:
         header = self._comm.bcast(header, 0)
         _RemoteTask.reset()
         self._tQueue.clear()
-        Handle.reset()
+        # Handle.reset()
 
     def fini(self):
         """
@@ -294,10 +294,11 @@ class Handle:
         Release handle from dict to make it available for GC.
         """
         global _s_pms
-        del _s_pms[self._id]
+        if self._id in _s_pms:
+            del _s_pms[self._id]
 
     @staticmethod
-    def reset():
+    def _reset():
         """
         Reset internal state.
         """
@@ -324,8 +325,10 @@ class _RemoteTask:
         #        or the result is not a global object.
         if self._nOut == 1:
             self._handle = Handle()
-        else:
+        elif self._nOut > 0:
             self._handle = tuple(Handle() for _ in range(self._nOut))
+        else:
+            self._handle = None
 
     def go(self):
         """
@@ -337,7 +340,7 @@ class _RemoteTask:
         if self._nOut == 1:
             self._handle.set(res)
             _s_pms[self._handle.getId()] = res
-        else:
+        elif self._nOut > 0:
             i = 0
             for h in self._handle:
                 h.set(res[i])

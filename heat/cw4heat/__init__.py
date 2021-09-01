@@ -292,7 +292,7 @@ class DDParray:
     #     return _runner.distributor.get(self._handle)
 
     def __del__(self):
-        _submit("_release", (self._handle,), {})
+        _submit("_release", (self._handle,), {}, numout=0)
 
     def __getitem__(self, key):
         """
