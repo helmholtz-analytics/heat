@@ -153,7 +153,6 @@ class Distributor:
                     attr = header[3](getattr(val, header[2]))
                     self._comm.gather(attr, root=0)
                 elif header[0] == RESET:
-                    print("reset", flush=True)
                     _RemoteTask.reset()
                     self._tQueue.clear()
                     Handle.reset()
@@ -289,6 +288,13 @@ class Handle:
     def __setstate__(self, state):
         self.__dict__.update(state)
         self._obj = None
+
+    def _release(self):
+        """
+        Release handle from dict to make it available for GC.
+        """
+        global _s_pms
+        del _s_pms[self._id]
 
     @staticmethod
     def reset():

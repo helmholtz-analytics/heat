@@ -257,6 +257,10 @@ def _setitem_normalized(self, value, key):
     self.__setitem__(key, value)
 
 
+def _release(hdl):
+    hdl._release()
+
+
 #######################################################################
 # Our array is just a wrapper. Actual array is stored as a handle to
 # allow delayed execution.
@@ -286,6 +290,9 @@ class DDParray:
     #     With delayed execution, triggers computation as needed and blocks until array is available.
     #     """
     #     return _runner.distributor.get(self._handle)
+
+    def __del__(self):
+        _submit("_release", (self._handle,), {})
 
     def __getitem__(self, key):
         """
