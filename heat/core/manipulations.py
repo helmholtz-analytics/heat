@@ -22,8 +22,6 @@ from . import tiling
 from . import types
 from . import _operations
 
-import tracemalloc
-
 __all__ = [
     "balance",
     "column_stack",
@@ -38,11 +36,14 @@ __all__ = [
     "flipud",
     "hsplit",
     "hstack",
+    "moveaxis",
     "pad",
     "ravel",
+    "redistribute",
     "repeat",
     "reshape",
     "resplit",
+    "roll",
     "rot90",
     "row_stack",
     "shape",
@@ -50,6 +51,7 @@ __all__ = [
     "split",
     "squeeze",
     "stack",
+    "swapaxes",
     "tile",
     "topk",
     "unique",
@@ -1056,6 +1058,71 @@ def hstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     return concatenate(arrays, axis=axis)
 
 
+def moveaxis(
+    x: DNDarray, source: Union[int, Sequence[int]], destination: Union[int, Sequence[int]]
+) -> DNDarray:
+    """
+    Moves axes at the positions in `source` to new positions.
+
+    Parameters
+    ----------
+    x : DNDarray
+        The input array.
+    source : int or Sequence[int, ...]
+        Original positions of the axes to move. These must be unique.
+    destination : int or Sequence[int, ...]
+        Destination positions for each of the original axes. These must also be unique.
+
+    See Also
+    --------
+    ~heat.core.linalg.basics.transpose
+        Permute the dimensions of an array.
+
+    Raises
+    ------
+    TypeError
+        If `source` or `destination` are not ints, lists or tuples.
+    ValueError
+        If `source` and `destination` do not have the same number of elements.
+
+
+    Examples
+    --------
+    >>> x = ht.zeros((3, 4, 5))
+    >>> ht.moveaxis(x, 0, -1).shape
+    (4, 5, 3)
+    >>> ht.moveaxis(x, -1, 0).shape
+    (5, 3, 4)
+    """
+    if isinstance(source, int):
+        source = (source,)
+    if isinstance(source, list):
+        source = tuple(source)
+    try:
+        source = stride_tricks.sanitize_axis(x.shape, source)
+    except TypeError:
+        raise TypeError("'source' must be ints, lists or tuples.")
+
+    if isinstance(destination, int):
+        destination = (destination,)
+    if isinstance(destination, list):
+        destination = tuple(destination)
+    try:
+        destination = stride_tricks.sanitize_axis(x.shape, destination)
+    except TypeError:
+        raise TypeError("'destination' must be ints, lists or tuples.")
+
+    if len(source) != len(destination):
+        raise ValueError("'source' and 'destination' must have the same number of elements.")
+
+    order = [n for n in range(x.ndim) if n not in source]
+
+    for dest, src in sorted(zip(destination, source)):
+        order.insert(dest, src)
+
+    return linalg.transpose(x, order)
+
+
 def pad(
     array: DNDarray,
     pad_width: Union[int, Sequence[Sequence[int, int], ...]],
@@ -1435,6 +1502,63 @@ def ravel(a: DNDarray) -> DNDarray:
     )
 
     return result
+
+
+def redistribute(
+    arr: DNDarray, lshape_map: torch.Tensor = None, target_map: torch.Tensor = None
+) -> DNDarray:
+    """
+    Redistributes the data of the :class:`DNDarray` *along the split axis* to match the given target map.
+    This function does not modify the non-split dimensions of the ``DNDarray``.
+    This is an abstraction and extension of the balance function.
+
+    Parameters
+    ----------
+    arr: DNDarray
+        DNDarray to redistribute
+    lshape_map : torch.Tensor, optional
+        The current lshape of processes.
+        Units are ``[rank, lshape]``.
+    target_map : torch.Tensor, optional
+        The desired distribution across the processes.
+        Units are ``[rank, target lshape]``.
+        Note: the only important parts of the target map are the values along the split axis,
+        values which are not along this axis are there to mimic the shape of the ``lshape_map``.
+
+    Examples
+    --------
+    >>> st = ht.ones((50, 81, 67), split=2)
+    >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+    >>> target_map[0, 2] = 67
+    >>> print(target_map)
+    [0/2] tensor([[ 0,  0, 67],
+    [0/2]         [ 0,  0,  0],
+    [0/2]         [ 0,  0,  0]], dtype=torch.int32)
+    [1/2] tensor([[ 0,  0, 67],
+    [1/2]         [ 0,  0,  0],
+    [1/2]         [ 0,  0,  0]], dtype=torch.int32)
+    [2/2] tensor([[ 0,  0, 67],
+    [2/2]         [ 0,  0,  0],
+    [2/2]         [ 0,  0,  0]], dtype=torch.int32)
+    >>> print(st.lshape)
+    [0/2] (50, 81, 23)
+    [1/2] (50, 81, 22)
+    [2/2] (50, 81, 22)
+    >>> ht.redistribute_(st, target_map=target_map)
+    >>> print(st.lshape)
+    [0/2] (50, 81, 67)
+    [1/2] (50, 81, 0)
+    [2/2] (50, 81, 0)
+    """
+    arr2 = arr.copy()
+    arr2.redistribute_(lshape_map=lshape_map, target_map=target_map)
+    return arr2
+
+
+DNDarray.redistribute = lambda arr, lshape_map=None, target_map=None: redistribute(
+    arr, lshape_map, target_map
+)
+DNDarray.redistribute.__doc__ = redistribute.__doc__
 
 
 def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarray:
@@ -1853,6 +1977,173 @@ DNDarray.reshape = lambda self, *shape, **kwargs: reshape(self, *shape, **kwargs
 DNDarray.reshape.__doc__ = reshape.__doc__
 
 
+def roll(
+    x: DNDarray, shift: Union[int, Tuple[int]], axis: Optional[Union[int, Tuple[int]]] = None
+) -> DNDarray:
+    """
+    Rolls array elements along a specified axis. Array elements that roll beyond the last position are re-introduced at the first position.
+    Array elements that roll beyond the first position are re-introduced at the last position.
+
+    Parameters
+    ----------
+    x : DNDarray
+        input array
+    shift : Union[int, Tuple[int, ...]]
+        number of places by which the elements are shifted. If 'shift' is a tuple, then 'axis' must be a tuple of the same size, and each of
+        the given axes is shifted by the corrresponding element in 'shift'. If 'shift' is an `int` and 'axis' a `tuple`, then the same shift
+        is used for all specified axes.
+    axis : Optional[Union[int, Tuple[int, ...]]]
+        axis (or axes) along which elements to shift. If 'axis' is `None`, the array is flattened, shifted, and then restored to its original shape.
+        Default: `None`.
+
+    Raises
+    ------
+    TypeError
+        If 'shift' or 'axis' is not of type `int`, `list` or `tuple`.
+    ValueError
+        If 'shift' and 'axis' are tuples with different sizes.
+
+    Examples
+    --------
+    >>> a = ht.arange(20).reshape((4,5))
+    >>> a
+    DNDarray([[ 0,  1,  2,  3,  4],
+          [ 5,  6,  7,  8,  9],
+          [10, 11, 12, 13, 14],
+          [15, 16, 17, 18, 19]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.roll(a, 1)
+    DNDarray([[19,  0,  1,  2,  3],
+          [ 4,  5,  6,  7,  8],
+          [ 9, 10, 11, 12, 13],
+          [14, 15, 16, 17, 18]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> ht.roll(a, -1, 0)
+    DNDarray([[ 5,  6,  7,  8,  9],
+          [10, 11, 12, 13, 14],
+          [15, 16, 17, 18, 19],
+          [ 0,  1,  2,  3,  4]], dtype=ht.int32, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(x)
+
+    if axis is None:
+        return roll(x.flatten(), shift, 0).reshape(x.shape, new_split=x.split)
+
+    # inputs are ints
+    if isinstance(shift, int):
+        if isinstance(axis, int):
+            if x.split is not None and (axis == x.split or (axis + x.ndim) == x.split):
+                # roll along split axis
+                size = x.comm.Get_size()
+                rank = x.comm.Get_rank()
+
+                # local elements along axis:
+                lshape_map = x.create_lshape_map(force_check=False)[:, x.split]
+                cumsum_map = torch.cumsum(lshape_map, dim=0)  # cumulate along axis
+                indices = torch.arange(size, device=x.device.torch_device)
+                # NOTE Can be removed when min version>=1.9
+                if "1.7." in torch.__version__ or "1.8." in torch.__version__:
+                    lshape_map = lshape_map.to(torch.int64)
+                index_map = torch.repeat_interleave(indices, lshape_map)  # index -> process
+
+                # compute index positions
+                index_old = torch.arange(lshape_map[rank], device=x.device.torch_device)
+                if rank > 0:
+                    index_old += cumsum_map[rank - 1]
+
+                send_index = (index_old + shift) % x.gshape[x.split]
+                recv_index = (index_old - shift) % x.gshape[x.split]
+
+                # exchange arrays
+                recv = torch.empty_like(x.larray)
+                recv_splits = torch.split(recv, 1, dim=x.split)
+                recv_requests = [None for i in range(x.lshape[x.split])]
+
+                for i in range(x.lshape[x.split]):
+                    recv_requests[i] = x.comm.Irecv(
+                        recv_splits[i], index_map[recv_index[i]], index_old[i]
+                    )
+
+                send_splits = torch.split(x.larray, 1, dim=x.split)
+                send_requests = [None for i in range(x.lshape[x.split])]
+
+                for i in range(x.lshape[x.split]):
+                    send_requests[i] = x.comm.Isend(
+                        send_splits[i], index_map[send_index[i]], send_index[i]
+                    )
+
+                for i in range(x.lshape[x.split]):
+                    recv_requests[i].Wait()
+                for i in range(x.lshape[x.split]):
+                    send_requests[i].Wait()
+
+                return DNDarray(recv, x.gshape, x.dtype, x.split, x.device, x.comm, x.balanced)
+
+        else:  # pytorch does not support int / sequence combo at the time, make shift a list instead
+            try:
+                axis = sanitation.sanitize_sequence(axis)
+            except TypeError:
+                raise TypeError("axis must be a int, list or a tuple, got {}".format(type(axis)))
+
+            shift = [shift] * len(axis)
+
+            return roll(x, shift, axis)
+
+    else:  # input must be tuples now
+        try:
+            shift = sanitation.sanitize_sequence(shift)
+        except TypeError:
+            raise TypeError("shift must be an integer, list or a tuple, got {}".format(type(shift)))
+
+        try:
+            axis = sanitation.sanitize_sequence(axis)
+        except TypeError:
+            raise TypeError("axis must be an integer, list or a tuple, got {}".format(type(axis)))
+
+        if len(shift) != len(axis):
+            raise ValueError(
+                "shift and axis length must be the same, got {} and {}".format(
+                    len(shift), len(axis)
+                )
+            )
+
+        for i in range(len(shift)):
+            if not isinstance(shift[i], int):
+                raise TypeError(
+                    "Element {} in shift is not an integer, got {}".format(i, type(shift[i]))
+                )
+            if not isinstance(axis[i], int):
+                raise TypeError(
+                    "Element {} in axis is not an integer, got {}".format(i, type(axis[i]))
+                )
+
+        if x.split is not None and (x.split in axis or (x.split - x.ndim) in axis):
+            # remove split axis elements
+            shift_split = 0
+            for y in (x.split, x.split - x.ndim):
+                idx = [i for i in range(len(axis)) if axis[i] == y]
+                for i in idx:
+                    shift_split += shift[i]
+                for i in reversed(idx):
+                    axis.remove(y)
+                    del shift[i]
+
+            # compute new array along split axis
+            x = roll(x, shift_split, x.split)
+            if len(axis) == 0:
+                return x
+
+    # use PyTorch for all other axes
+    rolled = torch.roll(x.larray, shift, axis)
+    return DNDarray(
+        rolled,
+        gshape=x.shape,
+        dtype=x.dtype,
+        split=x.split,
+        device=x.device,
+        comm=x.comm,
+        balanced=x.balanced,
+    )
+
+
 def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarray:
     """
     Rotate an array by 90 degrees in the plane specified by `axes`.
@@ -1964,112 +2255,101 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
     return a.gshape
 
 
-def __pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
+def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DNDarray] = None):
     """
-    Parallel sorting function for :func:`sort` and :func:`unique`, based on [1].
+    Sorts the elements of `a` along the given dimension (by default in ascending order) by their value.
+    The sorting is not stable which means that equal elements in the result may have a different ordering than in the
+    original array.
+    Sorting where `axis==a.split` needs a lot of communication between the processes of MPI.
+    Returns a tuple `(values, indices)` with the sorted local results and the indices of the elements in the original data
 
     Parameters
     ----------
     a : DNDarray
-        Distributed input data
-    axis : int or None
-        Axis along which the operation will be performed.
-    sort_op : torch operation
-        torch.sort or torch.unique
-    descending : bool
-        Whether :func:`sort` will return elements sorted in descending order. Default: `False`.
+        Input array to be sorted.
+    axis : int, optional
+        The dimension to sort along.
+        Default is the last axis.
+    descending : bool, optional
+        If set to `True`, values are sorted in descending order.
+    out : DNDarray, optional
+        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
+        or set to `None`, a fresh array is allocated.
 
-    References
-    ----------
-    [1] Li et al., 1993, "On the versatility of parallel sorting by regular sampling", Parallel Computing, Volume 19, Issue 10, pages 1079-1103
+    Raises
+    ------
+    ValueError
+        If `axis` is not consistent with the available dimensions.
+
+    Examples
+    --------
+    >>> x = ht.array([[4, 1], [2, 3]], split=0)
+    >>> x.shape
+    (1, 2)
+    (1, 2)
+    >>> y = ht.sort(x, axis=0)
+    >>> y
+    (array([[2, 1]], array([[1, 0]]))
+    (array([[4, 3]], array([[0, 1]]))
+    >>> ht.sort(x, descending=True)
+    (array([[4, 1]], array([[0, 1]]))
+    (array([[3, 2]], array([[1, 0]]))
     """
-    size = a.comm.Get_size()
-    rank = a.comm.Get_rank()
-    transposed = a.larray.transpose(axis, 0)
-    if sort_op is torch.sort:
-        counts, disp, _ = a.comm.counts_displs_shape(a.gshape, axis=axis)
-        local_sorted, local_indices = sort_op(transposed, dim=0, descending=descending)
-        actual_indices = local_indices.to(dtype=local_sorted.dtype) + disp[rank]
-    elif sort_op is torch.unique:
-        local_sorted = sort_op(transposed, dim=0, **kwargs)[0]
-        local_shape = local_sorted.shape
-        if 0 in local_shape:
-            local_shape = transposed.shape
-        lshape_map = torch.empty(
-            (size, transposed.ndim), dtype=torch.int64, device=transposed.device
-        )
-        a.comm.Allgather(torch.tensor(local_shape), lshape_map)
-        counts = lshape_map[:, 0]
-        displs = torch.cumsum(
-            torch.cat((torch.tensor([0], device=counts.device), counts[:-1])), dim=0
-        )
-        counts, displs = tuple(counts.tolist()), tuple(displs.tolist())
+    stride_tricks.sanitize_axis(a.shape, axis)
 
-    unique_along_axis = True if sort_op is torch.unique and axis is not None else False
+    if a.split is None or axis != a.split:
+        # sorting is not affected by split -> we can just sort along the axis
+        final_result, final_indices = torch.sort(a.larray, dim=axis, descending=descending)
 
-    length = local_sorted.size()[0]
-
-    # Separate the sorted tensor into size + 1 equal length partitions
-    partitions = [x * length // (size + 1) for x in range(1, size + 1)]
-    local_pivots = (
-        local_sorted[partitions]
-        if counts[rank]
-        else torch.empty((0,) + local_sorted.size()[1:], dtype=local_sorted.dtype)
-    )
-
-    # Only processes with elements should share their pivots
-    gather_counts = [int(x > 0) * size for x in counts]
-    gather_displs = (0,) + tuple(np.cumsum(gather_counts[:-1]))
-    # print("DEBUGGING: gather_counts, gather_displs = ", gather_counts, gather_displs)
-    pivot_dim = list(transposed.size())
-    pivot_dim[0] = size * sum([1 for x in counts if x > 0])
-
-    # share the local pivots with root process
-    pivot_buffer = torch.empty(pivot_dim, dtype=a.dtype.torch_type(), device=a.device.torch_device)
-    # print("DEBUGGING: local_pivots.shape, local_pivots.dtype = ", local_pivots.shape, local_pivots.dtype)
-    # print("DEBUGGING: pivot_buffer.shape, pivot_buffer.dtype = ", pivot_buffer.shape, pivot_buffer.dtype)
-    a.comm.Gatherv(local_pivots, (pivot_buffer, gather_counts, gather_displs), root=0)
-
-    pivot_dim[0] = size - 1
-    global_pivots = torch.empty(pivot_dim, dtype=a.dtype.torch_type(), device=a.device.torch_device)
-
-    # root process creates new pivots and shares them with other processes
-    if rank == 0:
-        if sort_op is torch.sort:
-            sorted_pivots, _ = sort_op(pivot_buffer, dim=0, descending=descending)
-        else:
-            sorted_pivots = sort_op(pivot_buffer, dim=0, **kwargs)[0]
-        length = sorted_pivots.size()[0]
-        global_partitions = [x * length // size for x in range(1, size)]
-        global_pivots = sorted_pivots[global_partitions]
-
-    a.comm.Bcast(global_pivots, root=0)
-    # special case: unique along axis
-    if unique_along_axis:
-        # find position of global pivots in local sorted uniques
-        local_sorted, local_inv = torch.cat((local_sorted, global_pivots), dim=0).unique(
-            dim=0,
-            sorted=kwargs.get("sorted") if kwargs.get("sorted") else True,
-            return_inverse=True,
-        )
-        # Use the inverse indices of the global pivots to work out the local partition slices
-        local_slices = torch.zeros(size + 1, dtype=torch.int64, device=local_sorted.device)
-        local_slices[1:-1] = local_inv[-global_pivots.shape[0] :] + 1
-        local_slices[-1] = torch.tensor([local_sorted.shape[0]])
-        # how many rows will be sent and received where
-        send_matrix = torch.tensor(
-            [local_slices[i] - local_slices[i - 1] for i in range(1, size + 1)]
-        )
-        recv_matrix = torch.zeros(size, dtype=torch.int64, device=local_sorted.device)
-        a.comm.Alltoall(send_matrix, recv_matrix)
-        # reshape send/recv_matrix into column to match sort() alltoall scheme
-        for matrix in [send_matrix, recv_matrix]:
-            matrix = matrix.reshape(1, matrix.numel())
-
-        scounts = send_matrix
-        rcounts = recv_matrix
-        shape = (recv_matrix.sum(dim=0),) + local_sorted.shape[1:]
     else:
+        # sorting is affected by split, processes need to communicate results
+        # transpose so we can work along the 0 axis
+        transposed = a.larray.transpose(axis, 0)
+        local_sorted, local_indices = torch.sort(transposed, dim=0, descending=descending)
+
+        size = a.comm.Get_size()
+        rank = a.comm.Get_rank()
+        counts, disp, _ = a.comm.counts_displs_shape(a.gshape, axis=axis)
+
+        actual_indices = local_indices.to(dtype=local_sorted.dtype) + disp[rank]
+
+        length = local_sorted.size()[0]
+
+        # Separate the sorted tensor into size + 1 equal length partitions
+        partitions = [x * length // (size + 1) for x in range(1, size + 1)]
+        local_pivots = (
+            local_sorted[partitions]
+            if counts[rank]
+            else torch.empty((0,) + local_sorted.size()[1:], dtype=local_sorted.dtype)
+        )
+
+        # Only processes with elements should share their pivots
+        gather_counts = [int(x > 0) * size for x in counts]
+        gather_displs = (0,) + tuple(np.cumsum(gather_counts[:-1]))
+
+        pivot_dim = list(transposed.size())
+        pivot_dim[0] = size * sum([1 for x in counts if x > 0])
+
+        # share the local pivots with root process
+        pivot_buffer = torch.empty(
+            pivot_dim, dtype=a.dtype.torch_type(), device=a.device.torch_device
+        )
+        a.comm.Gatherv(local_pivots, (pivot_buffer, gather_counts, gather_displs), root=0)
+
+        pivot_dim[0] = size - 1
+        global_pivots = torch.empty(
+            pivot_dim, dtype=a.dtype.torch_type(), device=a.device.torch_device
+        )
+
+        # root process creates new pivots and shares them with other processes
+        if rank == 0:
+            sorted_pivots, _ = torch.sort(pivot_buffer, descending=descending, dim=0)
+            length = sorted_pivots.size()[0]
+            global_partitions = [x * length // size for x in range(1, size)]
+            global_pivots = sorted_pivots[global_partitions]
+
+        a.comm.Bcast(global_pivots, root=0)
+
         lt_partitions = torch.empty((size,) + local_sorted.shape, dtype=torch.int64)
         last = torch.zeros_like(local_sorted, dtype=torch.int64)
         comp_op = torch.gt if descending else torch.lt
@@ -2085,6 +2365,7 @@ def __pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
 
         # Matrix holding information how many values will be sent where
         local_partitions = torch.sum(lt_partitions, dim=1)
+
         partition_matrix = torch.empty_like(local_partitions)
         a.comm.Allreduce(local_partitions, partition_matrix, op=MPI.SUM)
 
@@ -2106,193 +2387,115 @@ def __pivot_sorting(a, axis, sort_op, descending=False, **kwargs):
         rcounts = recv_matrix
 
         shape = (partition_matrix[rank].max(),) + transposed.size()[1:]
-
-    first_result = torch.empty(shape, dtype=local_sorted.dtype)
-    if sort_op is torch.sort:
+        first_result = torch.empty(shape, dtype=local_sorted.dtype)
         first_indices = torch.empty_like(first_result)
 
-    # Iterate through one layer and send values with alltoallv
-    if unique_along_axis:
-        iterator = range(1)
-    else:
-        iterator = np.ndindex(local_sorted.shape[1:])
-
-    for idx in iterator:
-        if unique_along_axis:
-            idx_slice = [slice(None)]
-        else:
+        # Iterate through one layer and send values with alltoallv
+        for idx in np.ndindex(local_sorted.shape[1:]):
             idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
-        send_count = scounts[idx_slice].reshape(-1).tolist()
-        send_disp = [0] + list(np.cumsum(send_count[:-1]))
-        s_val = local_sorted[idx_slice].clone()
-
-        recv_count = rcounts[idx_slice].reshape(-1).tolist()
-        recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
-        rcv_length = rcounts[idx_slice].sum().item()
-        r_val = torch.empty((rcv_length,) + s_val.shape[1:], dtype=local_sorted.dtype)
-        a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
-        first_result[idx_slice][:rcv_length] = r_val
-
-        if sort_op is torch.sort:
+            send_count = scounts[idx_slice].reshape(-1).tolist()
+            send_disp = [0] + list(np.cumsum(send_count[:-1]))
+            s_val = local_sorted[idx_slice].clone()
             s_ind = actual_indices[idx_slice].clone().to(dtype=local_sorted.dtype)
+
+            recv_count = rcounts[idx_slice].reshape(-1).tolist()
+            recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
+            rcv_length = rcounts[idx_slice].sum().item()
+            r_val = torch.empty((rcv_length,) + s_val.shape[1:], dtype=local_sorted.dtype)
             r_ind = torch.empty_like(r_val)
+
+            a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
             a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
+            first_result[idx_slice][:rcv_length] = r_val
             first_indices[idx_slice][:rcv_length] = r_ind
 
-    if sort_op is torch.unique:
-        # early out for unique
-        return first_result
-
-    # The process might not have the correct number of values therefore the tensors need to be rebalanced
-    send_vec = torch.zeros(local_sorted.shape[1:] + (size, size), dtype=torch.int64)
-    target_cumsum = np.cumsum(counts)
-    for idx in np.ndindex(local_sorted.shape[1:]):
-        idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
-        current_counts = partition_matrix[idx_slice].reshape(-1).tolist()
-        current_cumsum = list(np.cumsum(current_counts))
-        for proc in range(size):
-            # process has to many values which will be sent to higher ranks
-            if current_cumsum[proc] > target_cumsum[proc]:
-                first = next(i for i in range(size) if send_vec[idx][:, i].sum() < counts[i])
-                last = next(
-                    i
-                    for i in range(size + 1)
-                    if i == size or current_cumsum[proc] < target_cumsum[i]
-                )
-                sent = 0
-                for i, x in enumerate(counts[first:last]):
-                    # Each following process gets as many elements as it needs
-                    amount = int(x - send_vec[idx][:, first + i].sum())
-                    send_vec[idx][proc][first + i] = amount
-                    current_counts[first + i] += amount
-                    sent = send_vec[idx][proc][: first + i + 1].sum().item()
-                if last < size:
-                    # Send all left over values to the highest last process
-                    amount = partition_matrix[proc][idx]
-                    send_vec[idx][proc][last] = int(amount - sent)
-                    current_counts[last] += int(amount - sent)
-            elif current_cumsum[proc] < target_cumsum[proc]:
-                # process needs values from higher rank
-                first = (
-                    0
-                    if proc == 0
-                    else next(
-                        i for i, x in enumerate(current_cumsum) if target_cumsum[proc - 1] < x
-                    )
-                )
-                last = next(i for i, x in enumerate(current_cumsum) if target_cumsum[proc] <= x)
-                for i, x in enumerate(partition_matrix[idx_slice][first:last]):
-                    # Taking as many elements as possible from each following process
-                    send_vec[idx][first + i][proc] = int(x - send_vec[idx][first + i].sum())
-                    current_counts[first + i] = 0
-                # Taking just enough elements from the last element to fill the current processes tensor
-                send_vec[idx][last][proc] = int(target_cumsum[proc] - current_cumsum[last - 1])
-                current_counts[last] -= int(target_cumsum[proc] - current_cumsum[last - 1])
-            else:
-                # process doesn't need more values
-                send_vec[idx][proc][proc] = partition_matrix[proc][idx] - send_vec[idx][proc].sum()
-            current_counts[proc] = counts[proc]
+        # The process might not have the correct number of values therefore the tensors need to be rebalanced
+        send_vec = torch.zeros(local_sorted.shape[1:] + (size, size), dtype=torch.int64)
+        target_cumsum = np.cumsum(counts)
+        for idx in np.ndindex(local_sorted.shape[1:]):
+            idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
+            current_counts = partition_matrix[idx_slice].reshape(-1).tolist()
             current_cumsum = list(np.cumsum(current_counts))
+            for proc in range(size):
+                if current_cumsum[proc] > target_cumsum[proc]:
+                    # process has to many values which will be sent to higher ranks
+                    first = next(i for i in range(size) if send_vec[idx][:, i].sum() < counts[i])
+                    last = next(
+                        i
+                        for i in range(size + 1)
+                        if i == size or current_cumsum[proc] < target_cumsum[i]
+                    )
+                    sent = 0
+                    for i, x in enumerate(counts[first:last]):
+                        # Each following process gets as many elements as it needs
+                        amount = int(x - send_vec[idx][:, first + i].sum())
+                        send_vec[idx][proc][first + i] = amount
+                        current_counts[first + i] += amount
+                        sent = send_vec[idx][proc][: first + i + 1].sum().item()
+                    if last < size:
+                        # Send all left over values to the highest last process
+                        amount = partition_matrix[proc][idx]
+                        send_vec[idx][proc][last] = int(amount - sent)
+                        current_counts[last] += int(amount - sent)
+                elif current_cumsum[proc] < target_cumsum[proc]:
+                    # process needs values from higher rank
+                    first = (
+                        0
+                        if proc == 0
+                        else next(
+                            i for i, x in enumerate(current_cumsum) if target_cumsum[proc - 1] < x
+                        )
+                    )
+                    last = next(i for i, x in enumerate(current_cumsum) if target_cumsum[proc] <= x)
+                    for i, x in enumerate(partition_matrix[idx_slice][first:last]):
+                        # Taking as many elements as possible from each following process
+                        send_vec[idx][first + i][proc] = int(x - send_vec[idx][first + i].sum())
+                        current_counts[first + i] = 0
+                    # Taking just enough elements from the last element to fill the current processes tensor
+                    send_vec[idx][last][proc] = int(target_cumsum[proc] - current_cumsum[last - 1])
+                    current_counts[last] -= int(target_cumsum[proc] - current_cumsum[last - 1])
+                else:
+                    # process doesn't need more values
+                    send_vec[idx][proc][proc] = (
+                        partition_matrix[proc][idx] - send_vec[idx][proc].sum()
+                    )
+                current_counts[proc] = counts[proc]
+                current_cumsum = list(np.cumsum(current_counts))
 
-    # Iterate through one layer again to create the final balanced local tensors
-    second_result = torch.empty_like(local_sorted)
-    second_indices = torch.empty_like(second_result)
-    for idx in np.ndindex(local_sorted.shape[1:]):
-        idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
+        # Iterate through one layer again to create the final balanced local tensors
+        second_result = torch.empty_like(local_sorted)
+        second_indices = torch.empty_like(second_result)
+        for idx in np.ndindex(local_sorted.shape[1:]):
+            idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
-        send_count = send_vec[idx][rank]
-        send_disp = [0] + list(np.cumsum(send_count[:-1]))
+            send_count = send_vec[idx][rank]
+            send_disp = [0] + list(np.cumsum(send_count[:-1]))
 
-        recv_count = send_vec[idx][:, rank]
-        recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
+            recv_count = send_vec[idx][:, rank]
+            recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
 
-        end = partition_matrix[rank][idx]
-        s_val, indices = first_result[0:end][idx_slice].sort(descending=descending, dim=0)
-        r_val = torch.empty((counts[rank],) + s_val.shape[1:], dtype=local_sorted.dtype)
-        a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
-        second_result[idx_slice] = r_val
+            end = partition_matrix[rank][idx]
+            s_val, indices = first_result[0:end][idx_slice].sort(descending=descending, dim=0)
+            s_ind = first_indices[0:end][idx_slice][indices].reshape_as(s_val)
 
-        s_ind = first_indices[0:end][idx_slice][indices].reshape_as(s_val)
-        r_ind = torch.empty_like(r_val)
-        a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
-        second_indices[idx_slice] = r_ind
+            r_val = torch.empty((counts[rank],) + s_val.shape[1:], dtype=local_sorted.dtype)
+            r_ind = torch.empty_like(r_val)
 
-    second_result, tmp_indices = sort_op(second_result, dim=0, descending=descending)
-    final_result = second_result.transpose(0, axis)
-    final_indices = torch.empty_like(second_indices)
-    # Update the indices in case the ordering changed during the last sort
-    for idx in np.ndindex(tmp_indices.shape):
-        val = tmp_indices[idx]
-        final_indices[idx] = second_indices[val.item()][idx[1:]]
-    final_indices = final_indices.transpose(0, axis)
-    return final_result, final_indices
+            a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
+            a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
 
+            second_result[idx_slice] = r_val
+            second_indices[idx_slice] = r_ind
 
-def sort(a, axis=None, descending=False, out=None):
-    """
-    Sorts the elements of the DNDarray a along the given dimension (by default in ascending order) by their value.
-
-    The sorting is not stable which means that equal elements in the result may have a different ordering than in the
-    original array.
-
-    Sorting where `axis == a.split` needs a lot of communication between the processes of MPI.
-
-    Parameters
-    ----------
-    a : ht.DNDarray
-        Input array to be sorted.
-    axis : int, optional
-        The dimension to sort along.
-        Default is the last axis.
-    descending : bool, optional
-        If set to true values are sorted in descending order
-        Default is false
-    out : ht.DNDarray or None, optional
-        A location in which to store the results. If provided, it must have a broadcastable shape. If not provided
-        or set to None, a fresh tensor is allocated.
-
-    Returns
-    -------
-    values : ht.DNDarray
-        The sorted local results.
-    indices
-        The indices of the elements in the original data
-
-    Raises
-    ------
-    ValueError
-        If the axis is not in range of the axes.
-
-    Examples
-    --------
-    >>> x = ht.array([[4, 1], [2, 3]], split=0)
-    >>> x.shape
-    (1, 2)
-    (1, 2)
-
-    >>> y = ht.sort(x, axis=0)
-    >>> y
-    (array([[2, 1]], array([[1, 0]]))
-    (array([[4, 3]], array([[0, 1]]))
-
-    >>> ht.sort(x, descending=True)
-    (array([[4, 1]], array([[0, 1]]))
-    (array([[3, 2]], array([[1, 0]]))
-    """
-    # default: using last axis
-    if axis is None:
-        axis = len(a.shape) - 1
-
-    stride_tricks.sanitize_axis(a.shape, axis)
-
-    if a.split is None or axis != a.split:
-        # sorting is not affected by split -> we can just sort along the axis
-        final_result, final_indices = torch.sort(a.larray, dim=axis, descending=descending)
-
-    else:
-        final_result, final_indices = __pivot_sorting(a, axis, torch.sort, descending=descending)
-
+        second_result, tmp_indices = second_result.sort(dim=0, descending=descending)
+        final_result = second_result.transpose(0, axis)
+        final_indices = torch.empty_like(second_indices)
+        # Update the indices in case the ordering changed during the last sort
+        for idx in np.ndindex(tmp_indices.shape):
+            val = tmp_indices[idx]
+            final_indices[idx] = second_indices[val.item()][idx[1:]]
+        final_indices = final_indices.transpose(0, axis)
     return_indices = factories.array(
         final_indices, dtype=types.int32, is_split=a.split, device=a.device, comm=a.comm
     )
@@ -2822,97 +3025,113 @@ def stack(
     return stacked
 
 
-def unique(a, return_inverse=False, axis=None):
+def swapaxes(x: DNDarray, axis1: int, axis2: int) -> DNDarray:
     """
-    Returns the sorted unique elements of an array.
-
-    If `a` is distributed, and unique elements along a specific `axis` are required,
-    then `a` must be distributed along `axis`.
+    Interchanges two axes of an array.
 
     Parameters
     ----------
-    a : ht.DNDarray
+    x : DNDarray
         Input array.
-    axis : int, optional
-        The axis to operate on. If None, `a` will be flattened.
-    return_inverse : bool, optional
-        Return the indices of the unique array (for the specified `axis`, if provided)
-        that can be used to reconstruct `a`.
-        Default: False
+    axis1 : int
+        First axis.
+    axis2 : int
+        Second axis.
 
-    Returns
-    -------
-    unique : ht.DNDarray
-        The sorted unique elements of `a`. Whether `unique` is distributed depends
-        on the size of the unique elements with respect to the (process-local) data.
-        See Notes below.
-    inverse_indices : ht.DNDarray
-        The global indices to reconstruct the original (possibly distributed) array
-        from `unique`. `inverse_indices` is distributed like `a`. See Notes below
-        on reconstructing the original array from a distributed `unique` array.
-
-    Notes
-    -----
-    The resulting `unique` will not be distributed (`unique.split=None`) if the collective
-    size of the unique values, in bytes, does not exceed a certain threshold
-    (arbitrarily defined as the size of the process-local input `a`). Otherwise,
-    `unique` will be distributed along 0, if `axis` is specified, or along `a.split`,
-    if `axis` is None.
-
-    Warnings
+    See Also
     --------
-    `inverse_indices` will always be distributed like the original data
-    (if `axis is None`) or along 0, and contains the GLOBAL indices to recreate the
-    LOCAL portion of `a`. Before reconstructing an array based on `unique[inverse_indices]`,
-    make sure that `unique` is local (with `unique.resplit_(axis=None)`, see `ht.resplit`).
+    :func:`~heat.core.linalg.basics.transpose`
+        Permute the dimensions of an array.
+
+    Examples
+    --------
+    >>> x = ht.array([[[0,1],[2,3]],[[4,5],[6,7]]])
+    >>> ht.swapaxes(x, 0, 1)
+    DNDarray([[[0, 1],
+               [4, 5]],
+              [[2, 3],
+               [6, 7]]], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.swapaxes(x, 0, 2)
+    DNDarray([[[0, 4],
+               [2, 6]],
+              [[1, 5],
+               [3, 7]]], dtype=ht.int64, device=cpu:0, split=None)
+    """
+    axes = list(range(x.ndim))
+    try:
+        axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
+    except TypeError:
+        raise TypeError(
+            "'axis1' and 'axis2' must be of type int, found {} and {}".format(
+                type(axis1), type(axis2)
+            )
+        )
+
+    return linalg.transpose(x, axes)
+
+
+DNDarray.swapaxes = lambda self, axis1, axis2: swapaxes(self, axis1, axis2)
+DNDarray.swapaxes.__doc__ = swapaxes.__doc__
+
+
+def unique(
+    a: DNDarray, sorted: bool = False, return_inverse: bool = False, axis: int = None
+) -> Tuple[DNDarray, torch.tensor]:
+    """
+    Finds and returns the unique elements of a `DNDarray`.
+    If return_inverse is `True`, the second tensor will hold the list of inverse indices
+    If distributed, it is most efficient if `axis!=a.split`.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    sorted : bool, optional
+        Whether the found elements should be sorted before returning as output.
+        Warning: sorted is not working if `axis!=None and axis!=a.split`
+    return_inverse : bool, optional
+        Whether to also return the indices for where elements in the original input ended up in the returned
+        unique list.
+    axis : int, optional
+        Axis along which unique elements should be found. Default to `None`, which will return a one dimensional list of
+        unique values.
 
     Examples
     --------
     >>> x = ht.array([[3, 2], [1, 3]])
-    >>> ht.unique(x)
+    >>> ht.unique(x, sorted=True)
     array([1, 2, 3])
-
-    >>> ht.unique(x, axis=0)
+    >>> ht.unique(x, sorted=True, axis=0)
     array([[1, 3],
            [2, 3]])
-
-    >>> ht.unique(x, axis=1)
+    >>> ht.unique(x, sorted=True, axis=1)
     array([[2, 3],
            [3, 1]])
     """
-    if not a.is_distributed():
-        torch_output = torch.unique(a.larray, sorted=True, return_inverse=return_inverse, dim=axis)
+    if a.split is None:
+        torch_output = torch.unique(
+            a.larray, sorted=sorted, return_inverse=return_inverse, dim=axis
+        )
         if isinstance(torch_output, tuple):
             heat_output = tuple(
-                factories.array(
-                    i, dtype=types.canonical_heat_type(i.dtype), split=None, device=a.device
-                )
-                for i in torch_output
+                factories.array(i, dtype=a.dtype, split=None, device=a.device) for i in torch_output
             )
         else:
             heat_output = factories.array(torch_output, dtype=a.dtype, split=None, device=a.device)
         return heat_output
 
-    rank = a.comm.rank
-    size = a.comm.size
     local_data = a.larray
-    inv_shape = local_data.shape if axis is None else (local_data.shape[axis],)
     unique_axis = None
+    inverse_indices = None
+
     if axis is not None:
-        if axis != a.split:
-            raise NotImplementedError(
-                "Not implemented yet: Operation axis differs from distribution axis: axis is {}, array.split is {}".format(
-                    axis, a.split
-                )
-            )
-        if axis != 0:
-            # transpose so we can work along the 0 axis
-            local_data = local_data.transpose(0, axis)
+        # transpose so we can work along the 0 axis
+        local_data = local_data.transpose(0, axis)
         unique_axis = 0
 
-    # Calculate local uniques
+    # Calculate the unique on the local values
     if a.lshape[a.split] == 0:
-        # address empty local tensor
+        # Passing an empty vector to torch throws exception
         if axis is None:
             res_shape = [0]
             inv_shape = list(a.gshape)
@@ -2922,91 +3141,139 @@ def unique(a, return_inverse=False, axis=None):
             res_shape[0] = 0
             inv_shape = [0]
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
+        inverse_pos = torch.empty(inv_shape, dtype=torch.int64)
+
     else:
-        lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
-    gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
+        lres, inverse_pos = torch.unique(
+            local_data, sorted=sorted, return_inverse=True, dim=unique_axis
+        )
 
-    # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
-    _, data_max_lshape, _ = a.comm.chunk(a.gshape, a.split, rank=0)
-    data_max_lbytes = torch.prod(torch.tensor(data_max_lshape)) * a.larray.element_size()
-    if gres.nbytes <= data_max_lbytes:
-        # gather local uniques
-        gres.resplit_(None)
-        # final round of torch.unique
-        lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
-        lres_split = None
-        gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device)
-    else:
-        # balance gres if needed
-        gres.balance_()
-        # global sorted unique
-        lres = __pivot_sorting(gres, 0, torch.unique, sorted=True, return_inverse=True)
-        # second local unique
-        if 0 not in lres.shape:
-            lres = torch.unique(lres, sorted=True, dim=unique_axis)
-        lres_split = 0
+    # Share and gather the results with the other processes
+    uniques = torch.tensor([lres.shape[0]]).to(torch.int32)
+    uniques_buf = torch.empty((a.comm.Get_size(),), dtype=torch.int32)
+    a.comm.Allgather(uniques, uniques_buf)
 
-    gres = factories.array(lres, dtype=a.dtype, is_split=lres_split, device=a.device)
+    if axis is None or axis == a.split:
+        is_split = None
+        split = a.split
 
-    gres.balance_()
+        output_dim = list(lres.shape)
+        output_dim[0] = uniques_buf.sum().item()
 
-    if return_inverse:
-        # inverse indices
-        # allocate local tensors and global DNDarray
-        inverse = torch.empty(inv_shape, dtype=torch.int64, device=local_data.device)
-        if a.is_distributed():
-            inv_split = 0 if inverse.ndim == 1 else a.split
-        else:
-            inv_split = None
-        global_inverse = factories.array(inverse, is_split=inv_split, device=gres.device)
+        # Gather all unique vectors
+        counts = list(uniques_buf.tolist())
+        displs = list([0] + uniques_buf.cumsum(0).tolist()[:-1])
+        gres_buf = torch.empty(output_dim, dtype=a.dtype.torch_type(), device=a.device.torch_device)
+        a.comm.Allgatherv(lres, (gres_buf, counts, displs), recv_axis=0)
 
-        unique_ranks = size if gres.is_distributed() else 1
-        if unique_ranks > 1:
-            gres_map = gres.create_lshape_map()
-            gres_offsets = torch.cat(
-                (torch.tensor([0], device=gres_map.device), gres_map[:-1, gres.split])
-            ).cumsum(dim=0)
-        else:
-            gres_map = torch.tensor(gres.gshape, device=inverse.device)
-            gres_offsets = torch.tensor([0], device=gres_map.device)
-        lres = gres.larray
-        for p in range(unique_ranks):
-            if unique_ranks == 1:
-                incoming_offset = 0
+        if return_inverse:
+            # Prepare some information to generated the inverse indices list
+            avg_len = a.gshape[a.split] // a.comm.Get_size()
+            rem = a.gshape[a.split] % a.comm.Get_size()
+
+            # Share the local reverse indices with other processes
+            counts = [avg_len] * a.comm.Get_size()
+            add_vec = [1] * rem + [0] * (a.comm.Get_size() - rem)
+            inverse_counts = [sum(x) for x in zip(counts, add_vec)]
+            inverse_displs = [0] + list(np.cumsum(inverse_counts[:-1]))
+            inverse_dim = list(inverse_pos.shape)
+            inverse_dim[a.split] = a.gshape[a.split]
+            inverse_buf = torch.empty(inverse_dim, dtype=inverse_pos.dtype)
+
+            # Transpose data and buffer so we can use Allgatherv along axis=0 (axis=1 does not work properly yet)
+            inverse_pos = inverse_pos.transpose(0, a.split)
+            inverse_buf = inverse_buf.transpose(0, a.split)
+            a.comm.Allgatherv(
+                inverse_pos, (inverse_buf, inverse_counts, inverse_displs), recv_axis=0
+            )
+            inverse_buf = inverse_buf.transpose(0, a.split)
+
+        # Run unique a second time
+        gres = torch.unique(gres_buf, sorted=sorted, return_inverse=return_inverse, dim=unique_axis)
+        if return_inverse:
+            # Use the previously gathered information to generate global inverse_indices
+            g_inverse = gres[1]
+            gres = gres[0]
+            if axis is None:
+                # Calculate how many elements we have in each layer along the split axis
+                elements_per_layer = 1
+                for num, val in enumerate(a.gshape):
+                    if not num == a.split:
+                        elements_per_layer *= val
+
+                # Create the displacements for the flattened inverse indices array
+                local_elements = [displ * elements_per_layer for displ in inverse_displs][1:] + [
+                    float("inf")
+                ]
+
+                # Flatten the inverse indices array every element can be updated to represent a global index
+                transposed = inverse_buf.transpose(0, a.split)
+                transposed_shape = transposed.shape
+                flatten_inverse = transposed.flatten()
+
+                # Update the index elements iteratively
+                cur_displ = 0
+                inverse_indices = [0] * len(flatten_inverse)
+                for num in range(len(inverse_indices)):
+                    if num >= local_elements[cur_displ]:
+                        cur_displ += 1
+                    index = flatten_inverse[num] + displs[cur_displ]
+                    inverse_indices[num] = g_inverse[index].tolist()
+
+                # Convert the flattened array back to the correct global shape of a
+                inverse_indices = torch.tensor(inverse_indices).reshape(transposed_shape)
+                inverse_indices = inverse_indices.transpose(0, a.split)
+
             else:
-                origin = (rank - p) % size
-                incoming_offset = gres_offsets[origin]
-                tmp = torch.empty(
-                    gres_map[0].tolist(), dtype=local_data.dtype, device=local_data.device
-                )
-            # loop through unique elements, find matching position in data
-            for i, el in enumerate(lres):
-                counts = torch.zeros_like(local_data, dtype=torch.int8, device=local_data.device)
-                counts[torch.where(local_data == el)] = 1
-                if lres.ndim > 1:
-                    counts = torch.sum(counts, dim=tuple(range(lres.ndim))[1:])
-                cond = torch.where(counts == el.numel())
-                global_inverse.larray[cond] = i + incoming_offset
-            # if necessary, prepare to send lres to rank+1 and receive from rank-1
-            if unique_ranks > 1:
-                dest_rank = (rank + 1) % unique_ranks
-                tmp[slice(None, lres.shape[0])] = lres
-                queue = gres.comm.Isend(tmp, dest_rank, tag=rank)
-                recv_from_rank = (rank - 1) % unique_ranks
-                next_origin = (origin - 1) % unique_ranks
-                incoming_size = gres_map[next_origin].tolist()[0]
-                queue.Wait()
-                gres.comm.Recv(tmp, recv_from_rank, tag=recv_from_rank)
-                lres = tmp[slice(None, incoming_size)]
-        gres.larray = lres
-    if axis is not None and axis != 0:
-        # transpose back to original
-        gres = linalg.basics.transpose(gres, (axis, 0))
+                inverse_indices = torch.zeros_like(inverse_buf)
+                steps = displs + [None]
 
+                # Algorithm that creates the correct list for the reverse_indices
+                for i in range(len(steps) - 1):
+                    begin = steps[i]
+                    end = steps[i + 1]
+                    for num, x in enumerate(inverse_buf[begin:end]):
+                        inverse_indices[begin + num] = g_inverse[begin + x]
+
+    else:
+        # Tensor is already split and does not need to be redistributed afterward
+        split = None
+        is_split = a.split
+        max_uniques, max_pos = uniques_buf.max(0)
+        # find indices of vectors
+        if a.comm.Get_rank() == max_pos.item():
+            # Get indices of the unique vectors to share with all over processes
+            indices = inverse_pos.reshape(-1).unique()
+        else:
+            indices = torch.empty((max_uniques.item(),), dtype=inverse_pos.dtype)
+
+        a.comm.Bcast(indices, root=max_pos)
+
+        gres = local_data[indices.tolist()]
+
+        inverse_indices = indices
+        if sorted:
+            raise ValueError(
+                "Sorting with axis != split is not supported yet. "
+                "See https://github.com/helmholtz-analytics/heat/issues/363"
+            )
+
+    if axis is not None:
+        # transpose matrix back
+        gres = gres.transpose(0, axis)
+
+    split = split if a.split < len(gres.shape) else None
+    result = factories.array(
+        gres, dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split
+    )
+    if split is not None:
+        result.resplit_(a.split)
+
+    return_value = result
     if return_inverse:
-        return (gres, global_inverse)
+        return_value = [return_value, inverse_indices.to(a.device.torch_device)]
 
-    return gres
+    return return_value
 
 
 DNDarray.unique: Callable[
@@ -3379,184 +3646,211 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
                [ 6,  7,  8,  6,  7,  8],
                [ 9, 10, 11,  9, 10, 11]]], dtype=ht.int32, device=cpu:0, split=1)
     """
-    # check that input is DNDarray
-    sanitation.sanitize_in(x)
-    # check dimensions
-    if x.ndim == 0:
-        x = sanitation.scalar_to_1d(x)
-    # reps to list
-    reps = sanitation.sanitize_sequence(reps)
-    if not all(isinstance(rep, int) for rep in reps):
-        raise TypeError("reps must be a sequence of integers, got {}".format(reps))
+    # x can be DNDarray or scalar
+    try:
+        _ = x.larray
+    except AttributeError:
+        try:
+            _ = x.shape
+            raise TypeError("Input can be a DNDarray or a scalar, is {}".format(type(x)))
+        except AttributeError:
+            x = factories.array(x).reshape(1)
 
-    # calculate new gshape, split
+    x_proxy = x.__torch_proxy__()
+
+    # torch-proof args/kwargs:
+    # torch `reps`: int or sequence of ints; numpy `reps`: can be array-like
+    try:
+        _ = x_proxy.repeat(reps)
+    except TypeError:
+        # `reps` is array-like or contains non-int elements
+        try:
+            reps = resplit(reps, None).tolist()
+        except AttributeError:
+            try:
+                reps = reps.tolist()
+            except AttributeError:
+                try:
+                    _ = x_proxy.repeat(reps)
+                except TypeError:
+                    raise TypeError(
+                        "reps must be a sequence of ints, got {}".format(
+                            list(type(i) for i in reps)
+                        )
+                    )
+                except RuntimeError:
+                    pass
+    except RuntimeError:
+        pass
+
+    try:
+        reps = list(reps)
+    except TypeError:
+        # scalar to list
+        reps = [reps]
+
+    # torch reps vs. numpy reps: dimensions
     if len(reps) != x.ndim:
         added_dims = abs(len(reps) - x.ndim)
         if len(reps) > x.ndim:
             new_shape = added_dims * (1,) + x.gshape
             new_split = None if x.split is None else x.split + added_dims
-            x = x.reshape(new_shape, axis=new_split)
+            x = x.reshape(new_shape, new_split=new_split)
         else:
             reps = added_dims * [1] + reps
-    split = x.split
-    # "t_" indicates process-local torch tensors
-    t_x = x.larray
-    out_gshape = tuple(
-        (torch.tensor(x.shape, device=t_x.device) * torch.tensor(reps, device=t_x.device)).tolist()
-    )
-    if split is None or reps[split] == 1:
+
+    out_gshape = tuple(x_proxy.repeat(reps).shape)
+
+    if not x.is_distributed() or reps[x.split] == 1:
         # no repeats along the split axis: local operation
-        t_tiled = t_x.repeat(reps)
+        t_tiled = x.larray.repeat(reps)
+        out_gshape = tuple(x_proxy.repeat(reps).shape)
         return DNDarray(
             t_tiled,
             out_gshape,
             dtype=x.dtype,
-            split=split,
+            split=x.split,
             device=x.device,
             comm=x.comm,
             balanced=x.balanced,
         )
-    else:
-        # repeats along the split axis
-        size = x.comm.Get_size()
-        rank = x.comm.Get_rank()
-        # make sure we work along dim 0
-        trans_axes = list(range(x.ndim))
-        if split != 0:
-            trans_axes[0], trans_axes[split] = split, 0
-            reps[0], reps[split] = reps[split], reps[0]
-            x = linalg.transpose(x, trans_axes)
-            split = 0
-            out_gshape = tuple(
-                (
-                    torch.tensor(x.shape, device=t_x.device) * torch.tensor(reps, device=t_x.device)
-                ).tolist()
-            )
-        x_shape = x.gshape
-        # allocate tiled DNDarray, at first tiled along split axis only
-        split_reps = [rep if i == split else 1 for i, rep in enumerate(reps)]
-        split_tiled_shape = tuple(s * r for s, r in zip(x_shape, split_reps))
-        tiled = factories.empty(split_tiled_shape, dtype=x.dtype, split=split, comm=x.comm)
-        # collect slicing information from all processes.
-        slices_map = []
-        for array in [x, tiled]:
-            counts, displs = array.counts_displs()
-            t_slices_starts = torch.tensor(displs, device=t_x.device)
-            t_slices_ends = t_slices_starts + torch.tensor(counts, device=t_x.device)
-            slices_map.append([t_slices_starts, t_slices_ends])
+    # repeats along the split axis, work along dim 0
+    size = x.comm.Get_size()
+    rank = x.comm.Get_rank()
+    trans_axes = list(range(x.ndim))
+    if x.split != 0:
+        trans_axes[0], trans_axes[x.split] = x.split, 0
+        reps[0], reps[x.split] = reps[x.split], reps[0]
+        x = linalg.transpose(x, trans_axes)
+        x_proxy = x.__torch_proxy__()
+        out_gshape = tuple(x_proxy.repeat(reps).shape)
 
-        t_slices_x, t_slices_tiled = slices_map
+    local_x = x.larray
 
-        # keep track of repetitions:
-        # t_x_starts.shape, t_x_ends.shape changing from (size,) to (reps[split], size)
-        reps_indices = list(x_shape[split] * rep for rep in (range(reps[split])))
-        t_reps_indices = torch.tensor(reps_indices, dtype=torch.int32, device=t_x.device).reshape(
-            len(reps_indices), 1
+    # allocate tiled DNDarray, at first tiled along split axis only
+    split_reps = [rep if i == x.split else 1 for i, rep in enumerate(reps)]
+    split_tiled_shape = tuple(x_proxy.repeat(split_reps).shape)
+    tiled = factories.empty(split_tiled_shape, dtype=x.dtype, split=x.split, comm=x.comm)
+    # collect slicing information from all processes.
+    slices_map = []
+    for array in [x, tiled]:
+        counts, displs = array.counts_displs()
+        t_slices_starts = torch.tensor(displs, device=local_x.device)
+        t_slices_ends = t_slices_starts + torch.tensor(counts, device=local_x.device)
+        slices_map.append([t_slices_starts, t_slices_ends])
+
+    t_slices_x, t_slices_tiled = slices_map
+
+    # keep track of repetitions:
+    # local_x_starts.shape, local_x_ends.shape changing from (size,) to (reps[split], size)
+    reps_indices = list(x.gshape[x.split] * rep for rep in (range(reps[x.split])))
+    t_reps_indices = torch.tensor(reps_indices, dtype=torch.int32, device=local_x.device).reshape(
+        len(reps_indices), 1
+    )
+    for i, t in enumerate(t_slices_x):
+        t = t.repeat((reps[x.split], 1))
+        t += t_reps_indices
+        t_slices_x[i] = t
+
+    # distribution logic on current rank:
+    distr_map = []
+    slices_map = []
+    for i in range(2):
+        if i == 0:
+            # send logic for x slices on rank
+            local_x_starts = t_slices_x[0][:, rank].reshape(reps[x.split], 1)
+            local_x_ends = t_slices_x[1][:, rank].reshape(reps[x.split], 1)
+            t_tiled_starts, t_tiled_ends = t_slices_tiled
+        else:
+            # recv logic for tiled slices on rank
+            local_x_starts, local_x_ends = t_slices_x
+            t_tiled_starts = t_slices_tiled[0][rank]
+            t_tiled_ends = t_slices_tiled[1][rank]
+        t_max_starts = torch.max(local_x_starts, t_tiled_starts)
+        t_min_ends = torch.min(local_x_ends, t_tiled_ends)
+        coords = torch.where(t_min_ends - t_max_starts > 0)
+        # remove repeat offset from slices if sending
+        if i == 0:
+            t_max_starts -= t_reps_indices
+            t_min_ends -= t_reps_indices
+        starts = t_max_starts[coords].unsqueeze_(0)
+        ends = t_min_ends[coords].unsqueeze_(0)
+        slices_map.append(torch.cat((starts, ends), dim=0))
+        distr_map.append(coords)
+
+    # bookkeeping in preparation for Alltoallv
+    send_map, recv_map = distr_map
+    send_rep, send_to_ranks = send_map
+    recv_rep, recv_from_ranks = recv_map
+    send_slices, recv_slices = slices_map
+
+    # do not assume that `x` is balanced
+    _, displs = x.counts_displs()
+    offset_x = displs[rank]
+    # impose load-balance on output
+    offset_tiled, _, _ = tiled.comm.chunk(tiled.gshape, tiled.split)
+    t_tiled = tiled.larray
+
+    active_send_counts = send_slices.clone()
+    active_send_counts[0] *= -1
+    active_send_counts = active_send_counts.sum(0)
+    active_recv_counts = recv_slices.clone()
+    active_recv_counts[0] *= -1
+    active_recv_counts = active_recv_counts.sum(0)
+    send_slices -= offset_x
+    recv_slices -= offset_tiled
+    recv_buf = t_tiled.clone()
+    # we need as many Alltoallv calls as repeats along the split axis
+    for rep in range(reps[x.split]):
+        # send_data, send_counts, send_displs on rank
+        all_send_counts = [0] * size
+        all_send_displs = [0] * size
+        send_this_rep = torch.where(send_rep == rep)[0].tolist()
+        dest_this_rep = send_to_ranks[send_this_rep].tolist()
+        for i, j in zip(send_this_rep, dest_this_rep):
+            all_send_counts[j] = active_send_counts[i].item()
+            all_send_displs[j] = send_slices[0][i].item()
+        local_send_slice = [slice(None)] * x.ndim
+        local_send_slice[x.split] = slice(
+            all_send_displs[0], all_send_displs[0] + sum(all_send_counts)
         )
-        for i, t in enumerate(t_slices_x):
-            t = t.repeat((reps[split], 1))
-            t += t_reps_indices
-            t_slices_x[i] = t
+        send_buf = local_x[local_send_slice].clone()
 
-        # distribution logic on current rank:
-        distr_map = []
-        slices_map = []
-        for i in range(2):
-            if i == 0:
-                # send logic for x slices on rank
-                t_x_starts = t_slices_x[0][:, rank].reshape(reps[split], 1)
-                t_x_ends = t_slices_x[1][:, rank].reshape(reps[split], 1)
-                t_tiled_starts, t_tiled_ends = t_slices_tiled
-            else:
-                # recv logic for tiled slices on rank
-                t_x_starts, t_x_ends = t_slices_x
-                t_tiled_starts = t_slices_tiled[0][rank]
-                t_tiled_ends = t_slices_tiled[1][rank]
-            t_max_starts = torch.max(t_x_starts, t_tiled_starts)
-            t_min_ends = torch.min(t_x_ends, t_tiled_ends)
-            coords = torch.where(t_min_ends - t_max_starts > 0)
-            # remove repeat offset from slices if sending
-            if i == 0:
-                t_max_starts -= t_reps_indices
-                t_min_ends -= t_reps_indices
-            starts = t_max_starts[coords].unsqueeze_(0)
-            ends = t_min_ends[coords].unsqueeze_(0)
-            slices_map.append(torch.cat((starts, ends), dim=0))
-            distr_map.append(coords)
-
-        # bookkeeping in preparation for Alltoallv
-        send_map, recv_map = distr_map
-        send_rep, send_to_ranks = send_map
-        recv_rep, recv_from_ranks = recv_map
-        send_slices, recv_slices = slices_map
-
-        # do not assume that `x` is balanced
-        _, displs = x.counts_displs()
-        offset_x = displs[rank]
-        # impose load-balance on output
-        offset_tiled, _, _ = tiled.comm.chunk(tiled.gshape, tiled.split)
-        t_tiled = tiled.larray
-
-        active_send_counts = send_slices.clone()
-        active_send_counts[0] *= -1
-        active_send_counts = active_send_counts.sum(0)
-        active_recv_counts = recv_slices.clone()
-        active_recv_counts[0] *= -1
-        active_recv_counts = active_recv_counts.sum(0)
-        send_slices -= offset_x
-        recv_slices -= offset_tiled
-        recv_buf = t_tiled.clone()
-        # we need as many Alltoallv calls as repeats along the split axis
-        for rep in range(reps[split]):
-            # send_data, send_counts, send_displs on rank
-            all_send_counts = [0] * size
-            all_send_displs = [0] * size
-            send_this_rep = torch.where(send_rep == rep)[0].tolist()
-            dest_this_rep = send_to_ranks[send_this_rep].tolist()
-            for i, j in zip(send_this_rep, dest_this_rep):
-                all_send_counts[j] = active_send_counts[i].item()
-                all_send_displs[j] = send_slices[0][i].item()
-            local_send_slice = [slice(None)] * x.ndim
-            local_send_slice[split] = slice(
-                all_send_displs[0], all_send_displs[0] + sum(all_send_counts)
-            )
-            send_buf = t_x[local_send_slice].clone()
-
-            # recv_data, recv_counts, recv_displs on rank
-            all_recv_counts = [0] * size
-            all_recv_displs = [0] * size
-            recv_this_rep = torch.where(recv_rep == rep)[0].tolist()
-            orig_this_rep = recv_from_ranks[recv_this_rep].tolist()
-            for i, j in zip(recv_this_rep, orig_this_rep):
-                all_recv_counts[j] = active_recv_counts[i].item()
-                all_recv_displs[j] = recv_slices[0][i].item()
-            local_recv_slice = [slice(None)] * x.ndim
-            local_recv_slice[split] = slice(
-                all_recv_displs[0], all_recv_displs[0] + sum(all_recv_counts)
-            )
-            x.comm.Alltoallv(
-                (send_buf, all_send_counts, all_send_displs),
-                (recv_buf, all_recv_counts, all_recv_displs),
-            )
-            t_tiled[local_recv_slice] = recv_buf[local_recv_slice]
-
-        # finally tile along non-split axes if needed
-        reps[split] = 1
-        tiled = DNDarray(
-            t_tiled.repeat(reps),
-            out_gshape,
-            dtype=x.dtype,
-            split=split,
-            device=x.device,
-            comm=x.comm,
-            balanced=True,
+        # recv_data, recv_counts, recv_displs on rank
+        all_recv_counts = [0] * size
+        all_recv_displs = [0] * size
+        recv_this_rep = torch.where(recv_rep == rep)[0].tolist()
+        orig_this_rep = recv_from_ranks[recv_this_rep].tolist()
+        for i, j in zip(recv_this_rep, orig_this_rep):
+            all_recv_counts[j] = active_recv_counts[i].item()
+            all_recv_displs[j] = recv_slices[0][i].item()
+        local_recv_slice = [slice(None)] * x.ndim
+        local_recv_slice[x.split] = slice(
+            all_recv_displs[0], all_recv_displs[0] + sum(all_recv_counts)
         )
-        if trans_axes != list(range(x.ndim)):
-            # transpose back to original shape
-            x = linalg.transpose(x, trans_axes)
-            tiled = linalg.transpose(tiled, trans_axes)
+        x.comm.Alltoallv(
+            (send_buf, all_send_counts, all_send_displs),
+            (recv_buf, all_recv_counts, all_recv_displs),
+        )
+        t_tiled[local_recv_slice] = recv_buf[local_recv_slice]
 
-        return tiled
+    # finally tile along non-split axes if needed
+    reps[x.split] = 1
+    tiled = DNDarray(
+        t_tiled.repeat(reps),
+        out_gshape,
+        dtype=x.dtype,
+        split=x.split,
+        device=x.device,
+        comm=x.comm,
+        balanced=True,
+    )
+    if trans_axes != list(range(x.ndim)):
+        # transpose back to original shape
+        x = linalg.transpose(x, trans_axes)
+        tiled = linalg.transpose(tiled, trans_axes)
+
+    return tiled
 
 
 def topk(

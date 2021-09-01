@@ -121,12 +121,15 @@ class datatype:
         # otherwise, attempt to create a torch tensor of given type
         try:
             array = value[0]._DNDarray__array.type(torch_type)
-            if value[0].split is None:
-                return factories.array(array, dtype=cls, split=None, comm=comm, device=device)
-            else:
-                return factories.array(
-                    array, dtype=cls, is_split=value[0].split, comm=comm, device=device
-                )
+            return dndarray.DNDarray(
+                array,
+                gshape=value[0].shape,
+                dtype=cls,
+                split=value[0].split,
+                comm=comm,
+                device=device,
+                balanced=value[0].balanced,
+            )
         except AttributeError:
             # this is the case of that the first/only element of value is not a DNDarray
             array = torch.tensor(*value, dtype=torch_type, device=device.torch_device)
