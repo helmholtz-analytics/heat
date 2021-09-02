@@ -418,6 +418,18 @@ for attr in aa_datatypes + aa_constants:
 #######################################################################
 # quick hack to provide random features
 #######################################################################
+
+if not hasattr(impl.random, "normal"):
+    import torch
+
+    def _normal(mean, std, size):
+        ret = impl.empty(size)
+        torch.normal(mean, std, ret.lshape, out=ret.larray)
+        return ret
+
+    impl.random.normal = _normal
+
+
 class random:
     """
     Wrapper class for random.
