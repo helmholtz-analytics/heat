@@ -282,7 +282,7 @@ def average(
                 wgt_lshape, dtype=weights.dtype.torch_type(), device=x.device.torch_device
             )
             wgt[wgt_slice] = weights.larray
-            wgt = factories.array(wgt, is_split=wgt_split)
+            wgt = factories.array(wgt, is_split=wgt_split, copy=False)
         else:
             if x.comm.is_distributed():
                 if x.split is not None and weights.split != x.split and weights.ndim != 1:
@@ -304,6 +304,7 @@ def average(
                 torch.broadcast_tensors(cumwgt.larray, result.larray)[0],
                 is_split=result.split,
                 device=result.device,
+                copy=False,
             )
         return (result, cumwgt)
 
@@ -376,7 +377,15 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
     else:
         data = counts
 
-    return factories.array(data, dtype=types.heat_type_of(data), device=x.device)
+    return DNDarray(
+        data,
+        gshape=tuple(data.shape),
+        dtype=types.heat_type_of(data),
+        split=None,
+        device=x.device,
+        comm=x.comm,
+        balanced=True,
+    )
 
 
 def cov(
@@ -498,8 +507,14 @@ def histc(
 
     if input.split is None:
         if out is None:
-            out = factories.array(
-                hist, dtype=types.canonical_heat_type(hist.dtype), device=input.device
+            out = DNDarray(
+                hist,
+                gshape=tuple(hist.shape),
+                dtype=types.canonical_heat_type(hist.dtype),
+                split=None,
+                device=input.device,
+                comm=input.comm,
+                balanced=True,
             )
     else:
         if out is None:
@@ -815,7 +830,15 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
         if not x.is_distributed():
             # if x is not distributed do a torch.mean on x
             ret = torch.mean(x.larray.float())
-            return factories.array(ret, is_split=None, device=x.device)
+            return DNDarray(
+                ret,
+                gshape=tuple(ret.shape),
+                dtype=types.heat_type_of(ret),
+                split=None,
+                device=x.device,
+                comm=x.comm,
+                balanced=True,
+            )
         else:
             # if x is distributed and no axis is given: return mean of the whole set
             mu_in = torch.mean(x.larray)
@@ -1092,13 +1115,26 @@ def __moment_w_axis(
         output_shape = output_shape if output_shape else (1,)
 
         if x.split is None:  # x is *not* distributed -> no need to distribute
-            return factories.array(function(x.larray, **kwargs), dtype=x.dtype, device=x.device)
+            ret = function(x.larray, **kwargs)
+            return DNDarray(
+                ret,
+                gshape=tuple(ret.shape),
+                dtype=x.dtype,
+                split=None,
+                device=x.device,
+                comm=x.comm,
+                balanced=x.balanced,
+            )
         elif axis == x.split:  # x is distributed and axis chosen is == to split
             return elementwise_function(output_shape)
         # singular axis given (axis) not equal to split direction (x.split)
         lcl = function(x.larray, **kwargs)
         return factories.array(
-            lcl, is_split=x.split if axis > x.split else x.split - 1, dtype=x.dtype, device=x.device
+            lcl,
+            is_split=x.split if axis > x.split else x.split - 1,
+            dtype=x.dtype,
+            device=x.device,
+            copy=False,
         )
     elif not isinstance(axis, (list, tuple, torch.Tensor)):
         raise TypeError(
@@ -1123,7 +1159,16 @@ def __moment_w_axis(
     output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
     # multiple dimensions
     if x.split is None:
-        return factories.array(function(x.larray, **kwargs), is_split=x.split, device=x.device)
+        ret = function(x.larray, **kwargs)
+        return DNDarray(
+            ret,
+            gshape=tuple(ret.shape),
+            dtype=types.heat_type_of(ret),
+            split=None,
+            device=x.device,
+            comm=x.comm,
+            balanced=True,
+        )
     if x.split in axis:
         # merge in the direction of the split
         return elementwise_function(output_shape)
@@ -1133,6 +1178,7 @@ def __moment_w_axis(
         function(x.larray, **kwargs),
         is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
         device=x.device,
+        copy=False,
     )
 
 
@@ -1356,8 +1402,14 @@ def percentile(
     # edge-case: x is a scalar. Return x
     if x.ndim == 0:
         percentile = t_x * torch.ones(nperc, dtype=t_perc_dtype, device=t_x.device)
-        return factories.array(
-            percentile, split=None, dtype=perc_dtype, device=x.device, comm=x.comm
+        return DNDarray(
+            percentile,
+            gshape=tuple(percentile),
+            split=None,
+            dtype=perc_dtype,
+            device=x.device,
+            comm=x.comm,
+            balanced=True,
         )
 
     # compute indices
@@ -1428,7 +1480,16 @@ def percentile(
                 if rank > 0:
                     # correct indices for halo
                     t_ind_on_rank += 1
-                local_p = factories.array(_local_percentile(t_data, axis, t_ind_on_rank))
+                local_p = _local_percentile(t_data, axis, t_ind_on_rank)
+                local_p = DNDarray(
+                    local_p,
+                    gshape=tuple(local_p.shape),
+                    dtype=types.heat_type_of(local_p),
+                    split=None,
+                    device=x.device,
+                    comm=x.comm,
+                    balanced=True,
+                )
             x.comm.Bcast(local_p, root=r)
             percentile[perc_slice] = local_p
     else:
@@ -1441,7 +1502,16 @@ def percentile(
             percentile.resplit_(axis=None)
         else:
             # non-distributed case
-            percentile = factories.array(_local_percentile(t_data, axis, t_indices))
+            percentile = _local_percentile(t_data, axis, t_indices)
+            percentile = DNDarray(
+                percentile,
+                tuple(percentile.shape),
+                types.heat_type_of(percentile),
+                None,
+                x.device,
+                x.comm,
+                True,
+            )
 
     if percentile.shape[0] == 1:
         percentile = manipulations.squeeze(percentile, axis=0)
@@ -1551,7 +1621,7 @@ def std(
         loc = np.std(x.larray.numpy(), axis=axis, ddof=ddof)
         if loc.size == 1:
             return loc.item()
-        return factories.array(loc)
+        return factories.array(loc, copy=False)
     return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
@@ -1740,7 +1810,9 @@ def var(
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
             ret = torch.var(x.larray.float(), unbiased=unbiased)
-            return factories.array(ret)
+            return DNDarray(
+                ret, tuple(ret.shape), types.heat_type_of(ret), None, x.device, x.comm, True
+            )
 
         else:  # case for full matrix calculation (axis is None)
             mu_in = torch.mean(x.larray)
