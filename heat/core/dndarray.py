@@ -57,7 +57,7 @@ class DNDarray:
     balanced: bool or None
         Describes whether the data are evenly distributed across processes.
         If this information is not available (``self.balanced is None``), it
-        can be gathered via the :func:`is_distributed()` method (requires communication).
+        can be gathered via the :func:`is_balanced()` method (requires communication).
     """
 
     def __init__(
