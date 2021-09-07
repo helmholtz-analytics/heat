@@ -179,9 +179,6 @@ class DNDarray:
     def ndim(self) -> int:
         """
         Number of dimensions of the ``DNDarray``
-
-        .. deprecated:: 0.5.0
-          `numdims` will be removed in HeAT 1.0.0, it is replaced by `ndim` because the latter is numpy API compliant.
         """
         return len(self.__gshape)
 
