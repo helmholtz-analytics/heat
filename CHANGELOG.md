@@ -1,4 +1,4 @@
-# Pending additions
+# v1.1.1
 - [#864](https://github.com/helmholtz-analytics/heat/pull/864) Dependencies: constrain `torchvision` version range to match supported `pytorch` version range.
 
 # v1.1.0
