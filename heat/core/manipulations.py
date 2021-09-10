@@ -2285,6 +2285,10 @@ def __pivot_sorting(
         actual_indices = local_indices.to(dtype=local_sorted.dtype) + disp[rank]
     elif sort_op is torch.unique:
         local_sorted = sort_op(transposed, dim=0, **kwargs)[0]
+        if 0 in local_sorted.shape:
+            local_shape = list(transposed.shape)
+            local_shape[0] = 0
+            local_sorted = local_sorted.reshape(local_shape)
         local_sorted = factories.array(local_sorted, is_split=0, device=a.device)
         counts, _ = local_sorted.counts_displs()
         local_sorted = local_sorted.larray
