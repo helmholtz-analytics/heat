@@ -128,7 +128,7 @@ def lanczos(
     V[:, 0] = v0
     for i in range(1, int(m)):
         beta = ht.norm(w)
-        if ht.abs(beta) < 1e-10:
+        if abs(beta) < 1e-10:
             # print("Lanczos breakdown in iteration {}".format(i))
             # Lanczos Breakdown, pick a random vector to continue
             vr = ht.random.rand(n, dtype=A.dtype, split=V.split)

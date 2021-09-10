@@ -237,29 +237,13 @@ def isclose(
         output_gshape = stride_tricks.broadcast_shape(t1.gshape, t2.gshape)
         res = torch.empty(output_gshape, device=t1.device.torch_device).bool()
         t1.comm.Allgather(_local_isclose, res)
-        result = DNDarray(
-            res,
-            gshape=output_gshape,
-            dtype=types.bool,
-            split=t1.split,
-            device=t1.device,
-            comm=t1.comm,
-            balanced=t1.is_balanced,
-        )
+        result = factories.array(res, dtype=types.bool, device=t1.device, split=t1.split)
     else:
         if _local_isclose.dim() == 0:
             # both x and y are scalars, return a single boolean value
-            result = bool(_local_isclose.item())
+            result = bool(factories.array(_local_isclose).item())
         else:
-            result = DNDarray(
-                _local_isclose,
-                gshape=tuple(_local_isclose.shape),
-                dtype=types.bool,
-                split=None,
-                device=t1.device,
-                comm=t1.comm,
-                balanced=t1.is_balanced,
-            )
+            result = factories.array(_local_isclose, dtype=types.bool, device=t1.device)
 
     return result
 
