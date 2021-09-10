@@ -2483,7 +2483,7 @@ def __pivot_sorting(
                 # process doesn't need more values
                 send_vec[idx][proc][proc] = partition_matrix[proc][idx] - send_vec[idx][proc].sum()
             current_counts[proc] = counts[proc]
-            current_cumsum = list(np.cumsum(current_counts))
+            current_cumsum = torch.cumsum(torch.tensor(current_counts), dim=0).tolist()
 
     # Iterate through one layer again to create the final balanced local tensors
     second_result = torch.empty_like(local_sorted)
@@ -2499,7 +2499,9 @@ def __pivot_sorting(
 
         end = partition_matrix[rank][idx]
         s_val, indices = first_result[0:end][idx_slice].sort(descending=descending, dim=0)
-        r_val = torch.empty((counts[rank],) + s_val.shape[1:], dtype=local_sorted.dtype)
+        r_val = torch.empty(
+            (counts[rank],) + s_val.shape[1:], dtype=local_sorted.dtype, device=local_sorted.device
+        )
         a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
         second_result[idx_slice] = r_val
 
@@ -3270,8 +3272,7 @@ def unique(
     gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
 
     # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
-    _, data_max_lshape, _ = a.comm.chunk(a.gshape, a.split, rank=0)
-    data_max_lbytes = torch.prod(torch.tensor(data_max_lshape)) * a.larray.element_size()
+    data_max_lbytes = torch.prod(a.lshape_map[0]) * a.larray.element_size()
     if gres.nbytes <= data_max_lbytes:
         # gather local uniques
         gres.resplit_(None)
@@ -3323,7 +3324,7 @@ def unique(
                 )
             # loop through unique elements, find matching position in data
             for i, el in enumerate(lres):
-                counts = torch.zeros_like(local_data, dtype=torch.int8, device=local_data.device)
+                counts = torch.zeros_like(local_data, dtype=torch.int32, device=local_data.device)
                 counts[torch.where(local_data == el)] = 1
                 if lres.ndim > 1:
                     counts = torch.sum(counts, dim=tuple(range(lres.ndim))[1:])
@@ -3347,7 +3348,7 @@ def unique(
         gres = linalg.basics.transpose(gres, (axis, 0))
 
     if return_inverse:
-        return (gres, global_inverse)
+        return gres, global_inverse
 
     return gres
 
