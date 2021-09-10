@@ -2291,20 +2291,22 @@ def __pivot_sorting(
 
     unique_along_axis = True if sort_op is torch.unique and axis is not None else False
 
-    length = local_sorted.size()[0]
+    length = local_sorted.shape[0]
 
     # Separate the sorted tensor into size + 1 equal length partitions
     partitions = [x * length // (size + 1) for x in range(1, size + 1)]
     local_pivots = (
         local_sorted[partitions]
         if counts[rank]
-        else torch.empty((0,) + local_sorted.size()[1:], dtype=local_sorted.dtype)
+        else torch.empty(
+            (0,) + local_sorted.shape[1:], dtype=local_sorted.dtype, device=local_sorted.device
+        )
     )
 
     # Only processes with elements should share their pivots
     gather_counts = [int(x > 0) * size for x in counts]
-    gather_displs = (0,) + tuple(np.cumsum(gather_counts[:-1]))
-    pivot_dim = list(transposed.size())
+    gather_displs = (0,) + tuple(torch.cumsum(torch.tensor(gather_counts[:-1]), dim=0).tolist())
+    pivot_dim = list(transposed.shape)
     pivot_dim[0] = size * sum([1 for x in counts if x > 0])
 
     # share the local pivots with root process
@@ -2320,7 +2322,7 @@ def __pivot_sorting(
             sorted_pivots, _ = sort_op(pivot_buffer, dim=0, descending=descending)
         else:
             sorted_pivots = sort_op(pivot_buffer, dim=0, **kwargs)[0]
-        length = sorted_pivots.size()[0]
+        length = sorted_pivots.shape[0]
         global_partitions = [x * length // size for x in range(1, size)]
         global_pivots = sorted_pivots[global_partitions]
 
@@ -2328,14 +2330,14 @@ def __pivot_sorting(
     # special case: unique along axis
     if unique_along_axis:
         # find position of global pivots in local sorted uniques
-        local_sorted, local_inv = torch.cat((local_sorted, global_pivots), dim=0).unique(
+        local_sorted, local_inverse_ind = torch.cat((local_sorted, global_pivots), dim=0).unique(
             dim=0,
             sorted=kwargs.get("sorted") if kwargs.get("sorted") else True,
             return_inverse=True,
         )
         # Use the inverse indices of the global pivots to work out the local partition slices
         local_slices = torch.zeros(size + 1, dtype=torch.int64, device=local_sorted.device)
-        local_slices[1:-1] = local_inv[-global_pivots.shape[0] :] + 1
+        local_slices[1:-1] = local_inverse_ind[-global_pivots.shape[0] :] + 1
         local_slices[-1] = torch.tensor([local_sorted.shape[0]])
         # how many rows will be sent and received where
         send_matrix = torch.tensor(
@@ -2373,7 +2375,7 @@ def __pivot_sorting(
         index_matrix = torch.empty_like(local_sorted, dtype=torch.int64)
 
         # Matrix holding information which process get how many values from where
-        shape = (size,) + transposed.size()[1:]
+        shape = (size,) + transposed.shape[1:]
         send_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
         recv_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
 
@@ -2386,9 +2388,9 @@ def __pivot_sorting(
         scounts = local_partitions
         rcounts = recv_matrix
 
-        shape = (partition_matrix[rank].max(),) + transposed.size()[1:]
+        shape = (partition_matrix[rank].max(),) + transposed.shape[1:]
 
-    first_result = torch.empty(shape, dtype=local_sorted.dtype)
+    first_result = torch.empty(shape, dtype=local_sorted.dtype, device=local_sorted.device)
     if sort_op is torch.sort:
         first_indices = torch.empty_like(first_result)
 
@@ -2404,14 +2406,18 @@ def __pivot_sorting(
         else:
             idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
-        send_count = scounts[idx_slice].reshape(-1).tolist()
-        send_disp = [0] + list(np.cumsum(send_count[:-1]))
+        send_count = scounts[idx_slice].reshape(-1)
+        send_disp = [0] + torch.cumsum(send_count[:-1], dim=0).tolist()
+        send_count = send_count.tolist()
         s_val = local_sorted[idx_slice].clone()
 
-        recv_count = rcounts[idx_slice].reshape(-1).tolist()
-        recv_disp = [0] + list(np.cumsum(recv_count[:-1]))
+        recv_count = rcounts[idx_slice].reshape(-1)
+        recv_disp = [0] + torch.cumsum(recv_count[:-1], dim=0).tolist()
+        recv_count = recv_count.tolist()
         rcv_length = rcounts[idx_slice].sum().item()
-        r_val = torch.empty((rcv_length,) + s_val.shape[1:], dtype=local_sorted.dtype)
+        r_val = torch.empty(
+            (rcv_length,) + s_val.shape[1:], dtype=local_sorted.dtype, device=local_sorted.device
+        )
         a.comm.Alltoallv((s_val, send_count, send_disp), (r_val, recv_count, recv_disp))
         first_result[idx_slice][:rcv_length] = r_val
 
@@ -2426,12 +2432,15 @@ def __pivot_sorting(
         return first_result
 
     # The process might not have the correct number of values therefore the tensors need to be rebalanced
-    send_vec = torch.zeros(local_sorted.shape[1:] + (size, size), dtype=torch.int64)
-    target_cumsum = np.cumsum(counts)
+    send_vec = torch.zeros(
+        local_sorted.shape[1:] + (size, size), dtype=torch.int64, device=local_sorted.device
+    )
+    target_cumsum = torch.cumsum(torch.tensor(counts), dim=0)
     for idx in np.ndindex(local_sorted.shape[1:]):
         idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
-        current_counts = partition_matrix[idx_slice].reshape(-1).tolist()
-        current_cumsum = list(np.cumsum(current_counts))
+        current_counts = partition_matrix[idx_slice].reshape(-1)
+        current_cumsum = torch.cumsum(current_counts, dim=0).tolist()
+        current_counts = current_counts.tolist()
         for proc in range(size):
             # process has to many values which will be sent to higher ranks
             if current_cumsum[proc] > target_cumsum[proc]:
