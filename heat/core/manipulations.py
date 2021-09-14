@@ -2355,12 +2355,6 @@ def __pivot_sorting(
 
         scounts = send_matrix
         rcounts = recv_matrix
-        print(
-            "DEBUGGING: DEVICES: ",
-            recv_matrix.sum(dim=0).device,
-            local_sorted.device,
-            local_sorted.shape[1:].device,
-        )
         shape = (recv_matrix.sum(dim=0),) + local_sorted.shape[1:]
     else:
         lt_partitions = torch.empty((size,) + local_sorted.shape, dtype=torch.int64)
@@ -2482,8 +2476,10 @@ def __pivot_sorting(
                     )
                 )
                 last = next(i for i, x in enumerate(current_cumsum) if target_cumsum[proc] <= x)
+                print("DEBUGGING: devices: partition_matrix", partition_matrix.device)
                 for i, x in enumerate(partition_matrix[idx_slice][first:last]):
                     # Taking as many elements as possible from each following process
+                    print("DEBUGGING: devices: x, send_vec ", x.device, send_vec.device)
                     send_vec[idx][first + i][proc] = int(x - send_vec[idx][first + i].sum())
                     current_counts[first + i] = 0
                 # Taking just enough elements from the last element to fill the current processes tensor
