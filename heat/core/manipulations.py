@@ -2289,9 +2289,9 @@ def __pivot_sorting(
             local_shape = list(transposed.shape)
             local_shape[0] = 0
             local_sorted = local_sorted.reshape(local_shape)
-        local_sorted = factories.array(local_sorted, is_split=0, device=a.device)
-        counts, _ = local_sorted.counts_displs()
-        local_sorted = local_sorted.larray
+        g_local_sorted = factories.array(local_sorted, is_split=0, device=a.device, copy=False)
+        counts, _ = g_local_sorted.counts_displs()
+        local_sorted = g_local_sorted.larray
 
     unique_along_axis = True if sort_op is torch.unique and axis is not None else False
 
