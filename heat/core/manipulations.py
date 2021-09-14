@@ -2377,7 +2377,7 @@ def __pivot_sorting(
         a.comm.Allreduce(local_partitions, partition_matrix, op=MPI.SUM)
 
         # Matrix that holds information which value will be shipped where
-        index_matrix = torch.empty_like(local_sorted, dtype=torch.int64)
+        index_matrix = torch.empty_like(local_sorted, dtype=torch.int64, device=local_sorted.device)
 
         # Matrix holding information which process get how many values from where
         shape = (size,) + transposed.shape[1:]
@@ -2397,7 +2397,7 @@ def __pivot_sorting(
 
     first_result = torch.empty(shape, dtype=local_sorted.dtype, device=local_sorted.device)
     if sort_op is torch.sort:
-        first_indices = torch.empty_like(first_result)
+        first_indices = torch.empty_like(first_result, device=first_result.device)
 
     # Iterate through one layer and send values with alltoallv
     if unique_along_axis:
@@ -2428,7 +2428,7 @@ def __pivot_sorting(
 
         if sort_op is torch.sort:
             s_ind = actual_indices[idx_slice].clone().to(dtype=local_sorted.dtype)
-            r_ind = torch.empty_like(r_val)
+            r_ind = torch.empty_like(r_val, device=r_val.device)
             a.comm.Alltoallv((s_ind, send_count, send_disp), (r_ind, recv_count, recv_disp))
             first_indices[idx_slice][:rcv_length] = r_ind
 
@@ -2493,8 +2493,8 @@ def __pivot_sorting(
             current_cumsum = torch.cumsum(torch.tensor(current_counts), dim=0).tolist()
 
     # Iterate through one layer again to create the final balanced local tensors
-    second_result = torch.empty_like(local_sorted)
-    second_indices = torch.empty_like(second_result)
+    second_result = torch.empty_like(local_sorted, device=local_sorted.device)
+    second_indices = torch.empty_like(second_result, device=second_result.device)
     for idx in np.ndindex(local_sorted.shape[1:]):
         idx_slice = [slice(None)] + [slice(ind, ind + 1) for ind in idx]
 
@@ -2519,7 +2519,7 @@ def __pivot_sorting(
 
     second_result, tmp_indices = sort_op(second_result, dim=0, descending=descending)
     final_result = second_result.transpose(0, axis)
-    final_indices = torch.empty_like(second_indices)
+    final_indices = torch.empty_like(second_indices, device=second_indices.device)
     # Update the indices in case the ordering changed during the last sort
     for idx in np.ndindex(tmp_indices.shape):
         val = tmp_indices[idx]
