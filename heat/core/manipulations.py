@@ -2358,8 +2358,10 @@ def __pivot_sorting(
         rcounts = recv_matrix
         shape = (recv_matrix.sum(dim=0),) + local_sorted.shape[1:]
     else:
-        lt_partitions = torch.empty((size,) + local_sorted.shape, dtype=torch.int64)
-        last = torch.zeros_like(local_sorted, dtype=torch.int64)
+        lt_partitions = torch.empty(
+            (size,) + local_sorted.shape, dtype=torch.int64, device=local_sorted.device
+        )
+        last = torch.zeros_like(local_sorted, dtype=torch.int64, device=local_sorted.device)
         comp_op = torch.gt if descending else torch.lt
         # Iterate over all pivots and store which pivot is the first greater than the elements value
         for idx, p in enumerate(global_pivots):
