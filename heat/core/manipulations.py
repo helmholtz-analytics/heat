@@ -2292,6 +2292,7 @@ def __pivot_sorting(
         g_local_sorted = factories.array(local_sorted, is_split=0, device=a.device, copy=False)
         counts, _ = g_local_sorted.counts_displs()
         local_sorted = g_local_sorted.larray
+    print("DEBUGGING: DEVICES: a, local_sorted = ", a.device, local_sorted.device)
 
     unique_along_axis = True if sort_op is torch.unique and axis is not None else False
 
