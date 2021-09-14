@@ -2369,11 +2369,13 @@ def __pivot_sorting(
             else:
                 lt_partitions[idx] = lt
             last = lt
-        lt_partitions[size - 1] = torch.ones_like(local_sorted, dtype=last.dtype) - last
+        lt_partitions[size - 1] = (
+            torch.ones_like(local_sorted, dtype=last.dtype, device=local_sorted.device) - last
+        )
 
         # Matrix holding information how many values will be sent where
         local_partitions = torch.sum(lt_partitions, dim=1)
-        partition_matrix = torch.empty_like(local_partitions)
+        partition_matrix = torch.empty_like(local_partitions, device=local_partitions.device)
         a.comm.Allreduce(local_partitions, partition_matrix, op=MPI.SUM)
 
         # Matrix that holds information which value will be shipped where
