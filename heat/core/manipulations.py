@@ -2355,6 +2355,12 @@ def __pivot_sorting(
 
         scounts = send_matrix
         rcounts = recv_matrix
+        print(
+            "DEBUGGING: DEVICES: ",
+            recv_matrix.sum(dim=0).device,
+            local_sorted.device,
+            local_sorted.shape[1:].device,
+        )
         shape = (recv_matrix.sum(dim=0),) + local_sorted.shape[1:]
     else:
         lt_partitions = torch.empty((size,) + local_sorted.shape, dtype=torch.int64)
