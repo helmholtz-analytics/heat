@@ -2385,8 +2385,12 @@ def __pivot_sorting(
 
         # Matrix holding information which process get how many values from where
         shape = (size,) + transposed.shape[1:]
-        send_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
-        recv_matrix = torch.zeros(shape, dtype=partition_matrix.dtype)
+        send_matrix = torch.zeros(
+            shape, dtype=partition_matrix.dtype, device=partition_matrix.device
+        )
+        recv_matrix = torch.zeros(
+            shape, dtype=partition_matrix.dtype, device=partition_matrix.device
+        )
 
         for i, x in enumerate(lt_partitions):
             index_matrix[x > 0] = i
