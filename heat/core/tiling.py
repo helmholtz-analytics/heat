@@ -631,8 +631,12 @@ class SquareDiagTiles:
             min(arr.gshape) - lshape_map[..., arr.split].cumsum(dim=0)[last_pr_minus1]
         )
         # this is the number of rows/columns after the last diagonal on the last diagonal pr
+        try:
+            num_after_diag = torch.div(rem_cols_last_pr, last_tile_cols, rounding_mode="floor")
+        except TypeError:
+            num_after_diag = torch.floor_divide(rem_cols_last_pr, last_tile_cols)
 
-        while 1 < torch.div(rem_cols_last_pr, last_tile_cols, rounding_mode="floor") < 2:
+        while 1 < num_after_diag < 2:
             # todo: determine best value for this (prev at 2)
             # if there cannot be tiles formed which are at list ten items larger than 2
             #   then need to reduce the number of tiles
@@ -657,7 +661,10 @@ class SquareDiagTiles:
         # create the tile columns sizes, saved to list
         col_inds = []
         for col in range(tile_columns.item()):
-            off = torch.div(col, tiles_per_proc, rounding_mode="floor").to(dev)
+            try:
+                off = torch.div(col, tiles_per_proc, rounding_mode="floor").to(dev)
+            except TypeError:
+                off = torch.floor_divide(col, tiles_per_proc).to(dev)
             _, lshape, _ = arr.comm.chunk(
                 [diag_crossings[off + 1] - diag_crossings[off]],
                 0,

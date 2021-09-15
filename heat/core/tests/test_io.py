@@ -147,14 +147,14 @@ class TestIO(TestCase):
             with self.assertRaises(IOError):
                 ht.load("foo.h5", "data")
         else:
-            with self.assertRaises(ImportError):
+            with self.assertRaises(RuntimeError):
                 ht.load("foo.h5", "data")
 
         if ht.io.supports_netcdf():
             with self.assertRaises(IOError):
                 ht.load("foo.nc", "data")
         else:
-            with self.assertRaises(ImportError):
+            with self.assertRaises(RuntimeError):
                 ht.load("foo.nc", "data")
 
         # unknown file extension
