@@ -126,15 +126,26 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         )
         V, T = ht.lanczos(L, self.n_lanczos, v0)
 
-        # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
-        eval, evec = torch.linalg.eig(T.larray)
+        # if int(torch.__version__[-3]) >= 9:
+        try:
+            # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
+            eval, evec = torch.linalg.eig(T.larray)
 
-        # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
-        eval, idx = torch.sort(eval.real, dim=0)
-        eigenvalues = ht.array(eval)
-        eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
+            # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
+            eval, idx = torch.sort(eval.real, dim=0)
+            eigenvalues = ht.array(eval)
+            eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
 
-        return eigenvalues.real, eigenvectors.real
+            return eigenvalues.real, eigenvectors.real
+        except AttributeError:  # torch version is less than 1.9.0
+            # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
+            eval, evec = torch.eig(T.larray, eigenvectors=True)
+            # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
+            eval, idx = torch.sort(eval[:, 0], dim=0)
+            eigenvalues = ht.array(eval)
+            eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
+
+            return eigenvalues, eigenvectors
 
     def fit(self, x: DNDarray):
         """
