@@ -2292,7 +2292,6 @@ def __pivot_sorting(
         g_local_sorted = factories.array(local_sorted, is_split=0, device=a.device, copy=False)
         counts, _ = g_local_sorted.counts_displs()
         local_sorted = g_local_sorted.larray
-    print("DEBUGGING: DEVICES: a, local_sorted = ", a.device, local_sorted.device)
 
     unique_along_axis = True if sort_op is torch.unique and axis is not None else False
 
@@ -2485,10 +2484,8 @@ def __pivot_sorting(
                     )
                 )
                 last = next(i for i, x in enumerate(current_cumsum) if target_cumsum[proc] <= x)
-                print("DEBUGGING: devices: partition_matrix", partition_matrix.device)
                 for i, x in enumerate(partition_matrix[idx_slice][first:last]):
                     # Taking as many elements as possible from each following process
-                    print("DEBUGGING: devices: x, send_vec ", x.device, send_vec.device)
                     send_vec[idx][first + i][proc] = int(x - send_vec[idx][first + i].sum())
                     current_counts[first + i] = 0
                 # Taking just enough elements from the last element to fill the current processes tensor
