@@ -429,7 +429,10 @@ def __reduce_op(
     else:
         output_shape = x.gshape
         for dim in axis:
-            partial = partial_op(partial, dim=dim, keepdim=True)
+            if not (
+                partial.shape.numel() == 0 and partial_op.__name__ in ("local_max", "local_min")
+            ):  # no neutral element for max/min
+                partial = partial_op(partial, dim=dim, keepdim=True)
             output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
         if not keepdim and not len(partial.shape) == 1:
             gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
@@ -449,7 +452,7 @@ def __reduce_op(
             balanced = True
             if x.comm.is_distributed():
                 x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
-        elif axis is not None:
+        elif axis is not None and not keepdim:
             down_dims = len(tuple(dim for dim in axis if dim < x.split))
             split -= down_dims
             balanced = x.balanced
