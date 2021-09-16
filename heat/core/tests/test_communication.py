@@ -196,6 +196,19 @@ class TestCommunication(TestCase):
         with self.assertRaises(TypeError):
             ht.use_comm("1")
 
+    def test_split(self):
+        a = ht.zeros((4, 5), split=0)
+
+        color = a.comm.rank % 2
+        newcomm = a.comm.Split(color, key=a.comm.rank)
+
+        self.assertIsInstance(newcomm, ht.MPICommunication)
+        if ht.MPI_WORLD.size == 1:
+            self.assertTrue(newcomm.size == a.comm.size)
+        else:
+            self.assertTrue(newcomm.size < a.comm.size)
+        self.assertIsNot(newcomm, a.comm)
+
     def test_allgather(self):
         # contiguous data
         data = ht.ones((1, 7))

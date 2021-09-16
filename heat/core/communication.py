@@ -436,6 +436,19 @@ class MPICommunication(Communication):
 
         return self.as_mpi_memory(obj), (recvcount, recvdispls), recvtypes
 
+    def Split(self, color: int = 0, key: int = 0):
+        """
+        Split communicator by color and key.
+
+        Parameters
+        ----------
+        color : int, optional
+            Determines the new communicator for a process.
+        key: int, optional
+            Ordering within the new communicator.
+        """
+        return MPICommunication(self.handle.Split(color, key))
+
     def Irecv(
         self,
         buf: Union[DNDarray, torch.Tensor, Any],
