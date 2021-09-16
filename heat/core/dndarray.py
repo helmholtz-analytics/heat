@@ -1525,8 +1525,6 @@ class DNDarray:
         chunk_start = chunk_slice[self.split].start
         chunk_end = chunk_slice[self.split].stop
 
-        # print('hhh', key)
-
         self_proxy = self.__torch_proxy__()
 
         # if the value is a DNDarray, the divisions need to be balanced:
@@ -1630,9 +1628,6 @@ class DNDarray:
                 self.__setter(tuple(key), value[tuple(value_slice)])
             else:
                 self.__setter(tuple(key), value)
-        # elif isinstance(key[self.split], list):
-        #     key = list(key)
-        #
         elif isinstance(key[self.split], (torch.Tensor, list)):
             key = list(key)
             key[self.split] -= chunk_start
