@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import warnings
 
-from typing import List, Callable, Union, Optional, Tuple, Literal
+from typing import List, Callable, Union, Optional, Tuple
 
 from torch._C import Value
 
@@ -780,7 +780,7 @@ def matrix_norm(
     x: DNDarray,
     axis: Optional[Tuple[int, int]] = None,
     keepdims: bool = False,
-    ord: Optional[Union[int, Literal["fro", "nuc"]]] = None,
+    ord: Optional[Union[int, str]] = None,
 ) -> DNDarray:
     """
     Computes the matrix norm of an array.
@@ -908,7 +908,7 @@ def norm(
     x: DNDarray,
     axis: Optional[Union[int, Tuple[int, int]]] = None,
     keepdims: bool = False,
-    ord: Optional[Union[int, float, Literal["fro", "nuc"]]] = None,
+    ord: Optional[Union[int, float, str]] = None,
 ) -> DNDarray:
     """
     Return the vector or matrix norm of an array.
