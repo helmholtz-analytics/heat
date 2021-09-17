@@ -1951,13 +1951,6 @@ def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
     x1 = manipulations.flatten(x1)
     x2 = manipulations.flatten(x2)
 
-    if x1.gnumel != x2.gnumel:
-        raise ValueError(
-            "The number of elements of x1 and x2 doesn't match, got {} != {}".format(
-                x1.gnumel, x2.gnumel
-            )
-        )
-
     return arithmetics.sum(arithmetics.multiply(complex_math.conjugate(x1), x2))
 
 
