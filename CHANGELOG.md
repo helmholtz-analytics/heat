@@ -18,10 +18,10 @@
 - [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
 - [#853](https://github.com/helmholtz-analytics/heat/pull/853) New Feature: `swapaxes`
 - [#854](https://github.com/helmholtz-analytics/heat/pull/854) New Feature: `moveaxis`
-### Rounding
-- [#827](https://github.com/helmholtz-analytics/heat/pull/827) New feature: `sign`, `sgn`
 ### Random
 - [#858](https://github.com/helmholtz-analytics/heat/pull/858) New Feature: `standard_normal`, `normal`
+### Rounding
+- [#827](https://github.com/helmholtz-analytics/heat/pull/827) New feature: `sign`, `sgn`
 
 # v1.1.1
 - [#864](https://github.com/helmholtz-analytics/heat/pull/864) Dependencies: constrain `torchvision` version range to match supported `pytorch` version range.
