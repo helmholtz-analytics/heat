@@ -1981,10 +1981,6 @@ def vecdot(
     See Also
     --------
     dot
-
-    See Also
-    --------
-    dot
         NumPy-like dot function.
 
     Examples
