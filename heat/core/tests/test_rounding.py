@@ -301,6 +301,28 @@ class TestRounding(TestCase):
         self.assertEqual(float64_round_distrbd.dtype, ht.float64)
         self.assert_array_equal(float64_round_distrbd, comparison)
 
+    def test_sgn(self):
+        # floats
+        a = ht.array([-1, -0.5, 0, 0.5, 1])
+        signed = ht.sgn(a)
+        comparison = ht.array([-1.0, -1, 0, 1, 1])
+
+        self.assertEqual(signed.dtype, comparison.dtype)
+        self.assertEqual(signed.shape, comparison.shape)
+        self.assertEqual(signed.device, a.device)
+        self.assertTrue(ht.equal(signed, comparison))
+
+        # complex
+        a = ht.array([[1 - 2j, -0.5 + 1j], [0 - 3j, 4 + 6j]], split=0)
+        signed = ht.sgn(a)
+        comparison = torch.sgn(torch.tensor([[1 - 2j, -0.5 + 1j], [0 - 3j, 4 + 6j]]))
+        comparison = comparison.to(a.device.torch_device)
+
+        self.assertEqual(signed.dtype, ht.heat_type_of(comparison))
+        self.assertEqual(signed.shape, a.shape)
+        self.assertEqual(signed.device, a.device)
+        self.assertTrue(ht.equal(signed, ht.array(comparison, split=0)))
+
     def test_sign(self):
         # floats 1d
         a = ht.array([-1, -0.5, 0, 0.5, 1])
@@ -350,28 +372,6 @@ class TestRounding(TestCase):
         self.assertEqual(signed.split, a.split)
         self.assertTrue(ht.allclose(signed.real, comparison.real))
         self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
-
-    def test_sgn(self):
-        # floats
-        a = ht.array([-1, -0.5, 0, 0.5, 1])
-        signed = ht.sgn(a)
-        comparison = ht.array([-1.0, -1, 0, 1, 1])
-
-        self.assertEqual(signed.dtype, comparison.dtype)
-        self.assertEqual(signed.shape, comparison.shape)
-        self.assertEqual(signed.device, a.device)
-        self.assertTrue(ht.equal(signed, comparison))
-
-        # complex
-        a = ht.array([[1 - 2j, -0.5 + 1j], [0 - 3j, 4 + 6j]], split=0)
-        signed = ht.sgn(a)
-        comparison = torch.sgn(torch.tensor([[1 - 2j, -0.5 + 1j], [0 - 3j, 4 + 6j]]))
-        comparison = comparison.to(a.device.torch_device)
-
-        self.assertEqual(signed.dtype, ht.heat_type_of(comparison))
-        self.assertEqual(signed.shape, a.shape)
-        self.assertEqual(signed.device, a.device)
-        self.assertTrue(ht.equal(signed, ht.array(comparison, split=0)))
 
     def test_trunc(self):
         base_array = np.random.randn(20)

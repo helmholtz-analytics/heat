@@ -21,8 +21,8 @@ __all__ = [
     "floor",
     "modf",
     "round",
-    "sign",
     "sgn",
+    "sign",
     "trunc",
 ]
 
@@ -340,6 +340,33 @@ DNDarray.round: Callable[
 DNDarray.round.__doc__ = round.__doc__
 
 
+def sgn(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Returns an indication of the sign of a number, element-wise. The definition for complex values is equivalent to :math:`x / |x|`.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array
+    out : DNDarray, optional
+        A location in which to store the results.
+
+    See Also
+    --------
+    :func:`sign`
+        Equivalent function on non-complex arrays. The definition for complex values is equivalent to :math:`x / \\sqrt{x \\cdot x}`
+
+    Examples
+    --------
+    >>> a = ht.array([-1, -0.5, 0, 0.5, 1])
+    >>> ht.sign(a)
+    DNDarray([-1., -1.,  0.,  1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.sgn(ht.array([5-2j, 3+4j]))
+    DNDarray([(0.9284766912460327-0.3713906705379486j),  (0.6000000238418579+0.800000011920929j)], dtype=ht.complex64, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.sgn, x, out)
+
+
 def sign(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Returns an indication of the sign of a number, element-wise. The definition for complex values is equivalent to :math:`x / \\sqrt{x \\cdot x}`.
@@ -395,33 +422,6 @@ def sign(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
         )
 
     return _operations.__local_op(torch.sign, x, out)
-
-
-def sgn(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
-    """
-    Returns an indication of the sign of a number, element-wise. The definition for complex values is equivalent to :math:`x / |x|`.
-
-    Parameters
-    ----------
-    x : DNDarray
-        Input array
-    out : DNDarray, optional
-        A location in which to store the results.
-
-    See Also
-    --------
-    :func:`sign`
-        Equivalent function on non-complex arrays. The definition for complex values is equivalent to :math:`x / \\sqrt{x \\cdot x}`
-
-    Examples
-    --------
-    >>> a = ht.array([-1, -0.5, 0, 0.5, 1])
-    >>> ht.sign(a)
-    DNDarray([-1., -1.,  0.,  1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.sgn(ht.array([5-2j, 3+4j]))
-    DNDarray([(0.9284766912460327-0.3713906705379486j),  (0.6000000238418579+0.800000011920929j)], dtype=ht.complex64, device=cpu:0, split=None)
-    """
-    return _operations.__local_op(torch.sgn, x, out)
 
 
 def trunc(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
