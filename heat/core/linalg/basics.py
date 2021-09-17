@@ -1937,7 +1937,7 @@ def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
     See Also
     --------
     dot
-            Return the dot product without using the complex conjugate.
+        Return the dot product without using the complex conjugate.
 
     Examples
     --------
