@@ -110,7 +110,6 @@ def __binary_op(
             output_device = t1.device
             output_comm = t1.comm
 
-            # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
             if t1.split is not None:
                 if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
                     # warnings.warn(

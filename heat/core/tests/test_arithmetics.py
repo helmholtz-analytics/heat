@@ -34,6 +34,16 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.add(self.a_split_tensor, self.a_tensor), result))
 
+        # Single element split
+        a = ht.array([1], split=0)
+        b = ht.array([1, 2], split=0)
+        c = ht.add(a, b)
+        self.assertTrue(ht.equal(c, ht.array([2, 3])))
+        if c.comm.rank < 2:
+            self.assertEqual(c.larray.size()[0], 1)
+        else:
+            self.assertEqual(c.larray.size()[0], 0)
+
         with self.assertRaises(ValueError):
             ht.add(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
