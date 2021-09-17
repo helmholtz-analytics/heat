@@ -1943,9 +1943,9 @@ def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
     --------
     >>> a = ht.array([1+1j, 2+2j])
     >>> b = ht.array([1+2j, 3+4j])
-    >>> ht.linalg.vdot(a,b)
+    >>> ht.vdot(a,b)
     DNDarray([(17+3j)], dtype=ht.complex64, device=cpu:0, split=None)
-    >>> ht.linalg.vdot(b,a)
+    >>> ht.vdot(b,a)
     DNDarray([(17-3j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     x1 = manipulations.flatten(x1)
