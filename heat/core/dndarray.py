@@ -643,7 +643,7 @@ class DNDarray:
                     'start': (0, 0, 0),
                     'shape': (7, 3, 2),
                     'data': tensor([...], dtype=torch.int32),
-                    'location': 0,
+                    'location': [0],
                     'dtype': torch.int32,
                     'device': 'cpu'
                 },
@@ -651,7 +651,7 @@ class DNDarray:
                     'start': (7, 0, 0),
                     'shape': (7, 3, 2),
                     'data': None,
-                    'location': 1,
+                    'location': [1],
                     'dtype': torch.int32,
                     'device': 'cpu'
                 },
@@ -659,7 +659,7 @@ class DNDarray:
                     'start': (14,  0,  0),
                     'shape': (7, 3, 2),
                     'data': None,
-                    'location': 2,
+                    'location': [2],
                     'dtype': torch.int32,
                     'device': 'cpu'
                 },
@@ -667,12 +667,13 @@ class DNDarray:
                     'start': (21,  0,  0),
                     'shape': (6, 3, 2),
                     'data': None,
-                    'location': 3,
+                    'location': [3],
                     'dtype': torch.int32,
                     'device': 'cpu'
                 }
             },
             'locals': [(rank, 0, 0)],
+            'get': lambda x: x,
         }
 
         Returns
@@ -703,12 +704,11 @@ class DNDarray:
                 dat = None if r != self.comm.rank else self.larray
             else:
                 dat = self.larray
-
             partitions[tuple(base_key)] = {
                 "start": tuple(start_idx_map[r].tolist()),
                 "shape": tuple(lshape_map[r].tolist()),
                 "data": dat,
-                "location": r,
+                "location": [r],
                 "dtype": self.dtype.torch_type(),
                 "device": self.device.torch_device,
             }
