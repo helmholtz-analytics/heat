@@ -120,6 +120,7 @@ def init(doStart=True, ctxt=False):
 
         _runner = ray_init(_setComm)
         _runner.distributor.start(initImpl=_setComm)
+        atexit.register(fini)
     elif _launcher == "mpi":
 
         class MPIRunner:
@@ -134,7 +135,7 @@ def init(doStart=True, ctxt=False):
             def fini(self):
                 pass
 
-        c = MPI.COMM_WORLD
+        c = MPI.COMM_WORLD.Dup()
         # if c.size <= 1:
         #    raise Exception("At least 2 ranks required for cw4heat")
         _runner = MPIRunner(Distributor(c), c)
@@ -162,6 +163,13 @@ def reset():
     Distributed objects created before calling reset cannot be used afterwards.
     """
     _runner.distributor.reset()
+
+
+def sync():
+    """
+    Trigger all computation.
+    """
+    _runner.distributor.go(True)
 
 
 class cw4h:

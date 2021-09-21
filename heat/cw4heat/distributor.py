@@ -143,6 +143,8 @@ class Distributor:
                     assert False
                 elif header[0] == GO:
                     self._tQueue.go()
+                    if header[1]:
+                        self._comm.Barrier()
                 elif header[0] == GETPART:
                     if self._comm.rank == header[1]:
                         val = _RemoteTask.getVal(header[2])
@@ -188,7 +190,7 @@ class Distributor:
             self._comm.Barrier()
             # MPI.Finalize()
 
-    def go(self):
+    def go(self, barrier=False):
         """
         Trigger execution of all tasks which are still in flight.
         """
@@ -196,9 +198,11 @@ class Distributor:
         if self._tQueue.len():
             header = [TASK, self._tQueue._taskQueue]
             _, _ = self._comm.bcast(header, 0)
-            header = [GO]
+            header = [GO, barrier]
             _ = self._comm.bcast(header, 0)
             self._tQueue.go()
+            if barrier:
+                self._comm.Barrier()
 
     def get(self, handle):
         """
@@ -334,7 +338,7 @@ class _RemoteTask:
         """
         Actually run the task.
         """
-        # print(self._task._func)
+        #print(self._task._func)
         deps = [_s_pms[i] for i in self._depIds]
         res = self._task.run(deps)
         if self._nOut == 1:
