@@ -24,6 +24,7 @@ __all__ = [
     "aa_arrayfuncs",
     "aa_methods_s",
     "aa_methods_a",
+    "aa_manips",
 ]
 
 aa_creators = [
@@ -159,6 +160,16 @@ aa_methods_s = [
 
 aa_methods = aa_methods_s + aa_methods_a
 
+aa_manips = [
+    "concat",  # (arrays, /, *, axis=0)
+    "expand_dims",  # (x, /, *, axis)
+    "flip",  # (x, /, *, axis=None)
+    "reshape",  # (x, /, shape)
+    "roll",  # (x, /, shift, *, axis=None)
+    "squeeze",  # (x, /, axis)
+    "stack",  # (arrays, /, *, axis=0)
+]
+
 aa_elementwises = [
     "abs",  # (x, /)
     "acos",  # (x, /)
@@ -247,6 +258,7 @@ aa_tlfuncs = (
     + aa_sorting
     + aa_set
     + aa_utility
+    + aa_manips
 )
 aa_tldir = aa_tlfuncs + aa_datatypes + aa_constants
 aa_arrayfuncs = aa_methods + aa_inplace_operators + aa_reflected_operators

@@ -154,7 +154,7 @@ class RayRunner:
         self._handles = [a.start.remote(initImpl) for a in self._actors.values()]
         print("All actors started", flush=True)
         # setup our distributor
-        self.distributor = Distributor(self.comm)
+        self.distributor = Distributor(self.comm, False)
 
         return self
 

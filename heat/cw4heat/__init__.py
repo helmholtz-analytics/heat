@@ -111,8 +111,8 @@ def init(doStart=True, ctxt=False):
     if _runner is not None:
         return
 
-    _launcher = getenv("CW4H_LAUNCHER", default="mpi").lower()
-
+    _launcher = getenv("CW4H_LAUNCHER", default="spmd").lower()
+    print("launcher:", _launcher)
     # atexit.register(fini)
     if _launcher == "ray":
         assert ctxt is False, "Controller-worker context is useless with ray launcher."
@@ -121,7 +121,8 @@ def init(doStart=True, ctxt=False):
         _runner = ray_init(_setComm)
         _runner.distributor.start(initImpl=_setComm)
         atexit.register(fini)
-    elif _launcher == "mpi":
+    else:
+        c = MPI.COMM_WORLD.Dup()
 
         class MPIRunner:
             def __init__(self, dist, comm):
@@ -135,15 +136,18 @@ def init(doStart=True, ctxt=False):
             def fini(self):
                 pass
 
-        c = MPI.COMM_WORLD.Dup()
-        # if c.size <= 1:
-        #    raise Exception("At least 2 ranks required for cw4heat")
-        _runner = MPIRunner(Distributor(c), c)
+        _runner = MPIRunner(Distributor(c, _launcher == "spmd"), c)
+
+        if _launcher == "spmd":
+            _runner.publish = None
+        elif _launcher != "mpi":
+            raise Exception(
+                f"unknown launcher {_launcher}. CW4H_LAUNCHER must be 'mpi', 'spmd', or 'ray'."
+            )
+
         if doStart:
             _runner.distributor.start(initImpl=_setComm)
             atexit.register(fini)
-    else:
-        raise Exception(f"unknown launcher {_launcher}. CW4H_LAUNCHER must be 'mpi', or 'ray'.")
 
 
 def fini():

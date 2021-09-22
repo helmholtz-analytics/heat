@@ -110,22 +110,36 @@ class Distributor:
     Work-items are treated as dependent tasks.
     """
 
-    def __init__(self, comm=MPI.COMM_WORLD):
+    def __init__(self, comm, spmd=True):
         """
         Init distributor, optionally accepts MPI communicator.
         """
         self._comm = comm
+        self._spmd = spmd
         # Our queue of tasks.
         self._tQueue = _TaskQueue()
 
-    def start(self, doExit=True, initImpl=None):
+        self.start = self._start if spmd else self._cw_start
+        self.reset = self._reset if spmd else self._cw_reset
+        self.fini = self._fini if spmd else self._cw_fini
+        self.go = self._go if spmd else self._cw_go
+        self.get = self._get if spmd else self._cw_get
+        self.getPart = self._getPart if spmd else self._cw_getPart
+        if not spmd:
+            self.publishParts = self._cw_publishParts
+
+    def _start(self, doExit=True, initImpl=None):
+        if initImpl:
+            initImpl(self._comm)
+
+    def _cw_start(self, doExit=True, initImpl=None):
         """
         Start distribution engine.
         Controller inits and returns.
         Workers enter recv-loop and exit program when fini is called.
         """
-        if initImpl:
-            initImpl(self._comm)
+        self._start(doExit, initImpl)
+
         if self._comm.rank == 0:
             return True
         else:
@@ -169,28 +183,38 @@ class Distributor:
                 sys.exit()
             return False
 
-    def reset(self):
+    def _reset(self):
+        _RemoteTask.reset()
+        self._tQueue.clear()
+        # Handle.reset()
+
+    def _cw_reset(self):
         """
         Reset task queues.
         """
         assert self._comm.rank == 0
         header = [RESET]
         header = self._comm.bcast(header, 0)
-        _RemoteTask.reset()
-        self._tQueue.clear()
-        # Handle.reset()
+        self._reset()
 
-    def fini(self):
+    def _fini(self):
+        self._comm.Barrier()
+
+    def _cw_fini(self):
         """
         Controler sends end-tag. Workers will sys.exit.
         """
         if MPI.Is_initialized() and self._comm.rank == 0:
             header = [END]
             header = self._comm.bcast(header, 0)
-            self._comm.Barrier()
-            # MPI.Finalize()
+            self._fini()
 
-    def go(self, barrier=False):
+    def _go(self, barrier=False):
+        self._tQueue.go()
+        if barrier:
+            self._comm.Barrier()
+
+    def _cw_go(self, barrier=False):
         """
         Trigger execution of all tasks which are still in flight.
         """
@@ -200,11 +224,13 @@ class Distributor:
             _, _ = self._comm.bcast(header, 0)
             header = [GO, barrier]
             _ = self._comm.bcast(header, 0)
-            self._tQueue.go()
-            if barrier:
-                self._comm.Barrier()
+            self._go(barrier)
 
-    def get(self, handle):
+    def _get(self, handle):
+        self.go()
+        return handle.get()
+
+    def _cw_get(self, handle):
         """
         Get actualy value from handle.
         Requires communication.
@@ -212,16 +238,19 @@ class Distributor:
         Does not work for arrays (yet).
         """
         assert self._comm.rank == 0
-        self.go()
-        return handle.get()
+        return self._get(handle)
 
-    def getPart(self, handle, attr):
+    def _getPart(self, handle, attr):
+        assert handle.rank == self._comm.rank
+        val = _RemoteTask.getVal(handle.id)
+        return getattr(val, attr)
+
+    def _cw_getPart(self, handle, attr):
         """
         Get local raw partition data for given handle.
         """
         if handle.rank == self._comm.rank:
-            val = _RemoteTask.getVal(handle.id)
-            val = getattr(val, attr)
+            val = self._getPart(handle, attr)
         else:
             # FIXME what if left CW-context (SPMD mode) ?
             assert self._comm.rank == 0
@@ -230,7 +259,7 @@ class Distributor:
             val = self._comm.recv(source=handle.rank, tag=GETPART)
         return val
 
-    def publishParts(self, id, attr, publish):
+    def _cw_publishParts(self, id, attr, publish):
         """
         Publish array's attribute for each partition and gather handles on root.
         """
@@ -338,7 +367,7 @@ class _RemoteTask:
         """
         Actually run the task.
         """
-        #print(self._task._func)
+        # print(self._task._func)
         deps = [_s_pms[i] for i in self._depIds]
         res = self._task.run(deps)
         if self._nOut == 1:
