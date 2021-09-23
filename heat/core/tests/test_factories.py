@@ -492,62 +492,63 @@ class TestFactories(TestCase):
 
     def test_from_partitioned(self):
         a = ht.zeros((120, 120), split=0)
-        # b = ht.from_partitioned(a, comm=a.comm)
-        # self.assertTrue(ht.equal(a, b))
-        # # self.assertEqual(parted["shape"], (120, 120))
-        # # self.assertEqual(parted["partition_tiling"], (a.comm.size, 1))
-        # # self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
-        #
-        # a.resplit_(None)
-        # b = ht.from_partitioned(a, comm=a.comm)
-        # self.assertTrue(ht.equal(a, b))
+        b = ht.from_partitioned(a, comm=a.comm)
+        a[2, :] = 128
+        self.assertTrue(ht.equal(a, b))
 
-        a.resplit_(1)
+        a.resplit_(None)
         b = ht.from_partitioned(a, comm=a.comm)
         self.assertTrue(ht.equal(a, b))
 
-        # del b.__partitioned__["shape"]
-        # with self.assertRaises(RuntimeError):
-        #     c = ht.from_partitioned(b)
-        # b.__partitions_dict__ = None
-        # _ = b.__partitioned__
-        #
-        # del b.__partitioned__["locals"]
-        # with self.assertRaises(RuntimeError):
-        #     c = ht.from_partitioned(b)
-        # b.__partitions_dict__ = None
-        # _ = b.__partitioned__
-        #
-        # del b.__partitioned__["locals"]
-        # with self.assertRaises(RuntimeError):
-        #     c = ht.from_partitioned(b)
-        # b.__partitions_dict__ = None
-        # _ = b.__partitioned__
+        a.resplit_(1)
+        b = ht.from_partitioned(a, comm=a.comm)
+        b[50] = 94
+        self.assertTrue(ht.equal(a, b))
+
+        del b.__partitioned__["shape"]
+        with self.assertRaises(RuntimeError):
+            _ = ht.from_partitioned(b)
+        b.__partitions_dict__ = None
+        _ = b.__partitioned__
+
+        del b.__partitioned__["locals"]
+        with self.assertRaises(RuntimeError):
+            _ = ht.from_partitioned(b)
+        b.__partitions_dict__ = None
+        _ = b.__partitioned__
+
+        del b.__partitioned__["locals"]
+        with self.assertRaises(RuntimeError):
+            _ = ht.from_partitioned(b)
+        b.__partitions_dict__ = None
+        _ = b.__partitioned__
 
     def test_from_partition_dict(self):
         a = ht.zeros((120, 120), split=0)
         b = ht.from_partition_dict(a.__partitioned__, comm=a.comm)
+        a[0, 0] = 100
         self.assertTrue(ht.equal(a, b))
 
         a.resplit_(None)
+        a[0, 0] = 50
         b = ht.from_partition_dict(a.__partitioned__, comm=a.comm)
         self.assertTrue(ht.equal(a, b))
 
         del b.__partitioned__["shape"]
         with self.assertRaises(RuntimeError):
-            c = ht.from_partition_dict(b.__partitioned__)
+            _ = ht.from_partition_dict(b.__partitioned__)
         b.__partitions_dict__ = None
         _ = b.__partitioned__
 
         del b.__partitioned__["locals"]
         with self.assertRaises(RuntimeError):
-            c = ht.from_partition_dict(b.__partitioned__)
+            _ = ht.from_partition_dict(b.__partitioned__)
         b.__partitions_dict__ = None
         _ = b.__partitioned__
 
         del b.__partitioned__["locals"]
         with self.assertRaises(RuntimeError):
-            c = ht.from_partition_dict(b.__partitioned__)
+            _ = ht.from_partition_dict(b.__partitioned__)
         b.__partitions_dict__ = None
         _ = b.__partitioned__
 

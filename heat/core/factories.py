@@ -884,26 +884,18 @@ def __from_partition_dict_helper(parted: dict, comm: Communication):
     # the dictionary must be in the same form as the DNDarray.__partitioned__ property creates
     if "locals" not in parted:
         raise RuntimeError("Non-SPMD __partitioned__ not supported")
-
-    rank = comm.rank
-    size = comm.size
-    # TODO: check that the partitions are in the correct places
-    # TODO: set the local data to be the one in the partion table
-    partitions = parted["partitions"]
-    for k in partitions.keys():
-        if
-    ldata =
-
-    gshape = parted["shape"]
-    if len(parted['partitions']) == 1:  # this is the split=None case
-        split = None
-    else:
-        split = [x for x in range(len(gshape)) if x != 1]
-        if len(split) != 1:
-            raise RuntimeError("Only exactly one split-axis supported")
-        split = split[0]
-
-    lparts = parted["locals"]
+    try:
+        gshape = parted["shape"]
+    except KeyError:
+        raise RuntimeError(
+            "partition dictionary must have a 'shape' entry, see DNDarray.create_partition_interface for more details"
+        )
+    try:
+        lparts = parted["locals"]
+    except KeyError:
+        raise RuntimeError(
+            "partition dictionary must have a 'local' entry, see DNDarray.create_partition_interface for more details"
+        )
     if len(lparts) != 1:
         raise RuntimeError("Only exactly one partition per rank supported (yet)")
     parts = parted["partitions"]
@@ -916,6 +908,21 @@ def __from_partition_dict_helper(parted: dict, comm: Communication):
         raise TypeError(f"Only numpy arrays and torch tensors supported (not {type(lpart)}")
     htype = types.canonical_heat_type(data.dtype)
 
+    # get split axis
+    gshape_list = list(gshape)
+    lshape_list = list(data.shape)
+    shape_diff = torch.tensor(
+        [g - l for g, l in zip(gshape_list, lshape_list)]
+    )  # dont care about device
+    nz = torch.nonzero(shape_diff)
+
+    if nz.numel() > 1:
+        raise RuntimeError("only one split axis allowed, check the ")
+    elif nz.numel() == 1:
+        split = nz[0].item()
+    else:
+        split = None
+
     expected = {
         int(x["location"][0]): (
             comm.chunk(gshape, split, x["location"][0])[1:],
@@ -923,10 +930,6 @@ def __from_partition_dict_helper(parted: dict, comm: Communication):
         )
         for x in parts.values()
     }
-    if split is not None and \
-        any(i > 0 and expected[i][1][1][split] < expected[i - 1][1][1][split] for i in expected
-    ):
-        raise RuntimeError("__partitioned__ supported only if partitions are ordered by rank")
     balanced = all(x[0][0] == x[1][0] for x in expected.values())
 
     ret = DNDarray(
