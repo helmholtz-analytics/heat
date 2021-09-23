@@ -436,7 +436,7 @@ class MPICommunication(Communication):
 
         return self.as_mpi_memory(obj), (recvcount, recvdispls), recvtypes
 
-    def Split(self, color: int = 0, key: int = 0):
+    def Split(self, color: int = 0, key: int = 0) -> MPICommunication:
         """
         Split communicator by color and key.
 
