@@ -6,6 +6,41 @@ from .test_suites.basic_test import TestCase
 
 
 class TestRandom(TestCase):
+    def test_normal(self):
+        shape = (3, 4, 6)
+        ht.random.seed(2)
+        gnormal = ht.random.normal(shape=shape, split=2)
+        ht.random.seed(2)
+        snormal = ht.random.randn(*shape, split=2)
+
+        self.assertEqual(gnormal.dtype, snormal.dtype)
+        self.assertEqual(gnormal.shape, snormal.shape)
+        self.assertEqual(gnormal.device, snormal.device)
+        self.assertTrue(ht.equal(gnormal, snormal))
+
+        shape = (2, 2)
+        mu = ht.array([[-1, -0.5], [0, 5]])
+        sigma = ht.array([[0, 0.5], [1, 2.5]])
+
+        ht.random.seed(22)
+        gnormal = ht.random.normal(mu, sigma, shape)
+        ht.random.seed(22)
+        snormal = ht.random.randn(*shape)
+
+        compare = mu + sigma * snormal
+
+        self.assertEqual(gnormal.dtype, compare.dtype)
+        self.assertEqual(gnormal.shape, compare.shape)
+        self.assertEqual(gnormal.device, compare.device)
+        self.assertTrue(ht.equal(gnormal, compare))
+
+        with self.assertRaises(TypeError):
+            ht.random.normal([4, 5], 1, shape)
+        with self.assertRaises(TypeError):
+            ht.random.normal(0, "r", shape)
+        with self.assertRaises(ValueError):
+            ht.random.normal(0, -1, shape)
+
     def test_permutation(self):
         # Reset RNG
         ht.random.seed()
@@ -418,3 +453,21 @@ class TestRandom(TestCase):
             ht.random.set_state(("Thrfry", 12, 0xF))
         with self.assertRaises(TypeError):
             ht.random.set_state(("Threefry", 12345))
+
+    def test_standard_normal(self):
+        # empty input
+        stdn = ht.random.standard_normal()
+        self.assertEqual(stdn.dtype, ht.float32)
+        self.assertEqual(stdn.shape, (1,))
+
+        # simple test
+        shape = (3, 4, 6)
+        ht.random.seed(11235)
+        stdn = ht.random.standard_normal(shape, split=2)
+        ht.random.seed(11235)
+        rndn = ht.random.randn(*shape, split=2)
+
+        self.assertEqual(stdn.shape, rndn.shape)
+        self.assertEqual(stdn.dtype, rndn.dtype)
+        self.assertEqual(stdn.device, rndn.device)
+        self.assertTrue(ht.equal(stdn, rndn))
