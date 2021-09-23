@@ -721,6 +721,8 @@ class DNDarray:
             "get": lambda x: x,
         }
 
+        self.__partitions_dict__ = partition_dict
+
         return partition_dict
 
     def __float__(self) -> DNDarray:
