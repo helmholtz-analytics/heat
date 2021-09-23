@@ -122,6 +122,7 @@ def __binary_op(
                             t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
                         )
                     newcomm.Bcast(t1)
+                    newcomm.Free()
 
             if t2.split is not None:
                 if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
@@ -135,6 +136,7 @@ def __binary_op(
                             t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
                         )
                     newcomm.Bcast(t2)
+                    newcomm.Free()
 
         else:
             raise TypeError(

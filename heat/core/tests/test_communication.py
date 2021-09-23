@@ -209,6 +209,8 @@ class TestCommunication(TestCase):
             self.assertTrue(newcomm.size < a.comm.size)
         self.assertIsNot(newcomm, a.comm)
 
+        newcomm.Free()
+
     def test_allgather(self):
         # contiguous data
         data = ht.ones((1, 7))
