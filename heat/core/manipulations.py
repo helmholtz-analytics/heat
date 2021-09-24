@@ -1939,6 +1939,24 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
             balanced=True,
         )
 
+    if a.split == new_split:
+        # attempt local imbalanced reshape, then balance
+        local_new_shape = torch.tensor(shape, device=a.larray.device)
+        local_new_shape[new_split] = -1
+        if (a.lshape_map[:] % torch.prod(local_new_shape)).all() == 0:
+            local_reshape = torch.reshape(a.larray, local_new_shape.tolist())
+            global_reshape = DNDarray(
+                local_reshape,
+                shape,
+                dtype=a.dtype,
+                split=new_split,
+                comm=a.comm,
+                device=a.device,
+                balanced=False,
+            )
+            global_reshape.balance_()
+            return global_reshape
+
     # Create new flat result tensor
     _, local_shape, _ = a.comm.chunk(shape, new_split)
     data = torch.empty(local_shape, dtype=tdtype, device=tdevice).flatten()
