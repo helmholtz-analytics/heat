@@ -21,8 +21,21 @@ i.e.
 - Documentation update
 --->
 
-## Due Diligence
+## Memory requirements
+<!--- Compare memory requirements to relevant torch operations if applicable:
+- in distributed and non-distributed mode
+- with `split=None` and `split not None`
+--->
 
+## Performance
+<!--- Compare performance to relevant torch operations if applicable:
+- in distributed and non-distributed mode
+- with `split=None` and `split not None`
+--->
+
+
+## Due Diligence
+- [ ] Memory requirements are comparable to relevant torch operations (if applicable)
 - [ ] All split configurations tested
 - [ ] Multiple dtypes tested in relevant functions
 - [ ] Documentation updated (if needed)
