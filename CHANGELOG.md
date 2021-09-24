@@ -3,7 +3,7 @@
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `_reduce_op` when axis and keepdim were set.
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `min`, `max` where DNDarrays with empty processes can't be computed.
-
+- [#873](https://github.com/helmholtz-analytics/heat/pull/873) Cut down memory requirements of distributed reshape when `split` stays the same.
 ## Feature Additions
 
 ### DNDarray
