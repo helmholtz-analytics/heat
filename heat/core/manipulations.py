@@ -22,6 +22,13 @@ from . import tiling
 from . import types
 from . import _operations
 
+# debugging
+import tracemalloc
+import logging
+
+logging.basicConfig(format="%(message)s")
+log = logging.getLogger(__name__)
+
 __all__ = [
     "balance",
     "column_stack",
@@ -3262,6 +3269,8 @@ def unique(
             local_data = local_data.transpose(0, axis)
         unique_axis = 0
 
+    log.warning("DEBUGGING: unique: before local uniques")
+    tracemalloc.start()
     # Calculate local uniques
     if a.lshape[a.split] == 0:
         # address empty local tensor
@@ -3276,12 +3285,21 @@ def unique(
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
     else:
         lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
+    current, peak = tracemalloc.get_traced_memory()
+    log.warning(
+        f"UNIQUE before array: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
     gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
+    log.warning(
+        f"UNIQUE after array: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
+    log.warning("DEBUGGING: unique: after local uniques")
 
     # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
     _, data_max_lshape, _ = a.comm.chunk(a.gshape, a.split, rank=0)
     data_max_lbytes = torch.prod(torch.tensor(data_max_lshape)) * a.larray.element_size()
     if gres.nbytes <= data_max_lbytes:
+        log.warning("DEBUGGING: unique about to gather uniques")
         # gather local uniques
         gres.resplit_(None)
         # final round of torch.unique
@@ -3290,8 +3308,13 @@ def unique(
         gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device)
     else:
         # balance gres if needed
+        log.warning("DEBUGGING: before gres.balance_()")
         gres.balance_()
         # global sorted unique
+        log.warning("DEBUGGING: before pivot_sorting")
+        log.warning(
+            f"UNIQUE before pivot sorting: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        )
         lres = __pivot_sorting(gres, torch.unique, 0, sorted=True, return_inverse=True)
         # second local unique
         if 0 not in lres.shape:
@@ -3299,11 +3322,16 @@ def unique(
         lres_split = 0
 
     gres = factories.array(lres, dtype=a.dtype, is_split=lres_split, device=a.device)
+    log.warning("DEBUGGING: before last balance_()")
     gres.balance_()
 
     if return_inverse:
         # inverse indices
         # allocate local tensors and global DNDarray
+        log.warning("DEBUGGING: before inverse indices")
+        log.warning(
+            f"UNIQUE before inverse indices: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        )
         inverse = torch.empty(inv_shape, dtype=torch.int64, device=local_data.device)
         if a.is_distributed():
             inv_split = 0 if inverse.ndim == 1 else a.split
@@ -3321,6 +3349,10 @@ def unique(
             gres_map = torch.tensor(gres.gshape, device=inverse.device)
             gres_offsets = torch.tensor([0], device=gres_map.device)
         lres = gres.larray
+        log.warning("DEBUGGING: before ring")
+        log.warning(
+            f"UNIQUE before ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        )
         for p in range(unique_ranks):
             if unique_ranks == 1:
                 incoming_offset = 0
@@ -3350,7 +3382,10 @@ def unique(
                 gres.comm.Recv(tmp, recv_from_rank, tag=recv_from_rank)
                 lres = tmp[slice(None, incoming_size)]
         gres.larray = lres
-
+    log.warning(
+        f"UNIQUE after ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
+    log.warning("DEBUGGING: before transpose")
     if axis is not None and axis != 0:
         # transpose back to original
         gres = linalg.basics.transpose(gres, (axis, 0))
