@@ -1915,7 +1915,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     new_split = stride_tricks.sanitize_axis(shape, new_split)
 
     # Forward to Pytorch directly
-    if a.split is None:
+    if not a.is_distributed():
         local_reshape = torch.reshape(a.larray, shape)
         if new_split is None:
             return DNDarray(
