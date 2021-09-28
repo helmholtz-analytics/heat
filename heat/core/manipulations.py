@@ -3251,6 +3251,7 @@ def unique(
             heat_output = factories.array(torch_output, dtype=a.dtype, split=None, device=a.device)
         return heat_output
 
+    log.warning("DEBUGGING: in unique")
     rank = a.comm.rank
     size = a.comm.size
 
