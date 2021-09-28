@@ -3238,6 +3238,7 @@ def unique(
     array([[2, 3],
            [3, 1]])
     """
+    log.warning("DEBUGGING: in unique")
     if not a.is_distributed():
         torch_output = torch.unique(a.larray, sorted=True, return_inverse=return_inverse, dim=axis)
         if isinstance(torch_output, tuple):
