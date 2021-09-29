@@ -6,6 +6,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 import warnings
+from memory_profiler import profile
 
 from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
 
@@ -21,6 +22,7 @@ from . import stride_tricks
 from . import tiling
 from . import types
 from . import _operations
+
 
 __all__ = [
     "balance",
@@ -2255,6 +2257,7 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
     return a.gshape
 
 
+@profile
 def __pivot_sorting(
     a: DNDarray, sort_op: Callable, axis: Optional[int] = None, descending: bool = False, **kwargs
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -2533,6 +2536,7 @@ def __pivot_sorting(
     return final_result, final_indices
 
 
+@profile
 def sort(
     a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DNDarray] = None
 ) -> Union[DNDarray, Tuple[DNDarray, DNDarray]]:
@@ -3170,6 +3174,7 @@ DNDarray.swapaxes = lambda self, axis1, axis2: swapaxes(self, axis1, axis2)
 DNDarray.swapaxes.__doc__ = swapaxes.__doc__
 
 
+@profile
 def unique(
     a: DNDarray, return_inverse: bool = False, axis: Optional[int] = None
 ) -> Union[DNDarray, Tuple[DNDarray, DNDarray]]:
