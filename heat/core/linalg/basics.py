@@ -24,6 +24,7 @@ from .. import statistics
 from .. import types
 
 __all__ = [
+    "det",
     "dot",
     "matmul",
     "matrix_norm",
@@ -37,6 +38,77 @@ __all__ = [
     "vecdot",
     "vector_norm",
 ]
+
+
+def det(a: DNDarray) -> DNDarray:
+    """
+    Returns the determinant of a square matrix.
+    """
+    if a.split is None or a.split < a.ndim - 2:
+        data = torch.linalg.det(a.larray)
+        return DNDarray(
+            data, a.shape[:-2], types.heat_type_of(data), a.split, a.device, a.comm, a.balanced
+        )
+
+    n = a.shape[0]
+    Det = 1.0
+    A = a.copy()
+
+    m = 0
+
+    # split = 0
+    if a.split == a.ndim - 2:
+        for i in range(n):
+            if np.isclose(A[i, i].item(), 0):
+                abord = True
+                for j in range(i + 1, n):
+                    if not np.isclose(A[j, i].item(), 0):
+                        A[i, :], A[j, :] = A[j, :], A[i, :]
+                        abord = False
+                        m += 1
+                        break
+                if abord:
+                    for j in range(i + 1, n):
+                        if not np.isclose(A[i, j].item(), 0):
+                            A.larray[:, i], A.larray[:, j] = A.larray[:, j], A.larray[:, i].clone()
+                            abord = False
+                            break
+                if abord:
+                    raise RuntimeError("Inverse does not exist")
+            Det *= A[i, i].item()
+            z = A[i + 1 :, i, None].larray / A[i, i].item()
+            a = A[i, :].larray
+            numel = z.numel()
+            if numel > 0:
+                A.larray[-numel:, :] -= z * a
+
+    # split =1
+    if a.split == a.ndim - 1:
+        for i in range(n):
+            if np.isclose(A[i, i].item(), 0):
+                abord = True
+                for j in range(i + 1, n):
+                    if not np.isclose(A[j, i].item(), 0):
+                        A.larray[i, :], A.larray[j, :] = A.larray[j, :], A.larray[i, :].clone()
+                        abord = False
+                        m += 1
+                        break
+                if abord:
+                    for j in range(i + 1, n):
+                        if not np.isclose(A[i, j].item(), 0):
+                            A[:, i], A[:, j] = A[:, j], A[:, i]
+                            abord = False
+                            break
+                if abord:
+                    raise RuntimeError("Inverse does not exist")
+            Det *= A[i, i].item()
+            z = A[i + 1 :, i, None].larray / A[i, i].item()
+            A[i + 1 :, :].larray -= z * A[i, :].larray
+
+    if m % 2 != 0:
+        Det = -Det
+
+    return Det
 
 
 def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDarray, float]:
