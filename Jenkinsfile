@@ -13,12 +13,12 @@ pipeline {
                 }
             }
         }
-        
+
         stage ('Test') {
             options {
                 timeout(time: 15, unit: "MINUTES")
             }
-            
+
             steps {
                 withPythonEnv('/home/jenkins/allvenvs/') {
                     sh 'COVERAGE_FILE=report/cov/coverage1 mpirun -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/'
