@@ -64,6 +64,91 @@ class TestLinalgBasics(TestCase):
         with self.assertRaises(NotImplementedError):
             ht.dot(ht.array(data3d), ht.array(data1d))
 
+    def test_inv(self):
+
+        # single 2D array
+
+        # pytorch
+        ares = ht.array([[2.0, 2, 1], [3, 4, 1], [0, 1, -1]])
+
+        a = ht.array([[5.0, -3, 2], [-3, 2, -1], [-3, 2, -2]])
+        ainv = ht.linalg.inv(a)
+
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        # ours
+        a = ht.array([[5.0, -3, 2], [-3, 2, -1], [-3, 2, -2]], split=0)
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        a = ht.array([[5.0, -3, 2], [-3, 2, -1], [-3, 2, -2]], split=1)
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        # stack Size=(2,2,2,2)
+        ares = ht.array(
+            [[[2, -0.5], [-3, 1]], [[-3, 2], [2, -1]], [[-3, 2], [2, -1]], [[2, -0.5], [-3, 1]]],
+            dtype=ht.float,
+        )
+
+        a = ht.array(
+            [[[2, 1], [6, 4]], [[1, 2], [2, 3]], [[1, 2], [2, 3]], [[2, 1], [6, 4]]],
+            dtype=ht.float,
+            split=1,
+        )
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        a = ht.array(
+            [[[2, 1], [6, 4]], [[1, 2], [2, 3]], [[1, 2], [2, 3]], [[2, 1], [6, 4]]],
+            dtype=ht.float,
+            split=2,
+        )
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        # pivoting row change
+        ares = ht.array([[-1, 0, 2], [2, 0, -1], [-6, 3, 0]], dtype=ht.double) / 3.0
+        a = ht.array([[1, 2, 0], [2, 4, 1], [2, 1, 0]], dtype=ht.double, split=0)
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        a = ht.array([[1, 2, 0], [2, 4, 1], [2, 1, 0]], dtype=ht.double, split=1)
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        with self.assertRaises(ValueError):
+            ht.linalg.inv(ht.array([1, 2, 3], split=0))
+        with self.assertRaises(ValueError):
+            ht.linalg.inv(ht.zeros((1, 2, 3), split=1))
+        with self.assertRaises(TypeError):
+            ht.linalg.inv(ht.zeros(2, 2), dtype=ht.int, split=1)
+        with self.assertRaises(RuntimeError):
+            ht.linalg.inv(ht.zeros((3, 3), split=0))
+        with self.assertRaises(RuntimeError):
+            ht.linalg.inv(ht.ones((3, 3), split=1))
+
     def test_matmul(self):
         with self.assertRaises(ValueError):
             ht.matmul(ht.ones((25, 25)), ht.ones((42, 42)))
@@ -279,7 +364,7 @@ class TestLinalgBasics(TestCase):
             b_torch = torch.ones((j, k), device=self.device.torch_device)
             b_torch[0] = torch.arange(1, k + 1, device=self.device.torch_device)
             b_torch[:, 0] = torch.arange(1, j + 1, device=self.device.torch_device)
-            # splits None None
+            # splits None Noneainv[k, i, :], ainv[k, j, :] = ainv[k, j, :], ainv[k, i, :]
             a = ht.ones((m), split=None)
             b = ht.ones((j, k), split=None)
             b[0] = ht.arange(1, k + 1)
