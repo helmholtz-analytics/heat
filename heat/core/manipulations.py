@@ -2281,7 +2281,7 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
     return a.gshape
 
 
-@profile
+# @profile
 def __pivot_sorting(
     a: DNDarray, sort_op: Callable, axis: Optional[int] = None, descending: bool = False, **kwargs
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -2537,7 +2537,7 @@ def __pivot_sorting(
     return final_result, final_indices
 
 
-@profile
+# @profile
 def sort(
     a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DNDarray] = None
 ) -> Union[DNDarray, Tuple[DNDarray, DNDarray]]:
@@ -3175,7 +3175,7 @@ DNDarray.swapaxes = lambda self, axis1, axis2: swapaxes(self, axis1, axis2)
 DNDarray.swapaxes.__doc__ = swapaxes.__doc__
 
 
-@profile
+# @profile
 def unique(
     a: DNDarray, return_inverse: bool = False, axis: Optional[int] = None
 ) -> Union[DNDarray, Tuple[DNDarray, DNDarray]]:
@@ -3242,6 +3242,7 @@ def unique(
     array([[2, 3],
            [3, 1]])
     """
+    tracemalloc.start()
     log.warning("DEBUGGING: in unique")
     if not a.is_distributed():
         torch_output = torch.unique(a.larray, sorted=True, return_inverse=return_inverse, dim=axis)
@@ -3259,10 +3260,18 @@ def unique(
     log.warning("DEBUGGING: in unique")
     rank = a.comm.rank
     size = a.comm.size
+    current, peak = tracemalloc.get_traced_memory()
+    log.warning(
+        f"UNIQUE before extracting larray: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
 
     local_data = a.larray
     inv_shape = local_data.shape if axis is None else (local_data.shape[axis],)
     unique_axis = None
+    current, peak = tracemalloc.get_traced_memory()
+    log.warning(
+        f"UNIQUE before transposing: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
     if axis is not None:
         if axis != a.split:
             raise NotImplementedError(
@@ -3275,8 +3284,10 @@ def unique(
             local_data = local_data.transpose(0, axis)
         unique_axis = 0
 
-    log.warning("DEBUGGING: unique: before local uniques")
-    tracemalloc.start()
+    current, peak = tracemalloc.get_traced_memory()
+    log.warning(
+        f"UNIQUE before local uniques: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
     # Calculate local uniques
     if a.lshape[a.split] == 0:
         # address empty local tensor
@@ -3295,7 +3306,8 @@ def unique(
     log.warning(
         f"UNIQUE before array: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
     )
-    gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device)
+    gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device, copy=False)
+    current, peak = tracemalloc.get_traced_memory()
     log.warning(
         f"UNIQUE after array: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
     )
@@ -3314,10 +3326,14 @@ def unique(
         gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device)
     else:
         # balance gres if needed
-        log.warning("DEBUGGING: before gres.balance_()")
+        current, peak = tracemalloc.get_traced_memory()
+        log.warning(
+            f"DEBUGGING: before gres.balance_(): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        )
         gres.balance_()
         # global sorted unique
         log.warning("DEBUGGING: before pivot_sorting")
+        current, peak = tracemalloc.get_traced_memory()
         log.warning(
             f"UNIQUE before pivot sorting: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
         )
@@ -3328,12 +3344,16 @@ def unique(
         lres_split = 0
 
     gres = factories.array(lres, dtype=a.dtype, is_split=lres_split, device=a.device)
-    log.warning("DEBUGGING: before last balance_()")
+    current, peak = tracemalloc.get_traced_memory()
+    log.warning(
+        f"DEBUGGING: before last balance_(): Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    )
     gres.balance_()
 
     if return_inverse:
         # inverse indices
         # allocate local tensors and global DNDarray
+        current, peak = tracemalloc.get_traced_memory()
         log.warning("DEBUGGING: before inverse indices")
         log.warning(
             f"UNIQUE before inverse indices: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
@@ -3356,6 +3376,7 @@ def unique(
             gres_offsets = torch.tensor([0], device=gres_map.device)
         lres = gres.larray
         log.warning("DEBUGGING: before ring")
+        current, peak = tracemalloc.get_traced_memory()
         log.warning(
             f"UNIQUE before ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
         )
@@ -3388,6 +3409,7 @@ def unique(
                 gres.comm.Recv(tmp, recv_from_rank, tag=recv_from_rank)
                 lres = tmp[slice(None, incoming_size)]
         gres.larray = lres
+    current, peak = tracemalloc.get_traced_memory()
     log.warning(
         f"UNIQUE after ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
     )
@@ -3395,9 +3417,10 @@ def unique(
     if axis is not None and axis != 0:
         # transpose back to original
         gres = linalg.basics.transpose(gres, (axis, 0))
-
+        log.warning("DEBUGGING: after transpose")
     if return_inverse:
-        return (gres, global_inverse)
+        log.warning("DEBUGGING: before returning")
+        return gres, global_inverse
 
     return gres
 
