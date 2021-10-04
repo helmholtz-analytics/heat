@@ -16,7 +16,7 @@ from . import statistics
 from .dndarray import DNDarray
 from . import types
 
-from typing import Callable, Optional, Type, Union
+from typing import Callable, Optional, Type, Union, Dict
 
 __all__ = []
 __BOOLEAN_OPS = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
@@ -27,6 +27,7 @@ def __binary_op(
     t1: Union[DNDarray, int, float],
     t2: Union[DNDarray, int, float],
     out: Optional[DNDarray] = None,
+    fn_kwargs: Optional[Dict] = {},
 ) -> DNDarray:
     """
     Generic wrapper for element-wise binary operations of two operands (either can be tensor or scalar).
@@ -43,6 +44,9 @@ def __binary_op(
         The second operand involved in the operation,
     out: DNDarray, optional
         Output buffer in which the result is placed
+    fn_kwargs: Dict, optional
+        keyword arguments used for the given operation
+        Default: {} (empty dictionary)
 
     Returns
     -------
@@ -150,15 +154,21 @@ def __binary_op(
         if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
             result = t1.larray.type(promoted_type)
         else:
-            result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type))
+            result = operation(
+                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+            )
     elif t2.split is not None:
 
         if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
             result = t2.larray.type(promoted_type)
         else:
-            result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type))
+            result = operation(
+                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+            )
     else:
-        result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type))
+        result = operation(
+            t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+        )
 
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result, device=output_device.torch_device)
