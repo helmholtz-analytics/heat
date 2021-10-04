@@ -368,16 +368,6 @@ def diff(
                     # append
                     a = manipulations.concatenate((a, p_el), axis=axis)
 
-    if not a.is_distributed():
-        ret = a.copy()
-        for _ in range(n):
-            axis_slice = [slice(None)] * len(ret.shape)
-            axis_slice[axis] = slice(1, None, None)
-            axis_slice_end = [slice(None)] * len(ret.shape)
-            axis_slice_end[axis] = slice(None, -1, None)
-            ret = ret[tuple(axis_slice)] - ret[tuple(axis_slice_end)]
-        return ret
-
     if a.shape[axis] == 1:
         ret_lshape = list(a.lshape)
         ret_lshape[axis] = 0
@@ -390,6 +380,16 @@ def diff(
         return DNDarray(
             ret, tuple(ret_lshape), a.dtype, split=None, device=a.device, comm=a.comm, balanced=True
         )
+
+    if not a.is_distributed():
+        ret = a.copy()
+        for _ in range(n):
+            axis_slice = [slice(None)] * len(ret.shape)
+            axis_slice[axis] = slice(1, None, None)
+            axis_slice_end = [slice(None)] * len(ret.shape)
+            axis_slice_end[axis] = slice(None, -1, None)
+            ret = ret[tuple(axis_slice)] - ret[tuple(axis_slice_end)]
+        return ret
 
     size = a.comm.size
     rank = a.comm.rank
