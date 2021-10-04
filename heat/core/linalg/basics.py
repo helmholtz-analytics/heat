@@ -43,72 +43,111 @@ __all__ = [
 def det(a: DNDarray) -> DNDarray:
     """
     Returns the determinant of a square matrix.
+
+    Parameters
+    ----------
+    a : DNDarray
+        A square matrix or a stack of matrices. Shape = (...,M,M)
+
+    Raises
+    ------
+    TypeError
+        If the dtype of 'a' is not floating-point.
+    ValueError
+        If `a.ndim < 2` or if the length of the last two dimensions is not the same.
+
+    Examples
+    --------
+    >>> a = ht.array([[-2,-1,2],[2,1,4],[-3,3,-1]])
+    >>> ht.linalg.det(a)
+    DNDarray(54., dtype=ht.float64, device=cpu:0, split=None)
     """
+    # no split in the square matrices
     if a.split is None or a.split < a.ndim - 2:
         data = torch.linalg.det(a.larray)
         return DNDarray(
-            data, a.shape[:-2], types.heat_type_of(data), a.split, a.device, a.comm, a.balanced
+            data,
+            a.shape[:-2],
+            types.heat_type_of(data),
+            split=a.split,
+            device=a.device,
+            comm=a.comm,
+            balanced=a.balanced,
         )
 
-    n = a.shape[0]
-    Det = 1.0
-    A = a.copy()
+    if a.ndim < 2:
+        raise ValueError("DNDarray must be at least two-dimensional.")
 
-    m = 0
+    m, n = a.shape[-2:]
+    if m != n:
+        raise ValueError("Last two dimensions of the DNDarray must be square.")
 
-    # split = 0
+    if types.heat_type_is_exact(a.dtype):
+        raise TypeError("dtype of DNDarray must be floating-point.")
+
+    acopy = a.copy()
+    acopy = manipulations.reshape(acopy, (-1, m, m), new_split=a.split - a.ndim + 3)
+    adet = factories.ones(acopy.shape[0], dtype=a.dtype, device=a.device)
+
+    # split=0 on square matrix
     if a.split == a.ndim - 2:
-        for i in range(n):
-            if np.isclose(A[i, i].item(), 0):
-                abord = True
-                for j in range(i + 1, n):
-                    if not np.isclose(A[j, i].item(), 0):
-                        A[i, :], A[j, :] = A[j, :], A[i, :]
-                        abord = False
-                        m += 1
-                        break
-                if abord:
+        for k in range(adet.shape[0]):
+            m = 0
+            for i in range(n):
+                # partial pivoting
+                if np.isclose(acopy[k, i, i].item(), 0):
+                    abord = True
                     for j in range(i + 1, n):
-                        if not np.isclose(A[i, j].item(), 0):
-                            A.larray[:, i], A.larray[:, j] = A.larray[:, j], A.larray[:, i].clone()
+                        if not np.isclose(acopy[k, j, i].item(), 0):
+                            acopy[k, i, :], acopy[k, j, :] = acopy[k, j, :], acopy[k, i, :].copy()
                             abord = False
+                            m += 1
                             break
-                if abord:
-                    raise RuntimeError("Inverse does not exist")
-            Det *= A[i, i].item()
-            z = A[i + 1 :, i, None].larray / A[i, i].item()
-            a = A[i, :].larray
-            numel = z.numel()
-            if numel > 0:
-                A.larray[-numel:, :] -= z * a
+                    if abord:
+                        adet[k] = 0
+                        break
 
-    # split =1
+                adet[k] *= acopy[k, i, i]
+                z = acopy[k, i + 1 :, i, None].larray / acopy[k, i, i].item()
+                a_row = acopy[k, i, :].larray
+                numel = z.numel()
+                if numel > 0:
+                    acopy.larray[k, -numel:, :] -= z * a_row
+
+            if m % 2 != 0:
+                adet[k] = -adet[k]
+
+    # split=1 on square matrix
     if a.split == a.ndim - 1:
-        for i in range(n):
-            if np.isclose(A[i, i].item(), 0):
-                abord = True
-                for j in range(i + 1, n):
-                    if not np.isclose(A[j, i].item(), 0):
-                        A.larray[i, :], A.larray[j, :] = A.larray[j, :], A.larray[i, :].clone()
-                        abord = False
-                        m += 1
-                        break
-                if abord:
+        for k in range(adet.shape[0]):
+            m = 0
+            for i in range(n):
+                # partial pivoting
+                if np.isclose(acopy[k, i, i].item(), 0):
+                    abord = True
                     for j in range(i + 1, n):
-                        if not np.isclose(A[i, j].item(), 0):
-                            A[:, i], A[:, j] = A[:, j], A[:, i]
+                        if not np.isclose(acopy[k, j, i].item(), 0):
+                            acopy.larray[k, i, :], acopy.larray[k, j, :] = (
+                                acopy.larray[k, j, :],
+                                acopy.larray[k, i, :].clone(),
+                            )
                             abord = False
+                            m += 1
                             break
-                if abord:
-                    raise RuntimeError("Inverse does not exist")
-            Det *= A[i, i].item()
-            z = A[i + 1 :, i, None].larray / A[i, i].item()
-            A[i + 1 :, :].larray -= z * A[i, :].larray
+                    if abord:
+                        adet[k] = 0
+                        break
 
-    if m % 2 != 0:
-        Det = -Det
+                adet[k] *= acopy[k, i, i]
+                z = acopy[k, i + 1 :, i, None].larray / acopy[k, i, i].item()
+                acopy[k, i + 1 :, :].larray -= z * acopy[k, i, :].larray
 
-    return Det
+            if m % 2 != 0:
+                adet[k] = -adet[k]
+
+    adet = manipulations.reshape(adet, a.shape[:-2] if a.ndim > 2 else (1,))
+
+    return adet
 
 
 def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDarray, float]:
