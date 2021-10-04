@@ -1,3 +1,6 @@
+# Pending Additions
+- [#878](https://github.com/helmholtz-analytics/heat/pull/878) Bug fix: distributed `ht.diff` along 1-element `axis`.
+
 # v1.1.1
 - [#864](https://github.com/helmholtz-analytics/heat/pull/864) Dependencies: constrain `torchvision` version range to match supported `pytorch` version range.
 
