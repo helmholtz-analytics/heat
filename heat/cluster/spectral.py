@@ -110,6 +110,10 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         x : DNDarray
             Sample Matrix for which the embedding should be calculated
 
+        Notes
+        -----
+        This will throw out the complex side of the eigenvalues found during this.
+
         """
         L = self._laplacian.construct(x)
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
@@ -122,14 +126,26 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         )
         V, T = ht.lanczos(L, self.n_lanczos, v0)
 
-        # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
-        eval, evec = torch.eig(T.larray, eigenvectors=True)
-        # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
-        eval, idx = torch.sort(eval[:, 0], dim=0)
-        eigenvalues = ht.array(eval)
-        eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
+        # if int(torch.__version__[-3]) >= 9:
+        try:
+            # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
+            eval, evec = torch.linalg.eig(T.larray)
 
-        return eigenvalues, eigenvectors
+            # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
+            eval, idx = torch.sort(eval.real, dim=0)
+            eigenvalues = ht.array(eval)
+            eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
+
+            return eigenvalues.real, eigenvectors.real
+        except AttributeError:  # torch version is less than 1.9.0
+            # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
+            eval, evec = torch.eig(T.larray, eigenvectors=True)
+            # If x is an Eigenvector of T, then y = V@x is the corresponding Eigenvector of L
+            eval, idx = torch.sort(eval[:, 0], dim=0)
+            eigenvalues = ht.array(eval)
+            eigenvectors = ht.matmul(V, ht.array(evec))[:, idx]
+
+            return eigenvalues, eigenvectors
 
     def fit(self, x: DNDarray):
         """
