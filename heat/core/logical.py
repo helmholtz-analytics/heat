@@ -383,7 +383,7 @@ def logical_and(x: DNDarray, y: DNDarray) -> DNDarray:
     DNDarray([False, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__binary_op(
-        torch.Tensor.__and__, types.bool(x, device=x.device), types.bool(y, device=y.device)
+        torch.logical_and, types.bool(x, device=x.device), types.bool(y, device=y.device)
     )
 
 
@@ -425,7 +425,7 @@ def logical_or(x: DNDarray, y: DNDarray) -> DNDarray:
     DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__binary_op(
-        torch.Tensor.__or__, types.bool(x, device=x.device), types.bool(y, device=y.device)
+        torch.logical_or, types.bool(x, device=x.device), types.bool(y, device=y.device)
     )
 
 
