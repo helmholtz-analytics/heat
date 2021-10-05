@@ -1943,7 +1943,10 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         # attempt local imbalanced reshape, then balance
         local_new_shape = torch.tensor(shape, device=a.larray.device)
         local_new_shape[new_split] = -1
-        if (a.lshape_map[:] % torch.prod(local_new_shape)).all() == 0:
+        numel_map = torch.prod(a.lshape_map, dim=1)
+        if (a.lshape_map % torch.prod(local_new_shape)).all() == 0 and (
+            numel_map >= torch.prod(local_new_shape).abs()
+        ).all():
             local_reshape = torch.reshape(a.larray, local_new_shape.tolist())
             global_reshape = DNDarray(
                 local_reshape,
