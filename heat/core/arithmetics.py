@@ -369,16 +369,18 @@ def diff(
                     a = manipulations.concatenate((a, p_el), axis=axis)
 
     if a.shape[axis] == 1:
-        ret_lshape = list(a.lshape)
-        ret_lshape[axis] = 0
-        ret = torch.empty(ret_lshape, dtype=a.larray.dtype, device=a.larray.device)
+        # local empty tensors
+        ret_shape = list(a.lshape)
+        ret_shape[axis] = 0
+        ret = torch.empty(ret_shape, dtype=a.dtype.torch_type(), device=a.device.torch_device)
         if a.split != axis:
-            ret_gshape = ret_lshape
-            ret_gshape[a.split] = a.gshape[a.split]
-            return DNDarray(ret, tuple(ret_gshape), a.dtype, a.split, a.device, a.comm, a.balanced)
+            # return global distributed DNDarray
+            ret_shape[a.split] = a.gshape[a.split]
+            return DNDarray(ret, tuple(ret_shape), a.dtype, a.split, a.device, a.comm, a.balanced)
 
+        # return non-distributed empty DNDarray
         return DNDarray(
-            ret, tuple(ret_lshape), a.dtype, split=None, device=a.device, comm=a.comm, balanced=True
+            ret, tuple(ret_shape), a.dtype, split=None, device=a.device, comm=a.comm, balanced=True
         )
 
     if not a.is_distributed():
