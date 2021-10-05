@@ -631,8 +631,12 @@ class SquareDiagTiles:
             min(arr.gshape) - lshape_map[..., arr.split].cumsum(dim=0)[last_pr_minus1]
         )
         # this is the number of rows/columns after the last diagonal on the last diagonal pr
+        try:
+            num_after_diag = torch.div(rem_cols_last_pr, last_tile_cols, rounding_mode="floor")
+        except TypeError:
+            num_after_diag = torch.floor_divide(rem_cols_last_pr, last_tile_cols)
 
-        while 1 < torch.floor_divide(rem_cols_last_pr, last_tile_cols) < 2:
+        while 1 < num_after_diag < 2:
             # todo: determine best value for this (prev at 2)
             # if there cannot be tiles formed which are at list ten items larger than 2
             #   then need to reduce the number of tiles
@@ -653,11 +657,14 @@ class SquareDiagTiles:
             diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
         )
         dev = arr.larray.device
-        diag_crossings = torch.cat((torch.tensor([0], device=dev), diag_crossings), dim=0)
+        diag_crossings = torch.cat((torch.tensor([0], device=dev), diag_crossings), dim=0).tolist()
         # create the tile columns sizes, saved to list
         col_inds = []
         for col in range(tile_columns.item()):
-            off = torch.floor_divide(col, tiles_per_proc).to(dev)
+            try:
+                off = torch.div(col, tiles_per_proc, rounding_mode="floor").to(dev)
+            except TypeError:
+                off = torch.floor_divide(col, tiles_per_proc).to(dev)
             _, lshape, _ = arr.comm.chunk(
                 [diag_crossings[off + 1] - diag_crossings[off]],
                 0,
@@ -682,10 +689,11 @@ class SquareDiagTiles:
         nz = torch.nonzero(
             input=torch.tensor(row_inds, device=arr.larray.device) == 0, as_tuple=False
         )
+        lp_map = lshape_map.tolist()
         for i in range(last_diag_pr.item() + 1, arr.comm.size):
             # loop over all of the rest of the processes
             for t in range(tiles_per_proc):
-                _, lshape, _ = arr.comm.chunk(lshape_map[i], 0, rank=t, w_size=tiles_per_proc)
+                _, lshape, _ = arr.comm.chunk(lp_map[i], 0, rank=t, w_size=tiles_per_proc)
                 # row_inds[nz[0].item()] = lshape[0]
                 if row_inds[-1] == 0:
                     row_inds[-1] = lshape[0]
