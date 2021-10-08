@@ -1404,7 +1404,7 @@ def percentile(
         percentile = t_x * torch.ones(nperc, dtype=t_perc_dtype, device=t_x.device)
         return DNDarray(
             percentile,
-            gshape=tuple(percentile),
+            gshape=tuple(percentile.shape),
             split=None,
             dtype=perc_dtype,
             device=x.device,
