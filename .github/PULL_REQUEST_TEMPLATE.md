@@ -38,7 +38,7 @@ These tools only profile the memory used by each process, not the entire functio
 
 Python has an embedded profiler: https://docs.python.org/3.9/library/profile.html
 Again, this will only provile the performance on each process. Printing the results with many processes
-my be illegible. It may be easiest to save the output of each to a file. 
+my be illegible. It may be easiest to save the output of each to a file.
 --->
 
 
