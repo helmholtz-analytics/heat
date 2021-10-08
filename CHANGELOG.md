@@ -9,6 +9,8 @@
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `min`, `max` where DNDarrays with empty processes can't be computed.
 
 ## Feature Additions
+### Linear Algebra
+- [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
 
 ### DNDarray
 - [#856](https://github.com/helmholtz-analytics/heat/pull/856) New `DNDarray` method `__torch_proxy__`
@@ -24,6 +26,8 @@
 - [#854](https://github.com/helmholtz-analytics/heat/pull/854) New Feature: `moveaxis`
 ### Random
 - [#858](https://github.com/helmholtz-analytics/heat/pull/858) New Feature: `standard_normal`, `normal`
+### Rounding
+- [#827](https://github.com/helmholtz-analytics/heat/pull/827) New feature: `sign`, `sgn`
 
 # v1.1.1
 - [#864](https://github.com/helmholtz-analytics/heat/pull/864) Dependencies: constrain `torchvision` version range to match supported `pytorch` version range.
