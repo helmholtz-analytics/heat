@@ -9,7 +9,6 @@ import warnings
 
 from .communication import MPI, MPI_WORLD
 from . import factories
-from . import devices
 from . import stride_tricks
 from . import sanitation
 from . import statistics
@@ -115,28 +114,33 @@ def __binary_op(
             output_device = t1.device
             output_comm = t1.comm
 
-            # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
             if t1.split is not None:
                 if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
                     # warnings.warn(
                     #     "Broadcasting requires transferring data of first operator between MPI ranks!"
                     # )
-                    if t1.comm.rank > 0:
+                    color = 0 if t1.comm.rank < t2.shape[t1.split] else 1
+                    newcomm = t1.comm.Split(color, t1.comm.rank)
+                    if t1.comm.rank > 0 and color == 0:
                         t1.larray = torch.zeros(
                             t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
                         )
-                    t1.comm.Bcast(t1)
+                    newcomm.Bcast(t1)
+                    newcomm.Free()
 
             if t2.split is not None:
                 if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
                     # warnings.warn(
                     #     "Broadcasting requires transferring data of second operator between MPI ranks!"
                     # )
-                    if t2.comm.rank > 0:
+                    color = 0 if t2.comm.rank < t1.shape[t2.split] else 1
+                    newcomm = t2.comm.Split(color, t2.comm.rank)
+                    if t2.comm.rank > 0 and color == 0:
                         t2.larray = torch.zeros(
                             t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
                         )
-                    t2.comm.Bcast(t2)
+                    newcomm.Bcast(t2)
+                    newcomm.Free()
 
         else:
             raise TypeError(
