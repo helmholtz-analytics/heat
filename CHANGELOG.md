@@ -1,13 +1,38 @@
 # Pending additions
 
+- [#867](https://github.com/helmholtz-analytics/heat/pull/867) Upgraded to support torch 1.9.0
+- [#876](https://github.com/helmholtz-analytics/heat/pull/876) Make examples work (Lasso and kNN)
+
 ## Bug Fixes
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
+- [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `_reduce_op` when axis and keepdim were set.
+- [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `min`, `max` where DNDarrays with empty processes can't be computed.
+
+## Feature Additions
+### Linear Algebra
+- [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
+
+### DNDarray
+- [#856](https://github.com/helmholtz-analytics/heat/pull/856) New `DNDarray` method `__torch_proxy__`
 
 # Feature additions
-## Linear Algebra
+### Linear Algebra
+- [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
+- [#846](https://github.com/helmholtz-analytics/heat/pull/846) New features `norm`, `vector_norm`, `matrix_norm`
 - [#850](https://github.com/helmholtz-analytics/heat/pull/850) New Feature `cross`
+### Logical
+- [#862](https://github.com/helmholtz-analytics/heat/pull/862) New feature `signbit`
+### Manipulations
+- [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
+- [#853](https://github.com/helmholtz-analytics/heat/pull/853) New Feature: `swapaxes`
+- [#854](https://github.com/helmholtz-analytics/heat/pull/854) New Feature: `moveaxis`
+### Random
+- [#858](https://github.com/helmholtz-analytics/heat/pull/858) New Feature: `standard_normal`, `normal`
+### Rounding
+- [#827](https://github.com/helmholtz-analytics/heat/pull/827) New feature: `sign`, `sgn`
 
-# v1.1.0
+# v1.1.1
+- [#864](https://github.com/helmholtz-analytics/heat/pull/864) Dependencies: constrain `torchvision` version range to match supported `pytorch` version range.
 
 ## Highlights
 - Slicing/indexing overhaul for a more NumPy-like user experience. Warning for distributed arrays: [breaking change!](#breaking-changes) Indexing one element along the distribution axis now implies the indexed element is communicated to all processes.
@@ -216,6 +241,8 @@ Example on 2 processes:
 - [#664](https://github.com/helmholtz-analytics/heat/pull/664) New feature / enhancement: distributed `random.random_sample`, `random.random`, `random.sample`, `random.ranf`, `random.random_integer`
 - [#666](https://github.com/helmholtz-analytics/heat/pull/666) New feature: distributed prepend/append for `diff()`.
 - [#667](https://github.com/helmholtz-analytics/heat/pull/667) Enhancement `reshape`: rename axis parameter
+- [#678](https://github.com/helmholtz-analytics/heat/pull/678) New feature: distributed `tile`
+- [#670](https://github.com/helmholtz-analytics/heat/pull/670) New Feature: `bincount()`
 - [#674](https://github.com/helmholtz-analytics/heat/pull/674) New feature: `repeat`
 - [#670](https://github.com/helmholtz-analytics/heat/pull/670) New Feature: distributed `bincount()`
 - [#672](https://github.com/helmholtz-analytics/heat/pull/672) Bug / Enhancement: Remove `MPIRequest.wait()`, rewrite calls with capital letters. lower case `wait()` now falls back to the `mpi4py` function

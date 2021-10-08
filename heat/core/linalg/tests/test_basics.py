@@ -583,28 +583,122 @@ class TestLinalgBasics(TestCase):
                 b = a.copy()
                 a @ b
 
-    def test_norm(self):
-        a = ht.arange(9, dtype=ht.float32, split=0) - 4
-        self.assertTrue(
-            ht.allclose(ht.linalg.norm(a), ht.float32(np.linalg.norm(a.numpy())).item(), atol=1e-5)
-        )
-        a.resplit_(axis=None)
-        self.assertTrue(
-            ht.allclose(ht.linalg.norm(a), ht.float32(np.linalg.norm(a.numpy())).item(), atol=1e-5)
-        )
+    def test_matrix_norm(self):
+        a = ht.arange(9, dtype=ht.float) - 4
+        b = a.reshape((3, 3))
+        b0 = a.reshape((3, 3), new_split=0)
+        b1 = a.reshape((3, 3), new_split=1)
 
-        b = ht.array([[-4.0, -3.0, -2.0], [-1.0, 0.0, 1.0], [2.0, 3.0, 4.0]], split=0)
-        self.assertTrue(
-            ht.allclose(ht.linalg.norm(b), ht.float32(np.linalg.norm(b.numpy())).item(), atol=1e-5)
-        )
-        b.resplit_(axis=1)
-        self.assertTrue(
-            ht.allclose(ht.linalg.norm(b), ht.float32(np.linalg.norm(b.numpy())).item(), atol=1e-5)
-        )
+        # different ord
+        mn = ht.linalg.matrix_norm(b, ord="fro")
+        self.assertEqual(mn.split, b.split)
+        self.assertEqual(mn.dtype, b.dtype)
+        self.assertEqual(mn.device, b.device)
+        self.assertTrue(ht.allclose(mn, ht.array(7.745966692414834)))
 
+        mn = ht.linalg.matrix_norm(b0, ord=1)
+        self.assertEqual(mn.split, b.split)
+        self.assertEqual(mn.dtype, b.dtype)
+        self.assertEqual(mn.device, b.device)
+        self.assertEqual(mn.item(), 7.0)
+
+        mn = ht.linalg.matrix_norm(b0, ord=-1)
+        self.assertEqual(mn.split, b.split)
+        self.assertEqual(mn.dtype, b.dtype)
+        self.assertEqual(mn.device, b.device)
+        self.assertEqual(mn.item(), 6.0)
+
+        mn = ht.linalg.matrix_norm(b1)
+        self.assertEqual(mn.split, b.split)
+        self.assertEqual(mn.dtype, b.dtype)
+        self.assertEqual(mn.device, b.device)
+        self.assertTrue(ht.allclose(mn, ht.array(7.745966692414834)))
+
+        # higher dimension + different dtype
+        m = ht.arange(8).reshape(2, 2, 2)
+        mn = ht.linalg.matrix_norm(m, axis=(2, 1), ord=ht.inf)
+        self.assertEqual(mn.split, m.split)
+        self.assertEqual(mn.dtype, ht.float)
+        self.assertEqual(mn.device, m.device)
+        self.assertTrue(ht.equal(mn, ht.array([4.0, 12.0])))
+
+        mn = ht.linalg.matrix_norm(m, axis=(2, 1), ord=-ht.inf)
+        self.assertEqual(mn.split, m.split)
+        self.assertEqual(mn.dtype, ht.float)
+        self.assertEqual(mn.device, m.device)
+        self.assertTrue(ht.equal(mn, ht.array([2.0, 10.0])))
+
+        # too many axis to infer
+        with self.assertRaises(ValueError):
+            ht.linalg.matrix_norm(ht.ones((2, 2, 2)))
+        # bad axis
         with self.assertRaises(TypeError):
-            c = np.arange(9) - 4
-            ht.linalg.norm(c)
+            ht.linalg.matrix_norm(ht.ones((2, 2)), axis=1)
+        with self.assertRaises(TypeError):
+            ht.linalg.matrix_norm(ht.ones(2, 2), axis=(1, 2, 3))
+        # bad array
+        with self.assertRaises(ValueError):
+            ht.linalg.matrix_norm(ht.array([1, 2, 3]))
+        # bad ord
+        with self.assertRaises(ValueError):
+            ht.linalg.matrix_norm(ht.ones((2, 2)), ord=3)
+        # Not implemented yet; SVD needed
+        with self.assertRaises(NotImplementedError):
+            ht.linalg.matrix_norm(ht.ones((2, 2)), ord=2)
+        with self.assertRaises(NotImplementedError):
+            ht.linalg.matrix_norm(ht.ones((2, 2)), ord=-2)
+        with self.assertRaises(NotImplementedError):
+            ht.linalg.matrix_norm(ht.ones((2, 2)), ord="nuc")
+
+    def test_norm(self):
+        a = ht.arange(9, dtype=ht.float) - 4
+        a0 = ht.array([1 + 1j, 2 - 2j, 0 + 1j, 2 + 1j], dtype=ht.complex64, split=0)
+        b = a.reshape((3, 3))
+        b0 = a.reshape((3, 3), new_split=0)
+        b1 = a.reshape((3, 3), new_split=1)
+
+        # vectors
+        gn = ht.linalg.norm(a, axis=0, ord=1)
+        self.assertEqual(gn.split, a.split)
+        self.assertEqual(gn.dtype, a.dtype)
+        self.assertEqual(gn.device, a.device)
+        self.assertEqual(gn.item(), 20.0)
+
+        # complex type
+        gn = ht.linalg.norm(a0, keepdims=True)
+        self.assertEqual(gn.split, None)
+        self.assertEqual(gn.dtype, ht.float)
+        self.assertEqual(gn.device, a0.device)
+        self.assertEqual(gn.item(), 4.0)
+
+        # matrices
+        gn = ht.linalg.norm(b, ord="fro")
+        self.assertEqual(gn.split, None)
+        self.assertEqual(gn.dtype, b.dtype)
+        self.assertEqual(gn.device, b.device)
+        self.assertTrue(ht.allclose(gn, ht.array(7.745966692414834)))
+
+        gn = ht.linalg.norm(b0, ord=ht.inf)
+        self.assertEqual(gn.split, None)
+        self.assertEqual(gn.dtype, b0.dtype)
+        self.assertEqual(gn.device, b0.device)
+        self.assertEqual(gn.item(), 9.0)
+
+        gn = ht.linalg.norm(b1, axis=(0,), ord=-ht.inf, keepdims=True)
+        self.assertEqual(gn.split, b1.split)
+        self.assertEqual(gn.dtype, b1.dtype)
+        self.assertEqual(gn.device, b1.device)
+        self.assertTrue(ht.equal(gn, ht.array([[1.0, 0.0, 1.0]])))
+
+        # higher dimension + different dtype
+        gn = ht.linalg.norm(ht.ones((3, 3, 3), dtype=ht.int), axis=(-2, -1))
+        self.assertEqual(gn.split, None)
+        self.assertEqual(gn.dtype, ht.float)
+        self.assertTrue(ht.equal(gn, ht.array([3.0, 3.0, 3.0])))
+
+        # bad axis
+        with self.assertRaises(ValueError):
+            ht.linalg.norm(ht.ones(2), axis=(0, 1, 2))
 
     def test_outer(self):
         # test outer, a and b local, different dtypes
@@ -1721,3 +1815,114 @@ class TestLinalgBasics(TestCase):
             self.assertTrue(result.larray[-1, 0] == 0)
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result.larray[0, -1] == 1)
+
+    def test_vdot(self):
+        a = ht.array([[1 + 1j, 2 + 2j], [3 + 3j, 4 + 4j]], split=0)
+        b = ht.array([[1 + 2j, 3 + 4j], [5 + 6j, 7 + 8j]], split=0)
+
+        vdot = ht.vdot(a, b)
+        self.assertEqual(vdot.dtype, a.dtype)
+        self.assertEqual(vdot.split, None)
+        self.assertTrue(ht.equal(vdot, ht.array([110 + 10j])))
+
+        vdot = ht.vdot(b, a)
+        self.assertTrue(ht.equal(vdot, ht.array([110 - 10j])))
+
+        with self.assertRaises(ValueError):
+            ht.vdot(ht.array([1, 2, 3]), ht.array([[1, 2], [3, 4]]))
+
+    def test_vecdot(self):
+        a = ht.array([1, 1, 1])
+        b = ht.array([1, 2, 3])
+
+        c = ht.linalg.vecdot(a, b)
+
+        self.assertEqual(c.dtype, ht.int64)
+        self.assertEqual(c.device, a.device)
+        self.assertTrue(ht.equal(c, ht.array([6])))
+
+        a = ht.full((4, 4), 2, split=0)
+        b = ht.ones(4)
+
+        c = ht.linalg.vecdot(a, b, axis=0, keepdim=True)
+        self.assertEqual(c.dtype, ht.float32)
+        self.assertEqual(c.device, a.device)
+        self.assertTrue(ht.equal(c, ht.array([[8, 8, 8, 8]])))
+
+    def test_vector_norm(self):
+        a = ht.arange(9, dtype=ht.float) - 4
+        a_split = ht.arange(9, dtype=ht.float, split=0) - 4
+        b = a.reshape((3, 3))
+        b0 = ht.reshape(a, (3, 3), new_split=0)
+        b1 = ht.reshape(a, (3, 3), new_split=1)
+
+        # vector infintity norm
+        vn = ht.vector_norm(a, ord=ht.inf)
+        self.assertEqual(vn.split, a.split)
+        self.assertEqual(vn.dtype, a.dtype)
+        self.assertEqual(vn.device, a.device)
+        self.assertEqual(vn.item(), 4.0)
+
+        # vector 0 norm
+        vn = ht.vector_norm(a, ord=0)
+        self.assertEqual(vn.split, a.split)
+        self.assertEqual(vn.dtype, a.dtype)
+        self.assertEqual(vn.device, a.device)
+        self.assertEqual(vn.item(), 8.0)
+
+        # split vector -infinity
+        vn = ht.vector_norm(a_split, ord=-ht.inf)
+        self.assertEqual(vn.split, a.split)
+        self.assertEqual(vn.dtype, a.dtype)
+        self.assertEqual(vn.device, a.device)
+        self.assertEqual(vn.item(), 0.0)
+
+        # matrix 1 norm no axis
+        vn = ht.vector_norm(b, ord=1)
+        self.assertEqual(vn.split, b.split)
+        self.assertEqual(vn.dtype, b.dtype)
+        self.assertEqual(vn.device, b.device)
+        self.assertEqual(vn.item(), 20.0)
+
+        # split matrix axis l2-norm
+        vn = ht.vector_norm(b0, axis=1, ord=2)
+        self.assertEqual(vn.split, 0)
+        self.assertEqual(vn.dtype, b0.dtype)
+        self.assertEqual(vn.device, b0.device)
+        self.assertTrue(ht.allclose(vn, ht.array([5.38516481, 1.41421356, 5.38516481], split=0)))
+
+        # split matrix axis keepdim norm 3
+        vn = ht.vector_norm(b1, axis=1, keepdims=True, ord=3)
+        self.assertEqual(vn.split, None)
+        self.assertEqual(vn.dtype, b1.dtype)
+        self.assertEqual(vn.device, b1.device)
+        self.assertTrue(
+            ht.allclose(vn, ht.array([[4.62606501], [1.25992105], [4.62606501]], split=None))
+        )
+
+        # different dtype
+        vn = ht.linalg.vector_norm(ht.full((4, 4, 4), 1 + 1j, dtype=ht.int), axis=0, ord=4)
+        self.assertEqual(vn.split, None)
+        self.assertEqual(vn.dtype, ht.float)
+        self.assertTrue(
+            ht.equal(
+                vn,
+                ht.array(
+                    [
+                        [2.0, 2.0, 2.0, 2.0],
+                        [2.0, 2.0, 2.0, 2.0],
+                        [2.0, 2.0, 2.0, 2.0],
+                        [2.0, 2.0, 2.0, 2.0],
+                    ]
+                ),
+            )
+        )
+
+        # bad ord
+        with self.assertRaises(ValueError):
+            ht.vector_norm(ht.array([1, 2, 3]), ord="fro")
+        # bad axis
+        with self.assertRaises(TypeError):
+            ht.vector_norm(ht.array([1, 2, 3]), axis=(1, 2))
+        with self.assertRaises(TypeError):
+            ht.vector_norm(ht.array([1, 2, 3]), axis="r")

@@ -6,15 +6,21 @@ import numpy as np
 import torch
 import warnings
 
-from typing import List, Callable, Union, Optional
+from typing import List, Callable, Union, Optional, Tuple
+
+from torch._C import Value
 
 from ..communication import MPI
 from .. import arithmetics
+from .. import complex_math
+from .. import constants
 from .. import exponential
 from ..dndarray import DNDarray
 from .. import factories
 from .. import manipulations
+from .. import rounding
 from .. import sanitation
+from .. import statistics
 from .. import stride_tricks
 from .. import types
 
@@ -29,6 +35,9 @@ __all__ = [
     "transpose",
     "tril",
     "triu",
+    "vdot",
+    "vecdot",
+    "vector_norm",
 ]
 
 
@@ -122,6 +131,11 @@ def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDar
         Second input DNDarray
     out : DNDarray, optional
         Output buffer.
+
+    See Also
+    --------
+    vecdot
+        Supports (vector) dot along an axis.
     """
     if isinstance(a, (float, int)) or isinstance(b, (float, int)) or a.ndim == 0 or b.ndim == 0:
         # 3. If either a or b is 0-D (scalar), it is equivalent to multiply and using numpy.multiply(a, b) or a * b is preferred.
@@ -146,9 +160,9 @@ def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDar
             a.comm.Allreduce(MPI.IN_PLACE, ret, MPI.SUM)
 
         if out is not None:
-            out = ret.item()
+            out = DNDarray(ret, (), types.heat_type_of(ret), None, a.device, a.comm, True)
             return out
-        return ret.item()
+        return DNDarray(ret, (), types.heat_type_of(ret), None, a.device, a.comm, True)
     elif a.ndim <= 2 and b.ndim <= 2:
         # 2. If both a and b are 2-D arrays, it is matrix multiplication, but using matmul or a @ b is preferred.
         ret = matmul(a, b)
@@ -835,24 +849,277 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 DNDarray.__matmul__ = lambda self, other: matmul(self, other)
 
 
-def norm(a: DNDarray) -> float:
+def matrix_norm(
+    x: DNDarray,
+    axis: Optional[Tuple[int, int]] = None,
+    keepdims: bool = False,
+    ord: Optional[Union[int, str]] = None,
+) -> DNDarray:
     """
-    Return the vector norm (Frobenius norm) of vector ``a``.
+    Computes the matrix norm of an array.
 
     Parameters
     ----------
-    a : DNDarray
+    x : DNDarray
+        Input array
+    axis : tuple, optional
+        Both axes of the matrix. If `None` 'x' must be a matrix. Default: `None`
+    keepdims : bool, optional
+        Retains the reduced dimension when `True`. Default: `False`
+    ord : int, 'fro', 'nuc', optional
+        The matrix norm order to compute. If `None` the Frobenius norm (`'fro'`) is used. Default: `None`
+
+    See Also
+    --------
+    norm
+        Computes the vector or matrix norm of an array.
+    vector_norm
+        Computes the vector norm of an array.
+
+    Notes
+    -----
+    The following norms are supported:
+
+    =====  ============================
+    ord    norm for matrices
+    =====  ============================
+    None   Frobenius norm
+    'fro'  Frobenius norm
+    'nuc'  nuclear norm
+    inf    max(sum(abs(x), axis=1))
+    -inf   min(sum(abs(x), axis=1))
+    1      max(sum(abs(x), axis=0))
+    -1     min(sum(abs(x), axis=0))
+    =====  ============================
+
+    The following matrix norms are currently **not** supported:
+
+    =====  ============================
+    ord    norm for matrices
+    =====  ============================
+    2      largest singular value
+    -2     smallest singular value
+    =====  ============================
+
+    Raises
+    ------
+    TypeError
+        If axis is not a 2-tuple
+    ValueError
+        If an invalid matrix norm is given or 'x' is a vector.
+
+    Examples
+    --------
+    >>> ht.matrix_norm(ht.array([[1,2],[3,4]]))
+    DNDarray([[5.4772]], dtype=ht.float64, device=cpu:0, split=None)
+    >>> ht.matrix_norm(ht.array([[1,2],[3,4]]), keepdims=True, ord=-1)
+    DNDarray([[4.]], dtype=ht.float64, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(x)
+
+    if x.ndim < 2:
+        raise ValueError("Cannot compute a matrix norm of a vector.")
+
+    if axis is None:
+        if x.ndim > 2:
+            raise ValueError("Cannot infer axis on arrays with more than two dimensions.")
+        else:
+            axis = (0, 1)
+
+    if (not isinstance(axis, tuple)) or len(axis) != 2:
+        raise TypeError("'axis' must be a 2-tuple.")
+
+    row_axis, col_axis = axis
+
+    if ord == 1:
+        if col_axis > row_axis and not keepdims:
+            col_axis -= 1
+        return statistics.max(
+            arithmetics.sum(rounding.abs(x), axis=row_axis, keepdim=keepdims),
+            axis=col_axis,
+            keepdim=keepdims,
+        )
+    elif ord == -1:
+        if col_axis > row_axis and not keepdims:
+            col_axis -= 1
+        return statistics.min(
+            arithmetics.sum(rounding.abs(x), axis=row_axis, keepdim=keepdims),
+            axis=col_axis,
+            keepdim=keepdims,
+        )
+    elif ord == 2:
+        raise NotImplementedError("The largest singular value can't be computed yet.")
+    elif ord == -2:
+        raise NotImplementedError("The smallest singular value can't be computed yet.")
+    elif ord == constants.inf:
+        if row_axis > col_axis and not keepdims:
+            row_axis -= 1
+        return statistics.max(
+            arithmetics.sum(rounding.abs(x), axis=col_axis, keepdim=keepdims),
+            axis=row_axis,
+            keepdim=keepdims,
+        )
+    elif ord == -constants.inf:
+        if row_axis > col_axis and not keepdims:
+            row_axis -= 1
+        return statistics.min(
+            arithmetics.sum(rounding.abs(x), axis=col_axis, keepdim=keepdims),
+            axis=row_axis,
+            keepdim=keepdims,
+        )
+    elif ord in [None, "fro"]:
+        return exponential.sqrt(
+            arithmetics.sum((complex_math.conj(x) * x).real, axis=axis, keepdim=keepdims)
+        )
+    elif ord == "nuc":
+        raise NotImplementedError("The nuclear norm can't be computed yet.")
+    else:
+        raise ValueError("Invalid norm order for matrices.")
+
+
+def norm(
+    x: DNDarray,
+    axis: Optional[Union[int, Tuple[int, int]]] = None,
+    keepdims: bool = False,
+    ord: Optional[Union[int, float, str]] = None,
+) -> DNDarray:
+    """
+    Return the vector or matrix norm of an array.
+
+    Parameters
+    ----------
+    x : DNDarray
         Input vector
-    """  # noqa: D402
-    if not isinstance(a, DNDarray):
-        raise TypeError("a must be of type ht.DNDarray, but was {}".format(type(a)))
+    axis : int, tuple, optional
+        Axes along which to compute the norm. If an integer, vector norm is used. If a 2-tuple, matrix norm is used.
+        If `None`, it is inferred from the dimension of the array. Default: `None`
+    keepdims : bool, optional
+        Retains the reduced dimension when `True`. Default: `False`
+    ord : int, float, inf, -inf, 'fro', 'nuc'
+        The norm order to compute. See Notes
 
-    d = a ** 2
+    See Also
+    --------
+    vector_norm
+        Computes the vector norm of an array.
+    matrix_norm
+        Computes the matrix norm of an array.
 
-    for i in range(len(a.shape) - 1, -1, -1):
-        d = arithmetics.sum(d, axis=i)
+    Notes
+    -----
+    The following norms are supported:
 
-    return exponential.sqrt(d).item()
+    =====  ============================  ==========================
+    ord    norm for matrices             norm for vectors
+    =====  ============================  ==========================
+    None   Frobenius norm                L2-norm (Euclidean)
+    'fro'  Frobenius norm                --
+    'nuc'  nuclear norm                  --
+    inf    max(sum(abs(x), axis=1))      max(abs(x))
+    -inf   min(sum(abs(x), axis=1))      min(abs(x))
+    0      --                            sum(x != 0)
+    1      max(sum(abs(x), axis=0))      L1-norm (Manhattan)
+    -1     min(sum(abs(x), axis=0))      1./sum(1./abs(a))
+    2      --                            L2-norm (Euclidean)
+    -2     --                            1./sqrt(sum(1./abs(a)**2))
+    other  --                            sum(abs(x)**ord)**(1./ord)
+    =====  ============================  ==========================
+
+    The following matrix norms are currently **not** supported:
+
+    =====  ============================
+    ord    norm for matrices
+    =====  ============================
+    2      largest singular value
+    -2     smallest singular value
+    =====  ============================
+
+    Raises
+    ------
+    ValueError
+        If 'axis' has more than 2 elements
+
+    Examples
+    --------
+    >>> from heat import linalg as LA
+    >>> a = ht.arange(9, dtype=ht.float) - 4
+    >>> a
+    DNDarray([-4., -3., -2., -1.,  0.,  1.,  2.,  3.,  4.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> b = a.reshape((3, 3))
+    >>> b
+    DNDarray([[-4., -3., -2.],
+          [-1.,  0.,  1.],
+          [ 2.,  3.,  4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(a)
+    DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(b)
+    DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(b, ord='fro')
+    DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(a, float('inf'))
+    DNDarray([4.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(b, ht.inf)
+    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(a, -ht.inf))
+    DNDarray([0.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(b, -ht.inf)
+    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(a, 1)
+    DNDarray([20.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(b, 1)
+    DNDarray([7.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(a, -1)
+    DNDarray([0.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(b, -1)
+    DNDarray([6.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(a, 2)
+    DNDarray(7.7460, dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(a, -2)
+    DNDarray([0.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(a, 3)
+    DNDarray([5.8480], dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(a, -3)
+    DNDarray([0.], dtype=ht.float32, device=cpu:0, split=None)
+    c = ht.array([[ 1, 2, 3],
+                  [-1, 1, 4]])
+    >>> LA.norm(c, axis=0)
+    DNDarray([1.4142, 2.2361, 5.0000], dtype=ht.float64, device=cpu:0, split=None)
+    >>> LA.norm(c, axis=1)
+    DNDarray([3.7417, 4.2426], dtype=ht.float64, device=cpu:0, split=None)
+    >>> LA.norm(c, axis=1, ord=1)
+    DNDarray([6., 6.], dtype=ht.float64, device=cpu:0, split=None)
+    >>> m = ht.arange(8).reshape(2,2,2)
+    >>> LA.norm(m, axis=(1,2))
+    DNDarray([ 3.7417, 11.2250], dtype=ht.float32, device=cpu:0, split=None)
+    >>> LA.norm(m[0, :, :]), LA.norm(m[1, :, :])
+    (DNDarray(3.7417, dtype=ht.float32, device=cpu:0, split=None), DNDarray(11.2250, dtype=ht.float32, device=cpu:0, split=None))
+    """
+    sanitation.sanitize_in(x)
+
+    ndim = x.ndim
+
+    if axis is None:
+        if ord is None or (ord == 2 and ndim == 1) or (ord == "fro" and ndim == 2):
+            x = x.flatten()
+            if types.issubdtype(x.dtype, types.complex):
+                sqnorm = dot(x.real, x.real) + dot(x.imag, x.imag)
+            else:
+                sqnorm = dot(x, x)
+            ret = exponential.sqrt(sqnorm)
+            if keepdims:
+                ret = ret.reshape(ndim * [1])
+            return ret
+        elif ndim == 2:
+            return matrix_norm(x, axis, keepdims, ord)
+        else:
+            return vector_norm(x, axis, keepdims, ord)
+
+    if isinstance(axis, int) or len(axis) == 1:
+        return vector_norm(x, axis, keepdims, ord)
+    elif len(axis) == 2:
+        return matrix_norm(x, axis, keepdims, ord)
+    else:
+        raise ValueError("Improper number of dimensions to norm.")
 
 
 DNDarray.norm: Callable[[DNDarray], float] = lambda self: norm(self)
@@ -1721,3 +1988,168 @@ def triu(m: DNDarray, k: int = 0) -> DNDarray:
 
 DNDarray.triu: Callable[[DNDarray, int], DNDarray] = lambda self, k=0: triu(self, k)
 DNDarray.triu.__doc__ = triu.__doc__
+
+
+def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
+    """
+    Computes the dot product of two vectors. Higher-dimensional arrays will be flattened.
+
+    Parameters
+    ----------
+    x1 : DNDarray
+        first input array. If it's complex, it's complex conjugate will be used.
+    x2 : DNDarray
+        second input array.
+
+    Raises
+    ------
+    ValueError
+        If the number of elements is inconsistent.
+
+    See Also
+    --------
+    dot
+        Return the dot product without using the complex conjugate.
+
+    Examples
+    --------
+    >>> a = ht.array([1+1j, 2+2j])
+    >>> b = ht.array([1+2j, 3+4j])
+    >>> ht.vdot(a,b)
+    DNDarray([(17+3j)], dtype=ht.complex64, device=cpu:0, split=None)
+    >>> ht.vdot(b,a)
+    DNDarray([(17-3j)], dtype=ht.complex64, device=cpu:0, split=None)
+    """
+    x1 = manipulations.flatten(x1)
+    x2 = manipulations.flatten(x2)
+
+    return arithmetics.sum(arithmetics.multiply(complex_math.conjugate(x1), x2))
+
+
+def vecdot(
+    x1: DNDarray, x2: DNDarray, axis: Optional[int] = None, keepdim: Optional[bool] = None
+) -> DNDarray:
+    """
+    Computes the (vector) dot product of two DNDarrays.
+
+    Parameters
+    ----------
+    x1 : DNDarray
+        first input array.
+    x2 : DNDarray
+        second input array. Must be compatible with x1.
+    axis : int, optional
+        axis over which to compute the dot product. The last dimension is used if 'None'.
+    keepdim : bool, optional
+        If this is set to 'True', the axes which are reduced are left in the result as dimensions with size one.
+
+    See Also
+    --------
+    dot
+        NumPy-like dot function.
+
+    Examples
+    --------
+    >>> ht.vecdot(ht.full((3,3,3),3), ht.ones((3,3)), axis=0)
+    DNDarray([[9., 9., 9.],
+              [9., 9., 9.],
+              [9., 9., 9.]], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    m = arithmetics.mul(x1, x2)
+
+    if axis is None:
+        axis = m.ndim - 1
+
+    return arithmetics.sum(m, axis=axis, keepdim=keepdim)
+
+
+def vector_norm(
+    x: DNDarray,
+    axis: Optional[Union[int, Tuple[int]]] = None,
+    keepdims=False,
+    ord: Optional[Union[int, float]] = None,
+) -> DNDarray:
+    """
+    Computes the vector norm of an array.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array
+    axis : int, tuple, optional
+        Axis along which to compute the vector norm. If `None` 'x' must be a vector. Default: `None`
+    keepdims : bool, optional
+        Retains the reduced dimension when `True`. Default: `False`
+    ord : int, float, optional
+        The norm order to compute. If `None` the euclidean norm (`2`) is used. Default: `None`
+
+    See Also
+    --------
+    norm
+        Computes the vector norm or matrix norm of an array.
+    matrix_norm
+        Computes the matrix norm of an array.
+
+    Notes
+    -----
+    The following norms are suported:
+
+    =====  ==========================
+    ord    norm for vectors
+    =====  ==========================
+    None   L2-norm (Euclidean)
+    inf    max(abs(x))
+    -inf   min(abs(x))
+    0      sum(x != 0)
+    1      L1-norm (Manhattan)
+    -1     1./sum(1./abs(a))
+    2      L2-norm (Euclidean)
+    -2     1./sqrt(sum(1./abs(a)**2))
+    other  sum(abs(x)**ord)**(1./ord)
+    =====  ==========================
+
+    Raises
+    ------
+    TypeError
+        If axis is not an integer or a 1-tuple
+    ValueError
+        If an invalid vector norm is given.
+
+    Examples
+    --------
+    >>> ht.vector_norm(ht.array([1,2,3,4]))
+    DNDarray([5.4772], dtype=ht.float64, device=cpu:0, split=None)
+    >>> ht.vector_norm(ht.array([[1,2],[3,4]]), axis=0, ord=1)
+    DNDarray([[4., 6.]], dtype=ht.float64, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(x)
+
+    if axis is None:
+        pass
+    elif isinstance(axis, tuple):
+        if len(axis) > 1:
+            raise TypeError("'axis' must be an integer or 1-tuple for vectors.")
+    else:
+        try:
+            axis = int(axis)
+        except Exception:
+            raise TypeError("'axis' must be an integer or 1-tuple for vectors.")
+
+    if ord == constants.INF:
+        return statistics.max(rounding.abs(x), axis=axis, keepdim=keepdims)
+    elif ord == -constants.INF:
+        return statistics.min(rounding.abs(x), axis=axis, keepdim=keepdims)
+    elif ord == 0:
+        return arithmetics.sum(x != 0, axis=axis, keepdim=keepdims).astype(types.float)
+    elif ord == 1:
+        return arithmetics.sum(rounding.abs(x), axis=axis, keepdim=keepdims)
+    elif ord is None or ord == 2:
+        s = (complex_math.conj(x) * x).real
+        return exponential.sqrt(arithmetics.sum(s, axis=axis, keepdim=keepdims))
+    elif isinstance(ord, str):
+        raise ValueError("Norm order {} is invalid for vectors".format(ord))
+    else:
+        ret = arithmetics.pow(rounding.abs(x), ord)
+        ret = arithmetics.sum(ret, axis=axis, keepdim=keepdims)
+        ret = arithmetics.pow(ret, 1.0 / ord)
+        return ret
