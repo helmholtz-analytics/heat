@@ -28,6 +28,7 @@ __all__ = [
     "cross",
     "dot",
     "matmul",
+    "matrix_norm",
     "norm",
     "outer",
     "projection",
