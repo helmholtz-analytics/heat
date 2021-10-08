@@ -70,7 +70,7 @@ def global_printing() -> None:
 
     Examples
     --------
-    >>> x = ht.ht.arange(15 * 5, dtype=ht.float).reshape((15, 5)).resplit(0)
+    >>> x = ht.arange(15 * 5, dtype=ht.float).reshape((15, 5)).resplit(0)
     >>> print(x)
     [0] DNDarray([[ 0.,  1.,  2.,  3.,  4.],
                  [ 5.,  6.,  7.,  8.,  9.],
