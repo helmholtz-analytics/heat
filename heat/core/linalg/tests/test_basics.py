@@ -65,9 +65,7 @@ class TestLinalgBasics(TestCase):
             ht.dot(ht.array(data3d), ht.array(data1d))
 
     def test_inv(self):
-
         # single 2D array
-
         # pytorch
         ares = ht.array([[2.0, 2, 1], [3, 4, 1], [0, 1, -1]])
 
@@ -94,7 +92,7 @@ class TestLinalgBasics(TestCase):
         self.assertTupleEqual(ainv.shape, a.shape)
         self.assertTrue(ht.allclose(ainv, ares))
 
-        # stack Size=(2,2,2,2)
+        # array Size=(2,2,2,2)
         ares = ht.array(
             [[[2, -0.5], [-3, 1]], [[-3, 2], [2, -1]], [[-3, 2], [2, -1]], [[2, -0.5], [-3, 1]]],
             dtype=ht.float,

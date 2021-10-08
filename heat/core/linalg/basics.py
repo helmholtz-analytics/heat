@@ -124,6 +124,13 @@ def inv(a: DNDarray) -> DNDarray:
         If the dtype is not floating-point
     ValueError
         If a is not at least two-dimensional or if the lengths of the last two dimensions are not the same.
+
+    Examples
+    --------
+    >>> a = ht.array([[1., 2], [2, 3]])
+    >>> ht.linalg.inv(a)
+    DNDarray([[-3.,  2.],
+              [ 2., -1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     # no split in the square matrices
     if a.split is None or a.split < a.ndim - 2:
