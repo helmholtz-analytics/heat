@@ -803,6 +803,8 @@ def flatten(a: DNDarray) -> DNDarray:
     >>> ht.flatten(a)
     DNDarray([1, 2, 3, 4, 5, 6, 7, 8], dtype=ht.int64, device=cpu:0, split=None)
     """
+    sanitation.sanitize_in(a)
+
     if a.split is None:
         return factories.array(
             torch.flatten(a.larray), dtype=a.dtype, is_split=None, device=a.device, comm=a.comm
@@ -1892,7 +1894,10 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         # Get axis position on new split axis
         mask = torch.arange(width, device=tdevice) + gindex
         mask = mask + torch.arange(height, device=tdevice).reshape([height, 1]) * global_len
-        mask = (torch.floor_divide(mask, ulen)) % shape2[axis2]
+        try:
+            mask = (torch.divide(mask, ulen, rounding_mode="floor")) % shape2[axis2]
+        except TypeError:
+            mask = (torch.floor_divide(mask, ulen)) % shape2[axis2]
         mask = mask.flatten()
 
         # Compute return values
