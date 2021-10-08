@@ -1767,6 +1767,21 @@ class TestLinalgBasics(TestCase):
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result.larray[0, -1] == 1)
 
+    def test_vdot(self):
+        a = ht.array([[1 + 1j, 2 + 2j], [3 + 3j, 4 + 4j]], split=0)
+        b = ht.array([[1 + 2j, 3 + 4j], [5 + 6j, 7 + 8j]], split=0)
+
+        vdot = ht.vdot(a, b)
+        self.assertEqual(vdot.dtype, a.dtype)
+        self.assertEqual(vdot.split, None)
+        self.assertTrue(ht.equal(vdot, ht.array([110 + 10j])))
+
+        vdot = ht.vdot(b, a)
+        self.assertTrue(ht.equal(vdot, ht.array([110 - 10j])))
+
+        with self.assertRaises(ValueError):
+            ht.vdot(ht.array([1, 2, 3]), ht.array([[1, 2], [3, 4]]))
+
     def test_vecdot(self):
         a = ht.array([1, 1, 1])
         b = ht.array([1, 2, 3])
