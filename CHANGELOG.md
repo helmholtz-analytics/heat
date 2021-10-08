@@ -1,6 +1,7 @@
 # Pending additions
 
 - [#867](https://github.com/helmholtz-analytics/heat/pull/867) Upgraded to support torch 1.9.0
+- [#876](https://github.com/helmholtz-analytics/heat/pull/876) Make examples work (Lasso and kNN)
 
 ## Bug Fixes
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
