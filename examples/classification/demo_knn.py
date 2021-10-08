@@ -10,7 +10,7 @@ import heat as ht
 from heat.classification.kneighborsclassifier import KNeighborsClassifier
 
 # Load dataset from hdf5 file
-X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
+X = ht.load_hdf5("../../heat/datasets/iris.h5", dataset="data", split=0)
 
 # Generate keys for the iris.h5 dataset
 keys = []
