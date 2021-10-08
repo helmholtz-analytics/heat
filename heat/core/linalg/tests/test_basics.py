@@ -364,7 +364,7 @@ class TestLinalgBasics(TestCase):
             b_torch = torch.ones((j, k), device=self.device.torch_device)
             b_torch[0] = torch.arange(1, k + 1, device=self.device.torch_device)
             b_torch[:, 0] = torch.arange(1, j + 1, device=self.device.torch_device)
-            # splits None Noneainv[k, i, :], ainv[k, j, :] = ainv[k, j, :], ainv[k, i, :]
+            # splits None None
             a = ht.ones((m), split=None)
             b = ht.ones((j, k), split=None)
             b[0] = ht.arange(1, k + 1)
