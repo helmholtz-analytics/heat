@@ -26,7 +26,7 @@ analytics and machine learning. It provides highly optimized algorithms and data
 structures for tensor computations using CPUs, GPUs and distributed cluster
 systems on top of MPI. The goal of Heat is to fill the gap between data
 analytics and machine learning libraries with a strong focus on single-node
-performance, and traditional high-performance computing (HPC). Heat's dtype
+performance, and traditional high-performance computing (HPC). Heat's generic
 Python-first programming interface integrates seamlessly with the existing data
 science ecosystem and makes it as effortless as using numpy to write scalable
 scientific and data science applications.
@@ -63,7 +63,7 @@ Requirements
 ------------
 
 Heat requires Python 3.7 or newer.
-Heat is based on [PyTorch](https://pytorch.org/). Specifially, we are exploiting
+Heat is based on [PyTorch](https://pytorch.org/). Specifically, we are exploiting
 PyTorch's support for GPUs *and* MPI parallelism. For MPI support we utilize
 [mpi4py](https://mpi4py.readthedocs.io). Both packages can be installed via pip
 or automatically using the setup.py.
@@ -80,6 +80,9 @@ install the latest version with
 
 where the part in brackets is a list of optional dependencies. You can omit
 it, if you do not need HDF5 or NetCDF support.
+
+It is recommended to use the most recent version of PyTorch. It is also very important to ensure that the
+PyTorch version is compatible with the local CUDA installation. More information can be found [here](https://pytorch.org/get-started/locally/).
 
 Hacking
 -------

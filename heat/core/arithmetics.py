@@ -679,7 +679,10 @@ def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray
     #         gshape=t2.gshape,
     #         balanced=True,
     #     )
-    return _operations.__binary_op(torch.floor_divide, t1, t2)
+    if int(torch.__version__[-3]) > 7:
+        return _operations.__binary_op(torch.div, t1, t2, fn_kwargs={"rounding_mode": "floor"})
+    else:
+        return _operations.__binary_op(torch.floor_divide, t1, t2)
 
 
 DNDarray.__floordiv__ = lambda self, other: floordiv(self, other)

@@ -454,6 +454,7 @@ class TestStatistics(TestCase):
         self.assertEqual(res.shape, (7,))
         self.assertEqual(res.dtype, ht.float64)
         self.assertEqual(res.device, self.device)
+        self.assertEqual(res.split, None)
         self.assertTrue(torch.equal(res.larray, comp))
 
         # matrix and splits
@@ -465,6 +466,7 @@ class TestStatistics(TestCase):
         self.assertEqual(res.shape, (100,))
         self.assertEqual(res.dtype, ht.float32)
         self.assertEqual(res.device, self.device)
+        self.assertEqual(res.split, None)
         self.assertTrue(torch.equal(res.larray, comp))
 
         a = ht.array(c, split=0)
@@ -472,6 +474,7 @@ class TestStatistics(TestCase):
         self.assertEqual(res.shape, (100,))
         self.assertEqual(res.dtype, ht.float32)
         self.assertEqual(res.device, self.device)
+        self.assertEqual(res.split, None)
         self.assertTrue(torch.equal(res.larray, comp))
 
         a = ht.array(c, split=1)
@@ -479,6 +482,7 @@ class TestStatistics(TestCase):
         self.assertEqual(res.shape, (100,))
         self.assertEqual(res.dtype, ht.float32)
         self.assertEqual(res.device, self.device)
+        self.assertEqual(res.split, None)
         self.assertTrue(torch.equal(res.larray, comp))
 
         a = ht.array(c, split=2)
@@ -486,6 +490,7 @@ class TestStatistics(TestCase):
         self.assertEqual(res.shape, (100,))
         self.assertEqual(res.dtype, ht.float32)
         self.assertEqual(res.device, self.device)
+        self.assertEqual(res.split, None)
         self.assertTrue(torch.equal(res.larray, comp))
 
         # out parameter, min max
@@ -498,6 +503,7 @@ class TestStatistics(TestCase):
         self.assertEqual(out.shape, (20,))
         self.assertEqual(out.dtype, ht.float32)
         self.assertEqual(res.device, self.device)
+        self.assertEqual(res.split, None)
         self.assertTrue(torch.equal(out.larray, comp))
 
         a = ht.array(c, split=0)
@@ -505,6 +511,7 @@ class TestStatistics(TestCase):
         self.assertEqual(out.shape, (20,))
         self.assertEqual(out.dtype, ht.float32)
         self.assertEqual(res.device, self.device)
+        self.assertEqual(res.split, None)
         self.assertTrue(torch.equal(out.larray, comp))
 
         # Alias
