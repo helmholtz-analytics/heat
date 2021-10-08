@@ -9,14 +9,13 @@ import warnings
 
 from .communication import MPI, MPI_WORLD
 from . import factories
-from . import devices
 from . import stride_tricks
 from . import sanitation
 from . import statistics
 from .dndarray import DNDarray
 from . import types
 
-from typing import Callable, Optional, Type, Union
+from typing import Callable, Optional, Type, Union, Dict
 
 __all__ = []
 __BOOLEAN_OPS = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
@@ -27,6 +26,7 @@ def __binary_op(
     t1: Union[DNDarray, int, float],
     t2: Union[DNDarray, int, float],
     out: Optional[DNDarray] = None,
+    fn_kwargs: Optional[Dict] = {},
 ) -> DNDarray:
     """
     Generic wrapper for element-wise binary operations of two operands (either can be tensor or scalar).
@@ -43,6 +43,9 @@ def __binary_op(
         The second operand involved in the operation,
     out: DNDarray, optional
         Output buffer in which the result is placed
+    fn_kwargs: Dict, optional
+        keyword arguments used for the given operation
+        Default: {} (empty dictionary)
 
     Returns
     -------
@@ -111,28 +114,33 @@ def __binary_op(
             output_device = t1.device
             output_comm = t1.comm
 
-            # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
             if t1.split is not None:
                 if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
                     # warnings.warn(
                     #     "Broadcasting requires transferring data of first operator between MPI ranks!"
                     # )
-                    if t1.comm.rank > 0:
+                    color = 0 if t1.comm.rank < t2.shape[t1.split] else 1
+                    newcomm = t1.comm.Split(color, t1.comm.rank)
+                    if t1.comm.rank > 0 and color == 0:
                         t1.larray = torch.zeros(
                             t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
                         )
-                    t1.comm.Bcast(t1)
+                    newcomm.Bcast(t1)
+                    newcomm.Free()
 
             if t2.split is not None:
                 if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
                     # warnings.warn(
                     #     "Broadcasting requires transferring data of second operator between MPI ranks!"
                     # )
-                    if t2.comm.rank > 0:
+                    color = 0 if t2.comm.rank < t1.shape[t2.split] else 1
+                    newcomm = t2.comm.Split(color, t2.comm.rank)
+                    if t2.comm.rank > 0 and color == 0:
                         t2.larray = torch.zeros(
                             t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
                         )
-                    t2.comm.Bcast(t2)
+                    newcomm.Bcast(t2)
+                    newcomm.Free()
 
         else:
             raise TypeError(
@@ -150,15 +158,21 @@ def __binary_op(
         if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
             result = t1.larray.type(promoted_type)
         else:
-            result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type))
+            result = operation(
+                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+            )
     elif t2.split is not None:
 
         if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
             result = t2.larray.type(promoted_type)
         else:
-            result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type))
+            result = operation(
+                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+            )
     else:
-        result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type))
+        result = operation(
+            t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+        )
 
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result, device=output_device.torch_device)
@@ -419,7 +433,10 @@ def __reduce_op(
     else:
         output_shape = x.gshape
         for dim in axis:
-            partial = partial_op(partial, dim=dim, keepdim=True)
+            if not (
+                partial.shape.numel() == 0 and partial_op.__name__ in ("local_max", "local_min")
+            ):  # no neutral element for max/min
+                partial = partial_op(partial, dim=dim, keepdim=True)
             output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
         if not keepdim and not len(partial.shape) == 1:
             gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
@@ -439,7 +456,7 @@ def __reduce_op(
             balanced = True
             if x.comm.is_distributed():
                 x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
-        elif axis is not None:
+        elif axis is not None and not keepdim:
             down_dims = len(tuple(dim for dim in axis if dim < x.split))
             split -= down_dims
             balanced = x.balanced

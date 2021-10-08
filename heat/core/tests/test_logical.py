@@ -481,3 +481,14 @@ class TestLogical(TestCase):
                 ht.array([[False, False], [False, False]]),
             )
         )
+
+    def test_signbit(self):
+        a = ht.array([2, -1.3, 0, -5], split=0)
+
+        sb = ht.signbit(a)
+        cmp = ht.array([False, True, False, True])
+
+        self.assertEqual(sb.dtype, ht.bool)
+        self.assertEqual(sb.split, 0)
+        self.assertEqual(sb.device, a.device)
+        self.assertTrue(ht.equal(sb, cmp))
