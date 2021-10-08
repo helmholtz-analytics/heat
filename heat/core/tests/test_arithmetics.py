@@ -246,17 +246,16 @@ class TestArithmetics(TestCase):
     def test_diff(self):
         ht_array = ht.random.rand(20, 20, 20, split=None)
         arb_slice = [0] * 3
-        for dim in range(3):  # loop over 3 dimensions
+        for dim in range(0, 3):  # loop over 3 dimensions
             arb_slice[dim] = slice(None)
+            tup_arb = tuple(arb_slice)
+            np_array = ht_array[tup_arb].numpy()
             for ax in range(dim + 1):  # loop over the possible axis values
                 for sp in range(dim + 1):  # loop over the possible split values
+                    lp_array = ht.manipulations.resplit(ht_array[tup_arb], sp)
                     # loop to 3 for the number of times to do the diff
                     for nl in range(1, 4):
                         # only generating the number once and then
-                        tup_arb = tuple(arb_slice)
-                        lp_array = ht.manipulations.resplit(ht_array[tup_arb], sp)
-                        np_array = ht_array[tup_arb].numpy()
-
                         ht_diff = ht.diff(lp_array, n=nl, axis=ax)
                         np_diff = ht.array(np.diff(np_array, n=nl, axis=ax))
 
@@ -269,10 +268,11 @@ class TestArithmetics(TestCase):
                         ht_append = ht.ones(
                             append_shape, dtype=lp_array.dtype, split=lp_array.split
                         )
+
                         ht_diff_pend = ht.diff(lp_array, n=nl, axis=ax, prepend=0, append=ht_append)
+                        np_append = np.ones(append_shape, dtype=lp_array.larray.cpu().numpy().dtype)
                         np_diff_pend = ht.array(
-                            np.diff(np_array, n=nl, axis=ax, prepend=0, append=ht_append.numpy()),
-                            dtype=ht_diff_pend.dtype,
+                            np.diff(np_array, n=nl, axis=ax, prepend=0, append=np_append)
                         )
                         self.assertTrue(ht.equal(ht_diff_pend, np_diff_pend))
                         self.assertEqual(ht_diff_pend.split, sp)
@@ -292,6 +292,28 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht_diff, np_diff))
         self.assertEqual(ht_diff.split, 1)
         self.assertEqual(ht_diff.dtype, ht_array.dtype)
+
+        # axis has size 1
+        ht_array = ht.random.rand(20, 1, 20, split=2, dtype=ht.float32)
+        np_array = ht_array.copy().numpy()
+        ht_diff = ht.diff(ht_array, axis=1)
+        np_diff = ht.array(np.diff(np_array, axis=1))
+        self.assertTrue(ht.equal(ht_diff, np_diff))
+        self.assertEqual(ht_diff.split, 2)
+        self.assertEqual(ht_diff.dtype, ht_array.dtype)
+        self.assertTrue(ht_diff.shape == (20, 0, 20))
+        self.assertTrue(ht_diff.lshape[ht_diff.split] == ht_array.lshape[ht_array.split])
+
+        # axis has size 1 and axis == split
+        ht_array = ht.random.rand(20, 1, 20, split=1, dtype=ht.float32)
+        np_array = ht_array.copy().numpy()
+        ht_diff = ht.diff(ht_array, axis=1)
+        np_diff = ht.array(np.diff(np_array, axis=1))
+        self.assertTrue(ht.equal(ht_diff, np_diff))
+        self.assertEqual(ht_diff.split, None)
+        self.assertEqual(ht_diff.dtype, ht_array.dtype)
+        self.assertTrue(ht_diff.shape == (20, 0, 20))
+        self.assertTrue(ht_diff.lshape == ht_diff.shape)
 
         # raises
         with self.assertRaises(ValueError):
