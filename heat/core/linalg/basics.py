@@ -134,7 +134,7 @@ def inv(a: DNDarray) -> DNDarray:
     """
     # no split in the square matrices
     if a.split is None or a.split < a.ndim - 2:
-        data = torch.inv(a.larray) if "1.7" in torch.__version__ else torch.linalg.inv(a.larray)
+        data = torch.inverse(a.larray)
         return DNDarray(
             data,
             a.shape,
