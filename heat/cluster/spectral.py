@@ -126,7 +126,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         )
         V, T = ht.lanczos(L, self.n_lanczos, v0)
 
-        # if int(torch.__version__[-3]) >= 9:
+        # if int(torch.__version__.split(".")[1]) >= 9:
         try:
             # 4. Calculate and Sort Eigenvalues and Eigenvectors of tridiagonal matrix T
             eval, evec = torch.linalg.eig(T.larray)
