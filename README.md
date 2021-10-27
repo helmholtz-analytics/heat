@@ -80,8 +80,10 @@ install the latest version with
 where the part in brackets is a list of optional dependencies. You can omit
 it, if you do not need HDF5 or NetCDF support.
 
-It is recommended to use the most recent version of PyTorch. It is also very important to ensure that the
-PyTorch version is compatible with the local CUDA installation. More information can be found [here](https://pytorch.org/get-started/locally/).
+**It is recommended to use the most recent version of PyTorch!**
+
+It is also very important to ensure that the PyTorch version is compatible with the local CUDA installation.
+More information can be found [here](https://pytorch.org/get-started/locally/).
 
 Hacking
 -------
