@@ -3,7 +3,7 @@ This file is for the general data parallel neural network classes.
 """
 import warnings
 import torch
-import torch.distributed
+import torch.distributed as dist
 import torch.nn as tnn
 
 from collections import OrderedDict
@@ -15,7 +15,7 @@ from ..core.communication import MPI_WORLD
 from ..core.communication import MPICommunication
 
 
-__all__ = ["DataParallel", "DataParallelMultiGPU"]
+__all__ = ["DataParallel", "DataParallelMultiGPU", "DataParallelNCCLOnly"]
 
 
 class DataParallel(tnn.Module):
@@ -354,6 +354,74 @@ class DataParallelMultiGPU(tnn.Module):
         self.module.apply(self._reset_parameters)
 
         optimizer.set_model(self.module)
+
+    def forward(self, *inputs: Tuple, **kwargs: Dict) -> torch.Tensor:
+        """
+        Calls the forward method for the torch model
+        """
+        return self.module(*inputs, **kwargs)
+
+    @staticmethod
+    def _reset_parameters(module: tnn.Module) -> None:
+        """
+        Reset parameters of given torch submodule. Only works for basic module types containing ``reset_parameters``
+        function.
+
+        Parameters
+        ----------
+        module: torch.nn.Module
+            Submodule whose parameters are to be reset
+        """
+        if callable(getattr(module, "reset_parameters", None)):
+            module.reset_parameters()
+
+
+class DataParallelNCCLOnly(tnn.parallel.DistributedDataParallel):
+    """
+    This creates data parallel networks local to each node using PyTorch's distributed class. This does NOT
+    do any global synchronizations. To make optimal use of this structure, use :func:`ht.optim.DASO <heat.optim.dp_optimizer.DASO>`.
+
+    Notes
+    -----
+    The PyTorch distributed process group must already exist before this class is initialized.
+
+    Parameters
+    ----------
+    module: torch.nn.Module
+        an implemented PyTorch model
+    optimizer: optim.DASO
+        A DASO optimizer. Other optimizers are not yet implemented. The DASO optimizer should be
+        defined prior to calling this class.
+    comm: MPICommunication, optional
+        A global communicator.
+        Default: :func:`MPICommunication <heat.core.comm.MPICommunication>`
+    """
+
+    def __init__(
+        self, model: torch.nn.Module, optimizer: optim.DASO, comm: MPICommunication = MPI_WORLD
+    ):  # noqa: D107
+        rank = comm.rank
+        if torch.cuda.device_count() < 1:
+            raise RuntimeError(f"Found less than 1 device: {torch.cuda.device_count()}")
+        if comm.size < 2:
+            raise RuntimeError(f"Found less than 2 ranks: {comm.size}")
+        self.loc_gpus = torch.cuda.device_count()
+        local_rank = rank % self.loc_gpus
+        device = "cuda:" + str(local_rank)
+        torch.cuda.set_device(device=device)
+        else:
+            warnings.warn(
+                "DataParallelMultiGPU should be used with multiple GPUs per node", UserWarning
+            )
+        self.module = module
+        self.comm = comm
+
+        # unify parameters across nodes by unifying the random seed and resetting parameters
+        self.module.apply(self._reset_parameters)
+
+        optimizer.set_model(self.module)
+
+        super(DataParallelNCCLOnly, self).__init__(model, device_ids=[rank,])
 
     def forward(self, *inputs: Tuple, **kwargs: Dict) -> torch.Tensor:
         """

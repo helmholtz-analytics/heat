@@ -2,13 +2,19 @@
 Utility functions for the heat optimizers
 """
 
+import os
 import math
+import socket
 import torch
+import torch.distributed as dist
+
+from datetime import timedelta
+from ..core.communication import MPI_WORLD
 
 from typing import Optional, Dict
 
 
-__all__ = ["DetectMetricPlateau"]
+__all__ = ["DetectMetricPlateau", "spawn_daso_groups"]
 
 
 class DetectMetricPlateau(object):
@@ -204,3 +210,87 @@ class DetectMetricPlateau(object):
         self.mode = mode
         self.threshold = threshold
         self.threshold_mode = threshold_mode
+
+
+def spawn_daso_groups(
+    num_gpus_per_node=torch.cuda.device_count(),
+):
+    # this will spawn 3 groups:
+    #   1st: global group including all groups
+    #   2nd: node local groups (local ranks 0, 1, 2, ...)
+    #   3rd: node-rank groups (local ranks 0, 0, ..., 0 from each node
+
+    # --------- 1st: global group -----------------------------------
+    # TODO: is this needed? we could use the MPI
+    address = socket.gethostname()
+    rank = MPI_WORLD.rank
+    size = MPI_WORLD.size
+    if rank != 0:
+        address = ""
+    address = MPI_WORLD.bcast(address, root=0)
+    # if instance_id == 1:
+    # print("MASTER_ADDR is set to ", address, "instance:", instance_id)
+
+    port = "29500"
+    os.environ["MASTER_ADDR"] = address
+    os.environ["MASTER_PORT"] = port
+    dist.init_process_group(
+        backend="nccl",
+        store=None,
+        rank=rank,
+        world_size=size,
+        timeout=timedelta(seconds=240),
+        group_name="global",
+    )
+    # --------- 2nd: node-local group -------------------------------
+    address = socket.gethostname()
+    node_rank = MPI_WORLD.rank % num_gpus_per_node
+    node_num = rank // num_gpus_per_node
+    if rank != 0:
+        address = ""
+    node_local_mpi = MPI_WORLD.Split(color=node_num, key=node_rank)
+    address = node_local_mpi.bcast(address, root=0)
+    # if instance_id == 1:
+    # print("MASTER_ADDR is set to ", address, "instance:", instance_id)
+
+    port = "29500"
+    os.environ["MASTER_ADDR"] = address
+    os.environ["MASTER_PORT"] = port
+    dist.init_process_group(
+        backend="nccl",
+        store=None,
+        rank=rank,
+        world_size=num_gpus_per_node,
+        timeout=timedelta(seconds=240),
+        group_name="node-local",
+    )
+    # all processes have 1 node-local comm -> used in the DDP update
+
+    # free the MPI split, dont need it anymore
+    node_local_mpi.Free()
+    # ------ 3rd: node-rank groups ----------------------------------
+    address = socket.gethostname()
+    node_rank = MPI_WORLD.rank % num_gpus_per_node
+    node_num = rank // num_gpus_per_node
+    number_of_nodes = size // num_gpus_per_node
+    if rank != 0:
+        address = ""
+    node_rank_mpi = MPI_WORLD.Split(color=node_rank, key=node_num)
+    address = node_rank_mpi.bcast(address, root=0)
+    # if instance_id == 1:
+    # print("MASTER_ADDR is set to ", address, "instance:", instance_id)
+
+    port = "29500"
+    os.environ["MASTER_ADDR"] = address
+    os.environ["MASTER_PORT"] = port
+    dist.init_process_group(
+        backend="nccl",
+        store=None,
+        rank=node_num,
+        world_size=number_of_nodes,
+        timeout=timedelta(seconds=240),
+        group_name=f"node-rank-{node_rank}",
+    )
+    # all procs need to know that there are 4 of these groups, cant test inclusios anymore
+    # free the MPI split for this one, TODO: do we need these?
+    node_rank_mpi.Free()
