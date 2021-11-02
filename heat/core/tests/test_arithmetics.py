@@ -45,6 +45,13 @@ class TestArithmetics(TestCase):
             else:
                 self.assertEqual(c.larray.size()[0], 0)
 
+        # test with differently distributed DNDarrays
+        a = ht.ones(10, split=0)
+        b = ht.zeros(10, split=0)
+        c = a[:-1] + b[1:]
+        self.assertTrue((c == 1).all())
+        self.assertTrue(c.lshape == a[:-1].lshape)
+
         with self.assertRaises(ValueError):
             ht.add(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):

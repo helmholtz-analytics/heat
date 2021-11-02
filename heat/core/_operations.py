@@ -158,21 +158,39 @@ def __binary_op(
         if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
             result = t1.larray.type(promoted_type)
         else:
-            result = operation(
-                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-            )
-    elif t2.split is not None:
+            try:
+                result = operation(
+                    t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+                )
+            except RuntimeError:
+                t2.redistribute_(target_map=t1.lshape_map)
+                result = operation(
+                    t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+                )
 
+    elif t2.split is not None:
         if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
             result = t2.larray.type(promoted_type)
         else:
+            try:
+                result = operation(
+                    t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+                )
+            except RuntimeError:
+                t1.redistribute_(target_map=t2.lshape_map)
+                result = operation(
+                    t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+                )
+    else:
+        try:
             result = operation(
                 t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
             )
-    else:
-        result = operation(
-            t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-        )
+        except RuntimeError:
+            t2.redistribute_(target_map=t1.lshape_map)
+            result = operation(
+                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+            )
 
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result, device=output_device.torch_device)
