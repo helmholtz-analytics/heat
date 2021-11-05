@@ -51,6 +51,18 @@ def __binary_op(
     -------
     result: ht.DNDarray
         A DNDarray containing the results of element-wise operation.
+
+    Warning
+    -------
+    If both operands are distributed, they must be distributed along the same dimension, i.e. `t1.split = t2.split`.
+
+    MPI communication is necessary when both operands are distributed along the same dimension, but the distribution maps do not match. I.e.:
+    ```
+    a =  ht.ones(10000, split=0)
+    b = ht.zeros(10000, split=0)
+    c = a[:-1] + b[1:]
+    ```
+    In such cases, one of the operands is redistributed IN PLACE to match the distribution map of the other operand.
     """
     promoted_type = types.result_type(t1, t2).torch_type()
 
