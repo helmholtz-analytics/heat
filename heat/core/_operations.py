@@ -56,7 +56,7 @@ def __binary_op(
     -------
     If both operands are distributed, they must be distributed along the same dimension, i.e. `t1.split = t2.split`.
 
-    MPI communication is necessary when both operands are distributed along the same dimension, but the distribution maps do not match. I.e.:
+    MPI communication is necessary when both operands are distributed along the same dimension, but the distribution maps do not match. E.g.:
     ```
     a =  ht.ones(10000, split=0)
     b = ht.zeros(10000, split=0)
