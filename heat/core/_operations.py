@@ -62,154 +62,115 @@ def __binary_op(
     b = ht.zeros(10000, split=0)
     c = a[:-1] + b[1:]
     ```
-    In such cases, one of the operands is redistributed IN PLACE to match the distribution map of the other operand.
+    In such cases, one of the operands is redistributed OUT-OF-PLACE to match the distribution map of the other operand.
     """
-    promoted_type = types.result_type(t1, t2).torch_type()
+    # Check inputs
+    if not np.isscalar(t1) and not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Only tensors and numeric scalars are supported, but input was {}".format(type(t1))
+        )
+    if not np.isscalar(t2) and not isinstance(t2, DNDarray):
+        raise TypeError(
+            "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
+        )
 
-    if np.isscalar(t1):
+    # Make inputs Dndarrays
+    if np.isscalar(t1) and np.isscalar(t2):
         try:
-            t1 = factories.array(t1, device=t2.device if isinstance(t2, DNDarray) else None)
+            t1 = factories.array(t1)
+            t2 = factories.array(t2)
+        except (ValueError, TypeError):
+            raise TypeError(
+                "Data type not supported, inputs were {} and {}".format(type(t1), type(t2))
+            )
+    elif np.isscalar(t1) and isinstance(t2, DNDarray):
+        try:
+            t1 = factories.array(t1, device=t2.device, comm=t2.comm)
         except (ValueError, TypeError):
             raise TypeError("Data type not supported, input was {}".format(type(t1)))
+    elif isinstance(t1, DNDarray) and np.isscalar(t2):
+        try:
+            t2 = factories.array(t2, device=t1.device, comm=t1.comm)
+        except (ValueError, TypeError):
+            raise TypeError("Data type not supported, input was {}".format(type(t1)))
+    if not t1.comm == t2.comm:
+        raise NotImplementedError("Not implemented for other comms")
 
-        if np.isscalar(t2):
-            try:
-                t2 = factories.array(t2)
-            except (ValueError, TypeError):
-                raise TypeError(
-                    "Only numeric scalars are supported, but input was {}".format(type(t2))
-                )
-            output_shape = (1,)
-            output_split = None
-            output_device = t2.device
-            output_comm = MPI_WORLD
-        elif isinstance(t2, DNDarray):
-            output_shape = t2.shape
-            output_split = t2.split
-            output_device = t2.device
-            output_comm = t2.comm
-        else:
-            raise TypeError(
-                "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
-            )
-
-        if t1.dtype != t2.dtype:
-            t1 = t1.astype(t2.dtype)
-
-    elif isinstance(t1, DNDarray):
-        if np.isscalar(t2):
-            try:
-                t2 = factories.array(t2, device=t1.device)
-                output_shape = t1.shape
-                output_split = t1.split
-                output_device = t1.device
-                output_comm = t1.comm
-            except (ValueError, TypeError):
-                raise TypeError("Data type not supported, input was {}".format(type(t2)))
-
-        elif isinstance(t2, DNDarray):
-            if t1.split is None:
-                t1 = factories.array(
-                    t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.ndim
-                )
-            elif t2.split is None:
-                t2 = factories.array(
-                    t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.ndim
-                )
-            elif t1.split != t2.split:
-                # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
-                # and split=1
-                raise NotImplementedError("Not implemented for other splittings")
-
-            output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-            output_split = t1.split
-            output_device = t1.device
-            output_comm = t1.comm
-
-            if t1.split is not None:
-                if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
-                    # warnings.warn(
-                    #     "Broadcasting requires transferring data of first operator between MPI ranks!"
-                    # )
-                    color = 0 if t1.comm.rank < t2.shape[t1.split] else 1
-                    newcomm = t1.comm.Split(color, t1.comm.rank)
-                    if t1.comm.rank > 0 and color == 0:
-                        t1.larray = torch.zeros(
-                            t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
-                        )
-                    newcomm.Bcast(t1)
-                    newcomm.Free()
-
-            if t2.split is not None:
-                if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
-                    # warnings.warn(
-                    #     "Broadcasting requires transferring data of second operator between MPI ranks!"
-                    # )
-                    color = 0 if t2.comm.rank < t1.shape[t2.split] else 1
-                    newcomm = t2.comm.Split(color, t2.comm.rank)
-                    if t2.comm.rank > 0 and color == 0:
-                        t2.larray = torch.zeros(
-                            t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
-                        )
-                    newcomm.Bcast(t2)
-                    newcomm.Free()
-
-        else:
-            raise TypeError(
-                "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
-            )
-    else:
-        raise NotImplementedError("Not implemented for non scalar")
-
-    # sanitize output
-    if out is not None:
+    # Make inputs have the same dimensionality, determine output parameters
+    output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+    # Broadcasting allows additional empty dimensions on the left side
+    # TODO simplify this once newaxis-indexing is supported to get rid of the loops
+    while len(t1.shape) < len(output_shape):
+        t1 = t1.expand_dims(axis=0)
+    while len(t2.shape) < len(output_shape):
+        t2 = t2.expand_dims(axis=0)
+    if t1.split is not None and t2.split is not None and t1.split != t2.split:
+        # if t1 and t2 both split, split has to be the same after (shape)bcast
+        raise NotImplementedError("Not implemented for other splittings")
+    output_split = t1.split if t1.split is not None else t2.split
+    output_balanced = t1.balanced if t1.split is not None else t2.balanced
+    output_device = t1.device
+    output_comm = t1.comm
+    if out is not None:  # check out
         sanitation.sanitize_out(out, output_shape, output_split, output_device)
 
-    # promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
-    if t1.split is not None:
-        if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
-            result = t1.larray.type(promoted_type)
+    if t1.is_distributed() and t2.is_distributed():
+        # Equalize t1 and t2 distribution
+        # If both are distributed, no broadcasting is happening in the split dimension
+        if out is None:  # redistribute to match t1
+            t2_map = t2.lshape_map
+            target_map = t2_map.clone()
+            target_map[:, output_split] = t1.lshape_map[:, output_split]
+            if not (t2_map[:, output_split] == target_map[:, output_split]).all():
+                t2 = t2.redistribute(
+                    lshape_map=t2_map, target_map=target_map
+                )  # OUT-OF-PLACE binops should not alter their arguments
+        else:  # redistribute to match out
+            target_map = out.lshape_map
+            t1_map = t1.lshape_map
+            t1_target_map = t1_map.clone()
+            t2_map = t2.lshape_map
+            t2_target_map = t2_map.clone()
+            t1_target_map[:, output_split] = target_map[:, output_split]
+            t2_target_map[:, output_split] = target_map[:, output_split]
+            if not (t1_map[:, output_split] == t1_target_map[:, output_split]).all():
+                t1 = t1.redistribute(
+                    lshape_map=t1_map, target_map=t1_target_map
+                )  # OUT-OF-PLACE binops should not alter their arguments
+            if not (t2_map[:, output_split] == t2_target_map[:, output_split]).all():
+                t2 = t2.redistribute(
+                    lshape_map=t2_map, target_map=t2_target_map
+                )  # OUT-OF-PLACE binops should not alter their arguments
+    # at least one is not distributed -> no redistribution needed
+    elif not t1.is_distributed() and t2.is_distributed():
+        if t2.is_balanced():
+            t1 = factories.array(t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device)
         else:
-            try:
-                result = operation(
-                    t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-                )
-            except RuntimeError:
-                t2.redistribute_(target_map=t1.lshape_map)
-                result = operation(
-                    t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-                )
-
-    elif t2.split is not None:
-        if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
-            result = t2.larray.type(promoted_type)
+            idx = [slice(None)] * t1.ndim
+            lshapes = t2.lshape_map[:, t2.split]
+            idx[t2.split] = slice(lshapes[: t1.comm.rank].sum(), lshapes[: t1.comm.rank + 1].sum())
+            t1 = factories.array(
+                t1.larray[tuple(idx)], is_split=t2.split, copy=False, comm=t1.comm, device=t1.device
+            )
+    elif t1.is_distributed() and not t2.is_distributed():
+        if t1.is_balanced():
+            t2 = factories.array(t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device)
         else:
-            try:
-                result = operation(
-                    t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-                )
-            except RuntimeError:
-                t1.redistribute_(target_map=t2.lshape_map)
-                result = operation(
-                    t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-                )
-    else:
-        try:
-            result = operation(
-                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-            )
-        except RuntimeError:
-            t2.redistribute_(target_map=t1.lshape_map)
-            result = operation(
-                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+            idx = [slice(None)] * t2.ndim
+            lshapes = t1.lshape_map[:, t1.split]
+            idx[t1.split] = slice(lshapes[: t2.comm.rank].sum(), lshapes[: t2.comm.rank + 1].sum())
+            t1 = factories.array(
+                t2.larray[tuple(idx)], is_split=t1.split, copy=False, comm=t2.comm, device=t2.device
             )
 
+    promoted_type = types.result_type(t1, t2).torch_type()
+    result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result, device=output_device.torch_device)
 
     if out is not None:
         out_dtype = out.dtype
-        out.larray = result
+        out.larray = result  # "out: Output buffer in which the result is placed" is this correct???
         out._DNDarray__comm = output_comm
         out = out.astype(out_dtype)
         return out
@@ -221,7 +182,7 @@ def __binary_op(
         output_split,
         output_device,
         output_comm,
-        balanced=None,
+        balanced=output_balanced,
     )
 
 
