@@ -73,6 +73,7 @@ def __binary_op(
         raise TypeError(
             "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
         )
+    promoted_type = types.result_type(t1, t2).torch_type()
 
     # Make inputs Dndarrays
     if np.isscalar(t1) and np.isscalar(t2):
@@ -163,7 +164,6 @@ def __binary_op(
                 t2.larray[tuple(idx)], is_split=t1.split, copy=False, comm=t2.comm, device=t2.device
             )
 
-    promoted_type = types.result_type(t1, t2).torch_type()
     result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result, device=output_device.torch_device)
