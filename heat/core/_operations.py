@@ -20,6 +20,8 @@ from typing import Callable, Optional, Type, Union, Dict
 __all__ = []
 __BOOLEAN_OPS = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]
 
+print("debugging")
+
 
 def __binary_op(
     operation: Callable,
@@ -108,29 +110,47 @@ def __binary_op(
     if t1.split is not None and t2.split is not None and t1.split != t2.split:
         # if t1 and t2 both split, split has to be the same after (shape)bcast
         raise NotImplementedError("Not implemented for other splittings")
-    # No broadcasting should happen in the split-dimension, would not work with redistribution
-    if t1.is_distributed() and t2.is_distributed():
-        if t1.shape[t1.split] == 1 and t2.shape[t2.split] != 1:
-            t1 = t1.resplit(None)
-            t1.larray = t1.larray.expand(output_shape)
-        elif t1.shape[t1.split] != 1 and t2.shape[t2.split] == 1:
-            t2 = t2.resplit(None)
-            t2.larray = t2.larray.expand(output_shape)
     output_split = t1.split if t1.split is not None else t2.split
-    output_balanced = t1.balanced if t1.split is not None else t2.balanced
-    output_device = t1.device
-    output_comm = t1.comm
-    if out is not None:  # check out
-        sanitation.sanitize_out(out, output_shape, output_split, output_device)
 
-    if t1.is_distributed() and t2.is_distributed():
+    # No broadcasting should happen in the split-dimension, would not work with redistribution
+    # if t1.is_distributed() and t2.is_distributed():
+    #     if t1.shape[t1.split] <= 1 and t2.shape[t2.split] > 1:
+    #         t1 = t1.resplit(None)
+    #         # t1.larray = t1.larray.expand(output_shape)
+    #         bcast_split = True
+    #     elif t1.shape[t1.split] > 1 and t2.shape[t2.split] <= 1:
+    #         t2 = t2.resplit(None)
+    #         # t2.larray = t2.larray.expand(output_shape)
+    #         bcast_split = True
+    # elif t1.is_distributed() and t1.shape[t1.split] > 1 and t2.shape[t1.split] <= 1:
+    #     t2 = t2.resplit(None)  # not distributed anyway
+    #     # t2.larray = t2.larray.expand(output_shape)
+    #     bcast_split = True
+    # elif t2.is_distributed() and t1.shape[t2.split] <= 1 and t2.shape[t2.split] > 1:
+    #     t1 = t1.resplit(None)  # not distributed anyway
+    #     # t1.larray = t1.larray.expand(output_shape)
+    #     bcast_split = True
+
+    # if t1.split is not None and t1.shape[t1.split] <= 1 and output_shape[t1.split] > 1:
+    if output_split is not None and t1.shape[output_split] <= 1 and output_shape[output_split] > 1:
+        # broadcasting in split-dimension:
+        # move full array to every rank; no redistribution because size is only one
+        t1 = t1.resplit(None)
+        # print('bcast split dim'); t1.comm.Barrier()
+    elif (
+        output_split is not None and t2.shape[output_split] <= 1 and output_shape[output_split] > 1
+    ):
+        # broadcasting in split-dimension:
+        # move full array to every rank; no redistribution because size is only one
+        t2 = t2.resplit(None)
+        # print('bcast split dim'); t1.comm.Barrier()
+    elif t1.is_distributed() and t2.is_distributed():
         # Equalize t1 and t2 distribution
-        # If both are distributed, no broadcasting is happening in the split dimension
         if out is None:  # redistribute to match t1
             t2_map = t2.lshape_map
             target_map = t2_map.clone()
-            target_map[:, output_split] = t1.lshape_map[:, output_split]
-            if not (t2_map[:, output_split] == target_map[:, output_split]).all():
+            target_map[:, t2.split] = t1.lshape_map[:, t2.split]
+            if not (t2_map[:, t2.split] == target_map[:, t2.split]).all():
                 t2 = t2.redistribute(
                     lshape_map=t2_map, target_map=target_map
                 )  # OUT-OF-PLACE binops should not alter their arguments
@@ -140,18 +160,18 @@ def __binary_op(
             t1_target_map = t1_map.clone()
             t2_map = t2.lshape_map
             t2_target_map = t2_map.clone()
-            t1_target_map[:, output_split] = target_map[:, output_split]
-            t2_target_map[:, output_split] = target_map[:, output_split]
-            if not (t1_map[:, output_split] == t1_target_map[:, output_split]).all():
+            t1_target_map[:, t1.split] = target_map[:, t1.split]
+            t2_target_map[:, t2.split] = target_map[:, t2.split]
+            if not (t1_map[:, t1.split] == t1_target_map[:, t1.split]).all():
                 t1 = t1.redistribute(
                     lshape_map=t1_map, target_map=t1_target_map
                 )  # OUT-OF-PLACE binops should not alter their arguments
-            if not (t2_map[:, output_split] == t2_target_map[:, output_split]).all():
+            if not (t2_map[:, t2.split] == t2_target_map[:, t2.split]).all():
                 t2 = t2.redistribute(
                     lshape_map=t2_map, target_map=t2_target_map
                 )  # OUT-OF-PLACE binops should not alter their arguments
-    # at least one is not distributed -> no redistribution needed
     elif not t1.is_distributed() and t2.is_distributed():
+        # at least one is not distributed -> no redistribution needed; take local slice
         if t2.is_balanced():
             t1 = factories.array(t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device)
         else:
@@ -162,6 +182,7 @@ def __binary_op(
                 t1.larray[tuple(idx)], is_split=t2.split, copy=False, comm=t1.comm, device=t1.device
             )
     elif t1.is_distributed() and not t2.is_distributed():
+        # at least one is not distributed -> no redistribution needed; take local slice
         if t1.is_balanced():
             t2 = factories.array(t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device)
         else:
@@ -171,12 +192,14 @@ def __binary_op(
             t2 = factories.array(
                 t2.larray[tuple(idx)], is_split=t1.split, copy=False, comm=t2.comm, device=t2.device
             )
-    else:
-        output_split = None
-        result = operation(
-            t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-        )
 
+    # determine output params
+    output_split = t1.split if t1.split is not None else t2.split
+    output_balanced = t1.balanced if t1.split is not None else t2.balanced
+    output_device = t1.device
+    output_comm = t1.comm
+
+    # print('ping0', t1.shape, t1.lshape, t1.split, t1.is_distributed(), t2.shape, t2.lshape, t2.split, t1.is_distributed()); t1.comm.Barrier()
     result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result, device=output_device.torch_device)
@@ -194,8 +217,8 @@ def __binary_op(
         output_shape,
         types.heat_type_of(result),
         output_split,
-        output_device,
-        output_comm,
+        device=output_device,
+        comm=output_comm,
         balanced=output_balanced,
     )
 
