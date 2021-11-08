@@ -192,10 +192,6 @@ def __binary_op(
     else:
         raise NotImplementedError("Not implemented for non scalar")
 
-    # sanitize output
-    if out is not None:
-        sanitation.sanitize_out(out, output_shape, output_split, output_device)
-
     if t1.split is not None:
         output_split = t1.split
         # TODO: implement `dndarray.create_bulk_lshape_maps`
@@ -207,7 +203,6 @@ def __binary_op(
             if (
                 t2.split is not None
                 and not (t2.lshape_map[:, t2.split] == t1.lshape_map[:, t1.split]).all()
-                and t2.lshape_map[:, t2.split].sum() == t1.lshape_map[:, t1.split].sum()
             ):
                 t2.redistribute_(target_map=t1.lshape_map)
             result = operation(
@@ -225,7 +220,6 @@ def __binary_op(
             if (
                 t1.split is not None
                 and not (t2.lshape_map[:, t2.split] == t1.lshape_map[:, t1.split]).all()
-                and t2.lshape_map[:, t2.split].sum() == t1.lshape_map[:, t1.split].sum()
             ):
                 t1.redistribute_(target_map=t2.lshape_map)
             result = operation(
@@ -241,6 +235,7 @@ def __binary_op(
         result = torch.tensor(result, device=output_device.torch_device)
 
     if out is not None:
+        sanitation.sanitize_out(out, output_shape, output_split, output_device)
         out_dtype = out.dtype
         out.larray = result
         out._DNDarray__comm = output_comm
