@@ -109,20 +109,43 @@ def __binary_op(
 
         elif isinstance(t2, DNDarray):
             if t1.split is None:
-                t1 = factories.array(
-                    t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.ndim
-                )
+                # do not distribute t1 if size along distribution axis is 1
+                if (
+                    t2.split is not None
+                    and t2.split >= abs(t2.ndim - t1.ndim)
+                    and t1.shape[t2.split - abs(t2.ndim - t1.ndim)] > 1
+                ):
+                    t1 = factories.array(
+                        t1,
+                        split=t2.split,
+                        copy=False,
+                        comm=t1.comm,
+                        device=t1.device,
+                        ndmin=-t2.ndim,
+                    )
+                    output_split = t2.split
             elif t2.split is None:
-                t2 = factories.array(
-                    t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.ndim
-                )
+                # do not distribute t2 if size along distribution axis is 1
+                if (
+                    t1.split is not None
+                    and t1.split >= abs(t2.ndim - t1.ndim)
+                    and t2.shape[t1.split - abs(t2.ndim - t1.ndim)] > 1
+                ):
+                    t2 = factories.array(
+                        t2,
+                        split=t1.split,
+                        copy=False,
+                        comm=t2.comm,
+                        device=t2.device,
+                        ndmin=-t1.ndim,
+                    )
+                    output_split = t1.split
             elif t1.split != t2.split:
                 # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
                 # and split=1
                 raise NotImplementedError("Not implemented for other splittings")
 
             output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-            output_split = t1.split
             output_device = t1.device
             output_comm = t1.comm
 
@@ -131,29 +154,37 @@ def __binary_op(
                     # warnings.warn(
                     #     "Broadcasting requires transferring data of first operator between MPI ranks!"
                     # )
-                    color = 0 if t1.comm.rank < t2.shape[t1.split] else 1
-                    newcomm = t1.comm.Split(color, t1.comm.rank)
-                    if t1.comm.rank > 0 and color == 0:
-                        t1.larray = torch.zeros(
-                            t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
-                        )
-                    newcomm.Bcast(t1)
-                    newcomm.Free()
-
+                    t1.resplit_(None)
+                    # color = 0 if t1.comm.rank < t2.shape[t1.split] else 1
+                    # newcomm = t1.comm.Split(color, t1.comm.rank)
+                    # if t1.comm.rank > 0 and color == 0:
+                    #     t1.larray = torch.zeros(
+                    #         t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
+                    #     )
+                    # newcomm.Bcast(t1)
+                    # newcomm.Free()
+                    # t1.__lshape = t1.gshape
+                    # t1.__split = None
+                    # t1.__lshape_map = torch.tensor(t1.gshape).unsqueeze_(0)
+                    # t1.__balanced = True
             if t2.split is not None:
                 if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
                     # warnings.warn(
                     #     "Broadcasting requires transferring data of second operator between MPI ranks!"
                     # )
-                    color = 0 if t2.comm.rank < t1.shape[t2.split] else 1
-                    newcomm = t2.comm.Split(color, t2.comm.rank)
-                    if t2.comm.rank > 0 and color == 0:
-                        t2.larray = torch.zeros(
-                            t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
-                        )
-                    newcomm.Bcast(t2)
-                    newcomm.Free()
-
+                    t2.resplit_(None)
+                    # color = 0 if t2.comm.rank < t1.shape[t2.split] else 1
+                    # newcomm = t2.comm.Split(color, t2.comm.rank)
+                    # if t2.comm.rank > 0 and color == 0:
+                    #     t2.larray = torch.zeros(
+                    #         t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
+                    #     )
+                    # newcomm.Bcast(t2)
+                    # newcomm.Free()
+                    # t2.__lshape = t2.gshape
+                    # t2.__split = None
+                    # t2.__lshape_map = torch.tensor(t2.gshape).unsqueeze_(0)
+                    # t2.__balanced = True
         else:
             raise TypeError(
                 "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
@@ -165,44 +196,46 @@ def __binary_op(
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, output_device)
 
-    # promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
     if t1.split is not None:
+        output_split = t1.split
+        # TODO: implement `dndarray.create_bulk_lshape_maps`
+        t1.create_lshape_map()
+        t2.create_lshape_map()
         if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
             result = t1.larray.type(promoted_type)
         else:
-            try:
-                result = operation(
-                    t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-                )
-            except RuntimeError:
+            if (
+                t2.split is not None
+                and not (t2.lshape_map[:, t2.split] == t1.lshape_map[:, t1.split]).all()
+                and t2.lshape_map[:, t2.split].sum() == t1.lshape_map[:, t1.split].sum()
+            ):
                 t2.redistribute_(target_map=t1.lshape_map)
-                result = operation(
-                    t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-                )
+            result = operation(
+                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+            )
 
     elif t2.split is not None:
+        output_split = t2.split
+        # TODO: implement `dndarray.create_bulk_lshape_maps`
+        t1.create_lshape_map()
+        t2.create_lshape_map()
         if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
             result = t2.larray.type(promoted_type)
         else:
-            try:
-                result = operation(
-                    t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-                )
-            except RuntimeError:
+            if (
+                t1.split is not None
+                and not (t2.lshape_map[:, t2.split] == t1.lshape_map[:, t1.split]).all()
+                and t2.lshape_map[:, t2.split].sum() == t1.lshape_map[:, t1.split].sum()
+            ):
                 t1.redistribute_(target_map=t2.lshape_map)
-                result = operation(
-                    t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-                )
+            result = operation(
+                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+            )
     else:
-        try:
-            result = operation(
-                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-            )
-        except RuntimeError:
-            t2.redistribute_(target_map=t1.lshape_map)
-            result = operation(
-                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-            )
+        output_split = None
+        result = operation(
+            t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+        )
 
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result, device=output_device.torch_device)
