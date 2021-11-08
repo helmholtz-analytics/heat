@@ -108,6 +108,12 @@ def __binary_op(
     if t1.split is not None and t2.split is not None and t1.split != t2.split:
         # if t1 and t2 both split, split has to be the same after (shape)bcast
         raise NotImplementedError("Not implemented for other splittings")
+    # No broadcasting should happen in the split-dimension, would not work with redistribution
+    if t1.is_distributed() and t2.is_distributed():
+        if t1.shape[t1.split] == 1 and t2.shape[t2.split] != 1:
+            t1 = t1.resplit(None)
+        elif t1.shape[t1.split] != 1 and t2.shape[t2.split] == 1:
+            t2 = t2.resplit(None)
     output_split = t1.split if t1.split is not None else t2.split
     output_balanced = t1.balanced if t1.split is not None else t2.balanced
     output_device = t1.device
