@@ -182,6 +182,7 @@ def __binary_op(
         result = torch.tensor(result, device=output_device.torch_device)
 
     if out is not None:
+        sanitation.sanitize_out(out, output_shape, output_split, output_device)
         out_dtype = out.dtype
         out.larray = result  # "out: Output buffer in which the result is placed" is this correct???
         out._DNDarray__comm = output_comm
