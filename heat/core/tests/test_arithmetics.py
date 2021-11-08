@@ -21,9 +21,10 @@ class TestArithmetics(TestCase):
         cls.another_tensor = ht.array([[2.0, 2.0], [2.0, 2.0]])
         cls.a_split_tensor = cls.another_tensor.copy().resplit_(0)
 
-        cls.errorneous_type = (2, 2)
+        cls.erroneous_type = (2, 2)
 
     def test_add(self):
+        # test basics
         result = ht.array([[3.0, 4.0], [5.0, 6.0]])
 
         self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_scalar), ht.float32(4.0)))
@@ -55,7 +56,7 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             ht.add(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
-            ht.add(self.a_tensor, self.errorneous_type)
+            ht.add(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.add("T", "s")
 
@@ -83,7 +84,7 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             ht.bitwise_and(an_int_vector, another_int_vector)
         with self.assertRaises(TypeError):
-            ht.bitwise_and(self.a_tensor, self.errorneous_type)
+            ht.bitwise_and(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.bitwise_and("T", "s")
         with self.assertRaises(TypeError):
@@ -119,7 +120,7 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             ht.bitwise_or(an_int_vector, another_int_vector)
         with self.assertRaises(TypeError):
-            ht.bitwise_or(self.a_tensor, self.errorneous_type)
+            ht.bitwise_or(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.bitwise_or("T", "s")
         with self.assertRaises(TypeError):
@@ -155,7 +156,7 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             ht.bitwise_xor(an_int_vector, another_int_vector)
         with self.assertRaises(TypeError):
-            ht.bitwise_xor(self.a_tensor, self.errorneous_type)
+            ht.bitwise_xor(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.bitwise_xor("T", "s")
         with self.assertRaises(TypeError):
@@ -264,17 +265,16 @@ class TestArithmetics(TestCase):
     def test_diff(self):
         ht_array = ht.random.rand(20, 20, 20, split=None)
         arb_slice = [0] * 3
-        for dim in range(3):  # loop over 3 dimensions
+        for dim in range(0, 3):  # loop over 3 dimensions
             arb_slice[dim] = slice(None)
+            tup_arb = tuple(arb_slice)
+            np_array = ht_array[tup_arb].numpy()
             for ax in range(dim + 1):  # loop over the possible axis values
                 for sp in range(dim + 1):  # loop over the possible split values
+                    lp_array = ht.manipulations.resplit(ht_array[tup_arb], sp)
                     # loop to 3 for the number of times to do the diff
                     for nl in range(1, 4):
                         # only generating the number once and then
-                        tup_arb = tuple(arb_slice)
-                        lp_array = ht.manipulations.resplit(ht_array[tup_arb], sp)
-                        np_array = ht_array[tup_arb].numpy()
-
                         ht_diff = ht.diff(lp_array, n=nl, axis=ax)
                         np_diff = ht.array(np.diff(np_array, n=nl, axis=ax))
 
@@ -287,10 +287,11 @@ class TestArithmetics(TestCase):
                         ht_append = ht.ones(
                             append_shape, dtype=lp_array.dtype, split=lp_array.split
                         )
+
                         ht_diff_pend = ht.diff(lp_array, n=nl, axis=ax, prepend=0, append=ht_append)
+                        np_append = np.ones(append_shape, dtype=lp_array.larray.numpy().dtype)
                         np_diff_pend = ht.array(
-                            np.diff(np_array, n=nl, axis=ax, prepend=0, append=ht_append.numpy()),
-                            dtype=ht_diff_pend.dtype,
+                            np.diff(np_array, n=nl, axis=ax, prepend=0, append=np_append)
                         )
                         self.assertTrue(ht.equal(ht_diff_pend, np_diff_pend))
                         self.assertEqual(ht_diff_pend.split, sp)
@@ -340,7 +341,7 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             ht.div(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
-            ht.div(self.a_tensor, self.errorneous_type)
+            ht.div(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.div("T", "s")
 
@@ -369,7 +370,7 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             ht.fmod(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
-            ht.fmod(self.a_tensor, self.errorneous_type)
+            ht.fmod(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.fmod("T", "s")
 
@@ -426,7 +427,7 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             ht.mul(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
-            ht.mul(self.a_tensor, self.errorneous_type)
+            ht.mul(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.mul("T", "s")
 
@@ -471,7 +472,7 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             ht.pow(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
-            ht.pow(self.a_tensor, self.errorneous_type)
+            ht.pow(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.pow("T", "s")
 
@@ -608,7 +609,7 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             ht.sub(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
-            ht.sub(self.a_tensor, self.errorneous_type)
+            ht.sub(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.sub("T", "s")
 
