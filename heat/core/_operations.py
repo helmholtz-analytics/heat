@@ -112,8 +112,10 @@ def __binary_op(
     if t1.is_distributed() and t2.is_distributed():
         if t1.shape[t1.split] == 1 and t2.shape[t2.split] != 1:
             t1 = t1.resplit(None)
+            t1.larray = t1.larray.expand(output_shape)
         elif t1.shape[t1.split] != 1 and t2.shape[t2.split] == 1:
             t2 = t2.resplit(None)
+            t2.larray = t2.larray.expand(output_shape)
     output_split = t1.split if t1.split is not None else t2.split
     output_balanced = t1.balanced if t1.split is not None else t2.balanced
     output_device = t1.device
