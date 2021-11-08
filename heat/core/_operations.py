@@ -160,7 +160,7 @@ def __binary_op(
             idx = [slice(None)] * t2.ndim
             lshapes = t1.lshape_map[:, t1.split]
             idx[t1.split] = slice(lshapes[: t2.comm.rank].sum(), lshapes[: t2.comm.rank + 1].sum())
-            t1 = factories.array(
+            t2 = factories.array(
                 t2.larray[tuple(idx)], is_split=t1.split, copy=False, comm=t2.comm, device=t2.device
             )
 
