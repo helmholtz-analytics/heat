@@ -133,7 +133,7 @@ def inv(a: DNDarray) -> DNDarray:
               [ 2., -1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     # no split in the square matrices
-    if a.split is None or a.split < a.ndim - 2:
+    if not a.is_distributed() or a.split < a.ndim - 2:
         data = torch.inverse(a.larray)
         return DNDarray(
             data,
@@ -146,7 +146,7 @@ def inv(a: DNDarray) -> DNDarray:
         )
 
     if a.ndim < 2:
-        raise ValueError("DNDarray must be at least two-dimensional.")
+        raise RuntimeError("DNDarray must be at least two-dimensional.")
 
     m, n = a.shape[-2:]
     if m != n:
@@ -165,7 +165,6 @@ def inv(a: DNDarray) -> DNDarray:
     if a.split == a.ndim - 2:
         for k in range(ainv.shape[0]):
             for i in range(n):
-                print(acopy, ainv)
                 # partial pivoting
                 if np.isclose(acopy[k, i, i].item(), 0):
                     abord = True
