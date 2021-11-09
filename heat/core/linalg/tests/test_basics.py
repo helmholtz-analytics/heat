@@ -136,6 +136,18 @@ class TestLinalgBasics(TestCase):
         self.assertTupleEqual(ainv.shape, a.shape)
         self.assertTrue(ht.allclose(ainv, ares))
 
+        ht.random.seed(42)
+        a = ht.random.random((20, 20), dtype=ht.float64, split=1)
+        ainv = ht.linalg.inv(a)
+        i = ht.eye(a.shape, split=1, dtype=a.dtype)
+        self.assertTrue(ht.allclose(a @ ainv, i))
+
+        ht.random.seed(42)
+        a = ht.random.random((20, 20), dtype=ht.float64, split=0)
+        ainv = ht.linalg.inv(a)
+        i = ht.eye(a.shape, split=0, dtype=a.dtype)
+        self.assertTrue(ht.allclose(a @ ainv, i))
+
         with self.assertRaises(ValueError):
             ht.linalg.inv(ht.array([1, 2, 3], split=0))
         with self.assertRaises(ValueError):
