@@ -1,3 +1,4 @@
+"""Implements self organizing maps"""
 import warnings
 
 import heat as ht
@@ -76,7 +77,6 @@ class FixedSOM(ht.BaseEstimator, ht.ClusteringMixin):
         X: ht.array
             The samples to be used for learning
         """
-
         self.radius = self.initial_radius
         self.learning_rate = self.initial_learning_rate
 
