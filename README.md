@@ -4,7 +4,7 @@
 
 ---
 
-HeAT is a distributed tensor framework for high performance data analytics.
+Heat is a distributed tensor framework for high performance data analytics.
 
 Project Status
 --------------
@@ -16,22 +16,21 @@ Project Status
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
-[![Mattermost Chat](https://img.shields.io/badge/chat-on%20mattermost-blue.svg)](https://mattermost-haf.fz-juelich.de/signup_user_complete/?id=iqrr6pmxb38fzqffa51qqhcu8w)
 
 Goals
 -----
 
-HeAT is a flexible and seamless open-source software for high performance data
+Heat is a flexible and seamless open-source software for high performance data
 analytics and machine learning. It provides highly optimized algorithms and data
 structures for tensor computations using CPUs, GPUs and distributed cluster
-systems on top of MPI. The goal of HeAT is to fill the gap between data
+systems on top of MPI. The goal of Heat is to fill the gap between data
 analytics and machine learning libraries with a strong focus on single-node
-performance, and traditional high-performance computing (HPC). HeAT's generic
+performance, and traditional high-performance computing (HPC). Heat's generic
 Python-first programming interface integrates seamlessly with the existing data
 science ecosystem and makes it as effortless as using numpy to write scalable
 scientific and data science applications.
 
-HeAT allows you to tackle your actual Big Data challenges that go beyond the
+Heat allows you to tackle your actual Big Data challenges that go beyond the
 computational and memory needs of your laptop and desktop.
 
 Features
@@ -62,7 +61,8 @@ tag it with "pyheat".
 Requirements
 ------------
 
-HeAT is based on [PyTorch](https://pytorch.org/). Specifially, we are exploiting
+Heat requires Python 3.7 or newer.
+Heat is based on [PyTorch](https://pytorch.org/). Specifically, we are exploiting
 PyTorch's support for GPUs *and* MPI parallelism. For MPI support we utilize
 [mpi4py](https://mpi4py.readthedocs.io). Both packages can be installed via pip
 or automatically using the setup.py.
@@ -80,6 +80,9 @@ install the latest version with
 where the part in brackets is a list of optional dependencies. You can omit
 it, if you do not need HDF5 or NetCDF support.
 
+It is recommended to use the most recent version of PyTorch. It is also very important to ensure that the
+PyTorch version is compatible with the local CUDA installation. More information can be found [here](https://pytorch.org/get-started/locally/).
+
 Hacking
 -------
 
@@ -96,18 +99,18 @@ We welcome contributions from the community, please check out our [Contribution 
 License
 -------
 
-HeAT is distributed under the MIT license, see our
+Heat is distributed under the MIT license, see our
 [LICENSE](LICENSE) file.
 
-Citing HeAT
+Citing Heat
 -----------
 
-If you find HeAT helpful for your research, please mention it in your academic publications. You can cite:
+If you find Heat helpful for your research, please mention it in your academic publications. You can cite:
 
-- Götz, M., Debus, C., Coquelin, D., Krajsek, K., Comito, C., Knechtges, P., .Hagemeier, B., Tarnawa, M., Hanselmann, S., Siggel, S., Basermann, A. & Streit, A. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In Proceedings of the 19th IEEE International Conference on Big Data (BigData) (pp. 276-288). IEEE.
+- Götz, M., Debus, C., Coquelin, D., Krajsek, K., Comito, C., Knechtges, P., Hagemeier, B., Tarnawa, M., Hanselmann, S., Siggel, S., Basermann, A. & Streit, A. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In 2020 IEEE International Conference on Big Data (Big Data) (pp. 276-287). IEEE, DOI: 10.1109/BigData50022.2020.9378050.
 
 ```
-@inproceedings{heat20,
+@inproceedings{heat2020,
     title={{HeAT -- a Distributed and GPU-accelerated Tensor Framework for Data Analytics}},
     author={
       Markus Götz and
@@ -123,11 +126,12 @@ If you find HeAT helpful for your research, please mention it in your academic p
       Achim Basermann and
       Achim Streit
     },
-    booktitle={Proceedings of the 19th IEEE International Conference on Big Data},
+    booktitle={2020 IEEE International Conference on Big Data (Big Data)},
     year={2020},
-    pages={276-288},
+    pages={276-287},
     month={December},
-    publisher={IEEE}
+    publisher={IEEE},
+    doi={10.1109/BigData50022.2020.9378050}
 }
 ```
 
@@ -136,11 +140,7 @@ Acknowledgements
 
 *This work is supported by the [Helmholtz Association Initiative and
 Networking Fund](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
-under project number ZT-I-0003.*
-
-*This work is supported by the [Helmholtz Association Initiative and
-Networking Fund](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
-under the Helmholtz AI platform grant.*
+under project number ZT-I-0003 and the Helmholtz AI platform grant.*
 
 ---
 

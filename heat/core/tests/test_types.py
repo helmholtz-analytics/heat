@@ -8,7 +8,7 @@ from .test_suites.basic_test import TestCase
 class TestTypes(TestCase):
     def assert_is_heat_type(self, heat_type):
         self.assertIsInstance(heat_type, type)
-        self.assertTrue(issubclass(heat_type, ht.generic))
+        self.assertTrue(issubclass(heat_type, ht.datatype))
 
     def assert_non_instantiable_heat_type(self, heat_type):
         self.assert_is_heat_type(heat_type)
@@ -47,7 +47,7 @@ class TestTypes(TestCase):
             heat_type(ground_truth, ground_truth)
 
     def test_generic(self):
-        self.assert_non_instantiable_heat_type(ht.generic)
+        self.assert_non_instantiable_heat_type(ht.datatype)
 
     def test_bool(self):
         self.assert_is_instantiable_heat_type(ht.bool, torch.bool)
@@ -267,14 +267,14 @@ class TestTypeConversion(TestCase):
 
     def test_issubdtype(self):
         # First level
-        self.assertTrue(ht.issubdtype(ht.bool, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.bool_, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.number, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.integer, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.signedinteger, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.unsignedinteger, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.floating, ht.generic))
-        self.assertTrue(ht.issubdtype(ht.flexible, ht.generic))
+        self.assertTrue(ht.issubdtype(ht.bool, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.bool_, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.number, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.integer, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.signedinteger, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.unsignedinteger, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.floating, ht.datatype))
+        self.assertTrue(ht.issubdtype(ht.flexible, ht.datatype))
 
         # Second level
         self.assertTrue(ht.issubdtype(ht.integer, ht.number))
@@ -327,6 +327,32 @@ class TestTypeConversion(TestCase):
             ht.promote_types(1, "?")
         with self.assertRaises(TypeError):
             ht.promote_types(ht.float32, "hello world")
+
+    def test_result_type(self):
+        self.assertEqual(ht.result_type(1), ht.int32)
+        self.assertEqual(ht.result_type(1, 1.0), ht.float32)
+        self.assertEqual(ht.result_type(1.0, True, 1 + 1j), ht.complex64)
+        self.assertEqual(ht.result_type(ht.array(1, dtype=ht.int32), 1), ht.int32)
+        self.assertEqual(ht.result_type(1.0, ht.array(1, dtype=ht.int32)), ht.float32)
+        self.assertEqual(ht.result_type(ht.uint8, ht.int8), ht.int16)
+        self.assertEqual(ht.result_type("b", "f4"), ht.float32)
+        self.assertEqual(ht.result_type(ht.array([1], dtype=ht.float64), "f4"), ht.float64)
+        self.assertEqual(
+            ht.result_type(
+                ht.array([1, 2, 3, 4], dtype=ht.float64, split=0),
+                1,
+                ht.bool,
+                "u",
+                torch.uint8,
+                np.complex128,
+                ht.array(1, dtype=ht.int64),
+            ),
+            ht.complex128,
+        )
+        self.assertEqual(
+            ht.result_type(np.array([1, 2, 3]), np.dtype("int32"), torch.tensor([1, 2, 3])),
+            ht.int64,
+        )
 
     def test_finfo(self):
         info32 = ht.finfo(ht.float32)

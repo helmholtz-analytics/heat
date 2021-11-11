@@ -534,28 +534,122 @@ class TestLinalgBasics(TestCase):
                 b = a.copy()
                 a @ b
 
-    def test_norm(self):
-        a = ht.arange(9, dtype=ht.float32, split=0) - 4
-        self.assertTrue(
-            ht.allclose(ht.linalg.norm(a), ht.float32(np.linalg.norm(a.numpy())).item(), atol=1e-5)
-        )
-        a.resplit_(axis=None)
-        self.assertTrue(
-            ht.allclose(ht.linalg.norm(a), ht.float32(np.linalg.norm(a.numpy())).item(), atol=1e-5)
-        )
+    def test_matrix_norm(self):
+        a = ht.arange(9, dtype=ht.float) - 4
+        b = a.reshape((3, 3))
+        b0 = a.reshape((3, 3), new_split=0)
+        b1 = a.reshape((3, 3), new_split=1)
 
-        b = ht.array([[-4.0, -3.0, -2.0], [-1.0, 0.0, 1.0], [2.0, 3.0, 4.0]], split=0)
-        self.assertTrue(
-            ht.allclose(ht.linalg.norm(b), ht.float32(np.linalg.norm(b.numpy())).item(), atol=1e-5)
-        )
-        b.resplit_(axis=1)
-        self.assertTrue(
-            ht.allclose(ht.linalg.norm(b), ht.float32(np.linalg.norm(b.numpy())).item(), atol=1e-5)
-        )
+        # different ord
+        mn = ht.linalg.matrix_norm(b, ord="fro")
+        self.assertEqual(mn.split, b.split)
+        self.assertEqual(mn.dtype, b.dtype)
+        self.assertEqual(mn.device, b.device)
+        self.assertTrue(ht.allclose(mn, ht.array(7.745966692414834)))
 
+        mn = ht.linalg.matrix_norm(b0, ord=1)
+        self.assertEqual(mn.split, b.split)
+        self.assertEqual(mn.dtype, b.dtype)
+        self.assertEqual(mn.device, b.device)
+        self.assertEqual(mn.item(), 7.0)
+
+        mn = ht.linalg.matrix_norm(b0, ord=-1)
+        self.assertEqual(mn.split, b.split)
+        self.assertEqual(mn.dtype, b.dtype)
+        self.assertEqual(mn.device, b.device)
+        self.assertEqual(mn.item(), 6.0)
+
+        mn = ht.linalg.matrix_norm(b1)
+        self.assertEqual(mn.split, b.split)
+        self.assertEqual(mn.dtype, b.dtype)
+        self.assertEqual(mn.device, b.device)
+        self.assertTrue(ht.allclose(mn, ht.array(7.745966692414834)))
+
+        # higher dimension + different dtype
+        m = ht.arange(8).reshape(2, 2, 2)
+        mn = ht.linalg.matrix_norm(m, axis=(2, 1), ord=ht.inf)
+        self.assertEqual(mn.split, m.split)
+        self.assertEqual(mn.dtype, ht.float)
+        self.assertEqual(mn.device, m.device)
+        self.assertTrue(ht.equal(mn, ht.array([4.0, 12.0])))
+
+        mn = ht.linalg.matrix_norm(m, axis=(2, 1), ord=-ht.inf)
+        self.assertEqual(mn.split, m.split)
+        self.assertEqual(mn.dtype, ht.float)
+        self.assertEqual(mn.device, m.device)
+        self.assertTrue(ht.equal(mn, ht.array([2.0, 10.0])))
+
+        # too many axis to infer
+        with self.assertRaises(ValueError):
+            ht.linalg.matrix_norm(ht.ones((2, 2, 2)))
+        # bad axis
         with self.assertRaises(TypeError):
-            c = np.arange(9) - 4
-            ht.linalg.norm(c)
+            ht.linalg.matrix_norm(ht.ones((2, 2)), axis=1)
+        with self.assertRaises(TypeError):
+            ht.linalg.matrix_norm(ht.ones(2, 2), axis=(1, 2, 3))
+        # bad array
+        with self.assertRaises(ValueError):
+            ht.linalg.matrix_norm(ht.array([1, 2, 3]))
+        # bad ord
+        with self.assertRaises(ValueError):
+            ht.linalg.matrix_norm(ht.ones((2, 2)), ord=3)
+        # Not implemented yet; SVD needed
+        with self.assertRaises(NotImplementedError):
+            ht.linalg.matrix_norm(ht.ones((2, 2)), ord=2)
+        with self.assertRaises(NotImplementedError):
+            ht.linalg.matrix_norm(ht.ones((2, 2)), ord=-2)
+        with self.assertRaises(NotImplementedError):
+            ht.linalg.matrix_norm(ht.ones((2, 2)), ord="nuc")
+
+    def test_norm(self):
+        a = ht.arange(9, dtype=ht.float) - 4
+        a0 = ht.array([1 + 1j, 2 - 2j, 0 + 1j, 2 + 1j], dtype=ht.complex64, split=0)
+        b = a.reshape((3, 3))
+        b0 = a.reshape((3, 3), new_split=0)
+        b1 = a.reshape((3, 3), new_split=1)
+
+        # vectors
+        gn = ht.linalg.norm(a, axis=0, ord=1)
+        self.assertEqual(gn.split, a.split)
+        self.assertEqual(gn.dtype, a.dtype)
+        self.assertEqual(gn.device, a.device)
+        self.assertEqual(gn.item(), 20.0)
+
+        # complex type
+        gn = ht.linalg.norm(a0, keepdims=True)
+        self.assertEqual(gn.split, None)
+        self.assertEqual(gn.dtype, ht.float)
+        self.assertEqual(gn.device, a0.device)
+        self.assertEqual(gn.item(), 4.0)
+
+        # matrices
+        gn = ht.linalg.norm(b, ord="fro")
+        self.assertEqual(gn.split, None)
+        self.assertEqual(gn.dtype, b.dtype)
+        self.assertEqual(gn.device, b.device)
+        self.assertTrue(ht.allclose(gn, ht.array(7.745966692414834)))
+
+        gn = ht.linalg.norm(b0, ord=ht.inf)
+        self.assertEqual(gn.split, None)
+        self.assertEqual(gn.dtype, b0.dtype)
+        self.assertEqual(gn.device, b0.device)
+        self.assertEqual(gn.item(), 9.0)
+
+        gn = ht.linalg.norm(b1, axis=(0,), ord=-ht.inf, keepdims=True)
+        self.assertEqual(gn.split, b1.split)
+        self.assertEqual(gn.dtype, b1.dtype)
+        self.assertEqual(gn.device, b1.device)
+        self.assertTrue(ht.equal(gn, ht.array([[1.0, 0.0, 1.0]])))
+
+        # higher dimension + different dtype
+        gn = ht.linalg.norm(ht.ones((3, 3, 3), dtype=ht.int), axis=(-2, -1))
+        self.assertEqual(gn.split, None)
+        self.assertEqual(gn.dtype, ht.float)
+        self.assertTrue(ht.equal(gn, ht.array([3.0, 3.0, 3.0])))
+
+        # bad axis
+        with self.assertRaises(ValueError):
+            ht.linalg.norm(ht.ones(2), axis=(0, 1, 2))
 
     def test_outer(self):
         # test outer, a and b local, different dtypes
@@ -574,30 +668,30 @@ class TestLinalgBasics(TestCase):
 
         # a and b split 0, outer split 1
         ht_outer_split = ht.outer(a_split, b_split, split=1)
-        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 1)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # a and b distributed, outer split unspecified
         ht_outer_split = ht.outer(a_split, b_split, split=None)
-        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 0)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # a not distributed, outer.split = 1
         ht_outer_split = ht.outer(a, b_split, split=1)
-        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 1)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # b not distributed, outer.split = 0
         ht_outer_split = ht.outer(a_split, b, split=0)
-        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
         self.assertTrue(ht_outer_split.split == 0)
+        self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # a_split.ndim > 1 and a.split != 0
         a_split_3d = ht.random.randn(3, 3, 3, dtype=ht.float64, split=2)
         ht_outer_split = ht.outer(a_split_3d, b_split)
         np_outer_3d = np.outer(a_split_3d.numpy(), b_split.numpy())
-        self.assertTrue((ht_outer_split.numpy() == np_outer_3d).all())
         self.assertTrue(ht_outer_split.split == 0)
+        self.assertTrue((ht_outer_split.numpy() == np_outer_3d).all())
 
         # write to out buffer
         ht_out = ht.empty((a.gshape[0], b.gshape[0]), dtype=ht.float32)
@@ -651,6 +745,515 @@ class TestLinalgBasics(TestCase):
         a = ht.array([[1], [2], [3]], dtype=ht.float32, split=None)
         with self.assertRaises(RuntimeError):
             ht.linalg.projection(a, e1)
+
+    def test_trace(self):
+        # ------------------------------------------------
+        # UNDISTRIBUTED CASE
+        # ------------------------------------------------
+        # CASE 2-D
+        # ------------------------------------------------
+        x = ht.arange(24).reshape((6, 4))
+        x_np = x.numpy()
+        dtype = ht.float32
+
+        result = ht.trace(x)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # direct call
+        result = x.trace()
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist())
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # dtype
+        result = ht.trace(x, dtype=dtype)
+        result_np = np.trace(x_np, dtype=np.float32)
+        self.assertIsInstance(result, float)
+        self.assertEqual(result, result_np)
+
+        # offset != 0
+        # negative offset
+        o = -(x.gshape[0] - 1)
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # positive offset
+        o = x.gshape[1] - 1
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # offset resulting into empty array
+        # negative
+        o = -x.gshape[0]
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, 0)
+        self.assertEqual(result, result_np)
+
+        # positive
+        o = x.gshape[1]
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, 0)
+        self.assertEqual(result, result_np)
+
+        # Exceptions
+        with self.assertRaises(TypeError):
+            x = "[[1, 2], [3, 4]]"
+            ht.trace(x)
+        with self.assertRaises(ValueError):
+            x = ht.arange(24)
+            ht.trace(x)
+        with self.assertRaises(TypeError):
+            x = ht.arange(24).reshape((6, 4))
+            ht.trace(x, axis1=0.2)
+        with self.assertRaises(TypeError):
+            ht.trace(x, axis2=1.4)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis1=2)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis2=2)
+        with self.assertRaises(TypeError):
+            ht.trace(x, offset=1.2)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis1=1, axis2=1)
+        with self.assertRaises(ValueError):
+            ht.trace(x, dtype="ht.int64")
+        with self.assertRaises(TypeError):
+            ht.trace(x, out=[])
+        with self.assertRaises(ValueError):
+            # As result is scalar
+            out = ht.array([])
+            ht.trace(x, out=out)
+        with self.assertRaises(ValueError):
+            ht.trace(x, dtype="ht.float32")
+
+        # ------------------------------------------------
+        # CASE > 2-D (4D)
+        # ------------------------------------------------
+        x = ht.arange(24).reshape((1, 2, 3, 4))
+        x_np = x.numpy()
+        out = ht.empty((3, 4))
+        axis1 = 1
+        axis2 = 3
+
+        result = ht.trace(x)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist())
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # out
+        result = ht.trace(x, out=out)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+        self.assert_array_equal(out, result_np)
+
+        result = ht.trace(x, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # reversed axes order
+        result = ht.trace(x, axis1=axis2, axis2=axis1)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # negative axes
+        axis1 = 1
+        axis2 = 2
+        result = ht.trace(x, axis1=axis1, axis2=-axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=-axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        result = ht.trace(x, axis1=-axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=-axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        result = ht.trace(x, axis1=-axis1, axis2=-axis2)
+        result_np = np.trace(x_np, axis1=-axis1, axis2=-axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # different axes
+        axis1 = 1
+        axis2 = 2
+        o = 0
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2, dtype=dtype)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2, dtype=np.float32)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset != 0
+        # negative offset
+        o = -(x.gshape[0] - 1)
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # positive offset
+        o = x.gshape[1] - 1
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset resulting into zero array
+        axis1 = 1
+        axis2 = 2
+        # negative
+        o = -x.gshape[axis1]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros((1, 4)))
+        self.assert_array_equal(result, result_np)
+
+        # positive
+        o = x.gshape[axis2]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros((1, 4)))
+        self.assert_array_equal(result, result_np)
+
+        # Exceptions
+        with self.assertRaises(ValueError):
+            out = ht.array([])
+            ht.trace(x, out=out)
+
+        # ------------------------------------------------
+        # DISTRIBUTED CASE
+        # ------------------------------------------------
+        # CASE 2-D
+        # ------------------------------------------------
+        x = ht.arange(24, split=0).reshape((6, 4))
+        x_np = np.arange(24).reshape((6, 4))
+        dtype = ht.float32
+
+        result = ht.trace(x)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # different split axis
+        x_2 = ht.array(torch.arange(24).reshape((6, 4)), split=1)
+        result = ht.trace(x_2)
+        result_np = np.trace(x_np)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist())
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # dtype
+        result = ht.trace(x, dtype=dtype)
+        result_np = np.trace(x_np, dtype=np.float32)
+        self.assertIsInstance(result, float)
+        self.assertEqual(result, result_np)
+
+        # offset != 0
+        # negative offset
+        o = -(x.gshape[0] - 1)
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # positive offset
+        o = x.gshape[1] - 1
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, result_np)
+
+        # offset resulting into empty array
+        # negative
+        o = -x.gshape[0]
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, 0)
+        self.assertEqual(result, result_np)
+
+        # positive
+        o = x.gshape[1]
+        result = ht.trace(x, offset=o)
+        result_np = np.trace(x_np, offset=o)
+        self.assertIsInstance(result, int)
+        self.assertEqual(result, 0)
+        self.assertEqual(result, result_np)
+
+        # Exceptions
+        with self.assertRaises(TypeError):
+            x = "[[1, 2], [3, 4]]"
+            ht.trace(x)
+        with self.assertRaises(ValueError):
+            x = ht.arange(24)
+            ht.trace(x)
+        with self.assertRaises(TypeError):
+            x = ht.arange(24).reshape((6, 4))
+            ht.trace(x, axis1=0.2)
+        with self.assertRaises(TypeError):
+            ht.trace(x, axis2=1.4)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis1=2)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis2=2)
+        with self.assertRaises(TypeError):
+            ht.trace(x, offset=1.2)
+        with self.assertRaises(ValueError):
+            ht.trace(x, axis1=1, axis2=1)
+        with self.assertRaises(ValueError):
+            ht.trace(x, dtype="ht.int64")
+        with self.assertRaises(TypeError):
+            ht.trace(x, out=[])
+        with self.assertRaises(ValueError):
+            # As result is scalar
+            out = ht.array([])
+            ht.trace(x, out=out)
+
+        # ------------------------------------------------
+        # CASE > 2-D (4D)
+        # ------------------------------------------------
+        x = ht.arange(24, split=0).reshape((1, 2, 3, 4))
+        x_np = x.numpy()
+        # ------------------------------------------------
+        # CASE split axis NOT in (axis1, axis2)
+        # ------------------------------------------------
+        axis1 = 1
+        axis2 = 2
+        out = ht.empty((1, 4), split=0, dtype=x.dtype)
+
+        result = ht.trace(x, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist(), axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # out
+        result = ht.trace(x, out=out, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+        self.assert_array_equal(out, result_np)
+
+        # reversed axes order
+        result = ht.trace(x, axis1=axis2, axis2=axis1)
+        result_np = np.trace(x_np, axis1=axis2, axis2=axis1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # different axes (still not in x.split = 0)
+        axis1 = 1
+        axis2 = 3
+        result = ht.trace(x, offset=0, axis1=axis1, axis2=axis2, dtype=dtype)
+        result_np = np.trace(x_np, offset=0, axis1=axis1, axis2=axis2, dtype=np.float32)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # negative axes
+        axis1 = 1
+        axis2 = 2
+        result = ht.trace(x, axis1=axis1, axis2=-axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=-axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        result = ht.trace(x, axis1=-axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=-axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        result = ht.trace(x, axis1=-axis1, axis2=-axis2)
+        result_np = np.trace(x_np, axis1=-axis1, axis2=-axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset != 0
+        # negative offset
+        axis1 = 1
+        axis2 = 2
+        o = -(x.gshape[axis1] - 1)
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # positive offset
+        o = x.gshape[axis2] - 1
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset resulting into zero array
+        axis1 = 1
+        axis2 = 2
+        # negative
+        o = -x.gshape[axis1]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros((1, 4)))
+        self.assert_array_equal(result, result_np)
+
+        # positive
+        o = x.gshape[axis2]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros((1, 4)))
+        self.assert_array_equal(result, result_np)
+
+        # different split axis (that is still not in (axis1, axis2))
+        x = ht.arange(24).reshape((1, 2, 3, 4, 1))
+        x = ht.array(x, split=2, dtype=dtype)
+        x_np = x.numpy()
+        axis1 = 0
+        axis2 = 1
+        out = ht.empty((3, 4, 1), split=2, dtype=x.dtype)
+        result = ht.trace(x, axis1=axis1, axis2=axis2, out=out)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+        self.assert_array_equal(out, result_np)
+
+        # different split axis (that is still not in (axis1, axis2))
+        x = ht.arange(24).reshape((1, 2, 3, 4, 1))
+        x = ht.array(x, split=3, dtype=dtype)
+        x_np = x.numpy()
+        axis1 = 2
+        axis2 = 4
+        out = ht.empty((1, 2, 4), split=1, dtype=x.dtype)
+        result = ht.trace(x, axis1=axis1, axis2=axis2, out=out)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # Exceptions
+        with self.assertRaises(ValueError):
+            out = ht.array([])
+            ht.trace(x, out=out, axis1=axis1, axis2=axis2)
+
+        # ------------------------------------------------
+        # CASE split axis IN (axis1, axis2)
+        # ------------------------------------------------
+        x = ht.arange(24).reshape((1, 2, 3, 4))
+        split_axis = 1
+        x = ht.array(x, split=split_axis, dtype=dtype)
+        x_np = x.numpy()
+        axis1 = 1
+        axis2 = 2
+        result_shape = list(x.gshape)
+        del result_shape[axis1], result_shape[axis2 - 1]
+        out = ht.empty(tuple(result_shape), split=split_axis, dtype=x.dtype)
+
+        result = ht.trace(x, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # input = array_like (other than DNDarray)
+        result = ht.trace(x.tolist(), axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # out
+        result = ht.trace(x, out=out, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+        self.assert_array_equal(out, result_np)
+
+        # reversed axes order
+        result = ht.trace(x, axis1=axis2, axis2=axis1)
+        result_np = np.trace(x_np, axis1=axis2, axis2=axis1)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # axis2 = a.split
+        axis1 = 0
+        axis2 = 1
+        result = ht.trace(x, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset != 0
+        # negative offset
+        o = -(x.gshape[0] - 1)
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # positive offset
+        o = x.gshape[1] - 1
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # different axes
+        axis1 = 1
+        axis2 = 2
+        result_shape = list(x.gshape)
+        del result_shape[axis1], result_shape[axis2 - 1]
+        o = 0
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2, dtype=dtype)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2, dtype=np.float32)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, result_np)
+
+        # offset resulting into zero array
+        # negative
+        o = -x.gshape[axis1]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros(result_shape, dtype=result_np.dtype))
+        self.assert_array_equal(result, result_np)
+
+        # positive
+        o = x.gshape[axis2]
+        result = ht.trace(x, offset=o, axis1=axis1, axis2=axis2)
+        result_np = np.trace(x_np, offset=o, axis1=axis1, axis2=axis2)
+        self.assertIsInstance(result, ht.DNDarray)
+        self.assert_array_equal(result, np.zeros(result_shape, dtype=result_np.dtype))
+        self.assert_array_equal(result, result_np)
+
+        # Exceptions
+        with self.assertRaises(ValueError):
+            out = ht.array([])
+            ht.trace(x, out=out, axis1=axis1, axis2=axis2)
 
     def test_transpose(self):
         # vector transpose, not distributed
@@ -1163,3 +1766,114 @@ class TestLinalgBasics(TestCase):
             self.assertTrue(result.larray[-1, 0] == 0)
         if result.comm.rank == result.shape[0] - 1:
             self.assertTrue(result.larray[0, -1] == 1)
+
+    def test_vdot(self):
+        a = ht.array([[1 + 1j, 2 + 2j], [3 + 3j, 4 + 4j]], split=0)
+        b = ht.array([[1 + 2j, 3 + 4j], [5 + 6j, 7 + 8j]], split=0)
+
+        vdot = ht.vdot(a, b)
+        self.assertEqual(vdot.dtype, a.dtype)
+        self.assertEqual(vdot.split, None)
+        self.assertTrue(ht.equal(vdot, ht.array([110 + 10j])))
+
+        vdot = ht.vdot(b, a)
+        self.assertTrue(ht.equal(vdot, ht.array([110 - 10j])))
+
+        with self.assertRaises(ValueError):
+            ht.vdot(ht.array([1, 2, 3]), ht.array([[1, 2], [3, 4]]))
+
+    def test_vecdot(self):
+        a = ht.array([1, 1, 1])
+        b = ht.array([1, 2, 3])
+
+        c = ht.linalg.vecdot(a, b)
+
+        self.assertEqual(c.dtype, ht.int64)
+        self.assertEqual(c.device, a.device)
+        self.assertTrue(ht.equal(c, ht.array([6])))
+
+        a = ht.full((4, 4), 2, split=0)
+        b = ht.ones(4)
+
+        c = ht.linalg.vecdot(a, b, axis=0, keepdim=True)
+        self.assertEqual(c.dtype, ht.float32)
+        self.assertEqual(c.device, a.device)
+        self.assertTrue(ht.equal(c, ht.array([[8, 8, 8, 8]])))
+
+    def test_vector_norm(self):
+        a = ht.arange(9, dtype=ht.float) - 4
+        a_split = ht.arange(9, dtype=ht.float, split=0) - 4
+        b = a.reshape((3, 3))
+        b0 = ht.reshape(a, (3, 3), new_split=0)
+        b1 = ht.reshape(a, (3, 3), new_split=1)
+
+        # vector infintity norm
+        vn = ht.vector_norm(a, ord=ht.inf)
+        self.assertEqual(vn.split, a.split)
+        self.assertEqual(vn.dtype, a.dtype)
+        self.assertEqual(vn.device, a.device)
+        self.assertEqual(vn.item(), 4.0)
+
+        # vector 0 norm
+        vn = ht.vector_norm(a, ord=0)
+        self.assertEqual(vn.split, a.split)
+        self.assertEqual(vn.dtype, a.dtype)
+        self.assertEqual(vn.device, a.device)
+        self.assertEqual(vn.item(), 8.0)
+
+        # split vector -infinity
+        vn = ht.vector_norm(a_split, ord=-ht.inf)
+        self.assertEqual(vn.split, a.split)
+        self.assertEqual(vn.dtype, a.dtype)
+        self.assertEqual(vn.device, a.device)
+        self.assertEqual(vn.item(), 0.0)
+
+        # matrix 1 norm no axis
+        vn = ht.vector_norm(b, ord=1)
+        self.assertEqual(vn.split, b.split)
+        self.assertEqual(vn.dtype, b.dtype)
+        self.assertEqual(vn.device, b.device)
+        self.assertEqual(vn.item(), 20.0)
+
+        # split matrix axis l2-norm
+        vn = ht.vector_norm(b0, axis=1, ord=2)
+        self.assertEqual(vn.split, 0)
+        self.assertEqual(vn.dtype, b0.dtype)
+        self.assertEqual(vn.device, b0.device)
+        self.assertTrue(ht.allclose(vn, ht.array([5.38516481, 1.41421356, 5.38516481], split=0)))
+
+        # split matrix axis keepdim norm 3
+        vn = ht.vector_norm(b1, axis=1, keepdims=True, ord=3)
+        self.assertEqual(vn.split, None)
+        self.assertEqual(vn.dtype, b1.dtype)
+        self.assertEqual(vn.device, b1.device)
+        self.assertTrue(
+            ht.allclose(vn, ht.array([[4.62606501], [1.25992105], [4.62606501]], split=None))
+        )
+
+        # different dtype
+        vn = ht.linalg.vector_norm(ht.full((4, 4, 4), 1 + 1j, dtype=ht.int), axis=0, ord=4)
+        self.assertEqual(vn.split, None)
+        self.assertEqual(vn.dtype, ht.float)
+        self.assertTrue(
+            ht.equal(
+                vn,
+                ht.array(
+                    [
+                        [2.0, 2.0, 2.0, 2.0],
+                        [2.0, 2.0, 2.0, 2.0],
+                        [2.0, 2.0, 2.0, 2.0],
+                        [2.0, 2.0, 2.0, 2.0],
+                    ]
+                ),
+            )
+        )
+
+        # bad ord
+        with self.assertRaises(ValueError):
+            ht.vector_norm(ht.array([1, 2, 3]), ord="fro")
+        # bad axis
+        with self.assertRaises(TypeError):
+            ht.vector_norm(ht.array([1, 2, 3]), axis=(1, 2))
+        with self.assertRaises(TypeError):
+            ht.vector_norm(ht.array([1, 2, 3]), axis="r")

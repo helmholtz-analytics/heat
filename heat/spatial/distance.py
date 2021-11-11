@@ -1,68 +1,59 @@
+"""
+Module for (pairwise) distance functions
+"""
 import torch
 import numpy as np
 from mpi4py import MPI
+from typing import Callable
 
 from ..core import factories
 from ..core import types
+from ..core.dndarray import DNDarray
 
 __all__ = ["cdist", "manhattan", "rbf"]
 
 
-def _euclidian(x, y):
+def _euclidian(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     """
-    Helper function to calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
-    Based on torch.cdist
+    Helper function to calculate Euclidian distance between ``torch.tensors`` ``x`` and ``y``: :math:`\\sqrt(|x-y|^2)`
+    Based on ``torch.cdist``. Returns 2D torch.Tensor of size :math:`m \\times n`
 
     Parameters
     ----------
-    x : torch.tensor
-        2D tensor of size m x f
-    y : torch.tensor
-        2D tensor of size n x f
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
+    x : torch.Tensor
+        2D tensor of size :math:`m x f`
+    y : torch.Tensor
+        2D tensor of size :math:`n x f`
     """
     return torch.cdist(x, y)
 
 
-def _euclidian_fast(x, y):
+def _euclidian_fast(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     """
-    Helper function to calculate euclidian distance between torch.tensors x and y: sqrt(|x-y|**2)
-    Uses quadratic expansion to calculate (x-y)**2
+    Helper function to calculate Euclidian distance between ``torch.tensors`` ``x`` and ``y``: :math:`\\sqrt(|x-y|^2)`
+    Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns 2D torch.Tensor of size :math:`m \\times n`
 
     Parameters
     ----------
-    x : torch.tensor
-        2D tensor of size m x f
-    y : torch.tensor
-        2D tensor of size n x f
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
+    x : torch.Tensor
+        2D tensor of size :math:`m x f`
+    y : torch.Tensor
+        2D tensor of size :math:`n x f`
     """
     return torch.sqrt(_quadratic_expand(x, y))
 
 
-def _quadratic_expand(x, y):
+def _quadratic_expand(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     """
-    Helper function to calculate quadratic expansion |x-y|**2=|x|**2 + |y|**2 - 2xy
+    Helper function to calculate quadratic expansion :math:`|x-y|^2=|x|^2 + |y|^2 - 2xy`
+    Returns 2D torch.Tensor of size :math:`m x n`
 
     Parameters
     ----------
-    x : torch.tensor
-        2D tensor of size m x f
-    y : torch.tensor
-        2D tensor of size n x f
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
+    x : torch.Tensor
+        2D tensor of size :math:`m x f`
+    y : torch.Tensor
+        2D tensor of size :math:`n x f`
     """
     x_norm = (x ** 2).sum(1).view(-1, 1)
     y_t = torch.transpose(y, 0, 1)
@@ -72,146 +63,174 @@ def _quadratic_expand(x, y):
     return torch.clamp(dist, 0.0, np.inf)
 
 
-def _gaussian(x, y, sigma=1.0):
+def _gaussian(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.tensor:
     """
-    Helper function to calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
-    Based on torch.cdist
+    Helper function to calculate Gaussian distance between ``torch.Tensors`` ``x`` and ``y``: :math:`exp(-(|x-y|^2/2\\sigma^2)`
+    Based on ``torch.cdist``. Returns a 2D tensor of size :math:`m x n`
 
     Parameters
     ----------
-    x : torch.tensor
-        2D tensor of size m x f
-    y : torch.tensor
-        2D tensor of size n x f
-    sigma: float, default=1.0
-        scaling factor for gaussian kernel
+    x : torch.Tensor
+        2D tensor of size :math:`m x f`
+    y : torch.Tensor
+        2D tensor of size :math:`n x f`
+    sigma: float
+        Scaling factor for Gaussian kernel
 
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
     """
     d2 = _euclidian(x, y) ** 2
     result = torch.exp(-d2 / (2 * sigma * sigma))
     return result
 
 
-def _gaussian_fast(x, y, sigma=1.0):
+def _gaussian_fast(x: torch.tensor, y: torch.tensor, sigma: float = 1.0) -> torch.tensor:
     """
-    Helper function to calculate gaussian distance between torch.tensors x and y: exp(-(|x-y|**2/2sigma**2)
-    Uses quadratic expansion to calculate (x-y)**2
+    Helper function to calculate Gaussian distance between ``torch.Tensors`` ``x`` and ``y``: :math:`exp(-(|x-y|^2/2\\sigma^2)`
+    Uses quadratic expansion to calculate :math:`(x-y)^2`. Returns a 2D tensor of size :math:`m x n`
 
     Parameters
     ----------
-    x : torch.tensor
-        2D tensor of size m x f
-    y : torch.tensor
-        2D tensor of size n x f
-    sigma: float, default=1.0
-        scaling factor for gaussian kernel
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
+    x : torch.Tensor
+        2D tensor of size :math:`m x f`
+    y : torch.Tensor
+        2D tensor of size :math:`n x f`
+    sigma: float
+        Scaling factor for Gaussian kernel
     """
-
     d2 = _quadratic_expand(x, y)
     result = torch.exp(-d2 / (2 * sigma * sigma))
     return result
 
 
-def _manhattan(x, y):
+def _manhattan(x: torch.tensor, y: torch.tensor) -> torch.tensor:
     """
-    Helper function to calculate manhattan distance between torch.tensors x and y: sum(|x-y|)
-    Based on torch.cdist
+    Helper function to calculate Manhattan distance between ``torch.Tensors`` ``x`` and ``y``: :math:`sum(|x-y|)`
+    Based on ``torch.cdist``. Returns a 2D tensor of size :math:`m x n`.
 
     Parameters
     ----------
-    x : torch.tensor
-        2D tensor of size m x f
-    y : torch.tensor
-        2D tensor of size n x f
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
+    x : torch.Tensor
+        2D tensor of size :math:`m x f`
+    y : torch.Tensor
+        2D tensor of size :math:`n x f`
     """
     return torch.cdist(x, y, p=1)
 
 
-def _manhattan_fast(x, y):
+def _manhattan_fast(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """
-    Helper function to calculate Manhattan distance between torch.tensors x and y: |x-y|
-    Uses dimension expansion
+    Helper function to calculate manhattan distance between ``torch.Tensors`` ``x`` and ``y``: :math:`sum(|x-y|)`
+    Uses dimension expansion. Returns a 2D tensor of size :math:`m x n`.
 
     Parameters
     ----------
-    x : torch.tensor
-        2D tensor of size m x f
-    y : torch.tensor
-        2D tensor of size n x f
-
-    Returns
-    -------
-    torch.tensor
-        2D tensor of size m x n
+    x : torch.Tensor
+        2D tensor of size :math:`m x f`
+    y : torch.Tensor
+        2D tensor of size :math:`n x f`
     """
-
     d = torch.sum(torch.abs(x.unsqueeze(1) - y.unsqueeze(0)), dim=2)
     return d
 
 
-def cdist(X, Y=None, quadratic_expansion=False):
+def cdist(X: DNDarray, Y: DNDarray = None, quadratic_expansion: bool = False) -> DNDarray:
+    """
+    Calculate Euclidian distance between two DNDarrays:
+
+    .. math:: d(x,y) = \\sqrt{(|x-y|^2)}
+
+    Returns 2D DNDarray of size :math: `m \\times n`
+
+    Parameters
+    ----------
+    X : DNDarray
+        2D array of size :math: `m \\times f`
+    Y : DNDarray
+        2D array of size :math: `n \\times f`
+    quadratic_expansion : bool
+        Whether to use quadratic expansion for :math:`\\sqrt{(|x-y|^2)}` (Might yield speed-up)
+    """
     if quadratic_expansion:
         return _dist(X, Y, _euclidian_fast)
     else:
         return _dist(X, Y, _euclidian)
 
 
-def rbf(X, Y=None, sigma=1.0, quadratic_expansion=False):
+def rbf(
+    X: DNDarray, Y: DNDarray = None, sigma: float = 1.0, quadratic_expansion: bool = False
+) -> DNDarray:
+    """
+    Calculate Gaussian distance between two DNDarrays:
+
+    .. math:: d(x,y) = exp(-(|x-y|^2/2\\sigma^2)
+
+    Returns 2D DNDarray of size :math: `m \\times n`
+
+    Parameters
+    ----------
+    X : DNDarray
+        2D array of size :math: `m \\times f`
+    Y : DNDarray
+        2D array of size `n \\times f`
+    sigma: float
+        Scaling factor for gaussian kernel
+    quadratic_expansion : bool
+        Whether to use quadratic expansion for :math:`\\sqrt{(|x-y|^2)}` (Might yield speed-up)
+    """
     if quadratic_expansion:
         return _dist(X, Y, lambda x, y: _gaussian_fast(x, y, sigma))
     else:
         return _dist(X, Y, lambda x, y: _gaussian(x, y, sigma))
 
 
-def manhattan(X, Y=None, expand=False):
+def manhattan(X: DNDarray, Y: DNDarray = None, expand: bool = False):
+    """
+    Calculate Manhattan distance between two DNDarrays:
+
+    .. math:: d(x,y) = \\sum{|x_i-y_i|}
+
+    Returns 2D DNDarray of size :math: `m \\times n`
+
+    Parameters
+    ----------
+    X : DNDarray
+        2D array of size :math: `m \\times f`
+    Y : DNDarray
+        2D array of size :math: `n \\times f`
+    expand : bool
+        Whether to use dimension expansion (Might yield speed-up)
+    """
     if expand:
         return _dist(X, Y, lambda x, y: _manhattan_fast(x, y))
     else:
         return _dist(X, Y, lambda x, y: _manhattan(x, y))
 
 
-def _dist(X, Y=None, metric=_euclidian):
+def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DNDarray:
     """
-    Pairwise distance caclualation between all elements along axis 0 of X and Y
-    X.split and Y.split can be distributed among axis 0
+    Pairwise distance calculation between all elements along axis 0 of ``X`` and ``Y`` Returns 2D DNDarray of size :math: `m \\times n`
+    ``X.split`` and ``Y.split`` can be distributed among axis 0.
+        - if neither ``X`` nor ``Y`` is split, result will also be ``split = None \n
+        - if ``X.split == 0``, result will be ``split = 0`` regardless of ``Y.split`` \n
     The distance matrix is calculated tile-wise with ring communication between the processes
-    holding each a piece of X and/or Y.
+    holding each a piece of ``X`` and/or ``Y``.
 
     Parameters
     ----------
-    X : ht.DNDarray
-        2D Array of size m x f
-    Y : ht.DNDarray, optional
-        2D array of size n x f
-        if Y in None, the distances will be calculated between all elements of X
-    metric: function
-        the distance to be calculated between X and Y
-        if metric requires additional arguments, it must be handed over as a lambda function: lambda x, y: metric(x, y, **args)
+    X : DNDarray
+        2D Array of size :math: `m \\times f`
+    Y : DNDarray, optional
+        2D array of size `n \\times f``.
+        If `Y in None, the distances will be calculated between all elements of ``X``
+    metric: Callable
+        The distance to be calculated between ``X`` and ``Y``
+        If metric requires additional arguments, it must be handed over as a lambda function: ``lambda x, y: metric(x, y, **args)``
 
-    Returns
+    Notes
     -------
-    ht.DNDarray
-        2D array of size m x n
-        if neither X nor Y is split, result will also be split=None
-        if X.split == 0, result will be split=0 regardless of Y.split
-        Caution: if X.split=None and Y.split=0, result will be split=1
+    If ``X.split=None`` and ``Y.split=0``, result will be ``split=1``
 
     """
-
     if len(X.shape) > 2:
         raise NotImplementedError("Only 2D data matrices are currently supported")
 

@@ -21,10 +21,9 @@ setup(
     author_email="martin.siggel@dlr.de",
     url="https://github.com/helmholtz-analytics/heat",
     keywords=["data", "analytics", "tensors", "distributed", "gpu"],
-    python_requires="~=3.6",
+    python_requires=">=3.7",
     classifiers=[
         "Development Status :: 4 - Beta",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "License :: OSI Approved :: MIT License",
@@ -37,11 +36,13 @@ setup(
         "torch>=1.7.0",
         "scipy>=0.14.0",
         "pillow>=6.0.0",
-        "torchvision>=0.5.0",
+        "torchvision>=0.8.0",
     ],
     extras_require={
+        "docutils": ["docutils>=0.16"],
         "hdf5": ["h5py>=2.8.0"],
-        "netcdf": ["netCDF4>=1.4.0"],
+        "netcdf": ["netCDF4>=1.5.6"],
         "dev": ["pre-commit>=1.18.3"],
+        "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0"],
     },
 )

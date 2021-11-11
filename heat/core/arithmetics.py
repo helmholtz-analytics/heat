@@ -1,12 +1,29 @@
-import torch
+"""
+Arithmetic functions for DNDarrays
+"""
 
-from .communication import MPI
-from . import dndarray
+from __future__ import annotations
+
+import torch
+from typing import Optional, Union, Tuple
+
 from . import factories
 from . import manipulations
 from . import _operations
+from . import sanitation
 from . import stride_tricks
 from . import types
+
+from .communication import MPI
+from .dndarray import DNDarray
+from .types import (
+    canonical_heat_type,
+    heat_type_is_inexact,
+    heat_type_is_exact,
+    heat_type_of,
+    datatype,
+)
+
 
 __all__ = [
     "add",
@@ -28,6 +45,10 @@ __all__ = [
     "mod",
     "mul",
     "multiply",
+    "neg",
+    "negative",
+    "pos",
+    "positive",
     "pow",
     "power",
     "prod",
@@ -39,170 +60,168 @@ __all__ = [
 ]
 
 
-def add(t1, t2):
+def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise addition of values from two operands, commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be added as argument.
+    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be added
+    as argument and returns a ``DNDarray`` containing the results of element-wise addition of ``t1`` and ``t2``.
 
     Parameters
     ----------
-    t1: tensor or scalar
+    t1: DNDarray or scalar
         The first operand involved in the addition
-    t2: tensor or scalar
+    t2: DNDarray or scalar
         The second operand involved in the addition
 
-    Returns
-    -------
-    result: ht.DNDarray
-        A tensor containing the results of element-wise addition of t1 and t2.
-
-    Examples:
-    ---------
+    Examples
+    --------
     >>> import heat as ht
     >>> ht.add(1.0, 4.0)
-    tensor([5.])
-
+    DNDarray([5.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.add(T1, T2)
-    tensor([[3., 4.],
-            [5., 6.]])
-
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
     >>> ht.add(T1, s)
-    tensor([[3., 4.],
-            [5., 6.]])
-
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.add, t1, t2)
 
 
-def bitwise_and(t1, t2):
+DNDarray.__add__ = lambda self, other: add(self, other)
+DNDarray.__add__.__doc__ = add.__doc__
+DNDarray.__radd__ = lambda self, other: add(self, other)
+DNDarray.__radd__.__doc__ = add.__doc__
+
+
+def bitwise_and(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise AND of two arrays element-wise.
+    Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` element-wise.
+    Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape
+    (which becomes the shape of the output)
 
     Parameters
     ----------
-    t1, t2: tensor or scalar
-        Only integer and boolean types are handled. If x1.shape != x2.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+    t1: DNDarray or scalar
+        Input tensor
+    t2: DNDarray or scalar
+        Input tensor
 
-    Returns
-    -------
-    result: ht.DNDarray
-        A tensor containing the results of element-wise AND of t1 and t2.
-
-    Examples:
-    ---------
-    import heat as ht
+    Examples
+    --------
     >>> ht.bitwise_and(13, 17)
-    tensor([1])
+    DNDarray([1], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(14, 13)
-    tensor([12])
-
+    DNDarray([12], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([14,3]), 13)
-    tensor([12,  1])
-
+    DNDarray([12,  1], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([11,7]), ht.array([4,25]))
-    tensor([0, 1])
+    DNDarray([0, 1], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([2,5,255]), ht.array([3,14,16]))
-    tensor([ 2,  4, 16])
-
+    DNDarray([ 2,  4, 16], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([True, True]), ht.array([False, True]))
-    tensor([False,  True])
+    DNDarray([False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
-    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
 
-    for dtype in dtypes:
-        if types.heat_type_is_inexact(dtype):
+    for dt in dtypes:
+        if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
     return _operations.__binary_op(torch.Tensor.__and__, t1, t2)
 
 
-def bitwise_or(t1, t2):
+DNDarray.__and__ = lambda self, other: bitwise_and(self, other)
+DNDarray.__and__.__doc__ = bitwise_and.__doc__
+
+
+def bitwise_or(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise OR of two arrays element-wise.
+    Compute the bit-wise OR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` element-wise.
+    Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape
+    (which becomes the shape of the output)
 
     Parameters
     ----------
-    t1, t2: tensor or scalar
-       Only integer and boolean types are handled. If x1.shape != x2.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+    t1: DNDarray or scalar
+        Input tensor
+    t2: DNDarray or scalar
+        Input tensor
 
-    Returns
-    -------
-    result: ht.DNDArray
-       A tensor containing the results of element-wise OR of t1 and t2.
-
-    Examples:
-    ---------
-    import heat as ht
+    Examples
+    --------
     >>> ht.bitwise_or(13, 16)
-    tensor([29])
-
+    DNDarray([29], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(32, 2)
-    tensor([34])
+    DNDarray([34], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([33, 4]), 1)
-    tensor([33,  5])
+    DNDarray([33,  5], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([33, 4]), ht.array([1, 2]))
-    tensor([33,  6])
-
+    DNDarray([33,  6], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([2, 5, 255]), ht.array([4, 4, 4]))
-    tensor([  6,   5, 255])
+    DNDarray([  6,   5, 255], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([2, 5, 255, 2147483647], dtype=ht.int32),
-    ...               ht.array([4, 4, 4, 2147483647], dtype=ht.int32))
-    tensor([         6,          5,        255, 2147483647])
+                      ht.array([4, 4, 4, 2147483647], dtype=ht.int32))
+    DNDarray([         6,          5,        255, 2147483647], dtype=ht.int32, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([True, True]), ht.array([False, True]))
-    tensor([ True,  True])
+    DNDarray([True, True], dtype=ht.bool, device=cpu:0, split=None)
     """
-    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
 
-    for dtype in dtypes:
-        if types.heat_type_is_inexact(dtype):
+    for dt in dtypes:
+        if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
     return _operations.__binary_op(torch.Tensor.__or__, t1, t2)
 
 
-def bitwise_xor(t1, t2):
+DNDarray.__or__ = lambda self, other: bitwise_or(self, other)
+DNDarray.__or__.__doc__ = bitwise_or.__doc__
+
+
+def bitwise_xor(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise XOR of two arrays element-wise.
+    Compute the bit-wise XOR of two arrays element-wise ``t1`` and ``t2``.
+    Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape
+    (which becomes the shape of the output)
 
     Parameters
     ----------
-    t1, t2: tensor or scalar
-       Only integer and boolean types are handled. If x1.shape != x2.shape, they must be broadcastable to a common shape (which becomes the shape of the output).
+    t1: DNDarray or scalar
+        Input tensor
+    t2: DNDarray or scalar
+        Input tensor
 
-    Returns
-    -------
-    result: ht.DNDArray
-       A tensor containing the results of element-wise OR of t1 and t2.
-
-    Examples:
-    ---------
-    import heat as ht
+    Examples
+    --------
     >>> ht.bitwise_xor(13, 17)
-    tensor([28])
-
+    DNDarray([28], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(31, 5)
-    tensor([26])
-    >>> ht.bitwise_xor(ht.array[31,3], 5)
-    tensor([26,  6])
-
+    DNDarray([26], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.bitwise_xor(ht.array([31,3]), 5)
+    DNDarray([26,  6], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(ht.array([31,3]), ht.array([5,6]))
-    tensor([26,  5])
+    DNDarray([26,  5], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(ht.array([True, True]), ht.array([False, True]))
-    tensor([ True, False])
+    DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
-    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
 
-    for dtype in dtypes:
-        if types.heat_type_is_inexact(dtype):
+    for dt in dtypes:
+        if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
     return _operations.__binary_op(torch.Tensor.__xor__, t1, t2)
 
 
-def cumprod(a, axis, dtype=None, out=None):
+DNDarray.__xor__ = lambda self, other: bitwise_xor(self, other)
+DNDarray.__xor__.__doc__ = bitwise_xor.__doc__
+
+
+def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray:
     """
     Return the cumulative product of elements along a given axis.
 
@@ -212,10 +231,10 @@ def cumprod(a, axis, dtype=None, out=None):
         Input array.
     axis : int
         Axis along which the cumulative product is computed.
-    dtype : dtype, optional
+    dtype : datatype, optional
         Type of the returned array, as well as of the accumulator in which
-        the elements are multiplied.  If *dtype* is not specified, it
-        defaults to the dtype of `a`, unless `a` has an integer dtype with
+        the elements are multiplied.  If ``dtype`` is not specified, it
+        defaults to the datatype of ``a``, unless ``a`` has an integer dtype with
         a precision less than that of the default platform integer.  In
         that case, the default platform integer is used instead.
     out : DNDarray, optional
@@ -223,28 +242,23 @@ def cumprod(a, axis, dtype=None, out=None):
         have the same shape and buffer length as the expected output
         but the type of the resulting values will be cast if necessary.
 
-    Returns
-    -------
-    cumprod : DNDarray
-        A new array holding the result is returned unless `out` is
-        specified, in which case a reference to out is returned.
-
     Examples
     --------
     >>> a = ht.full((3,3), 2)
     >>> ht.cumprod(a, 0)
-    tensor([[2., 2., 2.],
+    DNDarray([[2., 2., 2.],
             [4., 4., 4.],
-            [8., 8., 8.])
+            [8., 8., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__cum_op(a, torch.cumprod, MPI.PROD, torch.mul, 1, axis, dtype, out)
 
 
 # Alias support
 cumproduct = cumprod
+"""Alias for :py:func:`cumprod`"""
 
 
-def cumsum(a, axis, dtype=None, out=None):
+def cumsum(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray:
     """
     Return the cumulative sum of the elements along a given axis.
 
@@ -254,66 +268,67 @@ def cumsum(a, axis, dtype=None, out=None):
         Input array.
     axis : int
         Axis along which the cumulative sum is computed.
-    dtype : dtype, optional
+    dtype : datatype, optional
         Type of the returned array and of the accumulator in which the
-        elements are summed.  If `dtype` is not specified, it defaults
-        to the dtype of `a`, unless `a` has an integer dtype with a
+        elements are summed.  If ``dtype`` is not specified, it defaults
+        to the datatype of ``a``, unless ``a`` has an integer dtype with a
         precision less than that of the default platform integer.  In
         that case, the default platform integer is used.
     out : DNDarray, optional
         Alternative output array in which to place the result. It must
         have the same shape and buffer length as the expected output
-        but the type will be cast if necessary. See `doc.ufuncs`
-        (Section "Output arguments") for more details.
-
-    Returns
-    -------
-    cumsum : DNDarray
-        A new array holding the result is returned unless `out` is
-        specified, in which case a reference to out is returned.
+        but the type will be cast if necessary.
 
     Examples
     --------
     >>> a = ht.ones((3,3))
     >>> ht.cumsum(a, 0)
-    tensor([[1., 1., 1.],
-            [2., 2., 2.],
-            [3., 3., 3.])
+    DNDarray([[1., 1., 1.],
+              [2., 2., 2.],
+              [3., 3., 3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__cum_op(a, torch.cumsum, MPI.SUM, torch.add, 0, axis, dtype, out)
 
 
-def diff(a, n=1, axis=-1, prepend=None, append=None):
+def diff(
+    a: DNDarray,
+    n: int = 1,
+    axis: int = -1,
+    prepend: Union[int, float, DNDarray] = None,
+    append: Union[int, float, DNDarray] = None,
+) -> DNDarray:
     """
     Calculate the n-th discrete difference along the given axis.
-    The first difference is given by out[i] = a[i+1] - a[i] along the given axis, higher differences are calculated by using diff recursively.
+    The first difference is given by ``out[i]=a[i+1]-a[i]`` along the given axis, higher differences are calculated
+    by using diff recursively. The shape of the output is the same as ``a`` except along axis where the dimension is smaller
+    by ``n``. The datatype of the output is the same as the datatype of the difference between any two elements of ``a``.
+    The split does not change. The output array is balanced.
 
+    Parameters
+    -------
     a : DNDarray
         Input array
     n : int, optional
         The number of times values are differenced. If zero, the input is returned as-is.
-        Default value is 1
-        n=2 is equivalent to ht.diff(ht.diff(a))
+        ``n=2`` is equivalent to ``diff(diff(a))``
     axis : int, optional
         The axis along which the difference is taken, default is the last axis.
-    prepend, append : Optional[int, float, DNDarray]
-        Values to prepend or append along axis prior to performing the difference.
+    prepend : Union[int, float, DNDarray]
+        Value to prepend along axis prior to performing the difference.
         Scalar values are expanded to arrays with length 1 in the direction of axis and
         the shape of the input array in along all other axes. Otherwise the dimension and
         shape must match a except along axis.
-
-    Returns
-    -------
-    diff : DNDarray
-        The n-th differences. The shape of the output is the same as a except along axis where the dimension is smaller by n.
-        The type of the output is the same as the type of the difference between any two elements of a.
-        The split does not change. The output array is balanced.
+    append : Union[int, float, DNDarray]
+        Values to append along axis prior to performing the difference.
+        Scalar values are expanded to arrays with length 1 in the direction of axis and
+        the shape of the input array in along all other axes. Otherwise the dimension and
+        shape must match a except along axis.
     """
     if n == 0:
         return a
     if n < 0:
         raise ValueError("diff requires that n be a positive number, got {}".format(n))
-    if not isinstance(a, dndarray.DNDarray):
+    if not isinstance(a, DNDarray):
         raise TypeError("'a' must be a DNDarray")
 
     axis = stride_tricks.sanitize_axis(a.gshape, axis)
@@ -329,14 +344,14 @@ def diff(a, n=1, axis=-1, prepend=None, append=None):
                     p_el = factories.full(
                         pend_shape,
                         p_el,
-                        dtype=types.canonical_heat_type(torch.tensor(p_el).dtype),
+                        dtype=canonical_heat_type(torch.tensor(p_el).dtype),
                         split=a.split,
                         device=a.device,
                         comm=a.comm,
                     )
-                elif isinstance(p_el, dndarray.DNDarray) and p_el.gshape == pend_shape:
+                elif isinstance(p_el, DNDarray) and p_el.gshape == pend_shape:
                     pass
-                elif not isinstance(p_el, dndarray.DNDarray):
+                elif not isinstance(p_el, DNDarray):
                     raise TypeError(
                         "prepend/append should be a scalar or a DNDarray, was {}".format(type(p_el))
                     )
@@ -412,513 +427,563 @@ def diff(a, n=1, axis=-1, prepend=None, append=None):
     return ret
 
 
-def div(t1, t2):
+def div(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise true division of values of operand t1 by values of operands t2 (i.e t1 / t2), not commutative.
-    Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2)
-    as argument.
+    Element-wise true division of values of operand ``t1`` by values of operands ``t2`` (i.e ``t1/t2``).
+    Operation is not commutative.
 
     Parameters
     ----------
-    t1: tensor or scalar
+    t1: DNDarray or scalar
         The first operand whose values are divided
-    t2: tensor or scalar
+    t2: DNDarray or scalar
         The second operand by whose values is divided
 
-    Returns
-    -------
-    result: ht.DNDarray
-        A tensor containing the results of element-wise true division (i.e. floating point values) of t1 by t2.
-
-    Examples:
+    Example
     ---------
-    >>> import heat as ht
     >>> ht.div(2.0, 2.0)
-    tensor([1.])
-
+    DNDarray([1.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.div(T1, T2)
-    tensor([[0.5000, 1.0000],
-            [1.5000, 2.0000]])
-
+    DNDarray([[0.5000, 1.0000],
+              [1.5000, 2.0000]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
     >>> ht.div(s, T1)
-    tensor([[2.0000, 1.0000],
-            [0.6667, 0.5000]])
+    DNDarray([[2.0000, 1.0000],
+              [0.6667, 0.5000]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.true_divide, t1, t2)
 
 
+DNDarray.__truediv__ = lambda self, other: div(self, other)
+DNDarray.__truediv__.__doc__ = div.__doc__
+DNDarray.__rtruediv__ = lambda self, other: div(other, self)
+DNDarray.__rtruediv__.__doc__ = div.__doc__
+
 # Alias in compliance with numpy API
 divide = div
+"""Alias for :py:func:`div`"""
 
 
-def fmod(t1, t2):
+def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. C Library function fmod), not commutative.
-    Takes the two operands (scalar or tensor, both may contain floating point number) whose elements are to be
-    divided (operand 1 by operand 2) as arguments.
+    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. C Library function fmod).
+    Result has the sign as the dividend ``t1``. Operation is not commutative.
 
     Parameters
     ----------
-    t1: tensor or scalar
+    t1: DNDarray or scalar
         The first operand whose values are divided (may be floats)
-    t2: tensor or scalar
+    t2: DNDarray or scalar
         The second operand by whose values is divided (may be floats)
 
-    Returns
-    -------
-    result: ht.DNDarray
-        A tensor containing the remainder of the element-wise division (i.e. floating point values) of t1 by t2.
-        It has the sign as the dividend t1.
-
-    Examples:
-    ---------
-    >>> import heat as ht
+    Examples
+    --------
     >>> ht.fmod(2.0, 2.0)
-    tensor([0.])
-
+    DNDarray([0.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.fmod(T1, T2)
-    tensor([[1., 0.],
-            [1., 0.]])
-
+    DNDarray([[1., 0.],
+          [1., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
     >>> ht.fmod(s, T1)
-    tensor([[0., 0.]
-            [2., 2.]])
+    DNDarray([[0., 0.],
+          [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.fmod, t1, t2)
 
 
-def floordiv(t1, t2):
+def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise floor division of value of operand t1 by values of operands t2 (i.e. t1 // t2), not commutative.
-    Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2) as argument.
+    Element-wise floor division of value of operand ``t1`` by values of operands ``t2`` (i.e. ``t1//t2``), not commutative.
 
     Parameters
     ----------
-    t1: tensor or scalar
+    t1: DNDarray or scalar
         The first operand whose values are divided
-    t2: tensor or scalar
+    t2: DNDarray or scalar
         The second operand by whose values is divided
 
-    Return
-    ------
-    result: ht.DNDarray
-        A tensor containing the results of element-wise floor division (integer values) of t1 by t2.
-
-    Examples:
-    ---------
-    >>> import heat as ht
+    Examples
+    --------
     >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
     >>> ht.floordiv(T1, 1)
-    tensor([[1., 2.],
-            [1., 4.]])
+    DNDarray([[1., 2.],
+              [1., 4.]], dtype=ht.float64, device=cpu:0, split=None)
     >>> T2 = ht.float32([1.5, 2.5])
     >>> ht.floordiv(T1, T2)
-    tensor([[1., 0.],
-            [1., 1.]])
+    DNDarray([[1., 0.],
+              [1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.floor_divide, t1, t2)
+    if int(torch.__version__[-3]) > 7:
+        return _operations.__binary_op(torch.div, t1, t2, fn_kwargs={"rounding_mode": "floor"})
+    else:
+        return _operations.__binary_op(torch.floor_divide, t1, t2)
 
+
+DNDarray.__floordiv__ = lambda self, other: floordiv(self, other)
+DNDarray.__floordiv__.__doc__ = floordiv.__doc__
+DNDarray.__rfloordiv__ = lambda self, other: floordiv(other, self)
+DNDarray.__rfloordiv__.__doc__ = floordiv.__doc__
 
 # Alias in compliance with numpy API
 floor_divide = floordiv
+"""Alias for :py:func:`floordiv`"""
 
 
-def invert(t, out=None):
+def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
     """
-    Computes the bitwise NOT of the given input tensor. The input tensor must be of integral or Boolean types. For bool tensors, it computes the logical NOT.
-    Bitwise_not is an alias for invert.
+    Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray`. The input array must be of integral
+    or Boolean types. For boolean arrays, it computes the logical NOT. Bitwise_not is an alias for invert.
 
-    Returns
-        -------
-        result: ht.DNDarray
-            A tensor containing the results of element-wise inversion.
-
-    Examples:
+    Parameters
     ---------
-    >>> ht.invert(ht.array([13], dtype=ht.uint8))
-    tensor([242], dtype=ht.uint8)
-    >>> ht.bitwise_not(ht.array([-1, -2, 3], dtype=ht.int8))
-    tensor([ 0,  1, -4], dtype=ht.int8)
-    """
-    dtype = types.heat_type_of(t)
+    a: DNDarray
+        The input array to invert. Must be of integral or Boolean types
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must have the same shape as the expected output.
 
-    if types.heat_type_is_inexact(dtype):
+    Examples
+    --------
+    >>> ht.invert(ht.array([13], dtype=ht.uint8))
+    DNDarray([242], dtype=ht.uint8, device=cpu:0, split=None)
+    >>> ht.bitwise_not(ht.array([-1, -2, 3], dtype=ht.int8))
+    DNDarray([ 0,  1, -4], dtype=ht.int8, device=cpu:0, split=None)
+    """
+    dt = heat_type_of(a)
+
+    if heat_type_is_inexact(dt):
         raise TypeError("Operation is not supported for float types")
 
-    return _operations.__local_op(torch.bitwise_not, t, out, no_cast=True)
+    return _operations.__local_op(torch.bitwise_not, a, out, no_cast=True)
 
+
+DNDarray.__invert__ = lambda self, out=None: invert(self, out)
+DNDarray.__invert__.__doc__ = invert.__doc__
 
 # alias for invert
 bitwise_not = invert
+"""Alias for :py:func:`invert`"""
 
 
-def left_shift(t1, t2):
+def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Shift the bits of an integer to the left.
 
     Parameters
     ----------
-    t1: scalar or tensor
+    t1: DNDarray
+        Input array
+    t2: DNDarray or float
+        Integer number of zero bits to add
 
-    t2: scalar or tensor
-        integer number of zero bits to add
-
-    Returns
-    -------
-    result: ht.NDNarray
-        A tensor containing the results of element-wise left shift operation.
-
-    Examples:
-    ---------
-    >>> ht.left_shift(ht.array[1,2,3], 1)
-    tensor([2, 4, 6])
+    Examples
+    --------
+    >>> ht.left_shift(ht.array([1,2,3]), 1)
+    DNDarray([2, 4, 6], dtype=ht.int64, device=cpu:0, split=None)
     """
-    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
-
-    for dtype in dtypes:
-        if not types.heat_type_is_exact(dtype):
-            raise TypeError("Operation is supported for integer types only")
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
+    arrs = [t1, t2]
+    for dt in range(2):
+        if heat_type_is_inexact(dtypes[dt]):
+            raise TypeError("Operation is not supported for float types")
+        elif dtypes[dt] == types.bool:
+            arrs[dt] = types.int(arrs[dt])
 
     return _operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
 
 
-def mod(t1, t2):
-    """
-    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
-    Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2) as arguments.
+DNDarray.__lshift__ = lambda self, other: left_shift(self, other)
+DNDarray.__lshift__.__doc__ = left_shift.__doc__
 
-    Currently t1 and t2 are just passed to remainder.
+
+def mod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. ``t1%t2``).
+    Operation is not commutative. Result has the same sign as the devisor ``t2``.
+    Currently ``t1`` and ``t2`` are just passed to remainder.
 
     Parameters
     ----------
-    t1: tensor or scalar
+    t1: DNDarray or scalar
         The first operand whose values are divided
-    t2: tensor or scalar
+    t2: DNDarray or scalar
         The second operand by whose values is divided
 
-    Returns
-    -------
-    result: ht.DNDarray
-        A tensor containing the remainder of the element-wise division of t1 by t2.
-        It has the same sign as the devisor t2.
-
-    Examples:
-    ---------
-    >>> import heat as ht
+    Examples
+    --------
     >>> ht.mod(2, 2)
-    tensor([0])
-
+    DNDarray([0], dtype=ht.int64, device=cpu:0, split=None)
     >>> T1 = ht.int32([[1, 2], [3, 4]])
     >>> T2 = ht.int32([[2, 2], [2, 2]])
     >>> ht.mod(T1, T2)
-    tensor([[1, 0],
-            [1, 0]], dtype=torch.int32)
-
+    DNDarray([[1, 0],
+              [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
     >>> s = 2
     >>> ht.mod(s, T1)
-    tensor([[0, 0]
-            [2, 2]], dtype=torch.int32)
+    DNDarray([[0, 0],
+              [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
     """
     return remainder(t1, t2)
 
 
-def mul(t1, t2):
+DNDarray.__mod__ = lambda self, other: mod(self, other)
+DNDarray.__mod__.__doc__ = mod.__doc__
+DNDarray.__rmod__ = lambda self, other: mod(other, self)
+DNDarray.__rmod__.__doc__ = mod.__doc__
+
+
+def mul(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise multiplication (NOT matrix multiplication) of values from two operands, commutative.
-    Takes the first and second operand (scalar or tensor) whose elements are to be multiplied as argument.
+    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be
+    multiplied as argument.
 
     Parameters
     ----------
-    t1: tensor or scalar
+    t1: DNDarray or scalar
         The first operand involved in the multiplication
-    t2: tensor or scalar
+    t2: DNDarray or scalar
         The second operand involved in the multiplication
 
-    Returns
-    -------
-    result: ht.DNDarray
-        A tensor containing the results of element-wise multiplication of t1 and t2.
-
-    Examples:
-    ---------
-    >>> import heat as ht
+    Examples
+    --------
     >>> ht.mul(2.0, 4.0)
-    tensor([8.])
-
+    DNDarray([8.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> s = 3.0
     >>> ht.mul(T1, s)
-    tensor([[3., 6.],
-            [9., 12.]])
-
+    DNDarray([[ 3.,  6.],
+              [ 9., 12.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.mul(T1, T2)
-    tensor([[2., 4.],
-            [6., 8.]])
-
+    DNDarray([[2., 4.],
+              [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.mul(T1, T2)
-    tensor([[2., 4.],
-            [6., 8.]])
+    DNDarray([[2., 4.],
+              [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.mul, t1, t2)
 
 
+DNDarray.__mul__ = lambda self, other: mul(self, other)
+DNDarray.__mul__.__doc__ = mul.__doc__
+DNDarray.__rmul__ = lambda self, other: mul(self, other)
+DNDarray.__rmul__.__doc__ = mul.__doc__
+
 # Alias in compliance with numpy API
 multiply = mul
+"""Alias for :py:func:`mul`"""
 
 
-def pow(t1, t2):
+def neg(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Element-wise exponential function of values of operand t1 to the power of values of operand t2 (i.e t1 ** t2),
-    not commutative. Takes the two operands (scalar or tensor) whose elements are to be involved in the exponential
-    function(operand 1 to the power of operand 2)
-    as argument.
+    Element-wise negative of `a`.
 
     Parameters
     ----------
-    t1: tensor or scalar
+    a:   DNDarray
+         The input array.
+    out: DNDarray, optional
+         The output array. It must have a shape that the inputs broadcast to
+
+    Examples
+    --------
+    >>> ht.neg(ht.array([-1, 1]))
+    DNDarray([ 1, -1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> -ht.array([-1., 1.])
+    DNDarray([ 1., -1.], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(a)
+
+    return _operations.__local_op(torch.neg, a, out, no_cast=True)
+
+
+DNDarray.__neg__ = lambda self: neg(self)
+DNDarray.__neg__.__doc__ = neg.__doc__
+
+# Alias in compliance with numpy API
+negative = neg
+"""Alias for :py:func:`neg`"""
+
+
+def pos(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Element-wise positive of `a`.
+
+    Parameters
+    ----------
+    a:   DNDarray
+         The input array.
+    out: DNDarray, optional
+         The output array. It must have a shape that the inputs broadcast to.
+
+    Notes
+    -----
+    Equivalent to a.copy().
+
+    Examples
+    --------
+    >>> ht.pos(ht.array([-1, 1]))
+    DNDarray([-1,  1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> +ht.array([-1., 1.])
+    DNDarray([-1.,  1.], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(a)
+
+    def torch_pos(torch_tensor, out=None):
+        if not torch.is_tensor(torch_tensor):
+            raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
+        return out.copy_(torch_tensor)
+
+    if out is not None:
+        return _operations.__local_op(torch_pos, a, out, no_cast=True)
+
+    return a.copy()
+
+
+DNDarray.__pos__ = lambda self: pos(self)
+DNDarray.__pos__.__doc__ = pos.__doc__
+
+# Alias in compliance with numpy API
+positive = pos
+"""Alias for :py:func:`pos`"""
+
+
+def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    Element-wise exponential function of values of operand ``t1`` to the power of values of operand ``t2`` (i.e ``t1**t2``).
+    Operation is not commutative.
+
+    Parameters
+    ----------
+    t1: DNDarray or scalar
         The first operand whose values represent the base
-    t2: tensor or scalar
+    t2: DNDarray or scalar
         The second operand by whose values represent the exponent
 
-    Returns
-    -------
-    result: ht.DNDarray
-        A tensor containing the results of element-wise exponential function.
-
-    Examples:
-    ---------
-    >>> import heat as ht
+    Examples
+    --------
     >>> ht.pow (3.0, 2.0)
-    tensor([9.])
-
+    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[3, 3], [2, 2]])
     >>> ht.pow(T1, T2)
-    tensor([[1., 8.],
-            [9., 16.]])
+    DNDarray([[ 1.,  8.],
+            [ 9., 16.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 3.0
     >>> ht.pow(T1, s)
-    tensor([[1., 8.],
-            [27., 64.]])
+    DNDarray([[ 1.,  8.],
+            [27., 64.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.pow, t1, t2)
 
 
+DNDarray.__pow__ = lambda self, other: pow(self, other)
+DNDarray.__pow__.__doc__ = pow.__doc__
+DNDarray.__rpow__ = lambda self, other: pow(other, self)
+DNDarray.__rpow__.__doc__ = pow.__doc__
+
+
 # Alias in compliance with numpy API
 power = pow
+"""Alias for :py:func:`pow`"""
 
 
-def remainder(t1, t2):
+def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise division remainder of values of operand t1 by values of operand t2 (i.e. t1 % t2), not commutative.
-    Takes the two operands (scalar or tensor) whose elements are to be divided (operand 1 by operand 2) as arguments.
+    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. ``t1%t2``).
+    Operation is not commutative. Result has the same sign as the devisor ``t2``.
 
     Parameters
     ----------
-    t1: tensor or scalar
+    t1: DNDarray or scalar
         The first operand whose values are divided
-    t2: tensor or scalar
+    t2: DNDarray or scalar
         The second operand by whose values is divided
 
-    Returns
-    -------
-    result: ht.DNDarray
-        A tensor containing the remainder of the element-wise division of t1 by t2.
-        It has the same sign as the devisor t2.
-
-    Examples:
-    ---------
-    >>> import heat as ht
-    >>> ht.mod(2, 2)
-    tensor([0])
-
+    Examples
+    --------
+    >>> ht.remainder(2, 2)
+    DNDarray([0], dtype=ht.int64, device=cpu:0, split=None)
     >>> T1 = ht.int32([[1, 2], [3, 4]])
     >>> T2 = ht.int32([[2, 2], [2, 2]])
-    >>> ht.mod(T1, T2)
-    tensor([[1, 0],
-            [1, 0]], dtype=torch.int32)
-
+    >>> ht.remainder(T1, T2)
+    DNDarray([[1, 0],
+            [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
     >>> s = 2
-    >>> ht.mod(s, T1)
-    tensor([[0, 0]
-            [2, 2]], dtype=torch.int32)
+    >>> ht.remainder(s, T1)
+    DNDarray([[0, 0],
+            [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.remainder, t1, t2)
 
 
-def right_shift(t1, t2):
+def right_shift(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Shift the bits of an integer to the right.
 
     Parameters
     ----------
-    t1: scalar or tensor
+    t1: DNDarray or scalar
+        Input array
+    t2: DNDarray or scalar
+        Integer number of bits to remove
 
-    t2: scalar or tensor
-        integer number of bits to remove
-
-    Returns
-    -------
-    result: ht.NDNarray
-        A tensor containing the results of element-wise right shift operation.
-
-    Examples:
-    ---------
-    >>> ht.right_shift(ht.array[1,2,3], 1)
-    tensor([0, 1, 1])
+    Examples
+    --------
+    >>> ht.right_shift(ht.array([1,2,3]), 1)
+    DNDarray([0, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
     """
-    dtypes = (types.heat_type_of(t1), types.heat_type_of(t2))
-
-    for dtype in dtypes:
-        if not types.heat_type_is_exact(dtype):
-            raise TypeError("Operation is supported for integer types only")
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
+    arrs = [t1, t2]
+    for dt in range(2):
+        if heat_type_is_inexact(dtypes[dt]):
+            raise TypeError("Operation is not supported for float types")
+        elif dtypes[dt] == types.bool:
+            arrs[dt] = types.int(arrs[dt])
 
     return _operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
 
 
-def prod(x, axis=None, out=None, keepdim=None):
+DNDarray.__rshift__ = lambda self, other: right_shift(self, other)
+DNDarray.__rshift__.__doc__ = right_shift.__doc__
+
+
+def prod(
+    a: DNDarray,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdim: bool = None,
+) -> DNDarray:
     """
-    Return the product of array elements over a given axis.
+    Return the product of array elements over a given axis in form of a DNDarray shaped as a but with the specified axis removed.
 
     Parameters
     ----------
-    x : ht.DNDarray
-        Input data.
-    axis : None or int or tuple of ints, optional
-        Axis or axes along which a product is performed. The default, axis=None, will calculate the product of all the
+    a : DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate the product of all the
         elements in the input array. If axis is negative it counts from the last to the first axis.
-
         If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a single
         axis or all the axes as before.
-    out : ndarray, optional
-        Alternative output tensor in which to place the result. It must have the same shape as the expected output, but
-        the type of the output values will be cast if necessary.
-    keepdims : bool, optional
-        If this is set to True, the axes which are reduced are left in the result as dimensions with size one. With this
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must have the same shape as the expected output, but
+        the datatype of the output values will be cast if necessary.
+    keepdim : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
         option, the result will broadcast correctly against the input array.
-
-    Returns
-    -------
-    product_along_axis : ht.DNDarray
-        An array shaped as a but with the specified axis removed. Returns a reference to out if specified.
 
     Examples
     --------
-    >>> import heat as ht
-    >>> ht.prod([1.,2.])
-    ht.tensor([2.0])
-
-    >>> ht.prod([
+    >>> ht.prod(ht.array([1.,2.]))
+    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.prod(ht.array([
+        [1.,2.],
+        [3.,4.]]))
+    DNDarray([24.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.prod(ht.array([
         [1.,2.],
         [3.,4.]
-    ])
-    ht.tensor([24.0])
-
-    >>> ht.prod([
-        [1.,2.],
-        [3.,4.]
-    ], axis=1)
-    ht.tensor([  2.,  12.])
+    ]), axis=1)
+    DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__reduce_op(
-        x, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
+        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
     )
 
 
-def sub(t1, t2):
+DNDarray.prod = lambda self, axis=None, out=None, keepdim=None: prod(self, axis, out, keepdim)
+DNDarray.prod.__doc__ = prod.__doc__
+
+
+def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise subtraction of values of operand t2 from values of operands t1 (i.e t1 - t2), not commutative.
-    Takes the two operands (scalar or tensor) whose elements are to be subtracted (operand 2 from operand 1)
-    as argument.
+    Element-wise subtraction of values of operand ``t2`` from values of operands ``t1`` (i.e ``t1-t2``)
+    Operation is not commutative.
 
     Parameters
     ----------
-    t1: tensor or scalar
+    t1: DNDarray or scalar
         The first operand from which values are subtracted
-    t2: tensor or scalar
+    t2: DNDarray or scalar
         The second operand whose values are subtracted
 
-    Returns
-    -------
-    result: ht.DNDarray
-        A tensor containing the results of element-wise subtraction of t1 and t2.
-
-    Examples:
-    ---------
-    >>> import heat as ht
+    Examples
+    --------
     >>> ht.sub(4.0, 1.0)
-    tensor([3.])
-
+    DNDarray([3.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.sub(T1, T2)
-    tensor([[-1., 0.],
-            [1., 2.]])
-
+    DNDarray([[-1.,  0.],
+              [ 1.,  2.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
     >>> ht.sub(s, T1)
-    tensor([[ 1.,  0.],
-            [-1., -2.]])
+    DNDarray([[ 1.,  0.],
+              [-1., -2.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.sub, t1, t2)
 
 
+DNDarray.__sub__ = lambda self, other: sub(self, other)
+DNDarray.__sub__.__doc__ = sub.__doc__
+DNDarray.__rsub__ = lambda self, other: sub(other, self)
+DNDarray.__rsub__.__doc__ = sub.__doc__
+
+
 # Alias in compliance with numpy API
 subtract = sub
+"""
+Alias for :py:func:`sub`
+"""
 
 
-def sum(x, axis=None, out=None, keepdim=None):
+def sum(
+    a: DNDarray,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdim: bool = None,
+) -> DNDarray:
     """
-    Sum of array elements over a given axis.
+    Sum of array elements over a given axis. An array with the same shape as ``self.__array`` except for the specified
+    axis which becomes one, e.g. ``a.shape=(1, 2, 3)`` => ``ht.ones((1, 2, 3)).sum(axis=1).shape=(1, 1, 3)``
 
     Parameters
     ----------
-    x : ht.DNDarray
-        Input data.
-    axis : None or int or tuple of ints, optional
-        Axis along which a sum is performed. The default, axis=None, will sum
-        all of the elements of the input array. If axis is negative it counts
-        from the last to the first axis.
-
-        If axis is a tuple of ints, a sum is performed on all of the axes specified
-        in the tuple instead of a single axis or all the axes as before.
-    out : ndarray, optional
-        Alternative output tensor in which to place the result. It must have the same shape as the expected output, but
-        the type of the output values will be cast if necessary.
-    keepdims : bool, optional
-        If this is set to True, the axes which are reduced are left in the result as dimensions with size one. With this
+    a : DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the elements of the input array.
+        If ``axis`` is negative it counts from the last to the first axis. If ``axis`` is a tuple of ints, a sum is performed
+        on all of the axes specified in the tuple instead of a single axis or all the axes as before.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must have the same shape as the expected output, but
+        the datatype of the output values will be cast if necessary.
+    keepdim : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
         option, the result will broadcast correctly against the input array.
-
-    Returns
-    -------
-    sum_along_axis : ht.DNDarray
-        An array with the same shape as self.__array except for the specified axis which
-        becomes one, e.g. a.shape = (1, 2, 3) => ht.ones((1, 2, 3)).sum(axis=1).shape = (1, 1, 3)
 
     Examples
     --------
     >>> ht.sum(ht.ones(2))
-    tensor([2.])
-
+    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)))
-    tensor([9.])
-
+    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)).astype(ht.int))
-    tensor([9])
-
+    DNDarray([9], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,2,1)), axis=-3)
-    tensor([[[3.],
-             [3.]]])
+    DNDarray([[3.],
+              [3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     # TODO: make me more numpy API complete Issue #101
     return _operations.__reduce_op(
-        x, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
+        a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
     )
+
+
+DNDarray.sum = lambda self, axis=None, out=None, keepdim=None: sum(self, axis, out, keepdim)
