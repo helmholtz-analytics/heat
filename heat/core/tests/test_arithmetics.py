@@ -53,6 +53,30 @@ class TestArithmetics(TestCase):
         self.assertTrue((c == 1).all())
         self.assertTrue(c.lshape == a[:-1].lshape)
 
+        c = a[1:-1] + b[1:-1]  # test unbalanced
+        self.assertTrue((c == 1).all())
+        self.assertTrue(c.lshape == a[1:-1].lshape)
+
+        # test one unsplit
+        a = ht.ones(10, split=None)
+        b = ht.zeros(10, split=0)
+        c = a[:-1] + b[1:]
+        self.assertTrue((c == 1).all())
+        self.assertEqual(c.lshape, b[1:].lshape)
+        c = b[:-1] + a[1:]
+        self.assertTrue((c == 1).all())
+        self.assertEqual(c.lshape, b[:-1].lshape)
+
+        # broadcast in split dimension
+        a = ht.ones((1, 10), split=0)
+        b = ht.zeros((2, 10), split=0)
+        c = a + b
+        self.assertTrue((c == 1).all())
+        self.assertTrue(c.lshape == b.lshape)
+        c = b + a
+        self.assertTrue((c == 1).all())
+        self.assertTrue(c.lshape == b.lshape)
+
         with self.assertRaises(ValueError):
             ht.add(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):

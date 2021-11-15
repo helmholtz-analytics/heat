@@ -64,7 +64,7 @@ class TestOperations(TestCase):
         self.assertEqual(result.shape, (1, 2))
 
         # broadcast with unequal dimensions and two splitted tensors
-        left_tensor = ht.ones((4, 1, 3, 1, 2), split=0, dtype=torch.uint8)
+        left_tensor = ht.ones((4, 1, 3, 1, 2), split=2, dtype=torch.uint8)
         right_tensor = ht.ones((1, 3, 1), split=0, dtype=torch.uint8)
         result = left_tensor & right_tensor
         self.assertEqual(result.shape, (4, 1, 3, 3, 2))

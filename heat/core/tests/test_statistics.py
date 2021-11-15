@@ -1053,7 +1053,7 @@ class TestStatistics(TestCase):
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_1, random_volume_3)
         random_volume_3 = np.array(7.2)
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError):
             ht.minimum(random_volume_3, random_volume_1)
         random_volume_3 = ht.random.randn(6, 3, 3, split=1)
         with self.assertRaises(NotImplementedError):
