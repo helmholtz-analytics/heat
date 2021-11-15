@@ -190,8 +190,12 @@ def __binary_op(
             t2 = factories.array(
                 t2.larray[tuple(idx)], is_split=t1.split, copy=False, comm=t2.comm, device=t2.device
             )
-
-    result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
+    if t1.lnumel == 0:
+        result = t1.larray.type(promoted_type).clone()
+    else:
+        result = operation(
+            t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+        )
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result, device=output_device.torch_device)
 
