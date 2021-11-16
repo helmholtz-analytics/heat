@@ -131,6 +131,7 @@ def __binary_op(
         # move full array to every rank; no redistribution because size is only one
         t1 = t1.resplit(None)
         output_split = t2.split
+        output_balanced = t2.balanced
     elif (
         output_split is not None and t2.shape[output_split] <= 1 and output_shape[output_split] > 1
     ):
@@ -188,9 +189,17 @@ def __binary_op(
             t2 = factories.array(
                 t2.larray[tuple(idx)], is_split=t1.split, copy=False, comm=t2.comm, device=t2.device
             )
-    if t1.lnumel == 0:
-        result = t1.larray.type(promoted_type).clone()
-    else:
+    if t1.lnumel == 0 or t2.lnumel == 0:  # local process is empty
+        output_lshape = list(output_shape)
+        if output_split is not None:
+            if t1.lshape[output_split] == 0 or t2.lshape[output_split] == 0:
+                output_lshape[output_split] = 0
+            elif t1.lshape[output_split] == 1:
+                output_lshape[output_split] = t2.lshape[output_split]
+            else:
+                output_lshape[output_split] = t1.lshape[output_split]
+        result = torch.Tensor([], device=output_device).type(promoted_type).expand(output_lshape)
+    else:  # local process is not empty
         result = operation(
             t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
         )
