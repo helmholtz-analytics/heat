@@ -194,11 +194,16 @@ def __binary_op(
         if output_split is not None:
             if t1.lshape[output_split] == 0 or t2.lshape[output_split] == 0:
                 output_lshape[output_split] = 0
-            elif t1.lshape[output_split] == 1:
+            elif t1.shape[output_split] == 1:
                 output_lshape[output_split] = t2.lshape[output_split]
             else:
                 output_lshape[output_split] = t1.lshape[output_split]
-        result = torch.Tensor([], device=output_device).type(promoted_type).expand(output_lshape)
+        result = (
+            torch.Tensor([], device=output_device.torch_device)
+            .type(promoted_type)
+            .expand(output_lshape)
+            .contiguous()
+        )
     else:  # local process is not empty
         result = operation(
             t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
