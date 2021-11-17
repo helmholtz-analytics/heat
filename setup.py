@@ -43,5 +43,6 @@ setup(
         "hdf5": ["h5py>=2.8.0"],
         "netcdf": ["netCDF4>=1.5.6"],
         "dev": ["pre-commit>=1.18.3"],
+        "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0"],
     },
 )
