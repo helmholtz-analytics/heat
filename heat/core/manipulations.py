@@ -2262,7 +2262,7 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
     return a.gshape
 
 
-@profile
+# @profile
 def __pivot_sorting(
     a: DNDarray, sort_op: Callable, axis: Optional[int] = None, descending: bool = False, **kwargs
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -2541,7 +2541,7 @@ def __pivot_sorting(
     return final_result, final_indices
 
 
-@profile
+# @profile
 def sort(
     a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DNDarray] = None
 ) -> Union[DNDarray, Tuple[DNDarray, DNDarray]]:
@@ -3179,7 +3179,7 @@ DNDarray.swapaxes = lambda self, axis1, axis2: swapaxes(self, axis1, axis2)
 DNDarray.swapaxes.__doc__ = swapaxes.__doc__
 
 
-@profile
+# @profile
 def unique(
     a: DNDarray, return_inverse: bool = False, axis: Optional[int] = None
 ) -> Union[DNDarray, Tuple[DNDarray, DNDarray]]:
@@ -3326,13 +3326,11 @@ def unique(
         global_inverse = factories.array(inverse, is_split=inv_split, device=gres.device)
 
         unique_ranks = size if gres.is_distributed() else 1
+        gres_map = gres.lshape_map
         if unique_ranks > 1:
-            gres_map = gres.create_lshape_map()
-            gres_offsets = torch.cat(
-                (torch.tensor([0], device=gres_map.device), gres_map[:-1, gres.split])
-            ).cumsum(dim=0)
+            _, gres_offsets = gres.counts_displs()
+            gres_offsets = torch.tensor(gres_offsets, device=gres_map.device)
         else:
-            gres_map = torch.tensor(gres.gshape, device=inverse.device)
             gres_offsets = torch.tensor([0], device=gres_map.device)
         lres = gres.larray
         for p in range(unique_ranks):
