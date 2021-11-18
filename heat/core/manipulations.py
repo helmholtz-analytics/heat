@@ -3297,19 +3297,8 @@ def unique(
     else:
         lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
     gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device, copy=False)
-
-    # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
-    # data_max_lbytes = torch.prod(a.lshape_map[0]) * a.larray.element_size()
-    # if gres.nbytes <= data_max_lbytes:
-    #     # gather local uniques
-    #     gres.resplit_(None)
-    #     # final round of torch.unique
-    #     lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
-    #     lres_split = None
-    #     gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device)
-    # else:
-    # balance gres if needed
     gres.balance_()
+
     # global sorted unique
     lres = __pivot_sorting(gres, torch.unique, 0, sorted=True, return_inverse=True)
     # second local unique
