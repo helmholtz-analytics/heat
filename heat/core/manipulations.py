@@ -301,7 +301,10 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     # no splits, local concat
     if s0 is None and s1 is None:
         return factories.array(
-            torch.cat((arr0.larray, arr1.larray), dim=axis), device=arr0.device, comm=arr0.comm
+            torch.cat((arr0.larray, arr1.larray), dim=axis),
+            device=arr0.device,
+            comm=arr0.comm,
+            copy=False,
         )
 
     # non-matching splits when both arrays are split
@@ -320,6 +323,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
             is_split=s1 if s1 is not None else s0,
             device=arr1.device,
             comm=arr0.comm,
+            copy=False,
         )
 
         return out
@@ -335,6 +339,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                 is_split=s0,
                 device=arr0.device,
                 comm=arr0.comm,
+                copy=False,
             )
             return out
 
@@ -505,6 +510,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                 dtype=out_dtype,
                 device=arr0.device,
                 comm=arr0.comm,
+                copy=False,
             )
 
             return out
@@ -582,7 +588,9 @@ def diag(a: DNDarray, offset: int = 0) -> DNDarray:
     local = torch.zeros(lshape, dtype=a.dtype.torch_type(), device=a.device.torch_device)
     local[indices_x, indices_y] = a.larray[indices_x]
 
-    return factories.array(local, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
+    return factories.array(
+        local, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm, copy=False
+    )
 
 
 def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDarray:
@@ -808,14 +816,24 @@ def flatten(a: DNDarray) -> DNDarray:
 
     if a.split is None:
         return factories.array(
-            torch.flatten(a.larray), dtype=a.dtype, is_split=None, device=a.device, comm=a.comm
+            torch.flatten(a.larray),
+            dtype=a.dtype,
+            is_split=None,
+            device=a.device,
+            comm=a.comm,
+            copy=False,
         )
 
     if a.split > 0:
         a = resplit(a, 0)
 
     a = factories.array(
-        torch.flatten(a.larray), dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+        torch.flatten(a.larray),
+        dtype=a.dtype,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm,
+        copy=False,
     )
     a.balance_()
 
@@ -866,7 +884,7 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
 
     if a.split not in axis:
         return factories.array(
-            flipped, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+            flipped, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm, copy=False
         )
 
     # Need to redistribute tensors on split axis
@@ -1446,6 +1464,7 @@ def pad(
         is_split=array.split,
         device=array.device,
         comm=array.comm,
+        copy=False,
     )
 
     padded_tensor.balance_()
@@ -1605,9 +1624,9 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
     # sanitation `a`
     if not isinstance(a, DNDarray):
         if isinstance(a, (int, float)):
-            a = factories.array([a])
+            a = factories.array([a], copy=False)
         elif isinstance(a, (tuple, list, np.ndarray)):
-            a = factories.array(a)
+            a = factories.array(a, copy=False)
         else:
             raise TypeError(
                 "`a` must be a ht.DNDarray, np.ndarray, list, tuple, integer, or float, currently: {}".format(
