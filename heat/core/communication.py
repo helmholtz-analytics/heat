@@ -7,6 +7,7 @@ import numpy as np
 import os
 import subprocess
 import torch
+import tracemalloc
 
 from mpi4py import MPI
 from typing import Any, Callable, Optional, List, Tuple, Union
@@ -170,21 +171,21 @@ class MPICommunication(Communication):
         Parameters
         ----------
         shape : Tuple[int,...]
-            The global shape of the data to be split
+            The global shape of the data to be split.
         split : int
-            The axis along which to chunk the data
+            The axis along which to chunk the data. Must be within the range of ``shape``.
         rank : int, optional
             Process for which the chunking is calculated for, defaults to ``self.rank``.
-            Intended for creating chunk maps without communication
+            Intended for creating chunk maps without communication.
         w_size : int, optional
             The MPI world size, defaults to ``self.size``.
-            Intended for creating chunk maps without communication
-
+            Intended for creating chunk maps without communication.
         """
-        # ensure the split axis is valid, we actually do not need it
-        split = sanitize_axis(shape, split)
         if split is None:
             return 0, shape, tuple(slice(0, end) for end in shape)
+        if split < 0:
+            split = len(shape) + split
+
         rank = self.rank if rank is None else rank
         w_size = self.size if w_size is None else w_size
         if not isinstance(rank, int) or not isinstance(w_size, int):
