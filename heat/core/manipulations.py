@@ -2261,7 +2261,6 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
     return a.gshape
 
 
-# @profile
 def __pivot_sorting(
     a: DNDarray, sort_op: Callable, axis: Optional[int] = None, descending: bool = False, **kwargs
 ) -> Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -2540,7 +2539,6 @@ def __pivot_sorting(
     return final_result, final_indices
 
 
-# @profile
 def sort(
     a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DNDarray] = None
 ) -> Union[DNDarray, Tuple[DNDarray, DNDarray]]:
@@ -2601,14 +2599,14 @@ def sort(
         final_result, final_indices = __pivot_sorting(a, torch.sort, axis, descending=descending)
 
     return_indices = factories.array(
-        final_indices, dtype=types.int32, is_split=a.split, device=a.device, comm=a.comm
+        final_indices, dtype=types.int32, is_split=a.split, device=a.device, comm=a.comm, copy=False
     )
     if out is not None:
         out.larray = final_result
         return return_indices
     else:
         tensor = factories.array(
-            final_result, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+            final_result, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm, copy=False
         )
         return tensor, return_indices
 
@@ -3178,7 +3176,6 @@ DNDarray.swapaxes = lambda self, axis1, axis2: swapaxes(self, axis1, axis2)
 DNDarray.swapaxes.__doc__ = swapaxes.__doc__
 
 
-# @profile
 def unique(
     a: DNDarray, return_inverse: bool = False, axis: Optional[int] = None
 ) -> Union[DNDarray, Tuple[DNDarray, DNDarray]]:
