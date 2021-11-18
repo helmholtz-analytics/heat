@@ -337,7 +337,12 @@ def array(
     else:
         torch_dtype = dtype.torch_type()
         if obj.dtype != torch_dtype:
-            obj = obj.clone().type(torch_dtype)
+            if not copy:
+                # different dtype, copy anyway
+                obj = obj.clone().type(torch_dtype)
+            else:
+                # obj is already a copy
+                obj = obj.type(torch_dtype)
 
     # infer device from obj if not explicitly given
     if device is None:
