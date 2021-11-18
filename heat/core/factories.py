@@ -171,7 +171,7 @@ def array(
         the :func:`~heat.core.dndarray.astype` method.
     copy : bool, optional
         If ``True`` (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested
-        sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
+        sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype`` or ``order``.
     ndmin : int, optional
         Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
         attached to the shape if ``ndim > 0`` and prefaced in case of ``ndim < 0`` to meet the requirement.
@@ -337,7 +337,7 @@ def array(
     else:
         torch_dtype = dtype.torch_type()
         if obj.dtype != torch_dtype:
-            obj = obj.type(torch_dtype)
+            obj = obj.clone().type(torch_dtype)
 
     # infer device from obj if not explicitly given
     if device is None:
