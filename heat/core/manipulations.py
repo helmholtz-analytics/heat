@@ -664,7 +664,9 @@ def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDa
         vz = 1 if a.split == dim1 else -1
         off, _, _ = a.comm.chunk(a.shape, a.split)
         result = torch.diagonal(a.larray, offset=offset + vz * off, dim1=dim1, dim2=dim2)
-    return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
+    return factories.array(
+        result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm, copy=True
+    )
 
 
 def dsplit(x: Sequence[DNDarray, ...], indices_or_sections: Iterable) -> List[DNDarray, ...]:
@@ -2618,7 +2620,11 @@ def sort(
         final_result, final_indices = __pivot_sorting(a, torch.sort, axis, descending=descending)
 
     return_indices = factories.array(
-        final_indices, dtype=types.int32, is_split=a.split, device=a.device, comm=a.comm, copy=False
+        final_indices,
+        dtype=types.int32,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm,  # , copy=False
     )
     if out is not None:
         out.larray = final_result
