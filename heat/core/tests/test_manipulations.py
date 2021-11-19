@@ -2641,7 +2641,8 @@ class TestManipulations(TestCase):
         result, result_indices = ht.sort(data, descending=True, axis=0)
         self.assertTrue(torch.equal(result.larray, exp_axis_zero))
         print(
-            "DEBUGGING: result_indices.larray, exp_indices = ",
+            "DEBUGGING: rank, result_indices.larray, exp_indices = ",
+            rank,
             result_indices.larray,
             exp_indices.int(),
         )
