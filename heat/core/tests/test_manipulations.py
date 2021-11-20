@@ -2619,41 +2619,33 @@ class TestManipulations(TestCase):
     def test_sort(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
-        tensor = (
-            torch.arange(size, device=self.device.torch_device).repeat(size).reshape(size, size)
-        )
-
+        tensor = torch.randint(0, 20, (size, size), device=self.device.torch_device)
+        # sort along axis 0, split None
         data = ht.array(tensor, split=None)
         result, result_indices = ht.sort(data, axis=0, descending=True)
-        expected, exp_indices = torch.sort(tensor, dim=0, descending=True)
-        self.assertTrue(torch.equal(result.larray, expected))
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
-
+        expected_dim0, exp_indices_dim0 = torch.sort(tensor, dim=0, descending=True)
+        self.assertTrue(torch.equal(result.larray, expected_dim0))
+        self.assertTrue(torch.equal(result_indices.larray, exp_indices_dim0.int()))
+        # sort along axis 1, split None
         result, result_indices = ht.sort(data, axis=1, descending=True)
-        expected, exp_indices = torch.sort(tensor, dim=1, descending=True)
-        self.assertTrue(torch.equal(result.larray, expected))
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
-
+        expected_dim1, exp_indices_dim1 = torch.sort(tensor, dim=1, descending=True)
+        self.assertTrue(torch.equal(result.larray, expected_dim1))
+        self.assertTrue(torch.equal(result_indices.larray, exp_indices_dim1.int()))
+        # sort along axis 0, split 0
         data = ht.array(tensor, split=0)
-
-        exp_axis_zero = torch.arange(size, device=self.device.torch_device).reshape(1, size)
-        exp_indices = torch.tensor([[rank] * size], device=self.device.torch_device)
         result, result_indices = ht.sort(data, descending=True, axis=0)
+        _, _, local_slice = data.comm.chunk(expected_dim0.shape, split=0)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim0.shape, split=0)
+        exp_axis_zero = expected_dim0[local_slice]
+        exp_indices = exp_indices_dim0[local_slice_ind]
         self.assertTrue(torch.equal(result.larray, exp_axis_zero))
-        print(
-            "DEBUGGING: rank, result_indices.larray, exp_indices = ",
-            rank,
-            result_indices.larray,
-            exp_indices.int(),
-        )
         self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
-
-        exp_axis_one, exp_indices = (
-            torch.arange(size, device=self.device.torch_device)
-            .reshape(1, size)
-            .sort(dim=1, descending=True)
-        )
+        # sort along axis 1, split 0
         result, result_indices = ht.sort(data, descending=True, axis=1)
+        _, _, local_slice = data.comm.chunk(expected_dim1.shape, split=0)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim1.shape, split=0)
+        exp_axis_one = expected_dim1[local_slice]
+        exp_indices = exp_indices_dim1[local_slice_ind]
         self.assertTrue(torch.equal(result.larray, exp_axis_one))
         self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
@@ -2661,30 +2653,24 @@ class TestManipulations(TestCase):
         result2 = ht.sort(data, descending=True)
         self.assertTrue(ht.equal(result1[0], result2[0]))
         self.assertTrue(ht.equal(result1[1], result2[1]))
-
+        # sort along axis 0, split 1
         data = ht.array(tensor, split=1)
-
-        exp_axis_zero = (
-            torch.tensor(rank, device=self.device.torch_device).repeat(size).reshape(size, 1)
-        )
-        indices_axis_zero = torch.arange(
-            size, dtype=torch.int64, device=self.device.torch_device
-        ).reshape(size, 1)
+        _, _, local_slice = data.comm.chunk(expected_dim0.shape, split=1)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim0.shape, split=1)
+        exp_axis_zero = expected_dim0[local_slice]
+        exp_indices = exp_indices_dim0[local_slice_ind]
         result, result_indices = ht.sort(data, axis=0, descending=True)
         self.assertTrue(torch.equal(result.larray, exp_axis_zero))
-        # comparison value is only true on CPU
-        if result_indices.larray.is_cuda is False:
-            self.assertTrue(torch.equal(result_indices.larray, indices_axis_zero.int()))
-
-        exp_axis_one = (
-            torch.tensor(size - rank - 1, device=self.device.torch_device)
-            .repeat(size)
-            .reshape(size, 1)
-        )
+        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        # sort along axis 1, split 1
+        _, _, local_slice = data.comm.chunk(expected_dim1.shape, split=1)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim1.shape, split=1)
+        exp_axis_one = expected_dim1[local_slice]
+        exp_indices = exp_indices_dim1[local_slice_ind]
         result, result_indices = ht.sort(data, descending=True, axis=1)
         self.assertTrue(torch.equal(result.larray, exp_axis_one))
-        self.assertTrue(torch.equal(result_indices.larray, exp_axis_one.int()))
-
+        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        # 3D array
         tensor = torch.tensor(
             [
                 [[2, 8, 5], [7, 2, 3]],
