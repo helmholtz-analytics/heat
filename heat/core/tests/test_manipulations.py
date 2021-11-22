@@ -2632,16 +2632,16 @@ class TestManipulations(TestCase):
         expected_dim1, exp_indices_dim1 = torch.sort(tensor, dim=1, descending=True)
         self.assertTrue(torch.equal(result.larray, expected_dim1))
         self.assertTrue(torch.equal(result_indices.larray, exp_indices_dim1.int()))
-        # sort along axis 0, split 0
-        data = ht.array(tensor, split=0)
-        result, result_indices = ht.sort(data, descending=True, axis=0)
-        _, _, local_slice = data.comm.chunk(expected_dim0.shape, split=0)
-        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim0.shape, split=0)
-        exp_axis_zero = expected_dim0[local_slice]
-        exp_indices = exp_indices_dim0[local_slice_ind]
-        self.assertTrue(torch.equal(result.larray, exp_axis_zero))
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
-        # # sort along axis 1, split 0
+        # # sort along axis 0, split 0
+        # data = ht.array(tensor, split=0)
+        # result, result_indices = ht.sort(data, descending=True, axis=0)
+        # _, _, local_slice = data.comm.chunk(expected_dim0.shape, split=0)
+        # _, _, local_slice_ind = data.comm.chunk(exp_indices_dim0.shape, split=0)
+        # exp_axis_zero = expected_dim0[local_slice]
+        # exp_indices = exp_indices_dim0[local_slice_ind]
+        # self.assertTrue(torch.equal(result.larray, exp_axis_zero))
+        # self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        # # # sort along axis 1, split 0
         # result, result_indices = ht.sort(data, descending=True, axis=1)
         # _, _, local_slice = data.comm.chunk(expected_dim1.shape, split=0)
         # _, _, local_slice_ind = data.comm.chunk(exp_indices_dim1.shape, split=0)
