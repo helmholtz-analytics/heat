@@ -2619,6 +2619,7 @@ class TestManipulations(TestCase):
     def test_sort(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
+        torch.manual_seed(42)
         tensor = torch.randint(0, 20, (size, size), device=self.device.torch_device)
         # sort along axis 0, split None
         data = ht.array(tensor, split=None)
