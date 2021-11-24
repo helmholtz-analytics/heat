@@ -2618,9 +2618,10 @@ class TestManipulations(TestCase):
 
     def test_sort(self):
         size = ht.MPI_WORLD.size
-        # rank = ht.MPI_WORLD.rank
         torch.manual_seed(42)
-        tensor_3d = torch.randint(0, 10 * size, (size, size, size), device=self.device.torch_device)
+        tensor_3d = torch.randint(
+            0, 10 * size, (size, size - 1, size), device=self.device.torch_device
+        )
         tensor = tensor_3d[0]
         # sort along axis 0, split None
         data = ht.array(tensor, split=None)
@@ -2717,7 +2718,7 @@ class TestManipulations(TestCase):
             or result_indices.larray.is_cuda is False
         ):
             self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
-        # # sort along axis 1, split 0
+        # sort along axis 1, split 0
         result, result_indices = ht.sort(data, descending=True, axis=1)
         _, _, local_slice = data.comm.chunk(expected_dim1.shape, split=0)
         _, _, local_slice_ind = data.comm.chunk(exp_indices_dim1.shape, split=0)
@@ -2786,67 +2787,28 @@ class TestManipulations(TestCase):
         ):
             self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
-        # exp_axis_zero = torch.tensor(
-        #     [[2, 3, 0], [0, 2, 3]], dtype=torch.int32, device=self.device.torch_device
-        # )
-        # if torch.cuda.is_available() and data.device == ht.gpu and size < 4:
-        #     indices_axis_zero = torch.tensor(
-        #         [[0, 2, 2], [3, 2, 0]], dtype=torch.int32, device=self.device.torch_device
-        #     )
-        # else:
-        #     indices_axis_zero = torch.tensor(
-        #         [[0, 2, 2], [3, 0, 0]], dtype=torch.int32, device=self.device.torch_device
-        #     )
-        # result, result_indices = ht.sort(data, axis=0)
-        # first = result[0].larray
-        # first_indices = result_indices[0].larray
-        # if rank == 0:
-        #     self.assertTrue(torch.equal(first, exp_axis_zero))
-        #     self.assertTrue(torch.equal(first_indices, indices_axis_zero))
-
-        # data = ht.array(tensor, split=1)
-        # exp_axis_one = torch.tensor([[2, 2, 3]], dtype=torch.int32, device=self.device.torch_device)
-        # indices_axis_one = torch.tensor(
-        #     [[0, 1, 1]], dtype=torch.int32, device=self.device.torch_device
-        # )
-        # result, result_indices = ht.sort(data, axis=1)
-        # first = result[0].larray[:1]
-        # first_indices = result_indices[0].larray[:1]
-        # if rank == 0:
-        #     self.assertTrue(torch.equal(first, exp_axis_one))
-        #     self.assertTrue(torch.equal(first_indices, indices_axis_one))
-
-        # data = ht.array(tensor, split=2)
-        # exp_axis_two = torch.tensor([[2], [2]], dtype=torch.int32, device=self.device.torch_device)
-        # indices_axis_two = torch.tensor(
-        #     [[0], [1]], dtype=torch.int32, device=self.device.torch_device
-        # )
-        # result, result_indices = ht.sort(data, axis=2)
-        # first = result[0].larray[:, :1]
-        # first_indices = result_indices[0].larray[:, :1]
-        # if rank == 0:
-        #     self.assertTrue(torch.equal(first, exp_axis_two))
-        #     self.assertTrue(torch.equal(first_indices, indices_axis_two))
-        # #
+        # test out, descending=False
+        result, result_indices = ht.sort(data, axis=2)
         out = ht.empty_like(data)
         indices = ht.sort(data, axis=2, out=out)
         self.assertTrue(ht.equal(out, result))
         self.assertTrue(ht.equal(indices, result_indices))
 
+        # test exceptions
         with self.assertRaises(ValueError):
             ht.sort(data, axis=3)
         with self.assertRaises(TypeError):
             ht.sort(data, axis="1")
 
-        # rank = ht.MPI_WORLD.rank
-        # ht.random.seed(1)
-        # data = ht.random.randn(100, 1, split=0)
-        # result, _ = ht.sort(data, axis=0)
-        # counts, _, _ = ht.get_comm().counts_displs_shape(data.gshape, axis=0)
-        # for i, c in enumerate(counts):
-        #     for idx in range(c - 1):
-        #         if rank == i:
-        #             self.assertTrue(torch.lt(result.larray[idx], result.larray[idx + 1]).all())
+        rank = ht.MPI_WORLD.rank
+        ht.random.seed(1)
+        data = ht.random.randn(100, 1, split=0)
+        result, _ = ht.sort(data, axis=0)
+        counts, _, _ = ht.get_comm().counts_displs_shape(data.gshape, axis=0)
+        for i, c in enumerate(counts):
+            for idx in range(c - 1):
+                if rank == i:
+                    self.assertTrue(torch.lt(result.larray[idx], result.larray[idx + 1]).all())
 
     def test_split(self):
         # ====================================
