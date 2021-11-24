@@ -2671,6 +2671,8 @@ class TestManipulations(TestCase):
         exp_axis_one = expected_dim1[local_slice]
         exp_indices = exp_indices_dim1[local_slice_ind]
         result, result_indices = ht.sort(data, descending=True, axis=1)
+        print("DEBUGGING: heat/torch result: ", rank, result.larray, exp_axis_one)
+        print("DEBUGGING: heat/torch indices: ", rank, result_indices.larray, exp_indices.int())
         self.assertTrue(torch.equal(result.larray, exp_axis_one))
         self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
