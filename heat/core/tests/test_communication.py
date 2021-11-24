@@ -23,10 +23,6 @@ class TestCommunication(TestCase):
     def test_self_communicator(self):
         comm = ht.core.communication.MPI_SELF
 
-        with self.assertRaises(ValueError):
-            comm.chunk(self.data.shape, split=2)
-        with self.assertRaises(ValueError):
-            comm.chunk(self.data.shape, split=-3)
         with self.assertRaises(TypeError):
             comm.chunk(self.data.shape, split=0, rank="dicndjh")
 
@@ -46,11 +42,6 @@ class TestCommunication(TestCase):
     def test_mpi_communicator(self):
         comm = ht.core.communication.MPI_WORLD
         self.assertLess(comm.rank, comm.size)
-
-        with self.assertRaises(ValueError):
-            comm.chunk(self.data.shape, split=2)
-        with self.assertRaises(ValueError):
-            comm.chunk(self.data.shape, split=-3)
 
         offset, lshape, chunks = comm.chunk(self.data.shape, split=0)
         self.assertIsInstance(offset, int)
@@ -195,6 +186,21 @@ class TestCommunication(TestCase):
         # test for proper sanitation
         with self.assertRaises(TypeError):
             ht.use_comm("1")
+
+    def test_split(self):
+        a = ht.zeros((4, 5), split=0)
+
+        color = a.comm.rank % 2
+        newcomm = a.comm.Split(color, key=a.comm.rank)
+
+        self.assertIsInstance(newcomm, ht.MPICommunication)
+        if ht.MPI_WORLD.size == 1:
+            self.assertTrue(newcomm.size == a.comm.size)
+        else:
+            self.assertTrue(newcomm.size < a.comm.size)
+        self.assertIsNot(newcomm, a.comm)
+
+        newcomm.Free()
 
     def test_allgather(self):
         # contiguous data

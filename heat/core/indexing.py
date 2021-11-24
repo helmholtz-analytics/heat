@@ -53,8 +53,6 @@ def nonzero(x: DNDarray) -> DNDarray:
     """
     sanitation.sanitize_in(x)
 
-    if x.dtype == types.bool:
-        x.larray = x.larray.float()
     if x.split is None:
         # if there is no split then just return the values from torch
         lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)

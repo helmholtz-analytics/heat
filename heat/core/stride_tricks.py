@@ -97,14 +97,14 @@ def sanitize_axis(
         axis = None
 
     if axis is not None:
-        if not isinstance(axis, int) and not isinstance(axis, tuple):
+        if isinstance(axis, tuple):
+            axis = tuple(dim + len(shape) if dim < 0 else dim for dim in axis)
+            for dim in axis:
+                if dim < 0 or dim >= len(shape):
+                    raise ValueError("axis {} is out of bounds for shape {}".format(axis, shape))
+            return axis
+        if not isinstance(axis, int):
             raise TypeError("axis must be None or int or tuple, but was {}".format(type(axis)))
-    if isinstance(axis, tuple):
-        axis = tuple(dim + len(shape) if dim < 0 else dim for dim in axis)
-        for dim in axis:
-            if dim < 0 or dim >= len(shape):
-                raise ValueError("axis {} is out of bounds for shape {}".format(axis, shape))
-        return axis
 
     if axis is None or 0 <= axis < len(shape):
         return axis
@@ -113,7 +113,6 @@ def sanitize_axis(
 
     if axis < 0 or axis >= len(shape):
         raise ValueError("axis {} is out of bounds for shape {}".format(axis, shape))
-
     return axis
 
 

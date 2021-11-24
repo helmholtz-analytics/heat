@@ -16,7 +16,6 @@ Project Status
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
-[![Mattermost Chat](https://img.shields.io/badge/chat-on%20mattermost-blue.svg)](https://mattermost-haf.fz-juelich.de/signup_user_complete/?id=iqrr6pmxb38fzqffa51qqhcu8w)
 
 Goals
 -----
@@ -81,6 +80,11 @@ install the latest version with
 where the part in brackets is a list of optional dependencies. You can omit
 it, if you do not need HDF5 or NetCDF support.
 
+**It is recommended to use the most recent supported version of PyTorch!**
+
+It is also very important to ensure that the PyTorch version is compatible with the local CUDA installation.
+More information can be found [here](https://pytorch.org/get-started/locally/).
+
 Hacking
 -------
 
@@ -103,7 +107,7 @@ Heat is distributed under the MIT license, see our
 Citing Heat
 -----------
 
-If you find Heat helpful for your research, please mention it in your academic publications. You can cite:
+If you find Heat helpful for your research, please mention it in your publications. You can cite:
 
 - Götz, M., Debus, C., Coquelin, D., Krajsek, K., Comito, C., Knechtges, P., Hagemeier, B., Tarnawa, M., Hanselmann, S., Siggel, S., Basermann, A. & Streit, A. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In 2020 IEEE International Conference on Big Data (Big Data) (pp. 276-287). IEEE, DOI: 10.1109/BigData50022.2020.9378050.
 
