@@ -3,7 +3,6 @@ This module changes the internal memory of an array.
 """
 
 import torch
-import tracemalloc
 
 from . import sanitation
 from .dndarray import DNDarray
@@ -74,15 +73,6 @@ def sanitize_memory_layout(x: torch.Tensor, order: str = "C") -> torch.Tensor:
         reversed_stride = tuple(reversed(x.stride()))
         x.set_(x.storage(), storage_offset, shape, reversed_stride)
         return x
-        # y = torch.empty_like(x)
-        # permutation = x.permute(dims).contiguous()
-        # y = y.set_(
-        #     permutation.storage(),
-        #     x.storage_offset(),
-        #     x.shape,
-        #     tuple(reversed(permutation.stride())),
-        # )
-        # return y
 
     raise ValueError(
         "combination of order and layout not permitted, order: {} column major: {} row major: {}".format(

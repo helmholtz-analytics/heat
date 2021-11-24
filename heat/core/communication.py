@@ -7,7 +7,6 @@ import numpy as np
 import os
 import subprocess
 import torch
-import tracemalloc
 
 from mpi4py import MPI
 from typing import Any, Callable, Optional, List, Tuple, Union
