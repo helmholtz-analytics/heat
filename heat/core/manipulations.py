@@ -2647,11 +2647,7 @@ def sort(
         final_result, final_indices = __pivot_sorting(a, torch.sort, axis, descending=descending)
 
     return_indices = factories.array(
-        final_indices,
-        dtype=types.int32,
-        is_split=a.split,
-        device=a.device,
-        comm=a.comm,  # , copy=False
+        final_indices, dtype=types.int32, is_split=a.split, device=a.device, comm=a.comm, copy=False
     )
     if out is not None:
         out.larray = final_result
@@ -3362,14 +3358,23 @@ def unique(
     else:
         lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
     gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device, copy=False)
-    gres.balance_()
 
-    # global sorted unique
-    lres = __pivot_sorting(gres, torch.unique, 0, sorted=True, return_inverse=True)
-    # second local unique
-    if 0 not in lres.shape:
-        lres = torch.unique(lres, sorted=True, dim=unique_axis)
-    lres_split = 0
+    # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
+    data_max_lbytes = torch.prod(a.lshape_map[0]) * a.larray.element_size()
+    if gres.nbytes <= data_max_lbytes:
+        # gather local uniques
+        gres.resplit_(None)
+        # final round of torch.unique
+        lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
+        lres_split = None
+        gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device, copy=False)
+    else:
+        # global sorted unique
+        lres = __pivot_sorting(gres, torch.unique, 0, sorted=True, return_inverse=True)
+        # second local unique
+        if 0 not in lres.shape:
+            lres = torch.unique(lres, sorted=True, dim=unique_axis)
+        lres_split = 0
 
     gres = factories.array(lres, dtype=a.dtype, is_split=lres_split, device=a.device, copy=False)
     gres.balance_()
