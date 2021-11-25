@@ -2620,11 +2620,7 @@ def sort(
         final_result, final_indices = __pivot_sorting(a, torch.sort, axis, descending=descending)
 
     return_indices = factories.array(
-        final_indices,
-        dtype=types.int32,
-        is_split=a.split,
-        device=a.device,
-        comm=a.comm,  # , copy=False
+        final_indices, dtype=types.int32, is_split=a.split, device=a.device, comm=a.comm, copy=False
     )
     if out is not None:
         out.larray = final_result
@@ -3330,8 +3326,6 @@ def unique(
         lres_split = None
         gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device, copy=False)
     else:
-        # TODO: balancing should be unnecessary before distributed sorting
-        gres.balance_()
         # global sorted unique
         lres = __pivot_sorting(gres, torch.unique, 0, sorted=True, return_inverse=True)
         # second local unique
