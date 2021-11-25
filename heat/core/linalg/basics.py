@@ -24,6 +24,7 @@ from .. import statistics
 from .. import types
 
 __all__ = [
+    "cholesky",
     "dot",
     "matmul",
     "matrix_norm",
@@ -38,6 +39,95 @@ __all__ = [
     "vecdot",
     "vector_norm",
 ]
+
+
+def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
+    """
+    Returns the Cholesky decomposition of a Hermitian or symmetric positive-definite matrix.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Symmetric or Hermitian positive-definite matrix. Shape = (...,M,M)
+    upper : bool, optional
+        Whether a lower or upper triangular matrix is returned.
+
+    Examples
+    --------
+    >>> A = ht.array([[1,-2j],[2j,5]])
+    >>> A
+    DNDarray([[ (1+0j), (-0-2j)],
+              [     2j,  (5+0j)]], dtype=ht.complex64, device=cpu:0, split=None)
+    >>> L = ht.linalg.cholesky(A)
+    >>> L
+    DNDarray([[(1+0j),     0j],
+              [    2j, (1+0j)]], dtype=ht.complex64, device=cpu:0, split=None)
+    >>> L @ L.T.conj()
+    DNDarray([[(1+0j),    -2j],
+              [    2j, (5+0j)]], dtype=ht.complex64, device=cpu:0, split=None)
+    """
+    # matrix  single process
+    if not x.is_distributed() or x.split < x.ndim - 2:
+        data = torch.linalg.cholesky(x.larray)
+        return DNDarray(
+            data, x.shape, types.heat_type_of(data), x.split, x.device, x.comm, x.balanced
+        )
+
+    if x.ndim < 2:
+        raise ValueError("DNDarray must be at least two-dimensional.")
+
+    m, n = x.shape[-2:]
+
+    if m != n:
+        raise ValueError("Last two dimensions of the DNDarray must be square.")
+
+    a = x.copy()
+
+    for i in range(n):
+        a[..., i, i] = exponential.sqrt(a[..., i, i])
+
+        if a.split == a.ndim - 2:
+            if upper:
+                a[..., i, i + 1 :] /= manipulations.expand_dims(a[..., i, i], -1)
+                b = a[..., i, i + 1 :]
+                L = triu(
+                    manipulations.expand_dims(manipulations.resplit(b, -1), -1).conj()
+                    * manipulations.expand_dims(b, -2)
+                )
+            else:
+                a[..., i + 1 :, i].larray /= manipulations.expand_dims(a[..., i, i], -1).larray
+                b = a[..., i + 1 :, i]
+                b.balance_()
+                L = tril(
+                    manipulations.expand_dims(b, -1).conj()
+                    * manipulations.expand_dims(manipulations.resplit(b, None), -2)
+                )
+        else:
+            if upper:
+                a[..., i, i + 1 :].larray /= manipulations.expand_dims(a[..., i, i], -1).larray
+                b = a[..., i, i + 1 :]
+                b.balance_()
+                L = triu(
+                    manipulations.expand_dims(manipulations.resplit(b, None), -1)
+                    * manipulations.expand_dims(b, -2).conj()
+                )
+            else:
+                a[..., i + 1 :, i] /= manipulations.expand_dims(a[..., i, i], -1)
+                b = a[..., i + 1 :, i]
+                L = tril(
+                    manipulations.expand_dims(b, -1)
+                    * manipulations.expand_dims(manipulations.resplit(b, -1), -2).conj()
+                )
+
+        target_map = a[..., i + 1 :, i + 1 :].lshape_map
+        L.redistribute_(target_map=target_map)
+        a[..., i + 1 :, i + 1 :].larray -= L.larray
+
+    a[..., -1, -1] = exponential.sqrt(a[..., -1, -1])
+
+    res = triu(a) if upper else tril(a)
+
+    return res
 
 
 def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDarray, float]:

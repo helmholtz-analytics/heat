@@ -12,6 +12,7 @@
 ## Feature Additions
 ### Linear Algebra
 - [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
+- [#XXX](https://github.com/helmholtz-analytics/heat/pull/XXX) New feature: `cholesky`
 
 ### Communication
 - [#868](https://github.com/helmholtz-analytics/heat/pull/868) New `MPICommunication` method `Split`
