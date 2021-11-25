@@ -2,6 +2,7 @@
 
 - [#867](https://github.com/helmholtz-analytics/heat/pull/867) Upgraded to support torch 1.9.0
 - [#876](https://github.com/helmholtz-analytics/heat/pull/876) Make examples work (Lasso and kNN)
+- [#884](https://github.com/helmholtz-analytics/heat/pull/884) Added capabilities for PyTorch 1.10.0, this is now the recommended version to use.
 
 ## Bug Fixes
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
@@ -19,6 +20,7 @@
 
 ### DNDarray
 - [#856](https://github.com/helmholtz-analytics/heat/pull/856) New `DNDarray` method `__torch_proxy__`
+- [#885](https://github.com/helmholtz-analytics/heat/pull/885) New `DNDarray` method `conj`
 
 ### Linear Algebra
 - [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
