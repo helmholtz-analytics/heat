@@ -3291,8 +3291,8 @@ def unique(
     array([[2, 3],
            [3, 1]])
     """
-    tracemalloc.start()
-    log.warning("DEBUGGING: in unique")
+    # tracemalloc.start()
+    # log.warning("DEBUGGING: in unique")
     if not a.is_distributed():
         torch_output = torch.unique(a.larray, sorted=True, return_inverse=return_inverse, dim=axis)
         if isinstance(torch_output, tuple):
@@ -3312,21 +3312,21 @@ def unique(
             )
         return heat_output
 
-    log.warning("DEBUGGING: in unique")
+    # log.warning("DEBUGGING: in unique")
     rank = a.comm.rank
     size = a.comm.size
-    current, peak = tracemalloc.get_traced_memory()
-    log.warning(
-        f"UNIQUE before extracting larray: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-    )
+    # current, peak = tracemalloc.get_traced_memory()
+    # log.warning(
+    #     f"UNIQUE before extracting larray: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    # )
 
     local_data = a.larray
     inv_shape = local_data.shape if axis is None else (local_data.shape[axis],)
     unique_axis = None
-    current, peak = tracemalloc.get_traced_memory()
-    log.warning(
-        f"UNIQUE before transposing: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-    )
+    # current, peak = tracemalloc.get_traced_memory()
+    # log.warning(
+    #     f"UNIQUE before transposing: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    # )
     if axis is not None:
         if axis != a.split:
             raise NotImplementedError(
@@ -3340,9 +3340,9 @@ def unique(
         unique_axis = 0
 
     current, peak = tracemalloc.get_traced_memory()
-    log.warning(
-        f"UNIQUE before local uniques: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-    )
+    # log.warning(
+    #     f"UNIQUE before local uniques: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    # )
     # Calculate local uniques
     if a.lshape[a.split] == 0:
         # address empty local tensor
@@ -3382,11 +3382,11 @@ def unique(
     if return_inverse:
         # inverse indices
         # allocate local tensors and global DNDarray
-        current, peak = tracemalloc.get_traced_memory()
-        log.warning("DEBUGGING: before inverse indices")
-        log.warning(
-            f"UNIQUE before inverse indices: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
+        # current, peak = tracemalloc.get_traced_memory()
+        # log.warning("DEBUGGING: before inverse indices")
+        # log.warning(
+        #     f"UNIQUE before inverse indices: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        # )
         inverse = torch.empty(inv_shape, dtype=torch.int64, device=local_data.device)
         if a.is_distributed():
             inv_split = 0 if inverse.ndim == 1 else a.split
@@ -3404,11 +3404,11 @@ def unique(
         else:
             gres_offsets = torch.tensor([0], device=gres_map.device)
         lres = gres.larray
-        log.warning("DEBUGGING: before ring")
-        current, peak = tracemalloc.get_traced_memory()
-        log.warning(
-            f"UNIQUE before ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-        )
+        # log.warning("DEBUGGING: before ring")
+        # current, peak = tracemalloc.get_traced_memory()
+        # log.warning(
+        #     f"UNIQUE before ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+        # )
         for p in range(unique_ranks):
             if unique_ranks == 1:
                 incoming_offset = 0
@@ -3438,17 +3438,17 @@ def unique(
                 gres.comm.Recv(tmp, recv_from_rank, tag=recv_from_rank)
                 lres = tmp[slice(None, incoming_size)]
         gres.larray = lres
-    current, peak = tracemalloc.get_traced_memory()
-    log.warning(
-        f"UNIQUE after ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
-    )
-    log.warning("DEBUGGING: before transpose")
+    # current, peak = tracemalloc.get_traced_memory()
+    # log.warning(
+    #     f"UNIQUE after ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
+    # )
+    # log.warning("DEBUGGING: before transpose")
     if axis is not None and axis != 0:
         # transpose back to original
         gres = linalg.basics.transpose(gres, (axis, 0))
-        log.warning("DEBUGGING: after transpose")
+        # log.warning("DEBUGGING: after transpose")
     if return_inverse:
-        log.warning("DEBUGGING: before returning")
+        # log.warning("DEBUGGING: before returning")
         return gres, global_inverse
 
     return gres
