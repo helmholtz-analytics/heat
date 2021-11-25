@@ -3292,7 +3292,10 @@ def unique(
            [3, 1]])
     """
     # tracemalloc.start()
-    # log.warning("DEBUGGING: in unique")
+    if a.is_distributed() and a.comm.rank == 0:
+        log.warning("DEBUGGING: in unique")
+        log.warning("DEBUGGING: a.gshape = {}".format(a.gshape))
+        log.warning("DEBUGGING: a.lshape = {}".format(a.lshape))
     if not a.is_distributed():
         torch_output = torch.unique(a.larray, sorted=True, return_inverse=return_inverse, dim=axis)
         if isinstance(torch_output, tuple):
@@ -3339,7 +3342,7 @@ def unique(
             local_data = local_data.transpose(0, axis)
         unique_axis = 0
 
-    current, peak = tracemalloc.get_traced_memory()
+    #    current, peak = tracemalloc.get_traced_memory()
     # log.warning(
     #     f"UNIQUE before local uniques: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
     # )
@@ -3358,12 +3361,20 @@ def unique(
     else:
         lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
     gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device, copy=False)
+    if a.comm.rank == 0:
+        log.warning("DEBUGGING: in unique")
+        log.warning("DEBUGGING: gres.gshape = {}".format(gres.gshape))
+        log.warning("DEBUGGING: gres.lshape = {}".format(gres.lshape))
 
     # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
     data_max_lbytes = torch.prod(a.lshape_map[0]) * a.larray.element_size()
     if gres.nbytes <= data_max_lbytes:
+        if a.comm.rank == 0:
+            log.warning("DEBUGGING: sparse unique")
         # gather local uniques
         gres.resplit_(None)
+        if a.comm.rank == 0:
+            log.warning("DEBUGGING: sparse unique: gathered gres")
         # final round of torch.unique
         lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
         lres_split = None
