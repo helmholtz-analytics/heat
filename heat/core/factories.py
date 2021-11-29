@@ -426,11 +426,11 @@ def array(
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
         if reduction_buffer < 0:
             raise ValueError("unable to construct tensor, shape of local data chunk does not match")
-        # ttl_shape = np.array(obj.shape)
-        # ttl_shape[is_split] = lshape[is_split]
-        # comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
-        # gshape[is_split] = ttl_shape[is_split]
-        gshape[is_split] = reduction_buffer.item()
+        ttl_shape = np.array(obj.shape)
+        ttl_shape[is_split] = lshape[is_split]
+        comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
+        gshape[is_split] = ttl_shape[is_split]
+        #        gshape[is_split] = reduction_buffer.item()
         split = is_split
         # compare to calculated balanced lshape (cf. dndarray.is_balanced())
         # gshape = tuple(int(ele) for ele in gshape)
