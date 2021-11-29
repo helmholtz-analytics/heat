@@ -3360,7 +3360,9 @@ def unique(
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
     else:
         lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
-    gres = factories.array(lres, dtype=a.dtype, is_split=0, device=a.device, copy=False)
+    gres = factories.array(
+        lres, dtype=a.dtype, is_split=0, device=a.device, copy=False, force_check=False
+    )
     if a.comm.rank == 0:
         log.warning("DEBUGGING: in unique")
         log.warning("DEBUGGING: gres.gshape = {}".format(gres.gshape))
@@ -3386,7 +3388,9 @@ def unique(
             lres = torch.unique(lres, sorted=True, dim=unique_axis)
         lres_split = 0
 
-    gres = factories.array(lres, dtype=a.dtype, is_split=lres_split, device=a.device, copy=False)
+    gres = factories.array(
+        lres, dtype=a.dtype, is_split=lres_split, device=a.device, copy=False, force_check=False
+    )
     gres.balance_()
 
     if gres.comm.rank == 0:
@@ -3404,7 +3408,7 @@ def unique(
         else:
             inv_split = None
         global_inverse = factories.array(
-            inverse, is_split=inv_split, device=gres.device, copy=False
+            inverse, is_split=inv_split, device=gres.device, copy=False, force_check=False
         )
 
         unique_ranks = size if gres.is_distributed() else 1
