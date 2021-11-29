@@ -3322,7 +3322,8 @@ def unique(
     # log.warning(
     #     f"UNIQUE before extracting larray: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
     # )
-    log.warning("UNIQUE before extracting larray")
+    if a.comm.rank == 0:
+        log.warning("UNIQUE before extracting larray")
     local_data = a.larray
     inv_shape = local_data.shape if axis is None else (local_data.shape[axis],)
     unique_axis = None
@@ -3347,7 +3348,8 @@ def unique(
     #     f"UNIQUE before local uniques: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
     # )
     # Calculate local uniques
-    log.warning("UNIQUE before local uniques")
+    if a.comm.rank == 0:
+        log.warning("UNIQUE before local uniques")
     if a.lshape[a.split] == 0:
         # address empty local tensor
         if axis is None:
@@ -3361,7 +3363,8 @@ def unique(
         lres = torch.empty(res_shape, dtype=a.dtype.torch_type())
     else:
         lres = torch.unique(local_data, sorted=True, return_inverse=False, dim=unique_axis)
-    log.warning("UNIQUE after local uniques, before ht.array(is_split)")
+    if a.comm.rank == 0:
+        log.warning("UNIQUE after local uniques, before ht.array(is_split)")
     gres = factories.array(
         lres, dtype=a.dtype, is_split=0, device=a.device, copy=False, force_check=False
     )
