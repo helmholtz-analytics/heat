@@ -3389,11 +3389,12 @@ def unique(
     gres = factories.array(lres, dtype=a.dtype, is_split=lres_split, device=a.device, copy=False)
     gres.balance_()
 
+    if gres.comm.rank == 0:
+        log.warning("DEBUGGING: before inverse indices")
     if return_inverse:
         # inverse indices
         # allocate local tensors and global DNDarray
         # current, peak = tracemalloc.get_traced_memory()
-        # log.warning("DEBUGGING: before inverse indices")
         # log.warning(
         #     f"UNIQUE before inverse indices: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
         # )
