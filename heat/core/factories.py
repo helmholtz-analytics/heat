@@ -429,6 +429,11 @@ def array(
         ttl_shape = np.array(obj.shape)
         ttl_shape[is_split] = lshape[is_split]
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
+        print(
+            "DEBUGGING: reduction_buffer, ttl_shape[is_split] = ",
+            reduction_buffer,
+            ttl_shape[is_split],
+        )
         gshape[is_split] = ttl_shape[is_split]
         #        gshape[is_split] = reduction_buffer.item()
         split = is_split
