@@ -430,7 +430,7 @@ def array(
         # ttl_shape[is_split] = lshape[is_split]
         # comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
         # gshape[is_split] = ttl_shape[is_split]
-        gshape[is_split] = reduction_buffer
+        gshape[is_split] = reduction_buffer.item()
         split = is_split
         # compare to calculated balanced lshape (cf. dndarray.is_balanced())
         # gshape = tuple(int(ele) for ele in gshape)
