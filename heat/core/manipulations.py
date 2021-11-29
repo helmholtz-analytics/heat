@@ -3375,7 +3375,7 @@ def unique(
 
     # calculate size (bytes) of local unique. If less than local_data, gather and run everything locally
     data_max_lbytes = torch.prod(a.lshape_map[0]) * a.larray.element_size()
-    if gres.nbytes <= data_max_lbytes:
+    if gres.nbytes <= data_max_lbytes * 0.1:
         if a.comm.rank == 0:
             log.warning("DEBUGGING: sparse unique")
         # gather local uniques
@@ -3387,6 +3387,8 @@ def unique(
         lres_split = None
     else:
         # global sorted unique
+        if a.comm.rank == 0:
+            log.warning("DEBUGGING: distributed unique")
         lres = __pivot_sorting(gres, torch.unique, 0, sorted=True, return_inverse=True)
         # second local unique
         if 0 not in lres.shape:
