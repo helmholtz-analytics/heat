@@ -3378,7 +3378,6 @@ def unique(
         # final round of torch.unique
         lres = torch.unique(gres.larray, sorted=True, dim=unique_axis)
         lres_split = None
-        gres = factories.array(lres, dtype=a.dtype, is_split=None, device=a.device, copy=False)
     else:
         # global sorted unique
         lres = __pivot_sorting(gres, torch.unique, 0, sorted=True, return_inverse=True)
@@ -3415,7 +3414,7 @@ def unique(
         else:
             gres_offsets = torch.tensor([0], device=gres_map.device)
         lres = gres.larray
-        # log.warning("DEBUGGING: before ring")
+        log.warning("UNIQUE: before ring")
         # current, peak = tracemalloc.get_traced_memory()
         # log.warning(
         #     f"UNIQUE before ring: Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB"
@@ -3473,7 +3472,7 @@ DNDarray.unique.__doc__ = unique.__doc__
 
 def vsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:
     """
-    Split array into multiple sub-DNDNarrays along the 1st axis (vertically/row-wise).
+    Split array into multiple sub-DNDarrays along the 1st axis (vertically/row-wise).
     Returns a list of sub-DNDarrays as copies of parts of ``x``.
 
     Parameters
