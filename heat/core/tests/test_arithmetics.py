@@ -436,6 +436,24 @@ class TestArithmetics(TestCase):
         with self.assertRaises(TypeError):
             ht.neg(1)
 
+    def test_copysign(self):
+ 
+        a = ht.array([3, 2, -8, -2, 4])
+        b = ht.array([3., 2., -8., -2., 4.])
+        result = ht.array([3., 2., 8., 2., 4.])
+          
+        self.assertAlmostEqual(ht.mean(ht.copysign(a, 1.) - result).item(), 0.)
+        self.assertAlmostEqual(ht.mean(ht.copysign(a, -1.) + result).item(), 0.)
+        self.assertAlmostEqual(ht.mean(ht.copysign(a, a) - a).item(), 0.)
+        self.assertAlmostEqual(ht.mean(ht.copysign(b, b) - b).item(), 0.)
+        self.assertEquals(ht.copysign(a, 1.).dtype, ht.float32)
+        self.assertEquals(ht.copysign(b, 1.).dtype, ht.float32)
+        self.assertNotEqual(ht.copysign(a, 1.).dtype, ht.int64)
+
+        with self.assertRaises(TypeError):
+            ht.copysign(a, 'T')
+            ht.copysign(a, 1j)
+
     def test_pos(self):
         self.assertTrue(ht.equal(ht.pos(ht.array([-1, 1])), ht.array([-1, 1])))
         self.assertTrue(ht.equal(+ht.array([-1.0, 1.0]), ht.array([-1.0, 1.0])))

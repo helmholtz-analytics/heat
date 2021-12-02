@@ -715,8 +715,7 @@ DNDarray.__neg__.__doc__ = neg.__doc__
 negative = neg
 """Alias for :py:func:`neg`"""
 
-
-def copysign(a: DNDarray, b: Union[DNDarray, float]) -> DNDarray:
+def copysign(a: DNDarray, b: Union[DNDarray, float, int]) -> DNDarray:
     """
     Create a new floating-point tensor with the magnitude of 'a' and the sign of 'b', elementwise
 
@@ -726,14 +725,12 @@ def copysign(a: DNDarray, b: Union[DNDarray, float]) -> DNDarray:
          The input array
     b:   DNDarray or Number
          value(s) whose signbit(s) are applied to the magnitudes in 'a'
-    out: DNDarray, optional
-         The output array. It must have a shape that the inputs broadcast to
 
     Examples
     --------
     >>> ht.copysign(ht.array([3, 2, -8, -2, 4]), 1)
     DNDarray([3, 2, 8, 2, 4], dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.copysign(ht.array([3, 2, -8, -2, 4]), ht.array([1, -1, 1, -1, 1]))
+    >>> ht.copysign(ht.array([3., 2., -8., -2., 4.]), ht.array([1., -1., 1., -1., 1.]))
     DNDarray([ 3., -2.,  8., -2.,  4.], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.copysign, a, b)
