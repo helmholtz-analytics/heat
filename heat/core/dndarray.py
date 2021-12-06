@@ -753,7 +753,6 @@ class DNDarray:
             key = kst + slices + kend
 
         self_proxy = self.__torch_proxy__()
-
         # None and newaxis indexing
         for i in range(len(key))[::-1]:
             if self.___key_adds_dimension(key, i, self_proxy):
@@ -761,6 +760,7 @@ class DNDarray:
                 key[i] = slice(None)
 
         key = tuple(key)
+        self_proxy = self.__torch_proxy__()
         # assess final global shape
         gout_full = list(self_proxy[key].shape)
 
@@ -970,7 +970,7 @@ class DNDarray:
 
     @staticmethod
     def ___key_adds_dimension(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
-        # determine if the key gets a singular item
+        # determine if the key adds a new dimension
         zeros = tuple([0] * (self_proxy.ndim - 1))
         return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 2
 

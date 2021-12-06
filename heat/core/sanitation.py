@@ -109,7 +109,7 @@ def sanitize_distribution(*args: DNDarray, target: DNDarray):
                     )
                 )
         elif arg.split != target_split:
-            raise ValueError(
+            raise NotImplementedError(
                 "DNDarrays must have the same split axes, found {} and {}".format(
                     target_split, arg.split
                 )
