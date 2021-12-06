@@ -266,14 +266,14 @@ def sanitize_out(
 
     out_proxy = out.__torch_proxy__()
     out_proxy.names = [
-        "_{}".format(i) if (out.split is not None and i != out.split) else "split"
+        "split" if (out.split is not None and i == out.split) else "_{}".format(i)
         for i in range(out_proxy.ndim)
     ]
     out_proxy = out_proxy.squeeze()
 
     check_proxy = torch.ones(1).expand(output_shape)
     check_proxy.names = [
-        "_{}".format(i) if (output_split is not None and i != output_split) else "split"
+        "split" if (output_split is not None and i == output_split) else "_{}".format(i)
         for i in range(check_proxy.ndim)
     ]
     check_proxy = check_proxy.squeeze()
