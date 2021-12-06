@@ -752,10 +752,16 @@ class DNDarray:
             slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
             key = kst + slices + kend
 
-        key = tuple(key)
-
-        # assess final global shape
         self_proxy = self.__torch_proxy__()
+
+        # None and newaxis indexing
+        for i in range(len(key))[::-1]:
+            if self.___key_adds_dimension(key, i, self_proxy):
+                self = self.expand_dims(i)
+                key[i] = slice(None)
+
+        key = tuple(key)
+        # assess final global shape
         gout_full = list(self_proxy[key].shape)
 
         # calculate new split axis
@@ -961,6 +967,12 @@ class DNDarray:
         # determine if the key gets a singular item
         zeros = tuple([0] * (self_proxy.ndim - 1))
         return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
+
+    @staticmethod
+    def ___key_adds_dimension(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+        # determine if the key gets a singular item
+        zeros = tuple([0] * (self_proxy.ndim - 1))
+        return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 2
 
     def item(self):
         """

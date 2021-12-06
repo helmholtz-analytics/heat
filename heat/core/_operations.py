@@ -103,121 +103,148 @@ def __binary_op(
         t1 = t1.expand_dims(axis=0)
     while len(t2.shape) < len(output_shape):
         t2 = t2.expand_dims(axis=0)
-    if t1.split is not None and t2.split is not None and t1.split != t2.split:
-        # if t1 and t2 both split, split has to be the same after (shape)bcast
-        raise NotImplementedError(
-            "Not implemented for different splittings, found {} and {} after broadcasting".format(
-                t1.split, t2.split
-            )
-        )
-    elif not t1.comm == t2.comm:
-        try:
-            raise NotImplementedError(
-                "Not implemented for other comms, found {} and {}".format(
-                    t1.comm.name, t2.comm.name
-                )
-            )
-        except Exception:
-            raise NotImplementedError("Not implemented for other comms")
+    # if t1.split is not None and t2.split is not None and t1.split != t2.split:
+    #     # if t1 and t2 both split, split has to be the same after (shape)bcast
+    #     raise NotImplementedError(
+    #         "Not implemented for different splittings, found {} and {} after broadcasting".format(
+    #             t1.split, t2.split
+    #         )
+    #     )
+    # elif not t1.comm == t2.comm:
+    #     try:
+    #         raise NotImplementedError(
+    #             "Not implemented for other comms, found {} and {}".format(
+    #                 t1.comm.name, t2.comm.name
+    #             )
+    #         )
+    #     except Exception:
+    #         raise NotImplementedError("Not implemented for other comms")
 
-    # determine output params
-    output_split = t1.split if t1.split is not None else t2.split
-    output_balanced = t1.balanced if t1.split is not None else t2.balanced
-    output_device = t1.device
-    output_comm = t1.comm
-
-    if output_split is not None and t1.shape[output_split] <= 1 and output_shape[output_split] > 1:
-        # broadcasting in split-dimension:
-        # move full array to every rank; no redistribution because size is only one
-        t1 = t1.resplit(None)
+    # determine output params, transform to output shape
+    if t1.split is not None and t1.shape[t1.split] == output_shape[t1.split]:
+        output_split = t1.split
+        output_device = t1.device
+        output_comm = t1.comm
+        if out is None:
+            t2 = sanitation.sanitize_distribution(t2, target=t1)
+            output_balanced = t1.balance
+    else:
         output_split = t2.split
-        output_balanced = t2.balanced
-    elif (
-        output_split is not None and t2.shape[output_split] <= 1 and output_shape[output_split] > 1
-    ):
-        # broadcasting in split-dimension:
-        # move full array to every rank; no redistribution because size is only one
-        t2 = t2.resplit(None)
-    elif (
-        t1.is_distributed() and t2.is_distributed() and not (t1.is_balanced() and t2.is_balanced())
-    ):
-        # Equalize t1 and t2 distribution
-        if out is None:  # redistribute to match t1
-            t2_map = t2.lshape_map
-            target_map = t2_map.clone()
-            target_map[:, t2.split] = t1.lshape_map[:, t2.split]
-            if not (t2_map[:, t2.split] == target_map[:, t2.split]).all():
-                t2 = t2.redistribute(
-                    lshape_map=t2_map, target_map=target_map
-                )  # OUT-OF-PLACE binops should not alter their arguments
-        else:  # redistribute to match out
-            sanitation.sanitize_out(out, output_shape, output_split, output_device)
-            target_map = out.lshape_map
-            t1_map = t1.lshape_map
-            t1_target_map = t1_map.clone()
-            t2_map = t2.lshape_map
-            t2_target_map = t2_map.clone()
-            t1_target_map[:, t1.split] = target_map[:, t1.split]
-            t2_target_map[:, t2.split] = target_map[:, t2.split]
-            if not (t1_map[:, t1.split] == t1_target_map[:, t1.split]).all():
-                t1 = t1.redistribute(
-                    lshape_map=t1_map, target_map=t1_target_map
-                )  # OUT-OF-PLACE binops should not alter their arguments
-            if not (t2_map[:, t2.split] == t2_target_map[:, t2.split]).all():
-                t2 = t2.redistribute(
-                    lshape_map=t2_map, target_map=t2_target_map
-                )  # OUT-OF-PLACE binops should not alter their arguments
-    elif not t1.is_distributed() and t2.is_distributed():
-        # t1 is not distributed -> no redistribution needed; take local slice
-        if t2.is_balanced():
-            t1 = factories.array(t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device)
-        else:
-            idx = [slice(None)] * t1.ndim
-            lshapes = t2.lshape_map[:, t2.split]
-            idx[t2.split] = slice(lshapes[: t1.comm.rank].sum(), lshapes[: t1.comm.rank + 1].sum())
-            t1 = factories.array(
-                t1.larray[tuple(idx)], is_split=t2.split, copy=False, comm=t1.comm, device=t1.device
-            )
-    elif t1.is_distributed() and not t2.is_distributed():
-        # t2 is not distributed -> no redistribution needed; take local slice
-        if t1.is_balanced():
-            t2 = factories.array(t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device)
-        else:
-            idx = [slice(None)] * t2.ndim
-            lshapes = t1.lshape_map[:, t1.split]
-            idx[t1.split] = slice(lshapes[: t2.comm.rank].sum(), lshapes[: t2.comm.rank + 1].sum())
-            t2 = factories.array(
-                t2.larray[tuple(idx)], is_split=t1.split, copy=False, comm=t2.comm, device=t2.device
-            )
-    if t1.lnumel == 0 or t2.lnumel == 0:  # local process is empty
-        output_lshape = list(output_shape)
-        if output_split is not None:
-            if t1.lshape[output_split] == 0 or t2.lshape[output_split] == 0:
-                output_lshape[output_split] = 0
-            elif t1.shape[output_split] == 1:
-                output_lshape[output_split] = t2.lshape[output_split]
-            else:
-                output_lshape[output_split] = t1.lshape[output_split]
-        result = (
-            torch.Tensor([], device=output_device.torch_device)
-            .type(promoted_type)
-            .expand(output_lshape)
-            .contiguous()
-        )
-    else:  # local process is not empty
-        result = operation(
+        output_device = t2.device
+        output_comm = t2.comm
+        if out is None:
+            t1 = sanitation.sanitize_distribution(t1, target=t2)
+            output_balanced = t2.balance
+
+    if out is not None:
+        sanitation.sanitize_out(out, output_shape, output_split, output_device, output_comm)
+        t1, t2 = sanitation.sanitize_distribution(t1, t2, target=out)
+        out.larray[:] = operation(
             t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
         )
+        return out
+
+    # if output_split is not None and t1.shape[output_split] <= 1 and output_shape[output_split] > 1:
+    #     # broadcasting in split-dimension:
+    #     # move full array to every rank; no redistribution because size is only one
+    #     t1 = t1.resplit(None)
+    #     output_split = t2.split
+    #     output_balanced = t2.balanced
+    # elif (
+    #     output_split is not None and t2.shape[output_split] <= 1 and output_shape[output_split] > 1
+    # ):
+    #     # broadcasting in split-dimension:
+    #     # move full array to every rank; no redistribution because size is only one
+    #     t2 = t2.resplit(None)
+    # elif (
+    #     t1.is_distributed() and t2.is_distributed() and not (t1.is_balanced() and t2.is_balanced())
+    # ):
+    #     # Equalize t1 and t2 distribution
+    #     if out is None:  # redistribute to match t1
+    #         t2_map = t2.lshape_map
+    #         target_map = t2_map.clone()
+    #         target_map[:, t2.split] = t1.lshape_map[:, t2.split]
+    #         if not (t2_map[:, t2.split] == target_map[:, t2.split]).all():
+    #             t2 = t2.redistribute(
+    #                 lshape_map=t2_map, target_map=target_map
+    #             )  # OUT-OF-PLACE binops should not alter their arguments
+    #     else:  # redistribute to match out
+    #         sanitation.sanitize_out(out, output_shape, output_split, output_device)
+    #         target_map = out.lshape_map
+    #         t1_map = t1.lshape_map
+    #         t1_target_map = t1_map.clone()
+    #         t2_map = t2.lshape_map
+    #         t2_target_map = t2_map.clone()
+    #         t1_target_map[:, t1.split] = target_map[:, t1.split]
+    #         t2_target_map[:, t2.split] = target_map[:, t2.split]
+    #         if not (t1_map[:, t1.split] == t1_target_map[:, t1.split]).all():
+    #             t1 = t1.redistribute(
+    #                 lshape_map=t1_map, target_map=t1_target_map
+    #             )  # OUT-OF-PLACE binops should not alter their arguments
+    #         if not (t2_map[:, t2.split] == t2_target_map[:, t2.split]).all():
+    #             t2 = t2.redistribute(
+    #                 lshape_map=t2_map, target_map=t2_target_map
+    #             )  # OUT-OF-PLACE binops should not alter their arguments
+    # elif not t1.is_distributed() and t2.is_distributed():
+    #     # t1 is not distributed -> no redistribution needed; take local slice
+    #     if t2.is_balanced():
+    #         t1 = factories.array(t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device)
+    #     else:
+    #         idx = [slice(None)] * t1.ndim
+    #         lshapes = t2.lshape_map[:, t2.split]
+    #         idx[t2.split] = slice(lshapes[: t1.comm.rank].sum(), lshapes[: t1.comm.rank + 1].sum())
+    #         t1 = factories.array(
+    #             t1.larray[tuple(idx)], is_split=t2.split, copy=False, comm=t1.comm, device=t1.device
+    #         )
+    # elif t1.is_distributed() and not t2.is_distributed():
+    #     # t2 is not distributed -> no redistribution needed; take local slice
+    #     if t1.is_balanced():
+    #         t2 = factories.array(t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device)
+    #     else:
+    #         idx = [slice(None)] * t2.ndim
+    #         lshapes = t1.lshape_map[:, t1.split]
+    #         idx[t1.split] = slice(lshapes[: t2.comm.rank].sum(), lshapes[: t2.comm.rank + 1].sum())
+    #         t2 = factories.array(
+    #             t2.larray[tuple(idx)], is_split=t1.split, copy=False, comm=t2.comm, device=t2.device
+    #         )
+
+    # if False:#t1.lnumel == 0 or t2.lnumel == 0:  # local process is empty
+    #     output_lshape = list(output_shape)
+    #     if output_split is not None:  # determine lshape in split dimension
+    #         if t1.lshape[output_split] == t2.lshape[output_split]:
+    #             # if both are the same
+    #             output_lshape[output_split] = t1.lshape[output_split]
+    #         elif t1.lshape[output_split] == 0 or t2.lshape[output_split] == 0:
+    #             # if one has local size zero
+    #             output_lshape[output_split] = 0
+    #         elif t1.split is None or t1.shape[output_split] == 1:
+    #             # if t1 is not split or broadcast along split-dimension -> choose t2
+    #             output_lshape[output_split] = t2.lshape[output_split]
+    #         elif t2.split is None or t2.shape[output_split] == 1:
+    #             # if t2 is not split or broadcast along split-dimension -> choose t1
+    #             output_lshape[output_split] = t1.lshape[output_split]
+    #         else:  # impossible
+    #             pass
+    #     output_lshape = tuple(output_lshape)
+    #     result = (
+    #         torch.Tensor([], device=output_device.torch_device)
+    #         .type(promoted_type)
+    #         .view(output_lshape)
+    #         .contiguous()
+    #     )
+    # else:  # local process is not empty
+    result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
+
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result, device=output_device.torch_device)
 
-    if out is not None:
-        sanitation.sanitize_out(out, output_shape, output_split, output_device)
-        out_dtype = out.dtype
-        out.larray = result  # "out: Output buffer in which the result is placed" is this correct???
-        out._DNDarray__comm = output_comm
-        out = out.astype(out_dtype)
-        return out
+    # if out is not None:
+    #     sanitation.sanitize_out(out, output_shape, output_split, output_device)
+    #     out_dtype = out.dtype
+    #     out.larray = result  # "out: Output buffer in which the result is placed" is this correct???
+    #     out._DNDarray__comm = output_comm
+    #     out = out.astype(out_dtype)
+    #     return out
 
     return DNDarray(
         result,

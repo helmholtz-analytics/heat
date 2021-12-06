@@ -8,7 +8,7 @@ import torch
 import warnings
 from typing import Any, Union, Sequence, List, Tuple
 
-from .communication import MPI
+from .communication import MPI, Communication
 from .dndarray import DNDarray
 
 from . import factories
@@ -25,6 +25,106 @@ __all__ = [
     "sanitize_sequence",
     "scalar_to_1d",
 ]
+
+
+def sanitize_distribution(*args: DNDarray, target: DNDarray):
+    """
+    Make every arg have the same distribution (along split-axis) as the target,
+    such that after this sanitation, the lshapes are compatible wrt split-dimension.
+    Args can contain unsplit-DNDarrays.
+
+    Parameters
+    ----------
+    args : DNDarray
+        Dndarrays to be distributed
+
+    target : DNDarray
+        Dndarrays determining the distribution
+
+    Raises
+    ------
+    TypeError
+        When an argument is not a ``DNDarray`` or ``None``.
+    ValueError
+        When the split-axes or sizes along the split-axis do not match.
+    """
+    out = []
+    sanitize_in(target)
+    target_map = target.lshape_map
+    target_shape = target.shape
+    target_split = target.split
+    for arg in args:
+        # is arg is None:
+        #    out.append(arg)
+        #    continue
+        sanitize_in(arg)
+        if not target.comm == arg.comm:
+            try:
+                raise NotImplementedError(
+                    "Not implemented for other comms, found {} and {}".format(
+                        target.comm.name, arg.comm.name
+                    )
+                )
+            except Exception:
+                raise NotImplementedError("Not implemented for other comms")
+        elif target_split is None:
+            if arg.split is not None:
+                raise ValueError(
+                    "DNDarrays must have the same split axes, found {} and {}".format(
+                        target_split, arg.split
+                    )
+                )
+            else:
+                out.append(arg)
+        elif (
+            arg.shape[target_split] == 1 and target_shape[target_split] > 1
+        ):  # broadcasting in split-dimension
+            out.append(arg.resplit(None))
+        elif arg.shape[target_split] != target_shape[target_split]:
+            raise ValueError(
+                "Cannot distribute to match in split dimension, shapes are {} and {}".format(
+                    target_shape, arg.shape
+                )
+            )
+        elif arg.split is None:  # undistributed case
+            if target.is_balanced():
+                out.append(
+                    factories.array(
+                        arg, split=target_split, copy=False, comm=arg.comm, device=arg.device
+                    )
+                )
+            else:
+                idx = [slice(None)] * arg.ndim
+                idx[target_split] = slice(
+                    target_map[: arg.comm.rank, target_split].sum(),
+                    target_map[: arg.comm.rank + 1, target_split].sum(),
+                )
+                out.append(
+                    factories.array(
+                        arg.larray[tuple(idx)],
+                        is_split=target_split,
+                        copy=False,
+                        comm=arg.comm,
+                        device=arg.device,
+                    )
+                )
+        elif arg.split != target_split:
+            raise ValueError(
+                "DNDarrays must have the same split axes, found {} and {}".format(
+                    target_split, arg.split
+                )
+            )
+        else:  # Split axes are the same
+            current_map = arg.lshape_map
+            out_map = current_map.clone()
+            out_map[:, target_split] = target_map[:, target_split]
+            if not (current_map[:, target_split] == target_map[:, target_split]).all():
+                out.append(arg.redistribute(lshape_map=current_map, target_map=out_map))
+            else:
+                out.append(arg)
+    if len(out) == 1:
+        return out[0]
+    return tuple(out)
 
 
 def sanitize_in(x: Any):
@@ -127,7 +227,13 @@ def sanitize_lshape(array: DNDarray, tensor: torch.Tensor):
     )
 
 
-def sanitize_out(out: Any, output_shape: Tuple, output_split: int, output_device: str):
+def sanitize_out(
+    out: Any,
+    output_shape: Tuple,
+    output_split: int,
+    output_device: str,
+    output_comm: Communication = None,
+):
     """
     Validate output buffer ``out``.
 
@@ -145,6 +251,9 @@ def sanitize_out(out: Any, output_shape: Tuple, output_split: int, output_device
     output_device : Str
                     "cpu" or "gpu" as per location of data
 
+    output_comm : Communication
+                    Communication object of the result of the operation
+
     Raises
     ------
     TypeError
@@ -155,18 +264,52 @@ def sanitize_out(out: Any, output_shape: Tuple, output_split: int, output_device
     if not isinstance(out, DNDarray):
         raise TypeError("expected `out` to be None or a DNDarray, but was {}".format(type(out)))
 
-    if out.gshape != output_shape:
+    out_proxy = out.__torch_proxy__()
+    out_proxy.names = [
+        "_{}".format(i) if (out.split is not None and i != out.split) else "split"
+        for i in range(out_proxy.ndim)
+    ]
+    out_proxy = out_proxy.squeeze()
+
+    check_proxy = torch.ones(1).expand(output_shape)
+    check_proxy.names = [
+        "_{}".format(i) if (output_split is not None and i != output_split) else "split"
+        for i in range(check_proxy.ndim)
+    ]
+    check_proxy = check_proxy.squeeze()
+
+    if out_proxy.shape != check_proxy.shape:
         raise ValueError(
             "Expecting output buffer of shape {}, got {}".format(output_shape, out.shape)
         )
-    if out.split is not output_split:
+    count_split = int(out.split is not None) + int(output_split is not None)
+    if count_split == 1:
         raise ValueError(
             "Split axis of output buffer is inconsistent with split semantics (see documentation)."
         )
+    elif count_split == 2:
+        if out.shape[out.split] > 1:  # split axis is not squeezed out
+            if out_proxy.names.index("split") != check_proxy.names.index("split"):
+                raise ValueError(
+                    "Split axis of output buffer is inconsistent with split semantics (see documentation)."
+                )
+        else:  # split axis is squeezed out
+            num_dim_before_split = len(
+                [name for name in out_proxy.names if int(name[1:]) < out.split]
+            )
+            check_num_dim_before_split = len(
+                [name for name in check_proxy.names if int(name[1:]) < output_split]
+            )
+            if num_dim_before_split != check_num_dim_before_split:
+                raise ValueError(
+                    "Split axis of output buffer is inconsistent with split semantics (see documentation)."
+                )
     if out.device is not output_device:
         raise ValueError(
             "Device mismatch: out is on {}, should be on {}".format(out.device, output_device)
         )
+    if output_comm is not None and out.comm != output_comm:
+        raise ValueError("Comm mismatch")
 
 
 def sanitize_sequence(
