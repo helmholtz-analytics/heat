@@ -11,7 +11,8 @@ from typing import Tuple, Union
 
 def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple[int, ...]:
     """
-    Infers, if possible, the broadcast output shape of two operands a and b.
+    Infers, if possible, the broadcast output shape of two operands a and b. Inspired by stackoverflow post:
+    https://stackoverflow.com/questions/24743753/test-if-an-array-is-broadcastable-to-a-shape
 
     Parameters
     ----------
@@ -41,7 +42,20 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
         "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
     ValueError: operands could not be broadcast, input shapes (2, 1) (8, 4, 3)
     """
-    return tuple(torch.broadcast_shapes(shape_a, shape_b))
+    return np.broadcast_shapes(shape_a, shape_b)
+    it = itertools.zip_longest(shape_a[::-1], shape_b[::-1], fillvalue=1)
+    resulting_shape = max(len(shape_a), len(shape_b)) * [None]
+    for i, (a, b) in enumerate(it):
+        if a == 0 or b == 0:
+            resulting_shape[i] = 0
+        elif a == 1 or b == 1 or a == b:
+            resulting_shape[i] = max(a, b)
+        else:
+            raise ValueError(
+                "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
+            )
+
+    return tuple(resulting_shape[::-1])
 
 
 def sanitize_axis(
