@@ -101,12 +101,12 @@ def __binary_op(
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
     # Broadcasting allows additional empty dimensions on the left side
     # TODO simplify this once newaxis-indexing is supported to get rid of the loops
-    # while len(t1.shape) < len(output_shape):
-    #     t1 = t1.expand_dims(axis=0)
-    # while len(t2.shape) < len(output_shape):
-    #     t2 = t2.expand_dims(axis=0)
-    t1 = t1[tuple([None] * (len(output_shape) - t1.ndim))]
-    t2 = t2[tuple([None] * (len(output_shape) - t2.ndim))]
+    while len(t1.shape) < len(output_shape):
+        t1 = t1.expand_dims(axis=0)
+    while len(t2.shape) < len(output_shape):
+        t2 = t2.expand_dims(axis=0)
+    # t1 = t1[tuple([None] * (len(output_shape) - t1.ndim))]
+    # t2 = t2[tuple([None] * (len(output_shape) - t2.ndim))]
 
     # if t1.split is not None and t2.split is not None and t1.split != t2.split:
     #     # if t1 and t2 both split, split has to be the same after (shape)bcast
