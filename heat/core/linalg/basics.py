@@ -81,9 +81,12 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
     if m != n:
         raise ValueError("Last two dimensions of the DNDarray must be square.")
 
+    if types.heat_type_is_exact(x.dtype) or types.heat_type_is_complexfloating(x.dtype):
+        raise NotImplementedError("Not implemented for {}".format(x.dtype))
+
     a = x.copy()
 
-    for i in range(n):
+    for i in range(n - 1):
         a[..., i, i] = exponential.sqrt(a[..., i, i])
 
         if a.split == a.ndim - 2:

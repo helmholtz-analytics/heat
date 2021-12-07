@@ -8,6 +8,9 @@ from ...tests.test_suites.basic_test import TestCase
 
 
 class TestLinalgBasics(TestCase):
+    def test_cholesky(self):
+        pass
+
     def test_dot(self):
         # ONLY TESTING CORRECTNESS! ALL CALLS IN DOT ARE PREVIOUSLY TESTED
         # cases to test:
