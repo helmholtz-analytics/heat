@@ -93,16 +93,21 @@ def __binary_op(
         try:
             t2 = factories.array(t2, device=t1.device, comm=t1.comm)
         except (ValueError, TypeError):
-            raise TypeError("Data type not supported, input was {}".format(type(t1)))
+            raise TypeError("Data type not supported, input was {}".format(type(t2)))
+    sanitation.sanitize_in(t1)
+    sanitation.sanitize_in(t2)
 
     # Make inputs have the same dimensionality
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
     # Broadcasting allows additional empty dimensions on the left side
     # TODO simplify this once newaxis-indexing is supported to get rid of the loops
-    while len(t1.shape) < len(output_shape):
-        t1 = t1.expand_dims(axis=0)
-    while len(t2.shape) < len(output_shape):
-        t2 = t2.expand_dims(axis=0)
+    # while len(t1.shape) < len(output_shape):
+    #     t1 = t1.expand_dims(axis=0)
+    # while len(t2.shape) < len(output_shape):
+    #     t2 = t2.expand_dims(axis=0)
+    t1 = t1[tuple([None] * (len(output_shape) - t1.ndim))]
+    t2 = t2[tuple([None] * (len(output_shape) - t2.ndim))]
+
     # if t1.split is not None and t2.split is not None and t1.split != t2.split:
     #     # if t1 and t2 both split, split has to be the same after (shape)bcast
     #     raise NotImplementedError(
@@ -234,7 +239,6 @@ def __binary_op(
     #     )
     # else:  # local process is not empty
     result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
-
     if not isinstance(result, torch.Tensor):
         result = torch.tensor(result, device=output_device.torch_device)
 
