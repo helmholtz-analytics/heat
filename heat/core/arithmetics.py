@@ -60,6 +60,7 @@ __all__ = [
     "sub",
     "subtract",
     "sum",
+    "nansum"
 ]
 
 
@@ -1068,3 +1069,53 @@ def sum(
 
 
 DNDarray.sum = lambda self, axis=None, out=None, keepdim=None: sum(self, axis, out, keepdim)
+
+
+def nansum(
+    a: DNDarray,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdim: bool = None,
+) -> DNDarray:
+    """
+    Sum of array elements over a given axis treating Not a Numbers (NaNs) as zero. An array with the same shape 
+    as ``self.__array`` except for the specified axis which becomes one, e.g. 
+    ``a.shape=(1, 2, 3)`` => ``ht.ones((1, 2, 3)).sum(axis=1).shape=(1, 1, 3)``
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the elements of the input array.
+        If ``axis`` is negative it counts from the last to the first axis. If ``axis`` is a tuple of ints, a sum is performed
+        on all of the axes specified in the tuple instead of a single axis or all the axes as before.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must have the same shape as the expected output, but
+        the datatype of the output values will be cast if necessary.
+    keepdim : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
+        option, the result will broadcast correctly against the input array.
+
+    Examples
+    --------
+    >>> ht.sum(ht.ones(2))
+    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.sum(ht.ones((3,3)))
+    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.sum(ht.ones((3,3)).astype(ht.int))
+    DNDarray([9], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.sum(ht.ones((3,2,1)), axis=-3)
+    DNDarray([[3.],
+              [3.]], dtype=ht.float32, device=cpu:0, split=None)
+    """   
+    if isinstance(a, DNDarray):
+        a[a != a] = 0
+
+    return _operations.__reduce_op(
+        a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
+    )
+ 
+
+DNDarray.nansum = lambda self, other: nansum(self, other)
+DNDarray.nansum.__doc__ = nansum.__doc__
