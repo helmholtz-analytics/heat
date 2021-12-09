@@ -454,6 +454,22 @@ class TestArithmetics(TestCase):
             ht.copysign(a, 'T')
             ht.copysign(a, 1j)
 
+    def test_lcm(self):
+ 
+        a = ht.array([5, 10, 15])
+        b = ht.array([3, 4, 5])
+        c = ht.array([3., 4., 5.])
+        result = ht.array([15, 20, 15])
+          
+        self.assertTrue(ht.equal(ht.lcm(a, b), result))
+        self.assertTrue(ht.equal(ht.lcm(a, a), a))
+        self.assertEquals(ht.lcm(a, b).dtype, ht.int64)
+
+        with self.assertRaises(RuntimeError):
+            ht.lcm(a, c)
+        with self.assertRaises(ValueError):  
+            ht.lcm(a, ht.array([15, 20])) 
+
     def test_pos(self):
         self.assertTrue(ht.equal(ht.pos(ht.array([-1, 1])), ht.array([-1, 1])))
         self.assertTrue(ht.equal(+ht.array([-1.0, 1.0]), ht.array([-1.0, 1.0])))

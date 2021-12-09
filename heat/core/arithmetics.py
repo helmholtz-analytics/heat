@@ -47,6 +47,8 @@ __all__ = [
     "multiply",
     "neg",
     "copysign",
+    "lcm",
+    "hypot",
     "negative",
     "pos",
     "positive",
@@ -739,6 +741,54 @@ def copysign(a: DNDarray, b: Union[DNDarray, float, int]) -> DNDarray:
 DNDarray.copysign = lambda self, other: copysign(self, other)
 DNDarray.copysign.__doc__ = copysign.__doc__
 
+
+def lcm(a: DNDarray, b: DNDarray) -> DNDarray:
+    """
+    Returns the lowest common multiple of |a| and |b|
+
+    Parameters
+    ----------
+    a:   DNDarray
+         The input array
+    b:   DNDarray 
+         the second input tensor
+
+    Examples
+    --------
+    >>> a = ht.array([5, 10, 15])
+    >>> b = ht.array([3, 4, 5])
+    DNDarray([15, 20, 15], dtype=ht.int64, device=cpu:0, split=None)
+    
+    """
+    return _operations.__binary_op(torch.lcm, a, b)
+
+
+DNDarray.lcm = lambda self, other: lcm(self, other)
+DNDarray.lcm.__doc__ = lcm.__doc__
+
+
+def hypot(a: DNDarray, b: DNDarray) -> DNDarray:
+    """
+    Given the 'legs' of a right triangle, return its hypotenuse.
+
+    Parameters
+    ----------
+    a:   DNDarray
+         The input array
+    b:   DNDarray 
+         the second input tensor
+
+    Examples
+    --------
+    >>> a = a=ht.array([2.])
+    >>> b = b=ht.array([1.,3.,3.])
+    DNDarray([2.2361, 3.6056, 3.6056], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    return _operations.__binary_op(torch.hypot, a, b)
+
+
+DNDarray.hypot = lambda self, other: hypot(self, other)
+DNDarray.hypot.__doc__ = hypot.__doc__
 
 
 def pos(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
