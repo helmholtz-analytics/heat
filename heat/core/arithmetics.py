@@ -55,6 +55,7 @@ __all__ = [
     "pow",
     "power",
     "prod",
+    "nanprod",
     "remainder",
     "right_shift",
     "sub",
@@ -62,9 +63,6 @@ __all__ = [
     "sum",
     "nansum"
 ]
-
-
-
 
 
 
@@ -983,6 +981,57 @@ DNDarray.prod = lambda self, axis=None, out=None, keepdim=None: prod(self, axis,
 DNDarray.prod.__doc__ = prod.__doc__
 
 
+def nanprod(
+    a: DNDarray,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdim: bool = None,
+) -> DNDarray:
+    """
+    Return the product of array elements over a given axis treating Not a Numbers (NaNs) as one.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate the product of all the
+        elements in the input array. If axis is negative it counts from the last to the first axis.
+        If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a single
+        axis or all the axes as before.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must have the same shape as the expected output, but
+        the datatype of the output values will be cast if necessary.
+    keepdim : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
+        option, the result will broadcast correctly against the input array.
+
+    Examples
+    --------
+    >>> ht.prod(ht.array([1.,2.]))
+    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.prod(ht.array([
+        [1.,2.],
+        [3.,4.]]))
+    DNDarray([24.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.prod(ht.array([
+        [1.,2.],
+        [3.,4.]
+    ]), axis=1)
+    DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    if isinstance(a, DNDarray):
+        a[a != a] = 1.
+
+    return _operations.__reduce_op(
+        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
+    )
+
+
+DNDarray.nanprod = lambda self, axis=None, out=None, keepdim=None: nanprod(self, axis, out, keepdim)
+DNDarray.nanprod.__doc__ = nanprod.__doc__
+
+
 def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise subtraction of values of operand ``t2`` from values of operands ``t1`` (i.e ``t1-t2``)
@@ -1110,7 +1159,7 @@ def nansum(
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
     """   
     if isinstance(a, DNDarray):
-        a[a != a] = 0
+        a[a != a] = 0.
 
     return _operations.__reduce_op(
         a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
