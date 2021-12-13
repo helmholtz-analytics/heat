@@ -44,7 +44,7 @@ __all__ = [
 
 def cross(x1: DNDarray, x2: DNDarray, axis: int = -1) -> DNDarray:
     """
-    Returns the cross product.
+    Returns the cross product. 2D vectors will we converted to 3D.
 
     Parameters
     ----------
@@ -74,6 +74,19 @@ def cross(x1: DNDarray, x2: DNDarray, axis: int = -1) -> DNDarray:
     sanitation.sanitize_in(x1)
     sanitation.sanitize_in(x2)
 
+    # 2d -> 3d vector
+    if x1.shape[axis] == 2:
+        shape = tuple(1 if i == axis else j for i, j in enumerate(x1.shape))
+        x1 = manipulations.concatenate(
+            [x1, factories.zeros(shape, dtype=x1.dtype, device=x1.device)]
+        )
+
+    if x2.shape[axis] == 2:
+        shape = tuple(1 if i == axis else j for i, j in enumerate(x2.shape))
+        x2 = manipulations.concatenate(
+            [x2, factories.zeros(shape, dtype=x2.dtype, device=x2.device)]
+        )
+
     if x1.gshape != x2.gshape:
         raise ValueError(
             "'x1' and 'x2' must have the same shape, {} != {}".format(x1.gshape, x2.gshape)
@@ -101,9 +114,9 @@ def cross(x1: DNDarray, x2: DNDarray, axis: int = -1) -> DNDarray:
         raise ValueError(
             "The computation of the cross product with vectors along the split axis is not supported."
         )
-    else:
-        x1.balance_()
-        x2.balance_()
+
+    if not (x1.is_balanced and x2.is_balanced):
+        x2 = manipulations.redistribute(x2, x2.lshape_map, x1.lshape_map)
 
     promoted = torch.promote_types(x1.larray.dtype, x2.larray.dtype)
 
