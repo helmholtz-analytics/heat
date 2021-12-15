@@ -42,7 +42,9 @@ __all__ = [
 ]
 
 
-def cross(x1: DNDarray, x2: DNDarray, axis: int = -1) -> DNDarray:
+def cross(
+    x1: DNDarray, x2: DNDarray, axisa: int = -1, axisb: int = -1, axisc: int = -1, axis: int = -1
+) -> DNDarray:
     """
     Returns the cross product. 2D vectors will we converted to 3D.
 
@@ -52,8 +54,15 @@ def cross(x1: DNDarray, x2: DNDarray, axis: int = -1) -> DNDarray:
         First input array.
     x2 : DNDarray
         Second input array. Must have the same shape as 'x1'.
+    axisa: int
+        Axis of `x1` that defines the vector(s). By default, the last axis.
+    axisb: int
+        Axis of `x2` that defines the vector(s). By default, the last axis.
+    axisc: int
+        Axis of the output containing the cross product vector(s). By default, the last axis.
     axis : int
-        Axis that defines the vectors for which to compute the cross product. Default: -1
+        Axis that defines the vectors for which to compute the cross product. Overrides `axisa`, `axisb` and `axisc`. Default: -1
+
 
     Raises
     ------
@@ -73,6 +82,9 @@ def cross(x1: DNDarray, x2: DNDarray, axis: int = -1) -> DNDarray:
     """
     sanitation.sanitize_in(x1)
     sanitation.sanitize_in(x2)
+
+    if not axis == -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
+        axis = stride_tricks.sanitize_axis(x1.shape, axis)
 
     # 2d -> 3d vector
     if x1.shape[axis] == 2:
@@ -102,13 +114,14 @@ def cross(x1: DNDarray, x2: DNDarray, axis: int = -1) -> DNDarray:
     if x1.comm != x2.comm:  # pragma: no cover
         raise ValueError("'x1' and 'x2' must have the same comm, {} != {}".format(x1.comm, x2.comm))
 
-    if not isinstance(axis, int):
-        try:
-            axis = int(axis)
-        except Exception:
-            raise TypeError("'axis' must be an integer.")
+    # TODO remove this
+    # if not isinstance(axis, int):
+    #     try:
+    #         axis = int(axis)
+    #     except Exception:
+    #         raise TypeError("'axis' must be an integer.")
 
-    axis = stride_tricks.sanitize_axis(x1.shape, axis)
+    # axis = stride_tricks.sanitize_axis(x1.shape, axis)
 
     if x1.split == axis:
         raise ValueError(
