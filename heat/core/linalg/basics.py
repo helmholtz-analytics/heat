@@ -106,6 +106,7 @@ def cross(
         # 2d -> 3d vector
         if x1.shape[axisa] == 2:
             shape = tuple(1 if i == axisa else j for i, j in enumerate(x1.shape))
+            # TODO test: writing into a larger zeros array might be more efficient than concatenating
             x1 = manipulations.concatenate(
                 [x1, factories.zeros(shape, dtype=x1.dtype, device=x1.device)], axis=axisa
             )
@@ -120,15 +121,17 @@ def cross(
 
         axisc = stride_tricks.sanitize_axis(x1.shape, axisc)
 
-        x1_permute_axes = list(range(len(x1.shape)))
-        x1_permute_axes.remove(axisa)
-        x1_permute_axes = x1_permute_axes[:axisc] + [axisa] + x1_permute_axes[axisc:]
-        x1 = x1.transpose(x1_permute_axes)
+        if axisc != axisa:
+            x1_permute_axes = list(range(len(x1.shape)))
+            x1_permute_axes.remove(axisa)
+            x1_permute_axes = x1_permute_axes[:axisc] + [axisa] + x1_permute_axes[axisc:]
+            x1 = x1.transpose(x1_permute_axes)
 
-        x2_permute_axes = list(range(len(x2.shape)))
-        x2_permute_axes.remove(axisb)
-        x2_permute_axes = x2_permute_axes[:axisc] + [axisb] + x2_permute_axes[axisc:]
-        x2 = x2.transpose(x2_permute_axes)
+        if axisc != axisb:
+            x2_permute_axes = list(range(len(x2.shape)))
+            x2_permute_axes.remove(axisb)
+            x2_permute_axes = x2_permute_axes[:axisc] + [axisb] + x2_permute_axes[axisc:]
+            x2 = x2.transpose(x2_permute_axes)
 
         axis = axisc
 
