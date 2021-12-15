@@ -85,20 +85,54 @@ def cross(
 
     if not axis == -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
         axis = stride_tricks.sanitize_axis(x1.shape, axis)
+        # TODO check for broadcastable shapes here? all dimensions except axis must be broadcastable
+        # out_gshape = stride_tricks.broadcast_shape(
+        #    list(x1.shape).remove(axis), list(x2.shape).remove(axis)
+        # )  # this is wrong
+        # 2d -> 3d vector
+        if x1.shape[axis] == 2:
+            shape = tuple(1 if i == axis else j for i, j in enumerate(x1.shape))
+            x1 = manipulations.concatenate(
+                [x1, factories.zeros(shape, dtype=x1.dtype, device=x1.device)], axis=axis
+            )
 
-    # 2d -> 3d vector
-    if x1.shape[axis] == 2:
-        shape = tuple(1 if i == axis else j for i, j in enumerate(x1.shape))
-        x1 = manipulations.concatenate(
-            [x1, factories.zeros(shape, dtype=x1.dtype, device=x1.device)]
-        )
+        if x2.shape[axis] == 2:
+            shape = tuple(1 if i == axis else j for i, j in enumerate(x2.shape))
+            x2 = manipulations.concatenate(
+                [x2, factories.zeros(shape, dtype=x2.dtype, device=x2.device)], axis=axis
+            )
+    else:
+        axisa = stride_tricks.sanitize_axis(x1.shape, axisa)
+        # 2d -> 3d vector
+        if x1.shape[axisa] == 2:
+            shape = tuple(1 if i == axisa else j for i, j in enumerate(x1.shape))
+            x1 = manipulations.concatenate(
+                [x1, factories.zeros(shape, dtype=x1.dtype, device=x1.device)], axis=axisa
+            )
 
-    if x2.shape[axis] == 2:
-        shape = tuple(1 if i == axis else j for i, j in enumerate(x2.shape))
-        x2 = manipulations.concatenate(
-            [x2, factories.zeros(shape, dtype=x2.dtype, device=x2.device)]
-        )
+        axisb = stride_tricks.sanitize_axis(x2.shape, axisb)
+        # 2d -> 3d vector
+        if x2.shape[axisb] == 2:
+            shape = tuple(1 if i == axisb else j for i, j in enumerate(x2.shape))
+            x2 = manipulations.concatenate(
+                [x2, factories.zeros(shape, dtype=x2.dtype, device=x2.device)], axis=axisb
+            )
 
+        axisc = stride_tricks.sanitize_axis(x1.shape, axisc)
+
+        x1_permute_axes = list(range(len(x1.shape)))
+        x1_permute_axes.remove(axisa)
+        x1_permute_axes = x1_permute_axes[:axisc] + [axisa] + x1_permute_axes[axisc:]
+        x1 = x1.transpose(x1_permute_axes)
+
+        x2_permute_axes = list(range(len(x2.shape)))
+        x2_permute_axes.remove(axisb)
+        x2_permute_axes = x2_permute_axes[:axisc] + [axisb] + x2_permute_axes[axisc:]
+        x2 = x2.transpose(x2_permute_axes)
+
+        axis = axisc
+
+    # by now gshapes and splits should be the same
     if x1.gshape != x2.gshape:
         raise ValueError(
             "'x1' and 'x2' must have the same shape, {} != {}".format(x1.gshape, x2.gshape)
@@ -113,15 +147,6 @@ def cross(
         )
     if x1.comm != x2.comm:  # pragma: no cover
         raise ValueError("'x1' and 'x2' must have the same comm, {} != {}".format(x1.comm, x2.comm))
-
-    # TODO remove this
-    # if not isinstance(axis, int):
-    #     try:
-    #         axis = int(axis)
-    #     except Exception:
-    #         raise TypeError("'axis' must be an integer.")
-
-    # axis = stride_tricks.sanitize_axis(x1.shape, axis)
 
     if x1.split == axis:
         raise ValueError(
