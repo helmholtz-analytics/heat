@@ -83,16 +83,14 @@ def cross(
     sanitation.sanitize_in(x2)
 
     x1_2d, x2_2d = False, False
+    x1_shape, x2_shape = list(x1.shape), list(x2.shape)
 
     if not axis == -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
         axis = stride_tricks.sanitize_axis(x1.shape, axis)
 
-        # # check for broadcastable shapes here. All dimensions except axis must be broadcastable
-        # x1_shape = list(x1.shape)
-        # x2_shape = list(x2.shape)
-        # del x1_shape[axis], x2_shape[axis]
-        # output_shape = stride_tricks.broadcast_shape(x1_shape,x2_shape)
-        # output_shape = output_shape[:axis] + (3,) + output_shape[axis:]
+        # all dimensions except axis must be broadcastable
+        del x1_shape[axis], x2_shape[axis]
+        output_shape = stride_tricks.broadcast_shape(x1_shape, x2_shape)
 
         # 2d -> 3d vector
         if x1.shape[axis] == 2:
@@ -110,6 +108,10 @@ def cross(
             )
     else:
         axisa = stride_tricks.sanitize_axis(x1.shape, axisa)
+        # all dimensions except axisa, axisb must be broadcastable
+        del x1_shape[axisa], x2_shape[axisb]
+        output_shape = stride_tricks.broadcast_shape(x1_shape, x2_shape)
+
         # 2d -> 3d vector
         if x1.shape[axisa] == 2:
             x1_2d = True
@@ -145,10 +147,6 @@ def cross(
         axis = axisc
 
     # by now gshapes and splits should be the same
-    if x1.gshape != x2.gshape:
-        raise ValueError(
-            "'x1' and 'x2' must have the same shape, {} != {}".format(x1.gshape, x2.gshape)
-        )
     if x1.split != x2.split:
         raise ValueError(
             "'x1' and 'x2' must have the same split, {} != {}".format(x1.split, x2.split)
@@ -177,9 +175,10 @@ def cross(
         z_slice = [slice(None, None, None)] * ret.ndim
         z_slice[axisc] = -1
         ret = ret[z_slice]
+    else:
+        output_shape = output_shape[:axis] + (3,) + output_shape[axis:]
 
-    # ret = DNDarray(ret, x1.gshape, types.heat_type_of(ret), x1.split, x1.device, x1.comm, True)
-    ret = factories.array(ret, dtype=types.heat_type_of(ret), is_split=x1.split, device=x1.device)
+    ret = DNDarray(ret, output_shape, types.heat_type_of(ret), x1.split, x1.device, x1.comm, True)
     return ret
 
 
