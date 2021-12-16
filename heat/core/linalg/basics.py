@@ -82,11 +82,22 @@ def cross(
     sanitation.sanitize_in(x1)
     sanitation.sanitize_in(x2)
 
+    if x1.device != x2.device:
+        raise ValueError(
+            "'x1' and 'x2' must have the same device type, {} != {}".format(x1.device, x2.device)
+        )
+    if x1.comm != x2.comm:  # pragma: no cover
+        raise ValueError("'x1' and 'x2' must have the same comm, {} != {}".format(x1.comm, x2.comm))
+
     x1_2d, x2_2d = False, False
     x1_shape, x2_shape = list(x1.shape), list(x2.shape)
 
     if not axis == -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
         axis = stride_tricks.sanitize_axis(x1.shape, axis)
+        if x1.split == axis or x2.split == axis:
+            raise ValueError(
+                "The computation of the cross product with vectors along the split axis is not supported."
+            )
 
         # all dimensions except axis must be broadcastable
         del x1_shape[axis], x2_shape[axis]
@@ -108,6 +119,13 @@ def cross(
             )
     else:
         axisa = stride_tricks.sanitize_axis(x1.shape, axisa)
+        axisb = stride_tricks.sanitize_axis(x2.shape, axisb)
+
+        if x1.split == axisa or x2.split == axisb:
+            raise ValueError(
+                "The computation of the cross product with vectors along the split axis is not supported."
+            )
+
         # all dimensions except axisa, axisb must be broadcastable
         del x1_shape[axisa], x2_shape[axisb]
         output_shape = stride_tricks.broadcast_shape(x1_shape, x2_shape)
@@ -120,9 +138,6 @@ def cross(
             x1 = manipulations.concatenate(
                 [x1, factories.zeros(shape, dtype=x1.dtype, device=x1.device)], axis=axisa
             )
-
-        axisb = stride_tricks.sanitize_axis(x2.shape, axisb)
-        # 2d -> 3d vector
         if x2.shape[axisb] == 2:
             x2_2d = True
             shape = tuple(1 if i == axisb else j for i, j in enumerate(x2.shape))
@@ -146,21 +161,10 @@ def cross(
 
         axis = axisc
 
-    # by now gshapes and splits should be the same
+    # by now split axes must be aligned
     if x1.split != x2.split:
         raise ValueError(
             "'x1' and 'x2' must have the same split, {} != {}".format(x1.split, x2.split)
-        )
-    if x1.device != x2.device:
-        raise ValueError(
-            "'x1' and 'x2' must have the same device type, {} != {}".format(x1.device, x2.device)
-        )
-    if x1.comm != x2.comm:  # pragma: no cover
-        raise ValueError("'x1' and 'x2' must have the same comm, {} != {}".format(x1.comm, x2.comm))
-
-    if x1.split == axis:
-        raise ValueError(
-            "The computation of the cross product with vectors along the split axis is not supported."
         )
 
     if not (x1.is_balanced and x2.is_balanced):
