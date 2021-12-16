@@ -63,7 +63,6 @@ def cross(
     axis : int
         Axis that defines the vectors for which to compute the cross product. Overrides `axisa`, `axisb` and `axisc`. Default: -1
 
-
     Raises
     ------
     ValueError
@@ -83,20 +82,28 @@ def cross(
     sanitation.sanitize_in(x1)
     sanitation.sanitize_in(x2)
 
+    x1_2d, x2_2d = False, False
+
     if not axis == -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
         axis = stride_tricks.sanitize_axis(x1.shape, axis)
-        # TODO check for broadcastable shapes here? all dimensions except axis must be broadcastable
-        # out_gshape = stride_tricks.broadcast_shape(
-        #    list(x1.shape).remove(axis), list(x2.shape).remove(axis)
-        # )  # this is wrong
+
+        # # check for broadcastable shapes here. All dimensions except axis must be broadcastable
+        # x1_shape = list(x1.shape)
+        # x2_shape = list(x2.shape)
+        # del x1_shape[axis], x2_shape[axis]
+        # output_shape = stride_tricks.broadcast_shape(x1_shape,x2_shape)
+        # output_shape = output_shape[:axis] + (3,) + output_shape[axis:]
+
         # 2d -> 3d vector
         if x1.shape[axis] == 2:
+            x1_2d = True
             shape = tuple(1 if i == axis else j for i, j in enumerate(x1.shape))
             x1 = manipulations.concatenate(
                 [x1, factories.zeros(shape, dtype=x1.dtype, device=x1.device)], axis=axis
             )
 
         if x2.shape[axis] == 2:
+            x2_2d = True
             shape = tuple(1 if i == axis else j for i, j in enumerate(x2.shape))
             x2 = manipulations.concatenate(
                 [x2, factories.zeros(shape, dtype=x2.dtype, device=x2.device)], axis=axis
@@ -105,6 +112,7 @@ def cross(
         axisa = stride_tricks.sanitize_axis(x1.shape, axisa)
         # 2d -> 3d vector
         if x1.shape[axisa] == 2:
+            x1_2d = True
             shape = tuple(1 if i == axisa else j for i, j in enumerate(x1.shape))
             # TODO test: writing into a larger zeros array might be more efficient than concatenating
             x1 = manipulations.concatenate(
@@ -114,6 +122,7 @@ def cross(
         axisb = stride_tricks.sanitize_axis(x2.shape, axisb)
         # 2d -> 3d vector
         if x2.shape[axisb] == 2:
+            x2_2d = True
             shape = tuple(1 if i == axisb else j for i, j in enumerate(x2.shape))
             x2 = manipulations.concatenate(
                 [x2, factories.zeros(shape, dtype=x2.dtype, device=x2.device)], axis=axisb
@@ -162,8 +171,15 @@ def cross(
     promoted = torch.promote_types(x1.larray.dtype, x2.larray.dtype)
 
     ret = torch.cross(x1.larray.type(promoted), x2.larray.type(promoted), dim=axis)
-    ret = DNDarray(ret, x1.gshape, types.heat_type_of(ret), x1.split, x1.device, x1.comm, True)
 
+    # if both vector axes have dimension 2, return the z-component of the cross product
+    if x1_2d and x2_2d:
+        z_slice = [slice(None, None, None)] * ret.ndim
+        z_slice[axisc] = -1
+        ret = ret[z_slice]
+
+    # ret = DNDarray(ret, x1.gshape, types.heat_type_of(ret), x1.split, x1.device, x1.comm, True)
+    ret = factories.array(ret, dtype=types.heat_type_of(ret), is_split=x1.split, device=x1.device)
     return ret
 
 
