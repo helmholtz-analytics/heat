@@ -134,7 +134,6 @@ def cross(
         if x1.shape[axisa] == 2:
             x1_2d = True
             shape = tuple(1 if i == axisa else j for i, j in enumerate(x1.shape))
-            # TODO test: writing into a larger zeros array might be more efficient than concatenating
             x1 = manipulations.concatenate(
                 [x1, factories.zeros(shape, dtype=x1.dtype, device=x1.device)], axis=axisa
             )
