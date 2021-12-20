@@ -17,6 +17,7 @@ from . import types
 
 
 __all__ = [
+    "sanitize_distribution",
     "sanitize_in",
     "sanitize_infinity",
     "sanitize_in_tensor",
@@ -27,7 +28,7 @@ __all__ = [
 ]
 
 
-def sanitize_distribution(*args: DNDarray, target: DNDarray):
+def sanitize_distribution(*args: DNDarray, target: DNDarray) -> Union[DNDarray, Tuple(DNDarray)]:
     """
     Make every arg have the same distribution (along split-axis) as the target,
     such that after this sanitation, the lshapes are compatible wrt split-dimension.

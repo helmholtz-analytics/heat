@@ -176,10 +176,10 @@ def __binary_op(
             output_balanced = t2.balance
     else:
         # both are not split
-        output_split = None
+        output_split = t1.split
         output_device = t1.device
         output_comm = t1.comm
-        output_balanced = True
+        output_balanced = t1.balance
 
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, output_device, output_comm)
@@ -189,6 +189,8 @@ def __binary_op(
         )
         return out
     result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
+    if not isinstance(result, torch.Tensor):
+        result = torch.tensor(result, device=output_device.torch_device)
 
     return DNDarray(
         result,
