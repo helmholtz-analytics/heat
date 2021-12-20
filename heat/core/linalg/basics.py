@@ -146,17 +146,8 @@ def cross(
 
         axisc = stride_tricks.sanitize_axis(x1.shape, axisc)
 
-        if axisc != axisa:
-            x1_permute_axes = list(range(len(x1.shape)))
-            x1_permute_axes.remove(axisa)
-            x1_permute_axes = x1_permute_axes[:axisc] + [axisa] + x1_permute_axes[axisc:]
-            x1 = x1.transpose(x1_permute_axes)
-
-        if axisc != axisb:
-            x2_permute_axes = list(range(len(x2.shape)))
-            x2_permute_axes.remove(axisb)
-            x2_permute_axes = x2_permute_axes[:axisc] + [axisb] + x2_permute_axes[axisc:]
-            x2 = x2.transpose(x2_permute_axes)
+        x1 = manipulations.swapaxes(x1, axisa, axisc)
+        x2 = manipulations.swapaxes(x2, axisb, axisc)
 
         axis = axisc
 
