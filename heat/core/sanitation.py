@@ -28,7 +28,9 @@ __all__ = [
 ]
 
 
-def sanitize_distribution(*args: DNDarray, target: DNDarray) -> Union[DNDarray, Tuple(DNDarray)]:
+def sanitize_distribution(
+    *args: DNDarray, target: DNDarray, diff_map: torch.Tensor = None
+) -> Union[DNDarray, Tuple(DNDarray)]:
     """
     Make every arg have the same distribution (along split-axis) as the target,
     such that after this sanitation, the lshapes are compatible wrt split-dimension.
@@ -42,6 +44,13 @@ def sanitize_distribution(*args: DNDarray, target: DNDarray) -> Union[DNDarray, 
     target : DNDarray
         Dndarrays determining the distribution
 
+    diff_map : torch.Tensor (optional)
+        Different lshape_map. Overwrites the distribution of the target array.
+        Used in cases when the target array does not correspond to the actually wanted distribution,
+        e.g. because it only contains a single element along the split axis and gets broadcast.
+
+    diff_shape (optional) : torch.Tensor
+
     Raises
     ------
     TypeError
@@ -51,13 +60,16 @@ def sanitize_distribution(*args: DNDarray, target: DNDarray) -> Union[DNDarray, 
     """
     out = []
     sanitize_in(target)
-    target_map = target.lshape_map
-    target_shape = target.shape
     target_split = target.split
+    if diff_map is not None:
+        sanitize_in_tensor(diff_map)
+        target_map = diff_map
+        target_size = target_map[:, target_split].sum().item()
+    else:
+        target_map = target.lshape_map
+        target_size = target.shape[target_split]
+
     for arg in args:
-        # is arg is None:
-        #    out.append(arg)
-        #    continue
         sanitize_in(arg)
         if not target.comm == arg.comm:
             try:
@@ -77,14 +89,12 @@ def sanitize_distribution(*args: DNDarray, target: DNDarray) -> Union[DNDarray, 
                 )
             else:
                 out.append(arg)
-        elif (
-            arg.shape[target_split] == 1 and target_shape[target_split] > 1
-        ):  # broadcasting in split-dimension
+        elif arg.shape[target_split] == 1 and target_size > 1:  # broadcasting in split-dimension
             out.append(arg.resplit(None))
-        elif arg.shape[target_split] != target_shape[target_split]:
+        elif arg.shape[target_split] != target_size:
             raise ValueError(
                 "Cannot distribute to match in split dimension, shapes are {} and {}".format(
-                    target_shape, arg.shape
+                    target.shape, arg.shape
                 )
             )
         elif arg.split is None:  # undistributed case

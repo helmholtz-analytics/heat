@@ -109,77 +109,106 @@ def __binary_op(
     # t2 = t2[tuple([None] * (len(output_shape) - t2.ndim))]
 
     # determine output params, transform to output shape
-    if t1.split is not None and t1.shape[t1.split] == output_shape[t1.split]:
-        # t1 is "dominant"
-        output_split = t1.split
-        output_device = t1.device
-        output_comm = t1.comm
-        if out is None:
-            t2 = sanitation.sanitize_distribution(t2, target=t1)
-            output_balanced = t1.balance
-    elif t2.split is not None and t2.shape[t2.split] == output_shape[t2.split]:
-        # t2 is "dominant"
-        output_split = t2.split
-        output_device = t2.device
-        output_comm = t2.comm
-        if out is None:
-            t1 = sanitation.sanitize_distribution(t1, target=t2)
-            output_balanced = t2.balance
-    elif t1.split is not None and t2.split is not None:
-        if t1.split != t2.split:
-            raise NotImplementedError(
-                "DNDarrays must have the same split axes, found {} and {}".format(
-                    t1.split, t2.split
-                )
-            )
+    # if t1.split is not None and t1.shape[t1.split] == output_shape[t1.split]:
+    #     # t1 is "dominant"
+    #     output_split = t1.split
+    #     output_device = t1.device
+    #     output_comm = t1.comm
+    #     if out is None:
+    #         t2 = sanitation.sanitize_distribution(t2, target=t1)
+    #         output_balanced = t1.balance
+    # elif t2.split is not None and t2.shape[t2.split] == output_shape[t2.split]:
+    #     # t2 is "dominant"
+    #     output_split = t2.split
+    #     output_device = t2.device
+    #     output_comm = t2.comm
+    #     if out is None:
+    #         t1 = sanitation.sanitize_distribution(t1, target=t2)
+    #         output_balanced = t2.balance
+    # elif t1.split != t2.split:
+    #     raise NotImplementedError(
+    #         "DNDarrays must have the same split axes, found {} and {}".format(
+    #             t1.split, t2.split
+    #         )
+    #     )
+    # elif t1.split is not None:
+    #     # t1 is split but broadcast -> size==1, only on one rank; t2 is not split
+    #     output_split = t1.split
+    #     output_device = t1.device
+    #     output_comm = t1.comm
+    #     if out is None:
+    #         if t1.lshape[t1.split] == t1.gshape[t1.split]:  # active rank
+    #             t2 = factories.array(
+    #                 t2.larray, is_split=t1.split, copy=False, comm=t1.comm, device=t2.device
+    #             )
+    #         else:  # inactive rank
+    #             idx = [slice(None)] * t1.ndim
+    #             idx[t1.split] = slice(0, 0)
+    #             t2 = factories.array(
+    #                 t2.larray[tuple(idx)],
+    #                 is_split=t1.split,
+    #                 copy=False,
+    #                 comm=t1.comm,
+    #                 device=t2.device,
+    #             )
+    #         output_balanced = t1.balance
+    # elif t2.split is not None:
+    #     # t2 is split but broadcast -> size==1, only on one rank; t1 is not split
+    #     output_split = t2.split
+    #     output_device = t2.device
+    #     output_comm = t2.comm
+    #     if out is None:
+    #         if t2.lshape[t2.split] == t2.gshape[t2.split]:  # active rank
+    #             t1 = factories.array(
+    #                 t1.larray, is_split=t2.split, copy=False, comm=t2.comm, device=t1.device
+    #             )
+    #         else:  # inactive rank
+    #             idx = [slice(None)] * t1.ndim
+    #             idx[t1.split] = slice(0, 0)
+    #             t1 = factories.array(
+    #                 t1.larray[tuple(idx)],
+    #                 is_split=t2.split,
+    #                 copy=False,
+    #                 comm=t2.comm,
+    #                 device=t1.device,
+    #             )
+    #         output_balanced = t2.balance
+    # else:
+    #     # both are not split
+    #     output_split = t1.split
+    #     output_device = t1.device
+    #     output_comm = t1.comm
+    #     output_balanced = t1.balance
+
+    def _get_out_params(target, other=None, map=None):
+        if other is not None:
+            if out is None:
+                other = sanitation.sanitize_distribution(other, target=target, diff_map=map)
+            return target.split, target.device, target.comm, target.balance, other
+        return target.split, target.device, target.comm, target.balance
+
+    if t1.split is not None and t1.shape[t1.split] == output_shape[t1.split]:  # t1 is "dominant"
+        output_split, output_device, output_comm, output_balanced, t2 = _get_out_params(t1, t2)
+    elif t2.split is not None and t2.shape[t2.split] == output_shape[t2.split]:  # t2 is "dominant"
+        output_split, output_device, output_comm, output_balanced, t1 = _get_out_params(t2, t1)
     elif t1.split is not None:
         # t1 is split but broadcast -> size==1, only on one rank; t2 is not split
-        output_split = t1.split
-        output_device = t1.device
-        output_comm = t1.comm
-        if out is None:
-            if t1.lshape[t1.split] == t1.gshape[t1.split]:  # active rank
-                t2 = factories.array(
-                    t2.larray, is_split=t1.split, copy=False, comm=t1.comm, device=t2.device
-                )
-            else:  # inactive rank
-                idx = [slice(None)] * t1.ndim
-                idx[t1.split] = slice(0, 0)
-                t2 = factories.array(
-                    t2.larray[tuple(idx)],
-                    is_split=t1.split,
-                    copy=False,
-                    comm=t1.comm,
-                    device=t2.device,
-                )
-            output_balanced = t1.balance
+        lmap = t1.lshape_map
+        idx = lmap[:, t1.split].nonzero(as_tuple=True)[0]
+        lmap[idx.item(), t1.split] = output_shape[t1.split]
+        output_split, output_device, output_comm, output_balanced, t2 = _get_out_params(
+            t1, t2, map=lmap
+        )
     elif t2.split is not None:
         # t2 is split but broadcast -> size==1, only on one rank; t1 is not split
-        output_split = t2.split
-        output_device = t2.device
-        output_comm = t2.comm
-        if out is None:
-            if t2.lshape[t2.split] == t2.gshape[t2.split]:  # active rank
-                t1 = factories.array(
-                    t1.larray, is_split=t2.split, copy=False, comm=t2.comm, device=t1.device
-                )
-            else:  # inactive rank
-                idx = [slice(None)] * t1.ndim
-                idx[t1.split] = slice(0, 0)
-                t1 = factories.array(
-                    t1.larray[tuple(idx)],
-                    is_split=t2.split,
-                    copy=False,
-                    comm=t2.comm,
-                    device=t1.device,
-                )
-            output_balanced = t2.balance
-    else:
-        # both are not split
-        output_split = t1.split
-        output_device = t1.device
-        output_comm = t1.comm
-        output_balanced = t1.balance
+        lmap = t2.lshape_map
+        idx = lmap[:, t2.split].nonzero(as_tuple=True)[0]
+        lmap[idx.item(), t2.split] = output_shape[t2.split]
+        output_split, output_device, output_comm, output_balanced, t1 = _get_out_params(
+            t2, t1, map=lmap
+        )
+    else:  # both are not split
+        output_split, output_device, output_comm, output_balanced = _get_out_params(t1)
 
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, output_device, output_comm)
@@ -188,8 +217,10 @@ def __binary_op(
             t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
         )
         return out
+
     result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
     if not isinstance(result, torch.Tensor):
+        # TODO this is needed because torch.equal wrongly uses binop but is a reduceop
         result = torch.tensor(result, device=output_device.torch_device)
 
     return DNDarray(
