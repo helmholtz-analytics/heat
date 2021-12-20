@@ -126,14 +126,17 @@ def __binary_op(
     #         raise NotImplementedError("Not implemented for other comms")
 
     # determine output params, transform to output shape
-    if t1.split is not None and t1.shape[t1.split] == output_shape[t1.split]:
+    if (t1.split is not None and t2.split is None) or (
+        t1.split is not None and t1.shape[t1.split] == output_shape[t1.split]
+    ):
+        # t1 is "dominant"
         output_split = t1.split
         output_device = t1.device
         output_comm = t1.comm
         if out is None:
             t2 = sanitation.sanitize_distribution(t2, target=t1)
             output_balanced = t1.balance
-    else:
+    else:  # t2 is "dominant"
         output_split = t2.split
         output_device = t2.device
         output_comm = t2.comm

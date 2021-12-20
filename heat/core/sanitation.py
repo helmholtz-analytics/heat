@@ -114,7 +114,9 @@ def sanitize_distribution(*args: DNDarray, target: DNDarray):
                     target_split, arg.split
                 )
             )
-        else:  # Split axes are the same
+        elif not (
+            target.is_balanced() and arg.is_balanced()
+        ):  # Split axes are the same and atleast one is not balanced
             current_map = arg.lshape_map
             out_map = current_map.clone()
             out_map[:, target_split] = target_map[:, target_split]
@@ -122,6 +124,8 @@ def sanitize_distribution(*args: DNDarray, target: DNDarray):
                 out.append(arg.redistribute(lshape_map=current_map, target_map=out_map))
             else:
                 out.append(arg)
+        else:  # both are balanced
+            out.append(arg)
     if len(out) == 1:
         return out[0]
     return tuple(out)

@@ -755,7 +755,7 @@ class DNDarray:
         self_proxy = self.__torch_proxy__()
         # None and newaxis indexing
         for i in range(len(key))[::-1]:
-            if self.___key_adds_dimension(key, i, self_proxy):
+            if self.__key_adds_dimension(key, i, self_proxy):
                 self = self.expand_dims(i)
                 key[i] = slice(None)
 
@@ -847,15 +847,12 @@ class DNDarray:
             # standard slicing along the split axis,
             # adjust the slice start, stop, and step, then run it on the processes which have the requested data
             key = list(key)
-            key_start = key[self.split].start if key[self.split].start is not None else 0
-            key_stop = (
-                key[self.split].stop
-                if key[self.split].stop is not None
-                else self.gshape[self.split]
+            key[self.split] = stride_tricks.sanitize_slice(key[self.split], self.gshape[self.split])
+            key_start, key_stop, key_step = (
+                key[self.split].start,
+                key[self.split].stop,
+                key[self.split].step,
             )
-            if key_stop < 0:
-                key_stop = self.gshape[self.split] + key[self.split].stop
-            key_step = key[self.split].step
             og_key_start = key_start
             st_pr = torch.where(key_start < chunk_ends)[0]
             st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
@@ -969,7 +966,7 @@ class DNDarray:
         return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
 
     @staticmethod
-    def ___key_adds_dimension(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+    def __key_adds_dimension(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
         # determine if the key adds a new dimension
         zeros = tuple([0] * (self_proxy.ndim - 1))
         return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 2
