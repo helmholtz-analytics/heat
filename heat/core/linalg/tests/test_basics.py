@@ -47,8 +47,8 @@ class TestLinalgBasics(TestCase):
 
         # test axisa, axisb, axisc
         np.random.seed(42)
-        np_a = np.random.randn(40, 3, 50)
-        np_b = np.random.randn(3, 40, 50)
+        np_a = np.random.randn(40, 3, 50).astype(np.float32)
+        np_b = np.random.randn(3, 40, 50).astype(np.float32)
         np_cross = np.cross(np_a, np_b, axisa=1, axisb=0)
 
         a = ht.array(np_a, split=0)
