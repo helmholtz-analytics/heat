@@ -63,6 +63,10 @@ def __binary_op(
     c = a[:-1] + b[1:]
     ```
     In such cases, one of the operands is redistributed OUT-OF-PLACE to match the distribution map of the other operand.
+    The operand determining the resulting distribution is chosen as follows:
+    1) split is preferred to no split
+    2) no (shape)-broadcasting in the split dimension if not necessary
+    3) t1 is preferred to t2
     """
     # Check inputs
     if not np.isscalar(t1) and not isinstance(t1, DNDarray):
@@ -192,7 +196,7 @@ def __binary_op(
     elif t2.split is not None and t2.shape[t2.split] == output_shape[t2.split]:  # t2 is "dominant"
         output_split, output_device, output_comm, output_balanced, t1 = _get_out_params(t2, t1)
     elif t1.split is not None:
-        # t1 is split but broadcast -> size==1, only on one rank; t2 is not split
+        # t1 is split but broadcast -> only on one rank; manipulate lshape_map s.t. this rank has 'full' data
         lmap = t1.lshape_map
         idx = lmap[:, t1.split].nonzero(as_tuple=True)[0]
         lmap[idx.item(), t1.split] = output_shape[t1.split]
@@ -200,7 +204,7 @@ def __binary_op(
             t1, t2, map=lmap
         )
     elif t2.split is not None:
-        # t2 is split but broadcast -> size==1, only on one rank; t1 is not split
+        # t2 is split but broadcast -> only on one rank; manipulate lshape_map s.t. this rank has 'full' data
         lmap = t2.lshape_map
         idx = lmap[:, t2.split].nonzero(as_tuple=True)[0]
         lmap[idx.item(), t2.split] = output_shape[t2.split]
