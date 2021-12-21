@@ -43,21 +43,21 @@ __all__ = [
 
 
 def cross(
-    x1: DNDarray, x2: DNDarray, axisa: int = -1, axisb: int = -1, axisc: int = -1, axis: int = -1
+    a: DNDarray, b: DNDarray, axisa: int = -1, axisb: int = -1, axisc: int = -1, axis: int = -1
 ) -> DNDarray:
     """
     Returns the cross product. 2D vectors will we converted to 3D.
 
     Parameters
     ----------
-    x1 : DNDarray
+    a : DNDarray
         First input array.
-    x2 : DNDarray
-        Second input array. Must have the same shape as 'x1'.
+    b : DNDarray
+        Second input array. Must have the same shape as 'a'.
     axisa: int
-        Axis of `x1` that defines the vector(s). By default, the last axis.
+        Axis of `a` that defines the vector(s). By default, the last axis.
     axisb: int
-        Axis of `x2` that defines the vector(s). By default, the last axis.
+        Axis of `b` that defines the vector(s). By default, the last axis.
     axisc: int
         Axis of the output containing the cross product vector(s). By default, the last axis.
     axis : int
@@ -79,103 +79,101 @@ def cross(
               [1., 0., 0.],
               [0., 1., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    sanitation.sanitize_in(x1)
-    sanitation.sanitize_in(x2)
+    sanitation.sanitize_in(a)
+    sanitation.sanitize_in(b)
 
-    if x1.device != x2.device:
+    if a.device != b.device:
         raise ValueError(
-            "'x1' and 'x2' must have the same device type, {} != {}".format(x1.device, x2.device)
+            "'a' and 'b' must have the same device type, {} != {}".format(a.device, b.device)
         )
-    if x1.comm != x2.comm:  # pragma: no cover
-        raise ValueError("'x1' and 'x2' must have the same comm, {} != {}".format(x1.comm, x2.comm))
+    if a.comm != b.comm:  # pragma: no cover
+        raise ValueError("'a' and 'b' must have the same comm, {} != {}".format(a.comm, b.comm))
 
-    x1_2d, x2_2d = False, False
-    x1_shape, x2_shape = list(x1.shape), list(x2.shape)
+    a_2d, b_2d = False, False
+    a_shape, b_shape = list(a.shape), list(b.shape)
 
     if not axis == -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
-        axis = stride_tricks.sanitize_axis(x1.shape, axis)
-        if x1.split == axis or x2.split == axis:
+        axis = stride_tricks.sanitize_axis(a.shape, axis)
+        if a.split == axis or b.split == axis:
             raise ValueError(
                 "The computation of the cross product with vectors along the split axis is not supported."
             )
 
         # all dimensions except axis must be broadcastable
-        del x1_shape[axis], x2_shape[axis]
-        output_shape = stride_tricks.broadcast_shape(x1_shape, x2_shape)
+        del a_shape[axis], b_shape[axis]
+        output_shape = stride_tricks.broadcast_shape(a_shape, b_shape)
 
         # 2d -> 3d vector
-        if x1.shape[axis] == 2:
-            x1_2d = True
-            shape = tuple(1 if i == axis else j for i, j in enumerate(x1.shape))
-            x1 = manipulations.concatenate(
-                [x1, factories.zeros(shape, dtype=x1.dtype, device=x1.device)], axis=axis
+        if a.shape[axis] == 2:
+            a_2d = True
+            shape = tuple(1 if i == axis else j for i, j in enumerate(a.shape))
+            a = manipulations.concatenate(
+                [a, factories.zeros(shape, dtype=a.dtype, device=a.device)], axis=axis
             )
 
-        if x2.shape[axis] == 2:
-            x2_2d = True
-            shape = tuple(1 if i == axis else j for i, j in enumerate(x2.shape))
-            x2 = manipulations.concatenate(
-                [x2, factories.zeros(shape, dtype=x2.dtype, device=x2.device)], axis=axis
+        if b.shape[axis] == 2:
+            b_2d = True
+            shape = tuple(1 if i == axis else j for i, j in enumerate(b.shape))
+            b = manipulations.concatenate(
+                [b, factories.zeros(shape, dtype=b.dtype, device=b.device)], axis=axis
             )
     else:
-        axisa = stride_tricks.sanitize_axis(x1.shape, axisa)
-        axisb = stride_tricks.sanitize_axis(x2.shape, axisb)
+        axisa = stride_tricks.sanitize_axis(a.shape, axisa)
+        axisb = stride_tricks.sanitize_axis(b.shape, axisb)
 
-        if x1.split == axisa or x2.split == axisb:
+        if a.split == axisa or b.split == axisb:
             raise ValueError(
                 "The computation of the cross product with vectors along the split axis is not supported."
             )
 
         # all dimensions except axisa, axisb must be broadcastable
-        del x1_shape[axisa], x2_shape[axisb]
-        output_shape = stride_tricks.broadcast_shape(x1_shape, x2_shape)
+        del a_shape[axisa], b_shape[axisb]
+        output_shape = stride_tricks.broadcast_shape(a_shape, b_shape)
 
         # 2d -> 3d vector
-        if x1.shape[axisa] == 2:
-            x1_2d = True
-            shape = tuple(1 if i == axisa else j for i, j in enumerate(x1.shape))
-            x1 = manipulations.concatenate(
-                [x1, factories.zeros(shape, dtype=x1.dtype, device=x1.device)], axis=axisa
+        if a.shape[axisa] == 2:
+            a_2d = True
+            shape = tuple(1 if i == axisa else j for i, j in enumerate(a.shape))
+            a = manipulations.concatenate(
+                [a, factories.zeros(shape, dtype=a.dtype, device=a.device)], axis=axisa
             )
-        if x2.shape[axisb] == 2:
-            x2_2d = True
-            shape = tuple(1 if i == axisb else j for i, j in enumerate(x2.shape))
-            x2 = manipulations.concatenate(
-                [x2, factories.zeros(shape, dtype=x2.dtype, device=x2.device)], axis=axisb
+        if b.shape[axisb] == 2:
+            b_2d = True
+            shape = tuple(1 if i == axisb else j for i, j in enumerate(b.shape))
+            b = manipulations.concatenate(
+                [b, factories.zeros(shape, dtype=b.dtype, device=b.device)], axis=axisb
             )
 
-        axisc = stride_tricks.sanitize_axis(x1.shape, axisc)
+        axisc = stride_tricks.sanitize_axis(a.shape, axisc)
 
         if axisc != axisa:
-            x1 = manipulations.moveaxis(x1, axisa, axisc)
+            a = manipulations.moveaxis(a, axisa, axisc)
 
         if axisc != axisb:
-            x2 = manipulations.moveaxis(x2, axisb, axisc)
+            b = manipulations.moveaxis(b, axisb, axisc)
 
         axis = axisc
 
     # by now split axes must be aligned
-    if x1.split != x2.split:
-        raise ValueError(
-            "'x1' and 'x2' must have the same split, {} != {}".format(x1.split, x2.split)
-        )
+    if a.split != b.split:
+        raise ValueError("'a' and 'b' must have the same split, {} != {}".format(a.split, b.split))
 
-    if not (x1.is_balanced and x2.is_balanced):
-        x2 = manipulations.redistribute(x2, x2.lshape_map, x1.lshape_map)
+    if not (a.is_balanced and b.is_balanced):
+        b = manipulations.redistribute(b, b.lshape_map, a.lshape_map)
 
-    promoted = torch.promote_types(x1.larray.dtype, x2.larray.dtype)
+    promoted = torch.promote_types(a.larray.dtype, b.larray.dtype)
 
-    ret = torch.cross(x1.larray.type(promoted), x2.larray.type(promoted), dim=axis)
+    ret = torch.cross(a.larray.type(promoted), b.larray.type(promoted), dim=axis)
 
     # if both vector axes have dimension 2, return the z-component of the cross product
-    if x1_2d and x2_2d:
+    if a_2d and b_2d:
         z_slice = [slice(None, None, None)] * ret.ndim
         z_slice[axisc] = -1
         ret = ret[z_slice]
     else:
         output_shape = output_shape[:axis] + (3,) + output_shape[axis:]
 
-    ret = DNDarray(ret, output_shape, types.heat_type_of(ret), x1.split, x1.device, x1.comm, True)
+    ret = DNDarray(ret, output_shape, types.heat_type_of(ret), a.split, a.device, a.comm, True)
     return ret
 
 
