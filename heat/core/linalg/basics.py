@@ -146,8 +146,11 @@ def cross(
 
         axisc = stride_tricks.sanitize_axis(x1.shape, axisc)
 
-        x1 = manipulations.swapaxes(x1, axisa, axisc)
-        x2 = manipulations.swapaxes(x2, axisb, axisc)
+        if axisc != axisa:
+            x1 = manipulations.moveaxis(x1, axisa, axisc)
+
+        if axisc != axisb:
+            x2 = manipulations.moveaxis(x2, axisb, axisc)
 
         axis = axisc
 
