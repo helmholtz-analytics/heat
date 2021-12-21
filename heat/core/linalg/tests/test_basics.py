@@ -47,18 +47,18 @@ class TestLinalgBasics(TestCase):
 
         # test axisa, axisb, axisc
         np.random.seed(42)
-        np_a = np.random.randn(40, 3, 50).astype(np.float32)
-        np_b = np.random.randn(3, 40, 50).astype(np.float32)
+        np_a = np.random.randn(40, 3, 50)
+        np_b = np.random.randn(3, 40, 50)
         np_cross = np.cross(np_a, np_b, axisa=1, axisb=0)
 
         a = ht.array(np_a, split=0)
         b = ht.array(np_b, split=1)
         cross = ht.cross(a, b, axisa=1, axisb=0)
-        self.assertTrue((cross.numpy() == np_cross).all())
+        self.assert_array_equal(cross, np_cross)
 
         cross_axisc = ht.cross(a, b, axisa=1, axisb=0, axisc=1)
         np_cross_axisc = np.cross(np_a, np_b, axisa=1, axisb=0, axisc=1)
-        self.assertTrue((cross_axisc.numpy() == np_cross_axisc).all())
+        self.assert_array_equal(cross_axisc, np_cross_axisc)
 
         with self.assertRaises(ValueError):
             ht.cross(ht.eye(3), ht.eye(4))
