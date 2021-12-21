@@ -94,65 +94,42 @@ def cross(
 
     if not axis == -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
         axis = stride_tricks.sanitize_axis(a.shape, axis)
-        if a.split == axis or b.split == axis:
-            raise ValueError(
-                "The computation of the cross product with vectors along the split axis is not supported."
-            )
-
-        # all dimensions except axis must be broadcastable
-        del a_shape[axis], b_shape[axis]
-        output_shape = stride_tricks.broadcast_shape(a_shape, b_shape)
-
-        # 2d -> 3d vector
-        if a.shape[axis] == 2:
-            a_2d = True
-            shape = tuple(1 if i == axis else j for i, j in enumerate(a.shape))
-            a = manipulations.concatenate(
-                [a, factories.zeros(shape, dtype=a.dtype, device=a.device)], axis=axis
-            )
-
-        if b.shape[axis] == 2:
-            b_2d = True
-            shape = tuple(1 if i == axis else j for i, j in enumerate(b.shape))
-            b = manipulations.concatenate(
-                [b, factories.zeros(shape, dtype=b.dtype, device=b.device)], axis=axis
-            )
+        axisa, axisb, axisc = (axis,) * 3
     else:
         axisa = stride_tricks.sanitize_axis(a.shape, axisa)
         axisb = stride_tricks.sanitize_axis(b.shape, axisb)
-
-        if a.split == axisa or b.split == axisb:
-            raise ValueError(
-                "The computation of the cross product with vectors along the split axis is not supported."
-            )
-
-        # all dimensions except axisa, axisb must be broadcastable
-        del a_shape[axisa], b_shape[axisb]
-        output_shape = stride_tricks.broadcast_shape(a_shape, b_shape)
-
-        # 2d -> 3d vector
-        if a.shape[axisa] == 2:
-            a_2d = True
-            shape = tuple(1 if i == axisa else j for i, j in enumerate(a.shape))
-            a = manipulations.concatenate(
-                [a, factories.zeros(shape, dtype=a.dtype, device=a.device)], axis=axisa
-            )
-        if b.shape[axisb] == 2:
-            b_2d = True
-            shape = tuple(1 if i == axisb else j for i, j in enumerate(b.shape))
-            b = manipulations.concatenate(
-                [b, factories.zeros(shape, dtype=b.dtype, device=b.device)], axis=axisb
-            )
-
         axisc = stride_tricks.sanitize_axis(a.shape, axisc)
 
-        if axisc != axisa:
-            a = manipulations.moveaxis(a, axisa, axisc)
+    if a.split == axisa or b.split == axisb:
+        raise ValueError(
+            "The computation of the cross product with vectors along the split axis is not supported."
+        )
 
-        if axisc != axisb:
-            b = manipulations.moveaxis(b, axisb, axisc)
+    # all dimensions except axisa, axisb must be broadcastable
+    del a_shape[axisa], b_shape[axisb]
+    output_shape = stride_tricks.broadcast_shape(a_shape, b_shape)
 
-        axis = axisc
+    # 2d -> 3d vector
+    if a.shape[axisa] == 2:
+        a_2d = True
+        shape = tuple(1 if i == axisa else j for i, j in enumerate(a.shape))
+        a = manipulations.concatenate(
+            [a, factories.zeros(shape, dtype=a.dtype, device=a.device)], axis=axisa
+        )
+    if b.shape[axisb] == 2:
+        b_2d = True
+        shape = tuple(1 if i == axisb else j for i, j in enumerate(b.shape))
+        b = manipulations.concatenate(
+            [b, factories.zeros(shape, dtype=b.dtype, device=b.device)], axis=axisb
+        )
+
+    if axisc != axisa:
+        a = manipulations.moveaxis(a, axisa, axisc)
+
+    if axisc != axisb:
+        b = manipulations.moveaxis(b, axisb, axisc)
+
+    axis = axisc
 
     # by now split axes must be aligned
     if a.split != b.split:
