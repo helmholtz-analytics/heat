@@ -75,6 +75,9 @@ class TestLinalgBasics(TestCase):
         np_cross_z_comp = np.cross(np_a[:, :-1, :], np_b[:-1, :, :], axisa=1, axisb=0)
         self.assert_array_equal(cross_z_comp, np_cross_z_comp)
 
+        a_wrong_split = ht.array(np_a[:, :-1, :], split=2)
+        with self.assertRaises(ValueError):
+            ht.cross(a_wrong_split, b, axisa=1, axisb=0)
         with self.assertRaises(ValueError):
             ht.cross(ht.eye(3), ht.eye(4))
         with self.assertRaises(ValueError):

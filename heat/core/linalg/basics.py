@@ -159,6 +159,7 @@ def cross(
         raise ValueError("'a' and 'b' must have the same split, {} != {}".format(a.split, b.split))
 
     if not (a.is_balanced and b.is_balanced):
+        # TODO: replace with sanitize_redistribute after #888 is merged
         b = manipulations.redistribute(b, b.lshape_map, a.lshape_map)
 
     promoted = torch.promote_types(a.larray.dtype, b.larray.dtype)
