@@ -89,6 +89,8 @@ def global_printing() -> None:
                  [70., 71., 72., 73., 74.]], dtype=ht.float32, device=cpu:0, split=0)
     """
     global LOCAL_PRINT
+    if not LOCAL_PRINT:
+        return
     LOCAL_PRINT = False
     print0(
         "Printing options set to GLOBAL. DNDarrays will be collected on process 0 before printing"
@@ -98,7 +100,8 @@ def global_printing() -> None:
 def print0(*args, **kwargs) -> None:
     """
     Wraps the builtin `print` function in such a way that it will only run the command on
-    rank 0. If this is called with DNDarrays and local printing, only the data local to process 0.
+    rank 0. If this is called with DNDarrays and local printing, only the data local to
+    process 0 is printed. For more information see the examples.
 
     This function is also available as a builtin when importing heat.
 
@@ -129,14 +132,20 @@ def print0(*args, **kwargs) -> None:
     [0/2]  [ 5.,  6.,  7.,  8.,  9.],
     [0/2]  [10., 11., 12., 13., 14.],
     [0/2]  [15., 16., 17., 18., 19.],
-    [0/2]  [20., 21., 22., 23., 24.]]
+    [0/2]  [20., 21., 22., 23., 24.]], device: cpu:0, split: 0
     """
     if not LOCAL_PRINT:
         args = list(args)
+        new_args = []
         for i in range(len(args)):
             if isinstance(args[i], DNDarray):
                 args[i] = __str__(args[i])
-        args = tuple(args)
+                new_args.append(
+                    f"{__str__(args[i])}, device: {args[i].device}, split: {args[i].split}"
+                )
+            else:
+                new_args.append(args[i])
+        args = tuple(new_args)
     if MPI_WORLD.rank == 0:
         print(*args, **kwargs)
 

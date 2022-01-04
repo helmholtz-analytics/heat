@@ -57,6 +57,8 @@ class TestCase(unittest.TestCase):
                 )
             )
 
+        ht.global_printing()
+
         cls.device, cls.other_device, cls.envar = ht_device, other_device, envar
 
     def get_rank(self):
