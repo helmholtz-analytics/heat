@@ -66,9 +66,10 @@ def det(a: DNDarray) -> DNDarray:
     # no split in the square matrices
     if not a.is_distributed() or a.split < a.ndim - 2:
         data = torch.linalg.det(a.larray)
+        shp = a.shape[:-2] if len(a.shape[:-2]) > 0 else (1,)
         return DNDarray(
             data,
-            a.shape[:-2],
+            shp,
             types.heat_type_of(data),
             split=a.split,
             device=a.device,
