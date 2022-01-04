@@ -317,7 +317,6 @@ def array(
             try:
                 obj = torch.tensor(
                     obj,
-                    dtype=dtype.torch_type() if dtype is not None else None,
                     device=device.torch_device
                     if device is not None
                     else devices.get_device().torch_device,
@@ -328,7 +327,6 @@ def array(
         if not isinstance(obj, DNDarray):
             obj = torch.as_tensor(
                 obj,
-                dtype=dtype.torch_type() if dtype is not None else None,
                 device=device.torch_device
                 if device is not None
                 else devices.get_device().torch_device,
@@ -348,8 +346,7 @@ def array(
 
     if str(obj.device) != device.torch_device:
         warnings.warn(
-            "Array 'obj' is not on device '{}'. It will be copied to it.".format(device),
-            UserWarning,
+            "Array 'obj' is not on device '{}'. It will be moved to it.".format(device), UserWarning
         )
         obj = obj.to(device.torch_device)
 

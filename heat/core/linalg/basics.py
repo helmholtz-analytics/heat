@@ -34,6 +34,7 @@ __all__ = [
     "transpose",
     "tril",
     "triu",
+    "vdot",
     "vecdot",
     "vector_norm",
 ]
@@ -1915,6 +1916,42 @@ def triu(m: DNDarray, k: int = 0) -> DNDarray:
 
 DNDarray.triu: Callable[[DNDarray, int], DNDarray] = lambda self, k=0: triu(self, k)
 DNDarray.triu.__doc__ = triu.__doc__
+
+
+def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
+    """
+    Computes the dot product of two vectors. Higher-dimensional arrays will be flattened.
+
+    Parameters
+    ----------
+    x1 : DNDarray
+        first input array. If it's complex, it's complex conjugate will be used.
+    x2 : DNDarray
+        second input array.
+
+    Raises
+    ------
+    ValueError
+        If the number of elements is inconsistent.
+
+    See Also
+    --------
+    dot
+        Return the dot product without using the complex conjugate.
+
+    Examples
+    --------
+    >>> a = ht.array([1+1j, 2+2j])
+    >>> b = ht.array([1+2j, 3+4j])
+    >>> ht.vdot(a,b)
+    DNDarray([(17+3j)], dtype=ht.complex64, device=cpu:0, split=None)
+    >>> ht.vdot(b,a)
+    DNDarray([(17-3j)], dtype=ht.complex64, device=cpu:0, split=None)
+    """
+    x1 = manipulations.flatten(x1)
+    x2 = manipulations.flatten(x2)
+
+    return arithmetics.sum(arithmetics.multiply(complex_math.conjugate(x1), x2))
 
 
 def vecdot(

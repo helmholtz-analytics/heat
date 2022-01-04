@@ -1343,6 +1343,80 @@ class TestDNDarray(TestCase):
         a[0] = ht.array([6, 6, 6, 6, 6])
         self.assertTrue((a[ht.array((0,))] == 6).all())
 
+        # ======================= indexing with bools =================================
+        split = None
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
+        # key -> tuple(ht.bool, int)
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key, 4] = 10.0
+        np_arr[np_key, 4] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key, 4] == 10.0))
+
+        # key -> tuple(torch.bool, int)
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        t_key = torch.tensor(np_key, device=arr.larray.device)
+        arr[t_key, 4] = 10.0
+        np_arr[np_key, 4] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[t_key, 4] == 10.0))
+
+        # key -> torch.bool
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        t_key = torch.tensor(np_key, device=arr.larray.device)
+        arr[t_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[t_key] == 10.0))
+
+        split = 1
+        arr = ht.random.random((20, 20, 10)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
+        split = 2
+        arr = ht.random.random((15, 20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
         with self.assertRaises(ValueError):
             a[..., ...]
         with self.assertRaises(ValueError):
