@@ -136,16 +136,10 @@ def print0(*args, **kwargs) -> None:
     """
     if not LOCAL_PRINT:
         args = list(args)
-        new_args = []
         for i in range(len(args)):
             if isinstance(args[i], DNDarray):
                 args[i] = __str__(args[i])
-                new_args.append(
-                    f"{__str__(args[i])}, device: {args[i].device}, split: {args[i].split}"
-                )
-            else:
-                new_args.append(args[i])
-        args = tuple(new_args)
+        args = tuple(args)
     if MPI_WORLD.rank == 0:
         print(*args, **kwargs)
 
@@ -197,7 +191,10 @@ def __str__(dndarray) -> str:
         The array for which to obtain the corresponding string
     """
     if LOCAL_PRINT:
-        return torch._tensor_str._tensor_str(dndarray.larray, 0)
+        return (
+            torch._tensor_str._tensor_str(dndarray.larray, 0)
+            + f", device: {dndarray.device}, split: {dndarray.split}"
+        )
     tensor_string = _tensor_str(dndarray, __INDENT + 1)
     if dndarray.comm.rank != 0:
         return ""

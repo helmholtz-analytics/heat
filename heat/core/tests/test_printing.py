@@ -8,6 +8,7 @@ class TestPrinting(TestCase):
     def setUp(self):
         # move to CPU only for the testing printing, otherwise the compare string will become messy
         ht.use_device("cpu")
+        ht.global_printing()
 
     def tearDown(self):
         # reset the print options back to default after each test run
