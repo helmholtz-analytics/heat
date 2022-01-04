@@ -64,7 +64,7 @@ def det(a: DNDarray) -> DNDarray:
     DNDarray(54., dtype=ht.float64, device=cpu:0, split=None)
     """
     # no split in the square matrices
-    if a.split is None or a.split < a.ndim - 2:
+    if not a.is_distributed() or a.split < a.ndim - 2:
         data = torch.linalg.det(a.larray)
         return DNDarray(
             data,
