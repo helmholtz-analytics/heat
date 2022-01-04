@@ -2,15 +2,17 @@ import sys
 import os
 import random
 
-# Fix python path if run from terminal
-curdir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(curdir, "../../")))
-
 import heat as ht
 from heat.classification.kneighborsclassifier import KNeighborsClassifier
 
+import pkg_resources
+
 # Load dataset from hdf5 file
-X = ht.load_hdf5("../../heat/datasets/iris.h5", dataset="data", split=0)
+iris_path = pkg_resources.resource_filename(
+    pkg_resources.Requirement.parse("heat"), "heat/datasets/iris.h5"
+)
+
+X = ht.load_hdf5(iris_path, dataset="data", split=0)
 
 # Generate keys for the iris.h5 dataset
 keys = []
