@@ -71,7 +71,7 @@ def det(a: DNDarray) -> DNDarray:
             data,
             shp,
             types.heat_type_of(data),
-            split=a.split,
+            split=None,
             device=a.device,
             comm=a.comm,
             balanced=a.balanced,
