@@ -21,9 +21,11 @@ from .. import manipulations
 from .. import rounding
 from .. import sanitation
 from .. import statistics
+from .. import stride_tricks
 from .. import types
 
 __all__ = [
+    "cross",
     "det",
     "dot",
     "matmul",
@@ -39,6 +41,119 @@ __all__ = [
     "vecdot",
     "vector_norm",
 ]
+
+
+def cross(
+    a: DNDarray, b: DNDarray, axisa: int = -1, axisb: int = -1, axisc: int = -1, axis: int = -1
+) -> DNDarray:
+    """
+    Returns the cross product. 2D vectors will we converted to 3D.
+
+    Parameters
+    ----------
+    a : DNDarray
+        First input array.
+    b : DNDarray
+        Second input array. Must have the same shape as 'a'.
+    axisa: int
+        Axis of `a` that defines the vector(s). By default, the last axis.
+    axisb: int
+        Axis of `b` that defines the vector(s). By default, the last axis.
+    axisc: int
+        Axis of the output containing the cross product vector(s). By default, the last axis.
+    axis : int
+        Axis that defines the vectors for which to compute the cross product. Overrides `axisa`, `axisb` and `axisc`. Default: -1
+
+    Raises
+    ------
+    ValueError
+        If the two input arrays don't match in shape, split, device, or comm. If the vectors are along the split axis.
+    TypeError
+        If 'axis' is not an integer.
+
+    Examples
+    --------
+    >>> a = ht.eye(3)
+    >>> b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
+    >>> cross = ht.cross(a, b)
+    DNDarray([[0., 0., 1.],
+              [1., 0., 0.],
+              [0., 1., 0.]], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(a)
+    sanitation.sanitize_in(b)
+
+    if a.device != b.device:
+        raise ValueError(
+            "'a' and 'b' must have the same device type, {} != {}".format(a.device, b.device)
+        )
+    if a.comm != b.comm:  # pragma: no cover
+        raise ValueError("'a' and 'b' must have the same comm, {} != {}".format(a.comm, b.comm))
+
+    a_2d, b_2d = False, False
+    a_shape, b_shape = list(a.shape), list(b.shape)
+
+    if not axis == -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
+        axis = stride_tricks.sanitize_axis(a.shape, axis)
+        axisa, axisb, axisc = (axis,) * 3
+    else:
+        axisa = stride_tricks.sanitize_axis(a.shape, axisa)
+        axisb = stride_tricks.sanitize_axis(b.shape, axisb)
+        axisc = stride_tricks.sanitize_axis(a.shape, axisc)
+
+    if a.split == axisa or b.split == axisb:
+        raise ValueError(
+            "The computation of the cross product with vectors along the split axis is not supported."
+        )
+
+    # all dimensions except axisa, axisb must be broadcastable
+    del a_shape[axisa], b_shape[axisb]
+    output_shape = stride_tricks.broadcast_shape(a_shape, b_shape)
+
+    # 2d -> 3d vector
+    if a.shape[axisa] == 2:
+        a_2d = True
+        shape = tuple(1 if i == axisa else j for i, j in enumerate(a.shape))
+        a = manipulations.concatenate(
+            [a, factories.zeros(shape, dtype=a.dtype, device=a.device)], axis=axisa
+        )
+    if b.shape[axisb] == 2:
+        b_2d = True
+        shape = tuple(1 if i == axisb else j for i, j in enumerate(b.shape))
+        b = manipulations.concatenate(
+            [b, factories.zeros(shape, dtype=b.dtype, device=b.device)], axis=axisb
+        )
+
+    if axisc != axisa:
+        a = manipulations.moveaxis(a, axisa, axisc)
+
+    if axisc != axisb:
+        b = manipulations.moveaxis(b, axisb, axisc)
+
+    axis = axisc
+
+    # by now split axes must be aligned
+    if a.split != b.split:
+        raise ValueError("'a' and 'b' must have the same split, {} != {}".format(a.split, b.split))
+
+    if not (a.is_balanced and b.is_balanced):
+        # TODO: replace with sanitize_redistribute after #888 is merged
+        b = manipulations.redistribute(b, b.lshape_map, a.lshape_map)
+
+    promoted = torch.promote_types(a.larray.dtype, b.larray.dtype)
+
+    ret = torch.cross(a.larray.type(promoted), b.larray.type(promoted), dim=axis)
+
+    # if both vector axes have dimension 2, return the z-component of the cross product
+    if a_2d and b_2d:
+        z_slice = [slice(None, None, None)] * ret.ndim
+        z_slice[axisc] = -1
+        ret = ret[z_slice]
+    else:
+        output_shape = output_shape[:axis] + (3,) + output_shape[axis:]
+
+    ret = DNDarray(ret, output_shape, types.heat_type_of(ret), a.split, a.device, a.comm, True)
+    return ret
 
 
 def det(a: DNDarray) -> DNDarray:
