@@ -111,6 +111,17 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(adet.device, a.device)
         self.assertTrue(ht.equal(adet, ares))
 
+        # det==0
+        ares = ht.array(0.0)
+        a = ht.array([[0, 0, 0], [2, 1, 4], [-3, 3, -1]], dtype=ht.float64, split=0)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.equal(adet, ares))
+
         # (3,2,2)
         ares = ht.array([-2.0, -3.0, -8.0])
 
