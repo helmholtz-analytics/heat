@@ -394,55 +394,41 @@ def array(
             obj = obj[slices].clone()
         obj = sanitize_memory_layout(obj, order=order)
 
+    # MAIN BRANCH
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
         gshape = np.array(gshape)
         lshape = np.array(lshape)
         obj = sanitize_memory_layout(obj, order=order)
-        # if comm.rank < comm.size - 1:
-        #     comm.Isend(lshape, dest=comm.rank + 1)
-        # if comm.rank != 0:
-        #     # look into the message of the neighbor to see whether the shape length fits
-        #     status = MPI.Status()
-        #     comm.Probe(source=comm.rank - 1, status=status)
-        #     length = status.Get_count() // lshape.dtype.itemsize
-        #     # the number of shape elements does not match with the 'left' rank
-        #     if length != len(lshape):
-        #         discard_buffer = np.empty(length)
-        #         comm.Recv(discard_buffer, source=comm.rank - 1)
-        #         gshape[is_split] = np.iinfo(gshape.dtype).min
-        #     else:
-        #         # check whether the individual shape elements match
-        #         comm.Recv(gshape, source=comm.rank - 1)
-        #         for i in range(length):
-        #             if i == is_split:
-        #                 continue
-        #             elif lshape[i] != gshape[i] and lshape[i] - 1 != gshape[i]:
-        #                 gshape[is_split] = np.iinfo(gshape.dtype).min
+        if comm.rank < comm.size - 1:
+            comm.Isend(lshape, dest=comm.rank + 1)
+        if comm.rank != 0:
+            # look into the message of the neighbor to see whether the shape length fits
+            status = MPI.Status()
+            comm.Probe(source=comm.rank - 1, status=status)
+            length = status.Get_count() // lshape.dtype.itemsize
+            # the number of shape elements does not match with the 'left' rank
+            if length != len(lshape):
+                discard_buffer = np.empty(length)
+                comm.Recv(discard_buffer, source=comm.rank - 1)
+                gshape[is_split] = np.iinfo(gshape.dtype).min
+            else:
+                # check whether the individual shape elements match
+                comm.Recv(gshape, source=comm.rank - 1)
+                for i in range(length):
+                    if i == is_split:
+                        continue
+                    elif lshape[i] != gshape[i] and lshape[i] - 1 != gshape[i]:
+                        gshape[is_split] = np.iinfo(gshape.dtype).min
 
         # sum up the elements along the split dimension
-        ndim_buffer = np.array(obj.ndim)
-        comm.Allreduce(MPI.IN_PLACE, ndim_buffer, MPI.SUM)
-        if ndim_buffer != 0:
-            if obj.ndim == 0 or ndim_buffer / obj.ndim != comm.size:
-                raise ValueError(
-                    "Unable to contruct DNDarray, the number of dimensions is not the same on all ranks"
-                )
-
+        reduction_buffer = np.array(gshape[is_split])
+        comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
+        if reduction_buffer < 0:
+            raise ValueError("unable to construct tensor, shape of local data chunk does not match")
         ttl_shape = np.array(obj.shape)
+        ttl_shape[is_split] = lshape[is_split]
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
-        non_split_shape = np.concatenate((ttl_shape[:is_split], ttl_shape[is_split + 1 :]))
-        non_split_lshape = np.concatenate((lshape[:is_split], lshape[is_split + 1 :]))
-        if np.isin(non_split_lshape, 0).any():
-            if not non_split_lshape[np.isin(non_split_lshape, 0)] == 0:
-                raise ValueError(
-                    "Unable to contruct DNDarray, the shape of the non-split dimensions is not the same on all ranks"
-                )
-        else:
-            if not ((non_split_shape / non_split_lshape) == comm.size).all():
-                raise ValueError(
-                    "Unable to contruct DNDarray, the shape of the non-split dimensions is not the same on all ranks"
-                )
         gshape[is_split] = ttl_shape[is_split]
         split = is_split
         # compare to calculated balanced lshape (cf. dndarray.is_balanced())
@@ -454,11 +440,55 @@ def array(
         gmatch = comm.allreduce(match, MPI.SUM)
         if gmatch != comm.size:
             balanced = False
-    #        balanced = False
+
     elif split is None and is_split is None:
         obj = sanitize_memory_layout(obj, order=order)
 
     return DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
+
+    # MODIFIED
+    # elif is_split is not None:
+    #     gshape = np.array(gshape)
+    #     lshape = np.array(lshape)
+    #     obj = sanitize_memory_layout(obj, order=order)
+    #     ndim_buffer = np.array(obj.ndim)
+    #     comm.Allreduce(MPI.IN_PLACE, ndim_buffer, MPI.SUM)
+    #     if ndim_buffer != 0:
+    #         if obj.ndim == 0 or ndim_buffer / obj.ndim != comm.size:
+    #             raise ValueError(
+    #                 "Unable to contruct DNDarray, the number of dimensions is not the same on all ranks"
+    #             )
+
+    #     ttl_shape = np.array(obj.shape)
+    #     comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
+    #     non_split_shape = np.concatenate((ttl_shape[:is_split], ttl_shape[is_split + 1 :]))
+    #     non_split_lshape = np.concatenate((lshape[:is_split], lshape[is_split + 1 :]))
+    #     if np.isin(non_split_lshape, 0).any():
+    #         if not non_split_lshape[np.isin(non_split_lshape, 0)] == 0:
+    #             raise ValueError(
+    #                 "Unable to contruct DNDarray, the shape of the non-split dimensions is not the same on all ranks"
+    #             )
+    #     else:
+    #         if not ((non_split_shape / non_split_lshape) == comm.size).all():
+    #             raise ValueError(
+    #                 "Unable to contruct DNDarray, the shape of the non-split dimensions is not the same on all ranks"
+    #             )
+    #     gshape[is_split] = ttl_shape[is_split]
+    #     split = is_split
+    #     # compare to calculated balanced lshape (cf. dndarray.is_balanced())
+    #     gshape = tuple(int(ele) for ele in gshape)
+    #     lshape = tuple(int(ele) for ele in lshape)
+    #     _, _, chk = comm.chunk(gshape, split)
+    #     test_lshape = tuple([x.stop - x.start for x in chk])
+    #     match = 1 if test_lshape == lshape else 0
+    #     gmatch = comm.allreduce(match, MPI.SUM)
+    #     if gmatch != comm.size:
+    #         balanced = False
+    # #        balanced = False
+    # elif split is None and is_split is None:
+    #     obj = sanitize_memory_layout(obj, order=order)
+
+    # return DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
 
 
 def asarray(
