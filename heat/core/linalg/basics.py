@@ -276,54 +276,17 @@ def inv(a: DNDarray) -> DNDarray:
     for i in range(m):
         ainv[:, i, i] = 1
 
-    # split=0 on square matrix
-    if a.split == a.ndim - 2:
-        for k in range(ainv.shape[0]):
-            for i in range(n):
-                # partial pivoting
-                if np.isclose(acopy[k, i, i].item(), 0):
-                    abord = True
-                    for j in range(i + 1, n):
-                        if not np.isclose(acopy[k, j, i].item(), 0):
+    for k in range(ainv.shape[0]):
+        for i in range(n):
+            # partial pivoting
+            if np.isclose(acopy[k, i, i].item(), 0):
+                abord = True
+                for j in range(i + 1, n):
+                    if not np.isclose(acopy[k, j, i].item(), 0):
+                        if a.split == a.ndim - 2:  # split=0 on square matrix
                             ainv[k, i, :], ainv[k, j, :] = ainv[k, j, :], ainv[k, i, :].copy()
                             acopy[k, i, :], acopy[k, j, :] = acopy[k, j, :], acopy[k, i, :].copy()
-                            abord = False
-                            break
-                    if abord:
-                        raise RuntimeError("Inverse does not exist")
-
-                scale = acopy[k, i, i].item()
-                ainv[k, i, :] /= scale
-                acopy[k, i, :] /= scale
-
-                factor = acopy[k, i + 1 :, i, None].larray
-                ainv_row = ainv[k, i, :].larray
-                acopy_row = acopy[k, i, :].larray
-                numel = factor.numel()
-
-                if numel > 0:
-                    ainv.larray[k, -numel:, :] -= factor * ainv_row
-                    acopy.larray[k, -numel:, :] -= factor * acopy_row
-
-            # back-substitution
-            for i in range(n - 1, 0, -1):
-                factor = acopy[k, :i, i, None].larray
-                ainv_row = ainv[k, i, :].larray
-                acopy_row = acopy[k, i, :].larray
-                numel = factor.numel()
-                if numel > 0:
-                    ainv.larray[k, :numel, :] -= factor * ainv_row
-                    acopy.larray[k, :numel, :] -= factor * acopy_row
-
-    # split=1 on square matrix
-    if a.split == a.ndim - 1:
-        for k in range(ainv.shape[0]):
-            for i in range(n):
-                # partial pivoting
-                if np.isclose(acopy[k, i, i].item(), 0):
-                    abord = True
-                    for j in range(i + 1, n):
-                        if not np.isclose(acopy[k, j, i].item(), 0):
+                        else:  # split=1
                             acopy.larray[k, i, :], acopy.larray[k, j, :] = (
                                 acopy.larray[k, j, :],
                                 acopy.larray[k, i, :].clone(),
@@ -332,26 +295,30 @@ def inv(a: DNDarray) -> DNDarray:
                                 ainv.larray[k, j, :],
                                 ainv.larray[k, i, :].clone(),
                             )
-                            abord = False
-                            break
-                    if abord:
-                        raise RuntimeError("Inverse does not exist")
+                        abord = False
+                        break
+                if abord:
+                    raise RuntimeError("Inverse does not exist")
 
-                scale = acopy[k, i, i].item()
-                acopy[k, i, :].larray /= scale
+            scale = acopy[k, i, i].item()
+
+            if a.split == a.ndim - 2:
+                ainv[k, i, :] /= scale
+                acopy[k, i, :] /= scale
+            else:
                 ainv[k, i, :].larray /= scale
+                acopy[k, i, :].larray /= scale
 
-                factor = acopy[k, i + 1 :, i, None].larray
+            factor = acopy[k, i + 1 :, i, None].larray
+            ainv[k, i + 1 :, :].larray -= factor * ainv[k, i, :].larray
+            acopy[k, i + 1 :, :].larray -= factor * acopy[k, i, :].larray
 
-                ainv[k, i + 1 :, :].larray -= factor * ainv[k, i, :].larray
-                acopy[k, i + 1 :, :].larray -= factor * acopy[k, i, :].larray
+        # backwards
+        for i in range(n - 1, 0, -1):
+            factor = acopy[k, :i, i, None].larray
 
-            # back-substitution
-            for i in range(n - 1, 0, -1):
-                factor = acopy[k, :i, i, None].larray
-
-                ainv[k, :i, :].larray -= factor * ainv[k, i, :].larray
-                acopy[k, :i, :].larray -= factor * acopy[k, i, :].larray
+            ainv[k, :i, :].larray -= factor * ainv[k, i, :].larray
+            acopy[k, :i, :].larray -= factor * acopy[k, i, :].larray
 
     ainv = manipulations.reshape(ainv, a.shape, new_split=a.split)
 

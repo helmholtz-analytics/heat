@@ -159,7 +159,7 @@ class TestLinalgBasics(TestCase):
         self.assertTupleEqual(ainv.shape, a.shape)
         self.assertTrue(ht.allclose(ainv, ares))
 
-        # ours
+        # distributed
         a = ht.array([[5.0, -3, 2], [-3, 2, -1], [-3, 2, -2]], split=0)
         ainv = ht.linalg.inv(a)
         self.assertEqual(ainv.split, a.split)
@@ -232,7 +232,7 @@ class TestLinalgBasics(TestCase):
 
         with self.assertRaises(RuntimeError):
             ht.linalg.inv(ht.array([1, 2, 3], split=0))
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ValueError):
             ht.linalg.inv(ht.zeros((1, 2, 3), split=1))
         with self.assertRaises(TypeError):
             ht.linalg.inv(ht.zeros(2, 2), dtype=ht.int, split=1)
