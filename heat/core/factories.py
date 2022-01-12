@@ -446,15 +446,15 @@ def array(
         gshape[is_split] = ttl_shape[is_split]
         split = is_split
         # compare to calculated balanced lshape (cf. dndarray.is_balanced())
-        gshape = tuple(int(ele) for ele in gshape)
-        lshape = tuple(int(ele) for ele in lshape)
-        _, _, chk = comm.chunk(gshape, split)
-        test_lshape = tuple([x.stop - x.start for x in chk])
-        match = 1 if test_lshape == lshape else 0
-        gmatch = comm.allreduce(match, MPI.SUM)
-        if gmatch != comm.size:
-            balanced = False
-
+        # gshape = tuple(int(ele) for ele in gshape)
+        # lshape = tuple(int(ele) for ele in lshape)
+        # _, _, chk = comm.chunk(gshape, split)
+        # test_lshape = tuple([x.stop - x.start for x in chk])
+        # match = 1 if test_lshape == lshape else 0
+        # gmatch = comm.allreduce(match, MPI.SUM)
+        # if gmatch != comm.size:
+        #     balanced = False
+        balanced = False
     elif split is None and is_split is None:
         obj = sanitize_memory_layout(obj, order=order)
 
