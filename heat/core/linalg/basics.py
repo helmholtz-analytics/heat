@@ -206,61 +206,34 @@ def det(a: DNDarray) -> DNDarray:
     acopy = manipulations.reshape(acopy, (-1, m, m), new_split=a.split - a.ndim + 3)
     adet = factories.ones(acopy.shape[0], dtype=a.dtype, device=a.device)
 
-    # split=0 on square matrix
-    if a.split == a.ndim - 2:
-        for k in range(adet.shape[0]):
-            m = 0
-            for i in range(n):
-                # partial pivoting
-                if np.isclose(acopy[k, i, i].item(), 0):
-                    abord = True
-                    for j in range(i + 1, n):
-                        if not np.isclose(acopy[k, j, i].item(), 0):
+    for k in range(adet.shape[0]):
+        m = 0
+        for i in range(n):
+            # partial pivoting
+            if np.isclose(acopy[k, i, i].item(), 0):
+                abord = True
+                for j in range(i + 1, n):
+                    if not np.isclose(acopy[k, j, i].item(), 0):
+                        if a.split == a.ndim - 2:  # split=0 on square matrix
                             acopy[k, i, :], acopy[k, j, :] = acopy[k, j, :], acopy[k, i, :].copy()
-                            abord = False
-                            m += 1
-                            break
-                    if abord:
-                        adet[k] = 0
-                        break
-
-                adet[k] *= acopy[k, i, i]
-                z = acopy[k, i + 1 :, i, None].larray / acopy[k, i, i].item()
-                a_row = acopy[k, i, :].larray
-                numel = z.numel()
-                if numel > 0:
-                    acopy.larray[k, -numel:, :] -= z * a_row
-
-            if m % 2 != 0:
-                adet[k] = -adet[k]
-
-    # split=1 on square matrix
-    if a.split == a.ndim - 1:
-        for k in range(adet.shape[0]):
-            m = 0
-            for i in range(n):
-                # partial pivoting
-                if np.isclose(acopy[k, i, i].item(), 0):
-                    abord = True
-                    for j in range(i + 1, n):
-                        if not np.isclose(acopy[k, j, i].item(), 0):
+                        else:  # split=1
                             acopy.larray[k, i, :], acopy.larray[k, j, :] = (
                                 acopy.larray[k, j, :],
                                 acopy.larray[k, i, :].clone(),
                             )
-                            abord = False
-                            m += 1
-                            break
-                    if abord:
-                        adet[k] = 0
+                        abord = False
+                        m += 1
                         break
+                if abord:
+                    adet[k] = 0
+                    break
 
-                adet[k] *= acopy[k, i, i]
-                z = acopy[k, i + 1 :, i, None].larray / acopy[k, i, i].item()
-                acopy[k, i + 1 :, :].larray -= z * acopy[k, i, :].larray
+            adet[k] *= acopy[k, i, i]
+            z = acopy[k, i + 1 :, i, None].larray / acopy[k, i, i].item()
+            acopy[k, i + 1 :, :].larray -= z * acopy[k, i, :].larray
 
-            if m % 2 != 0:
-                adet[k] = -adet[k]
+        if m % 2 != 0:
+            adet[k] = -adet[k]
 
     adet = manipulations.reshape(adet, a.shape[:-2])
 
