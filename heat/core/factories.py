@@ -17,7 +17,6 @@ from .types import datatype
 from . import devices
 from . import types
 
-
 __all__ = [
     "arange",
     "array",
@@ -172,7 +171,7 @@ def array(
         the :func:`~heat.core.dndarray.astype` method.
     copy : bool, optional
         If ``True`` (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested
-        sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
+        sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype`` or ``order``.
     ndmin : int, optional
         Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
         attached to the shape if ``ndim > 0`` and prefaced in case of ``ndim < 0`` to meet the requirement.
@@ -320,6 +319,7 @@ def array(
                     if device is not None
                     else devices.get_device().torch_device,
                 )
+
             except RuntimeError:
                 raise TypeError("invalid data of type {}".format(type(obj)))
     else:
@@ -337,7 +337,12 @@ def array(
     else:
         torch_dtype = dtype.torch_type()
         if obj.dtype != torch_dtype:
-            obj = obj.type(torch_dtype)
+            if not copy:
+                # different dtype, copy anyway
+                obj = obj.clone().type(torch_dtype)
+            else:
+                # obj is already a copy
+                obj = obj.type(torch_dtype)
 
     # infer device from obj if not explicitly given
     if device is None:
@@ -360,11 +365,13 @@ def array(
     if ndmin_abs > 0 > ndmin:
         obj = obj.reshape(ndmin_abs * (1,) + obj.shape)
 
-    # sanitize the split axes, ensure mutual exclusiveness
-    split = sanitize_axis(obj.shape, split)
-    is_split = sanitize_axis(obj.shape, is_split)
-    if split is not None and is_split is not None:
-        raise ValueError("split and is_split are mutually exclusive parameters")
+    # sanitize split or is_split
+    if split is not None:
+        if is_split is not None:
+            raise ValueError("cannot specify both split and is_split")
+        split = sanitize_axis(obj.shape, split)
+    elif is_split is not None:
+        is_split = sanitize_axis(obj.shape, is_split)
 
     # sanitize comm object
     comm = sanitize_comm(comm)
@@ -377,8 +384,12 @@ def array(
     # content shall be split, chunk the passed data object up
     if split is not None:
         _, _, slices = comm.chunk(gshape, split)
-        obj = obj[slices].clone()
+        if not copy:
+            obj = obj[slices]
+        else:
+            obj = obj[slices].clone()
         obj = sanitize_memory_layout(obj, order=order)
+
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
         gshape = np.array(gshape)
