@@ -6,7 +6,7 @@ import warnings
 
 from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, List
 
-from .communication import MPI, sanitize_comm, Communication
+from .communication import MPI, MPI_WORLD, sanitize_comm, Communication
 from .devices import Device
 from .dndarray import DNDarray
 from .memory import sanitize_memory_layout
@@ -303,27 +303,28 @@ def array(
     ):
         return obj
     end1 = time.time()
-    if comm.rank == 0:
+
+    if MPI_WORLD.rank == 0:
         log.warning("ARRAY: check 1 took %f seconds", end1 - start)
 
     # extract the internal tensor in case of a heat tensor
     if isinstance(obj, DNDarray):
         obj = obj.larray
     end2 = time.time()
-    if comm.rank == 0:
+    if MPI_WORLD.rank == 0:
         log.warning("ARRAY: check 2 took %f seconds", end2 - end1)
     # sanitize the data type
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
     end3 = time.time()
-    if comm.rank == 0:
+    if MPI_WORLD.rank == 0:
         log.warning("ARRAY: check 3 took %f seconds", end3 - end2)
 
     # sanitize device
     if device is not None:
         device = devices.sanitize_device(device)
     end4 = time.time()
-    if comm.rank == 0:
+    if MPI_WORLD.rank == 0:
         log.warning("ARRAY: check 4 took %f seconds", end4 - end3)
 
     # initialize the array
@@ -333,7 +334,7 @@ def array(
             # pytorch fix in progress
             obj = obj.clone().detach()
             end5 = time.time()
-            if comm.rank == 0:
+            if MPI_WORLD.rank == 0:
                 log.warning("ARRAY: copy True, obj is Tensor: check 5 took %f seconds", end5 - end4)
         else:
             try:
@@ -347,7 +348,7 @@ def array(
             except RuntimeError:
                 raise TypeError("invalid data of type {}".format(type(obj)))
             end5 = time.time()
-            if comm.rank == 0:
+            if MPI_WORLD.rank == 0:
                 log.warning(
                     "ARRAY: copy True, obj not Tensor: check 5 took %f seconds", end5 - end4
                 )
@@ -360,14 +361,14 @@ def array(
                 else devices.get_device().torch_device,
             )
         end5 = time.time()
-        if comm.rank == 0:
+        if MPI_WORLD.rank == 0:
             log.warning("ARRAY: copy False, obj is DNDarray: check 5 took %f seconds", end5 - end4)
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
         dtype = types.canonical_heat_type(obj.dtype)
         end6 = time.time()
-        if comm.rank == 0:
+        if MPI_WORLD.rank == 0:
             log.warning("ARRAY: dtype None, check 6 took %f seconds", end6 - end5)
     else:
         torch_dtype = dtype.torch_type()
@@ -379,13 +380,13 @@ def array(
                 # obj is already a copy
                 obj = obj.type(torch_dtype)
         end6 = time.time()
-        if comm.rank == 0:
+        if MPI_WORLD.rank == 0:
             log.warning("ARRAY: dtype not None, check 6 took %f seconds", end6 - end5)
     # infer device from obj if not explicitly given
     if device is None:
         device = devices.sanitize_device(obj.device.type)
     end7 = time.time()
-    if comm.rank == 0:
+    if MPI_WORLD.rank == 0:
         log.warning("ARRAY: device check 7 took %f seconds", end7 - end6)
 
     if str(obj.device) != device.torch_device:
@@ -394,14 +395,14 @@ def array(
         )
         obj = obj.to(device.torch_device)
     end8 = time.time()
-    if comm.rank == 0:
+    if MPI_WORLD.rank == 0:
         log.warning("ARRAY: device check 8 took %f seconds", end8 - end7)
 
     # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
         raise TypeError("expected ndmin to be int, but was {}".format(type(ndmin)))
     end9 = time.time()
-    if comm.rank == 0:
+    if MPI_WORLD.rank == 0:
         log.warning("ARRAY: ndmin check 9 took %f seconds", end9 - end8)
 
     # reshape the object to encompass additional dimensions
@@ -411,7 +412,7 @@ def array(
     if ndmin_abs > 0 > ndmin:
         obj = obj.reshape(ndmin_abs * (1,) + obj.shape)
     end10 = time.time()
-    if comm.rank == 0:
+    if MPI_WORLD.rank == 0:
         log.warning("ARRAY: ndmin check 10 took %f seconds", end10 - end9)
 
     # sanitize split or is_split
@@ -422,13 +423,13 @@ def array(
     elif is_split is not None:
         is_split = sanitize_axis(obj.shape, is_split)
     end11 = time.time()
-    if comm.rank == 0:
+    if MPI_WORLD.rank == 0:
         log.warning("ARRAY: split check 11 took %f seconds", end11 - end10)
 
     # sanitize comm object
     comm = sanitize_comm(comm)
     end12 = time.time()
-    if comm.rank == 0:
+    if MPI_WORLD.rank == 0:
         log.warning("ARRAY: comm check 12 took %f seconds", end12 - end11)
 
     # determine the local and the global shape. If split is None, they are identical
@@ -436,7 +437,7 @@ def array(
     lshape = gshape.copy()
     balanced = True
     end13 = time.time()
-    if comm.rank == 0:
+    if MPI_WORLD.rank == 0:
         log.warning("ARRAY: shape check 13 took %f seconds", end13 - end12)
 
     # content shall be split, chunk the passed data object up
@@ -448,7 +449,7 @@ def array(
             obj = obj[slices].clone()
         obj = sanitize_memory_layout(obj, order=order)
         end14 = time.time()
-        if comm.rank == 0:
+        if MPI_WORLD.rank == 0:
             log.warning("ARRAY: split: check 14 took %f seconds", end14 - end13)
 
     # MAIN BRANCH
