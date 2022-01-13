@@ -17,6 +17,12 @@ from .types import datatype
 from . import devices
 from . import types
 
+import time
+import logging
+
+logging.basicConfig(format="%(message)s")
+log = logging.getLogger(__name__)
+
 __all__ = [
     "arange",
     "array",
@@ -156,7 +162,6 @@ def array(
     is_split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
-    force_check: bool = True,
 ) -> DNDarray:
     """
     Create a :class:`~heat.core.dndarray.DNDarray`.
@@ -286,6 +291,7 @@ def array(
           11
          [torch.LongStorage of size 6]
     """
+    start = time.time()
     # array already exists; no copy
     if (
         isinstance(obj, DNDarray)
@@ -296,18 +302,25 @@ def array(
         and (device is None or device == obj.device)
     ):
         return obj
+    end1 = time.time()
+    log.warning("ARRAY: check 1 took %f seconds", end1 - start)
 
     # extract the internal tensor in case of a heat tensor
     if isinstance(obj, DNDarray):
         obj = obj.larray
-
+    end2 = time.time()
+    log.warning("ARRAY: check 2 took %f seconds", end2 - end1)
     # sanitize the data type
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
+    end3 = time.time()
+    log.warning("ARRAY: check 3 took %f seconds", end3 - end2)
 
     # sanitize device
     if device is not None:
         device = devices.sanitize_device(device)
+    end4 = time.time()
+    log.warning("ARRAY: check 4 took %f seconds", end4 - end3)
 
     # initialize the array
     if bool(copy):
@@ -315,6 +328,8 @@ def array(
             # TODO: watch out. At the moment clone() implies losing the underlying memory layout.
             # pytorch fix in progress
             obj = obj.clone().detach()
+            end5 = time.time()
+            log.warning("ARRAY: copy True, obj is Tensor: check 5 took %f seconds", end5 - end4)
         else:
             try:
                 obj = torch.tensor(
@@ -326,6 +341,8 @@ def array(
 
             except RuntimeError:
                 raise TypeError("invalid data of type {}".format(type(obj)))
+            end5 = time.time()
+            log.warning("ARRAY: copy True, obj not Tensor: check 5 took %f seconds", end5 - end4)
     else:
         if not isinstance(obj, DNDarray):
             obj = torch.as_tensor(
@@ -334,10 +351,14 @@ def array(
                 if device is not None
                 else devices.get_device().torch_device,
             )
+        end5 = time.time()
+        log.warning("ARRAY: copy False, obj is DNDarray: check 5 took %f seconds", end5 - end4)
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
         dtype = types.canonical_heat_type(obj.dtype)
+        end6 = time.time()
+        log.warning("ARRAY: dtype None, check 6 took %f seconds", end6 - end5)
     else:
         torch_dtype = dtype.torch_type()
         if obj.dtype != torch_dtype:
@@ -347,20 +368,27 @@ def array(
             else:
                 # obj is already a copy
                 obj = obj.type(torch_dtype)
-
+        end6 = time.time()
+        log.warning("ARRAY: dtype not None, check 6 took %f seconds", end6 - end5)
     # infer device from obj if not explicitly given
     if device is None:
         device = devices.sanitize_device(obj.device.type)
+    end7 = time.time()
+    log.warning("ARRAY: device check 7 took %f seconds", end7 - end6)
 
     if str(obj.device) != device.torch_device:
         warnings.warn(
             "Array 'obj' is not on device '{}'. It will be moved to it.".format(device), UserWarning
         )
         obj = obj.to(device.torch_device)
+    end8 = time.time()
+    log.warning("ARRAY: device check 8 took %f seconds", end8 - end7)
 
     # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
         raise TypeError("expected ndmin to be int, but was {}".format(type(ndmin)))
+    end9 = time.time()
+    log.warning("ARRAY: ndmin check 9 took %f seconds", end9 - end8)
 
     # reshape the object to encompass additional dimensions
     ndmin_abs = abs(ndmin) - len(obj.shape)
@@ -368,22 +396,32 @@ def array(
         obj = obj.reshape(obj.shape + ndmin_abs * (1,))
     if ndmin_abs > 0 > ndmin:
         obj = obj.reshape(ndmin_abs * (1,) + obj.shape)
+    end10 = time.time()
+    log.warning("ARRAY: ndmin check 10 took %f seconds", end10 - end9)
 
     # sanitize split or is_split
     if split is not None:
         if is_split is not None:
             raise ValueError("cannot specify both split and is_split")
         split = sanitize_axis(obj.shape, split)
+        end11 = time.time()
+        log.warning("ARRAY: split check 11 took %f seconds", end11 - end10)
     elif is_split is not None:
         is_split = sanitize_axis(obj.shape, is_split)
+        end11 = time.time()
+        log.warning("ARRAY: is_split check 11 took %f seconds", end11 - end10)
 
     # sanitize comm object
     comm = sanitize_comm(comm)
+    end12 = time.time()
+    log.warning("ARRAY: comm check 12 took %f seconds", end12 - end11)
 
     # determine the local and the global shape. If split is None, they are identical
     gshape = list(obj.shape)
     lshape = gshape.copy()
     balanced = True
+    end13 = time.time()
+    log.warning("ARRAY: shape check 13 took %f seconds", end13 - end12)
 
     # content shall be split, chunk the passed data object up
     if split is not None:
@@ -393,6 +431,8 @@ def array(
         else:
             obj = obj[slices].clone()
         obj = sanitize_memory_layout(obj, order=order)
+        end14 = time.time()
+        log.warning("ARRAY: split: check 14 took %f seconds", end14 - end13)
 
     # MAIN BRANCH
     # check with the neighboring rank whether the local shape would fit into a global shape
@@ -476,17 +516,20 @@ def array(
         gshape[is_split] = ttl_shape[is_split]
         split = is_split
         # compare to calculated balanced lshape (cf. dndarray.is_balanced())
-        # gshape = tuple(int(ele) for ele in gshape)
-        # lshape = tuple(int(ele) for ele in lshape)
-        # _, _, chk = comm.chunk(gshape, split)
-        # test_lshape = tuple([x.stop - x.start for x in chk])
-        # match = 1 if test_lshape == lshape else 0
-        # gmatch = comm.allreduce(match, MPI.SUM)
-        # if gmatch != comm.size:
-        #     balanced = False
-        balanced = False
+        gshape = tuple(int(ele) for ele in gshape)
+        lshape = tuple(int(ele) for ele in lshape)
+        _, _, chk = comm.chunk(gshape, split)
+        test_lshape = tuple([x.stop - x.start for x in chk])
+        match = 1 if test_lshape == lshape else 0
+        gmatch = comm.allreduce(match, MPI.SUM)
+        if gmatch != comm.size:
+            balanced = False
+        end14 = time.time()
+        log.warning("ARRAY: is_split: check 14 took %f seconds", end14 - end13)
     elif split is None and is_split is None:
         obj = sanitize_memory_layout(obj, order=order)
+        end14 = time.time()
+        log.warning("ARRAY: no split: check 14 took %f seconds", end14 - end13)
 
     return DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
 
