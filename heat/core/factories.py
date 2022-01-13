@@ -512,7 +512,7 @@ def array(
         end14_0 = time.time()
         if MPI_WORLD.rank == 0:
             log.warning("ARRAY: is_split: check 14.0 took %f seconds", end14_0 - end13)
-        ndim_buffer = np.array(obj.ndim)
+        ndim_buffer = np.array(obj.ndim).astype(np.int32)
         comm.Allreduce(MPI.IN_PLACE, ndim_buffer, MPI.SUM)
         end14_1 = time.time()
         if MPI_WORLD.rank == 0:
