@@ -509,29 +509,29 @@ def array(
         gshape = np.array(gshape)
         lshape = np.array(lshape)
         obj = sanitize_memory_layout(obj, order=order)
-        end14_0 = time.time()
-        if MPI_WORLD.rank == 0:
-            log.warning("ARRAY: is_split: check 14.0 took %f seconds", end14_0 - end13)
+        # end14_0 = time.time()
+        # if MPI_WORLD.rank == 0:
+        #     log.warning("ARRAY: is_split: check 14.0 took %f seconds", end14_0 - end13)
         ndim_buffer = np.array(obj.ndim)  # .astype(np.int32)
         comm.Allreduce(MPI.IN_PLACE, ndim_buffer, MPI.SUM)
-        end14_1 = time.time()
-        if MPI_WORLD.rank == 0:
-            log.warning("ARRAY: is_split: check 14.1 took %f seconds", end14_1 - end14_0)
+        # end14_1 = time.time()
+        # if MPI_WORLD.rank == 0:
+        #     log.warning("ARRAY: is_split: check 14.1 took %f seconds", end14_1 - end14_0)
         if ndim_buffer != 0:
             if obj.ndim == 0 or ndim_buffer / obj.ndim != comm.size:
                 raise ValueError(
                     "Unable to contruct DNDarray, the number of dimensions is not the same on all ranks"
                 )
-        end14_2 = time.time()
-        if MPI_WORLD.rank == 0:
-            log.warning("ARRAY: is_split: check 14.2 took %f seconds", end14_2 - end14_1)
+        # end14_2 = time.time()
+        # if MPI_WORLD.rank == 0:
+        #     log.warning("ARRAY: is_split: check 14.2 took %f seconds", end14_2 - end14_1)
         ttl_shape = np.array(obj.shape)
         # if not np.max(ttl_shape) > np.iinfo(np.int32).max / MPI_WORLD.size:
         #     ttl_shape = ttl_shape.astype(np.int32)
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
-        end14_3 = time.time()
-        if MPI_WORLD.rank == 0:
-            log.warning("ARRAY: is_split: check 14.3 took %f seconds", end14_3 - end14_2)
+        # end14_3 = time.time()
+        # if MPI_WORLD.rank == 0:
+        #     log.warning("ARRAY: is_split: check 14.3 took %f seconds", end14_3 - end14_2)
         non_split_shape = np.concatenate((ttl_shape[:is_split], ttl_shape[is_split + 1 :]))
         non_split_lshape = np.concatenate((lshape[:is_split], lshape[is_split + 1 :]))
         if np.isin(non_split_lshape, 0).any():
@@ -544,9 +544,9 @@ def array(
                 raise ValueError(
                     "Unable to contruct DNDarray, the shape of the non-split dimensions is not the same on all ranks"
                 )
-        end14_4 = time.time()
-        if MPI_WORLD.rank == 0:
-            log.warning("ARRAY: is_split: check 14.4 took %f seconds", end14_4 - end14_3)
+        # end14_4 = time.time()
+        # if MPI_WORLD.rank == 0:
+        #     log.warning("ARRAY: is_split: check 14.4 took %f seconds", end14_4 - end14_3)
         gshape[is_split] = ttl_shape[is_split]
         split = is_split
         # compare to calculated balanced lshape (cf. dndarray.is_balanced())
@@ -558,14 +558,14 @@ def array(
         gmatch = comm.allreduce(match, MPI.SUM)
         if gmatch != comm.size:
             balanced = False
-        end14 = time.time()
-        if comm.rank == 0:
-            log.warning("ARRAY: is_split: check 14 took %f seconds", end14 - end14_4)
+        # end14 = time.time()
+        # if comm.rank == 0:
+        #     log.warning("ARRAY: is_split: check 14 took %f seconds", end14 - end14_4)
     elif split is None and is_split is None:
         obj = sanitize_memory_layout(obj, order=order)
-        end14 = time.time()
-        if comm.rank == 0:
-            log.warning("ARRAY: no split: check 14 took %f seconds", end14 - end13)
+        # end14 = time.time()
+        # if comm.rank == 0:
+        #     log.warning("ARRAY: no split: check 14 took %f seconds", end14 - end13)
 
     return DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
 
