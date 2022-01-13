@@ -512,7 +512,7 @@ def array(
         # end14_0 = time.time()
         # if MPI_WORLD.rank == 0:
         #     log.warning("ARRAY: is_split: check 14.0 took %f seconds", end14_0 - end13)
-        ndim_buffer = np.array(obj.ndim)  # .astype(np.int32)
+        ndim_buffer = np.array(obj.ndim).astype(np.int32)
         comm.Allreduce(MPI.IN_PLACE, ndim_buffer, MPI.SUM)
         # end14_1 = time.time()
         # if MPI_WORLD.rank == 0:
@@ -526,8 +526,8 @@ def array(
         # if MPI_WORLD.rank == 0:
         #     log.warning("ARRAY: is_split: check 14.2 took %f seconds", end14_2 - end14_1)
         ttl_shape = np.array(obj.shape)
-        # if not np.max(ttl_shape) > np.iinfo(np.int32).max / MPI_WORLD.size:
-        #     ttl_shape = ttl_shape.astype(np.int32)
+        if not np.max(ttl_shape) > np.iinfo(np.int32).max / MPI_WORLD.size:
+            ttl_shape = ttl_shape.astype(np.int32)
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
         # end14_3 = time.time()
         # if MPI_WORLD.rank == 0:
