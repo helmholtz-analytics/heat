@@ -235,9 +235,9 @@ def inv(a: DNDarray) -> DNDarray:
     ------
     RuntimeError
         If the inverse does not exist.
-    TypeError
+    RuntimeError
         If the dtype is not floating-point
-    ValueError
+    RuntimeError
         If a is not at least two-dimensional or if the lengths of the last two dimensions are not the same.
 
     Examples
