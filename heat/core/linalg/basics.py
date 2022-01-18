@@ -178,6 +178,18 @@ def det(a: DNDarray) -> DNDarray:
     >>> ht.linalg.det(a)
     DNDarray(54., dtype=ht.float64, device=cpu:0, split=None)
     """
+    sanitation.sanitize_in(a)  # pragma: no cover
+
+    if a.ndim < 2:
+        raise RuntimeError("DNDarray must be at least two-dimensional.")
+
+    m, n = a.shape[-2:]
+    if m != n:
+        raise RuntimeError("Last two dimensions of the DNDarray must be square.")
+
+    if types.heat_type_is_exact(a.dtype):
+        raise RuntimeError("dtype of DNDarray must be floating-point.")
+
     # no split in the square matrices
     if not a.is_distributed() or a.split < a.ndim - 2:
         data = torch.linalg.det(a.larray)
@@ -191,16 +203,6 @@ def det(a: DNDarray) -> DNDarray:
             comm=a.comm,
             balanced=a.balanced,
         )
-
-    if a.ndim < 2:
-        raise RuntimeError("DNDarray must be at least two-dimensional.")
-
-    m, n = a.shape[-2:]
-    if m != n:
-        raise RuntimeError("Last two dimensions of the DNDarray must be square.")
-
-    if types.heat_type_is_exact(a.dtype):
-        raise RuntimeError("dtype of DNDarray must be floating-point.")
 
     acopy = a.copy()
     acopy = manipulations.reshape(acopy, (-1, m, m), new_split=a.split - a.ndim + 3)
