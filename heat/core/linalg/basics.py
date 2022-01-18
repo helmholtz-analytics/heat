@@ -167,9 +167,9 @@ def det(a: DNDarray) -> DNDarray:
 
     Raises
     ------
-    TypeError
+    RuntimeError
         If the dtype of 'a' is not floating-point.
-    ValueError
+    RuntimeError
         If `a.ndim < 2` or if the length of the last two dimensions is not the same.
 
     Examples
