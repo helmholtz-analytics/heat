@@ -223,9 +223,11 @@ def __binary_op(
         return out
 
     result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
-    if not isinstance(result, torch.Tensor):
-        # TODO this is needed because torch.equal wrongly uses binop but is a reduceop
-        result = torch.tensor(result, device=output_device.torch_device)
+    # if operation is torch.equal:#
+    #     # TODO this is needed because torch.equal wrongly uses binop but is a reduceop
+    #     return result
+    # elif not isinstance(result, torch.Tensor):
+    #     result = torch.tensor(result, device=output_device.torch_device)
 
     return DNDarray(
         result,
