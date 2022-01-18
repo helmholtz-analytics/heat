@@ -42,7 +42,7 @@ def sanitize_distribution(
         Dndarrays to be distributed
 
     target : DNDarray
-        Dndarrays determining the distribution
+        Dndarray used to sanitize the metadata and to, if diff_map is not given, determine the resulting distribution.
 
     diff_map : torch.Tensor (optional)
         Different lshape_map. Overwrites the distribution of the target array.
@@ -65,7 +65,7 @@ def sanitize_distribution(
         sanitize_in_tensor(diff_map)
         target_map = diff_map
         target_size = target_map[:, target_split].sum().item()
-    else:
+    elif target_split is not None:
         target_map = target.lshape_map
         target_size = target.shape[target_split]
 
