@@ -962,13 +962,13 @@ class DNDarray:
     @staticmethod
     def __is_key_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
         # determine if the key gets a singular item
-        zeros = tuple([0] * (self_proxy.ndim - 1))
+        zeros = (0,) * (self_proxy.ndim - 1)
         return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
 
     @staticmethod
     def __key_adds_dimension(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
         # determine if the key adds a new dimension
-        zeros = tuple([0] * (self_proxy.ndim - 1))
+        zeros = (0,) * (self_proxy.ndim - 1)
         return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 2
 
     def item(self):
