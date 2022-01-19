@@ -95,10 +95,10 @@ def create_fold(dataset_x, dataset_y, size, seed=None):
     data_indices = ht.array(indices[0:size], split=0)
     verification_indices = ht.array(indices[size:], split=0)
 
-    fold_x = ht.array(dataset_x[data_indices], is_split=0)
-    fold_y = ht.array(dataset_y[data_indices], is_split=0)
-    verification_y = ht.array(dataset_y[verification_indices], is_split=0)
-    verification_x = ht.array(dataset_x[verification_indices], is_split=0)
+    fold_x = dataset_x[data_indices]
+    fold_y = dataset_y[data_indices]
+    verification_y = dataset_y[verification_indices]
+    verification_x = dataset_x[verification_indices]
 
     # Balance arrays
     fold_x.balance_()
