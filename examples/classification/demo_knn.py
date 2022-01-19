@@ -138,7 +138,8 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
 
     for split_index in range(split_number):
         fold_x, fold_y, verification_x, verification_y = create_fold(x, y, split_size, seed)
-        classifier = KNeighborsClassifier(fold_x, fold_y, k)
+        classifier = KNeighborsClassifier(k)
+        classifier.fit(fold_x, fold_y)
         result_y = classifier.predict(verification_x)
         accuracies.append(calculate_accuracy(result_y, verification_y).item())
     return accuracies
