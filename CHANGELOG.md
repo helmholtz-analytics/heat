@@ -1,5 +1,10 @@
 # Pending additions
 
+- [#867](https://github.com/helmholtz-analytics/heat/pull/867) Upgraded to support torch 1.9.0
+- [#876](https://github.com/helmholtz-analytics/heat/pull/876) Make examples work (Lasso and kNN)
+- [#894](https://github.com/helmholtz-analytics/heat/pull/894) Change inclusion of license file
+- [#884](https://github.com/helmholtz-analytics/heat/pull/884) Added capabilities for PyTorch 1.10.0, this is now the recommended version to use.
+
 ## Bug Fixes
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `_reduce_op` when axis and keepdim were set.
@@ -20,10 +25,12 @@
 
 ### Factories
 - [#749](https://github.com/helmholtz-analytics/heat/pull/749) `ht.array(copy=False)` behaviour now more in line with `np.array(copy=False)`, reduced memory footprint
+# Feature additions
 ### Linear Algebra
 - [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
 - [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) New features `norm`, `vector_norm`, `matrix_norm`
+- [#850](https://github.com/helmholtz-analytics/heat/pull/850) New Feature `cross`
 ### Logical
 - [#862](https://github.com/helmholtz-analytics/heat/pull/862) New feature `signbit`
 ### Manipulations

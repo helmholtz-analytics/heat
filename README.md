@@ -58,6 +58,8 @@ We use [StackOverflow](https://stackoverflow.com/tags/pyheat/) as a forum for qu
 If you do not find an answer to your question, then please ask a new question there and be sure to
 tag it with "pyheat".
 
+You can also reach us on [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions).
+
 Requirements
 ------------
 
