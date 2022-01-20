@@ -395,26 +395,6 @@ def array(
         gshape = np.array(gshape)
         lshape = np.array(lshape)
         obj = sanitize_memory_layout(obj, order=order)
-        # if comm.rank < comm.size - 1:
-        #     comm.Isend(lshape, dest=comm.rank + 1)
-        # if comm.rank != 0:
-        #     # look into the message of the neighbor to see whether the shape length fits
-        #     status = MPI.Status()
-        #     comm.Probe(source=comm.rank - 1, status=status)
-        #     length = status.Get_count() // lshape.dtype.itemsize
-        #     # the number of shape elements does not match with the 'left' rank
-        #     if length != len(lshape):
-        #         discard_buffer = np.empty(length)
-        #         comm.Recv(discard_buffer, source=comm.rank - 1)
-        #         gshape[is_split] = np.iinfo(gshape.dtype).min
-        #     else:
-        #         # check whether the individual shape elements match
-        #         comm.Recv(gshape, source=comm.rank - 1)
-        #         for i in range(length):
-        #             if i == is_split:
-        #                 continue
-        #             elif lshape[i] != gshape[i] and lshape[i] - 1 != gshape[i]:
-        #                 gshape[is_split] = np.iinfo(gshape.dtype).min
 
         # sum up the elements along the split dimension
         ndim_buffer = np.array(obj.ndim)
