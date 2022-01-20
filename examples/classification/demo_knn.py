@@ -145,4 +145,4 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
     return accuracies
 
 
-print(verify_algorithm(X, Y, 1, 30, 5, 1))
+print("Accuracy: {}".format(verify_algorithm(X, Y, 1, 30, 5, 1)))
