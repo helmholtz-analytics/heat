@@ -12,7 +12,7 @@ with open("./heat/core/version.py") as handle:
 setup(
     name="heat",
     packages=find_packages(exclude=("*tests*", "*benchmarks*")),
-    data_files=["README.md", "LICENSE"],
+    package_data={"heat.datasets": ["*.csv", "*.h5", "*.nc"]},
     version=__version__,
     description="A framework for high-performance data analytics and machine learning.",
     long_description=long_description,
