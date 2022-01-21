@@ -44,6 +44,19 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
     """
     try:
         resulting_shape = torch.broadcast_shapes(shape_a, shape_b)
+    except AttributeError:  # torch < 1.8
+        it = itertools.zip_longest(shape_a[::-1], shape_b[::-1], fillvalue=1)
+        resulting_shape = max(len(shape_a), len(shape_b)) * [None]
+        for i, (a, b) in enumerate(it):
+            if a == 0 or b == 0:
+                resulting_shape[i] = 0
+            elif a == 1 or b == 1 or a == b:
+                resulting_shape[i] = max(a, b)
+            else:
+                raise ValueError(
+                    "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
+                )
+        return tuple(resulting_shape[::-1])
     except TypeError:
         raise TypeError("operand 1 must be tuple of ints, not {}".format(type(shape_a)))
     except NameError:
