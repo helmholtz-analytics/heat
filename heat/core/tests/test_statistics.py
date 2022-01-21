@@ -782,24 +782,24 @@ class TestStatistics(TestCase):
         random_volume_3 = ht.array([])
         with self.assertRaises(ValueError):
             ht.maximum(random_volume_1, random_volume_3)
-        random_volume_3 = ht.random.randn(4, 2, 3, split=0)
+        random_volume_4 = ht.random.randn(4, 2, 3, split=0)
         with self.assertRaises(ValueError):
-            ht.maximum(random_volume_1, random_volume_3)
-        random_volume_3 = torch.ones(12, 3, 3, device=self.device.torch_device)
+            ht.maximum(random_volume_1, random_volume_4)
+        random_volume_5 = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
-            ht.maximum(random_volume_1, random_volume_3)
-        random_volume_3 = ht.random.randn(6, 3, 3, split=1)
+            ht.maximum(random_volume_1, random_volume_5)
+        random_volume_6 = ht.random.randn(6, 3, 3, split=1)
         with self.assertRaises(NotImplementedError):
-            ht.maximum(random_volume_1, random_volume_3)
-        output = torch.ones(12, 3, 3, device=self.device.torch_device)
+            ht.maximum(random_volume_1, random_volume_6)
+        output1 = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
-            ht.maximum(random_volume_1, random_volume_2, out=output)
-        output = ht.ones((12, 4, 3))
+            ht.maximum(random_volume_1, random_volume_2, out=output1)
+        output2 = ht.ones((12, 4, 3))
         with self.assertRaises(ValueError):
-            ht.maximum(random_volume_1, random_volume_2, out=output)
-        output = ht.ones((6, 3, 3), split=1)
+            ht.maximum(random_volume_1, random_volume_2, out=output2)
+        output3 = ht.ones((6, 3, 3), split=1)
         with self.assertRaises(ValueError):
-            ht.maximum(random_volume_1, random_volume_2, out=output)
+            ht.maximum(random_volume_1, random_volume_2, out=output3)
 
     def test_mean(self):
         array_0_len = 5
