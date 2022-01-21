@@ -103,9 +103,9 @@ def __binary_op(
     sanitation.sanitize_in(t2)
 
     # Make inputs have the same dimensionality
-    print("debugging: ON RANK ", t1.rank, " BEFORE BROADCAST_SHAPE")
+    print("debugging: ON RANK ", t1.comm.rank, " BEFORE BROADCAST_SHAPE")
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-    print("debugging: ON RANK ", t1.rank, " AFTER BROADCAST_SHAPE")
+    print("debugging: ON RANK ", t1.comm.rank, " AFTER BROADCAST_SHAPE")
     # Broadcasting allows additional empty dimensions on the left side
     # TODO simplify this once newaxis-indexing is supported to get rid of the loops
     while len(t1.shape) < len(output_shape):
