@@ -81,7 +81,7 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
 
     # matrix  single process
     if not x.is_distributed() or x.split < x.ndim - 2:
-        data = torch.linalg.cholesky(x.larray, upper)
+        data = torch.linalg.cholesky(x.larray, upper=upper)
         return DNDarray(
             data, x.shape, types.heat_type_of(data), x.split, x.device, x.comm, x.balanced
         )

@@ -37,7 +37,7 @@ class TestLinalgBasics(TestCase):
         L = torch.linalg.cholesky(A, True)
 
         A_ht = ht.asarray(A)
-        L_ht = ht.linalg.cholesky(A_ht, True)
+        L_ht = ht.linalg.cholesky(A_ht, upper=True)
         self.assertTrue(torch.allclose(L_ht.larray, L))
 
         A_ht0 = ht.resplit(A_ht, 0)
