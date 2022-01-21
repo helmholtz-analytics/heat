@@ -155,13 +155,20 @@ def __binary_op(
 
     # promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
     if t1.split is not None:
-        result = operation(
-            t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-        )
+        if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
+            result = t1.larray.type(promoted_type)
+        else:
+            result = operation(
+                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+            )
     elif t2.split is not None:
-        result = operation(
-            t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-        )
+
+        if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
+            result = t2.larray.type(promoted_type)
+        else:
+            result = operation(
+                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+            )
     else:
         result = operation(
             t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
