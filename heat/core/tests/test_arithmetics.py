@@ -313,7 +313,7 @@ class TestArithmetics(TestCase):
                         )
 
                         ht_diff_pend = ht.diff(lp_array, n=nl, axis=ax, prepend=0, append=ht_append)
-                        np_append = np.ones(append_shape, dtype=lp_array.larray.numpy().dtype)
+                        np_append = np.ones(append_shape, dtype=lp_array.larray.cpu().numpy().dtype)
                         np_diff_pend = ht.array(
                             np.diff(np_array, n=nl, axis=ax, prepend=0, append=np_append)
                         )
