@@ -48,7 +48,7 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
         it = itertools.zip_longest(shape_a[::-1], shape_b[::-1], fillvalue=1)
         resulting_shape = max(len(shape_a), len(shape_b)) * [None]
         for i, (a, b) in enumerate(it):
-            if a == 0 or b == 0:
+            if a == 0 and b == 1 or b == 0 and a == 1:
                 resulting_shape[i] = 0
             elif a == 1 or b == 1 or a == b:
                 resulting_shape[i] = max(a, b)
