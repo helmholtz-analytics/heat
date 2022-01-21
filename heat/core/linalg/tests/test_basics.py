@@ -34,10 +34,10 @@ class TestLinalgBasics(TestCase):
         # single matrix
         A = torch.randn(8, 8, dtype=torch.float32)
         A = A @ A.transpose(-2, -1) + torch.eye(8)
-        L = torch.linalg.cholesky(A, True)
+        L = torch.linalg.cholesky(A, upper=True)
 
         A_ht = ht.asarray(A)
-        L_ht = ht.linalg.cholesky(A_ht, upper=True)
+        L_ht = ht.linalg.cholesky(A_ht, True)
         self.assertTrue(torch.allclose(L_ht.larray, L))
 
         A_ht0 = ht.resplit(A_ht, 0)
