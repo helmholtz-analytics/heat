@@ -779,7 +779,6 @@ class TestStatistics(TestCase):
         self.assertEqual(output.larray.dtype, torch.float32)
 
         # check exceptions
-        print("DEBUGGING: START EXCEPTIONS")
         random_volume_3 = ht.array([])
         with self.assertRaises(ValueError):
             ht.maximum(random_volume_1, random_volume_3)
