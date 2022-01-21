@@ -68,6 +68,7 @@ def __binary_op(
     2) no (shape)-broadcasting in the split dimension if not necessary
     3) t1 is preferred to t2
     """
+    print("DEBUGGING: type(t1), type(t2) = {}, {}".format(type(t1), type(t2)))
     # Check inputs
     if not np.isscalar(t1) and not isinstance(t1, DNDarray):
         raise TypeError(
@@ -102,7 +103,9 @@ def __binary_op(
     sanitation.sanitize_in(t2)
 
     # Make inputs have the same dimensionality
+    print("debugging: ON RANK ", t1.rank, " BEFORE BROADCAST_SHAPE")
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+    print("debugging: ON RANK ", t1.rank, " AFTER BROADCAST_SHAPE")
     # Broadcasting allows additional empty dimensions on the left side
     # TODO simplify this once newaxis-indexing is supported to get rid of the loops
     while len(t1.shape) < len(output_shape):
