@@ -1,5 +1,5 @@
 """
-A collection of functions used for inferring or correction things before major computation
+A collection of functions used for inferring or correcting things before major computation
 """
 
 import itertools
@@ -42,20 +42,18 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
         "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
     ValueError: operands could not be broadcast, input shapes (2, 1) (8, 4, 3)
     """
-    return np.broadcast_shapes(shape_a, shape_b)
-    it = itertools.zip_longest(shape_a[::-1], shape_b[::-1], fillvalue=1)
-    resulting_shape = max(len(shape_a), len(shape_b)) * [None]
-    for i, (a, b) in enumerate(it):
-        if a == 0 or b == 0:
-            resulting_shape[i] = 0
-        elif a == 1 or b == 1 or a == b:
-            resulting_shape[i] = max(a, b)
-        else:
-            raise ValueError(
-                "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
-            )
+    try:
+        resulting_shape = torch.broadcast_shapes(shape_a, shape_b)
+    except TypeError:
+        raise TypeError("operand 1 must be tuple of ints, not {}".format(type(shape_a)))
+    except NameError:
+        raise TypeError("operands must be tuples of ints, not {} and {}".format(shape_a, shape_b))
+    except RuntimeError:
+        raise ValueError(
+            "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
+        )
 
-    return tuple(resulting_shape[::-1])
+    return tuple(resulting_shape)
 
 
 def sanitize_axis(
