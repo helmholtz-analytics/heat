@@ -9,7 +9,50 @@ from ...tests.test_suites.basic_test import TestCase
 
 class TestLinalgBasics(TestCase):
     def test_cholesky(self):
-        pass
+        # batch of symmetric positive-definite matrices
+        A = torch.randn(3, 2, 2, dtype=torch.float64)
+        A = A @ A.transpose(-2, -1) + torch.eye(2)
+        L = torch.linalg.cholesky(A)
+
+        A_ht = ht.asarray(A)
+        L_ht = ht.linalg.cholesky(A_ht)
+        self.assertTrue(torch.allclose(L_ht.larray, L))
+
+        A_ht0 = ht.resplit(A_ht, 0)
+        L_ht0 = ht.linalg.cholesky(A_ht0)
+        self.assertTrue(ht.allclose(L_ht0, ht.resplit(L_ht, 0)))
+
+        A_ht1 = ht.resplit(A_ht, 1)
+        L_ht1 = ht.linalg.cholesky(A_ht1)
+        self.assertTrue(ht.allclose(L_ht1, ht.resplit(L_ht, 1)))
+
+        A_ht2 = ht.resplit(A_ht, 2)
+        L_ht2 = ht.linalg.cholesky(A_ht2)
+        self.assertTrue(ht.allclose(L_ht2, ht.resplit(L_ht, 2)))
+
+        # single matrix
+        A = torch.randn(8, 8, dtype=torch.float32)
+        A = A @ A.transpose(-2, -1) + torch.eye(8)
+        L = torch.linalg.cholesky(A, True)
+
+        A_ht = ht.asarray(A)
+        L_ht = ht.linalg.cholesky(A_ht, True)
+        self.assertTrue(torch.allclose(L_ht.larray, L))
+
+        A_ht0 = ht.resplit(A_ht, 0)
+        L_ht0 = ht.linalg.cholesky(A_ht0, True)
+        self.assertTrue(ht.allclose(L_ht0, ht.resplit(L_ht, 0)))
+
+        A_ht1 = ht.resplit(A_ht, 1)
+        L_ht1 = ht.linalg.cholesky(A_ht1, True)
+        self.assertTrue(ht.allclose(L_ht1, ht.resplit(L_ht, 1)))
+
+        with self.assertRaises(RuntimeError):
+            ht.linalg.cholesky(ht.array([1, 2, 3], split=0))
+        with self.assertRaises(RuntimeError):
+            ht.linalg.cholesky(ht.zeros((2, 3, 2), split=1))
+        with self.assertRaises(NotImplementedError):
+            ht.linalg.cholesky(ht.zeros((2, 2), dtype=ht.int, split=0))
 
     def test_dot(self):
         # ONLY TESTING CORRECTNESS! ALL CALLS IN DOT ARE PREVIOUSLY TESTED

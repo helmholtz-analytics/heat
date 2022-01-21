@@ -66,23 +66,23 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
     DNDarray([[(1+0j),    -2j],
               [    2j, (5+0j)]], dtype=ht.complex64, device=cpu:0, split=None)
     """
-    # matrix  single process
-    if not x.is_distributed() or x.split < x.ndim - 2:
-        data = torch.linalg.cholesky(x.larray)
-        return DNDarray(
-            data, x.shape, types.heat_type_of(data), x.split, x.device, x.comm, x.balanced
-        )
-
     if x.ndim < 2:
-        raise ValueError("DNDarray must be at least two-dimensional.")
+        raise RuntimeError("DNDarray must be at least two-dimensional.")
 
     m, n = x.shape[-2:]
 
     if m != n:
-        raise ValueError("Last two dimensions of the DNDarray must be square.")
+        raise RuntimeError("Last two dimensions of the DNDarray must be square.")
 
     if types.heat_type_is_exact(x.dtype) or types.heat_type_is_complexfloating(x.dtype):
         raise NotImplementedError("Not implemented for {}".format(x.dtype))
+
+    # matrix  single process
+    if not x.is_distributed() or x.split < x.ndim - 2:
+        data = torch.linalg.cholesky(x.larray, upper)
+        return DNDarray(
+            data, x.shape, types.heat_type_of(data), x.split, x.device, x.comm, x.balanced
+        )
 
     a = x.copy()
 
@@ -94,7 +94,7 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
                 a[..., i, i + 1 :] /= manipulations.expand_dims(a[..., i, i], -1)
                 b = a[..., i, i + 1 :]
                 L = triu(
-                    manipulations.expand_dims(manipulations.resplit(b, -1), -1).conj()
+                    manipulations.expand_dims(manipulations.resplit(b, -1), -1)
                     * manipulations.expand_dims(b, -2)
                 )
             else:
@@ -102,7 +102,7 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
                 b = a[..., i + 1 :, i]
                 b.balance_()
                 L = tril(
-                    manipulations.expand_dims(b, -1).conj()
+                    manipulations.expand_dims(b, -1)
                     * manipulations.expand_dims(manipulations.resplit(b, None), -2)
                 )
         else:
@@ -112,14 +112,14 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
                 b.balance_()
                 L = triu(
                     manipulations.expand_dims(manipulations.resplit(b, None), -1)
-                    * manipulations.expand_dims(b, -2).conj()
+                    * manipulations.expand_dims(b, -2)
                 )
             else:
                 a[..., i + 1 :, i] /= manipulations.expand_dims(a[..., i, i], -1)
                 b = a[..., i + 1 :, i]
                 L = tril(
                     manipulations.expand_dims(b, -1)
-                    * manipulations.expand_dims(manipulations.resplit(b, -1), -2).conj()
+                    * manipulations.expand_dims(manipulations.resplit(b, -1), -2)
                 )
 
         target_map = a[..., i + 1 :, i + 1 :].lshape_map
