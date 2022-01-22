@@ -43,7 +43,13 @@ class TestRelational(TestCase):
         self.assertTrue(ht.equal(self.a_tensor, self.a_tensor))
         self.assertFalse(ht.equal(self.a_tensor, self.another_tensor))
         self.assertFalse(ht.equal(self.a_tensor, self.a_scalar))
+        self.assertFalse(ht.equal(self.a_scalar, self.a_tensor))
+        self.assertFalse(ht.equal(self.a_scalar, self.a_tensor[0, 0]))
+        self.assertFalse(ht.equal(self.a_tensor[0, 0], self.a_scalar))
         self.assertFalse(ht.equal(self.another_tensor, self.a_scalar))
+        self.assertTrue(ht.equal(self.split_ones_tensor[:, 0], self.split_ones_tensor[:, 1]))
+        self.assertFalse(ht.equal(self.a_tensor, self.a_split_tensor))
+        self.assertFalse(ht.equal(self.a_split_tensor, self.a_tensor))
 
     def test_ge(self):
         result = ht.uint8([[False, True], [True, True]])

@@ -77,3 +77,14 @@ class TestOperations(TestCase):
             ht.bitwise_or(
                 ht.ones((1, 2), dtype=ht.int32, split=0), ht.ones((1, 2), dtype=ht.int32, split=1)
             )
+
+        a = ht.ones((4, 4), split=None)
+        b = ht.zeros((4, 4), split=0)
+        self.assertTrue(ht.equal(a * b, b))
+        self.assertTrue(ht.equal(b * a, b))
+        self.assertTrue(ht.equal(a[0] * b[0], b[0]))
+        self.assertTrue(ht.equal(b[0] * a[0], b[0]))
+        self.assertTrue(ht.equal(a * b[0:1], b))
+        self.assertTrue(ht.equal(b[0:1] * a, b))
+        self.assertTrue(ht.equal(a[0:1] * b, b))
+        self.assertTrue(ht.equal(b * a[0:1], b))
