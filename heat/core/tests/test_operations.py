@@ -88,3 +88,11 @@ class TestOperations(TestCase):
         self.assertTrue(ht.equal(b[0:1] * a, b))
         self.assertTrue(ht.equal(a[0:1] * b, b))
         self.assertTrue(ht.equal(b * a[0:1], b))
+
+        c = ht.array([1, 2, 3, 4], comm=ht.MPI_SELF)
+        with self.assertRaises(NotImplementedError):
+            b + c
+        with self.assertRaises(NotImplementedError):
+            a.resplit(1) * b
+        with self.assertRaises(ValueError):
+            a[2:] * b

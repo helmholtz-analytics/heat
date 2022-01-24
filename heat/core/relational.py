@@ -154,7 +154,7 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
             else:
                 target_map = x.lshape_map
                 idx = [slice(None)] * y.ndim
-                idx[y.split] = slice(
+                idx[x.split] = slice(
                     target_map[: y.comm.rank, x.split].sum(),
                     target_map[: y.comm.rank + 1, x.split].sum(),
                 )

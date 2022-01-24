@@ -94,7 +94,7 @@ def sanitize_distribution(
                 raise NotImplementedError("Not implemented for other comms")
         elif target_split is None:
             if arg.split is not None:
-                raise ValueError(
+                raise NotImplementedError(
                     "DNDarrays must have the same split axes, found {} and {}".format(
                         target_split, arg.split
                     )
