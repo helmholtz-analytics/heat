@@ -55,9 +55,11 @@ class TestRelational(TestCase):
         self.assertFalse(ht.equal(self.a_tensor, self.a_split_tensor))
         self.assertFalse(ht.equal(self.a_split_tensor, self.a_tensor))
 
-        arr = ht.array([1, 2], comm=ht.MPI_SELF)
+        arr = ht.array([[1, 2], [3, 4]], comm=ht.MPI_SELF)
         with self.assertRaises(NotImplementedError):
             ht.equal(self.a_tensor, arr)
+        with self.assertRaises(ValueError):
+            ht.equal(self.a_split_tensor, self.a_split_tensor.resplit(1))
 
     def test_ge(self):
         result = ht.uint8([[False, True], [True, True]])

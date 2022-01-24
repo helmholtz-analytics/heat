@@ -1067,6 +1067,12 @@ class TestStatistics(TestCase):
         output = ht.ones((6, 3, 3), split=1)
         with self.assertRaises(ValueError):
             ht.minimum(random_volume_1, random_volume_2, out=output)
+        output = ht.ones((6, 3, 3), split=None, comm=ht.MPI_SELF)
+        with self.assertRaises(ValueError):
+            ht.minimum(random_volume_1, random_volume_2, out=output)
+        output = ht.ones((6, 3, 3), split=0, comm=ht.MPI_SELF)
+        with self.assertRaises(NotImplementedError):
+            ht.minimum(random_volume_1, random_volume_2, out=output)
 
     def test_percentile(self):
         # test local, distributed, split/axis combination, no data on process
