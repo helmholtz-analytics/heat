@@ -116,8 +116,8 @@ def __binary_op(
         if other is not None:
             if out is None:
                 other = sanitation.sanitize_distribution(other, target=target, diff_map=map)
-            return target.split, target.device, target.comm, target.balance, other
-        return target.split, target.device, target.comm, target.balance
+            return target.split, target.device, target.comm, target.balanced, other
+        return target.split, target.device, target.comm, target.balanced
 
     if t1.split is not None and t1.shape[t1.split] == output_shape[t1.split]:  # t1 is "dominant"
         output_split, output_device, output_comm, output_balanced, t2 = __get_out_params(t1, t2)

@@ -76,7 +76,7 @@ def sanitize_distribution(
     elif target_split is not None:
         target_map = target.lshape_map
         target_size = target.shape[target_split]
-        target_balanced = target.is_balanced(force_check=True)
+        target_balanced = target.is_balanced(force_check=False)
 
     for arg in args:
         sanitize_in(arg)
@@ -137,7 +137,7 @@ def sanitize_distribution(
         elif not (
             # False
             target_balanced
-            and arg.is_balanced(force_check=True)
+            and arg.is_balanced(force_check=False)
         ):  # Split axes are the same and atleast one is not balanced
             current_map = arg.lshape_map
             out_map = current_map.clone()
