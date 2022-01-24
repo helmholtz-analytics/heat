@@ -16,9 +16,9 @@
 ### Arithmetics
  - - [#887](https://github.com/helmholtz-analytics/heat/pull/887) Binary operations now support operands of equal shapes, equal `split` axes, but different distribution maps.
 
+## Feature additions
 ### Communication
 - [#868](https://github.com/helmholtz-analytics/heat/pull/868) New `MPICommunication` method `Split`
-
 ### DNDarray
 - [#856](https://github.com/helmholtz-analytics/heat/pull/856) New `DNDarray` method `__torch_proxy__`
 - [#885](https://github.com/helmholtz-analytics/heat/pull/885) New `DNDarray` method `conj`
@@ -37,6 +37,9 @@
 - [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
 - [#853](https://github.com/helmholtz-analytics/heat/pull/853) New Feature: `swapaxes`
 - [#854](https://github.com/helmholtz-analytics/heat/pull/854) New Feature: `moveaxis`
+### Printing
+- [#816](https://github.com/helmholtz-analytics/heat/pull/816) New feature: Local printing (`ht.local_printing()`) and global printing options
+- [#816](https://github.com/helmholtz-analytics/heat/pull/816) New feature: print only on process 0 with `print0(...)` and `ht.print0(...)`
 ### Random
 - [#858](https://github.com/helmholtz-analytics/heat/pull/858) New Feature: `standard_normal`, `normal`
 ### Rounding
