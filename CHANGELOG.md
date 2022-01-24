@@ -29,6 +29,8 @@
 - [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) New features `norm`, `vector_norm`, `matrix_norm`
 - [#850](https://github.com/helmholtz-analytics/heat/pull/850) New Feature `cross`
+- [#877](https://github.com/helmholtz-analytics/heat/pull/877) New feature `det`
+
 ### Logical
 - [#862](https://github.com/helmholtz-analytics/heat/pull/862) New feature `signbit`
 ### Manipulations

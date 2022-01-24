@@ -65,7 +65,7 @@ class DNDarray:
         array: torch.Tensor,
         gshape: Tuple[int, ...],
         dtype: datatype,
-        split: int,
+        split: Union[int, None],
         device: Device,
         comm: Communication,
         balanced: bool,
