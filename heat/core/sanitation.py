@@ -142,7 +142,7 @@ def sanitize_distribution(
             target_balanced
             and arg.is_balanced(force_check=False)
         ):  # Split axes are the same and atleast one is not balanced
-            current_map = arg.lshape_map
+            current_map = arg.lshape_map.clone()
             out_map = current_map.clone()
             out_map[:, target_split] = target_map[:, target_split]
             if not (current_map[:, target_split] == target_map[:, target_split]).all():
