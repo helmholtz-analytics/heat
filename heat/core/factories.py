@@ -381,8 +381,8 @@ def array(
     lshape = gshape.copy()
     balanced = True
 
-    # content shall be split, chunk the passed data object up
     if split is not None:
+        # each process stores a slice of `obj`
         _, _, slices = comm.chunk(gshape, split)
         if not copy:
             obj = obj[slices]
@@ -390,13 +390,13 @@ def array(
             obj = obj[slices].clone()
         obj = sanitize_memory_layout(obj, order=order)
 
-    # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
+        # each `obj` is a slice of a global distributed array. No assumption on load balance.
         gshape = np.array(gshape)
         lshape = np.array(lshape)
         obj = sanitize_memory_layout(obj, order=order)
 
-        # sum up the elements along the split dimension
+        # infer global size of `is_split` dimension
         ndim_buffer = np.array(obj.ndim)
         comm.Allreduce(MPI.IN_PLACE, ndim_buffer, MPI.SUM)
         if ndim_buffer != 0:
@@ -405,6 +405,7 @@ def array(
                     "Unable to contruct DNDarray, the number of dimensions is not the same on all ranks"
                 )
 
+        # verify that shape of non-split dimensions is the same on all ranks
         ttl_shape = np.array(obj.shape)
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
         non_split_shape = np.concatenate((ttl_shape[:is_split], ttl_shape[is_split + 1 :]))
@@ -421,7 +422,8 @@ def array(
                 )
         gshape[is_split] = ttl_shape[is_split]
         split = is_split
-        # compare to calculated balanced lshape (cf. dndarray.is_balanced())
+
+        # determine `balanced` status
         gshape = tuple(int(ele) for ele in gshape)
         lshape = tuple(int(ele) for ele in lshape)
         _, _, chk = comm.chunk(gshape, split)
