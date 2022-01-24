@@ -49,14 +49,17 @@ def sanitize_distribution(
         Used in cases when the target array does not correspond to the actually wanted distribution,
         e.g. because it only contains a single element along the split axis and gets broadcast.
 
-    diff_shape (optional) : torch.Tensor
-
     Raises
     ------
     TypeError
         When an argument is not a ``DNDarray`` or ``None``.
     ValueError
         When the split-axes or sizes along the split-axis do not match.
+
+    See Also
+    ---------
+    :func:`~heat.core.dndarray.create_lshape_map`
+        Function to create the lshape_map.
     """
     out = []
     sanitize_in(target)
@@ -335,7 +338,14 @@ def sanitize_out(
             "Device mismatch: out is on {}, should be on {}".format(out.device, output_device)
         )
     if output_comm is not None and out.comm != output_comm:
-        raise ValueError("Comm mismatch")
+        try:
+            raise NotImplementedError(
+                "Not implemented for other comms, found {} and {}".format(
+                    out.comm.name, output_comm.name
+                )
+            )
+        except Exception:
+            raise NotImplementedError("Not implemented for other comms")
 
 
 def sanitize_sequence(

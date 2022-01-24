@@ -781,7 +781,7 @@ class DNDarray:
                 new_split = 0
             else:
                 for i in range(len(key[: self.split + 1])):
-                    if self.__is_key_singular(key, i, self_proxy):
+                    if self.__key_is_singular(key, i, self_proxy):
                         new_split = None if i == self.split else new_split - 1
 
         key = tuple(key)
@@ -885,7 +885,7 @@ class DNDarray:
                 lout[new_split] = 0
                 arr = torch.empty(lout, dtype=self.__array.dtype, device=self.__array.device)
 
-        elif self.__is_key_singular(key, self.split, self_proxy):
+        elif self.__key_is_singular(key, self.split, self_proxy):
             # getting one item along split axis:
             key = list(key)
             if isinstance(key[self.split], list):
@@ -969,7 +969,7 @@ class DNDarray:
         return self.split is not None and self.comm.is_distributed()
 
     @staticmethod
-    def __is_key_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+    def __key_is_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
         # determine if the key gets a singular item
         zeros = (0,) * (self_proxy.ndim - 1)
         return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0

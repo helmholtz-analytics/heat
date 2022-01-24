@@ -71,11 +71,11 @@ def __binary_op(
     # Check inputs
     if not np.isscalar(t1) and not isinstance(t1, DNDarray):
         raise TypeError(
-            "Only tensors and numeric scalars are supported, but input was {}".format(type(t1))
+            "Only DNDarrays and numeric scalars are supported, but input was {}".format(type(t1))
         )
     if not np.isscalar(t2) and not isinstance(t2, DNDarray):
         raise TypeError(
-            "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
+            "Only DNDarrays and numeric scalars are supported, but input was {}".format(type(t2))
         )
     promoted_type = types.result_type(t1, t2).torch_type()
 
@@ -98,8 +98,6 @@ def __binary_op(
             t2 = factories.array(t2, device=t1.device, comm=t1.comm)
         except (ValueError, TypeError):
             raise TypeError("Data type not supported, input was {}".format(type(t2)))
-    sanitation.sanitize_in(t1)
-    sanitation.sanitize_in(t2)
 
     # Make inputs have the same dimensionality
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
@@ -111,8 +109,28 @@ def __binary_op(
         t2 = t2.expand_dims(axis=0)
     # t1 = t1[tuple([None] * (len(output_shape) - t1.ndim))]
     # t2 = t2[tuple([None] * (len(output_shape) - t2.ndim))]
+    # print(t1.lshape, t2.lshape)
 
     def __get_out_params(target, other=None, map=None):
+        """
+        Getter for the output parameters of a binop with target.
+        If other is provided, it's distribution will be matched to target or, if provided,
+        redistributed according to map.
+
+        Parameters
+        ----------
+        target : DNDarray
+            DNDarray determining the parameters
+        other : DNDarray
+            DNDarray to be adapted
+        map : Tensor
+            Lshape-Map other should be matched to. Defaults to target's lshape_map
+
+        Returns
+        -------
+        Tuple
+            split, device, comm, balanced, [other]
+        """
         if other is not None:
             if out is None:
                 other = sanitation.sanitize_distribution(other, target=target, diff_map=map)
@@ -149,6 +167,7 @@ def __binary_op(
             t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
         )
         return out
+    # print(t1.lshape, t2.lshape)
 
     result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
 
