@@ -582,7 +582,7 @@ class DNDarray:
             result. Otherwise, create the lshape_map
         """
         if not force_check and self.__lshape_map is not None:
-            return self.__lshape_map
+            return self.__lshape_map.clone()
 
         lshape_map = torch.zeros(
             (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
@@ -601,7 +601,7 @@ class DNDarray:
             self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         self.__lshape_map = lshape_map
-        return lshape_map
+        return lshape_map.clone()
 
     def __float__(self) -> DNDarray:
         """
