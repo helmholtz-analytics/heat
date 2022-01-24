@@ -90,6 +90,84 @@ class TestLinalgBasics(TestCase):
         with self.assertRaises(ValueError):
             ht.cross(ht.eye(3, split=0), ht.eye(3, split=0), axis=0)
 
+    def test_det(self):
+        # (3,3) with pivoting
+        ares = ht.array(54.0)
+        a = ht.array([[-2.0, -1, 2], [2, 1, 4], [-3, 3, -1]], split=0, dtype=ht.double)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.equal(adet, ares))
+
+        a = ht.array([[-2.0, -1, 2], [2, 1, 4], [-3, 3, -1]], split=1, dtype=ht.double)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.equal(adet, ares))
+
+        # det==0
+        ares = ht.array(0.0)
+        a = ht.array([[0, 0, 0], [2, 1, 4], [-3, 3, -1]], dtype=ht.float64, split=0)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.equal(adet, ares))
+
+        # (3,2,2)
+        ares = ht.array([-2.0, -3.0, -8.0])
+
+        a = ht.array([[[1.0, 2], [3, 4]], [[1, 2], [2, 1]], [[1, 3], [3, 1]]])
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.allclose(adet, ares))
+
+        a = ht.array([[[1.0, 2], [3, 4]], [[1, 2], [2, 1]], [[1, 3], [3, 1]]], split=0)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertEqual(adet.split, a.split if a.is_distributed() else None)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.allclose(adet, ares))
+
+        a = ht.array([[[1.0, 2], [3, 4]], [[1, 2], [2, 1]], [[1, 3], [3, 1]]], split=1)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.allclose(adet, ares))
+
+        a = ht.array([[[1.0, 2], [3, 4]], [[1, 2], [2, 1]], [[1, 3], [3, 1]]], split=2)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.allclose(adet, ares))
+
+        with self.assertRaises(RuntimeError):
+            ht.linalg.det(ht.array([1, 2, 3], split=0))
+        with self.assertRaises(RuntimeError):
+            ht.linalg.det(ht.zeros((2, 2, 3), split=1))
+        with self.assertRaises(RuntimeError):
+            ht.linalg.det(ht.zeros((2, 2), dtype=ht.int, split=0))
+
     def test_dot(self):
         # ONLY TESTING CORRECTNESS! ALL CALLS IN DOT ARE PREVIOUSLY TESTED
         # cases to test:
