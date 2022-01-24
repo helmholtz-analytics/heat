@@ -507,7 +507,7 @@ class DNDarray:
         [1/2] (7, 2) (2, 2)
         [2/2] (7, 2) (2, 2)
         """
-        if self.is_balanced():
+        if self.is_balanced(force_check=True):
             return
         self.redistribute_()
 
@@ -590,7 +590,7 @@ class DNDarray:
         if not self.is_distributed:
             lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
             return lshape_map
-        if self.is_balanced():
+        if self.is_balanced(force_check=True):
             for i in range(self.comm.size):
                 _, lshape, _ = self.comm.chunk(self.gshape, self.split, rank=i)
                 lshape_map[i, :] = torch.tensor(lshape, device=self.device.torch_device)
@@ -751,13 +751,22 @@ class DNDarray:
             kend = key[ell_ind + 1 :]
             slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
             key = kst + slices + kend
+        else:
+            key = key + [slice(None)] * (self.ndim - len(key))
 
         self_proxy = self.__torch_proxy__()
         # None and newaxis indexing
-        for i in range(len(key))[::-1]:
+        # expand = []
+        for i in range(len(key)):
             if self.__key_adds_dimension(key, i, self_proxy):
-                self = self.expand_dims(i)
+                # self = self.expand_dims(i)
                 key[i] = slice(None)
+                # expand.append(i - len(expand))
+                return self.expand_dims(i)[tuple(key)]
+        # for dim in expand:
+        #     self = self.expand_dims(dim)
+        # if len(expand):
+        #     return self[tuple(key)]
 
         key = tuple(key)
         self_proxy = self.__torch_proxy__()

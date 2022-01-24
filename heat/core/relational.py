@@ -136,7 +136,7 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
         if x.split is None and y.split is None:
             pass
         elif x.split is None and y.split is not None:
-            if y.is_balanced():
+            if y.is_balanced(force_check=True):
                 x = factories.array(x, split=y.split, copy=False, comm=x.comm, device=x.device)
             else:
                 target_map = y.lshape_map
@@ -149,7 +149,7 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
                     x.larray[tuple(idx)], is_split=y.split, copy=False, comm=x.comm, device=x.device
                 )
         elif x.split is not None and y.split is None:
-            if x.is_balanced():
+            if x.is_balanced(force_check=True):
                 y = factories.array(y, split=x.split, copy=False, comm=y.comm, device=y.device)
             else:
                 target_map = x.lshape_map
@@ -165,7 +165,7 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
             raise ValueError(
                 "DNDarrays must have the same split axes, found {} and {}".format(x.split, y.split)
             )
-        elif not (x.is_balanced() and y.is_balanced()):
+        elif not (x.is_balanced(force_check=True) and y.is_balanced(force_check=True)):
             x_lmap = x.lshape_map
             y_lmap = y.lshape_map
             if not torch.equal(x_lmap, y_lmap):

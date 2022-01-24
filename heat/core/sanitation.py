@@ -64,10 +64,19 @@ def sanitize_distribution(
     if diff_map is not None:
         sanitize_in_tensor(diff_map)
         target_map = diff_map
-        target_size = target_map[:, target_split].sum().item()
+        if target_split is not None:
+            tmap_split = target_map[:, target_split]
+            target_size = tmap_split.sum().item()
+            # Check if the diff_map is balanced
+            w_size = target_map.shape[0]
+            tmap_balanced = torch.full_like(tmap_split, fill_value=target_size // w_size)
+            remainder = target_size % w_size
+            tmap_balanced[:remainder] += 1
+            target_balanced = torch.equal(tmap_balanced, tmap_split)
     elif target_split is not None:
         target_map = target.lshape_map
         target_size = target.shape[target_split]
+        target_balanced = target.is_balanced(force_check=True)
 
     for arg in args:
         sanitize_in(arg)
@@ -98,7 +107,7 @@ def sanitize_distribution(
                 )
             )
         elif arg.split is None:  # undistributed case
-            if target.is_balanced():
+            if target_balanced:
                 out.append(
                     factories.array(
                         arg, split=target_split, copy=False, comm=arg.comm, device=arg.device
@@ -126,7 +135,9 @@ def sanitize_distribution(
                 )
             )
         elif not (
-            target.is_balanced() and arg.is_balanced()
+            # False
+            target_balanced
+            and arg.is_balanced(force_check=True)
         ):  # Split axes are the same and atleast one is not balanced
             current_map = arg.lshape_map
             out_map = current_map.clone()
