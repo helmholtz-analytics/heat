@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: create issue
+        run: echo "creating issue"
         uses: actions/checkout@v2
         uses: JasonEtco/create-an-issue@v2
         env:
@@ -23,10 +24,12 @@ jobs:
           update_existing: true
           search_existing: open
       - name: Check out branch
+        run: echo "checking out new branch"
         uses: actions/checkout@v2
         with:
           ref: 'features/latest-pytorch-support'
       - name: Create Pull Request
+        run: echo "creating PR"
         uses: peter-evans/create-pull-request@v3
         with:
             token: ${{ secrets.GITHUB_TOKEN }}
