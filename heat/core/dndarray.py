@@ -582,7 +582,7 @@ class DNDarray:
             result. Otherwise, create the lshape_map
         """
         if not force_check and self.__lshape_map is not None:
-            return self.__lshape_map
+            return self.__lshape_map.clone()
 
         lshape_map = torch.zeros(
             (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
@@ -601,7 +601,7 @@ class DNDarray:
             self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         self.__lshape_map = lshape_map
-        return lshape_map
+        return lshape_map.clone()
 
     def __float__(self) -> DNDarray:
         """
@@ -781,7 +781,7 @@ class DNDarray:
                 new_split = 0
             else:
                 for i in range(len(key[: self.split + 1])):
-                    if self.__is_key_singular(key, i, self_proxy):
+                    if self.__key_is_singular(key, i, self_proxy):
                         new_split = None if i == self.split else new_split - 1
 
         key = tuple(key)
@@ -885,7 +885,7 @@ class DNDarray:
                 lout[new_split] = 0
                 arr = torch.empty(lout, dtype=self.__array.dtype, device=self.__array.device)
 
-        elif self.__is_key_singular(key, self.split, self_proxy):
+        elif self.__key_is_singular(key, self.split, self_proxy):
             # getting one item along split axis:
             key = list(key)
             if isinstance(key[self.split], list):
@@ -969,7 +969,7 @@ class DNDarray:
         return self.split is not None and self.comm.is_distributed()
 
     @staticmethod
-    def __is_key_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+    def __key_is_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
         # determine if the key gets a singular item
         zeros = (0,) * (self_proxy.ndim - 1)
         return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0

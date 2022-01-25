@@ -2891,7 +2891,7 @@ def stack(
     ValueError
         If the `DNDarray`s are of different shapes, or if they are split along different axes (`split` attribute).
     RuntimeError
-        If the `DNDarrays` reside of different devices.
+        If the `DNDarrays` reside on different devices.
 
     Notes
     -----

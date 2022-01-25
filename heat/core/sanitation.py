@@ -32,9 +32,9 @@ def sanitize_distribution(
     *args: DNDarray, target: DNDarray, diff_map: torch.Tensor = None
 ) -> Union[DNDarray, Tuple(DNDarray)]:
     """
-    Make every arg have the same distribution (along split-axis) as the target,
-    such that after this sanitation, the lshapes are compatible wrt split-dimension.
-    Args can contain unsplit-DNDarrays.
+    Distribute every arg according to target.lshape_map or, if provided, diff_map.
+    After this sanitation, the lshapes are compatible along the split dimension.
+    Args can contain non-distributed DNDarrays, they will be split afterwards.
 
     Parameters
     ----------
@@ -49,14 +49,17 @@ def sanitize_distribution(
         Used in cases when the target array does not correspond to the actually wanted distribution,
         e.g. because it only contains a single element along the split axis and gets broadcast.
 
-    diff_shape (optional) : torch.Tensor
-
     Raises
     ------
     TypeError
         When an argument is not a ``DNDarray`` or ``None``.
     ValueError
         When the split-axes or sizes along the split-axis do not match.
+
+    See Also
+    ---------
+    :func:`~heat.core.dndarray.create_lshape_map`
+        Function to create the lshape_map.
     """
     out = []
     sanitize_in(target)
@@ -91,7 +94,7 @@ def sanitize_distribution(
                 raise NotImplementedError("Not implemented for other comms")
         elif target_split is None:
             if arg.split is not None:
-                raise ValueError(
+                raise NotImplementedError(
                     "DNDarrays must have the same split axes, found {} and {}".format(
                         target_split, arg.split
                     )
@@ -335,7 +338,14 @@ def sanitize_out(
             "Device mismatch: out is on {}, should be on {}".format(out.device, output_device)
         )
     if output_comm is not None and out.comm != output_comm:
-        raise ValueError("Comm mismatch")
+        try:
+            raise NotImplementedError(
+                "Not implemented for other comms, found {} and {}".format(
+                    out.comm.name, output_comm.name
+                )
+            )
+        except Exception:
+            raise NotImplementedError("Not implemented for other comms")
 
 
 def sanitize_sequence(
