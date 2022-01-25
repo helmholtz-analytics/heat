@@ -2,7 +2,7 @@
 name: Support new PyTorch release
 title: 'Support new PyTorch release'
 labels: 'enhancement'
-assignees: 'ClaudiaComito, coquelin77, mtar'
+assignees: 'ClaudiaComito'
 ---
 
 A new PyTorch release is out. Action needed:
