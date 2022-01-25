@@ -311,13 +311,13 @@ def sanitize_out(
     count_split = int(out.split is not None) + int(output_split is not None)
     if count_split == 1:
         raise ValueError(
-            "Split axis of output buffer is inconsistent with split semantics (see documentation)."
+            "Split axis of output buffer is inconsistent with split semantics for this operation."
         )
     elif count_split == 2:
         if out.shape[out.split] > 1:  # split axis is not squeezed out
             if out_proxy.names.index("split") != check_proxy.names.index("split"):
                 raise ValueError(
-                    "Split axis of output buffer is inconsistent with split semantics (see documentation)."
+                    "Split axis of output buffer is inconsistent with split semantics for this operation."
                 )
         else:  # split axis is squeezed out
             num_dim_before_split = len(
@@ -328,7 +328,7 @@ def sanitize_out(
             )
             if num_dim_before_split != check_num_dim_before_split:
                 raise ValueError(
-                    "Split axis of output buffer is inconsistent with split semantics (see documentation)."
+                    "Split axis of output buffer is inconsistent with split semantics for this operation."
                 )
     if out.device is not output_device:
         raise ValueError(
