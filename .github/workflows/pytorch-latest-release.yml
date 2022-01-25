@@ -12,7 +12,7 @@ jobs:
       - name: Fetch PyTorch release version
         run: |
           curl -sL https://api.github.com/repos/pytorch/pytorch/releases/latest | \
-          jq -r ".tag_name" > python-release-versions/pytorch-latest.txt
+          jq -r ".tag_name" > .github/workflows/python-release-versions/pytorch-latest.txt
       - name: Check for modified files
         id: git-check
         run: echo ::set-output name=modified::$([ -z "`git status --porcelain`" ] && echo "false" || echo "true")
