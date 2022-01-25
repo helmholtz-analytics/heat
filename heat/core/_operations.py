@@ -14,6 +14,7 @@ from . import sanitation
 from . import statistics
 from .dndarray import DNDarray
 from . import types
+from .manipulations import resplit
 
 from typing import Callable, Optional, Type, Union, Dict
 
@@ -142,6 +143,18 @@ def __binary_op(
                     newcomm.Bcast(t2)
                     newcomm.Free()
 
+                if (
+                    len(t2.shape) < len(output_shape)
+                    or t2.shape[t2.split] != output_shape[t2.split]
+                ):
+                    if t2.shape[t2.split] > 1 and t2.comm.is_distributed():
+                        t2 = resplit(t2)
+                elif (
+                    len(t1.shape) < len(output_shape)
+                    or t1.shape[t1.split] != output_shape[t1.split]
+                ):
+                    if t1.shape[t1.split] > 1 and t1.comm.is_distributed():
+                        t1 = resplit(t1)
         else:
             raise TypeError(
                 "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))

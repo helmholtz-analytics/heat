@@ -91,7 +91,6 @@ def create_fold(dataset_x, dataset_y, size, seed=None):
         random.seed(seed)
     indices = [i for i in range(data_length)]
     random.shuffle(indices)
-
     data_indices = ht.array(indices[0:size], split=0)
     verification_indices = ht.array(indices[size:], split=0)
 
@@ -144,4 +143,4 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
     return accuracies
 
 
-print(verify_algorithm(X, Y, 1, 30, 5, 1))
+print(verify_algorithm(X, Y, 10, 30, 5))
