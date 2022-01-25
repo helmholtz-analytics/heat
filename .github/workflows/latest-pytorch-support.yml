@@ -1,7 +1,7 @@
 on:
   push:
     paths:
-      - '.github/workflows/python-release-versions/*'
+      - 'python-release-versions/*'
 name: Support latest PyTorch
 permissions:
   contents: read
