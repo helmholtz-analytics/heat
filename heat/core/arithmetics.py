@@ -61,7 +61,8 @@ __all__ = [
     "sub",
     "subtract",
     "sum",
-    "nansum"
+    "nansum",
+    "nan_to_num"
 ]
 
 
@@ -1168,3 +1169,39 @@ def nansum(
 
 DNDarray.nansum = lambda self, other: nansum(self, other)
 DNDarray.nansum.__doc__ = nansum.__doc__
+
+
+def nan_to_num(
+    a: DNDarray,
+    nan: float = 0.0,
+    posinf: float = None,
+    neginf: float = None,
+    out: DNDarray = None
+) -> DNDarray:
+    """
+    Replaces NaNs, positive infinity values, and negative infinity values in the input 'a' with the values specified by 
+    nan, posinf, and neginf, respectively. By default, NaNs are replaced with zero, positive infinity is replaced with 
+    the greatest finite value representable by input’s dtype, and negative infinity is replaced with the least finite 
+    value representable by input’s dtype.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    nan : float, optional
+        Value to be used to replace NaNs. Default value is 0.0.
+    posinf : float, optional
+        Value to replace positive infinity values with. If None, positive infinity values are 
+        replaced with the greatest finite value of the input’s dtype. Default value is None.
+    neginf : float, optional
+        Value to replace negative infinity values with. If None, negative infinity values are 
+        replaced with the greatest negative finite value of the input’s dtype. Default value is None.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must have the same shape as the expected output, but
+        the datatype of the output values will be cast if necessary.
+    """   
+    return _operations.__local_op(torch.nan_to_num, a, out = out, no_cast=True, nan = nan, posinf = posinf, neginf = neginf)
+
+
+DNDarray.nan_to_num = lambda self, out = None, no_cast=True, nan = 0.0, posinf = None, neginf = None: nan_to_num(self, out=out, no_cast=no_cast, nan=nan, posinf=posinf, neginf=neginf)
+DNDarray.nan_to_num.__doc__ = nan_to_num.__doc__
