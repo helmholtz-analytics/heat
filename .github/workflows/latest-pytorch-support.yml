@@ -3,7 +3,7 @@ name: Support latest PyTorch
 on:
   push:
     paths:
-      - './python-release-versions/*'
+      - '.github/workflows/pytorch-release-versions/*'
 permissions:
   contents: read
   issues: write
