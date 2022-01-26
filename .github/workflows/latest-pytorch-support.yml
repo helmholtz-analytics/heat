@@ -1,8 +1,9 @@
+name: Support latest PyTorch
+
 on:
   push:
     paths:
-      - 'python-release-versions/*'
-name: Support latest PyTorch
+      - './python-release-versions/*'
 permissions:
   contents: read
   issues: write
