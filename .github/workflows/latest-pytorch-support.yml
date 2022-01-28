@@ -29,6 +29,7 @@ jobs:
       - run: echo "checking out new branch"
       - uses: peter-evans/create-pull-request@v3
         with:
+            ref: 'features/latest-pytorch-support'
             token: ${{ secrets.GITHUB_TOKEN }}
             commit-message: Support latest PyTorch release
             title: Support latest PyTorch release
