@@ -278,7 +278,10 @@ def inv(a: DNDarray) -> DNDarray:
     for i in range(m):
         ainv[:, i, i] = 1
 
+    _, displs = acopy.counts_displs()
+
     for k in range(ainv.shape[0]):
+        rank = 0
         for i in range(n):
             # partial pivoting
             if np.isclose(acopy[k, i, i].item(), 0):
@@ -304,9 +307,14 @@ def inv(a: DNDarray) -> DNDarray:
 
             scale = acopy[k, i, i].item()
 
+            # Circumvent an issue with DNDarray setter and getter that caused precision errors
             if a.split == a.ndim - 2:
-                ainv[k, i, :] /= scale
-                acopy[k, i, :] /= scale
+                if rank < acopy.comm.size - 1:
+                    if i >= displs[rank + 1]:
+                        rank += 1
+                if acopy.comm.rank == rank:
+                    ainv.larray[k, i - displs[rank], :] /= scale
+                    acopy.larray[k, i - displs[rank], :] /= scale
             else:
                 ainv[k, i, :].larray /= scale
                 acopy[k, i, :].larray /= scale
@@ -318,7 +326,6 @@ def inv(a: DNDarray) -> DNDarray:
         # backwards
         for i in range(n - 1, 0, -1):
             factor = acopy[k, :i, i, None].larray
-
             ainv[k, :i, :].larray -= factor * ainv[k, i, :].larray
             acopy[k, :i, :].larray -= factor * acopy[k, i, :].larray
 
