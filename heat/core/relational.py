@@ -101,15 +101,6 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
     >>> ht.equal(x, 3.0)
     False
     """
-    # result_tensor = _operations.__binary_op(torch.equal, x, y)
-    #
-    # if result_tensor.larray.numel() == 1:
-    #     result_value = result_tensor.larray.item()
-    # else:
-    #     result_value = True
-    #
-    # return result_tensor.comm.allreduce(result_value, MPI.LAND)
-
     if np.isscalar(x) and np.isscalar(y):
         x = factories.array(x)
         y = factories.array(y)

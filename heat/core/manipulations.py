@@ -2955,8 +2955,9 @@ def stack(
 
     target = arrays[0]
     try:
-        # arrays[1:] = sanitation.sanitize_distribution(*arrays[1:], target=target) # error in unpacking
-        arrays = sanitation.sanitize_distribution(*arrays, target=target)
+        arrays = sanitation.sanitize_distribution(
+            *arrays, target=target
+        )  # also checks target again
     except NotImplementedError as e:  # transform split axis error to ValueError
         raise ValueError(e)
 

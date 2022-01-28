@@ -113,9 +113,9 @@ def __binary_op(
 
     def __get_out_params(target, other=None, map=None):
         """
-        Getter for the output parameters of a binop with target.
-        If other is provided, it's distribution will be matched to target or, if provided,
-        redistributed according to map.
+        Getter for the output parameters of a binary operation with target distribution.
+        If `other` is provided, its distribution will be matched to `target` or, if provided,
+        redistributed according to `map`.
 
         Parameters
         ----------
@@ -124,7 +124,7 @@ def __binary_op(
         other : DNDarray
             DNDarray to be adapted
         map : Tensor
-            Lshape-Map other should be matched to. Defaults to target's lshape_map
+            lshape_map `other` should be matched to. Defaults to `target.lshape_map`
 
         Returns
         -------

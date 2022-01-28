@@ -709,7 +709,7 @@ class DNDarray:
             """ this loop handles all other cases. DNDarrays which make it to here refer to
                 advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
                 are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
-            h = [slice(None, None, None)] * self.ndim
+            h = [slice(None, None, None)] * max(self.ndim, 1)
             if isinstance(key, DNDarray):
                 key = manipulations.resplit(key)
                 if key.larray.dtype in [torch.bool, torch.uint8]:
@@ -755,21 +755,12 @@ class DNDarray:
             key = key + [slice(None)] * (self.ndim - len(key))
 
         self_proxy = self.__torch_proxy__()
-        # None and newaxis indexing
-        # expand = []
         for i in range(len(key)):
             if self.__key_adds_dimension(key, i, self_proxy):
-                # self = self.expand_dims(i)
                 key[i] = slice(None)
-                # expand.append(i - len(expand))
                 return self.expand_dims(i)[tuple(key)]
-        # for dim in expand:
-        #     self = self.expand_dims(dim)
-        # if len(expand):
-        #     return self[tuple(key)]
 
         key = tuple(key)
-        self_proxy = self.__torch_proxy__()
         # assess final global shape
         gout_full = list(self_proxy[key].shape)
 

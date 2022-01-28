@@ -32,9 +32,9 @@ def sanitize_distribution(
     *args: DNDarray, target: DNDarray, diff_map: torch.Tensor = None
 ) -> Union[DNDarray, Tuple(DNDarray)]:
     """
-    Distribute every arg according to target.lshape_map or, if provided, diff_map.
+    Distribute every `arg` according to `target.lshape_map` or, if provided, `diff_map`.
     After this sanitation, the lshapes are compatible along the split dimension.
-    Args can contain non-distributed DNDarrays, they will be split afterwards.
+    `Args` can contain non-distributed DNDarrays, they will be split afterwards, if `target` is split.
 
     Parameters
     ----------
