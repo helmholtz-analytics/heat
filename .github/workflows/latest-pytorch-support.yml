@@ -25,8 +25,9 @@ jobs:
       - run: echo "creating new issue"
       - uses: actions/checkout@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           ref: 'features/latest-pytorch-support'
-      - run: echo "checking out new branch"
+      - run: echo "checking out branch"
       - uses: peter-evans/create-pull-request@v3
         with:
             branch: features/latest-pytorch-support
