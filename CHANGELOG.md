@@ -12,8 +12,9 @@
 - [#868](https://github.com/helmholtz-analytics/heat/pull/868) Fixed an issue in `__binary_op` where data was falsely distributed if a DNDarray has single element.
 
 ## Feature Additions
-### Linear Algebra
-- [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
+
+### Arithmetics
+ - - [#887](https://github.com/helmholtz-analytics/heat/pull/887) Binary operations now support operands of equal shapes, equal `split` axes, but different distribution maps.
 
 ## Feature additions
 ### Communication
@@ -25,10 +26,11 @@
 # Feature additions
 ### Linear Algebra
 - [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
+- [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) New features `norm`, `vector_norm`, `matrix_norm`
 - [#850](https://github.com/helmholtz-analytics/heat/pull/850) New Feature `cross`
 - [#877](https://github.com/helmholtz-analytics/heat/pull/877) New feature `det`
-
+- [#875](https://github.com/helmholtz-analytics/heat/pull/875) New feature `inv`
 ### Logical
 - [#862](https://github.com/helmholtz-analytics/heat/pull/862) New feature `signbit`
 ### Manipulations
