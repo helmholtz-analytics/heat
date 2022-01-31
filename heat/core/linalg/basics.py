@@ -78,15 +78,24 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
     if m != n:
         raise RuntimeError("Last two dimensions of the DNDarray must be square.")
 
-    if types.heat_type_is_exact(x.dtype) or types.heat_type_is_complexfloating(x.dtype):
+    if types.heat_type_is_exact(x.dtype):
         raise NotImplementedError("Not implemented for {}".format(x.dtype))
 
     # matrix  single process
     if not x.is_distributed() or x.split < x.ndim - 2:
-        data = torch.linalg.cholesky(x.larray, upper=upper)
+        try:
+            data = torch.linalg.cholesky(x.larray, upper=upper)
+        except TypeError:  # upper parameter first introduced in PyTorch 1.10.
+            data = torch.linalg.cholesky(x.larray)
+            if upper:
+                data = data.T.conj()
+
         return DNDarray(
             data, x.shape, types.heat_type_of(data), x.split, x.device, x.comm, x.balanced
         )
+
+    if types.heat_type_is_complexfloating(x.dtype):
+        raise NotImplementedError("Not implemented for {}".format(x.dtype))
 
     a = x.copy()
 
