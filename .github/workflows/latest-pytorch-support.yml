@@ -30,9 +30,10 @@ jobs:
           ref: 'features/latest-pytorch-support'
       - name: Update torch version in setup.py
         id: update-setup-py
+        env:
+          previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')
+          new_pytorch: $(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)
         run: |
-          previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')
-          new_pytorch=$(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)
           echo $previous_pytorch
           echo $new_pytorch
           sed -i '/torch>=/ s/'"${previous_pytorch}"'/'"${new_pytorch}"'/g' setup.py
