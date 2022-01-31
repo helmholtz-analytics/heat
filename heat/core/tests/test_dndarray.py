@@ -1413,6 +1413,19 @@ class TestDNDarray(TestCase):
                 setting = ht.zeros((8, 8), split=1)
                 x[1:-1, 1:-1] = setting
 
+        for split in [None, 0, 1, 2]:
+            for new_dim in [0, 1, 2]:
+                for add in [np.newaxis, None]:
+                    arr = ht.ones((4, 3, 2), split=split, dtype=ht.int32)
+                    check = torch.ones((4, 3, 2), dtype=torch.int32)
+                    idx = [slice(None), slice(None), slice(None)]
+                    idx[new_dim] = add
+                    idx = tuple(idx)
+                    arr = arr[idx]
+                    check = check[idx]
+                    self.assertTrue(arr.shape == check.shape)
+                    self.assertTrue(arr.lshape[new_dim] == 1)
+
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
         self.assertEqual(a.size, 10 * 10 * 10)

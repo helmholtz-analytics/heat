@@ -3245,7 +3245,7 @@ class TestManipulations(TestCase):
         with self.assertRaises(ValueError):
             ht.stack((ht_a_split, ht_b_wrong_split, ht_c_split))
         with self.assertRaises(ValueError):
-            ht.stack((ht_a_split, ht_b, ht_c_split))
+            ht.stack((ht_a_split, ht_b.resplit(1), ht_c_split))
         out_wrong_type = torch.empty((3, 5, 4), dtype=torch.float32)
         with self.assertRaises(TypeError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_type)
