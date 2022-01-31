@@ -11,9 +11,8 @@ jobs:
   latest-torch-support:
     runs-on: ubuntu-latest
     steps:
-      - name: Create new issue
-        uses: actions/checkout@v2
-        uses: JasonEtco/create-an-issue@v2
+      - uses: actions/checkout@v2
+      - uses: JasonEtco/create-an-issue@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         id:
@@ -39,7 +38,7 @@ jobs:
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
           git commit -am "Update setup.py with latest pytorch release"
           git push
-        run: echo ::set-output name=new_pytorch::$(echo $new_pytorch)
+          echo ::set-output name=new_pytorch::$(echo $new_pytorch)
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v3
         with:
