@@ -28,6 +28,7 @@ __all__ = [
     "cross",
     "det",
     "dot",
+    "inv",
     "matmul",
     "matrix_norm",
     "norm",
@@ -306,6 +307,118 @@ def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDar
         return ret
     else:
         raise NotImplementedError("ht.dot not implemented for N-D dot M-D arrays")
+
+
+def inv(a: DNDarray) -> DNDarray:
+    """
+    Computes the multiplicative inverse of a square matrix.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Square matrix of floating-point data type or a stack of square matrices. Shape = (...,M,M)
+
+    Raises
+    ------
+    RuntimeError
+        If the inverse does not exist.
+    RuntimeError
+        If the dtype is not floating-point
+    RuntimeError
+        If a is not at least two-dimensional or if the lengths of the last two dimensions are not the same.
+
+    Examples
+    --------
+    >>> a = ht.array([[1., 2], [2, 3]])
+    >>> ht.linalg.inv(a)
+    DNDarray([[-3.,  2.],
+              [ 2., -1.]], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(a)  # pragma: no cover
+
+    if a.ndim < 2:
+        raise RuntimeError("DNDarray must be at least two-dimensional.")
+
+    m, n = a.shape[-2:]
+    if m != n:
+        raise RuntimeError("Last two dimensions of the DNDarray must be square.")
+
+    if types.heat_type_is_exact(a.dtype):
+        raise RuntimeError("dtype of DNDarray must be floating-point.")
+
+    # no split in the square matrices
+    if not a.is_distributed() or a.split < a.ndim - 2:
+        data = torch.inverse(a.larray)
+        return DNDarray(
+            data,
+            a.shape,
+            types.heat_type_of(data),
+            split=a.split,
+            device=a.device,
+            comm=a.comm,
+            balanced=a.balanced,
+        )
+
+    acopy = a.copy()
+    acopy = manipulations.reshape(acopy, (-1, m, m), new_split=a.split - a.ndim + 3)
+    ainv = factories.zeros_like(acopy)
+    for i in range(m):
+        ainv[:, i, i] = 1
+
+    _, displs = acopy.counts_displs()
+
+    for k in range(ainv.shape[0]):
+        rank = 0
+        for i in range(n):
+            # partial pivoting
+            if np.isclose(acopy[k, i, i].item(), 0):
+                abord = True
+                for j in range(i + 1, n):
+                    if not np.isclose(acopy[k, j, i].item(), 0):
+                        if a.split == a.ndim - 2:  # split=0 on square matrix
+                            ainv[k, i, :], ainv[k, j, :] = ainv[k, j, :], ainv[k, i, :].copy()
+                            acopy[k, i, :], acopy[k, j, :] = acopy[k, j, :], acopy[k, i, :].copy()
+                        else:  # split=1
+                            acopy.larray[k, i, :], acopy.larray[k, j, :] = (
+                                acopy.larray[k, j, :],
+                                acopy.larray[k, i, :].clone(),
+                            )
+                            ainv.larray[k, i, :], ainv.larray[k, j, :] = (
+                                ainv.larray[k, j, :],
+                                ainv.larray[k, i, :].clone(),
+                            )
+                        abord = False
+                        break
+                if abord:
+                    raise RuntimeError("Inverse does not exist")
+
+            scale = acopy[k, i, i].item()
+
+            # Circumvent an issue with DNDarray setter and getter that caused precision errors
+            if a.split == a.ndim - 2:
+                if rank < acopy.comm.size - 1:
+                    if i >= displs[rank + 1]:
+                        rank += 1
+                if acopy.comm.rank == rank:
+                    ainv.larray[k, i - displs[rank], :] /= scale
+                    acopy.larray[k, i - displs[rank], :] /= scale
+            else:
+                ainv[k, i, :].larray /= scale
+                acopy[k, i, :].larray /= scale
+
+            factor = acopy[k, i + 1 :, i, None].larray
+            ainv[k, i + 1 :, :].larray -= factor * ainv[k, i, :].larray
+            acopy[k, i + 1 :, :].larray -= factor * acopy[k, i, :].larray
+
+        # backwards
+        for i in range(n - 1, 0, -1):
+            factor = acopy[k, :i, i, None].larray
+            ainv[k, :i, :].larray -= factor * ainv[k, i, :].larray
+            acopy[k, :i, :].larray -= factor * acopy[k, i, :].larray
+
+    ainv = manipulations.reshape(ainv, a.shape, new_split=a.split)
+
+    return ainv
 
 
 def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
