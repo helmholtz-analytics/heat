@@ -10,10 +10,11 @@
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `_reduce_op` when axis and keepdim were set.
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `min`, `max` where DNDarrays with empty processes can't be computed.
 - [#868](https://github.com/helmholtz-analytics/heat/pull/868) Fixed an issue in `__binary_op` where data was falsely distributed if a DNDarray has single element.
+- [#876](https://github.com/helmholtz-analytics/heat/pull/876) Make examples work (Lasso and kNN)
 
 ## Feature Additions
-### Linear Algebra
-- [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
+- [#867](https://github.com/helmholtz-analytics/heat/pull/867) Support torch 1.9.0
+- [#884](https://github.com/helmholtz-analytics/heat/pull/884) Support PyTorch 1.10.0, this is now the recommended version to use.
 
 ## Feature additions
 ### Communication
@@ -22,9 +23,12 @@
 - [#856](https://github.com/helmholtz-analytics/heat/pull/856) New `DNDarray` method `__torch_proxy__`
 - [#885](https://github.com/helmholtz-analytics/heat/pull/885) New `DNDarray` method `conj`
 
+### Factories
+- [#749](https://github.com/helmholtz-analytics/heat/pull/749) `ht.array(copy=False)` behaviour now more in line with `np.array(copy=False)`, reduced memory footprint
 # Feature additions
 ### Linear Algebra
 - [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
+- [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) New features `norm`, `vector_norm`, `matrix_norm`
 - [#850](https://github.com/helmholtz-analytics/heat/pull/850) New Feature `cross`
 - [#877](https://github.com/helmholtz-analytics/heat/pull/877) New feature `det`
@@ -32,6 +36,7 @@
 ### Logical
 - [#862](https://github.com/helmholtz-analytics/heat/pull/862) New feature `signbit`
 ### Manipulations
+- [#749](https://github.com/helmholtz-analytics/heat/pull/749) Distributed sorted `ht.unique`
 - [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
 - [#853](https://github.com/helmholtz-analytics/heat/pull/853) New Feature: `swapaxes`
 - [#854](https://github.com/helmholtz-analytics/heat/pull/854) New Feature: `moveaxis`
@@ -42,6 +47,7 @@
 - [#858](https://github.com/helmholtz-analytics/heat/pull/858) New Feature: `standard_normal`, `normal`
 ### Rounding
 - [#827](https://github.com/helmholtz-analytics/heat/pull/827) New feature: `sign`, `sgn`
+
 
 # v1.1.1
 - [#864](https://github.com/helmholtz-analytics/heat/pull/864) Dependencies: constrain `torchvision` version range to match supported `pytorch` version range.
@@ -104,6 +110,9 @@ Example on 2 processes:
 ### Linear Algebra
 - [#718](https://github.com/helmholtz-analytics/heat/pull/718) New feature: `trace()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
+
+### Manipulations
+- [#820](https://github.com/helmholtz-analytics/heat/pull/820) `dot` can handle matrix vector operation now
 - [#820](https://github.com/helmholtz-analytics/heat/pull/820) `dot` can handle matrix-vector operation now
 
 ### Manipulations
@@ -199,6 +208,7 @@ Example on 2 processes:
 ### Manipulations
 - [#690](https://github.com/helmholtz-analytics/heat/pull/690) Enhancement: reshape accepts shape arguments with one unknown dimension.
 - [#706](https://github.com/helmholtz-analytics/heat/pull/706) Bug fix: prevent `__setitem__`, `__getitem__` from modifying key in place
+- [#744](https://github.com/helmholtz-analytics/heat/pull/744) Fix split semantics for reduction operations
 ### Unit testing / CI
 - [#717](https://github.com/helmholtz-analytics/heat/pull/717) Switch CPU CI over to Jenkins and pre-commit to GitHub action.
 - [#720](https://github.com/helmholtz-analytics/heat/pull/720) Ignore test files in codecov report and allow drops in code coverage.

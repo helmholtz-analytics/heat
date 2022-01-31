@@ -80,7 +80,6 @@ class TestQR(TestCase):
                 self.assertTrue(
                     ht.allclose(ht.eye(m, dtype=ht.double), qr2.Q @ qr2.Q.T, rtol=1e-5, atol=1e-5)
                 )
-
         # test if calc R alone works
         a2_0 = ht.array(st2, split=0)
         a2_1 = ht.array(st2, split=1)

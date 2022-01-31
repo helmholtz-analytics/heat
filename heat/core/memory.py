@@ -58,30 +58,24 @@ def sanitize_memory_layout(x: torch.Tensor, order: str = "C") -> torch.Tensor:
     if x.ndim < 2 or x.numel() == 0:
         # do nothing
         return x
-    dims = list(range(x.ndim))
     stride = torch.tensor(x.stride())
     # since strides can get a bit wonky with operations like transpose
     #   we should assume that the tensors are row major or are distributed the default way
-    sdiff = stride[1:] - stride[:-1]
-    column_major = all(sdiff >= 0)
-    row_major = True if not column_major else False
-    if (order == "C" and row_major) or (order == "F" and column_major):
+    column_major = (stride[1:] - stride[:-1] >= 0).all()
+    if (order == "C" and not column_major) or (order == "F" and column_major):
         # do nothing
         return x
-    elif (order == "C" and column_major) or (order == "F" and row_major):
-        dims = tuple(reversed(dims))
-        y = torch.empty_like(x)
-        permutation = x.permute(dims).contiguous()
-        y = y.set_(
-            permutation.storage(),
-            x.storage_offset(),
-            x.shape,
-            tuple(reversed(permutation.stride())),
+    if (order == "C" and column_major) or (order == "F" and not column_major):
+        dims = tuple(range(x.ndim - 1, -1, -1))
+        storage_offset = x.storage_offset()
+        shape = x.shape
+        x = x.permute(dims).contiguous()
+        reversed_stride = tuple(reversed(x.stride()))
+        x.set_(x.storage(), storage_offset, shape, reversed_stride)
+        return x
+
+    raise ValueError(
+        "combination of order and layout not permitted, order: {} column major: {} row major: {}".format(
+            order, column_major, not column_major
         )
-        return y
-    else:
-        raise ValueError(
-            "combination of order and layout not permitted, order: {} column major: {} row major: {}".format(
-                order, column_major, row_major
-            )
-        )
+    )

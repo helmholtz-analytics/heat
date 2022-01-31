@@ -2618,126 +2618,181 @@ class TestManipulations(TestCase):
 
     def test_sort(self):
         size = ht.MPI_WORLD.size
-        rank = ht.MPI_WORLD.rank
-        tensor = (
-            torch.arange(size, device=self.device.torch_device).repeat(size).reshape(size, size)
-        )
-
+        torch.manual_seed(42)
+        tensor_3d = torch.randint(0, 10 * size, (size, size, size), device=self.device.torch_device)
+        tensor = tensor_3d[0]
+        # sort along axis 0, split None
         data = ht.array(tensor, split=None)
         result, result_indices = ht.sort(data, axis=0, descending=True)
-        expected, exp_indices = torch.sort(tensor, dim=0, descending=True)
-        self.assertTrue(torch.equal(result.larray, expected))
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
-
+        expected_dim0, exp_indices_dim0 = torch.sort(tensor, dim=0, descending=True)
+        self.assertTrue(torch.equal(result.larray, expected_dim0))
+        # indices unstable on GPU if sorting non-unique values
+        if (
+            torch.unique(exp_indices_dim0).numel() == exp_indices_dim0.numel()
+            or result_indices.larray.is_cuda is False
+        ):
+            self.assertTrue(torch.equal(result_indices.larray, exp_indices_dim0.int()))
+        # sort along axis 1, split None
         result, result_indices = ht.sort(data, axis=1, descending=True)
-        expected, exp_indices = torch.sort(tensor, dim=1, descending=True)
-        self.assertTrue(torch.equal(result.larray, expected))
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
-
+        expected_dim1, exp_indices_dim1 = torch.sort(tensor, dim=1, descending=True)
+        self.assertTrue(torch.equal(result.larray, expected_dim1))
+        # indices unstable on GPU if sorting non-unique values
+        if (
+            torch.unique(exp_indices_dim1).numel() == exp_indices_dim1.numel()
+            or result_indices.larray.is_cuda is False
+        ):
+            self.assertTrue(torch.equal(result_indices.larray, exp_indices_dim1.int()))
+        # sort along axis 0, split 0
         data = ht.array(tensor, split=0)
-
-        exp_axis_zero = torch.arange(size, device=self.device.torch_device).reshape(1, size)
-        exp_indices = torch.tensor([[rank] * size], device=self.device.torch_device)
         result, result_indices = ht.sort(data, descending=True, axis=0)
+        _, _, local_slice = data.comm.chunk(expected_dim0.shape, split=0)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim0.shape, split=0)
+        exp_axis_zero = expected_dim0[local_slice]
+        exp_indices = exp_indices_dim0[local_slice_ind]
         self.assertTrue(torch.equal(result.larray, exp_axis_zero))
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
-
-        exp_axis_one, exp_indices = (
-            torch.arange(size, device=self.device.torch_device)
-            .reshape(1, size)
-            .sort(dim=1, descending=True)
-        )
+        # indices unstable on GPU if sorting non-unique values
+        if (
+            torch.unique(exp_indices).numel() == exp_indices.numel()
+            or result_indices.larray.is_cuda is False
+        ):
+            self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        # # sort along axis 1, split 0
         result, result_indices = ht.sort(data, descending=True, axis=1)
+        _, _, local_slice = data.comm.chunk(expected_dim1.shape, split=0)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim1.shape, split=0)
+        exp_axis_one = expected_dim1[local_slice]
+        exp_indices = exp_indices_dim1[local_slice_ind]
         self.assertTrue(torch.equal(result.larray, exp_axis_one))
-        self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        # indices unstable on GPU if sorting non-unique values
+        if (
+            torch.unique(exp_indices).numel() == exp_indices.numel()
+            or result_indices.larray.is_cuda is False
+        ):
+            self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
-        result1 = ht.sort(data, axis=1, descending=True)
-        result2 = ht.sort(data, descending=True)
-        self.assertTrue(ht.equal(result1[0], result2[0]))
-        self.assertTrue(ht.equal(result1[1], result2[1]))
-
+        # sort along axis 0, split 1
         data = ht.array(tensor, split=1)
-
-        exp_axis_zero = (
-            torch.tensor(rank, device=self.device.torch_device).repeat(size).reshape(size, 1)
-        )
-        indices_axis_zero = torch.arange(
-            size, dtype=torch.int64, device=self.device.torch_device
-        ).reshape(size, 1)
+        _, _, local_slice = data.comm.chunk(expected_dim0.shape, split=1)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim0.shape, split=1)
+        exp_axis_zero = expected_dim0[local_slice]
+        exp_indices = exp_indices_dim0[local_slice_ind]
         result, result_indices = ht.sort(data, axis=0, descending=True)
         self.assertTrue(torch.equal(result.larray, exp_axis_zero))
-        # comparison value is only true on CPU
-        if result_indices.larray.is_cuda is False:
-            self.assertTrue(torch.equal(result_indices.larray, indices_axis_zero.int()))
-
-        exp_axis_one = (
-            torch.tensor(size - rank - 1, device=self.device.torch_device)
-            .repeat(size)
-            .reshape(size, 1)
-        )
+        # indices unstable on GPU if sorting non-unique values
+        if (
+            torch.unique(exp_indices).numel() == exp_indices.numel()
+            or result_indices.larray.is_cuda is False
+        ):
+            self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        # sort along axis 1, split 1
+        _, _, local_slice = data.comm.chunk(expected_dim1.shape, split=1)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim1.shape, split=1)
+        exp_axis_one = expected_dim1[local_slice]
+        exp_indices = exp_indices_dim1[local_slice_ind]
         result, result_indices = ht.sort(data, descending=True, axis=1)
         self.assertTrue(torch.equal(result.larray, exp_axis_one))
-        self.assertTrue(torch.equal(result_indices.larray, exp_axis_one.int()))
-
-        tensor = torch.tensor(
-            [
-                [[2, 8, 5], [7, 2, 3]],
-                [[6, 5, 2], [1, 8, 7]],
-                [[9, 3, 0], [1, 2, 4]],
-                [[8, 4, 7], [0, 8, 9]],
-            ],
-            dtype=torch.int32,
-            device=self.device.torch_device,
-        )
-
+        # indices unstable on GPU if sorting non-unique values
+        if (
+            torch.unique(exp_indices).numel() == exp_indices.numel()
+            or result_indices.larray.is_cuda is False
+        ):
+            self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        # # 3D array
+        tensor = tensor_3d
+        expected_dim0, exp_indices_dim0 = torch.sort(tensor, dim=0, descending=True)
+        expected_dim1, exp_indices_dim1 = torch.sort(tensor, dim=1, descending=True)
+        expected_dim2, exp_indices_dim2 = torch.sort(tensor, dim=2, descending=True)
+        # sort along axis 0, split 0
         data = ht.array(tensor, split=0)
-        exp_axis_zero = torch.tensor(
-            [[2, 3, 0], [0, 2, 3]], dtype=torch.int32, device=self.device.torch_device
-        )
-        if torch.cuda.is_available() and data.device == ht.gpu and size < 4:
-            indices_axis_zero = torch.tensor(
-                [[0, 2, 2], [3, 2, 0]], dtype=torch.int32, device=self.device.torch_device
-            )
-        else:
-            indices_axis_zero = torch.tensor(
-                [[0, 2, 2], [3, 0, 0]], dtype=torch.int32, device=self.device.torch_device
-            )
-        result, result_indices = ht.sort(data, axis=0)
-        first = result[0].larray
-        first_indices = result_indices[0].larray
-        if rank == 0:
-            self.assertTrue(torch.equal(first, exp_axis_zero))
-            self.assertTrue(torch.equal(first_indices, indices_axis_zero))
-
+        result, result_indices = ht.sort(data, descending=True, axis=0)
+        _, _, local_slice = data.comm.chunk(expected_dim0.shape, split=0)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim0.shape, split=0)
+        exp_axis_zero = expected_dim0[local_slice]
+        exp_indices = exp_indices_dim0[local_slice_ind]
+        self.assertTrue(torch.equal(result.larray, exp_axis_zero))
+        # indices unstable on GPU if sorting non-unique values
+        if (
+            torch.unique(exp_indices).numel() == exp_indices.numel()
+            or result_indices.larray.is_cuda is False
+        ):
+            self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        # sort along axis 1, split 0
+        result, result_indices = ht.sort(data, descending=True, axis=1)
+        _, _, local_slice = data.comm.chunk(expected_dim1.shape, split=0)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim1.shape, split=0)
+        exp_axis_one = expected_dim1[local_slice]
+        exp_indices = exp_indices_dim1[local_slice_ind]
+        self.assertTrue(torch.equal(result.larray, exp_axis_one))
+        # indices unstable on GPU if sorting non-unique values
+        if (
+            torch.unique(exp_indices).numel() == exp_indices.numel()
+            or result_indices.larray.is_cuda is False
+        ):
+            self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        # sort along axis 0, split 1
         data = ht.array(tensor, split=1)
-        exp_axis_one = torch.tensor([[2, 2, 3]], dtype=torch.int32, device=self.device.torch_device)
-        indices_axis_one = torch.tensor(
-            [[0, 1, 1]], dtype=torch.int32, device=self.device.torch_device
-        )
-        result, result_indices = ht.sort(data, axis=1)
-        first = result[0].larray[:1]
-        first_indices = result_indices[0].larray[:1]
-        if rank == 0:
-            self.assertTrue(torch.equal(first, exp_axis_one))
-            self.assertTrue(torch.equal(first_indices, indices_axis_one))
+        _, _, local_slice = data.comm.chunk(expected_dim0.shape, split=1)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim0.shape, split=1)
+        exp_axis_zero = expected_dim0[local_slice]
+        exp_indices = exp_indices_dim0[local_slice_ind]
+        result, result_indices = ht.sort(data, axis=0, descending=True)
+        self.assertTrue(torch.equal(result.larray, exp_axis_zero))
+        # indices unstable on GPU if sorting non-unique values
+        if (
+            torch.unique(exp_indices).numel() == exp_indices.numel()
+            or result_indices.larray.is_cuda is False
+        ):
+            self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        # sort along axis 1, split 1
+        _, _, local_slice = data.comm.chunk(expected_dim1.shape, split=1)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim1.shape, split=1)
+        exp_axis_one = expected_dim1[local_slice]
+        exp_indices = exp_indices_dim1[local_slice_ind]
+        result, result_indices = ht.sort(data, descending=True, axis=1)
+        self.assertTrue(torch.equal(result.larray, exp_axis_one))
+        # indices unstable on GPU if sorting non-unique values
+        if (
+            torch.unique(exp_indices).numel() == exp_indices.numel()
+            or result_indices.larray.is_cuda is False
+        ):
+            self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
 
+        # sort along axis 0, split 2
         data = ht.array(tensor, split=2)
-        exp_axis_two = torch.tensor([[2], [2]], dtype=torch.int32, device=self.device.torch_device)
-        indices_axis_two = torch.tensor(
-            [[0], [1]], dtype=torch.int32, device=self.device.torch_device
-        )
+        _, _, local_slice = data.comm.chunk(expected_dim0.shape, split=2)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim0.shape, split=2)
+        exp_axis_zero = expected_dim0[local_slice]
+        exp_indices = exp_indices_dim0[local_slice_ind]
+        result, result_indices = ht.sort(data, axis=0, descending=True)
+        self.assertTrue(torch.equal(result.larray, exp_axis_zero))
+        # indices unstable on GPU if sorting non-unique values
+        if (
+            torch.unique(exp_indices).numel() == exp_indices.numel()
+            or result_indices.larray.is_cuda is False
+        ):
+            self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+        # sort along axis 2, split 2
+        _, _, local_slice = data.comm.chunk(expected_dim2.shape, split=2)
+        _, _, local_slice_ind = data.comm.chunk(exp_indices_dim2.shape, split=2)
+        exp_axis_one = expected_dim2[local_slice]
+        exp_indices = exp_indices_dim2[local_slice_ind]
+        result, result_indices = ht.sort(data, descending=True, axis=2)
+        self.assertTrue(torch.equal(result.larray, exp_axis_one))
+        # indices unstable on GPU if sorting non-unique values
+        if (
+            torch.unique(exp_indices).numel() == exp_indices.numel()
+            or result_indices.larray.is_cuda is False
+        ):
+            self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
+
+        # test out, descending=False
         result, result_indices = ht.sort(data, axis=2)
-        first = result[0].larray[:, :1]
-        first_indices = result_indices[0].larray[:, :1]
-        if rank == 0:
-            self.assertTrue(torch.equal(first, exp_axis_two))
-            self.assertTrue(torch.equal(first_indices, indices_axis_two))
-        #
         out = ht.empty_like(data)
         indices = ht.sort(data, axis=2, out=out)
         self.assertTrue(ht.equal(out, result))
         self.assertTrue(ht.equal(indices, result_indices))
 
+        # test exceptions
         with self.assertRaises(ValueError):
             ht.sort(data, axis=3)
         with self.assertRaises(TypeError):
@@ -3428,76 +3483,75 @@ class TestManipulations(TestCase):
     def test_unique(self):
         size = ht.MPI_WORLD.size
         rank = ht.MPI_WORLD.rank
-        torch_array = torch.arange(size, dtype=torch.int32, device=self.device.torch_device).expand(
-            size, size
+        # "sparse" data
+        sparse_data = ht.array(
+            torch.zeros(10, 4, dtype=torch.int32, device=self.device.torch_device), is_split=0
         )
-        split_zero = ht.array(torch_array, split=0)
+        random_ranks = torch.randint(size, size=(size // 2 + 1,)).tolist()
+        if rank in random_ranks:
+            random_row = torch.randint(10, size=(10,))
+            random_col = torch.randint(4, size=(10,))
+            sparse_data.larray[random_row, random_col] = 1
+        t_sparse = ht.resplit(sparse_data, axis=None).larray
 
-        exp_axis_none = ht.array([rank], dtype=ht.int32)
-        res = split_zero.unique(sorted=True)
-        self.assertTrue((res.larray == exp_axis_none.larray).all())
+        # "dense" data
+        dense_data = ht.random.randint(0, 25, (50, 3), dtype=ht.int64, split=0)
+        t_dense = ht.resplit(dense_data, axis=None).larray
 
-        exp_axis_zero = ht.arange(size, dtype=ht.int32).expand_dims(0)
-        res = ht.unique(split_zero, sorted=True, axis=0)
-        self.assertTrue((res.larray == exp_axis_zero.larray).all())
+        datasets = [sparse_data, dense_data]
+        comps = [t_sparse, t_dense]
 
-        exp_axis_one = ht.array([rank], dtype=ht.int32).expand_dims(0)
-        split_zero_transposed = ht.array(torch_array.transpose(0, 1), split=0)
-        res = ht.unique(split_zero_transposed, sorted=False, axis=1)
-        self.assertTrue((res.larray == exp_axis_one.larray).all())
+        for data, comp in zip(datasets, comps):
+            _, _, local_slice = data.comm.chunk(data.gshape, data.split)
+            # axis is None
+            unique, inverse = ht.unique(data, return_inverse=True)
+            unique.resplit_(None)
+            t_unique, t_inverse = torch.unique(comp, sorted=True, return_inverse=True)
+            self.assertTrue((unique.larray == t_unique).all())
+            self.assertTrue((inverse.larray == t_inverse[local_slice]).all())
+            if data.is_distributed():
+                self.assertTrue(unique.split is None or unique.split == 0)
+            else:
+                self.assertTrue(unique.split is None)
+            # test inverse indices on "gathered" unique
+            self.assertTrue((unique[inverse.larray].larray == data.larray).all())
 
-        split_one = ht.array(torch_array, dtype=ht.int32, split=1)
+            # axis not None
+            axis = 0
+            unique0, inverse0 = ht.unique(data, return_inverse=True, axis=axis)
+            unique0.resplit_(None)
+            t_unique0, t_inverse0 = torch.unique(comp, sorted=True, return_inverse=True, dim=axis)
+            self.assertTrue((unique0.larray == t_unique0).all())
+            self.assertTrue((inverse0.larray == t_inverse0[local_slice[axis]]).all())
+            if data.is_distributed():
+                self.assertTrue(unique0.split is None or unique0.split == axis)
+            else:
+                self.assertTrue(unique0.split is None)
+            # test inverse indices on "gathered" unique
+            self.assertTrue((unique0[inverse0.larray].larray == data.larray).all())
 
-        exp_axis_none = ht.arange(size, dtype=ht.int32)
-        res = ht.unique(split_one, sorted=True)
-        self.assertTrue((res.larray == exp_axis_none.larray).all())
+            # axis == split != 0
+            data = ht.array(comp, split=1)
+            _, _, local_slice = data.comm.chunk(data.gshape, data.split)
+            axis = 1
+            unique1, inverse1 = ht.unique(data, return_inverse=True, axis=axis)
+            unique1.resplit_(None)
+            t_unique1, t_inverse1 = torch.unique(comp, sorted=True, return_inverse=True, dim=axis)
+            self.assertTrue((unique1.larray == t_unique1).all())
+            self.assertTrue((inverse1.larray == t_inverse1[local_slice[axis]]).all())
+            if data.is_distributed():
+                self.assertTrue(unique1.split is None or unique1.split == axis)
+            else:
+                self.assertTrue(unique1.split is None)
+            # test inverse indices on "gathered" unique
+            self.assertTrue((unique1[:, inverse1.larray].larray == data.larray).all())
 
-        exp_axis_zero = ht.array([rank], dtype=ht.int32).expand_dims(0)
-        res = ht.unique(split_one, sorted=False, axis=0)
-        self.assertTrue((res.larray == exp_axis_zero.larray).all())
+        # test unique on sorted data
 
-        exp_axis_one = ht.array([rank] * size, dtype=ht.int32).expand_dims(1)
-        res = ht.unique(split_one, sorted=True, axis=1)
-        self.assertTrue((res.larray == exp_axis_one.larray).all())
-
-        torch_array = torch.tensor(
-            [[1, 2], [2, 3], [1, 2], [2, 3], [1, 2]],
-            dtype=torch.int32,
-            device=self.device.torch_device,
-        )
-        data = ht.array(torch_array, split=0)
-
-        res, inv = ht.unique(data, return_inverse=True, axis=0)
-        _, exp_inv = torch_array.unique(dim=0, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
-
-        res, inv = ht.unique(data, return_inverse=True, axis=1)
-        _, exp_inv = torch_array.unique(dim=1, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
-
-        torch_array = torch.tensor(
-            [[1, 1, 2], [1, 2, 2], [2, 1, 2], [1, 3, 2], [0, 1, 2]],
-            dtype=torch.int32,
-            device=self.device.torch_device,
-        )
-        exp_res, exp_inv = torch_array.unique(return_inverse=True, sorted=True)
-
-        data_split_none = ht.array(torch_array)
-        res = ht.unique(data_split_none, sorted=True)
-        self.assertIsInstance(res, ht.DNDarray)
-        self.assertEqual(res.split, None)
-        self.assertEqual(res.dtype, data_split_none.dtype)
-        self.assertEqual(res.device, data_split_none.device)
-        res, inv = ht.unique(data_split_none, return_inverse=True, sorted=True)
-        self.assertIsInstance(inv, ht.DNDarray)
-        self.assertEqual(inv.split, None)
-        self.assertEqual(inv.dtype, data_split_none.dtype)
-        self.assertEqual(inv.device, data_split_none.device)
-        self.assertTrue(torch.equal(inv.larray, exp_inv.int()))
-
-        data_split_zero = ht.array(torch_array, split=0)
-        res, inv = ht.unique(data_split_zero, return_inverse=True, sorted=True)
-        self.assertTrue(torch.equal(inv, exp_inv.to(dtype=inv.dtype)))
+        # test exceptions
+        if dense_data.is_distributed():
+            with self.assertRaises(NotImplementedError):
+                ht.unique(dense_data, axis=1)
 
     def test_vsplit(self):
         # for further testing, see test_split

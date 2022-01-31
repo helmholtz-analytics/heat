@@ -23,10 +23,6 @@ class TestCommunication(TestCase):
     def test_self_communicator(self):
         comm = ht.core.communication.MPI_SELF
 
-        with self.assertRaises(ValueError):
-            comm.chunk(self.data.shape, split=2)
-        with self.assertRaises(ValueError):
-            comm.chunk(self.data.shape, split=-3)
         with self.assertRaises(TypeError):
             comm.chunk(self.data.shape, split=0, rank="dicndjh")
 
@@ -46,11 +42,6 @@ class TestCommunication(TestCase):
     def test_mpi_communicator(self):
         comm = ht.core.communication.MPI_WORLD
         self.assertLess(comm.rank, comm.size)
-
-        with self.assertRaises(ValueError):
-            comm.chunk(self.data.shape, split=2)
-        with self.assertRaises(ValueError):
-            comm.chunk(self.data.shape, split=-3)
 
         offset, lshape, chunks = comm.chunk(self.data.shape, split=0)
         self.assertIsInstance(offset, int)
