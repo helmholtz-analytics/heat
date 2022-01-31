@@ -33,7 +33,7 @@ jobs:
         run: |
           previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')
           new_pytorch=$(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)
-          sed -i ""  '/torch>=/ s/'"${previous_pytorch}"'/'"${new_pytorch}"'/g' setup.py
+          sed -i '/torch>=/ s/'"${previous_pytorch}"'/'"${new_pytorch}"'/g' setup.py
           git config --global user.name 'ClaudiaComito'
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
           git commit -am "Update setup.py with latest pytorch release"
