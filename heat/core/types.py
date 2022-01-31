@@ -1052,5 +1052,5 @@ class iinfo:
         return self
 
 
-# tensor is imported at the very end to break circular dependency
+# dndarray is imported at the very end to break circular dependency
 from . import dndarray
