@@ -10,6 +10,7 @@ env:
 permissions:
   contents: read
   issues: write
+  pull-requests: write
 jobs:
   latest-torch-support:
     runs-on: ubuntu-latest
@@ -33,7 +34,9 @@ jobs:
 #          ref: 'features/latest-pytorch-support'
         run: git checkout -b features/latest-pytorch-support
       - name: Update setup.py
-        id: update-setup-py
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo ${{ env.previous_pytorch }}
           echo ${{ env.new_pytorch }}
@@ -42,7 +45,6 @@ jobs:
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
           git commit -am "Update setup.py with latest pytorch release"
           git push --set-upstream origin features/latest-pytorch-support
-          echo ::set-output name=new_pytorch::${{ env.new_pytorch }}
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v3
         with:
@@ -50,7 +52,7 @@ jobs:
             base: master
             token: ${{ secrets.GITHUB_TOKEN }}
             commit-message: Support latest PyTorch release
-            title: Support PyTorch ${{ steps.update-setup-py.outputs.new_pytorch }}
+            title: Support PyTorch ${{ env.new_pytorch }}
             body: |
               Run tests on latest PyTorch release
               Issue/s resolved: #${{ steps.create-issue.outputs.number }}
