@@ -7,7 +7,7 @@ on:
 env:
   previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')
   new_pytorch: $(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)
-  base_branch: workflow/pytorch-new-release # this will change before merging
+  base_branch: "${{ github.repository }}/workflow/pytorch-new-release" # this will change before merging
 permissions:
   contents: read
   issues: write
