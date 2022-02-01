@@ -7,6 +7,7 @@ on:
 env:
   previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')
   new_pytorch: $(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)
+  base_branch: workflow/pytorch-new-release # this will change before merging
 permissions:
   contents: read
   issues: write
@@ -28,15 +29,11 @@ jobs:
           search_existing: open
       - run: echo "creating new issue"
       - name: Check out new branch
-#        uses: actions/checkout@v2
-#        with:
-#          token: ${{ secrets.GITHUB_TOKEN }}
-#          ref: 'features/latest-pytorch-support'
-        run: git checkout -b features/latest-pytorch-support
-      - name: Update setup.py
         uses: actions/checkout@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: 'features/latest-pytorch-support'
+      - name: Update setup.py
         run: |
           echo ${{ env.previous_pytorch }}
           echo ${{ env.new_pytorch }}
@@ -44,7 +41,7 @@ jobs:
           git config --global user.name 'ClaudiaComito'
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
           git commit -am "Update setup.py with latest pytorch release"
-          git push --set-upstream origin features/latest-pytorch-support
+          git push features/latest-pytorch-support
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v3
         with:
