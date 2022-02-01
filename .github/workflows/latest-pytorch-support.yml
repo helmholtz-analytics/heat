@@ -26,7 +26,7 @@ jobs:
           milestone: 1
           update_existing: true
           search_existing: open
-      - run: echo "creating new issue"
+      - run: echo "New issue created"
       - name: Check out new branch
         uses: actions/checkout@v2
         with:
@@ -34,7 +34,6 @@ jobs:
           ref: 'features/latest-pytorch-support'
       - name: Update setup.py
         run: |
-          echo ${{ github.ref }}
           echo ${{ env.previous_pytorch }}
           echo ${{ env.new_pytorch }}
           sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.new_pytorch }}"'/g' setup.py
