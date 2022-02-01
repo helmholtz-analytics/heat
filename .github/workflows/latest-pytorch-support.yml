@@ -26,11 +26,12 @@ jobs:
           update_existing: true
           search_existing: open
       - run: echo "creating new issue"
-      - name: Check out branch
-        uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: 'features/latest-pytorch-support'
+      - name: Check out new branch
+#        uses: actions/checkout@v2
+#        with:
+#          token: ${{ secrets.GITHUB_TOKEN }}
+#          ref: 'features/latest-pytorch-support'
+        run: git checkout -b features/latest-pytorch-support
       - name: Update setup.py
         id: update-setup-py
         run: |
