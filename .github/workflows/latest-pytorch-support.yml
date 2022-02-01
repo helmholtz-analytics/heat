@@ -30,18 +30,17 @@ jobs:
           ref: 'features/latest-pytorch-support'
       - name: Update torch version in setup.py
         id: update-setup-py
-        env:
-          previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')
-          new_pytorch: $( cat .github/workflows/pytorch-release-versions/pytorch-latest.txt )
         run: |
-          echo $previous_pytorch
-          echo $new_pytorch
-          sed -i '/torch>=/ s/'"${previous_pytorch}"'/'"${new_pytorch}"'/g' setup.py
+          echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
+          echo "new_pytorch=$(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)"  >> $GITHUB_ENV
+          echo ${{ env.previous_pytorch }}
+          echo ${{ env.new_pytorch }}
+          sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.new_pytorch }}"'/g' setup.py
           git config --global user.name 'ClaudiaComito'
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
           git commit -am "Update setup.py with latest pytorch release"
           git push
-          echo ::set-output name=new_pytorch::$(echo $new_pytorch)
+          echo ::set-output name=new_pytorch::${{ env.new_pytorch }}
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v3
         with:
