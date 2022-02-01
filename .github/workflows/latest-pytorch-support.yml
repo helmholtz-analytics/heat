@@ -32,7 +32,7 @@ jobs:
         id: update-setup-py
         env:
           previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')
-          new_pytorch: $(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)
+          new_pytorch: $( cat .github/workflows/pytorch-release-versions/pytorch-latest.txt )
         run: |
           echo $previous_pytorch
           echo $new_pytorch
