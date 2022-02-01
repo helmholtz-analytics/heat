@@ -41,7 +41,7 @@ jobs:
           git config --global user.name 'ClaudiaComito'
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
           git commit -am "Update setup.py with latest pytorch release"
-          git push
+          git push --set-upstream origin features/latest-pytorch-support
           echo ::set-output name=new_pytorch::${{ env.new_pytorch }}
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v3
