@@ -37,11 +37,12 @@ jobs:
         run: |
           echo ${{ env.previous_pytorch }}
           echo ${{ env.new_pytorch }}
+          git pull ${{ env.base_branch }}
           sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.new_pytorch }}"'/g' setup.py
           git config --global user.name 'ClaudiaComito'
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
           git commit -am "Update setup.py with latest pytorch release"
-          git push features/latest-pytorch-support
+          git push
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v3
         with:
