@@ -34,19 +34,16 @@ jobs:
           ref: 'features/latest-pytorch-support'
       - name: Update setup.py
         run: |
-          git config --global user.name 'ClaudiaComito'
-          git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
+          echo ${{ github.ref }}
           echo ${{ env.previous_pytorch }}
           echo ${{ env.new_pytorch }}
           sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.new_pytorch }}"'/g' setup.py
           sed -i 's/'"${{ env.previous_pytorch }}"'/'"${{ env.new_pytorch }}"'/g' .github/workflows/pytorch-release-versions/pytorch-latest.txt
-          git commit -am "Update setup.py with latest pytorch release"
-          git push
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v3
         with:
-            branch: features/latest-pytorch-support
-            base: master
+            base: features/latest-pytorch-support
+            delete-branch: true
             token: ${{ secrets.GITHUB_TOKEN }}
             commit-message: Support latest PyTorch release
             title: Support PyTorch ${{ env.new_pytorch }}
