@@ -23,15 +23,12 @@ jobs:
           update_existing: true
           search_existing: open
       - run: echo "creating new issue"
-      - name: Check out branch
+      - name: Check out branch and update setup.py
         uses: actions/checkout@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: 'features/latest-pytorch-support'
-      - name: Update torch version in setup.py
         id: update-setup-py
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
           echo "new_pytorch=$(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)"  >> $GITHUB_ENV
