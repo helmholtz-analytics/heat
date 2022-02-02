@@ -1009,20 +1009,20 @@ def nanprod(
 
     Examples
     --------
-    >>> ht.prod(ht.array([1.,2.]))
-    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.prod(ht.array([
-        [1.,2.],
+    >>> ht.nanprod(ht.array([4.,ht.nan]))
+    DNDarray([4.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.nanprod(ht.array([
+        [1.,ht.nan],
         [3.,4.]]))
     DNDarray([24.], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.prod(ht.array([
-        [1.,2.],
-        [3.,4.]
+    >>> ht.nanprod(ht.array([
+        [1.,ht.nan],
+        [ht.nan,4.]
     ]), axis=1)
     DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
     """
-    if isinstance(a, DNDarray):
-        a[a != a] = 1.
+    is_nan = torch.isnan(a.larray)
+    a[is_nan.cpu().numpy()] = 1
 
     return _operations.__reduce_op(
         a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
