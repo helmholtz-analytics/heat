@@ -89,6 +89,10 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
             data = torch.linalg.cholesky(x.larray)
             if upper:
                 data = data.T.conj()
+        except AttributeError:  # PyTorch 1.7. has nearly no linalg module
+            data = torch.cholesky(x.larray)
+            if upper:
+                data = data.T.conj()
 
         return DNDarray(
             data, x.shape, types.heat_type_of(data), x.split, x.device, x.comm, x.balanced

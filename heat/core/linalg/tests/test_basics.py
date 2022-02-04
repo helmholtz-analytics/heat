@@ -13,7 +13,10 @@ class TestLinalgBasics(TestCase):
         # batch of symmetric positive-definite matrices
         A = torch.randn(3, 2, 2, dtype=torch.float64)
         A = A @ A.transpose(-2, -1) + torch.eye(2)
-        L = torch.linalg.cholesky(A)
+        if int(torch.__version__.split(".")[1]) < 8:
+            L = torch.cholesky(A)
+        else:
+            L = torch.linalg.cholesky(A)
 
         A_ht = ht.asarray(A)
         L_ht = ht.linalg.cholesky(A_ht)
@@ -34,7 +37,14 @@ class TestLinalgBasics(TestCase):
         # single matrix
         A = torch.randn(8, 8, dtype=torch.float32)
         A = A @ A.transpose(-2, -1) + torch.eye(8)
-        L = torch.linalg.cholesky(A, upper=True)
+        if int(torch.__version__.split(".")[1]) < 10:
+            if int(torch.__version__.split(".")[1]) < 8:
+                L = torch.cholesky(A)
+            else:
+                L = torch.linalg.cholesky(A)
+            L = L.T.conj()
+        else:
+            L = torch.linalg.cholesky(A, upper=True)
 
         A_ht = ht.asarray(A)
         L_ht = ht.linalg.cholesky(A_ht, True)
