@@ -12,7 +12,7 @@ class TestLinalgBasics(TestCase):
     def test_cholesky(self):
         # batch of symmetric positive-definite matrices
         A = torch.randn(3, 2, 2, dtype=torch.float64, device=self.device.torch_device)
-        A = A @ A.transpose(-2, -1) + torch.eye(2)
+        A = A @ A.transpose(-2, -1) + torch.eye(2, device=self.device.torch_device)
         if int(torch.__version__.split(".")[1]) < 8:
             L = torch.cholesky(A)
         else:
@@ -36,7 +36,7 @@ class TestLinalgBasics(TestCase):
 
         # single matrix
         A = torch.randn(8, 8, dtype=torch.float32, device=self.device.torch_device)
-        A = A @ A.transpose(-2, -1) + torch.eye(8)
+        A = A @ A.transpose(-2, -1) + torch.eye(8, device=self.device.torch_device)
         if int(torch.__version__.split(".")[1]) < 10:
             if int(torch.__version__.split(".")[1]) < 8:
                 L = torch.cholesky(A)
