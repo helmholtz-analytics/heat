@@ -11,7 +11,7 @@ from ...tests.test_suites.basic_test import TestCase
 class TestLinalgBasics(TestCase):
     def test_cholesky(self):
         # batch of symmetric positive-definite matrices
-        A = torch.randn(3, 2, 2, dtype=torch.float64)
+        A = torch.randn(3, 2, 2, dtype=torch.float64, device=self.device.torch_device)
         A = A @ A.transpose(-2, -1) + torch.eye(2)
         if int(torch.__version__.split(".")[1]) < 8:
             L = torch.cholesky(A)
@@ -35,7 +35,7 @@ class TestLinalgBasics(TestCase):
         self.assertTrue(ht.allclose(L_ht2, ht.resplit(L_ht, 2)))
 
         # single matrix
-        A = torch.randn(8, 8, dtype=torch.float32)
+        A = torch.randn(8, 8, dtype=torch.float32, device=self.device.torch_device)
         A = A @ A.transpose(-2, -1) + torch.eye(8)
         if int(torch.__version__.split(".")[1]) < 10:
             if int(torch.__version__.split(".")[1]) < 8:
