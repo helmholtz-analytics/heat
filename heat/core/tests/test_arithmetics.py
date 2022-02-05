@@ -853,6 +853,119 @@ class TestArithmetics(TestCase):
         with self.assertRaises(TypeError):
             ht.ones(array_len).sum(axis="bad_axis_type")
 
+    def test_nansum(self):
+        array_len = 11
+
+        # check sum over all float elements of 1d tensor locally
+        shape_noaxis = ht.ones(array_len)
+        shape_noaxis[0] = ht.nan
+        no_axis_nansum = shape_noaxis.nansum()
+
+        self.assertIsInstance(no_axis_nansum, ht.DNDarray)
+        self.assertEqual(no_axis_nansum.shape, (1,))
+        self.assertEqual(no_axis_nansum.lshape, (1,))
+        self.assertEqual(no_axis_nansum.dtype, ht.float32)
+        self.assertEqual(no_axis_nansum.larray.dtype, torch.float32)
+        self.assertEqual(no_axis_nansum.split, None)
+        self.assertEqual(no_axis_nansum.larray, array_len - 1)
+
+        out_noaxis = ht.zeros((1,))
+        ht.nansum(shape_noaxis, out=out_noaxis)
+        self.assertTrue(out_noaxis.larray == shape_noaxis.larray.nansum())
+
+        # check sum over all float elements of split 1d tensor
+        shape_noaxis_split = ht.arange(array_len, split=0).astype(ht.float32)
+        shape_noaxis_split[0] = ht.nan
+        shape_noaxis_split_nansum = shape_noaxis_split.nansum()
+
+        self.assertIsInstance(shape_noaxis_split_nansum, ht.DNDarray)
+        self.assertEqual(shape_noaxis_split_nansum.shape, (1,))
+        self.assertEqual(shape_noaxis_split_nansum.lshape, (1,))
+        self.assertEqual(shape_noaxis_split_nansum.dtype, ht.float32)
+        self.assertEqual(shape_noaxis_split_nansum.larray.dtype, torch.float32)
+        self.assertEqual(shape_noaxis_split_nansum.split, None)
+        self.assertEqual(shape_noaxis_split_nansum, 55)
+
+        out_noaxis = ht.zeros((1,))
+        ht.nansum(shape_noaxis_split, out=out_noaxis)
+        self.assertEqual(out_noaxis.larray, 55)
+
+        # check sum over all float elements of 3d tensor locally
+        shape_noaxis = ht.ones((3, 3, 3))
+        shape_noaxis[0, 0, 0] = ht.nan
+        no_axis_nansum = shape_noaxis.nansum()
+
+        self.assertIsInstance(no_axis_nansum, ht.DNDarray)
+        self.assertEqual(no_axis_nansum.shape, (1,))
+        self.assertEqual(no_axis_nansum.lshape, (1,))
+        self.assertEqual(no_axis_nansum.dtype, ht.float32)
+        self.assertEqual(no_axis_nansum.larray.dtype, torch.float32)
+        self.assertEqual(no_axis_nansum.split, None)
+        self.assertEqual(no_axis_nansum.larray, 26)
+
+        out_noaxis = ht.zeros((1,))
+        ht.nansum(shape_noaxis, out=out_noaxis)
+        self.assertEqual(out_noaxis.larray, 26)
+
+        # check sum over all float elements of split 3d tensor
+        shape_noaxis_split_axis = ht.ones((3, 3, 3), split=0)
+        shape_noaxis_split_axis[0, 0, 0] = ht.nan
+        split_axis_nansum = shape_noaxis_split_axis.nansum(axis=0)
+
+        self.assertIsInstance(split_axis_nansum, ht.DNDarray)
+        self.assertEqual(split_axis_nansum.shape, (3, 3))
+        self.assertEqual(split_axis_nansum.dtype, ht.float32)
+        self.assertEqual(split_axis_nansum.larray.dtype, torch.float32)
+        self.assertEqual(split_axis_nansum.split, None)
+
+        # check split semantics
+        shape_noaxis_split_axis = ht.ones((3, 3, 3), split=2)
+        shape_noaxis_split_axis[0, 0, 0] = ht.nan
+        split_axis_nansum = shape_noaxis_split_axis.nansum(axis=1)
+        self.assertIsInstance(split_axis_nansum, ht.DNDarray)
+        self.assertEqual(split_axis_nansum.shape, (3, 3))
+        self.assertEqual(split_axis_nansum.dtype, ht.float32)
+        self.assertEqual(split_axis_nansum.larray.dtype, torch.float32)
+        self.assertEqual(split_axis_nansum.split, 1)
+
+        # check sum over all float elements of splitted 5d tensor with negative axis
+        shape_noaxis_split_axis_neg = ht.ones((1, 2, 3, 4, 5), split=1)
+        shape_noaxis_split_axis_neg[0, 0, 0, 0, 0] = ht.nan
+        shape_noaxis_split_axis_neg_nansum = shape_noaxis_split_axis_neg.nansum(axis=-2)
+
+        self.assertIsInstance(shape_noaxis_split_axis_neg_nansum, ht.DNDarray)
+        self.assertEqual(shape_noaxis_split_axis_neg_nansum.shape, (1, 2, 3, 5))
+        self.assertEqual(shape_noaxis_split_axis_neg_nansum.dtype, ht.float32)
+        self.assertEqual(shape_noaxis_split_axis_neg_nansum.larray.dtype, torch.float32)
+        self.assertEqual(shape_noaxis_split_axis_neg_nansum.split, 1)
+
+        out_noaxis = ht.zeros((1, 2, 3, 5), split=1)
+        ht.nansum(shape_noaxis_split_axis_neg, axis=-2, out=out_noaxis)
+
+        # check sum over all float elements of splitted 3d tensor with tuple axis
+        shape_split_axis_tuple = ht.ones((3, 4, 5), split=1)
+        shape_split_axis_tuple[0, 0, 0] = ht.nan
+        shape_split_axis_tuple_nansum = shape_split_axis_tuple.nansum(axis=(-2, -3))
+        expected_result = ht.ones((5,)) * 12.0
+        expected_result[0] = 11.0
+
+        self.assertIsInstance(shape_split_axis_tuple_nansum, ht.DNDarray)
+        self.assertEqual(shape_split_axis_tuple_nansum.shape, (5,))
+        self.assertEqual(shape_split_axis_tuple_nansum.dtype, ht.float32)
+        self.assertEqual(shape_split_axis_tuple_nansum.larray.dtype, torch.float32)
+        self.assertEqual(shape_split_axis_tuple_nansum.split, None)
+        self.assertTrue((shape_split_axis_tuple_nansum == expected_result).all())
+
+        # exceptions
+        with self.assertRaises(ValueError):
+            ht.ones(array_len).nansum(axis=1)
+        with self.assertRaises(ValueError):
+            ht.ones(array_len).nansum(axis=-2)
+        with self.assertRaises(ValueError):
+            ht.ones((4, 4)).nansum(axis=0, out=out_noaxis)
+        with self.assertRaises(TypeError):
+            ht.ones(array_len).nansum(axis="bad_axis_type")
+
     def test_right_hand_side_operations(self):
         """
         This test ensures that for each arithmetic operation (e.g. +, -, *, ...) that is implemented in the tensor

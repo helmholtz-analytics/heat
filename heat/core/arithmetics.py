@@ -1159,15 +1159,15 @@ def nansum(
     DNDarray([[3.],
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
     """   
-    if isinstance(a, DNDarray):
-        a[a != a] = 0.
+    is_nan = torch.isnan(a.larray)
+    a[is_nan.cpu().numpy()] = 0
 
     return _operations.__reduce_op(
         a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
     )
  
 
-DNDarray.nansum = lambda self, other: nansum(self, other)
+DNDarray.nansum = lambda self, axis=None, out=None, keepdim=None: nansum(self, axis, out, keepdim)
 DNDarray.nansum.__doc__ = nansum.__doc__
 
 
