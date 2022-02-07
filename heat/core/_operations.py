@@ -326,8 +326,6 @@ def __local_op(
 
     # no defined output tensor, return a freshly created one
     if out is None:
-
-
         for key, value in kwargs.items():
             print("{0} = {1}".format(key, value))
 
@@ -342,7 +340,6 @@ def __local_op(
             x.comm,
             x.balanced,
         )
-
     # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting
     # reason: manually repetition for each dimension as PyTorch does not conform to numpy's broadcast semantic

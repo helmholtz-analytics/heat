@@ -516,6 +516,8 @@ class TestArithmetics(TestCase):
              ht.hypot(a)
         with self.assertRaises(TypeError):  
              ht.hypot('a','b')
+        with self.assertRaises(RuntimeError):
+             ht.hypot(a.astype(ht.int32),b.astype(ht.int32))
 
     def test_pos(self):
         self.assertTrue(ht.equal(ht.pos(ht.array([-1, 1])), ht.array([-1, 1])))
