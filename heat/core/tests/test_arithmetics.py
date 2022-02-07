@@ -1048,25 +1048,25 @@ class TestArithmetics(TestCase):
 
         a_split = ht.array([float("nan"), float("inf"), -float("inf")], split=0)
 
-        result_1_split = ht.nan_to_num(a)
+        result_1_split = ht.nan_to_num(a_split)
         self.assertEqual(result_1_split.dtype, ht.float32)
         self.assertEqual(result_1_split[0], 0)
         self.assertEqual(result_1_split.shape, (3,))
         self.assertEqual(result_1_split.split, None)
 
-        result_2_split = ht.nan_to_num(a, nan=99)
+        result_2_split = ht.nan_to_num(a_split, nan=99)
         self.assertEqual(result_2_split.dtype, ht.float32)
         self.assertEqual(result_2_split[0], 99)
         self.assertEqual(result_2_split.shape, (3,))
         self.assertEqual(result_2_split.split, None)
 
-        result_3_split = ht.nan_to_num(a, posinf=99)
+        result_3_split = ht.nan_to_num(a_split, posinf=99)
         self.assertEqual(result_3_split.dtype, ht.float32)
         self.assertEqual(result_3_split[1], 99)
         self.assertEqual(result_3_split.shape, (3,))
         self.assertEqual(result_3_split.split, None)
 
-        result_4_split = ht.nan_to_num(a, neginf=99)
+        result_4_split = ht.nan_to_num(a_split, neginf=99)
         self.assertEqual(result_4_split.dtype, ht.float32)
         self.assertEqual(result_4_split[2], 99)
         self.assertEqual(result_4_split.shape, (3,))
