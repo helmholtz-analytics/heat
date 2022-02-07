@@ -774,7 +774,7 @@ def hypot(a: DNDarray, b: DNDarray) -> DNDarray:
     Parameters
     ----------
     a:   DNDarray
-         The input array
+         The first input array
     b:   DNDarray 
          the second input tensor
 
@@ -782,6 +782,7 @@ def hypot(a: DNDarray, b: DNDarray) -> DNDarray:
     --------
     >>> a = a=ht.array([2.])
     >>> b = b=ht.array([1.,3.,3.])
+    >>> ht.hypot(a,b)
     DNDarray([2.2361, 3.6056, 3.6056], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.hypot, a, b)
@@ -1199,6 +1200,16 @@ def nan_to_num(
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output, but
         the datatype of the output values will be cast if necessary.
+
+    Examples
+    --------
+    >>> x = ht.array([float('nan'), float('inf'), -float('inf')])
+    >>> ht.nan_to_num(x)
+    nan = 0.0
+    posinf = None
+    neginf = None
+    result tensor([ 0.0000e+00,  3.4028e+38, -3.4028e+38])
+    DNDarray([ 0.0000e+00,  3.4028e+38, -3.4028e+38], dtype=ht.float32, device=cpu:0, split=None)
     """   
     return _operations.__local_op(torch.nan_to_num, a, out = out, no_cast=True, nan = nan, posinf = posinf, neginf = neginf)
 

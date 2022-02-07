@@ -470,6 +470,21 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):  
             ht.lcm(a, ht.array([15, 20])) 
 
+    def test_hypot(self):
+ 
+        a = a=ht.array([2.])
+        b = b=ht.array([1.,3.,5.])
+        gt = ht.array([5, 13, 29])
+        result = (ht.hypot(a,b)**2).astype(ht.int64)
+          
+        self.assertTrue(ht.equal(gt, result))
+        self.assertEquals(result.dtype, ht.int64)
+
+        with self.assertRaises(TypeError):  
+             ht.hypot(a)
+        with self.assertRaises(TypeError):  
+             ht.hypot('a','b')
+
     def test_pos(self):
         self.assertTrue(ht.equal(ht.pos(ht.array([-1, 1])), ht.array([-1, 1])))
         self.assertTrue(ht.equal(+ht.array([-1.0, 1.0]), ht.array([-1.0, 1.0])))
