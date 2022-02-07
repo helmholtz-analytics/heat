@@ -749,7 +749,7 @@ def lcm(a: DNDarray, b: DNDarray) -> DNDarray:
     Parameters
     ----------
     a:   DNDarray
-         The input array
+         The first input array
     b:   DNDarray 
          the second input tensor
 
