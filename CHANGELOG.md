@@ -2,6 +2,7 @@
 
 - [#867](https://github.com/helmholtz-analytics/heat/pull/867) Upgraded to support torch 1.9.0
 - [#876](https://github.com/helmholtz-analytics/heat/pull/876) Make examples work (Lasso and kNN)
+- [#894](https://github.com/helmholtz-analytics/heat/pull/894) Change inclusion of license file
 - [#884](https://github.com/helmholtz-analytics/heat/pull/884) Added capabilities for PyTorch 1.10.0, this is now the recommended version to use.
 
 ## Bug Fixes
@@ -11,25 +12,34 @@
 - [#868](https://github.com/helmholtz-analytics/heat/pull/868) Fixed an issue in `__binary_op` where data was falsely distributed if a DNDarray has single element.
 
 ## Feature Additions
-### Linear Algebra
-- [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
 
+### Arithmetics
+ - - [#887](https://github.com/helmholtz-analytics/heat/pull/887) Binary operations now support operands of equal shapes, equal `split` axes, but different distribution maps.
+
+## Feature additions
 ### Communication
 - [#868](https://github.com/helmholtz-analytics/heat/pull/868) New `MPICommunication` method `Split`
-
 ### DNDarray
 - [#856](https://github.com/helmholtz-analytics/heat/pull/856) New `DNDarray` method `__torch_proxy__`
 - [#885](https://github.com/helmholtz-analytics/heat/pull/885) New `DNDarray` method `conj`
 
+# Feature additions
 ### Linear Algebra
 - [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
+- [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) New features `norm`, `vector_norm`, `matrix_norm`
+- [#850](https://github.com/helmholtz-analytics/heat/pull/850) New Feature `cross`
+- [#877](https://github.com/helmholtz-analytics/heat/pull/877) New feature `det`
+- [#875](https://github.com/helmholtz-analytics/heat/pull/875) New feature `inv`
 ### Logical
 - [#862](https://github.com/helmholtz-analytics/heat/pull/862) New feature `signbit`
 ### Manipulations
 - [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
 - [#853](https://github.com/helmholtz-analytics/heat/pull/853) New Feature: `swapaxes`
 - [#854](https://github.com/helmholtz-analytics/heat/pull/854) New Feature: `moveaxis`
+### Printing
+- [#816](https://github.com/helmholtz-analytics/heat/pull/816) New feature: Local printing (`ht.local_printing()`) and global printing options
+- [#816](https://github.com/helmholtz-analytics/heat/pull/816) New feature: print only on process 0 with `print0(...)` and `ht.print0(...)`
 ### Random
 - [#858](https://github.com/helmholtz-analytics/heat/pull/858) New Feature: `standard_normal`, `normal`
 ### Rounding
