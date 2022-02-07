@@ -755,10 +755,10 @@ def lcm(a: DNDarray, b: DNDarray) -> DNDarray:
 
     Examples
     --------
-    >>> a = ht.array([5, 10, 15])
+    >>> a = ht.array([6, 12, 15])
     >>> b = ht.array([3, 4, 5])
-    DNDarray([15, 20, 15], dtype=ht.int64, device=cpu:0, split=None)
-    
+    >>> ht.lcm(a,b)
+    DNDarray([ 6, 12, 15], dtype=ht.int64, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.lcm, a, b)
 
