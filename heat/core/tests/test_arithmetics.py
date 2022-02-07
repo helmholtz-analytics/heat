@@ -469,55 +469,55 @@ class TestArithmetics(TestCase):
             ht.neg(1)
 
     def test_copysign(self):
- 
+
         a = ht.array([3, 2, -8, -2, 4])
-        b = ht.array([3., 2., -8., -2., 4.])
-        result = ht.array([3., 2., 8., 2., 4.])
-          
-        self.assertAlmostEqual(ht.mean(ht.copysign(a, 1.) - result).item(), 0.)
-        self.assertAlmostEqual(ht.mean(ht.copysign(a, -1.) + result).item(), 0.)
-        self.assertAlmostEqual(ht.mean(ht.copysign(a, a) - a).item(), 0.)
-        self.assertAlmostEqual(ht.mean(ht.copysign(b, b) - b).item(), 0.)
-        self.assertEquals(ht.copysign(a, 1.).dtype, ht.float32)
-        self.assertEquals(ht.copysign(b, 1.).dtype, ht.float32)
-        self.assertNotEqual(ht.copysign(a, 1.).dtype, ht.int64)
+        b = ht.array([3.0, 2.0, -8.0, -2.0, 4.0])
+        result = ht.array([3.0, 2.0, 8.0, 2.0, 4.0])
+
+        self.assertAlmostEqual(ht.mean(ht.copysign(a, 1.0) - result).item(), 0.0)
+        self.assertAlmostEqual(ht.mean(ht.copysign(a, -1.0) + result).item(), 0.0)
+        self.assertAlmostEqual(ht.mean(ht.copysign(a, a) - a).item(), 0.0)
+        self.assertAlmostEqual(ht.mean(ht.copysign(b, b) - b).item(), 0.0)
+        self.assertEquals(ht.copysign(a, 1.0).dtype, ht.float32)
+        self.assertEquals(ht.copysign(b, 1.0).dtype, ht.float32)
+        self.assertNotEqual(ht.copysign(a, 1.0).dtype, ht.int64)
 
         with self.assertRaises(TypeError):
-            ht.copysign(a, 'T')
+            ht.copysign(a, "T")
             ht.copysign(a, 1j)
 
     def test_lcm(self):
- 
+
         a = ht.array([5, 10, 15])
         b = ht.array([3, 4, 5])
-        c = ht.array([3., 4., 5.])
+        c = ht.array([3.0, 4.0, 5.0])
         result = ht.array([15, 20, 15])
-          
+
         self.assertTrue(ht.equal(ht.lcm(a, b), result))
         self.assertTrue(ht.equal(ht.lcm(a, a), a))
         self.assertEquals(ht.lcm(a, b).dtype, ht.int64)
 
         with self.assertRaises(RuntimeError):
             ht.lcm(a, c)
-        with self.assertRaises(ValueError):  
-            ht.lcm(a, ht.array([15, 20])) 
+        with self.assertRaises(ValueError):
+            ht.lcm(a, ht.array([15, 20]))
 
     def test_hypot(self):
- 
-        a = a=ht.array([2.])
-        b = b=ht.array([1.,3.,5.])
+
+        a = a = ht.array([2.0])
+        b = b = ht.array([1.0, 3.0, 5.0])
         gt = ht.array([5, 13, 29])
-        result = (ht.hypot(a,b)**2).astype(ht.int64)
-          
+        result = (ht.hypot(a, b) ** 2).astype(ht.int64)
+
         self.assertTrue(ht.equal(gt, result))
         self.assertEquals(result.dtype, ht.int64)
 
-        with self.assertRaises(TypeError):  
-             ht.hypot(a)
-        with self.assertRaises(TypeError):  
-             ht.hypot('a','b')
+        with self.assertRaises(TypeError):
+            ht.hypot(a)
+        with self.assertRaises(TypeError):
+            ht.hypot("a", "b")
         with self.assertRaises(RuntimeError):
-             ht.hypot(a.astype(ht.int32),b.astype(ht.int32))
+            ht.hypot(a.astype(ht.int32), b.astype(ht.int32))
 
     def test_pos(self):
         self.assertTrue(ht.equal(ht.pos(ht.array([-1, 1])), ht.array([-1, 1])))
@@ -1016,9 +1016,9 @@ class TestArithmetics(TestCase):
             ht.ones(array_len).nansum(axis="bad_axis_type")
 
     def test_nan_to_num(self):
-        a = ht.array([float('nan'), float('inf'), -float('inf')])
+        a = ht.array([float("nan"), float("inf"), -float("inf")])
 
-        result_1 = ht.nan_to_num(a)        
+        result_1 = ht.nan_to_num(a)
         self.assertEqual(result_1.dtype, ht.float32)
         self.assertEqual(result_1[0], 0)
         self.assertEqual(result_1.lshape, (3,))
@@ -1046,9 +1046,9 @@ class TestArithmetics(TestCase):
         self.assertEqual(result_4.shape, (3,))
         self.assertEqual(result_4.split, None)
 
-        a_split = ht.array([float('nan'), float('inf'), -float('inf')], split=0)
+        a_split = ht.array([float("nan"), float("inf"), -float("inf")], split=0)
 
-        result_1_split = ht.nan_to_num(a)        
+        result_1_split = ht.nan_to_num(a)
         self.assertEqual(result_1_split.dtype, ht.float32)
         self.assertEqual(result_1_split[0], 0)
         self.assertEqual(result_1_split.shape, (3,))
@@ -1072,18 +1072,16 @@ class TestArithmetics(TestCase):
         self.assertEqual(result_4_split.shape, (3,))
         self.assertEqual(result_4_split.split, None)
 
-
         result_5 = ht.empty(3)
-        ht.nan_to_num(a, out = result_5)        
+        ht.nan_to_num(a, out=result_5)
         self.assertEqual(result_5.dtype, ht.float32)
         self.assertEqual(result_5[0], 0)
         self.assertEqual(result_5.lshape, (3,))
         self.assertEqual(result_5.shape, (3,))
         self.assertEqual(result_5.split, None)
 
-
         result_6 = ht.empty(3)
-        ht.nan_to_num(a, nan = 99, out = result_6)
+        ht.nan_to_num(a, nan=99, out=result_6)
         self.assertEqual(result_6.dtype, ht.float32)
         self.assertEqual(result_6[0], 99)
         self.assertEqual(result_6.lshape, (3,))
@@ -1091,7 +1089,7 @@ class TestArithmetics(TestCase):
         self.assertEqual(result_6.split, None)
 
         result_7 = ht.empty(3)
-        ht.nan_to_num(a, posinf=99, out = result_7)
+        ht.nan_to_num(a, posinf=99, out=result_7)
         self.assertEqual(result_7.dtype, ht.float32)
         self.assertEqual(result_7[1], 99)
         self.assertEqual(result_7.lshape, (3,))
@@ -1099,7 +1097,7 @@ class TestArithmetics(TestCase):
         self.assertEqual(result_7.split, None)
 
         result_8 = ht.empty(3)
-        result_8 = ht.nan_to_num(a, neginf=99, out = result_8)
+        result_8 = ht.nan_to_num(a, neginf=99, out=result_8)
         self.assertEqual(result_8.dtype, ht.float32)
         self.assertEqual(result_8[2], 99)
         self.assertEqual(result_8.lshape, (3,))

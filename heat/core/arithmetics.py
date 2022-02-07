@@ -62,10 +62,8 @@ __all__ = [
     "subtract",
     "sum",
     "nansum",
-    "nan_to_num"
+    "nan_to_num",
 ]
-
-
 
 
 def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
@@ -717,6 +715,7 @@ DNDarray.__neg__.__doc__ = neg.__doc__
 negative = neg
 """Alias for :py:func:`neg`"""
 
+
 def copysign(a: DNDarray, b: Union[DNDarray, float, int]) -> DNDarray:
     """
     Create a new floating-point tensor with the magnitude of 'a' and the sign of 'b', elementwise
@@ -750,7 +749,7 @@ def lcm(a: DNDarray, b: DNDarray) -> DNDarray:
     ----------
     a:   DNDarray
          The first input array
-    b:   DNDarray 
+    b:   DNDarray
          the second input tensor
 
     Examples
@@ -775,7 +774,7 @@ def hypot(a: DNDarray, b: DNDarray) -> DNDarray:
     ----------
     a:   DNDarray
          The first input array
-    b:   DNDarray 
+    b:   DNDarray
          the second input tensor
 
     Examples
@@ -1129,8 +1128,8 @@ def nansum(
     keepdim: bool = None,
 ) -> DNDarray:
     """
-    Sum of array elements over a given axis treating Not a Numbers (NaNs) as zero. An array with the same shape 
-    as ``self.__array`` except for the specified axis which becomes one, e.g. 
+    Sum of array elements over a given axis treating Not a Numbers (NaNs) as zero. An array with the same shape
+    as ``self.__array`` except for the specified axis which becomes one, e.g.
     ``a.shape=(1, 2, 3)`` => ``ht.ones((1, 2, 3)).sum(axis=1).shape=(1, 1, 3)``
 
     Parameters
@@ -1159,30 +1158,26 @@ def nansum(
     >>> ht.sum(ht.ones((3,2,1)), axis=-3)
     DNDarray([[3.],
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
-    """   
+    """
     is_nan = torch.isnan(a.larray)
     a[is_nan.cpu().numpy()] = 0
 
     return _operations.__reduce_op(
         a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
     )
- 
+
 
 DNDarray.nansum = lambda self, axis=None, out=None, keepdim=None: nansum(self, axis, out, keepdim)
 DNDarray.nansum.__doc__ = nansum.__doc__
 
 
 def nan_to_num(
-    a: DNDarray,
-    nan: float = 0.0,
-    posinf: float = None,
-    neginf: float = None,
-    out: DNDarray = None
+    a: DNDarray, nan: float = 0.0, posinf: float = None, neginf: float = None, out: DNDarray = None
 ) -> DNDarray:
     """
-    Replaces NaNs, positive infinity values, and negative infinity values in the input 'a' with the values specified by 
-    nan, posinf, and neginf, respectively. By default, NaNs are replaced with zero, positive infinity is replaced with 
-    the greatest finite value representable by input’s dtype, and negative infinity is replaced with the least finite 
+    Replaces NaNs, positive infinity values, and negative infinity values in the input 'a' with the values specified by
+    nan, posinf, and neginf, respectively. By default, NaNs are replaced with zero, positive infinity is replaced with
+    the greatest finite value representable by input’s dtype, and negative infinity is replaced with the least finite
     value representable by input’s dtype.
 
     Parameters
@@ -1192,10 +1187,10 @@ def nan_to_num(
     nan : float, optional
         Value to be used to replace NaNs. Default value is 0.0.
     posinf : float, optional
-        Value to replace positive infinity values with. If None, positive infinity values are 
+        Value to replace positive infinity values with. If None, positive infinity values are
         replaced with the greatest finite value of the input’s dtype. Default value is None.
     neginf : float, optional
-        Value to replace negative infinity values with. If None, negative infinity values are 
+        Value to replace negative infinity values with. If None, negative infinity values are
         replaced with the greatest negative finite value of the input’s dtype. Default value is None.
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output, but
@@ -1210,9 +1205,15 @@ def nan_to_num(
     neginf = None
     result tensor([ 0.0000e+00,  3.4028e+38, -3.4028e+38])
     DNDarray([ 0.0000e+00,  3.4028e+38, -3.4028e+38], dtype=ht.float32, device=cpu:0, split=None)
-    """   
-    return _operations.__local_op(torch.nan_to_num, a, out = out, no_cast=True, nan = nan, posinf = posinf, neginf = neginf)
+    """
+    return _operations.__local_op(
+        torch.nan_to_num, a, out=out, no_cast=True, nan=nan, posinf=posinf, neginf=neginf
+    )
 
 
-DNDarray.nan_to_num = lambda self, out = None, no_cast=True, nan = 0.0, posinf = None, neginf = None: nan_to_num(self, out=out, no_cast=no_cast, nan=nan, posinf=posinf, neginf=neginf)
+DNDarray.nan_to_num = (
+    lambda self, out=None, no_cast=True, nan=0.0, posinf=None, neginf=None: nan_to_num(
+        self, out=out, no_cast=no_cast, nan=nan, posinf=posinf, neginf=neginf
+    )
+)
 DNDarray.nan_to_num.__doc__ = nan_to_num.__doc__

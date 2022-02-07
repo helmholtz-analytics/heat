@@ -330,7 +330,7 @@ def __local_op(
             print("{0} = {1}".format(key, value))
 
         result = operation(x.larray.type(torch_type), **kwargs)
-        print('result', result)
+        print("result", result)
         return DNDarray(
             result,
             x.gshape,
