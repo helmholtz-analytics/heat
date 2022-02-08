@@ -532,7 +532,7 @@ def randint(
         shape = tuple(int(ele) for ele in size)
     except TypeError:
         shape = (int(size),)
-    finally:
+    else:
         if not all(ele > 0 for ele in shape):
             raise ValueError("negative dimensions are not allowed")
 
