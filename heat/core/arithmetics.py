@@ -62,7 +62,7 @@ __all__ = [
 
 def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise addition of values from two operands, commutative.
+    Element-wise addition of values from two operands, commutative. test
     Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be added
     as argument and returns a ``DNDarray`` containing the results of element-wise addition of ``t1`` and ``t2``.
 
