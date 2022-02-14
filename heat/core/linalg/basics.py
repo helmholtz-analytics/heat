@@ -56,6 +56,10 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
     upper : bool, optional
         Whether a lower or upper triangular matrix is returned.
 
+    Note
+    ----
+    Distributed matrices with complex valued entries are currently not supported.
+
     Examples
     --------
     >>> A = ht.array([[1,-2j],[2j,5]])
@@ -98,8 +102,11 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
             data, x.shape, types.heat_type_of(data), x.split, x.device, x.comm, x.balanced
         )
 
+    # NOTE There is some issues with complex values. conj() is omitted in the computation.
     if types.heat_type_is_complexfloating(x.dtype):
-        raise NotImplementedError("Not implemented for {}".format(x.dtype))
+        raise NotImplementedError(
+            "Not implemented for distributed matrices of type {}".format(x.dtype)
+        )
 
     a = x.copy()
 
