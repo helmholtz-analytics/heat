@@ -802,6 +802,22 @@ class TestArithmetics(TestCase):
         with self.assertRaises(TypeError):
             ht.ones(array_len).sum(axis="bad_axis_type")
 
+    def test_nansum(self):
+        array_len = 11
+
+        # check sum over all float elements of 1d tensor locally
+        shape_noaxis = ht.ones(array_len)
+        shape_noaxis[0] = ht.nan
+        no_axis_nansum = shape_noaxis.nansum()
+
+        self.assertIsInstance(no_axis_nansum, ht.DNDarray)
+        self.assertEqual(no_axis_nansum.shape, (1,))
+        self.assertEqual(no_axis_nansum.lshape, (1,))
+        self.assertEqual(no_axis_nansum.dtype, ht.float32)
+        self.assertEqual(no_axis_nansum.larray.dtype, torch.float32)
+        self.assertEqual(no_axis_nansum.split, None)
+        self.assertEqual(no_axis_nansum.larray, array_len - 1)
+
     def test_right_hand_side_operations(self):
         """
         This test ensures that for each arithmetic operation (e.g. +, -, *, ...) that is implemented in the tensor
