@@ -13,6 +13,7 @@ from . import _operations
 from . import sanitation
 from . import stride_tricks
 from . import types
+from . import logical
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -1021,11 +1022,12 @@ def nanprod(
     ]), axis=1)
     DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
     """
-    is_nan = torch.isnan(a.larray)
-    a[is_nan.cpu().numpy()] = 1
+    b = a.copy()
+    is_nan = logical.isnan(b)
+    b[is_nan] = 1
 
     return _operations.__reduce_op(
-        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
+        b, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
     )
 
 
@@ -1159,11 +1161,12 @@ def nansum(
     DNDarray([[3.],
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    is_nan = torch.isnan(a.larray)
-    a[is_nan.cpu().numpy()] = 0
+    b = a.copy()
+    is_nan = logical.isnan(b)
+    b[is_nan] = 0
 
     return _operations.__reduce_op(
-        a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
+        b, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
     )
 
 
