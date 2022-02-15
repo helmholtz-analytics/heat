@@ -10,6 +10,7 @@
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `_reduce_op` when axis and keepdim were set.
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `min`, `max` where DNDarrays with empty processes can't be computed.
 - [#868](https://github.com/helmholtz-analytics/heat/pull/868) Fixed an issue in `__binary_op` where data was falsely distributed if a DNDarray has single element.
+- [#916](https://github.com/helmholtz-analytics/heat/pull/916) Fixed an issue in `random.randint` where the size parameter does not accept ints.
 
 ## Feature Additions
 
