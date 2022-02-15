@@ -818,6 +818,27 @@ class TestArithmetics(TestCase):
         self.assertEqual(no_axis_nansum.split, None)
         self.assertEqual(no_axis_nansum.larray, array_len - 1)
 
+        out_noaxis = ht.zeros((1,))
+        ht.nansum(shape_noaxis, out=out_noaxis)
+        self.assertTrue(out_noaxis.larray == shape_noaxis.larray.nansum())
+
+        # check sum over all float elements of split 1d tensor
+        shape_noaxis_split = ht.arange(array_len, split=0).astype(ht.float32)
+        shape_noaxis_split[0] = ht.nan
+        shape_noaxis_split_nansum = shape_noaxis_split.nansum()
+
+        self.assertIsInstance(shape_noaxis_split_nansum, ht.DNDarray)
+        self.assertEqual(shape_noaxis_split_nansum.shape, (1,))
+        self.assertEqual(shape_noaxis_split_nansum.lshape, (1,))
+        self.assertEqual(shape_noaxis_split_nansum.dtype, ht.float32)
+        self.assertEqual(shape_noaxis_split_nansum.larray.dtype, torch.float32)
+        self.assertEqual(shape_noaxis_split_nansum.split, None)
+        self.assertEqual(shape_noaxis_split_nansum, 55)
+
+        out_noaxis = ht.zeros((1,))
+        ht.nansum(shape_noaxis_split, out=out_noaxis)
+        self.assertEqual(out_noaxis.larray, 55)
+
     def test_right_hand_side_operations(self):
         """
         This test ensures that for each arithmetic operation (e.g. +, -, *, ...) that is implemented in the tensor
