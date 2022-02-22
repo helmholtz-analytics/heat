@@ -527,10 +527,14 @@ def randint(
 
     # sanitize shape
     if size is None:
-        size = (1,)
-    shape = tuple(int(ele) for ele in size)
-    if not all(ele > 0 for ele in shape):
-        raise ValueError("negative dimensions are not allowed")
+        size = ()
+    try:
+        shape = tuple(int(ele) for ele in size)
+    except TypeError:
+        shape = (int(size),)
+    else:
+        if not all(ele >= 0 for ele in shape):
+            raise ValueError("negative dimensions are not allowed")
 
     # sanitize the data type
     if dtype is None:
