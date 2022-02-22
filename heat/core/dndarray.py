@@ -653,6 +653,84 @@ class DNDarray:
 
         return self
 
+    def __process_key(arr: DNDarray, key: Union[int, Tuple[int, ...], List[int, ...]]) -> Tuple:
+        """
+        Private method for processing keys for indexing. Returns wether advanced indexing is used as well as a processed key and self.
+        A processed key:
+        - doesn't cotain any ellipses or newaxis
+        - all Iterables are converted to ``DNDarrays``
+        - has the same dimensionality as the ``DNDarray`` it indexes
+
+        Parameters
+        ----------
+        key : int, slice, Tuple[int,...], List[int,...]
+            Indices for the tensor.
+        """
+        advanced_indexing = False
+        if isinstance(key, DNDarray):
+            # DNDARRAY CURRENTLY DOES NOT IMPLEMENT the Iterable interface, need to define __iter__()
+            advanced_indexing = True
+            # TODO: check for key.ndim = 0 and treat that as int
+            # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
+        elif isinstance(key, Iterable) and not isinstance(key, tuple):
+            advanced_indexing = True
+            key = factories.array(key)
+            # DOES NOT WORK FOR SEQUENCE OF TENSORS OR DNDARRAYS, works for sequence of ndarrays though
+            # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
+        elif isinstance(key, tuple):
+            key = list(key)
+            for i, k in enumerate(key):
+                if isinstance(k, Iterable) or isinstance(key, DNDarray):
+                    advanced_indexing = True
+                    key[i] = factories.array(key[i])
+                    # DOES NOT WORK FOR SEQUENCE OF TENSORS OR DNDARRAYS, works for seq of ndarrays though
+                    # TODO: check for key.ndim = 0 and treat that as int
+                    # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
+            add_dims = sum(k is None for k in key)  # (np.newaxis is None)===true
+            ellipsis = sum(isinstance(k, type(...)) for k in key)
+            if ellipsis > 1:
+                raise ValueError("key can only contain 1 ellipsis")
+            elif ellipsis == 1:
+                expand_key = [slice(None)] * (arr.ndim + add_dims)
+                ellipsis_index = key.index(...)
+                expand_key[:ellipsis_index] = key[:ellipsis_index]
+                expand_key[ellipsis_index - len(key) :] = key[ellipsis_index + 1 :]
+                key = expand_key
+            if add_dims:
+                for i, k in reversed(enumerate(key)):
+                    if k is None:
+                        key[i] = slice(None)
+                        arr = arr.expand_dims(i - add_dims + 1)  # is the -1 correct?
+                        add_dims -= 1
+            # expand key to match the number of dimensions of the DNDarray
+            key = tuple(key + [slice(None)] * (arr.ndim - len(key)))
+        else:  # key is integer or slice
+            key = tuple([key] + [slice(None)] * (arr.ndim - 1))
+        return advanced_indexing, arr, key
+
+    def __get_local_slice(self, key: slice):
+        split = self.split
+        if split is None:
+            return key
+        key = stride_tricks.sanitize_slice(key, self.shape[split])
+        start, stop, step = key.start, key.stop, key.step
+        if step < 0:  # NOT supported by torch, should be filtered by torch_proxy
+            key = self.__get_local_slice(slice(stop + 1, start + 1, abs(step)))
+            if key is None:
+                return None
+            start, stop, step = key.start, key.stop, key.step
+            return slice(key.stop - 1, key.start - 1, -1 * key.step)
+
+        _, offsets = self.counts_displs()
+        offset = offsets[self.comm.rank]
+        range_proxy = range(self.lshape[split])
+        local_inds = range_proxy[start - offset : stop - offset]  # only works if stop - offset > 0
+        local_inds = local_inds[max(offset - start, 0) % step :: step]
+        if len(local_inds) and stop > offset:
+            # otherwise if (stop-offset) > -self.lshape[split] this can index into the local chunk despite ending before it
+            return slice(local_inds.start, local_inds.stop, local_inds.step)
+        return None
+
     def __getitem__(self, key: Union[int, Tuple[int, ...], List[int, ...]]) -> DNDarray:
         """
         Global getter function for DNDarrays.
@@ -690,46 +768,7 @@ class DNDarray:
         if key == ... or key == slice(None):  # latter doesnt work with torch for 0-dim tensors
             return self
         # Preprocess: Process Ellipsis + 'None' indexing; make Iterables to DNDarrays
-        advanced_indexing = False
-        if isinstance(key, DNDarray):
-            # DNDARRAY CURRENTLY DOES NOT IMPLEMENT the Iterable interface, need to define __iter__()
-            advanced_indexing = True
-            # TODO: check for key.ndim = 0 and treat that as int
-            # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
-        elif isinstance(key, Iterable) and not isinstance(key, tuple):
-            advanced_indexing = True
-            key = factories.array(key)
-            # DOES NOT WORK FOR SEQUENCE OF TENSORS OR DNDARRAYS, works for sequence of ndarrays though
-            # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
-        elif isinstance(key, tuple):
-            key = list(key)
-            for i, k in enumerate(key):
-                if isinstance(k, Iterable) or isinstance(key, DNDarray):
-                    advanced_indexing = True
-                    key[i] = factories.array(key[i])
-                    # DOES NOT WORK FOR SEQUENCE OF TENSORS OR DNDARRAYS, works for seq of ndarrays though
-                    # TODO: check for key.ndim = 0 and treat that as int
-                    # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
-            add_dims = sum(k is None for k in key)  # (np.newaxis is None)===true
-            ellipsis = sum(isinstance(k, type(...)) for k in key)
-            if ellipsis > 1:
-                raise ValueError("key can only contain 1 ellipsis")
-            elif ellipsis == 1:
-                expand_key = [slice(None)] * (self.ndim + add_dims)
-                ellipsis_index = key.index(...)
-                expand_key[:ellipsis_index] = key[:ellipsis_index]
-                expand_key[ellipsis_index - len(key) :] = key[ellipsis_index + 1 :]
-                key = expand_key
-            if add_dims:
-                for i, k in reversed(enumerate(key)):
-                    if k is None:
-                        key[i] = slice(None)
-                        self = self.expand_dims(i - add_dims + 1)  # is the -1 correct?
-                        add_dims -= 1
-            # expand key to match the number of dimensions of the DNDarray
-            key = tuple(key + [slice(None)] * (self.ndim - len(key)))
-        else:  # key is integer or slice
-            key = tuple([key] + [slice(None)] * (self.ndim - 1))
+        advanced_indexing, self, key = self.__process_key(key)
 
         # To use torch_proxy with advanced indexing, add empty dimensions instead of
         # advanced index. Later, replace the empty dimensions with the shape of the advanced index
@@ -788,19 +827,9 @@ class DNDarray:
         split = self.split
         # slice along the split axis
         if isinstance(key[split], slice):
-            key = list(key)
-            key[split] = stride_tricks.sanitize_slice(key[split], self.shape[split])
-            start, stop, step = key[split].start, key[split].stop, key[split].step
-            if step < 0:  # NOT supported by torch, should be filtered by torch_proxy
-                key[split] = slice(stop + 1, start + 1, abs(step))
-                return self[tuple(key)].flip(axis=self.split)
-
-            offset = offsets[self.comm.rank]
-            range_proxy = range(self.lshape[split])
-            local_inds = range_proxy[start - offset : stop - offset]
-            local_inds = local_inds[max(offset - start, 0) % step :: step]
-            if len(local_inds):
-                local_slice = slice(local_inds.start, local_inds.stop, local_inds.step)
+            local_slice = self.__get_local_slice(key[split])
+            if local_slice is not None:
+                key = list(key)
                 key[split] = local_slice
                 local_tensor = self.larray[tuple(key)]
             else:  # local tensor is empty
@@ -1542,6 +1571,40 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
+
+        def __set(arr: DNDarray, value: DNDarray):
+            """
+            Setter for not advanced indexing, i.e. when arr[key] is an in-place view of arr.
+            """
+            if not isinstance(value, DNDarray):
+                value = factories.array(value, device=arr.device, comm=arr.comm)
+            while value.ndim < arr.ndim:  # broadcasting
+                value = value.expand_dims(0)
+            sanitation.sanitize_out(arr, value.shape, value.split, value.device, value.comm)
+            value = sanitation.sanitize_distribution(value, target=arr)
+            arr.larray[None] = value.larray
+            return
+
+        if key is None or key == ... or key == slice(None):
+            return __set(self, value)
+
+        advanced_indexing, self, key = self.__process_key(key)
+        if advanced_indexing:
+            raise Exception("Advanced indexing is not supported yet")
+
+        split = self.split
+        if not self.is_distributed or key[split] == slice(None):
+            return __set(self[key], value)
+
+        if isinstance(key[split], slice):
+            return __set(self[key], value)
+
+        if np.isscalar(key[split]):
+            key = list(key)
+            idx = int(key[split])
+            key[split] = slice(idx, idx + 1)
+            return __set(self[tuple(key)], value)
+
         key = getattr(key, "copy()", key)
         try:
             if value.split != self.split:
