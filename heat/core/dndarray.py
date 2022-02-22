@@ -691,26 +691,23 @@ class DNDarray:
             return self
         # Preprocess: Process Ellipsis + 'None' indexing; make Iterables to DNDarrays
         advanced_indexing = False
-        if isinstance(
-            key, DNDarray
-        ):  # DNDARRAY CURRENTLY DOES NOT IMPLEMENT the Iterable interface, need to define __iter__()
+        if isinstance(key, DNDarray):
+            # DNDARRAY CURRENTLY DOES NOT IMPLEMENT the Iterable interface, need to define __iter__()
             advanced_indexing = True
             # TODO: check for key.ndim = 0 and treat that as int
             # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
         elif isinstance(key, Iterable) and not isinstance(key, tuple):
             advanced_indexing = True
-            key = factories.array(
-                key
-            )  # DOES NOT WORK FOR SEQUENCE OF TENSORS OR DNDARRAYS, works for sequence of ndarrays though
+            key = factories.array(key)
+            # DOES NOT WORK FOR SEQUENCE OF TENSORS OR DNDARRAYS, works for sequence of ndarrays though
             # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
         elif isinstance(key, tuple):
             key = list(key)
             for i, k in enumerate(key):
                 if isinstance(k, Iterable) or isinstance(key, DNDarray):
                     advanced_indexing = True
-                    key[i] = factories.array(
-                        key[i]
-                    )  # DOES NOT WORK FOR SEQUENCE OF TENSORS OR DNDARRAYS, works for seq of ndarrays though
+                    key[i] = factories.array(key[i])
+                    # DOES NOT WORK FOR SEQUENCE OF TENSORS OR DNDARRAYS, works for seq of ndarrays though
                     # TODO: check for key.ndim = 0 and treat that as int
                     # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
             add_dims = sum(k is None for k in key)  # (np.newaxis is None)===true
@@ -736,34 +733,37 @@ class DNDarray:
 
         # To use torch_proxy with advanced indexing, add empty dimensions instead of
         # advanced index. Later, replace the empty dimensions with the shape of the advanced index
-        proxy_key = key
         proxy = self
+        names = [
+            "split" if (proxy.split is not None and i == proxy.split) else "_{}".format(i)
+            for i in range(proxy.ndim)
+        ]
+        proxy_key = list(key)
         if advanced_indexing:
-            proxy_key = []
-            replace = {}
+            proxy_key = list(key)
             for i, k in reversed(enumerate(key)):
                 if isinstance(k, DNDarray):  # all iterables have been made DNDarrays
-                    # TODO Bool indexing (sometimes) is collapsed into one dimension
-                    replace[i] = k.shape
-                    proxy_key.extend([slice(None)] * k.ndim)
+                    # TODO: Bool indexing (sometimes) is collapsed into one dimension
+                    # TODO: What to do if advanced index is in split dimension??
+                    names[i] = "replace" + str(k.shape)  # put shape into name
+                    proxy_key[i] = slice(None)
                     for _ in range(k.ndim - 1):
                         proxy = proxy.expand_dims(i)
-                else:
-                    proxy_key.append(k)
-            proxy_key = tuple(reversed(proxy_key))
+                        names.insert(i + 1, "_{}".format(len(names)))
+                        proxy_key.insert(i + 1, slice(None))
+        proxy_key = tuple(proxy_key)
 
         self_proxy = proxy.__torch_proxy__()
-        self_proxy.names = [
-            "split" if (proxy.split is not None and i == proxy.split) else "_{}".format(i)
-            for i in range(self_proxy.ndim)
-        ]
+        self_proxy.names = names
         indexed_proxy = self_proxy[proxy_key]
 
         output_shape = list(indexed_proxy.shape)
         if advanced_indexing:
-            for i, shape in replace.values():
-                # TODO Bool indexing (sometimes) is collapsed into one dimension
-                output_shape[i : i + len(shape)] = shape
+            for i, n in enumerate(indexed_proxy.names):
+                if "replace" in n:
+                    shape = eval(n.split("replace")[1])  # extract shape from name
+                    # TODO Bool indexing (sometimes) is collapsed into one dimension
+                    output_shape[i : i + len(shape)] = shape
         output_shape = tuple(output_shape)
 
         try:
@@ -791,14 +791,14 @@ class DNDarray:
             key = list(key)
             key[split] = stride_tricks.sanitize_slice(key[split], self.shape[split])
             start, stop, step = key[split].start, key[split].stop, key[split].step
-            if step < 0:  # NOT supported by torch; TODO throw Exception
+            if step < 0:  # NOT supported by torch, should be filtered by torch_proxy
                 key[split] = slice(stop + 1, start + 1, abs(step))
                 return self[tuple(key)].flip(axis=self.split)
 
             offset = offsets[self.comm.rank]
             range_proxy = range(self.lshape[split])
             local_inds = range_proxy[start - offset : stop - offset]
-            local_inds = local_inds[(offset - start) % step :: step]
+            local_inds = local_inds[max(offset - start, 0) % step :: step]
             if len(local_inds):
                 local_slice = slice(local_inds.start, local_inds.stop, local_inds.step)
                 key[split] = local_slice
