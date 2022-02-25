@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        py-version:
+          - 3.7
+        mpi: [ 'mpich', 'openmpi' ]
+        install-options: [ '.', '.[hdf5,netcdf]' ]
+
+    name: Python ${{ matrix.py-version }} with MPI ${{ matrix.mpi }}; options ${{ matrix.install-options }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup MPI
+        uses: mpi4py/setup-mpi@v1
+        with:
+          mpi: ${{ matrix.mpi }}
+      - name: Use Python ${{ matrix.py-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.py-version }}
+          architecture: x64
+      - name: Test
+        run: |
+          pip install pytest
+          pip install ${{ matrix.install-options }}
+          mpirun -n 4 pytest heat/
