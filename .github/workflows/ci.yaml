@@ -1,9 +1,6 @@
 name: ci
 
 on:
-  push:
-    branches:
-      - enhancement/203-ghactions-matrix
   pull_request:
     branches:
       - master
