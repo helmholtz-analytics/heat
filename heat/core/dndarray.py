@@ -655,6 +655,7 @@ class DNDarray:
 
     def __process_key(arr: DNDarray, key: Union[int, Tuple[int, ...], List[int, ...]]) -> Tuple:
         """
+        TODO: expand docs. This function processes key, manipulates `arr` if necessary, returns the final output shape
         Private method for processing keys for indexing. Returns wether advanced indexing is used as well as a processed key and self.
         A processed key:
         - doesn't cotain any ellipses or newaxis
@@ -672,68 +673,79 @@ class DNDarray:
         output_shape = list(arr.gshape)
         # output_split = arr.split
 
+        if isinstance(key, Iterable) and not isinstance(key, (tuple, list)):
+            # key is np.ndarray or torch.Tensor
+            key = factories.array(key)
+
         if isinstance(key, DNDarray):
-            # DNDARRAY CURRENTLY DOES NOT IMPLEMENT the Iterable interface, need to define __iter__()
-            advanced_indexing = True
-            advanced_indexing_dims.append(0)
+            if key.dtype in (canonical_heat_type.bool, canonical_heat_type.uint8):
+                # boolean indexing
+                if not key.gshape == arr.gshape:
+                    raise IndexError(
+                        "IndexError: shape of boolean index {} did not match shape of indexed array {}".format(
+                            key.gshape, arr.gshape
+                        )
+                    )
+                key = indexing.nonzero(key)
+                # TODO: fix indexing.nonzero to return a tuple of 1D dndarrays
+            else:
+                advanced_indexing = True
+                advanced_indexing_dims.append(0)
+                # TODO: check for dimensions of indexing array here?
             # TODO: check for key.ndim = 0 and treat that as int
             # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
-        elif isinstance(key, Iterable) and not isinstance(key, (tuple, list)):
-            advanced_indexing = True
-            advanced_indexing_dims.append(0)
-            key = factories.array(key)
-            # DOES NOT WORK FOR SEQUENCE OF TENSORS OR DNDARRAYS, works for sequence of ndarrays though
-            # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
-        elif isinstance(key, (tuple, list)):
+        if isinstance(key, (tuple, list)):
             key = list(key)
             for i, k in enumerate(key):
-                if isinstance(k, Iterable) or isinstance(key, DNDarray):
+                if isinstance(k, Iterable) or isinstance(k, DNDarray):
                     advanced_indexing = True
                     advanced_indexing_dims.append(i)
                     # TODO: specify split axis
-                    key[i] = factories.array(key[i])
+                    if not isinstance(k, DNDarray):
+                        key[i] = factories.array(k)
                     # DOES NOT WORK FOR SEQUENCE OF TENSORS OR DNDARRAYS, works for seq of ndarrays though
                     # TODO: check for key.ndim = 0 and treat that as int
                     # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
-            if advanced_indexing:
-                # shapes of indexing arrays must be broadcastable
-                advanced_indexing_shapes = tuple(key[i].shape for i in advanced_indexing_dims)
-                try:
-                    broadcasted_shape = torch.broadcast_shapes(advanced_indexing_shapes)
-                except RuntimeError:
-                    raise IndexError(
-                        "Shape mismatch: indexing arrays could not be broadcast together with shapes: {}".format(
-                            advanced_indexing_shapes
-                        )
+        if advanced_indexing:
+            # shapes of indexing arrays must be broadcastable
+            advanced_indexing_shapes = tuple(key[i].shape for i in advanced_indexing_dims)
+            try:
+                broadcasted_shape = torch.broadcast_shapes(advanced_indexing_shapes)
+            except RuntimeError:
+                raise IndexError(
+                    "Shape mismatch: indexing arrays could not be broadcast together with shapes: {}".format(
+                        advanced_indexing_shapes
                     )
-                add_dims = len(broadcasted_shape) - len(advanced_indexing_dims)
-                if (
-                    len(advanced_indexing_dims) == 1
-                    or list(range(advanced_indexing_dims[0], advanced_indexing_dims[-1] + 1))
-                    == advanced_indexing_dims
-                ):
-                    # dimensions affected by advanced indexing are consecutive:
-                    output_shape[advanced_indexing_dims[0]] = broadcasted_shape
-                else:
-                    # advanced-indexing dimensions are not consecutive:
-                    # transpose array to make the advanced-indexing dimensions consecutive as the first dimensions
-                    non_adv_ind_dims = list(
-                        i for i in range(arr.ndim) if i not in advanced_indexing_dims
-                    )
-                    arr = arr.transpose(advanced_indexing_dims + non_adv_ind_dims)
-                    output_shape = list(arr.gshape)
-                    output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
-                    # modify key to match the new dimension order
-                    key = [key[i] for i in advanced_indexing_dims] + [
-                        key[i] for i in non_adv_ind_dims
-                    ]
-                    # update advanced-indexing dims
-                    advanced_indexing_dims = list(range(len(advanced_indexing_dims)))
-                # expand dimensions of input array, key to match output_shape
-                if add_dims > 0:
-                    for i in range(add_dims):
-                        arr = arr.expand_dims(advanced_indexing_dims[0])
-                        key.insert(advanced_indexing_dims[0], slice(None))
+                )
+            add_dims = len(broadcasted_shape) - len(advanced_indexing_dims)
+            if (
+                len(advanced_indexing_dims) == 1
+                or list(range(advanced_indexing_dims[0], advanced_indexing_dims[-1] + 1))
+                == advanced_indexing_dims
+            ):
+                # dimensions affected by advanced indexing are consecutive:
+                output_shape[
+                    advanced_indexing_dims[0] : advanced_indexing_dims[0]
+                    + len(advanced_indexing_dims)
+                ] = broadcasted_shape
+            else:
+                # advanced-indexing dimensions are not consecutive:
+                # transpose array to make the advanced-indexing dimensions consecutive as the first dimensions
+                non_adv_ind_dims = list(
+                    i for i in range(arr.ndim) if i not in advanced_indexing_dims
+                )
+                arr = arr.transpose(advanced_indexing_dims + non_adv_ind_dims)
+                output_shape = list(arr.gshape)
+                output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
+                # modify key to match the new dimension order
+                key = [key[i] for i in advanced_indexing_dims] + [key[i] for i in non_adv_ind_dims]
+                # update advanced-indexing dims
+                advanced_indexing_dims = list(range(len(advanced_indexing_dims)))
+            # expand dimensions of input array, key, to match output_shape
+            while add_dims > 0:
+                arr = arr.expand_dims(advanced_indexing_dims[0])
+                key.insert(advanced_indexing_dims[0], slice(None))
+                add_dims -= 1
 
             # now check for ellipsis, newaxis
             add_dims = sum(k is None for k in key)  # (np.newaxis is None)===true
