@@ -667,9 +667,6 @@ class DNDarray:
         key : int, slice, Tuple[int,...], List[int,...]
             Indices for the tensor.
         """
-        advanced_indexing = False
-        advanced_indexing_dims = []
-
         output_shape = list(arr.gshape)
         # output_split = arr.split
 
@@ -680,6 +677,7 @@ class DNDarray:
         if isinstance(key, DNDarray):
             if key.dtype in (canonical_heat_type.bool, canonical_heat_type.uint8):
                 # boolean indexing
+                # transform to sequence of indexing arrays
                 if not key.gshape == arr.gshape:
                     raise IndexError(
                         "IndexError: shape of boolean index {} did not match shape of indexed array {}".format(
@@ -689,23 +687,22 @@ class DNDarray:
                 key = indexing.nonzero(key)
                 # TODO: fix indexing.nonzero to return a tuple of 1D dndarrays
             else:
-                advanced_indexing = True
-                advanced_indexing_dims.append(0)
-                # TODO: check for dimensions of indexing array here?
+                # advanced indexing on first dimension
+                output_shape = list(key.gshape) + output_shape[1:]
             # TODO: check for key.ndim = 0 and treat that as int
-            # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
+
+        advanced_indexing = False
+        advanced_indexing_dims = []
         if isinstance(key, (tuple, list)):
             key = list(key)
             for i, k in enumerate(key):
                 if isinstance(k, Iterable) or isinstance(k, DNDarray):
+                    # advanced indexing across dimensions
                     advanced_indexing = True
                     advanced_indexing_dims.append(i)
-                    # TODO: specify split axis
                     if not isinstance(k, DNDarray):
                         key[i] = factories.array(k)
-                    # DOES NOT WORK FOR SEQUENCE OF TENSORS OR DNDARRAYS, works for seq of ndarrays though
                     # TODO: check for key.ndim = 0 and treat that as int
-                    # TODO: get outshape + outsplit; depends on wether key is bool or int and key.ndim
         if advanced_indexing:
             # shapes of indexing arrays must be broadcastable
             advanced_indexing_shapes = tuple(key[i].shape for i in advanced_indexing_dims)
@@ -742,10 +739,11 @@ class DNDarray:
                 # update advanced-indexing dims
                 advanced_indexing_dims = list(range(len(advanced_indexing_dims)))
             # expand dimensions of input array, key, to match output_shape
-            while add_dims > 0:
-                arr = arr.expand_dims(advanced_indexing_dims[0])
-                key.insert(advanced_indexing_dims[0], slice(None))
-                add_dims -= 1
+            # while add_dims > 0:
+            #     # TODO: check this out, I think this is wrong or only right if added dimension is of size (1,)
+            #     arr = arr.expand_dims(advanced_indexing_dims[0])
+            #     key.insert(advanced_indexing_dims[0], slice(None))
+            #     add_dims -= 1
 
             # now check for ellipsis, newaxis
             add_dims = sum(k is None for k in key)  # (np.newaxis is None)===true
