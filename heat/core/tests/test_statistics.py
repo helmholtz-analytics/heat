@@ -361,6 +361,33 @@ class TestStatistics(TestCase):
         with self.assertRaises(ValueError):
             ht.bincount(ht.array([0, 1, 2, 3], split=0), weights=ht.array([1, 2, 3, 4]))
 
+    def test_bucketize(self):
+        boundaries = ht.array([1, 3, 5, 7, 9])
+        v = ht.array([[3, 6, 9], [3, 6, 9]])
+        a = ht.bucketize(v, boundaries)
+
+        self.assertTrue(ht.equal(a, ht.array([[1, 3, 4], [1, 3, 4]])))
+        self.assertTrue(a.dtype, ht.int64)
+        self.assertTrue(a.shape, v.shape)
+
+        a = ht.bucketize(v, boundaries, right=True)
+        self.assertTrue(ht.equal(a, ht.array([[2, 3, 5], [2, 3, 5]])))
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue(a.shape, v.shape)
+
+        boundaries, _ = torch.sort(torch.rand(5))
+        v = torch.rand(6)
+        t = torch.bucketize(v, boundaries, out_int32=True)
+
+        v = ht.array(v, split=0)
+        a = ht.bucketize(v, boundaries, out_int32=True)
+        self.assertTrue(ht.equal(ht.resplit(a, None), ht.asarray(t)))
+        self.assertEqual(a.dtype, ht.int32)
+
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(RuntimeError):
+                ht.bucketize(a, ht.array([0.0, 0.5, 1.0], split=0))
+
     def test_cov(self):
         x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=ht.float, split=1).T
         if x.comm.size < 3:
@@ -441,6 +468,34 @@ class TestStatistics(TestCase):
             ht.cov(htdata, ht.zeros((1, 2, 3)))
         with self.assertRaises(ValueError):
             ht.cov(htdata, ddof=10000)
+
+    def test_digitize(self):
+        x = ht.array([1.2, 10.0, 12.4, 15.5, 20.0])
+        bins = ht.array([0, 5, 10, 15, 20])
+        a = ht.digitize(x, bins, right=True)
+
+        self.assertTrue(ht.equal(a, ht.array([1, 2, 3, 4, 4])))
+        self.assertTrue(a.dtype, ht.int64)
+        self.assertTrue(a.shape, x.shape)
+
+        a = ht.digitize(x, bins, right=False)
+        self.assertTrue(ht.equal(a, ht.array([1, 3, 3, 4, 5])))
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue(a.shape, x.shape)
+
+        bins = np.sort(np.random.rand(5))
+        x = np.random.rand(6)
+        t = np.digitize(x, bins)
+
+        x = ht.array(x, split=0)
+        a = ht.digitize(x, bins)
+        self.assertTrue(ht.equal(ht.resplit(a, None), ht.asarray(t)))
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue(a.shape, x.shape)
+
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(RuntimeError):
+                ht.bucketize(a, ht.array([0.0, 0.5, 1.0], split=0))
 
     def test_histc(self):
         # few entries and float64
