@@ -39,7 +39,6 @@ authors:
   orcid: "https://orcid.org/0000-0000-0000-0000"
 title: "Heat - Helmholtz Analytics Toolkit"
 version: 1.1.0
-doi: 10.5281/zenodo.1234
 date-released: 2021-09-21
 url: "https://github.com/helmholtz-analytics/heat"
 preferred-citation:
@@ -81,7 +80,7 @@ preferred-citation:
   - family-names: "Streit"
     given-names: "Achim"
     orcid: "https://orcid.org/0000-0000-0000-0000"
-  title: "HeAT -- a Distributed and GPU-accelerated Tensor Framework for Data Analytics}"
+  title: "HeAT -- a Distributed and GPU-accelerated Tensor Framework for Data Analytics"
   year: 2020
   collection-title: "2020 IEEE International Conference on Big Data (IEEE Big Data 2020)"
   collection-doi: 10.1109/BigData50022.2020.9378050
