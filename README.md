@@ -19,7 +19,7 @@ Project Status
 
 UPDATE: Google Summer of Code 2022!
 --------------------------------------------------------
-Forschungszentrum Jülich  and Heat have been accepted as mentor organization for [Google Summer of Code 2022](https://summerofcode.withgoogle.com/)!
+Forschungszentrum Jülich  and Heat have been accepted as mentoring organization for [Google Summer of Code 2022](https://summerofcode.withgoogle.com/)!
 <div align="center">
   <a href="https://summerofcode.withgoogle.com/programs/2022/organizations/forschungszentrum-julich"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
 </div>
