@@ -22,7 +22,7 @@ UPDATE: Google Summer of Code 2022!
 --------------------------------------------------------
 Forschungszentrum Jülich  and Heat have been accepted as mentor organization for [Google Summer of Code 2022](https://summerofcode.withgoogle.com/)!
 <div align="center">
-  <a href="https://summerofcode.withgoogle.com/programs/2022/organizations"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
+  <a href="https://summerofcode.withgoogle.com/programs/2022/organizations/forschungszentrum-julich"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
 </div>
 
 All of you visiting via GSoC - we're so excited to have you here! You can check out our [List of Ideas](https://docs.google.com/document/d/1OKUf_n_whN0M20c__jj8R5jyGABPYYxmdBfyzto4OZk/), and ask us questions in [this thread](https://github.com/helmholtz-analytics/heat/discussions/919).
