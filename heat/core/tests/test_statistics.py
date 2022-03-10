@@ -473,29 +473,46 @@ class TestStatistics(TestCase):
         x = ht.array([1.2, 10.0, 12.4, 15.5, 20.0])
         bins = ht.array([0, 5, 10, 15, 20])
         a = ht.digitize(x, bins, right=True)
+        t = np.digitize(x.numpy(), bins.numpy(), right=True)
 
-        self.assertTrue(ht.equal(a, ht.array([1, 2, 3, 4, 4])))
+        self.assertTrue((a.numpy() == t).all())
         self.assertTrue(a.dtype, ht.int64)
         self.assertTrue(a.shape, x.shape)
 
         a = ht.digitize(x, bins, right=False)
-        self.assertTrue(ht.equal(a, ht.array([1, 3, 3, 4, 5])))
+        t = np.digitize(x.numpy(), bins.numpy(), right=False)
+        self.assertTrue((a.numpy() == t).all())
         self.assertEqual(a.dtype, ht.int64)
         self.assertTrue(a.shape, x.shape)
 
-        bins = np.sort(np.random.rand(5))
-        x = np.random.rand(6)
-        t = np.digitize(x, bins)
+        bins = ht.flipud(bins)
+        a = ht.digitize(x, bins, right=True)
+        t = np.digitize(x.numpy(), bins.numpy(), right=True)
+        self.assertTrue((a.numpy() == t).all())
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue(a.shape, x.shape)
 
-        x = ht.array(x, split=0, device="cpu")
-        a = ht.digitize(x, bins)
-        self.assertTrue(ht.equal(ht.resplit(a, None), ht.asarray(t)))
+        a = ht.digitize(x, bins, right=False)
+        t = np.digitize(x.numpy(), bins.numpy(), right=False)
+        self.assertTrue((a.numpy() == t).all())
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue(a.shape, x.shape)
+
+        y = ht.array([[1.2, 7.3, 10.0], [12.4, 15.5, 20.0]], split=0)
+        a = ht.digitize(y, bins, right=False)
+        self.assertTrue(ht.equal(a, ht.array([[4, 3, 2], [2, 1, 0]], split=0)))
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue(a.shape, y.shape)
+
+        y = ht.array([[1.2, 7.3, 10.0], [12.4, 15.5, 20.0]], split=1)
+        a = ht.digitize(y, bins, right=False)
+        self.assertTrue(ht.equal(a, ht.array([[4, 3, 2], [2, 1, 0]], split=1)))
         self.assertEqual(a.dtype, ht.int64)
         self.assertTrue(a.shape, x.shape)
 
         if ht.MPI_WORLD.size > 1:
             with self.assertRaises(RuntimeError):
-                ht.bucketize(a, ht.array([0.0, 0.5, 1.0], split=0))
+                ht.digitize(a, ht.array([0.0, 0.5, 1.0], split=0))
 
     def test_histc(self):
         # few entries and float64
