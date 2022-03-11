@@ -51,16 +51,19 @@ def nonzero(x: DNDarray) -> DNDarray:
     >>> y[ht.nonzero(y > 3)]
     DNDarray([4, 5, 6, 7, 8, 9], dtype=ht.int64, device=cpu:0, split=0)
     """
-    sanitation.sanitize_in(x)
+    try:
+        local_x = x.larray
+    except AttributeError:
+        raise TypeError("Input must be a DNDarray, is {}".format(type(x)))
 
     if x.split is None:
         # if there is no split then just return the values from torch
-        lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
+        lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
         gout = list(lcl_nonzero.size())
         is_split = None
     else:
         # a is split
-        lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
+        lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
         _, _, slices = x.comm.chunk(x.shape, x.split)
         lcl_nonzero[..., x.split] += slices[x.split].start
         gout = list(lcl_nonzero.size())
