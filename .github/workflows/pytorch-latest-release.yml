@@ -1,7 +1,7 @@
 name: Get latest PyTorch release version
 on:
   schedule:
-    - cron:  '15 15 * * 1-5'
+    - cron:  '0 5 * * 1-5'
 jobs:
   get-version:
     runs-on: ubuntu-latest
@@ -9,7 +9,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: 'workflow/pytorch-new-release'
+          ref: 'main'
       - name: Fetch PyTorch release version
         run: |
           curl -sL https://api.github.com/repos/pytorch/pytorch/releases/latest | \
