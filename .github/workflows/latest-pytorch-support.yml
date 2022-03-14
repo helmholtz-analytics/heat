@@ -26,12 +26,11 @@ jobs:
           milestone: 1
           update_existing: true
           search_existing: open
-      - run: echo "New issue created"
       - name: Check out new branch
         uses: actions/checkout@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          # ref: 'features/latest-pytorch-support'
+          ref: 'workflow/pytorch-new-release'
       - name: Update setup.py
         run: |
           echo ${{ env.previous_pytorch }}
@@ -41,7 +40,7 @@ jobs:
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v3
         with:
-            base: features/latest-pytorch-support
+            base: workflow/pytorch-new-release
             delete-branch: true
             token: ${{ secrets.GITHUB_TOKEN }}
             commit-message: Support latest PyTorch release
