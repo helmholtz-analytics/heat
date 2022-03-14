@@ -64,8 +64,11 @@ def nonzero(x: DNDarray) -> DNDarray:
     else:
         # a is split
         lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
+        # adjust local indices along split dimension
         _, displs = x.counts_displs()
         lcl_nonzero[..., x.split] += displs[x.comm.rank]
+        del displs
+        # get global size of split dimension
         gout = list(lcl_nonzero.size())
         gout[0] = x.comm.allreduce(gout[0], MPI.SUM)
         is_split = 0
