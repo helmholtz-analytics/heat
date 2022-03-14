@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/master/doc/images/logo.png">
+  <img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/logo.png">
 </div>
 
 ---
@@ -9,13 +9,24 @@ Heat is a distributed tensor framework for high performance data analytics.
 Project Status
 --------------
 
-[![Jenkins](https://img.shields.io/jenkins/build?jobUrl=https%3A%2F%2Fheat-ci.fz-juelich.de%2Fjob%2Fheat%2Fjob%2Fheat%2Fjob%2Fmaster%2F&label=CPU)](https://heat-ci.fz-juelich.de/blue/organizations/jenkins/heat%2Fheat/activity?branch=master)
-[![Jenkins](https://img.shields.io/jenkins/build?jobUrl=https%3A%2F%2Fheat-ci.fz-juelich.de%2Fjob%2FGPU%2520Cluster%2Fjob%2Fmaster%2F&label=GPU)](https://heat-ci.fz-juelich.de/blue/organizations/jenkins/GPU%20Cluster%2Fmaster/activity)
+[![Jenkins](https://img.shields.io/jenkins/build?jobUrl=https%3A%2F%2Fheat-ci.fz-juelich.de%2Fjob%2Fheat%2Fjob%2Fheat%2Fjob%2Fmain%2F&label=CPU)](https://heat-ci.fz-juelich.de/blue/organizations/jenkins/heat%2Fheat/activity?branch=main)
+[![Jenkins](https://img.shields.io/jenkins/build?jobUrl=https%3A%2F%2Fheat-ci.fz-juelich.de%2Fjob%2FGPU%2520Cluster%2Fjob%2Fmain%2F&label=GPU)](https://heat-ci.fz-juelich.de/blue/organizations/jenkins/GPU%20Cluster%2Fmain/activity)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
-[![codecov](https://codecov.io/gh/helmholtz-analytics/heat/branch/master/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
+[![codecov](https://codecov.io/gh/helmholtz-analytics/heat/branch/main/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
+
+UPDATE: Google Summer of Code 2022!
+--------------------------------------------------------
+Forschungszentrum Jülich  and Heat have been selected as mentoring organization for [Google Summer of Code 2022](https://summerofcode.withgoogle.com/)!
+<div align="center">
+  <a href="https://summerofcode.withgoogle.com/programs/2022/organizations/forschungszentrum-julich"><img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/fzj_logo.svg" height="50px" hspace="3%" vspace="20px"></a>
+</div>
+
+All of you visiting via GSoC - we're so excited to have you here! You can check out our [List of Ideas](https://docs.google.com/document/d/1OKUf_n_whN0M20c__jj8R5jyGABPYYxmdBfyzto4OZk/), and ask us questions in [this thread](https://github.com/helmholtz-analytics/heat/discussions/919).
+
+Talk to you soon!
 
 Goals
 -----
@@ -45,7 +56,7 @@ Features
 Getting Started
 ---------------
 
-Check out our Jupyter Notebook [tutorial](https://github.com/helmholtz-analytics/heat/blob/master/scripts/tutorial.ipynb)
+Check out our Jupyter Notebook [tutorial](https://github.com/helmholtz-analytics/heat/blob/main/scripts/tutorial.ipynb)
 right here on Github or in the /scripts directory.
 
 The complete documentation of the latest version is always deployed on
