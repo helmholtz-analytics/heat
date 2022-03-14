@@ -1,7 +1,7 @@
 name: Get latest PyTorch release version
 on:
   schedule:
-    - cron:  '05 15 * * 1-5'
+    - cron:  '15 15 * * 1-5'
 jobs:
   get-version:
     runs-on: ubuntu-latest
