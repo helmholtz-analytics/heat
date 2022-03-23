@@ -53,14 +53,14 @@ def nonzero(x: DNDarray) -> DNDarray:
     """
     sanitation.sanitize_in(x)
 
+    lcl_nonzero = torch.transpose(torch.nonzero(input=x.larray, as_tuple=False), 0, 1)
+
     if x.split is None:
         # if there is no split then just return the values from torch
-        lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
         gout = list(lcl_nonzero.size())
         is_split = None
     else:
         # a is split
-        lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
         _, _, slices = x.comm.chunk(x.shape, x.split)
         lcl_nonzero[..., x.split] += slices[x.split].start
         gout = list(lcl_nonzero.size())
@@ -69,18 +69,17 @@ def nonzero(x: DNDarray) -> DNDarray:
 
     if x.ndim == 1:
         lcl_nonzero = lcl_nonzero.squeeze(dim=1)
-    for g in range(len(gout) - 1, -1, -1):
-        if gout[g] == 1:
-            del gout[g]
 
-    return DNDarray(
-        lcl_nonzero,
-        gshape=tuple(gout),
-        dtype=types.canonical_heat_type(lcl_nonzero.dtype),
-        split=is_split,
-        device=x.device,
-        comm=x.comm,
-        balanced=False,
+    return tuple(
+        DNDarray(
+            lcl_nonzero,
+            gshape=tuple(gout),
+            dtype=types.canonical_heat_type(lcl_nonzero.dtype),
+            split=is_split,
+            device=x.device,
+            comm=x.comm,
+            balanced=False,
+        )
     )
 
 
