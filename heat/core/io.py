@@ -936,7 +936,23 @@ def save_csv(
     """
     Saves data to CSV files
 
-
+    Parameters
+    ----------
+    data : DNDarray
+        The DNDarray to be saved to CSV.
+    path : str
+        The path as a string.
+    header_lines : Iterable[str]
+        Optional iterable of str to prepend at the beginning of the file. No
+        pound sign or any other comment marker will be inserted.
+    sep : str
+        The separator character used in this CSV.
+    dtype : datatype
+        The datatype used in this CSV. Currently, the value is ignored.
+    encoding : str
+        The encoding to be used in this CSV.
+    comm : Optional[Communication]
+        An optional object of type Communication to be used.
     """
     print("Saving CSV on rank %d of %d" % (data.comm.rank, data.comm.size))
     if data.comm.rank == 0 and header_lines:
