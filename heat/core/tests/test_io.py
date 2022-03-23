@@ -22,6 +22,7 @@ class TestIO(TestCase):
 
         # load comparison data from csv
         cls.CSV_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.csv")
+        cls.CSV_OUT_PATH = pwd + "/test.csv"
         cls.IRIS = (
             torch.from_numpy(np.loadtxt(cls.CSV_PATH, delimiter=";"))
             .float()
@@ -140,6 +141,13 @@ class TestIO(TestCase):
             ht.load_csv(self.CSV_PATH, sep=11)
         with self.assertRaises(TypeError):
             ht.load_csv(self.CSV_PATH, header_lines="3", sep=";", split=0)
+
+    def test_save_csv(self):
+        data = ht.arange(100).reshape(20, 5)
+        ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None, sep=";", dtype=data.dtype.char())
+        comparison = ht.load_csv(self.CSV_OUT_PATH, sep=";", dtype=data.dtype.char())
+        if data.comm.rank == 0:
+            self.assertTrue((data.larray == comparison.larray).all().item())
 
     def test_load_exception(self):
         # correct extension, file does not exist

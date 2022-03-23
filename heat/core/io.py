@@ -5,6 +5,7 @@ import os.path
 import numpy as np
 import torch
 import warnings
+import sys
 
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
@@ -14,6 +15,7 @@ from . import types
 
 from .communication import Communication, MPI, MPI_WORLD, sanitize_comm
 from .dndarray import DNDarray
+from .manipulations import hsplit, vsplit
 from .stride_tricks import sanitize_axis
 from .types import datatype
 
@@ -23,7 +25,7 @@ __HDF5_EXTENSIONS = frozenset([".h5", ".hdf5"])
 __NETCDF_EXTENSIONS = frozenset([".nc", ".nc4", "netcdf"])
 __NETCDF_DIM_TEMPLATE = "{}_dim_{}"
 
-__all__ = ["load", "load_csv", "save", "supports_hdf5", "supports_netcdf"]
+__all__ = ["load", "load_csv", "save_csv", "save", "supports_hdf5", "supports_netcdf"]
 
 try:
     import h5py
@@ -144,7 +146,9 @@ else:
 
             return DNDarray(data, gshape, dtype, split, device, comm, balanced)
 
-    def save_hdf5(data: str, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]):
+    def save_hdf5(
+        data: DNDarray, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]
+    ):
         """
         Saves ``data`` to an HDF5 file. Attempts to utilize parallel I/O if possible.
 
@@ -346,7 +350,7 @@ else:
             return DNDarray(data, gshape, dtype, split, device, comm, balanced)
 
     def save_netcdf(
-        data: str,
+        data: DNDarray,
         path: str,
         variable: str,
         mode: str = "w",
@@ -918,6 +922,81 @@ def load_csv(
         resulting_tensor = factories.array(data, dtype=dtype, is_split=1, device=device, comm=comm)
 
     return resulting_tensor
+
+
+def save_csv(
+    data: DNDarray,
+    path: str,
+    header_lines: Iterable[str] = None,
+    sep: str = ",",
+    dtype: datatype = types.float32,
+    encoding: str = "utf-8",
+    comm: Optional[Communication] = None,
+):
+    """
+    Saves data to CSV files
+
+
+    """
+    print("Saving CSV on rank %d of %d" % (data.comm.rank, data.comm.size))
+    if data.comm.rank == 0 and header_lines:
+        with open(path, "w") as csv_out:
+            for hl in header_lines:
+                print(hl, file=csv_out)
+            csv_out.flush()
+
+    print("Waiting for header writing on rank %d of %d" % (data.comm.rank, data.comm.size))
+    data.comm.Barrier()
+    print("Waited for header writing on rank %d of %d" % (data.comm.rank, data.comm.size))
+    print("Data split == %s on rank %d" % (data.split, data.comm.rank))
+
+    # split None can be written out by rank 0
+    if data.split is None:
+        print("Split is None", file=sys.stderr)
+        if data.comm.rank == 0:
+            with open(path, "w") as csv_out:
+                for row in vsplit(data, data.lshape[0]):
+                    print(
+                        sep.join(map(lambda dnda: str(dnda.item()), hsplit(row, data.lshape[1]))),
+                        file=csv_out,
+                    )
+                csv_out.flush()
+        print("Done on rank %d" % (data.comm.rank), file=sys.stderr)
+    elif data.split == 0:
+        print("Split is 0", file=sys.stderr)
+        if data.comm.rank == 0:
+            print("On rank %d" % (data.comm.rank), file=sys.stderr)
+            with open(path, "w") as csv_out:
+                for row in vsplit(data, data.lshape[0]):
+                    print(
+                        sep.join(map(lambda dnda: str(dnda.item()), hsplit(row, data.lshape[1]))),
+                        file=csv_out,
+                    )
+                csv_out.flush()
+            if data.comm.rank < data.comm.size - 1:
+                print(
+                    "Rank %d: sending %d to rank %d"
+                    % (data.comm.rank, data.comm.rank + 1, data.comm.rank + 1),
+                    file=sys.stderr,
+                )
+                data.comm.Send([None, 0, MPI.INT], dest=data.comm.rank + 1)
+        else:
+            rank = -1
+            print("Rank %d: waiting for my turn" % (data.comm.rank), file=sys.stderr)
+            data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
+            if rank != data.comm.rank:
+                raise IndexError("Wrong write sequence for CSV file.")
+            with open(path, "w") as csv_out:
+                for row in vsplit(data, data.lshape[0]):
+                    print(
+                        sep.join(map(lambda dnda: str(dnda.item()), hsplit(row, data.lshape[1]))),
+                        file=csv_out,
+                    )
+                csv_out.flush()
+            if data.comm.rank < data.comm.size - 1:
+                data.comm.Isend([None, 0, MPI.INT], dest=data.comm.rank + 1)
+    else:
+        raise NotImplementedError()
 
 
 def save(
