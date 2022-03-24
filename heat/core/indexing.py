@@ -13,13 +13,13 @@ from . import types
 __all__ = ["nonzero", "where"]
 
 
-def nonzero(x: DNDarray) -> DNDarray:
+def nonzero(x: DNDarray) -> Tuple:
     """
-    Return a :class:`~heat.core.dndarray.DNDarray` containing the indices of the elements that are non-zero.. (using ``torch.nonzero``)
+    Return a Tuple of :class:`~heat.core.dndarray.DNDarray`s, one for each dimension of a,
+    containing the indices of the non-zero elements in that dimension. (using ``torch.nonzero``)
     If ``x`` is split then the result is split in the 0th dimension. However, this :class:`~heat.core.dndarray.DNDarray`
     can be UNBALANCED as it contains the indices of the non-zero elements on each node.
-    Returns an array with one entry for each dimension of ``x``, containing the indices of the non-zero elements in that dimension.
-    The values in ``x`` are always tested and returned in row-major, C-style order.
+    The values in ``x`` are always tested and returned in column-major, F-style order.
     The corresponding non-zero values can be obtained with: ``x[nonzero(x)]``.
 
     Parameters
@@ -32,10 +32,8 @@ def nonzero(x: DNDarray) -> DNDarray:
     >>> import heat as ht
     >>> x = ht.array([[3, 0, 0], [0, 4, 1], [0, 6, 0]], split=0)
     >>> ht.nonzero(x)
-    DNDarray([[0, 0],
-              [1, 1],
-              [1, 2],
-              [2, 1]], dtype=ht.int64, device=cpu:0, split=0)
+    (DNDarray([0, 1, 1, 2], dtype=ht.int64, device=cpu:0, split=None),
+        DNDarray([0, 1, 2, 1], dtype=ht.int64, device=cpu:0, split=None))
     >>> y = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=0)
     >>> y > 3
     DNDarray([[False, False, False],
@@ -48,6 +46,8 @@ def nonzero(x: DNDarray) -> DNDarray:
               [2, 0],
               [2, 1],
               [2, 2]], dtype=ht.int64, device=cpu:0, split=0)
+    (DNDarray([1, 1, 1, 2, 2, 2], dtype=ht.int64, device=cpu:0, split=None),
+        DNDarray([0, 1, 2, 0, 1, 2], dtype=ht.int64, device=cpu:0, split=None))
     >>> y[ht.nonzero(y > 3)]
     DNDarray([4, 5, 6, 7, 8, 9], dtype=ht.int64, device=cpu:0, split=0)
     """
