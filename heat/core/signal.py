@@ -105,17 +105,19 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         pad_prev = pad_next = None
 
         if not a.is_distributed():
-            pad_prev = pad_next = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type())
+            pad_prev = pad_next = torch.zeros(
+                v.shape[0] - 1, dtype=a.dtype.torch_type(), device=signal.device
+            )
 
         elif (not has_left) and has_right:  # maybe just check for rank?
             # first process, pad only left
-            pad_prev = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type())
+            pad_prev = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type(), device=signal.device)
             pad_next = None
 
         elif has_left and (not has_right):
             # last process, pad only right
             pad_prev = None
-            pad_next = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type())
+            pad_next = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type(), device=signal.device)
 
         else:
             # all processes in between don't need padding
@@ -127,9 +129,9 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         # first and last need padding
         pad_prev = pad_next = None
         if a.comm.rank == 0:
-            pad_prev = torch.zeros(halo_size, dtype=a.dtype.torch_type())
+            pad_prev = torch.zeros(halo_size, dtype=a.dtype.torch_type(), device=signal.device)
         if a.comm.rank == a.comm.size - 1:
-            pad_next = torch.zeros(halo_size, dtype=a.dtype.torch_type())
+            pad_next = torch.zeros(halo_size, dtype=a.dtype.torch_type(), device=signal.device)
 
         gshape = a.shape[0]
 
@@ -141,6 +143,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         raise ValueError("Only {'full', 'valid', 'same'} are allowed for mode")
 
     # add padding to the borders according to mode
+    # TODO: why not use ht.pad()?
     signal = a.genpad(signal, pad_prev, pad_next)
 
     # make signal and filter weight 3D for Pytorch conv1d function

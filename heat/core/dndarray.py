@@ -466,7 +466,7 @@ class DNDarray:
         out : torch tensor
             The padded data array
         """
-        # ToDo: generalize to ND tensors
+        # TODO: generalize to ND tensors
         # set the default padding for non distributed arrays
 
         if len(signal.shape) != 1:
