@@ -151,11 +151,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     signal.unsqueeze_(0)
 
     # flip filter for convolution as Pytorch conv1d computes correlations
-    weight = v.larray.clone()
-    idx = torch.tensor(
-        [i for i in range(weight.size(0) - 1, -1, -1)], dtype=torch.int64, device=weight.device
-    )
-    weight = weight.index_select(0, idx)
+    weight = v.larray.flip(0)
     weight.unsqueeze_(0)
     weight.unsqueeze_(0)
 
