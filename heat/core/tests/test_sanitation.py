@@ -6,13 +6,13 @@ from .test_suites.basic_test import TestCase
 
 
 class TestSanitation(TestCase):
-    def test_sanitize_input(self):
+    def test_sanitize_in(self):
         torch_x = torch.arange(10)
         with self.assertRaises(TypeError):
-            ht.sanitize_input(torch_x)
+            ht.sanitize_in(torch_x)
         np_x = np.arange(10)
         with self.assertRaises(TypeError):
-            ht.sanitize_input(np_x)
+            ht.sanitize_in(np_x)
 
     def test_sanitize_out(self):
         output_shape = (4, 5, 6)
@@ -37,17 +37,9 @@ class TestSanitation(TestCase):
         seq = (1, 2, 3)
         seq = ht.sanitize_sequence(seq)
         self.assertTrue(isinstance(seq, list))
-        # test DNDarray seq
-        seq = ht.arange(10, dtype=ht.float32)
-        seq = ht.sanitize_sequence(seq)
-        self.assertTrue(isinstance(seq, list))
-        # test torch seq
-        seq = torch.arange(10, dtype=torch.int64)
-        seq = ht.sanitize_sequence(seq)
-        self.assertTrue(isinstance(seq, list))
         # test exceptions
         split_seq = ht.arange(10, dtype=ht.float32, split=0)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             ht.sanitize_sequence(split_seq)
         np_seq = np.arange(10)
         with self.assertRaises(TypeError):

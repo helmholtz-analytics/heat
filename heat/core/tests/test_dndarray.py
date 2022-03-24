@@ -99,9 +99,7 @@ class TestDNDarray(TestCase):
             halo_2 = torch.tensor(np.array([[3], [9]]), device=data.device.torch_device)
             halo_3 = torch.tensor(np.array([[4], [10]]), device=data.device.torch_device)
             halo_4 = torch.tensor(np.array([[5], [11]]), device=data.device.torch_device)
-
             data.get_halo(1)
-
             data_with_halos = data.array_with_halos
 
             if data.comm.rank == 0:
@@ -116,7 +114,6 @@ class TestDNDarray(TestCase):
                 self.assertEqual(data.halo_next, None)
                 self.assertTrue(torch.equal(data.halo_prev, halo_3))
                 self.assertEqual(data_with_halos.shape, (2, 3))
-
             # exception on wrong argument type in get_halo
             with self.assertRaises(TypeError):
                 data.get_halo("wrong_type")
@@ -126,6 +123,104 @@ class TestDNDarray(TestCase):
             # exception for too large halos
             with self.assertRaises(ValueError):
                 data.get_halo(4)
+            # exception on non balanced tensor
+            with self.assertRaises(RuntimeError):
+                data_nobalance = ht.array(
+                    torch.empty(((data.comm.rank + 1) * 2, 3, 4)), is_split=0, device=data.device
+                )
+                data_nobalance.get_halo(1)
+            # test no data on process
+            data_np = np.arange(2 * 12).reshape(2, 12)
+            data = ht.array(data_np, split=0)
+            data.get_halo(1)
+
+            data_with_halos = data.array_with_halos
+
+            if data.comm.rank == 0:
+                self.assertTrue(data.halo_prev is None)
+                self.assertTrue(data.halo_next is not None)
+                self.assertEqual(data_with_halos.shape, (2, 12))
+            if data.comm.rank == 1:
+                self.assertTrue(data.halo_prev is not None)
+                self.assertTrue(data.halo_next is None)
+                self.assertEqual(data_with_halos.shape, (2, 12))
+            if data.comm.rank == 2:
+                self.assertTrue(data.halo_prev is None)
+                self.assertTrue(data.halo_next is None)
+                self.assertEqual(data_with_halos.shape, (0, 12))
+
+            data = data.reshape((12, 2), new_split=1)
+            data.get_halo(1)
+
+            data_with_halos = data.array_with_halos
+
+            if data.comm.rank == 0:
+                self.assertTrue(data.halo_prev is None)
+                self.assertTrue(data.halo_next is not None)
+                self.assertEqual(data_with_halos.shape, (12, 2))
+            if data.comm.rank == 1:
+                self.assertTrue(data.halo_prev is not None)
+                self.assertTrue(data.halo_next is None)
+                self.assertEqual(data_with_halos.shape, (12, 2))
+            if data.comm.rank == 2:
+                self.assertTrue(data.halo_prev is None)
+                self.assertTrue(data.halo_next is None)
+                self.assertEqual(data_with_halos.shape, (12, 0))
+
+    def test_larray(self):
+        # undistributed case
+        x = ht.arange(6 * 7 * 8).reshape((6, 7, 8))
+
+        self.assertTrue((x.larray == x.larray).all())
+        self.assertIsInstance(x.larray, torch.Tensor)
+        self.assertEqual(x.larray.shape, x.lshape)
+
+        x.larray = torch.randn(6, 7, 8)
+
+        self.assertTrue((x.larray == x.larray).all())
+        self.assertTrue(x.gshape, (6, 7, 8))
+        self.assertIsInstance(x.larray, torch.Tensor)
+        self.assertEqual(x.larray.shape, x.lshape)
+
+        # Exceptions
+        with self.assertRaises(ValueError):
+            x.larray = torch.arange(42)
+        with self.assertRaises(TypeError):
+            x.larray = ht.array([1, 2, 3])
+        with self.assertRaises(TypeError):
+            x.larray = np.array([1, 2, 3])
+        with self.assertRaises(TypeError):
+            x.larray = [1, 2, 3]
+        with self.assertRaises(TypeError):
+            x.larray = "[1, 2, 3]"
+
+        # distributed case
+        x = ht.arange(6 * 7 * 8, split=0).reshape((6, 7, 8))
+
+        self.assertTrue((x.larray == x.larray).all())
+        self.assertIsInstance(x.larray, torch.Tensor)
+        self.assertEqual(x.larray.shape, x.lshape)
+
+        if x.comm.rank == 0:
+            x.larray = torch.randn(4, 7, 8)
+
+        self.assertTrue((x.larray == x.larray).all())
+        # self.assertTrue(x.gshape, (42,))
+        self.assertIsInstance(x.larray, torch.Tensor)
+        self.assertEqual(x.larray.shape, x.lshape)
+        self.assertEqual(x.split, 0)
+
+        # Exceptions
+        with self.assertRaises(ValueError):
+            x.larray = torch.arange(42)
+        with self.assertRaises(TypeError):
+            x.larray = ht.array([1, 2, 3])
+        with self.assertRaises(TypeError):
+            x.larray = np.array([1, 2, 3])
+        with self.assertRaises(TypeError):
+            x.larray = [1, 2, 3]
+        with self.assertRaises(TypeError):
+            x.larray = "[1, 2, 3]"
 
     def test_astype(self):
         data = ht.float32([[1, 2, 3], [4, 5, 6]])
@@ -137,20 +232,21 @@ class TestDNDarray(TestCase):
         as_uint8 = data.astype(ht.uint8)
         self.assertIsInstance(as_uint8, ht.DNDarray)
         self.assertEqual(as_uint8.dtype, ht.uint8)
-        self.assertEqual(as_uint8._DNDarray__array.dtype, torch.uint8)
+        self.assertEqual(as_uint8.larray.dtype, torch.uint8)
         self.assertIsNot(as_uint8, data)
 
         # check the copy case for uint8
         as_float64 = data.astype(ht.float64, copy=False)
         self.assertIsInstance(as_float64, ht.DNDarray)
         self.assertEqual(as_float64.dtype, ht.float64)
-        self.assertEqual(as_float64._DNDarray__array.dtype, torch.float64)
+        self.assertEqual(as_float64.larray.dtype, torch.float64)
         self.assertIs(as_float64, data)
 
     def test_balance_and_lshape_map(self):
         data = ht.zeros((70, 20), split=0)
         data = data[:50]
-        lshape_map = data.create_lshape_map()
+        data.lshape_map
+        lshape_map = data.create_lshape_map(force_check=False)  # tests the property
         self.assertEqual(sum(lshape_map[..., 0]), 50)
         if sum(data.lshape) == 0:
             self.assertTrue(all(lshape_map[data.comm.rank] == 0))
@@ -167,17 +263,15 @@ class TestDNDarray(TestCase):
         self.assertTrue(data.is_balanced())
 
         data = ht.zeros((70, 20), split=0, dtype=ht.float64)
-        data = data[:50]
-        data.balance_()
+        data = ht.balance(data[:50], copy=True)
         self.assertTrue(data.is_balanced())
 
         data = ht.zeros((4, 120), split=1, dtype=ht.int64)
-        data = data[:, 40:70]
-        data.balance_()
+        data = data[:, 40:70].balance()
         self.assertTrue(data.is_balanced())
 
-        data = np.loadtxt("heat/datasets/data/iris.csv", delimiter=";")
-        htdata = ht.load("heat/datasets/data/iris.csv", sep=";", split=0)
+        data = np.loadtxt("heat/datasets/iris.csv", delimiter=";")
+        htdata = ht.load("heat/datasets/iris.csv", sep=";", split=0)
         self.assertTrue(ht.equal(htdata, ht.array(data, split=0, dtype=ht.float)))
 
         if ht.MPI_WORLD.size > 4:
@@ -255,6 +349,30 @@ class TestDNDarray(TestCase):
         if ht.MPI_WORLD.size > 1:
             with self.assertRaises(TypeError):
                 complex(ht.full((ht.MPI_WORLD.size,), 2, split=0))
+
+    def test_counts_displs(self):
+        # balanced distributed DNDarray
+        a = ht.arange(128, split=0).reshape((8, 8, 2))
+        counts, displs = a.counts_displs()
+        comm_counts, comm_displs, _ = a.comm.counts_displs_shape(a.gshape, a.split)
+        self.assertTrue(counts == comm_counts)
+        self.assertTrue(displs == comm_displs)
+
+        # non-balanced distributed DNDarray
+        rank = a.comm.rank
+        size = a.comm.size
+        t_a = torch.ones(8, rank * 2, 2)
+        comp_counts = torch.arange(0, size) * 2
+        comp_displs = torch.cumsum(comp_counts, dim=0)
+        a = ht.array(t_a, is_split=1)
+        counts, displs = a.counts_displs()
+        self.assertTrue((torch.tensor(counts) == comp_counts).all())
+        self.assertTrue((torch.tensor(displs[1:]) == comp_displs[:-1]).all())
+
+        # exception
+        a_nosplit = ht.arange(128).reshape((8, 8, 2))
+        with self.assertRaises(ValueError):
+            a_nosplit.counts_displs()
 
     def test_flatten(self):
         a = ht.ones((4, 4, 4), split=1)
@@ -424,20 +542,75 @@ class TestDNDarray(TestCase):
         # single set
         a = ht.zeros((13, 5), split=0)
         a.lloc[0, 0] = 1
-        self.assertEqual(a._DNDarray__array[0, 0], 1)
+        self.assertEqual(a.larray[0, 0], 1)
         self.assertEqual(a.lloc[0, 0].dtype, torch.float32)
 
         # multiple set
         a = ht.zeros((13, 5), split=0)
         a.lloc[1:3, 1] = 1
-        self.assertTrue(all(a._DNDarray__array[1:3, 1] == 1))
+        self.assertTrue(all(a.larray[1:3, 1] == 1))
         self.assertEqual(a.lloc[1:3, 1].dtype, torch.float32)
 
         # multiple set with specific indexing
         a = ht.zeros((13, 5), split=0)
         a.lloc[3:7:2, 2:5:2] = 1
-        self.assertTrue(torch.all(a._DNDarray__array[3:7:2, 2:5:2] == 1))
+        self.assertTrue(torch.all(a.larray[3:7:2, 2:5:2] == 1))
         self.assertEqual(a.lloc[3:7:2, 2:5:2].dtype, torch.float32)
+
+    def test_lnbytes(self):
+        # undistributed case
+
+        # integer
+        x_uint8 = ht.arange(6 * 7 * 8, dtype=ht.uint8).reshape((6, 7, 8))
+        x_int8 = ht.arange(6 * 7 * 8, dtype=ht.int8).reshape((6, 7, 8))
+        x_int16 = ht.arange(6 * 7 * 8, dtype=ht.int16).reshape((6, 7, 8))
+        x_int32 = ht.arange(6 * 7 * 8, dtype=ht.int32).reshape((6, 7, 8))
+        x_int64 = ht.arange(6 * 7 * 8, dtype=ht.int64).reshape((6, 7, 8))
+
+        # float
+        x_float32 = ht.arange(6 * 7 * 8, dtype=ht.float32).reshape((6, 7, 8))
+        x_float64 = ht.arange(6 * 7 * 8, dtype=ht.float64).reshape((6, 7, 8))
+
+        # bool
+        x_bool = ht.arange(6 * 7 * 8, dtype=ht.bool).reshape((6, 7, 8))
+
+        self.assertEqual(x_uint8.lnbytes, x_uint8.gnbytes)
+        self.assertEqual(x_int8.lnbytes, x_int8.gnbytes)
+        self.assertEqual(x_int16.lnbytes, x_int16.gnbytes)
+        self.assertEqual(x_int32.lnbytes, x_int32.gnbytes)
+        self.assertEqual(x_int64.lnbytes, x_int64.gnbytes)
+
+        self.assertEqual(x_float32.lnbytes, x_float32.gnbytes)
+        self.assertEqual(x_float64.lnbytes, x_float64.gnbytes)
+
+        self.assertEqual(x_bool.lnbytes, x_bool.gnbytes)
+
+        # distributed case
+
+        # integer
+        x_uint8_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.uint8)
+        x_int8_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int8)
+        x_int16_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int16)
+        x_int32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int32)
+        x_int64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int64)
+
+        # float
+        x_float32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float32)
+        x_float64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float64)
+
+        # bool
+        x_bool_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.bool)
+
+        self.assertEqual(x_uint8_d.lnbytes, x_uint8_d.lnumel * 1)
+        self.assertEqual(x_int8_d.lnbytes, x_int8_d.lnumel * 1)
+        self.assertEqual(x_int16_d.lnbytes, x_int16_d.lnumel * 2)
+        self.assertEqual(x_int32_d.lnbytes, x_int32_d.lnumel * 4)
+        self.assertEqual(x_int64_d.lnbytes, x_int64_d.lnumel * 8)
+
+        self.assertEqual(x_float32_d.lnbytes, x_float32_d.lnumel * 4)
+        self.assertEqual(x_float64_d.lnbytes, x_float64_d.lnumel * 8)
+
+        self.assertEqual(x_bool_d.lnbytes, x_bool_d.lnumel * 1)
 
     def test_lshift(self):
         int_tensor = ht.array([[0, 1], [2, 3]])
@@ -447,15 +620,91 @@ class TestDNDarray(TestCase):
 
         with self.assertRaises(TypeError):
             int_tensor << 2.4
-        with self.assertRaises(TypeError):
-            ht.array([True]) << 2
+        res = ht.left_shift(ht.array([True]), 2)
+        self.assertTrue(res == 4)
+
+    def test_nbytes(self):
+        # undistributed case
+
+        # integer
+        x_uint8 = ht.arange(6 * 7 * 8, dtype=ht.uint8).reshape((6, 7, 8))
+        x_int8 = ht.arange(6 * 7 * 8, dtype=ht.int8).reshape((6, 7, 8))
+        x_int16 = ht.arange(6 * 7 * 8, dtype=ht.int16).reshape((6, 7, 8))
+        x_int32 = ht.arange(6 * 7 * 8, dtype=ht.int32).reshape((6, 7, 8))
+        x_int64 = ht.arange(6 * 7 * 8, dtype=ht.int64).reshape((6, 7, 8))
+
+        # float
+        x_float32 = ht.arange(6 * 7 * 8, dtype=ht.float32).reshape((6, 7, 8))
+        x_float64 = ht.arange(6 * 7 * 8, dtype=ht.float64).reshape((6, 7, 8))
+
+        # bool
+        x_bool = ht.arange(6 * 7 * 8, dtype=ht.bool).reshape((6, 7, 8))
+
+        self.assertEqual(x_uint8.nbytes, 336 * 1)
+        self.assertEqual(x_int8.nbytes, 336 * 1)
+        self.assertEqual(x_int16.nbytes, 336 * 2)
+        self.assertEqual(x_int32.nbytes, 336 * 4)
+        self.assertEqual(x_int64.nbytes, 336 * 8)
+
+        self.assertEqual(x_float32.nbytes, 336 * 4)
+        self.assertEqual(x_float64.nbytes, 336 * 8)
+
+        self.assertEqual(x_bool.nbytes, 336 * 1)
+
+        # equivalent function gnbytes
+        self.assertEqual(x_uint8.nbytes, x_uint8.gnbytes)
+        self.assertEqual(x_int8.nbytes, x_int8.gnbytes)
+        self.assertEqual(x_int16.nbytes, x_int16.gnbytes)
+        self.assertEqual(x_int32.nbytes, x_int32.gnbytes)
+        self.assertEqual(x_int64.nbytes, x_int64.gnbytes)
+
+        self.assertEqual(x_float32.nbytes, x_float32.gnbytes)
+        self.assertEqual(x_float64.nbytes, x_float64.gnbytes)
+
+        self.assertEqual(x_bool.nbytes, x_bool.gnbytes)
+
+        # distributed case
+
+        # integer
+        x_uint8_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.uint8)
+        x_int8_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int8)
+        x_int16_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int16)
+        x_int32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int32)
+        x_int64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.int64)
+
+        # float
+        x_float32_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float32)
+        x_float64_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.float64)
+
+        # bool
+        x_bool_d = ht.arange(6 * 7 * 8, split=0, dtype=ht.bool)
+
+        self.assertEqual(x_uint8_d.nbytes, 336 * 1)
+        self.assertEqual(x_int8_d.nbytes, 336 * 1)
+        self.assertEqual(x_int16_d.nbytes, 336 * 2)
+        self.assertEqual(x_int32_d.nbytes, 336 * 4)
+        self.assertEqual(x_int64_d.nbytes, 336 * 8)
+
+        self.assertEqual(x_float32_d.nbytes, 336 * 4)
+        self.assertEqual(x_float64_d.nbytes, 336 * 8)
+
+        self.assertEqual(x_bool_d.nbytes, 336 * 1)
+
+        # equivalent function gnbytes
+        self.assertEqual(x_uint8_d.nbytes, x_uint8_d.gnbytes)
+        self.assertEqual(x_int8_d.nbytes, x_int8_d.gnbytes)
+        self.assertEqual(x_int16_d.nbytes, x_int16_d.gnbytes)
+        self.assertEqual(x_int32_d.nbytes, x_int32_d.gnbytes)
+        self.assertEqual(x_int64_d.nbytes, x_int64_d.gnbytes)
+
+        self.assertEqual(x_float32_d.nbytes, x_float32_d.gnbytes)
+        self.assertEqual(x_float64_d.nbytes, x_float64_d.gnbytes)
+
+        self.assertEqual(x_bool_d.nbytes, x_bool_d.gnbytes)
 
     def test_ndim(self):
         a = ht.empty([2, 3, 3, 2])
         self.assertEqual(a.ndim, 4)
-
-        with self.assertWarns(Warning):
-            a.numdims
 
     def test_numpy(self):
         # ToDo: numpy does not work for distributed tensors du to issue#
@@ -464,7 +713,7 @@ class TestDNDarray(TestCase):
         b = ht.array(a)
         self.assertIsInstance(b.numpy(), np.ndarray)
         self.assertEqual(b.numpy().shape, a.shape)
-        self.assertEqual(b.numpy().tolist(), b._DNDarray__array.cpu().numpy().tolist())
+        self.assertEqual(b.numpy().tolist(), b.larray.cpu().numpy().tolist())
 
         a = ht.ones((10, 8), dtype=ht.float32)
         b = np.ones((2, 2)).astype("float32")
@@ -554,6 +803,10 @@ class TestDNDarray(TestCase):
             with self.assertRaises(ValueError):
                 st.redistribute_(target_map=torch.zeros((2, 4)))
 
+    def test_repr(self):
+        a = ht.array([1, 2, 3, 4])
+        self.assertEqual(a.__repr__(), a.__str__())
+
     def test_resplit(self):
         # resplitting with same axis, should leave everything unchanged
         shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
@@ -615,11 +868,11 @@ class TestDNDarray(TestCase):
         local_shape = (1, N + 1, 2 * N)
         local_tensor = self.reference_tensor[ht.MPI_WORLD.rank, :, :]
         self.assertEqual(a_tensor.lshape, local_shape)
-        self.assertTrue((a_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
+        self.assertTrue((a_tensor.larray == local_tensor.larray).all())
 
         # unsplit
         a_tensor.resplit_(axis=None)
-        self.assertTrue((a_tensor._DNDarray__array == self.reference_tensor._DNDarray__array).all())
+        self.assertTrue((a_tensor.larray == self.reference_tensor.larray).all())
 
         # split along axis = 1
         a_tensor.resplit_(axis=1)
@@ -633,11 +886,11 @@ class TestDNDarray(TestCase):
             ]
 
         self.assertEqual(a_tensor.lshape, local_shape)
-        self.assertTrue((a_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
+        self.assertTrue((a_tensor.larray == local_tensor.larray).all())
 
         # unsplit
         a_tensor.resplit_(axis=None)
-        self.assertTrue((a_tensor._DNDarray__array == self.reference_tensor._DNDarray__array).all())
+        self.assertTrue((a_tensor.larray == self.reference_tensor.larray).all())
 
         # split along axis = 2
         a_tensor.resplit_(axis=2)
@@ -647,7 +900,7 @@ class TestDNDarray(TestCase):
         ]
 
         self.assertEqual(a_tensor.lshape, local_shape)
-        self.assertTrue((a_tensor._DNDarray__array == local_tensor._DNDarray__array).all())
+        self.assertTrue((a_tensor.larray == local_tensor.larray).all())
 
         expected = torch.ones(
             (ht.MPI_WORLD.size, 100), dtype=torch.int64, device=self.device.torch_device
@@ -655,11 +908,11 @@ class TestDNDarray(TestCase):
         data = ht.array(expected, split=1)
         data.resplit_(None)
 
-        self.assertTrue(torch.equal(data._DNDarray__array, expected))
+        self.assertTrue(torch.equal(data.larray, expected))
         self.assertFalse(data.is_distributed())
         self.assertIsNone(data.split)
         self.assertEqual(data.dtype, ht.int64)
-        self.assertEqual(data._DNDarray__array.dtype, expected.dtype)
+        self.assertEqual(data.larray.dtype, expected.dtype)
 
         expected = torch.zeros(
             (100, ht.MPI_WORLD.size), dtype=torch.uint8, device=self.device.torch_device
@@ -667,11 +920,11 @@ class TestDNDarray(TestCase):
         data = ht.array(expected, split=0)
         data.resplit_(None)
 
-        self.assertTrue(torch.equal(data._DNDarray__array, expected))
+        self.assertTrue(torch.equal(data.larray, expected))
         self.assertFalse(data.is_distributed())
         self.assertIsNone(data.split)
         self.assertEqual(data.dtype, ht.uint8)
-        self.assertEqual(data._DNDarray__array.dtype, expected.dtype)
+        self.assertEqual(data.larray.dtype, expected.dtype)
 
         # "in place"
         length = torch.tensor([i + 20 for i in range(2)], device=self.device.torch_device)
@@ -714,6 +967,14 @@ class TestDNDarray(TestCase):
         self.assertEqual(resplit_a.dtype, ht.int64)
         del a
 
+        # 1D non-contiguous resplit testing
+        t1 = ht.arange(10 * 10, split=0).reshape((10, 10))
+        t1_sub = t1[:, 1]  # .expand_dims(0)
+        res = ht.array([1, 11, 21, 31, 41, 51, 61, 71, 81, 91])
+        t1_sub.resplit_(axis=None)
+        self.assertTrue(ht.all(t1_sub == res))
+        self.assertEqual(t1_sub.split, None)
+
     def test_rshift(self):
         int_tensor = ht.array([[0, 2], [4, 8]])
         int_result = ht.array([[0, 0], [1, 2]])
@@ -722,20 +983,48 @@ class TestDNDarray(TestCase):
 
         with self.assertRaises(TypeError):
             int_tensor >> 2.4
-        with self.assertRaises(TypeError):
-            ht.array([True]) >> 2
+        res = ht.right_shift(ht.array([True]), 2)
+        self.assertTrue(res == 0)
 
     def test_setitem_getitem(self):
+        # tests for bug #825
+        a = ht.ones((102, 102), split=0)
+        setting = ht.zeros((100, 100), split=0)
+        a[1:-1, 1:-1] = setting
+        self.assertTrue(ht.all(a[1:-1, 1:-1] == 0))
+
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((30, 100), split=1)
+        a[-30:, 1:-1] = setting
+        self.assertTrue(ht.all(a[-30:, 1:-1] == 0))
+
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((100, 100), split=1)
+        a[1:-1, 1:-1] = setting
+        self.assertTrue(ht.all(a[1:-1, 1:-1] == 0))
+
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((100, 20), split=1)
+        a[1:-1, :20] = setting
+        self.assertTrue(ht.all(a[1:-1, :20] == 0))
+
+        # tests for bug 730:
+        a = ht.ones((10, 25, 30), split=1)
+        if a.comm.size > 1:
+            self.assertEqual(a[0].split, 0)
+            self.assertEqual(a[:, 0, :].split, None)
+            self.assertEqual(a[:, :, 0].split, 1)
+
         # set and get single value
         a = ht.zeros((13, 5), split=0)
         # set value on one node
-        a[10, 0] = 1
+        a[10, np.array(0)] = 1
         self.assertEqual(a[10, 0], 1)
         self.assertEqual(a[10, 0].dtype, ht.float32)
 
         a = ht.zeros((13, 5), split=0)
         a[10] = 1
-        b = a[10]
+        b = a[torch.tensor(10)]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.dtype, ht.float32)
         self.assertEqual(b.gshape, (5,))
@@ -758,7 +1047,7 @@ class TestDNDarray(TestCase):
             if a.comm.rank == 0:
                 self.assertEqual(a[1:4].lshape, (3, 5))
             else:
-                self.assertEqual(a[1:4].lshape, (0,))
+                self.assertEqual(a[1:4].lshape, (0, 5))
 
         a = ht.zeros((13, 5), split=0)
         a[1:2] = 1
@@ -770,12 +1059,12 @@ class TestDNDarray(TestCase):
             if a.comm.rank == 0:
                 self.assertEqual(a[1:2].lshape, (1, 5))
             else:
-                self.assertEqual(a[1:2].lshape, (0,))
+                self.assertEqual(a[1:2].lshape, (0, 5))
 
         # slice in 1st dim only on 1 node w/ singular second dim
         a = ht.zeros((13, 5), split=0)
         a[1:4, 1] = 1
-        b = a[1:4, 1]
+        b = a[1:4, np.int64(1)]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.gshape, (3,))
         self.assertEqual(b.split, 0)
@@ -791,7 +1080,7 @@ class TestDNDarray(TestCase):
         a[1:11, 1] = 1
         self.assertTrue((a[1:11, 1] == 1).all())
         self.assertEqual(a[1:11, 1].gshape, (10,))
-        self.assertEqual(a[1:11, 1].split, 0)
+        self.assertEqual(a[1:11, torch.tensor(1)].split, 0)
         self.assertEqual(a[1:11, 1].dtype, ht.float32)
         if a.comm.size == 2:
             if a.comm.rank == 1:
@@ -801,8 +1090,8 @@ class TestDNDarray(TestCase):
 
         # slice in 1st dim across 1 node (2nd) w/ singular second dim
         c = ht.zeros((13, 5), split=0)
-        c[8:12, 1] = 1
-        b = c[8:12, 1]
+        c[8:12, ht.array(1)] = 1
+        b = c[8:12, np.int64(1)]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.gshape, (4,))
         self.assertEqual(b.split, 0)
@@ -875,13 +1164,13 @@ class TestDNDarray(TestCase):
         a[1:4, 1] = 1
         self.assertTrue((a[1:4, 1] == 1).all())
         self.assertEqual(a[1:4, 1].gshape, (3,))
-        self.assertEqual(a[1:4, 1].split, 0)
+        self.assertEqual(a[1:4, 1].split, None)
         self.assertEqual(a[1:4, 1].dtype, ht.float32)
         if a.comm.size == 2:
             if a.comm.rank == 0:
                 self.assertEqual(a[1:4, 1].lshape, (3,))
             if a.comm.rank == 1:
-                self.assertEqual(a[1:4, 1].lshape, (0,))
+                self.assertEqual(a[1:4, 1].lshape, (3,))
 
         # slice in 2st dim across both nodes (2 node case) w/ singular fist dim
         a = ht.zeros((13, 5), split=1)
@@ -901,13 +1190,13 @@ class TestDNDarray(TestCase):
         a[8:12, 1] = 1
         self.assertTrue((a[8:12, 1] == 1).all())
         self.assertEqual(a[8:12, 1].gshape, (4,))
-        self.assertEqual(a[8:12, 1].split, 0)
+        self.assertEqual(a[8:12, 1].split, None)
         self.assertEqual(a[8:12, 1].dtype, ht.float32)
         if a.comm.size == 2:
             if a.comm.rank == 0:
                 self.assertEqual(a[8:12, 1].lshape, (4,))
             if a.comm.rank == 1:
-                self.assertEqual(a[8:12, 1].lshape, (0,))
+                self.assertEqual(a[8:12, 1].lshape, (4,))
 
         # slice in both directions
         a = ht.zeros((13, 5), split=1)
@@ -922,12 +1211,24 @@ class TestDNDarray(TestCase):
             if a.comm.rank == 0:
                 self.assertEqual(a[3:13, 2:5:2].lshape, (10, 1))
 
+        a = ht.zeros((13, 5), split=1)
+        a[..., 2::2] = 1
+        self.assertTrue((a[:, 2:5:2] == 1).all())
+        self.assertEqual(a[..., 2:5:2].gshape, (13, 2))
+        self.assertEqual(a[..., 2:5:2].split, 1)
+        self.assertEqual(a[..., 2:5:2].dtype, ht.float32)
+        if a.comm.size == 2:
+            if a.comm.rank == 1:
+                self.assertEqual(a[..., 2:5:2].lshape, (13, 1))
+            if a.comm.rank == 0:
+                self.assertEqual(a[:, 2:5:2].lshape, (13, 1))
+
         # setting with heat tensor
         a = ht.zeros((4, 5), split=1)
         a[1, 0:4] = ht.arange(4)
         for c, i in enumerate(range(4)):
             b = a[1, c]
-            if b._DNDarray__array.numel() > 0:
+            if b.larray.numel() > 0:
                 self.assertEqual(b.item(), i)
 
         # setting with torch tensor
@@ -947,6 +1248,17 @@ class TestDNDarray(TestCase):
                 self.assertEqual(a[10, :, :].lshape, (5, 4))
             if a.comm.rank == 1:
                 self.assertEqual(a[10, :, :].lshape, (5, 3))
+
+        a = ht.zeros((13, 5, 7), split=2)
+        # # set value on one node
+        a[10, ...] = 1
+        self.assertEqual(a[10, ...].dtype, ht.float32)
+        self.assertEqual(a[10, ...].gshape, (5, 7))
+        if a.comm.size == 2:
+            if a.comm.rank == 0:
+                self.assertEqual(a[10, ...].lshape, (5, 4))
+            if a.comm.rank == 1:
+                self.assertEqual(a[10, ...].lshape, (5, 3))
 
         a = ht.zeros((13, 5, 8), split=2)
         # # set value on one node
@@ -1016,6 +1328,103 @@ class TestDNDarray(TestCase):
         a = ht.ones((4, 5), split=0).tril()
         a[0] = ht.array([6, 6, 6, 6, 6])
         self.assertTrue((a[ht.array((0,))] == 6).all())
+
+        # ======================= indexing with bools =================================
+        split = None
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
+        # key -> tuple(ht.bool, int)
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key, 4] = 10.0
+        np_arr[np_key, 4] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key, 4] == 10.0))
+
+        # key -> tuple(torch.bool, int)
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        t_key = torch.tensor(np_key, device=arr.larray.device)
+        arr[t_key, 4] = 10.0
+        np_arr[np_key, 4] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[t_key, 4] == 10.0))
+
+        # key -> torch.bool
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        t_key = torch.tensor(np_key, device=arr.larray.device)
+        arr[t_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[t_key] == 10.0))
+
+        split = 1
+        arr = ht.random.random((20, 20, 10)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
+        split = 2
+        arr = ht.random.random((15, 20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
+        with self.assertRaises(ValueError):
+            a[..., ...]
+        with self.assertRaises(ValueError):
+            a[..., ...] = 1
+        if a.comm.size > 1:
+            with self.assertRaises(ValueError):
+                x = ht.ones((10, 10), split=0)
+                setting = ht.zeros((8, 8), split=1)
+                x[1:-1, 1:-1] = setting
+
+        for split in [None, 0, 1, 2]:
+            for new_dim in [0, 1, 2]:
+                for add in [np.newaxis, None]:
+                    arr = ht.ones((4, 3, 2), split=split, dtype=ht.int32)
+                    check = torch.ones((4, 3, 2), dtype=torch.int32)
+                    idx = [slice(None), slice(None), slice(None)]
+                    idx[new_dim] = add
+                    idx = tuple(idx)
+                    arr = arr[idx]
+                    check = check[idx]
+                    self.assertTrue(arr.shape == check.shape)
+                    self.assertTrue(arr.lshape[new_dim] == 1)
 
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
@@ -1137,6 +1546,22 @@ class TestDNDarray(TestCase):
             for x in range(ht.MPI_WORLD.size)
         ]
         self.assertListEqual(a.tolist(keepsplit=True), res)
+
+    def test_torch_proxy(self):
+        scalar_array = ht.array(1)
+        scalar_proxy = scalar_array.__torch_proxy__()
+        self.assertTrue(scalar_proxy.ndim == 0)
+        scalar_proxy_nbytes = scalar_proxy.storage().size() * scalar_proxy.storage().element_size()
+        self.assertTrue(scalar_proxy_nbytes == 1)
+
+        dndarray = ht.zeros((4, 7, 6), split=1)
+        dndarray_proxy = dndarray.__torch_proxy__()
+        self.assertTrue(dndarray_proxy.ndim == dndarray.ndim)
+        self.assertTrue(tuple(dndarray_proxy.shape) == dndarray.gshape)
+        dndarray_proxy_nbytes = (
+            dndarray_proxy.storage().size() * dndarray_proxy.storage().element_size()
+        )
+        self.assertTrue(dndarray_proxy_nbytes == 1)
 
     def test_xor(self):
         int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16)

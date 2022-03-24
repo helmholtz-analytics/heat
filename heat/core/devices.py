@@ -1,62 +1,93 @@
+"""
+handle different devices. Current options: CPU (default), GPU
+"""
+
+from __future__ import annotations
+
 import torch
 
-from .communication import MPI_WORLD
+from typing import Optional, Union
+
+from . import communication
 
 
-__all__ = ["cpu", "get_device", "sanitize_device", "use_device"]
+__all__ = ["Device", "cpu", "get_device", "sanitize_device", "use_device"]
 
 
 class Device:
     """
-    Implements a compute device.
-
-    HeAT can run computations on different compute devices or backends. A device describes the device type and id on
-    which said computation should be carried out.
+    Implements a compute device. HeAT can run computations on different compute devices or backends.
+    A device describes the device type and id on which said computation should be carried out.
 
     Parameters
     ----------
     device_type : str
-        represents HeAT's device name
+        Represents HeAT's device name
     device_id : int
-        the device id
+        The device id
     torch_device : str
-        the corresponding PyTorch device type
+        The corresponding PyTorch device type
 
     Examples
     --------
-    >>> # array on cpu
-    >>> cpu_array = ht.ones((2, 3), device=ht.cpu)
-    >>> # array on gpu
-    >>> gpu_array = ht.ones((2, 3), device=ht.gpu)
+    >>> ht.Device("cpu", 0, "cpu:0")
     device(cpu:0)
+    >>> ht.Device("gpu", 0, "cuda:0")
+    device(gpu:0)
     """
 
-    def __init__(self, device_type, device_id, torch_device):
+    def __init__(self, device_type: str, device_id: int, torch_device: str):
         self.__device_type = device_type
         self.__device_id = device_id
         self.__torch_device = torch_device
 
     @property
-    def device_type(self):
+    def device_type(self) -> str:
+        """
+        Return the type of :class:`~heat.core.device.Device` as a string.
+        """
         return self.__device_type
 
     @property
-    def device_id(self):
+    def device_id(self) -> int:
+        """
+        Return the identification number of :class:`~heat.core.device.Device`.
+        """
         return self.__device_id
 
     @property
-    def torch_device(self):
+    def torch_device(self) -> str:
+        """
+        Return the type and id of :class:`~heat.core.device.Device` as a PyTorch device string object.
+        """
         return self.__torch_device
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """
+        Return the unambiguous information of :class:`~heat.core.device.Device`.
+        """
         return "device({})".format(self.__str__())
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        Return the descriptive information of :class:`~heat.core.device.Device`.
+        """
         return "{}:{}".format(self.device_type, self.device_id)
 
 
 # create a CPU device singleton
-cpu = Device("cpu", 0, "cpu:0")
+cpu = Device("cpu", 0, "cpu")
+"""
+The standard CPU Device
+
+Examples
+--------
+>>> ht.cpu
+device(cpu:0)
+>>> ht.ones((2, 3), device=ht.cpu)
+DNDarray([[1., 1., 1.],
+          [1., 1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
+"""
 
 # define the default device to be the CPU
 __default_device = cpu
@@ -66,41 +97,43 @@ __device_mapping = {cpu.device_type: cpu}
 # add gpu support if available
 if torch.cuda.device_count() > 0:
     # GPUs are assigned round-robin to the MPI processes
-    gpu_id = MPI_WORLD.rank % torch.cuda.device_count()
+    gpu_id = communication.MPI_WORLD.rank % torch.cuda.device_count()
     # create a new GPU device
     gpu = Device("gpu", gpu_id, "cuda:{}".format(gpu_id))
+    """
+    The standard GPU Device
+
+    Examples
+    --------
+    >>> ht.cpu
+    device(cpu:0)
+    >>> ht.ones((2, 3), device=ht.gpu)
+    DNDarray([[1., 1., 1.],
+          [1., 1., 1.]], dtype=ht.float32, device=gpu:0, split=None)
+    """
     # add a GPU device string
     __device_mapping[gpu.device_type] = gpu
+    __device_mapping["cuda"] = gpu
     # the GPU device should be exported as global symbol
     __all__.append("gpu")
 
 
-def get_device():
+def get_device() -> Device:
     """
-    Retrieves the currently globally set default device.
-
-    Returns
-    -------
-    defaults device : Device
-        The currently set default device.
+    Retrieves the currently globally set default :class:`~heat.core.device.Device`.
     """
     return __default_device
 
 
-def sanitize_device(device):
+def sanitize_device(device: Optional[Union[str, Device]] = None) -> Device:
     """
-    Sanitizes a device or device identifier, i.e. checks whether it is already an instance of Device or a string with
-    known device identifier and maps it to a proper Device.
+    Sanitizes a device or device identifier, i.e. checks whether it is already an instance of :class:`~heat.core.device.Device` or a string with
+    known device identifier and maps it to a proper :class:`~heat.core.device.Device`.
 
     Parameters
     ----------
-    device : str, Device or None
+    device : str or Device, optional
         The device to be sanitized
-
-    Returns
-    -------
-    sanitized_device : Device
-        The matching Device instance
 
     Raises
     ------
@@ -121,13 +154,13 @@ def sanitize_device(device):
         )
 
 
-def use_device(device=None):
+def use_device(device: Optional[Union[str, Device]] = None) -> None:
     """
-    Sets the globally used default device.
+    Sets the globally used default :class:`~heat.core.device.Device`.
 
     Parameters
     ----------
-    device : str, Device or None
+    device : str or Device
         The device to be set
     """
     global __default_device

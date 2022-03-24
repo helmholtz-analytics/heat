@@ -6,6 +6,79 @@ from .test_suites.basic_test import TestCase
 
 
 class TestRandom(TestCase):
+    def test_normal(self):
+        shape = (3, 4, 6)
+        ht.random.seed(2)
+        gnormal = ht.random.normal(shape=shape, split=2)
+        ht.random.seed(2)
+        snormal = ht.random.randn(*shape, split=2)
+
+        self.assertEqual(gnormal.dtype, snormal.dtype)
+        self.assertEqual(gnormal.shape, snormal.shape)
+        self.assertEqual(gnormal.device, snormal.device)
+        self.assertTrue(ht.equal(gnormal, snormal))
+
+        shape = (2, 2)
+        mu = ht.array([[-1, -0.5], [0, 5]])
+        sigma = ht.array([[0, 0.5], [1, 2.5]])
+
+        ht.random.seed(22)
+        gnormal = ht.random.normal(mu, sigma, shape)
+        ht.random.seed(22)
+        snormal = ht.random.randn(*shape)
+
+        compare = mu + sigma * snormal
+
+        self.assertEqual(gnormal.dtype, compare.dtype)
+        self.assertEqual(gnormal.shape, compare.shape)
+        self.assertEqual(gnormal.device, compare.device)
+        self.assertTrue(ht.equal(gnormal, compare))
+
+        with self.assertRaises(TypeError):
+            ht.random.normal([4, 5], 1, shape)
+        with self.assertRaises(TypeError):
+            ht.random.normal(0, "r", shape)
+        with self.assertRaises(ValueError):
+            ht.random.normal(0, -1, shape)
+
+    def test_permutation(self):
+        # Reset RNG
+        ht.random.seed()
+        state = torch.random.get_rng_state()
+
+        # results
+        a = ht.random.permutation(10)
+
+        b_arr = ht.arange(10, dtype=ht.float32)
+        b = ht.random.permutation(ht.resplit(b_arr, 0))
+
+        c_arr = ht.arange(16).reshape((4, 4))
+        c = ht.random.permutation(c_arr)
+
+        c0 = ht.random.permutation(ht.resplit(c_arr, 0))
+        c1 = ht.random.permutation(ht.resplit(c_arr, 1))
+
+        torch.set_rng_state(state)
+
+        # torch results to compare to
+        a_cmp = torch.randperm(a.shape[0], device=self.device.torch_device)
+        b_cmp = b_arr.larray[torch.randperm(b.shape[0], device=self.device.torch_device)]
+        c_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
+        c0_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
+        c1_cmp = c_arr.larray[torch.randperm(c.shape[0], device=self.device.torch_device)]
+
+        # compare
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue((a.larray == a_cmp).all())
+        self.assertEqual(b.dtype, ht.float32)
+        self.assertTrue((ht.resplit(b).larray == b_cmp).all())
+        self.assertTrue((c.larray == c_cmp).all())
+        self.assertTrue((ht.resplit(c0).larray == c0_cmp).all())
+        self.assertTrue((ht.resplit(c1).larray == c1_cmp).all())
+
+        with self.assertRaises(TypeError):
+            ht.random.permutation("abc")
+
     def test_rand(self):
         # int64 tests
 
@@ -14,7 +87,7 @@ class TestRandom(TestCase):
         ht.random.seed(seed)
         a = ht.random.rand(2, 5, 7, 3, split=0)
         self.assertEqual(a.dtype, ht.float32)
-        self.assertEqual(a._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(a.larray.dtype, torch.float32)
         b = ht.random.rand(2, 5, 7, 3, split=0)
         self.assertFalse(ht.equal(a, b))
         ht.random.seed(seed)
@@ -61,7 +134,7 @@ class TestRandom(TestCase):
         ht.random.seed(seed)
         b = ht.random.rand(100, split=None)
         a = a.numpy().flatten()
-        b = b._DNDarray__array.cpu().numpy()
+        b = b.larray.cpu().numpy()
         self.assertTrue(np.array_equal(a, b))
 
         # On different shape and split the same random values are used
@@ -102,9 +175,9 @@ class TestRandom(TestCase):
         b = ht.random.rand(1)
         self.assertTrue(ht.equal(a, b))
 
-        # To big arrays cant be created
+        # Too big arrays cant be created
         with self.assertRaises(ValueError):
-            ht.random.randn(0xFFFFFFFFFFFFFFFF * 2 + 1)
+            ht.random.randn(0x7FFFFFFFFFFFFFFF)
         with self.assertRaises(ValueError):
             ht.random.rand(3, 2, -2, 5, split=1)
         with self.assertRaises(ValueError):
@@ -115,12 +188,12 @@ class TestRandom(TestCase):
         shape = (13, 43, 13, 23)
         a = ht.random.rand(*shape, dtype=ht.float32, split=0)
         self.assertEqual(a.dtype, ht.float32)
-        self.assertEqual(a._DNDarray__array.dtype, torch.float32)
+        self.assertEqual(a.larray.dtype, torch.float32)
 
         ht.random.seed(9876)
         b = ht.random.rand(np.prod(shape), dtype=ht.float32)
         a = a.numpy().flatten()
-        b = b._DNDarray__array.cpu().numpy()
+        b = b.larray.cpu().numpy()
         self.assertTrue(np.array_equal(a, b))
         self.assertEqual(a.dtype, np.float32)
 
@@ -166,6 +239,14 @@ class TestRandom(TestCase):
         a = ht.random.randint(1, size=(10,), split=0, dtype=ht.int64)
         b = ht.zeros((10,), dtype=ht.int64, split=0)
         self.assertTrue(ht.equal(a, b))
+
+        # size parameter allows int arguments
+        a = ht.random.randint(1, size=10, split=0, dtype=ht.int64)
+        self.assertTrue(ht.equal(a, b))
+
+        # size is None
+        a = ht.random.randint(0, 10)
+        self.assertEqual(a.shape, ())
 
         # Two arrays with the same seed and same number of elements have the same random values
         ht.random.seed(13579)
@@ -216,7 +297,7 @@ class TestRandom(TestCase):
         b = ht.random.randint(50, 1000, size=(13, 45), dtype=ht.int32, split=0)
 
         self.assertEqual(a.dtype, ht.int32)
-        self.assertEqual(a._DNDarray__array.dtype, torch.int32)
+        self.assertEqual(a.larray.dtype, torch.int32)
         self.assertEqual(b.dtype, ht.int32)
         a = a.numpy()
         b = b.numpy()
@@ -299,7 +380,7 @@ class TestRandom(TestCase):
         ht.random.seed(54321)
         a = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2)
         self.assertEqual(a.dtype, ht.float32)
-        self.assertEqual(a._DNDarray__array[0, 0, 0].dtype, torch.float32)
+        self.assertEqual(a.larray[0, 0, 0].dtype, torch.float32)
         a = a.numpy()
         self.assertEqual(a.dtype, np.float32)
         mean = np.mean(a)
@@ -316,6 +397,35 @@ class TestRandom(TestCase):
         c = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2).numpy()
         self.assertFalse(np.allclose(a, c))
         self.assertFalse(np.allclose(b, c))
+
+    def test_randperm(self):
+        state = torch.random.get_rng_state()
+
+        # results
+        a = ht.random.randperm(10, dtype=ht.int32)
+        b = ht.random.randperm(4, dtype=ht.float32, split=0)
+        c = ht.random.randperm(5, split=0)
+        d = ht.random.randperm(5, dtype=ht.float64)
+
+        torch.random.set_rng_state(state)
+
+        # torch results to compare to
+        a_cmp = torch.randperm(10, dtype=torch.int32, device=self.device.torch_device)
+        b_cmp = torch.randperm(4, dtype=torch.float32, device=self.device.torch_device)
+        c_cmp = torch.randperm(5, dtype=torch.int64, device=self.device.torch_device)
+        d_cmp = torch.randperm(5, dtype=torch.float64, device=self.device.torch_device)
+
+        self.assertEqual(a.dtype, ht.int32)
+        self.assertTrue((a.larray == a_cmp).all())
+        self.assertEqual(b.dtype, ht.float32)
+        self.assertTrue((ht.resplit(b).larray == b_cmp).all())
+        self.assertEqual(c.dtype, ht.int64)
+        self.assertTrue((ht.resplit(c).larray == c_cmp).all())
+        self.assertEqual(d.dtype, ht.float64)
+        self.assertTrue((d.larray == d_cmp).all())
+
+        with self.assertRaises(TypeError):
+            ht.random.randperm("abc")
 
     def test_random_sample(self):
         # short test
@@ -351,3 +461,21 @@ class TestRandom(TestCase):
             ht.random.set_state(("Thrfry", 12, 0xF))
         with self.assertRaises(TypeError):
             ht.random.set_state(("Threefry", 12345))
+
+    def test_standard_normal(self):
+        # empty input
+        stdn = ht.random.standard_normal()
+        self.assertEqual(stdn.dtype, ht.float32)
+        self.assertEqual(stdn.shape, (1,))
+
+        # simple test
+        shape = (3, 4, 6)
+        ht.random.seed(11235)
+        stdn = ht.random.standard_normal(shape, split=2)
+        ht.random.seed(11235)
+        rndn = ht.random.randn(*shape, split=2)
+
+        self.assertEqual(stdn.shape, rndn.shape)
+        self.assertEqual(stdn.dtype, rndn.dtype)
+        self.assertEqual(stdn.device, rndn.device)
+        self.assertTrue(ht.equal(stdn, rndn))
