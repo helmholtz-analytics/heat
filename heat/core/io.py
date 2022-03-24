@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os.path
+from math import log10
 import numpy as np
 import torch
 import warnings
@@ -16,6 +17,7 @@ from . import types
 from .communication import Communication, MPI, MPI_WORLD, sanitize_comm
 from .dndarray import DNDarray
 from .manipulations import hsplit, vsplit
+from .statistics import max as smax, min as smin
 from .stride_tricks import sanitize_axis
 from .types import datatype
 
@@ -929,7 +931,7 @@ def save_csv(
     path: str,
     header_lines: Iterable[str] = None,
     sep: str = ",",
-    dtype: datatype = types.float32,
+    decimals: int = -1,
     encoding: str = "utf-8",
     comm: Optional[Communication] = None,
 ):
@@ -947,72 +949,91 @@ def save_csv(
         pound sign or any other comment marker will be inserted.
     sep : str
         The separator character used in this CSV.
-    dtype : datatype
-        The datatype used in this CSV. Currently, the value is ignored.
+    decimals: int
+        Number of digits after decimal point.
     encoding : str
         The encoding to be used in this CSV.
     comm : Optional[Communication]
         An optional object of type Communication to be used.
     """
-    print("Saving CSV on rank %d of %d" % (data.comm.rank, data.comm.size))
-    if data.comm.rank == 0 and header_lines:
-        with open(path, "w") as csv_out:
-            for hl in header_lines:
-                print(hl, file=csv_out)
-            csv_out.flush()
+    if not isinstance(path, str):
+        raise TypeError("path must be str, not {}".format(type(path)))
+    if not isinstance(sep, str):
+        raise TypeError("separator must be str, not {}".format(type(sep)))
+    # check this to allow None
+    if not isinstance(header_lines, Iterable) and header_lines is not None:
+        raise TypeError("header_lines must Iterable[str], not {}".format(type(header_lines)))
+    if data.split not in [None, 0]:
+        raise ValueError("split must be in [None, 0], but is {}".format(data.split))
 
-    print("Waiting for header writing on rank %d of %d" % (data.comm.rank, data.comm.size))
-    data.comm.Barrier()
-    print("Waited for header writing on rank %d of %d" % (data.comm.rank, data.comm.size))
-    print("Data split == %s on rank %d" % (data.split, data.comm.rank))
+    amode = MPI.MODE_WRONLY | MPI.MODE_CREATE
+    csv_out = MPI.File.Open(data.comm.handle, path, amode)
 
-    # split None can be written out by rank 0
-    if data.split is None:
-        print("Split is None", file=sys.stderr)
-        if data.comm.rank == 0:
-            with open(path, "w") as csv_out:
-                for row in vsplit(data, data.lshape[0]):
-                    print(
-                        sep.join(map(lambda dnda: str(dnda.item()), hsplit(row, data.lshape[1]))),
-                        file=csv_out,
-                    )
-                csv_out.flush()
-        print("Done on rank %d" % (data.comm.rank), file=sys.stderr)
-    elif data.split == 0:
-        print("Split is 0", file=sys.stderr)
-        if data.comm.rank == 0:
-            print("On rank %d" % (data.comm.rank), file=sys.stderr)
-            with open(path, "w") as csv_out:
-                for row in vsplit(data, data.lshape[0]):
-                    print(
-                        sep.join(map(lambda dnda: str(dnda.item()), hsplit(row, data.lshape[1]))),
-                        file=csv_out,
-                    )
-                csv_out.flush()
-            if data.comm.rank < data.comm.size - 1:
-                print(
-                    "Rank %d: sending %d to rank %d"
-                    % (data.comm.rank, data.comm.rank + 1, data.comm.rank + 1),
-                    file=sys.stderr,
-                )
-                data.comm.Send([None, 0, MPI.INT], dest=data.comm.rank + 1)
+    # will be needed as an additional offset later
+    hl_displacement = 0
+    if header_lines is not None:
+        hl_displacement = sum(len(hl) for hl in header_lines)
+        # count additions everywhere, but write only on rank 0, avoiding reduce op to share final hl_displacement
+        for hl in header_lines:
+            if not hl.endswith("\n"):
+                hl = hl + "\n"
+                hl_displacement = hl_displacement + 1
+            if data.comm.rank == 0 and header_lines:
+                csv_out.Write(hl.encode(encoding))
+
+    # formatting and element width
+    data_min = smin(data).item()  # at least min is used twice, so cache it here
+    data_max = smax(data).item()
+    sign = 1 if data_min < 0 else 0
+    pre_point_digits = int(log10(max(data_max, abs(data_min)))) + 1
+
+    dec_sep = 1
+    fmt = ""
+    if types.issubdtype(data.dtype, types.integer):
+        decimals = 0
+        dec_sep = 0
+        if sign == 1:
+            fmt = "{: %dd}" % (pre_point_digits + 1)
         else:
-            rank = -1
-            print("Rank %d: waiting for my turn" % (data.comm.rank), file=sys.stderr)
-            data.comm.Recv([None, 0, MPI.INT], source=data.comm.rank - 1)
-            if rank != data.comm.rank:
-                raise IndexError("Wrong write sequence for CSV file.")
-            with open(path, "w") as csv_out:
-                for row in vsplit(data, data.lshape[0]):
-                    print(
-                        sep.join(map(lambda dnda: str(dnda.item()), hsplit(row, data.lshape[1]))),
-                        file=csv_out,
-                    )
-                csv_out.flush()
-            if data.comm.rank < data.comm.size - 1:
-                data.comm.Isend([None, 0, MPI.INT], dest=data.comm.rank + 1)
+            fmt = "{:%dd}" % (pre_point_digits)
+    elif types.issubdtype(data.dtype, types.float):
+        if decimals == -1:
+            decimals = 7 if data.dtype is types.float32 else 15
+        print("Decimals: %d" % (decimals))
+        dec_sep = 1
+        if sign == 1:
+            fmt = "{: %d.%df}" % (pre_point_digits + decimals, decimals)
+        else:
+            fmt = "{:%d.%df}" % (pre_point_digits + decimals, decimals)
+
+    # sign + decimal separator + pre separator digits + decimals (post separator)
+    item_size = decimals + dec_sep + sign + pre_point_digits
+    # number of items times their size + (items - 1) commas + final nl, the last two cancelling each other out
+    row_width = data.lshape[1] * (item_size + 1)
+
+    if data.split is None:
+        offset = hl_displacement
+    elif data.split == 0:
+        # v1: via counts_displs
+        _, displs = data.counts_displs()
+        offset = displs[data.comm.rank]
+        # v2: via lshape_map, did not work for me
+        # offset = a.lshape_map[:, a.split][a.comm.rank]
+        offset = offset * row_width + hl_displacement
     else:
         raise NotImplementedError()
+
+    for i in range(data.lshape[0]):
+        row = sep.join(fmt.format(item) for item in data.larray[i])
+        row = row + "\n"
+        # buf = BytesIO(row)
+        # buf = StringIO()
+        # buf.write(row)
+        csv_out.Write_at_all(offset, row.encode("utf-8"))
+        # buf.close()
+        offset = offset + row_width
+
+    csv_out.Close()
 
 
 def save(
