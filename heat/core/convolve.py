@@ -166,4 +166,4 @@ def convolve1D(a, v, mode="full"):
 
     return dndarray.DNDarray(
         signal_filtered.contiguous(), (gshape,), signal_filtered.dtype, a.split, a.device, a.comm
-    ).astype(a.dtype.torch_type())
+    ).astype(a.dtype.torch_type(), balanced=False)
