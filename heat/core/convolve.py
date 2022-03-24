@@ -1,49 +1,49 @@
 """Provides a collection of signal-processing functions"""
 
 import torch
+from typing import Union, Tuple, Sequence
 
 from .communication import MPI
-from . import dndarray
+from .dndarray import DNDarray
 import torch.nn.functional as fc
 
 __all__ = ["convolve1D"]
 
 
-def convolve1D(a, v, mode="full"):
+def convolve1D(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     """
-    Returns the discrete, linear convolution of two one-dimensional HeAT tensors.
+    Returns the discrete, linear convolution of two one-dimensional `DNDarray`s.
 
     Parameters
     ----------
-    a : (N,) ht.tensor
-        One-dimensional signal HeAT tensor
-    v : (M,) ht.tensor
-        One-dimensional filter weight HeAT tensor.
-    mode : {'full', 'valid', 'same'}, optional
+    a : DNDarray
+        One-dimensional signal `DNDarray` of shape (N,)
+    v : DNDarray
+        One-dimensional filter weight `DNDarray` of shape (M,).
+    mode : str
+        Can be 'full', 'valid', or 'same'. Default is 'full'.
         'full':
-          By default, mode is 'full'. This returns the convolution at
+          Returns the convolution at
           each point of overlap, with an output shape of (N+M-1,). At
           the end-points of the convolution, the signals do not overlap
           completely, and boundary effects may be seen.
         'same':
           Mode 'same' returns output  of length 'N'. Boundary
           effects are still visible. This mode is not supported for
-          even sized filter weights
+          even-sized filter weights
         'valid':
           Mode 'valid' returns output of length 'N-M+1'. The
           convolution product is only given for points where the signals
           overlap completely. Values outside the signal boundary have no
           effect.
 
-    Returns
-    -------
-    out : ht.tensor
-        Discrete, linear convolution of 'a' and 'v'.
-
-    Note : There is  differences to the numpy convolve function:
+    Notes
+    -----
+        TODO: fix this note and underlying API inconsistencies
+        There is  differences to the numpy convolve function:
         The inputs are not swapped if v is larger than a. The reason is that v needs to be
-        non-splitted. This should not influence performance. If the filter weight is larger
-        than fitting into memory, using the FFT for convolution is recommended.
+        non-splitted. This should not influence performance.
+
 
     Examples
     --------
@@ -52,31 +52,31 @@ def convolve1D(a, v, mode="full"):
     >>> a = ht.ones(10)
     >>> v = ht.arange(3).astype(ht.float)
     >>> ht.convolve1D(a, v, mode='full')
-    tensor([0., 1., 3., 3., 3., 3., 2.])
+    DNDarray([0., 1., 3., 3., 3., 3., 2.])
 
     Only return the middle values of the convolution.
     Contains boundary effects, where zeros are taken
     into account:
     >>> ht.convolve1D(a, v, mode='same')
-    tensor([1., 3., 3., 3., 3.])
+    DNDarray([1., 3., 3., 3., 3.])
 
     Compute only positions where signal and filter weights
     completely overlap:
     >>> ht.convolve1D(a, v, mode='valid')
-    tensor([3., 3., 3.])
+    DNDarray([3., 3., 3.])
     """
-    if not isinstance(a, dndarray.DNDarray) or not isinstance(v, dndarray.DNDarray):
-        raise TypeError("Signal and filter weight must be of type ht.tensor")
+    if not isinstance(a, DNDarray) or not isinstance(v, DNDarray):
+        raise TypeError("Signal and filter weight must be of type DNDarray")
     if v.split is not None:
         raise TypeError("Distributed filter weights are not supported")
     if len(a.shape) != 1 or len(v.shape) != 1:
-        raise ValueError("Only 1 dimensional input tensors are allowed")
+        raise ValueError("Only 1-dimensional input DNDarrays are allowed")
     if a.shape[0] <= v.shape[0]:
         raise ValueError("Filter size must not be larger than signal size")
     if a.dtype is not v.dtype:
-        raise TypeError("Signal and filter weight must be of same type")
+        raise TypeError("Signal and filter weight must be of same dtype")
     if mode == "same" and v.shape[0] % 2 == 0:
-        raise ValueError("Mode 'same' cannot be use with even sized kernal")
+        raise ValueError("Mode 'same' cannot be use with even sized kernel")
 
     # compute halo size
     halo_size = v.shape[0] // 2 if v.shape[0] % 2 == 0 else (v.shape[0] - 1) // 2
@@ -148,7 +148,7 @@ def convolve1D(a, v, mode="full"):
     signal.unsqueeze_(0)
 
     # flip filter for convolution as Pytorch conv1d computes correlations
-    weight = v._DNDarray__array.clone()
+    weight = v.larray.clone()
     idx = torch.LongTensor([i for i in range(weight.size(0) - 1, -1, -1)])
     weight = weight.index_select(0, idx)
     weight.unsqueeze_(0)
@@ -164,7 +164,7 @@ def convolve1D(a, v, mode="full"):
     if a.comm.rank != 0 and v.shape[0] % 2 == 0:
         signal_filtered = signal_filtered[1:]
 
-    return dndarray.DNDarray(
+    return DNDarray(
         signal_filtered.contiguous(),
         (gshape,),
         signal_filtered.dtype,
