@@ -156,6 +156,13 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     weight.unsqueeze_(0)
 
     # apply torch convolution operator
+    print(
+        "DEBUGGING: type(signal), signal.dtype, type(weight), weight.dtype",
+        type(signal),
+        signal.dtype,
+        type(weight),
+        weight.dtype,
+    )
     signal_filtered = fc.conv1d(signal, weight)
 
     # unpack 3D result into 1D
