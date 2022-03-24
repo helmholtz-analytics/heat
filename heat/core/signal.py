@@ -1,4 +1,4 @@
-"""Provides a collection of signal-processing functions"""
+"""Provides a collection of signal-processing operations"""
 
 import torch
 from typing import Union, Tuple, Sequence
@@ -7,10 +7,10 @@ from .communication import MPI
 from .dndarray import DNDarray
 import torch.nn.functional as fc
 
-__all__ = ["convolve1D"]
+__all__ = ["convolve"]
 
 
-def convolve1D(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
+def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     """
     Returns the discrete, linear convolution of two one-dimensional `DNDarray`s.
 
@@ -51,18 +51,18 @@ def convolve1D(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     before "sliding" the two across one another:
     >>> a = ht.ones(10)
     >>> v = ht.arange(3).astype(ht.float)
-    >>> ht.convolve1D(a, v, mode='full')
+    >>> ht.convolve(a, v, mode='full')
     DNDarray([0., 1., 3., 3., 3., 3., 2.])
 
     Only return the middle values of the convolution.
     Contains boundary effects, where zeros are taken
     into account:
-    >>> ht.convolve1D(a, v, mode='same')
+    >>> ht.convolve(a, v, mode='same')
     DNDarray([1., 3., 3., 3., 3.])
 
     Compute only positions where signal and filter weights
     completely overlap:
-    >>> ht.convolve1D(a, v, mode='valid')
+    >>> ht.convolve(a, v, mode='valid')
     DNDarray([3., 3., 3.])
     """
     if not isinstance(a, DNDarray) or not isinstance(v, DNDarray):

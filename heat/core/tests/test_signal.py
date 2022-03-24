@@ -7,12 +7,12 @@ from heat import manipulations
 from .test_suites.basic_test import TestCase
 
 
-class TestConvolve(TestCase):
+class TestSignal(TestCase):
     @classmethod
     def setUpClass(cls):
-        super(TestConvolve, cls).setUpClass()
+        super(TestSignal, cls).setUpClass()
 
-    def test_convolve1D(self):
+    def test_convolve(self):
         full_odd = ht.array(
             [0, 1, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 29, 15]
         ).astype(ht.int)
@@ -21,43 +21,43 @@ class TestConvolve(TestCase):
         ).astype(ht.int)
 
         signal = ht.arange(0, 16, split=0).astype(ht.int)
-        kernal_odd = ht.ones(3).astype(ht.int)
-        kernal_even = ht.ones(4).astype(ht.int)
+        kernel_odd = ht.ones(3).astype(ht.int)
+        kernel_even = ht.ones(4).astype(ht.int)
 
         with self.assertRaises(TypeError):
-            ht.convolve1D(signal, [0, 1, 2, 3])
+            ht.convolve(signal, [0, 1, 2, 3])
         with self.assertRaises(TypeError):
-            ht.convolve1D([0, 1, 2, 3], kernal_odd)
+            ht.convolve([0, 1, 2, 3], kernel_odd)
         with self.assertRaises(ValueError):
             s = signal.reshape((2, -1))
-            ht.convolve1D(s, kernal_odd)
+            ht.convolve(s, kernel_odd)
         with self.assertRaises(ValueError):
             k = ht.eye(3)
-            ht.convolve1D(signal, k)
+            ht.convolve(signal, k)
         with self.assertRaises(ValueError):
-            ht.convolve1D(kernal_even, full_even)
+            ht.convolve(kernel_even, full_even)
         with self.assertRaises(TypeError):
             k = ht.ones(3).astype(ht.float)
-            ht.convolve1D(signal, k)
+            ht.convolve(signal, k)
         with self.assertRaises(ValueError):
-            ht.convolve1D(signal, kernal_even, mode="same")
+            ht.convolve(signal, kernel_even, mode="same")
         with self.assertRaises(TypeError):
             k = ht.ones(4, split=0).astype(ht.int)
-            ht.convolve1D(signal, k)
+            ht.convolve(signal, k)
 
         # test modes
         modes = ["full", "same", "valid"]
         for i, mode in enumerate(modes):
-            # odd kernal size
-            conv = ht.convolve1D(signal, kernal_odd, mode=mode)
+            # odd kernel size
+            conv = ht.convolve(signal, kernel_odd, mode=mode)
             conv.balance_()
             gathered = manipulations.resplit(conv, axis=None)
             self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
 
-            # even kernal size
-            # skip mode 'same' for even kernals
+            # even kernel size
+            # skip mode 'same' for even kernels
             if mode != "same":
-                conv = ht.convolve1D(signal, kernal_even, mode=mode)
+                conv = ht.convolve(signal, kernel_even, mode=mode)
                 conv.balance_()
                 gathered = manipulations.resplit(conv, axis=None)
 
@@ -69,7 +69,7 @@ class TestConvolve(TestCase):
                     self.assertTrue(ht.equal(full_even[3:-3], gathered))
 
         # test different data type
-        conv = ht.convolve1D(signal.astype(ht.float), kernal_odd.astype(ht.float))
+        conv = ht.convolve(signal.astype(ht.float), kernel_odd.astype(ht.float))
         conv.balance_()
         gathered = manipulations.resplit(conv, axis=None)
         self.assertTrue(ht.equal(full_odd, gathered))
