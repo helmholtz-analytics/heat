@@ -143,7 +143,8 @@ class TestIO(TestCase):
             ht.load_csv(self.CSV_PATH, header_lines="3", sep=";", split=0)
 
     def test_save_csv(self):
-        os.truncate(self.CSV_OUT_PATH, 0)
+        if os.path.exists(self.CSV_OUT_PATH):
+            os.truncate(self.CSV_OUT_PATH, 0)
         # {signed, unsigned} x {float, integer} x {',', '|', ';'} x {None, 0, 1} x {header_lines, no_header_lines}
         data = ht.arange(100).reshape(20, 5)
         ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None, sep=";")
@@ -151,21 +152,24 @@ class TestIO(TestCase):
         if data.comm.rank == 0:
             self.assertTrue((data.larray == comparison.larray).all().item())
 
-        os.truncate(self.CSV_OUT_PATH, 0)
+        if os.path.exists(self.CSV_OUT_PATH):
+            os.truncate(self.CSV_OUT_PATH, 0)
         header_lines = ["col1,col2,col3,col4,col5", "second line\n"]
         ht.save_csv(data, self.CSV_OUT_PATH, header_lines=header_lines, sep=",")
         comparison = ht.load_csv(self.CSV_OUT_PATH, sep=",", dtype=data.dtype, header_lines=2)
         if data.comm.rank == 0:
             self.assertTrue((data.larray == comparison.larray).all().item())
 
-        os.truncate(self.CSV_OUT_PATH, 0)
+        if os.path.exists(self.CSV_OUT_PATH):
+            os.truncate(self.CSV_OUT_PATH, 0)
         data = data - 50
         ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None)
         comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
         if data.comm.rank == 0:
             self.assertTrue((data.larray == comparison.larray).all().item())
 
-        os.truncate(self.CSV_OUT_PATH, 0)
+        if os.path.exists(self.CSV_OUT_PATH):
+            os.truncate(self.CSV_OUT_PATH, 0)
         data = ht.random.rand(100.0, split=0).reshape(20, 5)
         ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None)
         comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
