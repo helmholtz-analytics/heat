@@ -999,8 +999,6 @@ def save_csv(
     elif types.issubdtype(data.dtype, types.float):
         if decimals == -1:
             decimals = 7 if data.dtype is types.float32 else 15
-        print("Decimals: %d" % (decimals))
-        dec_sep = 1
         if sign == 1:
             fmt = "{: %d.%df}" % (pre_point_digits + decimals, decimals)
         else:
@@ -1008,17 +1006,15 @@ def save_csv(
 
     # sign + decimal separator + pre separator digits + decimals (post separator)
     item_size = decimals + dec_sep + sign + pre_point_digits
-    # number of items times their size + (items - 1) commas + final nl, the last two cancelling each other out
+    # each item is one position larger than its representation, either b/c of separator or line break
     row_width = data.lshape[1] * (item_size + 1)
 
     if data.split is None:
-        offset = hl_displacement
+        offset = hl_displacement  # split None
     elif data.split == 0:
         # v1: via counts_displs
         _, displs = data.counts_displs()
         offset = displs[data.comm.rank]
-        # v2: via lshape_map, did not work for me
-        # offset = a.lshape_map[:, a.split][a.comm.rank]
         offset = offset * row_width + hl_displacement
     else:
         raise NotImplementedError()
@@ -1026,11 +1022,7 @@ def save_csv(
     for i in range(data.lshape[0]):
         row = sep.join(fmt.format(item) for item in data.larray[i])
         row = row + "\n"
-        # buf = BytesIO(row)
-        # buf = StringIO()
-        # buf.write(row)
-        csv_out.Write_at_all(offset, row.encode("utf-8"))
-        # buf.close()
+        csv_out.Write_at(offset, row.encode("utf-8"))
         offset = offset + row_width
 
     csv_out.Close()

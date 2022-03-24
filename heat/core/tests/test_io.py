@@ -177,6 +177,16 @@ class TestIO(TestCase):
             ht.max(data - comparison).item() < 0.0001
         )  # need a parameter to control precision
 
+        if os.path.exists(self.CSV_OUT_PATH):
+            os.truncate(self.CSV_OUT_PATH, 0)
+        data = ht.random.rand(100.0, split=0).reshape(50, 2)
+        ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None)
+        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
+        self.assertTrue(
+            ht.max(data - comparison).item() < 0.0001
+        )  # need a parameter to control precision
+        # print("Done testing save_csv")
+
     def test_load_exception(self):
         # correct extension, file does not exist
         if ht.io.supports_hdf5():
