@@ -1,3 +1,5 @@
+"""Provides a collection of signal-processing functions"""
+
 import torch
 
 from .communication import MPI
