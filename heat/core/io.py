@@ -934,6 +934,7 @@ def save_csv(
     decimals: int = -1,
     encoding: str = "utf-8",
     comm: Optional[Communication] = None,
+    truncate: bool = True,
 ):
     """
     Saves data to CSV files
@@ -955,6 +956,10 @@ def save_csv(
         The encoding to be used in this CSV.
     comm : Optional[Communication]
         An optional object of type Communication to be used.
+    truncate : bool
+        Whether to truncate an existing file before writing, i.e. fully overwrite it.
+        The sane default is True. Setting it to False will not shorten files if
+        needed and thus may leave garbage at the end of existing files.
     """
     if not isinstance(path, str):
         raise TypeError("path must be str, not {}".format(type(path)))
@@ -965,6 +970,12 @@ def save_csv(
         raise TypeError("header_lines must Iterable[str], not {}".format(type(header_lines)))
     if data.split not in [None, 0]:
         raise ValueError("split must be in [None, 0], but is {}".format(data.split))
+
+    if os.path.exists(path) and truncate:
+        if data.comm.rank == 0:
+            os.truncate(path, 0)
+        # avoid truncating and writing at the same time
+        data.comm.handle.Barrier()
 
     amode = MPI.MODE_WRONLY | MPI.MODE_CREATE
     csv_out = MPI.File.Open(data.comm.handle, path, amode)
