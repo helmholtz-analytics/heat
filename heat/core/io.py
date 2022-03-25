@@ -1000,10 +1000,11 @@ def save_csv(
         if decimals == -1:
             decimals = 7 if data.dtype is types.float32 else 15
         if sign == 1:
-            fmt = "{: %d.%df}" % (pre_point_digits + decimals, decimals)
+            fmt = "{: %d.%df}" % (pre_point_digits + decimals + 2, decimals)
         else:
-            fmt = "{:%d.%df}" % (pre_point_digits + decimals, decimals)
-
+            fmt = "{:%d.%df}" % (pre_point_digits + decimals + 1, decimals)
+    print("Format string: %s" % (fmt))
+    print("pre_point_digits: %d" % (pre_point_digits))
     # sign + decimal separator + pre separator digits + decimals (post separator)
     item_size = decimals + dec_sep + sign + pre_point_digits
     # each item is one position larger than its representation, either b/c of separator or line break
