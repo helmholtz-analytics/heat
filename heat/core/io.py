@@ -968,8 +968,8 @@ def save_csv(
     # check this to allow None
     if not isinstance(header_lines, Iterable) and header_lines is not None:
         raise TypeError("header_lines must Iterable[str], not {}".format(type(header_lines)))
-    if data.split not in [None, 0]:
-        raise ValueError("split must be in [None, 0], but is {}".format(data.split))
+    if data.split not in [None, 0, 1]:
+        raise ValueError("split must be in [None, 0, 1], but is {}".format(data.split))
 
     if os.path.exists(path) and truncate:
         if data.comm.rank == 0:
@@ -1019,16 +1019,17 @@ def save_csv(
     item_size = decimals + dec_sep + sign + pre_point_digits
     # each item is one position larger than its representation, either b/c of separator or line break
     row_width = item_size + 1
-    if len(data.lshape) > 1:
-        row_width = data.lshape[1] * (item_size + 1)
+    if len(data.shape) > 1:
+        row_width = data.shape[1] * (item_size + 1)
 
     if data.split is None:
         offset = hl_displacement  # split None
     elif data.split == 0:
-        # v1: via counts_displs
         _, displs = data.counts_displs()
-        offset = displs[data.comm.rank]
-        offset = offset * row_width + hl_displacement
+        offset = displs[data.comm.rank] * row_width + hl_displacement
+    elif data.split == 1:
+        _, displs = data.counts_displs()
+        offset = displs[data.comm.rank] * (item_size + 1) + hl_displacement
     else:
         raise NotImplementedError()
 
@@ -1038,7 +1039,12 @@ def save_csv(
             row = fmt.format(data.larray[i])
         else:
             row = sep.join(fmt.format(item) for item in data.larray[i])
-        row = row + "\n"
+
+        if data.split is None or data.split == 0 or data.comm.rank == (data.comm.size - 1):
+            row = row + "\n"
+        else:
+            row = row + sep
+
         csv_out.Write_at(offset, row.encode("utf-8"))
         offset = offset + row_width
 

@@ -206,6 +206,16 @@ class TestIO(TestCase):
         # read_csv always reads in (n, m), so need to reshape to (n,)
         self.assertTrue(ht.max(data - comparison.reshape(data.shape)).item() == 0)
 
+        data = ht.random.randint(0, 100, (25, 4), split=1)
+        data.save(self.CSV_OUT_PATH)
+        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
+        self.assertTrue(ht.max(data - comparison.reshape(data.shape)).item() < 0.0000001)
+
+        data = ht.random.rand(250, 10, dtype=ht.float64, split=0)
+        data.save(self.CSV_OUT_PATH)
+        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
+        self.assertTrue(ht.max(data - comparison.reshape(data.shape)).item() < 0.0000001)
+
     def test_load_exception(self):
         # correct extension, file does not exist
         if ht.io.supports_hdf5():
