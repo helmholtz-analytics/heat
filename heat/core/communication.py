@@ -1883,7 +1883,9 @@ class MPICommunication(Communication):
         return getattr(self.handle, name)
 
 
-MPI_WORLD = MPICommunication()
+comm = MPI.COMM_WORLD
+dup_comm = comm.Dup()
+MPI_WORLD = MPICommunication(dup_comm)
 MPI_SELF = MPICommunication(MPI.COMM_SELF)
 
 # set the default communicator to be MPI_WORLD
