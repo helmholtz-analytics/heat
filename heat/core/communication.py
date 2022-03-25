@@ -1883,8 +1883,10 @@ class MPICommunication(Communication):
         return getattr(self.handle, name)
 
 
+# creating a duplicate COMM
 comm = MPI.COMM_WORLD
 dup_comm = comm.Dup()
+
 MPI_WORLD = MPICommunication(dup_comm)
 MPI_SELF = MPICommunication(MPI.COMM_SELF)
 
