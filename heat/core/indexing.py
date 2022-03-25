@@ -56,7 +56,7 @@ def nonzero(x: DNDarray) -> Tuple:
     except AttributeError:
         raise TypeError("Input must be a DNDarray, is {}".format(type(x)))
 
-    lcl_nonzero = torch.transpose(torch.nonzero(input=x.larray, as_tuple=False), 0, 1)
+    lcl_nonzero = torch.transpose(torch.nonzero(input=local_x, as_tuple=False), 0, 1)
 
     if x.split is None:
         # if there is no split then just return the values from torch
