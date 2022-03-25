@@ -1021,16 +1021,13 @@ def save_csv(
     if len(data.shape) > 1:
         row_width = data.shape[1] * (item_size + 1)
 
-    if data.split is None:
-        offset = hl_displacement  # split None
-    elif data.split == 0:
+    offset = hl_displacement  # all splits
+    if data.split == 0:
         _, displs = data.counts_displs()
-        offset = displs[data.comm.rank] * row_width + hl_displacement
+        offset = offset + displs[data.comm.rank] * row_width
     elif data.split == 1:
         _, displs = data.counts_displs()
-        offset = displs[data.comm.rank] * (item_size + 1) + hl_displacement
-    else:
-        raise NotImplementedError()
+        offset = offset + displs[data.comm.rank] * (item_size + 1)
 
     for i in range(data.lshape[0]):
         # if lshape is of the form (x,), then there will only be a single element per row
