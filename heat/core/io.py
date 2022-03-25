@@ -1018,7 +1018,9 @@ def save_csv(
     # sign + decimal separator + pre separator digits + decimals (post separator)
     item_size = decimals + dec_sep + sign + pre_point_digits
     # each item is one position larger than its representation, either b/c of separator or line break
-    row_width = data.lshape[1] * (item_size + 1)
+    row_width = item_size + 1
+    if len(data.lshape) > 1:
+        row_width = data.lshape[1] * (item_size + 1)
 
     if data.split is None:
         offset = hl_displacement  # split None
@@ -1031,7 +1033,11 @@ def save_csv(
         raise NotImplementedError()
 
     for i in range(data.lshape[0]):
-        row = sep.join(fmt.format(item) for item in data.larray[i])
+        # if lshape is of the form (x,), then there will only be a single element per row
+        if len(data.lshape) == 1:
+            row = fmt.format(data.larray[i])
+        else:
+            row = sep.join(fmt.format(item) for item in data.larray[i])
         row = row + "\n"
         csv_out.Write_at(offset, row.encode("utf-8"))
         offset = offset + row_width

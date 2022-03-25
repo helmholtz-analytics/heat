@@ -191,6 +191,21 @@ class TestIO(TestCase):
         comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
         self.assertTrue(ht.max(data - comparison).item() < 0.0000001)
 
+        # 1D vector (25,)
+        # + do not truncate this time, but rely on save_csv
+        data = ht.arange(25, split=0, dtype=ht.int)
+        ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None)
+        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
+        # read_csv always reads in (n, m), so need to reshape to (n,)
+        self.assertTrue(ht.max(data - comparison.reshape(data.shape)).item() == 0)
+
+        # 1D vector (1, 25)
+        data = ht.arange(25, split=0, dtype=ht.int).reshape(1, 25)
+        ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None)
+        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
+        # read_csv always reads in (n, m), so need to reshape to (n,)
+        self.assertTrue(ht.max(data - comparison.reshape(data.shape)).item() == 0)
+
     def test_load_exception(self):
         # correct extension, file does not exist
         if ht.io.supports_hdf5():
