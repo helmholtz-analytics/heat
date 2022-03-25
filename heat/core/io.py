@@ -996,7 +996,7 @@ def save_csv(
             fmt = "{: %dd}" % (pre_point_digits + 1)
         else:
             fmt = "{:%dd}" % (pre_point_digits)
-    elif types.issubdtype(data.dtype, types.float):
+    elif types.issubdtype(data.dtype, types.floating):
         if decimals == -1:
             decimals = 7 if data.dtype is types.float32 else 15
         if sign == 1:
