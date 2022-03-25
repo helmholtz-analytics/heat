@@ -51,7 +51,10 @@ def nonzero(x: DNDarray) -> Tuple:
     >>> y[ht.nonzero(y > 3)]
     DNDarray([4, 5, 6, 7, 8, 9], dtype=ht.int64, device=cpu:0, split=0)
     """
-    sanitation.sanitize_in(x)
+    try:
+        local_x = x.larray
+    except AttributeError:
+        raise TypeError("Input must be a DNDarray, is {}".format(type(x)))
 
     lcl_nonzero = torch.transpose(torch.nonzero(input=x.larray, as_tuple=False), 0, 1)
 
@@ -61,8 +64,11 @@ def nonzero(x: DNDarray) -> Tuple:
         is_split = None
     else:
         # a is split
-        _, _, slices = x.comm.chunk(x.shape, x.split)
-        lcl_nonzero[..., x.split] += slices[x.split].start
+        # adjust local indices along split dimension
+        _, displs = x.counts_displs()
+        lcl_nonzero[..., x.split] += displs[x.comm.rank]
+        del displs
+        # get global size of split dimension
         gout = list(lcl_nonzero.size())
         gout[0] = x.comm.allreduce(gout[0], MPI.SUM)
         is_split = 0

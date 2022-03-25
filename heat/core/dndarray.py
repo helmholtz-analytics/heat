@@ -9,7 +9,7 @@ import warnings
 from inspect import stack
 from mpi4py import MPI
 from pathlib import Path
-from typing import List, Union, Tuple, TypeVar, Optional
+from typing import List, Union, Tuple, TypeVar, Optional, Iterable
 
 warnings.simplefilter("always", ResourceWarning)
 
@@ -653,6 +653,145 @@ class DNDarray:
 
         return self
 
+    def __process_key(arr: DNDarray, key: Union[int, Tuple[int, ...], List[int, ...]]) -> Tuple:
+        """
+        TODO: expand docs. This function processes key, manipulates `arr` if necessary, returns the final output shape
+        Private method for processing keys for indexing. Returns wether advanced indexing is used as well as a processed key and self.
+        A processed key:
+        - doesn't cotain any ellipses or newaxis
+        - all Iterables are converted to ``DNDarrays``
+        - has the same dimensionality as the ``DNDarray`` it indexes
+
+        Parameters
+        ----------
+        key : int, slice, Tuple[int,...], List[int,...]
+            Indices for the tensor.
+        """
+        output_shape = list(arr.gshape)
+        # output_split = arr.split
+
+        if isinstance(key, Iterable) and not isinstance(key, (tuple, list)):
+            # key is np.ndarray or torch.Tensor
+            key = factories.array(key)
+
+        if isinstance(key, DNDarray):
+            if key.dtype in (canonical_heat_type.bool, canonical_heat_type.uint8):
+                # boolean indexing
+                # transform to sequence of indexing arrays
+                if not key.gshape == arr.gshape:
+                    raise IndexError(
+                        "IndexError: shape of boolean index {} did not match shape of indexed array {}".format(
+                            key.gshape, arr.gshape
+                        )
+                    )
+                key = indexing.nonzero(key)
+                # TODO: fix indexing.nonzero to return a tuple of 1D dndarrays
+            else:
+                # advanced indexing on first dimension
+                output_shape = list(key.gshape) + output_shape[1:]
+            # TODO: check for key.ndim = 0 and treat that as int
+
+        advanced_indexing = False
+        advanced_indexing_dims = []
+        if isinstance(key, (tuple, list)):
+            key = list(key)
+            for i, k in enumerate(key):
+                if isinstance(k, Iterable) or isinstance(k, DNDarray):
+                    # advanced indexing across dimensions
+                    advanced_indexing = True
+                    advanced_indexing_dims.append(i)
+                    if not isinstance(k, DNDarray):
+                        key[i] = factories.array(k)
+                    # TODO: check for key.ndim = 0 and treat that as int
+        if advanced_indexing:
+            # shapes of indexing arrays must be broadcastable
+            advanced_indexing_shapes = tuple(key[i].shape for i in advanced_indexing_dims)
+            try:
+                broadcasted_shape = torch.broadcast_shapes(advanced_indexing_shapes)
+            except RuntimeError:
+                raise IndexError(
+                    "Shape mismatch: indexing arrays could not be broadcast together with shapes: {}".format(
+                        advanced_indexing_shapes
+                    )
+                )
+            add_dims = len(broadcasted_shape) - len(advanced_indexing_dims)
+            if (
+                len(advanced_indexing_dims) == 1
+                or list(range(advanced_indexing_dims[0], advanced_indexing_dims[-1] + 1))
+                == advanced_indexing_dims
+            ):
+                # dimensions affected by advanced indexing are consecutive:
+                output_shape[
+                    advanced_indexing_dims[0] : advanced_indexing_dims[0]
+                    + len(advanced_indexing_dims)
+                ] = broadcasted_shape
+            else:
+                # advanced-indexing dimensions are not consecutive:
+                # transpose array to make the advanced-indexing dimensions consecutive as the first dimensions
+                non_adv_ind_dims = list(
+                    i for i in range(arr.ndim) if i not in advanced_indexing_dims
+                )
+                arr = arr.transpose(advanced_indexing_dims + non_adv_ind_dims)
+                output_shape = list(arr.gshape)
+                output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
+                # modify key to match the new dimension order
+                key = [key[i] for i in advanced_indexing_dims] + [key[i] for i in non_adv_ind_dims]
+                # update advanced-indexing dims
+                advanced_indexing_dims = list(range(len(advanced_indexing_dims)))
+            # expand dimensions of input array, key, to match output_shape
+            # while add_dims > 0:
+            #     # TODO: check this out, I think this is wrong or only right if added dimension is of size (1,)
+            #     arr = arr.expand_dims(advanced_indexing_dims[0])
+            #     key.insert(advanced_indexing_dims[0], slice(None))
+            #     add_dims -= 1
+
+            # now check for ellipsis, newaxis
+            add_dims = sum(k is None for k in key)  # (np.newaxis is None)===true
+            ellipsis = sum(isinstance(k, type(...)) for k in key)
+            if ellipsis > 1:
+                raise ValueError("key can only contain 1 ellipsis")
+            if ellipsis == 1:
+                expand_key = [slice(None)] * (arr.ndim + add_dims)
+                ellipsis_index = key.index(...)
+                expand_key[:ellipsis_index] = key[:ellipsis_index]
+                expand_key[ellipsis_index - len(key) :] = key[ellipsis_index + 1 :]
+                key = expand_key
+            while add_dims > 0:
+                for i, k in reversed(enumerate(key)):
+                    if k is None:
+                        key[i] = slice(None)
+                        arr = arr.expand_dims(i - add_dims + 1)  # is the -1 correct?
+                        add_dims -= 1
+            # expand key to match the number of dimensions of the DNDarray
+            key = tuple(key + [slice(None)] * (arr.ndim - len(key)))
+        else:  # key is integer or slice
+            key = tuple([key] + [slice(None)] * (arr.ndim - 1))
+
+        return advanced_indexing, arr, key
+
+    def __get_local_slice(self, key: slice):
+        split = self.split
+        if split is None:
+            return key
+        key = stride_tricks.sanitize_slice(key, self.shape[split])
+        start, stop, step = key.start, key.stop, key.step
+        if step < 0:  # NOT supported by torch, should be filtered by torch_proxy
+            key = self.__get_local_slice(slice(stop + 1, start + 1, abs(step)))
+            if key is None:
+                return None
+            start, stop, step = key.start, key.stop, key.step
+            return slice(key.stop - 1, key.start - 1, -1 * key.step)
+
+        _, offsets = self.counts_displs()
+        offset = offsets[self.comm.rank]
+        range_proxy = range(self.lshape[split])
+        local_inds = range_proxy[start - offset : stop - offset]  # only works if stop - offset > 0
+        local_inds = local_inds[max(offset - start, 0) % step :: step]
+        if len(local_inds) and stop > offset:
+            # otherwise if (stop-offset) > -self.lshape[split] this can index into the local chunk despite ending before it
+            return slice(local_inds.start, local_inds.stop, local_inds.step)
+        return None
+
     def __getitem__(self, key: Union[int, Tuple[int, ...], List[int, ...]]) -> DNDarray:
         """
         Global getter function for DNDarrays.
@@ -683,233 +822,332 @@ class DNDarray:
         (1/2) >>> tensor([0.])
         (2/2) >>> tensor([0., 0.])
         """
-        key = getattr(key, "copy()", key)
-        l_dtype = self.dtype.torch_type()
-        advanced_ind = False
-        if isinstance(key, DNDarray) and key.ndim == self.ndim:
-            """ if the key is a DNDarray and it has as many dimensions as self, then each of the
-                entries in the 0th dim refer to a single element. To handle this, the key is split
-                into the torch tensors for each dimension. This signals that advanced indexing is
-                to be used. """
-            # NOTE: this gathers the entire key on every process!!
-            # TODO: remove this resplit!!
-            key = manipulations.resplit(key)
-            if key.larray.dtype in [torch.bool, torch.uint8]:
-                key = indexing.nonzero(key)
+        # key can be: int, tuple, list, slice, DNDarray, torch tensor, numpy array, or sequence thereof
+        # Trivial cases
+        if key is None:
+            return self.expand_dims(0)
+        if key == ... or key == slice(None):  # latter doesnt work with torch for 0-dim tensors
+            return self
+        # Preprocess: Process Ellipsis + 'None' indexing; make Iterables to DNDarrays
+        advanced_indexing, self, key = self.__process_key(key)
 
-            if key.ndim > 1:
-                key = list(key.larray.split(1, dim=1))
-                # key is now a list of tensors with dimensions (key.ndim, 1)
-                # squeeze singleton dimension:
-                key = list(key[i].squeeze_(1) for i in range(len(key)))
-            else:
-                key = [key]
-            advanced_ind = True
-        elif not isinstance(key, tuple):
-            """ this loop handles all other cases. DNDarrays which make it to here refer to
-                advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
-                are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
-            h = [slice(None, None, None)] * max(self.ndim, 1)
-            if isinstance(key, DNDarray):
-                key = manipulations.resplit(key)
-                if key.larray.dtype in [torch.bool, torch.uint8]:
-                    h[0] = torch.nonzero(key.larray).flatten()  # .tolist()
-                else:
-                    h[0] = key.larray.tolist()
-            elif isinstance(key, torch.Tensor):
-                if key.dtype in [torch.bool, torch.uint8]:
-                    # (coquelin77) i am not certain why this works without being a list. but it works...for now
-                    h[0] = torch.nonzero(key).flatten()  # .tolist()
-                else:
-                    h[0] = key.tolist()
-            else:
-                h[0] = key
+        # To use torch_proxy with advanced indexing, add empty dimensions instead of
+        # advanced index. Later, replace the empty dimensions with the shape of the advanced index
+        proxy = self
+        names = [
+            "split" if (proxy.split is not None and i == proxy.split) else "_{}".format(i)
+            for i in range(proxy.ndim)
+        ]
+        proxy_key = list(key)
+        if advanced_indexing:
+            proxy_key = list(key)
+            for i, k in reversed(enumerate(key)):
+                if isinstance(k, DNDarray):  # all iterables have been made DNDarrays
+                    # TODO: Bool indexing (sometimes) is collapsed into one dimension
+                    # TODO: What to do if advanced index is in split dimension??
+                    names[i] = "replace" + str(k.shape)  # put shape into name
+                    proxy_key[i] = slice(None)
+                    for _ in range(k.ndim - 1):
+                        proxy = proxy.expand_dims(i)
+                        names.insert(i + 1, "_{}".format(len(names)))
+                        proxy_key.insert(i + 1, slice(None))
+        proxy_key = tuple(proxy_key)
 
-            key = list(h)
+        self_proxy = proxy.__torch_proxy__()
+        self_proxy.names = names
+        indexed_proxy = self_proxy[proxy_key]
 
-        if isinstance(key, (list, tuple)):
-            key = list(key)
-            for i, k in enumerate(key):
-                # this might be a good place to check if the dtype is there
-                try:
-                    k = manipulations.resplit(k)
-                    key[i] = k.larray
-                except AttributeError:
-                    pass
+        output_shape = list(indexed_proxy.shape)
+        if advanced_indexing:
+            for i, n in enumerate(indexed_proxy.names):
+                if "replace" in n:
+                    shape = eval(n.split("replace")[1])  # extract shape from name
+                    # TODO Bool indexing (sometimes) is collapsed into one dimension
+                    output_shape[i : i + len(shape)] = shape
+        output_shape = tuple(output_shape)
 
-        # ellipsis
-        key = list(key)
-        key_classes = [type(n) for n in key]
-        # if any(isinstance(n, ellipsis) for n in key):
-        n_elips = key_classes.count(type(...))
-        if n_elips > 1:
-            raise ValueError("key can only contain 1 ellipsis")
-        elif n_elips == 1:
-            # get which item is the ellipsis
-            ell_ind = key_classes.index(type(...))
-            kst = key[:ell_ind]
-            kend = key[ell_ind + 1 :]
-            slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
-            key = kst + slices + kend
-        else:
-            key = key + [slice(None)] * (self.ndim - len(key))
+        try:
+            output_split = indexed_proxy.names.index("split")
+        except ValueError:
+            output_split = None
 
-        self_proxy = self.__torch_proxy__()
-        for i in range(len(key)):
-            if self.__key_adds_dimension(key, i, self_proxy):
-                key[i] = slice(None)
-                return self.expand_dims(i)[tuple(key)]
-
-        key = tuple(key)
-        # assess final global shape
-        gout_full = list(self_proxy[key].shape)
-
-        # calculate new split axis
-        new_split = self.split
-        # when slicing, squeezed singleton dimensions may affect new split axis
-        if self.split is not None and len(gout_full) < self.ndim:
-            if advanced_ind:
-                new_split = 0
-            else:
-                for i in range(len(key[: self.split + 1])):
-                    if self.__key_is_singular(key, i, self_proxy):
-                        new_split = None if i == self.split else new_split - 1
-
-        key = tuple(key)
-        if not self.is_distributed():
-            arr = self.__array[key].reshape(gout_full)
+        # data are not distributed or split dimension is not affected by indexing
+        if not self.is_distributed or key[self.split] == slice(None):
             return DNDarray(
-                arr, tuple(gout_full), self.dtype, new_split, self.device, self.comm, self.balanced
+                self.larray[key],
+                gshape=output_shape,
+                dtype=self.dtype,
+                split=output_split,
+                device=self.device,
+                balanced=self.balanced,
+                comm=self.comm,
             )
 
-        # else: (DNDarray is distributed)
-        arr = torch.tensor([], dtype=self.__array.dtype, device=self.__array.device)
-        rank = self.comm.rank
-        counts, chunk_starts = self.counts_displs()
-        counts, chunk_starts = torch.tensor(counts), torch.tensor(chunk_starts)
-        chunk_ends = chunk_starts + counts
-        chunk_start = chunk_starts[rank]
-        chunk_end = chunk_ends[rank]
-
-        if len(key) == 0:  # handle empty list
-            # this will return an array of shape (0, ...)
-            arr = self.__array[key]
-
-        """ At the end of the following if/elif/elif block the output array will be set.
-            each block handles the case where the element of the key along the split axis
-            is a different type and converts the key from global indices to local indices. """
-        lout = gout_full.copy()
-
-        if (
-            isinstance(key[self.split], (list, torch.Tensor, DNDarray, np.ndarray))
-            and len(key[self.split]) > 1
-        ):
-            # advanced indexing, elements in the split dimension are adjusted to the local indices
-            lkey = list(key)
-            if isinstance(key[self.split], DNDarray):
-                lkey[self.split] = key[self.split].larray
-
-            if not isinstance(lkey[self.split], torch.Tensor):
-                inds = torch.tensor(
-                    lkey[self.split], dtype=torch.long, device=self.device.torch_device
-                )
-            else:
-                if lkey[self.split].dtype in [torch.bool, torch.uint8]:  # or torch.byte?
-                    # need to convert the bools to indices
-                    inds = torch.nonzero(lkey[self.split])
-                else:
-                    inds = lkey[self.split]
-            # todo: remove where in favor of nonzero? might be a speed upgrade. testing required
-            loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
-            # if there are no local indices on a process, then `arr` is empty
-            # if local indices exist:
-            if len(loc_inds[0]) != 0:
-                # select same local indices for other (non-split) dimensions if necessary
-                for i, k in enumerate(lkey):
-                    if isinstance(k, (list, torch.Tensor, DNDarray)):
-                        if i != self.split:
-                            lkey[i] = k[loc_inds]
-                # correct local indices for offset
-                inds = inds[loc_inds] - chunk_start
-                lkey[self.split] = inds
-                lout[new_split] = len(inds)
-                arr = self.__array[tuple(lkey)].reshape(tuple(lout))
-            elif len(loc_inds[0]) == 0:
-                if new_split is not None:
-                    lout[new_split] = len(loc_inds[0])
-                else:
-                    lout = [0] * len(gout_full)
-                arr = torch.tensor([], dtype=self.larray.dtype, device=self.larray.device).reshape(
-                    tuple(lout)
+        # data are distributed and split dimension is affected by indexing
+        _, offsets = self.counts_displs()
+        split = self.split
+        # slice along the split axis
+        if isinstance(key[split], slice):
+            local_slice = self.__get_local_slice(key[split])
+            if local_slice is not None:
+                key = list(key)
+                key[split] = local_slice
+                local_tensor = self.larray[tuple(key)]
+            else:  # local tensor is empty
+                local_shape = list(output_shape)
+                local_shape[output_split] = 0
+                local_tensor = torch.zeros(
+                    tuple(local_shape), dtype=self.larray.dtype, device=self.larray.device
                 )
 
-        elif isinstance(key[self.split], slice):
-            # standard slicing along the split axis,
-            # adjust the slice start, stop, and step, then run it on the processes which have the requested data
-            key = list(key)
-            key[self.split] = stride_tricks.sanitize_slice(key[self.split], self.gshape[self.split])
-            key_start, key_stop, key_step = (
-                key[self.split].start,
-                key[self.split].stop,
-                key[self.split].step,
+            return DNDarray(
+                local_tensor,
+                gshape=output_shape,
+                dtype=self.dtype,
+                split=output_split,
+                device=self.device,
+                balanced=False,
+                comm=self.comm,
             )
-            og_key_start = key_start
-            st_pr = torch.where(key_start < chunk_ends)[0]
-            st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
-            sp_pr = torch.where(key_stop >= chunk_starts)[0]
-            sp_pr = sp_pr[-1] if len(sp_pr) > 0 else 0
-            actives = list(range(st_pr, sp_pr + 1))
-            if rank in actives:
-                key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
-                key_stop = counts[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
-                key_start, key_stop = self.__xitem_get_key_start_stop(
-                    rank, actives, key_start, key_stop, key_step, chunk_ends, og_key_start
-                )
-                key[self.split] = slice(key_start, key_stop, key_step)
-                lout[new_split] = (
-                    math.ceil((key_stop - key_start) / key_step)
-                    if key_step is not None
-                    else key_stop - key_start
-                )
-                arr = self.__array[tuple(key)].reshape(lout)
-            else:
-                lout[new_split] = 0
-                arr = torch.empty(lout, dtype=self.__array.dtype, device=self.__array.device)
 
-        elif self.__key_is_singular(key, self.split, self_proxy):
-            # getting one item along split axis:
-            key = list(key)
-            if isinstance(key[self.split], list):
-                key[self.split] = key[self.split].pop()
-            elif isinstance(key[self.split], (torch.Tensor, DNDarray, np.ndarray)):
-                key[self.split] = key[self.split].item()
-            # translate negative index
-            if key[self.split] < 0:
-                key[self.split] += self.gshape[self.split]
+        # local indexing cases:
+        # self is not distributed, key is not distributed - DONE
+        # self is distributed, key along split is a slice - DONE
+        # self is distributed, key is boolean mask (what about distributed boolean mask?)
 
-            active_rank = torch.where(key[self.split] >= chunk_starts)[0][-1].item()
-            # slice `self` on `active_rank`, allocate `arr` on all other ranks in preparation for Bcast
-            if rank == active_rank:
-                key[self.split] -= chunk_start.item()
-                arr = self.__array[tuple(key)].reshape(tuple(lout))
-            else:
-                arr = torch.empty(tuple(lout), dtype=self.larray.dtype, device=self.larray.device)
-            # broadcast result
-            # TODO: Replace with `self.comm.Bcast(arr, root=active_rank)` after fixing #784
-            arr = self.comm.bcast(arr, root=active_rank)
-            if arr.device != self.larray.device:
-                # todo: remove when unnecessary (also after #784)
-                arr = arr.to(device=self.larray.device)
+        # distributed indexing:
+        # key is distributed
+        # key calls for advanced indexing
+        # key is a non-sorted sequence
+        # key is a sorted sequence (descending)
 
-        return DNDarray(
-            arr.type(l_dtype),
-            gout_full if isinstance(gout_full, tuple) else tuple(gout_full),
-            self.dtype,
-            new_split,
-            self.device,
-            self.comm,
-            balanced=True if new_split is None else None,
-        )
+        # key = getattr(key, "copy()", key)
+        # l_dtype = self.dtype.torch_type()
+        # advanced_ind = False
+        # if isinstance(key, DNDarray) and key.ndim == self.ndim:
+        #     """ if the key is a DNDarray and it has as many dimensions as self, then each of the
+        #         entries in the 0th dim refer to a single element. To handle this, the key is split
+        #         into the torch tensors for each dimension. This signals that advanced indexing is
+        #         to be used. """
+        #     # NOTE: this gathers the entire key on every process!!
+        #     # TODO: remove this resplit!!
+        #     key = manipulations.resplit(key)
+        #     if key.larray.dtype in [torch.bool, torch.uint8]:
+        #         key = indexing.nonzero(key)
+
+        #     if key.ndim > 1:
+        #         key = list(key.larray.split(1, dim=1))
+        #         # key is now a list of tensors with dimensions (key.ndim, 1)
+        #         # squeeze singleton dimension:
+        #         key = list(key[i].squeeze_(1) for i in range(len(key)))
+        #     else:
+        #         key = [key]
+        #     advanced_ind = True
+        # elif not isinstance(key, tuple):
+        #     """ this loop handles all other cases. DNDarrays which make it to here refer to
+        #         advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
+        #         are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
+        #     h = [slice(None, None, None)] * max(self.ndim, 1)
+        #     if isinstance(key, DNDarray):
+        #         key = manipulations.resplit(key)
+        #         if key.larray.dtype in [torch.bool, torch.uint8]:
+        #             h[0] = torch.nonzero(key.larray).flatten()  # .tolist()
+        #         else:
+        #             h[0] = key.larray.tolist()
+        #     elif isinstance(key, torch.Tensor):
+        #         if key.dtype in [torch.bool, torch.uint8]:
+        #             # (coquelin77) i am not certain why this works without being a list. but it works...for now
+        #             h[0] = torch.nonzero(key).flatten()  # .tolist()
+        #         else:
+        #             h[0] = key.tolist()
+        #     else:
+        #         h[0] = key
+
+        #     key = list(h)
+
+        # if isinstance(key, (list, tuple)):
+        #     key = list(key)
+        #     for i, k in enumerate(key):
+        #         # this might be a good place to check if the dtype is there
+        #         try:
+        #             k = manipulations.resplit(k)
+        #             key[i] = k.larray
+        #         except AttributeError:
+        #             pass
+
+        # # ellipsis
+        # key = list(key)
+        # key_classes = [type(n) for n in key]
+        # # if any(isinstance(n, ellipsis) for n in key):
+        # n_elips = key_classes.count(type(...))
+        # if n_elips > 1:
+        #     raise ValueError("key can only contain 1 ellipsis")
+        # elif n_elips == 1:
+        #     # get which item is the ellipsis
+        #     ell_ind = key_classes.index(type(...))
+        #     kst = key[:ell_ind]
+        #     kend = key[ell_ind + 1 :]
+        #     slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
+        #     key = kst + slices + kend
+        # else:
+        #     key = key + [slice(None)] * (self.ndim - len(key))
+
+        # self_proxy = self.__torch_proxy__()
+        # for i in range(len(key)):
+        #     if self.__key_adds_dimension(key, i, self_proxy):
+        #         key[i] = slice(None)
+        #         return self.expand_dims(i)[tuple(key)]
+
+        # key = tuple(key)
+        # # assess final global shape
+        # gout_full = list(self_proxy[key].shape)
+
+        # # calculate new split axis
+        # new_split = self.split
+        # # when slicing, squeezed singleton dimensions may affect new split axis
+        # if self.split is not None and len(gout_full) < self.ndim:
+        #     if advanced_ind:
+        #         new_split = 0
+        #     else:
+        #         for i in range(len(key[: self.split + 1])):
+        #             if self.__key_is_singular(key, i, self_proxy):
+        #                 new_split = None if i == self.split else new_split - 1
+
+        # key = tuple(key)
+        # if not self.is_distributed():
+        #     arr = self.__array[key].reshape(gout_full)
+        #     return DNDarray(
+        #         arr, tuple(gout_full), self.dtype, new_split, self.device, self.comm, self.balanced
+        #     )
+
+        # # else: (DNDarray is distributed)
+        # arr = torch.tensor([], dtype=self.__array.dtype, device=self.__array.device)
+        # rank = self.comm.rank
+        # counts, chunk_starts = self.counts_displs()
+        # counts, chunk_starts = torch.tensor(counts), torch.tensor(chunk_starts)
+        # chunk_ends = chunk_starts + counts
+        # chunk_start = chunk_starts[rank]
+        # chunk_end = chunk_ends[rank]
+
+        # if len(key) == 0:  # handle empty list
+        #     # this will return an array of shape (0, ...)
+        #     arr = self.__array[key]
+
+        # """ At the end of the following if/elif/elif block the output array will be set.
+        #     each block handles the case where the element of the key along the split axis
+        #     is a different type and converts the key from global indices to local indices. """
+        # lout = gout_full.copy()
+
+        # if (
+        #     isinstance(key[self.split], (list, torch.Tensor, DNDarray, np.ndarray))
+        #     and len(key[self.split]) > 1
+        # ):
+        #     # advanced indexing, elements in the split dimension are adjusted to the local indices
+        #     lkey = list(key)
+        #     if isinstance(key[self.split], DNDarray):
+        #         lkey[self.split] = key[self.split].larray
+
+        #     if not isinstance(lkey[self.split], torch.Tensor):
+        #         inds = torch.tensor(
+        #             lkey[self.split], dtype=torch.long, device=self.device.torch_device
+        #         )
+        #     else:
+        #         if lkey[self.split].dtype in [torch.bool, torch.uint8]:  # or torch.byte?
+        #             # need to convert the bools to indices
+        #             inds = torch.nonzero(lkey[self.split])
+        #         else:
+        #             inds = lkey[self.split]
+        #     # todo: remove where in favor of nonzero? might be a speed upgrade. testing required
+        #     loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
+        #     # if there are no local indices on a process, then `arr` is empty
+        #     # if local indices exist:
+        #     if len(loc_inds[0]) != 0:
+        #         # select same local indices for other (non-split) dimensions if necessary
+        #         for i, k in enumerate(lkey):
+        #             if isinstance(k, (list, torch.Tensor, DNDarray)):
+        #                 if i != self.split:
+        #                     lkey[i] = k[loc_inds]
+        #         # correct local indices for offset
+        #         inds = inds[loc_inds] - chunk_start
+        #         lkey[self.split] = inds
+        #         lout[new_split] = len(inds)
+        #         arr = self.__array[tuple(lkey)].reshape(tuple(lout))
+        #     elif len(loc_inds[0]) == 0:
+        #         if new_split is not None:
+        #             lout[new_split] = len(loc_inds[0])
+        #         else:
+        #             lout = [0] * len(gout_full)
+        #         arr = torch.tensor([], dtype=self.larray.dtype, device=self.larray.device).reshape(
+        #             tuple(lout)
+        #         )
+
+        # elif isinstance(key[self.split], slice):
+        #     # standard slicing along the split axis,
+        #     # adjust the slice start, stop, and step, then run it on the processes which have the requested data
+        #     key = list(key)
+        #     key[self.split] = stride_tricks.sanitize_slice(key[self.split], self.gshape[self.split])
+        #     key_start, key_stop, key_step = (
+        #         key[self.split].start,
+        #         key[self.split].stop,
+        #         key[self.split].step,
+        #     )
+        #     og_key_start = key_start
+        #     st_pr = torch.where(key_start < chunk_ends)[0]
+        #     st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
+        #     sp_pr = torch.where(key_stop >= chunk_starts)[0]
+        #     sp_pr = sp_pr[-1] if len(sp_pr) > 0 else 0
+        #     actives = list(range(st_pr, sp_pr + 1))
+        #     if rank in actives:
+        #         key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
+        #         key_stop = counts[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
+        #         key_start, key_stop = self.__xitem_get_key_start_stop(
+        #             rank, actives, key_start, key_stop, key_step, chunk_ends, og_key_start
+        #         )
+        #         key[self.split] = slice(key_start, key_stop, key_step)
+        #         lout[new_split] = (
+        #             math.ceil((key_stop - key_start) / key_step)
+        #             if key_step is not None
+        #             else key_stop - key_start
+        #         )
+        #         arr = self.__array[tuple(key)].reshape(lout)
+        #     else:
+        #         lout[new_split] = 0
+        #         arr = torch.empty(lout, dtype=self.__array.dtype, device=self.__array.device)
+
+        # elif self.__key_is_singular(key, self.split, self_proxy):
+        #     # getting one item along split axis:
+        #     key = list(key)
+        #     if isinstance(key[self.split], list):
+        #         key[self.split] = key[self.split].pop()
+        #     elif isinstance(key[self.split], (torch.Tensor, DNDarray, np.ndarray)):
+        #         key[self.split] = key[self.split].item()
+        #     # translate negative index
+        #     if key[self.split] < 0:
+        #         key[self.split] += self.gshape[self.split]
+
+        #     active_rank = torch.where(key[self.split] >= chunk_starts)[0][-1].item()
+        #     # slice `self` on `active_rank`, allocate `arr` on all other ranks in preparation for Bcast
+        #     if rank == active_rank:
+        #         key[self.split] -= chunk_start.item()
+        #         arr = self.__array[tuple(key)].reshape(tuple(lout))
+        #     else:
+        #         arr = torch.empty(tuple(lout), dtype=self.larray.dtype, device=self.larray.device)
+        #     # broadcast result
+        #     # TODO: Replace with `self.comm.Bcast(arr, root=active_rank)` after fixing #784
+        #     arr = self.comm.bcast(arr, root=active_rank)
+        #     if arr.device != self.larray.device:
+        #         # todo: remove when unnecessary (also after #784)
+        #         arr = arr.to(device=self.larray.device)
+
+        # return DNDarray(
+        #     arr.type(l_dtype),
+        #     gout_full if isinstance(gout_full, tuple) else tuple(gout_full),
+        #     self.dtype,
+        #     new_split,
+        #     self.device,
+        #     self.comm,
+        #     balanced=True if new_split is None else None,
+        # )
 
     if torch.cuda.device_count() > 0:
 
@@ -1394,6 +1632,40 @@ class DNDarray:
         (2/2) >>> tensor([[0., 1., 0., 0., 0.],
                           [0., 1., 0., 0., 0.]])
         """
+
+        def __set(arr: DNDarray, value: DNDarray):
+            """
+            Setter for not advanced indexing, i.e. when arr[key] is an in-place view of arr.
+            """
+            if not isinstance(value, DNDarray):
+                value = factories.array(value, device=arr.device, comm=arr.comm)
+            while value.ndim < arr.ndim:  # broadcasting
+                value = value.expand_dims(0)
+            sanitation.sanitize_out(arr, value.shape, value.split, value.device, value.comm)
+            value = sanitation.sanitize_distribution(value, target=arr)
+            arr.larray[None] = value.larray
+            return
+
+        if key is None or key == ... or key == slice(None):
+            return __set(self, value)
+
+        advanced_indexing, self, key = self.__process_key(key)
+        if advanced_indexing:
+            raise Exception("Advanced indexing is not supported yet")
+
+        split = self.split
+        if not self.is_distributed or key[split] == slice(None):
+            return __set(self[key], value)
+
+        if isinstance(key[split], slice):
+            return __set(self[key], value)
+
+        if np.isscalar(key[split]):
+            key = list(key)
+            idx = int(key[split])
+            key[split] = slice(idx, idx + 1)
+            return __set(self[tuple(key)], value)
+
         key = getattr(key, "copy()", key)
         try:
             if value.split != self.split:
