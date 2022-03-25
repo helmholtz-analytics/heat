@@ -1089,6 +1089,8 @@ def save(
             save_netcdf(data, path, *args, **kwargs)
         else:
             raise RuntimeError("netcdf is required for file extension {}".format(extension))
+    elif extension in __CSV_EXTENSION:
+        save_csv(data, path, *args, **kwargs)
     else:
         raise ValueError("Unsupported file extension {}".format(extension))
 
