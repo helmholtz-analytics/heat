@@ -20,7 +20,8 @@ jobs:
       - name: Commit latest PyTorch release version
         if: steps.git-check.outputs.modified == 'true'
         run: |
+          echo "new=$(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
           git config --global user.name 'ClaudiaComito'
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
-          git commit -am "New PyTorch release"
+          git commit -am "New PyTorch release ${{ env.new }}"
           git push
