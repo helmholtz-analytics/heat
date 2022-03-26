@@ -362,6 +362,24 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.div(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.div(self.a_split_tensor, self.a_tensor), commutated_result))
 
+        a = out = ht.empty((2, 2))
+        ht.div(self.a_tensor, self.a_scalar, out=out)
+        self.assertTrue(ht.equal(out, result))
+        self.assertIs(a, out)
+        b = ht.array([[1.0, 2.0], [3.0, 4.0]])
+        ht.div(b, self.another_tensor, out=b)
+        self.assertTrue(ht.equal(b, result))
+
+        result_where = ht.array([[1.0, 2.0], [1.5, 2.0]])
+        self.assertTrue(
+            ht.equal(ht.div(self.a_tensor, self.a_scalar, where=self.a_tensor > 2), result_where)
+        )
+        ht.div(self.a_tensor, self.a_scalar)
+
+        a = self.a_tensor.copy()
+        ht.div(a, self.a_scalar, out=a, where=a > 2)
+        self.assertTrue(ht.equal(a, result_where))
+
         with self.assertRaises(ValueError):
             ht.div(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):

@@ -8,6 +8,7 @@ import torch
 from typing import Optional, Union, Tuple
 
 from . import factories
+from . import indexing
 from . import manipulations
 from . import _operations
 from . import sanitation
@@ -427,7 +428,12 @@ def diff(
     return ret
 
 
-def div(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def div(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    out: Optional[DNDarray] = None,
+    where: Optional[DNDarray] = None,
+) -> DNDarray:
     """
     Element-wise true division of values of operand ``t1`` by values of operands ``t2`` (i.e ``t1/t2``).
     Operation is not commutative.
@@ -438,6 +444,10 @@ def div(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
         The first operand whose values are divided
     t2: DNDarray or scalar
         The second operand by whose values is divided
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to
+    where: DNDarray, optional
+        Condition of interest, where true yield divided value else yield original value in t1
 
     Example
     ---------
@@ -453,7 +463,19 @@ def div(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[2.0000, 1.0000],
               [0.6667, 0.5000]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.true_divide, t1, t2)
+    if out is t1 and where is not None:
+        original_t1 = t1.copy()
+
+    ret = _operations.__binary_op(torch.true_divide, t1, t2, out)
+
+    if where is not None:
+        if out is t1:
+            ret.larray = indexing.where(where, ret, original_t1).larray
+        elif out is not None:
+            ret.larray = indexing.where(where, ret, t1).larray
+        else:
+            ret = indexing.where(where, ret, t1)
+    return ret
 
 
 DNDarray.__truediv__ = lambda self, other: div(self, other)
