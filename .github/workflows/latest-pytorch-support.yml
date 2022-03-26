@@ -4,9 +4,6 @@ on:
   push:
     paths:
       - '.github/workflows/pytorch-release-versions/*'
-env:
-  previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')
-  new_pytorch: $(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)
 permissions:
   contents: write
   issues: write
@@ -15,6 +12,9 @@ jobs:
   latest-torch-support:
     runs-on: ubuntu-latest
     steps:
+      - name: Declare environment variables
+        run: echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
+        run: echo "new_pytorch=$(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
       - uses: actions/checkout@v2
       - uses: JasonEtco/create-an-issue@v2
         env:
@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: 'main'
+          ref: 'workflow/pytorch-new-release'
       - name: Update setup.py
         run: |
           echo ${{ env.previous_pytorch }}
@@ -40,11 +40,11 @@ jobs:
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v3
         with:
-            base: main
+            base: workflow/pytorch-new-release
             delete-branch: true
             token: ${{ secrets.GITHUB_TOKEN }}
             commit-message: Support latest PyTorch release
-            title: Support latest PyTorch
+            title: Support PyTorch ${{ env.new_pytorch }}
             body: |
               Run tests on latest PyTorch release
               Issue/s resolved: #${{ steps.create-issue.outputs.number }}
