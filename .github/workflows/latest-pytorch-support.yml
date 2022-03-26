@@ -13,8 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Declare environment variables
-        run: echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
-        run: echo "new_pytorch=$(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
+        run: |
+          echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
+          echo "new_pytorch=$(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
       - uses: actions/checkout@v2
       - uses: JasonEtco/create-an-issue@v2
         env:
