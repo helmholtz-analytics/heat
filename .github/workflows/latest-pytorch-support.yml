@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: 'workflow/pytorch-new-release'
+          ref: 'main'
       - name: Update setup.py
         run: |
           echo ${{ env.previous_pytorch }}
@@ -43,7 +43,7 @@ jobs:
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v3
         with:
-            base: workflow/pytorch-new-release
+            base: main
             delete-branch: true
             token: ${{ secrets.GITHUB_TOKEN }}
             commit-message: Support latest PyTorch release
