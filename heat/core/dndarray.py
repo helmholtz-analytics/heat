@@ -872,7 +872,7 @@ class DNDarray:
             output_split = None
 
         # data are not distributed or split dimension is not affected by indexing
-        if not self.is_distributed or key[self.split] == slice(None):
+        if not self.is_distributed() or key[self.split] == slice(None):
             return DNDarray(
                 self.larray[key],
                 gshape=output_shape,
@@ -1654,7 +1654,7 @@ class DNDarray:
             raise Exception("Advanced indexing is not supported yet")
 
         split = self.split
-        if not self.is_distributed or key[split] == slice(None):
+        if not self.is_distributed() or key[split] == slice(None):
             return __set(self[key], value)
 
         if isinstance(key[split], slice):

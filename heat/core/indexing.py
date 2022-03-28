@@ -56,7 +56,7 @@ def nonzero(x: DNDarray) -> Tuple:
     except AttributeError:
         raise TypeError("Input must be a DNDarray, is {}".format(type(x)))
 
-    lcl_nonzero = torch.transpose(torch.nonzero(input=local_x, as_tuple=False), 0, 1)
+    lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
 
     if x.split is None:
         # if there is no split then just return the values from torch
@@ -73,8 +73,7 @@ def nonzero(x: DNDarray) -> Tuple:
         gout[0] = x.comm.allreduce(gout[0], MPI.SUM)
         is_split = 0
 
-    if x.ndim == 1:
-        lcl_nonzero = lcl_nonzero.squeeze(dim=1)
+    lcl_nonzero = lcl_nonzero.transpose(0, 1)
 
     return tuple(
         DNDarray(

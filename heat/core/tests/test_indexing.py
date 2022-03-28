@@ -1,5 +1,4 @@
 import heat as ht
-from torch import transpose
 from .test_suites.basic_test import TestCase
 
 
