@@ -3381,6 +3381,26 @@ class TestManipulations(TestCase):
         self.assertTrue((indcs.larray == exp_one_indcs.larray).all())
         self.assertTrue(indcs.larray.dtype == exp_one_indcs.larray.dtype)
 
+        res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False)
+        exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.int32, split=0)
+        exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int64, split=0)
+        self.assertTrue((res.larray == exp_zero.larray).all())
+        self.assertTrue((indcs.larray == exp_zero.larray).all())
+        self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
+
+        exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.int32, split=0)
+        exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int64, split=0)
+        out = (ht.empty_like(exp_zero), ht.empty_like(exp_zero_indcs))
+        res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False, out=out)
+
+        self.assertTrue((res.larray == exp_zero.larray).all())
+        self.assertTrue((indcs.larray == exp_zero.larray).all())
+        self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
+
+        self.assertTrue((out[0].larray == exp_zero.larray).all())
+        self.assertTrue((out[1].larray == exp_zero.larray).all())
+        self.assertTrue(out[1].larray.dtype == exp_zero_indcs.larray.dtype)
+
         torch_array = torch.arange(
             size, dtype=torch.float64, device=self.device.torch_device
         ).expand(size, size)
@@ -3405,25 +3425,16 @@ class TestManipulations(TestCase):
         self.assertTrue((indcs.larray == exp_one_indcs.larray).all())
         self.assertTrue(indcs.larray.dtype == exp_one_indcs.larray.dtype)
 
-        res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False)
-        exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.int32, split=0)
-        exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int64, split=0)
-        self.assertTrue((res.larray == exp_zero.larray).all())
-        self.assertTrue((indcs.larray == exp_zero.larray).all())
-        self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
-
-        exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.int32, split=0)
-        exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int64, split=0)
-        out = (ht.empty_like(exp_zero), ht.empty_like(exp_zero_indcs))
-        res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False, out=out)
-
-        self.assertTrue((res.larray == exp_zero.larray).all())
-        self.assertTrue((indcs.larray == exp_zero.larray).all())
-        self.assertTrue(indcs.larray.dtype == exp_zero_indcs.larray.dtype)
-
-        self.assertTrue((out[0].larray == exp_zero.larray).all())
-        self.assertTrue((out[1].larray == exp_zero.larray).all())
-        self.assertTrue(out[1].larray.dtype == exp_zero_indcs.larray.dtype)
+        with self.assertRaises(RuntimeError):
+            exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.int32, split=0)
+            exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int64, split=0)
+            out = (ht.empty_like(exp_zero), ht.empty_like(exp_zero_indcs))
+            res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False, out=out)
+        with self.assertRaises(RuntimeError):
+            exp_zero = ht.array([[0, 1] for i in range(size)], dtype=ht.float64, split=0)
+            exp_zero_indcs = ht.array([[0, 1] for i in range(size)], dtype=ht.int16, split=0)
+            out = (ht.empty_like(exp_zero), ht.empty_like(exp_zero_indcs))
+            res, indcs = ht.topk(split_zero, 2, sorted=True, largest=False, out=out)
 
     def test_unique(self):
         size = ht.MPI_WORLD.size
