@@ -936,7 +936,7 @@ def save_csv(
     truncate: bool = True,
 ):
     """
-    Saves data to CSV files
+    Saves data to CSV files. Only 2D data, all split axes.
 
     Parameters
     ----------
@@ -1045,6 +1045,7 @@ def save_csv(
         offset = offset + row_width
 
     csv_out.Close()
+    data.comm.handle.Barrier()
 
 
 def save(
