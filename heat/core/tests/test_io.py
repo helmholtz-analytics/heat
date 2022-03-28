@@ -216,6 +216,11 @@ class TestIO(TestCase):
         comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
         self.assertTrue(ht.max(data - comparison.reshape(data.shape)).item() < 0.0000001)
 
+        data = ht.random.randint(10, 100, (50, 2), split=1)
+        data.save(self.CSV_OUT_PATH)
+        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
+        self.assertTrue((data == comparison).all().item())
+
     def test_load_exception(self):
         # correct extension, file does not exist
         if ht.io.supports_hdf5():

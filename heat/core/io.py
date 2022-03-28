@@ -1032,9 +1032,15 @@ def save_csv(
         if len(data.lshape) == 1:
             row = fmt.format(data.larray[i])
         else:
+            if data.lshape[1] == 0:
+                break
             row = sep.join(fmt.format(item) for item in data.larray[i])
 
-        if data.split is None or data.split == 0 or data.comm.rank == (data.comm.size - 1):
+        if (
+            data.split is None
+            or data.split == 0
+            or displs[data.comm.rank] + data.lshape[1] == data.shape[1]
+        ):
             row = row + "\n"
         else:
             row = row + sep
