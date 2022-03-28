@@ -38,7 +38,6 @@ except ImportError:
         """
         return False
 
-
 else:
     # add functions to exports
     __all__.extend(["load_hdf5", "save_hdf5"])
@@ -242,7 +241,6 @@ except ImportError:
         """
         return False
 
-
 else:
     # add functions to visible exports
     __all__.extend(["load_netcdf", "save_netcdf"])
@@ -358,7 +356,7 @@ else:
         dimension_names: Union[list, tuple, str] = None,
         is_unlimited: bool = False,
         file_slices: Union[Iterable[int], slice, bool] = slice(None),
-        **kwargs: Dict[str, object]
+        **kwargs: Dict[str, object],
     ):
         """
         Saves data to a netCDF4 file. Attempts to utilize parallel I/O if possible.
