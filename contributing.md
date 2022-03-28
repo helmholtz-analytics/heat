@@ -79,7 +79,7 @@ git add
 pre-commit run --all-files
 git commit
 ```
-Use a properly formatted commit message, write tests that fail before your change and pass afterward, run all the tests locally and in parallel for different process counts (`mpirun -np <PROCESSES>`). Be sure to document any changed behavior in docstrings, keeping to Heat's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/504-docstring-formatting/doc/source/documentation_howto.rst).
+Use a properly formatted commit message, write tests that fail before your change and pass afterward, run all the tests locally and in parallel for different process counts (`mpirun -np <PROCESSES>`). Be sure to document any changed behavior in docstrings, keeping to Heat's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/documentation_howto.rst).
 
 
 #### Publishing your Contributions
@@ -126,7 +126,7 @@ If GitHub indicates that the branch of your PR can no longer be merged automatic
 
 * All code should have tests (see test coverage below for more details).
 
-* All code should be documented in accordance with Heat's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/504-docstring-formatting/doc/source/documentation_howto.rst).
+* All code should be documented in accordance with Heat's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/documentation_howto.rst).
 
 * No changes are ever merged without review and approval by a core team member. Feel free to ping us on the PR if you get no response to your pull request within a week.
 
