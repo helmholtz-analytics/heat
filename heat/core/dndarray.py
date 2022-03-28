@@ -687,10 +687,10 @@ class DNDarray:
         l_dtype = self.dtype.torch_type()
         advanced_ind = False
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
-            """ if the key is a DNDarray and it has as many dimensions as self, then each of the
-                entries in the 0th dim refer to a single element. To handle this, the key is split
-                into the torch tensors for each dimension. This signals that advanced indexing is
-                to be used. """
+            """if the key is a DNDarray and it has as many dimensions as self, then each of the
+            entries in the 0th dim refer to a single element. To handle this, the key is split
+            into the torch tensors for each dimension. This signals that advanced indexing is
+            to be used."""
             # NOTE: this gathers the entire key on every process!!
             # TODO: remove this resplit!!
             key = manipulations.resplit(key)
@@ -706,9 +706,9 @@ class DNDarray:
                 key = [key]
             advanced_ind = True
         elif not isinstance(key, tuple):
-            """ this loop handles all other cases. DNDarrays which make it to here refer to
-                advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
-                are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
+            """this loop handles all other cases. DNDarrays which make it to here refer to
+            advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
+            are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
             h = [slice(None, None, None)] * max(self.ndim, 1)
             if isinstance(key, DNDarray):
                 key = manipulations.resplit(key)
@@ -1413,10 +1413,10 @@ class DNDarray:
         # motived to do this they are welcome to, but i have no time right now
         # print(key)
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
-            """ if the key is a DNDarray and it has as many dimensions as self, then each of the
-                entries in the 0th dim refer to a single element. To handle this, the key is split
-                into the torch tensors for each dimension. This signals that advanced indexing is
-                to be used. """
+            """if the key is a DNDarray and it has as many dimensions as self, then each of the
+            entries in the 0th dim refer to a single element. To handle this, the key is split
+            into the torch tensors for each dimension. This signals that advanced indexing is
+            to be used."""
             key = manipulations.resplit(key)
             if key.larray.dtype in [torch.bool, torch.uint8]:
                 key = indexing.nonzero(key)
@@ -1429,9 +1429,9 @@ class DNDarray:
             else:
                 key = [key]
         elif not isinstance(key, tuple):
-            """ this loop handles all other cases. DNDarrays which make it to here refer to
-                advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
-                are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
+            """this loop handles all other cases. DNDarrays which make it to here refer to
+            advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
+            are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
             h = [slice(None, None, None)] * self.ndim
             if isinstance(key, DNDarray):
                 key = manipulations.resplit(key)

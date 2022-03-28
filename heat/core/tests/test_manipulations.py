@@ -2518,7 +2518,7 @@ class TestManipulations(TestCase):
 
     def test_rot90(self):
         size = ht.MPI_WORLD.size
-        m = ht.arange(size ** 3, dtype=ht.int).reshape((size, size, size))
+        m = ht.arange(size**3, dtype=ht.int).reshape((size, size, size))
 
         self.assertTrue(ht.equal(ht.rot90(m, 0), m))
         self.assertTrue(ht.equal(ht.rot90(m, 4), m))
@@ -2531,7 +2531,7 @@ class TestManipulations(TestCase):
         self.assertTrue(ht.equal(ht.rot90(a, 2), ht.resplit(ht.rot90(m, 2), 0)))
         self.assertTrue(ht.equal(ht.rot90(a, 3, (1, 2)), ht.resplit(ht.rot90(m, 3, (1, 2)), 0)))
 
-        m = ht.arange(size ** 3, dtype=ht.float).reshape((size, size, size))
+        m = ht.arange(size**3, dtype=ht.float).reshape((size, size, size))
         a = ht.resplit(m, 1)
 
         self.assertTrue(ht.equal(ht.rot90(a, 0), a))

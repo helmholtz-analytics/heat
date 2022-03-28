@@ -752,7 +752,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         *args,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Optional[DNDarray, torch.Tensor]]:
         """
         Generic function for reduction operations.
@@ -1005,7 +1005,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         axis: int,
-        **kwargs
+        **kwargs,
     ):
         """
         Generic function for allgather operations.
@@ -1203,7 +1203,7 @@ class MPICommunication(Communication):
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         send_axis: int,
         recv_axis: int,
-        **kwargs
+        **kwargs,
     ):
         """
         Generic function for alltoall operations.
@@ -1482,7 +1482,7 @@ class MPICommunication(Communication):
         recv_axis: int,
         send_factor: int = 1,
         recv_factor: int = 1,
-        **kwargs
+        **kwargs,
     ):
         """
         Generic function for scatter and gather operations.
