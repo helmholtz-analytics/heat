@@ -447,7 +447,7 @@ def bucketize(
     """
     if isinstance(boundaries, DNDarray):
         if boundaries.is_distributed():
-            raise RuntimeError("'boundaries' must be undistributed.")
+            raise RuntimeError("'boundaries' must not be distributed.")
         boundaries = boundaries.larray
     else:
         boundaries = torch.as_tensor(boundaries)
@@ -586,7 +586,7 @@ def digitize(x: DNDarray, bins: Union[DNDarray, torch.Tensor], right: bool = Fal
     """
     if isinstance(bins, DNDarray):
         if bins.is_distributed():
-            raise RuntimeError("'bins' must be undistributed.")
+            raise RuntimeError("'bins' must not be distributed.")
         bins = bins.larray
     else:
         bins = torch.as_tensor(bins)
