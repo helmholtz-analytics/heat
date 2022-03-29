@@ -1045,7 +1045,9 @@ def save_csv(
         else:
             row = row + sep
 
-        csv_out.Write_at(offset, row.encode("utf-8"))
+        if data.split is not None or data.comm.rank == 0:
+            csv_out.Write_at(offset, row.encode("utf-8"))
+
         offset = offset + row_width
 
     csv_out.Close()
