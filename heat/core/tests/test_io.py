@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import torch
+import tempfile
 
 import heat as ht
 from .test_suites.basic_test import TestCase
@@ -143,83 +144,56 @@ class TestIO(TestCase):
             ht.load_csv(self.CSV_PATH, header_lines="3", sep=";", split=0)
 
     def test_save_csv(self):
-        if os.path.exists(self.CSV_OUT_PATH):
-            os.truncate(self.CSV_OUT_PATH, 0)
-        # {signed, unsigned} x {float, integer} x {',', '|', ';'} x {None, 0, 1} x {header_lines, no_header_lines}
-        data = ht.arange(100).reshape(20, 5)
-        ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None, sep=";")
-        comparison = ht.load_csv(self.CSV_OUT_PATH, sep=";", dtype=data.dtype)
-        if data.comm.rank == 0:
-            self.assertTrue((data.larray == comparison.larray).all().item())
+        for rnd_type in [
+            (ht.random.randint, ht.types.int32),
+            (ht.random.randint, ht.types.int64),
+            (ht.random.rand, ht.types.float32),
+            (ht.random.rand, ht.types.float64),
+        ]:
+            for separator in [",", ";", "|"]:
+                for split in [None, 0, 1]:
+                    for headers in [None, ["# This", "# is a", "# test."], ["an,ordinary,header"]]:
+                        for shape in [(1, 1), (10, 10), (20, 1), (1, 20), (25, 4), (4, 25)]:
+                            if rnd_type[0] == ht.random.randint:
+                                data = rnd_type[0](
+                                    -100, 1000, size=shape, dtype=rnd_type[1], split=split
+                                )
+                            else:
+                                data = rnd_type[0](
+                                    shape[0],
+                                    shape[1],
+                                    split=split,
+                                    dtype=rnd_type[1],
+                                )
 
-        if os.path.exists(self.CSV_OUT_PATH):
-            os.truncate(self.CSV_OUT_PATH, 0)
-        header_lines = ["col1,col2,col3,col4,col5", "second line\n"]
-        ht.save_csv(data, self.CSV_OUT_PATH, header_lines=header_lines, sep=",")
-        comparison = ht.load_csv(self.CSV_OUT_PATH, sep=",", dtype=data.dtype, header_lines=2)
-        if data.comm.rank == 0:
-            self.assertTrue((data.larray == comparison.larray).all().item())
+                            if data.comm.rank == 0:
+                                tmpfile = tempfile.NamedTemporaryFile(
+                                    prefix="test_io_", suffix=".csv", delete=False
+                                )
+                                tmpfile.close()
+                                filename = tmpfile.name
+                            else:
+                                filename = None
+                            filename = data.comm.handle.bcast(filename, root=0)
 
-        if os.path.exists(self.CSV_OUT_PATH):
-            os.truncate(self.CSV_OUT_PATH, 0)
-        data = data - 50
-        ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None)
-        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
-        if data.comm.rank == 0:
-            self.assertTrue((data.larray == comparison.larray).all().item())
-
-        if os.path.exists(self.CSV_OUT_PATH):
-            os.truncate(self.CSV_OUT_PATH, 0)
-        data = ht.random.rand(100.0, split=0).reshape(20, 5)
-        ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None)
-        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
-        self.assertTrue(
-            ht.max(data - comparison).item() < 0.0001
-        )  # need a parameter to control precision
-
-        if os.path.exists(self.CSV_OUT_PATH):
-            os.truncate(self.CSV_OUT_PATH, 0)
-        data = ht.random.rand(100.0, split=0).reshape(50, 2)
-        ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None)
-        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
-        self.assertTrue(ht.max(data - comparison).item() < 0.0001)
-
-        if os.path.exists(self.CSV_OUT_PATH):
-            os.truncate(self.CSV_OUT_PATH, 0)
-        data = ht.arange(100.0, split=0, dtype=ht.float64).reshape(50, 2)
-        ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None)
-        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
-        self.assertTrue(ht.max(data - comparison).item() < 0.0000001)
-
-        # 1D vector (25,)
-        # + do not truncate this time, but rely on save_csv
-        data = ht.arange(25, split=0, dtype=ht.int)
-        ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None)
-        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
-        # read_csv always reads in (n, m), so need to reshape to (n,)
-        self.assertTrue(ht.max(data - comparison.reshape(data.shape)).item() == 0)
-
-        # 1D vector (1, 25)
-        data = ht.arange(25, split=0, dtype=ht.int).reshape(1, 25)
-        ht.save_csv(data, self.CSV_OUT_PATH, header_lines=None)
-        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
-        # read_csv always reads in (n, m), so need to reshape to (n,)
-        self.assertTrue(ht.max(data - comparison.reshape(data.shape)).item() == 0)
-
-        data = ht.random.randint(0, 100, (25, 4), split=1)
-        data.save(self.CSV_OUT_PATH)
-        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
-        self.assertTrue(ht.max(data - comparison.reshape(data.shape)).item() < 0.0000001)
-
-        data = ht.random.rand(250, 10, dtype=ht.float64, split=0)
-        data.save(self.CSV_OUT_PATH)
-        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
-        self.assertTrue(ht.max(data - comparison.reshape(data.shape)).item() < 0.0000001)
-
-        data = ht.random.randint(10, 100, (50, 2), split=1)
-        data.save(self.CSV_OUT_PATH)
-        comparison = ht.load_csv(self.CSV_OUT_PATH, dtype=data.dtype)
-        self.assertTrue((data == comparison).all().item())
+                            data.save(
+                                filename,
+                                header_lines=headers,
+                                sep=separator,
+                            )
+                            comparison = ht.load_csv(
+                                filename,
+                                # split=split,
+                                header_lines=0 if headers is None else len(headers),
+                                sep=separator,
+                            )
+                            resid = data - comparison
+                            self.assertTrue(
+                                ht.max(resid).item() < 0.00001 and ht.min(resid).item() > -0.00001
+                            )
+                            if data.comm.rank == 0:
+                                os.unlink(filename)
+                            data.comm.handle.Barrier()
 
     def test_load_exception(self):
         # correct extension, file does not exist
