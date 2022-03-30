@@ -13,7 +13,7 @@ from . import types
 __all__ = ["nonzero", "where"]
 
 
-def nonzero(x: DNDarray) -> Tuple:
+def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
     """
     Return a Tuple of :class:`~heat.core.dndarray.DNDarray`s, one for each dimension of a,
     containing the indices of the non-zero elements in that dimension. (using ``torch.nonzero``)
@@ -59,7 +59,9 @@ def nonzero(x: DNDarray) -> Tuple:
     lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
 
     if x.split is None:
-        # if there is no split then just return the values from torch
+        # if there is no split then just return the transpose of values from torch
+        lcl_nonzero = lcl_nonzero.transpose(0, 1)
+
         gout = list(lcl_nonzero.size())
         is_split = None
     else:
@@ -68,12 +70,13 @@ def nonzero(x: DNDarray) -> Tuple:
         _, displs = x.counts_displs()
         lcl_nonzero[..., x.split] += displs[x.comm.rank]
         del displs
+
+        lcl_nonzero = lcl_nonzero.transpose(0, 1)
+
         # get global size of split dimension
         gout = list(lcl_nonzero.size())
         gout[0] = x.comm.allreduce(gout[0], MPI.SUM)
         is_split = 0
-
-    lcl_nonzero = lcl_nonzero.transpose(0, 1)
 
     return tuple(
         DNDarray(
