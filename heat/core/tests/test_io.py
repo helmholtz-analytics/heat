@@ -191,9 +191,9 @@ class TestIO(TestCase):
                             self.assertTrue(
                                 ht.max(resid).item() < 0.00001 and ht.min(resid).item() > -0.00001
                             )
+                            data.comm.handle.Barrier()
                             if data.comm.rank == 0:
                                 os.unlink(filename)
-                            data.comm.handle.Barrier()
 
     def test_load_exception(self):
         # correct extension, file does not exist
