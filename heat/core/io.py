@@ -993,7 +993,10 @@ def save_csv(
     data_min = smin(data).item()  # at least min is used twice, so cache it here
     data_max = smax(data).item()
     sign = 1 if data_min < 0 else 0
-    pre_point_digits = int(log10(max(data_max, abs(data_min)))) + 1
+    if abs(data_max) > 0 or abs(data_min) > 0:
+        pre_point_digits = int(log10(max(abs(data_max), abs(data_min)))) + 1
+    else:
+        pre_point_digits = 1
 
     dec_sep = 1
     fmt = ""
