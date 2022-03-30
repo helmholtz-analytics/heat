@@ -78,17 +78,22 @@ def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
         gout[0] = x.comm.allreduce(gout[0], MPI.SUM)
         is_split = 0
 
-    return tuple(
-        DNDarray(
-            lcl_nonzero,
-            gshape=tuple(gout),
-            dtype=types.canonical_heat_type(lcl_nonzero.dtype),
-            split=is_split,
-            device=x.device,
-            comm=x.comm,
-            balanced=False,
-        )
+    non_zero_indices = list(
+        [
+            DNDarray(
+                dim_indices,
+                gshape=tuple(dim_indices.size()),
+                dtype=types.canonical_heat_type(lcl_nonzero.dtype),
+                split=is_split,
+                device=x.device,
+                comm=x.comm,
+                balanced=False,
+            )
+            for dim_indices in lcl_nonzero
+        ]
     )
+
+    return tuple(non_zero_indices)
 
 
 DNDarray.nonzero = lambda self: nonzero(self)
