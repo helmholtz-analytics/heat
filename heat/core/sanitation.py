@@ -381,6 +381,7 @@ def scalar_to_1d(x: DNDarray) -> DNDarray:
     x : DNDarray
         with `x.ndim = 0`
     """
-    return factories.array(
-        x.larray.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm, device=x.device
+    a = (x.larray.unsqueeze(0),)
+    return DNDarray(
+        a, gshape=tuple(a.shape), dtype=x.dtype, split=x.split, comm=x.comm, device=x.device
     )
