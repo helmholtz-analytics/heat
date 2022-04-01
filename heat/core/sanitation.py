@@ -383,5 +383,11 @@ def scalar_to_1d(x: DNDarray) -> DNDarray:
     """
     a = (x.larray.unsqueeze(0),)
     return DNDarray(
-        a, gshape=tuple(a.shape), dtype=x.dtype, split=x.split, comm=x.comm, device=x.device
+        a,
+        gshape=tuple(a.shape),
+        dtype=x.dtype,
+        split=x.split,
+        comm=x.comm,
+        device=x.device,
+        balanced=True,
     )
