@@ -895,8 +895,14 @@ def load_csv(
         # In case there are some empty lines in the csv file
         local_tensor = local_tensor[:actual_length]
 
-        resulting_tensor = factories.array(
-            local_tensor, dtype=dtype, is_split=0, device=device, comm=comm
+        resulting_tensor = DNDarray(
+            local_tensor,
+            gshape=tuple(local_tensor.shape),
+            dtype=dtype,
+            split=0,
+            device=device,
+            comm=comm,
+            balanced=local_tensor.is_balanced,
         )
         resulting_tensor.balance_()
 
@@ -918,7 +924,15 @@ def load_csv(
                 values = line.replace("\n", "").replace("\r", "").split(sep)
                 values = [float(val) for val in values]
                 data.append(values[displs[rank] : displs[rank] + chunk[rank]])
-        resulting_tensor = factories.array(data, dtype=dtype, is_split=1, device=device, comm=comm)
+        resulting_tensor = DNDarray(
+            data,
+            gshape=tuple(data.shape),
+            dtype=dtype,
+            split=1,
+            device=device,
+            comm=comm,
+            balanced=data.is_balanced,
+        )
 
     return resulting_tensor
 
