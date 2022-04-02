@@ -360,10 +360,10 @@ def scalar_to_1d(x: DNDarray) -> DNDarray:
     x : DNDarray
         with `x.ndim = 0`
     """
-    a = x.larray.unsqueeze(0)
+    a = (x.larray.unsqueeze(0),)
     return DNDarray(
         a,
-        gshape=tuple(a.size()),
+        gshape=tuple(a.shape),
         dtype=x.dtype,
         split=x.split,
         comm=x.comm,
