@@ -4,13 +4,10 @@ from __future__ import annotations
 import os.path
 from math import log10
 import numpy as np
-import heat as ht
 import torch
 import warnings
 
-
 from typing import Dict, Iterable, List, Optional, Tuple, Union
-from numpy.compat import os_fspath
 
 from . import devices
 from . import factories
