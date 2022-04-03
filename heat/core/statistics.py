@@ -266,23 +266,45 @@ def average(
         if x.gshape != weights.gshape:
             if axis is None:
                 raise TypeError("Axis must be specified when shapes of x and weights differ.")
-            elif isinstance(axis, tuple):
-                raise NotImplementedError("Weighted average over tuple axis not implemented yet.")
-            if weights.ndim != 1:
-                raise TypeError("1D weights expected when shapes of x and weights differ.")
-            if weights.gshape[0] != x.gshape[axis]:
+
+            # weights can be atmost 2D --> no of dim in axis X no of elements in each axis
+            if weights.ndim > 2:
+                raise TypeError(
+                    "Weights can be a 1-D array or list of weights of appropriate size and order."
+                )
+            elif weights.ndim == 1:
+                # if the weight is a 1D array make it 2D
+                weights = weights[None, :]
+
+            if not isinstance(axis, tuple):
+                axis = tuple([axis])
+
+            if weights.gshape[0] != len(axis):
+                raise ValueError("Number of weights and axis do not match.")
+
+            invalid = sum([weights[i].gshape[0] != x.gshape[axis[i]] for i in range(len(axis))])
+
+            if invalid:
                 raise ValueError("Length of weights not compatible with specified axis.")
 
-            wgt_lshape = tuple(
-                weights.lshape[0] if dim == axis else 1 for dim in list(range(x.ndim))
-            )
-            wgt_slice = [slice(None) if dim == axis else 0 for dim in list(range(x.ndim))]
-            wgt_split = None if weights.split is None else axis
-            wgt = torch.empty(
-                wgt_lshape, dtype=weights.dtype.torch_type(), device=x.device.torch_device
-            )
-            wgt[wgt_slice] = weights.larray
-            wgt = factories.array(wgt, is_split=wgt_split, copy=False)
+            result = factories.array(x, is_split=x.split, copy=True)
+            for i in range(len(axis)):
+                wgt_lshape = tuple(
+                    weights[i].lshape[0] if dim == axis[i] else 1 for dim in list(range(x.ndim))
+                )
+                wgt_slice = [slice(None) if dim == axis[i] else 0 for dim in list(range(x.ndim))]
+                wgt_split = None if weights.split is None else axis
+                wgt = torch.empty(
+                    wgt_lshape, dtype=weights.dtype.torch_type(), device=x.device.torch_device
+                )
+                wgt[wgt_slice] = weights[i].larray
+                wgt = factories.array(wgt, is_split=wgt_split, copy=False)
+
+                cumwgt = wgt.sum(axis=axis[i])
+                if logical.any(cumwgt == 0.0):
+                    raise ZeroDivisionError("Weights sum to zero, can't be normalized")
+
+                result = (result * wgt).sum(axis=axis[i]) / cumwgt
         else:
             if x.comm.is_distributed():
                 if x.split is not None and weights.split != x.split and weights.ndim != 1:
@@ -292,12 +314,14 @@ def average(
                     )
             wgt = factories.empty_like(weights, device=x.device)
             wgt.larray = weights.larray
-        cumwgt = wgt.sum(axis=axis)
-        if logical.any(cumwgt == 0.0):
-            raise ZeroDivisionError("Weights sum to zero, can't be normalized")
 
-        result = (x * wgt).sum(axis=axis) / cumwgt
+            cumwgt = wgt.sum(axis=axis)
+            if logical.any(cumwgt == 0.0):
+                raise ZeroDivisionError("Weights sum to zero, can't be normalized")
 
+            result = (x * wgt).sum(axis=axis) / cumwgt
+
+    # TODO: Return cumwgt for tuple axis weighted average
     if returned:
         if cumwgt.gshape != result.gshape:
             cumwgt = factories.array(
