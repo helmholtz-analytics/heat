@@ -8,7 +8,6 @@ import torch
 from typing import Optional, Union, Tuple
 
 from . import factories
-from . import indexing
 from . import manipulations
 from . import _operations
 from . import sanitation
