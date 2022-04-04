@@ -445,9 +445,9 @@ def div(
     t2: DNDarray or scalar
         The second operand by whose values is divided
     out: DNDarray, optional
-        The output array. It must have a shape that the inputs broadcast to
+        The output array. It must have a shape that the inputs broadcast to and matching split axis
     where: DNDarray, optional
-        Condition of interest, where true yield divided value else yield original value in t1
+        Condition of interest, where true yield divided value else yield original value in out (uninitialized when out=None)
 
     Example
     ---------
@@ -463,10 +463,7 @@ def div(
     DNDarray([[2.0000, 1.0000],
               [0.6667, 0.5000]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    if where is not None:
-        t2 = indexing.where(where, t2, 1)
-
-    return _operations.__binary_op(torch.true_divide, t1, t2, out)
+    return _operations.__binary_op(torch.true_divide, t1, t2, out, where)
 
 
 DNDarray.__truediv__ = lambda self, other: div(self, other)

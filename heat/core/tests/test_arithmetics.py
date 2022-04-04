@@ -372,12 +372,20 @@ class TestArithmetics(TestCase):
 
         result_where = ht.array([[1.0, 2.0], [1.5, 2.0]])
         self.assertTrue(
-            ht.equal(ht.div(self.a_tensor, self.a_scalar, where=self.a_tensor > 2), result_where)
+            ht.equal(
+                ht.div(self.a_tensor, self.a_scalar, where=self.a_tensor > 2)[1, :],
+                result_where[1, :],
+            )
         )
-        ht.div(self.a_tensor, self.a_scalar)
-
         a = self.a_tensor.copy()
         ht.div(a, self.a_scalar, out=a, where=a > 2)
+        self.assertTrue(ht.equal(a, result_where))
+        result_where_broadcasted = ht.array([[1.0, 1.0], [3.0, 2.0]])
+        a = self.a_tensor.copy()
+        ht.div(a, self.a_scalar, out=a, where=ht.array([False, True]))
+        self.assertTrue(ht.equal(a, result_where_broadcasted))
+        a = ht.array([[1.0, 2.0], [3.0, 4.0]], split=1)
+        ht.div(a, self.another_tensor, out=a, where=ht.array([[False], [True]], split=0))
         self.assertTrue(ht.equal(a, result_where))
 
         with self.assertRaises(ValueError):

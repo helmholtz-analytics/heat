@@ -26,6 +26,7 @@ def __binary_op(
     t1: Union[DNDarray, int, float],
     t2: Union[DNDarray, int, float],
     out: Optional[DNDarray] = None,
+    where: Optional[DNDarray] = None,
     fn_kwargs: Optional[Dict] = {},
 ) -> DNDarray:
     """
@@ -43,6 +44,8 @@ def __binary_op(
         The second operand involved in the operation,
     out: DNDarray, optional
         Output buffer in which the result is placed
+    where: DNDarray, optional
+        Condition of interest, where true yield the result of the operation else yield original value in out (uninitialized when out=None)
     fn_kwargs: Dict, optional
         keyword arguments used for the given operation
         Default: {} (empty dictionary)
@@ -101,6 +104,8 @@ def __binary_op(
 
     # Make inputs have the same dimensionality
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+    if where is not None:
+        output_shape = stride_tricks.broadcast_shape(where.shape, output_shape)
     # Broadcasting allows additional empty dimensions on the left side
     # TODO simplify this once newaxis-indexing is supported to get rid of the loops
     while len(t1.shape) < len(output_shape):
@@ -163,23 +168,24 @@ def __binary_op(
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, output_device, output_comm)
         t1, t2 = sanitation.sanitize_distribution(t1, t2, target=out)
-        out.larray[:] = operation(
-            t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+    else:
+        out_tensor = torch.empty(output_shape, dtype=promoted_type)
+        out = DNDarray(
+            out_tensor,
+            output_shape,
+            types.heat_type_of(out_tensor),
+            output_split,
+            device=output_device,
+            comm=output_comm,
+            balanced=output_balanced,
         )
-        return out
-    # print(t1.lshape, t2.lshape)
 
-    result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
+    result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
+    if where is not None:
+        result = torch.where(where.larray, result, out.larray)
 
-    return DNDarray(
-        result,
-        output_shape,
-        types.heat_type_of(result),
-        output_split,
-        device=output_device,
-        comm=output_comm,
-        balanced=output_balanced,
-    )
+    out.larray.copy_(result)
+    return out
 
 
 def __cum_op(
