@@ -86,7 +86,7 @@ class datatype:
         cls,
         *value,
         device: Optional[Union[str, devices.Device]] = None,
-        comm: Optional[communication.Communication] = None
+        comm: Optional[communication.Communication] = None,
     ) -> dndarray.DNDarray:
         """
         Create a new DNDarray. See :func:`ht.array <heat.core.factories.array>` for more info on general

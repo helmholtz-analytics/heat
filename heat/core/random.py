@@ -260,7 +260,7 @@ def __kundu_transform(values: torch.Tensor) -> torch.Tensor:
     ----------
     [1] Boiroju, N. K. and Reddy, K. M., "Generation of Standard Normal Random Numbers", Interstat, vol 5., 2012.
     """
-    inner = 1 - values ** 0.0775
+    inner = 1 - values**0.0775
     tiny = torch.finfo(inner.dtype).tiny
     return (torch.log(-torch.log(inner + tiny) + tiny) - 1.0821) * __KUNDU_INVERSE
 
@@ -398,7 +398,7 @@ def rand(
     dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[Device] = None,
-    comm: Optional[Communication] = None
+    comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
     Random values in a given shape. Create a :class:`~heat.core.dndarray.DNDarray` of the given shape and populate it
@@ -586,7 +586,7 @@ def randn(
     dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[str] = None,
-    comm: Optional[Communication] = None
+    comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.

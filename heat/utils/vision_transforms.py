@@ -20,7 +20,6 @@ if sys.version_info.minor >= 7:
         else:
             raise AttributeError(f"module {name} not implemented in Torch or Heat")
 
-
 else:
 
     class Wrapper(object):
