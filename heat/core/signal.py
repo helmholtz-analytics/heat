@@ -6,6 +6,7 @@ from typing import Union, Tuple, Sequence
 from .communication import MPI
 from .dndarray import DNDarray
 from .types import promote_types
+from .manipulations import pad
 import torch.nn.functional as fc
 
 __all__ = ["convolve"]
@@ -75,77 +76,39 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     if a.shape[0] <= v.shape[0]:
         raise ValueError("Filter size must not be larger than signal size")
     if a.dtype is not v.dtype:
-        raise TypeError("Signal and filter weight must be of same dtype")
+        raise TypeError(
+            "Signal and filter weight must be of same dtype, are {} and {}".format(a.dtype, v.dtype)
+        )
     if mode == "same" and v.shape[0] % 2 == 0:
-        raise ValueError("Mode 'same' cannot be use with even sized kernel")
+        raise ValueError("Mode 'same' cannot be use with even-sized kernel")
 
     # compute halo size
     halo_size = v.shape[0] // 2 if v.shape[0] % 2 == 0 else (v.shape[0] - 1) // 2
+
+    # pad DNDarray with zeros according to mode
+    if mode == "full":
+        pad_size = v.shape[0] - 1
+        gshape = v.shape[0] + a.shape[0] - 1
+    elif mode == "same":
+        pad_size = halo_size
+        gshape = a.shape[0]
+    elif mode == "valid":
+        pad_size = 0
+        gshape = a.shape[0] - v.shape[0] + 1
+    else:
+        raise ValueError("Only {'full', 'valid', 'same'} are allowed for mode")
+
+    a = pad(a, pad_size, "constant", 0)
 
     # fetch halos and store them in a.halo_next/a.halo_prev
     a.get_halo(halo_size)
 
     # apply halos to local array
-    signal = (
-        a.array_with_halos
-    )  # torch.cat(tuple(_ for _ in (a.halo_prev, a.array, a.halo_next) if _ is not None))
+    signal = a.array_with_halos
 
     # check if a local chunk is smaller than the filter size
     if a.is_distributed() and signal.size()[0] < v.shape[0]:
         raise ValueError("Local chunk size is smaller than filter size, this is not supported yet")
-
-    # ----- we need different cases for the first and last processes
-    # rank 0:                   only pad on the left
-    # rank n-1:                 only pad on the right
-    # rank i: 0 < i < n-1:      no padding at all
-
-    has_left = a.halo_prev is not None
-    has_right = a.halo_next is not None
-
-    if mode == "full":
-        pad_prev = pad_next = None
-
-        if not a.is_distributed():
-            pad_prev = pad_next = torch.zeros(
-                v.shape[0] - 1, dtype=a.dtype.torch_type(), device=signal.device
-            )
-
-        elif (not has_left) and has_right:  # maybe just check for rank?
-            # first process, pad only left
-            pad_prev = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type(), device=signal.device)
-            pad_next = None
-
-        elif has_left and (not has_right):
-            # last process, pad only right
-            pad_prev = None
-            pad_next = torch.zeros(v.shape[0] - 1, dtype=a.dtype.torch_type(), device=signal.device)
-
-        else:
-            # all processes in between don't need padding
-            pad_prev = pad_next = None
-
-        gshape = v.shape[0] + a.shape[0] - 1
-
-    elif mode == "same":
-        # first and last need padding
-        pad_prev = pad_next = None
-        if a.comm.rank == 0:
-            pad_prev = torch.zeros(halo_size, dtype=a.dtype.torch_type(), device=signal.device)
-        if a.comm.rank == a.comm.size - 1:
-            pad_next = torch.zeros(halo_size, dtype=a.dtype.torch_type(), device=signal.device)
-
-        gshape = a.shape[0]
-
-    elif mode == "valid":
-        pad_prev = pad_next = None
-        gshape = a.shape[0] - v.shape[0] + 1
-
-    else:
-        raise ValueError("Only {'full', 'valid', 'same'} are allowed for mode")
-
-    # add padding to the borders according to mode
-    # TODO: why not use ht.pad()?
-    signal = a.genpad(signal, pad_prev, pad_next)
 
     # make signal and filter weight 3D for Pytorch conv1d function
     signal.unsqueeze_(0)
