@@ -369,6 +369,10 @@ class TestArithmetics(TestCase):
         b = ht.array([[1.0, 2.0], [3.0, 4.0]])
         ht.div(b, self.another_tensor, out=b)
         self.assertTrue(ht.equal(b, result))
+        out = ht.empty((2, 2), split=self.a_split_tensor.split)
+        ht.div(self.a_split_tensor, self.a_tensor, out=out)
+        self.assertTrue(ht.equal(out, commutated_result))
+        self.assertEqual(self.a_split_tensor.split, out.split)
 
         result_where = ht.array([[1.0, 2.0], [1.5, 2.0]])
         self.assertTrue(
@@ -377,6 +381,7 @@ class TestArithmetics(TestCase):
                 result_where[1, :],
             )
         )
+
         a = self.a_tensor.copy()
         ht.div(a, self.a_scalar, out=a, where=a > 2)
         self.assertTrue(ht.equal(a, result_where))
@@ -384,9 +389,6 @@ class TestArithmetics(TestCase):
         a = self.a_tensor.copy()
         ht.div(a, self.a_scalar, out=a, where=ht.array([False, True]))
         self.assertTrue(ht.equal(a, result_where_broadcasted))
-        a = ht.array([[1.0, 2.0], [3.0, 4.0]], split=1)
-        ht.div(a, self.another_tensor, out=a, where=ht.array([[False], [True]], split=0))
-        self.assertTrue(ht.equal(a, result_where))
 
         with self.assertRaises(ValueError):
             ht.div(self.a_tensor, self.another_vector)
@@ -394,6 +396,8 @@ class TestArithmetics(TestCase):
             ht.div(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.div("T", "s")
+        with self.assertRaises(ValueError):
+            ht.div(self.a_split_tensor, self.a_tensor, out=ht.empty((2, 2), split=None))
 
     def test_fmod(self):
         result = ht.array([[1.0, 0.0], [1.0, 0.0]])

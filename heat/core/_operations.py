@@ -168,20 +168,29 @@ def __binary_op(
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, output_device, output_comm)
         t1, t2 = sanitation.sanitize_distribution(t1, t2, target=out)
-    else:
-        out_tensor = torch.empty(output_shape, dtype=promoted_type)
-        out = DNDarray(
-            out_tensor,
+
+    result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
+
+    if out is None and where is None:
+        return DNDarray(
+            result,
             output_shape,
-            types.heat_type_of(out_tensor),
+            types.heat_type_of(result),
             output_split,
             device=output_device,
             comm=output_comm,
             balanced=output_balanced,
         )
 
-    result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
     if where is not None:
+        if out is None:
+            out = factories.empty(
+                output_shape,
+                dtype=promoted_type,
+                split=output_split,
+                device=output_device,
+                comm=output_comm,
+            )
         result = torch.where(where.larray, result, out.larray)
 
     out.larray.copy_(result)
