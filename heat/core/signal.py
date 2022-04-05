@@ -5,6 +5,7 @@ from typing import Union, Tuple, Sequence
 
 from .communication import MPI
 from .dndarray import DNDarray
+from .types import promote_types
 import torch.nn.functional as fc
 
 __all__ = ["convolve"]
@@ -155,14 +156,13 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     weight.unsqueeze_(0)
     weight.unsqueeze_(0)
 
+    # cast to float if on GPU
+    if signal.is_cuda:
+        float_type = promote_types(signal.dtype, torch.float32).torch_type()
+        signal = signal.to(float_type)
+        weight = weight.to(float_type)
+
     # apply torch convolution operator
-    print(
-        "DEBUGGING: type(signal), signal.dtype, type(weight), weight.dtype",
-        type(signal),
-        signal.dtype,
-        type(weight),
-        weight.dtype,
-    )
     signal_filtered = fc.conv1d(signal, weight)
 
     # unpack 3D result into 1D
