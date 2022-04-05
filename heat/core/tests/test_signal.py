@@ -62,8 +62,6 @@ class TestSignal(TestCase):
                 gathered = manipulations.resplit(conv, axis=None)
 
                 if mode == "full":
-                    print(conv)
-                    print(gathered)
                     self.assertTrue(ht.equal(full_even, gathered))
                 else:
                     self.assertTrue(ht.equal(full_even[3:-3], gathered))
