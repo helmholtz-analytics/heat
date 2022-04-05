@@ -930,9 +930,9 @@ def __merge_moments(
 
     var1, var2 = m1[-3], m2[-3]
     if unbiased:
-        var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
+        var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta**2) * n1 * n2 / n) / (n - 1)
     else:
-        var_m = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n
+        var_m = (var1 * n1 + var2 * n2 + (delta**2) * n1 * n2 / n) / n
 
     if len(m1) == 3:  # merge vars
         return var_m, mu, n
