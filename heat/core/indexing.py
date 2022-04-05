@@ -79,7 +79,7 @@ def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
         [
             DNDarray(
                 dim_indices,
-                gshape=tuple(dim_indices.size()),
+                gshape=tuple(gout),
                 dtype=types.canonical_heat_type(lcl_nonzero.dtype),
                 split=is_split,
                 device=x.device,
