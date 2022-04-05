@@ -1,5 +1,6 @@
 # Pending additions
 - [#595](https://github.com/helmholtz-analytics/heat/pull/595) Distributed 1-D convolution: `ht.convolve`
+- [#595](https://github.com/helmholtz-analytics/heat/pull/595) `DNDarray.get_halo` method no longer requires load-balance
 - [#867](https://github.com/helmholtz-analytics/heat/pull/867) Upgraded to support torch 1.9.0
 - [#876](https://github.com/helmholtz-analytics/heat/pull/876) Make examples work (Lasso and kNN)
 - [#894](https://github.com/helmholtz-analytics/heat/pull/894) Change inclusion of license file
