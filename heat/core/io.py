@@ -897,12 +897,12 @@ def load_csv(
 
         resulting_tensor = DNDarray(
             local_tensor,
-            gshape=tuple(local_tensor.shape),
+            gshape=local_shape,
             dtype=dtype,
             split=0,
             device=device,
             comm=comm,
-            balanced=local_tensor.is_balanced,
+            balanced=None,
         )
         resulting_tensor.balance_()
 
@@ -924,15 +924,7 @@ def load_csv(
                 values = line.replace("\n", "").replace("\r", "").split(sep)
                 values = [float(val) for val in values]
                 data.append(values[displs[rank] : displs[rank] + chunk[rank]])
-        resulting_tensor = DNDarray(
-            data,
-            gshape=tuple(data.shape),
-            dtype=dtype,
-            split=1,
-            device=device,
-            comm=comm,
-            balanced=data.is_balanced,
-        )
+        resulting_tensor = factories.array(data, dtype=dtype, is_split=1, device=device, comm=comm)
 
     return resulting_tensor
 
