@@ -446,7 +446,9 @@ def div(
     out: DNDarray, optional
         The output array. It must have a shape that the inputs broadcast to and matching split axis
     where: DNDarray, optional
-        Condition of interest, where true yield divided value else yield original value in out (uninitialized when out=None)
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array will be set to
+        the divided value. Elsewhere, the `out` array will retain its original value. If an uninitialized `out`
+        array is created via the default `out=None`, locations within it where the condition is False will remain uninitialized.
 
     Example
     ---------

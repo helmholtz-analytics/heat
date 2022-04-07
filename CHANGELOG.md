@@ -17,8 +17,8 @@
 ## Feature Additions
 
 ### Arithmetics
- - [#887](https://github.com/helmholtz-analytics/heat/pull/887) Binary operations now support operands of equal shapes, equal `split` axes, but different distribution maps.
- - [#945](https://github.com/helmholtz-analytics/heat/pull/945) `div` now supports `out` and `where` kwargs
+- [#887](https://github.com/helmholtz-analytics/heat/pull/887) Binary operations now support operands of equal shapes, equal `split` axes, but different distribution maps.
+- [#945](https://github.com/helmholtz-analytics/heat/pull/945) `div` now supports `out` and `where` kwargs
 ### Communication
 - [#868](https://github.com/helmholtz-analytics/heat/pull/868) New `MPICommunication` method `Split`
 ### DNDarray

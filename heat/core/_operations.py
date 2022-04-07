@@ -45,7 +45,9 @@ def __binary_op(
     out: DNDarray, optional
         Output buffer in which the result is placed
     where: DNDarray, optional
-        Condition of interest, where true yield the result of the operation else yield original value in out (uninitialized when out=None)
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array will be set to
+        the result of the operation. Elsewhere, the `out` array will retain its original value. If an uninitialized `out`
+        array is created via the default `out=None`, locations within it where the condition is False will remain uninitialized.
     fn_kwargs: Dict, optional
         keyword arguments used for the given operation
         Default: {} (empty dictionary)
