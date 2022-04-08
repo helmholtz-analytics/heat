@@ -405,7 +405,7 @@ def bucketize(
     input : DNDarray
         The input array.
     boundaries : DNDarray or torch.Tensor
-        monotonically increasing sequence defining the bucket boundaries, 1-dimensional
+        monotonically increasing sequence defining the bucket boundaries, 1-dimensional, not distributed
     out_int32 : bool, optional
         set the dtype of the output to ``ht.int64`` (`False`) or ``ht.int32`` (True)
     right : bool, optional
