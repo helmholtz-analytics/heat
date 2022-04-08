@@ -13,12 +13,12 @@ from . import types
 __all__ = ["nonzero", "where"]
 
 
-def nonzero(x: DNDarray) -> DNDarray:
+def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
     """
-    Return a :class:`~heat.core.dndarray.DNDarray` containing the indices of the elements that are non-zero.. (using ``torch.nonzero``)
-    If ``x`` is split then the result is split in the 0th dimension. However, this :class:`~heat.core.dndarray.DNDarray`
+    Return a Tuple of :class:`~heat.core.dndarray.DNDarray`s, one for each dimension of ``x``,
+    containing the indices of the non-zero elements in that dimension. If ``x`` is split then
+    the result is split in the 0th dimension. However, this :class:`~heat.core.dndarray.DNDarray`
     can be UNBALANCED as it contains the indices of the non-zero elements on each node.
-    Returns an array with one entry for each dimension of ``x``, containing the indices of the non-zero elements in that dimension.
     The values in ``x`` are always tested and returned in row-major, C-style order.
     The corresponding non-zero values can be obtained with: ``x[nonzero(x)]``.
 
@@ -32,10 +32,8 @@ def nonzero(x: DNDarray) -> DNDarray:
     >>> import heat as ht
     >>> x = ht.array([[3, 0, 0], [0, 4, 1], [0, 6, 0]], split=0)
     >>> ht.nonzero(x)
-    DNDarray([[0, 0],
-              [1, 1],
-              [1, 2],
-              [2, 1]], dtype=ht.int64, device=cpu:0, split=0)
+    (DNDarray([0, 1, 1, 2], dtype=ht.int64, device=cpu:0, split=None),
+        DNDarray([0, 1, 2, 1], dtype=ht.int64, device=cpu:0, split=None))
     >>> y = ht.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], split=0)
     >>> y > 3
     DNDarray([[False, False, False],
@@ -48,6 +46,8 @@ def nonzero(x: DNDarray) -> DNDarray:
               [2, 0],
               [2, 1],
               [2, 2]], dtype=ht.int64, device=cpu:0, split=0)
+    (DNDarray([1, 1, 1, 2, 2, 2], dtype=ht.int64, device=cpu:0, split=None),
+        DNDarray([0, 1, 2, 0, 1, 2], dtype=ht.int64, device=cpu:0, split=None))
     >>> y[ht.nonzero(y > 3)]
     DNDarray([4, 5, 6, 7, 8, 9], dtype=ht.int64, device=cpu:0, split=0)
     """
@@ -56,38 +56,41 @@ def nonzero(x: DNDarray) -> DNDarray:
     except AttributeError:
         raise TypeError("Input must be a DNDarray, is {}".format(type(x)))
 
+    lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False).transpose(0, 1)
+
     if x.split is None:
-        # if there is no split then just return the values from torch
-        lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
+        # if there is no split then just return the transpose of values from torch
+
         gout = list(lcl_nonzero.size())
         is_split = None
     else:
         # a is split
-        lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
         # adjust local indices along split dimension
         _, displs = x.counts_displs()
-        lcl_nonzero[..., x.split] += displs[x.comm.rank]
+        lcl_nonzero[x.split] += displs[x.comm.rank]
         del displs
+
         # get global size of split dimension
         gout = list(lcl_nonzero.size())
-        gout[0] = x.comm.allreduce(gout[0], MPI.SUM)
+        gout[1] = x.comm.allreduce(gout[1], MPI.SUM)
         is_split = 0
 
-    if x.ndim == 1:
-        lcl_nonzero = lcl_nonzero.squeeze(dim=1)
-    for g in range(len(gout) - 1, -1, -1):
-        if gout[g] == 1:
-            del gout[g]
-
-    return DNDarray(
-        lcl_nonzero,
-        gshape=tuple(gout),
-        dtype=types.canonical_heat_type(lcl_nonzero.dtype),
-        split=is_split,
-        device=x.device,
-        comm=x.comm,
-        balanced=False,
+    non_zero_indices = list(
+        [
+            DNDarray(
+                dim_indices,
+                gshape=tuple(gout),
+                dtype=types.canonical_heat_type(lcl_nonzero.dtype),
+                split=is_split,
+                device=x.device,
+                comm=x.comm,
+                balanced=False,
+            )
+            for dim_indices in lcl_nonzero
+        ]
     )
+
+    return tuple(non_zero_indices)
 
 
 DNDarray.nonzero = lambda self: nonzero(self)
