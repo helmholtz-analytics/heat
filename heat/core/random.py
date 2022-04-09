@@ -394,7 +394,7 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
         data,
         gshape=tuple(data.shape),
         dtype=x.dtype,
-        is_split=x.split,
+        split=x.split,
         device=x.device,
         comm=x.comm,
         balanced=x.is_balanced,
