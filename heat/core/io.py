@@ -802,6 +802,7 @@ def load_csv(
                 values = line.replace("\n", "").replace("\r", "").split(sep)
                 values = [float(val) for val in values]
                 result.append(values)
+            result = np.squeeze(result)
             resulting_tensor = factories.array(
                 result, dtype=dtype, split=split, device=device, comm=comm
             )
@@ -893,7 +894,7 @@ def load_csv(
                     actual_length += 1
 
         # In case there are some empty lines in the csv file
-        local_tensor = local_tensor[:actual_length]
+        local_tensor = np.squeeze(local_tensor[:actual_length])
 
         resulting_tensor = factories.array(
             local_tensor, dtype=dtype, is_split=0, device=device, comm=comm
@@ -910,7 +911,6 @@ def load_csv(
             values = line.replace("\n", "").replace("\r", "").split(sep)
             values = [float(val) for val in values]
             rows = len(values)
-
             chunk, displs, _ = comm.counts_displs_shape((1, rows), 1)
             data.append(values[displs[rank] : displs[rank] + chunk[rank]])
             # Read file line by line till EOF reached
@@ -918,6 +918,7 @@ def load_csv(
                 values = line.replace("\n", "").replace("\r", "").split(sep)
                 values = [float(val) for val in values]
                 data.append(values[displs[rank] : displs[rank] + chunk[rank]])
+        data = np.squeeze(data)
         resulting_tensor = factories.array(data, dtype=dtype, is_split=1, device=device, comm=comm)
 
     return resulting_tensor
