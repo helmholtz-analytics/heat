@@ -3,6 +3,7 @@ Logical functions for the DNDarrays
 """
 
 import numpy as np
+import heat as ht
 import torch
 
 from typing import Callable, Optional, Tuple, Union
@@ -32,6 +33,7 @@ __all__ = [
     "logical_or",
     "logical_xor",
     "signbit",
+    "isin",
 ]
 
 
@@ -529,3 +531,35 @@ def signbit(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     DNDarray([False,  True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__local_op(torch.signbit, x, out, no_cast=True)
+
+
+def isin(x: Union[int, float, DNDarray], y: Union[int, float, DNDarray]) -> DNDarray:
+    """
+    Tests if each element of x is in y.
+    Returns a boolean tensor of the same shape as x that is True for elements in y and False otherwise.
+
+    Parameters
+    ----------
+    x : DNDarray or Scalar
+        Input elements
+
+    y : DNDarray or Scalar
+        Values against which to test for each input element
+
+    Notes
+    -----------
+    One of x or y can be a scalar, but not both.
+
+    Examples
+    ----------
+    >>> a = ht.array([[1, 2], [3, 4]])
+    >>> b = ht.array([2, 3])
+    >>> ht.isin(a,b)
+    DNDarray([[False,  True],
+              [True, False]], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    x = x.larray.contiguous()
+    x = ht.array(x)
+    y = y.larray.contiguous()
+    y = ht.array(y)
+    return _operations.__binary_op(torch.isin, x, y)
