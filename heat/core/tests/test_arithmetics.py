@@ -253,7 +253,6 @@ class TestArithmetics(TestCase):
         result = ht.array([[1, 1], [2, 2], [3, 3], [4, 4]], dtype=ht.int64, split=0)
 
         cumsum = ht.cumsum(a, 0)
-        print(cumsum)
         self.assertTrue(ht.equal(cumsum, result))
 
         # 3D
@@ -414,12 +413,6 @@ class TestArithmetics(TestCase):
             ht.div("T", "s")
         with self.assertRaises(ValueError):
             ht.div(self.a_split_tensor, self.a_tensor, out=ht.empty((2, 2), split=None))
-        with self.assertRaises(NotImplementedError):
-            ht.div(
-                self.a_tensor,
-                self.a_scalar,
-                where=ht.array([[True, False], [False, True]], split=0),
-            )
         with self.assertRaises(NotImplementedError):
             ht.div(
                 self.a_split_tensor,
