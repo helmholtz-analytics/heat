@@ -253,6 +253,7 @@ class TestArithmetics(TestCase):
         result = ht.array([[1, 1], [2, 2], [3, 3], [4, 4]], dtype=ht.int64, split=0)
 
         cumsum = ht.cumsum(a, 0)
+        print(cumsum)
         self.assertTrue(ht.equal(cumsum, result))
 
         # 3D
@@ -385,29 +386,25 @@ class TestArithmetics(TestCase):
         a = self.a_tensor.copy()
         ht.div(a, self.a_scalar, out=a, where=a > 2)
         self.assertTrue(ht.equal(a, result_where))
+        out = ht.array([[1.0, 2.0], [3.0, 4.0]], split=1)
+        where = ht.array([[True, True], [False, True]], split=None)
+        ht.div(out, self.another_tensor, out=out, where=where)
+        self.assertTrue(ht.equal(out, ht.array([[0.5, 1.0], [3.0, 2.0]])))
+        self.assertEqual(1, out.split)
+        out = ht.array([[1.0, 2.0], [3.0, 4.0]], split=0)
+        where.resplit_(0)
+        ht.div(out, self.another_tensor, out=out, where=where)
+        self.assertTrue(ht.equal(out, ht.array([[0.5, 1.0], [3.0, 2.0]])))
+        self.assertEqual(0, out.split)
+
         result_where_broadcasted = ht.array([[1.0, 1.0], [3.0, 2.0]])
         a = self.a_tensor.copy()
         ht.div(a, self.a_scalar, out=a, where=ht.array([False, True]))
         self.assertTrue(ht.equal(a, result_where_broadcasted))
-        a = self.a_tensor.copy().resplit_(1)
+        a = self.a_tensor.copy().resplit_(0)
         ht.div(a, self.a_scalar, out=a, where=ht.array([False, True], split=0))
         self.assertTrue(ht.equal(a, result_where_broadcasted))
-        self.assertEqual(1, a.split)
-
-        out = ht.array([[1.0, 2.0], [3.0, 4.0]], split=1)
-        where = ht.array([[True, True], [False, True]], split=0)
-        ht.div(out, self.another_tensor, out=out, where=where)
-        self.assertTrue(ht.equal(out, ht.array([[0.5, 1.0], [3.0, 2.0]])))
-        self.assertEqual(1, out.split)
-        out = ht.array([[1.0, 2.0], [3.0, 4.0]], split=None)
-        ht.div(out, self.another_tensor, out=out, where=where)
-        self.assertTrue(ht.equal(out, ht.array([[0.5, 1.0], [3.0, 2.0]])))
-        self.assertIsNone(out.split)
-        out = ht.array([[1.0, 2.0], [3.0, 4.0]], split=0)
-        where.resplit_(None)
-        ht.div(out, self.another_tensor, out=out, where=where)
-        self.assertTrue(ht.equal(out, ht.array([[0.5, 1.0], [3.0, 2.0]])))
-        self.assertEqual(0, out.split)
+        self.assertEqual(0, a.split)
 
         with self.assertRaises(ValueError):
             ht.div(self.a_tensor, self.another_vector)
@@ -417,6 +414,18 @@ class TestArithmetics(TestCase):
             ht.div("T", "s")
         with self.assertRaises(ValueError):
             ht.div(self.a_split_tensor, self.a_tensor, out=ht.empty((2, 2), split=None))
+        with self.assertRaises(NotImplementedError):
+            ht.div(
+                self.a_tensor,
+                self.a_scalar,
+                where=ht.array([[True, False], [False, True]], split=0),
+            )
+        with self.assertRaises(NotImplementedError):
+            ht.div(
+                self.a_split_tensor,
+                self.a_tensor,
+                where=ht.array([[True, False], [False, True]], split=1),
+            )
 
     def test_fmod(self):
         result = ht.array([[1.0, 0.0], [1.0, 0.0]])

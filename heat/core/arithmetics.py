@@ -440,15 +440,18 @@ def div(
     Parameters
     ----------
     t1: DNDarray or scalar
-        The first operand whose values are divided
+        The first operand whose values are divided.
     t2: DNDarray or scalar
-        The second operand by whose values is divided
+        The second operand by whose values is divided.
     out: DNDarray, optional
-        The output array. It must have a shape that the inputs broadcast to and matching split axis
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
     where: DNDarray, optional
-        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array will be set to
-        the divided value. Elsewhere, the `out` array will retain its original value. If an uninitialized `out`
-        array is created via the default `out=None`, locations within it where the condition is False will remain uninitialized.
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the divided value. Elsewhere, the `out` array will retain its original value. If
+        an uninitialized `out` array is created via the default `out=None`, locations within it where the
+        condition is False will remain uninitialized. If distributed, must be distributed along the same
+        dimension as the `out` array.
 
     Example
     ---------

@@ -39,15 +39,17 @@ def __binary_op(
         The operation to be performed. Function that performs operation elements-wise on the involved tensors,
         e.g. add values from other to self
     t1: DNDarray or scalar
-        The first operand involved in the operation,
+        The first operand involved in the operation.
     t2: DNDarray or scalar
-        The second operand involved in the operation,
+        The second operand involved in the operation.
     out: DNDarray, optional
-        Output buffer in which the result is placed
+        Output buffer in which the result is placed. If not provided, a freshly allocated array is returned.
     where: DNDarray, optional
-        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array will be set to
-        the result of the operation. Elsewhere, the `out` array will retain its original value. If an uninitialized `out`
-        array is created via the default `out=None`, locations within it where the condition is False will remain uninitialized.
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the result of the operation. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations within
+        it where the condition is False will remain uninitialized. If distributed, must be distributed
+        along the same dimension as the `out` array.
     fn_kwargs: Dict, optional
         keyword arguments used for the given operation
         Default: {} (empty dictionary)
@@ -114,6 +116,9 @@ def __binary_op(
         t1 = t1.expand_dims(axis=0)
     while len(t2.shape) < len(output_shape):
         t2 = t2.expand_dims(axis=0)
+    if where is not None:
+        while len(where.shape) < len(output_shape):
+            where = where.expand_dims(axis=0)
     # t1 = t1[tuple([None] * (len(output_shape) - t1.ndim))]
     # t2 = t2[tuple([None] * (len(output_shape) - t2.ndim))]
     # print(t1.lshape, t2.lshape)
@@ -193,6 +198,8 @@ def __binary_op(
                 device=output_device,
                 comm=output_comm,
             )
+        if where.split != out.split:
+            where = sanitation.sanitize_distribution(where, target=out)
         result = torch.where(where.larray, result, out.larray)
 
     out.larray.copy_(result)
