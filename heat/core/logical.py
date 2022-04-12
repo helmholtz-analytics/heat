@@ -533,7 +533,9 @@ def signbit(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     return _operations.__local_op(torch.signbit, x, out, no_cast=True)
 
 
-def isin(x: Union[int, float, DNDarray], y: Union[int, float, DNDarray]) -> DNDarray:
+def isin(
+    x: Union[int, float, DNDarray], y: Union[int, float, DNDarray], invert: Optional[bool] = False
+) -> DNDarray:
     """
     Tests if each element of x is in y.
     Returns a boolean tensor of the same shape as x that is True for elements in y and False otherwise.
@@ -546,9 +548,12 @@ def isin(x: Union[int, float, DNDarray], y: Union[int, float, DNDarray]) -> DNDa
     y : DNDarray or Scalar
         Values against which to test for each input element
 
-    Notes
-    -----------
-    One of x or y can be a scalar, but not both.
+    invert : bool, optional
+             If True, inverts the boolean return DNDarray , resulting in True values for elements not in y.
+
+    See Also
+    ---------
+    func:`~heat.core.arithmetics.invert`
 
     Examples
     ----------
@@ -558,8 +563,16 @@ def isin(x: Union[int, float, DNDarray], y: Union[int, float, DNDarray]) -> DNDa
     DNDarray([[False,  True],
               [True, False]], dtype=ht.bool, device=cpu:0, split=None)
     """
+    if not isinstance(x, DNDarray):
+        x = ht.asarray(list(x))
+    if not isinstance(y, DNDarray):
+        y = ht.asarray(list(y))
     x = x.larray.contiguous()
     x = ht.array(x)
     y = y.larray.contiguous()
     y = ht.array(y)
-    return _operations.__binary_op(torch.isin, x, y)
+    a = _operations.__binary_op(torch.isin, x, y)
+    if not invert:
+        return a
+    else:
+        return ht.invert(a)
