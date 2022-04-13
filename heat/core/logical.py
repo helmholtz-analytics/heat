@@ -33,7 +33,7 @@ __all__ = [
     "logical_or",
     "logical_xor",
     "signbit",
-    "isin",
+    "in1d",
 ]
 
 
@@ -533,46 +533,86 @@ def signbit(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     return _operations.__local_op(torch.signbit, x, out, no_cast=True)
 
 
-def isin(
-    x: Union[int, float, DNDarray], y: Union[int, float, DNDarray], invert: Optional[bool] = False
+def in1d(
+    x: Union[DNDarray, int, float],
+    y: Union[DNDarray, int, float],
+    assume_unique: Optional[bool] = False,
+    invert: Optional[bool] = False,
 ) -> DNDarray:
     """
-    Tests if each element of x is in y.
-    Returns a boolean tensor of the same shape as x that is True for elements in y and False otherwise.
+    Test whether each element of a 1-D array is also present in a second array.
+    Returns a boolean array the same length as `x` that is True
+    where an element of `x` is in `y` and False otherwise.
+    We recommend using :func:`isin` instead of `in1d` for new code.
 
     Parameters
     ----------
-    x : DNDarray or Scalar
-        Input elements
-
-    y : DNDarray or Scalar
-        Values against which to test for each input element
-
+    x : DNDarray or scalar
+        Input array.
+    y : DNDarray or scalar
+        The values against which to test each value of `x`.
+    assume_unique : bool, optional
+        If True, the input arrays are both assumed to be unique, which
+        can speed up the calculation.Default is False.
     invert : bool, optional
-             If True, inverts the boolean return DNDarray , resulting in True values for elements not in y.
+        If True, the values in the returned array are inverted (that is,
+        False where an element of `x` is in `y` and True otherwise).
+        Default is False. ``ht.in1d(a, b, invert=True)`` is equivalent
+        to (but is faster than) ``ht.invert(in1d(a, b))``.
 
     See Also
-    ---------
-    func:`~heat.core.arithmetics.invert`
+    --------
+     :func:`asarray`
+     :func:`ravel`
+     :func:`concatenate`
+     :func:`unique`
+     :func:`bitwise_and`
+     :func:`bitwise_or`
 
     Examples
-    ----------
-    >>> a = ht.array([[1, 2], [3, 4]])
-    >>> b = ht.array([2, 3])
-    >>> ht.isin(a,b)
-    DNDarray([[False,  True],
-              [True, False]], dtype=ht.bool, device=cpu:0, split=None)
+    --------
+    >>> x= ht.array([0, 1, 2, 5, 0])
+    >>> y= ht.array([0, 2])
+    >>> np.in1d(x,y)
+    DNDarray([ True, False,  True, False,  True], dtype=ht.bool, device=cpu:0, split=None)
+    >>> np.in1d(x,y,invert=True)
+    DNDarray([ False, True,  False, True,  False], dtype=ht.bool, device=cpu:0, split=None)
     """
-    if not isinstance(x, DNDarray):
-        x = ht.asarray(list(x))
-    if not isinstance(y, DNDarray):
-        y = ht.asarray(list(y))
-    x = x.larray.contiguous()
-    x = ht.array(x)
-    y = y.larray.contiguous()
-    y = ht.array(y)
-    a = _operations.__binary_op(torch.isin, x, y)
-    if not invert:
-        return a
+    x = ht.asarray(x).ravel()
+    y = ht.asarray(y).ravel()
+
+    # This code is run when the below condition is true, making the code significantly faster
+    if len(y) < 10 * len(x) ** 0.145:
+        if invert:
+            mask = ht.ones(len(x), dtype=bool)
+            for a in y:
+                mask = ht.bitwise_and(mask, x != a)
+        else:
+            mask = ht.zeros(len(x), dtype=bool)
+            for a in y:
+                mask = ht.bitwise_or(mask, x == a)
+        return mask
+    # Otherwise use sorting
+    if not assume_unique:
+        x, rev_idx = ht.unique(x, sorted=True, return_inverse=True)
+        print(rev_idx)
+        y = ht.unique(y, sorted=True)
+
+    ar = ht.concatenate((x, y))
+    # We need this to be a stable sort, so always use 'mergesort'
+    # here. The values from the first array should always come before
+    # the values from the second array.
+    order = ar.numpy().argsort(kind="mergesort")
+    sar = ar[order]
+    if invert:
+        bool_ar = sar[1:] != sar[:-1]
     else:
-        return ht.invert(a)
+        bool_ar = sar[1:] == sar[:-1]
+    flag = ht.concatenate((ht.array(bool_ar), ht.array([invert])))
+    ret = ht.empty(ar.shape, dtype=bool)
+    ret[order] = flag
+
+    if assume_unique:
+        return ret[: len(x)]
+    else:
+        return ret[rev_idx]
