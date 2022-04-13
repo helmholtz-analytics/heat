@@ -305,4 +305,3 @@ MANIFEST
 travis_wait_*.log
 testing.py
 heat/datasets/MNISTDataset
-test.py
