@@ -392,7 +392,7 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
 
     return DNDarray(
         data,
-        gshape=tuple(data.shape),
+        gshape=x.gshape,
         dtype=x.dtype,
         split=x.split,
         device=x.device,
@@ -687,15 +687,7 @@ def randperm(
     comm = communication.sanitize_comm(comm)
     perm = torch.randperm(n, dtype=dtype.torch_type(), device=device.torch_device)
 
-    return DNDarray(
-        perm,
-        gshape=tuple(perm.shape),
-        dtype=dtype,
-        device=device,
-        split=split,
-        comm=comm,
-        balanced=True,
-    )
+    return factories.array(perm, dtype=dtype, device=device, split=split, comm=comm)
 
 
 def random(
