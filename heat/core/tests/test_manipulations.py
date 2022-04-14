@@ -24,7 +24,6 @@ class TestManipulations(TestCase):
 
         data = ht.array(tensor, split=0)
 
-        exp_axis_zero = torch.arange(size, device=self.device.torch_device).reshape(1, size)
         exp_indices = torch.tensor([[rank] * size], device=self.device.torch_device)
         result_indices = ht.argsort(data, descending=True, axis=0)
         self.assertTrue(torch.equal(result_indices.larray, exp_indices.int()))
@@ -43,9 +42,6 @@ class TestManipulations(TestCase):
 
         data = ht.array(tensor, split=1)
 
-        exp_axis_zero = (
-            torch.tensor(rank, device=self.device.torch_device).repeat(size).reshape(size, 1)
-        )
         indices_axis_zero = torch.arange(
             size, dtype=torch.int64, device=self.device.torch_device
         ).reshape(size, 1)
@@ -74,9 +70,6 @@ class TestManipulations(TestCase):
         )
 
         data = ht.array(tensor, split=0)
-        exp_axis_zero = torch.tensor(
-            [[2, 3, 0], [0, 2, 3]], dtype=torch.int32, device=self.device.torch_device
-        )
         if torch.cuda.is_available() and data.device == ht.gpu and size < 4:
             indices_axis_zero = torch.tensor(
                 [[0, 2, 2], [3, 2, 0]], dtype=torch.int32, device=self.device.torch_device
@@ -91,7 +84,6 @@ class TestManipulations(TestCase):
             self.assertTrue(torch.equal(first_indices, indices_axis_zero))
 
         data = ht.array(tensor, split=1)
-        exp_axis_one = torch.tensor([[2, 2, 3]], dtype=torch.int32, device=self.device.torch_device)
         indices_axis_one = torch.tensor(
             [[0, 1, 1]], dtype=torch.int32, device=self.device.torch_device
         )
@@ -101,7 +93,6 @@ class TestManipulations(TestCase):
             self.assertTrue(torch.equal(first_indices, indices_axis_one))
 
         data = ht.array(tensor, split=2)
-        exp_axis_two = torch.tensor([[2], [2]], dtype=torch.int32, device=self.device.torch_device)
         indices_axis_two = torch.tensor(
             [[0], [1]], dtype=torch.int32, device=self.device.torch_device
         )
