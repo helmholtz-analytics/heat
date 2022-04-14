@@ -381,6 +381,8 @@ def scalar_to_1d(x: DNDarray) -> DNDarray:
     x : DNDarray
         with `x.ndim = 0`
     """
+    if not isinstance(x, DNDarray):
+        raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
     a = x.larray.unsqueeze(0)
     return DNDarray(
         a,
