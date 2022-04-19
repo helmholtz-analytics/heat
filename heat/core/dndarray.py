@@ -377,7 +377,7 @@ class DNDarray:
                 "halo_size needs to be a positive Python integer, {} given".format(type(halo_size))
             )
 
-        if self.is_distributed():
+        if self.is_distributed() and halo_size > 0:
             # gather lshapes
             lshape_map = self.lshape_map
             rank = self.comm.rank
