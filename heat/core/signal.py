@@ -7,6 +7,7 @@ from .communication import MPI
 from .dndarray import DNDarray
 from .types import promote_types
 from .manipulations import pad
+from .factories import array
 import torch.nn.functional as fc
 
 __all__ = ["convolve"]
@@ -41,10 +42,11 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
     Notes
     -----
-        TODO: fix this note and underlying API inconsistencies
-        There is  differences to the numpy convolve function:
-        The inputs are not swapped if v is larger than a. The reason is that v needs to be
-        non-splitted. This should not influence performance.
+        Contrary to the original `numpy.convolve`, this function does not
+        swap the input arrays if the second one is larger than the first one.
+        This is because `a`, the signal, might be memory-distributed,
+        whereas the filter `v` is assumed to be non-distributed,
+        i.e. a copy of `v` will reside on each process.
 
 
     Examples
@@ -55,30 +57,31 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     >>> v = ht.arange(3).astype(ht.float)
     >>> ht.convolve(a, v, mode='full')
     DNDarray([0., 1., 3., 3., 3., 3., 2.])
-
-    Only return the middle values of the convolution.
-    Contains boundary effects, where zeros are taken
-    into account:
     >>> ht.convolve(a, v, mode='same')
     DNDarray([1., 3., 3., 3., 3.])
-
-    Compute only positions where signal and filter weights
-    completely overlap:
     >>> ht.convolve(a, v, mode='valid')
     DNDarray([3., 3., 3.])
     """
-    if not isinstance(a, DNDarray) or not isinstance(v, DNDarray):
-        raise TypeError("Signal and filter weight must be of type DNDarray")
+    if not isinstance(a, DNDarray):
+        try:
+            a = array(a)
+        except TypeError:
+            raise TypeError("non-supported type for signal: {}".format(type(a)))
+    if not isinstance(v, DNDarray):
+        try:
+            v = array(v)
+        except TypeError:
+            raise TypeError("non-supported type for filter: {}".format(type(v)))
+    promoted_type = promote_types(a.dtype, v.dtype)
+    a = a.astype(promoted_type)
+    v = v.astype(promoted_type)
+
     if v.is_distributed():
         raise TypeError("Distributed filter weights are not supported")
     if len(a.shape) != 1 or len(v.shape) != 1:
         raise ValueError("Only 1-dimensional input DNDarrays are allowed")
     if a.shape[0] <= v.shape[0]:
         raise ValueError("Filter size must not be greater than or equal to signal size")
-    if a.dtype is not v.dtype:
-        raise TypeError(
-            "Signal and filter weight must be of same dtype, are {} and {}".format(a.dtype, v.dtype)
-        )
     if mode == "same" and v.shape[0] % 2 == 0:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
 
