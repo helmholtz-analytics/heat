@@ -126,6 +126,7 @@ class TestDNDarray(TestCase):
             # test no data on process
             data_np = np.arange(2 * 12).reshape(2, 12)
             data = ht.array(data_np, split=0)
+            print("DEBUGGING: data.lshape_map = ", data.lshape_map)
             data.get_halo(1)
 
             data_with_halos = data.array_with_halos
@@ -163,6 +164,7 @@ class TestDNDarray(TestCase):
 
         # test halo of imbalanced dndarray
         if data.comm.size > 2:
+            # test for split=0
             t_data = torch.arange(
                 5 * data.comm.rank, dtype=torch.float64, device=data.larray.device
             ).reshape(data.comm.rank, 5)
@@ -194,6 +196,41 @@ class TestDNDarray(TestCase):
                 next_halo = next_data[0]
                 new_split_size = data.larray.shape[0] + 2
             self.assertEqual(data_with_halos.shape, (new_split_size, 5))
+            self.assertTrue(data.halo_prev is prev_halo or (data.halo_prev == prev_halo).all())
+            self.assertTrue(data.halo_next is next_halo or (data.halo_next == next_halo).all())
+
+            # test for split=1
+            t_data = torch.arange(
+                5 * data.comm.rank, dtype=torch.float64, device=data.larray.device
+            ).reshape(5, -1)
+            if data.comm.rank > 0:
+                prev_data = torch.arange(
+                    5 * (data.comm.rank - 1), dtype=torch.float64, device=data.larray.device
+                ).reshape(5, -1)
+            if data.comm.rank < data.comm.size - 1:
+                next_data = torch.arange(
+                    5 * (data.comm.rank + 1), dtype=torch.float64, device=data.larray.device
+                ).reshape(5, -1)
+            data = ht.array(t_data, is_split=1)
+            data.get_halo(1)
+            data_with_halos = data.array_with_halos
+            if data.comm.rank == 0:
+                prev_halo = None
+                next_halo = None
+                new_split_size = 0
+            elif data.comm.rank == 1:
+                prev_halo = None
+                next_halo = next_data[:, 0].unsqueeze_(1)
+                new_split_size = data.larray.shape[1] + 1
+            elif data.comm.rank == data.comm.size - 1:
+                prev_halo = prev_data[:, -1].unsqueeze_(1)
+                next_halo = None
+                new_split_size = data.larray.shape[1] + 1
+            else:
+                prev_halo = prev_data[:, -1].unsqueeze_(1)
+                next_halo = next_data[:, 0].unsqueeze_(1)
+                new_split_size = data.larray.shape[1] + 2
+            self.assertEqual(data_with_halos.shape, (5, new_split_size))
             self.assertTrue(data.halo_prev is prev_halo or (data.halo_prev == prev_halo).all())
             self.assertTrue(data.halo_next is next_halo or (data.halo_next == next_halo).all())
 
