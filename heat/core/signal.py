@@ -69,21 +69,21 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     """
     if not isinstance(a, DNDarray) or not isinstance(v, DNDarray):
         raise TypeError("Signal and filter weight must be of type DNDarray")
-    if v.split is not None:
+    if v.is_distributed():
         raise TypeError("Distributed filter weights are not supported")
     if len(a.shape) != 1 or len(v.shape) != 1:
         raise ValueError("Only 1-dimensional input DNDarrays are allowed")
     if a.shape[0] <= v.shape[0]:
-        raise ValueError("Filter size must not be larger than signal size")
+        raise ValueError("Filter size must not be greater than or equal to signal size")
     if a.dtype is not v.dtype:
         raise TypeError(
             "Signal and filter weight must be of same dtype, are {} and {}".format(a.dtype, v.dtype)
         )
     if mode == "same" and v.shape[0] % 2 == 0:
-        raise ValueError("Mode 'same' cannot be use with even-sized kernel")
+        raise ValueError("Mode 'same' cannot be used with even-sized kernel")
 
     # compute halo size
-    halo_size = v.shape[0] // 2 if v.shape[0] % 2 == 0 else (v.shape[0] - 1) // 2
+    halo_size = v.shape[0] // 2
 
     # pad DNDarray with zeros according to mode
     if mode == "full":
