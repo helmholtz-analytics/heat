@@ -438,6 +438,8 @@ class DNDarray:
         the are overwritten.
 
         """
+        if not self.is_distributed():
+            return self.__array
         return torch.cat(
             [_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None],
             self.split,
