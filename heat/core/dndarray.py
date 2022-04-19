@@ -379,33 +379,23 @@ class DNDarray:
 
         if self.is_distributed():
             # gather lshapes
-            lshape_map = self.create_lshape_map()
+            lshape_map = self.lshape_map
             rank = self.comm.rank
-            size = self.comm.size
 
-            first_rank = 0
-            next_rank = rank + 1
-            prev_rank = rank - 1
-            last_rank = size - 1
+            populated_ranks = torch.nonzero(lshape_map[:, self.split]).squeeze().tolist()
+            if rank in populated_ranks:
+                first_rank = populated_ranks[0]
+                last_rank = populated_ranks[-1]
+                if rank != last_rank:
+                    next_rank = populated_ranks[populated_ranks.index(rank) + 1]
+                if rank != first_rank:
+                    prev_rank = populated_ranks[populated_ranks.index(rank) - 1]
+            else:
+                # if process has no data we ignore it
+                return
 
-            if not self.balanced:
-                populated_ranks = torch.nonzero(lshape_map[:, 0]).squeeze().tolist()
-                if rank in populated_ranks:
-                    first_rank = populated_ranks[0]
-                    last_rank = populated_ranks[-1]
-                    next_rank = rank + 1
-                    prev_rank = rank - 1
-                    if rank != last_rank:
-                        next_rank = populated_ranks[populated_ranks.index(rank) + 1]
-                    if rank != first_rank:
-                        prev_rank = populated_ranks[populated_ranks.index(rank) - 1]
-
-            # if local shape is zero
-            if self.lshape[self.split] == 0:
-                return  # if process has no data we ignore it
-
-            if halo_size > self.lshape[self.split]:
-                # if on at least one process the halo_size is larger than the local size throw ValueError
+            if (halo_size > self.lshape_map[:, self.split][populated_ranks]).any():
+                # halo_size is larger than the local size on at least one process
                 raise ValueError(
                     "halo_size {} needs to be smaller than chunk-size {} )".format(
                         halo_size, self.lshape[self.split]
@@ -419,8 +409,8 @@ class DNDarray:
 
             req_list = list()
 
-            # only exchange data with next process if it has data
-            if rank != last_rank and (lshape_map[next_rank, self.split] > 0):
+            # exchange data with next populated process
+            if rank != last_rank:
                 self.comm.Isend(a_next, next_rank)
                 res_prev = torch.zeros(
                     a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
