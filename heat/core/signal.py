@@ -99,28 +99,25 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         pad_size = 0
         gshape = a.shape[0] - v.shape[0] + 1
     else:
-        raise ValueError("Only {'full', 'valid', 'same'} are allowed for mode")
+        raise ValueError("Supported modes are 'full', 'valid', 'same', got {}".format(mode))
 
     a = pad(a, pad_size, "constant", 0)
 
-    # fetch halos and store them in a.halo_next/a.halo_prev
-    a.get_halo(halo_size)
-
-    # apply halos to local array
-    signal = a.array_with_halos
-
-    # check if a local chunk is smaller than the filter size
-    if a.is_distributed() and signal.size()[0] < v.shape[0]:
-        raise ValueError("Local chunk size is smaller than filter size, this is not supported yet")
-
+    if a.is_distributed():
+        if (v.shape[0] > a.lshape_map[:, a.split]).any():
+            raise ValueError("Filter weight is larger than the local chunks of signal")
+        # fetch halos and store them in a.halo_next/a.halo_prev
+        a.get_halo(halo_size)
+        # apply halos to local array
+        signal = a.array_with_halos
+    else:
+        signal = a.larray
     # make signal and filter weight 3D for Pytorch conv1d function
-    signal.unsqueeze_(0)
-    signal.unsqueeze_(0)
+    signal = signal.reshape(1, 1, signal.shape[0])
 
     # flip filter for convolution as Pytorch conv1d computes correlations
     weight = v.larray.flip(dims=(0,))
-    weight.unsqueeze_(0)
-    weight.unsqueeze_(0)
+    weight = weight.reshape(1, 1, weight.shape[0])
 
     # cast to float if on GPU
     if signal.is_cuda:
