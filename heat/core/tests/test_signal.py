@@ -24,6 +24,14 @@ class TestSignal(TestCase):
         kernel_odd = ht.ones(3).astype(ht.int)
         kernel_even = ht.ones(4).astype(ht.int)
 
+        with self.assertRaises(TypeError):
+            signal_wrong_type = list(0, 1, 2, "tre", 4, "five", 6, "ʻehiku", 8, 9, 10)
+            ht.convolve(signal_wrong_type, kernel_odd, mode="full")
+        with self.assertRaises(TypeError):
+            filter_wrong_type = tuple("pizza", "ham", "pineapple")
+            ht.convolve(signal, filter_wrong_type, mode="full")
+        with self.assertRaises(ValueError):
+            ht.convolve(signal, kernel_odd, mode="invalid")
         with self.assertRaises(ValueError):
             s = signal.reshape((2, -1))
             ht.convolve(s, kernel_odd)
@@ -38,6 +46,9 @@ class TestSignal(TestCase):
             with self.assertRaises(TypeError):
                 k = ht.ones(4, split=0).astype(ht.int)
                 ht.convolve(signal, k)
+        if self.comm.size >= 5:
+            with self.assertRaises(ValueError):
+                ht.convolve(signal, kernel_even, mode="valid")
 
         # test modes, avoid kernel larger than signal chunk
         if self.comm.size <= 3:
