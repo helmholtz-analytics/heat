@@ -7,6 +7,7 @@
 - [#940](https://github.com/helmholtz-analytics/heat/pull/940) Duplicate MPI_COMM_WORLD to make library more independent.
 - [#941](https://github.com/helmholtz-analytics/heat/pull/941) Add function to save data as CSV.
 - [#948](https://github.com/helmholtz-analytics/heat/pull/948) Improve CSV write performance.
+- [#960](https://github.com/helmholtz-analytics/heat/pull/960) Replaced `factories.array` with` DNDarray` in random.py
 
 ## Bug Fixes
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
