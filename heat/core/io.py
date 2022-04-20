@@ -802,7 +802,7 @@ def load_csv(
                 values = line.replace("\n", "").replace("\r", "").split(sep)
                 values = [float(val) for val in values]
                 result.append(values)
-            result = np.squeeze(result)
+            result = torch.squeeze(torch.tensor(result))
             resulting_tensor = factories.array(
                 result, dtype=dtype, split=split, device=device, comm=comm
             )
