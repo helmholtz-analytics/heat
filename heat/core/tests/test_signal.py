@@ -24,10 +24,6 @@ class TestSignal(TestCase):
         kernel_odd = ht.ones(3).astype(ht.int)
         kernel_even = ht.ones(4).astype(ht.int)
 
-        with self.assertRaises(TypeError):
-            ht.convolve(signal, [0, 1, 2, 3])
-        with self.assertRaises(TypeError):
-            ht.convolve([0, 1, 2, 3], kernel_odd)
         with self.assertRaises(ValueError):
             s = signal.reshape((2, -1))
             ht.convolve(s, kernel_odd)
@@ -36,21 +32,18 @@ class TestSignal(TestCase):
             ht.convolve(signal, k)
         with self.assertRaises(ValueError):
             ht.convolve(kernel_even, full_even)
-        with self.assertRaises(TypeError):
-            k = ht.ones(3).astype(ht.float)
-            ht.convolve(signal, k)
         with self.assertRaises(ValueError):
             ht.convolve(signal, kernel_even, mode="same")
-        with self.assertRaises(TypeError):
-            k = ht.ones(4, split=0).astype(ht.int)
-            ht.convolve(signal, k)
+        if self.comm.size > 1:
+            with self.assertRaises(TypeError):
+                k = ht.ones(4, split=0).astype(ht.int)
+                ht.convolve(signal, k)
 
         # test modes
         modes = ["full", "same", "valid"]
         for i, mode in enumerate(modes):
             # odd kernel size
             conv = ht.convolve(signal, kernel_odd, mode=mode)
-            conv.balance_()
             gathered = manipulations.resplit(conv, axis=None)
             self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
 
@@ -58,7 +51,6 @@ class TestSignal(TestCase):
             # skip mode 'same' for even kernels
             if mode != "same":
                 conv = ht.convolve(signal, kernel_even, mode=mode)
-                conv.balance_()
                 gathered = manipulations.resplit(conv, axis=None)
 
                 if mode == "full":
@@ -68,6 +60,12 @@ class TestSignal(TestCase):
 
         # test different data type
         conv = ht.convolve(signal.astype(ht.float), kernel_odd.astype(ht.float))
-        conv.balance_()
         gathered = manipulations.resplit(conv, axis=None)
         self.assertTrue(ht.equal(full_odd, gathered))
+
+        # test edge cases
+        # non-distributed signal, size-1 kernel
+        signal = ht.arange(0, 16).astype(ht.int)
+        kernel = ht.ones(1).astype(ht.int)
+        conv = ht.convolve(signal, kernel)
+        self.assertTrue(ht.equal(signal, conv))
