@@ -50,6 +50,14 @@ class TestSignal(TestCase):
             # even kernel size
             # skip mode 'same' for even kernels
             if mode != "same":
+                print(
+                    "DEBUGGING: mode, signal.shape, signal.lshape, kernel_even.shape, kernel_even.lshape",
+                    mode,
+                    signal.shape,
+                    signal.lshape,
+                    kernel_even.shape,
+                    kernel_even.lshape,
+                )
                 conv = ht.convolve(signal, kernel_even, mode=mode)
                 gathered = manipulations.resplit(conv, axis=None)
 
