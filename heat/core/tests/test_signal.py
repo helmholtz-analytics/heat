@@ -47,6 +47,10 @@ class TestSignal(TestCase):
                 conv = ht.convolve(signal, kernel_odd, mode=mode)
                 gathered = manipulations.resplit(conv, axis=None)
                 self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
+                # different data types
+                conv = ht.convolve(signal.astype(ht.float), kernel_odd)
+                gathered = manipulations.resplit(conv, axis=None)
+                self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
 
                 # even kernel size
                 # skip mode 'same' for even kernels
@@ -58,11 +62,6 @@ class TestSignal(TestCase):
                         self.assertTrue(ht.equal(full_even, gathered))
                     else:
                         self.assertTrue(ht.equal(full_even[3:-3], gathered))
-
-        # test different data type
-        conv = ht.convolve(signal.astype(ht.float), kernel_odd.astype(ht.float))
-        gathered = manipulations.resplit(conv, axis=None)
-        self.assertTrue(ht.equal(full_odd, gathered))
 
         # test edge cases
         # non-distributed signal, size-1 kernel
