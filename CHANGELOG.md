@@ -6,6 +6,7 @@
 - [#884](https://github.com/helmholtz-analytics/heat/pull/884) Added capabilities for PyTorch 1.10.0, this is now the recommended version to use.
 - [#940](https://github.com/helmholtz-analytics/heat/pull/940) Duplicate MPI_COMM_WORLD to make library more independent.
 - [#941](https://github.com/helmholtz-analytics/heat/pull/941) Add function to save data as CSV.
+- [#948](https://github.com/helmholtz-analytics/heat/pull/948) Improve CSV write performance.
 
 ## Bug Fixes
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
@@ -47,6 +48,8 @@
 - [#858](https://github.com/helmholtz-analytics/heat/pull/858) New Feature: `standard_normal`, `normal`
 ### Rounding
 - [#827](https://github.com/helmholtz-analytics/heat/pull/827) New feature: `sign`, `sgn`
+### Statistics
+- [#928](https://github.com/helmholtz-analytics/heat/pull/928) New feature: `bucketize`, `digitize`
 
 # v1.1.1
 - [#864](https://github.com/helmholtz-analytics/heat/pull/864) Dependencies: constrain `torchvision` version range to match supported `pytorch` version range.
