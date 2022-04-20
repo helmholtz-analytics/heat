@@ -548,7 +548,7 @@ def digitize(x: DNDarray, bins: Union[DNDarray, torch.Tensor], right: bool = Fal
     x : DNDarray
         The input array
     bins : DNDarray or torch.Tensor
-        A 1-dimensional array containing a monotonic sequence describing the bin boundaries.
+        A 1-dimensional array containing a monotonic sequence describing the bin boundaries, not distributed.
     right : bool, optional
         Indicating whether the intervals include the right or the left bin edge, see Notes.
 
