@@ -450,8 +450,8 @@ def div(
         Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
         will be set to the divided value. Elsewhere, the `out` array will retain its original value. If
         an uninitialized `out` array is created via the default `out=None`, locations within it where the
-        condition is False will remain uninitialized. If distributed, must be distributed along the same
-        dimension as the `out` array.
+        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
+        if required) must match that of the `out` array.
 
     Example
     ---------

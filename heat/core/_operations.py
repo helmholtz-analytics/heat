@@ -48,8 +48,8 @@ def __binary_op(
         Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
         will be set to the result of the operation. Elsewhere, the `out` array will retain its original
         value. If an uninitialized `out` array is created via the default `out=None`, locations within
-        it where the condition is False will remain uninitialized. If distributed, must be distributed
-        along the same dimension as the `out` array.
+        it where the condition is False will remain uninitialized. If distributed, the split axis (after
+        broadcasting if required) must match that of the `out` array.
     fn_kwargs: Dict, optional
         keyword arguments used for the given operation
         Default: {} (empty dictionary)
