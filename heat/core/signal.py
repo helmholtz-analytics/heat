@@ -102,9 +102,10 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         raise ValueError("Supported modes are 'full', 'valid', 'same', got {}".format(mode))
 
     a = pad(a, pad_size, "constant", 0)
+    lshape_map = a.create_lshape_map()
 
     if a.is_distributed():
-        if (v.shape[0] > a.lshape_map[:, a.split]).any():
+        if (v.shape[0] > lshape_map[:, 0]).any():
             raise ValueError("Filter weight is larger than the local chunks of signal")
         # fetch halos and store them in a.halo_next/a.halo_prev
         a.get_halo(halo_size)
