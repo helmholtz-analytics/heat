@@ -330,7 +330,7 @@ class DNDarray:
         return linalg.transpose(self, axes=None)
 
     @property
-    def array_with_halos(self) -> Tuple[torch.tensor, torch.tensor]:
+    def array_with_halos(self) -> torch.Tensor:
         """
         Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next``/``self.halo_prev``
         in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
@@ -357,11 +357,9 @@ class DNDarray:
 
         return self.__array[ix].clone().contiguous()
 
-    def get_halo(self, halo_size) -> torch.Tensor:
+    def get_halo(self, halo_size: int) -> torch.Tensor:
         """
-        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next/self.halo_prev``
-        in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
-        the are overwritten.
+        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next/self.halo_prev``.
 
         Parameters
         ----------
@@ -431,18 +429,15 @@ class DNDarray:
             self.__halo_prev = res_next
             self.__ishalo = True
 
-    def __cat_halo(self) -> Tuple[torch.tensor, torch.tensor]:
+    def __cat_halo(self) -> torch.Tensor:
         """
-        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next``/``self.halo_prev``
-        in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
-        the are overwritten.
-
+        Return local array concatenated to halos if they are available.
         """
         if not self.is_distributed():
             return self.__array
         return torch.cat(
             [_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None],
-            self.split,
+            dim=self.split,
         )
 
     def astype(self, dtype, copy=True) -> DNDarray:
