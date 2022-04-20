@@ -156,7 +156,7 @@ class TestIO(TestCase):
                         for shape in [(1, 1), (10, 10), (20, 1), (1, 20), (25, 4), (4, 25)]:
                             if rnd_type[0] == ht.random.randint:
                                 data = rnd_type[0](
-                                    -100, 1000, size=shape, dtype=rnd_type[1], split=split
+                                    -1000, 1000, size=shape, dtype=rnd_type[1], split=split
                                 )
                             else:
                                 data = rnd_type[0](
@@ -195,6 +195,7 @@ class TestIO(TestCase):
                             if data.comm.rank == 0:
                                 os.unlink(filename)
 
+        # Test vector
         data = ht.random.randint(0, 100, size=(150,))
         if data.comm.rank == 0:
             tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete=False)
@@ -205,6 +206,39 @@ class TestIO(TestCase):
         filename = data.comm.handle.bcast(filename, root=0)
         data.save(filename)
         comparison = ht.load(filename).reshape((150,))
+        self.assertTrue((data == comparison).all())
+        data.comm.handle.Barrier()
+        if data.comm.rank == 0:
+            os.unlink(filename)
+
+        # Test 0 matrix
+        data = ht.zeros((10, 10))
+        if data.comm.rank == 0:
+            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete=False)
+            tmpfile.close()
+            filename = tmpfile.name
+        else:
+            filename = None
+        filename = data.comm.handle.bcast(filename, root=0)
+        data.save(filename)
+        comparison = ht.load(filename)
+        self.assertTrue((data == comparison).all())
+        data.comm.handle.Barrier()
+        if data.comm.rank == 0:
+            os.unlink(filename)
+
+        # Test negative float values
+        data = ht.random.rand(100, 100)
+        data = data - 500
+        if data.comm.rank == 0:
+            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete=False)
+            tmpfile.close()
+            filename = tmpfile.name
+        else:
+            filename = None
+        filename = data.comm.handle.bcast(filename, root=0)
+        data.save(filename)
+        comparison = ht.load(filename)
         self.assertTrue((data == comparison).all())
         data.comm.handle.Barrier()
         if data.comm.rank == 0:
