@@ -39,32 +39,25 @@ class TestSignal(TestCase):
                 k = ht.ones(4, split=0).astype(ht.int)
                 ht.convolve(signal, k)
 
-        # test modes
-        modes = ["full", "same", "valid"]
-        for i, mode in enumerate(modes):
-            # odd kernel size
-            conv = ht.convolve(signal, kernel_odd, mode=mode)
-            gathered = manipulations.resplit(conv, axis=None)
-            self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
-
-            # even kernel size
-            # skip mode 'same' for even kernels
-            if mode != "same":
-                print(
-                    "DEBUGGING: mode, signal.shape, signal.lshape, kernel_even.shape, kernel_even.lshape",
-                    mode,
-                    signal.shape,
-                    signal.lshape,
-                    kernel_even.shape,
-                    kernel_even.lshape,
-                )
-                conv = ht.convolve(signal, kernel_even, mode=mode)
+        # test modes, avoid kernel larger than signal chunk
+        if self.comm.size <= 3:
+            modes = ["full", "same", "valid"]
+            for i, mode in enumerate(modes):
+                # odd kernel size
+                conv = ht.convolve(signal, kernel_odd, mode=mode)
                 gathered = manipulations.resplit(conv, axis=None)
+                self.assertTrue(ht.equal(full_odd[i : len(full_odd) - i], gathered))
 
-                if mode == "full":
-                    self.assertTrue(ht.equal(full_even, gathered))
-                else:
-                    self.assertTrue(ht.equal(full_even[3:-3], gathered))
+                # even kernel size
+                # skip mode 'same' for even kernels
+                if mode != "same":
+                    conv = ht.convolve(signal, kernel_even, mode=mode)
+                    gathered = manipulations.resplit(conv, axis=None)
+
+                    if mode == "full":
+                        self.assertTrue(ht.equal(full_even, gathered))
+                    else:
+                        self.assertTrue(ht.equal(full_even[3:-3], gathered))
 
         # test different data type
         conv = ht.convolve(signal.astype(ht.float), kernel_odd.astype(ht.float))

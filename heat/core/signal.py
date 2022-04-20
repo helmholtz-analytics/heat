@@ -103,7 +103,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
     a = pad(a, pad_size, "constant", 0)
 
-    print("DEBUGGING: mode, a.shape, a.lshape, v.shape = ", mode, a.shape, a.lshape, v.shape)
     if a.is_distributed():
         if (v.shape[0] > a.lshape_map[:, 0]).any():
             raise ValueError("Filter weight is larger than the local chunks of signal")
@@ -113,6 +112,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         signal = a.array_with_halos
     else:
         signal = a.larray
+
     # make signal and filter weight 3D for Pytorch conv1d function
     signal = signal.reshape(1, 1, signal.shape[0])
 
