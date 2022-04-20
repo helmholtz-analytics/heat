@@ -3336,7 +3336,9 @@ class TestManipulations(TestCase):
             tiled_along_non_split.shape, tiled_along_non_split.split
         )
         self.assertTrue(
-            (tiled_along_non_split.larray.numpy() == np_tiled_along_non_split[global_slice]).all()
+            (
+                tiled_along_non_split.larray.cpu().numpy() == np_tiled_along_non_split[global_slice]
+            ).all()
         )
         self.assertTrue(tiled_along_non_split.dtype is x.dtype)
 
