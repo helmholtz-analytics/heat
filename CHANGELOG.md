@@ -47,6 +47,8 @@
 - [#858](https://github.com/helmholtz-analytics/heat/pull/858) New Feature: `standard_normal`, `normal`
 ### Rounding
 - [#827](https://github.com/helmholtz-analytics/heat/pull/827) New feature: `sign`, `sgn`
+### Statistics
+- [#928](https://github.com/helmholtz-analytics/heat/pull/928) New feature: `bucketize`, `digitize`
 
 # v1.1.1
 - [#864](https://github.com/helmholtz-analytics/heat/pull/864) Dependencies: constrain `torchvision` version range to match supported `pytorch` version range.
