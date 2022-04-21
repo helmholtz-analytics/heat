@@ -22,7 +22,7 @@ class TestSignal(TestCase):
 
         signal = ht.arange(0, 16, split=0).astype(ht.int)
         kernel_odd = ht.ones(3).astype(ht.int)
-        kernel_even = ht.ones(4).astype(ht.int)
+        kernel_even = [1, 1, 1, 1]
 
         with self.assertRaises(TypeError):
             signal_wrong_type = list(0, 1, 2, "tre", 4, "five", 6, "ʻehiku", 8, 9, 10)
@@ -77,6 +77,7 @@ class TestSignal(TestCase):
         # test edge cases
         # non-distributed signal, size-1 kernel
         signal = ht.arange(0, 16).astype(ht.int)
+        alt_signal = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15)
         kernel = ht.ones(1).astype(ht.int)
-        conv = ht.convolve(signal, kernel)
+        conv = ht.convolve(alt_signal, kernel)
         self.assertTrue(ht.equal(signal, conv))
