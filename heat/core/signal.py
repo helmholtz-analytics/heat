@@ -65,12 +65,12 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     if not isinstance(a, DNDarray):
         try:
             a = array(a)
-        except TypeError or RuntimeError:
+        except TypeError:
             raise TypeError("non-supported type for signal: {}".format(type(a)))
     if not isinstance(v, DNDarray):
         try:
             v = array(v)
-        except TypeError or RuntimeError:
+        except TypeError:
             raise TypeError("non-supported type for filter: {}".format(type(v)))
     promoted_type = promote_types(a.dtype, v.dtype)
     a = a.astype(promoted_type)
