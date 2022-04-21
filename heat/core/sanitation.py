@@ -388,10 +388,10 @@ def scalar_to_1d(x: DNDarray) -> DNDarray:
     a = x.larray.unsqueeze(0)
     return DNDarray(
         a,
-        gshape=tuple(a.size()),
+        gshape=(1,),
         dtype=x.dtype,
-        split=x.split,
+        split=None,
         comm=x.comm,
         device=x.device,
-        balanced=x.is_balanced,
+        balanced=True,
     )

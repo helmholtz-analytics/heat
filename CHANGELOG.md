@@ -8,6 +8,8 @@
 - [#941](https://github.com/helmholtz-analytics/heat/pull/941) Add function to save data as CSV.
 - [#948](https://github.com/helmholtz-analytics/heat/pull/948) Improve CSV write performance.
 - [#960](https://github.com/helmholtz-analytics/heat/pull/960) Bypass unnecessary communication by replacing `factories.array` with` DNDarray` contruct in random.py
+- [#949](https://github.com/helmholtz-analytics/heat/pull/949) Bypass unnecessary communication by replacing `factories.array` with` DNDarray` contruct in sanitation.py
+
 
 ## Bug Fixes
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
