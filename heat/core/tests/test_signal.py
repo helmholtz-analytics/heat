@@ -25,10 +25,10 @@ class TestSignal(TestCase):
         kernel_even = [1, 1, 1, 1]
 
         with self.assertRaises(TypeError):
-            signal_wrong_type = list(0, 1, 2, "tre", 4, "five", 6, "ʻehiku", 8, 9, 10)
+            signal_wrong_type = [0, 1, 2, "tre", 4, "five", 6, "ʻehiku", 8, 9, 10]
             ht.convolve(signal_wrong_type, kernel_odd, mode="full")
         with self.assertRaises(TypeError):
-            filter_wrong_type = tuple("pizza", "ham", "pineapple")
+            filter_wrong_type = [1, 1, "pizza", "pineapple"]
             ht.convolve(signal, filter_wrong_type, mode="full")
         with self.assertRaises(ValueError):
             ht.convolve(signal, kernel_odd, mode="invalid")
