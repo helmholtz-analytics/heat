@@ -1888,7 +1888,7 @@ comm = MPI.COMM_WORLD
 dup_comm = comm.Dup()
 
 MPI_WORLD = MPICommunication(dup_comm)
-MPI_SELF = MPICommunication(MPI.COMM_SELF)
+MPI_SELF = MPICommunication(MPI.COMM_SELF.Dup())
 
 # set the default communicator to be MPI_WORLD
 __default_comm = MPI_WORLD
