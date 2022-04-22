@@ -1222,6 +1222,10 @@ def pad(
                [ 0,  0,  0,  0,  0,  0,  0],
                [ 0,  0,  0,  0,  0,  0,  0]]], dtype=ht.int64, device=cpu:0, split=0)
     """
+    # early out if pad width is 0
+    if pad_width == 0:
+        return array
+
     if not isinstance(array, DNDarray):
         raise TypeError("expected array to be a ht.DNDarray, but was {}".format(type(array)))
 
