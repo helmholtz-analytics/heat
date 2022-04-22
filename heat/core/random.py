@@ -390,7 +390,15 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
     else:
         data = torch.empty_like(x.larray)
 
-    return factories.array(data, dtype=x.dtype, is_split=x.split, device=x.device, comm=x.comm)
+    return DNDarray(
+        data,
+        gshape=x.gshape,
+        dtype=x.dtype,
+        split=x.split,
+        device=x.device,
+        comm=x.comm,
+        balanced=x.is_balanced,
+    )
 
 
 def rand(

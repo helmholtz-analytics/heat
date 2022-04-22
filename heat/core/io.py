@@ -1004,16 +1004,16 @@ def save_csv(
         decimals = 0
         dec_sep = 0
         if sign == 1:
-            fmt = "{: %dd}" % (pre_point_digits + 1)
+            fmt = "%%%-dd" % (pre_point_digits + 1)
         else:
-            fmt = "{:%dd}" % (pre_point_digits)
+            fmt = "%%%dd" % (pre_point_digits)
     elif types.issubdtype(data.dtype, types.floating):
         if decimals == -1:
             decimals = 7 if data.dtype is types.float32 else 15
         if sign == 1:
-            fmt = "{: %d.%df}" % (pre_point_digits + decimals + 2, decimals)
+            fmt = "%%%-d.%df" % (pre_point_digits + decimals + 2, decimals)
         else:
-            fmt = "{:%d.%df}" % (pre_point_digits + decimals + 1, decimals)
+            fmt = "%%%d.%df" % (pre_point_digits + decimals + 1, decimals)
 
     # sign + decimal separator + pre separator digits + decimals (post separator)
     item_size = decimals + dec_sep + sign + pre_point_digits
@@ -1033,11 +1033,11 @@ def save_csv(
     for i in range(data.lshape[0]):
         # if lshape is of the form (x,), then there will only be a single element per row
         if len(data.lshape) == 1:
-            row = fmt.format(data.larray[i])
+            row = fmt % (data.larray[i])
         else:
             if data.lshape[1] == 0:
                 break
-            row = sep.join(fmt.format(item) for item in data.larray[i])
+            row = sep.join(fmt % (item) for item in data.larray[i])
 
         if (
             data.split is None
