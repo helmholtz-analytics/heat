@@ -53,6 +53,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     --------
     Note how the convolution operator flips the second array
     before "sliding" the two across one another:
+    
     >>> a = ht.ones(10)
     >>> v = ht.arange(3).astype(ht.float)
     >>> ht.convolve(a, v, mode='full')
