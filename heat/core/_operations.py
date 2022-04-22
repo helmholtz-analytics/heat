@@ -110,15 +110,14 @@ def __binary_op(
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
     if where is not None:
         output_shape = stride_tricks.broadcast_shape(where.shape, output_shape)
+        while len(where.shape) < len(output_shape):
+            where = where.expand_dims(axis=0)
     # Broadcasting allows additional empty dimensions on the left side
     # TODO simplify this once newaxis-indexing is supported to get rid of the loops
     while len(t1.shape) < len(output_shape):
         t1 = t1.expand_dims(axis=0)
     while len(t2.shape) < len(output_shape):
         t2 = t2.expand_dims(axis=0)
-    if where is not None:
-        while len(where.shape) < len(output_shape):
-            where = where.expand_dims(axis=0)
     # t1 = t1[tuple([None] * (len(output_shape) - t1.ndim))]
     # t2 = t2[tuple([None] * (len(output_shape) - t2.ndim))]
     # print(t1.lshape, t2.lshape)
