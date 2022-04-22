@@ -4,7 +4,7 @@
 - [#876](https://github.com/helmholtz-analytics/heat/pull/876) Make examples work (Lasso and kNN)
 - [#894](https://github.com/helmholtz-analytics/heat/pull/894) Change inclusion of license file
 - [#884](https://github.com/helmholtz-analytics/heat/pull/884) Added capabilities for PyTorch 1.10.0, this is now the recommended version to use.
-- [#940](https://github.com/helmholtz-analytics/heat/pull/940) Duplicate MPI_COMM_WORLD to make library more independent.
+- [#940](https://github.com/helmholtz-analytics/heat/pull/940) and [#967](https://github.com/helmholtz-analytics/heat/pull/967) Duplicate `MPI.COMM_WORLD` and `MPI_SELF` to make library more independent.
 - [#941](https://github.com/helmholtz-analytics/heat/pull/941) Add function to save data as CSV.
 - [#948](https://github.com/helmholtz-analytics/heat/pull/948) Improve CSV write performance.
 - [#960](https://github.com/helmholtz-analytics/heat/pull/960) Bypass unnecessary communication by replacing `factories.array` with` DNDarray` contruct in random.py
