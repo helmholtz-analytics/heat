@@ -47,6 +47,7 @@ class TestSanitation(TestCase):
 
     def test_scalar_to_1d(self):
         ht_scalar = ht.array(8)
+        self.assertTrue(ht_scalar.ndim == 0)
         ht_1d = ht.scalar_to_1d(ht_scalar)
         self.assertTrue(ht_1d.ndim == 1)
         self.assertTrue(ht_1d.shape == (1,))
