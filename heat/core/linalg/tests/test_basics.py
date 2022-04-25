@@ -64,6 +64,8 @@ class TestLinalgBasics(TestCase):
             ht.linalg.cholesky(ht.zeros((2, 3, 2), split=1))
         with self.assertRaises(NotImplementedError):
             ht.linalg.cholesky(ht.zeros((2, 2), dtype=ht.int, split=0))
+        with self.assertRaises(NotImplementedError):
+            ht.linalg.cholesky(ht.zeros((2, 2), dtype=ht.complex64, split=0))
 
     def test_cross(self):
         a = ht.eye(3)
