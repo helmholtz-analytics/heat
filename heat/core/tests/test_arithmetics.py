@@ -362,12 +362,63 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.div(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.div(self.a_split_tensor, self.a_tensor), commutated_result))
 
+        a = out = ht.empty((2, 2))
+        ht.div(self.a_tensor, self.a_scalar, out=out)
+        self.assertTrue(ht.equal(out, result))
+        self.assertIs(a, out)
+        b = ht.array([[1.0, 2.0], [3.0, 4.0]])
+        ht.div(b, self.another_tensor, out=b)
+        self.assertTrue(ht.equal(b, result))
+        out = ht.empty((2, 2), split=self.a_split_tensor.split)
+        ht.div(self.a_split_tensor, self.a_tensor, out=out)
+        self.assertTrue(ht.equal(out, commutated_result))
+        self.assertEqual(self.a_split_tensor.split, out.split)
+
+        result_where = ht.array([[1.0, 2.0], [1.5, 2.0]])
+        self.assertTrue(
+            ht.equal(
+                ht.div(self.a_tensor, self.a_scalar, where=self.a_tensor > 2)[1, :],
+                result_where[1, :],
+            )
+        )
+
+        a = self.a_tensor.copy()
+        ht.div(a, self.a_scalar, out=a, where=a > 2)
+        self.assertTrue(ht.equal(a, result_where))
+        out = ht.array([[1.0, 2.0], [3.0, 4.0]], split=1)
+        where = ht.array([[True, True], [False, True]], split=None)
+        ht.div(out, self.another_tensor, out=out, where=where)
+        self.assertTrue(ht.equal(out, ht.array([[0.5, 1.0], [3.0, 2.0]])))
+        self.assertEqual(1, out.split)
+        out = ht.array([[1.0, 2.0], [3.0, 4.0]], split=0)
+        where.resplit_(0)
+        ht.div(out, self.another_tensor, out=out, where=where)
+        self.assertTrue(ht.equal(out, ht.array([[0.5, 1.0], [3.0, 2.0]])))
+        self.assertEqual(0, out.split)
+
+        result_where_broadcasted = ht.array([[1.0, 1.0], [3.0, 2.0]])
+        a = self.a_tensor.copy()
+        ht.div(a, self.a_scalar, out=a, where=ht.array([False, True]))
+        self.assertTrue(ht.equal(a, result_where_broadcasted))
+        a = self.a_tensor.copy().resplit_(0)
+        ht.div(a, self.a_scalar, out=a, where=ht.array([False, True], split=0))
+        self.assertTrue(ht.equal(a, result_where_broadcasted))
+        self.assertEqual(0, a.split)
+
         with self.assertRaises(ValueError):
             ht.div(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.div(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.div("T", "s")
+        with self.assertRaises(ValueError):
+            ht.div(self.a_split_tensor, self.a_tensor, out=ht.empty((2, 2), split=None))
+        with self.assertRaises(NotImplementedError):
+            ht.div(
+                self.a_split_tensor,
+                self.a_tensor,
+                where=ht.array([[True, False], [False, True]], split=1),
+            )
 
     def test_fmod(self):
         result = ht.array([[1.0, 0.0], [1.0, 0.0]])
