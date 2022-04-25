@@ -69,7 +69,9 @@ class TestKNN(TestCase):
             knn = KNeighborsClassifier(n_neighbors=1)
             knn.fit(c, a)
 
-    def test_utility(self,):
+    def test_utility(
+        self,
+    ):
         a = ht.array([1, 2, 3, 4])
         b = ht.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1]])
 
@@ -77,7 +79,9 @@ class TestKNN(TestCase):
         self.assertTrue((one_hot == b).all())
 
     @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
-    def test_fit_one_hot(self,):
+    def test_fit_one_hot(
+        self,
+    ):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
         # keys as label array

@@ -24,7 +24,9 @@ __all__ = [
     "argmin",
     "average",
     "bincount",
+    "bucketize",
     "cov",
+    "digitize",
     "histc",
     "histogram",
     "kurtosis",
@@ -388,6 +390,79 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
     )
 
 
+def bucketize(
+    input: DNDarray,
+    boundaries: Union[DNDarray, torch.Tensor],
+    out_int32: bool = False,
+    right: bool = False,
+    out: DNDarray = None,
+) -> DNDarray:
+    """
+    Returns the indices of the buckets to which each value in the input belongs, where the boundaries of the buckets are set by boundaries.
+
+    Parameters
+    ----------
+    input : DNDarray
+        The input array.
+    boundaries : DNDarray or torch.Tensor
+        monotonically increasing sequence defining the bucket boundaries, 1-dimensional, not distributed
+    out_int32 : bool, optional
+        set the dtype of the output to ``ht.int64`` (`False`) or ``ht.int32`` (True)
+    right : bool, optional
+        indicate whether the buckets include the right (`False`) or left (`True`) boundaries, see Notes.
+    out : DNDarray, optional
+        The output array, must be the shame shape and split as the input array.
+
+    Notes
+    -----
+    This function uses the PyTorch's setting for ``right``:
+
+    ===== ====================================
+    right returned index `i` satisfies
+    ===== ====================================
+    False boundaries[i-1] < x <= boundaries[i]
+    True  boundaries[i-1] <= x < boundaries[i]
+    ===== ====================================
+
+    Raises
+    ------
+    RuntimeError
+        If `boundaries` is distributed.
+
+    See Also
+    --------
+    digitize
+        NumPy-like version of this function.
+
+    Examples
+    --------
+    >>> boundaries = ht.array([1, 3, 5, 7, 9])
+    >>> v = ht.array([[3, 6, 9], [3, 6, 9]])
+    >>> ht.bucketize(v, boundaries)
+    DNDarray([[1, 3, 4],
+              [1, 3, 4]], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.bucketize(v, boundaries, right=True)
+    DNDarray([[2, 3, 5],
+              [2, 3, 5]], dtype=ht.int64, device=cpu:0, split=None)
+    """
+    if isinstance(boundaries, DNDarray):
+        if boundaries.is_distributed():
+            raise RuntimeError("'boundaries' must not be distributed.")
+        boundaries = boundaries.larray
+    else:
+        boundaries = torch.as_tensor(boundaries)
+
+    return _operations.__local_op(
+        torch.bucketize,
+        input,
+        out,
+        no_cast=True,
+        boundaries=boundaries,
+        out_int32=out_int32,
+        right=right,
+    )
+
+
 def cov(
     m: DNDarray,
     y: Optional[DNDarray] = None,
@@ -461,6 +536,81 @@ def cov(
     c = linalg.dot(x, x.T)
     c /= norm
     return c
+
+
+def digitize(x: DNDarray, bins: Union[DNDarray, torch.Tensor], right: bool = False) -> DNDarray:
+    """
+    Return the indices of the bins to which each value in the input array `x` belongs.
+    If values in `x` are beyond the bounds of bins, 0 or len(bins) is returned as appropriate.
+
+    Parameters
+    ----------
+    x : DNDarray
+        The input array
+    bins : DNDarray or torch.Tensor
+        A 1-dimensional array containing a monotonic sequence describing the bin boundaries, not distributed.
+    right : bool, optional
+        Indicating whether the intervals include the right or the left bin edge, see Notes.
+
+    Notes
+    -----
+    This function uses NumPy's setting for ``right``:
+
+    ===== ============= ============================
+    right order of bins returned index `i` satisfies
+    ===== ============= ============================
+    False increasing    bins[i-1] <= x < bins[i]
+    True  increasing    bins[i-1] < x <= bins[i]
+    False decreasing    bins[i-1] > x >= bins[i]
+    True  decreasing    bins[i-1] >= x > bins[i]
+    ===== ============= ============================
+
+    Raises
+    ------
+    RuntimeError
+        If `bins` is distributed.
+
+    See Also
+    --------
+    bucketize
+        PyTorch-like version of this function.
+
+    Examples
+    --------
+    >>> x = ht.array([1.2, 10.0, 12.4, 15.5, 20.])
+    >>> bins = ht.array([0, 5, 10, 15, 20])
+    >>> ht.digitize(x,bins,right=True)
+    DNDarray([1, 2, 3, 4, 4], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.digitize(x,bins,right=False)
+    DNDarray([1, 3, 3, 4, 5], dtype=ht.int64, device=cpu:0, split=None)
+    """
+    if isinstance(bins, DNDarray):
+        if bins.is_distributed():
+            raise RuntimeError("'bins' must not be distributed.")
+        bins = bins.larray
+    else:
+        bins = torch.as_tensor(bins)
+
+    reverse = False
+
+    if bins[0] > bins[-1]:
+        bins = torch.flipud(bins)
+        reverse = True
+
+    result = _operations.__local_op(
+        torch.bucketize,
+        x,
+        out=None,
+        no_cast=True,
+        boundaries=bins,
+        out_int32=False,
+        right=not right,
+    )
+
+    if reverse:
+        result = bins.numel() - result
+
+    return result
 
 
 def histc(
@@ -930,9 +1080,9 @@ def __merge_moments(
 
     var1, var2 = m1[-3], m2[-3]
     if unbiased:
-        var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
+        var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta**2) * n1 * n2 / n) / (n - 1)
     else:
-        var_m = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n
+        var_m = (var1 * n1 + var2 * n2 + (delta**2) * n1 * n2 / n) / n
 
     if len(m1) == 3:  # merge vars
         return var_m, mu, n
