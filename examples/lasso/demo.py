@@ -24,7 +24,7 @@ X = ht.load_hdf5(diabetes_path, dataset="x", split=0)
 y = ht.load_hdf5(diabetes_path, dataset="y", split=0)
 
 # normalize dataset #DoTO this goes into the lasso fit routine soon as issue #106 is solved
-X = X / ht.sqrt((ht.mean(X ** 2, axis=0)))
+X = X / ht.sqrt((ht.mean(X**2, axis=0)))
 
 # HeAT lasso instance
 estimator = lasso.Lasso(max_iter=100)
