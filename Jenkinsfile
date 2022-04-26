@@ -22,7 +22,7 @@ pipeline {
             steps {
                 withPythonEnv('/home/jenkins/allvenvs/') {
                     sh 'COVERAGE_FILE=report/cov/coverage1 mpirun -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/'
-                    sh 'COVERAGE_FILE=report/cov/coverage2 mpirun -n 2 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report2.xml heat/'
+                    sh 'COVERAGE_FILE=report/cov/coverage2 mpirun -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report2.xml heat/'
                     sh 'COVERAGE_FILE=report/cov/coverage5 mpirun -n 5 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report5.xml heat/'
                     sh 'COVERAGE_FILE=report/cov/coverage8 mpirun -n 8 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report8.xml heat/'
                 }
