@@ -1222,6 +1222,10 @@ def pad(
                [ 0,  0,  0,  0,  0,  0,  0],
                [ 0,  0,  0,  0,  0,  0,  0]]], dtype=ht.int64, device=cpu:0, split=0)
     """
+    # early out if pad width is 0
+    if pad_width == 0:
+        return array
+
     if not isinstance(array, DNDarray):
         raise TypeError("expected array to be a ht.DNDarray, but was {}".format(type(array)))
 
@@ -3893,6 +3897,16 @@ def topk(
      DNDarray([[2, 1],
                [2, 1]], dtype=ht.int64, device=cpu:0, split=1))
     """
+    if out is not None:
+        if out[0].dtype != a.dtype:
+            raise RuntimeError(
+                "dtypes of 'out[0]' and 'a' do not match, found {} != {}".format(
+                    out[0].dtype, a.dtype
+                )
+            )
+        if out[1].dtype != types.int64:
+            raise RuntimeError("dtype of 'out[1]' is not ht.int64, found {}".format(out[1].dtype))
+
     dim = stride_tricks.sanitize_axis(a.gshape, dim)
 
     neutral_value = sanitation.sanitize_infinity(a)
