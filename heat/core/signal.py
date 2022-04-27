@@ -13,6 +13,34 @@ import torch.nn.functional as fc
 __all__ = ["convolve"]
 
 
+def genpad(a, signal, pad, split, boundary, fillvalue):
+       
+    dim = len(signal.shape) - 2
+
+    # check if more than one rank is involved
+    if a.is_distributed():
+            
+        # set the padding of the first rank
+        if a.comm.rank == 0:
+            for i in range(dim):
+                pad[1+i*dim] = 0
+                    
+        # set the padding of the last rank
+        elif a.comm.rank == a.comm.size - 1:
+            for i in range(dim):
+                pad[i*dim] = 0
+                    
+    if boundary == 'fill':
+        signal = fc.pad(signal, pad, mode='constant', value=fillvalue)
+    elif boundary == "wrap": 
+        signal = fc.pad(signal, pad, mode='circular')
+    elif boundary == 'symm':
+        signal = fc.pad(signal, pad, mode='reflect')  
+    else: 
+        raise ValueError("Only {'fill', 'wrap', 'symm'} are allowed for boundary")
+           
+    return signal
+
 def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     """
     Returns the discrete, linear convolution of two one-dimensional `DNDarray`s.
