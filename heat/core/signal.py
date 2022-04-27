@@ -281,18 +281,12 @@ def convolve2d(a, v, mode="full", boundary='fill', fillvalue=0):
     else:
         raise ValueError("Only {'full', 'valid', 'same'} are allowed for mode")
 
-
+    # make signal and filter weight 4D for Pytorch conv2d function
     signal.unsqueeze_(0)
     signal.unsqueeze_(0)
-
 
     # add padding to the borders according to mode
     signal = genpad(a, signal, pad, a.split, boundary, fillvalue)
-
-    
-    # make signal and filter weight 4D for Pytorch conv2d function
-    #signal.unsqueeze_(0)
-    #signal.unsqueeze_(0)
 
     # flip filter for convolution as PyTorch conv2d computes correlation
     weight = torch.flip(v._DNDarray__array.clone(), [0, 1])
@@ -308,7 +302,7 @@ def convolve2d(a, v, mode="full", boundary='fill', fillvalue=0):
 
     # if kernel shape along split axis is even we need to get rid of duplicated values
     if a.comm.rank != 0 and v.shape[0] % 2 == 0:
-        signal_filtered = signal_filtered[1:]
+        signal_filtered = signal_filtered[1:, 1:]
 
     return dndarray.DNDarray(
         signal_filtered.contiguous(), (gshape,), signal_filtered.dtype, a.split, a.device, a.comm, a.balanced
