@@ -229,8 +229,8 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     >>> v = ht.ones((3, 3))
     >>> ht.convolve2d(a, v, mode='valid')
     DNDarray([[9., 9., 9.],
-             [9., 9., 9.],
-             [9., 9., 9.]], dtype=ht.float32, device=cpu:0, split=None)
+              [9., 9., 9.],
+              [9., 9., 9.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     if not isinstance(a, DNDarray):
         try:
@@ -293,17 +293,14 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
         raise ValueError("Only {'full', 'valid', 'same'} are allowed for mode")
 
     # make signal and filter weight 4D for Pytorch conv2d function
-    signal.unsqueeze_(0)
-    signal.unsqueeze_(0)
+    signal = signal.reshape(1, 1, signal.shape[0], signal.shape[1])
 
     # add padding to the borders according to mode
     signal = genpad(a, signal, pad, a.split, boundary, fillvalue)
 
     # flip filter for convolution as PyTorch conv2d computes correlation
     weight = torch.flip(v._DNDarray__array.clone(), [0, 1])
-
-    weight.unsqueeze_(0)
-    weight.unsqueeze_(0)
+    weight = weight.reshape(1, 1, weight.shape[0], weight.shape[1])
 
     # apply torch convolution operator
     signal_filtered = fc.conv2d(signal, weight)
