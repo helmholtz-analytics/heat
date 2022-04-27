@@ -11,6 +11,8 @@ from mpi4py import MPI
 from pathlib import Path
 from typing import List, Union, Tuple, TypeVar, Optional
 
+import torch.nn.functional as fc
+
 warnings.simplefilter("always", ResourceWarning)
 
 # NOTE: heat module imports need to be placed at the very end of the file to avoid cyclic dependencies
@@ -447,7 +449,7 @@ class DNDarray:
                 self.split,
             )
 
-    def genpad(self, signal, pad_prev, pad_next):
+    def genpad(self, signal, pad, split, boundary, fillvalue):
         """
         Generate a zero padding only for local arrays of the first and last rank in case of distributed computing,
         otherwise zero padding is added at begin and end of the global array
@@ -466,24 +468,33 @@ class DNDarray:
         out : torch tensor
             The padded data array
         """
-        # ToDo: generalize to ND tensors
-        # set the default padding for non distributed arrays
 
-        if len(signal.shape) != 1:
-            raise ValueError("Signal must be 1D, but is {}-dimensional".format(len(signal.shape)))
+        dim = len(signal.shape) - 2
 
         # check if more than one rank is involved
         if self.is_distributed():
-
+            
             # set the padding of the first rank
             if self.comm.rank == 0:
-                pad_next = None
-
+                for i in range(dim):
+                    pad[1+i*dim] = 0
+                    
             # set the padding of the last rank
-            if self.comm.rank == self.comm.size - 1:
-                pad_prev = None
+            elif self.comm.rank == self.comm.size - 1:
+                for i in range(dim):
+                    pad[i*dim] = 0
+                    
+        if boundary == 'fill':
+            signal = fc.pad(signal, pad, mode='constant', value=fillvalue)
+        elif boundary == "wrap":
+            signal = fc.pad(signal, pad, mode='circular')
+        elif boundary == 'symm':
+            signal = fc.pad(signal, pad, mode='reflect')
+        else: 
+            raise ValueError("Only {'fill', 'wrap', 'symm'} are allowed for boundary")
+            
+        return signal
 
-        return torch.cat([_ for _ in (pad_prev, signal, pad_next) if _ is not None])
 
     def astype(self, dtype, copy=True) -> DNDarray:
         """
