@@ -1,16 +1,12 @@
-# Pending additions
-- [#595](https://github.com/helmholtz-analytics/heat/pull/595) Distributed 1-D convolution: `ht.convolve`
-- [#595](https://github.com/helmholtz-analytics/heat/pull/595) `DNDarray.get_halo` method no longer requires load-balance
-- [#867](https://github.com/helmholtz-analytics/heat/pull/867) Upgraded to support torch 1.9.0
-- [#876](https://github.com/helmholtz-analytics/heat/pull/876) Make examples work (Lasso and kNN)
-- [#894](https://github.com/helmholtz-analytics/heat/pull/894) Change inclusion of license file
-- [#884](https://github.com/helmholtz-analytics/heat/pull/884) Added capabilities for PyTorch 1.10.0, this is now the recommended version to use.
-- [#940](https://github.com/helmholtz-analytics/heat/pull/940) and [#967](https://github.com/helmholtz-analytics/heat/pull/967) Duplicate `MPI.COMM_WORLD` and `MPI_SELF` to make library more independent.
-- [#941](https://github.com/helmholtz-analytics/heat/pull/941) Add function to save data as CSV.
-- [#948](https://github.com/helmholtz-analytics/heat/pull/948) Improve CSV write performance.
-- [#960](https://github.com/helmholtz-analytics/heat/pull/960) Bypass unnecessary communication by replacing `factories.array` with` DNDarray` contruct in random.py
-- [#949](https://github.com/helmholtz-analytics/heat/pull/949) Bypass unnecessary communication by replacing `factories.array` with` DNDarray` contruct in sanitation.py
 
+# v1.2.0
+
+## Highlights
+- [#906](https://github.com/helmholtz-analytics/heat/pull/906) PyTorch 1.11 support
+- [#595](https://github.com/helmholtz-analytics/heat/pull/595) Distributed 1-D convolution: `ht.convolve`
+- [#941](https://github.com/helmholtz-analytics/heat/pull/941) Parallel I/O: write to CSV file with `ht.save_csv`.
+- [#887](https://github.com/helmholtz-analytics/heat/pull/887) Binary operations between operands of equal shapes, equal `split` axes, but different distribution maps.
+- Expanded memory-distributed [linear algebra](#linalg), [manipulations](#manipulations) modules.
 
 ## Bug Fixes
 - [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
@@ -19,17 +15,18 @@
 - [#868](https://github.com/helmholtz-analytics/heat/pull/868) Fixed an issue in `__binary_op` where data was falsely distributed if a DNDarray has single element.
 - [#916](https://github.com/helmholtz-analytics/heat/pull/916) Fixed an issue in `random.randint` where the size parameter does not accept ints.
 
-## Feature Additions
+## New features
 
 ### Arithmetics
-- [#887](https://github.com/helmholtz-analytics/heat/pull/887) Binary operations now support operands of equal shapes, equal `split` axes, but different distribution maps.
-- [#945](https://github.com/helmholtz-analytics/heat/pull/945) `div` now supports `out` and `where` kwargs
+- [#945](https://github.com/helmholtz-analytics/heat/pull/945) `ht.divide` now supports `out` and `where` kwargs
 ### Communication
 - [#868](https://github.com/helmholtz-analytics/heat/pull/868) New `MPICommunication` method `Split`
+- [#940](https://github.com/helmholtz-analytics/heat/pull/940) and [#967](https://github.com/helmholtz-analytics/heat/pull/967) Duplicate `MPI.COMM_WORLD` and `MPI_SELF` to make library more independent.
+
 ### DNDarray
 - [#856](https://github.com/helmholtz-analytics/heat/pull/856) New `DNDarray` method `__torch_proxy__`
 - [#885](https://github.com/helmholtz-analytics/heat/pull/885) New `DNDarray` method `conj`
-### Linear Algebra
+### <a name="linalg"></a> Linear Algebra
 - [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
 - [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
 - [#846](https://github.com/helmholtz-analytics/heat/pull/846) New features `norm`, `vector_norm`, `matrix_norm`
@@ -38,7 +35,7 @@
 - [#875](https://github.com/helmholtz-analytics/heat/pull/875) New feature `inv`
 ### Logical
 - [#862](https://github.com/helmholtz-analytics/heat/pull/862) New feature `signbit`
-### Manipulations
+### <a name="manipulations"></a> Manipulations
 - [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
 - [#853](https://github.com/helmholtz-analytics/heat/pull/853) New Feature: `swapaxes`
 - [#854](https://github.com/helmholtz-analytics/heat/pull/854) New Feature: `moveaxis`
@@ -51,6 +48,11 @@
 - [#827](https://github.com/helmholtz-analytics/heat/pull/827) New feature: `sign`, `sgn`
 ### Statistics
 - [#928](https://github.com/helmholtz-analytics/heat/pull/928) New feature: `bucketize`, `digitize`
+### General
+- [#876](https://github.com/helmholtz-analytics/heat/pull/876) Fix examples (Lasso and kNN)
+- [#894](https://github.com/helmholtz-analytics/heat/pull/894) Change inclusion of license file
+- [#948](https://github.com/helmholtz-analytics/heat/pull/948) Improve CSV write performance.
+- [#960](https://github.com/helmholtz-analytics/heat/pull/960) Bypass unnecessary communication by replacing `factories.array` with` DNDarray` contruct in random.py
 
 # v1.1.1
 - [#864](https://github.com/helmholtz-analytics/heat/pull/864) Dependencies: constrain `torchvision` version range to match supported `pytorch` version range.
