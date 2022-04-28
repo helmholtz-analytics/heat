@@ -16,21 +16,22 @@ __all__ = ["convolve", "convolve2d"]
 def genpad(a, signal, pad, split, boundary, fillvalue):
 
     dim = len(signal.shape) - 2
-
+    dime = 2*dim-1
+    dimz = 2*dim-2
     # check if more than one rank is involved
     if a.is_distributed():
 
         # set the padding of the first rank
         if a.comm.rank == 0:
             
-            pad[3 - 2 * split] = 0
+            pad[dime - 2 * split] = 0
         # set the padding of the last rank
         elif a.comm.rank == a.comm.size - 1:
             
-            pad[2 - 2 * split] = 0
+            pad[dimz - 2 * split] = 0
         else:
-            pad[3 - 2 * split] = 0 
-            pad[2 - 2 * split] = 0
+            pad[dime - 2 * split] = 0 
+            pad[dimz - 2 * split] = 0
                 
     if boundary == "fill":
         signal = fc.pad(signal, pad, mode="constant", value=fillvalue)
@@ -283,7 +284,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
 
     elif mode == "same":
         pad = list((halo_size,) * 4)
-        gshape = a.shape[0]
+        gshape = list((a.shape[0], a.shape[1]))
 
     elif mode == "valid":
         pad = list((0,) * 4)
