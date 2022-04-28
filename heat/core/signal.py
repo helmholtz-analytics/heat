@@ -280,17 +280,17 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
         gshape_0 = v.shape[0] + a.shape[0] - 1
         gshape_1 = v.shape[1] + a.shape[1] - 1
         pad = list((pad_0, pad_0, pad_1, pad_1))
-        gshape = list((gshape_0, gshape_1))
+        gshape = (gshape_0, gshape_1)
 
     elif mode == "same":
         pad = list((halo_size,) * 4)
-        gshape = list((a.shape[0], a.shape[1]))
+        gshape = (a.shape[0], a.shape[1])
 
     elif mode == "valid":
         pad = list((0,) * 4)
         gshape_0 = a.shape[0] - v.shape[0] + 1
         gshape_1 = a.shape[1] - v.shape[1] + 1
-        gshape = list((gshape_0, gshape_1))
+        gshape = (gshape_0, gshape_1)
 
     else:
         raise ValueError("Only {'full', 'valid', 'same'} are allowed for mode")
@@ -317,7 +317,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
 
     return DNDarray(
         signal_filtered.contiguous(),
-        (gshape,),
+        gshape,
         signal_filtered.dtype,
         a.split,
         a.device,
