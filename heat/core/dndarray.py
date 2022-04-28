@@ -1752,6 +1752,115 @@ class DNDarray:
             self.gshape, [0] * self.ndim
         )
 
+    def view(self, *args, **kwargs):
+        """
+        Similar to `torch.Tensor.view` (https://pytorch.org/docs/stable/tensors.html#torch.Tensor.view),
+        returns a new DNDarray with the data contained in `self`, but displayed in a different `shape`.
+        No communication of data involved, see `Notes`.
+        Parameters
+        ----------
+        shape : int, or ints
+        -------
+            the new shape for `self`
+        Returns
+        view : DNDarray
+            representation of `self` in the new `shape`. `self` and `view` share the same data.
+        Raises
+        ------
+        RuntimeError
+            if the relevant memory buffer is distributed across different processes,
+            or if the data aren't stored contiguously (column-major DNDarray).
+        Notes
+        -----
+        Constructing a view is not possible if the corresponding memory buffer is distributed,
+        in that case you should use `reshape` instead.
+        See also
+        --------
+        `reshape`
+        Examples
+        --------
+        >>> a = ht.arange(4*5).reshape(4,5)
+        >>> a
+        DNDarray([[ 0,  1,  2,  3,  4],
+                [ 5,  6,  7,  8,  9],
+                [10, 11, 12, 13, 14],
+                [15, 16, 17, 18, 19]], dtype=ht.int32, device=cpu:0, split=None)
+        >>> b = a.view(2,10)
+        >>> b
+        DNDarray([[ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9],
+                [10, 11, 12, 13, 14, 15, 16, 17, 18, 19]], dtype=ht.int32, device=cpu:0, split=None)
+        >>> b[0,0] =  42
+        >>> a
+        DNDarray([[42,  1,  2,  3,  4],
+                [ 5,  6,  7,  8,  9],
+                [10, 11, 12, 13, 14],
+                [15, 16, 17, 18, 19]], dtype=ht.int32, device=cpu:0, split=None)
+        >>> c = ht.arange(3 * 4 * 5, split=0).reshape(3, 4, 5) # distributed
+        >>> d = c.view(3, -1) # the size -1 is inferred from the other dimensions
+        >>> d
+        DNDarray([[ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+                [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39],
+                [40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59]], dtype=ht.int32, device=cpu:0, split=0)
+        >>> e = c.view(4, 3, 5)
+        Traceback (most recent call last):
+        (...)
+        RuntimeError: Cannot construct view of a distributed memory buffer. Use `reshape()` instead.
+        """
+        if kwargs.get("dtype"):
+            raise NotImplementedError(
+                "Constructing a view of the DNDarray’s memory with a different data-type not implemented yet. "
+            )
+
+        new_shape = stride_tricks.sanitize_shape(args, lval=-1)
+        split = self.split
+
+        if not self.is_distributed():
+            return factories.array(
+                self.larray.view(new_shape),
+                is_split=split,
+                copy=False,
+                device=self.device,
+                comm=self.comm,
+            )
+        elif split == 0 and new_shape[split] == self.gshape[split]:
+            stride = self.larray.stride()
+            if stride[0] > stride[-1]:
+                # row-major tensor
+                lshape = self.lshape
+                gshape = self.gshape
+                if lshape[split] == 0 and new_shape.count(-1) == 1:
+                    # cannot calculate size of -1 dimension if no data on node
+                    replace_index = new_shape.index(-1)
+                    new_shape_match = (
+                        torch.true_divide(
+                            torch.tensor(gshape).prod(), torch.tensor(new_shape).prod().abs()
+                        )
+                        .type(torch.int64)
+                        .item()
+                    )
+                    new_shape = (
+                        new_shape[:replace_index]
+                        + (new_shape_match,)
+                        + new_shape[replace_index + 1 :]
+                    )
+                new_lshape = (lshape[split],) + new_shape[1:]
+                return factories.array(
+                    self.larray.view(new_lshape),
+                    is_split=split,
+                    copy=False,
+                    device=self.device,
+                    comm=self.comm,
+                )
+            else:
+                # column-major tensor
+                raise RuntimeError(
+                    "View size is not compatible with size and stride of input (at least one dimension spans across two contiguous subspaces). Use `reshape()` instead."
+                )
+        else:
+            raise RuntimeError(
+                "Cannot construct view of a distributed memory buffer. Use `reshape()` instead."
+            )
+
     @staticmethod
     def __xitem_get_key_start_stop(
         rank: int,
