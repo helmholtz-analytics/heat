@@ -24,7 +24,7 @@ gt = ht.array(grad)
 result = ht.convolve2d(a, v, mode='same')
 
 
-print(result.shape, a.shape)
+print(result)
 
 
 
