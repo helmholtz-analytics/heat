@@ -86,7 +86,7 @@ class datatype:
         cls,
         *value,
         device: Optional[Union[str, devices.Device]] = None,
-        comm: Optional[communication.Communication] = None
+        comm: Optional[communication.Communication] = None,
     ) -> dndarray.DNDarray:
         """
         Create a new DNDarray. See :func:`ht.array <heat.core.factories.array>` for more info on general
@@ -121,12 +121,15 @@ class datatype:
         # otherwise, attempt to create a torch tensor of given type
         try:
             array = value[0]._DNDarray__array.type(torch_type)
-            if value[0].split is None:
-                return factories.array(array, dtype=cls, split=None, comm=comm, device=device)
-            else:
-                return factories.array(
-                    array, dtype=cls, is_split=value[0].split, comm=comm, device=device
-                )
+            return dndarray.DNDarray(
+                array,
+                gshape=value[0].shape,
+                dtype=cls,
+                split=value[0].split,
+                comm=comm,
+                device=device,
+                balanced=value[0].balanced,
+            )
         except AttributeError:
             # this is the case of that the first/only element of value is not a DNDarray
             array = torch.tensor(*value, dtype=torch_type, device=device.torch_device)
@@ -1049,5 +1052,5 @@ class iinfo:
         return self
 
 
-# tensor is imported at the very end to break circular dependency
+# dndarray is imported at the very end to break circular dependency
 from . import dndarray

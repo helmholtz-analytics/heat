@@ -4,6 +4,7 @@ Functions for relational oprations, i.e. equal/no equal...
 from __future__ import annotations
 
 import torch
+import numpy as np
 
 from typing import Union
 
@@ -12,8 +13,23 @@ from .dndarray import DNDarray
 from . import _operations
 from . import dndarray
 from . import types
+from . import sanitation
+from . import factories
 
-__all__ = ["eq", "equal", "ge", "gt", "le", "lt", "ne"]
+__all__ = [
+    "eq",
+    "equal",
+    "ge",
+    "greater",
+    "greater_equal",
+    "gt",
+    "le",
+    "less",
+    "less_equal",
+    "lt",
+    "ne",
+    "not_equal",
+]
 
 
 def eq(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
@@ -85,14 +101,78 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
     >>> ht.equal(x, 3.0)
     False
     """
-    result_tensor = _operations.__binary_op(torch.equal, x, y)
+    if np.isscalar(x) and np.isscalar(y):
+        x = factories.array(x)
+        y = factories.array(y)
+    elif isinstance(x, DNDarray) and np.isscalar(y):
+        if x.gnumel == 1:
+            return equal(x.item(), y)
+        return False
+        # y = factories.full_like(x, fill_value=y)
+    elif np.isscalar(x) and isinstance(y, DNDarray):
+        if y.gnumel == 1:
+            return equal(x, y.item())
+        return False
+        # x = factories.full_like(y, fill_value=x)
+    else:  # elif isinstance(x, DNDarray) and isinstance(y, DNDarray):
+        if x.gnumel == 1:
+            return equal(x.item(), y)
+        elif y.gnumel == 1:
+            return equal(x, y.item())
+        elif not x.comm == y.comm:
+            raise NotImplementedError("Not implemented for other comms")
+        elif not x.gshape == y.gshape:
+            return False
 
-    if result_tensor.larray.numel() == 1:
-        result_value = result_tensor.larray.item()
+        if x.split is None and y.split is None:
+            pass
+        elif x.split is None and y.split is not None:
+            if y.is_balanced(force_check=False):
+                x = factories.array(x, split=y.split, copy=False, comm=x.comm, device=x.device)
+            else:
+                target_map = y.lshape_map
+                idx = [slice(None)] * x.ndim
+                idx[y.split] = slice(
+                    target_map[: x.comm.rank, y.split].sum(),
+                    target_map[: x.comm.rank + 1, y.split].sum(),
+                )
+                x = factories.array(
+                    x.larray[tuple(idx)], is_split=y.split, copy=False, comm=x.comm, device=x.device
+                )
+        elif x.split is not None and y.split is None:
+            if x.is_balanced(force_check=False):
+                y = factories.array(y, split=x.split, copy=False, comm=y.comm, device=y.device)
+            else:
+                target_map = x.lshape_map
+                idx = [slice(None)] * y.ndim
+                idx[x.split] = slice(
+                    target_map[: y.comm.rank, x.split].sum(),
+                    target_map[: y.comm.rank + 1, x.split].sum(),
+                )
+                y = factories.array(
+                    y.larray[tuple(idx)], is_split=x.split, copy=False, comm=y.comm, device=y.device
+                )
+        elif not x.split == y.split:
+            raise ValueError(
+                "DNDarrays must have the same split axes, found {} and {}".format(x.split, y.split)
+            )
+        elif not (x.is_balanced(force_check=False) and y.is_balanced(force_check=False)):
+            x_lmap = x.lshape_map
+            y_lmap = y.lshape_map
+            if not torch.equal(x_lmap, y_lmap):
+                x = x.balance()
+                y = y.balance()
+
+    result_type = types.result_type(x, y)
+    x = x.astype(result_type)
+    y = y.astype(result_type)
+
+    if x.larray.numel() > 0:
+        result_value = torch.equal(x.larray, y.larray)
     else:
         result_value = True
 
-    return result_tensor.comm.allreduce(result_value, MPI.LAND)
+    return x.comm.allreduce(result_value, MPI.LAND)
 
 
 def ge(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
@@ -139,6 +219,10 @@ def ge(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 DNDarray.__ge__ = lambda self, other: ge(self, other)
 DNDarray.__ge__.__doc__ = ge.__doc__
 
+# alias
+greater_equal = ge
+greater_equal.__doc__ = ge.__doc__
+
 
 def gt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
@@ -183,6 +267,10 @@ def gt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 
 DNDarray.__gt__ = lambda self, other: gt(self, other)
 DNDarray.__gt__.__doc__ = gt.__doc__
+
+# alias
+greater = gt
+greater.__doc__ = gt.__doc__
 
 
 def le(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
@@ -229,6 +317,10 @@ def le(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 DNDarray.__le__ = lambda self, other: le(self, other)
 DNDarray.__le__.__doc__ = le.__doc__
 
+# alias
+less_equal = le
+less_equal.__doc__ = le.__doc__
+
 
 def lt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
@@ -274,6 +366,10 @@ def lt(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 DNDarray.__lt__ = lambda self, other: lt(self, other)
 DNDarray.__lt__.__doc__ = lt.__doc__
 
+# alias
+less = lt
+less.__doc__ = lt.__doc__
+
 
 def ne(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarray:
     """
@@ -318,3 +414,7 @@ def ne(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> DNDarr
 
 DNDarray.__ne__ = lambda self, other: ne(self, other)
 DNDarray.__ne__.__doc__ = ne.__doc__
+
+# alias
+not_equal = ne
+not_equal.__doc__ = ne.__doc__

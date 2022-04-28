@@ -9,6 +9,7 @@ from typing import List, Optional, Tuple, Type, Union
 from . import communication
 from . import devices
 from . import factories
+from . import logical
 from . import stride_tricks
 from . import types
 
@@ -19,6 +20,7 @@ from .types import datatype
 
 __all__ = [
     "get_state",
+    "normal",
     "permutation",
     "rand",
     "ranf",
@@ -31,6 +33,7 @@ __all__ = [
     "sample",
     "seed",
     "set_state",
+    "standard_normal",
 ]
 
 # introduce the global random state variables, will be correctly initialized at the end of file
@@ -257,7 +260,67 @@ def __kundu_transform(values: torch.Tensor) -> torch.Tensor:
     ----------
     [1] Boiroju, N. K. and Reddy, K. M., "Generation of Standard Normal Random Numbers", Interstat, vol 5., 2012.
     """
-    return (torch.log(-torch.log(1 - values ** 0.0775)) - 1.0821) * __KUNDU_INVERSE
+    inner = 1 - values**0.0775
+    tiny = torch.finfo(inner.dtype).tiny
+    return (torch.log(-torch.log(inner + tiny) + tiny) - 1.0821) * __KUNDU_INVERSE
+
+
+def normal(
+    mean: Union[float, DNDarray] = 0.0,
+    std: Union[float, DNDarray] = 1.0,
+    shape: Optional[Tuple[int, ...]] = None,
+    dtype: Type[datatype] = types.float32,
+    split: Optional[int] = None,
+    device: Optional[str] = None,
+    comm: Optional[Communication] = None,
+) -> DNDarray:
+    """
+    Returns an array filled with random numbers from a normal distribution whose mean and standard deviation are given.
+    If `std` and `mean` are DNDarrays, they have to match `shape`.
+
+    Parameters
+    ----------
+    mean : float or DNDarray
+        The mean of the distribution.
+    std : float or DNDarray
+        The standard deviation of the distribution. Must be non-negative.
+    shape : tuple[int]
+        The shape of the returned array, should all be positive. If no argument is given a single random sample is
+        generated.
+    dtype : Type[datatype], optional
+        The datatype of the returned values. Has to be one of :class:`~heat.core.types.float32` or
+        :class:`~heat.core.types.float64`.
+    split : int, optional
+        The axis along which the array is split and distributed, defaults to no distribution.
+    device : str, optional
+        Specifies the :class:`~heat.core.devices.Device`  the array shall be allocated on, defaults to globally
+        set default device.
+    comm : Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+
+    See Also
+    --------
+    randn
+        Uses the standard normal distribution
+    standard_noramal
+        Uses the standard normal distribution
+
+    Examples
+    --------
+    >>> ht.random.normal(ht.array([-1,2]), ht.array([0.5, 2]), (2,))
+    DNDarray([-1.4669,  1.6596], dtype=ht.float64, device=cpu:0, split=None)
+    """
+    if not (isinstance(mean, float) or isinstance(mean, int)) and not isinstance(mean, DNDarray):
+        raise TypeError("'mean' must be float or DNDarray")
+    if not (isinstance(std, float) or isinstance(std, int)) and not isinstance(std, DNDarray):
+        raise TypeError("'mean' must be float or DNDarray")
+
+    if ((isinstance(std, float) or isinstance(std, int)) and std < 0) or (
+        isinstance(std, DNDarray) and logical.any(std < 0)
+    ):
+        raise ValueError("'std' must be non-negative")
+
+    return mean + std * standard_normal(shape, dtype, split, device, comm)
 
 
 def permutation(x: Union[int, DNDarray]) -> DNDarray:
@@ -327,7 +390,15 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
     else:
         data = torch.empty_like(x.larray)
 
-    return factories.array(data, dtype=x.dtype, is_split=x.split, device=x.device, comm=x.comm)
+    return DNDarray(
+        data,
+        gshape=x.gshape,
+        dtype=x.dtype,
+        split=x.split,
+        device=x.device,
+        comm=x.comm,
+        balanced=x.is_balanced,
+    )
 
 
 def rand(
@@ -335,7 +406,7 @@ def rand(
     dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[Device] = None,
-    comm: Optional[Communication] = None
+    comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
     Random values in a given shape. Create a :class:`~heat.core.dndarray.DNDarray` of the given shape and populate it
@@ -464,10 +535,14 @@ def randint(
 
     # sanitize shape
     if size is None:
-        size = (1,)
-    shape = tuple(int(ele) for ele in size)
-    if not all(ele > 0 for ele in shape):
-        raise ValueError("negative dimensions are not allowed")
+        size = ()
+    try:
+        shape = tuple(int(ele) for ele in size)
+    except TypeError:
+        shape = (int(size),)
+    else:
+        if not all(ele >= 0 for ele in shape):
+            raise ValueError("negative dimensions are not allowed")
 
     # sanitize the data type
     if dtype is None:
@@ -519,7 +594,7 @@ def randn(
     dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[str] = None,
-    comm: Optional[Communication] = None
+    comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.
@@ -538,6 +613,13 @@ def randn(
         default device.
     comm : Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
+
+    See Also
+    --------
+    normal
+        Similar, but takes a tuple as its argumant.
+    standard_normal
+        Accepts arguments for mean and standard deviation.
 
     Raises
     -------
@@ -740,6 +822,55 @@ def set_state(state: Tuple[str, int, int, int, float]):
     global __seed, __counter
     __seed = int(state[1])
     __counter = int(state[2])
+
+
+def standard_normal(
+    shape: Optional[Tuple[int, ...]] = None,
+    dtype: Type[datatype] = types.float32,
+    split: Optional[int] = None,
+    device: Optional[str] = None,
+    comm: Optional[Communication] = None,
+) -> DNDarray:
+    """
+    Returns an array filled with random numbers from a standard normal distribution with zero mean and variance of one.
+
+    Parameters
+    ----------
+    shape : tuple[int]
+        The shape of the returned array, should all be positive. If no argument is given a single random sample is
+        generated.
+    dtype : Type[datatype], optional
+        The datatype of the returned values. Has to be one of :class:`~heat.core.types.float32` or
+        :class:`~heat.core.types.float64`.
+    split : int, optional
+        The axis along which the array is split and distributed, defaults to no distribution.
+    device : str, optional
+        Specifies the :class:`~heat.core.devices.Device`  the array shall be allocated on, defaults to globally
+        set default device.
+    comm : Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+
+    See Also
+    --------
+    randn
+        Similar, but accepts separate arguments for the shape dimensions.
+    normal
+        Equivalent function with arguments for the mean and standard deviation.
+
+    Examples
+    --------
+    >>> ht.random.standard_normal((3,))
+    DNDarray([ 0.1921, -0.9635,  0.5047], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.random.standard_normal((4, 4))
+    DNDarray([[-1.1261,  0.5971,  0.2851,  0.9998],
+              [-1.8548, -1.2574,  0.2391, -0.3302],
+              [ 1.3365, -1.5212,  1.4159, -0.1671],
+              [ 0.1260,  1.2126, -0.0804,  0.0907]], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    if not shape:
+        shape = (1,)
+    shape = stride_tricks.sanitize_shape(shape)
+    return randn(*shape, dtype=dtype, split=split, device=device, comm=comm)
 
 
 def __threefry32(

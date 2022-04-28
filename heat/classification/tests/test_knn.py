@@ -1,3 +1,4 @@
+import unittest
 import heat as ht
 
 from heat.classification.kneighborsclassifier import KNeighborsClassifier
@@ -5,6 +6,7 @@ from heat.core.tests.test_suites.basic_test import TestCase
 
 
 class TestKNN(TestCase):
+    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_split_none(self):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
@@ -27,6 +29,7 @@ class TestKNN(TestCase):
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.shape, y.shape)
 
+    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_split_zero(self):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data", split=0)
 
@@ -66,14 +69,19 @@ class TestKNN(TestCase):
             knn = KNeighborsClassifier(n_neighbors=1)
             knn.fit(c, a)
 
-    def test_utility(self,):
+    def test_utility(
+        self,
+    ):
         a = ht.array([1, 2, 3, 4])
         b = ht.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1]])
 
         one_hot = KNeighborsClassifier.one_hot_encoding(a)
         self.assertTrue((one_hot == b).all())
 
-    def test_fit_one_hot(self,):
+    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
+    def test_fit_one_hot(
+        self,
+    ):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
         # keys as label array

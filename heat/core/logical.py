@@ -31,6 +31,7 @@ __all__ = [
     "logical_not",
     "logical_or",
     "logical_xor",
+    "signbit",
 ]
 
 
@@ -237,13 +238,29 @@ def isclose(
         output_gshape = stride_tricks.broadcast_shape(t1.gshape, t2.gshape)
         res = torch.empty(output_gshape, device=t1.device.torch_device).bool()
         t1.comm.Allgather(_local_isclose, res)
-        result = factories.array(res, dtype=types.bool, device=t1.device, split=t1.split)
+        result = DNDarray(
+            res,
+            gshape=output_gshape,
+            dtype=types.bool,
+            split=t1.split,
+            device=t1.device,
+            comm=t1.comm,
+            balanced=t1.is_balanced,
+        )
     else:
         if _local_isclose.dim() == 0:
             # both x and y are scalars, return a single boolean value
-            result = bool(factories.array(_local_isclose).item())
+            result = bool(_local_isclose.item())
         else:
-            result = factories.array(_local_isclose, dtype=types.bool, device=t1.device)
+            result = DNDarray(
+                _local_isclose,
+                gshape=tuple(_local_isclose.shape),
+                dtype=types.bool,
+                split=None,
+                device=t1.device,
+                comm=t1.comm,
+                balanced=t1.is_balanced,
+            )
 
     return result
 
@@ -366,7 +383,7 @@ def logical_and(x: DNDarray, y: DNDarray) -> DNDarray:
     DNDarray([False, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__binary_op(
-        torch.Tensor.__and__, types.bool(x, device=x.device), types.bool(y, device=y.device)
+        torch.logical_and, types.bool(x, device=x.device), types.bool(y, device=y.device)
     )
 
 
@@ -408,7 +425,7 @@ def logical_or(x: DNDarray, y: DNDarray) -> DNDarray:
     DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__binary_op(
-        torch.Tensor.__or__, types.bool(x, device=x.device), types.bool(y, device=y.device)
+        torch.logical_or, types.bool(x, device=x.device), types.bool(y, device=y.device)
     )
 
 
@@ -492,3 +509,23 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
 
     else:
         return x, y
+
+
+def signbit(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Checks if signbit is set element-wise (less than zero).
+
+    Parameters
+    ----------
+    x : DNDarray
+        The input array.
+    out : DNDarray, optional
+        The output array.
+
+    Examples
+    --------
+    >>> a = ht.array([2, -1.3, 0])
+    >>> ht.signbit(a)
+    DNDarray([False,  True, False], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.signbit, x, out, no_cast=True)

@@ -65,6 +65,10 @@ def conjugate(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 # alias
 conj = conjugate
 
+# DNDarray method
+DNDarray.conj = lambda self, out=None: conjugate(self, out)
+DNDarray.conj.__doc__ = conjugate.__doc__
+
 
 def imag(x: DNDarray) -> DNDarray:
     """
