@@ -22,15 +22,16 @@ def genpad(a, signal, pad, split, boundary, fillvalue):
 
         # set the padding of the first rank
         if a.comm.rank == 0:
-            for i in range(dim):
-                pad[1 + i * dim] = 0
+            
+            pad[3 - 2 * split] = 0
         # set the padding of the last rank
         elif a.comm.rank == a.comm.size - 1:
-            for i in range(dim):
-                pad[i * dim] = 0
+            
+            pad[2 - 2 * split] = 0
         else:
-            pad[:] = 0 
-
+            pad[3 - 2 * split] = 0 
+            pad[2 - 2 * split] = 0
+                
     if boundary == "fill":
         signal = fc.pad(signal, pad, mode="constant", value=fillvalue)
     elif boundary == "wrap":
