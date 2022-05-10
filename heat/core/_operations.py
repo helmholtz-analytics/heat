@@ -26,6 +26,7 @@ def __binary_op(
     t1: Union[DNDarray, int, float],
     t2: Union[DNDarray, int, float],
     out: Optional[DNDarray] = None,
+    where: Optional[DNDarray] = None,
     fn_kwargs: Optional[Dict] = {},
 ) -> DNDarray:
     """
@@ -38,11 +39,17 @@ def __binary_op(
         The operation to be performed. Function that performs operation elements-wise on the involved tensors,
         e.g. add values from other to self
     t1: DNDarray or scalar
-        The first operand involved in the operation,
+        The first operand involved in the operation.
     t2: DNDarray or scalar
-        The second operand involved in the operation,
+        The second operand involved in the operation.
     out: DNDarray, optional
-        Output buffer in which the result is placed
+        Output buffer in which the result is placed. If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the result of the operation. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations within
+        it where the condition is False will remain uninitialized. If distributed, the split axis (after
+        broadcasting if required) must match that of the `out` array.
     fn_kwargs: Dict, optional
         keyword arguments used for the given operation
         Default: {} (empty dictionary)
@@ -101,6 +108,10 @@ def __binary_op(
 
     # Make inputs have the same dimensionality
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+    if where is not None:
+        output_shape = stride_tricks.broadcast_shape(where.shape, output_shape)
+        while len(where.shape) < len(output_shape):
+            where = where.expand_dims(axis=0)
     # Broadcasting allows additional empty dimensions on the left side
     # TODO simplify this once newaxis-indexing is supported to get rid of the loops
     while len(t1.shape) < len(output_shape):
@@ -163,23 +174,35 @@ def __binary_op(
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, output_device, output_comm)
         t1, t2 = sanitation.sanitize_distribution(t1, t2, target=out)
-        out.larray[:] = operation(
-            t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+
+    result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
+
+    if out is None and where is None:
+        return DNDarray(
+            result,
+            output_shape,
+            types.heat_type_of(result),
+            output_split,
+            device=output_device,
+            comm=output_comm,
+            balanced=output_balanced,
         )
-        return out
-    # print(t1.lshape, t2.lshape)
 
-    result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
+    if where is not None:
+        if out is None:
+            out = factories.empty(
+                output_shape,
+                dtype=promoted_type,
+                split=output_split,
+                device=output_device,
+                comm=output_comm,
+            )
+        if where.split != out.split:
+            where = sanitation.sanitize_distribution(where, target=out)
+        result = torch.where(where.larray, result, out.larray)
 
-    return DNDarray(
-        result,
-        output_shape,
-        types.heat_type_of(result),
-        output_split,
-        device=output_device,
-        comm=output_comm,
-        balanced=output_balanced,
-    )
+    out.larray.copy_(result)
+    return out
 
 
 def __cum_op(
