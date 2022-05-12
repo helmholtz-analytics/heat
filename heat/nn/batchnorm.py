@@ -107,7 +107,19 @@ class HeatSyncBatchNorm(_BatchNorm):
         if input.dim() < 2:
             raise ValueError("expected at least 2D input (got {}D input)".format(input.dim()))
 
-    def forward(self, input):
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        """
+        Do a single step of BatchNorm and normalize the input batch
+
+        Parameters
+        ----------
+        input: torch.Tensor
+            input batch
+
+        Returns
+        -------
+        batchnormed: torch.Tensor
+        """
         # currently only GPU input is supported by underlying kernel from PyTorch
         if not input.is_cuda:
             raise ValueError("SyncBatchNorm expected input tensor to be on GPU")
@@ -139,13 +151,15 @@ class HeatSyncBatchNorm(_BatchNorm):
             bn_training = (self.running_mean is None) and (self.running_var is None)
 
         r"""
-        Buffers are only updated if they are to be tracked and we are in training mode. Thus they only need to be
-        passed when the update should occur (i.e. in training mode when they are tracked), or when buffer stats are
-        used for normalization (i.e. in eval mode when buffers are not None).
+        Buffers are only updated if they are to be tracked and we are in training mode. Thus they
+        only need to be passed when the update should occur (i.e. in training mode when they are
+        tracked), or when buffer stats are used for normalization
+        (i.e. in eval mode when buffers are not None).
         """
         # If buffers are not to be tracked, ensure that they won't be updated
-        running_mean = self.running_mean if not self.training or self.track_running_stats else None
-        running_var = self.running_var if not self.training or self.track_running_stats else None
+        # FIXME: @krajsek can you check if these are needed??
+        # running_mean = self.running_mean if not self.training or self.track_running_stats else None
+        # running_var = self.running_var if not self.training or self.track_running_stats else None
 
         need_sync = bn_training
         if need_sync:
@@ -169,7 +183,7 @@ class HeatSyncBatchNorm(_BatchNorm):
             )
         else:
             assert bn_training
-            return SyncBatchNorm.apply(
+            return _SyncBatchNorm.apply(
                 input,
                 self.weight,
                 self.bias,
@@ -181,7 +195,7 @@ class HeatSyncBatchNorm(_BatchNorm):
             )
 
 
-class SyncBatchNorm(Function):
+class _SyncBatchNorm(Function):
     @staticmethod
     def forward(self, input, weight, bias, running_mean, running_var, eps, momentum, comm):
         input = input.contiguous()
