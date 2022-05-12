@@ -6,6 +6,41 @@ from .test_suites.basic_test import TestCase
 
 
 class TestRandom(TestCase):
+    def test_normal(self):
+        shape = (3, 4, 6)
+        ht.random.seed(2)
+        gnormal = ht.random.normal(shape=shape, split=2)
+        ht.random.seed(2)
+        snormal = ht.random.randn(*shape, split=2)
+
+        self.assertEqual(gnormal.dtype, snormal.dtype)
+        self.assertEqual(gnormal.shape, snormal.shape)
+        self.assertEqual(gnormal.device, snormal.device)
+        self.assertTrue(ht.equal(gnormal, snormal))
+
+        shape = (2, 2)
+        mu = ht.array([[-1, -0.5], [0, 5]])
+        sigma = ht.array([[0, 0.5], [1, 2.5]])
+
+        ht.random.seed(22)
+        gnormal = ht.random.normal(mu, sigma, shape)
+        ht.random.seed(22)
+        snormal = ht.random.randn(*shape)
+
+        compare = mu + sigma * snormal
+
+        self.assertEqual(gnormal.dtype, compare.dtype)
+        self.assertEqual(gnormal.shape, compare.shape)
+        self.assertEqual(gnormal.device, compare.device)
+        self.assertTrue(ht.equal(gnormal, compare))
+
+        with self.assertRaises(TypeError):
+            ht.random.normal([4, 5], 1, shape)
+        with self.assertRaises(TypeError):
+            ht.random.normal(0, "r", shape)
+        with self.assertRaises(ValueError):
+            ht.random.normal(0, -1, shape)
+
     def test_permutation(self):
         # Reset RNG
         ht.random.seed()
@@ -140,9 +175,9 @@ class TestRandom(TestCase):
         b = ht.random.rand(1)
         self.assertTrue(ht.equal(a, b))
 
-        # To big arrays cant be created
+        # Too big arrays cant be created
         with self.assertRaises(ValueError):
-            ht.random.randn(0xFFFFFFFFFFFFFFFF * 2 + 1)
+            ht.random.randn(0x7FFFFFFFFFFFFFFF)
         with self.assertRaises(ValueError):
             ht.random.rand(3, 2, -2, 5, split=1)
         with self.assertRaises(ValueError):
@@ -204,6 +239,14 @@ class TestRandom(TestCase):
         a = ht.random.randint(1, size=(10,), split=0, dtype=ht.int64)
         b = ht.zeros((10,), dtype=ht.int64, split=0)
         self.assertTrue(ht.equal(a, b))
+
+        # size parameter allows int arguments
+        a = ht.random.randint(1, size=10, split=0, dtype=ht.int64)
+        self.assertTrue(ht.equal(a, b))
+
+        # size is None
+        a = ht.random.randint(0, 10)
+        self.assertEqual(a.shape, ())
 
         # Two arrays with the same seed and same number of elements have the same random values
         ht.random.seed(13579)
@@ -418,3 +461,21 @@ class TestRandom(TestCase):
             ht.random.set_state(("Thrfry", 12, 0xF))
         with self.assertRaises(TypeError):
             ht.random.set_state(("Threefry", 12345))
+
+    def test_standard_normal(self):
+        # empty input
+        stdn = ht.random.standard_normal()
+        self.assertEqual(stdn.dtype, ht.float32)
+        self.assertEqual(stdn.shape, (1,))
+
+        # simple test
+        shape = (3, 4, 6)
+        ht.random.seed(11235)
+        stdn = ht.random.standard_normal(shape, split=2)
+        ht.random.seed(11235)
+        rndn = ht.random.randn(*shape, split=2)
+
+        self.assertEqual(stdn.shape, rndn.shape)
+        self.assertEqual(stdn.dtype, rndn.dtype)
+        self.assertEqual(stdn.device, rndn.device)
+        self.assertTrue(ht.equal(stdn, rndn))

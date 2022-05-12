@@ -1,18 +1,16 @@
-import os
 import unittest
-
 import heat as ht
 
+from heat.classification.kneighborsclassifier import KNeighborsClassifier
 from heat.core.tests.test_suites.basic_test import TestCase
-
-from heat.classification.knn import KNN
 
 
 class TestKNN(TestCase):
+    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_split_none(self):
-        X = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
+        x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
-        # Generate keys for the iris.h5 dataset
+        # generate keys for the iris.h5 dataset
         keys = []
         for i in range(50):
             keys.append(0)
@@ -20,21 +18,22 @@ class TestKNN(TestCase):
             keys.append(1)
         for i in range(100, 150):
             keys.append(2)
-        Y = ht.array(keys)
+        y = ht.array(keys)
 
-        knn = KNN(X, Y, 5)
-
-        result = knn.predict(X)
+        knn = KNeighborsClassifier(n_neighbors=5)
+        knn.fit(x, y)
+        result = knn.predict(x)
 
         self.assertTrue(ht.is_estimator(knn))
         self.assertTrue(ht.is_classifier(knn))
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, Y.shape)
+        self.assertEqual(result.shape, y.shape)
 
+    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_split_zero(self):
-        X = ht.load_hdf5("heat/datasets/iris.h5", dataset="data", split=0)
+        x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data", split=0)
 
-        # Generate keys for the iris.h5 dataset
+        # generate keys for the iris.h5 dataset
         keys = []
         for i in range(50):
             keys.append(0)
@@ -42,50 +41,50 @@ class TestKNN(TestCase):
             keys.append(1)
         for i in range(100, 150):
             keys.append(2)
-        Y = ht.array(keys, split=0)
+        y = ht.array(keys)
 
-        knn = KNN(X, Y, 5)
+        knn = KNeighborsClassifier(n_neighbors=5)
+        knn.fit(x, y)
+        result = knn.predict(x)
 
-        result = knn.predict(X)
-
+        self.assertTrue(ht.is_estimator(knn))
+        self.assertTrue(ht.is_classifier(knn))
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, Y.shape)
+        self.assertEqual(result.shape, y.shape)
 
-    def test_exception(self,):
+    def test_exception(self):
         a = ht.zeros((3,))
-        b = ht.zeros((1,))
-        c = ht.zeros((3,))
-        d = ht.zeros((2, 2, 2))
+        b = ht.zeros((3, 2))
+        c = ht.zeros((2, 2, 2))
 
         with self.assertRaises(ValueError):
-            knn = KNN(a, b, 1)
-
-        with self.assertRaises(ValueError):
-            knn = KNN(a, b, 1)
-
-        knn = KNN(a, c, 1)
-        with self.assertRaises(ValueError):
+            knn = KNeighborsClassifier(n_neighbors=1)
             knn.fit(a, b)
 
-        knn = KNN(a, c, 1)
         with self.assertRaises(ValueError):
-            knn.fit(a, d)
+            knn = KNeighborsClassifier(n_neighbors=1)
+            knn.fit(b, c)
 
         with self.assertRaises(ValueError):
-            knn = KNN(a, d, 1)
+            knn = KNeighborsClassifier(n_neighbors=1)
+            knn.fit(c, a)
 
-    def test_utility(self,):
+    def test_utility(
+        self,
+    ):
         a = ht.array([1, 2, 3, 4])
         b = ht.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1]])
 
-        one_hot = KNN.label_to_one_hot(a)
-
+        one_hot = KNeighborsClassifier.one_hot_encoding(a)
         self.assertTrue((one_hot == b).all())
 
-    def test_fit_one_hot(self,):
-        X = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
+    @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
+    def test_fit_one_hot(
+        self,
+    ):
+        x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
-        # Keys as label array
+        # keys as label array
         keys = []
         for i in range(50):
             keys.append(0)
@@ -95,7 +94,7 @@ class TestKNN(TestCase):
             keys.append(2)
         labels = ht.array(keys, split=0)
 
-        # Keys as one_hot
+        # keys as one_hot
         keys = []
         for i in range(50):
             keys.append([1, 0, 0])
@@ -103,14 +102,11 @@ class TestKNN(TestCase):
             keys.append([0, 1, 0])
         for i in range(100, 150):
             keys.append([0, 0, 1])
+        y = ht.array(keys)
 
-        Y = ht.array(keys)
-
-        knn = KNN(X, Y, 5)
-
-        knn.fit(X, Y)
-
-        result = knn.predict(X)
+        knn = KNeighborsClassifier(n_neighbors=5)
+        knn.fit(x, y)
+        result = knn.predict(x)
 
         self.assertTrue(ht.is_estimator(knn))
         self.assertTrue(ht.is_classifier(knn))

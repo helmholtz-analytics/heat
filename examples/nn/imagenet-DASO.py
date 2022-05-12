@@ -13,11 +13,19 @@ import torch.distributed as dist
 import torch.optim
 import torch.utils.data
 import torchvision.models as models
-
+import pickle
 import sys
+
+import pandas as pd
 
 sys.path.append("../../")
 import heat as ht
+
+
+def print0(*args, **kwargs):
+    if ht.MPI_WORLD.rank == 0:
+        print(*args, **kwargs)
+
 
 try:
     from nvidia.dali.plugin.pytorch import DALIClassificationIterator
@@ -26,14 +34,9 @@ try:
     import nvidia.dali.ops as ops
     import nvidia.dali.tfrecord as tfrec
 except ImportError:
-    raise ImportError(
-        "Please install DALI from https://www.github.com/NVIDIA/DALI to run this example."
-    )
-
-
-def print0(*args, **kwargs):
-    if ht.MPI_WORLD.rank == 0:
-        print(*args, **kwargs)
+    print0("Please install DALI from https://www.github.com/NVIDIA/DALI to run this example.")
+    ht.MPI.Finalize()
+    sys.exit(0)
 
 
 def parse():
@@ -133,7 +136,7 @@ def parse():
     parser.add_argument(
         "--lr",
         "--learning-rate",
-        default=0.0125,
+        default=0.1,  # og: 0.0125
         type=float,
         metavar="LR",
         help="Initial learning rate.  Will be scaled by <global batch size>/256: args.lr = args.lr*float(args.batch_size*args.world_size)/256.  A warmup schedule will also be applied over the first 5 epochs.",
@@ -190,6 +193,17 @@ def parse():
         default="nccl",
         type=str,
         help="communications backend for local comms (default: nccl), if NCCL isnt there, fallback is MPI",
+    )
+    parser.add_argument(
+        "--benchmarking",
+        default=False,
+        type=bool,
+        help="save the results to a benchmarking csv with the node count",
+    )
+    parser.add_argument(
+        "--manual_dist",
+        action="store_true",
+        help="manually override the local distribution attributes, must also set the number of local GPUs",
     )
     args = parser.parse_args()
     return args
@@ -295,11 +309,17 @@ class HybridPipe(Pipeline):
         return images, labels
 
 
+def save_obj(obj, name):
+    with open(name + ".pkl", "wb") as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+
 def main():
     global best_prec1, args
     best_prec1 = 0
     args = parse()
 
+    # todo: remove??
     # test mode, use default args for sanity test
     if args.test:
         args.epochs = 1
@@ -315,6 +335,7 @@ def main():
 
     cudnn.benchmark = True
     best_prec1 = 0
+    # todo: remove?
     if args.deterministic:
         cudnn.benchmark = False
         cudnn.deterministic = True
@@ -328,22 +349,23 @@ def main():
     args.world_size = ht.MPI_WORLD.size
     args.rank = ht.MPI_WORLD.rank
     rank = args.rank
-    args.gpus = torch.cuda.device_count()
     device = torch.device("cpu")
-    loc_dist = True if args.gpus > 1 else False
-    loc_rank = rank % args.gpus
-    args.gpu = loc_rank
-    args.local_rank = loc_rank
-    if args.distributed and loc_dist:
+    if torch.cuda.device_count() > 1:
+        args.gpus = torch.cuda.device_count()
+        loc_rank = rank % args.gpus
+        args.loc_rank = loc_rank
         device = "cuda:" + str(loc_rank)
+        port = str(29500)  # + (args.world_size % args.gpus))
         os.environ["MASTER_ADDR"] = "localhost"
-        os.environ["MASTER_PORT"] = "29500"
+        os.environ["MASTER_PORT"] = port  # "29500"
         if args.local_comms == "nccl":
             os.environ["NCCL_SOCKET_IFNAME"] = "ib"
         torch.distributed.init_process_group(
             backend=args.local_comms, rank=loc_rank, world_size=args.gpus
         )
         torch.cuda.set_device(device)
+        args.gpu = loc_rank
+        args.local_rank = loc_rank
     elif args.gpus == 1:
         args.gpus = torch.cuda.device_count()
         args.distributed = False
@@ -377,20 +399,30 @@ def main():
         model = model.to(device)
     # model = tDDP(model) -> done in the ht model initialization
     # Scale learning rate based on global batch size
+    # todo: change the learning rate adjustments to be reduce on plateau
+    args.lr = 0.0125  # (1. / args.world_size * (5 * (args.world_size - 1) / 6.)) * 0.0125 * args.world_size
+    # args.lr = (1. / args.world_size * (5 * (args.world_size - 1) / 6.)) * 0.0125 * args.world_size
     optimizer = torch.optim.SGD(
         model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
     )
 
     # create DP optimizer and model:
-    dp_optimizer = ht.optim.SkipBatches(local_optimizer=optimizer, total_epochs=args.epochs)
-    htmodel = ht.nn.DataParallelMultiGPU(model, ht.MPI_WORLD, dp_optimizer)
+    daso_optimizer = ht.optim.DASO(
+        local_optimizer=optimizer,
+        total_epochs=args.epochs,
+        max_global_skips=4,
+        stability_level=0.05,
+    )
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, factor=0.5, patience=5, threshold=0.05, min_lr=1e-4
+    )
+    htmodel = ht.nn.DataParallelMultiGPU(model, daso_optimizer)
 
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda(device)
 
     # Optionally resume from a checkpoint
     if args.resume:
-        # print(args.resume)
         # Use a local scope to avoid dangling references
         def resume():
             if os.path.isfile(args.resume):
@@ -402,12 +434,70 @@ def main():
                 # best_prec1 = checkpoint["best_prec1"]
                 htmodel.load_state_dict(checkpoint["state_dict"])
                 optimizer.load_state_dict(checkpoint["optimizer"])
+
                 ce = checkpoint["epoch"]
                 print0(f"=> loaded checkpoint '{args.resume}' (epoch {ce})")
             else:
-                print0(f"=> no checkpoint found at '{args.resume}'")
+                try:
+                    resfile = "imgnet-checkpoint-" + str(args.world_size) + ".pth.tar"
+                    print0("=> loading checkpoint '{}'".format(resfile))
+                    checkpoint = torch.load(
+                        resfile, map_location=lambda storage, loc: storage.cuda(args.gpu)
+                    )
+                    args.start_epoch = checkpoint["epoch"]
+                    # best_prec1 = checkpoint["best_prec1"]
+                    htmodel.load_state_dict(checkpoint["state_dict"])
+                    optimizer.load_state_dict(checkpoint["optimizer"])
+
+                    ce = checkpoint["epoch"]
+                    print0(f"=> loaded checkpoint '{resfile}' (epoch {ce})")
+                except FileNotFoundError:
+                    print0(f"=> no checkpoint found at '{args.resume}'")
 
         resume()
+    # if args.benchmarking:
+    # import pandas as pd
+    nodes = str(int(daso_optimizer.comm.size / torch.cuda.device_count()))
+    cwd = os.getcwd()
+    fname = cwd + "/" + nodes + "imagenet-benchmark"
+    if args.resume and rank == 0 and os.path.isfile(fname + ".pkl"):
+        with open(fname + ".pkl", "rb") as f:
+            out_dict = pickle.load(f)
+        nodes2 = str(daso_optimizer.comm.size / torch.cuda.device_count())
+        old_keys = [
+            nodes2 + "-avg-batch-time",
+            nodes2 + "-total-train-time",
+            nodes2 + "-train-top1",
+            nodes2 + "-train-top5",
+            nodes2 + "-train-loss",
+            nodes2 + "-val-acc1",
+            nodes2 + "-val-acc5",
+        ]
+        new_keys = [
+            nodes + "-avg-batch-time",
+            nodes + "-total-train-time",
+            nodes + "-train-top1",
+            nodes + "-train-top5",
+            nodes + "-train-loss",
+            nodes + "-val-acc1",
+            nodes + "-val-acc5",
+        ]
+        for k in range(len(old_keys)):
+            if old_keys[k] in out_dict.keys():
+                out_dict[new_keys[k]] = out_dict[old_keys[k]]
+                del out_dict[old_keys[k]]
+    else:
+        out_dict = {
+            "epochs": [],
+            nodes + "-avg-batch-time": [],
+            nodes + "-total-train-time": [],
+            nodes + "-train-top1": [],
+            nodes + "-train-top5": [],
+            nodes + "-train-loss": [],
+            nodes + "-val-acc1": [],
+            nodes + "-val-acc5": [],
+        }
+        print0("Output dict:", fname)
 
     if args.arch == "inception_v3":
         raise RuntimeError("Currently, inception_v3 is not supported by this example.")
@@ -420,7 +510,7 @@ def main():
     pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
-        device_id=loc_rank,
+        device_id=args.loc_rank if not args.manual_dist else 0,
         data_dir=args.train,
         label_dir=args.train_indexes,
         crop=crop_size,
@@ -429,12 +519,12 @@ def main():
     )
     pipe.build()
 
-    train_loader = DALIClassificationIterator(pipe, reader_name="Reader", fill_last_batch=False)
+    train_loader = DALIClassificationIterator(pipe, reader_name="Reader", last_batch_policy=False)
 
     pipe = HybridPipe(
         batch_size=args.batch_size,
         num_threads=args.workers,
-        device_id=loc_rank,
+        device_id=args.loc_rank if not args.manual_dist else 0,
         data_dir=args.validate,
         label_dir=args.validate_indexes,
         crop=val_size,
@@ -442,7 +532,7 @@ def main():
         training=False,
     )
     pipe.build()
-    val_loader = DALIClassificationIterator(pipe, reader_name="Reader", fill_last_batch=False)
+    val_loader = DALIClassificationIterator(pipe, reader_name="Reader", last_batch_policy=False)
 
     if args.evaluate:
         validate(device, val_loader, htmodel, criterion)
@@ -451,64 +541,79 @@ def main():
     model.epochs = args.start_epoch
     args.factor = 0
     total_time = AverageMeter()
-    batch_time_avg, train_acc1, train_acc5, avg_loss = [], [], [], []
-    val_acc1, val_acc5 = [], []
     for epoch in range(args.start_epoch, args.epochs):
         # train for one epoch
-        avg_train_time, tacc1, tacc5, ls = train(
-            device, train_loader, htmodel, criterion, dp_optimizer, epoch
+        avg_train_time, tacc1, tacc5, ls, train_time = train(
+            device, train_loader, htmodel, criterion, daso_optimizer, epoch
         )
         total_time.update(avg_train_time)
         if args.test:
             break
-
         # evaluate on validation set
         [prec1, prec5] = validate(device, val_loader, htmodel, criterion)
 
         # epoch loss logic to adjust learning rate based on loss
-        dp_optimizer.epoch_loss_logic(ls)
-        avg_loss.append(ls)
-        adjust_learning_rate(dp_optimizer, avg_loss, epoch)
+        daso_optimizer.epoch_loss_logic(ls)
+        # avg_loss.append(ls)
+        print0(
+            "scheduler stuff",
+            ls,
+            scheduler.best * (1.0 - scheduler.threshold),
+            scheduler.num_bad_epochs,
+        )
+        scheduler.step(ls)
+        print0("next lr:", daso_optimizer.local_optimizer.param_groups[0]["lr"])
 
         # remember best prec@1 and save checkpoint
         if args.rank == 0:
             is_best = prec1 > best_prec1
             best_prec1 = max(prec1, best_prec1)
-            if epoch in [30, 60, 80]:
-                save_checkpoint(
-                    {
-                        "epoch": epoch + 1,
-                        "arch": args.arch,
-                        "state_dict": htmodel.state_dict(),
-                        "best_prec1": best_prec1,
-                        "optimizer": optimizer.state_dict(),
-                    },
-                    epoch,
-                    is_best,
-                )
+            # if epoch in [30, 60, 80]:
+            save_checkpoint(
+                {
+                    "epoch": epoch + 1,
+                    "arch": args.arch,
+                    "state_dict": htmodel.state_dict(),
+                    "best_prec1": best_prec1,
+                    "optimizer": optimizer.state_dict(),
+                },
+                is_best=is_best,
+            )
             if epoch == args.epochs - 1:
                 print0(
                     "##Top-1 {0}\n"
                     "##Top-5 {1}\n"
                     "##Perf  {2}".format(prec1, prec5, args.total_batch_size / total_time.avg)
                 )
-            val_acc1.append(prec1)
-            val_acc5.append(prec5)
-            batch_time_avg.append(avg_train_time)
-            train_acc1.append(tacc1)
-            train_acc5.append(tacc5)
-            # avg_loss.append(ls)
+
+            out_dict["epochs"].append(epoch)
+            out_dict[nodes + "-avg-batch-time"].append(avg_train_time)
+            out_dict[nodes + "-total-train-time"].append(train_time)
+            out_dict[nodes + "-train-top1"].append(tacc1)
+            out_dict[nodes + "-train-top5"].append(tacc5)
+            out_dict[nodes + "-train-loss"].append(ls)
+            out_dict[nodes + "-val-acc1"].append(prec1)
+            out_dict[nodes + "-val-acc5"].append(prec5)
+
+            # save the dict to pick up after the checkpoint
+            save_obj(out_dict, fname)
+
         train_loader.reset()
         val_loader.reset()
+
     if args.rank == 0:
         print("\nRESULTS\n")
-        print("Epoch\tAvg Batch Time\tTrain Top1\tTrain Top5\tTrain Loss\tVal Top1\tVal Top5")
-        for c in range(args.start_epoch, args.epochs):
-            cp = c - args.start_epoch
-            print(
-                f"{c}\t{batch_time_avg[cp]}\t{train_acc1[cp]}\t{train_acc5[cp]}\t"
-                f"{avg_loss[cp]}\t{val_acc1[cp]}\t{val_acc5[cp]}"
-            )
+        df = pd.DataFrame.from_dict(out_dict)
+        with pd.option_context("display.max_rows", None, "display.max_columns", None):
+            # more options can be specified also
+            print(df)
+        if args.benchmarking:
+            try:
+                fulldf = pd.read_csv(cwd + "/bench-results.csv")
+                fulldf = pd.concat([df, fulldf], axis=1)
+            except FileNotFoundError:
+                fulldf = df
+            fulldf.to_csv(cwd + "/bench-results.csv")
 
 
 def train(dev, train_loader, model, criterion, optimizer, epoch):
@@ -516,6 +621,8 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     losses = AverageMeter()
     top1 = AverageMeter()
     top5 = AverageMeter()
+
+    total_train_time = time.perf_counter()
 
     # switch to train mode
     model.train()
@@ -536,6 +643,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             torch.cuda.nvtx.range_push("Body of iteration {}".format(i))
 
         lr_warmup(optimizer, epoch, i, train_loader_len)
+
         if args.test:
             if i > 10:
                 break
@@ -564,10 +672,11 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
         if args.prof >= 0:
             torch.cuda.nvtx.range_push("optimizer.step()")
         optimizer.step()
+
         if args.prof >= 0:
             torch.cuda.nvtx.range_pop()
 
-        if i % args.print_freq == 0 or i == train_loader_len:
+        if i % args.print_freq == 0 or i == train_loader_len - 1:
             # Every print_freq iterations, check the loss, accuracy, and speed.
             # For best performance, it doesn't make sense to print these metrics every
             # iteration, since they incur an allreduce and some host<->device syncs.
@@ -614,11 +723,12 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
             torch.cuda.cudart().cudaProfilerStop()
             quit()
     # todo average loss, and top1 and top5
+    total_train_time = time.perf_counter() - total_train_time
     top1.avg = reduce_tensor(torch.tensor(top1.avg), comm=model.comm)
     top5.avg = reduce_tensor(torch.tensor(top5.avg), comm=model.comm)
     batch_time.avg = reduce_tensor(torch.tensor(batch_time.avg), comm=model.comm)
     losses.avg = reduce_tensor(torch.tensor(losses.avg), comm=model.comm)
-    return batch_time.avg, top1.avg, top5.avg, losses.avg
+    return batch_time.avg, top1.avg, top5.avg, losses.avg, total_train_time
 
 
 def validate(dev, val_loader, model, criterion):
@@ -684,8 +794,9 @@ def validate(dev, val_loader, model, criterion):
     return [top1.avg, top5.avg]
 
 
-def save_checkpoint(state, is_best, epoch, filename="checkpoint.pth.tar"):
-    filename = "checkpoint-000-epoch" + str(epoch.item()) + ".pth.tar"
+def save_checkpoint(state, is_best):
+    sz = ht.MPI_WORLD.size
+    filename = "imgnet-checkpoint-" + str(sz) + ".pth.tar"
     torch.save(state, filename)
     if is_best:
         shutil.copyfile(filename, "model_best.pth.tar")
@@ -710,65 +821,37 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def adjust_learning_rate(optimizer, losses, epoch):
-    """LR schedule that should yield 76% converged accuracy with batch size 256"""
-    # TODO: make sure that losses are stable before increasing the factor
-    loss = losses[-1]
-    stable = True if len(losses) > 3 and abs(losses[-3] - losses[-1]) < 0.075 else False  # 0.075
-    if (epoch == 85 or (loss <= 1.20 and stable)) and args.factor < 3:  # 1.05?or epoch >= 80:
-        # args.factor = 3
-        args.factor += 1
-    elif loss <= 1.300 and stable and args.factor < 2:  # removed stable
-        # args.factor = 2
-        args.factor += 1
-    elif loss <= 1.900 and stable and args.factor < 1:  # 1.8, 2.150
-        # args.factor = 1
-        args.factor += 1
-    factor = args.factor
-    lr = args.lr * ht.MPI_WORLD.size * (0.1 ** factor)
-    print0(f"LR: {lr}, Factor: {factor}, loss: {loss}")
-
-    for param_group in optimizer.lcl_optimizer.param_groups:
-        param_group["lr"] = lr
-
-
-def adjust_learning_rate_hvd(optimizer, epoch):
-    if epoch < 30:
-        lr_adj = 1.0
-    elif epoch < 60:
-        lr_adj = 1e-1
-    elif epoch < 80:
-        lr_adj = 1e-2
-    else:
-        lr_adj = 1e-3
-    for param_group in optimizer.lcl_optimizer.param_groups:
-        param_group["lr"] = args.lr * ht.MPI_WORLD.size * lr_adj  # optimizer.global_skip
-
-
-def lr_warmup(optimizer, epoch, step, len_epoch):
-    if epoch < 5 and step is not None:
+def lr_warmup(optimizer, epoch, bn, len_epoch):
+    """
+    Using a high learning rate at the very beginning of training leads to a worse final
+    accuracy. During the first 5 epochs the learning rate is increased in the way presenting
+    in https://arxiv.org/abs/1706.02677. After this point, this function is not called.
+    """
+    if epoch < 5 and bn is not None:
         sz = ht.MPI_WORLD.size
-        epoch += float(step + 1) / len_epoch
+        epoch += float(bn + 1) / len_epoch
         lr_adj = 1.0 / sz * (epoch * (sz - 1) / 6.0)
     else:
         return
 
-    for param_group in optimizer.lcl_optimizer.param_groups:
+    for param_group in optimizer.local_optimizer.param_groups:
         param_group["lr"] = args.lr * ht.MPI_WORLD.size * lr_adj
 
 
 def accuracy(output, target, topk=(1,)):
-    """Computes the precision@k for the specified values of k"""
+    """
+    Computes the precision@k for the specified values of k
+    """
     maxk = max(topk)
     batch_size = target.size(0)
 
     _, pred = output.topk(maxk, 1, True, True)
     pred = pred.t()
-    correct = pred.eq(target.view(1, -1).expand_as(pred))
+    correct = pred.eq(target.reshape(1, -1).expand_as(pred))
 
     res = []
     for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
+        correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
         res.append(correct_k.mul_(100.0 / batch_size))
     return res
 

@@ -1,23 +1,25 @@
+"""
+A collection of functions used for inferring or correcting things before major computation
+"""
+
 import itertools
 import numpy as np
+import torch
+
+from typing import Tuple, Union
 
 
-def broadcast_shape(shape_a, shape_b):
+def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple[int, ...]:
     """
     Infers, if possible, the broadcast output shape of two operands a and b. Inspired by stackoverflow post:
     https://stackoverflow.com/questions/24743753/test-if-an-array-is-broadcastable-to-a-shape
 
     Parameters
     ----------
-    shape_a : tuple of ints
-        shape of operand a
-    shape_b : tuple of ints
-        shape of operand b
-
-    Returns
-    -------
-    broadcast_shape : tuple of ints
-        the broadcast shape
+    shape_a : Tuple[int,...]
+        Shape of first operand
+    shape_b : Tuple[int,...]
+        Shape of second operand
 
     Raises
     -------
@@ -25,70 +27,85 @@ def broadcast_shape(shape_a, shape_b):
         If the two shapes cannot be broadcast.
 
     Examples
-    -------
-    >>> broadcast_shape((5,4),(4,))
-    (5,4)
-
-    >>> broadcast_shape((1,100,1),(10,1,5))
-    (10,100,5)
-
-    >>> broadcast_shape((8,1,6,1),(7,1,5,))
+    --------
+    >>> import heat as ht
+    >>> ht.core.stride_tricks.broadcast_shape((5,4),(4,))
+    (5, 4)
+    >>> ht.core.stride_tricks.broadcast_shape((1,100,1),(10,1,5))
+    (10, 100, 5)
+    >>> ht.core.stride_tricks.broadcast_shape((8,1,6,1),(7,1,5,))
     (8,7,6,5))
-
-    >>> broadcast_shape((2,1),(8,4,3))
-    ValueError
+    >>> ht.core.stride_tricks.broadcast_shape((2,1),(8,4,3))
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      File "heat/core/stride_tricks.py", line 42, in broadcast_shape
+        "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
+    ValueError: operands could not be broadcast, input shapes (2, 1) (8, 4, 3)
     """
+    try:
+        resulting_shape = torch.broadcast_shapes(shape_a, shape_b)
+    except AttributeError:  # torch < 1.8
+        it = itertools.zip_longest(shape_a[::-1], shape_b[::-1], fillvalue=1)
+        resulting_shape = max(len(shape_a), len(shape_b)) * [None]
+        for i, (a, b) in enumerate(it):
+            if a == 0 and b == 1 or b == 0 and a == 1:
+                resulting_shape[i] = 0
+            elif a == 1 or b == 1 or a == b:
+                resulting_shape[i] = max(a, b)
+            else:
+                raise ValueError(
+                    "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
+                )
+        return tuple(resulting_shape[::-1])
+    except TypeError:
+        raise TypeError("operand 1 must be tuple of ints, not {}".format(type(shape_a)))
+    except NameError:
+        raise TypeError("operands must be tuples of ints, not {} and {}".format(shape_a, shape_b))
+    except RuntimeError:
+        raise ValueError(
+            "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
+        )
 
-    it = itertools.zip_longest(shape_a[::-1], shape_b[::-1], fillvalue=1)
-    resulting_shape = max(len(shape_a), len(shape_b)) * [None]
-    for i, (a, b) in enumerate(it):
-        if a == 1 or b == 1 or a == b:
-            resulting_shape[i] = max(a, b)
-        else:
-            raise ValueError(
-                "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
-            )
-
-    return tuple(resulting_shape[::-1])
+    return tuple(resulting_shape)
 
 
-def sanitize_axis(shape, axis):
+def sanitize_axis(
+    shape: Tuple[int, ...], axis: Union[int, None, Tuple[int, ...]]
+) -> Union[int, None, Tuple[int, ...]]:
     """
     Checks conformity of an axis with respect to a given shape. The axis will be converted to its positive equivalent
     and is checked to be within bounds
 
     Parameters
     ----------
-    shape : tuple of ints
-        shape of an array
-    axis : ints or tuple of ints
-        the axis to be sanitized
-
-    Returns
-    -------
-    sane_axis : int or tuple of ints
-        the sane axis
+    shape : Tuple[int, ...]
+        Shape of an array
+    axis : ints or Tuple[int, ...] or None
+        The axis to be sanitized
 
     Raises
     -------
     ValueError
         if the axis cannot be sanitized, i.e. out of bounds.
     TypeError
-        if the the axis is not integral.
+        if the axis is not integral.
 
     Examples
     -------
-    >>> sanitize_axis((5,4,4),1)
+    >>> import heat as ht
+    >>> ht.core.stride_tricks.sanitize_axis((5,4,4),1)
     1
-
-    >>> sanitize_axis((5,4,4),-1)
+    >>> ht.core.stride_tricks.sanitize_axis((5,4,4),-1)
     2
-
-    >>> sanitize_axis((5, 4), (1,))
+    >>> ht.core.stride_tricks.sanitize_axis((5, 4), (1,))
     (1,)
+    >>> ht.core.stride_tricks.sanitize_axis((5, 4), 1.0)
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      File "heat/heat/core/stride_tricks.py", line 99, in sanitize_axis
+        raise TypeError("axis must be None or int or tuple, but was {}".format(type(axis)))
+    TypeError: axis must be None or int or tuple, but was <class 'float'>
 
-    >>> sanitize_axis((5, 4), 1.0)
-    TypeError
     """
     # scalars are handled like unsplit matrices
     if len(shape) == 0:
@@ -115,19 +132,16 @@ def sanitize_axis(shape, axis):
     return axis
 
 
-def sanitize_shape(shape):
+def sanitize_shape(shape: Union[int, Tuple[int, ...]], lval: int = 0) -> Tuple[int, ...]:
     """
     Verifies and normalizes the given shape.
 
     Parameters
     ----------
-    shape : int or sequence of ints
+    shape : int or Tupe[int,...]
         Shape of an array.
-
-    Returns
-    -------
-    sane_shape : tuple of ints
-        The sanitized shape.
+    lval : int
+        Lowest legal value
 
     Raises
     -------
@@ -138,14 +152,17 @@ def sanitize_shape(shape):
 
     Examples
     --------
-    >>> sanitize_shape(3)
+    >>> import heat as ht
+    >>> ht.core.stride_tricks.sanitize_shape(3)
     (3,)
-
-    >>> sanitize_shape([1, 2, 3])
+    >>> ht.core.stride_tricks.sanitize_shape([1, 2, 3])
     (1, 2, 3,)
-
-    >>> sanitize_shape(1.0)
-    TypeError
+    >>> ht.core.stride_tricks.sanitize_shape(1.0)
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      File "heat/heat/core/stride_tricks.py", line 159, in sanitize_shape
+        raise TypeError("expected sequence object with length >= 0 or a single integer")
+    TypeError: expected sequence object with length >= 0 or a single integer
     """
     shape = (shape,) if not hasattr(shape, "__iter__") else tuple(shape)
 
@@ -154,13 +171,13 @@ def sanitize_shape(shape):
             dimension = int(dimension)
         if not isinstance(dimension, int):
             raise TypeError("expected sequence object with length >= 0 or a single integer")
-        if dimension < 0:
+        if dimension < lval:
             raise ValueError("negative dimensions are not allowed")
 
     return shape
 
 
-def sanitize_slice(sl, max_dim) -> slice:
+def sanitize_slice(sl: slice, max_dim: int) -> slice:
     """
     Remove None-types from a slice
 
@@ -174,7 +191,7 @@ def sanitize_slice(sl, max_dim) -> slice:
     Raises
     ------
     TypeError
-        if sl is not a slice
+        if sl is not a slice.
     """
     if not isinstance(sl, slice):
         raise TypeError("This function is only for slices!")
@@ -189,4 +206,5 @@ def sanitize_slice(sl, max_dim) -> slice:
         new_sl[1] += max_dim
 
     new_sl[2] = 1 if sl.step is None else sl.step
+
     return slice(new_sl[0], new_sl[1], new_sl[2])

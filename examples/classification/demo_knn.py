@@ -2,15 +2,17 @@ import sys
 import os
 import random
 
-# Fix python path if run from terminal
-curdir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(curdir, "../../")))
-
 import heat as ht
-from heat.classification.knn import KNN
+from heat.classification.kneighborsclassifier import KNeighborsClassifier
+
+import pkg_resources
 
 # Load dataset from hdf5 file
-X = ht.load_hdf5("../../heat/datasets/data/iris.h5", dataset="data", split=0)
+iris_path = pkg_resources.resource_filename(
+    pkg_resources.Requirement.parse("heat"), "heat/datasets/iris.h5"
+)
+
+X = ht.load_hdf5(iris_path, dataset="data", split=0)
 
 # Generate keys for the iris.h5 dataset
 keys = []
@@ -93,10 +95,10 @@ def create_fold(dataset_x, dataset_y, size, seed=None):
     data_indices = ht.array(indices[0:size], split=0)
     verification_indices = ht.array(indices[size:], split=0)
 
-    fold_x = ht.array(dataset_x[data_indices], is_split=0)
-    fold_y = ht.array(dataset_y[data_indices], is_split=0)
-    verification_y = ht.array(dataset_y[verification_indices], is_split=0)
-    verification_x = ht.array(dataset_x[verification_indices], is_split=0)
+    fold_x = dataset_x[data_indices]
+    fold_y = dataset_y[data_indices]
+    verification_y = dataset_y[verification_indices]
+    verification_x = dataset_x[verification_indices]
 
     # Balance arrays
     fold_x.balance_()
@@ -118,9 +120,9 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
     split_number: int
         the number of test iterations
     split_size : int
-        the number of vectors used by the KNN-Algorithm
+        the number of vectors used by the KNeighborsClassifier-Algorithm
     k : int
-        The number of neighbours for KNN-Algorithm
+        The number of neighbours for KNeighborsClassifier-Algorithm
     seed : int
         Seed for the random generator used in creating folds. Used for deterministic testing purposes.
     Returns
@@ -136,10 +138,11 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
 
     for split_index in range(split_number):
         fold_x, fold_y, verification_x, verification_y = create_fold(x, y, split_size, seed)
-        classifier = KNN(fold_x, fold_y, k)
+        classifier = KNeighborsClassifier(k)
+        classifier.fit(fold_x, fold_y)
         result_y = classifier.predict(verification_x)
         accuracies.append(calculate_accuracy(result_y, verification_y).item())
     return accuracies
 
 
-print(verify_algorithm(X, Y, 1, 30, 5, 1))
+print("Accuracy: {}".format(verify_algorithm(X, Y, 1, 30, 5, 1)))

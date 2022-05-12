@@ -1,8 +1,8 @@
 from __future__ import print_function
 import argparse
-import torch
-import time
 import sys
+import time
+import torch
 
 sys.path.append("../../")
 import heat as ht
@@ -54,7 +54,6 @@ def train(args, model, device, train_loader, optimizer, epoch):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         output = model(data)
-        # print("end forward")
         loss = F.nll_loss(output, target)
         loss.backward()
         optimizer.step()
@@ -144,7 +143,7 @@ def main():
     device = torch.device("cuda" if use_cuda else "cpu")
     kwargs = {"batch_size": args.batch_size}
     if use_cuda:
-        kwargs.update({"num_workers": 1, "pin_memory": True})
+        kwargs.update({"num_workers": 0, "pin_memory": True})
     transform = ht.utils.vision_transforms.Compose(
         [vision_transforms.ToTensor(), vision_transforms.Normalize((0.1307,), (0.3081,))]
     )
@@ -158,7 +157,6 @@ def main():
     model = Net().to(device)
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
     blocking = False
-    # torch.nn.parallel.DistributedDataParallel
     dp_optim = ht.optim.DataParallelOptimizer(optimizer, blocking=blocking)
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     dp_model = ht.nn.DataParallel(

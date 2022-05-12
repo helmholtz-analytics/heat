@@ -4,3 +4,40 @@ ignore:
   - "heat/examples/*"
   - "heat/utils/data/mnist.py"
   - "heat/utils/data/_utils.py"
+  - "heat/**/test_*.py"
+
+coverage:
+  status:
+    project:
+      default:
+        # basic
+        target: auto
+        threshold: 3%
+        base: auto
+        flags:
+          - unit
+          - gpu
+        paths:
+          - "heat"
+       # advanced settings
+        branches:
+          - main
+        if_ci_failed: error #success, failure, error, ignore
+        informational: false
+        only_pulls: false
+    patch:
+      default:
+        # basic
+        target: auto
+        threshold: 3%
+        base: auto
+        # advanced
+        branches:
+          - main
+        if_ci_failed: error #success, failure, error, ignore
+        only_pulls: false
+        flags:
+          - "unit"
+          - "gpu"
+        paths:
+          - "heat"

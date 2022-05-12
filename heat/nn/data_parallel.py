@@ -1,80 +1,37 @@
+"""
+This file is for the general data parallel neural network classes.
+"""
 import warnings
 import torch
-import torch.nn as tnn
 import torch.distributed
-from torch.nn.parallel import DistributedDataParallel as tDDP
+import torch.nn as tnn
 
 from collections import OrderedDict
-from typing import Callable, List, Union, Tuple
-from ..core.communication import MPICommunication
+from typing import Any, Callable, Dict, List, Union, Tuple
+
+from .. import optim
 from ..core.communication import MPI
 from ..core.communication import MPI_WORLD
-from .. import optim
-from ..core.devices import get_device
+from ..core.communication import MPICommunication
 
 
 __all__ = ["DataParallel", "DataParallelMultiGPU"]
 
 
-def print0(*args, **kwargs):
-    if MPI_WORLD.rank == 0:
-        print(*args, **kwargs)
-
-
-def __sum_f16_cb(buffer_a, buffer_b, _):
-    tens_a = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_a, "native"))
-    tens_b = torch.BFloat16Tensor().set_(torch.BFloat16Storage.from_buffer(buffer_b, "native"))
-    tens_b += tens_a
-
-
-# create new OP
-mpi_sum_f16 = MPI.Op.Create(__sum_f16_cb, commute=True)
-
-
-def addCounter(counter1, counter2, datatype):
-    for item in counter2:
-        if item in counter1:
-            counter1[item] += counter2[item]
-        else:
-            counter1[item] = counter2[item]
-    return counter1
-
-
-counterSumOp = MPI.Op.Create(addCounter, commute=True)
-
-
 class DataParallel(tnn.Module):
     """
     Implements data parallelism across multiple processes. This means that the same model will be run locally
-    on each process. Creation of the model parallels to PyTorch, the only changes are using HeAT layers (ht.nn.layer)
-    in the initialization of the network. I.E. (example code contains). If there is not a HeAT layer,
-    it will fall back to the PyTorch layer of the same name.
-    .. code-block:: python
+    on each process. Creation of the model is similar to PyTorch, the only changes are using HeAT layers (ht.nn.layer)
+    in the initialization of the network/optimizer. If there is not a HeAT layer, it will fall back to the PyTorch layer
+    of the same name. The same is true for the optimizer. It's possible to use more than one optimizer, but
+    communication during parameter updates is limited to blocking. The same limitation takes effect when passing an
+    optimizer that does not deal exactly with the set of model's parameters. For the given model both the
+    ``__init__()`` and ``forward()`` functions must be defined in the class defining the network.
 
-        class TestingModel(torch.nn.Module):
-            def __init__(self):
-                super(TestingModel, self).__init__()
-                self.net1 = ht.nn.Linear(10, 10)
-                self.relu = ht.nn.ReLU()
-                self.net2 = ht.nn.Linear(10, 5)
+    An example of this is shown in `examples/mnist.py <https://github.com/helmholtz-analytics/heat/blob/504-docstring-formatting/examples/nn/mnist.py>`_.
 
-            def forward(self, x):
-                return self.net2(self.relu(self.net1(x)))
-
-        t_model = TestingModel()
-        t_optimizer = torch.optim.SGD(t_model.parameters(), lr=0.01)
-        ht_optimizer = ht.optim.DataParallelOptimizer(t_optimizer)
-        ht_model = ht.nn.DataParallel(t_model, comm, ht_optimizer)
-
-    and a requirement of giving a HeAT communicator (``comm``, :class:`..core.communication.MPICommunication`)
-    and at least one DataParallelOptimizer (``dp_optimizers``, :class:`..optim.dp_optimizer.DataParallelOptimizer`).
-    It's possible to pass more than one optimizer, but communication during parameter updates is limited to blocking
-    then. The same limitation takes effect when passing an optimizer that does not deal exactly with the set of model's
-    parameters. For the given model both the ``__init__()`` and ``forward()`` functions must be defined in the class
-    defining the network.
-
-    It is highly recommended that a HeAT DataLoader is used, see :func:`..utils.data.datatools.DataLoader`. The
-    default communications scheme for this is blocking. The blocking scheme will average the model parameters during
+    It is highly recommended that a HeAT DataLoader is used, see :func:`ht.utils.data.DataLoader <heat.utils.data.datatools.DataLoader>`.
+    The default communications scheme for this is blocking. The blocking scheme will average the model parameters during
     the backwards step, synchronizing them before the next model iteration.
 
     Usage of more than one optimizer forces MPI communication to be parameter updates to use blocking communications.
@@ -98,7 +55,11 @@ class DataParallel(tnn.Module):
         comm: MPICommunication,
         optimizer: Union[optim.DataParallelOptimizer, List, Tuple],
         blocking_parameter_updates: bool = False,
-    ):
+    ):  # noqa: D107
+        if isinstance(optimizer, optim.DASO):
+            raise TypeError(
+                "For use with DASO please use DataParallelMultiGPU instead of DataParallel"
+            )
         super(DataParallel, self).__init__()
         self.module = module
         self.comm = comm
@@ -167,8 +128,11 @@ class DataParallel(tnn.Module):
                 param.register_hook(self._nonblocking_hook(layer_name, name))
         self._param_slices[layer_name_prev] = slice(start_idx, len(self._param_indices))
 
-    def __setattr__(self, name, value):
-        # auto-detect end of epoch's training phase and finalize wait handles (only relevant for non-blocking)
+    def __setattr__(self, name: str, value: Union[torch.nn.Module, torch.Tensor, Any]) -> None:
+        """
+        Overwrite the current torch.nn.Module.__setattr__ so that it auto-detects the end of epoch's
+        training phase and finalize wait handles (only relevant for non-blocking)
+        """
         if name == "training" and not value and not self.blocking_parameter_updates:
             self._iparam_update()
         super(DataParallel, self).__setattr__(name, value)
@@ -209,16 +173,16 @@ class DataParallel(tnn.Module):
         return ret
 
     def _iparam_update(self, param_slice: slice = None, layer_names: List[str] = None) -> None:
-        """
+        r"""
         Update parameters asynchronously via wait handles.
 
         Parameters
         ----------
         param_slice : slice, optional
-            Slice object for creating a view onto optimizer's params list.
+            Slice object for creating a view onto optimizer's params list.\n
             By default, the whole params list is used, (``None``)
         layer_names : list(str), optional
-            List of layer names which parameters will be updated, must match param_slice.
+            List of layer names which parameters will be updated, must match param_slice.\n
             By default, all layers are updated (``None``)
         """
         # for non-blocking, only one dp optimizer is allowed
@@ -238,7 +202,7 @@ class DataParallel(tnn.Module):
             if layer_name not in self._active_layers:
                 return
             # iterate over layer's parameters/associated wait handles
-            for (param_name, wait_handle, dtp, tens) in self._layer_wait_handles[layer_name]:
+            for param_name, wait_handle, dtp, tens in self._layer_wait_handles[layer_name]:
                 # get internal index of selected parameter
                 param_idx = self._param_indices[param_name]
                 # synchronize, get parameter's global gradient
@@ -249,7 +213,6 @@ class DataParallel(tnn.Module):
                 ):  # wait_handle.tensor.shape:
                     raise ValueError("Shapes must be equal.")
                 # accumulate parameter's global gradient
-                # print(tens.dtype, dtp)
                 dp_optimizer.params_ref[param_idx].grad.data += tens.to(dtp)  # wait_handle.tensor
                 # remove layer from set of active layers, if present
                 self._active_layers.discard(layer_name)
@@ -270,12 +233,12 @@ class DataParallel(tnn.Module):
         ----------
         [1] (cf. https://pytorch.org/docs/stable/tensors.html#torch.Tensor.register_hook).
         """
-        wrk = grad_loc.to(torch.bfloat16)
+        grad_loc_bf = grad_loc.to(torch.float)  # bfloat16)
         # average local gradients
-        wrk *= 1 / float(self.comm.size)
+        grad_loc_bf *= 1 / float(self.comm.size)
         # perform MPI Allreduce to compute global gradient
-        self.comm.Allreduce(MPI.IN_PLACE, wrk, mpi_sum_f16)
-        return wrk.to(grad_loc.dtype)
+        self.comm.Allreduce(MPI.IN_PLACE, grad_loc_bf, MPI.SUM)  # mpi_sum_bf16)
+        return grad_loc_bf.to(grad_loc.dtype)
 
     def _nonblocking_hook(self, layer_name: str, param_name: str) -> Callable:
         """
@@ -291,11 +254,11 @@ class DataParallel(tnn.Module):
         # hook function for blocking gradient data exchange
         def _hook(grad_loc: torch.Tensor) -> torch.Tensor:
             with torch.no_grad():
-                wrk = grad_loc.to(torch.bfloat16)
+                wrk = grad_loc.to(torch.float)  # bfloat16)
             # counterbalance local gradient averaging
             wrk *= 1 / float(self.comm.size)
             # perform MPI IAllreduce to compute global gradient, returns wait handle
-            wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, wrk, mpi_sum_f16)
+            wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, wrk, MPI.SUM)  # mpi_sum_bf16)
             # if layer wait handle dict does not contain the layer, add it -> automatically tracks reversed layer order
             if layer_name not in self._layer_wait_handles:
                 self._layer_wait_handles[layer_name] = list()
@@ -350,22 +313,36 @@ class DataParallel(tnn.Module):
 
 class DataParallelMultiGPU(tnn.Module):
     """
-    working for data parallel stuff
+    This creates data parallel networks local to each node using PyTorch's distributed class. This does NOT
+    do any global synchronizations. To make optimal use of this structure, use :func:`ht.optim.DASO <heat.optim.dp_optimizer.DASO>`.
 
-    loss_floor is where the user would hope for the loss to get to
+    Notes
+    -----
+    The PyTorch distributed process group must already exist before this class is initialized.
+
+    Parameters
+    ----------
+    module: torch.nn.Module
+        an implemented PyTorch model
+    optimizer: optim.DASO
+        A DASO optimizer. Other optimizers are not yet implemented. The DASO optimizer should be
+        defined prior to calling this class.
+    comm: MPICommunication, optional
+        A global communicator.
+        Default: :func:`MPICommunication <heat.core.comm.MPICommunication>`
     """
 
-    def __init__(self, module: torch.nn.Module, comm: MPICommunication, optimizer):
+    def __init__(
+        self, module: torch.nn.Module, optimizer: optim.DASO, comm: MPICommunication = MPI_WORLD
+    ):  # noqa: D107
         super(DataParallelMultiGPU, self).__init__()
         rank = comm.rank
-        loc_gpus = torch.cuda.device_count()
-        if loc_gpus > 1:
-            self.loc_gpus = loc_gpus
-            local_rank = rank % loc_gpus
-            module = tDDP(module, device_ids=[local_rank])  # , process_group=lg)
-            # module.share_memory()
+        if torch.cuda.device_count() > 1:
+            self.loc_gpus = torch.cuda.device_count()
+            local_rank = rank % self.loc_gpus
             device = "cuda:" + str(local_rank)
             torch.cuda.set_device(device=device)
+            module = tnn.parallel.DistributedDataParallel(module, device_ids=[local_rank])
         else:
             warnings.warn(
                 "DataParallelMultiGPU should be used with multiple GPUs per node", UserWarning
@@ -374,13 +351,14 @@ class DataParallelMultiGPU(tnn.Module):
         self.comm = comm
 
         # unify parameters across nodes by unifying the random seed and resetting parameters
-        torch.random.manual_seed(2147483646)  # max int32 value - 1
         self.module.apply(self._reset_parameters)
 
-        if isinstance(optimizer, optim.SkipBatches):
-            optimizer.set_model(self.module)
+        optimizer.set_model(self.module)
 
-    def forward(self, *inputs, **kwargs):
+    def forward(self, *inputs: Tuple, **kwargs: Dict) -> torch.Tensor:
+        """
+        Calls the forward method for the torch model
+        """
         return self.module(*inputs, **kwargs)
 
     @staticmethod

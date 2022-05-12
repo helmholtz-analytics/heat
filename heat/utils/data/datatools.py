@@ -1,3 +1,7 @@
+"""
+Function and classes useful for loading data into neural networks
+"""
+
 import torch
 from torch.utils import data as torch_data
 from typing import Callable, List, Iterator, Union, Optional, Sized
@@ -6,60 +10,55 @@ from ...core.dndarray import DNDarray
 from ...core.communication import MPI_WORLD
 from . import partial_dataset
 
-__all__ = [
-    "DataLoader",
-    "Dataset",
-    "dataset_shuffle",
-    "dataset_ishuffle",
-    "DistributedLoaderRandomSampler",
-    "DistributedLoaderSequentialSampler",
-]
+__all__ = ["DataLoader", "Dataset", "dataset_shuffle", "dataset_ishuffle"]
 
 
 class DataLoader:
-    """
-    The combines either a ``DNDarray`` (:class:`...core.dndarray.DNDarray`) or a torch ``Dataset`` with a sampler.
-    This provides an iterable over the local dataset and it will shuffle the data at the end of the iterator.
-    If a ``DNDarray`` is given a general, then a ``Dataset`` will be created internally.
+    r"""
+    The combines either a :func:`DNDarray <heat.core.dndarray.DNDarray>` or a torch `Dataset <https://pytorch.org/docs/stable/data.html?highlight=dataset#torch.utils.data.Dataset>`_
+    with a sampler. This provides an iterable over the local dataset and it will shuffle the data at the end of the
+    iterator. If a :func:`DNDarray <heat.core.dndarray.DNDarray>` is given, then a :func:`Dataset` will be created
+    internally.
 
     Currently, this only supports only map-style datasets with single-process loading. It uses the random
-    batch sampler. The rest of the ``DataLoader`` functionality mentioned in :func:`torch.utils.data.dataloader` applies
+    batch sampler. The rest of the ``DataLoader`` functionality mentioned in `torch.utils.data.dataloader <https://pytorch.org/docs/stable/data.html?highlight=dataset#torch.utils.data.DataLoader>`_ applies.
 
     Arguments:
-        data : Dataset, DNDarray
-            Dataset from which to load the data.
+        dataset : :func:`Dataset`, torch `Dataset <https://pytorch.org/docs/stable/data.html?highlight=dataset#torch.utils.data.Dataset>`_, :func:`heat.utils.data.partial_dataset.PartialH5Dataset`
+            A torch dataset from which the data will be returned by the created iterator
         batch_size : int, optional
-            How many samples per batch to load (default: 1).
+            How many samples per batch to load\n
+             Default: 1
         num_workers : int, optional
-            How many subprocesses to use for data loading. 0 means that the data will be loaded in the main process.
-            (default: 0)
+            How many subprocesses to use for data loading. 0 means that the data will be loaded in the main process.\n
+            Default: 0
         collate_fn : callable, optional
             Merges a list of samples to form a mini-batch of torch.Tensor(s).  Used when using batched loading from a
-            map-style dataset.
+            map-style dataset.\n
+            Default: None
         pin_memory : bool, optional
             If ``True``, the data loader will copy torch.Tensors into CUDA pinned memory before returning them.
             If your data elements are a custom type, or your :attr:`collate_fn` returns a batch that is a custom type,
-            see the example below.
+            see the example below. \n
+            Default: False
         drop_last : bool, optional
             Set to ``True`` to drop the last incomplete batch, if the dataset size is not divisible by
             the batch size. If ``False`` and the size of dataset is not divisible by the batch size, then
-            the last batch will be smaller. (default: ``False``)
+            the last batch will be smaller.\n
+            Default: ``False``
         timeout : int or float, optional
-            If positive, the timeout value for collecting a batch from workers. Should always be non-negative.
-            (default: 0)
+            If positive, the timeout value for collecting a batch from workers. Should always be non-negative.\n
+            Default: 0
         worker_init_fn : callable, optional
             If not ``None``, this will be called on each worker subprocess with the worker id
-            (an int in ``[0, num_workers - 1]``) as input, after seeding and before data loading. (default: ``None``)
-        dataset : torch.Dataset, partial_dataset.PartialH5Dataset, optional
-            A torch dataset from which the data will be returned by the created iterator
-        transform : Callable, optional
-            Transform to be given to ``Dataset`` :class:`Dataset` creation if a Dataset is created
+            (an int in ``[0, num_workers - 1]``) as input, after seeding and before data loading.\n
+            default: None
 
     Attributes
     ----------
-    dataset : torch.data.utils.data.Dataset or heat.Dataset
+    dataset : :func:`Dataset`, torch `Dataset <https://pytorch.org/docs/stable/data.html?highlight=dataset#torch.utils.data.Dataset>`_, :func:`heat.utils.data.partial_dataset.PartialH5Dataset`
         The dataset created from the local data
-    DataLoader : torch.utils.data.DataLoader
+    DataLoader : `torch.utils.data.dataloader <https://pytorch.org/docs/stable/data.html?highlight=dataset#torch.utils.data.DataLoader>`_
         The local DataLoader object. Used in the creation of the iterable and the length
     _first_iter : bool
         Flag indicating if the iterator created is the first one. If it is not, then the data will be shuffled before
@@ -70,8 +69,7 @@ class DataLoader:
 
     def __init__(
         self,
-        data=None,
-        dataset: Union[torch_data.Dataset, partial_dataset.PartialH5Dataset] = None,
+        dataset: Union[torch_data.Dataset, partial_dataset.PartialH5Dataset],
         batch_size: int = 1,
         num_workers: int = 0,
         collate_fn: Callable = None,
@@ -79,16 +77,12 @@ class DataLoader:
         drop_last: bool = False,
         timeout: Union[int, float] = 0,
         worker_init_fn: Callable = None,
-        transforms: Union[List, Callable] = None,
-    ):
-        if isinstance(data, DNDarray) and dataset is None:
-            self.dataset = Dataset(array=data, transforms=transforms)
-        elif dataset:
-            self.dataset = dataset
-        else:
+    ):  # noqa: D107
+        if not isinstance(dataset, (torch_data.Dataset, Dataset, partial_dataset.PartialH5Dataset)):
             raise TypeError(
-                f"data must be a DNDarray or lcl_dataset must be given, data is currently: {type(data)}"
+                f"dataset must be a torch Dataset, heat Dataset, heat PartialH5Dataset, currently: {type(dataset)}"
             )
+        self.dataset = dataset
         self.ishuffle = self.dataset.ishuffle
         if isinstance(self.dataset, partial_dataset.PartialH5Dataset):
             drop_last = True
@@ -109,23 +103,23 @@ class DataLoader:
         self.last_epoch = False
 
     def __iter__(self) -> Iterator:
+        """
+        Generate a new iterator of a type dependent on the type of dataset.
+        Returns a :class:`partial_dataset.PartialH5DataLoaderIter` if the dataset is a :class:`partial_dataset.PartialH5Dataset`
+        :func:`self._full_dataset_shuffle_iter` otherwise
+        """
         if isinstance(self.dataset, partial_dataset.PartialH5Dataset):
             return partial_dataset.PartialH5DataLoaderIter(self)
-        try:
-            # if it is a normal dataset then this would be defined
+        if hasattr(self, "_full_dataset_shuffle_iter"):
+            # if it is a normal heat dataset then this is defined
             self._full_dataset_shuffle_iter()
-            return self.DataLoader.__iter__()
-        except AttributeError():
-            if isinstance(self.dataset, torch_data.Dataset):
-                return self.DataLoader.__iter__()
-            else:
-                raise TypeError(
-                    f"Dataset must be either a torch or heat dataset, "
-                    f"currently is {type(self.dataset)}"
-                )
+        return self.DataLoader.__iter__()
 
     def __len__(self) -> int:
-        return len(self.DataLoader)
+        """
+        Get the length of the dataloader. Returns the number of batches.
+        """
+        return self.DataLoader.__len__()
 
     def _full_dataset_shuffle_iter(self):
         # logic for when to shuffle the data
@@ -147,25 +141,22 @@ class DataLoader:
 
 
 class Dataset(torch_data.Dataset):
-    """
+    r"""
     An abstract class representing a given dataset. This inherits from torch.utils.data.Dataset.
 
     This class is a general example for what should be done to create a Dataset. When creating a dataset all of the
     standard attributes should be set, the ``__getitem__``, ``__len__``, and ``shuffle`` functions must be defined.
 
-        - ``__getitem__`` : how an item is given to the network\n
-        - ``__len__`` : the number of data elements to be given to the network in total\n
-        - ``Shuffle()`` : how the data should be shuffled between the processes. The function shown below is for a dataset
-            composed of only data and without targets. The function :func:`dataset_shuffle` abstracts this. For this function
-            only the dataset and a list of attributes to shuffle are given.\n
-        - (optional) ``Ishuffle()`` : A non-blocking version of ``Shuffle()``, this is handled in the abstract function
-            :func:`dataset_ishuffle`. It works similarly to :func:`dataset_shuffle`.\n
+        - ``__getitem__`` : how an item is given to the network
+        - ``__len__`` : the number of data elements to be given to the network in total
+        - ``Shuffle()`` : how the data should be shuffled between the processes. The function shown below is for a dataset composed of only data and without targets. The function :func:`dataset_shuffle` abstracts this. For this function only the dataset and a list of attributes to shuffle are given.\n
+        - ``Ishuffle()`` : A non-blocking version of ``Shuffle()``, this is handled in the abstract function :func:`dataset_ishuffle`. It works similarly to :func:`dataset_shuffle`.
 
     As the amount of data across processes can be non-uniform, the dataset class will slice off the remaining elements
     on whichever processes have more data than the others. This should only be 1 element.
     The shuffle function will shuffle all of the data on the process.
 
-    It is recommended that for ``DNDarray``s, the split is either 0 or ``None``
+    It is recommended that for ``DNDarray`` s, the split is either 0 or None
 
     Parameters
     ----------
@@ -175,13 +166,13 @@ class Dataset(torch_data.Dataset):
         Transformation to call before a data item is returned
     ishuffle : bool, optional
         flag indicating whether to use non-blocking communications for shuffling the data between epochs
-        Note: if ``True``, the ``Ishuffle()`` function must be defined within the class
-        Default: ``False``
+        Note: if ``True``, the ``Ishuffle()`` function must be defined within the class\n
+        Default: False
 
     Attributes
     ----------
-    These are the required attributes. Optional attributed are whatever are required for the Dataset
-    (see :class:`heat.utils.data.mnist.py`)
+    These are the required attributes.
+
     htdata : DNDarray
         Full data
     _cut_slice : slice
@@ -204,7 +195,7 @@ class Dataset(torch_data.Dataset):
         transforms: Optional[Union[List, Callable]] = None,
         ishuffle: Optional[bool] = False,
         test_set: Optional[bool] = False,
-    ):
+    ):  # noqa: D107
         self.htdata = array
         self.comm = array.comm
         self.test_set = test_set
@@ -221,14 +212,18 @@ class Dataset(torch_data.Dataset):
         self.ishuffle = ishuffle
 
     def __getitem__(self, index: Union[int, slice, tuple, list, torch.Tensor]) -> torch.Tensor:
-        # this is the most basic form of getitem, it only gets items from data
-        # it should be overwritten by a custom dataset
+        """
+        This is the most basic form of getitem. As the dataset is often very specific to the dataset,
+        this should be overwritten by the user. In this form it only gets the raw items from the data.
+        """
         if self.transforms:
             return self.transforms[0](self.data[index])
         return self.data[index]
 
     def __len__(self) -> int:
-        # this should be overwritten by custom datasets
+        """
+        Get the number of items in the dataset. This should be overwritten by custom datasets
+        """
         return self.data.shape[0]
 
     def Shuffle(self):
@@ -252,16 +247,13 @@ def dataset_shuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[lis
     """
     Shuffle the given attributes of a dataset across multiple processes. This will send half of the data to rank + 1.
     Once the new data is received, it will be shuffled into the existing data on the process.
-
     This function will be called by the DataLoader automatically if ``dataset.ishuffle = False``.
-
-    attrs should have the form [[torch.Tensor, DNDarray], ...]
-          i.e. [['data', 'htdata`]]
-    assume that all of the attrs have the same dim0 shape as the local data
+    attrs should have the form [[torch.Tensor, DNDarray], ... i.e. [['data', 'htdata`]] assume that all of the attrs have the same dim0 shape as the local data
 
     Parameters
     ----------
     dataset : Dataset
+        the dataset to shuffle
     attrs : List[List[str, str], ... ]
         List of lists each of which contains 2 strings. The strings are the handles corresponding to the Dataset
         attributes corresponding to the global data DNDarray and the local data of that array, i.e. [["data, "htdata"],]
@@ -317,6 +309,7 @@ def dataset_ishuffle(dataset: Union[Dataset, torch_data.Dataset], attrs: List[li
     Parameters
     ----------
     dataset : Dataset
+        the dataset to shuffle
     attrs : List[List[str, str], ... ]
         List of lists each of which contains 2 strings. The strings are the handles corresponding to the Dataset
         attributes corresponding to the global data DNDarray and the local data of that array, i.e. [["htdata, "data"],]
@@ -358,6 +351,7 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
     Parameters
     ----------
     dataset : Dataset
+        the dataset to shuffle
 
     Notes
     -----
@@ -380,114 +374,3 @@ def dataset_irecv(dataset: Union[Dataset, torch_data.Dataset]):
             # shuffle all of the data around
             shuffled = getattr(dataset, rcv[0][0])[prm]
             setattr(dataset, rcv[0][0], shuffled[dataset._cut_slice])
-
-
-class DistributedLoaderRandomSampler(torch_data.Sampler):
-    r"""Samples elements randomly. If without replacement, then sample from a shuffled dataset.
-    If with replacement, then user can specify :attr:`num_samples` to draw.
-
-    Arguments:
-        data_source (Dataset): dataset to sample from
-        replacement (bool): samples are drawn on-demand with replacement if ``True``, default=``False``
-        num_samples (int): number of samples to draw, default=`len(dataset)`. This argument
-            is supposed to be specified only when `replacement` is ``True``.
-        generator (Generator): Generator used in sampling.
-    """
-    data_source: Sized
-    replacement: bool
-
-    def __init__(
-        self,
-        data_source: Sized,
-        replacement: bool = False,
-        num_samples: Optional[int] = None,
-        generator=None,
-        DDDP=False,
-    ) -> None:
-        self.data_source = data_source
-        self.replacement = replacement
-        self._num_samples = num_samples
-        self.generator = generator
-        self._splits = MPI_WORLD.size
-        self._rank_split = MPI_WORLD.rank
-        self.__seed = torch.iinfo(torch.int64).max
-        if DDDP:
-            # note: this implies a homogeneous node config
-            self._splits = MPI_WORLD.size // torch.cuda.device_count()
-            self._rank_split = MPI_WORLD.rank // torch.cuda.device_count()
-
-        if not isinstance(self.replacement, bool):
-            raise TypeError(
-                "replacement should be a boolean value, but got "
-                "replacement={}".format(self.replacement)
-            )
-
-        if self._num_samples is not None and not replacement:
-            raise ValueError(
-                "With replacement=False, num_samples should not be specified, "
-                "since a random permute will be performed."
-            )
-
-        if not isinstance(self.num_samples, int) or self.num_samples <= 0:
-            raise ValueError(
-                "num_samples should be a positive integer "
-                "value, but got num_samples={}".format(self.num_samples)
-            )
-
-    @property
-    def num_samples(self) -> int:
-        # dataset size might change at runtime
-        if self._num_samples is None:
-            return len(self.data_source) // self._splits
-        return self._num_samples // self._splits
-
-    def __iter__(self):
-        n = len(self.data_source)
-        loc_n = n // self._splits
-        sl = slice(self._rank_split * loc_n, (self._rank_split + 1) * loc_n)
-        self.__seed -= 1
-        if self.generator is None:
-            generator = torch.Generator()
-            generator.manual_seed(self.__seed)
-        else:
-            generator = self.generator
-        if self.replacement:
-            for _ in range(self.num_samples // 32):
-                yield from torch.randint(
-                    high=n, size=(32,), dtype=torch.int64, generator=generator
-                ).tolist()[sl]
-            yield from torch.randint(
-                high=n, size=(self.num_samples % 32,), dtype=torch.int64, generator=generator
-            ).tolist()[sl]
-        else:
-            yield from torch.randperm(n, generator=self.generator).tolist()[sl]
-
-    def __len__(self):
-        return self.num_samples
-
-
-class DistributedLoaderSequentialSampler(torch_data.Sampler):
-    r"""Samples elements sequentially, always in the same order.
-
-    Arguments:
-        data_source (Dataset): dataset to sample from
-    """
-    data_source: Sized
-
-    def __init__(self, data_source, DDDP=True):
-        self.data_source = data_source
-        self._splits = MPI_WORLD.size
-        self._rank_split = MPI_WORLD.rank
-        if DDDP:
-            # note: this implies a homogeneous node config
-            self._splits = MPI_WORLD.size // torch.cuda.device_count()
-            self._rank_split = MPI_WORLD.rank // torch.cuda.device_count()
-
-    def __iter__(self):
-        n = len(self.data_source)
-        loc_n = n // self._splits
-        sl = slice(self._rank_split * loc_n, (self._rank_split + 1) * loc_n)
-        return iter(list(range(n))[sl])
-
-    def __len__(self) -> int:
-        return len(self.data_source)

@@ -1,14 +1,14 @@
-## Contributing to HeAT
+## Contributing to Heat
 
-Thank you for your interest in contributing to HeAT, we really appreciate your time and effort!
+Thank you for your interest in contributing to Heat, we really appreciate your time and effort!
  * If you want to report a bug, or propose a new feature, you can file an [Issue](https://github.com/helmholtz-analytics/heat/issues/new/choose).
- * You can also get in touch with us on [Mattermost](https://mattermost-haf.fz-juelich.de/signup_email). You will need to register. Once you log in, you can introduce yourself on the `Town Square` channel, or get straight to the point in the `heat-discuss` channel.
- * To set up your environment for HeAT development, follow these [instructions](README.md#Hacking).
- * We strongly recommend getting in touch with the core developers, either here on GitHub (by filing and/or commenting on an Issue) or on [Mattermost](https://mattermost-haf.fz-juelich.de/signup_email), before starting to work on a contribution. We are a small team and it's good to know who is currently working on what.
+ * You can also get in touch with us on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo). You can sign up with your GitHub credentials. Once you log in, you can introduce yourself on the `Town Square` channel.
+ * To set up your environment for Heat development, follow these [instructions](README.md#Hacking).
+ * We strongly recommend getting in touch with the core developers, either here on GitHub (by filing and/or commenting on an Issue) or on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo), before starting to work on a contribution. We are a small team and it's good to know who is currently working on what.
  * Our git workflow is described in a lot of detail [below](#developing-contributions).
  * **TL;DR for experts:**
  1. `git add`, `pre-commit run --all-files` and `git commit` as needed;
- 2. `git rebase -i master` to rebase and tidy up your commits;
+ 2. `git rebase -i main` to rebase and tidy up your commits;
  3. `git push` to publish to the remote repository.
 
 
@@ -32,29 +32,29 @@ git clone https://github.com/<YOUR-USERNAME>/heat.git
 cd heat
 ```
 
-* Add the original HeAT repository as your upstream:
+* Add the original Heat repository as your upstream:
 
 ```
 git remote add upstream https://github.com/helmholtz-analytics/heat.git
 ```
 
 * Now, `git remote -v` will show two remote repositories named:
-    * `upstream`, which refers to the main HeAT repository
-    * `origin`, which refers to your personal fork of HeAT
+    * `upstream`, which refers to the main Heat repository
+    * `origin`, which refers to your personal fork of Heat
 
 #### Developing Contributions
 
 * Pull the latest changes from upstream:
 
 ```
-git checkout master
-git pull upstream master
+git checkout main
+git pull upstream main
 ```
 
-* Install heat from the checked out sources with:
+* Install Heat from the checked out sources with:
 
 ```
-pip install .[hdf5, netcdf, dev]
+pip install .[hdf5,netcdf,dev]
 ```
 
 * The extra `dev` dependency pulls in additional tools to support the enforcement
@@ -79,7 +79,7 @@ git add
 pre-commit run --all-files
 git commit
 ```
-Use a properly formatted commit message, write tests that fail before your change and pass afterward, run all the tests locally and in parallel for different process counts (`mpirun -np <PROCESSES>`). Be sure to document any changed behavior in docstrings, keeping to HeAT's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/504-docstring-formatting/doc/source/documentation_howto.rst).
+Use a properly formatted commit message, write tests that fail before your change and pass afterward, run all the tests locally and in parallel for different process counts (`mpirun -np <PROCESSES>`). Be sure to document any changed behavior in docstrings, keeping to Heat's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/documentation_howto.rst).
 
 
 #### Publishing your Contributions
@@ -118,17 +118,17 @@ git push origin features/123-boolean-operators
 
 * If your change introduces a deprecation, make sure to discuss this first on GitHub and what the appropriate deprecation strategy is.
 
-#### Divergence between upstream/master and your feature branch
+#### Divergence between upstream/main and your feature branch
 
-If GitHub indicates that the branch of your PR can no longer be merged automatically, you have to incorporate changes that have been made since you started into your branch. Our recommended way to do this is to rebase on master.
+If GitHub indicates that the branch of your PR can no longer be merged automatically, you have to incorporate changes that have been made since you started into your branch. Our recommended way to do this is to rebase on `main`.
 
 ## Guidelines
 
 * All code should have tests (see test coverage below for more details).
 
-* All code should be documented in accordance with HeAT's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/504-docstring-formatting/doc/source/documentation_howto.rst).
+* All code should be documented in accordance with Heat's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/documentation_howto.rst).
 
-* No changes are ever merged without review and approval by a core team member. Please ask politely on the PR if you get no response to your pull request within a week.
+* No changes are ever merged without review and approval by a core team member. Feel free to ping us on the PR if you get no response to your pull request within a week.
 
 ## Stylistic Guidelines
 
@@ -137,7 +137,7 @@ If GitHub indicates that the branch of your PR can no longer be merged automatic
 * Use the following import conventions:
     * `import heat as ht`
     * `import numpy as np`
-    * Have Python standard library and third-party dependencies imported before HeAT modules.
+    * Have Python standard library and third-party dependencies imported before Heat modules.
 
 * Sort functions alphabetically in files (leading underscores are ignored).
 
