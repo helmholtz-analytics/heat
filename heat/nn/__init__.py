@@ -35,8 +35,8 @@ else:
     from . import data_parallel
     from . import tests
 
-    class Wrapper(object):
-        def __init__(self, wrapped):
+    class _Wrapper(object):
+        def __init__(self, wrapped):  # noqa: D101
             """
             Wrapper to handle the dynamic calling of torch.nn modules in the heat namespace
             """
@@ -65,4 +65,4 @@ else:
                 except AttributeError:
                     raise AttributeError(f"module '{name}' not implemented in Torch or Heat")
 
-    sys.modules[__name__] = Wrapper(sys.modules[__name__])
+    sys.modules[__name__] = _Wrapper(sys.modules[__name__])
