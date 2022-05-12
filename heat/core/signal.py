@@ -13,26 +13,45 @@ import torch.nn.functional as fc
 __all__ = ["convolve", "convolve2d"]
 
 
-def genpad(a, signal, pad, split, boundary, fillvalue):
+def convgenpad(a, signal, pad, boundary, fillvalue):
+    """
+    Adds padding to local PyTorch tensors considering the distributed scheme of the overlying DNDarray.
 
+    Parameters
+    ----------
+    a : DNDarray
+        Overlying N-dimensional `DNDarray` signal
+    signal : torch.Tensor
+        Local Pytorch tensors to be padded
+    pad: list
+        list containing paddings per dimensions
+    boundary: str{‘fill’, ‘wrap’, ‘symm’}, optional
+        A flag indicating how to handle boundaries:
+        'fill':
+         pad input arrays with fillvalue. (default)
+        'wrap':
+         circular boundary conditions.
+        'symm':
+         symmetrical boundary conditions.
+    fillvalue: scalar, optional
+         Value to fill pad input arrays with. Default is 0.
+    """
     dim = len(signal.shape) - 2
-    dime = 2*dim-1
-    dimz = 2*dim-2
+    dime = 2 * dim - 1
+    dimz = 2 * dim - 2
     # check if more than one rank is involved
-    if a.is_distributed():
+    if a.is_distributed() and a.split is not None:
 
         # set the padding of the first rank
         if a.comm.rank == 0:
-            
-            pad[dime - 2 * split] = 0
+            pad[dime - 2 * a.split] = 0
         # set the padding of the last rank
         elif a.comm.rank == a.comm.size - 1:
-            
-            pad[dimz - 2 * split] = 0
+            pad[dimz - 2 * a.split] = 0
         else:
-            pad[dime - 2 * split] = 0 
-            pad[dimz - 2 * split] = 0
-                
+            pad[dime - 2 * a.split] = 0
+            pad[dimz - 2 * a.split] = 0
+
     if boundary == "fill":
         signal = fc.pad(signal, pad, mode="constant", value=fillvalue)
     elif boundary == "wrap":
@@ -56,12 +75,12 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     v : DNDarray
         One-dimensional filter weight `DNDarray` of shape (M,).
     mode : str
-        Can be 'full', 'valid', or 'same'. Default is 'full'.
+        Can be 'full', 'valid', or 'same'.
         'full':
           Returns the convolution at
           each point of overlap, with an output shape of (N+M-1,). At
           the end-points of the convolution, the signals do not overlap
-          completely, and boundary effects may be seen.
+          completely, and boundary effects may be seen. Default is 'full'
         'same':
           Mode 'same' returns output  of length 'N'. Boundary
           effects are still visible. This mode is not supported for
@@ -71,6 +90,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
           convolution product is only given for points where the signals
           overlap completely. Values outside the signal boundary have no
           effect.
+    fillvalue: scalar, optional
+         Value to fill pad input arrays with. Default is 0.
 
     Notes
     -----
@@ -133,6 +154,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         gshape = a.shape[0] - v.shape[0] + 1
     else:
         raise ValueError("Supported modes are 'full', 'valid', 'same', got {}".format(mode))
+
+    print("signal2: ", a.lshape, a.comm.rank)
 
     a = pad(a, pad_size, "constant", 0)
 
@@ -268,7 +291,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     a.get_halo(halo_size)
 
     # apply halos to local array
-    signal = a.array_with_halos.clone()
+    signal = a.array_with_halos
 
     # check if a local chunk is smaller than the filter size
     if a.is_distributed() and signal.size()[0] < v.shape[0]:
@@ -299,23 +322,33 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     signal = signal.reshape(1, 1, signal.shape[0], signal.shape[1])
 
     # add padding to the borders according to mode
-    signal = genpad(a, signal, pad, a.split, boundary, fillvalue)
+    signal = convgenpad(a, signal, pad, boundary, fillvalue)
 
     # flip filter for convolution as PyTorch conv2d computes correlation
     weight = torch.flip(v._DNDarray__array.clone(), [0, 1])
     weight = weight.reshape(1, 1, weight.shape[0], weight.shape[1])
 
+    # print('signal: ', signal.shape, a.comm.rank)
     # apply torch convolution operator
     signal_filtered = fc.conv2d(signal, weight)
+
+    
 
     # unpack 3D result into 1D
     signal_filtered = signal_filtered[0, 0, :]
 
-    # if kernel shape along split axis is even we need to get rid of duplicated values
-    if a.comm.rank != 0 and v.shape[0] % 2 == 0:
-        signal_filtered = signal_filtered[1:, 1:]
+    #print("signal3: ", signal_filtered.shape, a.comm.rank)
 
-    return DNDarray(
+    # if kernel shape along split axis is even we need to get rid of duplicated values
+    if a.comm.rank != 0 and v.shape[0] % 2 == 0 and a.split == 0:
+        signal_filtered = signal_filtered[1:, :]
+    elif a.comm.rank != 0 and v.shape[1] % 2 == 0 and a.split == 1:
+        signal_filtered = signal_filtered[:, 1:]
+
+
+    print("signal3: ", signal_filtered.shape, a.comm.rank, gshape)
+
+    result = DNDarray(
         signal_filtered.contiguous(),
         gshape,
         signal_filtered.dtype,
@@ -324,3 +357,10 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
         a.comm,
         a.balanced,
     ).astype(a.dtype.torch_type())
+
+    print("signal: ", result.lshape, a.comm.rank)
+
+    if mode == "full" or mode == "valid":
+        result.balance()
+
+    return result
