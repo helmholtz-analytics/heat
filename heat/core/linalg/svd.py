@@ -107,10 +107,9 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
     q1_tiles = tiling.SquareDiagTiles(q1, tiles_per_proc)
     q1_tiles.match_tiles(arr_t_tiles)
     print(
-        q1_tiles.row_indices,
-        q1_tiles.col_indices,
-        q1_tiles.tile_rows_per_process,
-        q1_tiles.tile_columns_per_process,
+        f"row inds {q1_tiles.row_indices}, col inds {q1_tiles.col_indices} \n"
+        f"tile rows/pr {q1_tiles.tile_rows_per_process} "
+        f"tile cols/pr {q1_tiles.tile_columns_per_process}"
     )
 
     if arr.split == 0:
@@ -175,12 +174,13 @@ def __block_diagonalize_sp0(
             )
         # 2. do full QR on the next column for LQ on arr_t
         __split1_qr_loop(
-            diag_idx=(col, col + 1),
+            diag_idx=(col + 1, col),
             r_tiles=arr_t_tiles,
             q0_tiles=q1_tiles,
             calc_q=True,
             empties=empties_t,
         )
+        # break
     for col in range(tile_columns - 1):
         __split0_q_loop(
             r_tiles=arr_tiles,
@@ -195,7 +195,6 @@ def __block_diagonalize_sp0(
     # do the last column now
     col = tile_columns - 1
     not_completed_processes = torch.nonzero(input=col < proc_tile_start, as_tuple=False).flatten()
-    print(not_completed_processes, proc_tile_start, col)
     if rank in not_completed_processes and rank in active_procs:
         diag_process = not_completed_processes[0].item()
         __split0_r_calc(
@@ -222,7 +221,7 @@ def __block_diagonalize_sp0(
         #       target is new row starting at 16 (min gshape) and column at 14 (from 0)
         #           this is row -> min gshape, col -> (min gshape - band width) (row_inds[1])
         __split1_qr_loop(
-            diag_idx=(col, col + 1),
+            diag_idx=(col + 1, col),
             r_tiles=arr_t_tiles,
             q0_tiles=q1_tiles,
             calc_q=True,
@@ -291,7 +290,7 @@ def __block_diagonalize_sp1(
                 r_tiles=arr_t_tiles,
                 q_dict=q1_dict,
                 q_dict_waits=q1_dict_waits,
-                diag_idx=(col, col + 1),
+                diag_idx=(col + 1, col),
                 diag_pr=diag_process,
                 not_completed_prs=not_completed_processes,
             )
@@ -299,7 +298,7 @@ def __block_diagonalize_sp1(
         __split0_q_loop(
             r_tiles=arr_t_tiles,
             q0_tiles=q1_tiles,
-            diag_idx=(col, col + 1),
+            diag_idx=(col + 1, col),
             proc_tile_start=proc_tile_start_t,
             q_dict=q1_dict,
             q_dict_waits=q1_dict_waits,
@@ -322,7 +321,7 @@ def __block_diagonalize_sp1(
                 r_tiles=arr_t_tiles,
                 q_dict=q1_dict,
                 q_dict_waits=q1_dict_waits,
-                diag_idx=(col, col + 1),
+                diag_idx=(col + 1, col),
                 diag_pr=diag_process,
                 not_completed_prs=not_completed_processes,
             )
@@ -331,7 +330,7 @@ def __block_diagonalize_sp1(
             __split0_q_loop(
                 r_tiles=arr_t_tiles,
                 q0_tiles=q1_tiles,
-                diag_idx=(col, col + 1),
+                diag_idx=(col + 1, col),
                 proc_tile_start=proc_tile_start_t,
                 q_dict=q1_dict,
                 q_dict_waits=q1_dict_waits,
