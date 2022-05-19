@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import torch
+import tempfile
 
 import heat as ht
 from .test_suites.basic_test import TestCase
@@ -11,17 +12,18 @@ class TestIO(TestCase):
     def setUpClass(cls):
         super(TestIO, cls).setUpClass()
         pwd = os.getcwd()
-        cls.HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.h5")
+        cls.HDF5_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.h5")
         cls.HDF5_OUT_PATH = pwd + "/test.h5"
         cls.HDF5_DATASET = "data"
 
-        cls.NETCDF_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.nc")
+        cls.NETCDF_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.nc")
         cls.NETCDF_OUT_PATH = pwd + "/test.nc"
         cls.NETCDF_VARIABLE = "data"
         cls.NETCDF_DIMENSION = "data"
 
         # load comparison data from csv
-        cls.CSV_PATH = os.path.join(os.getcwd(), "heat/datasets/data/iris.csv")
+        cls.CSV_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.csv")
+        cls.CSV_OUT_PATH = pwd + "/test.csv"
         cls.IRIS = (
             torch.from_numpy(np.loadtxt(cls.CSV_PATH, delimiter=";"))
             .float()
@@ -64,7 +66,7 @@ class TestIO(TestCase):
             # content
             self.assertTrue((self.IRIS == iris.larray).all())
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(RuntimeError):
                 _ = ht.load(self.HDF5_PATH, dataset=self.HDF5_DATASET)
 
         # netCDF
@@ -80,7 +82,7 @@ class TestIO(TestCase):
             # content
             self.assertTrue((self.IRIS == iris.larray).all())
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(RuntimeError):
                 _ = ht.load(self.NETCDF_PATH, variable=self.NETCDF_VARIABLE)
 
     def test_load_csv(self):
@@ -141,25 +143,126 @@ class TestIO(TestCase):
         with self.assertRaises(TypeError):
             ht.load_csv(self.CSV_PATH, header_lines="3", sep=";", split=0)
 
+    def test_save_csv(self):
+        for rnd_type in [
+            (ht.random.randint, ht.types.int32),
+            (ht.random.randint, ht.types.int64),
+            (ht.random.rand, ht.types.float32),
+            (ht.random.rand, ht.types.float64),
+        ]:
+            for separator in [",", ";", "|"]:
+                for split in [None, 0, 1]:
+                    for headers in [None, ["# This", "# is a", "# test."]]:
+                        for shape in [(1, 1), (10, 10), (20, 1), (1, 20), (25, 4), (4, 25)]:
+                            if rnd_type[0] == ht.random.randint:
+                                data = rnd_type[0](
+                                    -1000, 1000, size=shape, dtype=rnd_type[1], split=split
+                                )
+                            else:
+                                data = rnd_type[0](
+                                    shape[0],
+                                    shape[1],
+                                    split=split,
+                                    dtype=rnd_type[1],
+                                )
+
+                            if data.comm.rank == 0:
+                                tmpfile = tempfile.NamedTemporaryFile(
+                                    prefix="test_io_", suffix=".csv", delete=False
+                                )
+                                tmpfile.close()
+                                filename = tmpfile.name
+                            else:
+                                filename = None
+                            filename = data.comm.handle.bcast(filename, root=0)
+
+                            data.save(
+                                filename,
+                                header_lines=headers,
+                                sep=separator,
+                            )
+                            comparison = ht.load_csv(
+                                filename,
+                                # split=split,
+                                header_lines=0 if headers is None else len(headers),
+                                sep=separator,
+                            ).reshape(shape)
+                            resid = data - comparison
+                            self.assertTrue(
+                                ht.max(resid).item() < 0.00001 and ht.min(resid).item() > -0.00001
+                            )
+                            data.comm.handle.Barrier()
+                            if data.comm.rank == 0:
+                                os.unlink(filename)
+
+        # Test vector
+        data = ht.random.randint(0, 100, size=(150,))
+        if data.comm.rank == 0:
+            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete=False)
+            tmpfile.close()
+            filename = tmpfile.name
+        else:
+            filename = None
+        filename = data.comm.handle.bcast(filename, root=0)
+        data.save(filename)
+        comparison = ht.load(filename).reshape((150,))
+        self.assertTrue((data == comparison).all())
+        data.comm.handle.Barrier()
+        if data.comm.rank == 0:
+            os.unlink(filename)
+
+        # Test 0 matrix
+        data = ht.zeros((10, 10))
+        if data.comm.rank == 0:
+            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete=False)
+            tmpfile.close()
+            filename = tmpfile.name
+        else:
+            filename = None
+        filename = data.comm.handle.bcast(filename, root=0)
+        data.save(filename)
+        comparison = ht.load(filename)
+        self.assertTrue((data == comparison).all())
+        data.comm.handle.Barrier()
+        if data.comm.rank == 0:
+            os.unlink(filename)
+
+        # Test negative float values
+        data = ht.random.rand(100, 100)
+        data = data - 500
+        if data.comm.rank == 0:
+            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete=False)
+            tmpfile.close()
+            filename = tmpfile.name
+        else:
+            filename = None
+        filename = data.comm.handle.bcast(filename, root=0)
+        data.save(filename)
+        comparison = ht.load(filename)
+        self.assertTrue((data == comparison).all())
+        data.comm.handle.Barrier()
+        if data.comm.rank == 0:
+            os.unlink(filename)
+
     def test_load_exception(self):
         # correct extension, file does not exist
         if ht.io.supports_hdf5():
             with self.assertRaises(IOError):
                 ht.load("foo.h5", "data")
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(RuntimeError):
                 ht.load("foo.h5", "data")
 
         if ht.io.supports_netcdf():
             with self.assertRaises(IOError):
                 ht.load("foo.nc", "data")
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(RuntimeError):
                 ht.load("foo.nc", "data")
 
         # unknown file extension
         with self.assertRaises(ValueError):
-            ht.load(os.path.join(os.getcwd(), "heat/datasets/data/iris.json"), "data")
+            ht.load(os.path.join(os.getcwd(), "heat/datasets/iris.json"), "data")
         with self.assertRaises(ValueError):
             ht.load("iris", "data")
 
@@ -168,7 +271,7 @@ class TestIO(TestCase):
         if ht.io.supports_hdf5():
             # local range
             local_range = ht.arange(100)
-            local_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET)
+            local_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=local_range.dtype.char())
             if local_range.comm.rank == 0:
                 with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
@@ -180,7 +283,7 @@ class TestIO(TestCase):
 
             # split range
             split_range = ht.arange(100, split=0)
-            split_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET)
+            split_range.save(self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=split_range.dtype.char())
             if split_range.comm.rank == 0:
                 with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                     comparison = torch.tensor(
@@ -378,7 +481,7 @@ class TestIO(TestCase):
             with self.assertRaises(TypeError):
                 ht.save(data, self.HDF5_OUT_PATH, 1)
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(RuntimeError):
                 ht.save(data, self.HDF5_OUT_PATH, self.HDF5_DATASET)
 
         if ht.io.supports_netcdf():
@@ -409,13 +512,16 @@ class TestIO(TestCase):
                     mode="a",
                 )
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(RuntimeError):
                 ht.save(data, self.NETCDF_OUT_PATH, self.NETCDF_VARIABLE)
+
+        with self.assertRaises(ValueError):
+            ht.save(1, "data.dat")
 
     def test_load_hdf5(self):
         # HDF5 support is optional
         if not ht.io.supports_hdf5():
-            return
+            self.skipTest("Requires HDF5")
 
         # default parameters
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET)
@@ -453,7 +559,7 @@ class TestIO(TestCase):
     def test_load_hdf5_exception(self):
         # HDF5 support is optional
         if not ht.io.supports_hdf5():
-            return
+            self.skipTest("Requires HDF5")
 
         # improper argument types
         with self.assertRaises(TypeError):
@@ -476,7 +582,9 @@ class TestIO(TestCase):
 
         # local unsplit data
         local_data = ht.arange(100)
-        ht.save_hdf5(local_data, self.HDF5_OUT_PATH, self.HDF5_DATASET)
+        ht.save_hdf5(
+            local_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=local_data.dtype.char()
+        )
         if local_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                 comparison = torch.tensor(
@@ -486,7 +594,9 @@ class TestIO(TestCase):
 
         # distributed data range
         split_data = ht.arange(100, split=0)
-        ht.save_hdf5(split_data, self.HDF5_OUT_PATH, self.HDF5_DATASET)
+        ht.save_hdf5(
+            split_data, self.HDF5_OUT_PATH, self.HDF5_DATASET, dtype=split_data.dtype.char()
+        )
         if split_data.comm.rank == 0:
             with ht.io.h5py.File(self.HDF5_OUT_PATH, "r") as handle:
                 comparison = torch.tensor(
@@ -497,7 +607,7 @@ class TestIO(TestCase):
     def test_save_hdf5_exception(self):
         # HDF5 support is optional
         if not ht.io.supports_hdf5():
-            return
+            self.skipTest("Requires HDF5")
 
         # dummy data
         data = ht.arange(1)
@@ -512,7 +622,7 @@ class TestIO(TestCase):
     def test_load_netcdf(self):
         # netcdf support is optional
         if not ht.io.supports_netcdf():
-            return
+            self.skipTest("Requires NetCDF")
 
         # default parameters
         iris = ht.load_netcdf(self.NETCDF_PATH, self.NETCDF_VARIABLE)
@@ -550,7 +660,7 @@ class TestIO(TestCase):
     def test_load_netcdf_exception(self):
         # netcdf support is optional
         if not ht.io.supports_netcdf():
-            return
+            self.skipTest("Requires NetCDF")
 
         # improper argument types
         with self.assertRaises(TypeError):
@@ -569,7 +679,7 @@ class TestIO(TestCase):
     def test_save_netcdf(self):
         # netcdf support is optional
         if not ht.io.supports_netcdf():
-            return
+            self.skipTest("Requires NetCDF")
 
         # local unsplit data
         local_data = ht.arange(100)
@@ -598,7 +708,7 @@ class TestIO(TestCase):
     def test_save_netcdf_exception(self):
         # netcdf support is optional
         if not ht.io.supports_netcdf():
-            return
+            self.skipTest("Requires NetCDF")
 
         # dummy data
         data = ht.arange(1)

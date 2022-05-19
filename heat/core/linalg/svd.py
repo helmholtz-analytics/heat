@@ -1,3 +1,7 @@
+"""
+SVD related functions
+"""
+
 import torch
 
 from .qr import __split0_r_calc, __split0_q_loop, __split1_qr_loop
@@ -8,6 +12,7 @@ from .. import tiling
 __all__ = ["block_diagonalize"]
 
 
+# TODO: check to make sure that this complies with torch > 1.7
 def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True):
     """
     Create an upper block diagonal matrix with both left and right transformation matrices.
@@ -52,9 +57,10 @@ def block_diagonalize(arr, overwrite_arr=False, return_tiles=False, balance=True
 
     References
     ----------
-    [0] A. Haidar, H. Ltaief, P. Luszczek and J. Dongarra, "A Comprehensive Study of Task Coalescing for Selecting
-        Parallelism Granularity in a Two-Stage Bidiagonal Reduction," 2012 IEEE 26th International Parallel and
-        Distributed Processing Symposium, Shanghai, 2012, pp. 25-35, doi: 10.1109/IPDPS.2012.13.
+    [0] A. Haidar, H. Ltaief, P. Luszczek and J. Dongarra, "A Comprehensive Study of Task
+        Coalescing for Selecting Parallelism Granularity in a Two-Stage Bidiagonal Reduction,"
+        2012 IEEE 26th International Parallel and Distributed Processing Symposium, Shanghai,
+        2012, pp. 25-35, doi: 10.1109/IPDPS.2012.13.
     """
     if not isinstance(arr, dndarray.DNDarray):
         raise TypeError("arr must be a DNDarray, not {}".format(type(arr)))
@@ -163,24 +169,23 @@ def __block_diagonalize_sp0(
                 r_tiles=arr_tiles,
                 q_dict=q0_dict,
                 q_dict_waits=q0_dict_waits,
-                dim1=col,
+                diag_idx=col,
                 diag_pr=diag_process,
                 not_completed_prs=not_completed_processes,
             )
         # 2. do full QR on the next column for LQ on arr_t
         __split1_qr_loop(
-            dim1=col,
+            diag_idx=(col, col + 1),
             r_tiles=arr_t_tiles,
             q0_tiles=q1_tiles,
             calc_q=True,
-            dim0=col + 1,
             empties=empties_t,
         )
     for col in range(tile_columns - 1):
         __split0_q_loop(
             r_tiles=arr_tiles,
             q0_tiles=q0_tiles,
-            dim1=col,
+            diag_idx=col,
             proc_tile_start=proc_tile_start,
             q_dict=q0_dict,
             q_dict_waits=q0_dict_waits,
@@ -197,14 +202,14 @@ def __block_diagonalize_sp0(
             r_tiles=arr_tiles,
             q_dict=q0_dict,
             q_dict_waits=q0_dict_waits,
-            dim1=col,
+            diag_idx=col,
             diag_pr=diag_process,
             not_completed_prs=not_completed_processes,
         )
     __split0_q_loop(
         r_tiles=arr_tiles,
         q0_tiles=q0_tiles,
-        dim1=col,
+        diag_idx=col,
         proc_tile_start=proc_tile_start,
         q_dict=q0_dict,
         q_dict_waits=q0_dict_waits,
@@ -217,11 +222,10 @@ def __block_diagonalize_sp0(
         #       target is new row starting at 16 (min gshape) and column at 14 (from 0)
         #           this is row -> min gshape, col -> (min gshape - band width) (row_inds[1])
         __split1_qr_loop(
-            dim1=col,
+            diag_idx=(col, col + 1),
             r_tiles=arr_t_tiles,
             q0_tiles=q1_tiles,
             calc_q=True,
-            dim0=col + 1,
             empties=empties_t,
         )
 
@@ -275,7 +279,7 @@ def __block_diagonalize_sp1(
     for col in range(lp_cols - 1):
         # 1. QR (split = 1) on col
         __split1_qr_loop(
-            dim1=col, r_tiles=arr_tiles, q0_tiles=q0_tiles, calc_q=True, dim0=col, empties=empties
+            diag_idx=(col, col), r_tiles=arr_tiles, q0_tiles=q0_tiles, calc_q=True, empties=empties
         )
         # 2. QR (split = 0) on col + 1
         not_completed_processes = torch.nonzero(
@@ -287,26 +291,24 @@ def __block_diagonalize_sp1(
                 r_tiles=arr_t_tiles,
                 q_dict=q1_dict,
                 q_dict_waits=q1_dict_waits,
-                dim1=col,
+                diag_idx=(col, col + 1),
                 diag_pr=diag_process,
                 not_completed_prs=not_completed_processes,
-                dim0=col + 1,
             )
 
         __split0_q_loop(
             r_tiles=arr_t_tiles,
             q0_tiles=q1_tiles,
-            dim1=col,
+            diag_idx=(col, col + 1),
             proc_tile_start=proc_tile_start_t,
             q_dict=q1_dict,
             q_dict_waits=q1_dict_waits,
             active_procs=active_procs_t,
-            dim0=col + 1,
         )
     # do the last column
     col = lp_cols - 1
     __split1_qr_loop(
-        dim1=col, r_tiles=arr_tiles, q0_tiles=q0_tiles, calc_q=True, dim0=col, empties=empties
+        diag_idx=col, r_tiles=arr_tiles, q0_tiles=q0_tiles, calc_q=True, empties=empties
     )
 
     if arr_tiles.arr.gshape[0] < arr_tiles.arr.gshape[1]:
@@ -320,22 +322,20 @@ def __block_diagonalize_sp1(
                 r_tiles=arr_t_tiles,
                 q_dict=q1_dict,
                 q_dict_waits=q1_dict_waits,
-                dim1=col,
+                diag_idx=(col, col + 1),
                 diag_pr=diag_process,
                 not_completed_prs=not_completed_processes,
-                dim0=col + 1,
             )
 
         if len(not_completed_processes) > 0:
             __split0_q_loop(
                 r_tiles=arr_t_tiles,
                 q0_tiles=q1_tiles,
-                dim1=col,
+                diag_idx=(col, col + 1),
                 proc_tile_start=proc_tile_start_t,
                 q_dict=q1_dict,
                 q_dict_waits=q1_dict_waits,
                 active_procs=active_procs_t,
-                dim0=col + 1,
             )
 
     if balance:

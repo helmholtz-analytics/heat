@@ -141,12 +141,13 @@ class TestRounding(TestCase):
 
     def test_floor(self):
         start, end, step = -5.0, 5.0, 1.4
-        comparison = torch.arange(
-            start, end, step, dtype=torch.float64, device=self.device.torch_device
+        comparison = (
+            torch.arange(start, end, step, dtype=torch.float32, device=self.device.torch_device)
+            + 0.01
         ).floor()
 
         # exponential of float32
-        float32_tensor = ht.arange(start, end, step, dtype=ht.float32)
+        float32_tensor = ht.arange(start, end, step, dtype=ht.float32) + 0.01
         float32_floor = float32_tensor.floor()
         self.assertIsInstance(float32_floor, ht.DNDarray)
         self.assertEqual(float32_floor.dtype, ht.float32)
@@ -154,7 +155,7 @@ class TestRounding(TestCase):
         self.assertTrue((float32_floor.larray == comparison.float()).all())
 
         # exponential of float64
-        float64_tensor = ht.arange(start, end, step, dtype=ht.float64)
+        float64_tensor = ht.arange(start, end, step, dtype=ht.float64) + 0.01
         float64_floor = float64_tensor.floor()
         self.assertIsInstance(float64_floor, ht.DNDarray)
         self.assertEqual(float64_floor.dtype, ht.float64)
@@ -277,7 +278,7 @@ class TestRounding(TestCase):
         with self.assertRaises(TypeError):
             ht.round(float32_tensor, 1, 1)
         with self.assertRaises(TypeError):
-            ht.round(float32_tensor, dtype=np.int)
+            ht.round(float32_tensor, dtype=np.int_)
 
         # with split tensors
 
@@ -299,6 +300,78 @@ class TestRounding(TestCase):
         self.assertEqual(float64_round_distrbd.dtype, ht.float64)
         self.assertEqual(float64_round_distrbd.dtype, ht.float64)
         self.assert_array_equal(float64_round_distrbd, comparison)
+
+    def test_sgn(self):
+        # floats
+        a = ht.array([-1, -0.5, 0, 0.5, 1])
+        signed = ht.sgn(a)
+        comparison = ht.array([-1.0, -1, 0, 1, 1])
+
+        self.assertEqual(signed.dtype, comparison.dtype)
+        self.assertEqual(signed.shape, comparison.shape)
+        self.assertEqual(signed.device, a.device)
+        self.assertTrue(ht.equal(signed, comparison))
+
+        # complex
+        a = ht.array([[1 - 2j, -0.5 + 1j], [0 - 3j, 4 + 6j]], split=0)
+        signed = ht.sgn(a)
+        comparison = torch.sgn(torch.tensor([[1 - 2j, -0.5 + 1j], [0 - 3j, 4 + 6j]]))
+        comparison = comparison.to(a.device.torch_device)
+
+        self.assertEqual(signed.dtype, ht.heat_type_of(comparison))
+        self.assertEqual(signed.shape, a.shape)
+        self.assertEqual(signed.device, a.device)
+        self.assertTrue(ht.equal(signed, ht.array(comparison, split=0)))
+
+    def test_sign(self):
+        # floats 1d
+        a = ht.array([-1, -0.5, 0, 0.5, 1])
+        signed = ht.sign(a)
+        comparison = ht.array([-1.0, -1, 0, 1, 1])
+
+        self.assertEqual(signed.dtype, comparison.dtype)
+        self.assertEqual(signed.shape, comparison.shape)
+        self.assertEqual(signed.device, a.device)
+        self.assertEqual(signed.split, a.split)
+        self.assertTrue(ht.equal(signed, comparison))
+
+        # complex + 2d + split
+        a = ht.array([[1 - 2j, -0.5 + 1j], [0, 4 + 6j]], split=0)
+        signed = ht.sign(a)
+        comparison = ht.array([[1 + 0j, -1 + 0j], [0 + 0j, 1 + 0j]], split=0)
+
+        self.assertEqual(signed.dtype, comparison.dtype)
+        self.assertEqual(signed.shape, comparison.shape)
+        self.assertEqual(signed.device, a.device)
+        self.assertEqual(signed.split, a.split)
+        self.assertTrue(ht.allclose(signed.real, comparison.real))
+        self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
+
+        # complex + split + out
+        a = ht.array([[1 - 2j, -0.5 + 1j], [0, 4 + 6j]], split=1)
+        b = ht.empty_like(a)
+        signed = ht.sign(a, b)
+        comparison = ht.array([[1 + 0j, -1 + 0j], [0 + 0j, 1 + 0j]], split=1)
+
+        self.assertIs(b, signed)
+        self.assertEqual(signed.dtype, comparison.dtype)
+        self.assertEqual(signed.shape, comparison.shape)
+        self.assertEqual(signed.device, a.device)
+        self.assertEqual(signed.split, a.split)
+        self.assertTrue(ht.allclose(signed.real, comparison.real))
+        self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
+
+        # zeros + 3d + complex + split
+        a = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
+        signed = ht.sign(a)
+        comparison = ht.zeros((4, 4, 4), dtype=ht.complex128, split=2)
+
+        self.assertEqual(signed.dtype, comparison.dtype)
+        self.assertEqual(signed.shape, comparison.shape)
+        self.assertEqual(signed.device, a.device)
+        self.assertEqual(signed.split, a.split)
+        self.assertTrue(ht.allclose(signed.real, comparison.real))
+        self.assertTrue(ht.allclose(signed.imag, comparison.imag, atol=2e-5))
 
     def test_trunc(self):
         base_array = np.random.randn(20)

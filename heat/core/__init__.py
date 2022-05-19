@@ -1,7 +1,12 @@
+"""
+add the core heat function to the ht.core namespace
+"""
+
 from .arithmetics import *
 from .base import *
 from .communication import *
 from .constants import *
+from .complex_math import *
 from .devices import *
 from .exponential import *
 from .factories import *
@@ -21,6 +26,7 @@ from .dndarray import *
 from .tiling import *
 from .trigonometrics import *
 from .types import *
+from .signal import *
 from .types import finfo, iinfo
 from . import version
 from .version import __version__
