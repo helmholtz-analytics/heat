@@ -77,7 +77,7 @@ Optionally, you can enable and install HDF5 and/or NetCDF support by adding the 
 Verification
 ^^^^^^^^^^^^
 
-To ensure that Heat was installed correctly, you can run this tiny code snippet that creates a vector with 42 entries.
+To ensure that Heat was installed correctly, you can run this tiny code snippet that creates a vector with 10 entries.
 
 .. code:: bash
 

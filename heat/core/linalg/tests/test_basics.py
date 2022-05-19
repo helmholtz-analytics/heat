@@ -1,3 +1,4 @@
+from typing import Type
 import torch
 import os
 import unittest
@@ -8,6 +9,165 @@ from ...tests.test_suites.basic_test import TestCase
 
 
 class TestLinalgBasics(TestCase):
+    def test_cross(self):
+        a = ht.eye(3)
+        b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
+
+        # different types
+        cross = ht.cross(a, b)
+        self.assertEqual(cross.shape, a.shape)
+        self.assertEqual(cross.dtype, a.dtype)
+        self.assertEqual(cross.split, a.split)
+        self.assertEqual(cross.comm, a.comm)
+        self.assertEqual(cross.device, a.device)
+        self.assertTrue(ht.equal(cross, ht.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])))
+
+        # axis
+        a = ht.eye(3, split=0)
+        b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]], dtype=ht.float, split=0)
+
+        cross = ht.cross(a, b)
+        self.assertEqual(cross.shape, a.shape)
+        self.assertEqual(cross.dtype, a.dtype)
+        self.assertEqual(cross.split, a.split)
+        self.assertEqual(cross.comm, a.comm)
+        self.assertEqual(cross.device, a.device)
+        self.assertTrue(ht.equal(cross, ht.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])))
+
+        a = ht.eye(3, dtype=ht.int8, split=1)
+        b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]], dtype=ht.int8, split=1)
+
+        cross = ht.cross(a, b, axis=0)
+        self.assertEqual(cross.shape, a.shape)
+        self.assertEqual(cross.dtype, a.dtype)
+        self.assertEqual(cross.split, a.split)
+        self.assertEqual(cross.comm, a.comm)
+        self.assertEqual(cross.device, a.device)
+        self.assertTrue(ht.equal(cross, ht.array([[0, 0, -1], [-1, 0, 0], [0, -1, 0]])))
+
+        # test axisa, axisb, axisc
+        np.random.seed(42)
+        np_a = np.random.randn(40, 3, 50)
+        np_b = np.random.randn(3, 40, 50)
+        np_cross = np.cross(np_a, np_b, axisa=1, axisb=0)
+
+        a = ht.array(np_a, split=0)
+        b = ht.array(np_b, split=1)
+        cross = ht.cross(a, b, axisa=1, axisb=0)
+        self.assert_array_equal(cross, np_cross)
+
+        cross_axisc = ht.cross(a, b, axisa=1, axisb=0, axisc=1)
+        np_cross_axisc = np.cross(np_a, np_b, axisa=1, axisb=0, axisc=1)
+        self.assert_array_equal(cross_axisc, np_cross_axisc)
+
+        # test vector axes with 2 elements
+        b_2d = ht.array(np_b[:-1, :, :], split=1)
+        cross_3d_2d = ht.cross(a, b_2d, axisa=1, axisb=0)
+        np_cross_3d_2d = np.cross(np_a, np_b[:-1, :, :], axisa=1, axisb=0)
+        self.assert_array_equal(cross_3d_2d, np_cross_3d_2d)
+
+        a_2d = ht.array(np_a[:, :-1, :], split=0)
+        cross_2d_3d = ht.cross(a_2d, b, axisa=1, axisb=0)
+        np_cross_2d_3d = np.cross(np_a[:, :-1, :], np_b, axisa=1, axisb=0)
+        self.assert_array_equal(cross_2d_3d, np_cross_2d_3d)
+
+        cross_z_comp = ht.cross(a_2d, b_2d, axisa=1, axisb=0)
+        np_cross_z_comp = np.cross(np_a[:, :-1, :], np_b[:-1, :, :], axisa=1, axisb=0)
+        self.assert_array_equal(cross_z_comp, np_cross_z_comp)
+
+        a_wrong_split = ht.array(np_a[:, :-1, :], split=2)
+        with self.assertRaises(ValueError):
+            ht.cross(a_wrong_split, b, axisa=1, axisb=0)
+        with self.assertRaises(ValueError):
+            ht.cross(ht.eye(3), ht.eye(4))
+        with self.assertRaises(ValueError):
+            ht.cross(ht.eye(3, split=0), ht.eye(3, split=1))
+        if torch.cuda.is_available():
+            with self.assertRaises(ValueError):
+                ht.cross(ht.eye(3, device="gpu"), ht.eye(3, device="cpu"))
+        with self.assertRaises(TypeError):
+            ht.cross(ht.eye(3), ht.eye(3), axis="wasd")
+        with self.assertRaises(ValueError):
+            ht.cross(ht.eye(3, split=0), ht.eye(3, split=0), axis=0)
+
+    def test_det(self):
+        # (3,3) with pivoting
+        ares = ht.array(54.0)
+        a = ht.array([[-2.0, -1, 2], [2, 1, 4], [-3, 3, -1]], split=0, dtype=ht.double)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.equal(adet, ares))
+
+        a = ht.array([[-2.0, -1, 2], [2, 1, 4], [-3, 3, -1]], split=1, dtype=ht.double)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.equal(adet, ares))
+
+        # det==0
+        ares = ht.array(0.0)
+        a = ht.array([[0, 0, 0], [2, 1, 4], [-3, 3, -1]], dtype=ht.float64, split=0)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.equal(adet, ares))
+
+        # (3,2,2)
+        ares = ht.array([-2.0, -3.0, -8.0])
+
+        a = ht.array([[[1.0, 2], [3, 4]], [[1, 2], [2, 1]], [[1, 3], [3, 1]]])
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.allclose(adet, ares))
+
+        a = ht.array([[[1.0, 2], [3, 4]], [[1, 2], [2, 1]], [[1, 3], [3, 1]]], split=0)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertEqual(adet.split, a.split if a.is_distributed() else None)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.allclose(adet, ares))
+
+        a = ht.array([[[1.0, 2], [3, 4]], [[1, 2], [2, 1]], [[1, 3], [3, 1]]], split=1)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.allclose(adet, ares))
+
+        a = ht.array([[[1.0, 2], [3, 4]], [[1, 2], [2, 1]], [[1, 3], [3, 1]]], split=2)
+        adet = ht.linalg.det(a)
+
+        self.assertTupleEqual(adet.shape, ares.shape)
+        self.assertIsNone(adet.split)
+        self.assertEqual(adet.dtype, a.dtype)
+        self.assertEqual(adet.device, a.device)
+        self.assertTrue(ht.allclose(adet, ares))
+
+        with self.assertRaises(RuntimeError):
+            ht.linalg.det(ht.array([1, 2, 3], split=0))
+        with self.assertRaises(RuntimeError):
+            ht.linalg.det(ht.zeros((2, 2, 3), split=1))
+        with self.assertRaises(RuntimeError):
+            ht.linalg.det(ht.zeros((2, 2), dtype=ht.int, split=0))
+
     def test_dot(self):
         # ONLY TESTING CORRECTNESS! ALL CALLS IN DOT ARE PREVIOUSLY TESTED
         # cases to test:
@@ -63,6 +223,101 @@ class TestLinalgBasics(TestCase):
 
         with self.assertRaises(NotImplementedError):
             ht.dot(ht.array(data3d), ht.array(data1d))
+
+    def test_inv(self):
+        # single 2D array
+        # pytorch
+        ares = ht.array([[2.0, 2, 1], [3, 4, 1], [0, 1, -1]])
+
+        a = ht.array([[5.0, -3, 2], [-3, 2, -1], [-3, 2, -2]])
+        ainv = ht.linalg.inv(a)
+
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        # distributed
+        a = ht.array([[5.0, -3, 2], [-3, 2, -1], [-3, 2, -2]], split=0)
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        a = ht.array([[5.0, -3, 2], [-3, 2, -1], [-3, 2, -2]], split=1)
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        # array Size=(2,2,2,2)
+        ares = ht.array(
+            [[[2, -0.5], [-3, 1]], [[-3, 2], [2, -1]], [[-3, 2], [2, -1]], [[2, -0.5], [-3, 1]]],
+            dtype=ht.float,
+        )
+
+        a = ht.array(
+            [[[2, 1], [6, 4]], [[1, 2], [2, 3]], [[1, 2], [2, 3]], [[2, 1], [6, 4]]],
+            dtype=ht.float,
+            split=1,
+        )
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        a = ht.array(
+            [[[2, 1], [6, 4]], [[1, 2], [2, 3]], [[1, 2], [2, 3]], [[2, 1], [6, 4]]],
+            dtype=ht.float,
+            split=2,
+        )
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        # pivoting row change
+        ares = ht.array([[-1, 0, 2], [2, 0, -1], [-6, 3, 0]], dtype=ht.double) / 3.0
+        a = ht.array([[1, 2, 0], [2, 4, 1], [2, 1, 0]], dtype=ht.double, split=0)
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        a = ht.array([[1, 2, 0], [2, 4, 1], [2, 1, 0]], dtype=ht.double, split=1)
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares))
+
+        ht.random.seed(42)
+        a = ht.random.random((20, 20), dtype=ht.float64, split=1)
+        ainv = ht.linalg.inv(a)
+        i = ht.eye(a.shape, split=1, dtype=a.dtype)
+        self.assertTrue(ht.allclose(a @ ainv, i))
+
+        # ht.random.seed(42)
+        # a = ht.random.random((20, 20), dtype=ht.float64, split=0)
+        # ainv = ht.linalg.inv(a)
+        # i = ht.eye(a.shape, split=0, dtype=a.dtype)
+        # self.assertTrue(ht.allclose(a @ ainv, i))
+
+        with self.assertRaises(RuntimeError):
+            ht.linalg.inv(ht.array([1, 2, 3], split=0))
+        with self.assertRaises(RuntimeError):
+            ht.linalg.inv(ht.zeros((1, 2, 3), split=1))
+        with self.assertRaises(RuntimeError):
+            ht.linalg.inv(ht.zeros((2, 2), dtype=ht.int, split=1))
+        with self.assertRaises(RuntimeError):
+            ht.linalg.inv(ht.zeros((3, 3), split=0))
+        with self.assertRaises(RuntimeError):
+            ht.linalg.inv(ht.ones((3, 3), split=1))
 
     def test_matmul(self):
         with self.assertRaises(ValueError):

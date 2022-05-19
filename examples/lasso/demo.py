@@ -3,25 +3,28 @@ import torch
 import sys
 import os
 
-# Fix python path if run from terminal
-curdir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(curdir, "../../")))
-
 import heat as ht
 from matplotlib import pyplot as plt
 from sklearn import datasets
 import heat.regression.lasso as lasso
+
 import plotfkt
+
+import pkg_resources
 
 # read scikit diabetes data set
 diabetes = datasets.load_diabetes()
 
 # load diabetes dataset from hdf5 file
-X = ht.load_hdf5("../../heat/datasets/diabetes.h5", dataset="x", split=0)
-y = ht.load_hdf5("../../heat/datasets/diabetes.h5", dataset="y", split=0)
+diabetes_path = pkg_resources.resource_filename(
+    pkg_resources.Requirement.parse("heat"), "heat/datasets/diabetes.h5"
+)
+
+X = ht.load_hdf5(diabetes_path, dataset="x", split=0)
+y = ht.load_hdf5(diabetes_path, dataset="y", split=0)
 
 # normalize dataset #DoTO this goes into the lasso fit routine soon as issue #106 is solved
-X = X / ht.sqrt((ht.mean(X ** 2, axis=0)))
+X = X / ht.sqrt((ht.mean(X**2, axis=0)))
 
 # HeAT lasso instance
 estimator = lasso.Lasso(max_iter=100)

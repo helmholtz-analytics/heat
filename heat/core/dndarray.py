@@ -65,7 +65,7 @@ class DNDarray:
         array: torch.Tensor,
         gshape: Tuple[int, ...],
         dtype: datatype,
-        split: int,
+        split: Union[int, None],
         device: Device,
         comm: Communication,
         balanced: bool,
@@ -330,7 +330,7 @@ class DNDarray:
         return linalg.transpose(self, axes=None)
 
     @property
-    def array_with_halos(self) -> Tuple[torch.tensor, torch.tensor]:
+    def array_with_halos(self) -> torch.Tensor:
         """
         Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next``/``self.halo_prev``
         in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
@@ -357,21 +357,15 @@ class DNDarray:
 
         return self.__array[ix].clone().contiguous()
 
-    def get_halo(self, halo_size) -> torch.Tensor:
+    def get_halo(self, halo_size: int) -> torch.Tensor:
         """
-        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next/self.halo_prev``
-        in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
-        the are overwritten.
+        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next/self.halo_prev``.
 
         Parameters
         ----------
         halo_size : int
             Size of the halo.
         """
-        if not self.is_balanced():
-            raise RuntimeError(
-                "halo cannot be created for unbalanced tensors, running the .balance_() function is recommended"
-            )
         if not isinstance(halo_size, int):
             raise TypeError(
                 "halo_size needs to be of Python type integer, {} given".format(type(halo_size))
@@ -381,44 +375,47 @@ class DNDarray:
                 "halo_size needs to be a positive Python integer, {} given".format(type(halo_size))
             )
 
-        if self.comm.is_distributed() and self.split is not None:
+        if self.is_distributed() and halo_size > 0:
             # gather lshapes
-            lshape_map = self.create_lshape_map()
+            lshape_map = self.lshape_map
             rank = self.comm.rank
-            size = self.comm.size
-            next_rank = rank + 1
-            prev_rank = rank - 1
-            last_rank = size - 1
 
-            # if local shape is zero and it's the last process
-            if self.lshape[self.split] == 0:
-                return  # if process has no data we ignore it
+            populated_ranks = torch.nonzero(lshape_map[:, self.split]).squeeze().tolist()
+            if rank in populated_ranks:
+                first_rank = populated_ranks[0]
+                last_rank = populated_ranks[-1]
+                if rank != last_rank:
+                    next_rank = populated_ranks[populated_ranks.index(rank) + 1]
+                if rank != first_rank:
+                    prev_rank = populated_ranks[populated_ranks.index(rank) - 1]
+            else:
+                # if process has no data we ignore it
+                return
 
-            if halo_size > self.lshape[self.split]:
-                # if on at least one process the halo_size is larger than the local size throw ValueError
+            if (halo_size > self.lshape_map[:, self.split][populated_ranks]).any():
+                # halo_size is larger than the local size on at least one process
                 raise ValueError(
-                    "halo_size {} needs to be smaller than chunck-size {} )".format(
+                    "halo_size {} needs to be smaller than chunk-size {} )".format(
                         halo_size, self.lshape[self.split]
                     )
                 )
 
             a_prev = self.__prephalo(0, halo_size)
             a_next = self.__prephalo(-halo_size, None)
-
             res_prev = None
             res_next = None
 
             req_list = list()
 
-            # only exchange data with next process if it has data
-            if rank != last_rank and (lshape_map[next_rank, self.split] > 0):
+            # exchange data with next populated process
+            if rank != last_rank:
                 self.comm.Isend(a_next, next_rank)
                 res_prev = torch.zeros(
                     a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
                 )
                 req_list.append(self.comm.Irecv(res_prev, source=next_rank))
 
-            if rank != 0:
+            if rank != first_rank:
                 self.comm.Isend(a_prev, prev_rank)
                 res_next = torch.zeros(
                     a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
@@ -432,16 +429,15 @@ class DNDarray:
             self.__halo_prev = res_next
             self.__ishalo = True
 
-    def __cat_halo(self) -> Tuple[torch.tensor, torch.tensor]:
+    def __cat_halo(self) -> torch.Tensor:
         """
-        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next``/``self.halo_prev``
-        in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
-        the are overwritten.
-
+        Return local array concatenated to halos if they are available.
         """
+        if not self.is_distributed():
+            return self.__array
         return torch.cat(
             [_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None],
-            self.split,
+            dim=self.split,
         )
 
     def astype(self, dtype, copy=True) -> DNDarray:
@@ -507,7 +503,7 @@ class DNDarray:
         [1/2] (7, 2) (2, 2)
         [2/2] (7, 2) (2, 2)
         """
-        if self.is_balanced():
+        if self.is_balanced(force_check=True):
             return
         self.redistribute_()
 
@@ -582,7 +578,7 @@ class DNDarray:
             result. Otherwise, create the lshape_map
         """
         if not force_check and self.__lshape_map is not None:
-            return self.__lshape_map
+            return self.__lshape_map.clone()
 
         lshape_map = torch.zeros(
             (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
@@ -590,7 +586,7 @@ class DNDarray:
         if not self.is_distributed:
             lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
             return lshape_map
-        if self.is_balanced():
+        if self.is_balanced(force_check=True):
             for i in range(self.comm.size):
                 _, lshape, _ = self.comm.chunk(self.gshape, self.split, rank=i)
                 lshape_map[i, :] = torch.tensor(lshape, device=self.device.torch_device)
@@ -601,7 +597,7 @@ class DNDarray:
             self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
         self.__lshape_map = lshape_map
-        return lshape_map
+        return lshape_map.clone()
 
     def __float__(self) -> DNDarray:
         """
@@ -687,10 +683,10 @@ class DNDarray:
         l_dtype = self.dtype.torch_type()
         advanced_ind = False
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
-            """ if the key is a DNDarray and it has as many dimensions as self, then each of the
-                entries in the 0th dim refer to a single element. To handle this, the key is split
-                into the torch tensors for each dimension. This signals that advanced indexing is
-                to be used. """
+            """if the key is a DNDarray and it has as many dimensions as self, then each of the
+            entries in the 0th dim refer to a single element. To handle this, the key is split
+            into the torch tensors for each dimension. This signals that advanced indexing is
+            to be used."""
             # NOTE: this gathers the entire key on every process!!
             # TODO: remove this resplit!!
             key = manipulations.resplit(key)
@@ -706,10 +702,10 @@ class DNDarray:
                 key = [key]
             advanced_ind = True
         elif not isinstance(key, tuple):
-            """ this loop handles all other cases. DNDarrays which make it to here refer to
-                advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
-                are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
-            h = [slice(None, None, None)] * self.ndim
+            """this loop handles all other cases. DNDarrays which make it to here refer to
+            advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
+            are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
+            h = [slice(None, None, None)] * max(self.ndim, 1)
             if isinstance(key, DNDarray):
                 key = manipulations.resplit(key)
                 if key.larray.dtype in [torch.bool, torch.uint8]:
@@ -751,11 +747,17 @@ class DNDarray:
             kend = key[ell_ind + 1 :]
             slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
             key = kst + slices + kend
+        else:
+            key = key + [slice(None)] * (self.ndim - len(key))
+
+        self_proxy = self.__torch_proxy__()
+        for i in range(len(key)):
+            if self.__key_adds_dimension(key, i, self_proxy):
+                key[i] = slice(None)
+                return self.expand_dims(i)[tuple(key)]
 
         key = tuple(key)
-
         # assess final global shape
-        self_proxy = self.__torch_proxy__()
         gout_full = list(self_proxy[key].shape)
 
         # calculate new split axis
@@ -766,7 +768,7 @@ class DNDarray:
                 new_split = 0
             else:
                 for i in range(len(key[: self.split + 1])):
-                    if self.__is_key_singular(key, i, self_proxy):
+                    if self.__key_is_singular(key, i, self_proxy):
                         new_split = None if i == self.split else new_split - 1
 
         key = tuple(key)
@@ -841,15 +843,12 @@ class DNDarray:
             # standard slicing along the split axis,
             # adjust the slice start, stop, and step, then run it on the processes which have the requested data
             key = list(key)
-            key_start = key[self.split].start if key[self.split].start is not None else 0
-            key_stop = (
-                key[self.split].stop
-                if key[self.split].stop is not None
-                else self.gshape[self.split]
+            key[self.split] = stride_tricks.sanitize_slice(key[self.split], self.gshape[self.split])
+            key_start, key_stop, key_step = (
+                key[self.split].start,
+                key[self.split].stop,
+                key[self.split].step,
             )
-            if key_stop < 0:
-                key_stop = self.gshape[self.split] + key[self.split].stop
-            key_step = key[self.split].step
             og_key_start = key_start
             st_pr = torch.where(key_start < chunk_ends)[0]
             st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
@@ -873,7 +872,7 @@ class DNDarray:
                 lout[new_split] = 0
                 arr = torch.empty(lout, dtype=self.__array.dtype, device=self.__array.device)
 
-        elif self.__is_key_singular(key, self.split, self_proxy):
+        elif self.__key_is_singular(key, self.split, self_proxy):
             # getting one item along split axis:
             key = list(key)
             if isinstance(key[self.split], list):
@@ -957,10 +956,16 @@ class DNDarray:
         return self.split is not None and self.comm.is_distributed()
 
     @staticmethod
-    def __is_key_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+    def __key_is_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
         # determine if the key gets a singular item
-        zeros = tuple([0] * (self_proxy.ndim - 1))
+        zeros = (0,) * (self_proxy.ndim - 1)
         return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
+
+    @staticmethod
+    def __key_adds_dimension(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+        # determine if the key adds a new dimension
+        zeros = (0,) * (self_proxy.ndim - 1)
+        return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 2
 
     def item(self):
         """
@@ -1404,10 +1409,10 @@ class DNDarray:
         # motived to do this they are welcome to, but i have no time right now
         # print(key)
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
-            """ if the key is a DNDarray and it has as many dimensions as self, then each of the
-                entries in the 0th dim refer to a single element. To handle this, the key is split
-                into the torch tensors for each dimension. This signals that advanced indexing is
-                to be used. """
+            """if the key is a DNDarray and it has as many dimensions as self, then each of the
+            entries in the 0th dim refer to a single element. To handle this, the key is split
+            into the torch tensors for each dimension. This signals that advanced indexing is
+            to be used."""
             key = manipulations.resplit(key)
             if key.larray.dtype in [torch.bool, torch.uint8]:
                 key = indexing.nonzero(key)
@@ -1420,9 +1425,9 @@ class DNDarray:
             else:
                 key = [key]
         elif not isinstance(key, tuple):
-            """ this loop handles all other cases. DNDarrays which make it to here refer to
-                advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
-                are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
+            """this loop handles all other cases. DNDarrays which make it to here refer to
+            advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
+            are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
             h = [slice(None, None, None)] * self.ndim
             if isinstance(key, DNDarray):
                 key = manipulations.resplit(key)

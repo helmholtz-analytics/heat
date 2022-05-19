@@ -30,7 +30,6 @@ if sys.version_info.minor >= 7:
             except AttributeError:
                 raise AttributeError(f"module {name} not implemented in Torch or Heat")
 
-
 else:
     from . import data_parallel
     from . import tests

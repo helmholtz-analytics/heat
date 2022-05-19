@@ -50,7 +50,7 @@ class TestKMeans(TestCase):
         cluster4 = ht.stack((x - 2 * offset, y - 2 * offset, z - 2 * offset), axis=1)
 
         data = ht.concatenate((cluster1, cluster2, cluster3, cluster4), axis=0)
-        # Note: enhance when shuffel is available
+        # Note: enhance when shuffle is available
         return data
 
     def test_clusterer(self):

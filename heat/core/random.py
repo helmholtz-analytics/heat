@@ -260,7 +260,7 @@ def __kundu_transform(values: torch.Tensor) -> torch.Tensor:
     ----------
     [1] Boiroju, N. K. and Reddy, K. M., "Generation of Standard Normal Random Numbers", Interstat, vol 5., 2012.
     """
-    inner = 1 - values ** 0.0775
+    inner = 1 - values**0.0775
     tiny = torch.finfo(inner.dtype).tiny
     return (torch.log(-torch.log(inner + tiny) + tiny) - 1.0821) * __KUNDU_INVERSE
 
@@ -390,7 +390,15 @@ def permutation(x: Union[int, DNDarray]) -> DNDarray:
     else:
         data = torch.empty_like(x.larray)
 
-    return factories.array(data, dtype=x.dtype, is_split=x.split, device=x.device, comm=x.comm)
+    return DNDarray(
+        data,
+        gshape=x.gshape,
+        dtype=x.dtype,
+        split=x.split,
+        device=x.device,
+        comm=x.comm,
+        balanced=x.is_balanced,
+    )
 
 
 def rand(
@@ -398,7 +406,7 @@ def rand(
     dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[Device] = None,
-    comm: Optional[Communication] = None
+    comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
     Random values in a given shape. Create a :class:`~heat.core.dndarray.DNDarray` of the given shape and populate it
@@ -527,10 +535,14 @@ def randint(
 
     # sanitize shape
     if size is None:
-        size = (1,)
-    shape = tuple(int(ele) for ele in size)
-    if not all(ele > 0 for ele in shape):
-        raise ValueError("negative dimensions are not allowed")
+        size = ()
+    try:
+        shape = tuple(int(ele) for ele in size)
+    except TypeError:
+        shape = (int(size),)
+    else:
+        if not all(ele >= 0 for ele in shape):
+            raise ValueError("negative dimensions are not allowed")
 
     # sanitize the data type
     if dtype is None:
@@ -582,7 +594,7 @@ def randn(
     dtype: Type[datatype] = types.float32,
     split: Optional[int] = None,
     device: Optional[str] = None,
-    comm: Optional[Communication] = None
+    comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
     Returns a tensor filled with random numbers from a standard normal distribution with zero mean and variance of one.
