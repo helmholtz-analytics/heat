@@ -35,7 +35,6 @@ if sys.version_info.minor >= 7:
                 if name is not None:
                     raise AttributeError(f"module {name} not implemented in torch.optim")
 
-
 else:
     from . import dp_optimizer
     from . import tests

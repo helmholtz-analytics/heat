@@ -37,7 +37,7 @@ class TestLasso(TestCase):
             )
 
             # normalize dataset
-            X = X / ht.sqrt((ht.mean(X ** 2, axis=0)))
+            X = X / ht.sqrt((ht.mean(X**2, axis=0)))
             m, n = X.shape
             # HeAT lasso instance
             estimator = ht.regression.lasso.Lasso(max_iter=100, tol=None)
