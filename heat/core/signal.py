@@ -288,6 +288,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
         halo_size = v.shape[1] // 2
 
     # fetch halos and store them in a.halo_next/a.halo_prev
+    print("qqa: ", halo_size)
     a.get_halo(halo_size)
 
     # apply halos to local array
@@ -328,25 +329,17 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     weight = torch.flip(v._DNDarray__array.clone(), [0, 1])
     weight = weight.reshape(1, 1, weight.shape[0], weight.shape[1])
 
-    # print('signal: ', signal.shape, a.comm.rank)
     # apply torch convolution operator
     signal_filtered = fc.conv2d(signal, weight)
 
-    
-
     # unpack 3D result into 1D
     signal_filtered = signal_filtered[0, 0, :]
-
-    #print("signal3: ", signal_filtered.shape, a.comm.rank)
 
     # if kernel shape along split axis is even we need to get rid of duplicated values
     if a.comm.rank != 0 and v.shape[0] % 2 == 0 and a.split == 0:
         signal_filtered = signal_filtered[1:, :]
     elif a.comm.rank != 0 and v.shape[1] % 2 == 0 and a.split == 1:
         signal_filtered = signal_filtered[:, 1:]
-
-
-    print("signal3: ", signal_filtered.shape, a.comm.rank, gshape)
 
     result = DNDarray(
         signal_filtered.contiguous(),
@@ -357,8 +350,6 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
         a.comm,
         a.balanced,
     ).astype(a.dtype.torch_type())
-
-    print("signal: ", result.lshape, a.comm.rank)
 
     if mode == "full" or mode == "valid":
         result.balance()
