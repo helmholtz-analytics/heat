@@ -25,7 +25,7 @@ body:
     id: logs
     attributes:
       label: Error message or erroneous outcome
-      description: Please copy and paste your error. 
+      description: Please copy and paste your error.
       render: shell
   - type: dropdown
     id: version
