@@ -752,7 +752,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         *args,
-        **kwargs
+        **kwargs,
     ) -> Tuple[Optional[DNDarray, torch.Tensor]]:
         """
         Generic function for reduction operations.
@@ -1005,7 +1005,7 @@ class MPICommunication(Communication):
         sendbuf: Union[DNDarray, torch.Tensor, Any],
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         axis: int,
-        **kwargs
+        **kwargs,
     ):
         """
         Generic function for allgather operations.
@@ -1203,7 +1203,7 @@ class MPICommunication(Communication):
         recvbuf: Union[DNDarray, torch.Tensor, Any],
         send_axis: int,
         recv_axis: int,
-        **kwargs
+        **kwargs,
     ):
         """
         Generic function for alltoall operations.
@@ -1482,7 +1482,7 @@ class MPICommunication(Communication):
         recv_axis: int,
         send_factor: int = 1,
         recv_factor: int = 1,
-        **kwargs
+        **kwargs,
     ):
         """
         Generic function for scatter and gather operations.
@@ -1883,8 +1883,12 @@ class MPICommunication(Communication):
         return getattr(self.handle, name)
 
 
-MPI_WORLD = MPICommunication()
-MPI_SELF = MPICommunication(MPI.COMM_SELF)
+# creating a duplicate COMM
+comm = MPI.COMM_WORLD
+dup_comm = comm.Dup()
+
+MPI_WORLD = MPICommunication(dup_comm)
+MPI_SELF = MPICommunication(MPI.COMM_SELF.Dup())
 
 # set the default communicator to be MPI_WORLD
 __default_comm = MPI_WORLD

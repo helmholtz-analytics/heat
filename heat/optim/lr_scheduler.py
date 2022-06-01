@@ -16,7 +16,6 @@ if sys.version_info.minor >= 7:
         except AttributeError:
             raise AttributeError(f"name {name} is not implemented in torch.optim.lr_scheduler")
 
-
 else:
 
     class _Wrapper36(object):

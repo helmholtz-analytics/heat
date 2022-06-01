@@ -240,6 +240,14 @@ class TestRandom(TestCase):
         b = ht.zeros((10,), dtype=ht.int64, split=0)
         self.assertTrue(ht.equal(a, b))
 
+        # size parameter allows int arguments
+        a = ht.random.randint(1, size=10, split=0, dtype=ht.int64)
+        self.assertTrue(ht.equal(a, b))
+
+        # size is None
+        a = ht.random.randint(0, 10)
+        self.assertEqual(a.shape, ())
+
         # Two arrays with the same seed and same number of elements have the same random values
         ht.random.seed(13579)
         shape = (15, 13, 9, 21, 65)
