@@ -41,7 +41,7 @@ body:
     validations:
       required: true
   - type: dropdown
-    id: python version
+    id: python-version
     attributes:
       label: Python version
       description: What Python version?
@@ -51,7 +51,7 @@ body:
         - 3.10
         - 3.7
   - type: dropdown
-    id: pytorch version
+    id: pytorch-version
     attributes:
       label: PyTorch version
       description: What PyTorch version?
