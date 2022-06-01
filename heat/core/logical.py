@@ -31,6 +31,7 @@ __all__ = [
     "logical_not",
     "logical_or",
     "logical_xor",
+    "signbit",
 ]
 
 
@@ -382,7 +383,7 @@ def logical_and(x: DNDarray, y: DNDarray) -> DNDarray:
     DNDarray([False, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__binary_op(
-        torch.Tensor.__and__, types.bool(x, device=x.device), types.bool(y, device=y.device)
+        torch.logical_and, types.bool(x, device=x.device), types.bool(y, device=y.device)
     )
 
 
@@ -424,7 +425,7 @@ def logical_or(x: DNDarray, y: DNDarray) -> DNDarray:
     DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__binary_op(
-        torch.Tensor.__or__, types.bool(x, device=x.device), types.bool(y, device=y.device)
+        torch.logical_or, types.bool(x, device=x.device), types.bool(y, device=y.device)
     )
 
 
@@ -508,3 +509,23 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
 
     else:
         return x, y
+
+
+def signbit(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
+    """
+    Checks if signbit is set element-wise (less than zero).
+
+    Parameters
+    ----------
+    x : DNDarray
+        The input array.
+    out : DNDarray, optional
+        The output array.
+
+    Examples
+    --------
+    >>> a = ht.array([2, -1.3, 0])
+    >>> ht.signbit(a)
+    DNDarray([False,  True, False], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(torch.signbit, x, out, no_cast=True)

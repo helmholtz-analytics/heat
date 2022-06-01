@@ -12,7 +12,7 @@ with open("./heat/core/version.py") as handle:
 setup(
     name="heat",
     packages=find_packages(exclude=("*tests*", "*benchmarks*")),
-    data_files=["README.md", "LICENSE"],
+    package_data={"heat.datasets": ["*.csv", "*.h5", "*.nc"]},
     version=__version__,
     description="A framework for high-performance data analytics and machine learning.",
     long_description=long_description,
@@ -33,7 +33,7 @@ setup(
     install_requires=[
         "mpi4py>=3.0.0",
         "numpy>=1.13.0",
-        "torch>=1.7.0, <=1.9",
+        "torch>=1.7.0, <=1.11.0",
         "scipy>=0.14.0",
         "pillow>=6.0.0",
         "torchvision>=0.8.0",
@@ -43,5 +43,6 @@ setup(
         "hdf5": ["h5py>=2.8.0"],
         "netcdf": ["netCDF4>=1.5.6"],
         "dev": ["pre-commit>=1.18.3"],
+        "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0"],
     },
 )

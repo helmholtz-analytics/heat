@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import torch
+import tempfile
 
 import heat as ht
 from .test_suites.basic_test import TestCase
@@ -22,6 +23,7 @@ class TestIO(TestCase):
 
         # load comparison data from csv
         cls.CSV_PATH = os.path.join(os.getcwd(), "heat/datasets/iris.csv")
+        cls.CSV_OUT_PATH = pwd + "/test.csv"
         cls.IRIS = (
             torch.from_numpy(np.loadtxt(cls.CSV_PATH, delimiter=";"))
             .float()
@@ -141,20 +143,121 @@ class TestIO(TestCase):
         with self.assertRaises(TypeError):
             ht.load_csv(self.CSV_PATH, header_lines="3", sep=";", split=0)
 
+    def test_save_csv(self):
+        for rnd_type in [
+            (ht.random.randint, ht.types.int32),
+            (ht.random.randint, ht.types.int64),
+            (ht.random.rand, ht.types.float32),
+            (ht.random.rand, ht.types.float64),
+        ]:
+            for separator in [",", ";", "|"]:
+                for split in [None, 0, 1]:
+                    for headers in [None, ["# This", "# is a", "# test."]]:
+                        for shape in [(1, 1), (10, 10), (20, 1), (1, 20), (25, 4), (4, 25)]:
+                            if rnd_type[0] == ht.random.randint:
+                                data = rnd_type[0](
+                                    -1000, 1000, size=shape, dtype=rnd_type[1], split=split
+                                )
+                            else:
+                                data = rnd_type[0](
+                                    shape[0],
+                                    shape[1],
+                                    split=split,
+                                    dtype=rnd_type[1],
+                                )
+
+                            if data.comm.rank == 0:
+                                tmpfile = tempfile.NamedTemporaryFile(
+                                    prefix="test_io_", suffix=".csv", delete=False
+                                )
+                                tmpfile.close()
+                                filename = tmpfile.name
+                            else:
+                                filename = None
+                            filename = data.comm.handle.bcast(filename, root=0)
+
+                            data.save(
+                                filename,
+                                header_lines=headers,
+                                sep=separator,
+                            )
+                            comparison = ht.load_csv(
+                                filename,
+                                # split=split,
+                                header_lines=0 if headers is None else len(headers),
+                                sep=separator,
+                            ).reshape(shape)
+                            resid = data - comparison
+                            self.assertTrue(
+                                ht.max(resid).item() < 0.00001 and ht.min(resid).item() > -0.00001
+                            )
+                            data.comm.handle.Barrier()
+                            if data.comm.rank == 0:
+                                os.unlink(filename)
+
+        # Test vector
+        data = ht.random.randint(0, 100, size=(150,))
+        if data.comm.rank == 0:
+            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete=False)
+            tmpfile.close()
+            filename = tmpfile.name
+        else:
+            filename = None
+        filename = data.comm.handle.bcast(filename, root=0)
+        data.save(filename)
+        comparison = ht.load(filename).reshape((150,))
+        self.assertTrue((data == comparison).all())
+        data.comm.handle.Barrier()
+        if data.comm.rank == 0:
+            os.unlink(filename)
+
+        # Test 0 matrix
+        data = ht.zeros((10, 10))
+        if data.comm.rank == 0:
+            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete=False)
+            tmpfile.close()
+            filename = tmpfile.name
+        else:
+            filename = None
+        filename = data.comm.handle.bcast(filename, root=0)
+        data.save(filename)
+        comparison = ht.load(filename)
+        self.assertTrue((data == comparison).all())
+        data.comm.handle.Barrier()
+        if data.comm.rank == 0:
+            os.unlink(filename)
+
+        # Test negative float values
+        data = ht.random.rand(100, 100)
+        data = data - 500
+        if data.comm.rank == 0:
+            tmpfile = tempfile.NamedTemporaryFile(prefix="test_io_", suffix=".csv", delete=False)
+            tmpfile.close()
+            filename = tmpfile.name
+        else:
+            filename = None
+        filename = data.comm.handle.bcast(filename, root=0)
+        data.save(filename)
+        comparison = ht.load(filename)
+        self.assertTrue((data == comparison).all())
+        data.comm.handle.Barrier()
+        if data.comm.rank == 0:
+            os.unlink(filename)
+
     def test_load_exception(self):
         # correct extension, file does not exist
         if ht.io.supports_hdf5():
             with self.assertRaises(IOError):
                 ht.load("foo.h5", "data")
         else:
-            with self.assertRaises(ImportError):
+            with self.assertRaises(RuntimeError):
                 ht.load("foo.h5", "data")
 
         if ht.io.supports_netcdf():
             with self.assertRaises(IOError):
                 ht.load("foo.nc", "data")
         else:
-            with self.assertRaises(ImportError):
+            with self.assertRaises(RuntimeError):
                 ht.load("foo.nc", "data")
 
         # unknown file extension

@@ -24,7 +24,9 @@ __all__ = [
     "argmin",
     "average",
     "bincount",
+    "bucketize",
     "cov",
+    "digitize",
     "histc",
     "histogram",
     "kurtosis",
@@ -282,7 +284,7 @@ def average(
                 wgt_lshape, dtype=weights.dtype.torch_type(), device=x.device.torch_device
             )
             wgt[wgt_slice] = weights.larray
-            wgt = factories.array(wgt, is_split=wgt_split)
+            wgt = factories.array(wgt, is_split=wgt_split, copy=False)
         else:
             if x.comm.is_distributed():
                 if x.split is not None and weights.split != x.split and weights.ndim != 1:
@@ -304,6 +306,7 @@ def average(
                 torch.broadcast_tensors(cumwgt.larray, result.larray)[0],
                 is_split=result.split,
                 device=result.device,
+                copy=False,
             )
         return (result, cumwgt)
 
@@ -376,7 +379,88 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
     else:
         data = counts
 
-    return factories.array(data, dtype=types.heat_type_of(data), device=x.device)
+    return DNDarray(
+        data,
+        gshape=tuple(data.shape),
+        dtype=types.heat_type_of(data),
+        split=None,
+        device=x.device,
+        comm=x.comm,
+        balanced=True,
+    )
+
+
+def bucketize(
+    input: DNDarray,
+    boundaries: Union[DNDarray, torch.Tensor],
+    out_int32: bool = False,
+    right: bool = False,
+    out: DNDarray = None,
+) -> DNDarray:
+    """
+    Returns the indices of the buckets to which each value in the input belongs, where the boundaries of the buckets are set by boundaries.
+
+    Parameters
+    ----------
+    input : DNDarray
+        The input array.
+    boundaries : DNDarray or torch.Tensor
+        monotonically increasing sequence defining the bucket boundaries, 1-dimensional, not distributed
+    out_int32 : bool, optional
+        set the dtype of the output to ``ht.int64`` (`False`) or ``ht.int32`` (True)
+    right : bool, optional
+        indicate whether the buckets include the right (`False`) or left (`True`) boundaries, see Notes.
+    out : DNDarray, optional
+        The output array, must be the shame shape and split as the input array.
+
+    Notes
+    -----
+    This function uses the PyTorch's setting for ``right``:
+
+    ===== ====================================
+    right returned index `i` satisfies
+    ===== ====================================
+    False boundaries[i-1] < x <= boundaries[i]
+    True  boundaries[i-1] <= x < boundaries[i]
+    ===== ====================================
+
+    Raises
+    ------
+    RuntimeError
+        If `boundaries` is distributed.
+
+    See Also
+    --------
+    digitize
+        NumPy-like version of this function.
+
+    Examples
+    --------
+    >>> boundaries = ht.array([1, 3, 5, 7, 9])
+    >>> v = ht.array([[3, 6, 9], [3, 6, 9]])
+    >>> ht.bucketize(v, boundaries)
+    DNDarray([[1, 3, 4],
+              [1, 3, 4]], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.bucketize(v, boundaries, right=True)
+    DNDarray([[2, 3, 5],
+              [2, 3, 5]], dtype=ht.int64, device=cpu:0, split=None)
+    """
+    if isinstance(boundaries, DNDarray):
+        if boundaries.is_distributed():
+            raise RuntimeError("'boundaries' must not be distributed.")
+        boundaries = boundaries.larray
+    else:
+        boundaries = torch.as_tensor(boundaries)
+
+    return _operations.__local_op(
+        torch.bucketize,
+        input,
+        out,
+        no_cast=True,
+        boundaries=boundaries,
+        out_int32=out_int32,
+        right=right,
+    )
 
 
 def cov(
@@ -454,6 +538,81 @@ def cov(
     return c
 
 
+def digitize(x: DNDarray, bins: Union[DNDarray, torch.Tensor], right: bool = False) -> DNDarray:
+    """
+    Return the indices of the bins to which each value in the input array `x` belongs.
+    If values in `x` are beyond the bounds of bins, 0 or len(bins) is returned as appropriate.
+
+    Parameters
+    ----------
+    x : DNDarray
+        The input array
+    bins : DNDarray or torch.Tensor
+        A 1-dimensional array containing a monotonic sequence describing the bin boundaries, not distributed.
+    right : bool, optional
+        Indicating whether the intervals include the right or the left bin edge, see Notes.
+
+    Notes
+    -----
+    This function uses NumPy's setting for ``right``:
+
+    ===== ============= ============================
+    right order of bins returned index `i` satisfies
+    ===== ============= ============================
+    False increasing    bins[i-1] <= x < bins[i]
+    True  increasing    bins[i-1] < x <= bins[i]
+    False decreasing    bins[i-1] > x >= bins[i]
+    True  decreasing    bins[i-1] >= x > bins[i]
+    ===== ============= ============================
+
+    Raises
+    ------
+    RuntimeError
+        If `bins` is distributed.
+
+    See Also
+    --------
+    bucketize
+        PyTorch-like version of this function.
+
+    Examples
+    --------
+    >>> x = ht.array([1.2, 10.0, 12.4, 15.5, 20.])
+    >>> bins = ht.array([0, 5, 10, 15, 20])
+    >>> ht.digitize(x,bins,right=True)
+    DNDarray([1, 2, 3, 4, 4], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.digitize(x,bins,right=False)
+    DNDarray([1, 3, 3, 4, 5], dtype=ht.int64, device=cpu:0, split=None)
+    """
+    if isinstance(bins, DNDarray):
+        if bins.is_distributed():
+            raise RuntimeError("'bins' must not be distributed.")
+        bins = bins.larray
+    else:
+        bins = torch.as_tensor(bins)
+
+    reverse = False
+
+    if bins[0] > bins[-1]:
+        bins = torch.flipud(bins)
+        reverse = True
+
+    result = _operations.__local_op(
+        torch.bucketize,
+        x,
+        out=None,
+        no_cast=True,
+        boundaries=bins,
+        out_int32=False,
+        right=not right,
+    )
+
+    if reverse:
+        result = bins.numel() - result
+
+    return result
+
+
 def histc(
     input: DNDarray, bins: int = 100, min: int = 0, max: int = 0, out: Optional[DNDarray] = None
 ) -> DNDarray:
@@ -498,8 +657,14 @@ def histc(
 
     if input.split is None:
         if out is None:
-            out = factories.array(
-                hist, dtype=types.canonical_heat_type(hist.dtype), device=input.device
+            out = DNDarray(
+                hist,
+                gshape=tuple(hist.shape),
+                dtype=types.canonical_heat_type(hist.dtype),
+                split=None,
+                device=input.device,
+                comm=input.comm,
+                balanced=True,
             )
     else:
         if out is None:
@@ -815,7 +980,15 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
         if not x.is_distributed():
             # if x is not distributed do a torch.mean on x
             ret = torch.mean(x.larray.float())
-            return factories.array(ret, is_split=None, device=x.device)
+            return DNDarray(
+                ret,
+                gshape=tuple(ret.shape),
+                dtype=types.heat_type_of(ret),
+                split=None,
+                device=x.device,
+                comm=x.comm,
+                balanced=True,
+            )
         else:
             # if x is distributed and no axis is given: return mean of the whole set
             mu_in = torch.mean(x.larray)
@@ -907,9 +1080,9 @@ def __merge_moments(
 
     var1, var2 = m1[-3], m2[-3]
     if unbiased:
-        var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta ** 2) * n1 * n2 / n) / (n - 1)
+        var_m = (var1 * (n1 - 1) + var2 * (n2 - 1) + (delta**2) * n1 * n2 / n) / (n - 1)
     else:
-        var_m = (var1 * n1 + var2 * n2 + (delta ** 2) * n1 * n2 / n) / n
+        var_m = (var1 * n1 + var2 * n2 + (delta**2) * n1 * n2 / n) / n
 
     if len(m1) == 3:  # merge vars
         return var_m, mu, n
@@ -1092,13 +1265,26 @@ def __moment_w_axis(
         output_shape = output_shape if output_shape else (1,)
 
         if x.split is None:  # x is *not* distributed -> no need to distribute
-            return factories.array(function(x.larray, **kwargs), dtype=x.dtype, device=x.device)
+            ret = function(x.larray, **kwargs)
+            return DNDarray(
+                ret,
+                gshape=tuple(ret.shape),
+                dtype=x.dtype,
+                split=None,
+                device=x.device,
+                comm=x.comm,
+                balanced=x.balanced,
+            )
         elif axis == x.split:  # x is distributed and axis chosen is == to split
             return elementwise_function(output_shape)
         # singular axis given (axis) not equal to split direction (x.split)
         lcl = function(x.larray, **kwargs)
         return factories.array(
-            lcl, is_split=x.split if axis > x.split else x.split - 1, dtype=x.dtype, device=x.device
+            lcl,
+            is_split=x.split if axis > x.split else x.split - 1,
+            dtype=x.dtype,
+            device=x.device,
+            copy=False,
         )
     elif not isinstance(axis, (list, tuple, torch.Tensor)):
         raise TypeError(
@@ -1123,7 +1309,16 @@ def __moment_w_axis(
     output_shape = [output_shape[it] for it in range(len(output_shape)) if it not in axis]
     # multiple dimensions
     if x.split is None:
-        return factories.array(function(x.larray, **kwargs), is_split=x.split, device=x.device)
+        ret = function(x.larray, **kwargs)
+        return DNDarray(
+            ret,
+            gshape=tuple(ret.shape),
+            dtype=types.heat_type_of(ret),
+            split=None,
+            device=x.device,
+            comm=x.comm,
+            balanced=True,
+        )
     if x.split in axis:
         # merge in the direction of the split
         return elementwise_function(output_shape)
@@ -1133,6 +1328,7 @@ def __moment_w_axis(
         function(x.larray, **kwargs),
         is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
         device=x.device,
+        copy=False,
     )
 
 
@@ -1356,8 +1552,14 @@ def percentile(
     # edge-case: x is a scalar. Return x
     if x.ndim == 0:
         percentile = t_x * torch.ones(nperc, dtype=t_perc_dtype, device=t_x.device)
-        return factories.array(
-            percentile, split=None, dtype=perc_dtype, device=x.device, comm=x.comm
+        return DNDarray(
+            percentile,
+            gshape=tuple(percentile.shape),
+            split=None,
+            dtype=perc_dtype,
+            device=x.device,
+            comm=x.comm,
+            balanced=True,
         )
 
     # compute indices
@@ -1428,7 +1630,16 @@ def percentile(
                 if rank > 0:
                     # correct indices for halo
                     t_ind_on_rank += 1
-                local_p = factories.array(_local_percentile(t_data, axis, t_ind_on_rank))
+                local_p = _local_percentile(t_data, axis, t_ind_on_rank)
+                local_p = DNDarray(
+                    local_p,
+                    gshape=tuple(local_p.shape),
+                    dtype=types.heat_type_of(local_p),
+                    split=None,
+                    device=x.device,
+                    comm=x.comm,
+                    balanced=True,
+                )
             x.comm.Bcast(local_p, root=r)
             percentile[perc_slice] = local_p
     else:
@@ -1441,7 +1652,16 @@ def percentile(
             percentile.resplit_(axis=None)
         else:
             # non-distributed case
-            percentile = factories.array(_local_percentile(t_data, axis, t_indices))
+            percentile = _local_percentile(t_data, axis, t_indices)
+            percentile = DNDarray(
+                percentile,
+                tuple(percentile.shape),
+                types.heat_type_of(percentile),
+                None,
+                x.device,
+                x.comm,
+                True,
+            )
 
     if percentile.shape[0] == 1:
         percentile = manipulations.squeeze(percentile, axis=0)
@@ -1551,7 +1771,7 @@ def std(
         loc = np.std(x.larray.numpy(), axis=axis, ddof=ddof)
         if loc.size == 1:
             return loc.item()
-        return factories.array(loc)
+        return factories.array(loc, copy=False)
     return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
@@ -1740,7 +1960,9 @@ def var(
     if axis is None:  # no axis given
         if not x.is_distributed():  # not distributed (full tensor on one node)
             ret = torch.var(x.larray.float(), unbiased=unbiased)
-            return factories.array(ret)
+            return DNDarray(
+                ret, tuple(ret.shape), types.heat_type_of(ret), None, x.device, x.comm, True
+            )
 
         else:  # case for full matrix calculation (axis is None)
             mu_in = torch.mean(x.larray)
