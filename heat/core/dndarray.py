@@ -9,7 +9,7 @@ import warnings
 from inspect import stack
 from mpi4py import MPI
 from pathlib import Path
-from typing import List, Union, Tuple, TypeVar, Optional
+from typing import List, Union, Tuple, TypeVar, Optional, Dict
 
 warnings.simplefilter("always", ResourceWarning)
 
@@ -599,7 +599,7 @@ class DNDarray:
         self.__lshape_map = lshape_map
         return lshape_map.clone()
 
-    def create_partition_interface(self, no_data=False):
+    def create_partition_interface(self, no_data: bool = False) -> Dict:
         """
         Create a partition interface in line with the DPPY proposal. This is subject to change.
         The intention of this to facilitate the usage of a general format for the referencing of
@@ -644,9 +644,6 @@ class DNDarray:
             },
             'locals': [(rank, 0, 0)],
         }
-        Returns
-        -------
-        dictionary containing the partition interface as shown above.
         """
         # sp =
         lshape_map = self.create_lshape_map()
