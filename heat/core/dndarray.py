@@ -654,8 +654,8 @@ class DNDarray:
         TODO: expand docs. This function processes key, manipulates `arr` if necessary, returns the final output shape
         Private method for processing keys for indexing. Returns wether advanced indexing is used as well as a processed key and self.
         A processed key:
-        - doesn't cotain any ellipses or newaxis
-        - all Iterables are converted to ``DNDarrays``
+        - doesn't contain any ellipses or newaxis
+        - all Iterables are converted to ``DNDarrays`` TODO: NO, change this.
         - has the same dimensionality as the ``DNDarray`` it indexes
 
         Parameters
@@ -664,44 +664,41 @@ class DNDarray:
             Indices for the tensor.
         """
         output_shape = list(arr.gshape)
-        # output_split = arr.split
-
-        if isinstance(key, Iterable) and not isinstance(key, (tuple, list)):
-            # key is np.ndarray or torch.Tensor
-            key = factories.array(key)
-
-        if isinstance(key, DNDarray):
-            if key.dtype in (canonical_heat_type.bool, canonical_heat_type.uint8):
-                # boolean indexing
-                # transform to sequence of indexing arrays
-                if not key.gshape == arr.gshape:
-                    raise IndexError(
-                        "IndexError: shape of boolean index {} did not match shape of indexed array {}".format(
-                            key.gshape, arr.gshape
-                        )
-                    )
-                key = indexing.nonzero(key)
-                # TODO: fix indexing.nonzero to return a tuple of 1D dndarrays
-            else:
-                # advanced indexing on first dimension
-                output_shape = list(key.gshape) + output_shape[1:]
-            # TODO: check for key.ndim = 0 and treat that as int
+        split_bookkeeping = [None] * arr.ndim
+        if arr.is_distributed():
+            split_bookkeeping[arr.split] = "split"
 
         advanced_indexing = False
-        advanced_indexing_dims = []
+
+        if isinstance(key, (DNDarray, torch.Tensor, np.ndarray)):
+            if key.dtype in (types.bool, types.uint8, torch.bool, torch.uint8, np.bool, np.uint8):
+                # boolean indexing: transform to sequence of indexing (1-D) arrays
+                try:
+                    # torch.Tensor key
+                    key = key.nonzero(as_tuple=True)
+                except AttributeError:
+                    # np.array or DNDarray key
+                    key = key.nonzero()
+            else:
+                # advanced indexing on first dimension: first dim expands to shape of key
+                output_shape = list(key.shape) + output_shape[1:]
+                # adjust split axis accordingly
+                split_bookkeeping = [None] * (len(key.shape) - 1) + split_bookkeeping[1:]
+
         if isinstance(key, (tuple, list)):
             key = list(key)
+            advanced_indexing_dims = []
             for i, k in enumerate(key):
                 if isinstance(k, Iterable) or isinstance(k, DNDarray):
                     # advanced indexing across dimensions
                     advanced_indexing = True
                     advanced_indexing_dims.append(i)
                     if not isinstance(k, DNDarray):
-                        key[i] = factories.array(k)
-                    # TODO: check for key.ndim = 0 and treat that as int
+                        key[i] = torch.tensor(k)
+
         if advanced_indexing:
+            advanced_indexing_shapes = tuple(tuple(key[i].shape) for i in advanced_indexing_dims)
             # shapes of indexing arrays must be broadcastable
-            advanced_indexing_shapes = tuple(key[i].shape for i in advanced_indexing_dims)
             try:
                 broadcasted_shape = torch.broadcast_shapes(advanced_indexing_shapes)
             except RuntimeError:
@@ -721,6 +718,11 @@ class DNDarray:
                     advanced_indexing_dims[0] : advanced_indexing_dims[0]
                     + len(advanced_indexing_dims)
                 ] = broadcasted_shape
+                split_bookkeeping = (
+                    split_bookkeeping[: advanced_indexing_dims[0]]
+                    + [None] * add_dims
+                    + split_bookkeeping[advanced_indexing_dims[0] :]
+                )
             else:
                 # advanced-indexing dimensions are not consecutive:
                 # transpose array to make the advanced-indexing dimensions consecutive as the first dimensions
@@ -730,6 +732,10 @@ class DNDarray:
                 arr = arr.transpose(advanced_indexing_dims + non_adv_ind_dims)
                 output_shape = list(arr.gshape)
                 output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
+                split_bookkeeping = [None] * arr.ndim
+                if arr.is_distributed:
+                    split_bookkeeping[arr.split] = "split"
+                split_bookkeeping = [None] * add_dims + split_bookkeeping
                 # modify key to match the new dimension order
                 key = [key[i] for i in advanced_indexing_dims] + [key[i] for i in non_adv_ind_dims]
                 # update advanced-indexing dims
@@ -820,13 +826,16 @@ class DNDarray:
         """
         # key can be: int, tuple, list, slice, DNDarray, torch tensor, numpy array, or sequence thereof
         # Trivial cases
+        print("DEBUGGING: RAW KEY = ", key)
         if key is None:
             return self.expand_dims(0)
-        if key == ... or key == slice(None):  # latter doesnt work with torch for 0-dim tensors
+        if (
+            key is ... or isinstance(key, slice) and key == slice(None)
+        ):  # latter doesnt work with torch for 0-dim tensors
             return self
         # Preprocess: Process Ellipsis + 'None' indexing; make Iterables to DNDarrays
         advanced_indexing, self, key = self.__process_key(key)
-
+        print("DEBUGGING: AFTER PROCESSING KEY = ", key, type(key))
         # To use torch_proxy with advanced indexing, add empty dimensions instead of
         # advanced index. Later, replace the empty dimensions with the shape of the advanced index
         proxy = self
@@ -834,9 +843,9 @@ class DNDarray:
             "split" if (proxy.split is not None and i == proxy.split) else "_{}".format(i)
             for i in range(proxy.ndim)
         ]
-        proxy_key = list(key)
+        proxy_key = list(key)  # copy OR IS THIS REALLY NEEDED??
+        print("DEBUGGING: proxy_key, ADVANCED_INDEXING", proxy_key, advanced_indexing)
         if advanced_indexing:
-            proxy_key = list(key)
             for i, k in reversed(enumerate(key)):
                 if isinstance(k, DNDarray):  # all iterables have been made DNDarrays
                     # TODO: Bool indexing (sometimes) is collapsed into one dimension
@@ -851,9 +860,16 @@ class DNDarray:
 
         self_proxy = proxy.__torch_proxy__()
         self_proxy.names = names
+        print("DEBUGGING: self_proxy = ", self_proxy)
+        print("debugging: proxy_key", proxy_key)
+        print("DEBUGGING: self_proxy.shape", self_proxy.shape)
+        print("DEBUGGING: type(self_proxy)", type(self_proxy))
+
         indexed_proxy = self_proxy[proxy_key]
+        print("DEBUGGING: indexed_proxy = ", indexed_proxy)
 
         output_shape = list(indexed_proxy.shape)
+        print("DEBUGGING: output_shape = ", output_shape)
         if advanced_indexing:
             for i, n in enumerate(indexed_proxy.names):
                 if "replace" in n:
@@ -867,8 +883,11 @@ class DNDarray:
         except ValueError:
             output_split = None
 
+        print("DEBUGGING: output_split = ", output_split)
         # data are not distributed or split dimension is not affected by indexing
         if not self.is_distributed() or key[self.split] == slice(None):
+            print("DEBUGGING: NOT DISTRIBUTED OR SPLIT DIMENSION NOT AFFECTED BY INDEXING")
+            print("DEBUGGING: output_shape = ", output_shape)
             return DNDarray(
                 self.larray[key],
                 gshape=output_shape,
@@ -1224,7 +1243,11 @@ class DNDarray:
         """
         The length of the ``DNDarray``, i.e. the number of items in the first dimension.
         """
-        return self.shape[0]
+        try:
+            len = self.shape[0]
+            return len
+        except IndexError:
+            raise TypeError("len() of unsized DNDarray")
 
     def numpy(self) -> np.array:
         """
@@ -2032,4 +2055,5 @@ from . import tiling
 
 from .devices import Device
 from .stride_tricks import sanitize_axis
+import types
 from .types import datatype, canonical_heat_type
