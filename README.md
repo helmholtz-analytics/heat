@@ -45,6 +45,8 @@ Features
 Getting Started
 ---------------
 
+Onboarding
+---------------
 Check out our Jupyter Notebook [tutorial](https://github.com/helmholtz-analytics/heat/blob/main/scripts/tutorial.ipynb)
 right here on Github or in the /scripts directory.
 
