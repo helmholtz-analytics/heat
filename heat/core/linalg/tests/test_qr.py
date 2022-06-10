@@ -19,7 +19,7 @@ sz = ht.MPI_WORLD.size
 class TestQR(TestCase):
     @unittest.skipIf(not extended_tests, "extended tests")
     def test_qr_sp0_ext(self):
-        st_whole = torch.randn(sz * 8, sz * 8)
+        st_whole = torch.randn(sz * 8, sz * 8, device=self.device.torch_device)
         sp = 0
         for m in range(sz * 6, st_whole.shape[0] + 1, 1):
             for n in range(sz * 6, st_whole.shape[1] + 1, 1):
@@ -34,7 +34,7 @@ class TestQR(TestCase):
 
     @unittest.skipIf(not extended_tests, "extended tests")
     def test_qr_sp1_ext(self):
-        st_whole = torch.randn(sz * 8, sz * 8)
+        st_whole = torch.randn(sz * 8, sz * 8, device=self.device.torch_device)
         sp = 1
         for m in range(sz * 6, st_whole.shape[0] + 1, 1):
             for n in range(sz * 6, st_whole.shape[1] + 1, 1):
@@ -49,7 +49,7 @@ class TestQR(TestCase):
 
     def test_qr(self, sz=sz):
         m, n = 5 * sz, 10 * sz
-        st = torch.randn(m, n, dtype=torch.float)
+        st = torch.randn(m, n, device=self.device.torch_device, dtype=torch.float)
         a_comp = ht.array(st, split=0)
         for t in range(1, 3):
             for sp in range(2):
@@ -59,7 +59,7 @@ class TestQR(TestCase):
                 self.assertTrue(ht.allclose(qr.Q.T @ qr.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
                 self.assertTrue(ht.allclose(ht.eye(m), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5))
         m, n = 10 * sz, 10 * sz
-        st1 = torch.randn(m, n)
+        st1 = torch.randn(m, n, device=self.device.torch_device)
         a_comp1 = ht.array(st1, split=0)
         for t in range(1, 3):
             for sp in range(2):
@@ -69,7 +69,7 @@ class TestQR(TestCase):
                 self.assertTrue(ht.allclose(qr1.Q.T @ qr1.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
                 self.assertTrue(ht.allclose(ht.eye(m), qr1.Q @ qr1.Q.T, rtol=1e-5, atol=1e-5))
         m, n = sz * 10, sz * 6
-        st2 = torch.randn(m, n, dtype=torch.double)
+        st2 = torch.randn(m, n, dtype=torch.double, device=self.device.torch_device)
         a_comp2 = ht.array(st2, split=0, dtype=ht.double)
         for t in range(1, 3):
             for sp in range(2):
@@ -92,7 +92,7 @@ class TestQR(TestCase):
         self.assertTrue(qr_1.Q is None)
 
         m, n = 10 * sz, 5 * sz
-        st = torch.randn(m, n)
+        st = torch.randn(m, n, device=self.device.torch_device)
         a_comp = ht.array(st, split=None)
         a = ht.array(st, split=None)
         qr = a.qr()

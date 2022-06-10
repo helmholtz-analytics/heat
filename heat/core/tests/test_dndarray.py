@@ -123,15 +123,10 @@ class TestDNDarray(TestCase):
             # exception for too large halos
             with self.assertRaises(ValueError):
                 data.get_halo(4)
-            # exception on non balanced tensor
-            with self.assertRaises(RuntimeError):
-                data_nobalance = ht.array(
-                    torch.empty(((data.comm.rank + 1) * 2, 3, 4)), is_split=0, device=data.device
-                )
-                data_nobalance.get_halo(1)
             # test no data on process
             data_np = np.arange(2 * 12).reshape(2, 12)
             data = ht.array(data_np, split=0)
+            print("DEBUGGING: data.lshape_map = ", data.lshape_map)
             data.get_halo(1)
 
             data_with_halos = data.array_with_halos
@@ -166,6 +161,78 @@ class TestDNDarray(TestCase):
                 self.assertTrue(data.halo_prev is None)
                 self.assertTrue(data.halo_next is None)
                 self.assertEqual(data_with_halos.shape, (12, 0))
+
+        # test halo of imbalanced dndarray
+        if data.comm.size > 2:
+            # test for split=0
+            t_data = torch.arange(
+                5 * data.comm.rank, dtype=torch.float64, device=data.larray.device
+            ).reshape(data.comm.rank, 5)
+            if data.comm.rank > 0:
+                prev_data = torch.arange(
+                    5 * (data.comm.rank - 1), dtype=torch.float64, device=data.larray.device
+                ).reshape(data.comm.rank - 1, 5)
+            if data.comm.rank < data.comm.size - 1:
+                next_data = torch.arange(
+                    5 * (data.comm.rank + 1), dtype=torch.float64, device=data.larray.device
+                ).reshape(data.comm.rank + 1, 5)
+            data = ht.array(t_data, is_split=0)
+            data.get_halo(1)
+            data_with_halos = data.array_with_halos
+            if data.comm.rank == 0:
+                prev_halo = None
+                next_halo = None
+                new_split_size = 0
+            elif data.comm.rank == 1:
+                prev_halo = None
+                next_halo = next_data[0]
+                new_split_size = data.larray.shape[0] + 1
+            elif data.comm.rank == data.comm.size - 1:
+                prev_halo = prev_data[-1]
+                next_halo = None
+                new_split_size = data.larray.shape[0] + 1
+            else:
+                prev_halo = prev_data[-1]
+                next_halo = next_data[0]
+                new_split_size = data.larray.shape[0] + 2
+            self.assertEqual(data_with_halos.shape, (new_split_size, 5))
+            self.assertTrue(data.halo_prev is prev_halo or (data.halo_prev == prev_halo).all())
+            self.assertTrue(data.halo_next is next_halo or (data.halo_next == next_halo).all())
+
+            # test for split=1
+            t_data = torch.arange(
+                5 * data.comm.rank, dtype=torch.float64, device=data.larray.device
+            ).reshape(5, -1)
+            if data.comm.rank > 0:
+                prev_data = torch.arange(
+                    5 * (data.comm.rank - 1), dtype=torch.float64, device=data.larray.device
+                ).reshape(5, -1)
+            if data.comm.rank < data.comm.size - 1:
+                next_data = torch.arange(
+                    5 * (data.comm.rank + 1), dtype=torch.float64, device=data.larray.device
+                ).reshape(5, -1)
+            data = ht.array(t_data, is_split=1)
+            data.get_halo(1)
+            data_with_halos = data.array_with_halos
+            if data.comm.rank == 0:
+                prev_halo = None
+                next_halo = None
+                new_split_size = 0
+            elif data.comm.rank == 1:
+                prev_halo = None
+                next_halo = next_data[:, 0].unsqueeze_(1)
+                new_split_size = data.larray.shape[1] + 1
+            elif data.comm.rank == data.comm.size - 1:
+                prev_halo = prev_data[:, -1].unsqueeze_(1)
+                next_halo = None
+                new_split_size = data.larray.shape[1] + 1
+            else:
+                prev_halo = prev_data[:, -1].unsqueeze_(1)
+                next_halo = next_data[:, 0].unsqueeze_(1)
+                new_split_size = data.larray.shape[1] + 2
+            self.assertEqual(data_with_halos.shape, (5, new_split_size))
+            self.assertTrue(data.halo_prev is prev_halo or (data.halo_prev == prev_halo).all())
+            self.assertTrue(data.halo_next is next_halo or (data.halo_next == next_halo).all())
 
     def test_larray(self):
         # undistributed case
@@ -245,7 +312,8 @@ class TestDNDarray(TestCase):
     def test_balance_and_lshape_map(self):
         data = ht.zeros((70, 20), split=0)
         data = data[:50]
-        lshape_map = data.create_lshape_map()
+        data.lshape_map
+        lshape_map = data.create_lshape_map(force_check=False)  # tests the property
         self.assertEqual(sum(lshape_map[..., 0]), 50)
         if sum(data.lshape) == 0:
             self.assertTrue(all(lshape_map[data.comm.rank] == 0))
@@ -986,6 +1054,27 @@ class TestDNDarray(TestCase):
         self.assertTrue(res == 0)
 
     def test_setitem_getitem(self):
+        # tests for bug #825
+        a = ht.ones((102, 102), split=0)
+        setting = ht.zeros((100, 100), split=0)
+        a[1:-1, 1:-1] = setting
+        self.assertTrue(ht.all(a[1:-1, 1:-1] == 0))
+
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((30, 100), split=1)
+        a[-30:, 1:-1] = setting
+        self.assertTrue(ht.all(a[-30:, 1:-1] == 0))
+
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((100, 100), split=1)
+        a[1:-1, 1:-1] = setting
+        self.assertTrue(ht.all(a[1:-1, 1:-1] == 0))
+
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((100, 20), split=1)
+        a[1:-1, :20] = setting
+        self.assertTrue(ht.all(a[1:-1, :20] == 0))
+
         # tests for bug 730:
         a = ht.ones((10, 25, 30), split=1)
         if a.comm.size > 1:
@@ -996,13 +1085,13 @@ class TestDNDarray(TestCase):
         # set and get single value
         a = ht.zeros((13, 5), split=0)
         # set value on one node
-        a[10, 0] = 1
+        a[10, np.array(0)] = 1
         self.assertEqual(a[10, 0], 1)
         self.assertEqual(a[10, 0].dtype, ht.float32)
 
         a = ht.zeros((13, 5), split=0)
         a[10] = 1
-        b = a[10]
+        b = a[torch.tensor(10)]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.dtype, ht.float32)
         self.assertEqual(b.gshape, (5,))
@@ -1042,7 +1131,7 @@ class TestDNDarray(TestCase):
         # slice in 1st dim only on 1 node w/ singular second dim
         a = ht.zeros((13, 5), split=0)
         a[1:4, 1] = 1
-        b = a[1:4, 1]
+        b = a[1:4, np.int64(1)]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.gshape, (3,))
         self.assertEqual(b.split, 0)
@@ -1058,7 +1147,7 @@ class TestDNDarray(TestCase):
         a[1:11, 1] = 1
         self.assertTrue((a[1:11, 1] == 1).all())
         self.assertEqual(a[1:11, 1].gshape, (10,))
-        self.assertEqual(a[1:11, 1].split, 0)
+        self.assertEqual(a[1:11, torch.tensor(1)].split, 0)
         self.assertEqual(a[1:11, 1].dtype, ht.float32)
         if a.comm.size == 2:
             if a.comm.rank == 1:
@@ -1068,8 +1157,8 @@ class TestDNDarray(TestCase):
 
         # slice in 1st dim across 1 node (2nd) w/ singular second dim
         c = ht.zeros((13, 5), split=0)
-        c[8:12, 1] = 1
-        b = c[8:12, 1]
+        c[8:12, ht.array(1)] = 1
+        b = c[8:12, np.int64(1)]
         self.assertTrue((b == 1).all())
         self.assertEqual(b.gshape, (4,))
         self.assertEqual(b.split, 0)
@@ -1307,10 +1396,102 @@ class TestDNDarray(TestCase):
         a[0] = ht.array([6, 6, 6, 6, 6])
         self.assertTrue((a[ht.array((0,))] == 6).all())
 
+        # ======================= indexing with bools =================================
+        split = None
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
+        # key -> tuple(ht.bool, int)
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key, 4] = 10.0
+        np_arr[np_key, 4] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key, 4] == 10.0))
+
+        # key -> tuple(torch.bool, int)
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        t_key = torch.tensor(np_key, device=arr.larray.device)
+        arr[t_key, 4] = 10.0
+        np_arr[np_key, 4] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[t_key, 4] == 10.0))
+
+        # key -> torch.bool
+        split = 0
+        arr = ht.random.random((20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = (np_arr < 0.5)[0]
+        t_key = torch.tensor(np_key, device=arr.larray.device)
+        arr[t_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[t_key] == 10.0))
+
+        split = 1
+        arr = ht.random.random((20, 20, 10)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
+        split = 2
+        arr = ht.random.random((15, 20, 20)).resplit(split)
+        np_arr = arr.numpy()
+        np_key = np_arr < 0.5
+        ht_key = ht.array(np_key, split=split)
+        arr[ht_key] = 10.0
+        np_arr[np_key] = 10.0
+        self.assertTrue(np.all(arr.numpy() == np_arr))
+        self.assertTrue(ht.all(arr[ht_key] == 10.0))
+
         with self.assertRaises(ValueError):
             a[..., ...]
         with self.assertRaises(ValueError):
             a[..., ...] = 1
+        if a.comm.size > 1:
+            with self.assertRaises(ValueError):
+                x = ht.ones((10, 10), split=0)
+                setting = ht.zeros((8, 8), split=1)
+                x[1:-1, 1:-1] = setting
+
+        for split in [None, 0, 1, 2]:
+            for new_dim in [0, 1, 2]:
+                for add in [np.newaxis, None]:
+                    arr = ht.ones((4, 3, 2), split=split, dtype=ht.int32)
+                    check = torch.ones((4, 3, 2), dtype=torch.int32)
+                    idx = [slice(None), slice(None), slice(None)]
+                    idx[new_dim] = add
+                    idx = tuple(idx)
+                    arr = arr[idx]
+                    check = check[idx]
+                    self.assertTrue(arr.shape == check.shape)
+                    self.assertTrue(arr.lshape[new_dim] == 1)
 
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
@@ -1432,6 +1613,22 @@ class TestDNDarray(TestCase):
             for x in range(ht.MPI_WORLD.size)
         ]
         self.assertListEqual(a.tolist(keepsplit=True), res)
+
+    def test_torch_proxy(self):
+        scalar_array = ht.array(1)
+        scalar_proxy = scalar_array.__torch_proxy__()
+        self.assertTrue(scalar_proxy.ndim == 0)
+        scalar_proxy_nbytes = scalar_proxy.storage().size() * scalar_proxy.storage().element_size()
+        self.assertTrue(scalar_proxy_nbytes == 1)
+
+        dndarray = ht.zeros((4, 7, 6), split=1)
+        dndarray_proxy = dndarray.__torch_proxy__()
+        self.assertTrue(dndarray_proxy.ndim == dndarray.ndim)
+        self.assertTrue(tuple(dndarray_proxy.shape) == dndarray.gshape)
+        dndarray_proxy_nbytes = (
+            dndarray_proxy.storage().size() * dndarray_proxy.storage().element_size()
+        )
+        self.assertTrue(dndarray_proxy_nbytes == 1)
 
     def test_xor(self):
         int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16)

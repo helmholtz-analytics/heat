@@ -137,6 +137,14 @@ class TestComplex(TestCase):
         self.assertEqual(conj.shape, (4, 4))
         self.assertTrue(ht.equal(conj, res))
 
+        # DNDarray method
+        a = ht.array([1 + 1j, 1 - 1j])
+        conj = a.conj()
+        res = ht.array([1 - 1j, 1 + 1j])
+
+        self.assertIs(conj.device, self.device)
+        self.assertTrue(ht.equal(conj, res))
+
     def test_imag(self):
         a = ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j])
         imag = ht.imag(a)

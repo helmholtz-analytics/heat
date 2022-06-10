@@ -9,7 +9,7 @@ import warnings
 from inspect import stack
 from mpi4py import MPI
 from pathlib import Path
-from typing import List, Union, Tuple, TypeVar
+from typing import List, Union, Tuple, TypeVar, Optional
 
 warnings.simplefilter("always", ResourceWarning)
 
@@ -57,7 +57,7 @@ class DNDarray:
     balanced: bool or None
         Describes whether the data are evenly distributed across processes.
         If this information is not available (``self.balanced is None``), it
-        can be gathered via the :func:`is_distributed()` method (requires communication).
+        can be gathered via the :func:`is_balanced()` method (requires communication).
     """
 
     def __init__(
@@ -65,7 +65,7 @@ class DNDarray:
         array: torch.Tensor,
         gshape: Tuple[int, ...],
         dtype: datatype,
-        split: int,
+        split: Union[int, None],
         device: Device,
         comm: Communication,
         balanced: bool,
@@ -80,6 +80,7 @@ class DNDarray:
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None
+        self.__lshape_map = None
 
         # check for inconsistencies between torch and heat devices
         assert str(array.device) == device.torch_device
@@ -179,9 +180,6 @@ class DNDarray:
     def ndim(self) -> int:
         """
         Number of dimensions of the ``DNDarray``
-
-        .. deprecated:: 0.5.0
-          `numdims` will be removed in HeAT 1.0.0, it is replaced by `ndim` because the latter is numpy API compliant.
         """
         return len(self.__gshape)
 
@@ -190,7 +188,9 @@ class DNDarray:
         """
         Number of total elements of the ``DNDarray``
         """
-        return torch.prod(torch.tensor(self.gshape, device=self.device.torch_device)).item()
+        return torch.prod(
+            torch.tensor(self.gshape, dtype=torch.int, device=self.device.torch_device)
+        ).item()
 
     @property
     def gnbytes(self) -> int:
@@ -277,6 +277,13 @@ class DNDarray:
         return tuple(self.__array.shape)
 
     @property
+    def lshape_map(self) -> torch.Tensor:
+        """
+        Returns the lshape map. If it hasn't been previously created then it will be created here.
+        """
+        return self.create_lshape_map()
+
+    @property
     def real(self) -> DNDarray:
         """
         Return the real part of the ``DNDarray``.
@@ -323,7 +330,7 @@ class DNDarray:
         return linalg.transpose(self, axes=None)
 
     @property
-    def array_with_halos(self) -> Tuple[torch.tensor, torch.tensor]:
+    def array_with_halos(self) -> torch.Tensor:
         """
         Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next``/``self.halo_prev``
         in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
@@ -350,21 +357,15 @@ class DNDarray:
 
         return self.__array[ix].clone().contiguous()
 
-    def get_halo(self, halo_size) -> torch.Tensor:
+    def get_halo(self, halo_size: int) -> torch.Tensor:
         """
-        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next/self.halo_prev``
-        in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
-        the are overwritten.
+        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next/self.halo_prev``.
 
         Parameters
         ----------
         halo_size : int
             Size of the halo.
         """
-        if not self.is_balanced():
-            raise RuntimeError(
-                "halo cannot be created for unbalanced tensors, running the .balance_() function is recommended"
-            )
         if not isinstance(halo_size, int):
             raise TypeError(
                 "halo_size needs to be of Python type integer, {} given".format(type(halo_size))
@@ -374,44 +375,47 @@ class DNDarray:
                 "halo_size needs to be a positive Python integer, {} given".format(type(halo_size))
             )
 
-        if self.comm.is_distributed() and self.split is not None:
+        if self.is_distributed() and halo_size > 0:
             # gather lshapes
-            lshape_map = self.create_lshape_map()
+            lshape_map = self.lshape_map
             rank = self.comm.rank
-            size = self.comm.size
-            next_rank = rank + 1
-            prev_rank = rank - 1
-            last_rank = size - 1
 
-            # if local shape is zero and it's the last process
-            if self.lshape[self.split] == 0:
-                return  # if process has no data we ignore it
+            populated_ranks = torch.nonzero(lshape_map[:, self.split]).squeeze().tolist()
+            if rank in populated_ranks:
+                first_rank = populated_ranks[0]
+                last_rank = populated_ranks[-1]
+                if rank != last_rank:
+                    next_rank = populated_ranks[populated_ranks.index(rank) + 1]
+                if rank != first_rank:
+                    prev_rank = populated_ranks[populated_ranks.index(rank) - 1]
+            else:
+                # if process has no data we ignore it
+                return
 
-            if halo_size > self.lshape[self.split]:
-                # if on at least one process the halo_size is larger than the local size throw ValueError
+            if (halo_size > self.lshape_map[:, self.split][populated_ranks]).any():
+                # halo_size is larger than the local size on at least one process
                 raise ValueError(
-                    "halo_size {} needs to be smaller than chunck-size {} )".format(
+                    "halo_size {} needs to be smaller than chunk-size {} )".format(
                         halo_size, self.lshape[self.split]
                     )
                 )
 
             a_prev = self.__prephalo(0, halo_size)
             a_next = self.__prephalo(-halo_size, None)
-
             res_prev = None
             res_next = None
 
             req_list = list()
 
-            # only exchange data with next process if it has data
-            if rank != last_rank and (lshape_map[next_rank, self.split] > 0):
+            # exchange data with next populated process
+            if rank != last_rank:
                 self.comm.Isend(a_next, next_rank)
                 res_prev = torch.zeros(
                     a_prev.size(), dtype=a_prev.dtype, device=self.device.torch_device
                 )
                 req_list.append(self.comm.Irecv(res_prev, source=next_rank))
 
-            if rank != 0:
+            if rank != first_rank:
                 self.comm.Isend(a_prev, prev_rank)
                 res_next = torch.zeros(
                     a_next.size(), dtype=a_next.dtype, device=self.device.torch_device
@@ -425,16 +429,15 @@ class DNDarray:
             self.__halo_prev = res_next
             self.__ishalo = True
 
-    def __cat_halo(self) -> Tuple[torch.tensor, torch.tensor]:
+    def __cat_halo(self) -> torch.Tensor:
         """
-        Fetch halos of size ``halo_size`` from neighboring ranks and save them in ``self.halo_next``/``self.halo_prev``
-        in case they are not already stored. If ``halo_size`` differs from the size of already stored halos,
-        the are overwritten.
-
+        Return local array concatenated to halos if they are available.
         """
+        if not self.is_distributed():
+            return self.__array
         return torch.cat(
             [_ for _ in (self.__halo_prev, self.__array, self.__halo_next) if _ is not None],
-            self.split,
+            dim=self.split,
         )
 
     def astype(self, dtype, copy=True) -> DNDarray:
@@ -500,7 +503,7 @@ class DNDarray:
         [1/2] (7, 2) (2, 2)
         [2/2] (7, 2) (2, 2)
         """
-        if self.is_balanced():
+        if self.is_balanced(force_check=True):
             return
         self.redistribute_()
 
@@ -548,14 +551,9 @@ class DNDarray:
         Does not assume load balance.
         """
         if self.split is not None:
-            counts = self.create_lshape_map()[:, self.split]
-            displs = torch.cat(
-                (
-                    torch.zeros((1,), dtype=counts.dtype, device=counts.device),
-                    torch.cumsum(counts, dim=0)[:-1],
-                )
-            )
-            return (tuple(counts.tolist()), tuple(displs.tolist()))
+            counts = self.lshape_map[:, self.split]
+            displs = [0] + torch.cumsum(counts, dim=0)[:-1].tolist()
+            return tuple(counts.tolist()), tuple(displs)
         else:
             raise ValueError("Non-distributed DNDarray. Cannot calculate counts and displacements.")
 
@@ -568,18 +566,27 @@ class DNDarray:
         self.__device = devices.cpu
         return self
 
-    def create_lshape_map(self) -> torch.Tensor:
+    def create_lshape_map(self, force_check: bool = False) -> torch.Tensor:
         """
         Generate a 'map' of the lshapes of the data on all processes.
         Units are ``(process rank, lshape)``
+
+        Parameters
+        ----------
+        force_check : bool, optional
+            if False (default) and the lshape map has already been created, use the previous
+            result. Otherwise, create the lshape_map
         """
+        if not force_check and self.__lshape_map is not None:
+            return self.__lshape_map.clone()
+
         lshape_map = torch.zeros(
             (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
         )
         if not self.is_distributed:
             lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
             return lshape_map
-        if self.is_balanced():
+        if self.is_balanced(force_check=True):
             for i in range(self.comm.size):
                 _, lshape, _ = self.comm.chunk(self.gshape, self.split, rank=i)
                 lshape_map[i, :] = torch.tensor(lshape, device=self.device.torch_device)
@@ -589,7 +596,8 @@ class DNDarray:
             )
             self.comm.Allreduce(MPI.IN_PLACE, lshape_map, MPI.SUM)
 
-        return lshape_map
+        self.__lshape_map = lshape_map
+        return lshape_map.clone()
 
     def __float__(self) -> DNDarray:
         """
@@ -675,45 +683,55 @@ class DNDarray:
         l_dtype = self.dtype.torch_type()
         advanced_ind = False
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
-            """ if the key is a DNDarray and it has as many dimensions as self, then each of the entries in the 0th
-                dim refer to a single element. To handle this, the key is split into the torch tensors for each dimension.
-                This signals that advanced indexing is to be used. """
-            key = manipulations.resplit(key.copy())
+            """if the key is a DNDarray and it has as many dimensions as self, then each of the
+            entries in the 0th dim refer to a single element. To handle this, the key is split
+            into the torch tensors for each dimension. This signals that advanced indexing is
+            to be used."""
+            # NOTE: this gathers the entire key on every process!!
+            # TODO: remove this resplit!!
+            key = manipulations.resplit(key)
+            if key.larray.dtype in [torch.bool, torch.uint8]:
+                key = indexing.nonzero(key)
+
             if key.ndim > 1:
                 key = list(key.larray.split(1, dim=1))
                 # key is now a list of tensors with dimensions (key.ndim, 1)
                 # squeeze singleton dimension:
-                key = tuple(key[i].squeeze_(1) for i in range(len(key)))
+                key = list(key[i].squeeze_(1) for i in range(len(key)))
             else:
-                key = (key,)
+                key = [key]
             advanced_ind = True
         elif not isinstance(key, tuple):
-            """ this loop handles all other cases. DNDarrays which make it to here refer to advanced indexing slices,
-                as do the torch tensors. Both DNDaarrys and torch.Tensors are cast into lists here by PyTorch.
-                lists mean advanced indexing will be used"""
-            h = [slice(None, None, None)] * self.ndim
+            """this loop handles all other cases. DNDarrays which make it to here refer to
+            advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
+            are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
+            h = [slice(None, None, None)] * max(self.ndim, 1)
             if isinstance(key, DNDarray):
-                key = manipulations.resplit(key.copy())
-                h[0] = key.larray.tolist()
+                key = manipulations.resplit(key)
+                if key.larray.dtype in [torch.bool, torch.uint8]:
+                    h[0] = torch.nonzero(key.larray).flatten()  # .tolist()
+                else:
+                    h[0] = key.larray.tolist()
             elif isinstance(key, torch.Tensor):
-                h[0] = key.tolist()
+                if key.dtype in [torch.bool, torch.uint8]:
+                    # (coquelin77) i am not certain why this works without being a list. but it works...for now
+                    h[0] = torch.nonzero(key).flatten()  # .tolist()
+                else:
+                    h[0] = key.tolist()
             else:
                 h[0] = key
-            key = tuple(h)
 
-        # key must be torch-proof
+            key = list(h)
+
         if isinstance(key, (list, tuple)):
             key = list(key)
             for i, k in enumerate(key):
-                if isinstance(k, DNDarray):
-                    # extract torch tensor
-                    k = manipulations.resplit(k.copy())
-                    key[i] = k.larray.type(torch.int64)
-            key = tuple(key)
-
-        # assess final global shape
-        self_proxy = torch.ones((1,)).as_strided(self.gshape, [0] * self.ndim)
-        gout_full = list(self_proxy[key].shape)
+                # this might be a good place to check if the dtype is there
+                try:
+                    k = manipulations.resplit(k)
+                    key[i] = k.larray
+                except AttributeError:
+                    pass
 
         # ellipsis
         key = list(key)
@@ -729,6 +747,18 @@ class DNDarray:
             kend = key[ell_ind + 1 :]
             slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
             key = kst + slices + kend
+        else:
+            key = key + [slice(None)] * (self.ndim - len(key))
+
+        self_proxy = self.__torch_proxy__()
+        for i in range(len(key)):
+            if self.__key_adds_dimension(key, i, self_proxy):
+                key[i] = slice(None)
+                return self.expand_dims(i)[tuple(key)]
+
+        key = tuple(key)
+        # assess final global shape
+        gout_full = list(self_proxy[key].shape)
 
         # calculate new split axis
         new_split = self.split
@@ -738,9 +768,7 @@ class DNDarray:
                 new_split = 0
             else:
                 for i in range(len(key[: self.split + 1])):
-                    if not isinstance(key[i], slice) and (
-                        isinstance(key[i], int) or len(key[i]) == 1
-                    ):
+                    if self.__key_is_singular(key, i, self_proxy):
                         new_split = None if i == self.split else new_split - 1
 
         key = tuple(key)
@@ -764,9 +792,8 @@ class DNDarray:
             arr = self.__array[key]
 
         """ At the end of the following if/elif/elif block the output array will be set.
-            each block handles the case where the element of the key along the split axis is a different type
-            and converts the key from global indices to local indices.
-        """
+            each block handles the case where the element of the key along the split axis
+            is a different type and converts the key from global indices to local indices. """
         lout = gout_full.copy()
 
         if (
@@ -777,11 +804,18 @@ class DNDarray:
             lkey = list(key)
             if isinstance(key[self.split], DNDarray):
                 lkey[self.split] = key[self.split].larray
-            inds = (
-                torch.tensor(lkey[self.split], dtype=torch.long, device=self.device.torch_device)
-                if not isinstance(lkey[self.split], torch.Tensor)
-                else lkey[self.split]
-            )
+
+            if not isinstance(lkey[self.split], torch.Tensor):
+                inds = torch.tensor(
+                    lkey[self.split], dtype=torch.long, device=self.device.torch_device
+                )
+            else:
+                if lkey[self.split].dtype in [torch.bool, torch.uint8]:  # or torch.byte?
+                    # need to convert the bools to indices
+                    inds = torch.nonzero(lkey[self.split])
+                else:
+                    inds = lkey[self.split]
+            # todo: remove where in favor of nonzero? might be a speed upgrade. testing required
             loc_inds = torch.where((inds >= chunk_start) & (inds < chunk_end))
             # if there are no local indices on a process, then `arr` is empty
             # if local indices exist:
@@ -809,15 +843,12 @@ class DNDarray:
             # standard slicing along the split axis,
             # adjust the slice start, stop, and step, then run it on the processes which have the requested data
             key = list(key)
-            key_start = key[self.split].start if key[self.split].start is not None else 0
-            key_stop = (
-                key[self.split].stop
-                if key[self.split].stop is not None
-                else self.gshape[self.split]
+            key[self.split] = stride_tricks.sanitize_slice(key[self.split], self.gshape[self.split])
+            key_start, key_stop, key_step = (
+                key[self.split].start,
+                key[self.split].stop,
+                key[self.split].step,
             )
-            if key_stop < 0:
-                key_stop = self.gshape[self.split] + key[self.split].stop
-            key_step = key[self.split].step
             og_key_start = key_start
             st_pr = torch.where(key_start < chunk_ends)[0]
             st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
@@ -827,16 +858,9 @@ class DNDarray:
             if rank in actives:
                 key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
                 key_stop = counts[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
-                if key_step is not None and rank > actives[0]:
-                    offset = (chunk_ends[rank - 1] - og_key_start) % key_step
-                    if key_step > 2 and offset > 0:
-                        key_start += key_step - offset
-                    elif key_step == 2 and offset > 0:
-                        key_start += (chunk_ends[rank - 1] - og_key_start) % key_step
-                if isinstance(key_start, torch.Tensor):
-                    key_start = key_start.item()
-                if isinstance(key_stop, torch.Tensor):
-                    key_stop = key_stop.item()
+                key_start, key_stop = self.__xitem_get_key_start_stop(
+                    rank, actives, key_start, key_stop, key_step, chunk_ends, og_key_start
+                )
                 key[self.split] = slice(key_start, key_stop, key_step)
                 lout[new_split] = (
                     math.ceil((key_stop - key_start) / key_step)
@@ -848,11 +872,7 @@ class DNDarray:
                 lout[new_split] = 0
                 arr = torch.empty(lout, dtype=self.__array.dtype, device=self.__array.device)
 
-        elif (
-            isinstance(key[self.split], int)
-            or isinstance(key[self.split], (list, torch.Tensor, DNDarray, np.ndarray))
-            and len(key[self.split]) == 1
-        ):
+        elif self.__key_is_singular(key, self.split, self_proxy):
             # getting one item along split axis:
             key = list(key)
             if isinstance(key[self.split], list):
@@ -935,6 +955,18 @@ class DNDarray:
         """
         return self.split is not None and self.comm.is_distributed()
 
+    @staticmethod
+    def __key_is_singular(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+        # determine if the key gets a singular item
+        zeros = (0,) * (self_proxy.ndim - 1)
+        return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 0
+
+    @staticmethod
+    def __key_adds_dimension(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
+        # determine if the key adds a new dimension
+        zeros = (0,) * (self_proxy.ndim - 1)
+        return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 2
+
     def item(self):
         """
         Returns the only element of a 1-element :class:`DNDarray`.
@@ -956,10 +988,34 @@ class DNDarray:
         """
         return self.shape[0]
 
+    def matrix_shape_classifier(self):
+        """
+        Classifies a 2D matrix as square (roughly), tall-skinny (TS), or short-fat (SF).
+        If the diagonal crosses half the processes it is mostly square, if the first dimension is
+        greater than or equal to twice the second dimension then it is TS, if vice versa then it is SF.
+
+        Returns
+        -------
+        shape classifier : str
+            square (roughly), tall-skinny (TS), or short-fat (SF)
+        """
+        if len(self.gshape) != 2:
+            return RuntimeError("This function is currently only defined for 2D matrices")
+        # TODO: make this for tensors with more than 1D?
+        comp = self.gshape[-2] / self.gshape[-1]
+        if 0.5 <= comp <= 2:
+            # if the diagonal crosses at least half the processes,
+            return "square"
+        elif comp > 2:
+            return "TS"
+        else:
+            return "SF"
+
     def numpy(self) -> np.array:
         """
-        Convert :class:`DNDarray` to numpy array. If the ``DNDarray`` is distributed it will be merged beforehand. If the ``DNDarray``
-        resides on the GPU, it will be copied to the CPU first.
+        Convert :class:`DNDarray` to numpy array. If the ``DNDarray`` is distributed it will be
+        merged beforehand. If the ``DNDarray`` resides on the GPU, it will be copied to the CPU
+        first.
 
         Examples
         --------
@@ -994,7 +1050,9 @@ class DNDarray:
         """
         return manipulations.ravel(self)
 
-    def redistribute_(self, lshape_map: torch.Tensor = None, target_map: torch.Tensor = None):
+    def redistribute_(
+        self, lshape_map: Optional[torch.Tensor] = None, target_map: Optional[torch.Tensor] = None
+    ):
         """
         Redistributes the data of the :class:`DNDarray` *along the split axis* to match the given target map.
         This function does not modify the non-split dimensions of the ``DNDarray``.
@@ -1042,7 +1100,7 @@ class DNDarray:
         # units -> {pr, 1st index, 2nd index}
         if lshape_map is None:
             # NOTE: giving an lshape map which is incorrect will result in an incorrect distribution
-            lshape_map = self.create_lshape_map()
+            lshape_map = self.create_lshape_map(force_check=True)
         else:
             if not isinstance(lshape_map, torch.Tensor):
                 raise TypeError(
@@ -1055,9 +1113,6 @@ class DNDarray:
                     )
                 )
         if target_map is None:  # if no target map is given then it will balance the tensor
-            target_map = torch.zeros(
-                (self.comm.size, len(self.gshape)), dtype=int, device=self.device.torch_device
-            )
             _, _, chk = self.comm.chunk(self.shape, self.split)
             target_map = lshape_map.clone()
             target_map[..., self.split] = 0
@@ -1152,6 +1207,8 @@ class DNDarray:
             # (in the case that the second to last processes needs to get data from +1 and -1)
             self.redistribute_(lshape_map=lshape_map, target_map=target_map)
 
+        self.__lshape_map = target_map
+
     def __redistribute_shuffle(
         self,
         snd_pr: Union[int, torch.Tensor],
@@ -1245,6 +1302,7 @@ class DNDarray:
             self.comm.Allgatherv(self.__array, (gathered, counts, displs), recv_axis=self.split)
             self.__array = gathered
             self.__split = axis
+            self.__lshape_map = None
             return self
         # tensor needs be split/sliced locally
         if self.split is None:
@@ -1255,6 +1313,7 @@ class DNDarray:
             # necessary to clear storage of local __array
             self.__array = temp.clone().detach()
             self.__split = axis
+            self.__lshape_map = None
             return self
 
         tiles = tiling.SplitTiles(self)
@@ -1318,6 +1377,7 @@ class DNDarray:
 
         self.__array = arrays
         self.__split = axis
+        self.__lshape_map = None
         return self
 
     def __setitem__(
@@ -1355,18 +1415,78 @@ class DNDarray:
                           [0., 1., 0., 0., 0.]])
         """
         key = getattr(key, "copy()", key)
+        try:
+            if value.split != self.split:
+                val_split = int(value.split)
+                sp = self.split
+                warnings.warn(
+                    f"\nvalue.split {val_split} not equal to this DNDarray's split:"
+                    f" {sp}. this may cause errors or unwanted behavior",
+                    category=RuntimeWarning,
+                )
+        except (AttributeError, TypeError):
+            pass
+
+        # NOTE: for whatever reason, there is an inplace op which interferes with the abstraction
+        # of this next block of code. this is shared with __getitem__. I attempted to abstract it
+        # in a standard way, but it was causing errors in the test suite. If someone else is
+        # motived to do this they are welcome to, but i have no time right now
+        # print(key)
         if isinstance(key, DNDarray) and key.ndim == self.ndim:
-            # this splits the key into torch.Tensors in each dimension for advanced indexing
-            lkey = [slice(None, None, None)] * self.ndim
-            for i in range(key.ndim):
-                lkey[i] = key.larray[..., i]
-            key = tuple(lkey)
+            """if the key is a DNDarray and it has as many dimensions as self, then each of the
+            entries in the 0th dim refer to a single element. To handle this, the key is split
+            into the torch tensors for each dimension. This signals that advanced indexing is
+            to be used."""
+            key = manipulations.resplit(key)
+            if key.larray.dtype in [torch.bool, torch.uint8]:
+                key = indexing.nonzero(key)
+
+            if key.ndim > 1:
+                key = list(key.larray.split(1, dim=1))
+                # key is now a list of tensors with dimensions (key.ndim, 1)
+                # squeeze singleton dimension:
+                key = list(key[i].squeeze_(1) for i in range(len(key)))
+            else:
+                key = [key]
         elif not isinstance(key, tuple):
+            """this loop handles all other cases. DNDarrays which make it to here refer to
+            advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
+            are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
             h = [slice(None, None, None)] * self.ndim
-            h[0] = key
-            key = tuple(h)
+            if isinstance(key, DNDarray):
+                key = manipulations.resplit(key)
+                if key.larray.dtype in [torch.bool, torch.uint8]:
+                    h[0] = torch.nonzero(key.larray).flatten()  # .tolist()
+                else:
+                    h[0] = key.larray.tolist()
+            elif isinstance(key, torch.Tensor):
+                if key.dtype in [torch.bool, torch.uint8]:
+                    # (coquelin77) im not sure why this works without being a list...but it does...for now
+                    h[0] = torch.nonzero(key).flatten()  # .tolist()
+                else:
+                    h[0] = key.tolist()
+            else:
+                h[0] = key
+            key = list(h)
+
+        # key must be torch-proof
+        if isinstance(key, (list, tuple)):
+            key = list(key)
+            for i, k in enumerate(key):
+                try:  # extract torch tensor
+                    k = manipulations.resplit(k)
+                    key[i] = k.larray
+                except AttributeError:
+                    pass
+                # remove bools from a torch tensor in favor of indexes
+                try:
+                    if key[i].dtype in [torch.bool, torch.uint8]:
+                        key[i] = torch.nonzero(key[i]).flatten()
+                except (AttributeError, TypeError):
+                    pass
 
         key = list(key)
+
         # ellipsis stuff
         key_classes = [type(n) for n in key]
         # if any(isinstance(n, ellipsis) for n in key):
@@ -1380,92 +1500,176 @@ class DNDarray:
             kend = key[ell_ind + 1 :]
             slices = [slice(None)] * (self.ndim - (len(kst) + len(kend)))
             key = kst + slices + kend
+        # ---------- end ellipsis stuff -------------
+
+        for c, k in enumerate(key):
+            try:
+                key[c] = k.item()
+            except (AttributeError, ValueError):
+                pass
+
+        rank = self.comm.rank
+        if self.split is not None:
+            counts, chunk_starts = self.counts_displs()
+        else:
+            counts, chunk_starts = 0, [0] * self.comm.size
+        counts = torch.tensor(counts, device=self.device.torch_device)
+        chunk_starts = torch.tensor(chunk_starts, device=self.device.torch_device)
+        chunk_ends = chunk_starts + counts
+        chunk_start = chunk_starts[rank]
+        chunk_end = chunk_ends[rank]
+        # determine which elements are on the local process (if the key is a torch tensor)
+        try:
+            # if isinstance(key[self.split], torch.Tensor):
+            filter_key = torch.nonzero(
+                (chunk_start <= key[self.split]) & (key[self.split] < chunk_end)
+            )
+            for k in range(len(key)):
+                try:
+                    key[k] = key[k][filter_key].flatten()
+                except TypeError:
+                    pass
+        except TypeError:  # this will happen if the key doesnt have that many
+            pass
+
         key = tuple(key)
 
         if not self.is_distributed():
-            self.__setter(key, value)
-        else:
-            # raise RuntimeError("split axis of array and the target value are not equal") removed
-            # this will occur if the local shapes do not match
-            rank = self.comm.rank
-            ends = []
-            for pr in range(self.comm.size):
-                _, _, e = self.comm.chunk(self.shape, self.split, rank=pr)
-                ends.append(e[self.split].stop - e[self.split].start)
-            ends = torch.tensor(ends, device=self.device.torch_device)
-            chunk_ends = ends.cumsum(dim=0)
-            chunk_starts = torch.tensor([0] + chunk_ends.tolist(), device=self.device.torch_device)
-            _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
-            chunk_start = chunk_slice[self.split].start
-            chunk_end = chunk_slice[self.split].stop
+            return self.__setter(key, value)  # returns None
 
-            if isinstance(key, tuple):
-                if isinstance(key[self.split], slice):
-                    key = list(key)
-                    key_start = key[self.split].start if key[self.split].start is not None else 0
-                    key_stop = (
-                        key[self.split].stop
-                        if key[self.split].stop is not None
-                        else self.gshape[self.split]
-                    )
-                    if key_stop < 0:
-                        key_stop = self.gshape[self.split] + key[self.split].stop
-                    key_step = key[self.split].step
-                    og_key_start = key_start
-                    st_pr = torch.where(key_start < chunk_ends)[0]
-                    st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
-                    sp_pr = torch.where(key_stop >= chunk_starts)[0]
-                    sp_pr = sp_pr[-1] if len(sp_pr) > 0 else 0
-                    actives = list(range(st_pr, sp_pr + 1))
-                    if rank in actives:
-                        key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
-                        key_stop = (
-                            ends[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
+        # raise RuntimeError("split axis of array and the target value are not equal") removed
+        # this will occur if the local shapes do not match
+        rank = self.comm.rank
+        ends = []
+        for pr in range(self.comm.size):
+            _, _, e = self.comm.chunk(self.shape, self.split, rank=pr)
+            ends.append(e[self.split].stop - e[self.split].start)
+        ends = torch.tensor(ends, device=self.device.torch_device)
+        chunk_ends = ends.cumsum(dim=0)
+        chunk_starts = torch.tensor([0] + chunk_ends.tolist(), device=self.device.torch_device)
+        _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
+        chunk_start = chunk_slice[self.split].start
+        chunk_end = chunk_slice[self.split].stop
+
+        self_proxy = self.__torch_proxy__()
+
+        # if the value is a DNDarray, the divisions need to be balanced:
+        #   this means that we need to know how much data is where for both DNDarrays
+        #   if the value data is not in the right place, then it will need to be moved
+
+        if isinstance(key[self.split], slice):
+            key = list(key)
+            key_start = key[self.split].start if key[self.split].start is not None else 0
+            key_stop = (
+                key[self.split].stop
+                if key[self.split].stop is not None
+                else self.gshape[self.split]
+            )
+            if key_stop < 0:
+                key_stop = self.gshape[self.split] + key[self.split].stop
+            key_step = key[self.split].step
+            og_key_start = key_start
+            st_pr = torch.where(key_start < chunk_ends)[0]
+            st_pr = st_pr[0] if len(st_pr) > 0 else self.comm.size
+            sp_pr = torch.where(key_stop >= chunk_starts)[0]
+            sp_pr = sp_pr[-1] if len(sp_pr) > 0 else 0
+            actives = list(range(st_pr, sp_pr + 1))
+
+            if (
+                isinstance(value, type(self))
+                and value.split is not None
+                and value.shape[self.split] != self.shape[self.split]
+            ):
+                # setting elements in self with a DNDarray which is not the same size in the
+                # split dimension
+                local_keys = []
+                # below is used if the target needs to be reshaped
+                target_reshape_map = torch.zeros(
+                    (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
+                )
+                for r in range(self.comm.size):
+                    if r not in actives:
+                        loc_key = key.copy()
+                        loc_key[self.split] = slice(0, 0, 0)
+                    else:
+                        key_start_l = 0 if r != actives[0] else key_start - chunk_starts[r]
+                        key_stop_l = ends[r] if r != actives[-1] else key_stop - chunk_starts[r]
+                        key_start_l, key_stop_l = self.__xitem_get_key_start_stop(
+                            r, actives, key_start_l, key_stop_l, key_step, chunk_ends, og_key_start
                         )
-                        if key_step is not None and rank > actives[0]:
-                            offset = (chunk_ends[rank - 1] - og_key_start) % key_step
-                            if key_step > 2 and offset > 0:
-                                key_start += key_step - offset
-                            elif key_step == 2 and offset > 0:
-                                key_start += (chunk_ends[rank - 1] - og_key_start) % key_step
-                        if isinstance(key_start, torch.Tensor):
-                            key_start = key_start.item()
-                        if isinstance(key_stop, torch.Tensor):
-                            key_stop = key_stop.item()
-                        key[self.split] = slice(key_start, key_stop, key_step)
-                        # todo: need to slice the values to be the right size...
-                        if isinstance(value, (torch.Tensor, type(self))):
-                            value_slice = [slice(None, None, None)] * value.ndim
-                            step2 = key_step if key_step is not None else 1
-                            key_start = chunk_starts[rank] - og_key_start
-                            key_stop = key_start + key_stop
-                            slice_loc = (
-                                value.ndim - 1 if self.split > value.ndim - 1 else self.split
-                            )
-                            value_slice[slice_loc] = slice(
-                                key_start.item(), math.ceil(torch.true_divide(key_stop, step2)), 1
-                            )
-                            self.__setter(tuple(key), value[tuple(value_slice)])
-                        else:
-                            self.__setter(tuple(key), value)
+                        loc_key = key.copy()
+                        loc_key[self.split] = slice(key_start_l, key_stop_l, key_step)
 
-                elif isinstance(key[self.split], torch.Tensor):
-                    key = list(key)
-                    key[self.split] -= chunk_start
-                    self.__setter(tuple(key), value)
+                        gout_full = torch.tensor(
+                            self_proxy[loc_key].shape, device=self.device.torch_device
+                        )
+                        target_reshape_map[r] = gout_full
+                    local_keys.append(loc_key)
 
-                elif key[self.split] in range(chunk_start, chunk_end):
-                    key = list(key)
-                    key[self.split] = key[self.split] - chunk_start
-                    self.__setter(tuple(key), value)
+                key = local_keys[rank]
+                value = value.redistribute(target_map=target_reshape_map)
 
-                elif key[self.split] < 0:
-                    key = list(key)
-                    if self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
-                        key[self.split] = key[self.split] + self.shape[self.split] - chunk_start
-                        self.__setter(tuple(key), value)
+                if rank not in actives:
+                    return  # non-active ranks can exit here
+
+                chunk_starts_v = target_reshape_map[:, self.split]
+                value_slice = [slice(None, None, None)] * value.ndim
+                step2 = key_step if key_step is not None else 1
+                key_start = (chunk_starts_v[rank] - og_key_start).item()
+
+                if key_start < 0:
+                    key_start = 0
+                key_stop = key_start + key_stop
+                slice_loc = value.ndim - 1 if self.split > value.ndim - 1 else self.split
+                value_slice[slice_loc] = slice(
+                    key_start, math.ceil(torch.true_divide(key_stop, step2)), 1
+                )
+
+                self.__setter(tuple(key), value.larray)
+                return
+
+            # if rank in actives:
+            if rank not in actives:
+                return  # non-active ranks can exit here
+            key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
+            key_stop = ends[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
+            key_start, key_stop = self.__xitem_get_key_start_stop(
+                rank, actives, key_start, key_stop, key_step, chunk_ends, og_key_start
+            )
+            key[self.split] = slice(key_start, key_stop, key_step)
+
+            # todo: need to slice the values to be the right size...
+            if isinstance(value, (torch.Tensor, type(self))):
+                # if its a torch tensor, it is assumed to exist on all processes
+                value_slice = [slice(None, None, None)] * value.ndim
+                step2 = key_step if key_step is not None else 1
+                key_start = (chunk_starts[rank] - og_key_start).item()
+                if key_start < 0:
+                    key_start = 0
+                key_stop = key_start + key_stop
+                slice_loc = value.ndim - 1 if self.split > value.ndim - 1 else self.split
+                value_slice[slice_loc] = slice(
+                    key_start, math.ceil(torch.true_divide(key_stop, step2)), 1
+                )
+                self.__setter(tuple(key), value[tuple(value_slice)])
             else:
-                self.__setter(key, value)
+                self.__setter(tuple(key), value)
+        elif isinstance(key[self.split], (torch.Tensor, list)):
+            key = list(key)
+            key[self.split] -= chunk_start
+            if len(key[self.split]) != 0:
+                self.__setter(tuple(key), value)
+
+        elif key[self.split] in range(chunk_start, chunk_end):
+            key = list(key)
+            key[self.split] = key[self.split] - chunk_start
+            self.__setter(tuple(key), value)
+
+        elif key[self.split] < 0:
+            key = list(key)
+            if self.gshape[self.split] + key[self.split] in range(chunk_start, chunk_end):
+                key[self.split] = key[self.split] + self.shape[self.split] - chunk_start
+                self.__setter(tuple(key), value)
 
     def __setter(
         self,
@@ -1530,11 +1734,45 @@ class DNDarray:
 
         return self.__array.tolist()
 
+    def __torch_proxy__(self) -> torch.Tensor:
+        """
+        Return a 1-element `torch.Tensor` strided as the global `self` shape.
+        Used internally for sanitation purposes.
+        """
+        return torch.ones((1,), dtype=torch.int8, device=self.larray.device).as_strided(
+            self.gshape, [0] * self.ndim
+        )
+
+    @staticmethod
+    def __xitem_get_key_start_stop(
+        rank: int,
+        actives: list,
+        key_st: int,
+        key_sp: int,
+        step: int,
+        ends: torch.Tensor,
+        og_key_st: int,
+    ) -> Tuple[int, int]:
+        # this does some basic logic for adjusting the starting and stoping of the a key for
+        #   setitem and getitem
+        if step is not None and rank > actives[0]:
+            offset = (ends[rank - 1] - og_key_st) % step
+            if step > 2 and offset > 0:
+                key_st += step - offset
+            elif step == 2 and offset > 0:
+                key_st += (ends[rank - 1] - og_key_st) % step
+        if isinstance(key_st, torch.Tensor):
+            key_st = key_st.item()
+        if isinstance(key_sp, torch.Tensor):
+            key_sp = key_sp.item()
+        return key_st, key_sp
+
 
 # HeAT imports at the end to break cyclic dependencies
 from . import complex_math
 from . import devices
 from . import factories
+from . import indexing
 from . import linalg
 from . import manipulations
 from . import printing

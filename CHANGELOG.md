@@ -1,6 +1,66 @@
-# Pending additions
+
+# v1.2.0
 
 ## Highlights
+- [#906](https://github.com/helmholtz-analytics/heat/pull/906) PyTorch 1.11 support
+- [#595](https://github.com/helmholtz-analytics/heat/pull/595) Distributed 1-D convolution: `ht.convolve`
+- [#941](https://github.com/helmholtz-analytics/heat/pull/941) Parallel I/O: write to CSV file with `ht.save_csv`.
+- [#887](https://github.com/helmholtz-analytics/heat/pull/887) Binary operations between operands of equal shapes, equal `split` axes, but different distribution maps.
+- Expanded memory-distributed [linear algebra](#linalg), [manipulations](#manipulations) modules.
+
+## Bug Fixes
+- [#826](https://github.com/helmholtz-analytics/heat/pull/826) Fixed `__setitem__` handling of distributed `DNDarray` values which have a different shape in the split dimension
+- [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `_reduce_op` when axis and keepdim were set.
+- [#846](https://github.com/helmholtz-analytics/heat/pull/846) Fixed an issue in `min`, `max` where DNDarrays with empty processes can't be computed.
+- [#868](https://github.com/helmholtz-analytics/heat/pull/868) Fixed an issue in `__binary_op` where data was falsely distributed if a DNDarray has single element.
+- [#916](https://github.com/helmholtz-analytics/heat/pull/916) Fixed an issue in `random.randint` where the size parameter does not accept ints.
+
+## New features
+
+### Arithmetics
+- [#945](https://github.com/helmholtz-analytics/heat/pull/945) `ht.divide` now supports `out` and `where` kwargs
+### Communication
+- [#868](https://github.com/helmholtz-analytics/heat/pull/868) New `MPICommunication` method `Split`
+- [#940](https://github.com/helmholtz-analytics/heat/pull/940) and [#967](https://github.com/helmholtz-analytics/heat/pull/967) Duplicate `MPI.COMM_WORLD` and `MPI_SELF` to make library more independent.
+
+### DNDarray
+- [#856](https://github.com/helmholtz-analytics/heat/pull/856) New `DNDarray` method `__torch_proxy__`
+- [#885](https://github.com/helmholtz-analytics/heat/pull/885) New `DNDarray` method `conj`
+### <a name="linalg"></a> Linear Algebra
+- [#840](https://github.com/helmholtz-analytics/heat/pull/840) New feature: `vecdot()`
+- [#842](https://github.com/helmholtz-analytics/heat/pull/842) New feature: `vdot`
+- [#846](https://github.com/helmholtz-analytics/heat/pull/846) New features `norm`, `vector_norm`, `matrix_norm`
+- [#850](https://github.com/helmholtz-analytics/heat/pull/850) New Feature `cross`
+- [#877](https://github.com/helmholtz-analytics/heat/pull/877) New feature `det`
+- [#875](https://github.com/helmholtz-analytics/heat/pull/875) New feature `inv`
+### Logical
+- [#862](https://github.com/helmholtz-analytics/heat/pull/862) New feature `signbit`
+### <a name="manipulations"></a> Manipulations
+- [#829](https://github.com/helmholtz-analytics/heat/pull/829) New feature: `roll`
+- [#853](https://github.com/helmholtz-analytics/heat/pull/853) New Feature: `swapaxes`
+- [#854](https://github.com/helmholtz-analytics/heat/pull/854) New Feature: `moveaxis`
+### Printing
+- [#816](https://github.com/helmholtz-analytics/heat/pull/816) New feature: Local printing (`ht.local_printing()`) and global printing options
+- [#816](https://github.com/helmholtz-analytics/heat/pull/816) New feature: print only on process 0 with `print0(...)` and `ht.print0(...)`
+### Random
+- [#858](https://github.com/helmholtz-analytics/heat/pull/858) New Feature: `standard_normal`, `normal`
+### Rounding
+- [#827](https://github.com/helmholtz-analytics/heat/pull/827) New feature: `sign`, `sgn`
+### Statistics
+- [#928](https://github.com/helmholtz-analytics/heat/pull/928) New feature: `bucketize`, `digitize`
+### General
+- [#876](https://github.com/helmholtz-analytics/heat/pull/876) Fix examples (Lasso and kNN)
+- [#894](https://github.com/helmholtz-analytics/heat/pull/894) Change inclusion of license file
+- [#948](https://github.com/helmholtz-analytics/heat/pull/948) Improve CSV write performance.
+- [#960](https://github.com/helmholtz-analytics/heat/pull/960) Bypass unnecessary communication by replacing `factories.array` with` DNDarray` contruct in random.py
+
+# v1.1.1
+- [#864](https://github.com/helmholtz-analytics/heat/pull/864) Dependencies: constrain `torchvision` version range to match supported `pytorch` version range.
+
+## Highlights
+- Slicing/indexing overhaul for a more NumPy-like user experience. Warning for distributed arrays: [breaking change!](#breaking-changes) Indexing one element along the distribution axis now implies the indexed element is communicated to all processes.
+- More flexibility in handling non-load-balanced distributed arrays.
+- More distributed operations, incl. [meshgrid](https://github.com/helmholtz-analytics/heat/pull/794).
 
 ## Breaking Changes
 - [#758](https://github.com/helmholtz-analytics/heat/pull/758) Indexing a distributed `DNDarray` along the `DNDarray.split` dimension now returns a non-distributed `DNDarray`, i.e. the indexed element is MPI-broadcasted.
@@ -36,16 +96,17 @@ Example on 2 processes:
   ```
 
 ## Bug Fixes
-- [#796](https://github.com/helmholtz-analytics/heat/pull/796) `heat.reshape(a, shape, new_split)` now always returns a distributed `DNDarray` if `new_split is not None` (inlcuding when the original input `a` is not distributed)
 - [#758](https://github.com/helmholtz-analytics/heat/pull/758) Fix indexing inconsistencies in `DNDarray.__getitem__()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) Fixed an issue where `deg2rad` and `rad2deg`are not working with the 'out' parameter.
 - [#785](https://github.com/helmholtz-analytics/heat/pull/785) Removed `storage_offset` when finding the mpi buffer (`communication. MPICommunication.as_mpi_memory()`).
 - [#785](https://github.com/helmholtz-analytics/heat/pull/785) added allowance for 1 dimensional non-contiguous local tensors in `communication. MPICommunication.mpi_type_and_elements_of()`
 - [#787](https://github.com/helmholtz-analytics/heat/pull/787) Fixed an issue where Heat cannot be imported when some optional dependencies are not available.
 - [#790](https://github.com/helmholtz-analytics/heat/pull/790) catch incorrect device after `bcast` in `DNDarray.__getitem__`
+- [#796](https://github.com/helmholtz-analytics/heat/pull/796) `heat.reshape(a, shape, new_split)` now always returns a distributed `DNDarray` if `new_split is not None` (inlcuding when the original input `a` is not distributed)
 - [#811](https://github.com/helmholtz-analytics/heat/pull/811) Fixed memory leak in `DNDarray.larray`
 - [#820](https://github.com/helmholtz-analytics/heat/pull/820) `randn` values are pushed away from 0 by the minimum value the given dtype before being transformed into the Gaussian shape
 - [#821](https://github.com/helmholtz-analytics/heat/pull/821) Fixed `__getitem__` handling of distributed `DNDarray` key element
+- [#831](https://github.com/helmholtz-analytics/heat/pull/831) `__getitem__` handling of `array-like` 1-element key
 
 ## Feature additions
 ### Exponential
@@ -54,7 +115,7 @@ Example on 2 processes:
 ### Linear Algebra
 - [#718](https://github.com/helmholtz-analytics/heat/pull/718) New feature: `trace()`
 - [#768](https://github.com/helmholtz-analytics/heat/pull/768) New feature: unary positive and negative operations
-- [#820](https://github.com/helmholtz-analytics/heat/pull/820) `dot` can handle matrix vector operation now
+- [#820](https://github.com/helmholtz-analytics/heat/pull/820) `dot` can handle matrix-vector operation now
 
 ### Manipulations
 - [#796](https://github.com/helmholtz-analytics/heat/pull/796) `DNDarray.reshape(shape)`: method now allows shape elements to be passed in as single arguments.
@@ -206,6 +267,8 @@ Example on 2 processes:
 - [#664](https://github.com/helmholtz-analytics/heat/pull/664) New feature / enhancement: distributed `random.random_sample`, `random.random`, `random.sample`, `random.ranf`, `random.random_integer`
 - [#666](https://github.com/helmholtz-analytics/heat/pull/666) New feature: distributed prepend/append for `diff()`.
 - [#667](https://github.com/helmholtz-analytics/heat/pull/667) Enhancement `reshape`: rename axis parameter
+- [#678](https://github.com/helmholtz-analytics/heat/pull/678) New feature: distributed `tile`
+- [#670](https://github.com/helmholtz-analytics/heat/pull/670) New Feature: `bincount()`
 - [#674](https://github.com/helmholtz-analytics/heat/pull/674) New feature: `repeat`
 - [#670](https://github.com/helmholtz-analytics/heat/pull/670) New Feature: distributed `bincount()`
 - [#672](https://github.com/helmholtz-analytics/heat/pull/672) Bug / Enhancement: Remove `MPIRequest.wait()`, rewrite calls with capital letters. lower case `wait()` now falls back to the `mpi4py` function
