@@ -78,7 +78,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     v = v.astype(promoted_type)
 
     if v.is_distributed():
-        raise TypeError("Distributed filter weights are not supported")
+        raise TypeError("Distributed filter weights will be supported soon :)")
     if len(a.shape) != 1 or len(v.shape) != 1:
         raise ValueError("Only 1-dimensional input DNDarrays are allowed")
     if a.shape[0] <= v.shape[0]:
