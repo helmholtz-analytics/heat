@@ -3409,9 +3409,9 @@ class TestManipulations(TestCase):
         # len(reps) > x.ndim
         split = 0
         x = ht.random.randn(4, 3, split=split)
-        reps = np.random.randint(2, 10, size=(4,))
+        reps = ht.random.randint(2, 10, size=(4,))
         tiled_along_split = ht.tile(x, reps)
-        np_tiled_along_split = np.tile(x.numpy(), reps)
+        np_tiled_along_split = np.tile(x.numpy(), reps.numpy())
         self.assertTrue((tiled_along_split.numpy() == np_tiled_along_split).all())
         self.assertTrue(tiled_along_split.dtype is x.dtype)
 
@@ -3429,12 +3429,20 @@ class TestManipulations(TestCase):
 
         # test tile along non-split axis
         # len(reps) < x.ndim
+        np_x = np.random.randn(4, 5, 3, 10).astype(np.float32)
         split = 1
-        x = ht.random.randn(4, 5, 3, 10, dtype=ht.float64, split=split)
+        x = ht.array(np_x, dtype=ht.float32, split=split)
         reps = (2, 2)
         tiled_along_non_split = ht.tile(x, reps)
-        np_tiled_along_non_split = np.tile(x.numpy(), reps)
-        self.assertTrue((tiled_along_non_split.numpy() == np_tiled_along_non_split).all())
+        np_tiled_along_non_split = np.tile(np_x, reps)
+        _, _, global_slice = tiled_along_non_split.comm.chunk(
+            tiled_along_non_split.shape, tiled_along_non_split.split
+        )
+        self.assertTrue(
+            (
+                tiled_along_non_split.larray.cpu().numpy() == np_tiled_along_non_split[global_slice]
+            ).all()
+        )
         self.assertTrue(tiled_along_non_split.dtype is x.dtype)
 
         # test tile along split axis
