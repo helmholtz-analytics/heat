@@ -312,6 +312,7 @@ class TestFactories(TestCase):
         # same heat array
         arr = ht.array([1, 2])
         self.assertTrue(ht.asarray(arr) is arr)
+        self.assertFalse(ht.asarray(arr, copy=True) is arr)
 
         # from distributed python list
         arr = ht.array([1, 2, 3, 4, 5, 6], split=0)
@@ -328,6 +329,7 @@ class TestFactories(TestCase):
         asarr = ht.asarray(arr)
 
         self.assertTrue(np.alltrue(np.equal(asarr.numpy(), arr)))
+        self.assertFalse(ht.asarray(arr, copy=True).larray is arr)
 
         asarr[0] = 0
         if asarr.device == ht.cpu:
