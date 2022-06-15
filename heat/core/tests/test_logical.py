@@ -140,6 +140,10 @@ class TestLogical(TestCase):
         out_noaxis = ht.zeros((1, 2, 3, 5), split=1)
         ht.all(ones_noaxis_split_axis_neg, axis=-2, out=out_noaxis)
 
+        # test keepdim
+        ones_2d = ht.ones((1, 1))
+        self.assertEqual(ones_2d.all(keepdim=True).shape, ones_2d.shape)
+
         # exceptions
         with self.assertRaises(ValueError):
             ht.ones(array_len).all(axis=1)
