@@ -376,6 +376,8 @@ class TestTypeConversion(TestCase):
         self.assertEqual(info32.max, 2147483647)
         self.assertEqual(info32.min, -2147483648)
 
+        self.assertEqual(ht.iinfo(ht.uint8).min, 0)
+
         with self.assertRaises(TypeError):
             ht.iinfo(1.0)
 
