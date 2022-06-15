@@ -7,17 +7,17 @@ warnings.warn("The heat.array_api submodule is not fully implemented.", stacklev
 
 __all__ = []
 
-from ._creation_functions import asarray, zeros
+from ._constants import e, inf, nan, newaxis, pi
 
-__all__ += ["asarray", "zeros"]
+__all__ += ["e", "inf", "nan", "newaxis", "pi"]
+
+from ._creation_functions import asarray, full, zeros
+
+__all__ += ["asarray", "full", "zeros"]
 
 from ._data_type_functions import finfo, iinfo
 
 __all__ += ["finfo", "iinfo"]
-
-from ._constants import e, inf, nan, newaxis, pi
-
-__all__ += ["e", "inf", "nan", "newaxis", "pi"]
 
 from ._dtypes import (
     int8,
@@ -46,3 +46,15 @@ __all__ += [
     "float64",
     "bool",
 ]
+
+from ._elementwise_functions import equal, isfinite, isinf, isnan
+
+__all__ += ["equal", "isfinite", "isinf", "isnan"]
+
+from ._manipulation_functions import reshape
+
+__all__ += ["reshape"]
+
+from ._utility_functions import all
+
+__all__ += ["all"]

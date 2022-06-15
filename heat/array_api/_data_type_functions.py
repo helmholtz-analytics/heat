@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import heat as ht
 
 from dataclasses import dataclass
 from typing import Union
 
-from ._typing import Array, Dtype
+from ._array_object import Array
+from ._typing import Dtype
 
 
 @dataclass
@@ -32,7 +35,7 @@ class iinfo_object:
 
 def finfo(type: Union[Dtype, Array], /) -> finfo_object:
     """
-    Array API compatible wrapper for `ht.finfo`.
+    Machine limits for floating-point data types.
     """
     fi = ht.finfo(type)
     return finfo_object(
@@ -46,7 +49,7 @@ def finfo(type: Union[Dtype, Array], /) -> finfo_object:
 
 def iinfo(type: Union[Dtype, Array], /) -> iinfo_object:
     """
-    Array API compatible wrapper for :`ht.iinfo`.
+    Machine limits for integer data types.
     """
     ii = ht.iinfo(type)
     return iinfo_object(ii.bits, int(ii.max), int(ii.min))
