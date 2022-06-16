@@ -52,9 +52,12 @@ def asarray(
         #     return Array._new(np.array(obj._array, copy=True, dtype=dtype))
         if not copy:
             return obj
-    if dtype is None and isinstance(obj, int) and (obj > 2**64 or obj < -(2**63)):
-        # TODO: This won't handle large integers in lists.
-        raise OverflowError("Integer out of bounds for array dtypes")
+    if dtype is None:
+        if isinstance(obj, int) and (obj > 2**64 or obj < -(2**63)):
+            # TODO: This won't handle large integers in lists.
+            raise OverflowError("Integer out of bounds for array dtypes")
+        elif isinstance(obj, float):
+            dtype = default_float
     res = ht.asarray(obj, dtype=dtype, copy=copy, device=device)
     return Array._new(res)
 

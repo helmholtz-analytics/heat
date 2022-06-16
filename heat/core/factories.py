@@ -299,8 +299,11 @@ def array(
         obj = obj.larray
 
     # sanitize the data type
-    if dtype is not None:
+    if dtype is None:
+        torch_dtype = None
+    else:
         dtype = types.canonical_heat_type(dtype)
+        torch_dtype = dtype.torch_type()
 
     # sanitize device
     if device is not None:
@@ -316,6 +319,7 @@ def array(
             try:
                 obj = torch.tensor(
                     obj,
+                    dtype=torch_dtype,
                     device=device.torch_device
                     if device is not None
                     else devices.get_device().torch_device,
@@ -326,6 +330,7 @@ def array(
         if not isinstance(obj, DNDarray):
             obj = torch.as_tensor(
                 obj,
+                dtype=torch_dtype,
                 device=device.torch_device
                 if device is not None
                 else devices.get_device().torch_device,
@@ -335,7 +340,6 @@ def array(
     if dtype is None:
         dtype = types.canonical_heat_type(obj.dtype)
     else:
-        torch_dtype = dtype.torch_type()
         if obj.dtype != torch_dtype:
             obj = obj.type(torch_dtype)
 

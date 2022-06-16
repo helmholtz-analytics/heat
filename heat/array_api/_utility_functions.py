@@ -14,8 +14,8 @@ def all(
     """
     Tests whether all input array elements evaluate to `True` along a specified axis.
     """
-    singleton = x._array.shape == () or (1,)
-    res = ht.all(x._array, axis=axis, keepdim=keepdims)
-    if singleton:
-        res = ht.squeeze(res)
+    res = ht.all(x._array, axis=axis, keepdim=True)
+    if not keepdims or x._array.ndim == 0:
+        res = ht.squeeze(res, axis=axis)
+
     return Array._new(res)
