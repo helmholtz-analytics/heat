@@ -172,6 +172,20 @@ class Array:
         res = self._array.__bool__()
         return res
 
+    def __eq__(self: Array, other: Union[int, float, bool, Array], /) -> Array:
+        """
+        Computes the truth value of `self_i == other_i` for each element of an
+        array instance with the respective element of the array `other`.
+        """
+        # Even though "all" dtypes are allowed, we still require them to be
+        # promotable with each other.
+        other = self._check_allowed_dtypes(other, "all", "__eq__")
+        if other is NotImplemented:
+            return other
+        # self, other = self._normalize_two_args(self, other)
+        res = self._array.__eq__(other._array)
+        return self.__class__._new(res)
+
     def __float__(self: Array, /) -> float:
         """
         Converts a zero-dimensional floating-point array to a Python `float` object.
