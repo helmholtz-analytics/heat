@@ -15,9 +15,9 @@ from ._creation_functions import asarray, full, zeros
 
 __all__ += ["asarray", "full", "zeros"]
 
-from ._data_type_functions import finfo, iinfo
+from ._data_type_functions import astype, finfo, iinfo
 
-__all__ += ["finfo", "iinfo"]
+__all__ += ["astype", "finfo", "iinfo"]
 
 from ._dtypes import (
     int8,

@@ -9,6 +9,15 @@ from ._array_object import Array
 from ._typing import Dtype
 
 
+def astype(x: Array, dtype: Dtype, /, *, copy: bool = True) -> Array:
+    """
+    Copies an array to a specified data type irrespective of Type Promotion Rules.
+    """
+    if not copy and dtype == x.dtype:
+        return x
+    return Array._new(x._array.astype(dtype=dtype))
+
+
 @dataclass
 class finfo_object:
     """
