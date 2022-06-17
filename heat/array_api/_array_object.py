@@ -541,7 +541,7 @@ class Array:
             key = key._array
         if isinstance(value, Array):
             value = value._array
-        if self.ndim == 0 and key == ...:
+        if self.ndim == 0 and isinstance(key, type(...)):
             self._array = ht.asarray(value)
         else:
             self._array.__setitem__(key, value)

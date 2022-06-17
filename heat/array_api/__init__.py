@@ -55,6 +55,10 @@ from ._manipulation_functions import reshape
 
 __all__ += ["reshape"]
 
+from ._statistical_functions import sum
+
+__all__ += ["sum"]
+
 from ._utility_functions import all
 
 __all__ += ["all"]
