@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import heat as ht
-
-from typing import TYPE_CHECKING, Any, Tuple, Union, Optional
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
 from ._creation_functions import asarray
 from ._dtypes import (
@@ -17,11 +15,11 @@ from ._dtypes import (
 )
 
 if TYPE_CHECKING:
-    from ._typing import Dtype, Device
+    from ._typing import Device, Dtype
     from builtins import ellipsis
 
+import heat as ht
 from heat import array_api
-from heat.core.dndarray import DNDarray
 
 
 class Array:
@@ -35,10 +33,10 @@ class Array:
     functions, such as asarray().
     """
 
-    _array: DNDarray
+    _array: ht.DNDarray
 
     @classmethod
-    def _new(cls, x: DNDarray, /):
+    def _new(cls, x, /):
         """
         This is a private method for initializing the array API Array
         object.

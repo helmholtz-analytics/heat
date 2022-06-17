@@ -1,7 +1,10 @@
-import heat as ht
-from typing import Optional, Tuple, Union
+from __future__ import annotations
 
 from ._array_object import Array
+
+from typing import Optional, Tuple, Union
+
+import heat as ht
 
 
 def all(

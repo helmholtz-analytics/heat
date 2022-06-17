@@ -1,7 +1,7 @@
-from heat.core.constants import E, INF, NAN, PI
+import heat as ht
 
-e = E
-inf = INF
-nan = NAN
+e = ht.e
+inf = ht.inf
+nan = ht.nan
 newaxis = None
-pi = PI
+pi = ht.pi

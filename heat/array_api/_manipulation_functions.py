@@ -1,7 +1,10 @@
-import heat as ht
-from typing import Tuple, Optional
+from __future__ import annotations
 
 from ._array_object import Array
+
+from typing import Optional, Tuple
+
+import heat as ht
 
 
 def reshape(x: Array, /, shape: Tuple[int, ...], *, copy: Optional[bool] = None) -> Array:

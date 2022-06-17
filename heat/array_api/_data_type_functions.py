@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-import heat as ht
+from ._array_object import Array
 
 from dataclasses import dataclass
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
-from ._array_object import Array
-from ._typing import Dtype
+if TYPE_CHECKING:
+    from ._typing import Dtype
+
+import heat as ht
 
 
 def astype(x: Array, dtype: Dtype, /, *, copy: bool = True) -> Array:

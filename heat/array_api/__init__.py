@@ -11,11 +11,34 @@ from ._constants import e, inf, nan, newaxis, pi
 
 __all__ += ["e", "inf", "nan", "newaxis", "pi"]
 
-from ._creation_functions import asarray, full, zeros
+from ._creation_functions import (
+    asarray,
+    full,
+    zeros,
+)
 
-__all__ += ["asarray", "full", "zeros"]
+__all__ += [
+    "asarray",
+    "full",
+    "zeros",
+]
 
-from ._data_type_functions import astype, finfo, iinfo
+from ._data_type_functions import (
+    astype,
+    finfo,
+    iinfo,
+)
+
+from heat.core.devices import cpu
+
+__all__ += ["cpu"]
+
+import heat.core.devices
+
+if hasattr(heat.core.devices, "gpu"):
+    from heat.core.devices import gpu
+
+    __all__ += ["gpu"]
 
 __all__ += ["astype", "finfo", "iinfo"]
 
@@ -47,11 +70,23 @@ __all__ += [
     "bool",
 ]
 
-from ._elementwise_functions import equal, isfinite, isinf, isnan
+from ._elementwise_functions import (
+    equal,
+    isfinite,
+    isinf,
+    isnan,
+)
 
-__all__ += ["equal", "isfinite", "isinf", "isnan"]
+__all__ += [
+    "equal",
+    "isfinite",
+    "isinf",
+    "isnan",
+]
 
-from ._manipulation_functions import reshape
+from ._manipulation_functions import (
+    reshape,
+)
 
 __all__ += ["reshape"]
 

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import heat as ht
-from typing import TYPE_CHECKING, Union, Optional, Tuple
-
-from ._dtypes import _all_dtypes, default_int, default_float
+from typing import TYPE_CHECKING, Optional, Tuple, Union
 
 if TYPE_CHECKING:
-    from ._typing import Array, Dtype, Device, NestedSequence, SupportsBufferProtocol
+    from ._typing import Array, Device, Dtype, NestedSequence, SupportsBufferProtocol
+from ._dtypes import _all_dtypes, default_float, default_int
+
+import heat as ht
 
 
 def _check_valid_dtype(dtype):

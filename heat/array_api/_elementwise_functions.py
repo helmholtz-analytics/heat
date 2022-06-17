@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import heat as ht
-
-from ._array_object import Array
 from ._dtypes import _numeric_dtypes, _result_type
+from ._array_object import Array
+
+import heat as ht
 
 
 def equal(x1: Array, x2: Array, /) -> Array:
