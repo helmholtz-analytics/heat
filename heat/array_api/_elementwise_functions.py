@@ -95,6 +95,20 @@ def bitwise_left_shift(x1: Array, x2: Array, /) -> Array:
     return Array._new(ht.left_shift(x1._array, x2._array))
 
 
+def bitwise_invert(x: Array, /) -> Array:
+    """
+    Inverts (flips) each bit for each element ``x_i`` of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have an integer or boolean data type.
+    """
+    if x.dtype not in _integer_or_boolean_dtypes:
+        raise TypeError("Only integer or boolean dtypes are allowed in bitwise_invert")
+    return Array._new(ht.invert(x._array))
+
+
 def equal(x1: Array, x2: Array, /) -> Array:
     """
     Computes the truth value of ``x1_i == x2_i`` for each element ``x1_i`` of
