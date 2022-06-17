@@ -11,6 +11,7 @@ uint8 = ht.uint8
 float32 = ht.float32
 float64 = ht.float64
 bool = ht.bool
+default_int = int64
 default_float = float64
 
 _all_dtypes = (

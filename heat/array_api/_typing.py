@@ -13,6 +13,8 @@ from ._dtypes import (
     bool,
 )
 
+from heat.core.devices import Device
+
 Dtype = Union[
     int8,
     int16,

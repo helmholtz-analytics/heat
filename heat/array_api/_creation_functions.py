@@ -3,7 +3,7 @@ from __future__ import annotations
 import heat as ht
 from typing import TYPE_CHECKING, Union, Optional, Tuple
 
-from ._dtypes import _all_dtypes, default_float
+from ._dtypes import _all_dtypes, default_int, default_float
 
 if TYPE_CHECKING:
     from ._typing import Array, Dtype, Device, NestedSequence, SupportsBufferProtocol
@@ -52,6 +52,7 @@ def asarray(
         #     return Array._new(np.array(obj._array, copy=True, dtype=dtype))
         if not copy:
             return obj
+        obj = obj._array
     if dtype is None:
         if isinstance(obj, int) and (obj > 2**64 or obj < -(2**63)):
             # TODO: This won't handle large integers in lists.
@@ -80,7 +81,10 @@ def full(
     if isinstance(fill_value, Array) and fill_value.ndim == 0:
         fill_value = fill_value._array
     if dtype is None:
-        dtype = default_float
+        if isinstance(fill_value, int):
+            dtype = default_int
+        elif isinstance(fill_value, float):
+            dtype = default_float
     res = ht.full(shape, fill_value, dtype=dtype, device=device)
     # if res.dtype not in _all_dtypes:
     #     # This will happen if the fill value is not something that NumPy
