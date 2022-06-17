@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ._dtypes import _numeric_dtypes
+from ._dtypes import _numeric_dtypes, _floating_dtypes, _integer_dtypes, default_float, default_int
 from ._array_object import Array
 
 from typing import TYPE_CHECKING, Optional, Tuple, Union
@@ -20,7 +20,7 @@ def sum(
     keepdims: bool = False,
 ) -> Array:
     """
-    Calculates the sum of the input array `x`.
+    Calculates the sum of the input array ``x``.
 
     Parameters
     ----------
@@ -29,12 +29,12 @@ def sum(
     axis : Optional[Union[int, Tuple[int, ...]]]
         Axis or axes along which sums are computed. By default, the sum is
         computed over the entire array. If a tuple of integers, sums are computed
-        over multiple axes. Default: `None`.
+        over multiple axes. Default: ``None``.
     dtype : Optional[Dtype]
         Data type of the returned array.
     keepdims : bool
-        If `True`, the reduced axes (dimensions) are included in the result as
-        singleton dimensions. Otherwise, if `False`, the reduced axes
+        If ``True``, the reduced axes (dimensions) are included in the result as
+        singleton dimensions. Otherwise, if ``False``, the reduced axes
         (dimensions) are be included in the result.
     """
     if x.dtype not in _numeric_dtypes:
@@ -47,4 +47,11 @@ def sum(
     res = ht.sum(x._array, axis=axis, keepdim=True)
     if not keepdims or x._array.ndim == 0:
         res = ht.squeeze(res, axis=axis)
+    if dtype is None:
+        if x.dtype in _floating_dtypes:
+            dtype = default_float
+        elif x.dtype in _integer_dtypes:
+            dtype = default_int
+    if dtype is not None:
+        res.astype(dtype, copy=False)
     return Array._new(res)

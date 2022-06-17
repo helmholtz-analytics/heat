@@ -9,17 +9,6 @@ from ._dtypes import _all_dtypes, default_float, default_int
 import heat as ht
 
 
-def _check_valid_dtype(dtype):
-    # Note: Only spelling dtypes as the dtype objects is supported.
-
-    # We use this instead of "dtype in _all_dtypes" because the dtype objects
-    # define equality with the sorts of things we want to disallow.
-    for d in (None,) + _all_dtypes:
-        if dtype is d:
-            return
-    raise ValueError(f"{dtype} is not supported")
-
-
 def asarray(
     obj: Union[
         Array,
@@ -37,19 +26,30 @@ def asarray(
 ) -> Array:
     """
     Convert the input to an array.
+
+    Parameters
+    ----------
+    obj : Union[array, bool, int, float, NestedSequence[bool | int | float], SupportsBufferProtocol]
+        Object to be converted to an array. May be a Python scalar,
+        a (possibly nested) sequence of Python scalars, or an object
+        supporting the Python buffer protocol. Default: ``None``.
+    dtype : Optional[Dtype]
+        Output array data type. If ``dtype`` is ``None``, the output array data
+        type is inferred from the data type(s) in ``obj``.
+    device : Optional[Device]
+        Device on which to place the created array. If ``device`` is ``None`` and
+        ``x`` is an array, the output array device is inferred from ``x``.
+        Default: ``None``.
+    copy : Optional[bool]
+        Boolean indicating whether or not to copy the input.
     """
     # _array_object imports in this file are inside the functions to avoid
     # circular imports
     from ._array_object import Array
 
-    # _check_valid_dtype(dtype)
-    # if device not in ["cpu", None]:
-    #     raise ValueError(f"Unsupported device {device!r}")
     if isinstance(obj, Array):
         if dtype is not None and obj.dtype != dtype:
             copy = True
-        # if copy:
-        #     return Array._new(np.array(obj._array, copy=True, dtype=dtype))
         if not copy:
             return obj
         obj = obj._array
@@ -71,13 +71,22 @@ def full(
     device: Optional[Device] = None,
 ) -> Array:
     """
-    Returns a new array having a specified `shape` and filled with `fill_value`.
+    Returns a new array having a specified ``shape`` and filled with ``fill_value``.
+
+    Parameters
+    ----------
+    shape : Union[int, Tuple[int, ...]]
+        Output array shape.
+    fill_value : Union[int, float]
+        Fill value.
+    dtype : Optional[Dtype]
+        Output array data type. If ``dtype`` is ``None``, the output array data
+        type is inferred from ``fill_value``. Default: ``None``.
+    device : Optional[Device]
+        Device on which to place the created array.
     """
     from ._array_object import Array
 
-    # _check_valid_dtype(dtype)
-    # if device not in ["cpu", None]:
-    #     raise ValueError(f"Unsupported device {device!r}")
     if isinstance(fill_value, Array) and fill_value.ndim == 0:
         fill_value = fill_value._array
     if dtype is None:
@@ -86,10 +95,6 @@ def full(
         elif isinstance(fill_value, float):
             dtype = default_float
     res = ht.full(shape, fill_value, dtype=dtype, device=device)
-    # if res.dtype not in _all_dtypes:
-    #     # This will happen if the fill value is not something that NumPy
-    #     # coerces to one of the acceptable dtypes.
-    #     raise TypeError("Invalid input to full")
     return Array._new(res)
 
 
@@ -100,13 +105,21 @@ def zeros(
     device: Optional[Device] = None,
 ) -> Array:
     """
-    Returns a new array having a specified `shape` and filled with zeros.
+    Returns a new array having a specified ``shape`` and filled with zeros.
+
+    Parameters
+    ----------
+    shape : Union[int, Tuple[int, ...]]
+        Output array shape.
+    dtype : Optional[Dtype]
+        Output array data type. If ``dtype`` is ``None``, the output array data
+        type is the default floating-point data type (``float64``).
+        Default: ``None``.
+    device : Optional[Device]
+        Device on which to place the created array.
     """
     from ._array_object import Array
 
-    # _check_valid_dtype(dtype)
-    # if device not in ["cpu", None]:
-    #     raise ValueError(f"Unsupported device {device!r}")
     if dtype is None:
         dtype = default_float
     return Array._new(ht.zeros(shape, dtype=dtype, device=device))

@@ -25,12 +25,12 @@ from heat import array_api
 class Array:
     """
     DNDarray object for the array API namespace.
-    This is a wrapper around `heat.DNDarray` that restricts the usage to only
+    This is a wrapper around ``heat.DNDarray`` that restricts the usage to only
     those things that are required by the array API namespace. Note,
     attributes on this object that start with a single underscore are not part
     of the API specification and should only be used internally. This object
     should not be constructed directly. Rather, use one of the creation
-    functions, such as asarray().
+    functions, such as ``asarray``.
     """
 
     _array: ht.DNDarray
@@ -42,12 +42,12 @@ class Array:
         object.
         Functions outside of the array_api submodule should not use this
         method. Use one of the creation functions instead, such as
-        `asarray`.
+        ``asarray``.
 
         Parameters
         ----------
         x : DNDarray
-            Underlying `DNDarray`
+            Underlying ``DNDarray``
         """
         obj = super().__new__(cls)
         obj._array = x
@@ -55,7 +55,7 @@ class Array:
 
     def __new__(cls, *args, **kwargs):
         """
-        Prevent `Array()` from working.
+        Prevent ``Array()`` from working.
         """
         raise TypeError(
             "The array_api Array object should not be instantiated directly. Use an array creation function, such as asarray(), instead."
@@ -99,7 +99,7 @@ class Array:
         """
         Returns a promoted version of a Python scalar appropriate for use with
         operations on self.
-        This may raise a `TypeError` when the scalar type is incompatible with
+        This may raise a ``TypeError`` when the scalar type is incompatible with
         the dtype of self.
         """
         # Note: Only Python scalar types that match the array dtype are
@@ -116,7 +116,7 @@ class Array:
                     "Python float scalars can only be promoted with floating-point arrays."
                 )
         else:
-            raise TypeError("'scalar' must be a Python scalar")
+            raise TypeError(f"{scalar} must be a Python scalar")
 
         # Note: scalars are unconditionally cast to the same dtype as the
         # array.
@@ -137,7 +137,7 @@ class Array:
     def __add__(self: Array, other: Union[int, float, Array], /) -> Array:
         """
         Calculates the sum for each element of an array instance with the
-        respective element of the array `other`.
+        respective element of the array ``other``.
 
         Parameters
         ----------
@@ -152,8 +152,8 @@ class Array:
 
     def __and__(self: Array, other: Union[int, bool, Array], /) -> Array:
         """
-        Evaluates `self_i & other_i` for each element of an array instance
-        with the respective element of the array `other`.
+        Evaluates ``self_i & other_i`` for each element of an array instance
+        with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -174,7 +174,7 @@ class Array:
         ----------
         api_version : Optional[str]
             string representing the version of the array API specification to
-            be returned, in `'YYYY.MM'` form. If it is `None` (default), it
+            be returned, in ``'YYYY.MM'`` form. If it is ``None`` (default), it
             returns the namespace corresponding to latest version of the
             array API specification.
         """
@@ -184,7 +184,7 @@ class Array:
 
     def __bool__(self: Array, /) -> bool:
         """
-        Converts a zero-dimensional boolean array to a Python `bool` object.
+        Converts a zero-dimensional boolean array to a Python ``bool`` object.
         """
         if self._array.ndim != 0:
             raise TypeError("bool is only allowed on arrays with 0 dimensions")
@@ -195,8 +195,8 @@ class Array:
 
     def __eq__(self: Array, other: Union[int, float, bool, Array], /) -> Array:
         """
-        Computes the truth value of `self_i == other_i` for each element of an
-        array instance with the respective element of the array `other`.
+        Computes the truth value of ``self_i == other_i`` for each element of an
+        array instance with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -214,7 +214,7 @@ class Array:
 
     def __float__(self: Array, /) -> float:
         """
-        Converts a zero-dimensional floating-point array to a Python `float` object.
+        Converts a zero-dimensional floating-point array to a Python ``float`` object.
         """
         if self._array.ndim != 0:
             raise TypeError("float is only allowed on arrays with 0 dimensions")
@@ -225,8 +225,8 @@ class Array:
 
     def __floordiv__(self: Array, other: Union[int, float, Array], /) -> Array:
         """
-        Evaluates `self_i // other_i` for each element of an array instance
-        with the respective element of the array `other`.
+        Evaluates ``self_i // other_i`` for each element of an array instance
+        with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -242,8 +242,8 @@ class Array:
 
     def __ge__(self: Array, other: Union[int, float, Array], /) -> Array:
         """
-        Computes the truth value of `self_i >= other_i` for each element of
-        an array instance with the respective element of the array `other`.
+        Computes the truth value of ``self_i >= other_i`` for each element of
+        an array instance with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -263,7 +263,7 @@ class Array:
         /,
     ) -> Array:
         """
-        Returns `self[key]`.
+        Returns ``self[key]``.
 
         Parameters
         ----------
@@ -288,8 +288,8 @@ class Array:
 
     def __gt__(self: Array, other: Union[int, float, Array], /) -> Array:
         """
-        Computes the truth value of `self_i > other_i` for each element
-        of an array instance with the respective element of the array `other`.
+        Computes the truth value of ``self_i > other_i`` for each element
+        of an array instance with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -305,13 +305,13 @@ class Array:
 
     def __index__(self: Array, /) -> int:
         """
-        Converts a zero-dimensional integer array to a Python `int` object.
+        Converts a zero-dimensional integer array to a Python ``int`` object.
         """
         return self.__int__()
 
     def __int__(self: Array, /) -> int:
         """
-        Converts a zero-dimensional integer array to a Python `int` object.
+        Converts a zero-dimensional integer array to a Python ``int`` object.
         """
         if self._array.ndim != 0:
             raise TypeError("int is only allowed on arrays with 0 dimensions")
@@ -322,7 +322,7 @@ class Array:
 
     def __invert__(self: Array, /) -> Array:
         """
-        Evaluates `~self_i` for each element of an array instance.
+        Evaluates ``~self_i`` for each element of an array instance.
         """
         if self.dtype not in _integer_or_boolean_dtypes:
             raise TypeError("Only integer or boolean dtypes are allowed in __invert__")
@@ -331,8 +331,8 @@ class Array:
 
     def __le__(self: Array, other: Union[int, float, Array], /) -> Array:
         """
-        Computes the truth value of `self_i <= other_i` for each element of an
-        array instance with the respective element of the array `other`.
+        Computes the truth value of ``self_i <= other_i`` for each element of an
+        array instance with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -348,14 +348,14 @@ class Array:
 
     def __lshift__(self: Array, other: Union[int, Array], /) -> Array:
         """
-        Evaluates `self_i << other_i` for each element of an array instance
-        with the respective element of the array `other`.
+        Evaluates ``self_i << other_i`` for each element of an array instance
+        with the respective element of the array ``other``.
 
         Parameters
         ----------
         other : Union[int, Array]
             Other array. Must have an integer data type. Each element
-            must be greater than or equal to `0`.
+            must be greater than or equal to ``0``.
         """
         other = self._check_allowed_dtypes(other, "integer", "__lshift__")
         if other is NotImplemented:
@@ -366,8 +366,8 @@ class Array:
 
     def __lt__(self: Array, other: Union[int, float, Array], /) -> Array:
         """
-        Computes the truth value of `self_i < other_i` for each element
-        of an array instance with the respective element of the array `other`.
+        Computes the truth value of ``self_i < other_i`` for each element
+        of an array instance with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -398,8 +398,8 @@ class Array:
 
     def __mod__(self: Array, other: Union[int, float, Array], /) -> Array:
         """
-        Evaluates `self_i % other_i` for each element of an array instance
-        with the respective element of the array `other`.
+        Evaluates ``self_i % other_i`` for each element of an array instance
+        with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -416,7 +416,7 @@ class Array:
     def __mul__(self: Array, other: Union[int, float, Array], /) -> Array:
         """
         Calculates the product for each element of an array instance with
-        the respective element of the array `other`.
+        the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -432,8 +432,8 @@ class Array:
 
     def __ne__(self: Array, other: Union[int, float, bool, Array], /) -> Array:
         """
-        Computes the truth value of `self_i != other_i` for each element of
-        an array instance with the respective element of the array `other`.
+        Computes the truth value of ``self_i != other_i`` for each element of
+        an array instance with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -449,7 +449,7 @@ class Array:
 
     def __neg__(self: Array, /) -> Array:
         """
-        Evaluates `-self_i` for each element of an array instance.
+        Evaluates ``-self_i`` for each element of an array instance.
         """
         if self.dtype not in _numeric_dtypes:
             raise TypeError("Only numeric dtypes are allowed in __neg__")
@@ -458,8 +458,8 @@ class Array:
 
     def __or__(self: Array, other: Union[int, bool, Array], /) -> Array:
         """
-        Evaluates `self_i | other_i` for each element of an array instance
-        with the respective element of the array `other`.
+        Evaluates ``self_i | other_i`` for each element of an array instance
+        with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -475,7 +475,7 @@ class Array:
 
     def __pos__(self: Array, /) -> Array:
         """
-        Evaluates `+self_i` for each element of an array instance.
+        Evaluates ``+self_i`` for each element of an array instance.
         """
         if self.dtype not in _numeric_dtypes:
             raise TypeError("Only numeric dtypes are allowed in __pos__")
@@ -485,8 +485,8 @@ class Array:
     def __pow__(self: Array, other: Union[int, float, Array], /) -> Array:
         """
         Calculates an approximation of exponentiation by raising each element
-        (the base) of an array instance to the power of `other_i` (the exponent),
-        where `other_i` is the corresponding element of the array `other`.
+        (the base) of an array instance to the power of ``other_i`` (the exponent),
+        where ``other_i`` is the corresponding element of the array ``other``.
 
         Parameters
         ----------
@@ -506,14 +506,14 @@ class Array:
 
     def __rshift__(self: Array, other: Union[int, Array], /) -> Array:
         """
-        Evaluates `self_i >> other_i` for each element of an array instance
-        with the respective element of the array `other`.
+        Evaluates ``self_i >> other_i`` for each element of an array instance
+        with the respective element of the array ``other``.
 
         Parameters
         ----------
         other : Union[int, array]
             Other array. Must have an integer data type. Each element must be
-            greater than or equal to `0`.
+            greater than or equal to ``0``.
         """
         other = self._check_allowed_dtypes(other, "integer", "__rshift__")
         if other is NotImplemented:
@@ -529,7 +529,7 @@ class Array:
         /,
     ) -> None:
         """
-        Sets `self[key]` to `value`.
+        Sets ``self[key]`` to ``value``.
         """
         # Note: Only indices required by the spec are allowed. See the
         # docstring of _validate_index
@@ -547,7 +547,7 @@ class Array:
     def __sub__(self: Array, other: Union[int, float, Array], /) -> Array:
         """
         Calculates the difference for each element of an array instance
-        with the respective element of the array `other`.
+        with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -563,8 +563,8 @@ class Array:
 
     def __truediv__(self: Array, other: Union[int, float, Array], /) -> Array:
         """
-        Evaluates `self_i / other_i` for each element of an array instance
-        with the respective element of the array `other`.
+        Evaluates ``self_i / other_i`` for each element of an array instance
+        with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -580,8 +580,8 @@ class Array:
 
     def __xor__(self: Array, other: Union[int, bool, Array], /) -> Array:
         """
-        Evaluates `self_i ^ other_i` for each element of an array instance
-        with the respective element of the array `other`.
+        Evaluates ``self_i ^ other_i`` for each element of an array instance
+        with the respective element of the array ``other``.
 
         Parameters
         ----------
@@ -597,7 +597,7 @@ class Array:
 
     # def to_device(self: Array, device: Device, /, stream: Optional[Union[int, Any]] = None) -> Array:
     #     """
-    #     Copy the array from the device on which it currently resides to the specified `device`.
+    #     Copy the array from the device on which it currently resides to the specified ``device``.
     #     """
     #     if stream is not None:
     #         raise ValueError("The stream argument to to_device() is not supported")
