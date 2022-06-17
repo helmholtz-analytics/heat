@@ -196,6 +196,7 @@ class Array:
         other = self._check_allowed_dtypes(other, "integer or boolean", "__and__")
         if other is NotImplemented:
             return other
+        self, other = self._normalize_two_args(self, other)
         res = self._array.__and__(other._array)
         return self.__class__._new(res)
 

@@ -73,6 +73,7 @@ __all__ += [
 from ._elementwise_functions import (
     abs,
     add,
+    bitwise_and,
     equal,
     isfinite,
     isinf,
@@ -82,6 +83,7 @@ from ._elementwise_functions import (
 __all__ += [
     "abs",
     "add",
+    "bitwise_and",
     "equal",
     "isfinite",
     "isinf",
