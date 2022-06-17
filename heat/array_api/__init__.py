@@ -71,6 +71,7 @@ __all__ += [
 ]
 
 from ._elementwise_functions import (
+    abs,
     equal,
     isfinite,
     isinf,
@@ -78,6 +79,7 @@ from ._elementwise_functions import (
 )
 
 __all__ += [
+    "abs",
     "equal",
     "isfinite",
     "isinf",

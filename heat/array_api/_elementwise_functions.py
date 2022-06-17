@@ -6,6 +6,17 @@ from ._array_object import Array
 import heat as ht
 
 
+def abs(x: Array, /) -> Array:
+    """
+    Calculates the absolute value for each element ``x_i`` of the input array ``x``
+    (i.e., the element-wise result has the same magnitude as the respective
+    element in ``x`` but has positive sign).
+    """
+    if x.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in abs")
+    return Array._new(ht.abs(x._array, dtype=x.dtype))
+
+
 def equal(x1: Array, x2: Array, /) -> Array:
     """
     Computes the truth value of ``x1_i == x2_i`` for each element ``x1_i`` of
