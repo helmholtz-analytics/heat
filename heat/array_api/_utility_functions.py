@@ -35,3 +35,33 @@ def all(
         res = ht.squeeze(res, axis=axis)
 
     return Array._new(res)
+
+
+def any(
+    x: Array,
+    /,
+    *,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    keepdims: bool = False,
+) -> Array:
+    """
+    Tests whether any input array element evaluates to ``True`` along a specified
+    axis.
+
+    Parameters
+    ----------
+    x : Array
+        Input array.
+    axis : Optional[Union[int, Tuple[int, ...]]]
+        Axis or axes along which to perform a logical OR reduction. By
+        default, a logical OR reduction is performed over the entire array.
+    keepdims : bool
+        If ``True``, the reduced axes (dimensions) are included in the result
+        as singleton dimensions. Otherwise, if ``False``, the reduced axes
+        (dimensions) are be included in the result. Default: ``False``.
+    """
+    res = ht.any(x._array, axis=axis, keepdim=True)
+    if not keepdims or x._array.ndim == 0:
+        res = ht.squeeze(res, axis=axis)
+
+    return Array._new(res)

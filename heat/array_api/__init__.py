@@ -74,20 +74,24 @@ from ._elementwise_functions import (
     abs,
     add,
     bitwise_and,
+    bitwise_left_shift,
     equal,
     isfinite,
     isinf,
     isnan,
+    less,
 )
 
 __all__ += [
     "abs",
     "add",
     "bitwise_and",
+    "bitwise_left_shift",
     "equal",
     "isfinite",
     "isinf",
     "isnan",
+    "less",
 ]
 
 from ._manipulation_functions import (
@@ -100,6 +104,6 @@ from ._statistical_functions import sum
 
 __all__ += ["sum"]
 
-from ._utility_functions import all
+from ._utility_functions import all, any
 
-__all__ += ["all"]
+__all__ += ["all", "any"]

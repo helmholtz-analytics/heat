@@ -394,7 +394,7 @@ class Array:
         other = self._check_allowed_dtypes(other, "integer", "__lshift__")
         if other is NotImplemented:
             return other
-        # self, other = self._normalize_two_args(self, other)
+        self, other = self._normalize_two_args(self, other)
         res = self._array.__lshift__(other._array)
         return self.__class__._new(res)
 
@@ -411,7 +411,7 @@ class Array:
         other = self._check_allowed_dtypes(other, "numeric", "__lt__")
         if other is NotImplemented:
             return other
-        # self, other = self._normalize_two_args(self, other)
+        self, other = self._normalize_two_args(self, other)
         res = self._array.__lt__(other._array)
         return self.__class__._new(res)
 
