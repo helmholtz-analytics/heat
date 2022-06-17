@@ -123,6 +123,38 @@ class Array:
 
         return Array._new(ht.array(scalar, self.dtype))
 
+    @staticmethod
+    def _normalize_two_args(x1, x2) -> Tuple[Array, Array]:
+        """
+        Normalize inputs to two arg functions to fix type promotion rules
+        NumPy deviates from the spec type promotion rules in cases where one
+        argument is 0-dimensional and the other is not. For example:
+        >>> import numpy as np
+        >>> a = np.array([1.0], dtype=np.float32)
+        >>> b = np.array(1.0, dtype=np.float64)
+        >>> np.add(a, b) # The spec says this should be float64
+        array([2.], dtype=float32)
+        To fix this, we add a dimension to the 0-dimension array before passing it
+        through. This works because a dimension would be added anyway from
+        broadcasting, so the resulting shape is the same, but this prevents NumPy
+        from not promoting the dtype.
+        """
+        # Another option would be to use signature=(x1.dtype, x2.dtype, None),
+        # but that only works for ufuncs, so we would have to call the ufuncs
+        # directly in the operator methods. One should also note that this
+        # sort of trick wouldn't work for functions like searchsorted, which
+        # don't do normal broadcasting, but there aren't any functions like
+        # that in the array API namespace.
+        if x1.ndim == 0 and x2.ndim != 0:
+            # The _array[None] workaround was chosen because it is relatively
+            # performant. broadcast_to(x1._array, x2.shape) is much slower. We
+            # could also manually type promote x2, but that is more complicated
+            # and about the same performance as this.
+            x1 = Array._new(x1._array[None])
+        elif x2.ndim == 0 and x1.ndim != 0:
+            x2 = Array._new(x2._array[None])
+        return (x1, x2)
+
     def __abs__(self: Array, /) -> Array:
         """
         Calculates the absolute value for each element of an array instance
@@ -147,6 +179,7 @@ class Array:
         other = self._check_allowed_dtypes(other, "numeric", "__add__")
         if other is NotImplemented:
             return other
+        self, other = self._normalize_two_args(self, other)
         res = self._array.__add__(other._array)
         return self.__class__._new(res)
 
