@@ -87,6 +87,7 @@ from ._elementwise_functions import (
     isinf,
     isnan,
     less,
+    less_equal,
 )
 
 __all__ += [
@@ -106,6 +107,7 @@ __all__ += [
     "isinf",
     "isnan",
     "less",
+    "less_equal",
 ]
 
 from ._manipulation_functions import (
