@@ -407,6 +407,21 @@ def not_equal(x1: Array, x2: Array, /) -> Array:
     return Array._new(ht.not_equal(x1._array, x2._array))
 
 
+def positive(x: Array, /) -> Array:
+    """
+    Computes the numerical positive of each element ``x_i``
+    (i.e., ``y_i = +x_i``) of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a numeric data type.
+    """
+    if x.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in positive")
+    return Array._new(ht.positive(x._array))
+
+
 def remainder(x1: Array, x2: Array, /) -> Array:
     """
     Returns the remainder of division for each element ``x1_i`` of the input
