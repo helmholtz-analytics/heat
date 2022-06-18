@@ -437,7 +437,7 @@ class Array:
         other = self._check_allowed_dtypes(other, "numeric", "__mod__")
         if other is NotImplemented:
             return other
-        # self, other = self._normalize_two_args(self, other)
+        self, other = self._normalize_two_args(self, other)
         res = self._array.__mod__(other._array)
         return self.__class__._new(res)
 

@@ -88,6 +88,7 @@ from ._elementwise_functions import (
     isnan,
     less,
     less_equal,
+    remainder,
 )
 
 __all__ += [
@@ -108,7 +109,16 @@ __all__ += [
     "isnan",
     "less",
     "less_equal",
+    "remainder",
 ]
+
+from . import linalg
+
+__all__ += ["linalg"]
+
+from .linalg import matmul
+
+__all__ += ["matmul"]
 
 from ._manipulation_functions import (
     reshape,
