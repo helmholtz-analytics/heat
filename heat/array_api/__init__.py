@@ -94,6 +94,7 @@ from ._elementwise_functions import (
     positive,
     pow,
     remainder,
+    subtract,
 )
 
 __all__ += [
@@ -120,6 +121,7 @@ __all__ += [
     "positive",
     "pow",
     "remainder",
+    "subtract",
 ]
 
 from . import linalg
