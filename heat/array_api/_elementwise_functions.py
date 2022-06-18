@@ -373,6 +373,25 @@ def multiply(x1: Array, x2: Array, /) -> Array:
     return Array._new(ht.multiply(x1._array, x2._array))
 
 
+def not_equal(x1: Array, x2: Array, /) -> Array:
+    """
+    Computes the truth value of ``x1_i != x2_i`` for each element ``x1_i``
+    of the input array ``x1`` with the respective element ``x2_i`` of the
+    input array ``x2``.
+
+    Parameters
+    ----------
+    x1 : Array
+        First input array.
+    x2 : Array
+        Second input array. Must be compatible with ``x1``.
+    """
+    # Call result type here just to raise on disallowed type combinations
+    _result_type(x1.dtype, x2.dtype)
+    x1, x2 = Array._normalize_two_args(x1, x2)
+    return Array._new(ht.not_equal(x1._array, x2._array))
+
+
 def remainder(x1: Array, x2: Array, /) -> Array:
     """
     Returns the remainder of division for each element ``x1_i`` of the input
