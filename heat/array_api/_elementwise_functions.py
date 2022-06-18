@@ -190,6 +190,9 @@ def equal(x1: Array, x2: Array, /) -> Array:
     x2 : Array
         Second input array. Must be compatible with ``x1``.
     """
+    # Call result type here just to raise on disallowed type combinations
+    _result_type(x1.dtype, x2.dtype)
+    x1, x2 = Array._normalize_two_args(x1, x2)
     return Array._new(ht.eq(x1._array, x2._array))
 
 
