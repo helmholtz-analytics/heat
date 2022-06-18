@@ -373,6 +373,21 @@ def multiply(x1: Array, x2: Array, /) -> Array:
     return Array._new(ht.multiply(x1._array, x2._array))
 
 
+def negative(x: Array, /) -> Array:
+    """
+    Computes the numerical negative of each element ``x_i``
+    (i.e., ``y_i = -x_i``) of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a numeric data type.
+    """
+    if x.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in negative")
+    return Array._new(ht.negative(x._array))
+
+
 def not_equal(x1: Array, x2: Array, /) -> Array:
     """
     Computes the truth value of ``x1_i != x2_i`` for each element ``x1_i``

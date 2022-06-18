@@ -89,6 +89,7 @@ from ._elementwise_functions import (
     less,
     less_equal,
     multiply,
+    negative,
     not_equal,
     remainder,
 )
@@ -112,6 +113,7 @@ __all__ += [
     "less",
     "less_equal",
     "multiply",
+    "negative",
     "not_equal",
     "remainder",
 ]
