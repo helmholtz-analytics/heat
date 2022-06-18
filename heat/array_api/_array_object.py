@@ -521,15 +521,11 @@ class Array:
         other : Union[int, float, array]
             Other array. Must have a numeric data type.
         """
-        # from ._elementwise_functions import pow
-
         other = self._check_allowed_dtypes(other, "numeric", "__pow__")
         if other is NotImplemented:
             return other
-        # Note: NumPy's __pow__ does not follow type promotion rules for 0-d
-        # arrays, so we use pow() here instead.
-        # return pow(self, other)
-        res = self._array.__pow__()
+        self, other = self._normalize_two_args(self, other)
+        res = self._array.__pow__(other._array)
         return self.__class__._new(res)
 
     def __rshift__(self: Array, other: Union[int, Array], /) -> Array:

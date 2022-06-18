@@ -92,6 +92,7 @@ from ._elementwise_functions import (
     negative,
     not_equal,
     positive,
+    pow,
     remainder,
 )
 
@@ -117,6 +118,7 @@ __all__ += [
     "negative",
     "not_equal",
     "positive",
+    "pow",
     "remainder",
 ]
 

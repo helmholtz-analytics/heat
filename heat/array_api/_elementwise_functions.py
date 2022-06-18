@@ -422,6 +422,31 @@ def positive(x: Array, /) -> Array:
     return Array._new(ht.positive(x._array))
 
 
+def pow(x1: Array, x2: Array, /) -> Array:
+    """
+    Calculates an approximation of exponentiation by raising each element
+    ``x1_i`` (the base) of the input array ``x1`` to the power of
+    ``x2_i`` (the exponent), where ``x2_i`` is the corresponding element of
+    the input array ``x2``.
+
+    Parameters
+    ----------
+    x1 : Array
+        First input array whose elements correspond to the exponentiation base.
+        Must have a numeric data type.
+    x2 : Array
+        Second input array whose elements correspond to the exponentiation exponent.
+        Must be compatible with ``x1`` and have a numeric
+        data type.
+    """
+    if x1.dtype not in _numeric_dtypes or x2.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in pow")
+    # Call result type here just to raise on disallowed type combinations
+    _result_type(x1.dtype, x2.dtype)
+    x1, x2 = Array._normalize_two_args(x1, x2)
+    return Array._new(ht.pow(x1._array, x2._array))
+
+
 def remainder(x1: Array, x2: Array, /) -> Array:
     """
     Returns the remainder of division for each element ``x1_i`` of the input
