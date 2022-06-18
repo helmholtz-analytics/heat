@@ -88,6 +88,7 @@ from ._elementwise_functions import (
     isnan,
     less,
     less_equal,
+    multiply,
     remainder,
 )
 
@@ -109,6 +110,7 @@ __all__ += [
     "isnan",
     "less",
     "less_equal",
+    "multiply",
     "remainder",
 ]
 
