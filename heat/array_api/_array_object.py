@@ -295,7 +295,7 @@ class Array:
 
         Parameters
         ----------
-        key : Union[int, slice, ellipsis, Tuple[Union[int, slice, ellipsis], ...], array]
+        key : Union[int, slice, ellipsis, Tuple[Union[int, slice, ellipsis], ...], Array]
             Index key
         """
         # Note: Only indices required by the spec are allowed. See the
@@ -431,7 +431,7 @@ class Array:
 
         Parameters
         ----------
-        other : Union[int, float, array]
+        other : Union[int, float, Array]
             Other array. Must have a numeric data type.
         """
         other = self._check_allowed_dtypes(other, "numeric", "__mod__")
@@ -448,7 +448,7 @@ class Array:
 
         Parameters
         ----------
-        other : Union[int, float, array]
+        other : Union[int, float, Array]
             Other array. Must have a numeric data type.
         """
         other = self._check_allowed_dtypes(other, "numeric", "__mul__")
@@ -465,7 +465,7 @@ class Array:
 
         Parameters
         ----------
-        other : Union[int, float, bool, array]
+        other : Union[int, float, bool, Array]
             Other array.
         """
         other = self._check_allowed_dtypes(other, "all", "__ne__")
@@ -491,7 +491,7 @@ class Array:
 
         Parameters
         ----------
-        other : Union[int, bool, array]
+        other : Union[int, bool, Array]
             Other array. Must have an integer or boolean data type.
         """
         other = self._check_allowed_dtypes(other, "integer or boolean", "__or__")
@@ -518,7 +518,7 @@ class Array:
 
         Parameters
         ----------
-        other : Union[int, float, array]
+        other : Union[int, float, Array]
             Other array. Must have a numeric data type.
         """
         other = self._check_allowed_dtypes(other, "numeric", "__pow__")
@@ -535,7 +535,7 @@ class Array:
 
         Parameters
         ----------
-        other : Union[int, array]
+        other : Union[int, Array]
             Other array. Must have an integer data type. Each element must be
             greater than or equal to ``0``.
         """
@@ -575,7 +575,7 @@ class Array:
 
         Parameters
         ----------
-        other : Union[int, float, array]
+        other : Union[int, float, Array]
             Subtrahend array. Must have a numeric data type.
         """
         other = self._check_allowed_dtypes(other, "numeric", "__sub__")
@@ -592,7 +592,7 @@ class Array:
 
         Parameters
         ----------
-        other : Union[int, float, array]
+        other : Union[int, float, Array]
             Subtrahend array. Must have a numeric data type.
         """
         other = self._check_allowed_dtypes(other, "numeric", "__truediv__")
@@ -609,7 +609,7 @@ class Array:
 
         Parameters
         ----------
-        other : Union[int, bool, array]
+        other : Union[int, bool, Array]
             Subtrahend array. Must have an integer or boolean data type.
         """
         other = self._check_allowed_dtypes(other, "integer or boolean", "__xor__")
@@ -617,6 +617,113 @@ class Array:
             return other
         self, other = self._normalize_two_args(self, other)
         res = self._array.__xor__(other._array)
+        return self.__class__._new(res)
+
+    def __radd__(self: Array, other: Union[int, float, Array], /) -> Array:
+        """
+        Reflected version of ``__add__``.
+
+        Parameters
+        ----------
+        other : Union[int, float, Array]
+            Addend array. Must have a numeric data type.
+        """
+        other = self._check_allowed_dtypes(other, "numeric", "__radd__")
+        if other is NotImplemented:
+            return other
+        self, other = self._normalize_two_args(self, other)
+        res = self._array.__radd__(other._array)
+        return self.__class__._new(res)
+
+    def __rfloordiv__(self: Array, other: Union[int, float, Array], /) -> Array:
+        """
+        Reflected version of ``__floordiv__``.
+
+        Parameters
+        ----------
+        other : Union[int, float, Array]
+            Other array. Must have a numeric data type.
+        """
+        other = self._check_allowed_dtypes(other, "numeric", "__rfloordiv__")
+        if other is NotImplemented:
+            return other
+        self, other = self._normalize_two_args(self, other)
+        res = self._array.__rfloordiv__(other._array)
+        return self.__class__._new(res)
+
+    def __rmod__(self: Array, other: Union[int, float, Array], /) -> Array:
+        """
+        Reflected version of ``__rmod__``.
+        """
+        other = self._check_allowed_dtypes(other, "numeric", "__rmod__")
+        if other is NotImplemented:
+            return other
+        self, other = self._normalize_two_args(self, other)
+        res = self._array.__rmod__(other._array)
+        return self.__class__._new(res)
+
+    def __rmul__(self: Array, other: Union[int, float, Array], /) -> Array:
+        """
+        Reflected version of ``__mul__``.
+
+        Parameters
+        ----------
+        other : Union[int, float, Array]
+            Other array. Must have a numeric data type.
+        """
+        other = self._check_allowed_dtypes(other, "numeric", "__rmul__")
+        if other is NotImplemented:
+            return other
+        self, other = self._normalize_two_args(self, other)
+        res = self._array.__rmul__(other._array)
+        return self.__class__._new(res)
+
+    def __rpow__(self: Array, other: Union[int, float, Array], /) -> Array:
+        """
+        Reflected version of ``__rpow__``.
+
+        Parameters
+        ----------
+        other : Union[int, float, Array]
+            Other array. Must have a numeric data type.
+        """
+        other = self._check_allowed_dtypes(other, "numeric", "__rpow__")
+        if other is NotImplemented:
+            return other
+        self, other = self._normalize_two_args(self, other)
+        res = self._array.__rpow__(other._array)
+        return self.__class__._new(res)
+
+    def __rsub__(self: Array, other: Union[int, float, Array], /) -> Array:
+        """
+        Reflected version of ``__sub__``.
+
+        Parameters
+        ----------
+        other : Union[int, float, Array]
+            Subtrahend array. Must have a numeric data type.
+        """
+        other = self._check_allowed_dtypes(other, "numeric", "__rsub__")
+        if other is NotImplemented:
+            return other
+        self, other = self._normalize_two_args(self, other)
+        res = self._array.__rsub__(other._array)
+        return self.__class__._new(res)
+
+    def __rtruediv__(self: Array, other: Union[float, Array], /) -> Array:
+        """
+        Reflected version of ``__truediv__``.
+
+        Parameters
+        ----------
+        other : Union[int, float, Array]
+            Subtrahend array. Must have a numeric data type.
+        """
+        other = self._check_allowed_dtypes(other, "floating-point", "__rtruediv__")
+        if other is NotImplemented:
+            return other
+        self, other = self._normalize_two_args(self, other)
+        res = self._array.__rtruediv__(other._array)
         return self.__class__._new(res)
 
     # def to_device(self: Array, device: Device, /, stream: Optional[Union[int, Any]] = None) -> Array:

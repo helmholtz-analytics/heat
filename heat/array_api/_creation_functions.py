@@ -29,7 +29,7 @@ def asarray(
 
     Parameters
     ----------
-    obj : Union[array, bool, int, float, NestedSequence[bool | int | float], SupportsBufferProtocol]
+    obj : Union[Array, bool, int, float, NestedSequence[bool | int | float], SupportsBufferProtocol]
         Object to be converted to an array. May be a Python scalar,
         a (possibly nested) sequence of Python scalars, or an object
         supporting the Python buffer protocol. Default: ``None``.
