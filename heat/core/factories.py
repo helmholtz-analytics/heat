@@ -9,6 +9,7 @@ from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, L
 from .communication import MPI, sanitize_comm, Communication
 from .devices import Device
 from .dndarray import DNDarray
+from .coo_matrix import coo_matrix
 from .memory import sanitize_memory_layout
 from .sanitation import sanitize_in, sanitize_sequence
 from .stride_tricks import sanitize_axis, sanitize_shape
@@ -34,6 +35,7 @@ __all__ = [
     "ones_like",
     "zeros",
     "zeros_like",
+    "sparse_matrix",
 ]
 
 
@@ -146,6 +148,98 @@ def arange(
 
     return DNDarray(data, gshape, htype, split, device, comm, balanced)
 
+
+def sparse_coo_matrix(
+    obj: Iterable,
+    dtype: Optional[Type[datatype]] = None,
+    copy: bool = True,
+    ndmin: int = 0,
+    order: str = "C",
+    split: Optional[int] = None,
+    is_split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+    # nnz:
+    # is csr/csc/coo
+) -> coo_matrix:
+
+    # sanitize comm object
+    comm = sanitize_comm(comm)
+
+    # determine the local and the global shape. If split is None, they are identical
+    gshape = list(obj.shape)
+    lshape = gshape.copy()
+    balanced = True
+
+    # content shall be split, chunk the passed data object up
+    if split is not None:
+        _, _, slices = comm.chunk(gshape, split)
+        obj = obj[slices].clone()
+        obj = sanitize_memory_layout(obj, order=order)
+    # check with the neighboring rank whether the local shape would fit into a global shape
+    elif is_split is not None:
+        gshape = np.array(gshape)
+        lshape = np.array(lshape)
+        obj = sanitize_memory_layout(obj, order=order)
+        if comm.rank < comm.size - 1:
+            comm.Isend(lshape, dest=comm.rank + 1)
+        if comm.rank != 0:
+            # look into the message of the neighbor to see whether the shape length fits
+            status = MPI.Status()
+            comm.Probe(source=comm.rank - 1, status=status)
+            length = status.Get_count() // lshape.dtype.itemsize
+            # the number of shape elements does not match with the 'left' rank
+            if length != len(lshape):
+                discard_buffer = np.empty(length)
+                comm.Recv(discard_buffer, source=comm.rank - 1)
+                gshape[is_split] = np.iinfo(gshape.dtype).min
+            else:
+                # check whether the individual shape elements match
+                comm.Recv(gshape, source=comm.rank - 1)
+                for i in range(length):
+                    if i == is_split:
+                        continue
+                    elif lshape[i] != gshape[i] and lshape[i] - 1 != gshape[i]:
+                        gshape[is_split] = np.iinfo(gshape.dtype).min
+
+        # sum up the elements along the split dimension
+        reduction_buffer = np.array(gshape[is_split])
+        comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
+        if reduction_buffer < 0:
+            raise ValueError("unable to construct tensor, shape of local data chunk does not match")
+        ttl_shape = np.array(obj.shape)
+        ttl_shape[is_split] = lshape[is_split]
+        comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
+        gshape[is_split] = ttl_shape[is_split]
+        split = is_split
+        # compare to calculated balanced lshape (cf. dndarray.is_balanced())
+        gshape = tuple(int(ele) for ele in gshape)
+        lshape = tuple(int(ele) for ele in lshape)
+        _, _, chk = comm.chunk(gshape, split)
+        test_lshape = tuple([x.stop - x.start for x in chk])
+        match = 1 if test_lshape == lshape else 0
+        gmatch = comm.allreduce(match, MPI.SUM)
+        if gmatch != comm.size:
+            balanced = False
+
+
+        # get the global nnz: gnnz
+        gnnz = torch.tensor(obj.__nnz())
+        comm.Allreduce(MPI.IN_PLACE, gnnz, MPI.SUM)
+
+        # get the global indices: coo has no indices attr
+        indices = torch.tensor(obj.indices())
+        comm.Allgather(MPI.IN_PLACE, indices)
+
+
+    elif split is None and is_split is None:
+        obj = sanitize_memory_layout(obj, order=order)
+
+    return coo_matrix(obj, tuple(gshape), dtype, split, device, comm, balanced)
+
+    # obj_dnd = array(obj, dtype, copy, ndmin, order, split, is_split, device, comm)
+
+    # return coo_matrix(obj_dnd.larray, obj_dnd.gshape, obj_dnd.dtype, obj_dnd.split, obj_dnd.device, obj_dnd.comm, obj_dnd.balanced)
 
 def array(
     obj: Iterable,
@@ -405,11 +499,12 @@ def array(
                     elif lshape[i] != gshape[i] and lshape[i] - 1 != gshape[i]:
                         gshape[is_split] = np.iinfo(gshape.dtype).min
 
-        # sum up the elements along the split dimension
+        # sum up the elements (local size) along the split dimension
         reduction_buffer = np.array(gshape[is_split])
+        # make a torch tensor for nnz values
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
         if reduction_buffer < 0:
-            raise ValueError("unable to construct tensor, shape of local data chunk does not match")
+            raise ValueError("unable to construct tensor, shape of local data chunk does not match")    
         ttl_shape = np.array(obj.shape)
         ttl_shape[is_split] = lshape[is_split]
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
