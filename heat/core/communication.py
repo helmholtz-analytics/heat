@@ -2,6 +2,7 @@
 Module implementing the communication layer of HeAT
 """
 from __future__ import annotations
+from operator import index
 
 import numpy as np
 import os
@@ -159,7 +160,7 @@ class MPICommunication(Communication):
         return self.size > 1
 
     def chunk(
-        self, shape: Tuple[int], split: int, rank: int = None, w_size: int = None
+        self, shape: Tuple[int], split: int, rank: int = None, w_size: int = None, type="dense"
     ) -> Tuple[int, Tuple[int], Tuple[slice]]:
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
@@ -201,6 +202,30 @@ class MPICommunication(Communication):
         else:
             start = rank * chunk + remainder
         end = start + chunk
+
+        if type == "sparse":
+            slices = list(
+                slice(0, shape[i]) if i != split else slice(start, end) for i in range(dims)
+            )
+
+            # Produce all the indices in the array (inefficient for large arrays)
+            indices = np.indices(shape).transpose(1, 2, 0)
+
+            # Add an additional slice object because now each element
+            # of the indices array is a list of length ```dims```
+            slices.append(slice(0, dims))
+            indices = indices[tuple(slices)]
+
+            # Reshape the array into a list of indices
+            numIndices = np.prod(indices.shape)
+            indices = indices.reshape((numIndices // dims, dims))
+
+            print("Dense indices of process", rank)
+            print(indices)
+
+            # Turns out I did not even need to make the list of indices for CSR matrix,
+            # still leaving this code here...might be helpful for COO matrix
+            return start, end
 
         return (
             start,

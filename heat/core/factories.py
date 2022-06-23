@@ -17,6 +17,7 @@ from .types import datatype
 from . import devices
 from . import types
 
+from .sparse import DNDsparse_csr
 
 __all__ = [
     "arange",
@@ -34,7 +35,49 @@ __all__ = [
     "ones_like",
     "zeros",
     "zeros_like",
+    "sparse_csr_array",
 ]
+
+
+def sparse_csr_array(
+    obj: torch.sparse_csr_tensor,
+    dtype: Optional[Type[datatype]] = None,
+    copy: bool = True,
+    ndmin: int = 0,
+    order: str = "C",
+    split: Optional[int] = None,
+    is_split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+) -> DNDsparse_csr:
+
+    # For now, assuming the obj is torch.sparse_csr_tensor
+    comm = sanitize_comm(comm)
+    gshape = obj.size()
+    if split is None:
+        return DNDsparse_csr(obj, gshape, dtype, split, device, comm, True)
+    else:
+        start, end = comm.chunk(gshape, split, type="sparse")
+        # start, end = comm.chunk(gshape, split, 0, 2, "sparse") # Testing chunk
+
+        # Find the starting and ending indices for
+        # col_indices and values tensors for this process
+        indicesStart = obj.crow_indices()[start]
+        indicesEnd = obj.crow_indices()[end] if end < gshape[0] else gshape[0]
+
+        # Slice the data belonging to this process
+        crowIndices = obj.crow_indices()[start:end]
+        colIndices = obj.col_indices()[indicesStart:indicesEnd]
+        values = obj.values()[indicesStart:indicesEnd]
+
+        # Should I use the same crow_indices vector
+        # or construct a new one according to the data in this chunk?
+        print("Row indices of process", comm.rank)
+        print(crowIndices)
+        print("Col indices of process", comm.rank)
+        print(colIndices)
+        print("Values of process", comm.rank)
+        print(values)
 
 
 def arange(
