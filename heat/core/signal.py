@@ -77,8 +77,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
 
-    if v.is_distributed():
-        raise TypeError("Distributed filter weights will be supported soon :)")
+    if v.is_distributed() and mode == "full" or mode == "same":
+        raise TypeError("Distributed filter weights only supportes valid mode")
     if len(a.shape) != 1 or len(v.shape) != 1:
         raise ValueError("Only 1-dimensional input DNDarrays are allowed")
     if a.shape[0] <= v.shape[0]:
@@ -87,7 +87,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
 
     # compute halo size
-    halo_size = v.shape[0] // 2
+    halo_size =int(v.lshape_map[0][0] /2)
 
     # pad DNDarray with zeros according to mode
     if mode == "full":
@@ -105,8 +105,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     a = pad(a, pad_size, "constant", 0)
 
     if a.is_distributed():
-        if (v.shape[0] > a.lshape_map[:, 0]).any():
-            raise ValueError("Filter weight is larger than the local chunks of signal")
+        if (v.lshape_map[:, 0] > a.lshape_map[:, 0]).any():
+            raise ValueError("Local chunk of filter weight is larger than the local chunks of signal")
         # fetch halos and store them in a.halo_next/a.halo_prev
         a.get_halo(halo_size)
         # apply halos to local array
@@ -131,7 +131,45 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     signal_filtered = fc.conv1d(signal, weight)
 
     # unpack 3D result into 1D
-    signal_filtered = signal_filtered[0, 0, :]
+    signal_filtered = signal_filtered[0, 0, :] 
+
+    lshape_map = v.create_lshape_map()
+    t_v = weight #  stores temporary weight 
+    t_v_run1 = torch.empty( lshape_map[v.comm.rank], dtype = t_v.dtype ) # will store weight recieved from process ahead of it
+    t_v_run2 = torch.empty( lshape_map[v.comm.rank],  dtype = t_v.dtype) # will store weight recieved from process behind of it
+   
+    if v.comm.is_distributed() and a.split is not None or v.split is not None:
+        rank = v.comm.rank
+        size = v.comm.size
+        for p in range(size-1):
+            # prepare for sending
+            dest_rank1 = rank + 1
+            dest_rank2 = rank - 1 
+            # prepare for receiving
+            origin_rank1 = rank - 1
+            origin_rank2 = rank + 1
+
+            # sending weight 
+            if(rank != size-1): v.comm.Isend(t_v, dest_rank1)
+            if(rank != 0): v.comm.Isend(t_v, dest_rank2)
+            # receiving weight
+            if(rank != size-1): v.comm.Irecv(t_v_run1, origin_rank2)
+            if(rank != 0): v.comm.Irecv(t_v_run2, origin_rank1)
+
+            if(rank != size-1):
+                t_v1 = t_v_run1[: lshape_map[rank]]
+                t_v1 = t_v1.reshape(1, 1, t_v1.shape[0])
+                signal_filtered = fc.conv1d(signal, t_v1)
+                 # unpack 3D result into 1D
+                signal_filtered = signal_filtered[0, 0, :]
+                print("signal filtered :",signal_filtered)
+            if(rank != 0):
+                t_v2 = t_v_run2[: lshape_map[rank]]
+                t_v2 = t_v1.reshape(1, 1, t_v2.shape[0])
+                signal_filtered = fc.conv1d(signal, t_v2)
+                # unpack 3D result into 1D
+                signal_filtered = signal_filtered[0, 0, :]
+                print("signal filtered :",signal_filtered)
 
     # if kernel shape along split axis is even we need to get rid of duplicated values
     if a.comm.rank != 0 and v.shape[0] % 2 == 0:
