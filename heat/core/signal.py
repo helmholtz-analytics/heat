@@ -119,6 +119,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
     # flip filter for convolution as Pytorch conv1d computes correlations
     weight = v.larray.flip(dims=(0,))
+    t_v = weight # stores temporary weight
     weight = weight.reshape(1, 1, weight.shape[0])
 
     # cast to float if on GPU
@@ -132,44 +133,53 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
     # unpack 3D result into 1D
     signal_filtered = signal_filtered[0, 0, :] 
-
-    lshape_map = v.create_lshape_map()
-    t_v = weight #  stores temporary weight 
-    t_v_run1 = torch.empty( lshape_map[v.comm.rank], dtype = t_v.dtype ) # will store weight recieved from process ahead of it
-    t_v_run2 = torch.empty( lshape_map[v.comm.rank],  dtype = t_v.dtype) # will store weight recieved from process behind of it
    
-    if v.comm.is_distributed() and a.split is not None or v.split is not None:
+    if v.comm.is_distributed() and a.split is not None:
         rank = v.comm.rank
         size = v.comm.size
-        for p in range(size-1):
-            # prepare for sending
-            dest_rank1 = rank + 1
-            dest_rank2 = rank - 1 
-            # prepare for receiving
-            origin_rank1 = rank - 1
-            origin_rank2 = rank + 1
+        # prepare for sending
+        dest_rank1 = rank + 1
+        dest_rank2 = rank - 1 
+        # prepare for receiving
+        origin_rank1 = rank - 1
+        origin_rank2 = rank + 1
 
-            # sending weight 
-            if(rank != size-1): v.comm.Isend(t_v, dest_rank1)
-            if(rank != 0): v.comm.Isend(t_v, dest_rank2)
-            # receiving weight
-            if(rank != size-1): v.comm.Irecv(t_v_run1, origin_rank2)
-            if(rank != 0): v.comm.Irecv(t_v_run2, origin_rank1)
+        # sending weights 
+        if(rank != size-1): 
+            aa = v.comm.Isend(t_v, dest_rank1)
+            aa.Wait()
+            print("Rank ", rank, "sent data: ",t_v , "to Rank ", dest_rank1)
+        if(rank != 0): 
+            bb = v.comm.Isend(t_v, dest_rank2)
+            bb.Wait()
+            print("Rank ", rank, "sent data: ",t_v , "to Rank ", dest_rank2)
+        
+        # receiving weights
+        if(rank != size-1): 
+            cc = v.comm.Irecv(t_v, origin_rank2)
+            cc.Wait()
+            print("Rank ", rank, "recieved data: ",t_v , "from Rank ", origin_rank2)
+            t_v1 = t_v.reshape(1, 1, t_v.shape[0])
+            signal_filtered = fc.conv1d(signal, t_v1)
+            # unpack 3D result into 1D
+            signal_filtered = signal_filtered[0, 0, :]
 
-            if(rank != size-1):
-                t_v1 = t_v_run1[: lshape_map[rank]]
-                t_v1 = t_v1.reshape(1, 1, t_v1.shape[0])
-                signal_filtered = fc.conv1d(signal, t_v1)
-                 # unpack 3D result into 1D
-                signal_filtered = signal_filtered[0, 0, :]
-                print("signal filtered :",signal_filtered)
-            if(rank != 0):
-                t_v2 = t_v_run2[: lshape_map[rank]]
-                t_v2 = t_v1.reshape(1, 1, t_v2.shape[0])
-                signal_filtered = fc.conv1d(signal, t_v2)
-                # unpack 3D result into 1D
-                signal_filtered = signal_filtered[0, 0, :]
-                print("signal filtered :",signal_filtered)
+            if a.comm.rank != 0 and v.lshape[0] % 2 == 0:
+                signal_filtered = signal_filtered[1:]
+            print("signal filtered :",signal_filtered, " of rank:", rank)
+
+        if(rank != 0): 
+            dd = v.comm.Irecv(t_v, origin_rank1)
+            dd.Wait()
+            print("Rank ", rank, "recieved data: ",t_v , "from Rank ", origin_rank1)
+            t_v2 = t_v.reshape(1, 1, t_v.shape[0])
+            signal_filtered = fc.conv1d(signal, t_v2)
+            # unpack 3D result into 1D
+            signal_filtered = signal_filtered[0, 0, :]
+
+            if v.lshape[0] % 2 == 0:
+                signal_filtered = signal_filtered[1:]
+            print("signal filtered :",signal_filtered, " of rank: ", rank)
 
     # if kernel shape along split axis is even we need to get rid of duplicated values
     if a.comm.rank != 0 and v.shape[0] % 2 == 0:
