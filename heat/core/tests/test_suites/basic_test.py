@@ -129,7 +129,7 @@ class TestCase(unittest.TestCase):
             heat_array.balance_()
 
         split = heat_array.split
-        offset, local_shape, slices = heat_array.comm.chunk(heat_array.gshape, split)
+        offset, local_shape, slices, _ = heat_array.comm.chunk(heat_array.gshape, split)
         self.assertEqual(
             heat_array.lshape,
             expected_array[slices].shape,

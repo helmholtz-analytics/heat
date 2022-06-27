@@ -311,8 +311,8 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
 
     # unsplit and split array
     elif (s0 is None and s1 != axis) or (s1 is None and s0 != axis):
-        _, _, arr0_slice = arr1.comm.chunk(arr0.shape, arr1.split)
-        _, _, arr1_slice = arr0.comm.chunk(arr1.shape, arr0.split)
+        _, _, arr0_slice, _ = arr1.comm.chunk(arr0.shape, arr1.split)
+        _, _, arr1_slice, _ = arr0.comm.chunk(arr1.shape, arr0.split)
         out = factories.array(
             torch.cat((arr0.larray[arr0_slice], arr1.larray[arr1_slice]), dim=axis),
             dtype=out_dtype,
@@ -352,7 +352,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
 
             # the chunk map is used to determine how much data should be on each process
             chunk_map = torch.zeros((arr0.comm.size, len(arr0.gshape)), dtype=torch.int)
-            _, _, chk = arr0.comm.chunk(out_shape, s0 if s0 is not None else s1)
+            _, _, chk, _ = arr0.comm.chunk(out_shape, s0 if s0 is not None else s1)
             for i in range(len(out_shape)):
                 chunk_map[arr0.comm.rank, i] = chk[i].stop - chk[i].start
             chunk_map_comm = arr0.comm.Iallreduce(MPI.IN_PLACE, chunk_map, MPI.SUM)
@@ -556,7 +556,7 @@ def diag(a: DNDarray, offset: int = 0) -> DNDarray:
 
     # 1-dimensional array, must be extended to a square diagonal matrix
     gshape = (a.shape[0] + abs(offset),) * 2
-    off, lshape, _ = a.comm.chunk(gshape, a.split)
+    off, lshape, _, _ = a.comm.chunk(gshape, a.split)
 
     # This ensures that the data is on the correct nodes
     if offset > 0:
@@ -653,7 +653,7 @@ def diagonal(a: DNDarray, offset: int = 0, dim1: int = 0, dim2: int = 1) -> DNDa
         result = torch.diagonal(a.larray, offset=offset, dim1=dim1, dim2=dim2)
     else:
         vz = 1 if a.split == dim1 else -1
-        off, _, _ = a.comm.chunk(a.shape, a.split)
+        off, _, _, _ = a.comm.chunk(a.shape, a.split)
         result = torch.diagonal(a.larray, offset=offset + vz * off, dim1=dim1, dim2=dim2)
     return factories.array(result, dtype=a.dtype, is_split=split, device=a.device, comm=a.comm)
 
@@ -1936,7 +1936,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
                 comm=a.comm,
                 balanced=True,
             )
-        _, _, local_slice = a.comm.chunk(shape, new_split)
+        _, _, local_slice, _ = a.comm.chunk(shape, new_split)
         local_reshape = local_reshape[local_slice]
         return DNDarray(
             local_reshape,
@@ -1949,7 +1949,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         )
 
     # Create new flat result tensor
-    _, local_shape, _ = a.comm.chunk(shape, new_split)
+    _, local_shape, _, _ = a.comm.chunk(shape, new_split)
     data = torch.empty(local_shape, dtype=tdtype, device=tdevice).flatten()
 
     # Calculate the counts and displacements
@@ -2647,7 +2647,7 @@ def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DND
                 if x.lshape[axis] == 0:
                     sub_arrays_t = [torch.empty(x.lshape) for i in range(indices_or_sections)]
                 else:
-                    offset, local_shape, slices = x.comm.chunk(x.gshape, axis)
+                    offset, local_shape, slices, _ = x.comm.chunk(x.gshape, axis)
                     idx_frst_chunk_affctd = offset // indices_or_sections_t
                     left_data_chunk = indices_or_sections_t - (offset % indices_or_sections_t)
                     left_data_process = x.lshape[axis]
@@ -2684,7 +2684,7 @@ def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DND
                 )
                 indices_or_sections = resplit(indices_or_sections, None)
 
-            offset, local_shape, slices = x.comm.chunk(x.gshape, axis)
+            offset, local_shape, slices, _ = x.comm.chunk(x.gshape, axis)
             slice_axis = slices[axis]
 
             # reduce information to the (chunk) relevant
@@ -3766,7 +3766,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
     _, displs = x.counts_displs()
     offset_x = displs[rank]
     # impose load-balance on output
-    offset_tiled, _, _ = tiled.comm.chunk(tiled.gshape, tiled.split)
+    offset_tiled, _, _, _ = tiled.comm.chunk(tiled.gshape, tiled.split)
     t_tiled = tiled.larray
 
     active_send_counts = send_slices.clone()
@@ -3914,7 +3914,7 @@ def topk(
 
         # add offset of data chunks if reduction is computed across split axis
         if dim == a.split:
-            offset, _, _ = a.comm.chunk(shape, a.split)
+            offset, _, _, _ = a.comm.chunk(shape, a.split)
             indices = indices.clone()
             indices += torch.tensor(
                 offset * a.comm.rank, dtype=indices.dtype, device=indices.device

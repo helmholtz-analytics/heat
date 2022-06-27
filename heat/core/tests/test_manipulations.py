@@ -60,7 +60,7 @@ class TestManipulations(TestCase):
 
         self.assertEqual(res.gshape, (32, 15))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((32, 15), res.split)
+        _, _, chk, _ = res.comm.chunk((32, 15), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -70,7 +70,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=1)
         self.assertEqual(res.gshape, (16, 30))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 30), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 30), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -83,7 +83,7 @@ class TestManipulations(TestCase):
 
         self.assertEqual(res.gshape, (32, 15))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((32, 15), res.split)
+        _, _, chk, _ = res.comm.chunk((32, 15), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -93,7 +93,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=1)
         self.assertEqual(res.gshape, (16, 30))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 30), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 30), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -105,7 +105,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=1)
         self.assertEqual(res.gshape, (16, 30))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 30), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 30), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -117,7 +117,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32, 15))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((32, 15), res.split)
+        _, _, chk, _ = res.comm.chunk((32, 15), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -130,7 +130,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32, 15))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((32, 15), res.split)
+        _, _, chk, _ = res.comm.chunk((32, 15), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -139,7 +139,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=1)
         self.assertEqual(res.gshape, (16, 30))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 30), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 30), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -152,7 +152,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32, 15))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((32, 15), res.split)
+        _, _, chk, _ = res.comm.chunk((32, 15), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -161,7 +161,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=1)
         self.assertEqual(res.gshape, (16, 30))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 30), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 30), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -174,7 +174,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32, 15))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((32, 15), res.split)
+        _, _, chk, _ = res.comm.chunk((32, 15), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -183,7 +183,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=1)
         self.assertEqual(res.gshape, (16, 30))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 30), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 30), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -196,7 +196,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32, 15))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((32, 15), res.split)
+        _, _, chk, _ = res.comm.chunk((32, 15), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -205,7 +205,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=1)
         self.assertEqual(res.gshape, (16, 30))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 30), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 30), res.split)
         lshape = [0, 0]
         for i in range(2):
             lshape[i] = chk[i].stop - chk[i].start
@@ -218,7 +218,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32, 15, 14))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((32, 15, 14), res.split)
+        _, _, chk, _ = res.comm.chunk((32, 15, 14), res.split)
         lshape = [0, 0, 0]
         for i in range(3):
             lshape[i] = chk[i].stop - chk[i].start
@@ -227,7 +227,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=1)
         self.assertEqual(res.gshape, (16, 30, 14))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 30, 14), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 30, 14), res.split)
         lshape = [0, 0, 0]
         for i in range(3):
             lshape[i] = chk[i].stop - chk[i].start
@@ -236,7 +236,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=2)
         self.assertEqual(res.gshape, (16, 15, 28))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 15, 28), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 15, 28), res.split)
         lshape = [0, 0, 0]
         for i in range(3):
             lshape[i] = chk[i].stop - chk[i].start
@@ -248,7 +248,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=1)
         self.assertEqual(res.gshape, (16, 30, 14))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 30, 14), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 30, 14), res.split)
         lshape = [0, 0, 0]
         for i in range(3):
             lshape[i] = chk[i].stop - chk[i].start
@@ -257,7 +257,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=2)
         self.assertEqual(res.gshape, (16, 15, 28))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 15, 28), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 15, 28), res.split)
         lshape = [0, 0, 0]
         for i in range(3):
             lshape[i] = chk[i].stop - chk[i].start
@@ -266,7 +266,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=-1)
         self.assertEqual(res.gshape, (16, 15, 28))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 15, 28), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 15, 28), res.split)
         lshape = [0, 0, 0]
         for i in range(3):
             lshape[i] = chk[i].stop - chk[i].start
@@ -279,7 +279,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32, 15, 14))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((32, 15, 14), res.split)
+        _, _, chk, _ = res.comm.chunk((32, 15, 14), res.split)
         lshape = [0, 0, 0]
         for i in range(3):
             lshape[i] = chk[i].stop - chk[i].start
@@ -291,7 +291,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y, y), axis=0)
         self.assertEqual(res.gshape, (32 + 16, 15, 14))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((32 + 16, 15, 14), res.split)
+        _, _, chk, _ = res.comm.chunk((32 + 16, 15, 14), res.split)
         lshape = [0, 0, 0]
         for i in range(3):
             lshape[i] = chk[i].stop - chk[i].start
@@ -301,7 +301,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=2)
         self.assertEqual(res.gshape, (16, 15, 28))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((16, 15, 28), res.split)
+        _, _, chk, _ = res.comm.chunk((16, 15, 28), res.split)
         lshape = [0, 0, 0]
         for i in range(3):
             lshape[i] = chk[i].stop - chk[i].start
@@ -319,7 +319,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
         self.assertEqual(res.dtype, ht.float)
-        _, _, chk = res.comm.chunk((32,), res.split)
+        _, _, chk, _ = res.comm.chunk((32,), res.split)
         lshape = [0]
         lshape[0] = chk[0].stop - chk[0].start
         self.assertEqual(res.lshape, tuple(lshape))
@@ -329,7 +329,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
         self.assertEqual(res.dtype, ht.float64)
-        _, _, chk = res.comm.chunk((32,), res.split)
+        _, _, chk, _ = res.comm.chunk((32,), res.split)
         lshape = [0]
         lshape[0] = chk[0].stop - chk[0].start
         self.assertEqual(res.lshape, tuple(lshape))
@@ -339,7 +339,7 @@ class TestManipulations(TestCase):
         res = ht.concatenate((x, y), axis=0)
         self.assertEqual(res.gshape, (32,))
         self.assertEqual(res.dtype, ht.float64)
-        _, _, chk = res.comm.chunk((32,), res.split)
+        _, _, chk, _ = res.comm.chunk((32,), res.split)
         lshape = [0]
         lshape[0] = chk[0].stop - chk[0].start
         self.assertEqual(res.lshape, tuple(lshape))
@@ -3332,7 +3332,7 @@ class TestManipulations(TestCase):
         reps = (2, 2)
         tiled_along_non_split = ht.tile(x, reps)
         np_tiled_along_non_split = np.tile(np_x, reps)
-        _, _, global_slice = tiled_along_non_split.comm.chunk(
+        _, _, global_slice, _ = tiled_along_non_split.comm.chunk(
             tiled_along_non_split.shape, tiled_along_non_split.split
         )
         self.assertTrue(

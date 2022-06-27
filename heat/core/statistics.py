@@ -92,7 +92,7 @@ def argmax(
 
         # add offset of data chunks if reduction is computed across split axis
         if axis == x.split:
-            offset, _, _ = x.comm.chunk(shape, x.split)
+            offset, _, _, _ = x.comm.chunk(shape, x.split)
             indices += torch.tensor(offset, dtype=indices.dtype)
 
         return torch.cat([maxima.double(), indices.double()])
@@ -164,7 +164,7 @@ def argmin(
 
         # add offset of data chunks if reduction is computed across split axis
         if axis == x.split:
-            offset, _, _ = x.comm.chunk(shape, x.split)
+            offset, _, _, _ = x.comm.chunk(shape, x.split)
             indices += torch.tensor(offset, dtype=indices.dtype)
 
         return torch.cat([minimums.double(), indices.double()])
@@ -1598,7 +1598,7 @@ def percentile(
             # map percentile location: which q on what rank
             t_indices_map = torch.ones((size, nperc), dtype=t_indices.dtype, device=t_q.device) * -1
             t_local_indices = torch.ones((1, nperc), dtype=t_indices.dtype, device=t_q.device) * -1
-            offset, _, chunk = x.comm.chunk(gshape, split)
+            offset, _, chunk, _ = x.comm.chunk(gshape, split)
             chunk_start = chunk[split].start
             chunk_stop = chunk[split].stop
             t_ind_on_rank = t_indices[(t_indices < chunk_stop) & (t_indices >= chunk_start)]
@@ -1623,7 +1623,9 @@ def percentile(
         perc_ranks = torch.where(t_map_sum > -1 * nperc)[0].tolist()
         for r_id, r in enumerate(perc_ranks):
             # chunk of the global percentile that will be populated by rank r
-            _, _, perc_chunk = x.comm.chunk(output_shape, join, rank=r_id, w_size=len(perc_ranks))
+            _, _, perc_chunk, _ = x.comm.chunk(
+                output_shape, join, rank=r_id, w_size=len(perc_ranks)
+            )
             perc_slice = perc_slice[:join] + (perc_chunk[join],) + perc_slice[join + 1 :]
             local_p = factories.zeros(percentile[perc_slice].shape, dtype=perc_dtype, comm=x.comm)
             if rank == r:

@@ -282,7 +282,7 @@ def dot(a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None) -> Union[DNDar
             # st = 0
         else:  # at least one of them is split
             # todo: scale this by the starting index of the vector and do a lloc getitem
-            st, _, sl = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)
+            st, _, sl, _ = a.comm.chunk(a.shape, a.split if a.split is not None else b.split)
             asl = sl if a.split is None else slice(sl[0].start - st, sl[0].stop - st)
             bsl = sl if b.split is None else slice(sl[0].start - st, sl[0].stop - st)
 
@@ -1534,12 +1534,12 @@ def outer(
         if split == 0:
             lshape_map = b.create_lshape_map()
             t_outer_shape = (a.lshape[0], b.gshape[0])
-            _, _, local_slice = b.comm.chunk(b.gshape, b.split)
+            _, _, local_slice, _ = b.comm.chunk(b.gshape, b.split)
             t_outer_slice[1] = local_slice[0]
         elif split == 1:
             lshape_map = a.create_lshape_map()
             t_outer_shape = (a.gshape[0], b.lshape[0])
-            _, _, local_slice = a.comm.chunk(a.gshape, a.split)
+            _, _, local_slice, _ = a.comm.chunk(a.gshape, a.split)
             t_outer_slice[0] = local_slice[0]
         t_outer = torch.zeros(t_outer_shape, dtype=t_outer_dtype, device=t_a.device)
         if lshape_map[rank] != 0:
@@ -1566,7 +1566,7 @@ def outer(
                 b.comm.Recv(t_b_run, origin_rank)
                 # buffer from actual_origin could be smaller than allocated buffer
                 t_b = t_b_run[: lshape_map[actual_origin]]
-                _, _, remote_slice = b.comm.chunk(
+                _, _, remote_slice, _ = b.comm.chunk(
                     b.gshape, b.split, rank=actual_origin, w_size=size
                 )
                 t_outer_slice[1] = remote_slice[0]
@@ -1575,7 +1575,7 @@ def outer(
                 a.comm.Recv(t_a_run, origin_rank)
                 # buffer from actual_origin could be smaller than allocated buffer
                 t_a = t_a_run[: lshape_map[actual_origin]]
-                _, _, remote_slice = a.comm.chunk(
+                _, _, remote_slice, _ = a.comm.chunk(
                     a.gshape, a.split, rank=actual_origin, w_size=size
                 )
                 t_outer_slice[0] = remote_slice[0]
@@ -1779,7 +1779,7 @@ def trace(
             # determine the additional offset created by distribution of `a`
             a_sub = a
             if a.is_distributed():
-                offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
+                offset_split, _, _, _ = a.comm.chunk(a.gshape, a.split)
                 if a.split == 0:
                     offset += offset_split
                 # a.split == 1
@@ -1847,7 +1847,7 @@ def trace(
         if -offset < a.gshape[axis1] or offset < a.gshape[axis2]:
             # adapt the offset to distribution
             # (to result into required diagonal elements on each process)
-            offset_split, _, _ = a.comm.chunk(a.gshape, a.split)
+            offset_split, _, _, _ = a.comm.chunk(a.gshape, a.split)
 
             if a.split == axis1:
                 offset += offset_split
@@ -2145,7 +2145,7 @@ def __tri_op(m: DNDarray, k: int, op: Callable) -> DNDarray:
         raise TypeError("Expected k to be integral, but was {}".format(type(k)))
 
     # chunk the global shape of the tensor to obtain the offset compared to the other ranks
-    offset, _, _ = m.comm.chunk(m.shape, m.split)
+    offset, _, _, _ = m.comm.chunk(m.shape, m.split)
     dimensions = len(m.shape)
 
     # manually repeat the input for vectors

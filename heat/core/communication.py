@@ -160,12 +160,13 @@ class MPICommunication(Communication):
 
     def chunk(
         self, shape: Tuple[int], split: int, rank: int = None, w_size: int = None
-    ) -> Tuple[int, Tuple[int], Tuple[slice]]:
+    ) -> Tuple[int | Any, Tuple[int | Any, ...], Tuple[slice, ...], bool]:
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
         axis.
-        Returns ``(offset, local_shape, slices)``: the offset in the split dimension, the resulting local shape if the
-        global input shape is chunked on the split axis and the chunk slices with respect to the given shape
+        Returns ``(offset, local_shape, slices, balanced)``: the offset in the split dimension,
+        the resulting local shape if the global input shape is chunked on the split axis and the
+        chunk slices with respect to the given shape.
 
         Parameters
         ----------
@@ -180,19 +181,30 @@ class MPICommunication(Communication):
             The MPI world size, defaults to ``self.size``.
             Intended for creating chunk maps without communication
 
+        Returns
+        -------
+        offset: int
+            the offset in the split dimension, i.e. where that process starts globally
+        local_shape: Tuple(ints)
+            the local shapes on each process
+        slices: Tuple(slices)
+            the slices used to divide the data
+        can_balance: bool
+            True if the number of chunks is more than the number of processes else False
         """
         # ensure the split axis is valid, we actually do not need it
         split = sanitize_axis(shape, split)
         if split is None:
-            return 0, shape, tuple(slice(0, end) for end in shape)
+            return 0, shape, tuple(slice(0, end) for end in shape), True
         rank = self.rank if rank is None else rank
         w_size = self.size if w_size is None else w_size
         if not isinstance(rank, int) or not isinstance(w_size, int):
             raise TypeError("rank and size must be integers")
 
         dims = len(shape)
-        size = shape[split]
-        chunk = size // w_size
+        size = shape[split]  # the number of elements in the split dimension (globally)
+        chunk = size // w_size  # number of data elements per process
+        can_balance = True if chunk >= 1 else False
         remainder = size % w_size
 
         if remainder > rank:
@@ -206,6 +218,7 @@ class MPICommunication(Communication):
             start,
             tuple(shape[i] if i != split else end - start for i in range(dims)),
             tuple(slice(0, shape[i]) if i != split else slice(start, end) for i in range(dims)),
+            can_balance,
         )
 
     def counts_displs_shape(

@@ -588,7 +588,7 @@ class DNDarray:
             return lshape_map
         if self.is_balanced(force_check=True):
             for i in range(self.comm.size):
-                _, lshape, _ = self.comm.chunk(self.gshape, self.split, rank=i)
+                _, lshape, _, _ = self.comm.chunk(self.gshape, self.split, rank=i)
                 lshape_map[i, :] = torch.tensor(lshape, device=self.device.torch_device)
         else:
             lshape_map[self.comm.rank, :] = torch.tensor(
@@ -941,7 +941,11 @@ class DNDarray:
         if not force_check and self.balanced is not None:
             return self.balanced
 
-        _, _, chk = self.comm.chunk(self.shape, self.split)
+        _, _, chk, can_balance = self.comm.chunk(self.shape, self.split)
+        # balanced from chunk is only related to if it can be balanced!
+        # but if the DNDarray cannot be balanced in this confit, can return early
+        if not can_balance:
+            return False
         test_lshape = tuple([x.stop - x.start for x in chk])
         balanced = 1 if test_lshape == self.lshape else 0
 
@@ -1089,7 +1093,7 @@ class DNDarray:
                     )
                 )
         if target_map is None:  # if no target map is given then it will balance the tensor
-            _, _, chk = self.comm.chunk(self.shape, self.split)
+            _, _, chk, _ = self.comm.chunk(self.shape, self.split)
             target_map = lshape_map.clone()
             target_map[..., self.split] = 0
             for pr in range(self.comm.size):
@@ -1283,7 +1287,7 @@ class DNDarray:
         # tensor needs be split/sliced locally
         if self.split is None:
             # new_arr = self
-            _, _, slices = self.comm.chunk(self.shape, axis)
+            _, _, slices, _ = self.comm.chunk(self.shape, axis)
             temp = self.__array[slices]
             self.__array = torch.empty((1,), device=self.device.torch_device)
             # necessary to clear storage of local __array
@@ -1518,12 +1522,12 @@ class DNDarray:
         rank = self.comm.rank
         ends = []
         for pr in range(self.comm.size):
-            _, _, e = self.comm.chunk(self.shape, self.split, rank=pr)
+            _, _, e, _ = self.comm.chunk(self.shape, self.split, rank=pr)
             ends.append(e[self.split].stop - e[self.split].start)
         ends = torch.tensor(ends, device=self.device.torch_device)
         chunk_ends = ends.cumsum(dim=0)
         chunk_starts = torch.tensor([0] + chunk_ends.tolist(), device=self.device.torch_device)
-        _, _, chunk_slice = self.comm.chunk(self.shape, self.split)
+        _, _, chunk_slice, _ = self.comm.chunk(self.shape, self.split)
         chunk_start = chunk_slice[self.split].start
         chunk_end = chunk_slice[self.split].stop
 

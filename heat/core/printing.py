@@ -245,7 +245,7 @@ def _torch_data(dndarray, summarize) -> DNDarray:
                 data = torch.cat([start_tensor, end_tensor], dim=i)
             # split-dimension , need to respect the global offset
             elif i == dndarray.split and dndarray.gshape[i] > double_items:
-                offset, _, _ = dndarray.comm.chunk(dndarray.gshape, i)
+                offset, _, _, _ = dndarray.comm.chunk(dndarray.gshape, i)
 
                 if offset < edgeitems + 1:
                     end = min(dndarray.lshape[i], edgeitems + 1 - offset)

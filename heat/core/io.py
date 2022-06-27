@@ -121,8 +121,7 @@ else:
             gshape = tuple(data.shape)
             dims = len(gshape)
             split = sanitize_axis(gshape, split)
-            _, _, indices = comm.chunk(gshape, split)
-            balanced = True
+            _, _, indices, can_balance = comm.chunk(gshape, split)
             if split is None:
                 data = torch.tensor(
                     data[indices], dtype=dtype.torch_type(), device=device.torch_device
@@ -144,7 +143,7 @@ else:
                 )
                 data = data[slice2]
 
-            return DNDarray(data, gshape, dtype, split, device, comm, balanced)
+            return DNDarray(data, gshape, dtype, split, device, comm, can_balance)
 
     def save_hdf5(
         data: DNDarray, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]
@@ -192,7 +191,7 @@ else:
 
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
         is_split = data.split is not None
-        _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
+        _, _, slices, _ = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
         # attempt to perform parallel I/O if possible
         if h5py.get_config().mpi:
@@ -335,8 +334,7 @@ else:
             split = sanitize_axis(gshape, split)
 
             # chunk up the data portion
-            _, local_shape, indices = comm.chunk(gshape, split)
-            balanced = True
+            _, local_shape, indices, can_balance = comm.chunk(gshape, split)
             if split is None or local_shape[split] > 0:
                 data = torch.tensor(
                     data[indices], dtype=dtype.torch_type(), device=device.torch_device
@@ -346,7 +344,7 @@ else:
                     local_shape, dtype=dtype.torch_type(), device=device.torch_device
                 )
 
-            return DNDarray(data, gshape, dtype, split, device, comm, balanced)
+            return DNDarray(data, gshape, dtype, split, device, comm, can_balance)
 
     def save_netcdf(
         data: DNDarray,
@@ -429,7 +427,7 @@ else:
         excep = None
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
         is_split = data.split is not None
-        _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
+        _, _, slices, _ = data.comm.chunk(data.gshape, data.split if is_split else 0)
 
         def __get_expanded_split(
             shape: Tuple[int], expanded_shape: Tuple[int], split: Optional[int]
@@ -522,7 +520,7 @@ else:
             """
             slices = data_slices
             if slices is None:
-                _, _, slices = data.comm.chunk(data.gshape, data.split if is_split else 0)
+                _, _, slices, _ = data.comm.chunk(data.gshape, data.split if is_split else 0)
             start, count, stride, _ = nc.utils._StartCountStride(
                 elem=var_slices,
                 shape=var.shape,

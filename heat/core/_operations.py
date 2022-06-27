@@ -475,6 +475,7 @@ def __reduce_op(
     arg_op = False
     if reduction_op in ARG_OPS:
         arg_op = True
+        # NOTE: this chunk is from torch.Tensor NOT ht.comm.chunk!
         partial = partial.chunk(2)[-1].type(torch.int64)
         if partial.ndim > 1:
             partial = partial.squeeze(dim=0)

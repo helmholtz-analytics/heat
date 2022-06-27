@@ -133,8 +133,7 @@ def arange(
 
     gshape = (num,)
     split = sanitize_axis(gshape, split)
-    offset, lshape, _ = comm.chunk(gshape, split)
-    balanced = True
+    offset, lshape, _, can_balance = comm.chunk(gshape, split)
 
     # compose the local tensor
     start += offset * step
@@ -144,7 +143,7 @@ def arange(
     htype = types.canonical_heat_type(dtype)
     data = data.type(htype.torch_type())
 
-    return DNDarray(data, gshape, htype, split, device, comm, balanced)
+    return DNDarray(data, gshape, htype, split, device, comm, can_balance)
 
 
 def array(
@@ -372,11 +371,11 @@ def array(
     # determine the local and the global shape. If split is None, they are identical
     gshape = list(obj.shape)
     lshape = gshape.copy()
-    balanced = True
+    can_balance = True
 
     # content shall be split, chunk the passed data object up
     if split is not None:
-        _, _, slices = comm.chunk(gshape, split)
+        _, _, slices, can_balance = comm.chunk(gshape, split)
         obj = obj[slices].clone()
         obj = sanitize_memory_layout(obj, order=order)
     # check with the neighboring rank whether the local shape would fit into a global shape
@@ -417,18 +416,19 @@ def array(
         split = is_split
         # compare to calculated balanced lshape (cf. dndarray.is_balanced())
         gshape = tuple(int(ele) for ele in gshape)
+        _, _, chk, can_balance = comm.chunk(gshape, split)
+        # cant depend on the `can_balance` above as it is not to be trusted for pre-split data
         lshape = tuple(int(ele) for ele in lshape)
-        _, _, chk = comm.chunk(gshape, split)
         test_lshape = tuple([x.stop - x.start for x in chk])
         match = 1 if test_lshape == lshape else 0
         gmatch = comm.allreduce(match, MPI.SUM)
         if gmatch != comm.size:
-            balanced = False
+            can_balance = False
 
     elif split is None and is_split is None:
         obj = sanitize_memory_layout(obj, order=order)
 
-    return DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
+    return DNDarray(obj, tuple(gshape), dtype, split, device, comm, can_balance)
 
 
 def asarray(
@@ -639,8 +639,7 @@ def eye(
     split = sanitize_axis(gshape, split)
     device = devices.sanitize_device(device)
     comm = sanitize_comm(comm)
-    offset, lshape, _ = comm.chunk(gshape, split)
-    balanced = True
+    offset, lshape, _, can_balance = comm.chunk(gshape, split)
 
     # start by creating tensor filled with zeroes
     data = torch.zeros(
@@ -658,7 +657,7 @@ def eye(
     data = sanitize_memory_layout(data, order=order)
 
     return DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
+        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, can_balance
     )
 
 
@@ -707,13 +706,13 @@ def __factory(
     comm = sanitize_comm(comm)
 
     # chunk the shape if necessary
-    _, local_shape, _ = comm.chunk(shape, split)
+    _, local_shape, _, can_balance = comm.chunk(shape, split)
 
     # create the torch data using the factory function
     data = local_factory(local_shape, dtype=dtype.torch_type(), device=device.torch_device)
     data = sanitize_memory_layout(data, order=order)
 
-    return DNDarray(data, shape, dtype, split, device, comm, balanced=True)
+    return DNDarray(data, shape, dtype, split, device, comm, balanced=can_balance)
 
 
 def __factory_like(
@@ -959,8 +958,7 @@ def linspace(
     # infer local and global shapes
     gshape = (num,)
     split = sanitize_axis(gshape, split)
-    offset, lshape, _ = comm.chunk(gshape, split)
-    balanced = True
+    offset, lshape, _, can_balance = comm.chunk(gshape, split)
 
     # compose the local tensor
     start += offset * step
@@ -971,7 +969,7 @@ def linspace(
 
     # construct the resulting global tensor
     ht_tensor = DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
+        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, can_balance
     )
 
     if retstep:

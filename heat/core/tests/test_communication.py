@@ -30,7 +30,7 @@ class TestCommunication(TestCase):
         with self.assertRaises(TypeError):
             comm.chunk(self.data.shape, split=0, rank="dicndjh")
 
-        offset, lshape, chunks = comm.chunk(self.data.shape, split=0)
+        offset, lshape, chunks, _ = comm.chunk(self.data.shape, split=0)
 
         self.assertIsInstance(offset, int)
         self.assertEqual(offset, 0)
@@ -52,7 +52,7 @@ class TestCommunication(TestCase):
         with self.assertRaises(ValueError):
             comm.chunk(self.data.shape, split=-3)
 
-        offset, lshape, chunks = comm.chunk(self.data.shape, split=0)
+        offset, lshape, chunks, _ = comm.chunk(self.data.shape, split=0)
         self.assertIsInstance(offset, int)
         self.assertGreaterEqual(offset, 0)
         self.assertLessEqual(offset, self.data.shape[0])

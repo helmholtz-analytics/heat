@@ -121,7 +121,7 @@ def __counter_sequence(
         end = start + int(values)
         lshape = shape
     else:
-        offset, lshape, _ = comm.chunk(shape, split)
+        offset, lshape, _, _ = comm.chunk(shape, split)
         counts, displs, _ = comm.counts_displs_shape(shape, split)
 
         # Calculate number of local elements per process

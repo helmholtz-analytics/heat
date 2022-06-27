@@ -61,7 +61,7 @@ def nonzero(x: DNDarray) -> DNDarray:
     else:
         # a is split
         lcl_nonzero = torch.nonzero(input=x.larray, as_tuple=False)
-        _, _, slices = x.comm.chunk(x.shape, x.split)
+        _, _, slices, _ = x.comm.chunk(x.shape, x.split)
         lcl_nonzero[..., x.split] += slices[x.split].start
         gout = list(lcl_nonzero.size())
         gout[0] = x.comm.allreduce(gout[0], MPI.SUM)

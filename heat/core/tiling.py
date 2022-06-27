@@ -666,7 +666,7 @@ class SquareDiagTiles:
                 off = torch.div(col, tiles_per_proc, rounding_mode="floor").to(dev)
             except TypeError:
                 off = torch.floor_divide(col, tiles_per_proc).to(dev)
-            _, lshape, _ = arr.comm.chunk(
+            _, lshape, _, _ = arr.comm.chunk(
                 [diag_crossings[off + 1] - diag_crossings[off]],
                 0,
                 rank=int(col % tiles_per_proc),
@@ -694,7 +694,7 @@ class SquareDiagTiles:
         for i in range(last_diag_pr.item() + 1, arr.comm.size):
             # loop over all of the rest of the processes
             for t in range(tiles_per_proc):
-                _, lshape, _ = arr.comm.chunk(lp_map[i], 0, rank=t, w_size=tiles_per_proc)
+                _, lshape, _, _ = arr.comm.chunk(lp_map[i], 0, rank=t, w_size=tiles_per_proc)
                 # row_inds[nz[0].item()] = lshape[0]
                 if row_inds[-1] == 0:
                     row_inds[-1] = lshape[0]
@@ -713,7 +713,7 @@ class SquareDiagTiles:
             while (arr.gshape[0] - arr.gshape[1]) // num_ex_row_tiles < 2:
                 num_ex_row_tiles -= 1
             for i in range(num_ex_row_tiles):
-                _, lshape, _ = arr.comm.chunk(
+                _, lshape, _, _ = arr.comm.chunk(
                     (arr.gshape[0] - arr.gshape[1],), 0, rank=i, w_size=num_ex_row_tiles
                 )
                 row_inds.append(lshape[0])
