@@ -9,7 +9,6 @@ import warnings
 
 from .communication import MPI, MPI_WORLD
 from . import factories
-from . import devices
 from . import stride_tricks
 from . import sanitation
 from . import statistics
@@ -27,6 +26,7 @@ def __binary_op(
     t1: Union[DNDarray, int, float],
     t2: Union[DNDarray, int, float],
     out: Optional[DNDarray] = None,
+    where: Optional[DNDarray] = None,
     fn_kwargs: Optional[Dict] = {},
 ) -> DNDarray:
     """
@@ -39,11 +39,17 @@ def __binary_op(
         The operation to be performed. Function that performs operation elements-wise on the involved tensors,
         e.g. add values from other to self
     t1: DNDarray or scalar
-        The first operand involved in the operation,
+        The first operand involved in the operation.
     t2: DNDarray or scalar
-        The second operand involved in the operation,
+        The second operand involved in the operation.
     out: DNDarray, optional
-        Output buffer in which the result is placed
+        Output buffer in which the result is placed. If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the result of the operation. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations within
+        it where the condition is False will remain uninitialized. If distributed, the split axis (after
+        broadcasting if required) must match that of the `out` array.
     fn_kwargs: Dict, optional
         keyword arguments used for the given operation
         Default: {} (empty dictionary)
@@ -52,143 +58,151 @@ def __binary_op(
     -------
     result: ht.DNDarray
         A DNDarray containing the results of element-wise operation.
+
+    Warning
+    -------
+    If both operands are distributed, they must be distributed along the same dimension, i.e. `t1.split = t2.split`.
+
+    MPI communication is necessary when both operands are distributed along the same dimension, but the distribution maps do not match. E.g.:
+    ```
+    a =  ht.ones(10000, split=0)
+    b = ht.zeros(10000, split=0)
+    c = a[:-1] + b[1:]
+    ```
+    In such cases, one of the operands is redistributed OUT-OF-PLACE to match the distribution map of the other operand.
+    The operand determining the resulting distribution is chosen as follows:
+    1) split is preferred to no split
+    2) no (shape)-broadcasting in the split dimension if not necessary
+    3) t1 is preferred to t2
     """
+    # Check inputs
+    if not np.isscalar(t1) and not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Only DNDarrays and numeric scalars are supported, but input was {}".format(type(t1))
+        )
+    if not np.isscalar(t2) and not isinstance(t2, DNDarray):
+        raise TypeError(
+            "Only DNDarrays and numeric scalars are supported, but input was {}".format(type(t2))
+        )
     promoted_type = types.result_type(t1, t2).torch_type()
 
-    if np.isscalar(t1):
+    # Make inputs Dndarrays
+    if np.isscalar(t1) and np.isscalar(t2):
         try:
-            t1 = factories.array(t1, device=t2.device if isinstance(t2, DNDarray) else None)
+            t1 = factories.array(t1)
+            t2 = factories.array(t2)
+        except (ValueError, TypeError):
+            raise TypeError(
+                "Data type not supported, inputs were {} and {}".format(type(t1), type(t2))
+            )
+    elif np.isscalar(t1) and isinstance(t2, DNDarray):
+        try:
+            t1 = factories.array(t1, device=t2.device, comm=t2.comm)
         except (ValueError, TypeError):
             raise TypeError("Data type not supported, input was {}".format(type(t1)))
+    elif isinstance(t1, DNDarray) and np.isscalar(t2):
+        try:
+            t2 = factories.array(t2, device=t1.device, comm=t1.comm)
+        except (ValueError, TypeError):
+            raise TypeError("Data type not supported, input was {}".format(type(t2)))
 
-        if np.isscalar(t2):
-            try:
-                t2 = factories.array(t2)
-            except (ValueError, TypeError):
-                raise TypeError(
-                    "Only numeric scalars are supported, but input was {}".format(type(t2))
-                )
-            output_shape = (1,)
-            output_split = None
-            output_device = t2.device
-            output_comm = MPI_WORLD
-        elif isinstance(t2, DNDarray):
-            output_shape = t2.shape
-            output_split = t2.split
-            output_device = t2.device
-            output_comm = t2.comm
-        else:
-            raise TypeError(
-                "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
-            )
+    # Make inputs have the same dimensionality
+    output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+    if where is not None:
+        output_shape = stride_tricks.broadcast_shape(where.shape, output_shape)
+        while len(where.shape) < len(output_shape):
+            where = where.expand_dims(axis=0)
+    # Broadcasting allows additional empty dimensions on the left side
+    # TODO simplify this once newaxis-indexing is supported to get rid of the loops
+    while len(t1.shape) < len(output_shape):
+        t1 = t1.expand_dims(axis=0)
+    while len(t2.shape) < len(output_shape):
+        t2 = t2.expand_dims(axis=0)
+    # t1 = t1[tuple([None] * (len(output_shape) - t1.ndim))]
+    # t2 = t2[tuple([None] * (len(output_shape) - t2.ndim))]
+    # print(t1.lshape, t2.lshape)
 
-        if t1.dtype != t2.dtype:
-            t1 = t1.astype(t2.dtype)
+    def __get_out_params(target, other=None, map=None):
+        """
+        Getter for the output parameters of a binary operation with target distribution.
+        If `other` is provided, its distribution will be matched to `target` or, if provided,
+        redistributed according to `map`.
 
-    elif isinstance(t1, DNDarray):
-        if np.isscalar(t2):
-            try:
-                t2 = factories.array(t2, device=t1.device)
-                output_shape = t1.shape
-                output_split = t1.split
-                output_device = t1.device
-                output_comm = t1.comm
-            except (ValueError, TypeError):
-                raise TypeError("Data type not supported, input was {}".format(type(t2)))
+        Parameters
+        ----------
+        target : DNDarray
+            DNDarray determining the parameters
+        other : DNDarray
+            DNDarray to be adapted
+        map : Tensor
+            lshape_map `other` should be matched to. Defaults to `target.lshape_map`
 
-        elif isinstance(t2, DNDarray):
-            if t1.split is None:
-                t1 = factories.array(
-                    t1, split=t2.split, copy=False, comm=t1.comm, device=t1.device, ndmin=-t2.ndim
-                )
-            elif t2.split is None:
-                t2 = factories.array(
-                    t2, split=t1.split, copy=False, comm=t2.comm, device=t2.device, ndmin=-t1.ndim
-                )
-            elif t1.split != t2.split:
-                # It is NOT possible to perform binary operations on tensors with different splits, e.g. split=0
-                # and split=1
-                raise NotImplementedError("Not implemented for other splittings")
+        Returns
+        -------
+        Tuple
+            split, device, comm, balanced, [other]
+        """
+        if other is not None:
+            if out is None:
+                other = sanitation.sanitize_distribution(other, target=target, diff_map=map)
+            return target.split, target.device, target.comm, target.balanced, other
+        return target.split, target.device, target.comm, target.balanced
 
-            output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-            output_split = t1.split
-            output_device = t1.device
-            output_comm = t1.comm
-
-            # ToDo: Fine tuning in case of comm.size>t1.shape[t1.split]. Send torch tensors only to ranks, that will hold data.
-            if t1.split is not None:
-                if t1.shape[t1.split] == 1 and t1.comm.is_distributed():
-                    # warnings.warn(
-                    #     "Broadcasting requires transferring data of first operator between MPI ranks!"
-                    # )
-                    if t1.comm.rank > 0:
-                        t1.larray = torch.zeros(
-                            t1.shape, dtype=t1.dtype.torch_type(), device=t1.device.torch_device
-                        )
-                    t1.comm.Bcast(t1)
-
-            if t2.split is not None:
-                if t2.shape[t2.split] == 1 and t2.comm.is_distributed():
-                    # warnings.warn(
-                    #     "Broadcasting requires transferring data of second operator between MPI ranks!"
-                    # )
-                    if t2.comm.rank > 0:
-                        t2.larray = torch.zeros(
-                            t2.shape, dtype=t2.dtype.torch_type(), device=t2.device.torch_device
-                        )
-                    t2.comm.Bcast(t2)
-
-        else:
-            raise TypeError(
-                "Only tensors and numeric scalars are supported, but input was {}".format(type(t2))
-            )
-    else:
-        raise NotImplementedError("Not implemented for non scalar")
-
-    # sanitize output
-    if out is not None:
-        sanitation.sanitize_out(out, output_shape, output_split, output_device)
-
-    # promoted_type = types.promote_types(t1.dtype, t2.dtype).torch_type()
-    if t1.split is not None:
-        if len(t1.lshape) > t1.split and t1.lshape[t1.split] == 0:
-            result = t1.larray.type(promoted_type)
-        else:
-            result = operation(
-                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-            )
+    if t1.split is not None and t1.shape[t1.split] == output_shape[t1.split]:  # t1 is "dominant"
+        output_split, output_device, output_comm, output_balanced, t2 = __get_out_params(t1, t2)
+    elif t2.split is not None and t2.shape[t2.split] == output_shape[t2.split]:  # t2 is "dominant"
+        output_split, output_device, output_comm, output_balanced, t1 = __get_out_params(t2, t1)
+    elif t1.split is not None:
+        # t1 is split but broadcast -> only on one rank; manipulate lshape_map s.t. this rank has 'full' data
+        lmap = t1.lshape_map
+        idx = lmap[:, t1.split].nonzero(as_tuple=True)[0]
+        lmap[idx.item(), t1.split] = output_shape[t1.split]
+        output_split, output_device, output_comm, output_balanced, t2 = __get_out_params(
+            t1, t2, map=lmap
+        )
     elif t2.split is not None:
+        # t2 is split but broadcast -> only on one rank; manipulate lshape_map s.t. this rank has 'full' data
+        lmap = t2.lshape_map
+        idx = lmap[:, t2.split].nonzero(as_tuple=True)[0]
+        lmap[idx.item(), t2.split] = output_shape[t2.split]
+        output_split, output_device, output_comm, output_balanced, t1 = __get_out_params(
+            t2, other=t1, map=lmap
+        )
+    else:  # both are not split
+        output_split, output_device, output_comm, output_balanced = __get_out_params(t1)
 
-        if len(t2.lshape) > t2.split and t2.lshape[t2.split] == 0:
-            result = t2.larray.type(promoted_type)
-        else:
-            result = operation(
-                t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
-            )
-    else:
-        result = operation(
-            t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+    if out is not None:
+        sanitation.sanitize_out(out, output_shape, output_split, output_device, output_comm)
+        t1, t2 = sanitation.sanitize_distribution(t1, t2, target=out)
+
+    result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
+
+    if out is None and where is None:
+        return DNDarray(
+            result,
+            output_shape,
+            types.heat_type_of(result),
+            output_split,
+            device=output_device,
+            comm=output_comm,
+            balanced=output_balanced,
         )
 
-    if not isinstance(result, torch.Tensor):
-        result = torch.tensor(result, device=output_device.torch_device)
+    if where is not None:
+        if out is None:
+            out = factories.empty(
+                output_shape,
+                dtype=promoted_type,
+                split=output_split,
+                device=output_device,
+                comm=output_comm,
+            )
+        if where.split != out.split:
+            where = sanitation.sanitize_distribution(where, target=out)
+        result = torch.where(where.larray, result, out.larray)
 
-    if out is not None:
-        out_dtype = out.dtype
-        out.larray = result
-        out._DNDarray__comm = output_comm
-        out = out.astype(out_dtype)
-        return out
-
-    return DNDarray(
-        result,
-        output_shape,
-        types.heat_type_of(result),
-        output_split,
-        output_device,
-        output_comm,
-        balanced=None,
-    )
+    out.larray.copy_(result)
+    return out
 
 
 def __cum_op(

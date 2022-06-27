@@ -320,12 +320,12 @@ def round(
         raise TypeError("dtype must be a heat data type")
 
     if decimals != 0:
-        x *= 10 ** decimals
+        x *= 10**decimals
 
     rounded_values = _operations.__local_op(torch.round, x, out)
 
     if decimals != 0:
-        rounded_values /= 10 ** decimals
+        rounded_values /= 10**decimals
 
     if dtype is not None:
         rounded_values.larray = rounded_values.larray.type(dtype.torch_type())

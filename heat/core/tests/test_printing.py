@@ -8,12 +8,48 @@ class TestPrinting(TestCase):
     def setUp(self):
         # move to CPU only for the testing printing, otherwise the compare string will become messy
         ht.use_device("cpu")
+        ht.global_printing()
 
     def tearDown(self):
         # reset the print options back to default after each test run
         ht.set_printoptions(profile="default")
         # reset the default device
         ht.use_device(self.device)
+
+    def test_local_printing(self):
+        x = ht.arange(15 * 5, dtype=ht.float).reshape((15, 5)).resplit(0)
+        global_comp = (
+            "DNDarray([[ 0.,  1.,  2.,  3.,  4.],\n"
+            "          [ 5.,  6.,  7.,  8.,  9.],\n"
+            "          [10., 11., 12., 13., 14.],\n"
+            "          [15., 16., 17., 18., 19.],\n"
+            "          [20., 21., 22., 23., 24.],\n"
+            "          [25., 26., 27., 28., 29.],\n"
+            "          [30., 31., 32., 33., 34.],\n"
+            "          [35., 36., 37., 38., 39.],\n"
+            "          [40., 41., 42., 43., 44.],\n"
+            "          [45., 46., 47., 48., 49.],\n"
+            "          [50., 51., 52., 53., 54.],\n"
+            "          [55., 56., 57., 58., 59.],\n"
+            "          [60., 61., 62., 63., 64.],\n"
+            "          [65., 66., 67., 68., 69.],\n"
+            "          [70., 71., 72., 73., 74.]], dtype=ht.float32, device=cpu:0, split=0)"
+        )
+        if x.comm.rank == 0:
+            self.assertEqual(str(x), global_comp)
+        else:
+            self.assertEqual(str(x), "")
+        ht.local_printing()
+        local_comp = (
+            "[[ 0.,  1.,  2.,  3.,  4.],\n"
+            " [ 5.,  6.,  7.,  8.,  9.],\n"
+            " [10., 11., 12., 13., 14.],\n"
+            " [15., 16., 17., 18., 19.],\n"
+            " [20., 21., 22., 23., 24.]], device: cpu:0, split: 0"
+        )
+        if x.comm.rank == 0 and x.comm.size == 3:
+            self.assertEqual(str(x), local_comp)
+        ht.global_printing()  # needed to keep things correct for the other tests
 
     def test_get_default_options(self):
         print_options = ht.get_printoptions()

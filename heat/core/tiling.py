@@ -383,7 +383,7 @@ class SquareDiagTiles:
         if len(arr.shape) != 2:
             raise ValueError("Arr must be 2 dimensional, current shape {}".format(arr.shape))
 
-        lshape_map = arr.create_lshape_map()
+        lshape_map = arr.create_lshape_map(force_check=True)
 
         # if there is only one element of the diagonal on the next process
         d = 1 if tiles_per_proc <= 2 else tiles_per_proc - 1
@@ -514,6 +514,7 @@ class SquareDiagTiles:
         self.__tile_map = tile_map
         self.__row_inds = list(row_inds)
         self.__col_inds = list(col_inds)
+        arr.__lshape_map = None
 
     @staticmethod
     def __adjust_cols_sp1_m_ls_n(
@@ -1204,6 +1205,9 @@ class SquareDiagTiles:
             self.__tile_map[..., 2][sum(self.__row_per_proc_list[:i]) :] = i
             self.__col_per_proc_list = [self.tile_columns] * base_dnd.comm.size
             self.__last_diag_pr = base_dnd.comm.size - 1
+
+            self.__DNDarray.__lshape_map = None
+            tiles_to_match.__DNDarray.__lshape_map = None
 
     def __setitem__(
         self, key: Union[int, slice, Tuple[int, slice, ...]], value: Union[int, float, torch.Tensor]

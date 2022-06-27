@@ -1222,6 +1222,10 @@ def pad(
                [ 0,  0,  0,  0,  0,  0,  0],
                [ 0,  0,  0,  0,  0,  0,  0]]], dtype=ht.int64, device=cpu:0, split=0)
     """
+    # early out if pad width is 0
+    if pad_width == 0:
+        return array
+
     if not isinstance(array, DNDarray):
         raise TypeError("expected array to be a ht.DNDarray, but was {}".format(type(array)))
 
@@ -2891,7 +2895,7 @@ def stack(
     ValueError
         If the `DNDarray`s are of different shapes, or if they are split along different axes (`split` attribute).
     RuntimeError
-        If the `DNDarrays` reside of different devices, or if they are unevenly distributed across ranks (method `is_balanced()` returns `False`)
+        If the `DNDarrays` reside on different devices.
 
     Notes
     -----
@@ -2949,83 +2953,52 @@ def stack(
     [2/2]          [18, 38],
     [2/2]          [19, 39]]])
     """
-    # sanitation
-    sanitation.sanitize_sequence(arrays)
-
+    arrays = sanitation.sanitize_sequence(arrays)
     if len(arrays) < 2:
         raise ValueError("stack expects a sequence of at least 2 DNDarrays")
 
-    for i, array in enumerate(arrays):
-        sanitation.sanitize_in(array)
+    target = arrays[0]
+    try:
+        arrays = sanitation.sanitize_distribution(
+            *arrays, target=target
+        )  # also checks target again
+    except NotImplementedError as e:  # transform split axis error to ValueError
+        raise ValueError(e)
 
-    arrays_metadata = list(
-        [array.gshape, array.split, array.device, array.balanced] for array in arrays
-    )
-    num_arrays = len(arrays)
-    # metadata must be identical for all arrays
-    if arrays_metadata.count(arrays_metadata[0]) != num_arrays:
-        shapes = list(array.gshape for array in arrays)
-        if shapes.count(shapes[0]) != num_arrays:
-            raise ValueError(
-                "All DNDarrays in sequence must have the same shape, got shapes {}".format(shapes)
-            )
-        splits = list(array.split for array in arrays)
-        if splits.count(splits[0]) != num_arrays:
-            raise ValueError(
-                "All DNDarrays in sequence must have the same split axis, got splits {}"
-                "Check out the heat.resplit() documentation.".format(splits)
-            )
-        devices = list(array.device for array in arrays)
-        if devices.count(devices[0]) != num_arrays:
-            raise RuntimeError(
-                "DNDarrays in sequence must reside on the same device, got devices {} {} {}".format(
-                    devices, devices[0].device_id, devices[1].device_id
-                )
-            )
-    else:
-        array_shape, array_split, array_device, array_balanced = arrays_metadata[0][:4]
-        # extract torch tensors
-        t_arrays = list(array.larray for array in arrays)
-        # output dtype
-        t_dtypes = list(t_array.dtype for t_array in t_arrays)
-        t_array_dtype = t_dtypes[0]
-        if t_dtypes.count(t_dtypes[0]) != num_arrays:
-            for d in range(1, len(t_dtypes)):
-                t_array_dtype = (
-                    t_array_dtype
-                    if t_array_dtype is t_dtypes[d]
-                    else torch.promote_types(t_array_dtype, t_dtypes[d])
-                )
-            t_arrays = list(t_array.type(t_array_dtype) for t_array in t_arrays)
-        array_dtype = types.canonical_heat_type(t_array_dtype)
-
-    # sanitize axis
-    axis = stride_tricks.sanitize_axis(array_shape + (num_arrays,), axis)
+    # extract torch tensors
+    t_arrays = list(array.larray for array in arrays)
 
     # output shape and split
-    stacked_shape = array_shape[:axis] + (num_arrays,) + array_shape[axis:]
-    if array_split is not None:
-        stacked_split = array_split + 1 if axis <= array_split else array_split
+    axis = stride_tricks.sanitize_axis(target.gshape + (len(arrays),), axis)
+    stacked_shape = target.gshape[:axis] + (len(arrays),) + target.gshape[axis:]
+    if target.split is not None:
+        stacked_split = target.split + 1 if axis <= target.split else target.split
     else:
         stacked_split = None
 
     # stack locally
-    t_stacked = torch.stack(t_arrays, dim=axis)
+    try:
+        t_stacked = torch.stack(t_arrays, dim=axis)
+        result_dtype = types.canonical_heat_type(t_stacked.dtype)
+    except Exception as e:
+        if "size" in e.args[0] or "shape" in e.args[0]:
+            raise ValueError(e)
+        raise e
 
     # return stacked DNDarrays
     if out is not None:
-        sanitation.sanitize_out(out, stacked_shape, stacked_split, array_device)
+        sanitation.sanitize_out(out, stacked_shape, stacked_split, target.device)
         out.larray = t_stacked.type(out.larray.dtype)
         return out
 
     stacked = DNDarray(
         t_stacked,
         gshape=stacked_shape,
-        dtype=array_dtype,
+        dtype=result_dtype,
         split=stacked_split,
-        device=array_device,
-        comm=arrays[0].comm,
-        balanced=array_balanced,
+        device=target.device,
+        comm=target.comm,
+        balanced=target.balanced,
     )
     return stacked
 
@@ -3903,6 +3876,16 @@ def topk(
      DNDarray([[2, 1],
                [2, 1]], dtype=ht.int64, device=cpu:0, split=1))
     """
+    if out is not None:
+        if out[0].dtype != a.dtype:
+            raise RuntimeError(
+                "dtypes of 'out[0]' and 'a' do not match, found {} != {}".format(
+                    out[0].dtype, a.dtype
+                )
+            )
+        if out[1].dtype != types.int64:
+            raise RuntimeError("dtype of 'out[1]' is not ht.int64, found {}".format(out[1].dtype))
+
     dim = stride_tricks.sanitize_axis(a.gshape, dim)
 
     neutral_value = sanitation.sanitize_infinity(a)
