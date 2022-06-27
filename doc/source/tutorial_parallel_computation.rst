@@ -85,7 +85,10 @@ Data chunking in Heat is always done along a singular axis, i.e. a one-dimension
 
 .. note::
 
-    If your running the following examples in a distributed computation environment, please modify your program invocation from ``python ./my_script.py`` to ``mpirun -p <number_of_processors> python ./my_script.py``. By the way, invoking a Heat program like this on your laptop or workstation also works.
+    If you're running the following examples in a distributed computation environment, please modify your program invocation from ``python ./my_script.py`` to ``mpirun -p <number_of_processors> python ./my_script.py``. By the way, invoking a Heat program like this on your laptop or workstation also works.
+
+.. note ::
+   Most of the examples throughout the documentation display the split ``DNDarrays``. This is not the default behavior when displaying a ``DNDarray``, and the full array will be printed multiple times (based on the number of processes). This behaviour can be changed using the ``ht.local_printing()`` option or by printing the local arrays for each process with the property `larray <https://heat.readthedocs.io/en/latest/autoapi/heat/core/dndarray/index.html?highlight=dndarray#heat.core.dndarray.DNDarray.larray>`_.
 
 .. code:: python
 
