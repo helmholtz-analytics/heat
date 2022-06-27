@@ -77,7 +77,7 @@ class TestArithmetics(TestCase):
         self.assertTrue((c == 1).all())
         self.assertTrue(c.lshape == b.lshape)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.add(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.add(self.a_tensor, self.erroneous_type)
@@ -105,7 +105,7 @@ class TestArithmetics(TestCase):
 
         with self.assertRaises(TypeError):
             ht.bitwise_and(self.a_tensor, self.another_tensor)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.bitwise_and(an_int_vector, another_int_vector)
         with self.assertRaises(TypeError):
             ht.bitwise_and(self.a_tensor, self.erroneous_type)
@@ -141,7 +141,7 @@ class TestArithmetics(TestCase):
 
         with self.assertRaises(TypeError):
             ht.bitwise_or(self.a_tensor, self.another_tensor)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.bitwise_or(an_int_vector, another_int_vector)
         with self.assertRaises(TypeError):
             ht.bitwise_or(self.a_tensor, self.erroneous_type)
@@ -177,7 +177,7 @@ class TestArithmetics(TestCase):
 
         with self.assertRaises(TypeError):
             ht.bitwise_xor(self.a_tensor, self.another_tensor)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.bitwise_xor(an_int_vector, another_int_vector)
         with self.assertRaises(TypeError):
             ht.bitwise_xor(self.a_tensor, self.erroneous_type)
@@ -405,7 +405,7 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(a, result_where_broadcasted))
         self.assertEqual(0, a.split)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.div(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.div(self.a_tensor, self.erroneous_type)
@@ -442,7 +442,7 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.fmod(self.a_split_tensor, self.a_tensor), commutated_result))
         self.assertTrue(ht.allclose(ht.fmod(a_float, another_float), result_float))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.fmod(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.fmod(self.a_tensor, self.erroneous_type)

@@ -99,5 +99,5 @@ class TestOperations(TestCase):
             ht.minimum(np.float128(1), a)
         with self.assertRaises(NotImplementedError):
             a.resplit(1) * b
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             a[2:] * b

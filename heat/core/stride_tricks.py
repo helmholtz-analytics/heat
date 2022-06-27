@@ -53,7 +53,7 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
             elif a == 1 or b == 1 or a == b:
                 resulting_shape[i] = max(a, b)
             else:
-                raise ValueError(
+                raise RuntimeError(
                     "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
                 )
         return tuple(resulting_shape[::-1])
@@ -62,7 +62,7 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
     except NameError:
         raise TypeError("operands must be tuples of ints, not {} and {}".format(shape_a, shape_b))
     except RuntimeError:
-        raise ValueError(
+        raise RuntimeError(
             "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
         )
 

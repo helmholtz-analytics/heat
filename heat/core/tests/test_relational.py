@@ -32,7 +32,7 @@ class TestRelational(TestCase):
 
         self.assertEqual(ht.eq(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.eq(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.eq(self.a_tensor, self.errorneous_type)
@@ -75,7 +75,7 @@ class TestRelational(TestCase):
 
         self.assertEqual(ht.ge(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.ge(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.ge(self.a_tensor, self.errorneous_type)
@@ -96,7 +96,7 @@ class TestRelational(TestCase):
 
         self.assertEqual(ht.gt(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.gt(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.gt(self.a_tensor, self.errorneous_type)
@@ -117,7 +117,7 @@ class TestRelational(TestCase):
 
         self.assertEqual(ht.le(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.le(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.le(self.a_tensor, self.errorneous_type)
@@ -138,7 +138,7 @@ class TestRelational(TestCase):
 
         self.assertEqual(ht.lt(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.lt(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.lt(self.a_tensor, self.errorneous_type)
@@ -159,7 +159,7 @@ class TestRelational(TestCase):
 
         self.assertEqual(ht.ne(self.a_split_tensor, self.a_tensor).dtype, ht.bool)
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.ne(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.ne(self.a_tensor, self.errorneous_type)

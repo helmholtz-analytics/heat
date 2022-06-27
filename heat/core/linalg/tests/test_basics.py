@@ -78,7 +78,7 @@ class TestLinalgBasics(TestCase):
         a_wrong_split = ht.array(np_a[:, :-1, :], split=2)
         with self.assertRaises(ValueError):
             ht.cross(a_wrong_split, b, axisa=1, axisb=0)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.cross(ht.eye(3), ht.eye(4))
         with self.assertRaises(ValueError):
             ht.cross(ht.eye(3, split=0), ht.eye(3, split=1))
@@ -2034,7 +2034,7 @@ class TestLinalgBasics(TestCase):
         vdot = ht.vdot(b, a)
         self.assertTrue(ht.equal(vdot, ht.array([110 - 10j])))
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.vdot(ht.array([1, 2, 3]), ht.array([[1, 2], [3, 4]]))
 
     def test_vecdot(self):

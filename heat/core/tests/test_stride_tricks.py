@@ -13,13 +13,13 @@ class TestStrideTricks(TestCase):
         )
 
         # invalid value ranges
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.core.stride_tricks.broadcast_shape((5, 4), (5,))
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.core.stride_tricks.broadcast_shape((5, 4), (2, 3))
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.core.stride_tricks.broadcast_shape((5, 2), (5, 2, 3))
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.core.stride_tricks.broadcast_shape((2, 1), (8, 4, 3))
 
     def test_sanitize_axis(self):

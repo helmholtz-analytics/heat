@@ -854,10 +854,10 @@ class TestStatistics(TestCase):
 
         # check exceptions
         random_volume_3 = ht.array([])
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.maximum(random_volume_1, random_volume_3)
         random_volume_4 = ht.random.randn(4, 2, 3, split=0)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.maximum(random_volume_1, random_volume_4)
         random_volume_5 = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
@@ -1118,10 +1118,10 @@ class TestStatistics(TestCase):
 
         # check exceptions
         random_volume_3 = ht.array([])
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.minimum(random_volume_1, random_volume_3)
         random_volume_3 = ht.random.randn(4, 2, 3, split=0)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             ht.minimum(random_volume_1, random_volume_3)
         random_volume_3 = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
