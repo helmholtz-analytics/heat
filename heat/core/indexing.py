@@ -137,10 +137,11 @@ def where(
             if len(y.shape) >= 1 and y.shape[0] > 1:
                 raise NotImplementedError("binary op not implemented for different split axes")
     if isinstance(x, (DNDarray, int, float)) and isinstance(y, (DNDarray, int, float)):
-        for var in [x, y]:
+        for var in [x, y]:  # convert all floats
             if isinstance(var, int):
                 var = float(var)
-        return cond.dtype(cond == 0) * y + cond * x
+        # cast the condition dtype to float to keep truths where they should be
+        return (cond == 0).astype(types.float) * y + cond * x
     elif x is None and y is None:
         return nonzero(cond)
     else:
