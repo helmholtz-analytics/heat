@@ -115,6 +115,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         signal = a.larray
 
     # make signal and filter weight 3D for Pytorch conv1d function
+    t_a = signal # stores temporary signal
     signal = signal.reshape(1, 1, signal.shape[0])
 
     # flip filter for convolution as Pytorch conv1d computes correlations
@@ -127,14 +128,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         float_type = promote_types(signal.dtype, torch.float32).torch_type()
         signal = signal.to(float_type)
         weight = weight.to(float_type)
-
-    # apply torch convolution operator
-    signal_filtered = fc.conv1d(signal, weight)
-
-    # unpack 3D result into 1D
-    signal_filtered = signal_filtered[0, 0, :] 
    
-    if v.comm.is_distributed() and a.split is not None:
+    if v.comm.is_distributed() and a.split is not None and v.split is not None:
         rank = v.comm.rank
         size = v.comm.size
         # prepare for sending
@@ -143,6 +138,15 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         # prepare for receiving
         origin_rank1 = rank - 1
         origin_rank2 = rank + 1
+        
+        t_signal_shape = (t_a.shape[0] -  t_v.shape[0]) if(a.comm.rank != 0 and v.lshape[0] % 2 == 0) else (t_a.shape[0] -  t_v.shape[0] +1)
+        t_signal = torch.zeros((v.comm.size, t_signal_shape))
+        
+        signal_filtered = fc.conv1d(signal, weight)
+        signal_filtered = signal_filtered[0, 0, :]
+        if a.comm.rank != 0 and v.shape[0] % 2 == 0:
+            signal_filtered = signal_filtered[1:]
+        t_signal[rank] = signal_filtered
 
         # sending weights 
         if(rank != size-1): 
@@ -166,6 +170,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
             if a.comm.rank != 0 and v.lshape[0] % 2 == 0:
                 signal_filtered = signal_filtered[1:]
+            t_signal[origin_rank2] = signal_filtered
             print("signal filtered :",signal_filtered, " of rank:", rank)
 
         if(rank != 0): 
@@ -179,11 +184,20 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
             if v.lshape[0] % 2 == 0:
                 signal_filtered = signal_filtered[1:]
+            t_signal[origin_rank1] = signal_filtered
             print("signal filtered :",signal_filtered, " of rank: ", rank)
+        print(t_signal)
+    
+    else:
+        # apply torch convolution operator
+        signal_filtered = fc.conv1d(signal, weight)
 
-    # if kernel shape along split axis is even we need to get rid of duplicated values
-    if a.comm.rank != 0 and v.shape[0] % 2 == 0:
-        signal_filtered = signal_filtered[1:]
+        # unpack 3D result into 1D
+        signal_filtered = signal_filtered[0, 0, :] 
+
+        # if kernel shape along split axis is even we need to get rid of duplicated values
+        if a.comm.rank != 0 and v.shape[0] % 2 == 0:
+            signal_filtered = signal_filtered[1:]
 
     return DNDarray(
         signal_filtered.contiguous(),
