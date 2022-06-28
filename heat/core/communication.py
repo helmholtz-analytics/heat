@@ -252,10 +252,35 @@ class MPICommunication(Communication):
             start = rank * chunk + remainder
         end = start + chunk
 
-        indices =[]
+        indices = []
         for x in range(start, end):
             indices.append(x)
         indices = torch.tensor(indices)
+        # torchChunk = torch.index_select(, split, indices)
+
+        if type == "sparse":
+            slices = list(
+                slice(0, shape[i]) if i != split else slice(start, end) for i in range(dims)
+            )
+
+            # Produce all the indices in the array (inefficient for large arrays)
+            indices = np.indices(shape).transpose(1, 2, 0)
+
+            # Add an additional slice object because now each element
+            # of the indices array is a list of length ```dims```
+            slices.append(slice(0, dims))
+            indices = indices[tuple(slices)]
+
+            # Reshape the array into a list of indices
+            numIndices = np.prod(indices.shape)
+            indices = indices.reshape((numIndices // dims, dims))
+
+            print("Dense indices of process", rank)
+            print(indices)
+
+            # Turns out I did not even need to make the list of indices for CSR matrix,
+            # still leaving this code here...might be helpful for COO matrix
+            return start, end, indices
 
         return (
             start,

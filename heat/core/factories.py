@@ -172,10 +172,23 @@ def sparse_coo_matrix(
     balanced = True
 
     # content shall be split, chunk the passed data object up
+    #if scipy, stack row and col and transpose
+    if(isinstance(obj, torch.sparce_coo_tensor)):
+        gindices = obj.indices().transpose(1, 2, 0)
+    #scipy only supports 2D (matrices)
+    elif (isinstance(obj, scipy.sparse.coo_matrix)):
+        gindices = obj.nonzero().transpose(1, 2, 0)
+    else:
+        print("type not supported")
     if split is not None:
-        _, _, slices = comm.chunk(gshape, split)
-        obj = obj[slices].clone()
-        obj = sanitize_memory_layout(obj, order=order)
+        start, end, indices = comm.chunk(gshape, split)
+        indices = indices.intersection(gindices)
+        # TODO:
+        # how to get the values using specific indices
+        # 
+
+        # obj = obj[slices].clone()
+        # obj = sanitize_memory_layout(obj, order=order)
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
         gshape = np.array(gshape)
@@ -230,12 +243,12 @@ def sparse_coo_matrix(
         # get the global indices: coo has no indices attr
         indices = torch.tensor(obj.indices())
         comm.Allgather(MPI.IN_PLACE, indices)
-
+        #Need just local indices or global and local ???
 
     elif split is None and is_split is None:
         obj = sanitize_memory_layout(obj, order=order)
 
-    return coo_matrix(obj, tuple(gshape), dtype, split, device, comm, balanced)
+    return coo_matrix(obj, tuple(gshape), dtype, split, device, comm, balanced, gnnz, indices)
 
     # obj_dnd = array(obj, dtype, copy, ndmin, order, split, is_split, device, comm)
 
