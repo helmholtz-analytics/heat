@@ -12,13 +12,17 @@ from ._constants import e, inf, nan, newaxis, pi
 __all__ += ["e", "inf", "nan", "newaxis", "pi"]
 
 from ._creation_functions import (
+    arange,
     asarray,
+    empty,
     full,
     zeros,
 )
 
 __all__ += [
+    "arange",
     "asarray",
+    "empty",
     "full",
     "zeros",
 ]

@@ -9,6 +9,48 @@ from ._dtypes import _all_dtypes, default_float, default_int
 import heat as ht
 
 
+def arange(
+    start: Union[int, float],
+    /,
+    stop: Optional[Union[int, float]] = None,
+    step: Union[int, float] = 1,
+    *,
+    dtype: Optional[Dtype] = None,
+    device: Optional[Device] = None,
+) -> Array:
+    """
+    Returns evenly spaced values within the half-open interval ``[start, stop)``
+    as a one-dimensional array.
+
+    Parameters
+    ----------
+    start : Union[int, float]
+        If ``stop`` is specified, the start of interval (inclusive); otherwise,
+        the end of the interval (exclusive). If ``stop`` is not specified,
+        the default starting value is ``0``.
+    stop : Optional[Union[int, float]]
+        The end of the interval. Default: ``None``.
+    step : Union[int, float]
+        the distance between two adjacent elements (``out[i+1] - out[i]``). Must
+        not be ``0``; may be negative, this results in an empty array if
+        ``stop >= start``. Default: ``1``.
+    dtype : Optional[Dtype]
+        Output array data type. If ``dtype`` is ``None``, the output array data
+        type is inferred from ``start``, ``stop`` and ``step``.
+    device : Optional[Device]
+        Device on which to place the created array. Default: ``None``.
+    """
+    from ._array_object import Array
+
+    if dtype is None:
+        if isinstance(start, float) or isinstance(stop, float) or isinstance(step, float):
+            dtype = default_float
+        else:
+            dtype = default_int
+
+    return Array._new(ht.arange(start, stop, step, dtype=dtype, device=device))
+
+
 def asarray(
     obj: Union[
         Array,
@@ -61,6 +103,32 @@ def asarray(
             dtype = default_float
     res = ht.asarray(obj, dtype=dtype, copy=copy, device=device)
     return Array._new(res)
+
+
+def empty(
+    shape: Union[int, Tuple[int, ...]],
+    *,
+    dtype: Optional[Dtype] = None,
+    device: Optional[Device] = None,
+) -> Array:
+    """
+    Returns an uninitialized array having a specified shape.
+
+    Parameters
+    ----------
+    shape : Union[int, Tuple[int, ...]]
+        Output array shape.
+    dtype : Optional[Dtype]
+        Output array data type. Default: ``None``.
+    device : Optional[Device]
+        Device on which to place the created array. Default: ``None``.
+    """
+    from ._array_object import Array
+
+    if dtype is None:
+        dtype = default_float
+
+    return Array._new(ht.empty(shape, dtype=dtype, device=device))
 
 
 def full(
