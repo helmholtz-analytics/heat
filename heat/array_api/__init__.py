@@ -21,6 +21,7 @@ from ._creation_functions import (
     full_like,
     linspace,
     meshgrid,
+    ones,
     zeros,
 )
 
@@ -34,6 +35,7 @@ __all__ += [
     "full_like",
     "linspace",
     "meshgrid",
+    "ones",
     "zeros",
 ]
 

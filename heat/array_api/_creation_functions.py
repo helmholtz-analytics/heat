@@ -324,6 +324,31 @@ def meshgrid(*arrays: Array, indexing: str = "xy") -> List[Array]:
     ]
 
 
+def ones(
+    shape: Union[int, Tuple[int, ...]],
+    *,
+    dtype: Optional[Dtype] = None,
+    device: Optional[Device] = None,
+) -> Array:
+    """
+    Returns a new array having a specified ``shape`` and filled with ones.
+
+    Parameters
+    ----------
+    shape : Union[int, Tuple[int, ...]]
+        Output array shape.
+    dtype : Optional[Dtype]
+        Output array data type. Default: ``None``.
+    device : Optional[Device]
+        Device on which to place the created array.
+    """
+    from ._array_object import Array
+
+    if dtype is None:
+        dtype = default_float
+    return Array._new(ht.ones(shape, dtype=dtype, device=device))
+
+
 def zeros(
     shape: Union[int, Tuple[int, ...]],
     *,
@@ -338,9 +363,7 @@ def zeros(
     shape : Union[int, Tuple[int, ...]]
         Output array shape.
     dtype : Optional[Dtype]
-        Output array data type. If ``dtype`` is ``None``, the output array data
-        type is the default floating-point data type (``float64``).
-        Default: ``None``.
+        Output array data type. Default: ``None``.
     device : Optional[Device]
         Device on which to place the created array.
     """
