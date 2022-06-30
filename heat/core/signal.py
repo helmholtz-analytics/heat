@@ -119,7 +119,12 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     signal = signal.reshape(1, 1, signal.shape[0])
 
     # flip filter for convolution as Pytorch conv1d computes correlations
-    weight = v.larray.flip(dims=(0,))
+    if(v.larray.shape != v.lshape_map[0]):
+        target = torch.zeros(v.lshape_map[0][0], dtype = v.larray.dtype)
+        target[:v.larray.shape[0]] = v.larray
+        weight = target.flip(dims=(0,))
+    else: 
+        weight = v.larray.flip(dims=(0,))
     t_v = weight # stores temporary weight
     weight = weight.reshape(1, 1, weight.shape[0])
 
@@ -138,13 +143,13 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         # prepare for receiving
         origin_rank1 = rank - 1
         origin_rank2 = rank + 1
-        
-        t_signal_shape = (t_a.shape[0] -  t_v.shape[0]) if(a.comm.rank != 0 and v.lshape[0] % 2 == 0) else (t_a.shape[0] -  t_v.shape[0] +1)
+
+        t_signal_shape = (t_a.shape[0] - t_v.shape[0]) if(a.comm.rank != 0 and int(v.lshape_map[0][0] % 2) == 0) else (t_a.shape[0] - t_v.shape[0] + 1)
         t_signal = torch.zeros((v.comm.size, t_signal_shape))
         
         signal_filtered = fc.conv1d(signal, weight)
         signal_filtered = signal_filtered[0, 0, :]
-        if a.comm.rank != 0 and v.shape[0] % 2 == 0:
+        if a.comm.rank != 0 and int(v.lshape_map[0][0] % 2) == 0:
             signal_filtered = signal_filtered[1:]
         t_signal[rank] = signal_filtered
 
@@ -168,7 +173,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             # unpack 3D result into 1D
             signal_filtered = signal_filtered[0, 0, :]
 
-            if a.comm.rank != 0 and v.lshape[0] % 2 == 0:
+            if a.comm.rank != 0 and int(v.lshape_map[0][0] % 2) == 0:
                 signal_filtered = signal_filtered[1:]
             t_signal[origin_rank2] = signal_filtered
             print("signal filtered :",signal_filtered, " of rank:", rank)
@@ -182,7 +187,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             # unpack 3D result into 1D
             signal_filtered = signal_filtered[0, 0, :]
 
-            if v.lshape[0] % 2 == 0:
+            if int(v.lshape_map[0][0] % 2) == 0:
                 signal_filtered = signal_filtered[1:]
             t_signal[origin_rank1] = signal_filtered
             print("signal filtered :",signal_filtered, " of rank: ", rank)
