@@ -29,6 +29,23 @@ def concat(arrays: Union[Tuple[Array, ...], List[Array]], /, *, axis: Optional[i
     return Array._new(ht.concatenate(arrays, axis=axis))
 
 
+def expand_dims(x: Array, /, *, axis: int = 0) -> Array:
+    """
+    Expands the shape of an array by inserting a new axis (dimension) of
+    size one at the position specified by ``axis``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array.
+    axis : int
+        Axis position (zero-based).
+    """
+    if axis < -x.ndim - 1 or axis > x.ndim:
+        raise IndexError("Invalid axis")
+    return Array._new(ht.expand_dims(x._array, axis))
+
+
 def reshape(x: Array, /, shape: Tuple[int, ...], *, copy: Optional[bool] = None) -> Array:
     """
     Reshapes an array without changing its data.
