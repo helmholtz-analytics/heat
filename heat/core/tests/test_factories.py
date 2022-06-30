@@ -591,6 +591,9 @@ class TestFactories(TestCase):
         self.assertEqual(ascending.larray.dtype, torch.float32)
         self.assertEqual(ascending.split, None)
 
+        zero_samples = ht.linspace(-3, 5, num=0)
+        self.assertEqual(zero_samples.size, 0)
+
         # simple inverse linear space
         descending = ht.linspace(-5, 3, num=100)
         self.assertIsInstance(descending, ht.DNDarray)
@@ -638,8 +641,8 @@ class TestFactories(TestCase):
             ht.linspace(-5, 3, split=1)
         with self.assertRaises(ValueError):
             ht.linspace(-5, 3, num=-1)
-        with self.assertRaises(ValueError):
-            ht.linspace(-5, 3, num=0)
+        # with self.assertRaises(ValueError):
+        #     ht.linspace(-5, 3, num=0)
 
     def test_logspace(self):
         # simple log space
