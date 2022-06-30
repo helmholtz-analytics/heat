@@ -19,6 +19,7 @@ from ._creation_functions import (
     eye,
     full,
     full_like,
+    linspace,
     zeros,
 )
 
@@ -30,6 +31,7 @@ __all__ += [
     "eye",
     "full",
     "full_like",
+    "linspace",
     "zeros",
 ]
 

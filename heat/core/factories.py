@@ -971,9 +971,16 @@ def linspace(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step - step
-    data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
     if dtype is not None:
-        data = data.type(types.canonical_heat_type(dtype).torch_type())
+        data = torch.linspace(
+            start,
+            stop,
+            lshape[0],
+            dtype=types.canonical_heat_type(dtype).torch_type(),
+            device=device.torch_device,
+        )
+    else:
+        data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
 
     # construct the resulting global tensor
     ht_tensor = DNDarray(

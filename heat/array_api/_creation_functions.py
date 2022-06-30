@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional, Tuple, Union
 
 if TYPE_CHECKING:
     from ._typing import Array, Device, Dtype, NestedSequence, SupportsBufferProtocol
-from ._dtypes import _all_dtypes, default_float, default_int
+from ._dtypes import _all_dtypes, _floating_dtypes, default_float, default_int
 
 import heat as ht
 
@@ -259,6 +259,44 @@ def full_like(
         # coerces to one of the acceptable dtypes.
         raise TypeError("Invalid input to full_like")
     return Array._new(res)
+
+
+def linspace(
+    start: Union[int, float],
+    stop: Union[int, float],
+    /,
+    num: int,
+    *,
+    dtype: Optional[Dtype] = None,
+    device: Optional[Device] = None,
+    endpoint: bool = True,
+) -> Array:
+    """
+    Returns evenly spaced numbers over a specified interval.
+
+    Parameters
+    ----------
+    start : Union[int, float]
+        The start of the interval.
+    stop : Union[int, float]
+        The end of the interval.
+    num : int
+        Number of samples.
+    dtype : Optional[Dtype]
+        Output array data type. Must be a floating-point data type. Default: ``None``.
+    device : Optional[Device]
+        Device on which to place the created array. Default: ``None``.
+    endpoint : bool
+        Boolean indicating whether to include ``stop`` in the interval. Default: ``True``.
+    """
+    from ._array_object import Array
+
+    if dtype is None:
+        dtype = default_float
+    elif dtype not in _floating_dtypes:
+        raise TypeError("Only floating dtypes allowed in linspace")
+
+    return Array._new(ht.linspace(start, stop, num, dtype=dtype, device=device, endpoint=endpoint))
 
 
 def zeros(
