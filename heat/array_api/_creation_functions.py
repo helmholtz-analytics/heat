@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 if TYPE_CHECKING:
     from ._typing import Array, Device, Dtype, NestedSequence, SupportsBufferProtocol
@@ -297,6 +297,31 @@ def linspace(
         raise TypeError("Only floating dtypes allowed in linspace")
 
     return Array._new(ht.linspace(start, stop, num, dtype=dtype, device=device, endpoint=endpoint))
+
+
+def meshgrid(*arrays: Array, indexing: str = "xy") -> List[Array]:
+    """
+    Returns coordinate matrices from coordinate vectors.
+
+    Parameters
+    ----------
+    arrays : Array
+        An arbitrary number of one-dimensional arrays representing grid coordinates.
+        Each array must have the same numeric data type.
+    indexing : str
+        Cartesian ``'xy'`` or matrix ``'ij'`` indexing of output. If provided zero or
+        one one-dimensional vector(s) (i.e., the zero- and one-dimensional cases,
+        respectively), the ``indexing`` keyword has no effect and is ignored.
+        Default: ``'xy'``.
+    """
+    from ._array_object import Array
+
+    if len({a.dtype for a in arrays}) > 1:
+        raise ValueError("meshgrid inputs must all have the same dtype")
+
+    return [
+        Array._new(array) for array in ht.meshgrid(*[a._array for a in arrays], indexing=indexing)
+    ]
 
 
 def zeros(
