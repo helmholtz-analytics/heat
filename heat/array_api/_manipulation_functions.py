@@ -56,11 +56,26 @@ def flip(x: Array, /, *, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> 
     ----------
     x : Array
         Input array.
-    axis : int
+    axis : Optional[Union[int, Tuple[int, ...]]]
         Axis (or axes) along which to flip. If ``axis`` is ``None``, the function
         flips all input array axes.
     """
     return Array._new(ht.flip(x._array, axis=axis))
+
+
+def permute_dims(x: Array, /, axes: Tuple[int, ...]) -> Array:
+    """
+    Permutes the axes (dimensions) of an array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array.
+    axes : Tuple[int, ...]
+        Tuple containing a permutation of ``(0, 1, ..., N-1)`` where ``N`` is the
+        number of axes (dimensions) of ``x``.
+    """
+    return Array._new(ht.transpose(x._array, list(axes)))
 
 
 def reshape(x: Array, /, shape: Tuple[int, ...], *, copy: Optional[bool] = None) -> Array:
