@@ -166,9 +166,11 @@ from ._manipulation_functions import (
     permute_dims,
     reshape,
     roll,
+    squeeze,
+    stack,
 )
 
-__all__ += ["concat", "expand_dims", "flip", "permute_dims", "reshape", "roll"]
+__all__ += ["concat", "expand_dims", "flip", "permute_dims", "reshape", "roll", "squeeze", "stack"]
 
 from ._statistical_functions import sum
 

@@ -130,3 +130,38 @@ def roll(
         Default: ``None``.
     """
     return Array._new(ht.roll(x._array, shift, axis=axis))
+
+
+def squeeze(x: Array, /, axis: Union[int, Tuple[int, ...]]) -> Array:
+    """
+    Removes singleton dimensions (axes) from ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array.
+    axis : Union[int, Tuple[int, ...]]
+        Axis (or axes) to squeeze.
+
+    Raises
+    ------
+    ``ValueError``, if an axis is selected with shape entry greater than one.
+    """
+    return Array._new(ht.squeeze(x._array, axis=axis))
+
+
+def stack(arrays: Union[Tuple[Array, ...], List[Array]], /, *, axis: int = 0) -> Array:
+    """
+    Joins a sequence of arrays along a new axis.
+
+    Parameters
+    ----------
+    arrays : Union[Tuple[array, ...], List[array]]
+        Input arrays to join. Each array must have the same shape.
+    axis : int
+        Axis along which the arrays will be joined.
+    """
+    # Call result type here just to raise on disallowed type combinations
+    result_type(*arrays)
+    arrays = tuple(a._array for a in arrays)
+    return Array._new(ht.stack(arrays, axis=axis))
