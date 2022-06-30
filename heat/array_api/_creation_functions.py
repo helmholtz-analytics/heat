@@ -47,8 +47,12 @@ def arange(
             dtype = default_float
         else:
             dtype = default_int
-
-    return Array._new(ht.arange(start, stop, step, dtype=dtype, device=device))
+    if stop is not None and (stop - start > 0) != (step > 0):
+        return empty(0, dtype=dtype, device=device)
+    if stop is None:
+        return Array._new(ht.arange(0, start, step, dtype=dtype, device=device))
+    else:
+        return Array._new(ht.arange(start, stop, step, dtype=dtype, device=device))
 
 
 def asarray(
@@ -127,7 +131,6 @@ def empty(
 
     if dtype is None:
         dtype = default_float
-
     return Array._new(ht.empty(shape, dtype=dtype, device=device))
 
 

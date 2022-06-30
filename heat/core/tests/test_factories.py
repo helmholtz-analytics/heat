@@ -106,6 +106,9 @@ class TestFactories(TestCase):
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdim=True), 20.0)
 
+        check_precision = ht.arange(16777217.0, 16777218, 1, dtype=torch.float64)
+        self.assertEqual(check_precision[0], ht.array([16777217.0], dtype=torch.float64))
+
         # exceptions
         with self.assertRaises(ValueError):
             ht.arange(-5, 3, split=1)
