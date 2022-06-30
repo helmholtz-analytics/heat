@@ -51,7 +51,10 @@ from ._data_type_functions import (
     astype,
     finfo,
     iinfo,
+    result_type,
 )
+
+__all__ += ["astype", "finfo", "iinfo", "result_type"]
 
 from heat.core.devices import cpu
 
@@ -63,8 +66,6 @@ if hasattr(heat.core.devices, "gpu"):
     from heat.core.devices import gpu
 
     __all__ += ["gpu"]
-
-__all__ += ["astype", "finfo", "iinfo"]
 
 from ._dtypes import (
     int8,
@@ -159,10 +160,11 @@ from .linalg import matmul
 __all__ += ["matmul"]
 
 from ._manipulation_functions import (
+    concat,
     reshape,
 )
 
-__all__ += ["reshape"]
+__all__ += ["concat", "reshape"]
 
 from ._statistical_functions import sum
 

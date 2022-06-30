@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from ._array_object import Array
+from ._dtypes import _all_dtypes, _result_type
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Union
@@ -86,3 +87,32 @@ def iinfo(type: Union[Dtype, Array], /) -> iinfo_object:
     """
     ii = ht.iinfo(type)
     return iinfo_object(ii.bits, int(ii.max), int(ii.min))
+
+
+def result_type(*arrays_and_dtypes: Union[Array, Dtype]) -> Dtype:
+    """
+    Returns the dtype that results from applying the type promotion rules
+    to the arguments.
+
+    Parameters
+    ----------
+    arrays_and_dtypes : Union[Array, Dtype]
+        An arbitrary number of input arrays and/or dtypes.
+    """
+    A = []
+    for a in arrays_and_dtypes:
+        if isinstance(a, Array):
+            a = a.dtype
+        elif isinstance(a, ht.DNDarray) or a not in _all_dtypes:
+            raise TypeError("result_type() inputs must be array_api arrays or dtypes")
+        A.append(a)
+
+    if len(A) == 0:
+        raise ValueError("at least one array or dtype is required")
+    elif len(A) == 1:
+        return A[0]
+    else:
+        t = A[0]
+        for t2 in A[1:]:
+            t = _result_type(t, t2)
+        return t

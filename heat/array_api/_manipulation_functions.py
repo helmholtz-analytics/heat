@@ -1,10 +1,32 @@
 from __future__ import annotations
 
 from ._array_object import Array
+from ._data_type_functions import result_type
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union, List
 
 import heat as ht
+
+
+def concat(arrays: Union[Tuple[Array, ...], List[Array]], /, *, axis: Optional[int] = 0) -> Array:
+    """
+    Joins a sequence of arrays along an existing axis.
+
+    Parameters
+    ----------
+    arrays : Union[Tuple[Array, ...], List[Array]]
+        Input arrays to join. The arrays must have the same shape,
+        except in the dimension specified by ``axis``.
+    axis : Optional[int]
+        Axis along which the arrays will be joined. If ``axis`` is ``None``,
+        arrays are flattened before concatenation. Default: ``0``.
+    """
+    # dtype = result_type(*arrays)
+    arrays = tuple(a._array for a in arrays)
+    if axis is None:
+        arrays = tuple(ht.flatten(a) for a in arrays)
+        axis = 0
+    return Array._new(ht.concatenate(arrays, axis=axis))
 
 
 def reshape(x: Array, /, shape: Tuple[int, ...], *, copy: Optional[bool] = None) -> Array:
