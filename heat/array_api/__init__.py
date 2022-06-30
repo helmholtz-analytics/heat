@@ -15,6 +15,7 @@ from ._creation_functions import (
     arange,
     asarray,
     empty,
+    empty_like,
     full,
     zeros,
 )
@@ -23,6 +24,7 @@ __all__ += [
     "arange",
     "asarray",
     "empty",
+    "empty_like",
     "full",
     "zeros",
 ]

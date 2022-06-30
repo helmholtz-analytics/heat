@@ -134,6 +134,27 @@ def empty(
     return Array._new(ht.empty(shape, dtype=dtype, device=device))
 
 
+def empty_like(
+    x: Array, /, *, dtype: Optional[Dtype] = None, device: Optional[Device] = None
+) -> Array:
+    """
+    Returns an uninitialized array with the same ``shape`` as an input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array from which to derive the output array shape.
+    dtype : Optional[Dtype]
+        Output array data type. If ``dtype`` is ``None``, the output array data
+        type is inferred from x. Default: ``None``.
+    device : Optional[Device]
+        Device on which to place the created array. Default: ``None``.
+    """
+    from ._array_object import Array
+
+    return Array._new(ht.empty_like(x._array, dtype=dtype, device=device))
+
+
 def full(
     shape: Union[int, Tuple[int, ...]],
     fill_value: Union[int, float],
