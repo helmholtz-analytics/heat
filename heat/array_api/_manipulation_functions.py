@@ -39,11 +39,28 @@ def expand_dims(x: Array, /, *, axis: int = 0) -> Array:
     x : Array
         Input array.
     axis : int
-        Axis position (zero-based).
+        Axis position (zero-based). If ``x`` has rank (i.e, number of dimensions) ``N``,
+        a valid ``axis`` must reside on the closed-interval ``[-N-1, N]``.
     """
     if axis < -x.ndim - 1 or axis > x.ndim:
         raise IndexError("Invalid axis")
     return Array._new(ht.expand_dims(x._array, axis))
+
+
+def flip(x: Array, /, *, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> Array:
+    """
+    Reverses the order of elements in an array along the given ``axis``. The
+    shape of the array is preserved.
+
+    Parameters
+    ----------
+    x : Array
+        Input array.
+    axis : int
+        Axis (or axes) along which to flip. If ``axis`` is ``None``, the function
+        flips all input array axes.
+    """
+    return Array._new(ht.flip(x._array, axis=axis))
 
 
 def reshape(x: Array, /, shape: Tuple[int, ...], *, copy: Optional[bool] = None) -> Array:

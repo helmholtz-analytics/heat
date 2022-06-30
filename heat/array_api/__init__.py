@@ -162,10 +162,11 @@ __all__ += ["matmul"]
 from ._manipulation_functions import (
     concat,
     expand_dims,
+    flip,
     reshape,
 )
 
-__all__ += ["concat", "expand_dims", "reshape"]
+__all__ += ["concat", "expand_dims", "flip", "reshape"]
 
 from ._statistical_functions import sum
 
