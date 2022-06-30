@@ -99,3 +99,34 @@ def reshape(x: Array, /, shape: Tuple[int, ...], *, copy: Optional[bool] = None)
         x._array = res
         return x
     return Array._new(res)
+
+
+def roll(
+    x: Array,
+    /,
+    shift: Union[int, Tuple[int, ...]],
+    *,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+) -> Array:
+    """
+    Rolls array elements along a specified axis. Array elements that roll
+    beyond the last position are re-introduced at the first position.
+    Array elements that roll beyond the first position are re-introduced
+    at the last position.
+
+    Parameters
+    ----------
+    x : Array
+        Input array.
+    shift : Union[int, Tuple[int, ...]]
+        Number of places by which the elements are shifted. If ``shift`` is a
+        tuple, then ``axis`` must be a tuple of the same size, and each of the
+        given axes is shifted by the corresponding element in ``shift``.
+        If ``shift`` is an ``int`` and ``axis`` a tuple, then the same ``shift``
+        is used for all specified axes.
+    axis : Optional[Union[int, Tuple[int, ...]]]
+        Axis (or axes) along which elements to shift. If ``axis`` is ``None``,
+        the array is flattened, shifted, and then restored to its original shape.
+        Default: ``None``.
+    """
+    return Array._new(ht.roll(x._array, shift, axis=axis))
