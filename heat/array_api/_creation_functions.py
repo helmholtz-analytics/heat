@@ -155,6 +155,43 @@ def empty_like(
     return Array._new(ht.empty_like(x._array, dtype=dtype, device=device))
 
 
+def eye(
+    n_rows: int,
+    n_cols: Optional[int] = None,
+    /,
+    *,
+    k: int = 0,
+    dtype: Optional[Dtype] = None,
+    device: Optional[Device] = None,
+) -> Array:
+    """
+    Returns a two-dimensional array with ones on the ``k`` h diagonal and zeros elsewhere.
+
+    Parameters
+    ----------
+    n_rows : int
+        Number of rows in the output array.
+    n_cols : Optional[int]
+        Number of columns in the output array. If ``None``, the default number of
+        columns in the output array is equal to ``n_rows``. Default: ``None``.
+    k : int
+        Index of the diagonal. A positive value refers to an upper diagonal, a negative
+        value to a lower diagonal, and ``0`` to the main diagonal. Default: ``0``.
+    dtype : Optional[Dtype]
+        Output array data type. Default: ``None``.
+    device : Optional[Device]
+        Device on which to place the created array. Default: ``None``.
+    """
+    from ._array_object import Array
+
+    if k != 0:
+        raise ValueError("k option not implemented yet")
+
+    if n_cols is None:
+        n_cols = n_rows
+    return Array._new(ht.eye((n_rows, n_cols), dtype=dtype, device=device))
+
+
 def full(
     shape: Union[int, Tuple[int, ...]],
     fill_value: Union[int, float],
@@ -187,6 +224,40 @@ def full(
         elif isinstance(fill_value, float):
             dtype = default_float
     res = ht.full(shape, fill_value, dtype=dtype, device=device)
+    return Array._new(res)
+
+
+def full_like(
+    x: Array,
+    /,
+    fill_value: Union[int, float],
+    *,
+    dtype: Optional[Dtype] = None,
+    device: Optional[Device] = None,
+) -> Array:
+    """
+    Returns a new array filled with ``fill_value`` and having the same ``shape``
+    as an input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array from which to derive the output array shape.
+    fill_value : Union[int, float]
+        Fill value.
+    dtype : Optional[Dtype]
+        Output array data type. If ``dtype`` is ``None``, the output array data
+        type is inferred from x. Default: ``None``.
+    device : Optional[Device]
+        Device on which to place the created array. Default: ``None``.
+    """
+    from ._array_object import Array
+
+    res = ht.full_like(x._array, fill_value, dtype=dtype, device=device)
+    if res.dtype not in _all_dtypes:
+        # This will happen if the fill value is not something that Heat
+        # coerces to one of the acceptable dtypes.
+        raise TypeError("Invalid input to full_like")
     return Array._new(res)
 
 

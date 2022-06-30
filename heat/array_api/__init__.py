@@ -16,7 +16,9 @@ from ._creation_functions import (
     asarray,
     empty,
     empty_like,
+    eye,
     full,
+    full_like,
     zeros,
 )
 
@@ -25,7 +27,9 @@ __all__ += [
     "asarray",
     "empty",
     "empty_like",
+    "eye",
     "full",
+    "full_like",
     "zeros",
 ]
 
