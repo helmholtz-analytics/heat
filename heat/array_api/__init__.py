@@ -23,7 +23,10 @@ from ._creation_functions import (
     meshgrid,
     ones,
     ones_like,
+    tril,
+    triu,
     zeros,
+    zeros_like,
 )
 
 __all__ += [
@@ -38,7 +41,10 @@ __all__ += [
     "meshgrid",
     "ones",
     "ones_like",
+    "tril",
+    "triu",
     "zeros",
+    "zeros_like",
 ]
 
 from ._data_type_functions import (

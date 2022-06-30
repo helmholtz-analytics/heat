@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 if TYPE_CHECKING:
     from ._typing import Array, Device, Dtype, NestedSequence, SupportsBufferProtocol
-from ._dtypes import _all_dtypes, _floating_dtypes, default_float, default_int
+from ._dtypes import _all_dtypes, _floating_dtypes, default_float, default_int, bool as api_bool
 
 import heat as ht
 
@@ -187,6 +187,8 @@ def eye(
     if k != 0:
         raise ValueError("k option not implemented yet")
 
+    if dtype is None:
+        dtype = default_float
     if n_cols is None:
         n_cols = n_rows
     return Array._new(ht.eye((n_rows, n_cols), dtype=dtype, device=device))
@@ -219,7 +221,9 @@ def full(
     if isinstance(fill_value, Array) and fill_value.ndim == 0:
         fill_value = fill_value._array
     if dtype is None:
-        if isinstance(fill_value, int):
+        if isinstance(fill_value, bool):
+            dtype = api_bool
+        elif isinstance(fill_value, int):
             dtype = default_int
         elif isinstance(fill_value, float):
             dtype = default_float
@@ -353,7 +357,7 @@ def ones_like(
     x: Array, /, *, dtype: Optional[Dtype] = None, device: Optional[Device] = None
 ) -> Array:
     """
-    Returns a new array filled with ones and having the same shape as an input array x.
+    Returns a new array filled with ones and having the same shape as an input array ``x``.
 
     Parameters
     ----------
@@ -368,6 +372,48 @@ def ones_like(
     from ._array_object import Array
 
     return Array._new(ht.ones_like(x._array, dtype=dtype, device=device))
+
+
+def tril(x: Array, /, *, k: int = 0) -> Array:
+    """
+    Returns the lower triangular part of a matrix (or a stack of matrices) ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array having shape ``(..., M, N)`` and whose innermost two dimensions
+        form ``MxN`` matrices.
+    k : int
+        Diagonal above which to zero elements. If ``k = 0``, the diagonal is the
+        main diagonal. If ``k < 0``, the diagonal is below the main diagonal.
+        If ``k > 0``, the diagonal is above the main diagonal. Default: ``0``.
+    """
+    from ._array_object import Array
+
+    if x.ndim < 2:
+        raise ValueError("x must be at least 2-dimensional for tril")
+    return Array._new(ht.tril(x._array, k=k))
+
+
+def triu(x: Array, /, *, k: int = 0) -> Array:
+    """
+    Returns the upper triangular part of a matrix (or a stack of matrices) ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array having shape ``(..., M, N)`` and whose innermost two dimensions
+        form ``MxN`` matrices.
+    k : int
+        Diagonal below which to zero elements. If ``k = 0``, the diagonal is the
+        main diagonal. If ``k < 0``, the diagonal is below the main diagonal.
+        If ``k > 0``, the diagonal is above the main diagonal. Default: ``0``.
+    """
+    from ._array_object import Array
+
+    if x.ndim < 2:
+        raise ValueError("x must be at least 2-dimensional for triu")
+    return Array._new(ht.triu(x._array, k=k))
 
 
 def zeros(
@@ -393,3 +439,24 @@ def zeros(
     if dtype is None:
         dtype = default_float
     return Array._new(ht.zeros(shape, dtype=dtype, device=device))
+
+
+def zeros_like(
+    x: Array, /, *, dtype: Optional[Dtype] = None, device: Optional[Device] = None
+) -> Array:
+    """
+    Returns a new array filled with zeros and having the same shape as an input array x.
+
+    Parameters
+    ----------
+    x : Array
+        Input array from which to derive the output array shape.
+    dtype : Optional[Dtype]
+        Output array data type. If ``dtype`` is ``None``, the output array data
+        type is inferred from x. Default: ``None``.
+    device : Optional[Device]
+        Device on which to place the created array. Default: ``None``.
+    """
+    from ._array_object import Array
+
+    return Array._new(ht.zeros_like(x._array, dtype=dtype))
