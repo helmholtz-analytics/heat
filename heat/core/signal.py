@@ -6,7 +6,7 @@ from typing import Union, Tuple, Sequence
 from .communication import MPI
 from .dndarray import DNDarray
 from .types import promote_types
-from .manipulations import pad
+from .manipulations import pad, flip
 from .factories import array
 import torch.nn.functional as fc
 
@@ -117,14 +117,17 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     # make signal and filter weight 3D for Pytorch conv1d function
     t_a = signal # stores temporary signal
     signal = signal.reshape(1, 1, signal.shape[0])
-
+    
     # flip filter for convolution as Pytorch conv1d computes correlations
+    v = flip(v, [0])
     if(v.larray.shape != v.lshape_map[0]):
+        # pads weights if input kernel is uneven
         target = torch.zeros(v.lshape_map[0][0], dtype = v.larray.dtype)
-        target[:v.larray.shape[0]] = v.larray
-        weight = target.flip(dims=(0,))
+        pad_size = v.lshape_map[0][0] - v.larray.shape[0]
+        target[pad_size : ] = v.larray
+        weight = target
     else: 
-        weight = v.larray.flip(dims=(0,))
+        weight = v.larray
     t_v = weight # stores temporary weight
     weight = weight.reshape(1, 1, weight.shape[0])
 
@@ -144,6 +147,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         origin_rank1 = rank - 1
         origin_rank2 = rank + 1
 
+        # `t_signal` stores signal filtered of a particular signal with different weights
         t_signal_shape = (t_a.shape[0] - t_v.shape[0]) if(a.comm.rank != 0 and int(v.lshape_map[0][0] % 2) == 0) else (t_a.shape[0] - t_v.shape[0] + 1)
         t_signal = torch.zeros((v.comm.size, t_signal_shape))
         
