@@ -1,3 +1,4 @@
+"""Missing docstring in public module"""
 from __future__ import annotations
 
 import math
@@ -11,15 +12,18 @@ from pathlib import Path
 from typing import List, Union, Tuple, TypeVar, Optional
 from .dndarray import DNDarray
 
-__all__ = ["coo_matrix"]
+__all__ = ["CooMatrix"]
 
 Communication = TypeVar("Communication")
 
-class coo_matrix():
+
+class CooMatrix:
+    """Missing docstring in public class"""
+
     def __init__(
-        self, 
+        self,
         array: torch.sparse_coo_tensor,
-        shape: Tuple[int, ...],
+        gshape: Tuple[int, ...],
         dtype: datatype,
         split: Union[int, None],
         device: Device,
@@ -27,22 +31,24 @@ class coo_matrix():
         balanced: bool,
         gnnz: int,
     ):
-        self.__shape = shape
+        self.__gshape = gshape
         self.__dtype = dtype
-        self.__ndim = array.__ndim()
+        self.__ndim = array.ndim
         self.__split = split
         self.__device = device
         self.__comm = comm
         self.__balanced = balanced
         self.__lnnz = array._nnz()
         self.__gnnz = gnnz
-        #TODO: indices need to include explicit zeros        
+        # TODO: indices need to include explicit zeros
         self.__indices = array.nonzero(as_tuple=True)
         print(self.__indices)
         print("here")
         self.__data = array[self.__indices]
         print(self.__data)
         self.has_canonical_format = True
+
+
 from . import complex_math
 from . import devices
 from . import factories

@@ -3,13 +3,14 @@
 import numpy as np
 import torch
 import warnings
+from scipy.sparse import coo_matrix
 
 from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, List
 
 from .communication import MPI, sanitize_comm, Communication
 from .devices import Device
 from .dndarray import DNDarray
-from .coo_matrix import coo_matrix
+from .coo_matrix import CooMatrix
 from .memory import sanitize_memory_layout
 from .sanitation import sanitize_in, sanitize_sequence
 from .stride_tricks import sanitize_axis, sanitize_shape
@@ -35,7 +36,7 @@ __all__ = [
     "ones_like",
     "zeros",
     "zeros_like",
-    "sparse_matrix",
+    "sparse_coo_matrix",
 ]
 
 
@@ -161,8 +162,8 @@ def sparse_coo_matrix(
     comm: Optional[Communication] = None,
     # nnz:
     # is csr/csc/coo
-) -> coo_matrix:
-
+) -> CooMatrix:
+    """Missing docstring in public function."""
     # sanitize comm object
     comm = sanitize_comm(comm)
 
@@ -172,11 +173,11 @@ def sparse_coo_matrix(
     balanced = True
 
     # content shall be split, chunk the passed data object up
-    #if scipy, stack row and col and transpose
-    if(isinstance(obj, torch.sparce_coo_tensor)):
+    # if scipy, stack row and col and transpose
+    if isinstance(obj, torch.sparse_coo_tensor):
         gindices = obj.indices().transpose(1, 2, 0)
-    #scipy only supports 2D (matrices)
-    elif (isinstance(obj, scipy.sparse.coo_matrix)):
+    # scipy only supports 2D (matrices)
+    elif isinstance(obj, coo_matrix):
         gindices = obj.nonzero().transpose(1, 2, 0)
     else:
         print("type not supported")
@@ -185,7 +186,7 @@ def sparse_coo_matrix(
         indices = indices.intersection(gindices)
         # TODO:
         # how to get the values using specific indices
-        # 
+        #
 
         # obj = obj[slices].clone()
         # obj = sanitize_memory_layout(obj, order=order)
@@ -235,7 +236,6 @@ def sparse_coo_matrix(
         if gmatch != comm.size:
             balanced = False
 
-
         # get the global nnz: gnnz
         gnnz = torch.tensor(obj.__nnz())
         comm.Allreduce(MPI.IN_PLACE, gnnz, MPI.SUM)
@@ -243,7 +243,7 @@ def sparse_coo_matrix(
         # get the global indices: coo has no indices attr
         indices = torch.tensor(obj.indices())
         comm.Allgather(MPI.IN_PLACE, indices)
-        #Need just local indices or global and local ???
+        # Need just local indices or global and local ???
 
     elif split is None and is_split is None:
         obj = sanitize_memory_layout(obj, order=order)
@@ -253,6 +253,7 @@ def sparse_coo_matrix(
     # obj_dnd = array(obj, dtype, copy, ndmin, order, split, is_split, device, comm)
 
     # return coo_matrix(obj_dnd.larray, obj_dnd.gshape, obj_dnd.dtype, obj_dnd.split, obj_dnd.device, obj_dnd.comm, obj_dnd.balanced)
+
 
 def array(
     obj: Iterable,
@@ -517,7 +518,7 @@ def array(
         # make a torch tensor for nnz values
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
         if reduction_buffer < 0:
-            raise ValueError("unable to construct tensor, shape of local data chunk does not match")    
+            raise ValueError("unable to construct tensor, shape of local data chunk does not match")
         ttl_shape = np.array(obj.shape)
         ttl_shape[is_split] = lshape[is_split]
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
