@@ -1,7 +1,7 @@
 name: Get latest PyTorch release version
 on:
   schedule:
-    - cron:  '45 5 * * 1-6'
+    - cron:  '45 4 * * 1-6'
 permissions:
   contents: write
 jobs:
