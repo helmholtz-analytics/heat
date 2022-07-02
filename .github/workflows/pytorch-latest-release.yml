@@ -1,7 +1,9 @@
 name: Get latest PyTorch release version
 on:
   schedule:
-    - cron:  '0 5 * * 1-5'
+    - cron:  '30 6 * * 1-6'
+permissions:
+  contents: write
 jobs:
   get-version:
     runs-on: ubuntu-latest
