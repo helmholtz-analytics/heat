@@ -87,7 +87,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
 
     # compute halo size
-    halo_size =int(v.lshape_map[0][0] /2)
+    halo_size = int(v.lshape_map[0][0] / 2)
 
     # pad DNDarray with zeros according to mode
     if mode == "full":
@@ -106,7 +106,9 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
     if a.is_distributed():
         if (v.lshape_map[:, 0] > a.lshape_map[:, 0]).any():
-            raise ValueError("Local chunk of filter weight is larger than the local chunks of signal")
+            raise ValueError(
+                "Local chunk of filter weight is larger than the local chunks of signal"
+            )
         # fetch halos and store them in a.halo_next/a.halo_prev
         a.get_halo(halo_size)
         # apply halos to local array
@@ -115,20 +117,20 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         signal = a.larray
 
     # make signal and filter weight 3D for Pytorch conv1d function
-    t_a = signal # stores temporary signal
+    t_a = signal  # stores temporary signal
     signal = signal.reshape(1, 1, signal.shape[0])
-    
+
     # flip filter for convolution as Pytorch conv1d computes correlations
     v = flip(v, [0])
-    if(v.larray.shape != v.lshape_map[0]):
+    if v.larray.shape != v.lshape_map[0]:
         # pads weights if input kernel is uneven
-        target = torch.zeros(v.lshape_map[0][0], dtype = v.larray.dtype)
+        target = torch.zeros(v.lshape_map[0][0], dtype=v.larray.dtype)
         pad_size = v.lshape_map[0][0] - v.larray.shape[0]
-        target[pad_size : ] = v.larray
+        target[pad_size:] = v.larray
         weight = target
-    else: 
+    else:
         weight = v.larray
-    t_v = weight # stores temporary weight
+    t_v = weight  # stores temporary weight
     weight = weight.reshape(1, 1, weight.shape[0])
 
     # cast to float if on GPU
@@ -136,7 +138,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         float_type = promote_types(signal.dtype, torch.float32).torch_type()
         signal = signal.to(float_type)
         weight = weight.to(float_type)
-   
+
     if v.comm.is_distributed() and a.split is not None and v.split is not None:
         rank = v.comm.rank
         size = v.comm.size
@@ -175,7 +177,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         signal_filtered = fc.conv1d(signal, weight)
 
         # unpack 3D result into 1D
-        signal_filtered = signal_filtered[0, 0, :] 
+        signal_filtered = signal_filtered[0, 0, :]
 
         # if kernel shape along split axis is even we need to get rid of duplicated values
         if a.comm.rank != 0 and v.shape[0] % 2 == 0:
