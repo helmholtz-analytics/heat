@@ -140,63 +140,36 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     if v.comm.is_distributed() and a.split is not None and v.split is not None:
         rank = v.comm.rank
         size = v.comm.size
-        # prepare for sending
-        dest_rank1 = rank + 1
-        dest_rank2 = rank - 1 
-        # prepare for receiving
-        origin_rank1 = rank - 1
-        origin_rank2 = rank + 1
 
-        # `t_signal` stores signal filtered of a particular signal with different weights
         t_signal_shape = (t_a.shape[0] - t_v.shape[0]) if(a.comm.rank != 0 and int(v.lshape_map[0][0] % 2) == 0) else (t_a.shape[0] - t_v.shape[0] + 1)
         t_signal = torch.zeros((v.comm.size, t_signal_shape))
-        
-        signal_filtered = fc.conv1d(signal, weight)
-        signal_filtered = signal_filtered[0, 0, :]
-        if a.comm.rank != 0 and int(v.lshape_map[0][0] % 2) == 0:
-            signal_filtered = signal_filtered[1:]
-        t_signal[rank] = signal_filtered
 
-        # sending weights 
-        if(rank != size-1): 
-            aa = v.comm.Isend(t_v, dest_rank1)
-            aa.Wait()
-            print("Rank ", rank, "sent data: ",t_v , "to Rank ", dest_rank1)
-        if(rank != 0): 
-            bb = v.comm.Isend(t_v, dest_rank2)
-            bb.Wait()
-            print("Rank ", rank, "sent data: ",t_v , "to Rank ", dest_rank2)
-        
-        # receiving weights
-        if(rank != size-1): 
-            cc = v.comm.Irecv(t_v, origin_rank2)
-            cc.Wait()
-            print("Rank ", rank, "recieved data: ",t_v , "from Rank ", origin_rank2)
-            t_v1 = t_v.reshape(1, 1, t_v.shape[0])
-            signal_filtered = fc.conv1d(signal, t_v1)
+        for r in range(size):
+            dest_rank = r
+            send = v.comm.Isend(t_v, dest_rank)
+            send.Wait()
+        for r in range(size):
+            origin_rank = r
+            recv = v.comm.Irecv(t_v, origin_rank)
+            recv.Wait()
+
+            t_v2 = t_v.reshape(1, 1, t_v.shape[0])
+            local_signal_filtered = fc.conv1d(signal, t_v2)
             # unpack 3D result into 1D
-            signal_filtered = signal_filtered[0, 0, :]
+            local_signal_filtered = local_signal_filtered[0, 0, :]
 
             if a.comm.rank != 0 and int(v.lshape_map[0][0] % 2) == 0:
-                signal_filtered = signal_filtered[1:]
-            t_signal[origin_rank2] = signal_filtered
-            print("signal filtered :",signal_filtered, " of rank:", rank)
+                local_signal_filtered = local_signal_filtered[1:]
+            t_signal[origin_rank] = local_signal_filtered
 
-        if(rank != 0): 
-            dd = v.comm.Irecv(t_v, origin_rank1)
-            dd.Wait()
-            print("Rank ", rank, "recieved data: ",t_v , "from Rank ", origin_rank1)
-            t_v2 = t_v.reshape(1, 1, t_v.shape[0])
-            signal_filtered = fc.conv1d(signal, t_v2)
-            # unpack 3D result into 1D
-            signal_filtered = signal_filtered[0, 0, :]
-
-            if int(v.lshape_map[0][0] % 2) == 0:
-                signal_filtered = signal_filtered[1:]
-            t_signal[origin_rank1] = signal_filtered
-            print("signal filtered :",signal_filtered, " of rank: ", rank)
-        print(t_signal)
-    
+        global_signal_filtered = array(t_signal, dtype= t_signal.dtype, is_split= 1, device= a.device, comm= a.comm)
+        signal_filtered = array(0)
+        start_idx = 0
+        for row in range(size):
+            signal_filtered += global_signal_filtered[row][start_idx : start_idx + gshape]
+            if(row != size-1): start_idx += int(v.lshape_map[row + 1][0])
+        signal_filtered.balance_()
+        return signal_filtered
     else:
         # apply torch convolution operator
         signal_filtered = fc.conv1d(signal, weight)
@@ -208,12 +181,12 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         if a.comm.rank != 0 and v.shape[0] % 2 == 0:
             signal_filtered = signal_filtered[1:]
 
-    return DNDarray(
-        signal_filtered.contiguous(),
-        (gshape,),
-        signal_filtered.dtype,
-        a.split,
-        a.device,
-        a.comm,
-        balanced=False,
-    ).astype(a.dtype.torch_type())
+        return DNDarray(
+            signal_filtered.contiguous(),
+            (gshape,),
+            signal_filtered.dtype,
+            a.split,
+            a.device,
+            a.comm,
+            balanced=False,
+        ).astype(a.dtype.torch_type())
