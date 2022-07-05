@@ -143,7 +143,11 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         rank = v.comm.rank
         size = v.comm.size
 
-        t_signal_shape = (t_a.shape[0] - t_v.shape[0]) if(a.comm.rank != 0 and int(v.lshape_map[0][0] % 2) == 0) else (t_a.shape[0] - t_v.shape[0] + 1)
+        t_signal_shape = (
+            (t_a.shape[0] - t_v.shape[0])
+            if (a.comm.rank != 0 and int(v.lshape_map[0][0] % 2) == 0)
+            else (t_a.shape[0] - t_v.shape[0] + 1)
+        )
         t_signal = torch.zeros((v.comm.size, t_signal_shape))
 
         for r in range(size):
@@ -164,12 +168,15 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
                 local_signal_filtered = local_signal_filtered[1:]
             t_signal[origin_rank] = local_signal_filtered
 
-        global_signal_filtered = array(t_signal, dtype= t_signal.dtype, is_split= 1, device= a.device, comm= a.comm)
+        global_signal_filtered = array(
+            t_signal, dtype=t_signal.dtype, is_split=1, device=a.device, comm=a.comm
+        )
         signal_filtered = array(0)
         start_idx = 0
         for row in range(size):
             signal_filtered += global_signal_filtered[row][start_idx : start_idx + gshape]
-            if(row != size-1): start_idx += int(v.lshape_map[row + 1][0])
+            if row != size - 1:
+                start_idx += int(v.lshape_map[row + 1][0])
         signal_filtered.balance_()
         return signal_filtered
     else:
