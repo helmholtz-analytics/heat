@@ -2,7 +2,7 @@ name: Support latest PyTorch
 
 on:
   schedule:
-    - cron:  '28 9 * * 2'
+    - cron:  '45 9 * * 2'
 env:
   previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')
   new_pytorch: $(curl -sL https://api.github.com/repos/pytorch/pytorch/releases/latest | jq -r ".tag_name" | tr -d 'v')
