@@ -1,18 +1,18 @@
 name: Support latest PyTorch
 
 on:
-  schedule:
-    - cron:  '18 10 * * 2'
+  push:
+    paths:
+      - '.github/pytorch-release-versions/*'
 env:
   previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')
-  new_pytorch: $(curl -sL https://api.github.com/repos/pytorch/pytorch/releases/latest | jq -r ".tag_name" | tr -d 'v')
+  new_pytorch: $(<.github/pytorch-release-versions/pytorch-latest.txt)
 permissions:
   contents: write
   issues: write
   pull-requests: write
 jobs:
   latest-torch-support:
-    if: env.new_pytorch != env.previous_pytorch
     strategy:
       matrix:
         branches: ['main', 'release/1.2.x']

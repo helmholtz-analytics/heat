@@ -1,7 +1,7 @@
 name: Get latest PyTorch release version
 on:
   schedule:
-    - cron:  '30 7 * * 2'
+    - cron:  '10 12 * * 2'
 permissions:
   contents: write
 jobs:
@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GHACTIONS }}
           ref: 'release/1.2.x'
       - name: Fetch PyTorch release version
         run: |
