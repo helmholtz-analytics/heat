@@ -119,7 +119,7 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
                 b = a[..., i, i + 1 :]
                 L = triu(
                     manipulations.expand_dims(manipulations.resplit(b, -1), -1)
-                    * manipulations.expand_dims(b, -2)
+                    * manipulations.expand_dims(b, -2).conj()
                 )
             else:
                 a[..., i + 1 :, i].larray /= manipulations.expand_dims(a[..., i, i], -1).larray
@@ -127,7 +127,7 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
                 b.balance_()
                 L = tril(
                     manipulations.expand_dims(b, -1)
-                    * manipulations.expand_dims(manipulations.resplit(b, None), -2)
+                    * manipulations.expand_dims(manipulations.resplit(b, None), -2).conj()
                 )
         else:
             if upper:
@@ -136,14 +136,14 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
                 b.balance_()
                 L = triu(
                     manipulations.expand_dims(manipulations.resplit(b, None), -1)
-                    * manipulations.expand_dims(b, -2)
+                    * manipulations.expand_dims(b, -2).conj()
                 )
             else:
                 a[..., i + 1 :, i] /= manipulations.expand_dims(a[..., i, i], -1)
                 b = a[..., i + 1 :, i]
                 L = tril(
                     manipulations.expand_dims(b, -1)
-                    * manipulations.expand_dims(manipulations.resplit(b, -1), -2)
+                    * manipulations.expand_dims(manipulations.resplit(b, -1), -2).conj()
                 )
 
         target_map = a[..., i + 1 :, i + 1 :].lshape_map
