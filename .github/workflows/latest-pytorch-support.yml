@@ -1,9 +1,10 @@
 name: Support latest PyTorch
 
-on:
-  push:
-    paths:
-      - '.github/pytorch-release-versions/*'
+# on:
+#   push:
+#     paths:
+#       - '.github/pytorch-release-versions/*'
+
 env:
   previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')
   new_pytorch: $(<.github/pytorch-release-versions/pytorch-latest.txt)
