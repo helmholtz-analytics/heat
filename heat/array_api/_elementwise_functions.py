@@ -9,6 +9,7 @@ from ._dtypes import (
     _result_type,
 )
 from ._array_object import Array
+from ._data_type_functions import astype
 
 import heat as ht
 
@@ -905,6 +906,21 @@ def round(x: Array, /) -> Array:
     elif x.dtype in _integer_dtypes:
         return x
     return Array._new(ht.round(x._array))
+
+
+def sign(x: Array, /) -> Array:
+    """
+    Returns an indication of the sign of a number for each element ``x_i`` of
+    the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a numeric data type.
+    """
+    if x.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in sign")
+    return astype(Array._new(ht.sign(x._array)), x.dtype)
 
 
 def subtract(x1: Array, x2: Array, /) -> Array:

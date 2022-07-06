@@ -144,6 +144,7 @@ from ._elementwise_functions import (
     pow,
     remainder,
     round,
+    sign,
     subtract,
 )
 
@@ -195,6 +196,7 @@ __all__ += [
     "pow",
     "remainder",
     "round",
+    "sign",
     "subtract",
 ]
 
