@@ -99,6 +99,7 @@ __all__ += [
 from ._elementwise_functions import (
     abs,
     acos,
+    acosh,
     add,
     bitwise_and,
     bitwise_left_shift,
@@ -128,6 +129,7 @@ from ._elementwise_functions import (
 __all__ += [
     "abs",
     "acos",
+    "acosh",
     "add",
     "bitwise_and",
     "bitwise_left_shift",

@@ -44,6 +44,23 @@ def acos(x: Array, /) -> Array:
     return Array._new(ht.acos(x._array))
 
 
+def acosh(x: Array, /) -> Array:
+    """
+    Calculates an approximation to the inverse hyperbolic cosine, having domain
+    ``[+1, +infinity]`` and codomain ``[+0, +infinity]``, for each element ``x_i``
+    of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array whose elements each represent the area of a hyperbolic sector.
+        Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in acosh")
+    return Array._new(ht.acosh(x._array))
+
+
 def add(x1: Array, x2: Array, /) -> Array:
     """
     Calculates the sum for each element ``x1_i`` of the input array ``x1`` with
