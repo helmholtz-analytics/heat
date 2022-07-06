@@ -115,6 +115,72 @@ def asinh(x: Array, /) -> Array:
     return Array._new(ht.asinh(x._array))
 
 
+def atan(x: Array, /) -> Array:
+    """
+    Calculates an implementation-dependent approximation of the principal value of
+    the inverse tangent, having domain ``[-infinity, +infinity]`` and codomain
+    ``[-π/2, +π/2]``, for each element ``x_i`` of the input array ``x``.
+    Each element-wise result is expressed in radians.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in atan")
+    return Array._new(ht.atan(x._array))
+
+
+def atan2(x1: Array, x2: Array, /) -> Array:
+    """
+    Calculates an approximation of the inverse tangent of the quotient ``x1/x2``,
+    having domain ``[-infinity, +infinity] x [-infinity, +infinity]`` (where the
+    ``x`` notation denotes the set of ordered pairs of elements ``(x1_i, x2_i)``)
+    and codomain ``[-π, +π]``, for each pair of elements ``(x1_i, x2_i)`` of the
+    input arrays ``x1`` and ``x2``, respectively. Each element-wise result is
+    expressed in radians.
+
+    The mathematical signs of ``x1_i`` and ``x2_i`` determine the quadrant of each
+    element-wise result. The quadrant (i.e., branch) is chosen such that each
+    element-wise result is the signed angle in radians between the ray ending at the
+    origin and passing through the point ``(1,0)`` and the ray ending at the origin
+    and passing through the point ``(x2_i, x1_i)``.
+
+    Parameters
+    ----------
+    x1 : Array
+        Input array corresponding to the y-coordinates. Must have a floating-point
+        data type.
+    x2 : Array
+        Input array corresponding to the x-coordinates. Must be compatible with ``x1``
+        and have a floating-point data type.
+    """
+    if x1.dtype not in _floating_dtypes or x2.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in atan2")
+    # Call result type here just to raise on disallowed type combinations
+    _result_type(x1.dtype, x2.dtype)
+    x1, x2 = Array._normalize_two_args(x1, x2)
+    return Array._new(ht.atan2(x1._array, x2._array))
+
+
+def atanh(x: Array, /) -> Array:
+    """
+    Calculates an approximation to the inverse hyperbolic tangent, having domain
+    ``[-1, +1]`` and codomain ``[-infinity, +infinity]``, for each element ``x_i``
+    of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array whose elements each represent the area of a hyperbolic sector.
+        Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in atanh")
+    return Array._new(ht.atanh(x._array))
+
+
 def bitwise_and(x1: Array, x2: Array, /) -> Array:
     """
     Computes the bitwise AND of the underlying binary representation of each
