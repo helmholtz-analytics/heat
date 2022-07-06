@@ -957,6 +957,35 @@ def sinh(x: Array, /) -> Array:
     return Array._new(ht.sinh(x._array))
 
 
+def square(x: Array, /) -> Array:
+    """
+    Squares ``(x_i * x_i)`` each element ``x_i`` of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a numeric data type.
+    """
+    if x.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in square")
+    return astype(Array._new(ht.square(x._array)), x.dtype)
+
+
+def sqrt(x: Array, /) -> Array:
+    """
+    Calculates the square root, having domain ``[0, +infinity]`` and codomain
+    ``[0, +infinity]``, for each element ``x_i`` of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in sqrt")
+    return Array._new(ht.sqrt(x._array))
+
+
 def subtract(x1: Array, x2: Array, /) -> Array:
     """
     Calculates the difference for each element ``x1_i`` of the input array

@@ -147,6 +147,8 @@ from ._elementwise_functions import (
     sign,
     sin,
     sinh,
+    square,
+    sqrt,
     subtract,
 )
 
@@ -201,6 +203,8 @@ __all__ += [
     "sign",
     "sin",
     "sinh",
+    "square",
+    "sqrt",
     "subtract",
 ]
 
