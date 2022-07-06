@@ -49,13 +49,13 @@ __all__ += [
 
 from ._data_type_functions import (
     astype,
+    can_cast,
     finfo,
     iinfo,
-    can_cast,
     result_type,
 )
 
-__all__ += ["astype", "finfo", "iinfo", "can_cast", "result_type"]
+__all__ += ["astype", "can_cast", "finfo", "iinfo", "result_type"]
 
 from heat.core.devices import cpu
 
@@ -98,6 +98,7 @@ __all__ += [
 
 from ._elementwise_functions import (
     abs,
+    acos,
     add,
     bitwise_and,
     bitwise_left_shift,
@@ -126,6 +127,7 @@ from ._elementwise_functions import (
 
 __all__ += [
     "abs",
+    "acos",
     "add",
     "bitwise_and",
     "bitwise_left_shift",

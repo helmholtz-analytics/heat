@@ -28,6 +28,22 @@ def abs(x: Array, /) -> Array:
     return Array._new(ht.abs(x._array, dtype=x.dtype))
 
 
+def acos(x: Array, /) -> Array:
+    """
+    Calculates an approximation of the principal value of the inverse cosine,
+    having domain ``[-1, +1]`` and codomain ``[+0, +π]``, for each element ``x_i``
+    of the input array ``x``. Each element-wise result is expressed in radians.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in acos")
+    return Array._new(ht.acos(x._array))
+
+
 def add(x1: Array, x2: Array, /) -> Array:
     """
     Calculates the sum for each element ``x1_i`` of the input array ``x1`` with
