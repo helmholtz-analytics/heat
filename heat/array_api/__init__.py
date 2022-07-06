@@ -235,6 +235,10 @@ from ._manipulation_functions import (
 
 __all__ += ["concat", "expand_dims", "flip", "permute_dims", "reshape", "roll", "squeeze", "stack"]
 
+from ._searching_functions import argmax, argmin
+
+__all__ += ["argmax", "argmin"]
+
 from ._statistical_functions import sum
 
 __all__ += ["sum"]
