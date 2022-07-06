@@ -53,6 +53,50 @@ def max(
     return Array._new(res.reshape(output_shape))
 
 
+def mean(
+    x: Array,
+    /,
+    *,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    keepdims: bool = False,
+) -> Array:
+    """
+    Calculates the arithmetic mean of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a floating-point data type.
+    axis : Optional[Union[int, Tuple[int, ...]]]
+        Axis or axes along which arithmetic means are computed. By default, the mean
+        is computed over the entire array. If a tuple of integers, arithmetic means
+        are computed over multiple axes. Default: ``None``.
+    keepdims : bool
+        If ``True``, the reduced axes (dimensions) are included in the result as
+        singleton dimensions. Otherwise, if ``False``, the reduced axes
+        (dimensions) are be included in the result. Default: ``False``.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in mean")
+    if axis == ():
+        return x
+    res = ht.mean(x._array, axis=axis)
+    if axis is None:
+        if keepdims:
+            output_shape = tuple(1 for _ in range(x.ndim))
+        else:
+            output_shape = ()
+    else:
+        if isinstance(axis, int):
+            axis = (axis,)
+        axis = [a if a >= 0 else a + x.ndim for a in axis]
+        if keepdims:
+            output_shape = tuple(1 if i in axis else dim for i, dim in enumerate(x.shape))
+        else:
+            output_shape = tuple(dim for i, dim in enumerate(x.shape) if i not in axis)
+    return Array._new(res.astype(x.dtype).reshape(output_shape))
+
+
 def min(
     x: Array,
     /,

@@ -247,9 +247,9 @@ from ._sorting_functions import sort
 
 __all__ += ["sort"]
 
-from ._statistical_functions import max, min, sum
+from ._statistical_functions import max, mean, min, sum
 
-__all__ += ["max", "min", "sum"]
+__all__ += ["max", "mean", "min", "sum"]
 
 from ._utility_functions import all, any
 
