@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from ._dtypes import (
     _numeric_dtypes,
+    _boolean_dtypes,
     _integer_dtypes,
     _integer_or_boolean_dtypes,
     _floating_dtypes,
@@ -694,6 +695,83 @@ def logaddexp(x1: Array, x2: Array) -> Array:
     _result_type(x1.dtype, x2.dtype)
     x1, x2 = Array._normalize_two_args(x1, x2)
     return Array._new(ht.logaddexp(x1._array, x2._array))
+
+
+def logical_and(x1: Array, x2: Array, /) -> Array:
+    """
+    Computes the logical AND for each element ``x1_i`` of the input array ``x1``
+    with the respective element ``x2_i`` of the input array ``x2``.
+
+    Parameters
+    ----------
+    x1 : Array
+        First input array. Must have a boolean data type.
+    x2 : Array
+        Second input array. Must be compatible with ``x1`` and have a boolean
+        data type.
+    """
+    if x1.dtype not in _boolean_dtypes or x2.dtype not in _boolean_dtypes:
+        raise TypeError("Only boolean dtypes are allowed in logical_and")
+    # Call result type here just to raise on disallowed type combinations
+    _result_type(x1.dtype, x2.dtype)
+    x1, x2 = Array._normalize_two_args(x1, x2)
+    return Array._new(ht.logical_and(x1._array, x2._array))
+
+
+def logical_not(x: Array, /) -> Array:
+    """
+    Computes the logical NOT for each element ``x_i`` of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a boolean data type.
+    """
+    if x.dtype not in _boolean_dtypes:
+        raise TypeError("Only boolean dtypes are allowed in logical_not")
+    return Array._new(ht.logical_not(x._array))
+
+
+def logical_or(x1: Array, x2: Array, /) -> Array:
+    """
+    Computes the logical OR for each element ``x1_i`` of the input array ``x1``
+    with the respective element ``x2_i`` of the input array ``x2``.
+
+    Parameters
+    ----------
+    x1 : Array
+        First input array. Must have a boolean data type.
+    x2 : Array
+        Second input array. Must be compatible with ``x1`` and have a boolean
+        data type.
+    """
+    if x1.dtype not in _boolean_dtypes or x2.dtype not in _boolean_dtypes:
+        raise TypeError("Only boolean dtypes are allowed in logical_or")
+    # Call result type here just to raise on disallowed type combinations
+    _result_type(x1.dtype, x2.dtype)
+    x1, x2 = Array._normalize_two_args(x1, x2)
+    return Array._new(ht.logical_or(x1._array, x2._array))
+
+
+def logical_xor(x1: Array, x2: Array, /) -> Array:
+    """
+    Computes the logical XOR for each element ``x1_i`` of the input array ``x1``
+    with the respective element ``x2_i`` of the input array ``x2``.
+
+    Parameters
+    ----------
+    x1 : Array
+        First input array. Must have a boolean data type.
+    x2 : Array
+        Second input array. Must be compatible with ``x1`` and have a boolean
+        data type.
+    """
+    if x1.dtype not in _boolean_dtypes or x2.dtype not in _boolean_dtypes:
+        raise TypeError("Only boolean dtypes are allowed in logical_xor")
+    # Call result type here just to raise on disallowed type combinations
+    _result_type(x1.dtype, x2.dtype)
+    x1, x2 = Array._normalize_two_args(x1, x2)
+    return Array._new(ht.logical_xor(x1._array, x2._array))
 
 
 def multiply(x1: Array, x2: Array, /) -> Array:
