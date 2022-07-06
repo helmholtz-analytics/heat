@@ -328,6 +328,40 @@ def ceil(x: Array, /) -> Array:
     return Array._new(ht.ceil(x._array))
 
 
+def cos(x: Array, /) -> Array:
+    """
+    Calculates an approximation to the cosine, having domain ``(-infinity, +infinity)``
+    and codomain ``[-1, +1]``, for each element ``x_i`` of the input array ``x``.
+    Each element ``x_i`` is assumed to be expressed in radians.
+
+    Parameters
+    ----------
+    x : Array
+        Input array whose elements are each expressed in radians. Must have a
+        floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in cos")
+    return Array._new(ht.cos(x._array))
+
+
+def cosh(x: Array, /) -> Array:
+    """
+    Calculates an approximation to the hyperbolic cosine, having domain
+    ``[-infinity, +infinity]`` and codomain ``[-infinity, +infinity]``, for each
+    element ``x_i`` in the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array whose elements each represent a hyperbolic angle. Must have
+        a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in cosh")
+    return Array._new(ht.cosh(x._array))
+
+
 def divide(x1: Array, x2: Array, /) -> Array:
     """
     Calculates the division for each element ``x1_i`` of the input array ``x1``
