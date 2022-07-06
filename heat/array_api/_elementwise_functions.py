@@ -402,6 +402,39 @@ def equal(x1: Array, x2: Array, /) -> Array:
     return Array._new(ht.eq(x1._array, x2._array))
 
 
+def exp(x: Array, /) -> Array:
+    """
+    Calculates an approximation to the exponential function, having domain
+    ``[-infinity, +infinity]`` and codomain ``[+0, +infinity]``, for each element
+    ``x_i`` of the input array ``x`` (``e`` raised to the power of ``x_i``, where
+    ``e`` is the base of the natural logarithm).
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in exp")
+    return Array._new(ht.exp(x._array))
+
+
+def expm1(x: Array, /) -> Array:
+    """
+    Calculates an approximation to ``exp(x)-1``, having domain
+    ``[-infinity, +infinity]`` and codomain ``[-1, +infinity]``, for each element
+    ``x_i`` of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in expm1")
+    return Array._new(ht.expm1(x._array))
+
+
 def floor_divide(x1: Array, x2: Array, /) -> Array:
     """
     Rounds the result of dividing each element ``x1_i`` of the input array ``x1``
