@@ -82,6 +82,39 @@ def add(x1: Array, x2: Array, /) -> Array:
     return Array._new(ht.add(x1._array, x2._array))
 
 
+def asin(x: Array, /) -> Array:
+    """
+    Calculates an approximation of the principal value of the inverse sine, having
+    domain ``[-1, +1]`` and codomain ``[-π/2, +π/2]`` for each element ``x_i`` of
+    the input array ``x``. Each element-wise result is expressed in radians.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in asin")
+    return Array._new(ht.asin(x._array))
+
+
+def asinh(x: Array, /) -> Array:
+    """
+    Calculates an approximation to the inverse hyperbolic sine, having domain
+    ``[-infinity, +infinity]`` and codomain ``[-infinity, +infinity]``, for each
+    element ``x_i`` in the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array whose elements each represent the area of a hyperbolic sector.
+        Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in asinh")
+    return Array._new(ht.asinh(x._array))
+
+
 def bitwise_and(x1: Array, x2: Array, /) -> Array:
     """
     Computes the bitwise AND of the underlying binary representation of each
