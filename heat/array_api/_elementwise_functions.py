@@ -890,6 +890,23 @@ def remainder(x1: Array, x2: Array, /) -> Array:
     return Array._new(ht.remainder(x1._array, x2._array))
 
 
+def round(x: Array, /) -> Array:
+    """
+    Rounds each element ``x_i`` of the input array ``x`` to the nearest
+    integer-valued number.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a numeric data type.
+    """
+    if x.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in round")
+    elif x.dtype in _integer_dtypes:
+        return x
+    return Array._new(ht.round(x._array))
+
+
 def subtract(x1: Array, x2: Array, /) -> Array:
     """
     Calculates the difference for each element ``x1_i`` of the input array
