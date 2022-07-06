@@ -610,6 +610,92 @@ def less_equal(x1: Array, x2: Array, /) -> Array:
     return Array._new(ht.less_equal(x1._array, x2._array))
 
 
+def log(x: Array, /) -> Array:
+    """
+    Calculates an  approximation to the natural (base ``e``) logarithm, having domain
+    ``[0, +infinity]`` and codomain ``[-infinity, +infinity]``, for each element
+    ``x_i`` of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in log")
+    return Array._new(ht.log(x._array))
+
+
+def log1p(x: Array, /) -> Array:
+    """
+    Calculates an approximation to ``log(1+x)``, where ``log`` refers to the natural
+    (base ``e``) logarithm, having domain ``[-1, +infinity]`` and codomain
+    ``[-infinity, +infinity]``, for each element ``x_i`` of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in log1p")
+    return Array._new(ht.log1p(x._array))
+
+
+def log2(x: Array, /) -> Array:
+    """
+    Calculates an approximation to the base ``2`` logarithm, having domain
+    ``[0, +infinity]`` and codomain ``[-infinity, +infinity]``, for each element
+    ``x_i`` of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in log2")
+    return Array._new(ht.log2(x._array))
+
+
+def log10(x: Array, /) -> Array:
+    """
+    Calculates an approximation to the base ``10`` logarithm, having domain
+    ``[0, +infinity]`` and codomain ``[-infinity, +infinity]``, for each element
+    ``x_i`` of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in log10")
+    return Array._new(ht.log10(x._array))
+
+
+def logaddexp(x1: Array, x2: Array) -> Array:
+    """
+    Calculates the logarithm of the sum of exponentiations ``log(exp(x1) + exp(x2))``
+    for each element ``x1_i`` of the input array ``x1`` with the respective element
+    ``x2_i`` of the input array ``x2``.
+
+    Parameters
+    ----------
+    x1 : Array
+        First input array. Must have a floating-point data type.
+    x2 : Array
+        Second input array. Must be compatible with ``x1`` and have a floating-point
+        data type.
+    """
+    if x1.dtype not in _floating_dtypes or x2.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in logaddexp")
+    # Call result type here just to raise on disallowed type combinations
+    _result_type(x1.dtype, x2.dtype)
+    x1, x2 = Array._normalize_two_args(x1, x2)
+    return Array._new(ht.logaddexp(x1._array, x2._array))
+
+
 def multiply(x1: Array, x2: Array, /) -> Array:
     """
     Calculates the product for each element ``x1_i`` of the input array ``x1``
