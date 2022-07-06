@@ -239,6 +239,10 @@ from ._searching_functions import argmax, argmin, where
 
 __all__ += ["argmax", "argmin", "where"]
 
+from ._set_functions import unique_inverse, unique_values
+
+__all__ += ["unique_inverse", "unique_values"]
+
 from ._statistical_functions import sum
 
 __all__ += ["sum"]

@@ -85,7 +85,7 @@ def can_cast(from_: Union[Dtype, Array], to: Dtype, /) -> bool:
 @dataclass
 class finfo_object:
     """
-    Internal object for return type of finfo.
+    Internal object for return type of ``finfo``.
     """
 
     bits: int
@@ -98,7 +98,7 @@ class finfo_object:
 @dataclass
 class iinfo_object:
     """
-    Internal object for return type of iinfo.
+    Internal object for return type of ``iinfo``.
     """
 
     bits: int
