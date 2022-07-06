@@ -1039,3 +1039,21 @@ def tanh(x: Array, /) -> Array:
     if x.dtype not in _floating_dtypes:
         raise TypeError("Only floating-point dtypes are allowed in tanh")
     return Array._new(ht.tanh(x._array))
+
+
+def trunc(x: Array, /) -> Array:
+    """
+    Rounds each element ``x_i`` of the input array ``x`` to the integer-valued
+    number that is closest to but no greater than ``x_i``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a numeric data type.
+    """
+    if x.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in trunc")
+    if x.dtype in _integer_dtypes:
+        # Note: The return dtype of trunc is the same as the input
+        return x
+    return Array._new(ht.trunc(x._array))

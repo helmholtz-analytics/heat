@@ -152,6 +152,7 @@ from ._elementwise_functions import (
     subtract,
     tan,
     tanh,
+    trunc,
 )
 
 __all__ += [
@@ -210,6 +211,7 @@ __all__ += [
     "subtract",
     "tan",
     "tanh",
+    "trunc",
 ]
 
 from . import linalg
