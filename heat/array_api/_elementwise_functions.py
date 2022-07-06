@@ -435,6 +435,25 @@ def expm1(x: Array, /) -> Array:
     return Array._new(ht.expm1(x._array))
 
 
+def floor(x: Array, /) -> Array:
+    """
+    Rounds each element ``x_i`` of the input array ``x`` to the greatest
+    (i.e., closest to ``+infinity``) integer-valued number that is not greater
+    than ``x_i``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a numeric data type.
+    """
+    if x.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in floor")
+    if x.dtype in _integer_dtypes:
+        # Note: The return dtype of floor is the same as the input
+        return x
+    return Array._new(ht.floor(x._array))
+
+
 def floor_divide(x1: Array, x2: Array, /) -> Array:
     """
     Rounds the result of dividing each element ``x1_i`` of the input array ``x1``
