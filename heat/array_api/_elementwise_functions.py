@@ -310,6 +310,24 @@ def bitwise_xor(x1: Array, x2: Array, /) -> Array:
     return Array._new(ht.bitwise_xor(x1._array, x2._array))
 
 
+def ceil(x: Array, /) -> Array:
+    """
+    Rounds each element ``x_i`` of the input array ``x`` to the smallest (i.e., closest
+    to ``-infinity``) integer-valued number that is not less than ``x_i``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a numeric data type.
+    """
+    if x.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in ceil")
+    if x.dtype in _integer_dtypes:
+        # Note: The return dtype of ceil is the same as the input
+        return x
+    return Array._new(ht.ceil(x._array))
+
+
 def divide(x1: Array, x2: Array, /) -> Array:
     """
     Calculates the division for each element ``x1_i`` of the input array ``x1``
