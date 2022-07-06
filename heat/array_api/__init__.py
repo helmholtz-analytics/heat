@@ -218,9 +218,9 @@ from . import linalg
 
 __all__ += ["linalg"]
 
-from .linalg import matmul
+from .linalg import matmul, matrix_transpose, vecdot
 
-__all__ += ["matmul"]
+__all__ += ["matmul", "matrix_transpose", "vecdot"]
 
 from ._manipulation_functions import (
     concat,
@@ -235,9 +235,9 @@ from ._manipulation_functions import (
 
 __all__ += ["concat", "expand_dims", "flip", "permute_dims", "reshape", "roll", "squeeze", "stack"]
 
-from ._searching_functions import argmax, argmin
+from ._searching_functions import argmax, argmin, where
 
-__all__ += ["argmax", "argmin"]
+__all__ += ["argmax", "argmin", "where"]
 
 from ._statistical_functions import sum
 

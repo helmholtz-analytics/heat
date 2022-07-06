@@ -78,3 +78,36 @@ def argmin(x: Array, /, *, axis: Optional[int] = None, keepdims: bool = False) -
             output_shape = tuple(dim for i, dim in enumerate(x.shape) if i != axis)
     res = ht.argmin(x._array, axis=axis, keepdim=True).reshape(output_shape)
     return Array._new(res)
+
+
+def nonzero(x: Array, /) -> Tuple[Array, ...]:
+    """
+    Returns the indices of the array elements which are non-zero.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a positive rank.
+    """
+    # Fixed in PR #937, waiting for merge
+    return ht.nonzero(x._array)
+
+
+def where(condition: Array, x1: Array, x2: Array, /) -> Array:
+    """
+    Returns elements chosen from ``x1`` or ``x2`` depending on ``condition``.
+
+    Parameters
+    ----------
+    condition : Array
+        When ``True``, yield ``x1_i``; otherwise, yield ``x2_i``. Must be
+        compatible with ``x1`` and ``x2``.
+    x1 : Array
+        First input array. Must be compatible with ``condition`` and ``x2``.
+    x2 : Array
+        Second input array. Must be compatible with ``condition`` and ``x1``.
+    """
+    # Call result type here just to raise on disallowed type combinations
+    _result_type(x1.dtype, x2.dtype)
+    x1, x2 = Array._normalize_two_args(x1, x2)
+    return Array._new(ht.where(condition._array, x1._array, x2._array))
