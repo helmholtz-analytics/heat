@@ -139,6 +139,98 @@ def min(
     return Array._new(res.reshape(output_shape))
 
 
+def prod(
+    x: Array,
+    /,
+    *,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    dtype: Optional[Dtype] = None,
+    keepdims: bool = False,
+) -> Array:
+    """
+    Calculates the product of input array ``x`` elements.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a numeric data type.
+    axis : Optional[Union[int, Tuple[int, ...]]]
+        Axis or axes along which products are computed. By default, the product is
+        computed over the entire array. If a tuple of integers, products are computed
+        over multiple axes. Default: ``None``.
+    dtype : Optional[Dtype]
+        Data type of the returned array.
+    keepdims : bool
+        If ``True``, the reduced axes (dimensions) are included in the result as
+        singleton dimensions. Otherwise, if ``False``, the reduced axes
+        (dimensions) are be included in the result. Default: ``False``.
+    """
+    if x.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in prod")
+    # Note: sum() and prod() always upcast float32 to float64 for dtype=None
+    # We need to do so here before computing the product to avoid overflow
+    # if dtype is None and x.dtype == float32:
+    #     dtype = float64
+    res = ht.prod(x._array, axis=axis, keepdim=True)
+    if not keepdims or x._array.ndim == 0:
+        res = ht.squeeze(res, axis=axis)
+    if dtype is None:
+        if x.dtype in _floating_dtypes:
+            dtype = default_float
+        elif x.dtype in _integer_dtypes:
+            dtype = default_int
+    if dtype is not None:
+        res.astype(dtype, copy=False)
+    return Array._new(res)
+
+
+def std(
+    x: Array,
+    /,
+    *,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    correction: Union[int, float] = 0.0,
+    keepdims: bool = False,
+) -> Array:
+    """
+    Calculates the standard deviation of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a floating-point data type.
+    axis : Optional[Union[int, Tuple[int, ...]]]
+        Axis or axes along which standard deviations are computed. By default, the
+        standard deviation is computed over the entire array. If a tuple of integers,
+        standard deviations are computed over multiple axes. Default: ``None``.
+    correction :  Union[int, float]
+        Degrees of freedom adjustment.
+    keepdims : bool
+        If ``True``, the reduced axes (dimensions) are included in the result as
+        singleton dimensions. Otherwise, if ``False``, the reduced axes
+        (dimensions) are be included in the result. Default: ``False``.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in std")
+    res = ht.std(x._array, axis=axis, ddof=int(correction))
+    if not isinstance(res, ht.DNDarray):
+        res = ht.array(res, dtype=x.dtype)
+    if axis is None:
+        if keepdims:
+            output_shape = tuple(1 for _ in range(x.ndim))
+        else:
+            output_shape = ()
+    else:
+        if isinstance(axis, int):
+            axis = (axis,)
+        axis = [a if a >= 0 else a + x.ndim for a in axis]
+        if keepdims:
+            output_shape = tuple(1 if i in axis else dim for i, dim in enumerate(x.shape))
+        else:
+            output_shape = tuple(dim for i, dim in enumerate(x.shape) if i not in axis)
+    return Array._new(res.reshape(output_shape))
+
+
 def sum(
     x: Array,
     /,
