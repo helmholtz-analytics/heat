@@ -923,6 +923,40 @@ def sign(x: Array, /) -> Array:
     return astype(Array._new(ht.sign(x._array)), x.dtype)
 
 
+def sin(x: Array, /) -> Array:
+    """
+    Calculates an approximation to the sine, having domain ``(-infinity, +infinity)``
+    and codomain ``[-1, +1]``, for each element ``x_i`` of the input array ``x``.
+    Each element ``x_i`` is assumed to be expressed in radians.
+
+    Parameters
+    ----------
+    x : Array
+        Input array whose elements are each expressed in radians. Must have a
+        floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in sin")
+    return Array._new(ht.sin(x._array))
+
+
+def sinh(x: Array, /) -> Array:
+    """
+    Calculates an approximation to the hyperbolic sine, having domain
+    ``[-infinity, +infinity]`` and codomain ``[-infinity, +infinity]``, for
+    each element ``x_i`` of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array whose elements each represent a hyperbolic angle. Must have
+        a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in sinh")
+    return Array._new(ht.sinh(x._array))
+
+
 def subtract(x1: Array, x2: Array, /) -> Array:
     """
     Calculates the difference for each element ``x1_i`` of the input array
