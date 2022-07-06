@@ -1005,3 +1005,37 @@ def subtract(x1: Array, x2: Array, /) -> Array:
     _result_type(x1.dtype, x2.dtype)
     x1, x2 = Array._normalize_two_args(x1, x2)
     return Array._new(ht.subtract(x1._array, x2._array))
+
+
+def tan(x: Array, /) -> Array:
+    """
+    Calculates an approximation to the tangent, having domain ``(-infinity, +infinity)``
+    and codomain ``(-infinity, +infinity)``, for each element ``x_i`` of the
+    input array ``x``. Each element ``x_i`` is assumed to be expressed in radians.
+
+    Parameters
+    ----------
+    x : Array
+        Input array whose elements are each expressed in radians. Must have a
+        floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in tan")
+    return Array._new(ht.tan(x._array))
+
+
+def tanh(x: Array, /) -> Array:
+    """
+    Calculates an approximation to the hyperbolic tangent, having domain
+    ``[-infinity, +infinity]`` and codomain ``[-1, +1]``, for each element ``x_i``
+    of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array whose elements each represent a hyperbolic angle. Must have
+        a floating-point data type.
+    """
+    if x.dtype not in _floating_dtypes:
+        raise TypeError("Only floating-point dtypes are allowed in tanh")
+    return Array._new(ht.tanh(x._array))

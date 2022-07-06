@@ -150,6 +150,8 @@ from ._elementwise_functions import (
     square,
     sqrt,
     subtract,
+    tan,
+    tanh,
 )
 
 __all__ += [
@@ -206,6 +208,8 @@ __all__ += [
     "square",
     "sqrt",
     "subtract",
+    "tan",
+    "tanh",
 ]
 
 from . import linalg
