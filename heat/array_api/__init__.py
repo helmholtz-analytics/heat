@@ -243,9 +243,13 @@ from ._set_functions import unique_inverse, unique_values
 
 __all__ += ["unique_inverse", "unique_values"]
 
-from ._statistical_functions import sum
+from ._sorting_functions import sort
 
-__all__ += ["sum"]
+__all__ += ["sort"]
+
+from ._statistical_functions import max, min, sum
+
+__all__ += ["max", "min", "sum"]
 
 from ._utility_functions import all, any
 

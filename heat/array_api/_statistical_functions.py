@@ -11,6 +11,90 @@ if TYPE_CHECKING:
 import heat as ht
 
 
+def max(
+    x: Array,
+    /,
+    *,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    keepdims: bool = False,
+) -> Array:
+    """
+    Calculates the maximum value of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a numeric data type.
+    axis : Optional[Union[int, Tuple[int, ...]]]
+        Axis or axes along which maximum values are computed. By default, the maximum
+        value is computed over the entire array. If a tuple of integers, maximum
+        values are computed over multiple axes. Default: ``None``.
+    keepdims : bool
+        If ``True``, the reduced axes (dimensions) are included in the result as
+        singleton dimensions. Otherwise, if ``False``, the reduced axes
+        (dimensions) are be included in the result. Default: ``False``.
+    """
+    if x.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in max")
+    res = ht.max(x._array, axis=axis, keepdim=True)
+    if axis is None:
+        if keepdims:
+            output_shape = tuple(1 for _ in range(x.ndim))
+        else:
+            output_shape = ()
+    else:
+        if isinstance(axis, int):
+            axis = (axis,)
+        axis = [a if a >= 0 else a + x.ndim for a in axis]
+        if keepdims:
+            output_shape = tuple(1 if i in axis else dim for i, dim in enumerate(x.shape))
+        else:
+            output_shape = tuple(dim for i, dim in enumerate(x.shape) if i not in axis)
+    return Array._new(res.reshape(output_shape))
+
+
+def min(
+    x: Array,
+    /,
+    *,
+    axis: Optional[Union[int, Tuple[int, ...]]] = None,
+    keepdims: bool = False,
+) -> Array:
+    """
+    Calculates the minimum value of the input array ``x``.
+
+    Parameters
+    ----------
+    x : Array
+        Input array. Must have a numeric data type.
+    axis : Optional[Union[int, Tuple[int, ...]]]
+        Axis or axes along which minimum  values are computed. By default, the minimum
+        value is computed over the entire array. If a tuple of integers, minimum
+        values are computed over multiple axes. Default: ``None``.
+    keepdims : bool
+        If ``True``, the reduced axes (dimensions) are included in the result as
+        singleton dimensions. Otherwise, if ``False``, the reduced axes
+        (dimensions) are be included in the result. Default: ``False``.
+    """
+    if x.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in min")
+    res = ht.min(x._array, axis=axis, keepdim=True)
+    if axis is None:
+        if keepdims:
+            output_shape = tuple(1 for _ in range(x.ndim))
+        else:
+            output_shape = ()
+    else:
+        if isinstance(axis, int):
+            axis = (axis,)
+        axis = [a if a >= 0 else a + x.ndim for a in axis]
+        if keepdims:
+            output_shape = tuple(1 if i in axis else dim for i, dim in enumerate(x.shape))
+        else:
+            output_shape = tuple(dim for i, dim in enumerate(x.shape) if i not in axis)
+    return Array._new(res.reshape(output_shape))
+
+
 def sum(
     x: Array,
     /,
@@ -35,7 +119,7 @@ def sum(
     keepdims : bool
         If ``True``, the reduced axes (dimensions) are included in the result as
         singleton dimensions. Otherwise, if ``False``, the reduced axes
-        (dimensions) are be included in the result.
+        (dimensions) are be included in the result. Default: ``False``.
     """
     if x.dtype not in _numeric_dtypes:
         raise TypeError("Only numeric dtypes are allowed in sum")
