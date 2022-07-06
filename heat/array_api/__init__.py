@@ -51,10 +51,11 @@ from ._data_type_functions import (
     astype,
     finfo,
     iinfo,
+    can_cast,
     result_type,
 )
 
-__all__ += ["astype", "finfo", "iinfo", "result_type"]
+__all__ += ["astype", "finfo", "iinfo", "can_cast", "result_type"]
 
 from heat.core.devices import cpu
 

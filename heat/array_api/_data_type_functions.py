@@ -4,12 +4,13 @@ from ._array_object import Array
 from ._dtypes import _all_dtypes, _result_type
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, List
 
 if TYPE_CHECKING:
     from ._typing import Dtype
 
 import heat as ht
+from heat.core.stride_tricks import broadcast_shape
 
 
 def astype(x: Array, dtype: Dtype, /, *, copy: bool = True) -> Array:
@@ -31,6 +32,54 @@ def astype(x: Array, dtype: Dtype, /, *, copy: bool = True) -> Array:
     if not copy and dtype == x.dtype:
         return x
     return Array._new(x._array.astype(dtype, copy=True))
+
+
+def broadcast_arrays(*arrays: Array) -> List[Array]:
+    """
+    Broadcasts one or more arrays against one another.
+
+    Parameters
+    ----------
+    arrays : Array
+        An arbitrary number of to-be broadcasted arrays.
+    """
+    from ._array_object import Array
+
+    if len(arrays) <= 1:
+        return arrays
+    output_shape = arrays[0].shape
+    for a in arrays[1:]:
+        output_shape = broadcast_shape(output_shape, a.shape)
+    return [Array._new(array) for array in ht.broadcast_arrays(*[a._array for a in arrays])]
+
+
+def can_cast(from_: Union[Dtype, Array], to: Dtype, /) -> bool:
+    """
+    Determines if one data type can be cast to another data type according to
+    Type Promotion Rules.
+
+
+    Parameters
+    ----------
+    from : Union[Dtype, Array]
+        Input data type or array from which to cast.
+    to : Dtype
+        Desired data type.
+    """
+    if isinstance(from_, Array):
+        from_ = from_.dtype
+    elif from_ not in _all_dtypes:
+        raise TypeError(f"{from_=}, but should be an array_api array or dtype")
+    if to not in _all_dtypes:
+        raise TypeError(f"{to=}, but should be a dtype")
+    try:
+        # We promote `from_` and `to` together. We then check if the promoted
+        # dtype is `to`, which indicates if `from_` can (up)cast to `to`.
+        dtype = _result_type(from_, to)
+        return to == dtype
+    except TypeError:
+        # _result_type() raises if the dtypes don't promote together
+        return False
 
 
 @dataclass
