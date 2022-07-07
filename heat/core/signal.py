@@ -48,8 +48,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         whereas the filter `v` may or may not be distributed,
         i.e. a copy of `v` may reside on each process.
 
-        Only 'valid' mode is supported when `v`, the filter is memory 
-        distributed. 
+        Only 'valid' mode is supported when `v`, the filter is memory
+        distributed.
 
     Examples
     --------
