@@ -172,8 +172,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             recv = v.comm.Irecv(t_v, origin_rank)
             recv.Wait()
 
-            t_v = t_v.reshape(1, 1, t_v.shape[0])
-            local_signal_filtered = fc.conv1d(signal, t_v)
+            t_v1 = t_v.reshape(1, 1, t_v.shape[0])
+            local_signal_filtered = fc.conv1d(signal, t_v1)
             # unpack 3D result into 1D
             local_signal_filtered = local_signal_filtered[0, 0, :]
 
