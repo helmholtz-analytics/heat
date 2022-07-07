@@ -45,9 +45,11 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         Contrary to the original `numpy.convolve`, this function does not
         swap the input arrays if the second one is larger than the first one.
         This is because `a`, the signal, might be memory-distributed,
-        whereas the filter `v` is assumed to be non-distributed,
-        i.e. a copy of `v` will reside on each process.
+        whereas the filter `v` may or may not be distributed,
+        i.e. a copy of `v` may reside on each process.
 
+        Only 'valid' mode is supported when `v`, the filter is memory 
+        distributed. 
 
     Examples
     --------
@@ -62,6 +64,14 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     DNDarray([1., 3., 3., 3., 3.])
     >>> ht.convolve(a, v, mode='valid')
     DNDarray([3., 3., 3.])
+    >>> a = ht.ones(10, split = 0)
+    >>> v = ht.arange(3, split = 0).astype(ht.float)
+    >>> ht.convolve(a, v, mode='valid')
+    DNDarray([3., 3., 3., 3., 3., 3., 3., 3.])
+
+    [0/3] DNDarray([3., 3., 3.])
+    [1/3] DNDarray([3., 3., 3.])
+    [2/3] DNDarray([3., 3.])
     """
     if not isinstance(a, DNDarray):
         try:
@@ -116,10 +126,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     else:
         signal = a.larray
 
-    # make signal and filter weight 3D for Pytorch conv1d function
-    t_a = signal  # stores temporary signal
-    signal = signal.reshape(1, 1, signal.shape[0])
-
     # flip filter for convolution as Pytorch conv1d computes correlations
     v = flip(v, [0])
     if v.larray.shape != v.lshape_map[0]:
@@ -130,7 +136,11 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         weight = target
     else:
         weight = v.larray
+
+    t_a = signal  # stores temporary signal
     t_v = weight  # stores temporary weight
+    # make signal and filter weight 3D for Pytorch conv1d function
+    signal = signal.reshape(1, 1, signal.shape[0])
     weight = weight.reshape(1, 1, weight.shape[0])
 
     # cast to float if on GPU
@@ -139,24 +149,27 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         signal = signal.to(float_type)
         weight = weight.to(float_type)
 
-    if v.comm.is_distributed() and a.split is not None and v.split is not None:
+    if v.comm.is_distributed() and v.split is not None:
         rank = v.comm.rank
         size = v.comm.size
 
         t_signal_shape = (t_a.shape[0] - t_v.shape[0]) if(a.comm.rank != 0 and int(v.lshape_map[0][0] % 2) == 0) else (t_a.shape[0] - t_v.shape[0] + 1)
         t_signal = torch.zeros((v.comm.size, t_signal_shape))
 
+        # sending weights
         for r in range(size):
             dest_rank = r
             send = v.comm.Isend(t_v, dest_rank)
             send.Wait()
+
+        # receiving weights
         for r in range(size):
             origin_rank = r
             recv = v.comm.Irecv(t_v, origin_rank)
             recv.Wait()
 
-            t_v2 = t_v.reshape(1, 1, t_v.shape[0])
-            local_signal_filtered = fc.conv1d(signal, t_v2)
+            t_v = t_v.reshape(1, 1, t_v.shape[0])
+            local_signal_filtered = fc.conv1d(signal, t_v)
             # unpack 3D result into 1D
             local_signal_filtered = local_signal_filtered[0, 0, :]
 
