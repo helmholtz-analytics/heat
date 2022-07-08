@@ -48,8 +48,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         whereas the filter `v` may or may not be distributed,
         i.e. a copy of `v` may reside on each process.
 
-        Only 'valid' mode is supported when `v`, the filter is memory 
-        distributed. 
+        Only 'valid' mode is supported when `v`, the filter is memory
+        distributed.
 
     Examples
     --------
@@ -87,7 +87,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
 
-    if v.is_distributed() and mode == "full" or mode == "same":
+    if v.is_distributed() and (mode == "full" or mode == "same"):
         raise TypeError("Distributed filter weights only supportes valid mode")
     if len(a.shape) != 1 or len(v.shape) != 1:
         raise ValueError("Only 1-dimensional input DNDarrays are allowed")
@@ -150,7 +150,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         weight = weight.to(float_type)
 
     if v.comm.is_distributed() and v.split is not None:
-        rank = v.comm.rank
         size = v.comm.size
 
         t_signal_shape = (
