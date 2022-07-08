@@ -103,10 +103,10 @@ def cholesky(x: DNDarray, upper: bool = False) -> DNDarray:
         )
 
     # NOTE There is some issues with complex values. conj() is omitted in the computation.
-    if types.heat_type_is_complexfloating(x.dtype):
-        raise NotImplementedError(
-            "Not implemented for distributed matrices of type {}".format(x.dtype)
-        )
+    # if types.heat_type_is_complexfloating(x.dtype):
+    #     raise NotImplementedError(
+    #         "Not implemented for distributed matrices of type {}".format(x.dtype)
+    #     )
 
     a = x.copy()
 
