@@ -65,6 +65,20 @@ class coo_matrix():
         """
         return len(self.__gshape)
 
+    @property
+    def lnnz(self) -> int:
+        """
+        Number of non-zero elemnent on the local process of the ``coo_array``
+        """
+        return self.__lnnz
+    
+    @property
+    def gshape(self) -> int:
+        """
+        Number of non-zero elemnent on the local process of the ``coo_array``
+        """
+        return self.__gshape
+
 
 from . import complex_math
 from . import devices

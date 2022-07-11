@@ -241,14 +241,14 @@ def sparse_coo_matrix(
         comm.Allreduce(MPI.IN_PLACE, gnnz, MPI.SUM)
 
         # get the global indices: coo has no indices attr
-        indices = torch.tensor(obj.indices())
-        comm.Allgather(MPI.IN_PLACE, indices)
+        # indices = torch.tensor(obj.indices())
+        # comm.Allgather(MPI.IN_PLACE, indices)
         # Need just local indices or global and local ???
 
     elif split is None and is_split is None:
         obj = sanitize_memory_layout(obj, order=order)
 
-    return coo_matrix(obj, tuple(gshape), dtype, split, device, comm, balanced, gnnz, indices)
+    return coo_matrix(obj, tuple(gshape), dtype, split, device, comm, balanced, gnnz)
 
     # obj_dnd = array(obj, dtype, copy, ndmin, order, split, is_split, device, comm)
 
