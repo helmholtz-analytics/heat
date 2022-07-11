@@ -10,7 +10,7 @@ from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, L
 from .communication import MPI, sanitize_comm, Communication
 from .devices import Device
 from .dndarray import DNDarray
-from .coo_matrix import CooMatrix
+from .coo_matrix import coo_matrix
 from .memory import sanitize_memory_layout
 from .sanitation import sanitize_in, sanitize_sequence
 from .stride_tricks import sanitize_axis, sanitize_shape
@@ -162,7 +162,7 @@ def sparse_coo_matrix(
     comm: Optional[Communication] = None,
     # nnz:
     # is csr/csc/coo
-) -> CooMatrix:
+) -> coo_matrix:
     """Missing docstring in public function."""
     # sanitize comm object
     comm = sanitize_comm(comm)
