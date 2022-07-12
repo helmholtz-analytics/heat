@@ -651,11 +651,12 @@ class DNDarray:
 
     def __process_key(arr: DNDarray, key: Union[int, Tuple[int, ...], List[int, ...]]) -> Tuple:
         """
-        TODO: expand docs. This function processes key, manipulates `arr` if necessary, returns the final output shape
+        TODO: expand docs!!
+        This function processes key, manipulates `arr` if necessary, returns the final output shape
         Private method for processing keys for indexing. Returns wether advanced indexing is used as well as a processed key and self.
         A processed key:
         - doesn't contain any ellipses or newaxis
-        - all Iterables are converted to ``DNDarrays`` TODO: NO, change this.
+        - all Iterables are converted to torch tensors
         - has the same dimensionality as the ``DNDarray`` it indexes
 
         Parameters
@@ -687,6 +688,40 @@ class DNDarray:
 
         if isinstance(key, (tuple, list)):
             key = list(key)
+
+            # check for ellipsis, newaxis
+            add_dims = sum(k is None for k in key)  # (np.newaxis is None)===true
+            ellipsis = sum(isinstance(k, type(...)) for k in key)
+            if ellipsis > 1:
+                raise ValueError("key can only contain 1 ellipsis")
+            # replace with explicit `slice(None)` for interested dimensions
+            if ellipsis == 1:
+                # output_shape, split_bookkeeping not affected
+                expand_key = [slice(None)] * (arr.ndim + add_dims)
+                ellipsis_index = key.index(...)
+                expand_key[:ellipsis_index] = key[:ellipsis_index]
+                expand_key[ellipsis_index - len(key) :] = key[ellipsis_index + 1 :]
+                key = expand_key
+            while add_dims > 0:
+                # expand array dims, output_shape, split_bookkeeping to reflect newaxis
+                # replace newaxis with slice(None) in key
+                for i, k in reversed(list(enumerate(key))):
+                    if k is None:
+                        key[i] = slice(None)
+                        arr = arr.expand_dims(i - add_dims + 1)
+                        output_shape = (
+                            output_shape[: i - add_dims + 1]
+                            + [1]
+                            + output_shape[i - add_dims + 1 :]
+                        )
+                        split_bookkeeping = (
+                            split_bookkeeping[: i - add_dims + 1]
+                            + [None]
+                            + split_bookkeeping[i - add_dims + 1 :]
+                        )
+                        add_dims -= 1
+
+            # check for advanced indexing
             advanced_indexing_dims = []
             for i, k in enumerate(key):
                 if isinstance(k, Iterable) or isinstance(k, DNDarray):
@@ -696,80 +731,66 @@ class DNDarray:
                     if not isinstance(k, DNDarray):
                         key[i] = torch.tensor(k)
 
-        if advanced_indexing:
-            advanced_indexing_shapes = tuple(tuple(key[i].shape) for i in advanced_indexing_dims)
-            # shapes of indexing arrays must be broadcastable
-            try:
-                broadcasted_shape = torch.broadcast_shapes(advanced_indexing_shapes)
-            except RuntimeError:
-                raise IndexError(
-                    "Shape mismatch: indexing arrays could not be broadcast together with shapes: {}".format(
-                        advanced_indexing_shapes
+            if advanced_indexing:
+                advanced_indexing_shapes = tuple(
+                    tuple(key[i].shape) for i in advanced_indexing_dims
+                )
+                # shapes of indexing arrays must be broadcastable
+                try:
+                    broadcasted_shape = torch.broadcast_shapes(advanced_indexing_shapes)
+                except RuntimeError:
+                    raise IndexError(
+                        "Shape mismatch: indexing arrays could not be broadcast together with shapes: {}".format(
+                            advanced_indexing_shapes
+                        )
                     )
-                )
-            add_dims = len(broadcasted_shape) - len(advanced_indexing_dims)
-            if (
-                len(advanced_indexing_dims) == 1
-                or list(range(advanced_indexing_dims[0], advanced_indexing_dims[-1] + 1))
-                == advanced_indexing_dims
-            ):
-                # dimensions affected by advanced indexing are consecutive:
-                output_shape[
-                    advanced_indexing_dims[0] : advanced_indexing_dims[0]
-                    + len(advanced_indexing_dims)
-                ] = broadcasted_shape
-                split_bookkeeping = (
-                    split_bookkeeping[: advanced_indexing_dims[0]]
-                    + [None] * add_dims
-                    + split_bookkeeping[advanced_indexing_dims[0] :]
-                )
-            else:
-                # advanced-indexing dimensions are not consecutive:
-                # transpose array to make the advanced-indexing dimensions consecutive as the first dimensions
-                non_adv_ind_dims = list(
-                    i for i in range(arr.ndim) if i not in advanced_indexing_dims
-                )
-                arr = arr.transpose(advanced_indexing_dims + non_adv_ind_dims)
-                output_shape = list(arr.gshape)
-                output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
-                split_bookkeeping = [None] * arr.ndim
-                if arr.is_distributed:
-                    split_bookkeeping[arr.split] = "split"
-                split_bookkeeping = [None] * add_dims + split_bookkeeping
-                # modify key to match the new dimension order
-                key = [key[i] for i in advanced_indexing_dims] + [key[i] for i in non_adv_ind_dims]
-                # update advanced-indexing dims
-                advanced_indexing_dims = list(range(len(advanced_indexing_dims)))
-            # expand dimensions of input array, key, to match output_shape
-            # while add_dims > 0:
-            #     # TODO: check this out, I think this is wrong or only right if added dimension is of size (1,)
-            #     arr = arr.expand_dims(advanced_indexing_dims[0])
-            #     key.insert(advanced_indexing_dims[0], slice(None))
-            #     add_dims -= 1
+                add_dims = len(broadcasted_shape) - len(advanced_indexing_dims)
+                if (
+                    len(advanced_indexing_dims) == 1
+                    or list(range(advanced_indexing_dims[0], advanced_indexing_dims[-1] + 1))
+                    == advanced_indexing_dims
+                ):
+                    # dimensions affected by advanced indexing are consecutive:
+                    output_shape[
+                        advanced_indexing_dims[0] : advanced_indexing_dims[0]
+                        + len(advanced_indexing_dims)
+                    ] = broadcasted_shape
+                    split_bookkeeping = (
+                        split_bookkeeping[: advanced_indexing_dims[0]]
+                        + [None] * add_dims
+                        + split_bookkeeping[advanced_indexing_dims[0] :]
+                    )
+                else:
+                    # advanced-indexing dimensions are not consecutive:
+                    # transpose array to make the advanced-indexing dimensions consecutive as the first dimensions
+                    non_adv_ind_dims = list(
+                        i for i in range(arr.ndim) if i not in advanced_indexing_dims
+                    )
+                    arr = arr.transpose(advanced_indexing_dims + non_adv_ind_dims)
+                    output_shape = list(arr.gshape)
+                    output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
+                    split_bookkeeping = [None] * arr.ndim
+                    if arr.is_distributed:
+                        split_bookkeeping[arr.split] = "split"
+                    split_bookkeeping = [None] * add_dims + split_bookkeeping
+                    # modify key to match the new dimension order
+                    key = [key[i] for i in advanced_indexing_dims] + [
+                        key[i] for i in non_adv_ind_dims
+                    ]
+                    # update advanced-indexing dims
+                    advanced_indexing_dims = list(range(len(advanced_indexing_dims)))
 
-            # now check for ellipsis, newaxis
-            add_dims = sum(k is None for k in key)  # (np.newaxis is None)===true
-            ellipsis = sum(isinstance(k, type(...)) for k in key)
-            if ellipsis > 1:
-                raise ValueError("key can only contain 1 ellipsis")
-            if ellipsis == 1:
-                expand_key = [slice(None)] * (arr.ndim + add_dims)
-                ellipsis_index = key.index(...)
-                expand_key[:ellipsis_index] = key[:ellipsis_index]
-                expand_key[ellipsis_index - len(key) :] = key[ellipsis_index + 1 :]
-                key = expand_key
-            while add_dims > 0:
-                for i, k in reversed(enumerate(key)):
-                    if k is None:
-                        key[i] = slice(None)
-                        arr = arr.expand_dims(i - add_dims + 1)  # is the -1 correct?
-                        add_dims -= 1
             # expand key to match the number of dimensions of the DNDarray
-            key = tuple(key + [slice(None)] * (arr.ndim - len(key)))
+            if arr.ndim > len(key):
+                key += [slice(None)] * (arr.ndim - len(key))
         else:  # key is integer or slice
-            key = tuple([key] + [slice(None)] * (arr.ndim - 1))
+            key = [key] + [slice(None)] * (arr.ndim - 1)
 
-        return advanced_indexing, arr, key
+        key = tuple(key)
+        output_shape = tuple(output_shape)
+        new_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
+
+        return advanced_indexing, arr, key, output_shape, new_split
 
     def __get_local_slice(self, key: slice):
         split = self.split
