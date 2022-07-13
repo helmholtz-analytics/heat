@@ -1,0 +1,6 @@
+{
+    "examples/classification/test_knn_benchmark.py::test_knn": {
+        "result": "Accuracy: [0.9333333373069763]",
+        "current_time": "2022-07-13T12:41:55.729504"
+    }
+}
