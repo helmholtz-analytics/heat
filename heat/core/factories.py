@@ -10,7 +10,7 @@ from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, L
 from .communication import MPI, sanitize_comm, Communication
 from .devices import Device
 from .dndarray import DNDarray
-from .coo_matrix import coo_matrix
+from .coo_matrix import DNDcoo_array
 from .memory import sanitize_memory_layout
 from .sanitation import sanitize_in, sanitize_sequence
 from .stride_tricks import sanitize_axis, sanitize_shape
