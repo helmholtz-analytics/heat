@@ -59,33 +59,37 @@ def bi_diagonalize(A, overwrite_arr=True):
     
         Let k = min(m,n);
         A is reduced to bi-diagonal form. So, The reduction proceeds in
-        k = steps down the matrix, each of which produces one row of the
+        k = steps, each of which produces one row of the
         resulting bi-diagonal matrix B. 
 
-
-
-        bidiaonalize(A) -> returns a matrix (B), which is a bidiagonal matrix
-
+        bi_diaonalize(A) -> returns a matrix (B), which is a bidiagonal matrix
+        
+        With the use of 3 functions gen_house_vec(x), apply_house_left(), apply_house_right() we change the input matrix into a bidiagonal matrix
+        We are not returning U1,Vt1 now.
+        But U1 & vt1 might be useful at the end to calculate the U,V.Transpose() matrices in the equation 
+        svd(arr) = U,sigma,V.Transpose()  for the final svd calculation.
+        
+        As of now the algorithm is working fine, but algorithm can be further optimized. 
+        Using the fact that we will apply this algorithm to a band matrix which we get after using the function ht.block_diagonalize(arr)
+        
+        
         Parameters
         ----------
         arr : ht.DNDarray
             2D input matrix (m x n)
+            
         overwrite_arr : bool, Optional
             Default: True
             if True, will overwrite the input matrix A into a bi-diagonal matrix.
-            if False, will return a bi-diagonal matrix, 
+            if False, will return a new bi-diagonal matrix, 
 
          
 
         Returns
         -------
-        result : tuple
-            U1 : ht.DNDarray
-
+        result : DNDarray
+            
             B : ht.DNDarray
-
-            V1 : ht.DNDarray 
-
 
 
         """
@@ -106,7 +110,7 @@ def bi_diagonalize(A, overwrite_arr=True):
                 v_left,tau_left = gen_house_vec(arr[i:,i])
                 # All the elements in the ith column below arr[i][i] including itself, are send to the "gen_house_vec" function.
                 apply_house_left(arr[i:,i:], v_left, tau_left, U1, m, i)
-
+           
 
                 if i<=n-2:
                     v_right,tau_right = gen_house_vec(arr[i,i+1:].T)
