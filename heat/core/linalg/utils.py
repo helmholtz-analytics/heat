@@ -7,7 +7,7 @@ from .. import complex_math
 from .. import constants
 from .. import exponential
 from heat.core import dndarray
-from heat.core.dndarray import * 
+from heat.core.dndarray import *
 from .. import factories
 from .. import manipulations
 from heat.core.manipulations import *
@@ -62,27 +62,27 @@ def gen_house_vec(x):
     http://icl.cs.utk.edu/plasma/docs/dlarft_8f_source.html
 
     """
-    #x = ht.larray(x)
+    # x = ht.larray(x)
     v = ht.copy(x)
     # The input vector is copied into 'v'.
     sig = ht.dot((v[1:]), (v[1:].T))
-    # sig = sum of squares of all the elements of v except the 1st one (v[0]) 
-    
+    # sig = sum of squares of all the elements of v except the 1st one (v[0])
+
     v[0] = 1.0
     # if isinstance(alpha, (float, int)):
     # alpha = torch.tensor(alpha, device=x.device, dtype=x.dtype)
-    #print(x.dtype)
-    
+    # print(x.dtype)
+
     # info.eps gives the difference between 1.0 and the next smallest representable float larger than 1.0
     info = ht.finfo(ht.float32)
-    if(sig < info.eps):
+    if sig < info.eps:
         # which means all the elements in v excluding the 1st element are ~ 0
         tau = 0
         return v, tau
-    
+
     else:
         # traditional householder generation
-        
+
         # tau = 0.
         # if sig == 0 and x[0] >= 0:
         #     tau = 0.
@@ -91,12 +91,12 @@ def gen_house_vec(x):
         # else:
         mu = (x[0] ** 2 + sig).sqrt()
         # mu is esentially the norm of the vector input vector 'x'.
-     
+
         if x[0] <= 0:
             v[0] = x[0] - mu
         else:
-            v[0] = (-1 * sig / (x[0] + mu))
-            
+            v[0] = -1 * sig / (x[0] + mu)
+
         tau = 2 * v[0] ** 2 / (sig + v[0] ** 2)
         v /= v[0]
 
@@ -104,18 +104,18 @@ def gen_house_vec(x):
     return v, tau
 
 
-def full_H(n,i,v,tau):
+def full_H(n, i, v, tau):
     """
     Generate the full householder matrix H
     If we want to return U1,vt1 in the bi_diagonalize function in future,
-    we can use this function. 
+    we can use this function.
 
-    U1[:] = U1 @ full_H(total_rows, i, h_left, tau_left) 
+    U1[:] = U1 @ full_H(total_rows, i, h_left, tau_left)
     vt1[:] = full_H(total_cols, i+1, h_right, tau_right) @ (vt1)
     """
-    
+
     H = ht.eye(n)
-    H[i:,i:] -= tau * ht.outer(v,v)
+    H[i:, i:] -= tau * ht.outer(v, v)
     return H
 
 
@@ -128,14 +128,15 @@ def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
 
     """
 
-    m,n = sub_arr.shape
+    m, n = sub_arr.shape
     H = ht.eye(total_rows)
-    h = H[total_rows-m:, total_rows-m:]
+    h = H[total_rows - m :, total_rows - m :]
 
     h -= tau_left * ht.outer(h_left, h_left)
 
-    sub_arr[:] = (h @ sub_arr)
-    #U1[:] = U1 @ (full_H(total_rows, i, h_left, tau_left))
+    sub_arr[:] = h @ sub_arr
+    # U1[:] = U1 @ (full_H(total_rows, i, h_left, tau_left))
+
 
 def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
     """
@@ -143,19 +144,19 @@ def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
     after finding h.
     we mutate the sub_arr as, sub_arr[:] = sub_arr @ h
     This function makes all the elements to the right of diagonal and upper diagonal elements,
-    in the ith row of the sub_arr = zero. 
-    
+    in the ith row of the sub_arr = zero.
+
     """
 
-
-    m,n = sub_arr.shape
+    m, n = sub_arr.shape
     H = ht.eye(total_cols)
-    h = H[total_cols-n:, total_cols-n:]
-    
+    h = H[total_cols - n :, total_cols - n :]
+
     h -= tau_right * ht.outer(h_right, h_right)
 
-    sub_arr[:] = (sub_arr) @ (h)    
-    #vt1[:] = (full_H(total_cols, i+1, h_right, tau_right)) @ (vt1)
+    sub_arr[:] = (sub_arr) @ (h)
+    # vt1[:] = (full_H(total_cols, i+1, h_right, tau_right)) @ (vt1)
+
 
 # @torch.jit.script
 def apply_house(side, v, tau, c):
