@@ -88,7 +88,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     if mode == "same" and v.shape[0] % 2 == 0:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
 
-    if (v.shape[0] > a.shape[0]):
+    if v.shape[0] > a.shape[0]:
         a, v = v, a
 
     # compute halo size
