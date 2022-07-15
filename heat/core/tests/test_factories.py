@@ -142,6 +142,8 @@ class TestFactories(TestCase):
                 == torch.tensor(tuple_data, dtype=torch.int8, device=self.device.torch_device)
             ).all()
         )
+        check_precision = ht.array(16777217.0, dtype=ht.float64)
+        self.assertEqual(check_precision.sum(), 16777217)
 
         # basic array function, unsplit data, no copy
         torch_tensor = torch.tensor([6, 5, 4, 3, 2, 1], device=self.device.torch_device)
