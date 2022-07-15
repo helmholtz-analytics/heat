@@ -107,6 +107,7 @@ def bi_diagonalize(A, overwrite_arr=True):
             U1,vt1 = ht.eye(m,dtype=ht.float64), ht.eye(n,dtype=ht.float64)
             # U1 is an identity matrix of size m x m, vt1 is an identity matrix of size n x n
             for i in range(n):
+                
                 v_left,tau_left = gen_house_vec(arr[i:,i])
                 # All the elements in the ith column below arr[i][i] including itself, are send to the "gen_house_vec" function.
                 apply_house_left(arr[i:,i:], v_left, tau_left, U1, m, i)
@@ -125,10 +126,13 @@ def bi_diagonalize(A, overwrite_arr=True):
             for i in range(m):
             
                 v_left,tau_left = gen_house_vec(arr[i:,i])
+                # All the elements in the ith column below arr[i][i] including itself, are send to the "gen_house_vec" function.
                 apply_house_left(arr[i:,i:], v_left, tau_left, U1, m, i)
 
                 if i<=n-2:
                     v_right,tau_right = gen_house_vec(arr[i,i+1:].T)
+                    # All the elements in the ith row to the right of arr[i][i] including itself, are send to the "gen_house_vec" function.
+                        
                     apply_house_right(arr[i:,i+1:], v_right, tau_right, vt1, n, i)
 
             return arr
