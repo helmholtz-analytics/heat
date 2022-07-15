@@ -42,12 +42,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
     Notes
     -----
-        Contrary to the original `numpy.convolve`, this function does not
-        swap the input arrays if the second one is larger than the first one.
-        This is because `a`, the signal, might be memory-distributed,
-        whereas the filter `v` may or may not be distributed,
-        i.e. a copy of `v` may reside on each process.
-
         Only 'valid' mode is supported when `v`, the filter is memory
         distributed.
 
@@ -91,10 +85,11 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         raise TypeError("Distributed filter weights only supportes valid mode")
     if len(a.shape) != 1 or len(v.shape) != 1:
         raise ValueError("Only 1-dimensional input DNDarrays are allowed")
-    if a.shape[0] <= v.shape[0]:
-        raise ValueError("Filter size must not be greater than or equal to signal size")
     if mode == "same" and v.shape[0] % 2 == 0:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
+
+    if (v.shape[0] > a.shape[0]):
+        a, v = v, a
 
     # compute halo size
     halo_size = int(v.lshape_map[0][0] / 2)
@@ -130,7 +125,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     v = flip(v, [0])
     if v.larray.shape != v.lshape_map[0]:
         # pads weights if input kernel is uneven
-        target = torch.zeros(v.lshape_map[0][0], dtype=v.larray.dtype)
+        target = torch.zeros(v.lshape_map[0][0], dtype=v.larray.dtype, device=v.larray.device)
         pad_size = v.lshape_map[0][0] - v.larray.shape[0]
         target[pad_size:] = v.larray
         weight = target
@@ -149,12 +144,12 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         signal = signal.to(float_type)
         weight = weight.to(float_type)
 
-    if v.comm.is_distributed() and v.split is not None:
+    if v.is_distributed():
         size = v.comm.size
 
         t_signal_shape = (
             (t_a.shape[0] - t_v.shape[0])
-            if (a.comm.rank != 0 and int(v.lshape_map[0][0] % 2) == 0)
+            if (a.comm.rank != 0 and v.lshape_map[0][0] % 2 == 0)
             else (t_a.shape[0] - t_v.shape[0] + 1)
         )
         t_signal = torch.zeros((v.comm.size, t_signal_shape))
@@ -176,19 +171,19 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             # unpack 3D result into 1D
             local_signal_filtered = local_signal_filtered[0, 0, :]
 
-            if a.comm.rank != 0 and int(v.lshape_map[0][0] % 2) == 0:
+            if a.comm.rank != 0 and v.lshape_map[0][0] % 2 == 0:
                 local_signal_filtered = local_signal_filtered[1:]
             t_signal[origin_rank] = local_signal_filtered
 
         global_signal_filtered = array(
-            t_signal, dtype=t_signal.dtype, is_split=1, device=a.device, comm=a.comm
+            t_signal, dtype=a.dtype, is_split=1, device=a.device, comm=a.comm
         )
         signal_filtered = array(0)
         start_idx = 0
         for row in range(size):
             signal_filtered += global_signal_filtered[row][start_idx : start_idx + gshape]
             if row != size - 1:
-                start_idx += int(v.lshape_map[row + 1][0])
+                start_idx += v.lshape_map[row + 1][0]
         signal_filtered.balance_()
         return signal_filtered
     else:

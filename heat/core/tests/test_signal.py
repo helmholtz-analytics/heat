@@ -39,8 +39,6 @@ class TestSignal(TestCase):
             k = ht.eye(3)
             ht.convolve(signal, k)
         with self.assertRaises(ValueError):
-            ht.convolve(kernel_even, full_even)
-        with self.assertRaises(ValueError):
             ht.convolve(signal, kernel_even, mode="same")
         if self.comm.size > 1:
             with self.assertRaises(TypeError):
