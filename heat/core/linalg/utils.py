@@ -52,9 +52,9 @@ def gen_house_vec(x):
     Returns
     -------
     tau : DNDarray
-        tau value
+          tau value
     v : DNDarray
-        output vector
+        Output vector
     Notes
     -----
     https://www.netlib.org/lapack/explore-html/d8/d9b/group__double_o_t_h_e_rauxiliary_gaabb59655e820b3551af27781bd716143.html
@@ -64,13 +64,19 @@ def gen_house_vec(x):
     """
     #x = ht.larray(x)
     v = ht.copy(x)
+    # The input vector is copied into 'v'.
     sig = ht.dot((v[1:]), (v[1:].T))
+    # sig = sum of squares of all the elements of v except the 1st one (v[0]) 
+    
     v[0] = 1.0
     # if isinstance(alpha, (float, int)):
     # alpha = torch.tensor(alpha, device=x.device, dtype=x.dtype)
     #print(x.dtype)
+    
+    # info.eps gives the difference between 1.0 and the next smallest representable float larger than 1.0
     info = ht.finfo(ht.float32)
     if(sig < info.eps):
+        # which means all the elements in v excluding the 1st element are ~ 0
         tau = 0
         return v, tau
     
@@ -84,6 +90,8 @@ def gen_house_vec(x):
         #     tau = -2.
         # else:
         mu = (x[0] ** 2 + sig).sqrt()
+        # mu is esentially the norm of the vector input vector 'x'.
+     
         if x[0] <= 0:
             v[0] = x[0] - mu
         else:
@@ -97,6 +105,15 @@ def gen_house_vec(x):
 
 
 def full_H(n,i,v,tau):
+    """
+    Generate the full householder matrix H
+    If we want to return U1,vt1 in the bi_diagonalize function in future,
+    we can use this function. 
+
+    U1[:] = U1 @ full_H(total_rows, i, h_left, tau_left) 
+    vt1[:] = full_H(total_cols, i+1, h_right, tau_right) @ (vt1)
+    """
+    
     H = ht.eye(n)
     H[i:,i:] -= tau * ht.outer(v,v)
     return H
@@ -104,9 +121,11 @@ def full_H(n,i,v,tau):
 
 def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
     """
-    
+    we are applying the left householder transform to the sub_arr = arr[i:,i:]
+    after finding h.
+    we mutate the sub_arr as, sub_arr[:] = h @ sub_arr
+    This function makes all the elements below the diagonal in the ith column of the sub_arr = zero.
 
-    
     """
 
     m,n = sub_arr.shape
@@ -120,8 +139,11 @@ def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
 
 def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
     """
-
-    
+    we are applying the right householder transform to the sub_arr = arr[i:,i+1:]
+    after finding h.
+    we mutate the sub_arr as, sub_arr[:] = sub_arr @ h
+    This function makes all the elements to the right of diagonal and upper diagonal elements,
+    in the ith row of the sub_arr = zero. 
     
     """
 
