@@ -688,8 +688,6 @@ class TestFactories(TestCase):
             ht.logspace(-5, 3, split=1)
         with self.assertRaises(ValueError):
             ht.logspace(-5, 3, num=-1)
-        with self.assertRaises(ValueError):
-            ht.logspace(-5, 3, num=0)
 
     def test_meshgrid(self):
         # arrays < 2
