@@ -434,6 +434,7 @@ def array(
 def asarray(
     obj: Iterable,
     dtype: Optional[Type[datatype]] = None,
+    copy: bool = False,
     order: str = "C",
     is_split: Optional[bool] = None,
     device: Optional[Union[str, Device]] = None,
@@ -449,6 +450,9 @@ def asarray(
         tuples of tuples, tuples of lists and ndarrays.
     dtype : dtype, optional
         By default, the data-type is inferred from the input data.
+    copy : bool, optional
+        If ``True``, then the object is copied. Otherwise, a copy will only be made if `obj` is a nested
+        sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
     order: str, optional
         Whether to use row-major (C-style) or column-major (Fortran-style) memory representation. Defaults to ‘C’.
     is_split : None or int, optional
@@ -482,7 +486,7 @@ def asarray(
     >>> ht.asarray(a, dtype=ht.float64) is a
     False
     """
-    return array(obj, dtype=dtype, copy=False, order=order, is_split=is_split, device=device)
+    return array(obj, dtype=dtype, copy=copy, order=order, is_split=is_split, device=device)
 
 
 def empty(
