@@ -1,5 +1,25 @@
 import torch
 from typing import Tuple
+from ..communication import MPI
+import heat as ht
+from .. import arithmetics
+from .. import complex_math
+from .. import constants
+from .. import exponential
+from heat.core import dndarray
+from heat.core.dndarray import * 
+from .. import factories
+from .. import manipulations
+from heat.core.manipulations import *
+from .. import rounding
+from .. import sanitation
+from .. import statistics
+from .. import stride_tricks
+from .. import types
+from .svd import *
+from .qr import *
+from .basics import *
+from .solver import *
 
 __all__ = ["gen_house_mat", "gen_house_vec", "apply_house", "gbelr"]
 
@@ -13,16 +33,14 @@ def gen_house_mat(v, tau):
 
 
 # @torch.jit.script
-def gen_house_vec(x, n=2):
-    # type: (torch.Tensor, int) -> Tuple[torch.Tensor, torch.Tensor]
+def gen_house_vec(x):
+    # type: (DNDarray) -> Tuple[DNDarray, DNDarray]
     """
     What is implemented now is only generating ONE reflector,
 
     Note, this overwrites x, todo: does it?
     Parameters
     ----------
-    n : int
-        order of the reflector
     alpha : float
         the value alpha
     x : torch.Tensor
@@ -33,9 +51,9 @@ def gen_house_vec(x, n=2):
 
     Returns
     -------
-    tau : torch.Tensor
+    tau : DNDarray
         tau value
-    v : torch.Tensor
+    v : DNDarray
         output vector
     Notes
     -----
@@ -44,31 +62,78 @@ def gen_house_vec(x, n=2):
     http://icl.cs.utk.edu/plasma/docs/dlarft_8f_source.html
 
     """
-    v = x.clone().reshape(-1, 1)
-    # if isinstance(alpha, (float, int)):
-    #     alpha = torch.tensor(alpha, device=x.device, dtype=x.dtype)
-    if n <= 1:
-        tau = torch.tensor(0, device=x.device, dtype=x.dtype)
-        return v, tau
-    # traditional householder generation
+    #x = ht.larray(x)
+    v = ht.copy(x)
+    sig = ht.dot((v[1:]), (v[1:].T))
     v[0] = 1.0
-    sig = v[1:].t() @ v[1:]
-    # tau = 0.
-    # if sig == 0 and x[0] >= 0:
-    #     tau = 0.
-    # elif sig == 0 and x[0] < 0:
-    #     tau = -2.
-    # else:
-    mu = (x[0] ** 2 + sig).sqrt()
-    if x[0] <= 0:
-        v[0] = x[0] - mu
+    # if isinstance(alpha, (float, int)):
+    # alpha = torch.tensor(alpha, device=x.device, dtype=x.dtype)
+    #print(x.dtype)
+    info = ht.finfo(ht.float32)
+    if(sig < info.eps):
+        tau = 0
+        return v, tau
+    
     else:
-        v[0] = (-1 * sig / (x[0] + mu))[0]
-    tau = 2 * v[0] ** 2 / (sig + v[0] ** 2)
-    v /= v[0].clone()
+        # traditional householder generation
+        
+        # tau = 0.
+        # if sig == 0 and x[0] >= 0:
+        #     tau = 0.
+        # elif sig == 0 and x[0] < 0:
+        #     tau = -2.
+        # else:
+        mu = (x[0] ** 2 + sig).sqrt()
+        if x[0] <= 0:
+            v[0] = x[0] - mu
+        else:
+            v[0] = (-1 * sig / (x[0] + mu))
+            
+        tau = 2 * v[0] ** 2 / (sig + v[0] ** 2)
+        v /= v[0]
 
-    return v.reshape(1, -1), tau
+    v = ht.flatten(v)
+    return v, tau
 
+
+def full_H(n,i,v,tau):
+    H = ht.eye(n)
+    H[i:,i:] -= tau * ht.outer(v,v)
+    return H
+
+
+def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
+    """
+    
+
+    
+    """
+
+    m,n = sub_arr.shape
+    H = ht.eye(total_rows)
+    h = H[total_rows-m:, total_rows-m:]
+
+    h -= tau_left * ht.outer(h_left, h_left)
+
+    sub_arr[:] = (h @ sub_arr)
+    #U1[:] = U1 @ (full_H(total_rows, i, h_left, tau_left))
+
+def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
+    """
+
+    
+    
+    """
+
+
+    m,n = sub_arr.shape
+    H = ht.eye(total_cols)
+    h = H[total_cols-n:, total_cols-n:]
+    
+    h -= tau_right * ht.outer(h_right, h_right)
+
+    sub_arr[:] = (sub_arr) @ (h)    
+    #vt1[:] = (full_H(total_cols, i+1, h_right, tau_right)) @ (vt1)
 
 # @torch.jit.script
 def apply_house(side, v, tau, c):
