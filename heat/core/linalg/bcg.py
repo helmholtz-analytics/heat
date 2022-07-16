@@ -28,7 +28,7 @@ from typing import List, Callable, Union, Optional, Tuple, TypeVar
 from torch._C import Value
 from inspect import stack
 from mpi4py import MPI
-from pathlib import Path 
+from pathlib import Path
 
 from heat.core.devices import cpu
 
