@@ -20,13 +20,12 @@ comm = MPI.COMM_WORLD
 size = comm.Get_size()
 rank = comm.Get_rank()
 
-from typing import List, Callable, Union, Optional, Tuple
+from typing import List, Callable, Union, Optional, Tuple,TypeVar
 
 from torch._C import Value
 from inspect import stack
 from mpi4py import MPI
-from pathlib import Path
-from typing import List, Union, Tuple, TypeVar
+from pathlib import Path 
 
 from heat.core.devices import cpu
 
@@ -83,7 +82,7 @@ def bi_diagonalize(A, overwrite_arr=True):
 
     Parameters
     ----------
-    arr : ht.DNDarray
+    A : ht.DNDarray
         2D input matrix (m x n)
 
     overwrite_arr : bool, Optional
@@ -101,8 +100,7 @@ def bi_diagonalize(A, overwrite_arr=True):
 
 
     """
-
-    if overwrite_arr == True:
+    if overwrite_arr:
         arr = A
         # The input matrix is overwritten with the result, i.e it will be changed to a bidiagonal matrix.
     else:
