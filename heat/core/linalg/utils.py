@@ -124,10 +124,14 @@ def full_H(n, i, v, tau):
 
     Parameters
     ------------
-    n : int - total rows/cols of the input matrix.
+    n : int
+        total rows/cols of the input matrix.
     i : int
-    v : dndarray - h_left or h_right
+        index of current row/column in the input matrix.
+    v : dndarray
+        h_left or h_right.
     tau: int
+         tau_left or tau_right value.
 
     Returns
     --------
@@ -147,12 +151,18 @@ def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
 
     Parameters
     ------------
-    sub_arr : dndaarray - part of the input matrix.
+    sub_arr : dndaarray.
+              Part of the input matrix.
     h_left : dndarray
+             Vector/dndarray received from gen_house_vec() function. 
     tau_left : int
+               tau value.
     U1 : dndarray
-    total_rows : int - total rows of the input matrix.
+         Identity matrix, if we are not updating.
+    total_rows : int
+                 total rows of the input matrix.
     i: int
+       index of current row/column in the input matrix.
 
     Returns
     --------
@@ -179,12 +189,18 @@ def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
 
     Parameters
     ------------
-    sub_arr : dndaarray - part of the input matrix.
+    sub_arr : dndaarray
+              Part of the input matrix.
     h_right : dndarray
+              Vector/dndarray received from gen_house_vec() function.
     tau_right : int
+                tau value.
     vt1 : dndarray
-    total_cols : int - total cols of the input matrix.
+          Identity matrix, if we are not updating.
+    total_cols : int
+                 total cols of the input matrix.
     i: int
+       index of current row/column in the input matrix.
 
     Returns
     --------
