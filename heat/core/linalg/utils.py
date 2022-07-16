@@ -1,3 +1,6 @@
+"""
+Functions related to householder reflectors. 
+"""
 import torch
 from typing import Tuple
 from ..communication import MPI
@@ -6,11 +9,9 @@ from .. import arithmetics
 from .. import complex_math
 from .. import constants
 from .. import exponential
-from heat.core import dndarray
-from heat.core.dndarray import *
+from ..dndarray import DNDarray
 from .. import factories
 from .. import manipulations
-from heat.core.manipulations import *
 from .. import rounding
 from .. import sanitation
 from .. import statistics
@@ -31,6 +32,9 @@ __all__ = [
 
 # @torch.jit.script
 def gen_house_mat(v, tau):
+    """
+    Return Householder reflector. Similar to Full_H function.
+    """
     # type: (torch.Tensor, torch.Tensor) -> torch.Tensor
     h = torch.eye(v.numel(), dtype=v.dtype, device=v.device)
     h -= tau.item() * torch.matmul(v.T, v)
@@ -176,6 +180,8 @@ def apply_house(side, v, tau, c):
 
     Returns
     -------
+    Depending on string side
+    torch.matmul(h,c) or torch.matmul(c,h) : torch.tensor
 
     Notes
     -----
@@ -209,7 +215,8 @@ def gbelr(uplo, arr):
         tensor on which to do the work, will be overwritten
     st : starting index
     end : ending index
-    uplo:
+    uplo: str
+          lower or upper
 
     Returns
     -------
