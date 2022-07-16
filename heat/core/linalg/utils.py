@@ -154,7 +154,7 @@ def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
     sub_arr : dndaarray.
               Part of the input matrix.
     h_left : dndarray
-             Vector/dndarray received from gen_house_vec() function. 
+             Vector/dndarray received from gen_house_vec() function.
     tau_left : int
                tau value.
     U1 : dndarray
