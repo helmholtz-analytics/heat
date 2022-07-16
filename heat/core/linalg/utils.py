@@ -16,12 +16,9 @@ from .. import sanitation
 from .. import statistics
 from .. import stride_tricks
 from .. import types
-from .svd import *
-from .qr import *
-from .basics import *
-from .solver import *
 
-__all__ = ["gen_house_mat", "gen_house_vec", "apply_house", "gbelr"]
+
+__all__ = ["gen_house_mat", "gen_house_vec", "apply_house", "gbelr", "full_H", "apply_house_left", "apply_house_right"]
 
 
 # @torch.jit.script
@@ -34,7 +31,7 @@ def gen_house_mat(v, tau):
 
 # @torch.jit.script
 def gen_house_vec(x):
-    # type: (DNDarray) -> Tuple[DNDarray, DNDarray]
+    # type: (DNDarray) -> Tuple[DNDarray, int]
     """
     What is implemented now is only generating ONE reflector,
 
@@ -51,7 +48,7 @@ def gen_house_vec(x):
 
     Returns
     -------
-    tau : DNDarray
+    tau : int
           tau value
     v : DNDarray
         Output vector
@@ -113,7 +110,6 @@ def full_H(n, i, v, tau):
     U1[:] = U1 @ full_H(total_rows, i, h_left, tau_left)
     vt1[:] = full_H(total_cols, i+1, h_right, tau_right) @ (vt1)
     """
-
     H = ht.eye(n)
     H[i:, i:] -= tau * ht.outer(v, v)
     return H
@@ -121,13 +117,12 @@ def full_H(n, i, v, tau):
 
 def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
     """
-    we are applying the left householder transform to the sub_arr = arr[i:,i:]
+    We are applying the left householder transform to the sub_arr = arr[i:,i:]
     after finding h.
     we mutate the sub_arr as, sub_arr[:] = h @ sub_arr
     This function makes all the elements below the diagonal in the ith column of the sub_arr = zero.
 
     """
-
     m, n = sub_arr.shape
     H = ht.eye(total_rows)
     h = H[total_rows - m :, total_rows - m :]
@@ -140,14 +135,13 @@ def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
 
 def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
     """
-    we are applying the right householder transform to the sub_arr = arr[i:,i+1:]
+    We are applying the right householder transform to the sub_arr = arr[i:,i+1:]
     after finding h.
     we mutate the sub_arr as, sub_arr[:] = sub_arr @ h
     This function makes all the elements to the right of diagonal and upper diagonal elements,
     in the ith row of the sub_arr = zero.
 
     """
-
     m, n = sub_arr.shape
     H = ht.eye(total_cols)
     h = H[total_cols - n :, total_cols - n :]
@@ -162,7 +156,7 @@ def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
 def apply_house(side, v, tau, c):
     # type: (str, torch.Tensor, torch.Tensor, torch.Tensor) -> torch.Tensor
     """
-    applies the matrix H = I - tau * v * v.T to c1 and c2
+    Applies the matrix H = I - tau * v * v.T to c1 and c2
     if side == left: return H @ c1 and H @ c2
     elif side == right: return c1 @ H and c2 @ H
     Parameters
@@ -174,7 +168,6 @@ def apply_house(side, v, tau, c):
 
     Returns
     -------
-
 
     Notes
     -----
@@ -196,7 +189,7 @@ def apply_house(side, v, tau, c):
 def gbelr(uplo, arr):
     # (str, int, torch.Tensor, int, int) -> Tuple[torch.Tensor, torch.Tensor]
     """
-    partial function for bulge chasing, designed for the case that the matrix is upper block diagonal
+    Partial function for bulge chasing, designed for the case that the matrix is upper block diagonal
     this function will start from the end of the block given to it. st and end give the global dimensions of the black,
     if the matrix is lower
 
@@ -208,6 +201,7 @@ def gbelr(uplo, arr):
         tensor on which to do the work, will be overwritten
     st : starting index
     end : ending index
+    uplo: 
 
     Returns
     -------
