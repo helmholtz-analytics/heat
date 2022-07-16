@@ -18,7 +18,15 @@ from .. import stride_tricks
 from .. import types
 
 
-__all__ = ["gen_house_mat", "gen_house_vec", "apply_house", "gbelr", "full_H", "apply_house_left", "apply_house_right"]
+__all__ = [
+    "gen_house_mat",
+    "gen_house_vec",
+    "apply_house",
+    "gbelr",
+    "full_H",
+    "apply_house_left",
+    "apply_house_right",
+]
 
 
 # @torch.jit.script
@@ -201,7 +209,7 @@ def gbelr(uplo, arr):
         tensor on which to do the work, will be overwritten
     st : starting index
     end : ending index
-    uplo: 
+    uplo:
 
     Returns
     -------
