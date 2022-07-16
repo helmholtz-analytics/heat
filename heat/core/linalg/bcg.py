@@ -1,3 +1,6 @@
+"""
+Bidiagonalization of input DNDarray.
+"""
 import itertools
 from operator import imod
 from turtle import left
@@ -20,7 +23,7 @@ comm = MPI.COMM_WORLD
 size = comm.Get_size()
 rank = comm.Get_rank()
 
-from typing import List, Callable, Union, Optional, Tuple,TypeVar
+from typing import List, Callable, Union, Optional, Tuple, TypeVar
 
 from torch._C import Value
 from inspect import stack
@@ -89,7 +92,6 @@ def bi_diagonalize(A, overwrite_arr=True):
         Default: True
         if True, will overwrite the input matrix A into a bi-diagonal matrix.
         if False, will return a new bi-diagonal matrix,
-
 
 
     Returns
