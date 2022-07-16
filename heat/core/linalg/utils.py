@@ -6,7 +6,7 @@ from typing import Tuple
 from ..communication import MPI
 import heat as ht
 from .. import arithmetics
-from .. import complex_math   
+from .. import complex_math
 from .. import constants
 from .. import exponential
 from ..dndarray import DNDarray
@@ -121,14 +121,14 @@ def full_H(n, i, v, tau):
 
     U1[:] = U1 @ full_H(total_rows, i, h_left, tau_left)
     vt1[:] = full_H(total_cols, i+1, h_right, tau_right) @ (vt1)
-    
+
     Parameters
     ------------
     n : int - total rows/cols of the input matrix.
     i : int
     v : dndarray - h_left or h_right
     tau: int
-    
+
     Returns
     --------
     H : dndarray
@@ -144,7 +144,7 @@ def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
     after finding h.
     we mutate the sub_arr as, sub_arr[:] = h @ sub_arr
     This function makes all the elements below the diagonal in the ith column of the sub_arr = zero.
-    
+
     Parameters
     ------------
     sub_arr : dndaarray - part of the input matrix.
@@ -153,11 +153,11 @@ def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
     U1 : dndarray
     total_rows : int - total rows of the input matrix.
     i: int
-    
+
     Returns
     --------
     Returns none but mutates the input sub_arr matrix.
-    
+
     """
     m, n = sub_arr.shape
     H = ht.eye(total_rows)
@@ -176,7 +176,7 @@ def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
     we mutate the sub_arr as, sub_arr[:] = sub_arr @ h
     This function makes all the elements to the right of diagonal and upper diagonal elements,
     in the ith row of the sub_arr = zero.
-    
+
     Parameters
     ------------
     sub_arr : dndaarray - part of the input matrix.
@@ -185,11 +185,11 @@ def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
     vt1 : dndarray
     total_cols : int - total cols of the input matrix.
     i: int
-    
+
     Returns
     --------
     Returns none but mutates the input sub_arr matrix.
-    
+
     """
     m, n = sub_arr.shape
     H = ht.eye(total_cols)
