@@ -156,7 +156,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
         for r in range(size):
             origin_rank = r
-            rec_v = v.comm.bcast(t_v, root = r)
+            rec_v = v.comm.bcast(t_v, root=r)
             t_v1 = rec_v.reshape(1, 1, rec_v.shape[0])
             local_signal_filtered = fc.conv1d(signal, t_v1)
             # unpack 3D result into 1D
