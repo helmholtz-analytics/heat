@@ -77,6 +77,7 @@ class DNDcoo_array:
         self.__lnnz = array._nnz()
         self.__gnnz = gnnz
         self.__indices = indices(gshape, array, split, comm)
+        self.__lindices = array.coalesce().indices()
         # TODO: indices need to include explicit zeros
         # create
         # .coalesce()
@@ -114,6 +115,13 @@ class DNDcoo_array:
         Global indices of the ``coo_array``
         """
         return self.__indices
+
+    @property
+    def lindices(self) -> Tuple:
+        """
+        Global indices of the ``coo_array``
+        """
+        return self.__lindices
 
     @property
     def ndim(self) -> int:
