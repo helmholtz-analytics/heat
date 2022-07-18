@@ -216,6 +216,10 @@ class TestLogical(TestCase):
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
 
+        # test keepdim
+        ones_2d = ht.ones((1, 1))
+        self.assertEqual(ones_2d.any(keepdim=True).shape, ones_2d.shape)
+
     def test_isclose(self):
         size = ht.communication.MPI_WORLD.size
         a = ht.float32([[2, 2], [2, 2]])
