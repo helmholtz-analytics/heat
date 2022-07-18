@@ -338,6 +338,7 @@ class TestFactories(TestCase):
         # from torch tensor
         arr = torch.tensor([1, 2, 3, 4], device=self.device.torch_device)
         asarr = ht.asarray(arr)
+        self.assertFalse(ht.asarray(arr, copy=True).larray is arr)
 
         self.assertTrue(torch.equal(asarr.larray, arr))
 
