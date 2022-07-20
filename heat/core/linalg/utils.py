@@ -46,18 +46,10 @@ def gen_house_mat(v, tau):
 def gen_house_vec(x):
     # type: (DNDarray) -> Tuple[DNDarray, int]
     """
-    What is implemented now is only generating ONE reflector,
-
-    Note, this overwrites x, todo: does it?
     Parameters
     ----------
-    alpha : float
-        the value alpha
     x : torch.Tensor
         overwritten
-    overwrite: bool
-        if true: overwrite x with the transform vector
-        default: True
 
     Returns
     -------
@@ -73,9 +65,10 @@ def gen_house_vec(x):
 
     """
     # x = ht.larray(x)
-    v = ht.copy(x)
+    v = torch.clone(x)
     # The input vector is copied into 'v'.
-    sig = ht.dot((v[1:]), (v[1:].T))
+    sig = torch.dot((v[1:]), (v[1:]))
+    # Note: Unlike NumPy’s dot, torch.dot intentionally only supports computing the dot product of two 1D tensors with the same number of elements.
     # sig = sum of squares of all the elements of v except the 1st one (v[0])
 
     v[0] = 1.0
@@ -84,7 +77,7 @@ def gen_house_vec(x):
     # print(x.dtype)
 
     # info.eps gives the difference between 1.0 and the next smallest representable float larger than 1.0
-    info = ht.finfo(ht.float32)
+    info = torch.finfo(torch.float64)
     if sig < info.eps:
         # which means all the elements in v excluding the 1st element are ~ 0
         tau = 0
@@ -99,6 +92,7 @@ def gen_house_vec(x):
         # elif sig == 0 and x[0] < 0:
         #     tau = -2.
         # else:
+
         mu = (x[0] ** 2 + sig).sqrt()
         # mu is esentially the norm of the vector input vector 'x'.
 
@@ -107,10 +101,10 @@ def gen_house_vec(x):
         else:
             v[0] = -1 * sig / (x[0] + mu)
 
-        tau = 2 * v[0] ** 2 / (sig + v[0] ** 2)
-        v /= v[0]
+        tau = 2 * (v[0] ** 2) / (sig + v[0] ** 2)
+        v = torch.div(v, v[0])
 
-    v = ht.flatten(v)
+    v = torch.flatten(v)
     return v, tau
 
 
@@ -174,9 +168,9 @@ def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
     H = ht.eye(total_rows)
     h = H[total_rows - m :, total_rows - m :]
 
-    h -= tau_left * ht.outer(h_left, h_left)
+    h.larray -= tau_left * torch.outer(h_left, h_left)
 
-    sub_arr[:] = h @ sub_arr
+    sub_arr[:] = torch.matmul(h.larray, sub_arr.float())
     # U1[:] = U1 @ (full_H(total_rows, i, h_left, tau_left))
 
 
@@ -212,9 +206,9 @@ def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
     H = ht.eye(total_cols)
     h = H[total_cols - n :, total_cols - n :]
 
-    h -= tau_right * ht.outer(h_right, h_right)
+    h.larray -= tau_right * torch.outer(h_right, h_right)
 
-    sub_arr[:] = (sub_arr) @ (h)
+    sub_arr[:] = torch.matmul(sub_arr.float(), h.larray)
     # vt1[:] = (full_H(total_cols, i+1, h_right, tau_right)) @ (vt1)
 
 
