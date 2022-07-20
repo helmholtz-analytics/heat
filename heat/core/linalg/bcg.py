@@ -4,7 +4,6 @@ Bidiagonalization of input DNDarray.
 import itertools
 from operator import imod
 from turtle import left
-import numpy as np
 import torch
 import warnings
 import heat as ht
@@ -55,31 +54,31 @@ __all__ = ["bi_diagonalize"]
 def bi_diagonalize(A, overwrite_arr=True):
     """
     Updating the given input A matrix into a bidiagonal matrix,
-    this is done using the house holder reflectors.
+    this is done using the householder reflectors.
 
-    If the matrix A is full then the usual procedure for bidiagonal
-    reduction is to apply "Full length => Householder transformations
-    alternatively from left and right end.
+    If the matrix A is complete (Full) then the usual procedure for bidiagonal
+    reduction is to apply "Full-length => Householder transformations
+    alternatively from the left and right end.
 
     The reduction algorithm used here is based on the Householder transformations
-    If the transformation matrices U1 & V1 are also needed, then this algo is
+    If the transformation matrices U1 & V1 are also needed, then this algorithm is
     very useful.
 
     Our matrix A denotes a matrix of size m X n
 
     Let k = min(m,n);
-    A is reduced to bi-diagonal form. So, The reduction proceeds in
+    A is reduced to a bi-diagonal form. So, The reduction proceeds in
     k = steps, each of which produces one row of the
-    resulting bi-diagonal matrix B.
+    resulting in bi-diagonal matrix B.
 
     bi_diaonalize(A) -> returns a matrix (B), which is a bidiagonal matrix
 
     With the use of 3 functions gen_house_vec(x), apply_house_left(), apply_house_right() we change the input matrix into a bidiagonal matrix
-    We are not returning U1,Vt1 now.
+    We are not returning U1, Vt1 now.
     But U1 & vt1 might be useful at the end to calculate the U,V.Transpose() matrices in the equation
     svd(arr) = U,sigma,V.Transpose()  for the final svd calculation.
 
-    As of now the algorithm is working fine, but algorithm can be further optimized.
+    Currently, the algorithm is working fine, but the algorithm can be further optimized.
     Using the fact that we will apply this algorithm to a band matrix which we get after using the function ht.block_diagonalize(arr)
 
 
@@ -106,7 +105,7 @@ def bi_diagonalize(A, overwrite_arr=True):
         # The input matrix is overwritten with the result, i.e it will be changed to a bidiagonal matrix.
     else:
         arr = A.copy()
-        # The input matrix is not overwritten, i.e a new matrix "arr" which is a copy of input matrix, will be changed to a bidiagonal matrix.
+        # The input matrix is not overwritten, i.e a new matrix "arr" which is a copy of the input matrix, will be changed to a bidiagonal matrix.
 
     m, n = arr.shape
     k = min(m, n)
