@@ -5,15 +5,12 @@ import collections
 import torch
 from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple
 
-from ..communication import MPICommunication
-from ..types import datatype
-from ..tiling import SquareDiagTiles
-from ..dndarray import DNDarray
-from .. import factories
-
+from heat.core.communication import MPICommunication
+from heat.core.types import datatype
+from heat.core.tiling import SquareDiagTiles
+from heat.core.dndarray import DNDarray
+from heat.core import factories
 __all__ = ["qr"]
-
-
 def qr(
     a: DNDarray,
     tiles_per_proc: Union[int, torch.Tensor] = 1,

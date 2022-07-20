@@ -11,7 +11,7 @@ import heat as ht
 
 from mpi4py import MPI
 
-from heat.core.linalg.utils import (
+from utils import (
     apply_house,
     apply_house_left,
     apply_house_right,
@@ -32,22 +32,22 @@ from pathlib import Path
 
 from heat.core.devices import cpu
 
-from ..communication import MPI
-from .. import arithmetics
-from .. import complex_math
-from .. import constants
-from .. import exponential
+from heat.core import communication 
+from heat.core import arithmetics
+from heat.core import complex_math
+from heat.core import constants
+from heat.core import exponential
 from heat.core import dndarray
-from .. import factories
-from .. import manipulations
+from heat.core import factories
+from heat.core import manipulations
 from heat.core.manipulations import *
-from .. import rounding
-from .. import sanitation
-from .. import statistics
-from .. import stride_tricks
-from .. import types
-from .svd import *
-from .qr import *
+from heat.core import rounding
+from heat.core import sanitation
+from heat.core import statistics
+from heat.core import stride_tricks
+from heat.core import types
+from svd import *
+from qr import *
 
 __all__ = ["bi_diagonalize"]
 
@@ -145,14 +145,14 @@ def bi_diagonalize(A, overwrite_arr=True):
 
 
 # arr = ht.zeros([15,12], dtype=ht.float64)
-# a = ht.arange(20,dtype=ht.float64)
-# a = a.reshape(4,5)
+a = ht.arange(20,dtype=ht.float64)
+a = a.reshape(4,5)
 # U1,B1,Vt1 = bi_diagonalize(a)
-# bi_diagonalize(a)
+bi_diagonalize(a)
 # print("Matrix U1 is: ", U1)
 # print("Matrix B1 is: ", B1)
 # print("Matrix Vt1 is: ", Vt1)
 # k = (U1 @ B1 @ Vt1)
 # print(k)
-# print(a)
+print(a)
 # print(B1)

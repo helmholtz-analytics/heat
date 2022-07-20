@@ -2,21 +2,22 @@
 Functions related to householder reflectors.
 """
 import torch
-from typing import Tuple
-from ..communication import MPI
 import heat as ht
-from .. import arithmetics
-from .. import complex_math
-from .. import constants
-from .. import exponential
-from ..dndarray import DNDarray
-from .. import factories
-from .. import manipulations
-from .. import rounding
-from .. import sanitation
-from .. import statistics
-from .. import stride_tricks
-from .. import types
+from typing import Tuple
+
+from heat.core import communication
+from heat.core import arithmetics
+from heat.core import complex_math
+from heat.core import constants
+from heat.core import exponential
+from heat.core.dndarray import DNDarray
+from heat.core import factories
+from heat.core import manipulations
+from heat.core import rounding
+from heat.core import sanitation
+from heat.core import statistics
+from heat.core import stride_tricks
+from heat.core import types
 
 
 __all__ = [
