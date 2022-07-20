@@ -273,7 +273,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     v = v.astype(promoted_type)
 
     if v.is_distributed():
-        raise TypeError("Distributed filter weights are not supported")
+        raise TypeError("Distributed filter weights will be supported soon")
     if len(a.shape) != 2 or len(v.shape) != 2:
         raise ValueError("Only 2-dimensional input DNDarrays are allowed")
     if a.shape[0] <= v.shape[0] or a.shape[1] <= v.shape[1]:
