@@ -32,7 +32,7 @@ from pathlib import Path
 
 from heat.core.devices import cpu
 
-from heat.core import communication 
+from heat.core import communication
 from heat.core import arithmetics
 from heat.core import complex_math
 from heat.core import constants
@@ -145,8 +145,8 @@ def bi_diagonalize(A, overwrite_arr=True):
 
 
 # arr = ht.zeros([15,12], dtype=ht.float64)
-a = ht.arange(20,dtype=ht.float64)
-a = a.reshape(4,5)
+a = ht.arange(20, dtype=ht.float64)
+a = a.reshape(4, 5)
 # U1,B1,Vt1 = bi_diagonalize(a)
 bi_diagonalize(a)
 # print("Matrix U1 is: ", U1)
