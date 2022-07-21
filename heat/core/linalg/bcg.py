@@ -99,6 +99,41 @@ def bi_diagonalize(A, overwrite_arr=True):
 
         B : ht.DNDarray
 
+    To change the serial algorithm into an Efficient parallel program, we do 3 steps:
+    1. We should distribute the data and the computational work to multiple processors.
+    2. Then, a 'local view' of the block decomposition will lead to a pipelined parallel algorithm.
+    3.
+
+
+
+    The band form is further reduced to the final condensed form using the bulge chasing technique.
+    This procedure annihilates the extra off-diagonal elements by chasing the created
+    fill-in elements down to the bottom right side of the matrix using successive
+    orthogonal transformations at each sweep.
+
+
+
+    Three Kernels are used to implement this algorithm:
+
+    xGBLER kernel: This kernel triggers the beginning of each sweep by successive element-wise
+                   annihilations of the extra non-zero entries within a single column, It then
+                   applies all the left updates creating single bulges, which have to be immediately
+                   annihilated and then followed by the right updates on the corresponding
+                   data block loaded into the cache memory.
+
+
+    xGBRCE kernel: This kernel successively applies all the right updates coming from the
+                   previous kernels, either xGBELR or xGBLRX (described below). This subsequently
+                   generates single bulges, which have to be immediately annihilated by appropriate
+                   left transformations in order to eventually avoid an expansion of the
+                   fill-in structure (Figure 3(b)) by subsequent orthogonal transformations.
+
+    xGBLRX kernel: This kernel successively applies all the left updates coming from the
+                   xGBRCE kernel and create single bulge out of the diagonal, then similar
+                   to xGBELR, it eliminate the bulge and apply the corresponding right updates.
+
+
+
     """
     if overwrite_arr:
         arr = A
