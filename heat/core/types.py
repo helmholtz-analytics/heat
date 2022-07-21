@@ -996,10 +996,8 @@ class finfo:
 
     def _init(self, dtype: Type[datatype]):
         _torch_finfo = torch.finfo(dtype.torch_type())
-        for word in ["bits", "eps", "max", "tiny"]:
+        for word in ["bits", "eps", "max", "min", "tiny"]:
             setattr(self, word, getattr(_torch_finfo, word))
-
-        self.min = -self.max
 
         return self
 
@@ -1044,10 +1042,8 @@ class iinfo:
 
     def _init(self, dtype: Type[datatype]):
         _torch_iinfo = torch.iinfo(dtype.torch_type())
-        for word in ["bits", "max"]:
+        for word in ["bits", "min", "max"]:
             setattr(self, word, getattr(_torch_iinfo, word))
-
-        self.min = -(self.max + 1)
 
         return self
 
