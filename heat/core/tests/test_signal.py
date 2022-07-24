@@ -21,8 +21,10 @@ class TestSignal(TestCase):
         ).astype(ht.int)
 
         signal = ht.arange(0, 16, split=0).astype(ht.int)
+        full_ones = ht.ones(7, split=0).astype(ht.int)
         kernel_odd = ht.ones(3).astype(ht.int)
         kernel_even = [1, 1, 1, 1]
+        dis_kernel = ht.ones(4, split=0).astype(ht.int)
 
         with self.assertRaises(TypeError):
             signal_wrong_type = [0, 1, 2, "tre", 4, "five", 6, "ʻehiku", 8, 9, 10]
@@ -44,6 +46,10 @@ class TestSignal(TestCase):
             with self.assertRaises(TypeError):
                 k = ht.ones(4, split=0).astype(ht.int)
                 ht.convolve(signal, k)
+            with self.assertRaises(ValueError):
+                ht.convolve(full_ones, kernel_even, mode="valid")
+            with self.assertRaises(ValueError):
+                ht.convolve(kernel_even, full_ones, mode="valid")
         if self.comm.size >= 5:
             with self.assertRaises(ValueError):
                 ht.convolve(signal, kernel_even, mode="valid")
@@ -79,3 +85,17 @@ class TestSignal(TestCase):
         kernel = ht.ones(1).astype(ht.int)
         conv = ht.convolve(alt_signal, kernel)
         self.assertTrue(ht.equal(signal, conv))
+
+        # test for distributed kernel
+        conv = ht.convolve(full_ones, dis_kernel, mode="valid")
+        ans = ht.array([4, 4, 4, 4])
+        self.assertTrue(ht.equal(conv, ans))
+
+        conv = ht.convolve(dis_kernel, full_ones, mode="valid")
+        ans = ht.array([4, 4, 4, 4])
+        self.assertTrue(ht.equal(conv, ans))
+
+        full_ones = ht.ones(7).astype(ht.int)
+        conv = ht.convolve(full_ones, dis_kernel, mode="valid")
+        ans = ht.array([4, 4, 4, 4])
+        self.assertTrue(ht.equal(conv, ans))
