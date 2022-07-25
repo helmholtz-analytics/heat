@@ -161,14 +161,23 @@ def bi_diagonalize(A, overwrite_arr=True):
     # U1 is an identity matrix of size m x m, vt1 is an identity matrix of size n x n
 
     for i in range(k):
-        v_left, tau_left = gen_house_vec(arr[i:, i])
-        # All the elements in the ith column below arr[i][i] including itself, are send to the "gen_house_vec" function.
-        apply_house_left(arr[i:diag_width, i:], v_left, tau_left, U1, m, i)
+        v_left, tau_left = gen_house_vec(arr[i : i + diag_width, i])
+        # All the elements in the ith column upto index = width of the diagonal in the band matrix, below arr[i][i] including itself, are send to the "gen_house_vec" function.
+        apply_house_left(
+            arr[i : i + diag_width, i : (i + diag_width + 1)], v_left, tau_left, U1, m, i
+        )
 
         if i <= n - 2:
-            v_right, tau_right = gen_house_vec(torch.t(arr[i, i + 1 :]))
-            # All the elements in the ith row to the right of arr[i][i] including itself, are send to the "gen_house_vec" function.
-            apply_house_right(arr[i:, i + 1 : diag_width], v_right, tau_right, vt1, n, i)
+            v_right, tau_right = gen_house_vec(torch.t(arr[i, i + 1 : i + diag_width]))
+            # All the elements in the ith row upto index = width of the diagonal in the band matrix, the right of arr[i][i] including itself, are send to the "gen_house_vec" function.
+            apply_house_right(
+                arr[i : (i + diag_width + 1), i + 1 : (i + 1 + diag_width)],
+                v_right,
+                tau_right,
+                vt1,
+                n,
+                i,
+            )
 
     return arr
 
@@ -176,8 +185,13 @@ def bi_diagonalize(A, overwrite_arr=True):
 # mpiexec -np 2 python c:/Users/DELL/heat/heat/core/linalg/bcg.py
 # arr = ht.zeros([15,12], dtype=ht.float64)
 # print("Hello world from rank", str(rank), "of", str(size))
-a = ht.random.rand(30, dtype=ht.float64)
-a = a.reshape(5, 6)
+a = ht.random.rand(100, dtype=ht.float64)
+a = a.reshape(10, 10)
+# a = ht.array([[0.2677, 0.7491, 0.5088, 0.4953, 0.0959, 0.1744],
+#         [0.0341, 0.3601, 0.0869, 0.2640, 0.2803, 0.1916],
+#         [0.1342, 0.5625, 0.1345, 0.8248, 0.9556, 0.9317],
+#         [0.7166, 0.1113, 0.9824, 0.4516, 0.0804, 0.8889],
+#         [0.7074, 0.1604, 0.6801, 0.2890, 0.8342, 0.7405]], dtype=ht.float64,split=None)
 # print("Input matrix:", a, sep = "\n")
 # a = a.larray
 print("Input matrix:", a, sep="\n")
