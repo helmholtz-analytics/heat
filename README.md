@@ -42,11 +42,16 @@ Features
 * Abstracted communication via split tensors
 * Python API
 
+OnBoarding
+---------------
+Need at least python 3.7
+best to set up a virtual environment
+install heat with pip or (see Building from source)
+(dont forget to get PyTorch too)
+
 Getting Started
 ---------------
 
-Onboarding
----------------
 Check out our Jupyter Notebook [tutorial](https://github.com/helmholtz-analytics/heat/blob/main/scripts/tutorial.ipynb)
 right here on Github or in the /scripts directory.
 
