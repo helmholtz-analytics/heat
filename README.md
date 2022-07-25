@@ -45,8 +45,11 @@ Features
 OnBoarding
 ---------------
 Need at least python 3.7
+
 best to set up a virtual environment
+
 install heat with pip or (see Building from source)
+
 (dont forget to get PyTorch too)
 
 Getting Started
