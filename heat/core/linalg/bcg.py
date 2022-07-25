@@ -26,7 +26,6 @@ from typing import List, Callable, Union, Optional, Tuple, TypeVar
 
 from torch._C import Value
 from inspect import stack
-from mpi4py import MPI
 from pathlib import Path
 
 from heat.core.devices import cpu
@@ -133,6 +132,8 @@ def bi_diagonalize(A, overwrite_arr=True):
                    to xGBELR, it eliminate the bulge and apply the corresponding right updates.
 
 
+    Note: We will do the bulge chasing using Halos.
+
 
     """
     if overwrite_arr:
@@ -146,23 +147,35 @@ def bi_diagonalize(A, overwrite_arr=True):
     k = min(m, n)
     # k is the minimum of m and n
 
+    # Find the width of the diagonal of the input matrix.
+
+    diag_width = 1
+    row_0 = arr[0, 0:]
+    for i in range(1, len(row_0)):
+        if row_0[i] != 0:
+            diag_width += 1
+
+    print("diag_width: ", diag_width)
+
     U1, vt1 = ht.eye(m, dtype=ht.float64), ht.eye(n, dtype=ht.float64)
     # U1 is an identity matrix of size m x m, vt1 is an identity matrix of size n x n
 
     for i in range(k):
         v_left, tau_left = gen_house_vec(arr[i:, i])
         # All the elements in the ith column below arr[i][i] including itself, are send to the "gen_house_vec" function.
-        apply_house_left(arr[i:, i:], v_left, tau_left, U1, m, i)
+        apply_house_left(arr[i:diag_width, i:], v_left, tau_left, U1, m, i)
 
         if i <= n - 2:
             v_right, tau_right = gen_house_vec(torch.t(arr[i, i + 1 :]))
             # All the elements in the ith row to the right of arr[i][i] including itself, are send to the "gen_house_vec" function.
-            apply_house_right(arr[i:, i + 1 :], v_right, tau_right, vt1, n, i)
+            apply_house_right(arr[i:, i + 1 : diag_width], v_right, tau_right, vt1, n, i)
 
     return arr
 
 
+# mpiexec -np 2 python c:/Users/DELL/heat/heat/core/linalg/bcg.py
 # arr = ht.zeros([15,12], dtype=ht.float64)
+# print("Hello world from rank", str(rank), "of", str(size))
 a = ht.random.rand(30, dtype=ht.float64)
 a = a.reshape(5, 6)
 # print("Input matrix:", a, sep = "\n")
@@ -175,5 +188,10 @@ bi_diagonalize(a.larray)
 # print("Matrix Vt1 is: ", Vt1)
 # k = (U1 @ B1 @ Vt1)
 # print(k)
+# ht.local_printing()
+# array_with_halos
+# print(a.get_halo(1))
+# print(a.halo_next)
+# print(a.halo_prev)
 print(a)
 # print(B1)
