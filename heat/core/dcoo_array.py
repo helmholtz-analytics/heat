@@ -14,7 +14,7 @@ from typing import List, Union, Tuple, TypeVar, Optional
 
 # from .coo_matrix import DNDcoo_array
 
-__all__ = ["DNDcoo_array"]
+__all__ = ["Dcoo_array"]
 
 Communication = TypeVar("Communication")
 
@@ -30,7 +30,7 @@ def indices(gshape, obj, split, comm):
     return global_indices
 
 
-class DNDcoo_array:
+class Dcoo_array:
     """
     Distributed N-Dimentional coo_sparse tensor. It follows scipy
     coo_array attributes.

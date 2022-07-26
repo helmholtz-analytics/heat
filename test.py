@@ -23,7 +23,7 @@ output_shape = list(output_shape)
 output_shape[split] = output_shape[split] * size
 # print(output_shape)
 output_shape = tuple(output_shape)
-ht_s = ht.coo_matrix.DNDcoo_array(
+ht_s = ht.dcoo_array.Dcoo_array(
     s,
     gshape=output_shape,
     split=split,
@@ -33,13 +33,14 @@ ht_s = ht.coo_matrix.DNDcoo_array(
     balanced=True,
     comm=comm,
 )
+print(ht_s.indices)
 
 scipy_coo = coo_matrix(([3, 4, 5], ([0, 1, 1], [2, 0, 2])), shape=(2, 3))
-ht_s = ht.sparse_coo_matrix(scipy_coo, split=1)
-print(ht_s.indices)
-print(ht_s.lindices)
-print(ht_s.gnnz)
-print(ht_s.lnnz)
+ht_s = ht.sparse_coo_matrix(scipy_coo, is_split=1)
+# print(ht_s.indices)
+# print(ht_s.lindices)
+# print(ht_s.gnnz)
+# print(ht_s.lnnz)
 # row  = np.array([0, 0, 1, 3, 1, 0, 0])
 # col  = np.array([0, 2, 1, 3, 1, 0, 0])
 # data = np.array([1, 1, 1, 1, 1, 1, 1])
@@ -48,10 +49,10 @@ print(ht_s.lnnz)
 # new =  sparse_coo_matrix(coo, split=0)
 
 # torch coo sparse tensor
-i = [[0, 7, 18], [2, 0, 8]]
-v = [3, 4, 5]
-s = torch.sparse_coo_tensor(i, v, (20, 13))
-ht_s = ht.sparse_coo_matrix(s, split=1)
+# i = [[0, 7, 18], [2, 0, 8]]
+# v = [3, 4, 5]
+# s = torch.sparse_coo_tensor(i, v, (20, 13))
+# ht_s = ht.sparse_coo_matrix(s, is_split=0)
 # print(ht_s.indices)
 # print(ht_s.lindices)
 # print(ht_s.gnnz)
