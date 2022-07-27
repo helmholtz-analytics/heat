@@ -17,7 +17,8 @@ from .types import datatype
 from . import devices
 from . import types
 
-from .sparse import DNDsparse_csr
+from .Dcsr_matrix import Dcsr_matrix
+from scipy.sparse import csr_matrix as scipy_csr
 
 __all__ = [
     "arange",
@@ -35,11 +36,11 @@ __all__ = [
     "ones_like",
     "zeros",
     "zeros_like",
-    "sparse_csr_array",
+    "sparse_csr_matrix",
 ]
 
 
-def sparse_csr_array(
+def sparse_csr_matrix(
     obj: torch.sparse_csr_tensor,
     dtype: Optional[Type[datatype]] = None,
     copy: bool = True,
@@ -49,14 +50,26 @@ def sparse_csr_array(
     is_split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
-) -> DNDsparse_csr:
+) -> Dcsr_matrix:
+
+    # TODO:
+    # Things I have not really paid attention to:
+    #   1. copy
+    #   2. ndim
+    #   3. order
+    #   4. balanced
+
+    # Convert input into torch.sparse_csr_tensor
+    if isinstance(obj, scipy_csr):
+        print("Converting scipy to torch")  # Debug
+        obj = torch.sparse_csr_tensor(obj.indices, obj.indptr, obj.data)
 
     # For now, assuming the obj is torch.sparse_csr_tensor
     comm = sanitize_comm(comm)
     gshape = obj.size()
-    if split is None:
-        return DNDsparse_csr(obj, gshape, dtype, split, device, comm, True)
-    else:
+    gnnz = obj.values().size[0]
+
+    if split is not None:
         start, end = comm.chunk(gshape, split, type="sparse")
         # start, end = comm.chunk(gshape, split, 0, 2, "sparse") # Testing chunk
 
@@ -66,18 +79,83 @@ def sparse_csr_array(
         indicesEnd = obj.crow_indices()[end] if end < gshape[0] else gshape[0]
 
         # Slice the data belonging to this process
-        crowIndices = obj.crow_indices()[start:end]
-        colIndices = obj.col_indices()[indicesStart:indicesEnd]
-        values = obj.values()[indicesStart:indicesEnd]
+        data = array(
+            obj=obj.values()[indicesStart:indicesEnd],
+            dtype=dtype,
+            copy=False,
+            split=None,
+            comm=comm,
+        )
+        indptr = array(
+            obj=obj.crow_indices()[start:end], dtype=dtype, copy=False, split=None, comm=comm
+        )
+        indices = array(
+            obj=obj.col_indices()[indicesStart:indicesEnd],
+            dtype=dtype,
+            copy=False,
+            split=None,
+            comm=comm,
+        )
+        lnnz = data.gshape[0]
 
+        # TODO
         # Should I use the same crow_indices vector
         # or construct a new one according to the data in this chunk?
-        print("Row indices of process", comm.rank)
-        print(crowIndices)
-        print("Col indices of process", comm.rank)
-        print(colIndices)
-        print("Values of process", comm.rank)
-        print(values)
+
+        #################################################
+        # if indptr has to hold info wrt local array only
+        #################################################
+        # indptr = indptr - indptr[0]
+        # indptr.append(lnnz)
+        #################################################
+
+    elif is_split is not None:
+        # Things done here are only for is_split = 0
+        # Dont know yet what to do for other splits
+
+        data = obj.values()
+        indptr = obj.crow_indices()
+        indices = obj.col_indices()
+        lnnz = data.gshape[0]
+
+        ###########################################
+        # If Indptr needs to hold info wrt all
+        # the other chunks also
+        ###########################################
+        # # Need to know the number of non-zero elements
+        # # in the processes with lesser rank
+        # all_nnz = zeros(comm.size + 1)
+        #
+        # # Each process must drop their nnz in index = rank + 1
+        # all_nnz[comm.rank + 1] = lnnz
+        # comm.Allreduce(MPI.IN_PLACE, all_nnz, MPI.SUM)
+        #
+        # # Build prefix array out of all the nnz
+        # for index in range(1, len(all_nnz)):
+        #     all_nnz[index] += all_nnz[index - 1]
+        #
+        # indptr += all_nnz[comm.rank]
+        ###########################################
+
+    else:  # split is None and is_split is None
+        data = array(obj=obj.values(), dtype=dtype, copy=False, split=None, comm=comm)
+        indptr = array(obj=obj.crow_indices(), dtype=dtype, copy=False, split=None, comm=comm)
+        indices = array(obj=obj.col_indices(), dtype=dtype, copy=False, split=None, comm=comm)
+        lnnz = gnnz
+
+    return Dcsr_matrix(
+        data=data,
+        indptr=indptr,
+        indices=indices,
+        gnnz=gnnz,
+        lnnz=lnnz,
+        gshape=gshape,
+        dtype=dtype,
+        split=split,
+        device=device,
+        comm=comm,
+        balanced=True,
+    )
 
 
 def arange(
