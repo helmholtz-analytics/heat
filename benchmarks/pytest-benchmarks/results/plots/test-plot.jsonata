@@ -1,0 +1,46 @@
+{
+  "type": "line",
+  "data": {
+    "labels":  content.test_knn_benchmark.version,
+    "datasets": [
+      {
+        "label": "Accuracy",
+        "data": content.test_knn_benchmark.result,
+        "backgroundColor": "hsl(38,93%,54%)",
+        "borderColor": "hsl(38,93%,54%)",
+        "fill": false
+      }
+    ]
+  },
+  "options": {
+    "title": {
+      "display": true,
+      "text": name
+    },
+    "tooltips": {
+      "mode": "index",
+      "intersect": false
+    },
+    "scales": {
+      "xAxes": [
+        {
+          "scaleLabel": {
+            "display": true,
+            "labelString": "Heat Version"
+          }
+        }
+      ],
+      "yAxes": [
+        {
+          "scaleLabel": {
+            "display": true,
+            "labelString": "Accuracy"
+          },
+          "ticks": {
+            "min": 0
+          }
+        }
+      ]
+    }
+  }
+}
