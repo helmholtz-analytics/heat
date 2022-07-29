@@ -88,7 +88,7 @@ class TestSignal(TestCase):
 
         # test for distributed kernel
         conv = ht.convolve(full_ones, dis_kernel, mode="valid")
-        ans = ht.array([4, 4, 4, 4])
+        ans = ht.array([4, 4, 4, 4], split=full_ones.split)
         self.assertTrue(ht.equal(conv, ans))
 
         conv = ht.convolve(dis_kernel, full_ones, mode="valid")
