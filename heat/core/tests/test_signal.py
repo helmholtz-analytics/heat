@@ -77,7 +77,7 @@ class TestSignal(TestCase):
                         self.assertTrue(ht.equal(full_even, gathered))
                     else:
                         self.assertTrue(ht.equal(full_even[3:-3], gathered))
-             
+
             # test for distributed kernel
             conv = ht.convolve(full_ones, dis_kernel, mode="valid")
             ans = ht.array([4, 4, 4, 4], split=full_ones.split)
