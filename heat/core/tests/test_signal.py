@@ -77,6 +77,20 @@ class TestSignal(TestCase):
                         self.assertTrue(ht.equal(full_even, gathered))
                     else:
                         self.assertTrue(ht.equal(full_even[3:-3], gathered))
+             
+            # test for distributed kernel
+            conv = ht.convolve(full_ones, dis_kernel, mode="valid")
+            ans = ht.array([4, 4, 4, 4], split=full_ones.split)
+            self.assertTrue(ht.equal(conv, ans))
+
+            conv = ht.convolve(dis_kernel, full_ones, mode="valid")
+            ans = ht.array([4, 4, 4, 4])
+            self.assertTrue(ht.equal(conv, ans))
+
+            full_ones = ht.ones(7).astype(ht.int)
+            conv = ht.convolve(full_ones, dis_kernel, mode="valid")
+            ans = ht.array([4, 4, 4, 4])
+            self.assertTrue(ht.equal(conv, ans))
 
         # test edge cases
         # non-distributed signal, size-1 kernel
@@ -85,17 +99,3 @@ class TestSignal(TestCase):
         kernel = ht.ones(1).astype(ht.int)
         conv = ht.convolve(alt_signal, kernel)
         self.assertTrue(ht.equal(signal, conv))
-
-        # test for distributed kernel
-        conv = ht.convolve(full_ones, dis_kernel, mode="valid")
-        ans = ht.array([4, 4, 4, 4], split=full_ones.split)
-        self.assertTrue(ht.equal(conv, ans))
-
-        conv = ht.convolve(dis_kernel, full_ones, mode="valid")
-        ans = ht.array([4, 4, 4, 4])
-        self.assertTrue(ht.equal(conv, ans))
-
-        full_ones = ht.ones(7).astype(ht.int)
-        conv = ht.convolve(full_ones, dis_kernel, mode="valid")
-        ans = ht.array([4, 4, 4, 4])
-        self.assertTrue(ht.equal(conv, ans))
