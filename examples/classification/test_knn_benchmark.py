@@ -1,6 +1,7 @@
 from demo_knn import verify_algorithm
 from datetime import datetime
 import json
+import timeit
 
 import sys
 import os
@@ -29,10 +30,13 @@ for i in range(100, 150):
 Y = ht.array(keys, split=0)
 
 def test_knn(results_bag):
-    print("Accuracy: {}".format(verify_algorithm(X, Y, 1, 30, 5, 1)))
-    result = "Accuracy: {}".format(verify_algorithm(X, Y, 1, 30, 5, 1))
+    start = timeit.default_timer()
+    #print("Accuracy: {}".format(verify_algorithm(X, Y, 1, 30, 5, 1)))
+    result = "{}".format(verify_algorithm(X, Y, 1, 30, 5, 1))
+    stop = timeit.default_timer()
+    execution_time = stop - start
     results_bag.result = result
-    results_bag.current_time = datetime.now().isoformat()
+    results_bag.execution_time = execution_time
 
 def test_synthesis(fixture_store):
     print("\n   Contents of `fixture_store['results_bag']`:")
