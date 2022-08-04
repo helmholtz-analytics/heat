@@ -1,0 +1,22 @@
+name: benchmarking
+
+on:
+  push: 
+    branches: [ bencharking-with-pytest-for-genkgo ]
+    
+    
+jobs:
+  run-benchmarks:
+    name: benchmark automation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@master
+        with:
+          host: hdfml.fz-juelich.de
+          username: berhanu1
+          key: ${{ secrets.HDFML_KEY }}
+          port: 22
+          script: |
+            ls
+            pwd
+  
