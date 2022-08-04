@@ -1,12 +1,22 @@
-{
-	"test_knn_benchmark": {
-		"version": "2",
-		"result": "4.93337",
-		"execution_time": "0.004596616607159376"
-	},
-	"test_knn_benchmark": {
-		"version": "3",
-		"result": "2.93337",
-		"execution_time": "0.004596616607159376"
-	}
-}
+[
+  {
+    "Pytorch-version": 1.10,
+    "Description": "Experimenting with multiple data entry",
+    "Execution": 3.1
+  },
+  {
+    "Pytorch-version": 1.11,
+    "Description": "Experimenting with multiple data entry",
+    "Execution": 3.48
+  },
+  {
+    "Pytorch-version": 1.81,
+    "Description": "Experimenting with multiple data entry",
+    "Execution": 4.2
+  },
+  {
+    "Pytorch-version": 2.1,
+    "Description": "Experimenting with multiple data entry",
+    "Execution": 1.2
+  }
+]
