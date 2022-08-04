@@ -1,21 +1,31 @@
 {
   "type": "line",
   "data": {
-    "labels":  content.test_knn_benchmark.version,
+    "labels": content.`Pytorch-version`,
     "datasets": [
       {
-        "label": "Accuracy",
-        "data": content.test_knn_benchmark.result,
+        "label": "Execution Time",
+        "data": content.Execution,
         "backgroundColor": "hsl(38,93%,54%)",
         "borderColor": "hsl(38,93%,54%)",
-        "fill": false
+        "fill": false,
+        "lineTension": 0
+      },
+      {
+        "label": "Execution",
+        "data": content.`Pytorch-version`,
+        "backgroundColor": "hsl(12,93%,54%)",
+        "borderColor": "hsl(12,93%,54%)",
+        "fill": false,
+        "lineTension": 0
+        
       }
     ]
   },
   "options": {
     "title": {
       "display": true,
-      "text": name
+      "text": "knn plot"
     },
     "tooltips": {
       "mode": "index",
@@ -26,7 +36,7 @@
         {
           "scaleLabel": {
             "display": true,
-            "labelString": "Heat Version"
+            "labelString": "pytorch-version"
           }
         }
       ],
@@ -34,7 +44,7 @@
         {
           "scaleLabel": {
             "display": true,
-            "labelString": "Accuracy"
+            "labelString": "Execution speed"
           },
           "ticks": {
             "min": 0
