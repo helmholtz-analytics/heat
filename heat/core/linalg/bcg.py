@@ -209,22 +209,29 @@ def bi_diagonalize(A, overwrite_arr=True):
 # print(a.halo_next)
 # print(a.halo_prev)
 
-a = ht.random.rand(150, dtype=ht.float64, split=0)
+a = ht.arange(150, dtype=ht.float64, split=0)
 a = a.reshape(10, 15)
 m, n = a.shape
 b = a
 c = a
 
-print("Input matrix:", a, sep="\n")
+# print("Input matrix:", a, sep="\n")
 # print(a.get_halo(5))
 # print(a.halo_prev)
 # print(a.halo_next)
-a = a._DNDarray__prephalo(0, math.floor(m / 3))
-b = b._DNDarray__prephalo(math.floor(m / 3), math.floor(2 * m / 3))
-c = c._DNDarray__prephalo(math.floor(2 * m / 3), m)
-print(a)
-# print(b)
-# print(c)
-
-bi_diagonalize(a)
-print(a)
+print(rank)
+if rank == 0:
+    k = b._DNDarray__prephalo(0, math.floor(m / 3))
+    print(k)
+    bi_diagonalize(k)
+    print(k)
+if rank == 0:
+    l1 = c._DNDarray__prephalo(math.floor(m / 3), math.floor(2 * m / 3))
+    print(l1)
+    bi_diagonalize(l1)
+    print(l1)
+if rank == 0:
+    m = a._DNDarray__prephalo(math.floor(2 * m / 3), m)
+    print(m)
+    bi_diagonalize(m)
+    print(m)
