@@ -5,6 +5,7 @@ import itertools
 from operator import imod
 from turtle import left
 import torch
+import math
 import warnings
 import heat as ht
 
@@ -183,7 +184,7 @@ def bi_diagonalize(A, overwrite_arr=True):
     return arr
 
 
-# mpiexec -np 2 python c:/Users/DELL/heat/heat/core/linalg/bcg.py
+# mpiexec -np 3 python c:/Users/DELL/heat/heat/core/linalg/bcg.py
 # arr = ht.zeros([15,12], dtype=ht.float64)
 # print("Hello world from rank", str(rank), "of", str(size))
 
@@ -211,11 +212,19 @@ def bi_diagonalize(A, overwrite_arr=True):
 a = ht.random.rand(150, dtype=ht.float64, split=0)
 a = a.reshape(10, 15)
 m, n = a.shape
+b = a
+c = a
+
 print("Input matrix:", a, sep="\n")
 # print(a.get_halo(5))
 # print(a.halo_prev)
 # print(a.halo_next)
-a = a._DNDarray__prephalo(0, m)
+a = a._DNDarray__prephalo(0, math.floor(m / 3))
+b = b._DNDarray__prephalo(math.floor(m / 3), math.floor(2 * m / 3))
+c = c._DNDarray__prephalo(math.floor(2 * m / 3), m)
 print(a)
+# print(b)
+# print(c)
+
 bi_diagonalize(a)
 print(a)
