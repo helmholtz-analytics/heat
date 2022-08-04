@@ -15,6 +15,7 @@ jobs:
           host: hdfml.fz-juelich.de
           username: berhanu1
           key: ${{ secrets.HDFML_KEY }}
+          passphrase: ${{ secrets.HDFML_PASSPHRASE }}
           port: 22
           script: |
             ls
