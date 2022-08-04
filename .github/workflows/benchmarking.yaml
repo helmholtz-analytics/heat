@@ -18,6 +18,8 @@ jobs:
           passphrase: ${{ secrets.HDFML_PASSPHRASE }}
           port: 22
           script: |
-            ls
-            pwd
+            cd ${{ secrets.HDFML_DIR }}
+            cd heat
+            cd benchmarks
+            pytest pytest-benchmarks/
   
