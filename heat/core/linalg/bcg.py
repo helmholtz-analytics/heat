@@ -209,29 +209,34 @@ def bi_diagonalize(A, overwrite_arr=True):
 # print(a.halo_next)
 # print(a.halo_prev)
 
-a = ht.arange(150, dtype=ht.float64, split=0)
+a = ht.random.rand(150, dtype=ht.float64, split=0)
 a = a.reshape(10, 15)
+final = torch.tensor
 m, n = a.shape
-b = a
-c = a
 
-# print("Input matrix:", a, sep="\n")
-# print(a.get_halo(5))
-# print(a.halo_prev)
-# print(a.halo_next)
-print(rank)
+k = a._DNDarray__prephalo(0, m)
+print("tensor k is: ", k)
+# d = m/3
+# d = int(d)
+# sprint("d is = ", d)
+print("rank is = ", rank)
+
 if rank == 0:
-    k = b._DNDarray__prephalo(0, math.floor(m / 3))
-    print(k)
-    bi_diagonalize(k)
-    print(k)
-if rank == 0:
-    l1 = c._DNDarray__prephalo(math.floor(m / 3), math.floor(2 * m / 3))
-    print(l1)
-    bi_diagonalize(l1)
-    print(l1)
-if rank == 0:
-    m = a._DNDarray__prephalo(math.floor(2 * m / 3), m)
-    print(m)
-    bi_diagonalize(m)
-    print(m)
+    # print(k)
+    p1 = bi_diagonalize(k)
+    print("matrix p1 is: ", p1)
+    final = p1
+    comm.Send(final, dest=1, tag=0)
+elif rank == 1:
+    # print(k)
+    p2 = bi_diagonalize(k)
+    print("matrix p2 is: ", p2)
+    comm.Recv(final, source=0, tag=0)
+    torch.cat((final, p2), 0)
+    comm.Send(final, dest=2, tag=1)
+elif rank == 2:
+    # print(k)
+    p3 = bi_diagonalize(k)
+    print("matrix p3 is: ", p3)
+    comm.Recv(final, source=1, tag=1)
+    torch.cat((final, p3), 0)
