@@ -211,6 +211,13 @@ def bi_diagonalize(A, overwrite_arr=True):
 
 a = ht.random.rand(150, dtype=ht.float64, split=0)
 a = a.reshape(10, 15)
+
+# a = ht.array([[0.3047, 0.2780, 0.4564, 0.8192, 0.5446, 0.0253],
+#         [0.1267, 0.7662, 0.2675, 0.1149, 0.0856, 0.3210],
+#         [0.6442, 0.9496, 0.9756, 0.0236, 0.0502, 0.1846],
+#         [0.2303, 0.5536, 0.0389, 0.3750, 0.9031, 0.5304],
+#         [0.7974, 0.4622, 0.6854, 0.8805, 0.2836, 0.6497]], dtype=ht.float64, split=0)
+
 final = torch.tensor
 m, n = a.shape
 
@@ -225,18 +232,26 @@ if rank == 0:
     # print(k)
     p1 = bi_diagonalize(k)
     print("matrix p1 is: ", p1)
+
     final = p1
-    comm.Send(final, dest=1, tag=0)
+    comm.send(final, dest=1, tag=0)
+
 elif rank == 1:
     # print(k)
     p2 = bi_diagonalize(k)
     print("matrix p2 is: ", p2)
-    comm.Recv(final, source=0, tag=0)
-    torch.cat((final, p2), 0)
-    comm.Send(final, dest=2, tag=1)
+
+    final = comm.recv(source=0, tag=0)
+    final = torch.cat((final, p2), 0)
+    comm.send(final, dest=2, tag=1)
+
 elif rank == 2:
     # print(k)
     p3 = bi_diagonalize(k)
     print("matrix p3 is: ", p3)
-    comm.Recv(final, source=1, tag=1)
-    torch.cat((final, p3), 0)
+
+    final = comm.recv(source=1, tag=1)
+    final = torch.cat((final, p3), 0)
+
+
+print("final matrix is: ", final)
