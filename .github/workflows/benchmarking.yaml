@@ -1,4 +1,4 @@
-name: benchmarking
+name: benchmarking-test
 
 on:
   push: 
