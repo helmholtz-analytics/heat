@@ -8,7 +8,7 @@ on:
 jobs:
   run-benchmarks:
     name: benchmark automation
-    runs-on: ubuntu-latest
+    runs-on: github-runner-gsoc
     steps:
       - uses: appleboy/ssh-action@master
         with:
