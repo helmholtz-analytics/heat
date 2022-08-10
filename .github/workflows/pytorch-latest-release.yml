@@ -1,26 +1,28 @@
 name: Get latest PyTorch release version
 on:
   schedule:
-    - cron:  '0 5 * * 1-5'
+    - cron:  '25 14 * * 2'
+permissions:
+  contents: write
 jobs:
   get-version:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: 'main'
+          token: ${{ secrets.GHACTIONS }}
+          ref: 'release/1.2.x'
       - name: Fetch PyTorch release version
         run: |
           curl -sL https://api.github.com/repos/pytorch/pytorch/releases/latest | \
-          jq -r ".tag_name" | tr -d 'v' > .github/workflows/pytorch-release-versions/pytorch-latest.txt
+          jq -r ".tag_name" | tr -d 'v' > .github/pytorch-release-versions/pytorch-latest.txt
       - name: Check for modified files
         id: git-check
         run: echo ::set-output name=modified::$([ -z "`git status --porcelain`" ] && echo "false" || echo "true")
       - name: Commit latest PyTorch release version
         if: steps.git-check.outputs.modified == 'true'
         run: |
-          echo "new=$(<.github/workflows/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
+          echo "new=$(<.github/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
           git config --global user.name 'ClaudiaComito'
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
           git commit -am "New PyTorch release ${{ env.new }}"
