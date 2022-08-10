@@ -409,19 +409,19 @@ class DataParallelNCCLOnly(tnn.parallel.DistributedDataParallel):
         local_rank = rank % self.loc_gpus
         device = "cuda:" + str(local_rank)
         torch.cuda.set_device(device=device)
-        else:
-            warnings.warn(
-                "DataParallelMultiGPU should be used with multiple GPUs per node", UserWarning
-            )
-        self.module = module
-        self.comm = comm
-
-        # unify parameters across nodes by unifying the random seed and resetting parameters
-        self.module.apply(self._reset_parameters)
-
-        optimizer.set_model(self.module)
-
-        super(DataParallelNCCLOnly, self).__init__(model, device_ids=[rank,])
+        # else:
+        #     warnings.warn(
+        #         "DataParallelMultiGPU should be used with multiple GPUs per node", UserWarning
+        #     )
+        # self.module = module
+        # self.comm = comm
+        #
+        # # unify parameters across nodes by unifying the random seed and resetting parameters
+        # self.module.apply(self._reset_parameters)
+        #
+        # optimizer.set_model(self.module)
+        #
+        # super(DataParallelNCCLOnly, self).__init__(model, device_ids=[rank,])
 
     def forward(self, *inputs: Tuple, **kwargs: Dict) -> torch.Tensor:
         """

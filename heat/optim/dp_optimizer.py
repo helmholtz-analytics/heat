@@ -142,7 +142,7 @@ class DASO:
         cooldown_epochs: int = 4,
         scheduler: torch.optim.lr_scheduler = None,
         stability_level: float = 0.05,
-        max_global_skips: int = 8,
+        max_global_skips: int = 4,
         sending_chunk_size: int = 10_000_000,
         downcast_type: torch.dtype = torch.bfloat16,
         use_mpi_groups: bool = True,
