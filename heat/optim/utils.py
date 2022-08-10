@@ -253,7 +253,7 @@ def spawn_daso_groups(
     # if instance_id == 1:
     # print("MASTER_ADDR is set to ", address, "instance:", instance_id)
 
-    port = "29500"
+    port = "29501"
     os.environ["MASTER_ADDR"] = address
     os.environ["MASTER_PORT"] = port
     dist.init_process_group(
@@ -280,7 +280,7 @@ def spawn_daso_groups(
     # if instance_id == 1:
     # print("MASTER_ADDR is set to ", address, "instance:", instance_id)
 
-    port = "29500"
+    port = "29502"
     os.environ["MASTER_ADDR"] = address
     os.environ["MASTER_PORT"] = port
     dist.init_process_group(
