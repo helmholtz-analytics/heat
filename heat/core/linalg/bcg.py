@@ -135,6 +135,10 @@ def bi_diagonalize(A, overwrite_arr=True):
 
     Note: We will do the bulge chasing using Halos.
 
+    Second Stage of reduction: Band matrix to a real bidiagonal matrix. This uses a bulge chasing algorithm.
+
+
+
 
     """
     if overwrite_arr:
@@ -150,37 +154,63 @@ def bi_diagonalize(A, overwrite_arr=True):
 
     # Find the width of the diagonal of the input matrix.
 
-    diag_width = 1
+    b = 0
+    bl = 0
+    br = 0
     row_0 = arr[0, 0:]
+    col_0 = arr[0:, 0]
+
+    for i in range(1, len(col_0)):
+        if col_0[i] != 0:
+            bl += 1
+
     for i in range(1, len(row_0)):
         if row_0[i] != 0:
-            diag_width += 1
+            br += 1
 
-    print("diag_width: ", diag_width)
+    b = bl + br
+
+    print("b: ", b)
 
     U1, vt1 = ht.eye(m, dtype=ht.float64), ht.eye(n, dtype=ht.float64)
     # U1 is an identity matrix of size m x m, vt1 is an identity matrix of size n x n
 
+    D1 = arr[0:, 0]
+    v_left, tau_left = gen_house_vec(D1)
+    Uj = apply_house_left(D1, v_left, tau_left, U1, m, i)
+    print(arr)
     for i in range(k):
-        # A = arr._DNDarray__prephalo(i)
-        v_left, tau_left = gen_house_vec(arr[i : i + diag_width, i])
+
+        for j in range(2, k):
+            if j == 2:
+                Ej = arr[0 : 1 + bl, 1 : b + 1]
+                Ej = torch.matmul(Uj.float(), Ej.float())
+                v_right, tau_right = gen_house_vec(Ej[0, :])
+                vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
+                Aj = arr[0 : 2 * b, 1 : b + 1]
+                Aj = torch.matmul(Aj.float(), vj)
+                # Dj = arr[b:2*b, 1:b+1]
+                # v_left, tau_left = gen_house_vec(Dj[:, 0])
+                # Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
+        print(Ej)
         # All the elements in the ith column upto index = width of the diagonal in the band matrix, below arr[i][i] including itself, are send to the "gen_house_vec" function.
-        apply_house_left(
-            arr[i : i + diag_width, i : (i + diag_width + 1)], v_left, tau_left, U1, m, i
-        )
-
-        if i <= n - 2:
-            v_right, tau_right = gen_house_vec(torch.t(arr[i, i + 1 : i + diag_width]))
-            # All the elements in the ith row upto index = width of the diagonal in the band matrix, the right of arr[i][i] including itself, are send to the "gen_house_vec" function.
-            apply_house_right(
-                arr[i : (i + diag_width + 1), i + 1 : (i + 1 + diag_width)],
-                v_right,
-                tau_right,
-                vt1,
-                n,
-                i,
-            )
-
+    #
+    #    apply_house_left(
+    #       arr[i : i + b, i : (i + b + 1)], v_left, tau_left, U1, m, i
+    #   )
+    #
+    #   if i <= n - 2:
+    #       v_right, tau_right = gen_house_vec(torch.t(arr[i, i + 1 : i + b]))
+    #       # All the elements in the ith row upto index = width of the diagonal in the band matrix, the right of arr[i][i] including itself, are send to the "gen_house_vec" function.
+    #       apply_house_right(
+    #           arr[i : (i + b + 1), i + 1 : (i + 1 + b)],
+    #           v_right,
+    #           tau_right,
+    #           vt1,
+    #           n,
+    #           i,
+    #       )
+    #
     return arr
 
 
@@ -189,10 +219,10 @@ def bi_diagonalize(A, overwrite_arr=True):
 # print("Hello world from rank", str(rank), "of", str(size))
 
 # a = ht.array([[0.2677, 0.7491, 0.5088, 0.4953, 0.0959, 0.1744],
-#         [0.0341, 0.3601, 0.0869, 0.2640, 0.2803, 0.1916],
-#         [0.1342, 0.5625, 0.1345, 0.8248, 0.9556, 0.9317],
-#         [0.7166, 0.1113, 0.9824, 0.4516, 0.0804, 0.8889],
-#         [0.7074, 0.1604, 0.6801, 0.2890, 0.8342, 0.7405]], dtype=ht.float64,split=None)
+#               [0.0341, 0.3601, 0.0869, 0.2640, 0.2803, 0.1916],
+#               [0.1342, 0.5625, 0.1345, 0.8248, 0.9556, 0.9317],
+#               [0.7166, 0.1113, 0.9824, 0.4516, 0.0804, 0.8889],
+#               [0.7074, 0.1604, 0.6801, 0.2890, 0.8342, 0.7405]], dtype=ht.float64,split=None)
 # print("Input matrix:", a, sep = "\n")
 # a = a.larray
 
@@ -206,12 +236,10 @@ def bi_diagonalize(A, overwrite_arr=True):
 # ht.local_printing()
 # array_with_halos
 # print(a.get_halo(1))
-# print(a.halo_next)
-# print(a.halo_prev)
 
-a = ht.random.rand(150, dtype=ht.float64, split=0)
-a = a.reshape(10, 15)
-
+a = ht.random.rand(150, dtype=ht.float64)
+a = a.reshape(15, 10)
+print(a)
 # a = ht.array([[0.3047, 0.2780, 0.4564, 0.8192, 0.5446, 0.0253],
 #         [0.1267, 0.7662, 0.2675, 0.1149, 0.0856, 0.3210],
 #         [0.6442, 0.9496, 0.9756, 0.0236, 0.0502, 0.1846],
@@ -221,37 +249,48 @@ a = a.reshape(10, 15)
 final = torch.tensor
 m, n = a.shape
 
-k = a._DNDarray__prephalo(0, m)
-print("tensor k is: ", k)
+
+# k = a._DNDarray__prephalo(0, m)
+# print("tensor k is: ", k)
+
+# print(a.halo_next)
+# print(a.halo_prev)
+
+# ht.local_printing()
+
 # d = m/3
 # d = int(d)
 # sprint("d is = ", d)
+
 print("rank is = ", rank)
 
-if rank == 0:
-    # print(k)
-    p1 = bi_diagonalize(k)
-    print("matrix p1 is: ", p1)
+bi_diagonalize(a.larray)
+print("Tensor a is: ", a)
 
-    final = p1
-    comm.send(final, dest=1, tag=0)
-
-elif rank == 1:
-    # print(k)
-    p2 = bi_diagonalize(k)
-    print("matrix p2 is: ", p2)
-
-    final = comm.recv(source=0, tag=0)
-    final = torch.cat((final, p2), 0)
-    comm.send(final, dest=2, tag=1)
-
-elif rank == 2:
-    # print(k)
-    p3 = bi_diagonalize(k)
-    print("matrix p3 is: ", p3)
-
-    final = comm.recv(source=1, tag=1)
-    final = torch.cat((final, p3), 0)
-
-
-print("final matrix is: ", final)
+#    if rank == 0:
+#       # print(k)
+#       p1 = bi_diagonalize(k)
+#       print("matrix p1 is: ", p1)
+#
+#       final = p1
+#       comm.send(final, dest=1, tag=0)
+#
+#   elif rank == 1:
+#       # print(k)
+#       p2 = bi_diagonalize(k)
+#       print("matrix p2 is: ", p2)
+#
+#       final = comm.recv(source=0, tag=0)
+#       final = torch.cat((final, p2), 0)
+#       comm.send(final, dest=2, tag=1)
+#
+#   elif rank == 2:
+#       # print(k)
+#       p3 = bi_diagonalize(k)
+#       print("matrix p3 is: ", p3)
+#
+#       final = comm.recv(source=1, tag=1)
+#       final = torch.cat((final, p3), 0)
+#
+#
+#   print("final matrix is: ", final)

@@ -164,7 +164,7 @@ def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
     Returns none but mutates the input sub_arr matrix.
 
     """
-    m, n = sub_arr.shape
+    m = sub_arr.size(0)
     H = ht.eye(total_rows)
     h = H[total_rows - m :, total_rows - m :]
 
@@ -172,6 +172,7 @@ def apply_house_left(sub_arr, h_left, tau_left, U1, total_rows, i):
 
     sub_arr[:] = torch.matmul(h.larray, sub_arr.float())
     # U1[:] = U1 @ (full_H(total_rows, i, h_left, tau_left))
+    return h.larray
 
 
 def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
@@ -202,7 +203,7 @@ def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
     Returns none but mutates the input sub_arr matrix.
 
     """
-    m, n = sub_arr.shape
+    n = sub_arr.size(0)
     H = ht.eye(total_cols)
     h = H[total_cols - n :, total_cols - n :]
 
@@ -210,6 +211,7 @@ def apply_house_right(sub_arr, h_right, tau_right, vt1, total_cols, i):
 
     sub_arr[:] = torch.matmul(sub_arr.float(), h.larray)
     # vt1[:] = (full_H(total_cols, i+1, h_right, tau_right)) @ (vt1)
+    return h.larray
 
 
 # @torch.jit.script
