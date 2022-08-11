@@ -10,14 +10,15 @@ jobs:
     name: benchmark automation
     runs-on: self-hosted
     steps:
-      - uses: appleboy/ssh-action@master
+      - uses: cross-the-world/ssh-pipeline@master
         with:
           host: hdfml.fz-juelich.de
-          username: berhanu1
+          user: berhanu1
           key: ${{ secrets.HDFML_KEY }} 
-          passphrase: ${{ secrets.HDFML_PASSPHRASE }}
+          pass: ${{ secrets.HDFML_PASSPHRASE }}
           port: 22
           script: |
+            pwd
             cd ${{ secrets.HDFML_DIR }}
             cd heat
             cd benchmarks
