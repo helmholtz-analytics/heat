@@ -13,6 +13,7 @@ from .memory import sanitize_memory_layout
 from .sanitation import sanitize_in, sanitize_sequence
 from .stride_tricks import sanitize_axis, sanitize_shape
 from .types import datatype
+from . import _operations
 
 from . import devices
 from . import types
@@ -61,22 +62,20 @@ def sparse_csr_matrix(
 
     # Convert input into torch.sparse_csr_tensor
     if isinstance(obj, scipy_csr):
-        print("Converting scipy to torch")  # Debug
-        obj = torch.sparse_csr_tensor(obj.indices, obj.indptr, obj.data)
+        obj = torch.sparse_csr_tensor(obj.indptr, obj.indices, obj.data)
 
     # For now, assuming the obj is torch.sparse_csr_tensor
     comm = sanitize_comm(comm)
-    gshape = obj.size()
-    gnnz = obj.values().size[0]
+    gshape = obj.shape
+    gnnz = obj.values().shape[0]
 
-    if split is not None:
+    if split == 0:
         start, end = comm.chunk(gshape, split, type="sparse")
-        # start, end = comm.chunk(gshape, split, 0, 2, "sparse") # Testing chunk
 
         # Find the starting and ending indices for
         # col_indices and values tensors for this process
         indicesStart = obj.crow_indices()[start]
-        indicesEnd = obj.crow_indices()[end] if end < gshape[0] else gshape[0]
+        indicesEnd = obj.crow_indices()[end] if end < gshape[0] + 1 else gshape[0] + 1
 
         # Slice the data belonging to this process
         data = array(
@@ -87,7 +86,7 @@ def sparse_csr_matrix(
             comm=comm,
         )
         indptr = array(
-            obj=obj.crow_indices()[start:end], dtype=dtype, copy=False, split=None, comm=comm
+            obj=obj.crow_indices()[start : end + 1], dtype=dtype, copy=False, split=None, comm=comm
         )
         indices = array(
             obj=obj.col_indices()[indicesStart:indicesEnd],
@@ -98,26 +97,34 @@ def sparse_csr_matrix(
         )
         lnnz = data.gshape[0]
 
-        # TODO
-        # Should I use the same crow_indices vector
-        # or construct a new one according to the data in this chunk?
-
         #################################################
         # if indptr has to hold info wrt local array only
         #################################################
         # indptr = indptr - indptr[0]
-        # indptr.append(lnnz)
+        # indptr = indptr + array([lnnz])
         #################################################
+    elif split is not None:
+        raise NotImplementedError("Not implemented for other splitting-axes")
 
-    elif is_split is not None:
-        # Things done here are only for is_split = 0
-        # Dont know yet what to do for other splits
-
-        data = obj.values()
-        indptr = obj.crow_indices()
-        indices = obj.col_indices()
+    elif is_split == 0:
+        data = array(
+            obj=obj.values(),
+            dtype=dtype,
+            copy=False,
+            split=None,
+            comm=comm,
+        )
+        indptr = array(obj=obj.crow_indices(), dtype=dtype, copy=False, split=None, comm=comm)
+        indices = array(
+            obj=obj.col_indices(),
+            dtype=dtype,
+            copy=False,
+            split=None,
+            comm=comm,
+        )
         lnnz = data.gshape[0]
 
+        # make local indptr array relative to global array
         ###########################################
         # If Indptr needs to hold info wrt all
         # the other chunks also
@@ -136,6 +143,8 @@ def sparse_csr_matrix(
         #
         # indptr += all_nnz[comm.rank]
         ###########################################
+    elif is_split is not None:
+        raise NotImplementedError("Not implemented for other splitting-axes")
 
     else:  # split is None and is_split is None
         data = array(obj=obj.values(), dtype=dtype, copy=False, split=None, comm=comm)

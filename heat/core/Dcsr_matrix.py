@@ -12,9 +12,10 @@ from typing import List, Union, Tuple, TypeVar, Optional
 
 from heat.core.dndarray import DNDarray
 
-__all__ = ["DNDsparse_csr"]
+__all__ = ["Dcsr_matrix"]
 
 Communication = TypeVar("Communication")
+
 
 class Dcsr_matrix:
     def __init__(
@@ -147,6 +148,7 @@ class Dcsr_matrix:
         Returns the axis on which the ``coo_array`` is split
         """
         return self.__split
+
 
 # HeAT imports at the end to break cyclic dependencies
 from . import complex_math
