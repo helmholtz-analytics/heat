@@ -14,6 +14,7 @@ jobs:
         with:
           command: |
             pwd
+            ls
           host: ${{ secrets.HDFML_HOST }}
           username: berhanu1
           privateKey: ${{ secrets.HDFML_KEY}}
