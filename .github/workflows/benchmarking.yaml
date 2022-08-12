@@ -15,6 +15,8 @@ jobs:
           command: |
             pwd
             ls
+            cd fork/
+            ls
           host: ${{ secrets.HDFML_HOST }}
           username: berhanu1
           privateKey: ${{ secrets.HDFML_KEY}}
