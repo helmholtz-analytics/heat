@@ -15,8 +15,11 @@ jobs:
           command: |
             pwd
             ls
-            cd fork/
-            ls
+            ml load GCC ParaStationMPI HDF5 netCDF Python
+            source heat-venv/bin/activate
+            jutil env activate -p haf
+            cd fork/heat/benchmarks/pytest-benchmarks/knn_benchmark/
+            pytest -s -t
           host: ${{ secrets.HDFML_HOST }}
           username: berhanu1
           privateKey: ${{ secrets.HDFML_KEY}}
