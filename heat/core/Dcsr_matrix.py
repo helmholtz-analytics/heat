@@ -32,17 +32,34 @@ class Dcsr_matrix:
         comm: Communication,
         balanced: bool,
     ):
-        # TODO: local members
+        # TODO: Proper getters and setters for local and global members
         self.__data = data
         self.__indptr = indptr
         self.__indices = indices
         self.__gnnz = gnnz
+        self.__lnnz = lnnz
         self.__gshape = gshape
         self.__dtype = dtype
         self.__split = split
         self.__device = device
         self.__comm = comm
         self.__balanced = balanced
+
+    def global_indptr(self) -> DNDarray:
+        # Need to know the number of non-zero elements
+        # in the processes with lesser rank
+        all_nnz = torch.zeros(self.comm.size + 1)
+
+        # Each process must drop their nnz in index = rank + 1
+        all_nnz[self.comm.rank + 1] = self.lnnz
+        self.comm.Allreduce(MPI.IN_PLACE, all_nnz, MPI.SUM)
+
+        # Build prefix array out of all the nnz
+        torch.cumsum(all_nnz, dim=0)
+
+        global_indptr = self.indptr + int(all_nnz[self.comm.rank])
+
+        return global_indptr
 
     @property
     def balanced(self) -> bool:
