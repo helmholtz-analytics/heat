@@ -175,24 +175,45 @@ def bi_diagonalize(A, overwrite_arr=True):
     U1, vt1 = ht.eye(m, dtype=ht.float64), ht.eye(n, dtype=ht.float64)
     # U1 is an identity matrix of size m x m, vt1 is an identity matrix of size n x n
 
-    D1 = arr[0:, 0]
-    v_left, tau_left = gen_house_vec(D1)
-    Uj = apply_house_left(D1, v_left, tau_left, U1, m, i)
-    print(arr)
-    for i in range(k):
+    # print(arr)
+
+    for i in range(n - 1):
+
+        D1 = arr[i:, i]
+        v_left, tau_left = gen_house_vec(D1)
+        Uj = apply_house_left(D1, v_left, tau_left, U1, m, i)
 
         for j in range(2, k):
+            print("j is = ", j)
             if j == 2:
-                Ej = arr[0 : 1 + bl, 1 : b + 1]
+                Ej = arr[i : i + 1 + bl, i + 1 : i + b + 1]
+                # print(Ej)
+                Ej = torch.matmul(Uj.float(), Ej.float())
+                # print("Ej is: ", Ej)
+                v_right, tau_right = gen_house_vec(Ej[0, :])
+                vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
+                Aj = arr[i : i + bl + b + 1, i + 1 : i + b + 1]
+                Aj = torch.matmul(Aj.float(), vj)
+
+                Dj = arr[i + 1 + bl : i + 1 + bl + b, i + 1 : i + 1 + b]
+                if Dj.size(0) > 0:
+                    v_left, tau_left = gen_house_vec(Dj[:, 0])
+                    Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
+
+            else:
+                Ej = arr[i : i + 1 + b, 1 : b + 1]
                 Ej = torch.matmul(Uj.float(), Ej.float())
                 v_right, tau_right = gen_house_vec(Ej[0, :])
                 vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
                 Aj = arr[0 : 2 * b, 1 : b + 1]
                 Aj = torch.matmul(Aj.float(), vj)
-                # Dj = arr[b:2*b, 1:b+1]
-                # v_left, tau_left = gen_house_vec(Dj[:, 0])
-                # Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
-        print(Ej)
+                Dj = arr[b : 2 * b, 1 : b + 1]
+                v_left, tau_left = gen_house_vec(Dj[:, 0])
+                Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
+
+        print(arr)
+
+        # print(Ej)
         # All the elements in the ith column upto index = width of the diagonal in the band matrix, below arr[i][i] including itself, are send to the "gen_house_vec" function.
     #
     #    apply_house_left(
