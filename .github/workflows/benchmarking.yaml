@@ -17,4 +17,5 @@ jobs:
           host: ${{ secrets.HDFML_HOST }}
           user: berhanu1
           key: ${{ secrets.HDFML_KEY}}
+          pass: ${{ secrets.HDFML_PASSPHRASE }}
 
