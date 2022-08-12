@@ -13,7 +13,6 @@ from .memory import sanitize_memory_layout
 from .sanitation import sanitize_in, sanitize_sequence
 from .stride_tricks import sanitize_axis, sanitize_shape
 from .types import datatype
-from . import _operations
 
 from . import devices
 from . import types
@@ -75,7 +74,7 @@ def sparse_csr_matrix(
         # Find the starting and ending indices for
         # col_indices and values tensors for this process
         indicesStart = obj.crow_indices()[start]
-        indicesEnd = obj.crow_indices()[end] if end < gshape[0] + 1 else gshape[0] + 1
+        indicesEnd = obj.crow_indices()[end]
 
         # Slice the data belonging to this process
         data = array(
@@ -85,6 +84,7 @@ def sparse_csr_matrix(
             split=None,
             comm=comm,
         )
+        # start:(end + 1) because indptr is of size (n + 1) for array with n rows
         indptr = array(
             obj=obj.crow_indices()[start : end + 1], dtype=dtype, copy=False, split=None, comm=comm
         )
@@ -96,13 +96,8 @@ def sparse_csr_matrix(
             comm=comm,
         )
         lnnz = data.gshape[0]
+        indptr = indptr - indptr[0]
 
-        #################################################
-        # if indptr has to hold info wrt local array only
-        #################################################
-        # indptr = indptr - indptr[0]
-        # indptr = indptr + array([lnnz])
-        #################################################
     elif split is not None:
         raise NotImplementedError("Not implemented for other splitting-axes")
 
@@ -124,25 +119,6 @@ def sparse_csr_matrix(
         )
         lnnz = data.gshape[0]
 
-        # make local indptr array relative to global array
-        ###########################################
-        # If Indptr needs to hold info wrt all
-        # the other chunks also
-        ###########################################
-        # # Need to know the number of non-zero elements
-        # # in the processes with lesser rank
-        # all_nnz = zeros(comm.size + 1)
-        #
-        # # Each process must drop their nnz in index = rank + 1
-        # all_nnz[comm.rank + 1] = lnnz
-        # comm.Allreduce(MPI.IN_PLACE, all_nnz, MPI.SUM)
-        #
-        # # Build prefix array out of all the nnz
-        # for index in range(1, len(all_nnz)):
-        #     all_nnz[index] += all_nnz[index - 1]
-        #
-        # indptr += all_nnz[comm.rank]
-        ###########################################
     elif is_split is not None:
         raise NotImplementedError("Not implemented for other splitting-axes")
 
