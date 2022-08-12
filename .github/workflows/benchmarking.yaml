@@ -13,7 +13,7 @@ jobs:
       - uses: garygrossgarten/github-action-ssh@release
         with:
           command: |
-            ls -a
+            pwd
           host: ${{ secrets.HDFML_HOST }}
           username: berhanu1
           privateKey: ${{ secrets.HDFML_KEY}}
