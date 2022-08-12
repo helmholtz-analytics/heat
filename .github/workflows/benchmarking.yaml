@@ -10,9 +10,11 @@ jobs:
     name: benchmark automation
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v3
-      - run: |
-          pwd
-          ssh -tt ${{ secrets.HDFML_HOST }}
-          pwd
-  
+      - uses: fifsky/ssh-action@master
+        with:
+          command: |
+            ls -a
+          host: ${{ secrets.HDFML_HOST }}
+          user: berhanu1
+          key: ${{ secrets.HDFML_KEY}}
+
