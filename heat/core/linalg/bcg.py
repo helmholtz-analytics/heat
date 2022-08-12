@@ -184,7 +184,7 @@ def bi_diagonalize(A, overwrite_arr=True):
         Uj = apply_house_left(D1, v_left, tau_left, U1, m, i)
 
         for j in range(2, k):
-            print("j is = ", j)
+            # print("j is = ", j)
             if j == 2:
                 Ej = arr[i : i + 1 + bl, i + 1 : i + b + 1]
                 # print(Ej)
@@ -200,38 +200,28 @@ def bi_diagonalize(A, overwrite_arr=True):
                     v_left, tau_left = gen_house_vec(Dj[:, 0])
                     Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
 
-            else:
-                Ej = arr[i : i + 1 + b, 1 : b + 1]
-                Ej = torch.matmul(Uj.float(), Ej.float())
-                v_right, tau_right = gen_house_vec(Ej[0, :])
-                vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
-                Aj = arr[0 : 2 * b, 1 : b + 1]
-                Aj = torch.matmul(Aj.float(), vj)
-                Dj = arr[b : 2 * b, 1 : b + 1]
-                v_left, tau_left = gen_house_vec(Dj[:, 0])
-                Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
+                p_left, p_right = i + 1 + bl, i + 1 + bl + b
 
-        print(arr)
+            else:
+                Ej = arr[p_left:p_right, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
+                if Ej.size(0) > 0:
+                    Ej = torch.matmul(Uj.float(), Ej.float())
+                    v_right, tau_right = gen_house_vec(Ej[0, :])
+                    vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
+                    Aj = arr[p_left : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
+                    Aj = torch.matmul(Aj.float(), vj)
+
+                Dj = arr[p_right : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
+                if Dj.size(0) > 0:
+                    v_left, tau_left = gen_house_vec(Dj[:, 0])
+                    Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
+
+                p_left, p_right = p_right, p_right + b
+
+        # print(arr)
 
         # print(Ej)
-        # All the elements in the ith column upto index = width of the diagonal in the band matrix, below arr[i][i] including itself, are send to the "gen_house_vec" function.
-    #
-    #    apply_house_left(
-    #       arr[i : i + b, i : (i + b + 1)], v_left, tau_left, U1, m, i
-    #   )
-    #
-    #   if i <= n - 2:
-    #       v_right, tau_right = gen_house_vec(torch.t(arr[i, i + 1 : i + b]))
-    #       # All the elements in the ith row upto index = width of the diagonal in the band matrix, the right of arr[i][i] including itself, are send to the "gen_house_vec" function.
-    #       apply_house_right(
-    #           arr[i : (i + b + 1), i + 1 : (i + 1 + b)],
-    #           v_right,
-    #           tau_right,
-    #           vt1,
-    #           n,
-    #           i,
-    #       )
-    #
+
     return arr
 
 
@@ -239,11 +229,11 @@ def bi_diagonalize(A, overwrite_arr=True):
 # arr = ht.zeros([15,12], dtype=ht.float64)
 # print("Hello world from rank", str(rank), "of", str(size))
 
-# a = ht.array([[0.2677, 0.7491, 0.5088, 0.4953, 0.0959, 0.1744],
-#               [0.0341, 0.3601, 0.0869, 0.2640, 0.2803, 0.1916],
-#               [0.1342, 0.5625, 0.1345, 0.8248, 0.9556, 0.9317],
-#               [0.7166, 0.1113, 0.9824, 0.4516, 0.0804, 0.8889],
-#               [0.7074, 0.1604, 0.6801, 0.2890, 0.8342, 0.7405]], dtype=ht.float64,split=None)
+# a = ht.array([ [0.2677, 0.7491, 0.5088, 0.4953, 0.0959, 0.1744],
+#              [0.0341, 0.3601, 0.0869, 0.2640, 0.2803, 0.1916],
+#              [0.1342, 0.5625, 0.1345, 0.8248, 0.9556, 0.9317],
+#              [0.7166, 0.1113, 0.9824, 0.4516, 0.0804, 0.8889],
+#              [0.7074, 0.1604, 0.6801, 0.2890, 0.8342, 0.7405]], dtype=ht.float64,split=None)
 # print("Input matrix:", a, sep = "\n")
 # a = a.larray
 
@@ -258,8 +248,8 @@ def bi_diagonalize(A, overwrite_arr=True):
 # array_with_halos
 # print(a.get_halo(1))
 
-a = ht.random.rand(150, dtype=ht.float64)
-a = a.reshape(15, 10)
+a = ht.random.rand(80, dtype=ht.float64)
+a = a.reshape(10, 8)
 print(a)
 # a = ht.array([[0.3047, 0.2780, 0.4564, 0.8192, 0.5446, 0.0253],
 #         [0.1267, 0.7662, 0.2675, 0.1149, 0.0856, 0.3210],
