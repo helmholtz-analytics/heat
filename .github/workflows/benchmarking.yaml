@@ -13,6 +13,6 @@ jobs:
       - uses: actions/checkout@v3
       - run: |
           pwd
-          ssh -T ${{ secrets.HDFML_HOST }}
+          ssh -tt ${{ secrets.HDFML_HOST }}
           pwd
   
