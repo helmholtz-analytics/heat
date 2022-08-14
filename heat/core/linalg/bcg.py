@@ -76,10 +76,10 @@ def bi_diagonalize(A, overwrite_arr=True):
     With the use of 3 functions gen_house_vec(x), apply_house_left(), apply_house_right() we change the input matrix into a bidiagonal matrix
     We are not returning U1, Vt1 now.
     But U1 & vt1 might be useful at the end to calculate the U,V.Transpose() matrices in the equation
-    svd(arr) = U,sigma,V.Transpose()  for the final svd calculation.
+    svd(arr) = U,sigma,V.Transpose()  for the final svd function.
 
-    Currently, the algorithm is working fine, but the algorithm can be further optimized.
-    Using the fact that we will apply this algorithm to a band matrix which we get after using the function ht.block_diagonalize(arr)
+    Currently, the algorithm is working fine, but the algorithm can be further optimized, Using the fact that we will apply this algorithm
+    to a band matrix, which we get after using the function ht.block_diagonalize(arr)
 
 
     Parameters
@@ -99,12 +99,20 @@ def bi_diagonalize(A, overwrite_arr=True):
 
         B : ht.DNDarray
 
-    To change the serial algorithm into an Efficient parallel program, we do 3 steps:
-    1. We should distribute the data and the computational work to multiple processors.
-    2. Then, a 'local view' of the block decomposition will lead to a pipelined parallel algorithm.
-    3.
+
+    bl -> The lower bandwidth of the matrix.
+    bu -> The upper bandwidth of the matrix.
+    b = bl + bu => Is the number of off diagonals present in the matrix.
+
+    The reduction proceeds in k = min(m,n) steps each of which produces one row of the resulting bidiagonal matrix B.
+    The band is partitioned into block columns Dj,Ej and transformations are applied in each sweep.
+
+    After the kth sweep, the leading k X (k + 1) block (Bk) of A contains the first k rows of the resulting bidiagonal matrix B.
+    There is a slight difference in the way band is partitioned into block columns Dj,Ej for the cases where m>=n & n>m.
 
 
+
+    To change the serial algorithm into an Efficient parallel program, We should distribute the data and the computational work to multiple processors.
 
     The band form is further reduced to the final condensed form using the bulge chasing technique.
     This procedure annihilates the extra off-diagonal elements by chasing the created
@@ -113,24 +121,6 @@ def bi_diagonalize(A, overwrite_arr=True):
 
 
 
-    Three Kernels are used to implement this algorithm:
-
-    xGBLER kernel: This kernel triggers the beginning of each sweep by successive element-wise
-                   annihilations of the extra non-zero entries within a single column, It then
-                   applies all the left updates creating single bulges, which have to be immediately
-                   annihilated and then followed by the right updates on the corresponding
-                   data block loaded into the cache memory.
-
-
-    xGbuCE kernel: This kernel successively applies all the right updates coming from the
-                   previous kernels, either xGBELR or xGBLRX (described below). This subsequently
-                   generates single bulges, which have to be immediately annihilated by appropriate
-                   left transformations in order to eventually avoid an expansion of the
-                   fill-in structure (Figure 3(b)) by subsequent orthogonal transformations.
-
-    xGBLRX kernel: This kernel successively applies all the left updates coming from the
-                   xGbuCE kernel and create single bulge out of the diagonal, then similar
-                   to xGBELR, it eliminate the bulge and apply the corresponding right updates.
 
 
     Note: We will do the bulge chasing using Halos.
@@ -304,23 +294,15 @@ def bi_diagonalize(A, overwrite_arr=True):
 
 # U1,B1,Vt1 = bi_diagonalize(a)
 
-# print("Matrix U1 is: ", U1)
-# print("Matrix B1 is: ", B1)
-# print("Matrix Vt1 is: ", Vt1)
-# k = (U1 @ B1 @ Vt1)
-# print(k)
+
 # ht.local_printing()
 # array_with_halos
 # print(a.get_halo(1))
 
-a = ht.random.rand(80, dtype=ht.float64)
-a = a.reshape(5, 16)
+a = ht.random.rand(54, dtype=ht.float64)
+a = a.reshape(9, 6)
 print(a)
-# a = ht.array([[0.3047, 0.2780, 0.4564, 0.8192, 0.5446, 0.0253],
-#         [0.1267, 0.7662, 0.2675, 0.1149, 0.0856, 0.3210],
-#         [0.6442, 0.9496, 0.9756, 0.0236, 0.0502, 0.1846],
-#         [0.2303, 0.5536, 0.0389, 0.3750, 0.9031, 0.5304],
-#         [0.7974, 0.4622, 0.6854, 0.8805, 0.2836, 0.6497]], dtype=ht.float64, split=0)
+
 
 final = torch.tensor
 m, n = a.shape
