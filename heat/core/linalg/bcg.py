@@ -29,6 +29,11 @@ from torch._C import Value
 from inspect import stack
 from pathlib import Path
 
+
+from qr import __split0_r_calc, __split0_q_loop, __split1_qr_loop
+from heat.core import tiling
+
+
 from heat.core.devices import cpu
 
 from heat.core import communication
@@ -39,14 +44,14 @@ from heat.core import exponential
 from heat.core import dndarray
 from heat.core import factories
 from heat.core import manipulations
-from heat.core.manipulations import *
+from heat.core.manipulations import resplit
 from heat.core import rounding
 from heat.core import sanitation
 from heat.core import statistics
 from heat.core import stride_tricks
 from heat.core import types
-from svd import *
-from qr import *
+from svd import block_diagonalize
+
 
 __all__ = ["bi_diagonalize"]
 
@@ -170,9 +175,9 @@ def bi_diagonalize(A, overwrite_arr=True):
     for i in range(k):
 
         if m >= n:
-            D1 = arr[i:, i]
+            D1 = arr[i : i + 1 + bl, i]
             v_left, tau_left = gen_house_vec(D1)
-            Uj = apply_house_left(D1, v_left, tau_left, U1, m, i)
+            Uj = apply_house_left(D1, v_left, tau_left, U1, D1.shape[0], i)
 
             if i < k - 1:
                 for j in range(2, k):
@@ -180,7 +185,7 @@ def bi_diagonalize(A, overwrite_arr=True):
                     if j == 2:
                         Ej = arr[i : i + 1 + bl, i + 1 : i + b + 1]
                         # print(Ej, end="    ")
-                        if Ej.size(0) > 0:
+                        if Ej.size(0) > 0 and Ej.size(1) > 0:
                             Ej = torch.matmul(Uj.float(), Ej.float())
                             # print("Ej is: ", Ej)
                             v_right, tau_right = gen_house_vec(Ej[0, :])
@@ -193,7 +198,7 @@ def bi_diagonalize(A, overwrite_arr=True):
                             Aj = torch.matmul(Aj.float(), vj)
 
                         Dj = arr[i + 1 + bl : i + 1 + bl + b, i + 1 : i + 1 + b]
-                        if Dj.size(0) > 0:
+                        if Dj.size(0) > 0 and Dj.size(1) > 0:
                             v_left, tau_left = gen_house_vec(Dj[:, 0])
                             Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
 
@@ -201,7 +206,7 @@ def bi_diagonalize(A, overwrite_arr=True):
 
                     else:
                         Ej = arr[p_left:p_right, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
-                        if Ej.size(0) > 0:
+                        if Ej.size(0) > 0 and Ej.size(1) > 0:
                             Ej = torch.matmul(Uj.float(), Ej.float())
                             v_right, tau_right = gen_house_vec(Ej[0, :])
                             vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
@@ -213,7 +218,7 @@ def bi_diagonalize(A, overwrite_arr=True):
                             Aj = torch.matmul(Aj.float(), vj)
 
                         Dj = arr[p_right : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
-                        if Dj.size(0) > 0:
+                        if Dj.size(0) > 0 and Dj.size(1) > 0:
                             v_left, tau_left = gen_house_vec(Dj[:, 0])
                             Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
                             arr[
@@ -234,7 +239,7 @@ def bi_diagonalize(A, overwrite_arr=True):
                 torch.matmul(Aj.float(), vj1)
                 arr[i, i : i + 1 + bu] = E1
 
-            if D1.size(0) > 0:
+            if D1.size(0) > 0 and D1.size(1) > 0:
                 v_left, tau_left = gen_house_vec(D1[:, 0])
                 Uj = apply_house_left(D1, v_left, tau_left, U1, m, i)
                 arr[i + 1 : i + 1 + b, i : i + 1 + bu] = D1
@@ -267,7 +272,7 @@ def bi_diagonalize(A, overwrite_arr=True):
                     Dj = arr[
                         p_right : p_right + b, i + 1 + bu + (j - 2) * b : i + 1 + bu + (j - 1) * b
                     ]
-                    if Dj.size(0) > 0:
+                    if Dj.size(0) > 0 and Dj.size(1) > 0:
                         v_left, tau_left = gen_house_vec(Dj[:, 0])
                         Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
                         arr[
@@ -299,14 +304,16 @@ def bi_diagonalize(A, overwrite_arr=True):
 # array_with_halos
 # print(a.get_halo(1))
 
-a = ht.random.rand(54, dtype=ht.float64)
-a = a.reshape(9, 6)
+a = ht.random.rand(120, dtype=ht.float64, split=0)
+a = a.reshape(12, 10)
 # print(a)
 
 
+U, a, V = block_diagonalize(a)
+
 final = torch.tensor
 m, n = a.shape
-
+a = resplit(a, None)
 
 a = a._DNDarray__cat_halo()
 print("tensor a is: ", a)
