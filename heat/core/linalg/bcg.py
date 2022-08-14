@@ -301,15 +301,15 @@ def bi_diagonalize(A, overwrite_arr=True):
 
 a = ht.random.rand(54, dtype=ht.float64)
 a = a.reshape(9, 6)
-print(a)
+# print(a)
 
 
 final = torch.tensor
 m, n = a.shape
 
 
-# k = a._DNDarray__prephalo(0, m)
-# print("tensor k is: ", k)
+a = a._DNDarray__cat_halo()
+print("tensor a is: ", a)
 
 # print(a.halo_next)
 # print(a.halo_prev)
@@ -322,7 +322,7 @@ m, n = a.shape
 
 print("rank is = ", rank)
 
-bi_diagonalize(a.larray)
+bi_diagonalize(a)
 print("Tensor a is: ", a)
 
 #    if rank == 0:
