@@ -132,7 +132,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     else:
         weight = v.larray
 
-    # t_a = signal  # stores temporary signal
     t_v = weight  # stores temporary weight
     # make signal and filter weight 3D for Pytorch conv1d function
     signal = signal.reshape(1, 1, signal.shape[0])
@@ -147,13 +146,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     if v.is_distributed():
         size = v.comm.size
 
-        # t_signal_shape = (
-        #     (t_a.shape[0] - t_v.shape[0])
-        #     if (a.comm.rank != 0 and v.lshape_map[0][0] % 2 == 0)
-        #     else (t_a.shape[0] - t_v.shape[0] + 1)
-        # )
-        # t_signal = torch.zeros((v.comm.size, t_signal_shape))
-
         for r in range(size):
             # origin_rank = r
             rec_v = v.comm.bcast(t_v, root=r)
@@ -165,7 +157,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             if a.comm.rank != 0 and v.lshape_map[0][0] % 2 == 0:
                 local_signal_filtered = local_signal_filtered[1:]
 
-            # ALTERNATIVE APPROACH, do not build (size, gshape) matrix, accumulate filtered signal on the fly
+            # accumulate filtered signal on the fly
             global_signal_filtered = array(
                 local_signal_filtered, is_split=0, device=a.device, comm=a.comm
             )
@@ -183,20 +175,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
                 start_idx += v.lshape_map[r + 1][0]
         return signal_filtered
 
-        # ORIGINAL IMPLEMENTATION
-        #     t_signal[origin_rank] = local_signal_filtered
-
-        # global_signal_filtered = array(
-        #     t_signal, dtype=a.dtype, is_split=1, device=a.device, comm=a.comm
-        # )
-        # signal_filtered = array(0)
-        # start_idx = 0
-        # for row in range(size):
-        #     signal_filtered += global_signal_filtered[row][start_idx : start_idx + gshape]
-        #     if row != size - 1:
-        #         start_idx += v.lshape_map[row + 1][0]
-        # signal_filtered.balance_()
-        # return signal_filtered
     else:
         # apply torch convolution operator
         signal_filtered = fc.conv1d(signal, weight)

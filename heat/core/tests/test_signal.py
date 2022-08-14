@@ -99,3 +99,14 @@ class TestSignal(TestCase):
         kernel = ht.ones(1).astype(ht.int)
         conv = ht.convolve(alt_signal, kernel)
         self.assertTrue(ht.equal(signal, conv))
+
+        # distributed large signal and kernel
+        np.random.seed(12)
+        np_a = np.random.randint(1000, size= 4418)
+        np_b = np.random.randint(1000, size = 1543)
+        np_conv = np.convolve(np_a, np_b, mode="valid")
+        
+        a = ht.array(np_a, split=0, dtype=ht.int32)
+        b = ht.array(np_b, split=0, dtype=ht.int32)
+        conv = ht.convolve(a, b, mode="valid")
+        self.assert_array_equal(conv, np_conv)
