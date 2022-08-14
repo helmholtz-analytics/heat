@@ -168,19 +168,19 @@ class Dcsr_matrix:
 
 
 # HeAT imports at the end to break cyclic dependencies
-from . import complex_math
-from . import devices
-from . import factories
-from . import indexing
-from . import linalg
-from . import manipulations
-from . import printing
-from . import rounding
-from . import sanitation
-from . import statistics
-from . import stride_tricks
-from . import tiling
+from ..core import complex_math
+from ..core import devices
+from ..core import factories
+from ..core import indexing
+from ..core import linalg
+from ..core import manipulations
+from ..core import printing
+from ..core import rounding
+from ..core import sanitation
+from ..core import statistics
+from ..core import stride_tricks
+from ..core import tiling
 
-from .devices import Device
-from .stride_tricks import sanitize_axis
-from .types import datatype, canonical_heat_type
+from ..core.devices import Device
+from ..core.stride_tricks import sanitize_axis
+from ..core.types import datatype, canonical_heat_type

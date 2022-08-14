@@ -2,7 +2,6 @@
 Module implementing the communication layer of HeAT
 """
 from __future__ import annotations
-from operator import index
 
 import numpy as np
 import os
