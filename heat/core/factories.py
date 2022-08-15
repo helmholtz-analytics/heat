@@ -952,7 +952,7 @@ def linspace(
     start = float(start)
     stop = float(stop)
     num = int(num)
-    if num <= 0:
+    if num < 0:
         raise ValueError(
             "number of samples 'num' must be non-negative integer, but was {}".format(num)
         )
