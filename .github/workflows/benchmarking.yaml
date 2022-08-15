@@ -19,7 +19,8 @@ jobs:
             source heat-venv/bin/activate
             jutil env activate -p haf
             cd fork/heat/benchmarks/pytest-benchmarks/knn_benchmark/
-            pytest -s 
+            pytest -s
+            git branch --show-current
           host: ${{ secrets.HDFML_HOST }}
           username: berhanu1
           privateKey: ${{ secrets.HDFML_KEY}}
