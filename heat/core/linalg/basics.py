@@ -1174,11 +1174,13 @@ def matrix_norm(
 
     row_axis, col_axis = axis
 
+    dtype = types.promote_types(x.dtype, types.float32)
+
     if ord == 1:
         if col_axis > row_axis and not keepdims:
             col_axis -= 1
         return statistics.max(
-            arithmetics.sum(rounding.abs(x), axis=row_axis, keepdim=keepdims),
+            arithmetics.sum(rounding.abs(x, dtype=dtype), axis=row_axis, keepdim=keepdims),
             axis=col_axis,
             keepdim=keepdims,
         )
@@ -1186,7 +1188,7 @@ def matrix_norm(
         if col_axis > row_axis and not keepdims:
             col_axis -= 1
         return statistics.min(
-            arithmetics.sum(rounding.abs(x), axis=row_axis, keepdim=keepdims),
+            arithmetics.sum(rounding.abs(x, dtype=dtype), axis=row_axis, keepdim=keepdims),
             axis=col_axis,
             keepdim=keepdims,
         )
@@ -1198,7 +1200,7 @@ def matrix_norm(
         if row_axis > col_axis and not keepdims:
             row_axis -= 1
         return statistics.max(
-            arithmetics.sum(rounding.abs(x), axis=col_axis, keepdim=keepdims),
+            arithmetics.sum(rounding.abs(x, dtype=dtype), axis=col_axis, keepdim=keepdims),
             axis=row_axis,
             keepdim=keepdims,
         )
@@ -1206,7 +1208,7 @@ def matrix_norm(
         if row_axis > col_axis and not keepdims:
             row_axis -= 1
         return statistics.min(
-            arithmetics.sum(rounding.abs(x), axis=col_axis, keepdim=keepdims),
+            arithmetics.sum(rounding.abs(x, dtype=dtype), axis=col_axis, keepdim=keepdims),
             axis=row_axis,
             keepdim=keepdims,
         )
