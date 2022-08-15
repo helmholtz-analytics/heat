@@ -593,6 +593,8 @@ class TestFactories(TestCase):
 
         zero_samples = ht.linspace(-3, 5, num=0)
         self.assertEqual(zero_samples.size, 0)
+        check_precision = ht.linspace(0.0, 16777217.0, num=2, dtype=torch.float64)
+        self.assertEqual(check_precision.sum(), 16777217)
 
         # simple inverse linear space
         descending = ht.linspace(-5, 3, num=100)
