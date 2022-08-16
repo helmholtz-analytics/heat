@@ -126,13 +126,9 @@ def bi_diagonalize(A, overwrite_arr=True):
 
 
 
-
-
     Note: We will do the bulge chasing using Halos.
 
     Second Stage of reduction: Band matrix to a real bidiagonal matrix. This uses a bulge chasing algorithm.
-
-
 
 
     """
@@ -175,57 +171,69 @@ def bi_diagonalize(A, overwrite_arr=True):
     for i in range(k):
 
         if m >= n:
-            D1 = arr[i : i + 1 + bl, i]
-            v_left, tau_left = gen_house_vec(D1)
-            Uj = apply_house_left(D1, v_left, tau_left, U1, D1.shape[0], i)
+            if rank == 0:
+                D1 = arr[i : i + 1 + bl, i]
+                v_left, tau_left = gen_house_vec(D1)
+                Uj = apply_house_left(D1, v_left, tau_left, U1, D1.shape[0], i)
+                comm.send(Uj, dest=1)
 
             if i < k - 1:
                 for j in range(2, k):
                     # print("j is = ", j)
                     if j == 2:
-                        Ej = arr[i : i + 1 + bl, i + 1 : i + b + 1]
-                        # print(Ej, end="    ")
-                        if Ej.size(0) > 0 and Ej.size(1) > 0:
-                            Ej = torch.matmul(Uj.float(), Ej.float())
-                            # print("Ej is: ", Ej)
-                            v_right, tau_right = gen_house_vec(Ej[0, :])
-                            vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
-                            # arr[i,1:] = Ej[0,:]
-                            arr[i : i + 1 + bl, i + 1 : i + b + 1] = Ej
-                            # print(Ej[0, :])
-                            # print(arr[i,:])
-                            Aj = arr[i : i + bl + b + 1, i + 1 : i + b + 1]
-                            Aj = torch.matmul(Aj.float(), vj)
+                        if rank == 1:
+                            Uj = comm.recv(source=0)
+                            Ej = arr[i : i + 1 + bl, i + 1 : i + b + 1]
+                            # print(Ej, end="    ")
+                            if Ej.size(0) > 0 and Ej.size(1) > 0:
+                                Ej = torch.matmul(Uj.float(), Ej.float())
+                                # print("Ej is: ", Ej)
+                                v_right, tau_right = gen_house_vec(Ej[0, :])
+                                vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
+                                # arr[i,1:] = Ej[0,:]
+                                arr[i : i + 1 + bl, i + 1 : i + b + 1] = Ej
+                                # print(Ej[0, :])
+                                # print(arr[i,:])
+                                Aj = arr[i : i + bl + b + 1, i + 1 : i + b + 1]
+                                Aj = torch.matmul(Aj.float(), vj)
 
-                        Dj = arr[i + 1 + bl : i + 1 + bl + b, i + 1 : i + 1 + b]
-                        if Dj.size(0) > 0 and Dj.size(1) > 0:
-                            v_left, tau_left = gen_house_vec(Dj[:, 0])
-                            Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
+                            Dj = arr[i + 1 + bl : i + 1 + bl + b, i + 1 : i + 1 + b]
+                            if Dj.size(0) > 0 and Dj.size(1) > 0:
+                                v_left, tau_left = gen_house_vec(Dj[:, 0])
+                                Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
+                                arr[i + 1 + bl : i + 1 + bl + b, i + 1 : i + 1 + b] = Dj
+                                comm.send(Uj, dest=2)
 
-                        p_left, p_right = i + 1 + bl, i + 1 + bl + b
+                            p_left, p_right = i + 1 + bl, i + 1 + bl + b
 
                     else:
-                        Ej = arr[p_left:p_right, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
-                        if Ej.size(0) > 0 and Ej.size(1) > 0:
-                            Ej = torch.matmul(Uj.float(), Ej.float())
-                            v_right, tau_right = gen_house_vec(Ej[0, :])
-                            vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
-                            arr[p_left:p_right, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b] = Ej
+                        if rank == j - 1:
+                            Uj = comm.recv(source=j - 1)
+                            Ej = arr[p_left:p_right, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
 
-                            Aj = arr[
-                                p_left : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
-                            ]
-                            Aj = torch.matmul(Aj.float(), vj)
+                            if Ej.size(0) > 0 and Ej.size(1) > 0:
+                                Ej = torch.matmul(Uj.float(), Ej.float())
+                                v_right, tau_right = gen_house_vec(Ej[0, :])
+                                vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
+                                arr[p_left:p_right, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b] = Ej
 
-                        Dj = arr[p_right : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
-                        if Dj.size(0) > 0 and Dj.size(1) > 0:
-                            v_left, tau_left = gen_house_vec(Dj[:, 0])
-                            Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
-                            arr[
+                                Aj = arr[
+                                    p_left : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
+                                ]
+                                Aj = torch.matmul(Aj.float(), vj)
+
+                            Dj = arr[
                                 p_right : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
-                            ] = Dj
+                            ]
+                            if Dj.size(0) > 0 and Dj.size(1) > 0:
+                                v_left, tau_left = gen_house_vec(Dj[:, 0])
+                                Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
+                                arr[
+                                    p_right : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
+                                ] = Dj
+                                comm.send(Uj, dest=j + 1)
 
-                        p_left, p_right = p_right, p_right + b
+                            p_left, p_right = p_right, p_right + b
 
         else:
             E1 = arr[i, i : i + 1 + bu]
@@ -304,16 +312,16 @@ def bi_diagonalize(A, overwrite_arr=True):
 # array_with_halos
 # print(a.get_halo(1))
 
-a = ht.random.rand(120, dtype=ht.float64, split=0)
-a = a.reshape(12, 10)
+a = ht.random.rand(240, dtype=ht.float64)
+a = a.reshape(20, 12)
 # print(a)
 
 
-U, a, V = block_diagonalize(a)
+# U, a, V = block_diagonalize(a)
 
 final = torch.tensor
 m, n = a.shape
-a = resplit(a, None)
+# a = resplit(a, None)
 
 a = a._DNDarray__cat_halo()
 print("tensor a is: ", a)
@@ -330,7 +338,7 @@ print("tensor a is: ", a)
 print("rank is = ", rank)
 
 bi_diagonalize(a)
-print("Tensor a is: ", a)
+print("Tensor a became: ", a)
 
 #    if rank == 0:
 #       # print(k)
