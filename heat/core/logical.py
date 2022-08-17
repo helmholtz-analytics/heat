@@ -39,7 +39,7 @@ def all(
     x: DNDarray,
     axis: Union[int, Tuple[int], None] = None,
     out: Optional[DNDarray] = None,
-    keepdim: bool = False,
+    keepdims: bool = False,
 ) -> Union[DNDarray, bool]:
     """
     Test whether all array elements along a given axis evaluate to ``True``.
@@ -57,7 +57,7 @@ def all(
     out : DNDarray, optional
         Alternate output array in which to place the result. It must have the same shape as the expected output
         and its type is preserved.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
@@ -92,13 +92,13 @@ def all(
         return torch.all(t != 0, *args, **kwargs)
 
     return _operations.__reduce_op(
-        x, local_all, MPI.LAND, axis=axis, out=out, neutral=1, keepdim=keepdim
+        x, local_all, MPI.LAND, axis=axis, out=out, neutral=1, keepdim=keepdims
     )
 
 
 DNDarray.all: Callable[
     [Union[int, Tuple[int], None], Optional[DNDarray], bool], Union[DNDarray, bool]
-] = lambda self, axis=None, out=None, keepdim=False: all(self, axis, out, keepdim)
+] = lambda self, axis=None, out=None, keepdims=False: all(self, axis, out, keepdims)
 DNDarray.all.__doc__ = all.__doc__
 
 
