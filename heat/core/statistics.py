@@ -782,7 +782,7 @@ def max(
     x: DNDarray,
     axis: Optional[Union[int, Tuple[int, ...]]] = None,
     out: Optional[DNDarray] = None,
-    keepdim: Optional[bool] = None,
+    keepdims: Optional[bool] = None,
 ) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
@@ -799,7 +799,7 @@ def max(
     out : DNDarray, optional
         Tuple of two output arrays ``(max, max_indices)``. Must be of the same shape and buffer length as the expected
         output. The minimum value of an output element. Must be present to allow computation on empty slice.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
@@ -827,13 +827,13 @@ def max(
 
     smallest_value = -sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdim=keepdim
+        x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdim=keepdims
     )
 
 
 DNDarray.max: Callable[
     [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray
-] = lambda x, axis=None, out=None, keepdim=None: max(x, axis, out, keepdim)
+] = lambda x, axis=None, out=None, keepdims=None: max(x, axis, out, keepdims)
 DNDarray.max.__doc__ = max.__doc__
 
 
