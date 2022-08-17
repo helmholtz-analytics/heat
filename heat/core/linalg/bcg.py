@@ -175,40 +175,53 @@ def bi_diagonalize(A, overwrite_arr=True):
                 D1 = arr[i : i + 1 + bl, i]
                 v_left, tau_left = gen_house_vec(D1)
                 Uj = apply_house_left(D1, v_left, tau_left, U1, D1.shape[0], i)
-                comm.send(Uj, dest=1)
+                arr[i : i + 1 + bl, i] = D1
+                comm.send(arr, dest=1, tag=1)
+                comm.send(Uj, dest=1, tag=2)
+                arr = comm.recv(source=1, tag=3)
 
             if i < k - 1:
                 for j in range(2, k):
                     # print("j is = ", j)
                     if j == 2:
                         if rank == 1:
-                            Uj = comm.recv(source=0)
+
+                            arr = comm.recv(source=0, tag=1)
                             Ej = arr[i : i + 1 + bl, i + 1 : i + b + 1]
                             # print(Ej, end="    ")
                             if Ej.size(0) > 0 and Ej.size(1) > 0:
+                                Uj = comm.recv(source=0, tag=2)
                                 Ej = torch.matmul(Uj.float(), Ej.float())
-                                # print("Ej is: ", Ej)
+                                # print("Ej is: ", Ej, end="  ")
                                 v_right, tau_right = gen_house_vec(Ej[0, :])
                                 vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
                                 # arr[i,1:] = Ej[0,:]
-                                arr[i : i + 1 + bl, i + 1 : i + b + 1] = Ej
+                                print("Ej is: ", Ej)
+                                # print(i)
+                                arr[i : i + 1 + bl, i + 1 : i + b + 1] = Ej[:]
+                                print("arr is: ", arr)
                                 # print(Ej[0, :])
                                 # print(arr[i,:])
                                 Aj = arr[i : i + bl + b + 1, i + 1 : i + b + 1]
                                 Aj = torch.matmul(Aj.float(), vj)
+                                # arr[i : i + bl + b + 1, i + 1 : i + b + 1] = Aj
 
                             Dj = arr[i + 1 + bl : i + 1 + bl + b, i + 1 : i + 1 + b]
                             if Dj.size(0) > 0 and Dj.size(1) > 0:
                                 v_left, tau_left = gen_house_vec(Dj[:, 0])
                                 Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
                                 arr[i + 1 + bl : i + 1 + bl + b, i + 1 : i + 1 + b] = Dj
-                                comm.send(Uj, dest=2)
+                                # comm.send(Uj, dest=2)
 
                             p_left, p_right = i + 1 + bl, i + 1 + bl + b
+                            # comm.send(arr,dest=0,tag=3)
+                            print("ok", arr)
 
                     else:
-                        if rank == j - 1:
-                            Uj = comm.recv(source=j - 1)
+                        # if rank == j - 1:
+                        # Uj = comm.recv(source=j - 1)
+                        if rank == 1:
+                            # print("This one:", arr)
                             Ej = arr[p_left:p_right, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
 
                             if Ej.size(0) > 0 and Ej.size(1) > 0:
@@ -221,6 +234,9 @@ def bi_diagonalize(A, overwrite_arr=True):
                                     p_left : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
                                 ]
                                 Aj = torch.matmul(Aj.float(), vj)
+                                arr[
+                                    p_left : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
+                                ] = Aj
 
                             Dj = arr[
                                 p_right : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
@@ -231,9 +247,12 @@ def bi_diagonalize(A, overwrite_arr=True):
                                 arr[
                                     p_right : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
                                 ] = Dj
-                                comm.send(Uj, dest=j + 1)
+                                # comm.send(Uj, dest=j + 1)
 
                             p_left, p_right = p_right, p_right + b
+                            # comm.send(arr,dest=0,tag=3)
+
+                comm.send(arr, dest=0, tag=3)
 
         else:
             E1 = arr[i, i : i + 1 + bu]
@@ -293,7 +312,7 @@ def bi_diagonalize(A, overwrite_arr=True):
     return arr
 
 
-# mpiexec -np 3 python c:/Users/DELL/heat/heat/core/linalg/bcg.py
+# mpiexec -np 2 python c:/Users/DELL/heat/heat/core/linalg/bcg.py
 # arr = ht.zeros([15,12], dtype=ht.float64)
 # print("Hello world from rank", str(rank), "of", str(size))
 
@@ -312,8 +331,8 @@ def bi_diagonalize(A, overwrite_arr=True):
 # array_with_halos
 # print(a.get_halo(1))
 
-a = ht.random.rand(240, dtype=ht.float64)
-a = a.reshape(20, 12)
+a = ht.random.rand(120, dtype=ht.float64)
+a = a.reshape(12, 10)
 # print(a)
 
 
@@ -324,7 +343,7 @@ m, n = a.shape
 # a = resplit(a, None)
 
 a = a._DNDarray__cat_halo()
-print("tensor a is: ", a)
+print("a is: ", a)
 
 # print(a.halo_next)
 # print(a.halo_prev)
@@ -337,8 +356,9 @@ print("tensor a is: ", a)
 
 print("rank is = ", rank)
 
-bi_diagonalize(a)
-print("Tensor a became: ", a)
+a = bi_diagonalize(a)
+if rank == 1:
+    print("Tensor a in rank 1: ", a)
 
 #    if rank == 0:
 #       # print(k)
