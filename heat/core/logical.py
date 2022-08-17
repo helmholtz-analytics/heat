@@ -155,7 +155,7 @@ DNDarray.allclose.__doc__ = all.__doc__
 
 
 def any(
-    x, axis: Optional[int] = None, out: Optional[DNDarray] = None, keepdim: bool = False
+    x, axis: Optional[int] = None, out: Optional[DNDarray] = None, keepdims: bool = False
 ) -> DNDarray:
     """
     Returns a :class:`~heat.core.dndarray.DNDarray` containing the result of the test whether any array elements along a
@@ -172,7 +172,7 @@ def any(
     out : DNDarray, optional
         Alternative output tensor in which to place the result. It must have the same shape as the expected output.
         The output is a array with ``datatype=bool``.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
@@ -197,13 +197,13 @@ def any(
         return torch.any(t != 0, *args, **kwargs)
 
     return _operations.__reduce_op(
-        x, local_any, MPI.LOR, axis=axis, out=out, neutral=0, keepdim=keepdim
+        x, local_any, MPI.LOR, axis=axis, out=out, neutral=0, keepdim=keepdims
     )
 
 
 DNDarray.any: Callable[
     [DNDarray, Optional[int], Optional[DNDarray], bool], DNDarray
-] = lambda self, axis=None, out=None, keepdim=False: any(self, axis, out, keepdim)
+] = lambda self, axis=None, out=None, keepdims=False: any(self, axis, out, keepdims)
 DNDarray.any.__doc__ = any.__doc__
 
 
