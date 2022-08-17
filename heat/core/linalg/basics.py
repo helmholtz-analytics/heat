@@ -1178,17 +1178,17 @@ def matrix_norm(
         if col_axis > row_axis and not keepdims:
             col_axis -= 1
         return statistics.max(
-            arithmetics.sum(rounding.abs(x), axis=row_axis, keepdim=keepdims),
+            arithmetics.sum(rounding.abs(x), axis=row_axis, keepdims=keepdims),
             axis=col_axis,
-            keepdim=keepdims,
+            keepdims=keepdims,
         )
     elif ord == -1:
         if col_axis > row_axis and not keepdims:
             col_axis -= 1
         return statistics.min(
-            arithmetics.sum(rounding.abs(x), axis=row_axis, keepdim=keepdims),
+            arithmetics.sum(rounding.abs(x), axis=row_axis, keepdims=keepdims),
             axis=col_axis,
-            keepdim=keepdims,
+            keepdims=keepdims,
         )
     elif ord == 2:
         raise NotImplementedError("The largest singular value can't be computed yet.")
@@ -1198,21 +1198,21 @@ def matrix_norm(
         if row_axis > col_axis and not keepdims:
             row_axis -= 1
         return statistics.max(
-            arithmetics.sum(rounding.abs(x), axis=col_axis, keepdim=keepdims),
+            arithmetics.sum(rounding.abs(x), axis=col_axis, keepdims=keepdims),
             axis=row_axis,
-            keepdim=keepdims,
+            keepdims=keepdims,
         )
     elif ord == -constants.inf:
         if row_axis > col_axis and not keepdims:
             row_axis -= 1
         return statistics.min(
-            arithmetics.sum(rounding.abs(x), axis=col_axis, keepdim=keepdims),
+            arithmetics.sum(rounding.abs(x), axis=col_axis, keepdims=keepdims),
             axis=row_axis,
-            keepdim=keepdims,
+            keepdims=keepdims,
         )
     elif ord in [None, "fro"]:
         return exponential.sqrt(
-            arithmetics.sum((complex_math.conj(x) * x).real, axis=axis, keepdim=keepdims)
+            arithmetics.sum((complex_math.conj(x) * x).real, axis=axis, keepdims=keepdims)
         )
     elif ord == "nuc":
         raise NotImplementedError("The nuclear norm can't be computed yet.")
@@ -2270,7 +2270,7 @@ def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
 
 
 def vecdot(
-    x1: DNDarray, x2: DNDarray, axis: Optional[int] = None, keepdim: Optional[bool] = None
+    x1: DNDarray, x2: DNDarray, axis: Optional[int] = None, keepdims: Optional[bool] = None
 ) -> DNDarray:
     """
     Computes the (vector) dot product of two DNDarrays.
@@ -2283,7 +2283,7 @@ def vecdot(
         second input array. Must be compatible with x1.
     axis : int, optional
         axis over which to compute the dot product. The last dimension is used if 'None'.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to 'True', the axes which are reduced are left in the result as dimensions with size one.
 
     See Also
@@ -2303,7 +2303,7 @@ def vecdot(
     if axis is None:
         axis = m.ndim - 1
 
-    return arithmetics.sum(m, axis=axis, keepdim=keepdim)
+    return arithmetics.sum(m, axis=axis, keepdims=keepdims)
 
 
 def vector_norm(
