@@ -1115,7 +1115,7 @@ def min(
     x: DNDarray,
     axis: Optional[Union[int, Tuple[int, ...]]] = None,
     out: Optional[DNDarray] = None,
-    keepdim: Optional[bool] = None,
+    keepdims: Optional[bool] = None,
 ) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
@@ -1132,7 +1132,7 @@ def min(
     out : Tuple[DNDarray,DNDarray], optional
         Tuple of two output arrays ``(min, min_indices)``. Must be of the same shape and buffer length as the expected
         output. The maximum value of an output element. Must be present to allow computation on empty slice.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
@@ -1161,13 +1161,13 @@ def min(
 
     largest_value = sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdim=keepdim
+        x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdim=keepdims
     )
 
 
 DNDarray.min: Callable[
     [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray
-] = lambda self, axis=None, out=None, keepdim=None: min(self, axis, out, keepdim)
+] = lambda self, axis=None, out=None, keepdims=None: min(self, axis, out, keepdims)
 DNDarray.min.__doc__ = min.__doc__
 
 
