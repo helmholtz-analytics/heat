@@ -1031,7 +1031,7 @@ def median(x: DNDarray, axis: Optional[int] = None, keepdims: bool = False) -> D
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array ``a``.
     """
-    return percentile(x, q=50, axis=axis, keepdim=keepdims)
+    return percentile(x, q=50, axis=axis, keepdims=keepdims)
 
 
 DNDarray.median: Callable[
@@ -1409,7 +1409,7 @@ def percentile(
     axis: Optional[int] = None,
     out: Optional[DNDarray] = None,
     interpolation: str = "linear",
-    keepdim: bool = False,
+    keepdims: bool = False,
 ) -> DNDarray:
     r"""
     Compute the q-th percentile of the data along the specified axis.
@@ -1442,7 +1442,7 @@ def percentile(
 
         - ‘midpoint’: :math:`(i + j) / 2`.
 
-    keepdim : bool, optional
+    keepdims : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array x.
     """
@@ -1482,7 +1482,7 @@ def percentile(
             permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
             percentile = percentile.permute(permute_dims)
 
-        if keepdim:
+        if keepdims:
             # leave reduced dimension as size (1,)
             percentile.unsqueeze_(dim=axis + 1)
 
@@ -1528,7 +1528,7 @@ def percentile(
         t_q = t_q.flatten()
 
     # shape of output DNDarray
-    if keepdim:
+    if keepdims:
         output_shape = (nperc,) + gshape[:axis] + (1,) + gshape[axis + 1 :]
     else:
         output_shape = (nperc,) + gshape[:axis] + gshape[axis + 1 :]
