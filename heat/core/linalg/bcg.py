@@ -1,8 +1,11 @@
 """
 Bidiagonalization of input DNDarray.
 """
+from asyncio import wait_for
 import itertools
+from multiprocessing.connection import wait
 from operator import imod
+import re
 from turtle import left
 import torch
 import math
@@ -172,13 +175,16 @@ def bi_diagonalize(A, overwrite_arr=True):
 
         if m >= n:
             if rank == 0:
+                print(f"at {i} arr = ", arr)
                 D1 = arr[i : i + 1 + bl, i]
                 v_left, tau_left = gen_house_vec(D1)
                 Uj = apply_house_left(D1, v_left, tau_left, U1, D1.shape[0], i)
                 arr[i : i + 1 + bl, i] = D1
                 comm.send(arr, dest=1, tag=1)
                 comm.send(Uj, dest=1, tag=2)
-                arr = comm.recv(source=1, tag=3)
+
+                req2 = comm.irecv(source=1, tag=3)
+                arr = req2.wait()
 
             if i < k - 1:
                 for j in range(2, k):
@@ -186,7 +192,8 @@ def bi_diagonalize(A, overwrite_arr=True):
                     if j == 2:
                         if rank == 1:
 
-                            arr = comm.recv(source=0, tag=1)
+                            req3 = comm.irecv(source=0, tag=1)
+                            arr = req3.wait()
                             Ej = arr[i : i + 1 + bl, i + 1 : i + b + 1]
                             # print(Ej, end="    ")
                             if Ej.size(0) > 0 and Ej.size(1) > 0:
@@ -214,7 +221,8 @@ def bi_diagonalize(A, overwrite_arr=True):
                                 # comm.send(Uj, dest=2)
 
                             p_left, p_right = i + 1 + bl, i + 1 + bl + b
-                            # comm.send(arr,dest=0,tag=3)
+                            req = comm.isend(arr, dest=0, tag=3)
+                            req.wait()
                             print("ok", arr)
 
                     else:
@@ -250,9 +258,7 @@ def bi_diagonalize(A, overwrite_arr=True):
                                 # comm.send(Uj, dest=j + 1)
 
                             p_left, p_right = p_right, p_right + b
-                            # comm.send(arr,dest=0,tag=3)
-
-                comm.send(arr, dest=0, tag=3)
+                            comm.send(arr, dest=0, tag=3)
 
         else:
             E1 = arr[i, i : i + 1 + bu]
@@ -343,7 +349,7 @@ m, n = a.shape
 # a = resplit(a, None)
 
 a = a._DNDarray__cat_halo()
-print("a is: ", a)
+
 
 # print(a.halo_next)
 # print(a.halo_prev)
@@ -355,6 +361,7 @@ print("a is: ", a)
 # sprint("d is = ", d)
 
 print("rank is = ", rank)
+print("a is: at rank: ", a)
 
 a = bi_diagonalize(a)
 if rank == 1:
