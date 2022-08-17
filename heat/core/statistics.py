@@ -1014,7 +1014,7 @@ DNDarray.mean: Callable[[DNDarray, Union[int, List, Tuple]], DNDarray] = lambda 
 DNDarray.mean.__doc__ = mean.__doc__
 
 
-def median(x: DNDarray, axis: Optional[int] = None, keepdim: bool = False) -> DNDarray:
+def median(x: DNDarray, axis: Optional[int] = None, keepdims: bool = False) -> DNDarray:
     """
     Compute the median of the data along the specified axis.
     Returns the median of the ``DNDarray`` elements.
@@ -1027,16 +1027,16 @@ def median(x: DNDarray, axis: Optional[int] = None, keepdim: bool = False) -> DN
         Axis along which the median is computed. Default is ``None``, i.e.,
         the median is computed along a flattened version of the ``DNDarray``.
 
-    keepdim : bool, optional
+    keepdims : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array ``a``.
     """
-    return percentile(x, q=50, axis=axis, keepdim=keepdim)
+    return percentile(x, q=50, axis=axis, keepdim=keepdims)
 
 
 DNDarray.median: Callable[
     [DNDarray, int, bool], DNDarray
-] = lambda x, axis=None, keepdim=False: median(x, axis, keepdim)
+] = lambda x, axis=None, keepdims=False: median(x, axis, keepdims)
 DNDarray.mean.__doc__ = mean.__doc__
 
 
