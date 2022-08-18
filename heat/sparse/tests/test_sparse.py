@@ -15,8 +15,9 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 
-class TestLasso(TestCase):
-    def test_split():
+# Test with 2 processes
+class TestSparse(TestCase):
+    def test_split(self):
         indptr = np.array([0, 2, 3, 6])
         indices = np.array([0, 2, 2, 0, 1, 2])
         data = np.array([1, 2, 3, 4, 5, 6])
@@ -27,21 +28,20 @@ class TestLasso(TestCase):
         )
         t_sparse = ht.sparse.sparse_csr_matrix(t, split=0)
 
-        # Test with 2 processes
         sparse_data = torch.Tensor([[1, 2, 3], [4, 5, 6]])
         sparse_indptr = [torch.Tensor([0, 2, 3]), torch.Tensor([0, 3])]
         sparse_indices = torch.Tensor([[0, 2, 2], [0, 1, 2]])
         sparse_lnnz = torch.Tensor([3, 3])
 
-        assert t_sparse.data.larray.eq(sparse_data[rank]).all()
-        assert t_sparse.indptr.larray.eq(sparse_indptr[rank]).all()
-        assert t_sparse.indices.larray.eq(sparse_indices[rank]).all()
+        assert t_sparse.ldata.eq(sparse_data[rank]).all()
+        assert t_sparse.lindptr.eq(sparse_indptr[rank]).all()
+        assert t_sparse.lindices.eq(sparse_indices[rank]).all()
         assert t_sparse.lnnz == sparse_lnnz[rank]
         assert t_sparse.gnnz == len(data)
 
         print(f"Rank: {rank} Passed tests: split = 0")
 
-    def test_conversion():
+    def test_conversion(self):
         indptr = np.array([0, 2, 3, 6])
         indices = np.array([0, 2, 2, 0, 1, 2])
         data = np.array([1, 2, 3, 4, 5, 6])
@@ -51,17 +51,17 @@ class TestLasso(TestCase):
             torch.tensor(data),
         )
         s = csr_matrix((data, indices, indptr), shape=(3, 3))
-        assert (ht.sparse.sparse_csr_matrix(t).data == ht.sparse.sparse_csr_matrix(s).data).all()
+        assert (ht.sparse.sparse_csr_matrix(t).ldata == ht.sparse.sparse_csr_matrix(s).ldata).all()
         assert (
-            ht.sparse.sparse_csr_matrix(t).indptr == ht.sparse.sparse_csr_matrix(s).indptr
+            ht.sparse.sparse_csr_matrix(t).lindptr == ht.sparse.sparse_csr_matrix(s).lindptr
         ).all()
         assert (
-            ht.sparse.sparse_csr_matrix(t).indices == ht.sparse.sparse_csr_matrix(s).indices
+            ht.sparse.sparse_csr_matrix(t).lindices == ht.sparse.sparse_csr_matrix(s).lindices
         ).all()
 
         print(f"Rank: {rank} Passed tests: conversion of scipy.sparse to torch.sparse")
 
-    def test_is_split():
+    def test_is_split(self):
         sparse_data = torch.Tensor([[1, 2, 3], [4, 5, 6]])
         sparse_indptr = [torch.Tensor([0, 2, 3]), torch.Tensor([0, 3])]
         sparse_indices = torch.Tensor([[0, 2, 2], [0, 1, 2]])
@@ -77,11 +77,11 @@ class TestLasso(TestCase):
         assert isinstance(t_sparse, ht.sparse.Dcsr_matrix)
 
         global_indptr = t_sparse.global_indptr()
-        assert global_indptr.larray.eq(sparse_global_indptr[rank]).all()
+        assert global_indptr.eq(sparse_global_indptr[rank]).all()
 
         # print(f'''Rank: {rank}
-        #         data: {t_sparse.data.larray}
-        #         indptr: {t_sparse.indptr.larray}
-        #         global_indptr: {t_sparse.global_indptr().larray}
-        #         indices: {t_sparse.indices.larray}''')
+        #         data: {t_sparse.ldata}
+        #         indptr: {t_sparse.lindptr}
+        #         global_indptr: {t_sparse.global_indptr()}
+        #         indices: {t_sparse.lindices}''')
         print(f"Rank: {rank} Passed test: is_split = 0")
