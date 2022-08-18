@@ -6,8 +6,8 @@ from typing import Union, Tuple, Sequence
 from .communication import MPI
 from .dndarray import DNDarray
 from .types import promote_types
-from .manipulations import pad
-from .factories import array
+from .manipulations import pad, flip
+from .factories import array, zeros
 import torch.nn.functional as fc
 
 __all__ = ["convolve", "convolve2d"]
@@ -272,8 +272,8 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
 
-    if v.is_distributed():
-        raise TypeError("Distributed filter weights will be supported soon")
+    if v.is_distributed() and (mode == "full" or mode == "same"):
+        raise TypeError("Distributed filter weights only supportes valid mode")
     if len(a.shape) != 2 or len(v.shape) != 2:
         raise ValueError("Only 2-dimensional input DNDarrays are allowed")
     if a.shape[0] <= v.shape[0] or a.shape[1] <= v.shape[1]:
@@ -283,9 +283,9 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
 
     # compute halo size
     if a.split == 0 or a.split == None:
-        halo_size = v.shape[0] // 2
+        halo_size = int(v.lshape_map[0][0]) // 2
     else:
-        halo_size = v.shape[1] // 2
+        halo_size = int(v.lshape_map[0][1]) // 2
 
     # fetch halos and store them in a.halo_next/a.halo_prev
     print("qqa: ", halo_size)
@@ -295,8 +295,8 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     signal = a.array_with_halos
 
     # check if a local chunk is smaller than the filter size
-    if a.is_distributed() and signal.size()[0] < v.shape[0]:
-        raise ValueError("Local chunk size is smaller than filter size, this is not supported yet")
+    if a.is_distributed() and signal.size()[0] < v.lshape_map[0][0]:
+        raise ValueError("Local signal chunk size is smaller than the local filter size.")
 
     if mode == "full":
         pad_0 = v.shape[0] - 1
@@ -326,32 +326,98 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     signal = convgenpad(a, signal, pad, boundary, fillvalue)
 
     # flip filter for convolution as PyTorch conv2d computes correlation
-    weight = torch.flip(v._DNDarray__array.clone(), [0, 1])
+    v = flip(v, [0,1])
+
+    # compute weight size
+    if a.split == 0 or a.split == None:
+        weight_size = int(v.lshape_map[0][0])
+        current_size = v.larray.shape[0]
+    else:
+        weight_size = int(v.lshape_map[0][1])
+        current_size = v.larray.shape[1]
+
+    if(current_size != weight_size):
+        weight_shape = (int(v.lshape_map[0][0]), int(v.lshape_map[0][1]))
+        target = torch.zeros(weight_shape, dtype=v.larray.dtype, device=v.larray.device)
+        pad_size = weight_size - current_size
+        if v.split == 0:
+            target[pad_size:] = v.larray
+        else:    
+            target[:, pad_size:] = v.larray
+        weight = target
+    else:
+        weight = v.larray
+
+    t_v = weight  # stores temporary weight
     weight = weight.reshape(1, 1, weight.shape[0], weight.shape[1])
 
-    # apply torch convolution operator
-    signal_filtered = fc.conv2d(signal, weight)
+    if v.is_distributed():
+        size = v.comm.size
+        split_axis = v.split
+        for r in range(size):
+            rec_v = v.comm.bcast(t_v, root=r)
+            t_v1 = rec_v.reshape(1, 1, rec_v.shape[0], rec_v.shape[1])
 
-    # unpack 3D result into 1D
-    signal_filtered = signal_filtered[0, 0, :]
+            # apply torch convolution operator
+            local_signal_filtered = fc.conv2d(signal, t_v1)
+            
+            # unpack 3D result into 1D
+            local_signal_filtered = local_signal_filtered[0, 0, :]
 
-    # if kernel shape along split axis is even we need to get rid of duplicated values
-    if a.comm.rank != 0 and v.shape[0] % 2 == 0 and a.split == 0:
-        signal_filtered = signal_filtered[1:, :]
-    elif a.comm.rank != 0 and v.shape[1] % 2 == 0 and a.split == 1:
-        signal_filtered = signal_filtered[:, 1:]
+            # if kernel shape along split axis is even we need to get rid of duplicated values
+            if a.comm.rank != 0 and weight_size % 2 == 0 and a.split == 0:
+                local_signal_filtered = local_signal_filtered[1:, :]
+            if a.comm.rank != 0 and weight_size % 2 == 0 and a.split == 1:
+                local_signal_filtered = local_signal_filtered[:, 1:]
 
-    result = DNDarray(
-        signal_filtered.contiguous(),
-        gshape,
-        signal_filtered.dtype,
-        a.split,
-        a.device,
-        a.comm,
-        a.balanced,
-    ).astype(a.dtype.torch_type())
+            # accumulate filtered signal on the fly
+            global_signal_filtered = array(
+                local_signal_filtered, is_split=split_axis, device=a.device, comm=a.comm
+            )
+            if r == 0:
+                # initialize signal_filtered, starting point of slice
+                signal_filtered = zeros(
+                    gshape, dtype=a.dtype, split=a.split, device=a.device, comm=a.comm
+                )
+                start_idx = 0
 
-    if mode == "full" or mode == "valid":
-        result.balance()
+            # accumulate relevant slice of filtered signal
+            # note, this is a binary operation between unevenly distributed dndarrays and will require communication, check out _operations.__binary_op()
+            if split_axis == 0:
+                signal_filtered += global_signal_filtered[start_idx : start_idx + gshape[0]]
+            else:
+                signal_filtered += global_signal_filtered[:, start_idx : start_idx + gshape[1]]
+            if r != size - 1:
+                start_idx += v.lshape_map[r + 1][split_axis]
 
-    return result
+        signal_filtered.balance()
+        return signal_filtered
+
+    else:
+
+        # apply torch convolution operator
+        signal_filtered = fc.conv2d(signal, weight)
+
+        # unpack 3D result into 1D
+        signal_filtered = signal_filtered[0, 0, :]
+
+        # if kernel shape along split axis is even we need to get rid of duplicated values
+        if a.comm.rank != 0 and v.lshape_map[0][0] % 2 == 0 and a.split == 0:
+            signal_filtered = signal_filtered[1:, :]
+        elif a.comm.rank != 0 and v.lshape_map[0][1] % 2 == 0 and a.split == 1:
+            signal_filtered = signal_filtered[:, 1:]
+
+        result = DNDarray(
+            signal_filtered.contiguous(),
+            gshape,
+            signal_filtered.dtype,
+            a.split,
+            a.device,
+            a.comm,
+            a.balanced,
+        ).astype(a.dtype.torch_type())
+
+        if mode == "full" or mode == "valid":
+            result.balance()
+
+        return result
