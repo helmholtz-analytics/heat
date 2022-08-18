@@ -1,4 +1,4 @@
-"""Provides high-level DNDarray initialization functions"""
+"""Provides high-level Dcsr_matrix initialization functions"""
 
 import torch
 
@@ -42,7 +42,8 @@ def sparse_csr_matrix(
 
     # For now, assuming the obj is torch.sparse_csr_tensor
     comm = sanitize_comm(comm)
-    gshape = obj.shape
+    gshape = tuple(obj.shape)
+    lshape = gshape
     gnnz = obj.values().shape[0]
 
     if split == 0:
@@ -62,10 +63,15 @@ def sparse_csr_matrix(
         lnnz = data.shape[0]
         indptr = indptr - indptr[0]
 
+        lshape = list(lshape)
+        lshape[split] = end - start
+        lshape = tuple(lshape)
+
     elif split is not None:
         raise NotImplementedError("Not implemented for other splitting-axes")
 
     elif is_split == 0:
+        # TODO: Find gshape by accumulating
         data = obj.values()
         indptr = obj.crow_indices()
         indices = obj.col_indices()
@@ -80,7 +86,7 @@ def sparse_csr_matrix(
         indices = obj.col_indices()
         lnnz = gnnz
 
-    sparse_array = torch.sparse_csr_tensor(indptr, indices, data)
+    sparse_array = torch.sparse_csr_tensor(indptr, indices, data, size=lshape)
 
     return Dcsr_matrix(
         array=sparse_array,
