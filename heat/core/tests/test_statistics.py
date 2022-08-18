@@ -721,7 +721,7 @@ class TestStatistics(TestCase):
         self.assertTrue((maximum_vertical.larray == comparison.max(dim=0, keepdim=True)[0]).all())
 
         # maximum along second axis
-        maximum_horizontal = ht.max(ht_array, axis=1, keepdim=True)
+        maximum_horizontal = ht.max(ht_array, axis=1, keepdims=True)
 
         self.assertIsInstance(maximum_horizontal, ht.DNDarray)
         self.assertEqual(maximum_horizontal.shape, (4, 1))
@@ -984,7 +984,7 @@ class TestStatistics(TestCase):
 
         # min along second axis
         ht_array = ht.array(data, dtype=ht.int16)
-        minimum_horizontal = ht.min(ht_array, axis=1, keepdim=True)
+        minimum_horizontal = ht.min(ht_array, axis=1, keepdims=True)
 
         self.assertIsInstance(minimum_horizontal, ht.DNDarray)
         self.assertEqual(minimum_horizontal.shape, (4, 1))
@@ -1181,9 +1181,9 @@ class TestStatistics(TestCase):
         q = [0.1, 2.3, 15.9, 50.0, 84.1, 97.7, 99.9]
         axis = 2
         p_np = np.percentile(x_np, q, axis=axis, interpolation="lower", keepdims=True)
-        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdim=True)
+        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdims=True)
         out = ht.empty(p_np.shape, dtype=ht.float64, split=None, device=x_ht.device)
-        ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdim=True)
+        ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdims=True)
         self.assertEqual(p_ht.numpy()[5].all(), p_np[5].all())
         self.assertEqual(out.numpy()[2].all(), p_np[2].all())
         self.assertTrue(p_ht.shape == p_np.shape)

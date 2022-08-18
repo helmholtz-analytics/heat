@@ -2379,20 +2379,20 @@ def vector_norm(
             raise TypeError("'axis' must be an integer or 1-tuple for vectors.")
 
     if ord == constants.INF:
-        return statistics.max(rounding.abs(x), axis=axis, keepdim=keepdims)
+        return statistics.max(rounding.abs(x), axis=axis, keepdims=keepdims)
     elif ord == -constants.INF:
-        return statistics.min(rounding.abs(x), axis=axis, keepdim=keepdims)
+        return statistics.min(rounding.abs(x), axis=axis, keepdims=keepdims)
     elif ord == 0:
-        return arithmetics.sum(x != 0, axis=axis, keepdim=keepdims).astype(types.float)
+        return arithmetics.sum(x != 0, axis=axis, keepdims=keepdims).astype(types.float)
     elif ord == 1:
-        return arithmetics.sum(rounding.abs(x), axis=axis, keepdim=keepdims)
+        return arithmetics.sum(rounding.abs(x), axis=axis, keepdims=keepdims)
     elif ord is None or ord == 2:
         s = (complex_math.conj(x) * x).real
-        return exponential.sqrt(arithmetics.sum(s, axis=axis, keepdim=keepdims))
+        return exponential.sqrt(arithmetics.sum(s, axis=axis, keepdims=keepdims))
     elif isinstance(ord, str):
         raise ValueError("Norm order {} is invalid for vectors".format(ord))
     else:
         ret = arithmetics.pow(rounding.abs(x), ord)
-        ret = arithmetics.sum(ret, axis=axis, keepdim=keepdims)
+        ret = arithmetics.sum(ret, axis=axis, keepdims=keepdims)
         ret = arithmetics.pow(ret, 1.0 / ord)
         return ret

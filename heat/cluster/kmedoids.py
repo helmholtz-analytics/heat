@@ -94,7 +94,7 @@ class KMedoids(_KCluster):
             else:
                 if clean.shape[0] <= ht.MPI_WORLD.size:
                     clean.resplit_(axis=None)
-                median = ht.median(clean, axis=0, keepdim=True)
+                median = ht.median(clean, axis=0, keepdims=True)
 
                 dist = self._metric(x, median)
                 _, displ, _ = x.comm.counts_displs_shape(shape=x.shape, axis=0)
