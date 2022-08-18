@@ -79,6 +79,13 @@ class Dcsr_matrix:
         return self.__device
 
     @property
+    def larray(self) -> torch.sparse_csr_tensor:
+        """
+        Local data of the ``coo_array``
+        """
+        return self.__array
+
+    @property
     def data(self) -> Tuple:
         """
         Global data of the ``coo_array``
