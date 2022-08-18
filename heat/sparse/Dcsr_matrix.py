@@ -20,9 +20,7 @@ Communication = TypeVar("Communication")
 class Dcsr_matrix:
     def __init__(
         self,
-        data: DNDarray,
-        indptr: DNDarray,
-        indices: DNDarray,
+        array: torch.sparse_csr_tensor,
         gnnz: int,
         lnnz: int,
         gshape: Tuple[int, ...],
@@ -33,9 +31,7 @@ class Dcsr_matrix:
         balanced: bool,
     ):
         # TODO: Proper getters and setters for local and global members
-        self.__data = data
-        self.__indptr = indptr
-        self.__indices = indices
+        self.__array = array
         self.__gnnz = gnnz
         self.__lnnz = lnnz
         self.__gshape = gshape
@@ -57,9 +53,9 @@ class Dcsr_matrix:
         # Build prefix array out of all the nnz
         torch.cumsum(all_nnz, dim=0)
 
-        global_indptr = self.indptr + int(all_nnz[self.comm.rank])
+        global_indptr = self.lindptr + int(all_nnz[self.comm.rank])
 
-        return global_indptr
+        return global_indptr  # TODO: DNDarray is_split-->0
 
     @property
     def balanced(self) -> bool:
@@ -87,42 +83,45 @@ class Dcsr_matrix:
         """
         Global data of the ``coo_array``
         """
+        raise NotImplementedError()
         return self.__data
 
     @property
-    def ldata(self) -> Tuple:
+    def ldata(self) -> torch.Tensor:
         """
         Local data of the ``coo_array``
         """
-        return self.__ldata
+        return self.__array.values()
 
     @property
     def indptr(self) -> Tuple:
         """
         Global indptr of the ``coo_array``
         """
-        return self.__indptr
+        raise NotImplementedError()
+        return self.array
+
+    @property
+    def lindptr(self) -> torch.Tensor:
+        """
+        Local indptr of the ``coo_array``
+        """
+        return self.__array.crow_indices()
 
     @property
     def indices(self) -> Tuple:
         """
         Global indices of the ``coo_array``
         """
+        raise NotImplementedError()
         return self.__indices
 
     @property
-    def lindptr(self) -> Tuple:
-        """
-        Local indptr of the ``coo_array``
-        """
-        return self.__lindptr
-
-    @property
-    def lindices(self) -> Tuple:
+    def lindices(self) -> torch.Tensor:
         """
         Local indices of the ``coo_array``
         """
-        return self.__lindices
+        return self.__array.col_indices()
 
     @property
     def ndim(self) -> int:

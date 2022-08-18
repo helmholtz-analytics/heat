@@ -9,7 +9,7 @@ from ..core.devices import Device
 from ..core.factories import array
 from ..core.types import datatype
 
-from .Dcsr_matrix import Dcsr_matrix
+from .dcsr_matrix import Dcsr_matrix
 from scipy.sparse import csr_matrix as scipy_csr
 
 __all__ = [
@@ -54,61 +54,36 @@ def sparse_csr_matrix(
         indicesEnd = obj.crow_indices()[end]
 
         # Slice the data belonging to this process
-        data = array(
-            obj=obj.values()[indicesStart:indicesEnd],
-            dtype=dtype,
-            copy=False,
-            split=None,
-            comm=comm,
-        )
+        data = obj.values()[indicesStart:indicesEnd]
         # start:(end + 1) because indptr is of size (n + 1) for array with n rows
-        indptr = array(
-            obj=obj.crow_indices()[start : end + 1], dtype=dtype, copy=False, split=None, comm=comm
-        )
-        indices = array(
-            obj=obj.col_indices()[indicesStart:indicesEnd],
-            dtype=dtype,
-            copy=False,
-            split=None,
-            comm=comm,
-        )
-        lnnz = data.gshape[0]
+        indptr = obj.crow_indices()[start : end + 1]
+        indices = obj.col_indices()[indicesStart:indicesEnd]
+
+        lnnz = data.shape[0]
         indptr = indptr - indptr[0]
 
     elif split is not None:
         raise NotImplementedError("Not implemented for other splitting-axes")
 
     elif is_split == 0:
-        data = array(
-            obj=obj.values(),
-            dtype=dtype,
-            copy=False,
-            split=None,
-            comm=comm,
-        )
-        indptr = array(obj=obj.crow_indices(), dtype=dtype, copy=False, split=None, comm=comm)
-        indices = array(
-            obj=obj.col_indices(),
-            dtype=dtype,
-            copy=False,
-            split=None,
-            comm=comm,
-        )
-        lnnz = data.gshape[0]
+        data = obj.values()
+        indptr = obj.crow_indices()
+        indices = obj.col_indices()
+        lnnz = data.shape[0]
 
     elif is_split is not None:
         raise NotImplementedError("Not implemented for other splitting-axes")
 
     else:  # split is None and is_split is None
-        data = array(obj=obj.values(), dtype=dtype, copy=False, split=None, comm=comm)
-        indptr = array(obj=obj.crow_indices(), dtype=dtype, copy=False, split=None, comm=comm)
-        indices = array(obj=obj.col_indices(), dtype=dtype, copy=False, split=None, comm=comm)
+        data = obj.values()
+        indptr = obj.crow_indices()
+        indices = obj.col_indices()
         lnnz = gnnz
 
+    sparse_array = torch.sparse_csr_tensor(indptr, indices, data)
+
     return Dcsr_matrix(
-        data=data,
-        indptr=indptr,
-        indices=indices,
+        array=sparse_array,
         gnnz=gnnz,
         lnnz=lnnz,
         gshape=gshape,
