@@ -51,13 +51,17 @@ class TestSparse(TestCase):
             torch.tensor(data),
         )
         s = csr_matrix((data, indices, indptr), shape=(3, 3))
-        self.assertTrue((ht.sparse.sparse_csr_matrix(t).ldata == ht.sparse.sparse_csr_matrix(s).ldata).all())
-        self.assertTrue((
-            ht.sparse.sparse_csr_matrix(t).lindptr == ht.sparse.sparse_csr_matrix(s).lindptr
-        ).all())
-        self.assertTrue((
-            ht.sparse.sparse_csr_matrix(t).lindices == ht.sparse.sparse_csr_matrix(s).lindices
-        ).all())
+        self.assertTrue(
+            (ht.sparse.sparse_csr_matrix(t).ldata == ht.sparse.sparse_csr_matrix(s).ldata).all()
+        )
+        self.assertTrue(
+            (ht.sparse.sparse_csr_matrix(t).lindptr == ht.sparse.sparse_csr_matrix(s).lindptr).all()
+        )
+        self.assertTrue(
+            (
+                ht.sparse.sparse_csr_matrix(t).lindices == ht.sparse.sparse_csr_matrix(s).lindices
+            ).all()
+        )
 
         # print(f"Rank: {rank} Passed tests: conversion of scipy.sparse to torch.sparse")
 
@@ -88,10 +92,10 @@ class TestSparse(TestCase):
 
     def test_to_dense(self):
         indptr = np.array([0, 1, 3, 6])
-        indices = np.array([1,0,1,0,1,2])
-        data = np.array([2,1,2,1,2,3])
+        indices = np.array([1, 0, 1, 0, 1, 2])
+        data = np.array([2, 1, 2, 1, 2, 3])
 
-        dense_expected = ht.array([[0,2,0],[1,2,0],[1,2,3]], split = 0)
+        dense_expected = ht.array([[0, 2, 0], [1, 2, 0], [1, 2, 3]], split=0)
 
         # Test dense function output w/ split
         t = torch.sparse_csr_tensor(
@@ -110,38 +114,47 @@ class TestSparse(TestCase):
 
         # Test with output buffer w/ split
         t_sparse = ht.sparse.sparse_csr_matrix(t, split=0)
-        out = ht.empty(shape=t_sparse.shape, split=0, dtype=t_sparse.larray.dtype) # TODO: Change after fixing dtype
+        out = ht.empty(
+            shape=t_sparse.shape, split=0, dtype=t_sparse.larray.dtype
+        )  # TODO: Change after fixing dtype
         t_sparse.todense(out=out)
         self.assertTrue((dense_expected == out).all())
 
         # Test with output buffer w/o split
         t_sparse = ht.sparse.sparse_csr_matrix(t)
-        out = ht.empty(shape=t_sparse.shape, dtype=t_sparse.larray.dtype) # TODO: Change after fixing dtype
+        out = ht.empty(
+            shape=t_sparse.shape, dtype=t_sparse.larray.dtype
+        )  # TODO: Change after fixing dtype
         t_sparse.todense(out=out)
         self.assertTrue((dense_expected == out).all())
 
         # Test gaurds for output shape mismatch
         with self.assertRaises(ValueError) as context:
             t_sparse = ht.sparse.sparse_csr_matrix(t, split=0)
-            out = ht.empty(shape=(1,1), split=0, dtype=t_sparse.larray.dtype) # TODO: Change after fixing dtype
+            out = ht.empty(
+                shape=(1, 1), split=0, dtype=t_sparse.larray.dtype
+            )  # TODO: Change after fixing dtype
             t_sparse.todense(out=out)
         self.assertTrue("Shape of output buffer does not match" in str(context.exception))
 
         # Test gaurds for output split axis mismatch w/split = 0
         with self.assertRaises(ValueError) as context:
             t_sparse = ht.sparse.sparse_csr_matrix(t, split=0)
-            out = ht.empty(shape=t_sparse.shape, dtype=t_sparse.larray.dtype) # TODO: Change after fixing dtype
+            out = ht.empty(
+                shape=t_sparse.shape, dtype=t_sparse.larray.dtype
+            )  # TODO: Change after fixing dtype
             t_sparse.todense(out=out)
         self.assertTrue("Split axis of output buffer does not match" in str(context.exception))
 
         # Test gaurds for output split axis mismatch w/split = None
         with self.assertRaises(ValueError) as context:
             t_sparse = ht.sparse.sparse_csr_matrix(t, split=None)
-            out = ht.empty(shape=t_sparse.shape, split=0, dtype=t_sparse.larray.dtype) # TODO: Change after fixing dtype
+            out = ht.empty(
+                shape=t_sparse.shape, split=0, dtype=t_sparse.larray.dtype
+            )  # TODO: Change after fixing dtype
             t_sparse.todense(out=out)
         self.assertTrue("Split axis of output buffer does not match" in str(context.exception))
 
     def test_arithmetics(self):
         # TODO: Write tests for arithmetic operations
         pass
-

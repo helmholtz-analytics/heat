@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-import math
-import numpy as np
 import torch
-import warnings
 
-from inspect import stack
 from mpi4py import MPI
-from pathlib import Path
-from typing import List, Union, Tuple, TypeVar, Optional
+from typing import Union, Tuple, TypeVar
 
 from heat.core.dndarray import DNDarray
+from heat.core.factories import array
 
 __all__ = ["Dcsr_matrix"]
 
@@ -55,7 +51,13 @@ class Dcsr_matrix:
 
         global_indptr = self.lindptr + int(all_nnz[self.comm.rank])
 
-        return global_indptr  # TODO: DNDarray is_split-->0
+        return array(
+            global_indptr,
+            dtype=self.larray.dtype,  # TODO: Change after fixing dtype
+            device=self.device,
+            comm=self.comm,
+            is_split=self.split,
+        )
 
     @property
     def balanced(self) -> bool:
@@ -90,7 +92,7 @@ class Dcsr_matrix:
         """
         Global data of the ``coo_array``
         """
-        raise NotImplementedError()
+        raise NotImplementedError()  # TODO: Combine data from all processes
         return self.__data
 
     @property
