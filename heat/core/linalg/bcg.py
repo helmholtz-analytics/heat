@@ -191,9 +191,10 @@ def bi_diagonalize(A, overwrite_arr=True):
                     # print("j is = ", j)
                     if j == 2:
                         if rank == 1:
-
+                            # print("here: ", arr)
                             req3 = comm.irecv(source=0, tag=1)
                             arr = req3.wait()
+                            print("now here,", arr)
                             Ej = arr[i : i + 1 + bl, i + 1 : i + b + 1]
                             # print(Ej, end="    ")
                             if Ej.size(0) > 0 and Ej.size(1) > 0:
@@ -221,15 +222,17 @@ def bi_diagonalize(A, overwrite_arr=True):
                                 # comm.send(Uj, dest=2)
 
                             p_left, p_right = i + 1 + bl, i + 1 + bl + b
-                            req = comm.isend(arr, dest=0, tag=3)
-                            req.wait()
-                            print("ok", arr)
+                            # req = comm.isend(arr, dest=0, tag=3)
+                            # req.wait()
+                            print(f"ok {i} and {j}", arr)
 
                     else:
                         # if rank == j - 1:
                         # Uj = comm.recv(source=j - 1)
                         if rank == 1:
                             # print("This one:", arr)
+                            # req4 = comm.irecv(source=0,tag=1)
+                            # arr = req4.wait()
                             Ej = arr[p_left:p_right, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
 
                             if Ej.size(0) > 0 and Ej.size(1) > 0:
@@ -245,10 +248,12 @@ def bi_diagonalize(A, overwrite_arr=True):
                                 arr[
                                     p_left : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
                                 ] = Aj
+                                print("came here:")
 
                             Dj = arr[
                                 p_right : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
                             ]
+
                             if Dj.size(0) > 0 and Dj.size(1) > 0:
                                 v_left, tau_left = gen_house_vec(Dj[:, 0])
                                 Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
@@ -258,7 +263,11 @@ def bi_diagonalize(A, overwrite_arr=True):
                                 # comm.send(Uj, dest=j + 1)
 
                             p_left, p_right = p_right, p_right + b
-                            comm.send(arr, dest=0, tag=3)
+                            print(f"ok {i} and {j}")
+
+                if rank == 1:
+                    req = comm.isend(arr, dest=0, tag=3)
+                    req.wait()
 
         else:
             E1 = arr[i, i : i + 1 + bu]
@@ -301,6 +310,7 @@ def bi_diagonalize(A, overwrite_arr=True):
                             i + 1 + bu + (j - 2) * b : i + 1 + bu + (j - 1) * b,
                         ]
                         Aj = torch.matmul(Aj.float(), vj)
+                        print("came here:")
 
                     Dj = arr[
                         p_right : p_right + b, i + 1 + bu + (j - 2) * b : i + 1 + bu + (j - 1) * b
@@ -360,12 +370,11 @@ a = a._DNDarray__cat_halo()
 # d = int(d)
 # sprint("d is = ", d)
 
-print("rank is = ", rank)
-print("a is: at rank: ", a)
+# print("rank is = ", rank)
+# print("a is: at rank: ", comm.rank)
 
 a = bi_diagonalize(a)
-if rank == 1:
-    print("Tensor a in rank 1: ", a)
+print("Tensor a final: ", a)
 
 #    if rank == 0:
 #       # print(k)
