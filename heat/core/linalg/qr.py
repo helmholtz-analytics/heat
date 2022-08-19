@@ -10,7 +10,10 @@ from heat.core.types import datatype
 from heat.core.tiling import SquareDiagTiles
 from heat.core.dndarray import DNDarray
 from heat.core import factories
+
 __all__ = ["qr"]
+
+
 def qr(
     a: DNDarray,
     tiles_per_proc: Union[int, torch.Tensor] = 1,
