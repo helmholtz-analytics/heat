@@ -35,6 +35,8 @@ def sparse_csr_matrix(
     #   2. ndim
     #   3. order
     #   4. balanced
+    #   5. dtype
+    #   6. lshape
 
     # Convert input into torch.sparse_csr_tensor
     if isinstance(obj, scipy_csr):
