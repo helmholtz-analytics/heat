@@ -272,6 +272,9 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
 
+    if a.shape[0] < v.shape[0] and a.shape[1] < v.shape[1]:
+        a, v = v, a
+    
     if v.is_distributed() and (mode == "full" or mode == "same"):
         raise TypeError("Distributed filter weights only supportes valid mode")
     if len(a.shape) != 2 or len(v.shape) != 2:
@@ -280,6 +283,8 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
         raise ValueError("Filter size must not be greater than or equal to signal size")
     if mode == "same" and v.shape[0] % 2 == 0:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
+    if (a.split == 0 and v.split == 1) or (a.split == 1 and v.split == 0):
+        raise ValueError("DNDarrays must have same axis of split") 
 
     # compute halo size
     if a.split == 0 or a.split == None:
