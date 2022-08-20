@@ -12,6 +12,7 @@ from ..core.types import datatype
 
 from .dcsr_matrix import Dcsr_matrix
 
+from ..core import devices
 from ..core import types
 
 __all__ = [
@@ -38,15 +39,23 @@ def sparse_csr_matrix(
     #   3. order
     #   4. balanced
     #   5. lshape
-    #   6. device
 
     # sanitize the data type
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
 
+    # sanitize device
+    if device is not None:
+        device = devices.sanitize_device(device)
+
     # Convert input into torch.sparse_csr_tensor
     if isinstance(obj, scipy_csr_matrix):
-        obj = torch.sparse_csr_tensor(obj.indptr, obj.indices, obj.data)
+        obj = torch.sparse_csr_tensor(
+            obj.indptr,
+            obj.indices,
+            obj.data,
+            device=device.torch_device if device is not None else devices.get_device().torch_device,
+        )
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
@@ -103,7 +112,12 @@ def sparse_csr_matrix(
         lnnz = gnnz
 
     sparse_array = torch.sparse_csr_tensor(
-        indptr, indices, data, size=lshape, dtype=dtype.torch_type(), device=device
+        indptr,
+        indices,
+        data,
+        size=lshape,
+        dtype=dtype.torch_type(),
+        device=device.torch_device if device is not None else devices.get_device().torch_device,
     )
 
     return Dcsr_matrix(
