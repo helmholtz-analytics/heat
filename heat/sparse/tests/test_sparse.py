@@ -79,9 +79,12 @@ class TestSparse(TestCase):
         t_sparse = ht.sparse.sparse_csr_matrix(t, is_split=0)
 
         self.assertTrue(isinstance(t_sparse, ht.sparse.Dcsr_matrix))
+        self.assertTrue(t_sparse.shape == (3, 3))
+        self.assertTrue(t_sparse.lshape == (len(sparse_indptr[rank]) - 1, 3))
 
         global_indptr = t_sparse.global_indptr()
         self.assertTrue(global_indptr.larray.eq(sparse_global_indptr[rank]).all())
+        self.assertTrue(global_indptr.shape == (5,))
 
         # print(f'''Rank: {rank}
         #         data: {t_sparse.ldata}

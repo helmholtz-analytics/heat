@@ -5,9 +5,8 @@ from scipy.sparse import csr_matrix as scipy_csr_matrix
 
 from typing import Optional, Type
 
-from ..core.communication import sanitize_comm, Communication
+from ..core.communication import MPI, sanitize_comm, Communication
 from ..core.devices import Device
-from ..core.factories import array
 from ..core.types import datatype
 
 from .dcsr_matrix import Dcsr_matrix
@@ -96,11 +95,19 @@ def sparse_csr_matrix(
         raise NotImplementedError("Not implemented for other splitting-axes")
 
     elif is_split == 0:
-        # TODO: Find gshape by accumulating
         data = obj.values()
         indptr = obj.crow_indices()
         indices = obj.col_indices()
         lnnz = data.shape[0]
+
+        # Calculate gshape
+        gshape_split = torch.tensor(gshape[is_split])
+        comm.Allreduce(MPI.IN_PLACE, gshape_split, MPI.SUM)
+        gshape = list(gshape)
+        gshape[is_split] = gshape_split
+        gshape = tuple(gshape)
+
+        split = is_split
 
     elif is_split is not None:
         raise NotImplementedError("Not implemented for other splitting-axes")
@@ -125,6 +132,7 @@ def sparse_csr_matrix(
         gnnz=gnnz,
         lnnz=lnnz,
         gshape=gshape,
+        lshape=lshape,
         dtype=dtype,
         split=split,
         device=device,

@@ -20,6 +20,7 @@ class Dcsr_matrix:
         gnnz: int,
         lnnz: int,
         gshape: Tuple[int, ...],
+        lshape: Tuple[int, ...],
         dtype: datatype,
         split: Union[int, None],
         device: Device,
@@ -31,6 +32,7 @@ class Dcsr_matrix:
         self.__gnnz = gnnz
         self.__lnnz = lnnz
         self.__gshape = gshape
+        self.__lshape = lshape
         self.__dtype = dtype
         self.__split = split
         self.__device = device
@@ -159,6 +161,13 @@ class Dcsr_matrix:
         Global shape of the coo array ``coo_array``
         """
         return self.__gshape
+
+    @property
+    def lshape(self) -> int:
+        """
+        Global shape of the coo array ``coo_array``
+        """
+        return self.__lshape
 
     @property
     def dtype(self):
