@@ -274,7 +274,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
 
     if a.shape[0] < v.shape[0] and a.shape[1] < v.shape[1]:
         a, v = v, a
-    
+
     if v.is_distributed() and (mode == "full" or mode == "same"):
         raise TypeError("Distributed filter weights only supportes valid mode")
     if len(a.shape) != 2 or len(v.shape) != 2:
@@ -284,10 +284,10 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     if mode == "same" and v.shape[0] % 2 == 0:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
     if (a.split == 0 and v.split == 1) or (a.split == 1 and v.split == 0):
-        raise ValueError("DNDarrays must have same axis of split") 
+        raise ValueError("DNDarrays must have same axis of split")
 
     # compute halo size
-    if a.split == 0 or a.split == None:
+    if a.split == 0 or a.split is None:
         halo_size = int(v.lshape_map[0][0]) // 2
     else:
         halo_size = int(v.lshape_map[0][1]) // 2
@@ -334,7 +334,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     v = flip(v, [0, 1])
 
     # compute weight size
-    if a.split == 0 or a.split == None:
+    if a.split == 0 or a.split is None:
         weight_size = int(v.lshape_map[0][0])
         current_size = v.larray.shape[0]
     else:
