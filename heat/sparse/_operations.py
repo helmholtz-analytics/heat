@@ -15,6 +15,7 @@ from typing import Callable, Optional, Type, Union, Dict
 
 __all__ = []
 
+
 def __binary_op_sparse(
     operation: Callable,
     t1: Union[Dcsr_matrix, int, float],
@@ -28,11 +29,15 @@ def __binary_op_sparse(
     # Check inputs
     if not np.isscalar(t1) and not isinstance(t1, Dcsr_matrix):
         raise TypeError(
-            "Only Dcsr_matrices and numeric scalars are supported, but input was {}".format(type(t1))
+            "Only Dcsr_matrices and numeric scalars are supported, but input was {}".format(
+                type(t1)
+            )
         )
     if not np.isscalar(t2) and not isinstance(t2, Dcsr_matrix):
         raise TypeError(
-            "Only Dcsr_matrices and numeric scalars are supported, but input was {}".format(type(t2))
+            "Only Dcsr_matrices and numeric scalars are supported, but input was {}".format(
+                type(t2)
+            )
         )
 
     def __get_out_params(target, other=None, map=None):
@@ -57,16 +62,16 @@ def __binary_op_sparse(
         """
         if other is not None:
             # if out is None:
-                # other = sanitation.sanitize_distribution(other, target=target, diff_map=map)
+            # other = sanitation.sanitize_distribution(other, target=target, diff_map=map)
             return target.split, target.device, target.comm, target.balanced, other
         return target.split, target.device, target.comm, target.balanced
 
     if (isinstance(t1, Dcsr_matrix) and t1.split) or (isinstance(t2, Dcsr_matrix) and t2.split):
         if isinstance(t1, Dcsr_matrix) and t1.split is None:
-            t1 = factories.sparse_csr_matrix(t1.larray, split = 0)
-        
+            t1 = factories.sparse_csr_matrix(t1.larray, split=0)
+
         if isinstance(t2, Dcsr_matrix) and t2.split is None:
-            t2 = factories.sparse_csr_matrix(t2.larray, split = 0)
+            t2 = factories.sparse_csr_matrix(t2.larray, split=0)
         output_split, output_device, output_comm, output_balanced, t1 = __get_out_params(t2, t1)
     else:  # both are not split
         output_split, output_device, output_comm, output_balanced = __get_out_params(t1)
@@ -82,10 +87,10 @@ def __binary_op_sparse(
             lnnz=lnnz,
             gshape=t1.shape,
             dtype=result.dtype,
-            split=t1.split,
-            device=t1.device,
-            comm=t1.comm,
-            balanced=True,
+            split=output_split,
+            device=output_device,
+            comm=output_comm,
+            balanced=output_balanced,
         )
 
     # if where is not None:

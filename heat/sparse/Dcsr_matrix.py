@@ -53,7 +53,7 @@ class Dcsr_matrix:
 
         return array(
             global_indptr,
-            dtype=self.larray.dtype,  # TODO: Change after fixing dtype
+            dtype=self.dtype,
             device=self.device,
             comm=self.comm,
             is_split=self.split,

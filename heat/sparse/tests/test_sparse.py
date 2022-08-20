@@ -114,44 +114,34 @@ class TestSparse(TestCase):
 
         # Test with output buffer w/ split
         t_sparse = ht.sparse.sparse_csr_matrix(t, split=0)
-        out = ht.empty(
-            shape=t_sparse.shape, split=0, dtype=t_sparse.larray.dtype
-        )  # TODO: Change after fixing dtype
+        out = ht.empty(shape=t_sparse.shape, split=0, dtype=t_sparse.dtype)
         t_sparse.todense(out=out)
         self.assertTrue((dense_expected == out).all())
 
         # Test with output buffer w/o split
         t_sparse = ht.sparse.sparse_csr_matrix(t)
-        out = ht.empty(
-            shape=t_sparse.shape, dtype=t_sparse.larray.dtype
-        )  # TODO: Change after fixing dtype
+        out = ht.empty(shape=t_sparse.shape, dtype=t_sparse.dtype)
         t_sparse.todense(out=out)
         self.assertTrue((dense_expected == out).all())
 
         # Test gaurds for output shape mismatch
         with self.assertRaises(ValueError) as context:
             t_sparse = ht.sparse.sparse_csr_matrix(t, split=0)
-            out = ht.empty(
-                shape=(1, 1), split=0, dtype=t_sparse.larray.dtype
-            )  # TODO: Change after fixing dtype
+            out = ht.empty(shape=(1, 1), split=0, dtype=t_sparse.dtype)
             t_sparse.todense(out=out)
         self.assertTrue("Shape of output buffer does not match" in str(context.exception))
 
         # Test gaurds for output split axis mismatch w/split = 0
         with self.assertRaises(ValueError) as context:
             t_sparse = ht.sparse.sparse_csr_matrix(t, split=0)
-            out = ht.empty(
-                shape=t_sparse.shape, dtype=t_sparse.larray.dtype
-            )  # TODO: Change after fixing dtype
+            out = ht.empty(shape=t_sparse.shape, dtype=t_sparse.dtype)
             t_sparse.todense(out=out)
         self.assertTrue("Split axis of output buffer does not match" in str(context.exception))
 
         # Test gaurds for output split axis mismatch w/split = None
         with self.assertRaises(ValueError) as context:
             t_sparse = ht.sparse.sparse_csr_matrix(t, split=None)
-            out = ht.empty(
-                shape=t_sparse.shape, split=0, dtype=t_sparse.larray.dtype
-            )  # TODO: Change after fixing dtype
+            out = ht.empty(shape=t_sparse.shape, split=0, dtype=t_sparse.dtype)
             t_sparse.todense(out=out)
         self.assertTrue("Split axis of output buffer does not match" in str(context.exception))
 

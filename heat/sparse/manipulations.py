@@ -31,7 +31,7 @@ def todense(sparse_matrix: Dcsr_matrix, order=None, out: DNDarray = None):
         out = empty(
             shape=sparse_matrix.shape,
             split=sparse_matrix.split,
-            dtype=sparse_matrix.ldata.dtype,  # TODO: Change after fixing dtype in factory function
+            dtype=sparse_matrix.dtype,
             device=sparse_matrix.device,
             comm=sparse_matrix.comm,
         )
