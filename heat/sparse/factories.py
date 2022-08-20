@@ -1,6 +1,7 @@
 """Provides high-level Dcsr_matrix initialization functions"""
 
 import torch
+from scipy.sparse import csr_matrix as scipy_csr_matrix
 
 from typing import Optional, Type
 
@@ -10,7 +11,8 @@ from ..core.factories import array
 from ..core.types import datatype
 
 from .dcsr_matrix import Dcsr_matrix
-from scipy.sparse import csr_matrix as scipy_csr
+
+from ..core import types
 
 __all__ = [
     "sparse_csr_matrix",
@@ -35,12 +37,24 @@ def sparse_csr_matrix(
     #   2. ndim
     #   3. order
     #   4. balanced
-    #   5. dtype
-    #   6. lshape
+    #   5. lshape
+    #   6. device
+
+    # sanitize the data type
+    if dtype is not None:
+        dtype = types.canonical_heat_type(dtype)
 
     # Convert input into torch.sparse_csr_tensor
-    if isinstance(obj, scipy_csr):
+    if isinstance(obj, scipy_csr_matrix):
         obj = torch.sparse_csr_tensor(obj.indptr, obj.indices, obj.data)
+
+    # infer dtype from obj if not explicitly given
+    if dtype is None:
+        dtype = types.canonical_heat_type(obj.dtype)
+    else:
+        torch_dtype = dtype.torch_type()
+        if obj.dtype != torch_dtype:
+            obj = obj.type(torch_dtype)
 
     # For now, assuming the obj is torch.sparse_csr_tensor
     comm = sanitize_comm(comm)
@@ -88,7 +102,9 @@ def sparse_csr_matrix(
         indices = obj.col_indices()
         lnnz = gnnz
 
-    sparse_array = torch.sparse_csr_tensor(indptr, indices, data, size=lshape)
+    sparse_array = torch.sparse_csr_tensor(
+        indptr, indices, data, size=lshape, dtype=dtype.torch_type(), device=device
+    )
 
     return Dcsr_matrix(
         array=sparse_array,
