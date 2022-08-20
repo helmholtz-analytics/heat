@@ -331,7 +331,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     signal = convgenpad(a, signal, pad, boundary, fillvalue)
 
     # flip filter for convolution as PyTorch conv2d computes correlation
-    v = flip(v, [0,1])
+    v = flip(v, [0, 1])
 
     # compute weight size
     if a.split == 0 or a.split == None:
@@ -341,13 +341,13 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
         weight_size = int(v.lshape_map[0][1])
         current_size = v.larray.shape[1]
 
-    if(current_size != weight_size):
+    if current_size != weight_size:
         weight_shape = (int(v.lshape_map[0][0]), int(v.lshape_map[0][1]))
         target = torch.zeros(weight_shape, dtype=v.larray.dtype, device=v.larray.device)
         pad_size = weight_size - current_size
         if v.split == 0:
             target[pad_size:] = v.larray
-        else:    
+        else:
             target[:, pad_size:] = v.larray
         weight = target
     else:
@@ -365,7 +365,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
 
             # apply torch convolution operator
             local_signal_filtered = fc.conv2d(signal, t_v1)
-            
+
             # unpack 3D result into 1D
             local_signal_filtered = local_signal_filtered[0, 0, :]
 
