@@ -63,5 +63,5 @@ body:
     id: mpi-version
     attributes:
       label: MPI version
-      description: OpenMPI, ParaStation, IntelMPI version? 
+      description: OpenMPI, ParaStation, IntelMPI version?
       render: shell
