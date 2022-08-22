@@ -59,3 +59,9 @@ body:
         - 1.9
         - 1.8
         - 1.7
+  - type: textarea
+    id: mpi-version
+    attributes:
+      label: MPI version
+      description: OpenMPI, ParaStation, IntelMPI version? 
+      render: shell
