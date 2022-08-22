@@ -39,5 +39,9 @@ def test_synthesis(fixture_store):
     print(fixture_store['results_bag'])
     json_object = json.dumps(fixture_store['results_bag'], indent = 4) 
     print(json_object)
-    with open("results.json", "w") as outfile:
-        outfile.write(json_object)
+    with open("results.json", 'r+') as outfile:
+        file_data = json.load(outfile)
+        file_data.append(json_object)
+        outfile.seek(0)
+        json.dump(file_data, outfile, indent = 4)
+
