@@ -107,6 +107,11 @@ def sparse_csr_matrix(
         gshape[is_split] = gshape_split
         gshape = tuple(gshape)
 
+        # Calculate gnnz
+        gnnz_buffer = torch.tensor(lnnz)
+        comm.Allreduce(MPI.IN_PLACE, gnnz_buffer, MPI.SUM)
+        gnnz = gnnz_buffer.item()
+
         split = is_split
 
     elif is_split is not None:
