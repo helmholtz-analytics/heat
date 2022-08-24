@@ -37,7 +37,6 @@ def sparse_csr_matrix(
     #   2. ndim
     #   3. order
     #   4. balanced
-    #   5. lshape
 
     # sanitize the data type
     if dtype is not None:
