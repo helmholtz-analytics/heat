@@ -136,18 +136,19 @@ class DASO:
     def __init__(
         self,
         local_optimizer: torch.optim.Optimizer,
-        total_epochs: int,
+        cooldown_threshold: float,
         comm: MPICommunication = MPI_WORLD,
         warmup_epochs: int = 4,
         cooldown_epochs: int = 4,
         scheduler: torch.optim.lr_scheduler = None,
         stability_level: float = 0.05,
         max_global_skips: int = 4,
-        sending_chunk_size: int = 10_000_000,
+        sending_chunk_size: int = 20_000_000,  # 10 MB per bucket
         downcast_type: torch.dtype = torch.bfloat16,
         use_mpi_groups: bool = True,
         skip_reduction_factor: int = 2,
         local_skip_factor: int = 4,
+        staleness_adjustment: float = 2.0,
         verbose: bool = False,
     ):  # noqa: D107
         # check dtypes
@@ -209,8 +210,8 @@ class DASO:
         self.max_gs = max_global_skips
 
         self.warmup_epochs = warmup_epochs
-        self.cooldown_epochs = cooldown_epochs
-        self.total_epochs = total_epochs
+        self.cooldown = False
+        self.cooldown_threshold = cooldown_threshold
 
         # used in the sending of the params
         self._param_send_buffer_size = None
@@ -222,6 +223,8 @@ class DASO:
         # the local_skip_factor is the factor by which the global skips are divided by initially
         # and upon reset
         self.local_skip_factor = local_skip_factor
+
+        self.stale_weighting = staleness_adjustment
 
         self.stability = DetectMetricPlateau(patience=2, threshold=stability_level)
 
@@ -259,8 +262,11 @@ class DASO:
             raise TypeError(
                 f"Comm object must be a ht.MPICommunication object, currently {type(args['comm'])}"
             )
-        if not isinstance(args["total_epochs"], int):
-            raise TypeError(f"total_epochs must be an int, currently {type(args['total_epochs'])}")
+        if not isinstance(args["cooldown_threshold"], float):
+            raise TypeError(
+                f"cooldown_threshold must be an int, "
+                f"currently {type(args['cooldown_threshold'])}"
+            )
         if not isinstance(args["warmup_epochs"], int):
             raise TypeError(
                 f"warmup_epochs must be an int, currently {type(args['warmup_epochs'])}"
@@ -333,6 +339,34 @@ class DASO:
             )
 
     @torch.no_grad()
+    def is_cooldown(self, target: float, above_below: bool = "below") -> None:
+        """
+        Determine of training should enter cooldown phase
+
+        Parameters
+        ----------
+        target:
+            value
+        above_below:
+            flag
+
+        Returns
+        -------
+        None
+        """
+        if above_below not in ["above", "below"]:
+            raise ValueError(
+                f"above_below must be either above of below (inclusive). "
+                f"currently {above_below}"
+            )
+        if above_below == "above" and target >= self.cooldown_threshold:
+            self.cooldown = True
+        elif above_below == "below" and target <= self.cooldown_threshold:
+            self.cooldown = True
+        else:
+            self.cooldown = False
+
+    @torch.no_grad()
     def epoch_loss_logic(
         self, loss: Union[torch.Tensor, int, float], loss_globally_averaged: bool = False
     ) -> None:
@@ -381,7 +415,7 @@ class DASO:
                 f" Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
             )
 
-        if self.epoch >= self.total_epochs - self.cooldown_epochs:
+        if self.cooldown:
             self.global_skip = 0
             self.local_skip = 0
             self.batches_to_wait = 0
@@ -516,7 +550,7 @@ class DASO:
         batches_between = float(prev_params[3])
         shapes = prev_params[2]
         # add the weighted average to the received params
-        numer = batches_between * 2.0 if batches_between > 0.0 else 1.0
+        numer = batches_between * self.stale_weighting if batches_between > 0.0 else 1.0
         denom = float(len(prev_ranks) + numer)
         factor = numer / denom
         if not self.split:
