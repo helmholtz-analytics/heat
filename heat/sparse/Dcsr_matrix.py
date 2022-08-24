@@ -64,35 +64,35 @@ class Dcsr_matrix:
     @property
     def balanced(self) -> bool:
         """
-        Boolean value indicating if the coo_array is balanced between the MPI processes
+        Boolean value indicating if the Dcsr_matrix is balanced between the MPI processes
         """
         return self.__balanced
 
     @property
     def comm(self) -> Communication:
         """
-        The :class:`~heat.core.communication.Communication` of the ``coo_array``
+        The :class:`~heat.core.communication.Communication` of the ``Dcsr_matrix``
         """
         return self.__comm
 
     @property
     def device(self) -> Device:
         """
-        The :class:`~heat.core.devices.Device` of the ``coo_array``
+        The :class:`~heat.core.devices.Device` of the ``Dcsr_matrix``
         """
         return self.__device
 
     @property
     def larray(self) -> torch.sparse_csr_tensor:
         """
-        Local data of the ``coo_array``
+        Local data of the ``Dcsr_matrix``
         """
         return self.__array
 
     @property
     def data(self) -> torch.Tensor:
         """
-        Global data of the ``coo_array``
+        Global data of the ``Dcsr_matrix``
         """
         if self.split is None:
             return self.ldata
@@ -105,14 +105,14 @@ class Dcsr_matrix:
     @property
     def ldata(self) -> torch.Tensor:
         """
-        Local data of the ``coo_array``
+        Local data of the ``Dcsr_matrix``
         """
         return self.__array.values()
 
     @property
     def indptr(self) -> torch.Tensor:
         """
-        Global indptr of the ``coo_array``
+        Global indptr of the ``Dcsr_matrix``
         """
         if self.split is None:
             return self.lindptr
@@ -137,14 +137,14 @@ class Dcsr_matrix:
     @property
     def lindptr(self) -> torch.Tensor:
         """
-        Local indptr of the ``coo_array``
+        Local indptr of the ``Dcsr_matrix``
         """
         return self.__array.crow_indices()
 
     @property
     def indices(self) -> torch.Tensor:
         """
-        Global indices of the ``coo_array``
+        Global indices of the ``Dcsr_matrix``
         """
         if self.split is None:
             return self.lindices
@@ -157,56 +157,56 @@ class Dcsr_matrix:
     @property
     def lindices(self) -> torch.Tensor:
         """
-        Local indices of the ``coo_array``
+        Local indices of the ``Dcsr_matrix``
         """
         return self.__array.col_indices()
 
     @property
     def ndim(self) -> int:
         """
-        Number of dimensions of the ``coo_array``
+        Number of dimensions of the ``Dcsr_matrix``
         """
         return len(self.__gshape)
 
     @property
     def gnnz(self) -> int:
         """
-        Number of global non-zero elemnents of the ``coo_array``
+        Total number of non-zero elements of the ``Dcsr_matrix``
         """
         return self.__gnnz
 
     @property
     def lnnz(self) -> int:
         """
-        Number of non-zero elemnent on the local process of the ``coo_array``
+        Number of non-zero elements on the local process of the ``Dcsr_matrix``
         """
         return self.__lnnz
 
     @property
     def shape(self) -> int:
         """
-        Global shape of the coo array ``coo_array``
+        Global shape of the ``Dcsr_matrix``
         """
         return self.__gshape
 
     @property
     def lshape(self) -> int:
         """
-        Global shape of the coo array ``coo_array``
+        Local shape of the ``Dcsr_matrix``
         """
         return self.__lshape
 
     @property
     def dtype(self):
         """
-        The :class:`~heat.core.types.datatype` of the ``coo_array``
+        The :class:`~heat.core.types.datatype` of the ``Dcsr_matrix``
         """
         return self.__dtype
 
     @property
     def split(self) -> int:
         """
-        Returns the axis on which the ``coo_array`` is split
+        Returns the axis on which the ``Dcsr_matrix`` is split
         """
         return self.__split
 
