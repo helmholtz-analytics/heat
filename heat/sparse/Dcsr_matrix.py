@@ -49,7 +49,7 @@ class Dcsr_matrix:
         self.comm.Allreduce(MPI.IN_PLACE, all_nnz, MPI.SUM)
 
         # Build prefix array out of all the nnz
-        torch.cumsum(all_nnz, dim=0)
+        all_nnz = torch.cumsum(all_nnz, dim=0)
 
         global_indptr = self.lindptr + int(all_nnz[self.comm.rank])
 
