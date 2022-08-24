@@ -55,7 +55,7 @@ class Dcsr_matrix:
 
         return array(
             global_indptr,
-            dtype=self.dtype,
+            dtype=self.lindptr.dtype,
             device=self.device,
             comm=self.comm,
             is_split=self.split,
@@ -90,12 +90,17 @@ class Dcsr_matrix:
         return self.__array
 
     @property
-    def data(self) -> Tuple:
+    def data(self) -> torch.Tensor:
         """
         Global data of the ``coo_array``
         """
-        raise NotImplementedError()  # TODO: Combine data from all processes
-        return self.__data
+        if self.split is None:
+            return self.ldata
+
+        data_buffer = torch.zeros(size=(self.gnnz,), dtype=self.dtype.torch_type())
+        counts, displs = self.counts_displs_nnz()
+        self.comm.Allgatherv(self.ldata, (data_buffer, counts, displs))
+        return data_buffer
 
     @property
     def ldata(self) -> torch.Tensor:
@@ -105,12 +110,29 @@ class Dcsr_matrix:
         return self.__array.values()
 
     @property
-    def indptr(self) -> Tuple:
+    def indptr(self) -> torch.Tensor:
         """
         Global indptr of the ``coo_array``
         """
-        raise NotImplementedError()
-        return self.array
+        if self.split is None:
+            return self.lindptr
+
+        indptr_buffer = torch.zeros(size=(self.shape[0],), dtype=self.lindptr.dtype)
+        local_gindptr = self.global_indptr().larray[:-1]  # Remove the (n+1)th element
+        last_element = torch.tensor([self.gnnz])
+
+        counts = torch.zeros(self.comm.size)
+        counts[self.comm.rank] = self.lshape[0]
+        self.comm.Allreduce(MPI.IN_PLACE, counts, MPI.SUM)
+        displs = [0] + torch.cumsum(counts, dim=0)[:-1].tolist()
+        counts = counts.tolist()
+
+        self.comm.Allgatherv(local_gindptr, (indptr_buffer, counts, displs))
+
+        indptr_buffer = torch.cat(
+            (indptr_buffer, last_element)
+        )  # Add the (n+1)th element to the final ind_ptr
+        return indptr_buffer
 
     @property
     def lindptr(self) -> torch.Tensor:
@@ -120,12 +142,17 @@ class Dcsr_matrix:
         return self.__array.crow_indices()
 
     @property
-    def indices(self) -> Tuple:
+    def indices(self) -> torch.Tensor:
         """
         Global indices of the ``coo_array``
         """
-        raise NotImplementedError()
-        return self.__indices
+        if self.split is None:
+            return self.lindices
+
+        indices_buffer = torch.zeros(size=(self.gnnz,), dtype=self.lindices.dtype)
+        counts, displs = self.counts_displs_nnz()
+        self.comm.Allgatherv(self.lindices, (indices_buffer, counts, displs))
+        return indices_buffer
 
     @property
     def lindices(self) -> torch.Tensor:
@@ -182,6 +209,20 @@ class Dcsr_matrix:
         Returns the axis on which the ``coo_array`` is split
         """
         return self.__split
+
+    def counts_displs_nnz(self) -> Tuple[Tuple[int], Tuple[int]]:
+        """
+        Returns actual counts (number of non-zero items per process) and displacements (offsets) of the Dcsr_matrix.
+        Does not assume load balance.
+        """
+        if self.split is not None:
+            counts = torch.zeros(self.comm.size)
+            counts[self.comm.rank] = self.lnnz
+            self.comm.Allreduce(MPI.IN_PLACE, counts, MPI.SUM)
+            displs = [0] + torch.cumsum(counts, dim=0)[:-1].tolist()
+            return tuple(counts.tolist()), tuple(displs)
+        else:
+            raise ValueError("Non-distributed DNDarray. Cannot calculate counts and displacements.")
 
 
 # HeAT imports at the end to break cyclic dependencies
