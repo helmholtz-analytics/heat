@@ -670,6 +670,7 @@ class DNDarray:
             split_bookkeeping[arr.split] = "split"
 
         advanced_indexing = False
+        arr_is_copy = False
 
         if isinstance(key, (DNDarray, torch.Tensor, np.ndarray)):
             if key.dtype in (types.bool, types.uint8, torch.bool, torch.uint8, np.bool, np.uint8):
@@ -708,6 +709,9 @@ class DNDarray:
                 for i, k in reversed(list(enumerate(key))):
                     if k is None:
                         key[i] = slice(None)
+                        if not arr_is_copy:
+                            arr = arr.copy()
+                            arr_is_copy = True
                         arr = arr.expand_dims(i - add_dims + 1)
                         output_shape = (
                             output_shape[: i - add_dims + 1]
@@ -766,6 +770,9 @@ class DNDarray:
                     non_adv_ind_dims = list(
                         i for i in range(arr.ndim) if i not in advanced_indexing_dims
                     )
+                    if not arr_is_copy:
+                        arr = arr.copy()
+                        arr_is_copy = True
                     arr = arr.transpose(advanced_indexing_dims + non_adv_ind_dims)
                     output_shape = list(arr.gshape)
                     output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
