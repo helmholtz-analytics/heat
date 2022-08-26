@@ -177,7 +177,7 @@ def bi_diagonalize(A, overwrite_arr=True):
     # We are implementing this using 2 processes.
 
     # The whole matrix is divided into block columns Dj, Ej;
-    # Best way to understand this is to see the picture in the paper: https://pdf.sciencedirectassets.com/271636/1-s2.0-S0167819100X01950/1-s2.0-016781919500064X/main.pdf?X-Amz-Security-Token=IQoJb3JpZ2luX2VjEOX%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLWVhc3QtMSJIMEYCIQCqoJkJfF54LEJAvAIbaIY3ZddHJqzjpfR6FOA5o0Y6cwIhAKpff3VNe5UHErwWIOuYJc83GNn0yBjcRAuq%2FwWKAB83KtsECP7%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEQBBoMMDU5MDAzNTQ2ODY1Igzjt1TLXYH%2BFtq6TvcqrwTabWu%2B2FYfFH33erKlfbK0VNP8WBgesiM4JBGH17oZ6dOnPiK%2FfgHXJQRxCMENFb24A6QMuRRZH%2Bj4%2Ffx2YhyiE%2BIQU6ALKoxenyZmI%2FNlRRbQlIoKR4PIKctdbBxHNVS8YFNt5F%2B%2Fpmt%2BgjtzxvT4rOz5ePus6MdrTD5uGo6UQj1m3EpMNZXQH%2BkRxsk1Zw2XSv59wrje7e3qHsznhWdi9tb%2Bfn2MaxarHw9iSxyLPu7XgadOOnxT0Y2%2BvF1tQ03MTZxhsBM7uygn8VqTw%2BxKAf6tkrWudZb2vsEIxSFz8pFE4HWvqdQa8PCckXuWcWdOR0bF3jvMQjoFgvOq38vBhYUmv9gIntYCNxTzldqbVT%2B9Vo0FSROr1ybe8FlY7%2BrtcoM87PMyavdU4R5jeeuavJ%2FdxvcwPOlnEyQNuDzqqPF083icJFzWW7VS3whIUWmkmS4TI8DNugsR7NlG%2BZSta3q40XstAvyEYTgtcNpOIMBqS2b%2FqTuUNtniJEMiNEi%2BQ3iHvXDm26VnMQU8%2BqYe3etSOQo6gV7zZjW8aVQeC6llJiodQD370X6nmQ4ELXMSaow76dqUEJ5njXwB0WA2FopHebriFULd%2Fulds7NL%2BBn4zJuq2Teif0gBgRq98z6MPKWebz8hyk0M%2FoFRCgBJg3%2BC24oI7sYehZ7GH%2BiIOvmmw4Svq20YLcbaEHHosyyczKpKA5KG4ncqtkhwy3HsLDh8eKCCA1%2FR6fr7cl3MMMOz75UGOqgBRfL1fhodwHg69EVO6oPG349HIF1SAhdgKryV7XtpRMJ8BpKU75sdI7LL1yZTmz%2FgnC9y2%2FPI8b5uqn%2BicYm%2BVt6hNUIXUtyXkrb4MTiYXxLCXhTTLquFNNis%2FSJ%2FVRU3lobTxsD1uFlP0SvS2eBEmFLPspGC7%2BU7ocGKLyLZivDGGIHLvElXm4%2FC7TcL6rAabUgZF8QPzx%2BkYPr6%2B4Ac8LqOFdPYtr2Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20220629T055909Z&X-Amz-SignedHeaders=host&X-Amz-Expires=300&X-Amz-Credential=ASIAQ3PHCVTYQTME4FHI%2F20220629%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Signature=d772291c2a0d9b56e2bf7e46ea3cb1619c6ddab820f910f35b814ab3df76e501&hash=6073cccc6b289f14aea2c8b2a268ea89c23bd6429def12fe50809551c1b430e9&host=68042c943591013ac2b2430a89b270f6af2c76d8dfd086a07176afe7c76c2c61&pii=016781919500064X&tid=spdf-25081d52-73a4-479e-b0dc-011d7bc381de&sid=83ea191a84e4714c000933f987072d4b5bc2gxrqb&type=client&ua=4d56560d580151560403&rr=722c6f37fa0f8571
+    # Best way to understand this is to see the picture in the paper: https://www.sciencedirect.com/science/article/pii/016781919500064X?fr=RR-2&ref=pdf_download&rr=740e3ea72e9f019b
 
     # Aj is like the whole combination of Dj,Ej;
     # Ej is the upper part and Dj is the lower part of the block column.
@@ -223,12 +223,12 @@ def bi_diagonalize(A, overwrite_arr=True):
 
             else:
                 # print(f"at {i} arr = ", arr)
-                # This is for the special case of Last sweep i == k-1 Where k is the minimum of m,n;
+                # This is for the special case of Last sweep i == k-1 Where k is the minimum of m,n
                 D1 = arr[i : i + 1 + bl, i]
                 v_left, tau_left = gen_house_vec(D1)
                 Uj = apply_house_left(D1, v_left, tau_left, U1, D1.shape[0], i)
                 arr[i : i + 1 + bl, i] = D1
-                # We got the left house holder transform that zeros D1 and
+                # We got the left house holder transform that zeros D1, and we
                 # Updated our original matrix by making the D1 part of "arr" equal to updated D1.
                 # In this case we don't need to send anything or recv anything.
 
@@ -240,125 +240,172 @@ def bi_diagonalize(A, overwrite_arr=True):
                         # print("here: ", arr)
 
                         # This is a special case which is for the 1st pair of block columns Ej = E2, and Dj = D2
-                        #
+                        # We first wait until we get the updated array from the rank 0 (that is processor 1)
 
                         req3 = comm.irecv(source=0, tag=1)
                         arr = req3.wait()
-                        # print("now here,", arr)
+                        # recieved the updated array from rank 0 (that is processor 1).
                         Ej = arr[i : i + 1 + bl, i + 1 : i + b + 1]
-                        # print(Ej, end="    ")
+
                         if Ej.size(0) > 0 and Ej.size(1) > 0:
+                            # We are checking if the size of Ej is greater than 0.
                             Uj = comm.recv(source=0, tag=2)
+                            # We recieved the Uj from the rank 0 (that is processor 1) tag 2 is used to send it, So we are using the sam tag again.
+
                             Ej = torch.matmul(Uj, Ej.float())
+                            # updating Ej after applying the left householder transform Uj.
                             # print("Ej is: ", Ej, end="  ")
+
                             v_right, tau_right = gen_house_vec(Ej[0, :])
                             vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
+                            # We got the right householder transform that zeros Ej[0,:] or 1st row vector of Ej.
+
                             # arr[i,1:] = Ej[0,:]
                             # print("Ej is: ", Ej)
                             # print(i)
                             arr[i : i + 1 + bl, i + 1 : i + b + 1] = Ej[:]
-                            # print("arr is: ", arr)
+                            # Updating our original matrix by making the Ej part equal to updated Ej.
+
                             # print(Ej[0, :])
                             # print(arr[i,:])
                             Aj = arr[i : i + bl + b + 1, i + 1 : i + b + 1]
+                            # Aj is the whole combination of Ej and Dj.
                             Aj = torch.matmul(Aj.float(), vj)
-                            # arr[i : i + bl + b + 1, i + 1 : i + b + 1] = Aj
+                            # updating Aj after applying the right householder transform vj.
 
                         Dj = arr[i + 1 + bl : i + 1 + bl + b, i + 1 : i + 1 + b]
                         if Dj.size(0) > 0 and Dj.size(1) > 0:
+                            # We are checking if Dj is empty or not.
+
                             v_left, tau_left = gen_house_vec(Dj[:, 0])
                             Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
+                            # We got the left householder transform that zeros Dj[:,0] or 1st column vector of Dj.
+
                             arr[i + 1 + bl : i + 1 + bl + b, i + 1 : i + 1 + b] = Dj
-                            # comm.send(Uj, dest=2)
+                            # Updating our original matrix by making the Dj part equal to updated Dj.
+
                         p_left, p_right = i + 1 + bl, i + 1 + bl + b
-                        # req = comm.isend(arr, dest=0, tag=3)
-                        # req.wait()
-                        # print(f"ok {i} and {j}", arr)
+                        # p_left is the starting index of the next upper (Ej) block column and p_right is the starting index of the Lower(Dj) block column.
 
                     elif rank == 1:
-                        # if rank == j - 1:
-                        # Uj = comm.recv(source=j - 1)
-                        # print("This one:", arr)
-                        # req4 = comm.irecv(source=0,tag=1)
-                        # arr = req4.wait()
+
+                        # General case for the other pairs of block columns. That is for the block columns Ej, Dj where j > 2.
 
                         Ej = arr[p_left:p_right, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
+                        # Ej is the upper block column of the matrix.
+
                         if Ej.size(0) > 0 and Ej.size(1) > 0:
+                            # We are checking if the size of Ej is greater than 0.
+
                             Ej = torch.matmul(Uj, Ej.float())
+                            # updating Ej after applying the left householder transform Uj.
                             v_right, tau_right = gen_house_vec(Ej[0, :])
                             vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
+                            # We got the right householder transform that zeros Ej[0,:] or 1st row vector of Ej.
+
                             arr[p_left:p_right, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b] = Ej
+                            # Updating our original matrix by making the Ej part equal to updated Ej.
                             Aj = arr[
                                 p_left : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
                             ]
+                            # Aj is the whole combination of Ej and Dj.
                             Aj = torch.matmul(Aj.float(), vj)
                             arr[
                                 p_left : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
                             ] = Aj
-                            # print("came here:")
+                            # Updating our original matrix by making the Aj part equal to updated Aj.
 
                         Dj = arr[p_right : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
                         if Dj.size(0) > 0 and Dj.size(1) > 0:
+                            # We are checking if Dj is empty or not.
+
                             v_left, tau_left = gen_house_vec(Dj[:, 0])
                             Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
+                            # We got the left householder transform that zeros Dj[:,0] or 1st column vector of Dj.
                             arr[
                                 p_right : p_right + b, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b
                             ] = Dj
-                            # comm.send(Uj, dest=j + 1)
+                            # Updating our original matrix by making the Dj part equal to updated Dj.
                         p_left, p_right = p_right, p_right + b
-                        # print(f"ok {i} and {j}")
+                        # p_left is the starting index of the next upper (Ej) block column and p_right is the starting index of the Lower(Dj) block column.
 
                 if rank == 1:
                     req = comm.isend(arr, dest=0, tag=3)
                     req.wait()
+                    # We are sending the updated matrix to the rank 0 (that is processor 1) tag 3 is used to send it from here and receive it at process 0.
 
         else:
-            if rank == 0 and i < k - 1:
+            # The case where no.of columns > no.of rows.
+            # In this case a slightly modified block decomposition is used.
 
+            if rank == 0 and i < k - 1:
+                # This is the case upto last but 1 sweep.
+                # 1st in rank 0, we first apply a right transform vj1 to E1
                 E1 = arr[i, i : i + 1 + bu]
                 D1 = arr[i + 1 : i + 1 + b, i : i + 1 + bu]
 
                 if E1.size(0) > 0:
+                    # We are checking if the size of E1 is greater than 0.
                     v_right, tau_right = gen_house_vec(E1)
                     vj1 = apply_house_right(E1, v_right, tau_right, vt1, n, i)
+                    # We got the right householder transform that zeros E1 or 1st row vector of E1.
 
                     Aj = arr[i : i + 1 + b, i : i + 1 + bu]
                     Aj = torch.matmul(Aj.float(), vj1)
+                    # updating Aj after applying the right householder transform vj1.
 
                     arr[i, i : i + 1 + bu] = E1
+                    # Updating our original matrix by making the E1 part equal to updated E1.
 
                 if D1.size(0) > 0 and D1.size(1) > 0:
+                    # We are checking if D1 is empty or not.
                     v_left, tau_left = gen_house_vec(D1[:, 0])
                     Uj = apply_house_left(D1, v_left, tau_left, U1, m, i)
+                    # We got the left householder transform that zeros D1[:,0] or 1st column vector of D1.
                     arr[i + 1 : i + 1 + b, i : i + 1 + bu] = D1
+                    # Updating our original matrix by making the D1 part equal to updated D1.
 
                 p_left, p_right = i + 1, i + 1 + b
+                # p_left is the starting index of the next upper (Ej) block column and p_right is the starting index of the Lower(Dj) block column.
 
                 comm.send(arr, dest=1, tag=1)
+                # We are sending the updated matrix to the rank 1 (that is processor 2) tag 1 is used to send it from here and receive it at process 1.
                 comm.send(Uj, dest=1, tag=2)
+                # We are sending the left householder transform Uj to the rank 1 (that is processor 2) tag 2 is used to send it from here and receive it at process 1.
 
                 req2 = comm.irecv(source=1, tag=3)
                 arr = req2.wait()
+                # We are receiving the updated matrix from the rank 1 (that is processor 2) tag 3 is used to receive it here (in process 0).
 
             else:
+                # This is for the special case of Last sweep i == k-1 Where k is the minimum of m,n;
                 E1 = arr[i, i : i + 1 + bu]
                 D1 = arr[i + 1 : i + 1 + b, i : i + 1 + bu]
 
                 if E1.size(0) > 0:
+                    # We are checking if the size of E1 is greater than 0.
+
                     v_right, tau_right = gen_house_vec(E1)
                     vj1 = apply_house_right(E1, v_right, tau_right, vt1, n, i)
+                    # We got the right householder transform that zeros E1 or 1st row vector of E1.
 
                     Aj = arr[i : i + 1 + b, i : i + 1 + bu]
                     torch.matmul(Aj.float(), vj1)
 
                     arr[i, i : i + 1 + bu] = E1
+                    # Updating our original matrix by making the E1 part equal to updated E1.
 
                 if D1.size(0) > 0 and D1.size(1) > 0:
+                    # We are checking if D1 is empty or not.
+
                     v_left, tau_left = gen_house_vec(D1[:, 0])
                     Uj = apply_house_left(D1, v_left, tau_left, U1, m, i)
+                    # We got the left householder transform that zeros D1[:,0] or 1st column vector of D1.
                     arr[i + 1 : i + 1 + b, i : i + 1 + bu] = D1
+                    # Updating our original matrix by making the D1 part equal to updated D1.
 
                 p_left, p_right = i + 1, i + 1 + b
+                # p_left is the starting index of the next upper (Ej) block column and p_right is the starting index of the Lower(Dj) block column.
 
             if i < k - 1:
                 # print("i is: ", i)
@@ -366,25 +413,33 @@ def bi_diagonalize(A, overwrite_arr=True):
                     # print("j is = ", j)
 
                     if j == 2 and rank == 1:
+
+                        # This is a special case which is for the 1st pair of block columns Ej = E2, and Dj = D2
+                        # We first wait until we get the updated array from the rank 0 (that is processor 1)
                         req3 = comm.irecv(source=0, tag=1)
                         arr = req3.wait()
+                        # We are receiving the updated matrix from the rank 0 (that is processor 1) tag 1 is used to receive it here (in process 1).
 
                         Ej = arr[
                             p_left:p_right, i + 1 + bu + (j - 2) * b : i + 1 + bu + (j - 1) * b
                         ]
                         # print("Ej is: ", Ej)
                         if Ej.size(0) > 0 and Ej.size(1) > 0:
+                            # We are checking if Ej is empty or not.
 
                             Uj = comm.recv(source=0, tag=2)
+                            # We are receiving the left householder transform Uj from the rank 0 (that is processor 1) tag 2 is used to receive it here (in process 1).
                             Ej = torch.matmul(Uj, Ej.float())
                             # print("Ej is: ", Ej)
 
                             v_right, tau_right = gen_house_vec(Ej[0, :])
                             vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
+                            # We got the right householder transform that zeros Ej[0,:] or 1st row vector of Ej.
 
                             arr[
                                 p_left:p_right, i + 1 + bu + (j - 2) * b : i + 1 + bu + (j - 1) * b
                             ] = Ej
+                            # Updating our original matrix by making the Ej part equal to updated Ej.
 
                             Aj = arr[
                                 p_left : p_right + b,
@@ -395,7 +450,7 @@ def bi_diagonalize(A, overwrite_arr=True):
                                 p_left : p_right + b,
                                 i + 1 + bu + (j - 2) * b : i + 1 + bu + (j - 1) * b,
                             ] = Aj
-                            # print("came here:")
+                            # Updating our original matrix by making the Aj part equal to updated Aj.
 
                         Dj = arr[
                             p_right : p_right + b,
@@ -403,32 +458,41 @@ def bi_diagonalize(A, overwrite_arr=True):
                         ]
 
                         if Dj.size(0) > 0 and Dj.size(1) > 0:
+                            # We are checking if Dj is empty or not.
+
                             v_left, tau_left = gen_house_vec(Dj[:, 0])
                             Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
+                            # We got the left householder transform that zeros Dj[:,0] or 1st column vector of Dj.
                             arr[
                                 p_right : p_right + b,
                                 i + 1 + bu + (j - 2) * b : i + 1 + bu + (j - 1) * b,
                             ] = Dj
+                            # Updating our original matrix by making the Dj part equal to updated Dj.
 
                         p_left, p_right = p_right, p_right + b
+                        # p_left is the starting index of the next upper (Ej) block column and p_right is the starting index of the Lower(Dj) block column.
 
                     elif rank == 1:
+                        # General case for the other pairs of block columns. That is for the block columns Ej, Dj where j > 2.
 
                         Ej = arr[
                             p_left:p_right, i + 1 + bu + (j - 2) * b : i + 1 + bu + (j - 1) * b
                         ]
                         # print("Ej is: ", Ej)
                         if Ej.size(0) > 0 and Ej.size(1) > 0:
+                            # We are checking if Ej is empty or not.
 
                             Ej = torch.matmul(Uj, Ej.float())
                             # print("Ej is: ", Ej)
 
                             v_right, tau_right = gen_house_vec(Ej[0, :])
                             vj = apply_house_right(Ej[0, :], v_right, tau_right, vt1, n, j)
+                            # We got the right householder transform that zeros Ej[0,:] or 1st row vector of Ej.
 
                             arr[
                                 p_left:p_right, i + 1 + bu + (j - 2) * b : i + 1 + bu + (j - 1) * b
                             ] = Ej
+                            # Updating our original matrix by making the Ej part equal to updated Ej.
 
                             Aj = arr[
                                 p_left : p_right + b,
@@ -439,6 +503,7 @@ def bi_diagonalize(A, overwrite_arr=True):
                                 p_left : p_right + b,
                                 i + 1 + bu + (j - 2) * b : i + 1 + bu + (j - 1) * b,
                             ] = Aj
+                            # Updating our original matrix by making the Aj part equal to updated Aj.
                             # print("came here:")
 
                         Dj = arr[
@@ -447,42 +512,41 @@ def bi_diagonalize(A, overwrite_arr=True):
                         ]
 
                         if Dj.size(0) > 0 and Dj.size(1) > 0:
+                            # We are checking if Dj is empty or not.
+
                             v_left, tau_left = gen_house_vec(Dj[:, 0])
                             Uj = apply_house_left(Dj, v_left, tau_left, U1, m, j)
+                            # We got the left householder transform that zeros Dj[:,0] or 1st column vector of Dj.
                             arr[
                                 p_right : p_right + b,
                                 i + 1 + bu + (j - 2) * b : i + 1 + bu + (j - 1) * b,
                             ] = Dj
+                            # Updating our original matrix by making the Dj part equal to updated Dj.
 
                         p_left, p_right = p_right, p_right + b
+                        # p_left is the starting index of the next upper (Ej) block column and p_right is the starting index of the Lower(Dj) block column.
 
                 if rank == 1:
                     req = comm.isend(arr, dest=0, tag=3)
                     req.wait()
+                    # We are sending the updated matrix to the rank 0 (that is processor 1) tag 3 is used to send it from here.
 
     return arr
 
 
-# U1,B1,Vt1 = bi_diagonalize(a)
-# ht.local_printing()
-# array_with_halos
-# print(a.get_halo(1))
-
-# mpiexec -np 2 python "C:\Users\DELL\heat\heat\core\linalg\bcg.py"
-
-a = ht.random.rand(180, dtype=ht.float64, split=0)
-a = a.reshape(12, 15)
-print(a)
-print(a.dtype)
+# a = ht.random.rand(180, dtype=ht.float64, split=0)
+# a = a.reshape(12, 15)
+# print(a)
+# print(a.dtype)
 
 # U, a, V = block_diagonalize(a)
 
 # final = torch.tensor
 # m, n = a.shape
 # a = resplit(a, None)
-a = a._DNDarray__cat_halo()
+# a = a._DNDarray__cat_halo()
 
 
-a = bi_diagonalize(a)
-if rank == 1:
-    print("Tensor a final: ", a)
+# a = bi_diagonalize(a)
+# if rank == 1:
+#     print("Tensor a final: ", a)
