@@ -164,6 +164,9 @@ def bi_diagonalize(A, overwrite_arr=True):
 
     b = bl + bu
 
+    # lower bandwidth bl, and upper bandwidth bu, (i.e., arr(i,j) = 0 for i <j-bu, or
+    # i > j + bl). Let b = bl, + bu, be the number of off-diagonals.
+
     # print("b: ", b)
 
     U1, vt1 = ht.eye(m, dtype=arr.dtype), ht.eye(n, dtype=arr.dtype)
@@ -171,28 +174,63 @@ def bi_diagonalize(A, overwrite_arr=True):
 
     # print(arr)
 
+    # We are implementing this using 2 processes.
+
+    # The whole matrix is divided into block columns Dj, Ej;
+    # Best way to understand this is to see the picture in the paper: https://pdf.sciencedirectassets.com/271636/1-s2.0-S0167819100X01950/1-s2.0-016781919500064X/main.pdf?X-Amz-Security-Token=IQoJb3JpZ2luX2VjEOX%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLWVhc3QtMSJIMEYCIQCqoJkJfF54LEJAvAIbaIY3ZddHJqzjpfR6FOA5o0Y6cwIhAKpff3VNe5UHErwWIOuYJc83GNn0yBjcRAuq%2FwWKAB83KtsECP7%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEQBBoMMDU5MDAzNTQ2ODY1Igzjt1TLXYH%2BFtq6TvcqrwTabWu%2B2FYfFH33erKlfbK0VNP8WBgesiM4JBGH17oZ6dOnPiK%2FfgHXJQRxCMENFb24A6QMuRRZH%2Bj4%2Ffx2YhyiE%2BIQU6ALKoxenyZmI%2FNlRRbQlIoKR4PIKctdbBxHNVS8YFNt5F%2B%2Fpmt%2BgjtzxvT4rOz5ePus6MdrTD5uGo6UQj1m3EpMNZXQH%2BkRxsk1Zw2XSv59wrje7e3qHsznhWdi9tb%2Bfn2MaxarHw9iSxyLPu7XgadOOnxT0Y2%2BvF1tQ03MTZxhsBM7uygn8VqTw%2BxKAf6tkrWudZb2vsEIxSFz8pFE4HWvqdQa8PCckXuWcWdOR0bF3jvMQjoFgvOq38vBhYUmv9gIntYCNxTzldqbVT%2B9Vo0FSROr1ybe8FlY7%2BrtcoM87PMyavdU4R5jeeuavJ%2FdxvcwPOlnEyQNuDzqqPF083icJFzWW7VS3whIUWmkmS4TI8DNugsR7NlG%2BZSta3q40XstAvyEYTgtcNpOIMBqS2b%2FqTuUNtniJEMiNEi%2BQ3iHvXDm26VnMQU8%2BqYe3etSOQo6gV7zZjW8aVQeC6llJiodQD370X6nmQ4ELXMSaow76dqUEJ5njXwB0WA2FopHebriFULd%2Fulds7NL%2BBn4zJuq2Teif0gBgRq98z6MPKWebz8hyk0M%2FoFRCgBJg3%2BC24oI7sYehZ7GH%2BiIOvmmw4Svq20YLcbaEHHosyyczKpKA5KG4ncqtkhwy3HsLDh8eKCCA1%2FR6fr7cl3MMMOz75UGOqgBRfL1fhodwHg69EVO6oPG349HIF1SAhdgKryV7XtpRMJ8BpKU75sdI7LL1yZTmz%2FgnC9y2%2FPI8b5uqn%2BicYm%2BVt6hNUIXUtyXkrb4MTiYXxLCXhTTLquFNNis%2FSJ%2FVRU3lobTxsD1uFlP0SvS2eBEmFLPspGC7%2BU7ocGKLyLZivDGGIHLvElXm4%2FC7TcL6rAabUgZF8QPzx%2BkYPr6%2B4Ac8LqOFdPYtr2Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20220629T055909Z&X-Amz-SignedHeaders=host&X-Amz-Expires=300&X-Amz-Credential=ASIAQ3PHCVTYQTME4FHI%2F20220629%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Signature=d772291c2a0d9b56e2bf7e46ea3cb1619c6ddab820f910f35b814ab3df76e501&hash=6073cccc6b289f14aea2c8b2a268ea89c23bd6429def12fe50809551c1b430e9&host=68042c943591013ac2b2430a89b270f6af2c76d8dfd086a07176afe7c76c2c61&pii=016781919500064X&tid=spdf-25081d52-73a4-479e-b0dc-011d7bc381de&sid=83ea191a84e4714c000933f987072d4b5bc2gxrqb&type=client&ua=4d56560d580151560403&rr=722c6f37fa0f8571
+
+    # Aj is like the whole combination of Dj,Ej;
+    # Ej is the upper part and Dj is the lower part of the block column.
+
     for i in range(k):
 
+        # Here we are entering the loop for k = min(m,n) sweeps down the band matrix.
+        # Each of the sweep produces one row of the resulting bi_diagonal matrix.
+        # The cases of m>=n and m<n are considered seperately.
+        # Both cases results in a bidiagonal matrix but 1st case gives an upper bidiagonal matrix. 2nd one gives an lower bidiagonal matrix.
+
         if m >= n:
+            # The case where no.of rows >= no.of columns.
+
             if rank == 0 and i < k - 1:
                 # print(f"at {i} arr = ", arr)
+
+                # To keep the following description more concise, let “H zeroes x” be a
+                # shorthand for -> “the Householder transform H zeroes all but the first elements of x”.
+
+                # Rank = 0 (1st process) determines the left Householder transform "Uj" that zeroes D1.
+                # D1 is the 1st column of the matrix.
+
                 D1 = arr[i : i + 1 + bl, i]
                 v_left, tau_left = gen_house_vec(D1)
                 Uj = apply_house_left(D1, v_left, tau_left, U1, D1.shape[0], i)
+                # We got the left house holder transform that zeros D1
+
                 arr[i : i + 1 + bl, i] = D1
+                # Updating our original matrix by making the D1 part equal to updated D1.
 
                 comm.send(arr, dest=1, tag=1)
                 comm.send(Uj, dest=1, tag=2)
 
+                # We need to send this Uj and updated array to the rank 1 (that is processor 2);
+                # As we are sending 2 matrices from the same process It is a good practice to use some tag.
+                # So that while reciving in process 2 we can recv the required matrix by specifying the same tag used to send it.
+
                 req2 = comm.irecv(source=1, tag=3)
                 arr = req2.wait()
 
+                # After 1 sweep the updated array needs to be recieved so we will wait until it is recieved.
+
             else:
                 # print(f"at {i} arr = ", arr)
+                # This is for the special case of Last sweep i == k-1 Where k is the minimum of m,n;
                 D1 = arr[i : i + 1 + bl, i]
                 v_left, tau_left = gen_house_vec(D1)
                 Uj = apply_house_left(D1, v_left, tau_left, U1, D1.shape[0], i)
                 arr[i : i + 1 + bl, i] = D1
+                # We got the left house holder transform that zeros D1 and
+                # Updated our original matrix by making the D1 part of "arr" equal to updated D1.
+                # In this case we don't need to send anything or recv anything.
 
             if i < k - 1:
                 for j in range(2, k):
@@ -200,6 +238,10 @@ def bi_diagonalize(A, overwrite_arr=True):
 
                     if j == 2 and rank == 1:
                         # print("here: ", arr)
+
+                        # This is a special case which is for the 1st pair of block columns Ej = E2, and Dj = D2
+                        #
+
                         req3 = comm.irecv(source=0, tag=1)
                         arr = req3.wait()
                         # print("now here,", arr)
@@ -239,6 +281,7 @@ def bi_diagonalize(A, overwrite_arr=True):
                         # print("This one:", arr)
                         # req4 = comm.irecv(source=0,tag=1)
                         # arr = req4.wait()
+
                         Ej = arr[p_left:p_right, i + (j - 2) * b + 1 : i + 1 + (j - 1) * b]
                         if Ej.size(0) > 0 and Ej.size(1) > 0:
                             Ej = torch.matmul(Uj, Ej.float())
