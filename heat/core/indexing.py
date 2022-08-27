@@ -9,12 +9,14 @@ from .communication import MPI
 from .dndarray import DNDarray
 from . import sanitation
 from . import types
+from . import manipulations
 
 __all__ = ["nonzero", "where"]
 
 
 def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
     """
+    TODO: UPDATE DOCS!
     Return a Tuple of :class:`~heat.core.dndarray.DNDarray`s, one for each dimension of ``x``,
     containing the indices of the non-zero elements in that dimension. If ``x`` is split then
     the result is split in the 0th dimension. However, this :class:`~heat.core.dndarray.DNDarray`
@@ -56,41 +58,62 @@ def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
     except AttributeError:
         raise TypeError("Input must be a DNDarray, is {}".format(type(x)))
 
-    lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False).transpose(0, 1)
-
-    if x.split is None:
-        # if there is no split then just return the transpose of values from torch
-
-        gout = list(lcl_nonzero.size())
-        is_split = None
+    if not x.is_distributed():
+        # nonzero indices as tuple
+        lcl_nonzero = torch.nonzero(input=local_x, as_tuple=True)
+        # bookkeeping for final DNDarray construct
+        output_shape = (lcl_nonzero[0].shape,)
+        output_split = None
     else:
-        # a is split
-        # adjust local indices along split dimension
+        lcl_nonzero = torch.nonzero(input=local_x, as_tuple=False)
+        nonzero_size = torch.tensor(
+            lcl_nonzero.shape[0], dtype=torch.int64, device=lcl_nonzero.device
+        )
+        # construct global DNDarray of nz indices:
+        # global shape and split
+        x.comm.Allreduce(MPI.IN_PLACE, nonzero_size, MPI.SUM)
+        output_shape = (nonzero_size.item(), x.ndim)
+        output_split = 0
+        # correct indices along split axis
         _, displs = x.counts_displs()
-        lcl_nonzero[x.split] += displs[x.comm.rank]
-        del displs
+        lcl_nonzero[:, x.split] += displs[x.comm.rank]
+        global_nonzero = DNDarray(
+            lcl_nonzero,
+            gshape=output_shape,
+            dtype=types.int64,
+            split=output_split,
+            device=x.device,
+            comm=x.comm,
+            balanced=False,
+        )
+        # stabilize distributed result: vectorize sorting of nz indices along axis 0
+        global_nonzero.balance_()
+        global_nonzero = manipulations.unique(global_nonzero, axis=0)
+        # return indices as tuple of columns
+        lcl_nonzero = global_nonzero.larray.split(1, dim=1)
+        # bookkeeping for final DNDarray construct
+        output_shape = (global_nonzero.shape[0],)
+        output_split = 0
 
-        # get global size of split dimension
-        gout = list(lcl_nonzero.size())
-        gout[1] = x.comm.allreduce(gout[1], MPI.SUM)
-        is_split = 0
+    # return global_nonzero as tuple of DNDarrays
+    global_nonzero = list(lcl_nonzero)
+    for i, nz_tensor in enumerate(global_nonzero):
+        if nz_tensor.ndim > 1:
+            # extra dimension in distributed case from usage of torch.split()
+            nz_tensor = nz_tensor.squeeze()
+        nz_array = DNDarray(
+            nz_tensor,
+            gshape=output_shape,
+            dtype=types.int64,
+            split=output_split,
+            device=x.device,
+            comm=x.comm,
+            balanced=True,
+        )
+        global_nonzero[i] = nz_array
+    global_nonzero = tuple(global_nonzero)
 
-    non_zero_indices = list(
-        [
-            DNDarray(
-                dim_indices,
-                gshape=tuple(gout),
-                dtype=types.canonical_heat_type(lcl_nonzero.dtype),
-                split=is_split,
-                device=x.device,
-                comm=x.comm,
-                balanced=False,
-            )
-            for dim_indices in lcl_nonzero
-        ]
-    )
-
-    return tuple(non_zero_indices)
+    return tuple(global_nonzero)
 
 
 DNDarray.nonzero = lambda self: nonzero(self)
