@@ -13,14 +13,11 @@ jobs:
       - uses: garygrossgarten/github-action-ssh@release
         with:
           command: |
-            pwd
-            ls
             ml load GCC ParaStationMPI HDF5 netCDF Python
             source heat-venv/bin/activate
             jutil env activate -p haf
-            cd fork/heat/benchmarks/pytest-benchmarks/knn_benchmark/
-            pytest -s
-            git branch --show-current
+            cd fork/heat/benchmarks/pytest-benchmarks/
+            ./run_benchmark
           host: ${{ secrets.HDFML_HOST }}
           username: berhanu1
           privateKey: ${{ secrets.HDFML_KEY}}
