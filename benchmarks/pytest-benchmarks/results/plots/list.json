@@ -1,6 +1,6 @@
 [
    {
-        "name": "Knn-plot",
-        "file": "test-plot.jsonata"
+        "name": "Box-plot",
+        "file": "Box-plot.jsonata"
     }
 ]

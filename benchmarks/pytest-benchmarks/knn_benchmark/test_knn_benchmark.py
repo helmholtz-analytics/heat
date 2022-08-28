@@ -28,20 +28,6 @@ for i in range(100, 150):
     keys.append(2)
 Y = ht.array(keys, split=0)
 
-def test_knn(results_bag):
-    print("Accuracy: {}".format(verify_algorithm(X, Y, 1, 30, 5, 1)))
-    result = "Accuracy: {}".format(verify_algorithm(X, Y, 1, 30, 5, 1))
-    results_bag.result = result
-    results_bag.current_time = datetime.now().isoformat()
-
-def test_synthesis(fixture_store):
-    print("\n   Contents of `fixture_store['results_bag']`:")
-    print(fixture_store['results_bag'])
-    json_object = json.dumps(fixture_store['results_bag'], indent = 4) 
-    print(json_object)
-    with open("results.json", 'r+') as outfile:
-        file_data = json.load(outfile)
-        file_data.append(json_object)
-        outfile.seek(0)
-        json.dump(file_data, outfile, indent = 4)
+def test_knn(benchmark):
+    benchmark(verify_algorithm,X, Y, 1, 30, 5, 1)
 
