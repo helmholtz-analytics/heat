@@ -690,7 +690,7 @@ class DNDarray:
             # NOTE: this gathers the entire key on every process!!
             # TODO: remove this resplit!!
             key = manipulations.resplit(key)
-            if key.larray.dtype in [torch.bool, torch.uint8]:
+            if key.larray.dtype in [torch.bool, torch.uint8] and key.ndim > 0:
                 key = indexing.nonzero(key)
 
             if key.ndim > 1:
@@ -969,7 +969,7 @@ class DNDarray:
             indexed_dims = self_proxy.shape[:-1]
         else:
             indexed_dims = self_proxy.shape
-        if 0 in indexed_dims:
+        if 0 in indexed_dims or len(indexed_dims) > self_proxy.ndim:
             return False
         return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 2
 
