@@ -1493,6 +1493,10 @@ class TestDNDarray(TestCase):
                     self.assertTrue(arr.shape == check.shape)
                     self.assertTrue(arr.lshape[new_dim] == 1)
 
+        empty = ht.array([])
+        empty = empty[None]
+        self.assertEqual(empty.shape, (1, 0))
+
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
         self.assertEqual(a.size, 10 * 10 * 10)

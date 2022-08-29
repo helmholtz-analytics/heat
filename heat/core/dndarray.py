@@ -965,11 +965,13 @@ class DNDarray:
     def __key_adds_dimension(key: any, axis: int, self_proxy: torch.Tensor) -> bool:
         # determine if the key adds a new dimension
         zeros = (0,) * (self_proxy.ndim - 1)
-        index = (*zeros[:axis], key[axis], *zeros[axis:])
-        for i, _ in enumerate(filter(lambda x: x is not None, index)):
-            if self_proxy.shape[i] == 0:
-                return False
-        return self_proxy[index].ndim == 2
+        if key[axis] is None:
+            indexed_dims = self_proxy.shape[:-1]
+        else:
+            indexed_dims = self_proxy.shape
+        if 0 in indexed_dims:
+            return False
+        return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 2
 
     def item(self):
         """
