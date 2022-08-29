@@ -451,7 +451,8 @@ def asarray(
     dtype : dtype, optional
         By default, the data-type is inferred from the input data.
     copy : bool, optional
-        If ``True``, then the object is copied. Otherwise, a copy will only be made if `obj` is a nested
+        If ``True``, then the object is copied.  If ``False``, the object is not copied and a ``ValueError`` is
+        raised in the case a copy would be necessary. If ``None``, a copy will only be made if `obj` is a nested
         sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
     order: str, optional
         Whether to use row-major (C-style) or column-major (Fortran-style) memory representation. Defaults to ‘C’.
