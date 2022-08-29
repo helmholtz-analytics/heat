@@ -708,7 +708,7 @@ class DNDarray:
             h = [slice(None, None, None)] * max(self.ndim, 1)
             if isinstance(key, DNDarray):
                 key = manipulations.resplit(key)
-                if key.larray.dtype in [torch.bool, torch.uint8]:
+                if key.larray.dtype in [torch.bool, torch.uint8] and key.ndim > 0:
                     h[0] = torch.nonzero(key.larray).flatten()  # .tolist()
                 else:
                     h[0] = key.larray.tolist()
@@ -971,7 +971,8 @@ class DNDarray:
             indexed_dims = self_proxy.shape
         if 0 in indexed_dims or len(indexed_dims) > self_proxy.ndim:
             return False
-        return self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])].ndim == 2
+        indexed_proxy = self_proxy[(*zeros[:axis], key[axis], *zeros[axis:])]
+        return 0 not in indexed_proxy.shape and indexed_proxy.ndim == 2
 
     def item(self):
         """

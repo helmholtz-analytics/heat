@@ -1408,9 +1408,11 @@ class TestDNDarray(TestCase):
         self.assertTrue(ht.all(arr[ht_key] == 10.0))
 
         arr = ht.array(False)
-        arr = arr[ht.array(False)]
-        self.assertTrue(arr.shape == (0,))
-        self.assertTrue(arr.size == 0)
+        arr_indexed_bool = arr[ht.array(False)]
+        self.assertTrue(arr_indexed_bool.shape == (0,))
+        self.assertTrue(arr_indexed_bool.size == 0)
+        arr = ht.array([False])
+        self.assertTrue(arr[ht.array(False)].shape == (0, 1))
 
         split = 0
         arr = ht.random.random((20, 20)).resplit(split)
@@ -1499,8 +1501,7 @@ class TestDNDarray(TestCase):
                     self.assertTrue(arr.lshape[new_dim] == 1)
 
         empty = ht.array([])
-        empty = empty[None]
-        self.assertTrue(empty.shape == (1, 0))
+        self.assertTrue(empty[None].shape == (1, 0))
 
     def test_size_gnumel(self):
         a = ht.zeros((10, 10, 10), split=None)
