@@ -434,7 +434,7 @@ def array(
 def asarray(
     obj: Iterable,
     dtype: Optional[Type[datatype]] = None,
-    copy: bool = False,
+    copy: bool = None,
     order: str = "C",
     is_split: Optional[bool] = None,
     device: Optional[Union[str, Device]] = None,
@@ -486,6 +486,14 @@ def asarray(
     >>> ht.asarray(a, dtype=ht.float64) is a
     False
     """
+    if isinstance(copy, bool) and not copy:
+        if not (
+            isinstance(obj, DNDarray)
+            and (dtype is None or dtype == obj.dtype)
+            and (is_split is None or is_split == obj.split)
+            and (device is None or device == obj.device)
+        ):
+            raise ValueError("copy is necessary")
     return array(obj, dtype=dtype, copy=copy, order=order, is_split=is_split, device=device)
 
 

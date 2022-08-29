@@ -345,6 +345,9 @@ class TestFactories(TestCase):
         asarr[0] = 0
         self.assertEqual(asarr.larray[0].item(), arr[0].item())
 
+        with self.assertRaises(ValueError):
+            ht.asarray([1, 2, 3, 4], copy=False)
+
     def test_empty(self):
         # scalar input
         simple_empty_float = ht.empty(3)
