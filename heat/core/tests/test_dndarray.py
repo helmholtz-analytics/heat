@@ -546,8 +546,9 @@ class TestDNDarray(TestCase):
         self.assertTrue(indexed_split0.split is None)
         # 3D, distributed split, != 0
         x_split2 = ht.array(x, dtype=ht.int64, split=2)
+        key = ht.array(2)
         indexed_split2 = x_split2[key]
-        self.assertTrue((indexed_split2.numpy() == x.numpy()[key]).all())
+        self.assertTrue((indexed_split2.numpy() == x.numpy()[key.item()]).all())
         self.assertTrue(indexed_split2.dtype == ht.int64)
         self.assertTrue(indexed_split2.split == 1)
 
