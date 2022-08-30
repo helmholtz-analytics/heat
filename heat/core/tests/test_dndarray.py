@@ -1327,6 +1327,10 @@ class TestDNDarray(TestCase):
             if a.comm.rank == 1:
                 self.assertEqual(a[10, ...].lshape, (5, 3))
 
+        a = ht.array(False)
+        a[...] = False
+        self.assertEqual(a, ht.array(False))
+
         a = ht.zeros((13, 5, 8), split=2)
         # # set value on one node
         a[10, 0, 0] = 1

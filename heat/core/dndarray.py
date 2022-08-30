@@ -703,7 +703,7 @@ class DNDarray:
             advanced_ind = True
         elif not isinstance(key, tuple):
             """this loop handles all other cases. DNDarrays which make it to here refer to
-            advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
+            advanced indexing slices, as do the torch tensors. Both DNDarrays and torch.Tensors
             are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
             h = [slice(None, None, None)] * max(self.ndim, 1)
             if isinstance(key, DNDarray):
@@ -1433,9 +1433,9 @@ class DNDarray:
                 key = [key]
         elif not isinstance(key, tuple):
             """this loop handles all other cases. DNDarrays which make it to here refer to
-            advanced indexing slices, as do the torch tensors. Both DNDaarrys and torch.Tensors
+            advanced indexing slices, as do the torch tensors. Both DNDarrays and torch.Tensors
             are cast into lists here by PyTorch. lists mean advanced indexing will be used"""
-            h = [slice(None, None, None)] * self.ndim
+            h = [slice(None, None, None)] * max(self.ndim, 1)
             if isinstance(key, DNDarray):
                 key = manipulations.resplit(key)
                 if key.larray.dtype in [torch.bool, torch.uint8]:
