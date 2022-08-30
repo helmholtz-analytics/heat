@@ -861,15 +861,71 @@ class DNDarray:
         # key can be: int, tuple, list, slice, DNDarray, torch tensor, numpy array, or sequence thereof
         # Trivial cases
         print("DEBUGGING: RAW KEY = ", key)
+        # early out: key is a scalar
+        scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
+        if scalar:
+            output_shape = self.gshape[1:]
+            try:
+                # is key an ndarray, DNDarray or torch tensor?
+                key = key.copy().item()
+            except AttributeError:
+                # key is already an integer, do nothing
+                pass
+            if not self.is_distributed() or self.split != 0:
+                indexed_arr = self.larray[key]
+                output_split = None if self.split is None else self.split - 1
+                indexed_arr = DNDarray(
+                    indexed_arr,
+                    gshape=output_shape,
+                    dtype=self.dtype,
+                    split=output_split,
+                    device=self.device,
+                    comm=self.comm,
+                    balanced=self.balanced,
+                )
+                return indexed_arr
+            # check for negative key
+            key = key + self.shape[0] if key < 0 else key
+            # identify root process
+            _, displs = self.counts_displs()
+            if key in displs:
+                root = displs.index(key)
+            else:
+                displs = torch.cat((torch.tensor(displs), torch.tensor(key).reshape(-1)), dim=0)
+                _, sorted_indices = displs.unique(sorted=True, return_inverse=True)
+                root = sorted_indices[-1] - 1
+            # correct key for relevant displacement
+            key -= displs[root]
+            # allocate buffer on all processes
+            if self.comm.rank == root:
+                indexed_arr = self.larray[key]
+            else:
+                indexed_arr = torch.zeros(
+                    output_shape, dtype=self.larray.dtype, device=self.larray.device
+                )
+            # broadcast result to all processes
+            self.comm.Bcast(indexed_arr, root=root)
+            indexed_arr = DNDarray(
+                indexed_arr,
+                gshape=output_shape,
+                dtype=self.dtype,
+                split=None,
+                device=self.device,
+                comm=self.comm,
+                balanced=True,
+            )
+            return indexed_arr
+
         if key is None:
             return self.expand_dims(0)
         if (
             key is ... or isinstance(key, slice) and key == slice(None)
         ):  # latter doesnt work with torch for 0-dim tensors
             return self
+
         # Preprocess: Process Ellipsis + 'None' indexing; make Iterables to DNDarrays
         self, key, output_shape, output_split, advanced_indexing = self.__process_key(key)
-
+        print("DEBUGGING: processed key = ", key)
         # TODO: test that key for not affected dims is always slice(None)
         # including match between self.split and key after self manipulation
 
@@ -1661,8 +1717,8 @@ class DNDarray:
             return __set(self, value)
 
         self, key, output_shape, output_split, advanced_indexing = self.__process_key(key)
-        if advanced_indexing:
-            raise Exception("Advanced indexing is not supported yet")
+        # if advanced_indexing:
+        #     raise Exception("Advanced indexing is not supported yet")
 
         split = self.split
         if not self.is_distributed() or key[split] == slice(None):
