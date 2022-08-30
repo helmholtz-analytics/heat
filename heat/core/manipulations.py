@@ -25,6 +25,7 @@ from . import _operations
 __all__ = [
     "balance",
     "broadcast_arrays",
+    "broadcast_to",
     "column_stack",
     "concatenate",
     "diag",
@@ -97,13 +98,10 @@ def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
     Parameters
     ----------
     arrays : DNDarray
-        An arbitrary number of to-be broadcasted `DNDarray`s.
+        An arbitrary number of to-be broadcasted ``DNDarray``s.
     """
     if len(arrays) <= 1:
         return arrays
-
-    # for arr in arrays:
-    #     sanitation.sanitize_in(arr)
 
     try:
         arrays = sanitation.sanitize_distribution(*arrays, target=arrays[0])
@@ -117,13 +115,28 @@ def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
 
     out = []
     for i in range(len(broadcasted)):
-        out.append(
-            factories.array(
-                broadcasted[i], dtype=arrays[i].dtype, copy=None, device=arrays[i].device
-            )
-        )
+        out.append(factories.array(broadcasted[i], dtype=arrays[i].dtype, device=arrays[i].device))
 
     return out
+
+
+def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
+    """
+    Broadcasts an array to a specified shape.
+
+    Parameters
+    ----------
+    x : DNDarray
+        DNDarray to broadcast.
+    shape : Tuple[int, ...]
+        Array shape. Must be compatible with x.
+    """
+    if not isinstance(x, DNDarray):
+        raise TypeError("'x' must be a DNDarray, currently {}".format(type(x)))
+
+    broadcasted = torch.broadcast_to(x.larray, shape)
+
+    return factories.array(broadcasted, dtype=x.dtype, device=x.device)
 
 
 def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:

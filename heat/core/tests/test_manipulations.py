@@ -7,9 +7,11 @@ from .test_suites.basic_test import TestCase
 
 class TestManipulations(TestCase):
     def test_broadcast_arrays(self):
-        arrays = [ht.ones((1, 3, 4)), ht.ones((2, 1, 4)), ht.ones((2, 3, 1))]
-        broadcasted = ht.broadcast_arrays(*arrays)
-        self.assertTrue(all(x.shape == (2, 3, 4) for x in broadcasted))
+        a = ht.array([[1], [2]])
+        b = ht.array([[0, 1]])
+        a_broadcasted, b_broadcasted = ht.broadcast_arrays(a, b)
+        self.assertTrue(ht.equal(a_broadcasted, ht.array([[1, 1], [2, 2]])))
+        self.assertTrue(ht.equal(b_broadcasted, ht.array([[0, 1], [0, 1]])))
 
         # check dtype
         arrays = [
@@ -20,6 +22,24 @@ class TestManipulations(TestCase):
         broadcasted = ht.broadcast_arrays(*arrays)
         self.assertTrue(all(x.shape == (3, 2, 3) for x in broadcasted))
         self.assertTrue(all(x.dtype == a.dtype for a, x in zip(arrays, broadcasted)))
+
+        with self.assertRaises(TypeError):
+            ht.broadcast_arrays(ht.ones((2, 3)), 4, False)
+
+    def tests_broadcast_to(self):
+        a = ht.array([1, 2, 3])
+        broadcasted = ht.broadcast_to(a, (3, 3))
+        self.assertTrue(ht.equal(broadcasted, ht.array([[1, 2, 3], [1, 2, 3], [1, 2, 3]])))
+
+        # check dtype
+        bool_array = ht.array([[False, True]])
+        broadcasted = ht.broadcast_to(bool_array, (5, 2))
+        self.assertEqual(broadcasted.shape, (5, 2))
+        self.assertEqual(broadcasted.dtype, ht.bool)
+        float_array = ht.arange(3, dtype=ht.float32).reshape((3, 1))
+        broadcasted = ht.broadcast_to(float_array, (3, 4))
+        self.assertEqual(broadcasted.shape, (3, 4))
+        self.assertEqual(broadcasted.dtype, ht.float32)
 
     def test_column_stack(self):
         # test local column_stack, 2-D arrays
