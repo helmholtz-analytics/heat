@@ -6,6 +6,21 @@ from .test_suites.basic_test import TestCase
 
 
 class TestManipulations(TestCase):
+    def test_broadcast_arrays(self):
+        arrays = [ht.ones((1, 3, 4)), ht.ones((2, 1, 4)), ht.ones((2, 3, 1))]
+        broadcasted = ht.broadcast_arrays(*arrays)
+        self.assertTrue(all(x.shape == (2, 3, 4) for x in broadcasted))
+
+        # check dtype
+        arrays = [
+            ht.arange(9, dtype=ht.int32).reshape((3, 1, 3)),
+            ht.arange(6, dtype=ht.float32).reshape((1, 2, 3)),
+            ht.array([[[True], [False]]]),
+        ]
+        broadcasted = ht.broadcast_arrays(*arrays)
+        self.assertTrue(all(x.shape == (3, 2, 3) for x in broadcasted))
+        self.assertTrue(all(x.dtype == a.dtype for a, x in zip(arrays, broadcasted)))
+
     def test_column_stack(self):
         # test local column_stack, 2-D arrays
         a = np.arange(10, dtype=np.float32).reshape(5, 2)

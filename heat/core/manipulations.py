@@ -24,6 +24,7 @@ from . import _operations
 
 __all__ = [
     "balance",
+    "broadcast_arrays",
     "column_stack",
     "concatenate",
     "diag",
@@ -87,6 +88,42 @@ def balance(array: DNDarray, copy=False) -> DNDarray:
 
 DNDarray.balance = lambda self, copy=False: balance(self, copy)
 DNDarray.balance.__doc__ = balance.__doc__
+
+
+def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
+    """
+    Broadcasts one or more arrays against one another.
+
+    Parameters
+    ----------
+    arrays : DNDarray
+        An arbitrary number of to-be broadcasted `DNDarray`s.
+    """
+    if len(arrays) <= 1:
+        return arrays
+
+    # for arr in arrays:
+    #     sanitation.sanitize_in(arr)
+
+    try:
+        arrays = sanitation.sanitize_distribution(*arrays, target=arrays[0])
+    except NotImplementedError as e:
+        raise ValueError(e)
+
+    # extract torch tensors
+    t_arrays = list(array.larray for array in arrays)
+
+    broadcasted = torch.broadcast_tensors(*t_arrays)
+
+    out = []
+    for i in range(len(broadcasted)):
+        out.append(
+            factories.array(
+                broadcasted[i], dtype=arrays[i].dtype, copy=None, device=arrays[i].device
+            )
+        )
+
+    return out
 
 
 def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
