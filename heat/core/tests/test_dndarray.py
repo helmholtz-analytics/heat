@@ -1411,6 +1411,8 @@ class TestDNDarray(TestCase):
         arr_indexed_bool = arr[ht.array(False)]
         self.assertTrue(arr_indexed_bool.shape == (0,))
         self.assertTrue(arr_indexed_bool.size == 0)
+        arr[ht.array(False)] = False
+        self.assertEqual(arr, ht.array(False))
         arr = ht.array([False])
         self.assertTrue(arr[ht.array(False)].shape == (0, 1))
 

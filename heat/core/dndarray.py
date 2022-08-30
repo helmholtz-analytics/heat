@@ -1421,7 +1421,7 @@ class DNDarray:
             into the torch tensors for each dimension. This signals that advanced indexing is
             to be used."""
             key = manipulations.resplit(key)
-            if key.larray.dtype in [torch.bool, torch.uint8]:
+            if key.larray.dtype in [torch.bool, torch.uint8] and key.ndim > 0:
                 key = indexing.nonzero(key)
 
             if key.ndim > 1:
@@ -1463,7 +1463,7 @@ class DNDarray:
                     pass
                 # remove bools from a torch tensor in favor of indexes
                 try:
-                    if key[i].dtype in [torch.bool, torch.uint8]:
+                    if key[i].dtype in [torch.bool, torch.uint8] and key[i].ndim > 0:
                         key[i] = torch.nonzero(key[i]).flatten()
                 except (AttributeError, TypeError):
                     pass
