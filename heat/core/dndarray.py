@@ -675,7 +675,14 @@ class DNDarray:
 
         if isinstance(key, (DNDarray, torch.Tensor, np.ndarray)):
             if key.dtype in (bool, uint8, torch.bool, torch.uint8, np.bool, np.uint8):
-                # boolean indexing: transform to sequence of indexing (1-D) arrays
+                # boolean indexing: shape must match arr.shape
+                if not tuple(key.shape) == arr.shape:
+                    raise IndexError(
+                        "Boolean index of shape {} does not match indexed array of shape {}".format(
+                            tuple(key.shape), arr.shape
+                        )
+                    )
+                # transform key to sequence of indexing (1-D) arrays
                 try:
                     # torch.Tensor key
                     key = key.nonzero(as_tuple=True)
