@@ -668,6 +668,7 @@ class DNDarray:
         split_bookkeeping = [None] * arr.ndim
         if arr.is_distributed():
             split_bookkeeping[arr.split] = "split"
+            counts, displs = arr.counts_displs()
 
         advanced_indexing = False
         arr_is_copy = False
@@ -681,16 +682,38 @@ class DNDarray:
                 except TypeError:
                     # np.array or DNDarray key
                     key = key.nonzero()
-            else:
-                # advanced indexing on first dimension: first dim will expand to shape of key
-                advanced_indexing = True
-                output_shape = tuple(list(key.shape) + output_shape[1:])
-                # adjust split axis accordingly
-                split_bookkeeping = [None] * (len(key.shape) - 1) + split_bookkeeping[1:]
-                new_split = (
-                    split_bookkeeping.index("split") if "split" in split_bookkeeping else None
-                )
+                key = list(key).copy()
+                # if key is sequence of DNDarrays, extract local tensors
+                try:
+                    for i, k in enumerate(key):
+                        key[i] = k.larray
+                except AttributeError:
+                    pass
+                if arr.is_distributed():
+                    # return locally relevant key only
+                    key[arr.split] -= displs[arr.comm.rank]
+                    cond1 = key[arr.split] >= 0
+                    cond2 = key[arr.split] < counts[arr.comm.rank]
+                    for i, k in enumerate(key):
+                        key[i] = k[cond1 & cond2]
+                    # calculate output_shape
+                    total_nonzero = torch.tensor(key[arr.comm.split].shape[0])
+                    arr.comm.Allreduce(MPI.IN_PLACE, total_nonzero, MPI.SUM)
+                    output_shape = (total_nonzero,)
+                    new_split = 0
+                else:
+                    output_shape = (key[0].shape[0],)
+                    new_split = None if arr.split is None else 0
+                key = tuple(key)
                 return arr, key, output_shape, new_split, advanced_indexing
+
+            # advanced indexing on first dimension: first dim will expand to shape of key
+            advanced_indexing = True
+            output_shape = tuple(list(key.shape) + output_shape[1:])
+            # adjust split axis accordingly
+            split_bookkeeping = [None] * (len(key.shape) - 1) + split_bookkeeping[1:]
+            new_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
+            return arr, key, output_shape, new_split, advanced_indexing
 
         if isinstance(key, (tuple, list)):
             key = list(key)
@@ -861,7 +884,8 @@ class DNDarray:
         # key can be: int, tuple, list, slice, DNDarray, torch tensor, numpy array, or sequence thereof
         # Trivial cases
         print("DEBUGGING: RAW KEY = ", key)
-        # early out: key is a scalar
+
+        # Single element indexing
         scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
         if scalar:
             output_shape = self.gshape[1:]
@@ -894,10 +918,10 @@ class DNDarray:
                 displs = torch.cat((torch.tensor(displs), torch.tensor(key).reshape(-1)), dim=0)
                 _, sorted_indices = displs.unique(sorted=True, return_inverse=True)
                 root = sorted_indices[-1] - 1
-            # correct key for relevant displacement
-            key -= displs[root]
             # allocate buffer on all processes
             if self.comm.rank == root:
+                # correct key for rank-specific displacement
+                key -= displs[root]
                 indexed_arr = self.larray[key]
             else:
                 indexed_arr = torch.zeros(
@@ -923,6 +947,8 @@ class DNDarray:
         ):  # latter doesnt work with torch for 0-dim tensors
             return self
 
+        # Many-elements indexing: incl. slicing and striding, ordered advanced indexing
+
         # Preprocess: Process Ellipsis + 'None' indexing; make Iterables to DNDarrays
         self, key, output_shape, output_split, advanced_indexing = self.__process_key(key)
         print("DEBUGGING: processed key = ", key)
@@ -946,7 +972,8 @@ class DNDarray:
                 comm=self.comm,
             )
 
-        # # data are distributed and split dimension is affected by indexing
+        # data are distributed and split dimension is affected by indexing
+
         # _, offsets = self.counts_displs()
         # split = self.split
         # # slice along the split axis
