@@ -3,4 +3,6 @@ test:
   tags:
   - heat
   script:
-  - echo "test"
+  - apt update
+  - apt install build-essential python3-pip
+  - ls -lah
