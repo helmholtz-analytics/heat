@@ -6,13 +6,13 @@ test:
   - apt update
   - apt -y install build-essential python3-pip
   - DEBIAN_FRONTEND=noninteractive apt -y install libopenmpi-dev openmpi-bin openmpi-doc
-  - pip install pytest
+  - pip install pytest coverage
   - pip install .
-  - mpirun --allow-run-as-root -n 1 python3 -m pytest heat/
-  - mpirun --allow-run-as-root -n 2 python3 -m pytest heat/
-  - mpirun --allow-run-as-root -n 3 python3 -m pytest heat/
-  - mpirun --allow-run-as-root -n 4 python3 -m pytest heat/
-  - mpirun --allow-run-as-root -n 5 python3 -m pytest heat/
-  - mpirun --allow-run-as-root -n 6 python3 -m pytest heat/
-  - mpirun --allow-run-as-root -n 7 python3 -m pytest heat/
-  - mpirun --allow-run-as-root -n 8 python3 -m pytest heat/
+  - COVERAGE_FILE=report/cov/coverage1 mpirun -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/
+  - COVERAGE_FILE=report/cov/coverage2 mpirun -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report2.xml heat/
+  - COVERAGE_FILE=report/cov/coverage5 mpirun -n 5 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report5.xml heat/
+  - COVERAGE_FILE=report/cov/coverage8 mpirun -n 8 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report8.xml heat/
+  - coverage combine report/cov/*
+  - coverage report
+  - coverage xml
+  - curl -s https://codecov.io/bash | bash -s -- -c -F unit -f coverage.xml -t $CODECOV_TOKEN  || echo "Codecov failed to upload"
