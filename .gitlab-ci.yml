@@ -4,5 +4,5 @@ test:
   - heat
   script:
   - apt update
-  - apt install build-essential python3-pip
+  - apt -y install build-essential python3-pip
   - ls -lah
