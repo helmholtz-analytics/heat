@@ -40,11 +40,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
           overlap completely. Values outside the signal boundary have no
           effect.
 
-    Notes
-    -----
-        Only 'valid' mode is supported when `v`, the filter is memory
-        distributed.
-
     Examples
     --------
     Note how the convolution operator flips the second array
@@ -81,8 +76,8 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
 
-    if v.is_distributed() and (mode == "full" or mode == "same"):
-        raise TypeError("Distributed filter weights only supportes valid mode")
+    # if v.is_distributed() and (mode == "full" or mode == "same"):
+    #     raise TypeError("Distributed filter weights only supportes valid mode")
     if len(a.shape) != 1 or len(v.shape) != 1:
         raise ValueError("Only 1-dimensional input DNDarrays are allowed")
     if mode == "same" and v.shape[0] % 2 == 0:
@@ -99,7 +94,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         pad_size = v.shape[0] - 1
         gshape = v.shape[0] + a.shape[0] - 1
     elif mode == "same":
-        pad_size = halo_size
+        pad_size = v.shape[0] // 2
         gshape = a.shape[0]
     elif mode == "valid":
         pad_size = 0
@@ -147,7 +142,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         size = v.comm.size
 
         for r in range(size):
-            # origin_rank = r
             rec_v = v.comm.bcast(t_v, root=r)
             t_v1 = rec_v.reshape(1, 1, rec_v.shape[0])
             local_signal_filtered = fc.conv1d(signal, t_v1)
