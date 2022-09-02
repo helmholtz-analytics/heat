@@ -5,4 +5,14 @@ test:
   script:
   - apt update
   - apt -y install build-essential python3-pip
-  - ls -lah
+  - apt -y install libopenmpi-dev openmpi-bin openmpi-doc
+  - pip install pytest
+  - pip install .
+  - mpirun -n 1 python3 -m pytest heat/
+  - mpirun -n 2 python3 -m pytest heat/
+  - mpirun -n 3 python3 -m pytest heat/
+  - mpirun -n 4 python3 -m pytest heat/
+  - mpirun -n 5 python3 -m pytest heat/
+  - mpirun -n 6 python3 -m pytest heat/
+  - mpirun -n 7 python3 -m pytest heat/
+  - mpirun -n 8 python3 -m pytest heat/
