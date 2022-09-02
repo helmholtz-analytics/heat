@@ -8,10 +8,10 @@ test:
   - DEBIAN_FRONTEND=noninteractive apt -y install libopenmpi-dev openmpi-bin openmpi-doc
   - pip install pytest coverage
   - pip install .
-  - COVERAGE_FILE=report/cov/coverage1 mpirun --run-as-root -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/
-  - COVERAGE_FILE=report/cov/coverage2 mpirun --run-as-root -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report2.xml heat/
-  - COVERAGE_FILE=report/cov/coverage5 mpirun --run-as-root -n 5 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report5.xml heat/
-  - COVERAGE_FILE=report/cov/coverage8 mpirun --run-as-root -n 8 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report8.xml heat/
+  - COVERAGE_FILE=report/cov/coverage1 mpirun --allow-run-as-root -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/
+  - COVERAGE_FILE=report/cov/coverage2 mpirun --allow-run-as-root -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report2.xml heat/
+  - COVERAGE_FILE=report/cov/coverage5 mpirun --allow-run-as-root -n 5 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report5.xml heat/
+  - COVERAGE_FILE=report/cov/coverage8 mpirun --allow-run-as-root -n 8 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report8.xml heat/
   - coverage combine report/cov/*
   - coverage report
   - coverage xml
