@@ -1,0 +1,6 @@
+test:
+  image: ubuntu:20.04
+  tags:
+  - heat
+  script:
+  - echo "test"
