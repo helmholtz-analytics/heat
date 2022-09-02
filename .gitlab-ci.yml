@@ -4,7 +4,7 @@ test:
   - heat
   script:
   - apt update
-  - apt -y install build-essential python3-pip
+  - apt -y install build-essential python3-pip curl
   - DEBIAN_FRONTEND=noninteractive apt -y install libopenmpi-dev openmpi-bin openmpi-doc
   - pip install pytest coverage
   - pip install .
