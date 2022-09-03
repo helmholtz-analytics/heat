@@ -567,6 +567,10 @@ class TestDNDarray(TestCase):
         self.assertTrue((arr[mask].numpy() == arr.numpy()[mask]).all())
 
         # boolean mask, distributed
+        arr_split0 = arr.resplit(axis=1)
+        mask_split0 = ht.array(mask, split=1)
+        print("DEBUGGING: mask_split0.dtype = ", mask_split0.dtype)
+        self.assertTrue((arr_split0[mask_split0].numpy() == arr.numpy()[mask]).all())
 
     def test_int_cast(self):
         # simple scalar tensor
