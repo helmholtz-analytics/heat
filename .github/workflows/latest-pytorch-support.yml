@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ matrix.branches }}
+          ref: 'release/1.2.x'
       - name: Update setup.py
         run: |
           echo ${{ env.previous_pytorch }}
@@ -46,11 +46,11 @@ jobs:
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v3
         with:
-            base: ${{ matrix.branches }}
+            base: release/1.2.x
             delete-branch: true
             token: ${{ secrets.GITHUB_TOKEN }}
             commit-message: Support latest PyTorch release
-            title: Support PyTorch ${{ env.new }} on branch ${{ matrix.branches }}
+            title: Support PyTorch ${{ env.new }} on branch release/1.2.x
             body: |
               Run tests on latest PyTorch release
               Issue/s resolved: #${{ steps.create-issue.outputs.number }}
