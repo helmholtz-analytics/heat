@@ -224,7 +224,6 @@ def bitwise_left_shift(x1: Array, x2: Array, /) -> Array:
     # Call result type here just to raise on disallowed type combinations
     _result_type(x1.dtype, x2.dtype)
     x1, x2 = Array._normalize_two_args(x1, x2)
-    # Note: bitwise_left_shift is only defined for x2 nonnegative.
     if ht.any(x2._array < 0):
         raise ValueError("bitwise_left_shift(x1, x2) is only defined for x2 >= 0")
     return Array._new(ht.left_shift(x1._array, x2._array))
@@ -260,7 +259,6 @@ def bitwise_or(x1: Array, x2: Array, /) -> Array:
     """
     if x1.dtype not in _integer_or_boolean_dtypes or x2.dtype not in _integer_or_boolean_dtypes:
         raise TypeError("Only integer or boolean dtypes are allowed in bitwise_or")
-    # Call result type here just to raise on disallowed type combinations
     _result_type(x1.dtype, x2.dtype)
     x1, x2 = Array._normalize_two_args(x1, x2)
     return Array._new(ht.bitwise_or(x1._array, x2._array))
@@ -325,7 +323,6 @@ def ceil(x: Array, /) -> Array:
     if x.dtype not in _numeric_dtypes:
         raise TypeError("Only numeric dtypes are allowed in ceil")
     if x.dtype in _integer_dtypes:
-        # Note: The return dtype of ceil is the same as the input
         return x
     return Array._new(ht.ceil(x._array))
 
@@ -451,7 +448,6 @@ def floor(x: Array, /) -> Array:
     if x.dtype not in _numeric_dtypes:
         raise TypeError("Only numeric dtypes are allowed in floor")
     if x.dtype in _integer_dtypes:
-        # Note: The return dtype of floor is the same as the input
         return x
     return Array._new(ht.floor(x._array))
 
@@ -1054,6 +1050,5 @@ def trunc(x: Array, /) -> Array:
     if x.dtype not in _numeric_dtypes:
         raise TypeError("Only numeric dtypes are allowed in trunc")
     if x.dtype in _integer_dtypes:
-        # Note: The return dtype of trunc is the same as the input
         return x
     return Array._new(ht.trunc(x._array))

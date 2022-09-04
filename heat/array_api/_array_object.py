@@ -129,9 +129,6 @@ class Array:
         else:
             raise TypeError(f"{scalar} must be a Python scalar")
 
-        # Note: scalars are unconditionally cast to the same dtype as the
-        # array.
-
         return Array._new(ht.array(scalar, self.dtype))
 
     @staticmethod
@@ -151,10 +148,6 @@ class Array:
         from not promoting the dtype.
         """
         if x1.ndim == 0 and x2.ndim != 0:
-            # The _array[None] workaround was chosen because it is relatively
-            # performant. broadcast_to(x1._array, x2.shape) is much slower. We
-            # could also manually type promote x2, but that is more complicated
-            # and about the same performance as this.
             x1 = Array._new(x1._array[None])
         elif x2.ndim == 0 and x1.ndim != 0:
             x2 = Array._new(x2._array[None])
@@ -370,7 +363,6 @@ class Array:
         Returns device type and device ID in DLPack format. Meant for use
         within ``from_dlpack()``.
         """
-        # Note: device support is required for this
         return self._array.__array.__dlpack_device__()
 
     def __eq__(self: Array, other: Union[int, float, bool, Array], /) -> Array:
@@ -450,11 +442,9 @@ class Array:
         key : Union[int, slice, ellipsis, Tuple[Union[int, slice, ellipsis], ...], Array]
             Index key
         """
-        # Note: Only indices required by the spec are allowed. See the
-        # docstring of _validate_index
+        # Note: Only indices required by the spec are allowed.
         self._validate_index(key)
         if isinstance(key, Array):
-            # Indexing self._array with array_api arrays can be erroneous
             key = key._array
         res = self._array.__getitem__(key)
         return self._new(res)
@@ -700,11 +690,9 @@ class Array:
         """
         Sets ``self[key]`` to ``value``.
         """
-        # Note: Only indices required by the spec are allowed. See the
-        # docstring of _validate_index
+        # Note: Only indices required by the spec are allowed.
         self._validate_index(key)
         if isinstance(key, Array):
-            # Indexing self._array with array_api arrays can be erroneous
             key = key._array
         if isinstance(value, Array):
             value = value._array

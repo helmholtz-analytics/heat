@@ -102,7 +102,6 @@ def asarray(
         obj = obj._array
     if dtype is None:
         if isinstance(obj, int) and (obj > 2**64 or obj < -(2**63)):
-            # TODO: This won't handle large integers in lists.
             raise OverflowError("Integer out of bounds for array dtypes")
         elif isinstance(obj, float):
             dtype = default_float

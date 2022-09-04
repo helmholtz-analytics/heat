@@ -30,9 +30,7 @@ def all(
         as singleton dimensions. Otherwise, if ``False``, the reduced axes
         (dimensions) are be included in the result. Default: ``False``.
     """
-    res = ht.all(x._array, axis=axis, keepdim=True)
-    if not keepdims or x._array.ndim == 0:
-        res = ht.squeeze(res, axis=axis)
+    res = ht.all(x._array, axis=axis, keepdim=keepdims)
 
     return Array._new(res)
 
@@ -60,8 +58,6 @@ def any(
         as singleton dimensions. Otherwise, if ``False``, the reduced axes
         (dimensions) are be included in the result. Default: ``False``.
     """
-    res = ht.any(x._array, axis=axis, keepdim=True)
-    if not keepdims or x._array.ndim == 0:
-        res = ht.squeeze(res, axis=axis)
+    res = ht.any(x._array, axis=axis, keepdim=keepdims)
 
     return Array._new(res)

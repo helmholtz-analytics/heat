@@ -28,19 +28,7 @@ def argmax(x: Array, /, *, axis: Optional[int] = None, keepdims: bool = False) -
     """
     if x.dtype not in _numeric_dtypes:
         raise TypeError("Only numeric dtypes are allowed in argmax")
-    if axis is None:
-        if keepdims:
-            output_shape = tuple(1 for _ in range(x.ndim))
-        else:
-            output_shape = ()
-    else:
-        if axis < 0:
-            axis += x.ndim
-        if keepdims:
-            output_shape = tuple(dim if i != axis else 1 for i, dim in enumerate(x.shape))
-        else:
-            output_shape = tuple(dim for i, dim in enumerate(x.shape) if i != axis)
-    res = ht.argmax(x._array, axis=axis, keepdim=True).reshape(output_shape)
+    res = ht.argmax(x._array, axis=axis, keepdim=keepdims)
     return Array._new(res)
 
 
@@ -64,19 +52,7 @@ def argmin(x: Array, /, *, axis: Optional[int] = None, keepdims: bool = False) -
     """
     if x.dtype not in _numeric_dtypes:
         raise TypeError("Only numeric dtypes are allowed in argmin")
-    if axis is None:
-        if keepdims:
-            output_shape = tuple(1 for _ in range(x.ndim))
-        else:
-            output_shape = ()
-    else:
-        if axis < 0:
-            axis += x.ndim
-        if keepdims:
-            output_shape = tuple(dim if i != axis else 1 for i, dim in enumerate(x.shape))
-        else:
-            output_shape = tuple(dim for i, dim in enumerate(x.shape) if i != axis)
-    res = ht.argmin(x._array, axis=axis, keepdim=True).reshape(output_shape)
+    res = ht.argmin(x._array, axis=axis, keepdim=keepdims)
     return Array._new(res)
 
 
@@ -89,7 +65,7 @@ def nonzero(x: Array, /) -> Tuple[Array, ...]:
     x : Array
         Input array. Must have a positive rank.
     """
-    # Fixed in PR #914, waiting for merge
+    # See PR #914 for overhaul
     return tuple(Array._new(i) for i in ht.nonzero(x._array))
 
 

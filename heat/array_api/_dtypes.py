@@ -10,8 +10,8 @@ int64 = ht.int64
 """A 64-bit signed integer whose values exist on the interval ``[-9,223,372,036,854,775,807, +9,223,372,036,854,775,807]``."""
 uint8 = ht.uint8
 """An 8-bit unsigned integer whose values exist on the interval ``[0, +255]``."""
-# Waiting on Pytorch to introduce support for these 3 data types
-# See https://github.com/pytorch/pytorch/issues/58734
+# For the status of Pytorch support for these 3 data types,
+# see https://github.com/pytorch/pytorch/issues/58734
 # uint16 =
 # """A 16-bit unsigned integer whose values exist on the interval ``[0, +65,535]``."""
 # uint32 =

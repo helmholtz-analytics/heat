@@ -45,11 +45,6 @@ def broadcast_arrays(*arrays: Array) -> List[Array]:
     """
     from ._array_object import Array
 
-    # if len(arrays) <= 1:
-    #     return arrays
-    # output_shape = arrays[0].shape
-    # for a in arrays[1:]:
-    #     output_shape = broadcast_shape(output_shape, a.shape)
     return [Array._new(array) for array in ht.broadcast_arrays(*[a._array for a in arrays])]
 
 

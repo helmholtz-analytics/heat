@@ -36,21 +36,8 @@ def max(
     """
     if x.dtype not in _numeric_dtypes:
         raise TypeError("Only numeric dtypes are allowed in max")
-    res = ht.max(x._array, axis=axis, keepdim=True)
-    if axis is None:
-        if keepdims:
-            output_shape = tuple(1 for _ in range(x.ndim))
-        else:
-            output_shape = ()
-    else:
-        if isinstance(axis, int):
-            axis = (axis,)
-        axis = [a if a >= 0 else a + x.ndim for a in axis]
-        if keepdims:
-            output_shape = tuple(1 if i in axis else dim for i, dim in enumerate(x.shape))
-        else:
-            output_shape = tuple(dim for i, dim in enumerate(x.shape) if i not in axis)
-    return Array._new(res.reshape(output_shape))
+    res = ht.max(x._array, axis=axis, keepdim=keepdims)
+    return Array._new(res)
 
 
 def mean(
@@ -81,20 +68,7 @@ def mean(
     if axis == ():
         return x
     res = ht.mean(x._array, axis=axis)
-    if axis is None:
-        if keepdims:
-            output_shape = tuple(1 for _ in range(x.ndim))
-        else:
-            output_shape = ()
-    else:
-        if isinstance(axis, int):
-            axis = (axis,)
-        axis = [a if a >= 0 else a + x.ndim for a in axis]
-        if keepdims:
-            output_shape = tuple(1 if i in axis else dim for i, dim in enumerate(x.shape))
-        else:
-            output_shape = tuple(dim for i, dim in enumerate(x.shape) if i not in axis)
-    return Array._new(res.astype(x.dtype).reshape(output_shape))
+    return Array._new(res.astype(x.dtype))
 
 
 def min(
@@ -122,21 +96,8 @@ def min(
     """
     if x.dtype not in _numeric_dtypes:
         raise TypeError("Only numeric dtypes are allowed in min")
-    res = ht.min(x._array, axis=axis, keepdim=True)
-    if axis is None:
-        if keepdims:
-            output_shape = tuple(1 for _ in range(x.ndim))
-        else:
-            output_shape = ()
-    else:
-        if isinstance(axis, int):
-            axis = (axis,)
-        axis = [a if a >= 0 else a + x.ndim for a in axis]
-        if keepdims:
-            output_shape = tuple(1 if i in axis else dim for i, dim in enumerate(x.shape))
-        else:
-            output_shape = tuple(dim for i, dim in enumerate(x.shape) if i not in axis)
-    return Array._new(res.reshape(output_shape))
+    res = ht.min(x._array, axis=axis, keepdim=keepdims)
+    return Array._new(res)
 
 
 def prod(
@@ -167,13 +128,7 @@ def prod(
     """
     if x.dtype not in _numeric_dtypes:
         raise TypeError("Only numeric dtypes are allowed in prod")
-    # Note: sum() and prod() always upcast float32 to float64 for dtype=None
-    # We need to do so here before computing the product to avoid overflow
-    # if dtype is None and x.dtype == float32:
-    #     dtype = float64
-    res = ht.prod(x._array, axis=axis, keepdim=True)
-    if not keepdims or x._array.ndim == 0:
-        res = ht.squeeze(res, axis=axis)
+    res = ht.prod(x._array, axis=axis, keepdim=keepdims)
     if dtype is None:
         if x.dtype in _floating_dtypes:
             dtype = default_float
@@ -213,22 +168,7 @@ def std(
     if x.dtype not in _floating_dtypes:
         raise TypeError("Only floating-point dtypes are allowed in std")
     res = ht.std(x._array, axis=axis, ddof=int(correction))
-    if not isinstance(res, ht.DNDarray):
-        res = ht.array(res, dtype=x.dtype)
-    if axis is None:
-        if keepdims:
-            output_shape = tuple(1 for _ in range(x.ndim))
-        else:
-            output_shape = ()
-    else:
-        if isinstance(axis, int):
-            axis = (axis,)
-        axis = [a if a >= 0 else a + x.ndim for a in axis]
-        if keepdims:
-            output_shape = tuple(1 if i in axis else dim for i, dim in enumerate(x.shape))
-        else:
-            output_shape = tuple(dim for i, dim in enumerate(x.shape) if i not in axis)
-    return Array._new(res.reshape(output_shape))
+    return Array._new(res)
 
 
 def sum(
@@ -259,14 +199,7 @@ def sum(
     """
     if x.dtype not in _numeric_dtypes:
         raise TypeError("Only numeric dtypes are allowed in sum")
-    # Note: sum() and prod() always upcast integers to (u)int64 and float32 to
-    # float64 for dtype=None. `np.sum` does that too for integers, but not for
-    # float32, so we need to special-case it here
-    # if dtype is None and x.dtype == float32:
-    #     dtype = float64
-    res = ht.sum(x._array, axis=axis, keepdim=True)
-    if not keepdims or x._array.ndim == 0:
-        res = ht.squeeze(res, axis=axis)
+    res = ht.sum(x._array, axis=axis, keepdim=keepdims)
     if dtype is None:
         if x.dtype in _floating_dtypes:
             dtype = default_float
@@ -308,17 +241,4 @@ def var(
     if axis == ():
         return x
     res = ht.var(x._array, axis=axis, ddof=int(correction))
-    if axis is None:
-        if keepdims:
-            output_shape = tuple(1 for _ in range(x.ndim))
-        else:
-            output_shape = ()
-    else:
-        if isinstance(axis, int):
-            axis = (axis,)
-        axis = [a if a >= 0 else a + x.ndim for a in axis]
-        if keepdims:
-            output_shape = tuple(1 if i in axis else dim for i, dim in enumerate(x.shape))
-        else:
-            output_shape = tuple(dim for i, dim in enumerate(x.shape) if i not in axis)
-    return Array._new(res.astype(x.dtype).reshape(output_shape))
+    return Array._new(res.astype(x.dtype))

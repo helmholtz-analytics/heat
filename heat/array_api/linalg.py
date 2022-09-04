@@ -71,7 +71,6 @@ def tensordot(
     """
     if x1.dtype not in _numeric_dtypes or x2.dtype not in _numeric_dtypes:
         raise TypeError("Only numeric dtypes are allowed in tensordot")
-
     return Array._new(ht.tensordot(x1._array, x2._array, axes=axes))
 
 

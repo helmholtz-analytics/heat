@@ -21,7 +21,7 @@ def concat(arrays: Union[Tuple[Array, ...], List[Array]], /, *, axis: Optional[i
         Axis along which the arrays will be joined. If ``axis`` is ``None``,
         arrays are flattened before concatenation. Default: ``0``.
     """
-    # dtype = result_type(*arrays)
+    result_type(*arrays)
     arrays = tuple(a._array for a in arrays)
     if axis is None:
         arrays = tuple(ht.flatten(a) for a in arrays)
