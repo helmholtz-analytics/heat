@@ -106,9 +106,6 @@ class TestFactories(TestCase):
         # make an in direct check for the sequence, compare against the gaussian sum
         self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdim=True), 20.0)
 
-        check_precision = ht.arange(16777217.0, 16777218, 1, dtype=torch.float64)
-        self.assertEqual(check_precision[0], ht.array([16777217.0], dtype=torch.float64))
-
         # exceptions
         with self.assertRaises(ValueError):
             ht.arange(-5, 3, split=1)
@@ -315,7 +312,6 @@ class TestFactories(TestCase):
         # same heat array
         arr = ht.array([1, 2])
         self.assertTrue(ht.asarray(arr) is arr)
-        self.assertFalse(ht.asarray(arr, copy=True) is arr)
 
         # from distributed python list
         arr = ht.array([1, 2, 3, 4, 5, 6], split=0)
@@ -332,7 +328,6 @@ class TestFactories(TestCase):
         asarr = ht.asarray(arr)
 
         self.assertTrue(np.alltrue(np.equal(asarr.numpy(), arr)))
-        self.assertFalse(ht.asarray(arr, copy=True).larray is arr)
 
         asarr[0] = 0
         if asarr.device == ht.cpu:

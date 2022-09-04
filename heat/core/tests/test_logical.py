@@ -140,10 +140,6 @@ class TestLogical(TestCase):
         out_noaxis = ht.zeros((1, 2, 3, 5), split=1)
         ht.all(ones_noaxis_split_axis_neg, axis=-2, out=out_noaxis)
 
-        # test keepdim
-        ones_2d = ht.ones((1, 1))
-        self.assertEqual(ones_2d.all(keepdim=True).shape, ones_2d.shape)
-
         # exceptions
         with self.assertRaises(ValueError):
             ht.ones(array_len).all(axis=1)
@@ -215,10 +211,6 @@ class TestLogical(TestCase):
         self.assertEqual(any_tensor.shape, (1,))
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
-
-        # test keepdim
-        ones_2d = ht.ones((1, 1))
-        self.assertEqual(ones_2d.any(keepdim=True).shape, ones_2d.shape)
 
     def test_isclose(self):
         size = ht.communication.MPI_WORLD.size

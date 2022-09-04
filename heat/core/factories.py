@@ -139,12 +139,10 @@ def arange(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step
+    data = torch.arange(start, stop, step, device=device.torch_device)
+
     htype = types.canonical_heat_type(dtype)
-    if types.issubdtype(htype, types.floating):
-        data = torch.arange(start, stop, step, dtype=htype.torch_type(), device=device.torch_device)
-    else:
-        data = torch.arange(start, stop, step, device=device.torch_device)
-        data = data.type(htype.torch_type())
+    data = data.type(htype.torch_type())
 
     return DNDarray(data, gshape, htype, split, device, comm, balanced)
 
@@ -301,11 +299,8 @@ def array(
         obj = obj.larray
 
     # sanitize the data type
-    if dtype is None:
-        torch_dtype = None
-    else:
+    if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
-        torch_dtype = dtype.torch_type()
 
     # sanitize device
     if device is not None:
@@ -321,7 +316,6 @@ def array(
             try:
                 obj = torch.tensor(
                     obj,
-                    dtype=torch_dtype,
                     device=device.torch_device
                     if device is not None
                     else devices.get_device().torch_device,
@@ -332,7 +326,6 @@ def array(
         if not isinstance(obj, DNDarray):
             obj = torch.as_tensor(
                 obj,
-                dtype=torch_dtype,
                 device=device.torch_device
                 if device is not None
                 else devices.get_device().torch_device,
@@ -342,6 +335,7 @@ def array(
     if dtype is None:
         dtype = types.canonical_heat_type(obj.dtype)
     else:
+        torch_dtype = dtype.torch_type()
         if obj.dtype != torch_dtype:
             obj = obj.type(torch_dtype)
 
@@ -440,7 +434,6 @@ def array(
 def asarray(
     obj: Iterable,
     dtype: Optional[Type[datatype]] = None,
-    copy: bool = False,
     order: str = "C",
     is_split: Optional[bool] = None,
     device: Optional[Union[str, Device]] = None,
@@ -456,9 +449,6 @@ def asarray(
         tuples of tuples, tuples of lists and ndarrays.
     dtype : dtype, optional
         By default, the data-type is inferred from the input data.
-    copy : bool, optional
-        If ``True``, then the object is copied. Otherwise, a copy will only be made if `obj` is a nested
-        sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
     order: str, optional
         Whether to use row-major (C-style) or column-major (Fortran-style) memory representation. Defaults to ‘C’.
     is_split : None or int, optional
@@ -492,7 +482,7 @@ def asarray(
     >>> ht.asarray(a, dtype=ht.float64) is a
     False
     """
-    return array(obj, dtype=dtype, copy=copy, order=order, is_split=is_split, device=device)
+    return array(obj, dtype=dtype, copy=False, order=order, is_split=is_split, device=device)
 
 
 def empty(
@@ -975,18 +965,9 @@ def linspace(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step - step
-    if dtype is not None and types.issubdtype(dtype, types.floating):
-        data = torch.linspace(
-            start,
-            stop,
-            lshape[0],
-            dtype=types.canonical_heat_type(dtype).torch_type(),
-            device=device.torch_device,
-        )
-    else:
-        data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
-        if dtype is not None:
-            data = data.type(types.canonical_heat_type(dtype).torch_type())
+    data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
+    if dtype is not None:
+        data = data.type(types.canonical_heat_type(dtype).torch_type())
 
     # construct the resulting global tensor
     ht_tensor = DNDarray(
