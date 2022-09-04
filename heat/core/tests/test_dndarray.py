@@ -562,15 +562,19 @@ class TestDNDarray(TestCase):
         self.assertTrue(indexed_split2.split == 1)
 
         # boolean mask, local
-        arr = ht.arange(3 * 4 * 5 * 6).reshape(3, 4, 5, 6)
-        mask = np.random.randint(0, 2, (3, 4, 5, 6), dtype=bool)
+        arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
+        np.random.seed(42)
+        mask = np.random.randint(0, 2, arr.shape, dtype=bool)
         self.assertTrue((arr[mask].numpy() == arr.numpy()[mask]).all())
 
         # boolean mask, distributed
-        arr_split0 = arr.resplit(axis=1)
-        mask_split0 = ht.array(mask, split=1)
-        print("DEBUGGING: mask_split0.dtype = ", mask_split0.dtype)
+        arr_split0 = ht.array(arr, split=0)
+        mask_split0 = ht.array(mask, split=0)
         self.assertTrue((arr_split0[mask_split0].numpy() == arr.numpy()[mask]).all())
+
+        arr_split1 = ht.array(arr, split=1)
+        mask_split1 = ht.array(mask, split=1)
+        self.assertTrue((arr_split1[mask_split1].numpy() == arr.numpy()[mask]).all())
 
     def test_int_cast(self):
         # simple scalar tensor
