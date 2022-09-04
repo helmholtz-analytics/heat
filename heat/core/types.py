@@ -1042,7 +1042,7 @@ class iinfo:
 
     def _init(self, dtype: Type[datatype]):
         _torch_iinfo = torch.iinfo(dtype.torch_type())
-        for word in ["bits", "max", "min"]:
+        for word in ["bits", "min", "max"]:
             setattr(self, word, getattr(_torch_iinfo, word))
 
         return self
