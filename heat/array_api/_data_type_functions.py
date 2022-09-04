@@ -4,7 +4,7 @@ from ._array_object import Array
 from ._dtypes import _all_dtypes, _result_type
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Union, List
+from typing import TYPE_CHECKING, Union, List, Tuple
 
 if TYPE_CHECKING:
     from ._typing import Dtype
@@ -45,12 +45,28 @@ def broadcast_arrays(*arrays: Array) -> List[Array]:
     """
     from ._array_object import Array
 
-    if len(arrays) <= 1:
-        return arrays
-    output_shape = arrays[0].shape
-    for a in arrays[1:]:
-        output_shape = broadcast_shape(output_shape, a.shape)
+    # if len(arrays) <= 1:
+    #     return arrays
+    # output_shape = arrays[0].shape
+    # for a in arrays[1:]:
+    #     output_shape = broadcast_shape(output_shape, a.shape)
     return [Array._new(array) for array in ht.broadcast_arrays(*[a._array for a in arrays])]
+
+
+def broadcast_to(x: Array, /, shape: Tuple[int, ...]) -> Array:
+    """
+    Broadcasts an array to a specified shape.
+
+    Parameters
+    ----------
+    x : Array
+        Array to broadcast.
+    shape : Tuple[int, ...]
+        Array shape. Must be compatible with x.
+    """
+    from ._array_object import Array
+
+    return Array._new(ht.broadcast_to(x._array, shape))
 
 
 def can_cast(from_: Union[Dtype, Array], to: Dtype, /) -> bool:

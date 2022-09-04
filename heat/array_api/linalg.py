@@ -6,6 +6,11 @@ from __future__ import annotations
 from ._dtypes import _numeric_dtypes, _result_type
 from ._array_object import Array
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ._typing import Sequence, Tuple, Union
+
 import heat as ht
 
 
@@ -38,9 +43,36 @@ def matrix_transpose(x: Array, /) -> Array:
     if x.ndim < 2:
         raise ValueError("x must be at least 2-dimensional for matrix_transpose")
     return Array._new(ht.swapaxes(x._array, -1, -2))
-    # axes = list(range(x.ndim))
-    # axes[-1], axes[-2] = axes[-2], axes[-1]
-    # return Array._new(ht.transpose(x._array, axes))
+
+
+def tensordot(
+    x1: Array, x2: Array, /, *, axes: Union[int, Tuple[Sequence[int], Sequence[int]]] = 2
+) -> Array:
+    """
+    Return a tensor contraction of ``x1`` and ``x2`` over specific axes.
+
+    Parameters
+    ----------
+    x1 : Array
+        First input array. Must have a numeric data type.
+    x2 : Array
+        Second input array. Must have a numeric data type. Corresponding contracted axes of ``x1``
+        and ``x2`` must be equal.
+    axes : Union[int, Tuple[Sequence[int], Sequence[int]]]
+        Number of axes (dimensions) to contract or explicit sequences of axes (dimensions) for
+        ``x1`` and ``x2``, respectively. If ``axes`` is an ``int`` equal to ``N``, then contraction is
+        performed over the last ``N`` axes of ``x1`` and the first ``N`` axes of ``x2`` in order.
+        The size of each corresponding axis (dimension) must match. Must be nonnegative.
+        If ``axes`` is a tuple of two sequences ``(x1_axes, x2_axes)``, the first sequence must apply
+        to ``x1`` and the second sequence to ``x2``. Both sequences must have the same length.
+        Each axis (dimension) ``x1_axes[i]`` for ``x1`` must have the same size as the respective axis
+        (dimension) ``x2_axes[i]`` for ``x2``. Each sequence must consist of unique (nonnegative)
+        integers that specify valid axes for each respective array.
+    """
+    if x1.dtype not in _numeric_dtypes or x2.dtype not in _numeric_dtypes:
+        raise TypeError("Only numeric dtypes are allowed in tensordot")
+
+    return Array._new(ht.tensordot(x1._array, x2._array, axes=axes))
 
 
 def vecdot(x1: Array, x2: Array, /, *, axis: int = -1) -> Array:

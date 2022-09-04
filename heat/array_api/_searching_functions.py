@@ -89,8 +89,8 @@ def nonzero(x: Array, /) -> Tuple[Array, ...]:
     x : Array
         Input array. Must have a positive rank.
     """
-    # Fixed in PR #937, waiting for merge
-    return ht.nonzero(x._array)
+    # Fixed in PR #914, waiting for merge
+    return tuple(Array._new(i) for i in ht.nonzero(x._array))
 
 
 def where(condition: Array, x1: Array, x2: Array, /) -> Array:

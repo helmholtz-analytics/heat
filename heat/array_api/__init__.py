@@ -17,6 +17,7 @@ from ._creation_functions import (
     empty,
     empty_like,
     eye,
+    from_dlpack,
     full,
     full_like,
     linspace,
@@ -49,13 +50,23 @@ __all__ += [
 
 from ._data_type_functions import (
     astype,
+    broadcast_arrays,
+    broadcast_to,
     can_cast,
     finfo,
     iinfo,
     result_type,
 )
 
-__all__ += ["astype", "can_cast", "finfo", "iinfo", "result_type"]
+__all__ += [
+    "astype",
+    "broadcast_arrays",
+    "broadcast_to",
+    "can_cast",
+    "finfo",
+    "iinfo",
+    "result_type",
+]
 
 from heat.core.devices import cpu
 
@@ -218,9 +229,9 @@ from . import linalg
 
 __all__ += ["linalg"]
 
-from .linalg import matmul, matrix_transpose, vecdot
+from .linalg import matmul, matrix_transpose, tensordot, vecdot
 
-__all__ += ["matmul", "matrix_transpose", "vecdot"]
+__all__ += ["matmul", "matrix_transpose", "tensordot", "vecdot"]
 
 from ._manipulation_functions import (
     concat,
@@ -235,9 +246,9 @@ from ._manipulation_functions import (
 
 __all__ += ["concat", "expand_dims", "flip", "permute_dims", "reshape", "roll", "squeeze", "stack"]
 
-from ._searching_functions import argmax, argmin, where
+from ._searching_functions import argmax, argmin, nonzero, where
 
-__all__ += ["argmax", "argmin", "where"]
+__all__ += ["argmax", "argmin", "nonzero", "where"]
 
 from ._set_functions import unique_inverse, unique_values
 

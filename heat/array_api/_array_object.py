@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import operator
+import enum
 from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
-from ._creation_functions import asarray
 from ._dtypes import (
-    _all_dtypes,
     _boolean_dtypes,
     _integer_dtypes,
     _integer_or_boolean_dtypes,
@@ -15,7 +15,12 @@ from ._dtypes import (
 )
 
 if TYPE_CHECKING:
-    from ._typing import Device, Dtype
+    from ._typing import cpu, Device, Dtype, PyCapsule
+
+    try:
+        from ._typing import gpu
+    except ImportError:
+        pass
     from builtins import ellipsis
 
 import heat as ht
@@ -72,6 +77,12 @@ class Array:
         Computes a printable representation of the Array.
         """
         return self._array.__str__().replace("DNDarray", "Array")
+
+    def __len__(self) -> int:
+        """
+        The length of the Array.
+        """
+        return self._array.__len__()
 
     def _check_allowed_dtypes(
         self, other: Union[bool, int, float, Array], dtype_category: str, op: str
@@ -149,6 +160,127 @@ class Array:
             x2 = Array._new(x2._array[None])
         return (x1, x2)
 
+    def _validate_index(self, key):
+        """
+        Validate an index according to the array API.
+        The array API specification only requires a subset of indices that are
+        supported by Heat. This function will reject any index that is
+        allowed by Heat but not required by the array API specification.
+        This function raises IndexError if the index ``key`` is invalid.
+        """
+        _key = key if isinstance(key, tuple) else (key,)
+        for i in _key:
+            if isinstance(i, bool) or not (
+                isinstance(i, int)  # i.e. ints
+                or isinstance(i, slice)
+                or i == Ellipsis
+                or i is None
+                or isinstance(i, Array)
+                or isinstance(i, ht.DNDarray)
+            ):
+                raise IndexError(
+                    f"Single-axes index {i} has {type(i)=}, but only "
+                    "integers, slices (:), ellipsis (...), newaxis (None), "
+                    "zero-dimensional integer arrays and boolean arrays "
+                    "are specified in the Array API."
+                )
+
+        nonexpanding_key = []
+        single_axes = []
+        n_ellipsis = 0
+        key_has_mask = False
+        for i in _key:
+            if i is not None:
+                nonexpanding_key.append(i)
+                if isinstance(i, Array) or isinstance(i, ht.DNDarray):
+                    if i.dtype in _boolean_dtypes:
+                        key_has_mask = True
+                    single_axes.append(i)
+                else:
+                    # i must not be an array here, to avoid elementwise equals
+                    if i == Ellipsis:
+                        n_ellipsis += 1
+                    else:
+                        single_axes.append(i)
+
+        n_single_axes = len(single_axes)
+        if n_ellipsis > 1:
+            return  # handled by DNDarray
+        elif n_ellipsis == 0:
+            # Note boolean masks must be the sole index, which we check for
+            # later on.
+            if not key_has_mask and n_single_axes < self.ndim:
+                raise IndexError(
+                    f"{self.ndim=}, but the multi-axes index only specifies "
+                    f"{n_single_axes} dimensions. If this was intentional, "
+                    "add a trailing ellipsis (...) which expands into as many "
+                    "slices (:) as necessary."
+                )
+
+        if n_ellipsis == 0:
+            indexed_shape = self.shape
+        else:
+            ellipsis_start = None
+            for pos, i in enumerate(nonexpanding_key):
+                if not (isinstance(i, Array) or isinstance(i, ht.DNDarray)):
+                    if i == Ellipsis:
+                        ellipsis_start = pos
+                        break
+            assert ellipsis_start is not None  # sanity check
+            ellipsis_end = self.ndim - (n_single_axes - ellipsis_start)
+            indexed_shape = self.shape[:ellipsis_start] + self.shape[ellipsis_end:]
+        for i, side in zip(single_axes, indexed_shape):
+            if isinstance(i, slice):
+                if side == 0:
+                    f_range = "0 (or None)"
+                else:
+                    f_range = f"between -{side} and {side - 1} (or None)"
+                if i.start is not None:
+                    try:
+                        start = operator.index(i.start)
+                    except TypeError:
+                        raise IndexError("Invalid start value in slice")
+                    else:
+                        if not (-side <= start <= side):
+                            raise IndexError(
+                                f"Slice {i} contains {start=}, but should be "
+                                f"{f_range} for an axis of size {side} "
+                                "(out-of-bounds starts are not specified in "
+                                "the Array API)"
+                            )
+                if i.stop is not None:
+                    try:
+                        stop = operator.index(i.stop)
+                    except TypeError:
+                        raise IndexError("Invalid stop value in slice")
+                    else:
+                        if not (-side <= stop <= side):
+                            raise IndexError(
+                                f"Slice {i} contains {stop=}, but should be "
+                                f"{f_range} for an axis of size {side} "
+                                "(out-of-bounds stops are not specified in "
+                                "the Array API)"
+                            )
+            elif isinstance(i, Array):
+                if i.dtype in _boolean_dtypes and len(_key) != 1:
+                    assert isinstance(key, tuple)  # sanity check
+                    raise IndexError(
+                        f"Single-axes index {i} is a boolean array and "
+                        f"{len(key)=}, but masking is only specified in the "
+                        "Array API when the array is the sole index."
+                    )
+                elif i.dtype in _integer_dtypes and i.ndim != 0:
+                    raise IndexError(
+                        f"Single-axes index {i} is a non-zero-dimensional "
+                        "integer array, but advanced integer indexing is not "
+                        "specified in the Array API."
+                    )
+            elif isinstance(i, tuple):
+                raise IndexError(
+                    f"Single-axes index {i} is a tuple, but nested tuple "
+                    "indices are not specified in the Array API."
+                )
+
     def __abs__(self: Array, /) -> Array:
         """
         Calculates the absolute value for each element of an array instance
@@ -220,6 +352,26 @@ class Array:
             raise ValueError("bool is only allowed on boolean arrays")
         res = self._array.__bool__()
         return res
+
+    def __dlpack__(self: Array, /, *, stream: Optional[Union[int, Any]] = None) -> PyCapsule:
+        """
+        Exports the array for consumption by ``from_dlpack()`` as a DLPack capsule.
+
+        Parameters
+        ----------
+        stream : Optional[Union[int, Any]]
+            For CUDA and ROCm, a Python integer representing a pointer to a stream,
+            on devices that support streams.
+        """
+        return self._array.__array.__dlpack__(stream=stream)
+
+    def __dlpack_device__(self: Array, /) -> Tuple[enum.Enum, int]:
+        """
+        Returns device type and device ID in DLPack format. Meant for use
+        within ``from_dlpack()``.
+        """
+        # Note: device support is required for this
+        return self._array.__array.__dlpack_device__()
 
     def __eq__(self: Array, other: Union[int, float, bool, Array], /) -> Array:
         """
@@ -300,17 +452,10 @@ class Array:
         """
         # Note: Only indices required by the spec are allowed. See the
         # docstring of _validate_index
-        # self._validate_index(key)
+        self._validate_index(key)
         if isinstance(key, Array):
             # Indexing self._array with array_api arrays can be erroneous
             key = key._array
-        # if 0 in self.shape:
-        #     new_array = self._array
-        #     if isinstance(key, tuple):
-        #         for i, index in enumerate((x for x in key if x != ...)):
-        #             if index is None:
-        #                 new_array = new_array.expand_dims(i)
-        #     return self._new(new_array)
         res = self._array.__getitem__(key)
         return self._new(res)
 
@@ -557,16 +702,13 @@ class Array:
         """
         # Note: Only indices required by the spec are allowed. See the
         # docstring of _validate_index
-        # self._validate_index(key)
+        self._validate_index(key)
         if isinstance(key, Array):
             # Indexing self._array with array_api arrays can be erroneous
             key = key._array
         if isinstance(value, Array):
             value = value._array
-        if self.ndim == 0 and isinstance(key, type(...)):
-            self._array = ht.asarray(value)
-        else:
-            self._array.__setitem__(key, value)
+        self._array.__setitem__(key, value)
 
     def __sub__(self: Array, other: Union[int, float, Array], /) -> Array:
         """
@@ -726,15 +868,26 @@ class Array:
         res = self._array.__rtruediv__(other._array)
         return self.__class__._new(res)
 
-    # def to_device(self: Array, device: Device, /, stream: Optional[Union[int, Any]] = None) -> Array:
-    #     """
-    #     Copy the array from the device on which it currently resides to the specified ``device``.
-    #     """
-    #     if stream is not None:
-    #         raise ValueError("The stream argument to to_device() is not supported")
-    #     if device == 'cpu':
-    #         return self
-    #     raise ValueError(f"Unsupported device {device!r}")
+    def to_device(
+        self: Array, device: Device, /, stream: Optional[Union[int, Any]] = None
+    ) -> Array:
+        """
+        Copy the array from the device on which it currently resides to the specified ``device``.
+
+        Parameters
+        ----------
+        device : Device
+            A ``Device`` object.
+        stream : Optional[Union[int, Any]]
+            Stream object to use during copy.
+        """
+        if stream is not None:
+            raise ValueError("The stream argument to to_device() is not supported")
+        if device == cpu:
+            return self._array.cpu()
+        elif device == gpu:
+            return self._array.gpu()
+        raise ValueError(f"Unsupported device {device!r}")
 
     @property
     def dtype(self) -> Dtype:
@@ -755,9 +908,11 @@ class Array:
         """
         Transpose of a matrix (or a stack of matrices).
         """
+        from .linalg import matrix_transpose
+
         if self.ndim < 2:
             raise ValueError("x.mT requires x to have at least 2 dimensions.")
-        return self._array.transpose(axes=list(range(self.ndim))[:-2] + [-1, -2])
+        return matrix_transpose(self)
 
     @property
     def ndim(self) -> int:

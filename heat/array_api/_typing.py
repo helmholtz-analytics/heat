@@ -13,7 +13,12 @@ from ._dtypes import (
     bool,
 )
 
-from heat.core.devices import Device
+from heat.core.devices import Device, cpu
+
+try:
+    from heat.core.devices import gpu
+except ImportError:
+    pass
 
 Dtype = Union[
     int8,

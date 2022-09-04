@@ -7,6 +7,7 @@ if TYPE_CHECKING:
 from ._dtypes import _all_dtypes, _floating_dtypes, default_float, default_int, bool as api_bool
 
 import heat as ht
+import torch
 
 
 def arange(
@@ -105,7 +106,7 @@ def asarray(
             raise OverflowError("Integer out of bounds for array dtypes")
         elif isinstance(obj, float):
             dtype = default_float
-    res = ht.asarray(obj, dtype=dtype, copy=copy, device=device)
+    res = ht.asarray(obj, dtype=dtype, device=device)
     return Array._new(res)
 
 
@@ -192,6 +193,21 @@ def eye(
     if n_cols is None:
         n_cols = n_rows
     return Array._new(ht.eye((n_rows, n_cols), dtype=dtype, device=device))
+
+
+def from_dlpack(x: object, /) -> Array:
+    """
+    Returns a new array containing the data from another (array) object with a
+    ``__dlpack__`` method.
+
+    Parameters
+    ----------
+    x : object
+        Input (array) object.
+    """
+    from ._array_object import Array
+
+    return Array._new(torch.from_dlpack(x))
 
 
 def full(
