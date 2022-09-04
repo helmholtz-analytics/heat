@@ -52,7 +52,7 @@ def abs(
     if dtype is not None and not issubclass(dtype, dtype):
         raise TypeError("dtype must be a heat data type")
 
-    absolute_values = _operations.__local_op(torch.abs, x)
+    absolute_values = _operations.__local_op(torch.abs, x, out)
     if dtype is not None:
         absolute_values.larray = absolute_values.larray.type(dtype.torch_type())
         absolute_values._DNDarray__dtype = dtype
