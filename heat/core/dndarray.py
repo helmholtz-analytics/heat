@@ -775,9 +775,9 @@ class DNDarray:
                             sending_counts[:, i] = key.larray[:, 0][cond1 & cond2].shape[0]
                         else:
                             sending_counts[:, i] = key.larray[:, 0][cond1].shape[0]
-                        # if sending_counts[:,first_send_rank:].sum() == key_counts[arr.comm.rank]:
-                        #     # all local counts accounted for
-                        #     break
+                        if sending_counts[:, first_send_rank:].sum() == key_counts[arr.comm.rank]:
+                            # all local counts accounted for
+                            break
                     # dispatch sending counts information
                     sending_counts_buf = torch.zeros(
                         (arr.comm.size, arr.comm.size),
@@ -786,26 +786,23 @@ class DNDarray:
                     )
                     arr.comm.Allgather(sending_counts, sending_counts_buf)
                     target_counts = sending_counts_buf.sum(dim=0)
-                    target_displs = torch.cat(
-                        (
-                            torch.tensor(
-                                [0], dtype=target_counts.dtype, device=target_counts.device
-                            ),
-                            target_counts,
-                        ),
-                        dim=0,
-                    ).cumsum(dim=0)[:-1]
                     target_key_lshape_map = key.lshape_map
-                    target_key_lshape_map[:, 0] = target_displs
+                    target_key_lshape_map[:, 0] = target_counts
                     key.redistribute_(target_map=target_key_lshape_map)
                     # finally swap split axis column back into original position
                     key.larray = key.larray.index_select(1, torch.LongTensor(col_swap))
+                    # sort local key again after swapping columns
+                    key.larray = key.larray.unique(dim=0, sorted=True, return_inverse=False)
                     # return local key as tuple of 1D tensors
                     key.larray[:, arr.split] -= displs[arr.comm.rank]
-                    key = key.larray.split(1, dim=1)
+                    key = list(key.larray.split(1, dim=1))
+                    for i, k in enumerate(key):
+                        key[i] = k.squeeze(1)
+                    key = tuple(key)
                     output_shape = (nz_size.item(),)
                     new_split = 0
-                    split_key_is_sorted = True
+                    # key is local but not sorted in the new_split dimension, needs Alltoallv communication after local indexing
+                    split_key_is_sorted = False
                     out_is_balanced = False
                 return arr, key, output_shape, new_split, split_key_is_sorted, out_is_balanced
 
@@ -1014,7 +1011,7 @@ class DNDarray:
         """
         # key can be: int, tuple, list, slice, DNDarray, torch tensor, numpy array, or sequence thereof
         # Trivial cases
-        print("DEBUGGING: RAW KEY = ", key)
+        # print("DEBUGGING: RAW KEY = ", key)
 
         # Single-element indexing
         scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
@@ -1106,6 +1103,10 @@ class DNDarray:
                 balanced=out_is_balanced,
                 comm=self.comm,
             )
+
+        # TODO: boolean indexing with data.split != 0
+        # __process_key() returns locally correct key
+        # after local indexing, Alltoallv for correct order of output
 
         # data are distributed and split dimension is affected by indexing
         # __process_key() returns the local key already
