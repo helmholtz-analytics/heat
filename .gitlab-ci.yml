@@ -1,12 +1,11 @@
+default:
+  image: ubuntu:20.04
+  tags: heat
+
 stages:
   - build
   - test
   - deploy
-
-image: ubuntu:20.04
-
-tags:
-  - heat
 
 build_a:
   stage: build
