@@ -1,6 +1,7 @@
 default:
   image: ubuntu:20.04
-  tags: heat
+  tags:
+    - heat
 
 stages:
   - build
