@@ -36,6 +36,7 @@ __all__ += [
     "empty",
     "empty_like",
     "eye",
+    "from_dlpack",
     "full",
     "full_like",
     "linspace",
