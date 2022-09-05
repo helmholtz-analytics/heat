@@ -1,34 +1,18 @@
-default:
+test:
   image: ubuntu:20.04
   tags:
-    - heat
-
-stages:
-  - build
-  - test
-  - deploy
-
-build_a:
-  stage: build
+  - heat
   script:
-    - apt update
-    - apt -y install build-essential python3-pip curl
-    - DEBIAN_FRONTEND=noninteractive apt -y install libopenmpi-dev openmpi-bin openmpi-doc
-    - pip install pytest coverage
-    - pip install .
-  
-test_a:
-  stage: test
-  script:
-    - COVERAGE_FILE=report/cov/coverage1 mpirun --allow-run-as-root -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/
-    - COVERAGE_FILE=report/cov/coverage2 mpirun --allow-run-as-root -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report2.xml heat/
-    - COVERAGE_FILE=report/cov/coverage5 mpirun --allow-run-as-root -n 5 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report5.xml heat/
-    - COVERAGE_FILE=report/cov/coverage8 mpirun --allow-run-as-root -n 8 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report8.xml heat/
-
-deploy_a:
-  stage: deploy
-  script:
-    - coverage combine report/cov/*
-    - coverage report
-    - coverage xml
-    - curl -s https://codecov.io/bash | bash -s -- -c -F unit -f coverage.xml -t $CODECOV_TOKEN  || echo "Codecov failed to upload"
+  - apt update
+  - apt -y install build-essential python3-pip curl
+  - DEBIAN_FRONTEND=noninteractive apt -y install libopenmpi-dev openmpi-bin openmpi-doc
+  - pip install pytest coverage
+  - pip install .
+  - COVERAGE_FILE=report/cov/coverage1 mpirun --allow-run-as-root -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/
+  - COVERAGE_FILE=report/cov/coverage2 mpirun --allow-run-as-root -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report2.xml heat/
+  - COVERAGE_FILE=report/cov/coverage5 mpirun --allow-run-as-root -n 5 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report5.xml heat/
+  - COVERAGE_FILE=report/cov/coverage8 mpirun --allow-run-as-root -n 8 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report8.xml heat/
+  - coverage combine report/cov/*
+  - coverage report
+  - coverage xml
+  - curl -s https://codecov.io/bash | bash -s -- -c -F unit -f coverage.xml -t $CODECOV_TOKEN  || echo "Codecov failed to upload"
