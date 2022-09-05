@@ -143,8 +143,28 @@ class TestLogical(TestCase):
         # test keepdim
         ones_2d = ht.ones((1, 1))
         self.assertEqual(ones_2d.all(keepdim=True).shape, ones_2d.shape)
+
         ones_2d_split = ht.ones((2, 2), split=0)
-        self.assertEqual(ones_2d_split.all(keepdim=True).ndim, 2)
+        keepdim_is_one = ones_2d_split.all(keepdim=True)
+        self.assertEqual(keepdim_is_one.shape, (1, 1))
+        self.assertEqual(keepdim_is_one.split, None)
+        keepdim_is_one = ones_2d_split.all(axis=0, keepdim=True)
+        self.assertEqual(keepdim_is_one.shape, (1, 2))
+        self.assertEqual(keepdim_is_one.split, None)
+        keepdim_is_one = ones_2d_split.all(axis=1, keepdim=True)
+        self.assertEqual(keepdim_is_one.shape, (2, 1))
+        self.assertEqual(keepdim_is_one.split, 0)
+
+        ones_2d_split = ht.ones((2, 2), split=1)
+        keepdim_is_one = ones_2d_split.all(keepdim=True)
+        self.assertEqual(keepdim_is_one.shape, (1, 1))
+        self.assertEqual(keepdim_is_one.split, None)
+        keepdim_is_one = ones_2d_split.all(axis=0, keepdim=True)
+        self.assertEqual(keepdim_is_one.shape, (1, 2))
+        self.assertEqual(keepdim_is_one.split, 1)
+        keepdim_is_one = ones_2d_split.all(axis=1, keepdim=True)
+        self.assertEqual(keepdim_is_one.shape, (2, 1))
+        self.assertEqual(keepdim_is_one.split, None)
 
         # exceptions
         with self.assertRaises(ValueError):
@@ -221,8 +241,28 @@ class TestLogical(TestCase):
         # test keepdim
         ones_2d = ht.ones((1, 1))
         self.assertEqual(ones_2d.any(keepdim=True).shape, ones_2d.shape)
+
         ones_2d_split = ht.ones((2, 2), split=0)
-        self.assertEqual(ones_2d_split.any(keepdim=True).ndim, 2)
+        keepdim_any = ones_2d_split.any(keepdim=True)
+        self.assertEqual(keepdim_any.shape, (1, 1))
+        self.assertEqual(keepdim_any.split, None)
+        keepdim_any = ones_2d_split.any(axis=0, keepdim=True)
+        self.assertEqual(keepdim_any.shape, (1, 2))
+        self.assertEqual(keepdim_any.split, None)
+        keepdim_any = ones_2d_split.any(axis=1, keepdim=True)
+        self.assertEqual(keepdim_any.shape, (2, 1))
+        self.assertEqual(keepdim_any.split, 0)
+
+        ones_2d_split = ht.ones((2, 2), split=1)
+        keepdim_any = ones_2d_split.any(keepdim=True)
+        self.assertEqual(keepdim_any.shape, (1, 1))
+        self.assertEqual(keepdim_any.split, None)
+        keepdim_any = ones_2d_split.any(axis=0, keepdim=True)
+        self.assertEqual(keepdim_any.shape, (1, 2))
+        self.assertEqual(keepdim_any.split, 1)
+        keepdim_any = ones_2d_split.any(axis=1, keepdim=True)
+        self.assertEqual(keepdim_any.shape, (2, 1))
+        self.assertEqual(keepdim_any.split, None)
 
     def test_isclose(self):
         size = ht.communication.MPI_WORLD.size
