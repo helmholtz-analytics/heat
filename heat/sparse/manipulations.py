@@ -18,7 +18,7 @@ __all__ = [
 
 def todense(sparse_matrix: Dcsr_matrix, order=None, out: DNDarray = None):
     # TODO: Things that have been ignored and to be implemented
-    #   1. order
+    #   1. order --> Later if needed
 
     if out is not None:
         if out.shape != sparse_matrix.shape:

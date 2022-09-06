@@ -86,6 +86,7 @@ def __binary_op_sparse(
             gnnz=lnnz,
             lnnz=lnnz,
             gshape=t1.shape,
+            lshape=t1.lshape,
             dtype=result.dtype,
             split=output_split,
             device=output_device,

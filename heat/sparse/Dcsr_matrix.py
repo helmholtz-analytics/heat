@@ -53,6 +53,10 @@ class Dcsr_matrix:
 
         global_indptr = self.lindptr + int(all_nnz[self.comm.rank])
 
+        # Remove the (n+1) the element from all the processes except last
+        if self.comm.rank != self.comm.size - 1:
+            global_indptr = global_indptr[:-1]
+
         return array(
             global_indptr,
             dtype=self.lindptr.dtype,
@@ -103,6 +107,13 @@ class Dcsr_matrix:
         return data_buffer
 
     @property
+    def gdata(self) -> torch.Tensor:
+        """
+        Global data of the ``Dcsr_matrix``
+        """
+        return self.data
+
+    @property
     def ldata(self) -> torch.Tensor:
         """
         Local data of the ``Dcsr_matrix``
@@ -114,25 +125,14 @@ class Dcsr_matrix:
         """
         Global indptr of the ``Dcsr_matrix``
         """
-        if self.split is None:
-            return self.lindptr
+        return self.global_indptr().resplit(axis=None).larray
 
-        indptr_buffer = torch.zeros(size=(self.shape[0],), dtype=self.lindptr.dtype)
-        local_gindptr = self.global_indptr().larray[:-1]  # Remove the (n+1)th element
-        last_element = torch.tensor([self.gnnz])
-
-        counts = torch.zeros(self.comm.size)
-        counts[self.comm.rank] = self.lshape[0]
-        self.comm.Allreduce(MPI.IN_PLACE, counts, MPI.SUM)
-        displs = [0] + torch.cumsum(counts, dim=0)[:-1].tolist()
-        counts = counts.tolist()
-
-        self.comm.Allgatherv(local_gindptr, (indptr_buffer, counts, displs))
-
-        indptr_buffer = torch.cat(
-            (indptr_buffer, last_element)
-        )  # Add the (n+1)th element to the final ind_ptr
-        return indptr_buffer
+    @property
+    def gindptr(self) -> torch.Tensor:
+        """
+        Global indptr of the ``Dcsr_matrix``
+        """
+        return self.indptr
 
     @property
     def lindptr(self) -> torch.Tensor:
@@ -153,6 +153,13 @@ class Dcsr_matrix:
         counts, displs = self.counts_displs_nnz()
         self.comm.Allgatherv(self.lindices, (indices_buffer, counts, displs))
         return indices_buffer
+
+    @property
+    def gindices(self) -> torch.Tensor:
+        """
+        Global indices of the ``Dcsr_matrix``
+        """
+        return self.indices
 
     @property
     def lindices(self) -> torch.Tensor:
@@ -188,6 +195,13 @@ class Dcsr_matrix:
         Global shape of the ``Dcsr_matrix``
         """
         return self.__gshape
+
+    @property
+    def gshape(self) -> int:
+        """
+        Global shape of the ``Dcsr_matrix``
+        """
+        return self.shape
 
     @property
     def lshape(self) -> int:
