@@ -36,8 +36,8 @@ class TestSparse(TestCase):
         self.assertTrue(t_sparse.ldata.eq(sparse_data[rank]).all())
         self.assertTrue(t_sparse.lindptr.eq(sparse_indptr[rank]).all())
         self.assertTrue(t_sparse.lindices.eq(sparse_indices[rank]).all())
-        self.assertTrue(t_sparse.lnnz == sparse_lnnz[rank])
-        self.assertTrue(t_sparse.gnnz == len(data))
+        self.assertEqual(t_sparse.lnnz, sparse_lnnz[rank])
+        self.assertEqual(t_sparse.gnnz, len(data))
 
         # print(f"Rank: {rank} Passed tests: split = 0")
 
@@ -69,7 +69,7 @@ class TestSparse(TestCase):
         sparse_data = torch.Tensor([[1, 2, 3], [4, 5, 6]])
         sparse_indptr = [torch.Tensor([0, 2, 3]), torch.Tensor([0, 3])]
         sparse_indices = torch.Tensor([[0, 2, 2], [0, 1, 2]])
-        sparse_global_indptr = [torch.Tensor([0, 2, 3]), torch.Tensor([3, 6])]
+        sparse_global_indptr = [torch.Tensor([0, 2]), torch.Tensor([3, 6])]
 
         t = torch.sparse_csr_tensor(
             torch.tensor(sparse_indptr[rank], dtype=torch.int64),
@@ -79,12 +79,12 @@ class TestSparse(TestCase):
         t_sparse = ht.sparse.sparse_csr_matrix(t, is_split=0)
 
         self.assertTrue(isinstance(t_sparse, ht.sparse.Dcsr_matrix))
-        self.assertTrue(t_sparse.shape == (3, 3))
-        self.assertTrue(t_sparse.lshape == (len(sparse_indptr[rank]) - 1, 3))
+        self.assertEqual(t_sparse.shape, (3, 3))
+        self.assertEqual(t_sparse.lshape, (len(sparse_indptr[rank]) - 1, 3))
 
         global_indptr = t_sparse.global_indptr()
         self.assertTrue(global_indptr.larray.eq(sparse_global_indptr[rank]).all())
-        self.assertTrue(global_indptr.shape == (5,))
+        self.assertEqual(global_indptr.shape, (4,))
 
         # print(f'''Rank: {rank}
         #         data: {t_sparse.ldata}
