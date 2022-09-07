@@ -61,6 +61,14 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     [0/3] DNDarray([3., 3., 3.])
     [1/3] DNDarray([3., 3., 3.])
     [2/3] DNDarray([3., 3.])
+    >>> a = ht.ones(10, split = 0)
+    >>> v = ht.arange(3, split = 0)
+    >>> ht.convolve(a, v)
+    DNDarray([0., 1., 3., 3., 3., 3., 3., 3., 3., 3., 3., 2.], dtype=ht.float32, device=cpu:0, split=0)
+
+    [0/3] DNDarray([0., 1., 3., 3.])
+    [1/3] DNDarray([3., 3., 3., 3.])
+    [2/3] DNDarray([3., 3., 3., 2.])
     """
     if not isinstance(a, DNDarray):
         try:
@@ -76,8 +84,6 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
 
-    # if v.is_distributed() and (mode == "full" or mode == "same"):
-    #     raise TypeError("Distributed filter weights only supportes valid mode")
     if len(a.shape) != 1 or len(v.shape) != 1:
         raise ValueError("Only 1-dimensional input DNDarrays are allowed")
     if mode == "same" and v.shape[0] % 2 == 0:
@@ -128,6 +134,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         weight = v.larray
 
     t_v = weight  # stores temporary weight
+    
     # make signal and filter weight 3D for Pytorch conv1d function
     signal = signal.reshape(1, 1, signal.shape[0])
     weight = weight.reshape(1, 1, weight.shape[0])
