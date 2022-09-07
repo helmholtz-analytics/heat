@@ -19,7 +19,7 @@ jobs:
             cd fork/heat/benchmarks/pytest-benchmarks/
             ./run_benchmarks.sh
           host: ${{ secrets.HDFML_HOST }}
-          username: berhanu1
+          username: ${{ secrets.HDFML_USER_NAME }}
           privateKey: ${{ secrets.HDFML_KEY}}
           passphrase: ${{ secrets.HDFML_PASSPHRASE }}
 
