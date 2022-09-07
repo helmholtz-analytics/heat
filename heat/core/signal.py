@@ -134,7 +134,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         weight = v.larray
 
     t_v = weight  # stores temporary weight
-    
+
     # make signal and filter weight 3D for Pytorch conv1d function
     signal = signal.reshape(1, 1, signal.shape[0])
     weight = weight.reshape(1, 1, weight.shape[0])
