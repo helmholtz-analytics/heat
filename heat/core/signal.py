@@ -244,9 +244,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     out : ht.tensor
         Discrete, linear convolution of 'a' and 'v'.
 
-    Note : There is  differences to the numpy convolve function:
-        The inputs are not swapped if v is larger than a. The reason is that v needs to be
-        non-splitted. This should not influence performance. If the filter weight is larger
+    Note : If the filter weight is larger
         than fitting into memory, using the FFT for convolution is recommended.
 
     Example
@@ -257,6 +255,17 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     DNDarray([[9., 9., 9.],
               [9., 9., 9.],
               [9., 9., 9.]], dtype=ht.float32, device=cpu:0, split=None)
+
+    >>> a = ht.ones((5,5), split=1)
+    >>> v = ht.ones((3,3), split=1)
+    >>> ht.convolve2d(a, v)
+    DNDarray([[1., 2., 3., 3., 3., 2., 1.],
+              [2., 4., 6., 6., 6., 4., 2.],
+              [3., 6., 9., 9., 9., 6., 3.],
+              [3., 6., 9., 9., 9., 6., 3.],
+              [3., 6., 9., 9., 9., 6., 3.],
+              [2., 4., 6., 6., 6., 4., 2.],
+              [1., 2., 3., 3., 3., 2., 1.]], dtype=ht.float32, device=cpu:0, split=1)
     """
     if not isinstance(a, DNDarray):
         try:
@@ -275,8 +284,6 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     if a.shape[0] < v.shape[0] and a.shape[1] < v.shape[1]:
         a, v = v, a
 
-    if v.is_distributed() and (mode == "full" or mode == "same"):
-        raise TypeError("Distributed filter weights only supportes valid mode")
     if len(a.shape) != 2 or len(v.shape) != 2:
         raise ValueError("Only 2-dimensional input DNDarrays are allowed")
     if a.shape[0] <= v.shape[0] or a.shape[1] <= v.shape[1]:
@@ -312,7 +319,11 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
         gshape = (gshape_0, gshape_1)
 
     elif mode == "same":
-        pad = list((halo_size,) * 4)
+        if a.split == 0 or a.split is None:
+            pad_size = v.shape[0] // 2
+        else:
+            pad_size = v.shape[1] // 2
+        pad = list((pad_size,) * 4)
         gshape = (a.shape[0], a.shape[1])
 
     elif mode == "valid":
