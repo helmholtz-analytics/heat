@@ -1104,6 +1104,76 @@ class DNDarray:
                 comm=self.comm,
             )
 
+        # key along new_split is not sorted
+        # apply local key then reorder global indexed array
+        indexed_arr = self.larray[key]
+        # prepare for Alltoallv: allocate buffer
+        non_ordered = DNDarray(
+            indexed_arr,
+            gshape=output_shape,
+            dtype=self.dtype,
+            split=output_split,
+            device=self.device,
+            balanced=out_is_balanced,
+            comm=self.comm,
+        )
+        _, non_ordered_displs = non_ordered.counts_displs()
+        ordered = non_ordered.balance()
+        ordered_counts, _ = ordered.counts_displs()
+        # for every dimension of self, how many elements on what process
+        ndim_counts_on_proc = torch.zeros(
+            (self.ndim, 1), dtype=torch.int64, device=self.larray.device
+        )
+        ndim_displs_on_proc = torch.zeros(
+            (self.ndim,), dtype=torch.int64, device=self.larray.device
+        )
+        for i in range(0, self.ndim):
+            where_dim = torch.where(key[output_split] == i)[0]
+            ndim_counts_on_proc[i, :] = where_dim.shape[0]
+            ndim_displs_on_proc[i] = where_dim[0].item()
+        ndim_displs_on_proc += non_ordered_displs[self.comm.rank]
+        # share info to all processes
+        global_ndim_counts = torch.empty(
+            (self.ndim, self.comm.size),
+            dtype=ndim_counts_on_proc.dtype,
+            device=ndim_counts_on_proc.device,
+        )
+        self.comm.Allgather(ndim_counts_on_proc, global_ndim_counts)
+        # construct communication matrix: what process sends how many elements to whom
+        comm_on_rank = torch.zeros(
+            (1, self.comm.size), dtype=torch.int64, device=global_ndim_counts.device
+        )
+        counts_bookkeeping = global_ndim_counts.flatten()
+        ordered_counts = torch.tensor(ordered_counts, device=counts_bookkeeping.device)
+        _, indices = torch.cat(
+            (counts_bookkeeping.cumsum(0), ordered_counts.cumsum(0)), dim=0
+        ).unique(sorted=True, return_inverse=True)
+        for i in range(-self.comm.size, 0):
+            send_r = self.comm.size + i
+            end = indices[i]
+            if send_r == 0:
+                start = 0
+                comm_on_rank[:, send_r] = counts_bookkeeping[
+                    slice(start + self.comm.rank % self.comm.size, end, self.comm.size)
+                ].sum()
+            else:
+                start = indices[i - 1]
+                slice_start = start + (self.comm.rank - start) % self.comm.size
+                comm_on_rank[:, send_r] = counts_bookkeeping[
+                    slice(slice_start, end, self.comm.size)
+                ].sum()
+            leftover_counts = ordered_counts[send_r] - counts_bookkeeping[start:end].sum()
+            if leftover_counts > 0:
+                counts_bookkeeping[indices[i]] -= leftover_counts
+                if self.comm.rank == indices[i] % self.comm.size:
+                    comm_on_rank[:, send_r] += leftover_counts
+        # share info
+        comm_matrix = torch.zeros(
+            (self.comm.size, self.comm.size), dtype=torch.int64, device=global_ndim_counts.device
+        )
+        self.comm.Allgather(comm_on_rank, comm_matrix)
+        # example: comm_matrix[0, 1] returns the counts that rank 0 is about to send to rank 1
+
         # TODO: boolean indexing with data.split != 0
         # __process_key() returns locally correct key
         # after local indexing, Alltoallv for correct order of output
