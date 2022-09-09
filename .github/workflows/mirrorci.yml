@@ -1,14 +1,6 @@
 name: Mirror and run GitLab CI
 
-on:
-  push:
-    branches:
-    - 'main'
-    - 'release/**'
-  pull_request:
-    branches:
-    - 'main'
-    - 'release/**'
+on: [push]
 
 jobs:
   build:
