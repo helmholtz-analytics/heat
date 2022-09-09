@@ -155,7 +155,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     else:
         raise ValueError("Supported modes are 'full', 'valid', 'same', got {}".format(mode))
 
-    print("signal2: ", a.lshape, a.comm.rank)
+    # print("signal2: ", a.lshape, a.comm.rank)
 
     a = pad(a, pad_size, "constant", 0)
 
@@ -286,8 +286,8 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
 
     if len(a.shape) != 2 or len(v.shape) != 2:
         raise ValueError("Only 2-dimensional input DNDarrays are allowed")
-    if a.shape[0] <= v.shape[0] or a.shape[1] <= v.shape[1]:
-        raise ValueError("Filter size must not be greater than or equal to signal size")
+    if a.shape[0] < v.shape[0] or a.shape[1] < v.shape[1]:
+        raise ValueError("Filter size must not be greater than the  signal size")
     if mode == "same" and v.shape[0] % 2 == 0:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
     if (a.split == 0 and v.split == 1) or (a.split == 1 and v.split == 0):
@@ -300,7 +300,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
         halo_size = int(v.lshape_map[0][1]) // 2
 
     # fetch halos and store them in a.halo_next/a.halo_prev
-    print("qqa: ", halo_size)
+    # print("qqa: ", halo_size)
     a.get_halo(halo_size)
 
     # apply halos to local array
