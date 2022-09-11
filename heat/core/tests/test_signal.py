@@ -220,8 +220,8 @@ class TestSignal(TestCase):
 
                 # distributed large signal and kernel
                 np.random.seed(12)
-                np_a = np.random.randint(1000, size = (41, 41))
-                np_b = np.random.randint(1000, size = (41, 41))
+                np_a = np.random.randint(1000, size = (140, 250))
+                np_b = np.random.randint(1000, size = (39, 17))
                 sc_conv = sig.convolve2d(np_a, np_b, mode=mode)
 
                 a = ht.array(np_a, split=0, dtype=ht.int32)

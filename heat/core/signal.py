@@ -311,19 +311,17 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
         raise ValueError("Local signal chunk size is smaller than the local filter size.")
 
     if mode == "full":
-        pad_0 = v.shape[0] - 1
-        pad_1 = v.shape[1] - 1
+        pad_0 = v.shape[1] - 1
+        pad_1 = v.shape[0] - 1
         gshape_0 = v.shape[0] + a.shape[0] - 1
         gshape_1 = v.shape[1] + a.shape[1] - 1
         pad = list((pad_0, pad_0, pad_1, pad_1))
         gshape = (gshape_0, gshape_1)
 
     elif mode == "same":
-        if a.split == 0 or a.split is None:
-            pad_size = v.shape[0] // 2
-        else:
-            pad_size = v.shape[1] // 2
-        pad = list((pad_size,) * 4)
+        pad_0 = v.shape[1] // 2
+        pad_1 = v.shape[0] // 2
+        pad = list((pad_0, pad_0, pad_1, pad_1))
         gshape = (a.shape[0], a.shape[1])
 
     elif mode == "valid":
