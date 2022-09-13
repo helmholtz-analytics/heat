@@ -6,7 +6,7 @@ on:
 
 jobs:
   approved:
-    if: github.event.review.state == 'approved' && !contains( github.event.pull_request.labels.*.name, 'documentation')
+    if: github.event.review.state == 'approved'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
