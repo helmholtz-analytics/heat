@@ -30,6 +30,8 @@ def sparse_csr_matrix(
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
 ) -> Dcsr_matrix:
+    # the only accepted input types are
+    # `scipy.sparse.csr_matrix` and `torch.sparse_csr_tensor`
 
     # TODO:
     # Things I have not really paid attention to:
