@@ -6,7 +6,8 @@ test:
   - apt update
   - apt -y install build-essential python3-pip curl
   - DEBIAN_FRONTEND=noninteractive apt -y install libopenmpi-dev openmpi-bin openmpi-doc
-  - pip install pytest coverage
+  - libhdf5-openmpi-dev libpnetcdf-dev
+  - pip install pytest coverage h5py netcdf
   - pip install .
   - COVERAGE_FILE=report/cov/coverage1 mpirun --allow-run-as-root -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/
   - COVERAGE_FILE=report/cov/coverage2 mpirun --allow-run-as-root -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report2.xml heat/
