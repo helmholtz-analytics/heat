@@ -28,3 +28,7 @@ def sparse_mul(t1: Union[Dcsr_matrix, float], t2: Union[Dcsr_matrix, float]) -> 
 
 
 Dcsr_matrix.__mul__ = lambda self, other: sparse_mul(self, other)
+
+# def sparse_sub(t1: Union[Dcsr_matrix, float], t2: Union[Dcsr_matrix, float]) -> Dcsr_matrix:
+#     return _operations.__binary_op_sparse(torch.sub, t1, t2)
+# Dcsr_matrix.__sub__ = lambda self, other: sparse_sub(self, other)

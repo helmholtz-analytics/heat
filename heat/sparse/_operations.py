@@ -1,13 +1,12 @@
 """
 Generalized MPI operations. i.e. element-wise binary operations
 """
-
-import numpy as np
 import torch
 
 from heat.sparse.dcsr_matrix import Dcsr_matrix
 
 from . import factories
+from ..core.communication import MPI
 from ..core.dndarray import DNDarray
 from ..core import types
 
@@ -26,19 +25,26 @@ def __binary_op_sparse(
 ) -> Dcsr_matrix:
     # TODO: where argument
 
-    # Check inputs
-    if not np.isscalar(t1) and not isinstance(t1, Dcsr_matrix):
+    # Check inputs --> for now, only `Dcsr_matrix` accepted
+    # TODO: Might have to include scalars and `DNDarray`
+    if not isinstance(t1, Dcsr_matrix):
         raise TypeError(
-            "Only Dcsr_matrices and numeric scalars are supported, but input was {}".format(
-                type(t1)
-            )
+            f"Only Dcsr_matrices and numeric scalars are supported, but input was {type(t1)}"
         )
-    if not np.isscalar(t2) and not isinstance(t2, Dcsr_matrix):
+    if not isinstance(t2, Dcsr_matrix):
         raise TypeError(
-            "Only Dcsr_matrices and numeric scalars are supported, but input was {}".format(
-                type(t2)
-            )
+            f"Only Dcsr_matrices and numeric scalars are supported, but input was {type(t2)}"
         )
+    promoted_type = types.result_type(t1, t2).torch_type()
+
+    # For now restrict input shapes to be the same
+    # TODO: allow broadcasting?
+    if t1.shape != t2.shape:
+        raise ValueError(
+            f"Dcsr_matrices of different shapes are not supported, but input shapes were {t1.shape} and {t2.shape}"
+        )
+    output_shape = t1.shape
+    output_lshape = t1.lshape
 
     def __get_out_params(target, other=None, map=None):
         """
@@ -48,10 +54,10 @@ def __binary_op_sparse(
 
         Parameters
         ----------
-        target : DNDarray
-            DNDarray determining the parameters
-        other : DNDarray
-            DNDarray to be adapted
+        target : Dcsr_matrix
+            Dcsr_matrix determining the parameters
+        other : Dcsr_matrix
+            Dcsr_matrix to be adapted
         map : Tensor
             lshape_map `other` should be matched to. Defaults to `target.lshape_map`
 
@@ -60,34 +66,68 @@ def __binary_op_sparse(
         Tuple
             split, device, comm, balanced, [other]
         """
-        if other is not None:
-            # if out is None:
-            # other = sanitation.sanitize_distribution(other, target=target, diff_map=map)
-            return target.split, target.device, target.comm, target.balanced, other
+        # For now, assume that distributions of both the inputs are the same
+        # TODO: allow unbalanced inputs that require resplit?
+        # if other is not None:
+        #     if out is None:
+        #         other = sanitation.sanitize_distribution(other, target=target, diff_map=map)
+        #     return target.split, target.device, target.comm, target.balanced, other
         return target.split, target.device, target.comm, target.balanced
 
-    if (isinstance(t1, Dcsr_matrix) and t1.split) or (isinstance(t2, Dcsr_matrix) and t2.split):
-        if isinstance(t1, Dcsr_matrix) and t1.split is None:
+    if t1.split is not None or t2.split is not None:
+        if t1.split is None:
             t1 = factories.sparse_csr_matrix(t1.larray, split=0)
 
-        if isinstance(t2, Dcsr_matrix) and t2.split is None:
+        if t2.split is None:
             t2 = factories.sparse_csr_matrix(t2.larray, split=0)
-        output_split, output_device, output_comm, output_balanced, t1 = __get_out_params(t2, t1)
-    else:  # both are not split
-        output_split, output_device, output_comm, output_balanced = __get_out_params(t1)
+    output_split, output_device, output_comm, output_balanced = __get_out_params(t1)
 
-    # TODO: does not really work with other data types
-    result = operation(t1.larray.to(torch.float32), t2.larray.to(torch.float32), **fn_kwargs)
+    # sanitize out buffer
+    if out is not None:
+        if out.shape != output_shape:
+            raise ValueError(
+                f"Output buffer shape is not compatible with the result. Expected {output_shape}, received {out.shape}"
+            )
 
-    lnnz = result.values().shape[0]
+        if out.split != output_split:
+            if out.split is None:
+                out = factories.sparse_csr_matrix(out.larray, split=0)
+            else:
+                # Gather out to single process
+                # TODO: Since out is going to be rewritten anyways,
+                # can we do this more efficiently
+                # without having to copy all values?
+                out = factories.sparse_csr_matrix(
+                    torch.sparse_csr_tensor(
+                        torch.tensor(out.indptr, dtype=torch.int64),
+                        torch.tensor(out.indices, dtype=torch.int64),
+                        torch.tensor(out.data),
+                    )
+                )
+
+        out.device = output_device
+        out.balanced = (
+            output_balanced  # At this point, inputs and out buffer assumed to be balanced
+        )
+    # TODO: torch arithmetic operations not implemented for Integers
+    result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
+
+    output_gnnz = torch.tensor(result._nnz())
+    output_comm.Allreduce(MPI.IN_PLACE, output_gnnz, MPI.SUM)
+    output_gnnz = output_gnnz.item()
+
+    output_lnnz = result._nnz()
+
+    output_type = types.canonical_heat_type(result.dtype)
+
     if out is None and where is None:
         return Dcsr_matrix(
             array=result,
-            gnnz=lnnz,
-            lnnz=lnnz,
-            gshape=t1.shape,
-            lshape=t1.lshape,
-            dtype=result.dtype,
+            gnnz=output_gnnz,
+            lnnz=output_lnnz,
+            gshape=output_shape,
+            lshape=output_lshape,
+            dtype=output_type,
             split=output_split,
             device=output_device,
             comm=output_comm,
@@ -107,5 +147,10 @@ def __binary_op_sparse(
     #         where = sanitation.sanitize_distribution(where, target=out)
     #     result = torch.where(where.larray, result, out.larray)
 
+    # TODO: Any better way to do this?
     out.larray.copy_(result)
+    out.gnnz = output_gnnz
+    out.lnnz = output_lnnz
+    out.dtype = output_type
+    out.comm = output_comm
     return out

@@ -176,11 +176,18 @@ class Dcsr_matrix:
         return len(self.__gshape)
 
     @property
-    def gnnz(self) -> int:
+    def nnz(self) -> int:
         """
         Total number of non-zero elements of the ``Dcsr_matrix``
         """
         return self.__gnnz
+
+    @property
+    def gnnz(self) -> int:
+        """
+        Total number of non-zero elements of the ``Dcsr_matrix``
+        """
+        return self.nnz
 
     @property
     def lnnz(self) -> int:
