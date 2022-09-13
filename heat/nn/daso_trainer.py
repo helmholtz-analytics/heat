@@ -18,6 +18,7 @@ from ..optim.utils import DetectMetricPlateau
 
 try:
     import nvidia.dali as dali
+
     has_dali = True
 except ImportError:
     has_dali = False
@@ -155,7 +156,7 @@ class DASOTrainer(nn.Module):
         scheduler: torch.optim.lr_scheduler = None,
         stability_level: float = 0.05,
         max_global_skips: int = 4,
-        sending_chunk_size: int = 20_000_000,  # 10 MB per bucket
+        sending_chunk_size: int = 1048576,  # 10 MB per bucket
         downcast_type: torch.dtype = torch.bfloat16,
         use_mpi_groups: bool = True,
         skip_reduction_factor: int = 2,
@@ -253,7 +254,9 @@ class DASOTrainer(nn.Module):
         self._gs8_waits = 3
         self._gs8_waited = 0
 
-        self.split_val = sending_chunk_size
+        bytes_dtype = int(torch.finfo(downcast_type).bits // 8)
+
+        self.split_val = sending_chunk_size // bytes_dtype
 
         # TODO: its possible that the split indexes could be used to avoid the concatenating method used currently
         self.split_inds = None
@@ -262,6 +265,7 @@ class DASOTrainer(nn.Module):
         # check for MP lamb
         try:
             from apex.optimizers.fused_mixed_precision_lamb import FusedMixedPrecisionLamb
+
             have_mp_lamb = True
         except ImportError:
             have_mp_lamb = False
@@ -271,12 +275,12 @@ class DASOTrainer(nn.Module):
         else:
             self.enable_mp_lamb = False
 
-        self.enable_gpu_scheduler = (self.enable_distributed_lamb or self.enable_mp_lamb)
+        self.enable_gpu_scheduler = self.enable_distributed_lamb or self.enable_mp_lamb
 
         # we need this for distlamb
         if self.enable_gpu_scheduler:
             # we need that in order for it to work with async graph capture
-            self.lr_cpu = torch.tensor([0.], dtype=torch.float32, device='cpu').pin_memory()
+            self.lr_cpu = torch.tensor([0.0], dtype=torch.float32, device="cpu").pin_memory()
 
         if self.enable_mp_lamb and (self.scheduler is not None):
             # we need to fix what the scheduler screwed up: initializing the
@@ -533,6 +537,7 @@ class DASOTrainer(nn.Module):
     def train_epoch(self, train_loader, batch_size, train_loader_len=None, to_gpu=False):
         self.batch_size = batch_size
         epoch_len = train_loader_len if train_loader_len is not None else self.last_batch
+        loss, outputs, current_lr = None, None, None
         for elems in train_loader:
             data = elems[0]
             labels = elems[1]
@@ -653,7 +658,7 @@ class DASOTrainer(nn.Module):
         if self.enable_gpu_scheduler:
             current_lr = self.static_lr.detach().clone()
         else:
-            current_lr = self.optimizer.param_groups[0]['lr']
+            current_lr = self.optimizer.param_groups[0]["lr"]
 
         # scheduler step if requested:
         if self.scheduler is not None:
@@ -709,9 +714,7 @@ class DASOTrainer(nn.Module):
         # lmod = self.epoch_iter % ls if ls > 0 else 0
 
         btw = (
-            self.batches_to_wait
-            if self.batches_to_wait + self.epoch_iter <= self.last_batch
-            else 0
+            self.batches_to_wait if self.batches_to_wait + self.epoch_iter <= self.last_batch else 0
         )
 
         # do full sync on global skips and on the last batch
@@ -753,9 +756,7 @@ class DASOTrainer(nn.Module):
                 f"currently {type(args['cooldown_threshold'])}"
             )
         if not isinstance(args["warmup_steps"], int):
-            raise TypeError(
-                f"warmup_steps must be an int, currently {type(args['warmup_steps'])}"
-            )
+            raise TypeError(f"warmup_steps must be an int, currently {type(args['warmup_steps'])}")
         if not isinstance(args["cooldown_epochs"], int):
             raise TypeError(
                 f"cooldown_epochs must be an int, currently {type(args['cooldown_epochs'])}"
@@ -825,9 +826,7 @@ class DASOTrainer(nn.Module):
 
     @torch.no_grad()
     def cycling_skip_logic(
-        self,
-        loss: Union[torch.Tensor, int, float],
-        loss_globally_averaged: bool = False
+        self, loss: Union[torch.Tensor, int, float], loss_globally_averaged: bool = False
     ) -> torch.Tensor:
         """
         Function controlling the number of batches between global synchronizations and the batches to wait before
@@ -1124,9 +1123,7 @@ class DASOTrainer(nn.Module):
         snds = {}
         for name, param in self.module.named_parameters():
             if param.requires_grad:
-                snds[name] = dist.broadcast(
-                    param, sending_process, async_op=True
-                )  # default is SUM
+                snds[name] = dist.broadcast(param, sending_process, async_op=True)  # default is SUM
         for name, param in self.module.named_parameters():
             if param.requires_grad:
                 snds[name].wait()
