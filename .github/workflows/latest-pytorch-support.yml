@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - '.github/pytorch-release-versions/*'
-
 env:
   previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<=' '{print $2}' | tr -d '",')
   new_pytorch: $(<.github/pytorch-release-versions/pytorch-latest.txt)
@@ -14,6 +13,9 @@ permissions:
   pull-requests: write
 jobs:
   latest-torch-support:
+    strategy:
+      matrix:
+        branches: ['main', 'release/1.2.x']
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
