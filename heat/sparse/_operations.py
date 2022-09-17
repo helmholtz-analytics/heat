@@ -10,21 +10,54 @@ from ..core.communication import MPI
 from ..core.dndarray import DNDarray
 from ..core import types
 
-from typing import Callable, Optional, Type, Union, Dict
+from typing import Callable, Optional, Dict
 
 __all__ = []
 
 
-def __binary_op_sparse(
+def __binary_op_sparse_csr(
     operation: Callable,
-    t1: Union[Dcsr_matrix, int, float],
-    t2: Union[Dcsr_matrix, int, float],
+    t1: Dcsr_matrix,
+    t2: Dcsr_matrix,
     out: Optional[Dcsr_matrix] = None,
     where: Optional[DNDarray] = None,
     fn_kwargs: Optional[Dict] = {},
 ) -> Dcsr_matrix:
-    # TODO: where argument
+    """
+    Generic wrapper for element-wise binary operations of two operands.
+    Takes the operation function and the two operands involved in the operation as arguments.
 
+    Parameters
+    ----------
+    operation : function
+        The operation to be performed. Function that performs operation elements-wise on the involved tensors,
+        e.g. add values from other to self
+    t1: Dcsr_matrix
+        The first operand involved in the operation.
+    t2: Dcsr_matrix
+        The second operand involved in the operation.
+    out: Dcsr_matrix, optional
+        Output buffer in which the result is placed. If not provided, a freshly allocated matrix is returned.
+    where: DNDarray, optional
+        TODO
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the result of the operation. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations within
+        it where the condition is False will remain uninitialized. If distributed, the split axis (after
+        broadcasting if required) must match that of the `out` array.
+    fn_kwargs: Dict, optional
+        keyword arguments used for the given operation
+        Default: {} (empty dictionary)
+
+    Returns
+    -------
+    result: ht.sparse.Dcsr_matrix
+        A Dcsr_matrix containing the results of element-wise operation.
+
+    Warning
+    -------
+    If both operands are distributed, they must be distributed along the same dimension, i.e. `t1.split = t2.split`.
+    """
     # Check inputs --> for now, only `Dcsr_matrix` accepted
     # TODO: Might have to include scalars and `DNDarray`
     if not isinstance(t1, Dcsr_matrix):
@@ -57,8 +90,10 @@ def __binary_op_sparse(
         target : Dcsr_matrix
             Dcsr_matrix determining the parameters
         other : Dcsr_matrix
+            TODO
             Dcsr_matrix to be adapted
         map : Tensor
+            TODO
             lshape_map `other` should be matched to. Defaults to `target.lshape_map`
 
         Returns
@@ -109,7 +144,10 @@ def __binary_op_sparse(
         out.balanced = (
             output_balanced  # At this point, inputs and out buffer assumed to be balanced
         )
-    # TODO: torch arithmetic operations not implemented for Integers
+    # TODO: torch arithmetic operations not implemented for Integers.
+    # Possible solutions:
+    #  1. Implement ourselves
+    #  2. Convert input to float, use the torch operation then convert back
     result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
 
     output_gnnz = torch.tensor(result._nnz())
@@ -133,19 +171,6 @@ def __binary_op_sparse(
             comm=output_comm,
             balanced=output_balanced,
         )
-
-    # if where is not None:
-    #     if out is None:
-    #         out = factories.empty(
-    #             output_shape,
-    #             dtype=promoted_type,
-    #             split=output_split,
-    #             device=output_device,
-    #             comm=output_comm,
-    #         )
-    #     if where.split != out.split:
-    #         where = sanitation.sanitize_distribution(where, target=out)
-    #     result = torch.where(where.larray, result, out.larray)
 
     # TODO: Any better way to do this?
     out.larray.copy_(result)

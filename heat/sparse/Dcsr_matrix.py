@@ -1,3 +1,4 @@
+"""Provides Dcsr_matrix, a distributed compressed sparse row matrix"""
 from __future__ import annotations
 
 import torch
@@ -5,15 +6,41 @@ import torch
 from mpi4py import MPI
 from typing import Union, Tuple, TypeVar
 
-from heat.core.dndarray import DNDarray
-from heat.core.factories import array
-
 __all__ = ["Dcsr_matrix"]
 
 Communication = TypeVar("Communication")
 
 
 class Dcsr_matrix:
+    """
+    Distributed Compressed Sparse Row Matrix. It is composed of
+    PyTorch sparse_csr_tensors local to each process.
+
+    Parameters
+    ----------
+    array : torch.sparse_csr_tensor
+        Local sparse array
+    gnnz: int
+        Total number of non-zero elements across all processes
+    lnnz: int
+        Total number of non-zero elements in local process
+    gshape : Tuple[int,...]
+        The global shape of the array
+    lshape : Tuple[int,...]
+        The local shape of the array
+    dtype : datatype
+        The datatype of the array
+    split : int or None
+        The axis on which the array is divided between processes
+    device : Device
+        The device on which the local arrays are using (cpu or gpu)
+    comm : Communication
+        The communications object for sending and receiving data
+    balanced: bool or None
+        TODO
+        Describes whether the data are evenly distributed across processes.
+    """
+
     def __init__(
         self,
         array: torch.sparse_csr_tensor,
@@ -40,6 +67,9 @@ class Dcsr_matrix:
         self.__balanced = balanced
 
     def global_indptr(self) -> DNDarray:
+        """
+        Global indptr of the ``Dcsr_matrix`` as a ``DNDarray``
+        """
         # Need to know the number of non-zero elements
         # in the processes with lesser rank
         all_nnz = torch.zeros(self.comm.size + 1)
@@ -245,21 +275,61 @@ class Dcsr_matrix:
         else:
             raise ValueError("Non-distributed DNDarray. Cannot calculate counts and displacements.")
 
+    def astype(self, dtype, copy=True) -> Dcsr_matrix:
+        """
+        Returns a casted version of this matrix.
+        Casted matrix is a new matrix of the same shape but with given type of this matrix. If copy is ``True``, the
+        same matrix is returned instead.
+
+        Parameters
+        ----------
+        dtype : datatype
+            HeAT type to which the matrix is cast
+        copy : bool, optional
+            By default the operation returns a copy of this matrix. If copy is set to ``False`` the cast is performed
+            in-place and this matrix is returned
+
+        """
+        dtype = canonical_heat_type(dtype)
+        casted_matrix = self.__array.type(dtype.torch_type())
+        if copy:
+            return Dcsr_matrix(
+                casted_matrix,
+                self.gnnz,
+                self.lnnz,
+                self.gshape,
+                self.lshape,
+                dtype,
+                self.split,
+                self.device,
+                self.comm,
+                self.balanced,
+            )
+
+        self.__array = casted_matrix
+        self.__dtype = dtype
+
+        return self
+
+    def __repr__(self) -> str:
+        """
+        Computes a printable representation of the passed Dcsr_matrix.
+        """
+        print_string = (
+            f"(indptr: {self.indptr}, indices: {self.indices}, data: {self.data}, "
+            f"dtype=ht.{self.dtype.__name__}, device={self.device}, split={self.split})"
+        )
+
+        # Check has to happen after generating string because
+        # generation of string invokes functions that require
+        # participation from all processes
+        if self.comm.rank != 0:
+            return ""
+        return print_string
+
 
 # HeAT imports at the end to break cyclic dependencies
-from ..core import complex_math
-from ..core import devices
-from ..core import factories
-from ..core import indexing
-from ..core import linalg
-from ..core import manipulations
-from ..core import printing
-from ..core import rounding
-from ..core import sanitation
-from ..core import statistics
-from ..core import stride_tricks
-from ..core import tiling
-
 from ..core.devices import Device
-from ..core.stride_tricks import sanitize_axis
+from ..core.dndarray import DNDarray
+from ..core.factories import array
 from ..core.types import datatype, canonical_heat_type

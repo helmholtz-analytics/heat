@@ -3,7 +3,8 @@
 import torch
 from scipy.sparse import csr_matrix as scipy_csr_matrix
 
-from typing import Optional, Type
+from typing import Optional, Type, Union
+import warnings
 
 from ..core.communication import MPI, sanitize_comm, Communication
 from ..core.devices import Device
@@ -20,7 +21,7 @@ __all__ = [
 
 
 def sparse_csr_matrix(
-    obj: torch.sparse_csr_tensor,
+    obj: Union[torch.sparse_csr_tensor, scipy_csr_matrix],
     dtype: Optional[Type[datatype]] = None,
     copy: bool = True,
     ndmin: int = 0,
@@ -30,16 +31,81 @@ def sparse_csr_matrix(
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
 ) -> Dcsr_matrix:
-    # the only accepted input types are
-    # `scipy.sparse.csr_matrix` and `torch.sparse_csr_tensor`
+    """
+    Create a :class:`~heat.sparse.Dcsr_matrix`.
 
-    # TODO:
-    # Things I have not really paid attention to:
-    #   1. copy
-    #   2. ndim
-    #   3. order --> Later if needed
-    #   4. balanced --> Later when needed
+    Parameters
+    ----------
+    obj : :class:`torch.sparse_csr_tensor` or :class:`scipy.sparse.csr_matrix`
+        Sparse tensor that needs to be distributed
+    dtype : datatype, optional
+        The desired data-type for the sparse matrix. If not given, then the type will be determined as the minimum type required
+        to hold the objects in the sequence. This argument can only be used to ‘upcast’ the array. For downcasting, use
+        the :func:`~heat.sparse.dcsr_matrix.astype` method.
+    split : int or None, optional
+        The axis along which the passed array content ``obj`` is split and distributed in memory. Mutually exclusive
+        with ``is_split``. Dcsr_matrix only supports distribution along axis 0.
+    copy : bool, optional
+        TODO
+        If ``True`` (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested
+        sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
+    ndmin : int, optional
+        TODO
+        Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
+        attached to the shape if ``ndim > 0`` and prefaced in case of ``ndim < 0`` to meet the requirement.
+    order: str, optional
+        TODO
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
+        column-major order (Fortran-like).
+    is_split : int or None, optional
+        Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
+        interfacing with other distributed-memory code. The shape of the global array is automatically inferred.
+        Mutually exclusive with ``split``. Dcsr_matrix only supports distribution along axis 0.
+    device : str or Device, optional
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on (i.e. globally set default
+        device).
+    comm : Communication, optional
+        Handle to the nodes holding distributed array chunks.
 
+    Raises
+    ------
+    NotImplementedError
+        If split parameter is not one of 0 or None.
+    NotImplementedError
+        If is_split parameter is not one of 0 or None.
+
+    Examples
+    --------
+    Create a :class:`~heat.sparse.Dcsr_matrix` from :class:`torch.sparse_csr_tensor`
+    >>> indptr = torch.tensor([0, 2, 3, 6])
+    >>> indices = torch.tensor([0, 2, 2, 0, 1, 2])
+    >>> data = torch.tensor([1, 2, 3, 4, 5, 6], dtype=torch.float)
+    >>> torch_sparse_csr = torch.sparse_csr_tensor(indptr, indices, data)
+    >>> heat_sparse_csr = ht.sparse.sparse_csr_matrix(torch_sparse_csr, split=0)
+    >>> heat_sparse_csr
+    (indptr: tensor([0, 2, 3, 6]), indices: tensor([0, 2, 2, 0, 1, 2]), data: tensor([1., 2., 3., 4., 5., 6.]), dtype=ht.float32, device=cpu:0, split=0)
+
+    Create a :class:`~heat.sparse.Dcsr_matrix` from :class:`scipy.sparse.csr_matrix`
+    >>> scipy_sparse_csr = scipy.sparse.csr_matrix((data, indices, indptr))
+    >>> heat_sparse_csr = ht.sparse.sparse_csr_matrix(scipy_sparse_csr, split=0)
+    >>> heat_sparse_csr
+    (indptr: tensor([0, 2, 3, 6], dtype=torch.int32), indices: tensor([0, 2, 2, 0, 1, 2], dtype=torch.int32), data: tensor([1., 2., 3., 4., 5., 6.]), dtype=ht.float32, device=cpu:0, split=0)
+
+    Create a :class:`~heat.sparse.Dcsr_matrix` using data that is already distributed (with `is_split`)
+    >>> indptrs = [torch.tensor([0, 2, 3]), torch.tensor([0, 3])]
+    >>> indices = [torch.tensor([0, 2, 2]), torch.tensor([0, 1, 2])]
+    >>> data = [torch.tensor([1, 2, 3], dtype=torch.float),
+                torch.tensor([4, 5, 6], dtype=torch.float)]
+    >>> rank = ht.MPI_WORLD.rank
+    >>> local_indptr = indptrs[rank]
+    >>> local_indices = indices[rank]
+    >>> local_data = data[rank]
+    >>> local_torch_sparse_csr = torch.sparse_csr_tensor(local_indptr, local_indices, local_data)
+    >>> heat_sparse_csr = ht.sparse.sparse_csr_matrix(local_torch_sparse_csr, is_split=0)
+    >>> heat_sparse_csr
+    (indptr: tensor([0, 2, 3, 6]), indices: tensor([0, 2, 2, 0, 1, 2]), data: tensor([1., 2., 3., 4., 5., 6.]), dtype=ht.float32, device=cpu:0, split=0)
+    """
     # sanitize the data type
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
@@ -64,6 +130,16 @@ def sparse_csr_matrix(
         torch_dtype = dtype.torch_type()
         if obj.dtype != torch_dtype:
             obj = obj.type(torch_dtype)
+
+    # infer device from obj if not explicitly given
+    if device is None:
+        device = devices.sanitize_device(obj.device.type)
+
+    if str(obj.device) != device.torch_device:
+        warnings.warn(
+            "Array 'obj' is not on device '{}'. It will be moved to it.".format(device), UserWarning
+        )
+        obj = obj.to(device.torch_device)
 
     # For now, assuming the obj is torch.sparse_csr_tensor
     comm = sanitize_comm(comm)
@@ -105,7 +181,7 @@ def sparse_csr_matrix(
         gshape_split = torch.tensor(gshape[is_split])
         comm.Allreduce(MPI.IN_PLACE, gshape_split, MPI.SUM)
         gshape = list(gshape)
-        gshape[is_split] = gshape_split
+        gshape[is_split] = gshape_split.item()
         gshape = tuple(gshape)
 
         # Calculate gnnz
