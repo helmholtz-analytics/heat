@@ -148,7 +148,7 @@ def sparse_csr_matrix(
     gnnz = obj.values().shape[0]
 
     if split == 0:
-        start, end = comm.chunk(gshape, split, type="sparse")
+        start, end = comm.chunk(gshape, split, sparse=True)
 
         # Find the starting and ending indices for
         # col_indices and values tensors for this process
