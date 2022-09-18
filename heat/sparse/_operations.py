@@ -77,7 +77,6 @@ def __binary_op_sparse_csr(
             f"Dcsr_matrices of different shapes are not supported, but input shapes were {t1.shape} and {t2.shape}"
         )
     output_shape = t1.shape
-    output_lshape = t1.lshape
 
     def __get_out_params(target, other=None, map=None):
         """
@@ -154,17 +153,13 @@ def __binary_op_sparse_csr(
     output_comm.Allreduce(MPI.IN_PLACE, output_gnnz, MPI.SUM)
     output_gnnz = output_gnnz.item()
 
-    output_lnnz = result._nnz()
-
     output_type = types.canonical_heat_type(result.dtype)
 
     if out is None and where is None:
         return Dcsr_matrix(
             array=result,
             gnnz=output_gnnz,
-            lnnz=output_lnnz,
             gshape=output_shape,
-            lshape=output_lshape,
             dtype=output_type,
             split=output_split,
             device=output_device,
@@ -175,7 +170,6 @@ def __binary_op_sparse_csr(
     # TODO: Any better way to do this?
     out.larray.copy_(result)
     out.gnnz = output_gnnz
-    out.lnnz = output_lnnz
     out.dtype = output_type
     out.comm = output_comm
     return out

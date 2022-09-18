@@ -161,7 +161,6 @@ def sparse_csr_matrix(
         indptr = obj.crow_indices()[start : end + 1]
         indices = obj.col_indices()[indicesStart:indicesEnd]
 
-        lnnz = data.shape[0]
         indptr = indptr - indptr[0]
 
         lshape = list(lshape)
@@ -175,7 +174,6 @@ def sparse_csr_matrix(
         data = obj.values()
         indptr = obj.crow_indices()
         indices = obj.col_indices()
-        lnnz = data.shape[0]
 
         # Calculate gshape
         gshape_split = torch.tensor(gshape[is_split])
@@ -185,6 +183,7 @@ def sparse_csr_matrix(
         gshape = tuple(gshape)
 
         # Calculate gnnz
+        lnnz = data.shape[0]
         gnnz_buffer = torch.tensor(lnnz)
         comm.Allreduce(MPI.IN_PLACE, gnnz_buffer, MPI.SUM)
         gnnz = gnnz_buffer.item()
@@ -198,7 +197,6 @@ def sparse_csr_matrix(
         data = obj.values()
         indptr = obj.crow_indices()
         indices = obj.col_indices()
-        lnnz = gnnz
 
     sparse_array = torch.sparse_csr_tensor(
         indptr,
@@ -212,9 +210,7 @@ def sparse_csr_matrix(
     return Dcsr_matrix(
         array=sparse_array,
         gnnz=gnnz,
-        lnnz=lnnz,
         gshape=gshape,
-        lshape=lshape,
         dtype=dtype,
         split=split,
         device=device,

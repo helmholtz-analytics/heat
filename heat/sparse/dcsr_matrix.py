@@ -22,12 +22,8 @@ class Dcsr_matrix:
         Local sparse array
     gnnz: int
         Total number of non-zero elements across all processes
-    lnnz: int
-        Total number of non-zero elements in local process
     gshape : Tuple[int,...]
         The global shape of the array
-    lshape : Tuple[int,...]
-        The local shape of the array
     dtype : datatype
         The datatype of the array
     split : int or None
@@ -45,9 +41,7 @@ class Dcsr_matrix:
         self,
         array: torch.sparse_csr_tensor,
         gnnz: int,
-        lnnz: int,
         gshape: Tuple[int, ...],
-        lshape: Tuple[int, ...],
         dtype: datatype,
         split: Union[int, None],
         device: Device,
@@ -57,9 +51,7 @@ class Dcsr_matrix:
         # TODO: Proper getters and setters for local and global members
         self.__array = array
         self.__gnnz = gnnz
-        self.__lnnz = lnnz
         self.__gshape = gshape
-        self.__lshape = lshape
         self.__dtype = dtype
         self.__split = split
         self.__device = device
@@ -224,28 +216,28 @@ class Dcsr_matrix:
         """
         Number of non-zero elements on the local process of the ``Dcsr_matrix``
         """
-        return self.__lnnz
+        return self.__array._nnz()
 
     @property
-    def shape(self) -> int:
+    def shape(self) -> Tuple[int, ...]:
         """
         Global shape of the ``Dcsr_matrix``
         """
         return self.__gshape
 
     @property
-    def gshape(self) -> int:
+    def gshape(self) -> Tuple[int, ...]:
         """
         Global shape of the ``Dcsr_matrix``
         """
         return self.shape
 
     @property
-    def lshape(self) -> int:
+    def lshape(self) -> Tuple[int, ...]:
         """
         Local shape of the ``Dcsr_matrix``
         """
-        return self.__lshape
+        return self.__array.size()
 
     @property
     def dtype(self):
@@ -296,9 +288,7 @@ class Dcsr_matrix:
             return Dcsr_matrix(
                 casted_matrix,
                 self.gnnz,
-                self.lnnz,
                 self.gshape,
-                self.lshape,
                 dtype,
                 self.split,
                 self.device,
