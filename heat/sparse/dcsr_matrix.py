@@ -237,7 +237,7 @@ class Dcsr_matrix:
         """
         Local shape of the ``Dcsr_matrix``
         """
-        return self.__array.size()
+        return tuple(self.__array.size())
 
     @property
     def dtype(self):
