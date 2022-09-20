@@ -18,7 +18,7 @@ class Dcsr_matrix:
 
     Parameters
     ----------
-    array : torch.sparse_csr_tensor
+    array : torch.Tensor (layout ==> torch.sparse_csr)
         Local sparse array
     gnnz: int
         Total number of non-zero elements across all processes
@@ -39,7 +39,7 @@ class Dcsr_matrix:
 
     def __init__(
         self,
-        array: torch.sparse_csr_tensor,
+        array: torch.Tensor,
         gnnz: int,
         gshape: Tuple[int, ...],
         dtype: datatype,
@@ -109,7 +109,7 @@ class Dcsr_matrix:
         return self.__device
 
     @property
-    def larray(self) -> torch.sparse_csr_tensor:
+    def larray(self) -> torch.Tensor:
         """
         Local data of the ``Dcsr_matrix``
         """

@@ -21,7 +21,7 @@ __all__ = [
 
 
 def sparse_csr_matrix(
-    obj: Union[torch.sparse_csr_tensor, scipy_csr_matrix],
+    obj: Union[torch.Tensor, scipy_csr_matrix],
     dtype: Optional[Type[datatype]] = None,
     copy: bool = True,
     ndmin: int = 0,
@@ -36,7 +36,7 @@ def sparse_csr_matrix(
 
     Parameters
     ----------
-    obj : :class:`torch.sparse_csr_tensor` or :class:`scipy.sparse.csr_matrix`
+    obj : :class:`torch.Tensor` (layout ==> torch.sparse_csr) or :class:`scipy.sparse.csr_matrix`
         Sparse tensor that needs to be distributed
     dtype : datatype, optional
         The desired data-type for the sparse matrix. If not given, then the type will be determined as the minimum type required
@@ -77,7 +77,7 @@ def sparse_csr_matrix(
 
     Examples
     --------
-    Create a :class:`~heat.sparse.Dcsr_matrix` from :class:`torch.sparse_csr_tensor`
+    Create a :class:`~heat.sparse.Dcsr_matrix` from :class:`torch.Tensor` (layout ==> torch.sparse_csr)
     >>> indptr = torch.tensor([0, 2, 3, 6])
     >>> indices = torch.tensor([0, 2, 2, 0, 1, 2])
     >>> data = torch.tensor([1, 2, 3, 4, 5, 6], dtype=torch.float)
@@ -114,7 +114,7 @@ def sparse_csr_matrix(
     if device is not None:
         device = devices.sanitize_device(device)
 
-    # Convert input into torch.sparse_csr_tensor
+    # Convert input into torch.Tensor (layout ==> torch.sparse_csr)
     if isinstance(obj, scipy_csr_matrix):
         obj = torch.sparse_csr_tensor(
             obj.indptr,
@@ -141,7 +141,7 @@ def sparse_csr_matrix(
         )
         obj = obj.to(device.torch_device)
 
-    # For now, assuming the obj is torch.sparse_csr_tensor
+    # For now, assuming the obj is a torch.Tensor (layout ==> torch.sparse_csr)
     comm = sanitize_comm(comm)
     gshape = tuple(obj.shape)
     lshape = gshape
