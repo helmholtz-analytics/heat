@@ -62,6 +62,9 @@ class Dcsr_matrix:
         """
         Global indptr of the ``Dcsr_matrix`` as a ``DNDarray``
         """
+        if self.split is None:
+            raise ValueError("This method works only for distributed matrices")
+
         # Need to know the number of non-zero elements
         # in the processes with lesser rank
         all_nnz = torch.zeros(self.comm.size + 1)
@@ -147,6 +150,9 @@ class Dcsr_matrix:
         """
         Global indptr of the ``Dcsr_matrix``
         """
+        if self.split is None:
+            return self.lindptr
+
         return self.global_indptr().resplit(axis=None).larray
 
     @property
