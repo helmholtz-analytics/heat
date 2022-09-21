@@ -149,9 +149,12 @@ def __binary_op_sparse_csr(
     #  2. Convert input to float, use the torch operation then convert back
     result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
 
-    output_gnnz = torch.tensor(result._nnz())
-    output_comm.Allreduce(MPI.IN_PLACE, output_gnnz, MPI.SUM)
-    output_gnnz = output_gnnz.item()
+    if output_split is not None:
+        output_gnnz = torch.tensor(result._nnz())
+        output_comm.Allreduce(MPI.IN_PLACE, output_gnnz, MPI.SUM)
+        output_gnnz = output_gnnz.item()
+    else:
+        output_gnnz = torch.tensor(result._nnz())
 
     output_type = types.canonical_heat_type(result.dtype)
 
