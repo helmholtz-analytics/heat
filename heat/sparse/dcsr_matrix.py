@@ -82,6 +82,7 @@ class Dcsr_matrix:
         if self.comm.rank != self.comm.size - 1:
             global_indptr = global_indptr[:-1]
 
+        # NOTE: indptr might be unbalanced in distribution but should not be self balanced
         return array(
             global_indptr,
             dtype=self.lindptr.dtype,
