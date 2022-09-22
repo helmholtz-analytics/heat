@@ -1,4 +1,3 @@
-from multiprocessing.sharedctypes import Value
 import heat as ht
 import torch
 import scipy

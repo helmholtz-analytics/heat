@@ -1,4 +1,3 @@
-from weakref import ref
 import heat as ht
 import torch
 

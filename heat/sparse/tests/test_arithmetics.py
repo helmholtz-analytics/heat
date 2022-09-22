@@ -36,6 +36,9 @@ class TestArithmetics(TestCase):
             cls.ref_indptr_B, cls.ref_indices_B, cls.ref_data_B
         )
 
+        cls.world_size = ht.MPI_WORLD.size
+        cls.rank = ht.MPI_WORLD.rank
+
     def test_add(self):
         heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A)
         heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_B)
@@ -63,7 +66,7 @@ class TestArithmetics(TestCase):
         self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
 
         # Distributed case
-        if heat_sparse_csr_A.comm.size == 2:
+        if self.world_size == 2:
             heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A, split=0)
             heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_B, split=0)
 
@@ -73,23 +76,21 @@ class TestArithmetics(TestCase):
 
             heat_sparse_csr_C = heat_sparse_csr_A + heat_sparse_csr_B
 
-            rank = heat_sparse_csr_C.comm.rank
-
             self.assertIsInstance(heat_sparse_csr_C, ht.sparse.Dcsr_matrix)
             self.assertTrue((heat_sparse_csr_C.indptr == indptr_C).all())
-            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[rank]).all())
+            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[self.rank]).all())
             self.assertTrue((heat_sparse_csr_C.indices == indices_C).all())
-            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[rank]).all())
+            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[self.rank]).all())
             self.assertTrue((heat_sparse_csr_C.data == data_C).all())
-            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[rank]).all())
+            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[self.rank]).all())
             self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
-            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[rank]))
+            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[self.rank]))
             self.assertEqual(heat_sparse_csr_C.split, 0)
             self.assertEqual(heat_sparse_csr_C.shape, heat_sparse_csr_A.shape)
             self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_A.lshape)
             self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
 
-        if heat_sparse_csr_A.comm.size == 3:
+        if self.world_size == 3:
             heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A, split=0)
             heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_B, split=0)
 
@@ -107,17 +108,15 @@ class TestArithmetics(TestCase):
 
             heat_sparse_csr_C = heat_sparse_csr_A + heat_sparse_csr_B
 
-            rank = heat_sparse_csr_C.comm.rank
-
             self.assertIsInstance(heat_sparse_csr_C, ht.sparse.Dcsr_matrix)
             self.assertTrue((heat_sparse_csr_C.indptr == indptr_C).all())
-            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[rank]).all())
+            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[self.rank]).all())
             self.assertTrue((heat_sparse_csr_C.indices == indices_C).all())
-            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[rank]).all())
+            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[self.rank]).all())
             self.assertTrue((heat_sparse_csr_C.data == data_C).all())
-            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[rank]).all())
+            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[self.rank]).all())
             self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
-            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[rank]))
+            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[self.rank]))
             self.assertEqual(heat_sparse_csr_C.split, 0)
             self.assertEqual(heat_sparse_csr_C.shape, heat_sparse_csr_A.shape)
             self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_A.lshape)
@@ -159,7 +158,7 @@ class TestArithmetics(TestCase):
         self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
 
         # Distributed case
-        if heat_sparse_csr_A.comm.size == 2:
+        if self.world_size == 2:
             heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A, split=0)
             heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_B, split=0)
 
@@ -169,23 +168,21 @@ class TestArithmetics(TestCase):
 
             heat_sparse_csr_C = heat_sparse_csr_A * heat_sparse_csr_B
 
-            rank = heat_sparse_csr_C.comm.rank
-
             self.assertIsInstance(heat_sparse_csr_C, ht.sparse.Dcsr_matrix)
             self.assertTrue((heat_sparse_csr_C.indptr == indptr_C).all())
-            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[rank]).all())
+            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[self.rank]).all())
             self.assertTrue((heat_sparse_csr_C.indices == indices_C).all())
-            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[rank]).all())
+            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[self.rank]).all())
             self.assertTrue((heat_sparse_csr_C.data == data_C).all())
-            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[rank]).all())
+            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[self.rank]).all())
             self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
-            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[rank]))
+            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[self.rank]))
             self.assertEqual(heat_sparse_csr_C.split, 0)
             self.assertEqual(heat_sparse_csr_C.shape, heat_sparse_csr_A.shape)
             self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_A.lshape)
             self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
 
-        if heat_sparse_csr_A.comm.size == 3:
+        if self.world_size == 3:
             heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A, split=0)
             heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_B, split=0)
 
@@ -195,17 +192,15 @@ class TestArithmetics(TestCase):
 
             heat_sparse_csr_C = heat_sparse_csr_A * heat_sparse_csr_B
 
-            rank = heat_sparse_csr_C.comm.rank
-
             self.assertIsInstance(heat_sparse_csr_C, ht.sparse.Dcsr_matrix)
             self.assertTrue((heat_sparse_csr_C.indptr == indptr_C).all())
-            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[rank]).all())
+            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[self.rank]).all())
             self.assertTrue((heat_sparse_csr_C.indices == indices_C).all())
-            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[rank]).all())
+            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[self.rank]).all())
             self.assertTrue((heat_sparse_csr_C.data == data_C).all())
-            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[rank]).all())
+            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[self.rank]).all())
             self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
-            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[rank]))
+            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[self.rank]))
             self.assertEqual(heat_sparse_csr_C.split, 0)
             self.assertEqual(heat_sparse_csr_C.shape, heat_sparse_csr_A.shape)
             self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_A.lshape)
