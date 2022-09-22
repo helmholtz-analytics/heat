@@ -1,6 +1,7 @@
 """Provides high-level Dcsr_matrix initialization functions"""
 
 import torch
+import numpy as np
 from scipy.sparse import csr_matrix as scipy_csr_matrix
 
 from typing import Optional, Type, Union
@@ -171,6 +172,40 @@ def sparse_csr_matrix(
         raise NotImplementedError("Not implemented for other splitting-axes")
 
     elif is_split == 0:
+        # Check whether the distributed data matches in
+        # all dimensions other than axis 0
+        neighbour_shape = np.array(gshape)
+        lshape = np.array(lshape)
+
+        if comm.rank < comm.size - 1:
+            comm.Isend(lshape, dest=comm.rank + 1)
+        if comm.rank != 0:
+            # look into the message of the neighbor to see whether the shape length fits
+            status = MPI.Status()
+            comm.Probe(source=comm.rank - 1, status=status)
+            length = status.Get_count() // lshape.dtype.itemsize
+            # the number of shape elements does not match with the 'left' rank
+            if length != len(lshape):
+                discard_buffer = np.empty(length)
+                comm.Recv(discard_buffer, source=comm.rank - 1)
+                neighbour_shape[is_split] = np.iinfo(neighbour_shape.dtype).min
+            else:
+                # check whether the individual shape elements match
+                comm.Recv(neighbour_shape, source=comm.rank - 1)
+                for i in range(length):
+                    if i == is_split:
+                        continue
+                    elif lshape[i] != neighbour_shape[i] and lshape[i] - 1 != neighbour_shape[i]:
+                        neighbour_shape[is_split] = np.iinfo(neighbour_shape.dtype).min
+
+        lshape = tuple(lshape)
+
+        # sum up the elements along the split dimension
+        reduction_buffer = np.array(neighbour_shape[is_split])
+        comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
+        if reduction_buffer < 0:
+            raise ValueError("unable to construct tensor, shape of local data chunk does not match")
+
         data = obj.values()
         indptr = obj.crow_indices()
         indices = obj.col_indices()
