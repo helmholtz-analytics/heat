@@ -38,6 +38,8 @@ class TestFactories(TestCase):
 
         self.assertIsInstance(heat_sparse_csr, ht.sparse.Dcsr_matrix)
         self.assertEqual(heat_sparse_csr.dtype, ht.float32)
+        self.assertEqual(heat_sparse_csr.indptr.dtype, torch.int64)
+        self.assertEqual(heat_sparse_csr.indices.dtype, torch.int64)
         self.assertEqual(heat_sparse_csr.shape, self.ref_torch_sparse_csr.shape)
         self.assertEqual(heat_sparse_csr.lshape, self.ref_torch_sparse_csr.shape)
         self.assertEqual(heat_sparse_csr.split, None)
@@ -143,6 +145,8 @@ class TestFactories(TestCase):
 
         self.assertIsInstance(heat_sparse_csr, ht.sparse.Dcsr_matrix)
         self.assertEqual(heat_sparse_csr.dtype, ht.float32)
+        self.assertEqual(heat_sparse_csr.indptr.dtype, torch.int64)
+        self.assertEqual(heat_sparse_csr.indices.dtype, torch.int64)
         self.assertEqual(heat_sparse_csr.shape, self.ref_scipy_sparse_csr.shape)
         self.assertEqual(heat_sparse_csr.lshape, self.ref_scipy_sparse_csr.shape)
         self.assertEqual(heat_sparse_csr.split, None)

@@ -199,8 +199,8 @@ def sparse_csr_matrix(
         indices = obj.col_indices()
 
     sparse_array = torch.sparse_csr_tensor(
-        indptr,
-        indices,
+        indptr.to(torch.int64),
+        indices.to(torch.int64),
         data,
         size=lshape,
         dtype=dtype.torch_type(),
