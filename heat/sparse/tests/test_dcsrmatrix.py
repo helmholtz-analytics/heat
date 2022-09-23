@@ -32,16 +32,17 @@ class TestDcsr_matrix(TestCase):
 
         self.assertIsInstance(heat_sparse_csr.larray, torch.Tensor)
         self.assertEqual(heat_sparse_csr.larray.layout, torch.sparse_csr)
-        self.assertEqual(heat_sparse_csr.larray.shape, heat_sparse_csr.lshape)
-        self.assertEqual(heat_sparse_csr.larray.shape, heat_sparse_csr.gshape)
+        self.assertEqual(tuple(heat_sparse_csr.larray.shape), heat_sparse_csr.lshape)
+        self.assertEqual(tuple(heat_sparse_csr.larray.shape), heat_sparse_csr.gshape)
 
         # Distributed case
-        heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr, split=0)
+        if self.world_size > 1:
+            heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr, split=0)
 
-        self.assertIsInstance(heat_sparse_csr.larray, torch.Tensor)
-        self.assertEqual(heat_sparse_csr.larray.layout, torch.sparse_csr)
-        self.assertEqual(heat_sparse_csr.larray.shape, heat_sparse_csr.lshape)
-        self.assertNotEqual(heat_sparse_csr.larray.shape, heat_sparse_csr.gshape)
+            self.assertIsInstance(heat_sparse_csr.larray, torch.Tensor)
+            self.assertEqual(heat_sparse_csr.larray.layout, torch.sparse_csr)
+            self.assertEqual(tuple(heat_sparse_csr.larray.shape), heat_sparse_csr.lshape)
+            self.assertNotEqual(tuple(heat_sparse_csr.larray.shape), heat_sparse_csr.gshape)
 
     def test_nnz(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
