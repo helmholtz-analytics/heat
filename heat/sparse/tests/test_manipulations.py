@@ -25,16 +25,25 @@ class TestManipulations(TestCase):
     def test_todense(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
-        dense_array = heat_sparse_csr.todense()
-
         ref_dense_array = ht.array(
             [[0, 0, 1, 0, 2], [0, 0, 0, 0, 0], [0, 3, 0, 0, 0], [4, 0, 0, 5, 0], [0, 0, 0, 0, 6]]
         )
+
+        dense_array = heat_sparse_csr.todense()
 
         self.assertTrue(ht.equal(ref_dense_array, dense_array))
         self.assertEqual(dense_array.split, None)
         self.assertEqual(dense_array.dtype, heat_sparse_csr.dtype)
         self.assertEqual(dense_array.shape, heat_sparse_csr.shape)
+
+        # with output buffer
+        out_buffer = ht.empty(shape=[5, 5])
+        heat_sparse_csr.todense(out=out_buffer)
+
+        self.assertTrue(ht.equal(ref_dense_array, out_buffer))
+        self.assertEqual(out_buffer.split, None)
+        self.assertEqual(out_buffer.dtype, heat_sparse_csr.dtype)
+        self.assertEqual(out_buffer.shape, heat_sparse_csr.shape)
 
         # Distributed case
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr, split=0)
@@ -46,3 +55,20 @@ class TestManipulations(TestCase):
         self.assertEqual(dense_array.split, 0)
         self.assertEqual(dense_array.dtype, heat_sparse_csr.dtype)
         self.assertEqual(dense_array.shape, heat_sparse_csr.shape)
+
+        # with output buffer
+        out_buffer = ht.empty(shape=[5, 5], split=0)
+        heat_sparse_csr.todense(out=out_buffer)
+
+        self.assertTrue(ht.equal(ref_dense_array, out_buffer))
+        self.assertEqual(out_buffer.split, 0)
+        self.assertEqual(out_buffer.dtype, heat_sparse_csr.dtype)
+        self.assertEqual(out_buffer.shape, heat_sparse_csr.shape)
+
+        with self.assertRaises(ValueError):
+            out_buffer = ht.empty(shape=[3, 3], split=0)
+            heat_sparse_csr.todense(out=out_buffer)
+
+        with self.assertRaises(ValueError):
+            out_buffer = ht.empty(shape=[5, 5], split=None)
+            heat_sparse_csr.todense(out=out_buffer)
