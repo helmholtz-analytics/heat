@@ -50,6 +50,12 @@ class TestFactories(TestCase):
         self.assertTrue((heat_sparse_csr.data == self.ref_data).all())
         self.assertTrue((heat_sparse_csr.ldata == self.ref_data).all())
 
+        heat_sparse_csr = ht.sparse.sparse_csr_matrix(
+            self.ref_torch_sparse_csr, dtype=ht.float32, device=self.device
+        )
+        self.assertEqual(heat_sparse_csr.dtype, ht.float32)
+        self.assertEqual(heat_sparse_csr.device, self.device)
+
         # Distributed case (split)
         if self.world_size == 2:
             indptr_dist = [torch.tensor([0, 2, 2, 3]), torch.tensor([0, 2, 3])]
@@ -274,11 +280,9 @@ class TestFactories(TestCase):
 
                 lshape_dist = [(3, 5), (2, 5)]
 
-                dist_torch_sparse_csr = torch.sparse_csr_tensor(
-                    indptr_dist[self.rank],
-                    indices_dist[self.rank],
-                    data_dist[self.rank],
-                    size=lshape_dist[self.rank],
+                dist_scipy_sparse_csr = scipy.sparse.csr_matrix(
+                    (data_dist[self.rank], indices_dist[self.rank], indptr_dist[self.rank]),
+                    shape=lshape_dist[self.rank],
                 )
 
                 heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_torch_sparse_csr, is_split=1)
