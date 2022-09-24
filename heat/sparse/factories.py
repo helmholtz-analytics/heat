@@ -142,7 +142,6 @@ def sparse_csr_matrix(
         )
         obj = obj.to(device.torch_device)
 
-    # For now, assuming the obj is a torch.Tensor (layout ==> torch.sparse_csr)
     comm = sanitize_comm(comm)
     gshape = tuple(obj.shape)
     lshape = gshape
