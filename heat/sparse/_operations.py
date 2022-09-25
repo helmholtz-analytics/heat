@@ -2,6 +2,7 @@
 Generalized MPI operations. i.e. element-wise binary operations
 """
 import torch
+import numpy as np
 
 from heat.sparse.dcsr_matrix import Dcsr_matrix
 
@@ -59,16 +60,45 @@ def __binary_op_sparse_csr(
     If both operands are distributed, they must be distributed along the same dimension, i.e. `t1.split = t2.split`.
     """
     # Check inputs --> for now, only `Dcsr_matrix` accepted
-    # TODO: Might have to include scalars and `DNDarray`
-    if not isinstance(t1, Dcsr_matrix):
+    # TODO: Might have to include `DNDarray`
+    if not np.isscalar(t1) and not isinstance(t1, Dcsr_matrix):
         raise TypeError(
             f"Only Dcsr_matrices and numeric scalars are supported, but input was {type(t1)}"
         )
-    if not isinstance(t2, Dcsr_matrix):
+    if not np.isscalar(t2) and not isinstance(t2, Dcsr_matrix):
         raise TypeError(
             f"Only Dcsr_matrices and numeric scalars are supported, but input was {type(t2)}"
         )
+
+    if not isinstance(t1, Dcsr_matrix) and not isinstance(t2, Dcsr_matrix):
+        raise TypeError(
+            f"Operator only to be used with Dcsr_matrices, but input types were {type(t1)} and {type(t2)}"
+        )
+
     promoted_type = types.result_type(t1, t2).torch_type()
+
+    # If one of the inputs is a scalar
+    # just perform the operation on the data tensor
+    # and create a new sparse matrix
+    if np.isscalar(t1) or np.isscalar(t2):
+        matrix = t1
+        scalar = t2
+
+        if np.isscalar(t1):
+            matrix = t2
+            scalar = t1
+
+        res_values = operation(matrix.larray.values().to(promoted_type), scalar, **fn_kwargs)
+        res_torch_sparse_csr = torch.sparse_csr_tensor(
+            matrix.lindptr,
+            matrix.lindices,
+            res_values,
+            size=matrix.lshape,
+            device=matrix.device.torch_device,
+        )
+        return factories.sparse_csr_matrix(
+            res_torch_sparse_csr, is_split=matrix.split, comm=matrix.comm, device=matrix.device
+        )
 
     # For now restrict input shapes to be the same
     # TODO: allow broadcasting?

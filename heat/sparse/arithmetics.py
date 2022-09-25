@@ -59,6 +59,9 @@ def sparse_add(t1: Dcsr_matrix, t2: Dcsr_matrix) -> Dcsr_matrix:
 
 
 Dcsr_matrix.__add__ = lambda self, other: sparse_add(self, other)
+Dcsr_matrix.__add__.__doc__ = sparse_add.__doc__
+Dcsr_matrix.__radd__ = lambda self, other: sparse_add(self, other)
+Dcsr_matrix.__radd__.__doc__ = sparse_add.__doc__
 
 
 def sparse_mul(t1: Dcsr_matrix, t2: Dcsr_matrix) -> Dcsr_matrix:
@@ -105,3 +108,6 @@ def sparse_mul(t1: Dcsr_matrix, t2: Dcsr_matrix) -> Dcsr_matrix:
 
 
 Dcsr_matrix.__mul__ = lambda self, other: sparse_mul(self, other)
+Dcsr_matrix.__mul__.__doc__ = sparse_mul.__doc__
+Dcsr_matrix.__rmul__ = lambda self, other: sparse_mul(self, other)
+Dcsr_matrix.__rmul__.__doc__ = sparse_mul.__doc__

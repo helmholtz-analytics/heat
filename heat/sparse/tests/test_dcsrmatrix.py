@@ -24,8 +24,8 @@ class TestDcsr_matrix(TestCase):
             cls.ref_indptr, cls.ref_indices, cls.ref_data
         )
 
-        cls.world_size = ht.MPI_WORLD.size
-        cls.rank = ht.MPI_WORLD.rank
+        cls.world_size = ht.communication.MPI_WORLD.size
+        cls.rank = ht.communication.MPI_WORLD.rank
 
     def test_larray(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)

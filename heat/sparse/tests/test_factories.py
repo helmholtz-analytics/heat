@@ -26,8 +26,8 @@ class TestFactories(TestCase):
             (cls.ref_data, cls.ref_indices, cls.ref_indptr)
         )
 
-        cls.world_size = ht.MPI_WORLD.size
-        cls.rank = ht.MPI_WORLD.rank
+        cls.world_size = ht.communication.MPI_WORLD.size
+        cls.rank = ht.communication.MPI_WORLD.rank
 
     def test_sparse_csr_matrix(self):
 
