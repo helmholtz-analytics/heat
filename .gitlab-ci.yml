@@ -1,5 +1,5 @@
 test:
-  image: nvidia/cuda:11.7.1-runtime-ubuntu20.04
+  image: nvidia/cuda:11.6.2-runtime-ubuntu20.04
   tags:
     - cuda
     - x86_64
