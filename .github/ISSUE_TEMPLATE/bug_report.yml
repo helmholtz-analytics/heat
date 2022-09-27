@@ -44,18 +44,19 @@ body:
       label: Python version
       description: What Python version?
       options:
+        - 3.7
         - 3.8
         - 3.9
-        - 3.10
-        - 3.7
+        - "3.10"
   - type: dropdown
     id: pytorch-version
     attributes:
       label: PyTorch version
       description: What PyTorch version?
       options:
+        - 1.12
         - 1.11
-        - 1.10
+        - "1.10"
         - 1.9
         - 1.8
         - 1.7
