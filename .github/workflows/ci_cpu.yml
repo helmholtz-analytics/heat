@@ -12,7 +12,7 @@ jobs:
       with:
         args: "https://gitlab.jsc.fz-juelich.de/haf/heat"
       env:
-        FORCE_PUSH: "false"
+        FORCE_PUSH: "true"
         GITLAB_HOSTNAME: "gitlab.jsc.fz-juelich.de"
         GITLAB_USERNAME: ""
         GITLAB_PASSWORD: ${{ secrets.GITLAB_TOKEN }}
