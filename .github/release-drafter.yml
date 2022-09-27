@@ -29,6 +29,8 @@ categories:
     labels:
       - 'io'
       - 'communication'
+  - title: 'Sparse'
+    label: 'sparse'
 change-template: '- #$NUMBER $TITLE (by @$AUTHOR)'
 categorie-template: '### $TITLE'
 exclude-labels:
