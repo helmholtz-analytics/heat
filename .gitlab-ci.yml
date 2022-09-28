@@ -12,10 +12,20 @@ test:
     - pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
     - pip install .[hdf5,netcdf]
     - COVERAGE_FILE=report/cov/coverage1 HEAT_TEST_USE_DEVICE=cpu mpirun --allow-run-as-root -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/
-    - COVERAGE_FILE=report/cov/coverage2 HEAT_TEST_USE_DEVICE=gpu mpirun --allow-run-as-root -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report2.xml heat/
+    - COVERAGE_FILE=report/cov/coverage2 HEAT_TEST_USE_DEVICE=gpu mpirun --allow-run-as-root -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report3.xml heat/
     - COVERAGE_FILE=report/cov/coverage5 HEAT_TEST_USE_DEVICE=cpu mpirun --allow-run-as-root -n 5 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report5.xml heat/
-    - COVERAGE_FILE=report/cov/coverage8 HEAT_TEST_USE_DEVICE=gpu mpirun --allow-run-as-root -n 7 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report8.xml heat/
+    - COVERAGE_FILE=report/cov/coverage8 HEAT_TEST_USE_DEVICE=gpu mpirun --allow-run-as-root -n 7 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report7.xml heat/
     - coverage combine report/cov/*
     - coverage report
     - coverage xml
     - curl -s https://codecov.io/bash | bash -s -- -c -F unit -f coverage.xml -t $CODECOV_TOKEN  || echo "Codecov failed to upload"
+  artifacts:
+    when: always
+    paths:
+      - report/test/
+    reports:
+      junit:
+        - report1.xml
+        - report3.xml
+        - report5.xml
+        - report7.xml
