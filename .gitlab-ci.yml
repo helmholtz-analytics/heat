@@ -24,4 +24,4 @@ test:
     paths:
       - report/test/report*.xml
     reports:
-      junit: report*.xml
+      junit: report/test/report*.xml
