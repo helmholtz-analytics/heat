@@ -1,37 +1,44 @@
-## Welcome to GitHub Pages
+<div align="center">
+  <img src="https://raw.githubusercontent.com/helmholtz-analytics/heat/main/doc/images/logo.png">
+</div>
 
-You can use the [editor on GitHub](https://github.com/helmholtz-analytics/heat/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+## About
 
-### Markdown
+Heat is a flexible and seamless open-source software for high performance data analytics and machine learning. It provides highly optimized algorithms and data structures for tensor computations using CPUs, GPUs and distributed cluster systems on top of MPI. The goal of Heat is to fill the gap between data analytics and machine learning libraries with a strong focus on single-node performance, and traditional high-performance computing (HPC). Heat's generic Python-first programming interface integrates seamlessly with the existing data science ecosystem and makes it as effortless as using numpy to write scalable scientific and data science applications.
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+Heat allows you to tackle your actual Big Data challenges that go beyond the computational and memory needs of your laptop and desktop.
 
-```markdown
-Syntax highlighted code block
+## Features
 
-# Header 1
-## Header 2
-### Header 3
+* High-performance n-dimensional tensors
+* CPU, GPU and distributed computation using MPI
+* Powerful data analytics and machine learning methods
+* Abstracted communication via split tensors
+* Python API
 
-- Bulleted
-- List
 
-1. Numbered
-2. List
+## Installation
 
-**Bold** and _Italic_ and `Code` text
+Tagged releases are made available on the
+[Python Package Index (PyPI)](https://pypi.org/project/heat/). You can typically
+install the latest version with
 
-[Link](url) and ![Image](src)
-```
+> $ pip install heat[hdf5,netcdf]
 
-For more details see [Basic writing and formatting syntax](https://docs.github.com/en/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).
+where the part in brackets is a list of optional dependencies. You can omit
+it, if you do not need HDF5 or NetCDF support.
 
-### Jekyll Themes
+**It is recommended to use the most recent supported version of PyTorch!**
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/helmholtz-analytics/heat/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+It is also very important to ensure that the PyTorch version is compatible with the local CUDA installation.
+More information can be found [here](https://pytorch.org/get-started/locally/).
 
-### Support or Contact
 
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+## Getting Started
+
+Check out our Jupyter Notebook [tutorial](https://github.com/helmholtz-analytics/heat/blob/main/scripts/tutorial.ipynb)
+right here on Github or in the /scripts directory.
+
+The complete documentation of the latest version is always deployed on
+[Read the Docs](https://heat.readthedocs.io/).
