@@ -20,7 +20,7 @@ test:
     - coverage xml
     - curl -Os https://uploader.codecov.io/latest/linux/codecov
     - chmod +x codecov
-    - ./codecov -f coverage.xml -Z -t $CODECOV_TOKEN -F unit
+    - ./codecov -F unit -f ./coverage.xml -t $CODECOV_TOKEN -Z
   artifacts:
     when: always
     paths:
