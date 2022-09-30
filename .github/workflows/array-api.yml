@@ -1,0 +1,164 @@
+name: Test Array API
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Use Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: x64
+    - name: Install
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install .
+    - name: Checkout array-api-tests
+      uses: actions/checkout@v3
+      with:
+        repository: data-api/array-api-tests
+        ref: 2022.05.18
+        path: array-api-tests
+        submodules: 'true'
+    - name: Install dependencies
+      run: |
+        python -m pip install -r array-api-tests/requirements.txt
+    - name: Run the test suite
+      env:
+        ARRAY_API_TESTS_MODULE: heat.array_api
+      run: |
+        # Skip testing functions with known issues
+        cat << EOF >> skips.txt
+
+        # PR #938 Indexing overhaul
+        array-api-tests/array_api_tests/test_array_object.py::test_getitem
+        array-api-tests/array_api_tests/test_array_object.py::test_setitem
+        array-api-tests/array_api_tests/test_array_object.py::test_getitem_masking
+        array-api-tests/array_api_tests/test_array_object.py::test_setitem_masking
+        array-api-tests/array_api_tests/test_linalg.py::test_matrix_matmul
+        array-api-tests/array_api_tests/test_manipulation_functions.py::test_concat
+        array-api-tests/array_api_tests/test_manipulation_functions.py::test_stack
+        array-api-tests/array_api_tests/test_searching_functions.py::test_argmax
+        array-api-tests/array_api_tests/test_searching_functions.py::test_argmin
+        array-api-tests/array_api_tests/test_searching_functions.py::test_nonzero
+        array-api-tests/array_api_tests/test_searching_functions.py::test_where
+        array-api-tests/array_api_tests/test_special_cases.py::test_nan_propagation[max]
+        array-api-tests/array_api_tests/test_special_cases.py::test_nan_propagation[min]
+        array-api-tests/array_api_tests/test_special_cases.py::test_nan_propagation[prod]
+        array-api-tests/array_api_tests/test_special_cases.py::test_nan_propagation[sum]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[add(isfinite(x1_i) and x1_i != 0 and x2_i == -x1_i) -> +0]
+        array-api-tests/array_api_tests/test_special_cases.py::test_iop[__iadd__(isfinite(x1_i) and x1_i != 0 and x2_i == -x1_i) -> +0]
+        array-api-tests/array_api_tests/test_statistical_functions.py::test_max
+        array-api-tests/array_api_tests/test_statistical_functions.py::test_mean
+        array-api-tests/array_api_tests/test_statistical_functions.py::test_min
+        array-api-tests/array_api_tests/test_statistical_functions.py::test_prod
+        array-api-tests/array_api_tests/test_statistical_functions.py::test_var
+        array-api-tests/array_api_tests/test_utility_functions.py::test_all
+        array-api-tests/array_api_tests/test_utility_functions.py::test_any
+
+        # Pytorch dtypes https://github.com/pytorch/pytorch/issues/58734
+        array-api-tests/array_api_tests/test_array_object.py::test_scalar_casting[__int__(uint16)]
+        array-api-tests/array_api_tests/test_array_object.py::test_scalar_casting[__int__(uint32)]
+        array-api-tests/array_api_tests/test_array_object.py::test_scalar_casting[__int__(uint64)]
+        array-api-tests/array_api_tests/test_array_object.py::test_scalar_casting[__index__(uint16)]
+        array-api-tests/array_api_tests/test_array_object.py::test_scalar_casting[__index__(uint32]
+        array-api-tests/array_api_tests/test_array_object.py::test_scalar_casting[__inndes__(uint64)]
+        array-api-tests/array_api_tests/test_data_type_functions.py::test_iinfo[uint16]
+        array-api-tests/array_api_tests/test_data_type_functions.py::test_iinfo[uint32]
+        array-api-tests/array_api_tests/test_data_type_functions.py::test_iinfo[uint64]
+        array-api-tests/array_api_tests/test_statistical_functions.py::test_sum
+        array-api-tests/array_api_tests/test_type_promotion.py
+
+        # PR #1000 any/all keepdim
+        array-api-tests/array_api_tests/test_linalg.py::test_matrix_transpose
+        array-api-tests/array_api_tests/test_operators_and_elementwise_functions.py::test_abs
+        array-api-tests/array_api_tests/test_operators_and_elementwise_functions.py::test_bitwise_left_shift
+        array-api-tests/array_api_tests/test_operators_and_elementwise_functions.py::test_bitwise_right_shift
+        array-api-tests/array_api_tests/test_operators_and_elementwise_functions.py::test_floor_divide
+        array-api-tests/array_api_tests/test_operators_and_elementwise_functions.py::test_positive
+        array-api-tests/array_api_tests/test_operators_and_elementwise_functions.py::test_pow
+        array-api-tests/array_api_tests/test_operators_and_elementwise_functions.py::test_remainder
+
+        # PR #993 Precision loss
+        array-api-tests/array_api_tests/test_creation_functions.py::test_arange
+        array-api-tests/array_api_tests/test_creation_functions.py::test_linspace
+
+        # PR #1018 __reduce_op bug
+        array-api-tests/array_api_tests/test_creation_functions.py::test_asarray_arrays
+        array-api-tests/array_api_tests/test_creation_functions.py::test_full
+        array-api-tests/array_api_tests/test_creation_functions.py::test_full_like
+        array-api-tests/array_api_tests/test_creation_functions.py::test_ones
+        array-api-tests/array_api_tests/test_creation_functions.py::test_ones_like
+        array-api-tests/array_api_tests/test_creation_functions.py::test_zeros
+        array-api-tests/array_api_tests/test_creation_functions.py::test_zeros_like
+        array-api-tests/array_api_tests/test_operators_and_elementwise_functions.py::test_negative
+        array-api-tests/array_api_tests/test_special_cases.py::test_empty_arrays[prod]
+        array-api-tests/array_api_tests/test_special_cases.py::test_nan_propagation[sum]
+
+        # k not implemented
+        array-api-tests/array_api_tests/test_creation_functions.py::test_eye
+
+        # PR #1020 broadcasting
+        array-api-tests/array_api_tests/test_data_type_functions.py::test_broadcast_arrays
+        array-api-tests/array_api_tests/test_data_type_functions.py::test_broadcast_to
+
+        # PR #749 unique
+        array-api-tests/array_api_tests/test_set_functions.py::test_unique_all
+        array-api-tests/array_api_tests/test_set_functions.py::test_unique_counts
+        array-api-tests/array_api_tests/test_set_functions.py::test_unique_inverse
+        array-api-tests/array_api_tests/test_set_functions.py::test_unique_values
+        array-api-tests/array_api_tests/test_signatures.py::test_func_signature[unique_all]
+        array-api-tests/array_api_tests/test_signatures.py::test_func_signature[unique_counts]
+        array-api-tests/array_api_tests/test_sorting_functions.py::test_sort
+
+        # PR #996 argsort
+        array-api-tests/array_api_tests/test_signatures.py::test_func_signature[argsort]
+        array-api-tests/array_api_tests/test_sorting_functions.py::test_argsort
+
+        # tensordot
+        array-api-tests/array_api_tests/test_linalg.py::test_tensordot
+
+        # Special cases
+        array-api-tests/array_api_tests/test_operators_and_elementwise_functions.py::test_square
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[floor_divide(x1_i is +infinity and isfinite(x2_i) and x2_i > 0) -> +infinity]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[floor_divide(x1_i is +infinity and isfinite(x2_i) and x2_i < 0) -> -infinity]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[floor_divide(x1_i is -infinity and isfinite(x2_i) and x2_i > 0) -> -infinity]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[floor_divide(x1_i is -infinity and isfinite(x2_i) and x2_i < 0) -> +infinity]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[floor_divide(isfinite(x1_i) and x1_i > 0 and x2_i is -infinity) -> -0]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[floor_divide(isfinite(x1_i) and x1_i < 0 and x2_i is +infinity) -> -0]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[__floordiv__(x1_i is +infinity and isfinite(x2_i) and x2_i > 0) -> +infinity]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[__floordiv__(x1_i is +infinity and isfinite(x2_i) and x2_i < 0) -> -infinity]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[__floordiv__(x1_i is -infinity and isfinite(x2_i) and x2_i > 0) -> -infinity]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[__floordiv__(x1_i is -infinity and isfinite(x2_i) and x2_i < 0) -> +infinity]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[__floordiv__(isfinite(x1_i) and x1_i > 0 and x2_i is -infinity) -> -0]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[__floordiv__(isfinite(x1_i) and x1_i < 0 and x2_i is +infinity) -> -0]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[remainder(x1_i is -0 and x2_i > 0) -> +0]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[remainder(x1_i is +0 and x2_i < 0) -> -0]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[__mod__(x1_i is -0 and x2_i > 0) -> +0]
+        array-api-tests/array_api_tests/test_special_cases.py::test_binary[__mod__(x1_i is +0 and x2_i < 0) -> -0]
+        array-api-tests/array_api_tests/test_special_cases.py::test_iop[__ifloordiv__(x1_i is +infinity and isfinite(x2_i) and x2_i > 0) -> +infinity]
+        array-api-tests/array_api_tests/test_special_cases.py::test_iop[__ifloordiv__(x1_i is +infinity and isfinite(x2_i) and x2_i < 0) -> -infinity]
+        array-api-tests/array_api_tests/test_special_cases.py::test_iop[__ifloordiv__(x1_i is -infinity and isfinite(x2_i) and x2_i > 0) -> -infinity]
+        array-api-tests/array_api_tests/test_special_cases.py::test_iop[__ifloordiv__(x1_i is -infinity and isfinite(x2_i) and x2_i < 0) -> +infinity]
+        array-api-tests/array_api_tests/test_special_cases.py::test_iop[__ifloordiv__(isfinite(x1_i) and x1_i > 0 and x2_i is -infinity) -> -0]
+        array-api-tests/array_api_tests/test_special_cases.py::test_iop[__ifloordiv__(isfinite(x1_i) and x1_i < 0 and x2_i is +infinity) -> -0]
+        array-api-tests/array_api_tests/test_special_cases.py::test_iop[__imod__(x1_i is -0 and x2_i > 0) -> +0]
+        array-api-tests/array_api_tests/test_special_cases.py::test_iop[__imod__(x1_i is +0 and x2_i < 0) -> -0]
+        # std special cases
+        array-api-tests/array_api_tests/test_statistical_functions.py::test_std
+        array-api-tests/array_api_tests/test_special_cases.py::test_empty_arrays[std]
+        array-api-tests/array_api_tests/test_special_cases.py::test_nan_propagation[std]
+
+        EOF
+
+        pytest array-api-tests/array_api_tests -v -rxXfE --ci --disable-extension linalg
