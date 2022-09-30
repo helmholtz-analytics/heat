@@ -18,7 +18,9 @@ test:
     - coverage combine report/cov/*
     - coverage report
     - coverage xml
-    - curl -s https://codecov.io/bash | bash -s -- -c -F unit -f coverage.xml -t $CODECOV_TOKEN  || echo "Codecov failed to upload"
+    - curl -Os https://uploader.codecov.io/latest/linux/codecov
+    - chmod +x codecov
+    - ./codecov -f coverage.xml -Z -t $CODECOV_TOKEN -F unit
   artifacts:
     when: always
     paths:
