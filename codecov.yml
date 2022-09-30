@@ -38,6 +38,5 @@ coverage:
         only_pulls: false
         flags:
           - "unit"
-          - "gpu"
         paths:
           - "heat"
