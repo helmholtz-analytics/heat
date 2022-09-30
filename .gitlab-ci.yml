@@ -5,7 +5,7 @@ test:
     - x86_64
   script:
     - apt update
-    - apt -y install build-essential python3-pip curl
+    - apt -y install build-essential python3-pip curl git
     - DEBIAN_FRONTEND=noninteractive apt -y install libopenmpi-dev openmpi-bin openmpi-doc
     - apt -y install libhdf5-openmpi-dev libpnetcdf-dev
     - pip install pytest coverage
