@@ -251,56 +251,40 @@ class TestFactories(TestCase):
         with self.assertRaises(NotImplementedError):
             heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr, split=1)
 
-        if self.world_size == 2:
-            with self.assertRaises(NotImplementedError):
-                indptr_dist = [torch.tensor([0, 2, 2, 3]), torch.tensor([0, 2, 3])]
-                indices_dist = [torch.tensor([2, 4, 1]), torch.tensor([0, 3, 4])]
-                data_dist = [torch.tensor([1, 2, 3]), torch.tensor([4, 5, 6])]
+        with self.assertRaises(NotImplementedError):
+            dist_torch_sparse_csr = torch.sparse_csr_tensor(
+                torch.tensor([0, 0, 0]),  # indptr
+                torch.tensor([], dtype=torch.int64),  # indices
+                torch.tensor([], dtype=torch.int64),  # data
+                size=(2, 2),
+            )
 
-                lshape_dist = [(3, 5), (2, 5)]
-
-                dist_torch_sparse_csr = torch.sparse_csr_tensor(
-                    indptr_dist[self.rank],
-                    indices_dist[self.rank],
-                    data_dist[self.rank],
-                    size=lshape_dist[self.rank],
-                )
-
-                heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_torch_sparse_csr, is_split=1)
+            heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_torch_sparse_csr, is_split=1)
 
         # Errors (scipy.sparse.csr_matrix)
         with self.assertRaises(NotImplementedError):
             heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_scipy_sparse_csr, split=1)
 
-        if self.world_size == 2:
-            with self.assertRaises(NotImplementedError):
-                indptr_dist = [torch.tensor([0, 2, 2, 3]), torch.tensor([0, 2, 3])]
-                indices_dist = [torch.tensor([2, 4, 1]), torch.tensor([0, 3, 4])]
-                data_dist = [torch.tensor([1, 2, 3]), torch.tensor([4, 5, 6])]
+        with self.assertRaises(NotImplementedError):
+            dist_scipy_sparse_csr = scipy.sparse.csr_matrix(
+                (
+                    torch.tensor([], dtype=torch.int64),  # data
+                    torch.tensor([], dtype=torch.int64),  # indices
+                    torch.tensor([0, 0, 0]),  # indptr
+                ),
+                shape=(2, 2),
+            )
 
-                lshape_dist = [(3, 5), (2, 5)]
-
-                dist_scipy_sparse_csr = scipy.sparse.csr_matrix(
-                    (data_dist[self.rank], indices_dist[self.rank], indptr_dist[self.rank]),
-                    shape=lshape_dist[self.rank],
-                )
-
-                heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_torch_sparse_csr, is_split=1)
+            heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_torch_sparse_csr, is_split=1)
 
         # Invalid distribution for is_split
-        if self.world_size == 2:
+        if self.world_size > 1:
             with self.assertRaises(ValueError):
-                indptr_dist = [torch.tensor([0, 2, 2, 3]), torch.tensor([0, 1, 2])]
-                indices_dist = [torch.tensor([2, 4, 1]), torch.tensor([1, 2])]
-                data_dist = [torch.tensor([1, 2, 3]), torch.tensor([5, 6])]
-
-                lshape_dist = [(3, 5), (2, 3)]
-
                 dist_torch_sparse_csr = torch.sparse_csr_tensor(
-                    indptr_dist[self.rank],
-                    indices_dist[self.rank],
-                    data_dist[self.rank],
-                    size=lshape_dist[self.rank],
+                    torch.tensor([0] * ((self.rank + 1) + 1)),  # indptr
+                    torch.tensor([], dtype=torch.int64),  # indices
+                    torch.tensor([], dtype=torch.int64),  # data
+                    size=(self.rank + 1, self.rank + 1),
                 )
 
                 heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_torch_sparse_csr, is_split=0)

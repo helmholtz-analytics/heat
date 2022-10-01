@@ -179,29 +179,24 @@ def sparse_csr_matrix(
         if comm.rank < comm.size - 1:
             comm.Isend(lshape, dest=comm.rank + 1)
         if comm.rank != 0:
-            # look into the message of the neighbor to see whether the shape length fits
-            status = MPI.Status()
-            comm.Probe(source=comm.rank - 1, status=status)
-            length = status.Get_count() // lshape.dtype.itemsize
-            # the number of shape elements does not match with the 'left' rank
-            if length != len(lshape):
-                discard_buffer = np.empty(length)
-                comm.Recv(discard_buffer, source=comm.rank - 1)
-                neighbour_shape[is_split] = np.iinfo(neighbour_shape.dtype).min
-            else:
-                # check whether the individual shape elements match
-                comm.Recv(neighbour_shape, source=comm.rank - 1)
-                for i in range(length):
-                    if i == is_split:
-                        continue
-                    elif lshape[i] != neighbour_shape[i] and lshape[i] - 1 != neighbour_shape[i]:
-                        neighbour_shape[is_split] = np.iinfo(neighbour_shape.dtype).min
+            # Dont have to check whether the number of dimensions are same since
+            # both torch.sparse_csr_tensor and scipy.sparse.csr_matrix are 2D only
+
+            # check whether the individual shape elements match
+            comm.Recv(neighbour_shape, source=comm.rank - 1)
+            for i in range(len(lshape)):
+                if i == is_split:
+                    continue
+                elif lshape[i] != neighbour_shape[i]:
+                    neighbour_shape[is_split] = np.iinfo(neighbour_shape.dtype).min
 
         lshape = tuple(lshape)
 
         # sum up the elements along the split dimension
         reduction_buffer = np.array(neighbour_shape[is_split])
-        comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
+        # To check if any process has found that its neighbour
+        # does not match with itself in shape
+        comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.MIN)
         if reduction_buffer < 0:
             raise ValueError("unable to construct tensor, shape of local data chunk does not match")
 
