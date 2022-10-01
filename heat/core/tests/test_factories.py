@@ -308,6 +308,12 @@ class TestFactories(TestCase):
         with self.assertRaises(TypeError):
             ht.array((4,), comm={})
 
+        # data already distributed but don't match in shape
+        if self.get_size() > 1:
+            with self.assertRaises(ValueError):
+                dim = self.get_rank() + 1
+                ht.array([[0] * dim] * dim, is_split=0)
+
     def test_asarray(self):
         # same heat array
         arr = ht.array([1, 2])

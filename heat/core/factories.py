@@ -406,12 +406,12 @@ def array(
                 for i in range(length):
                     if i == is_split:
                         continue
-                    elif lshape[i] != neighbour_shape[i] and lshape[i] - 1 != neighbour_shape[i]:
+                    elif lshape[i] != neighbour_shape[i]:
                         neighbour_shape[is_split] = np.iinfo(neighbour_shape.dtype).min
 
         # sum up the elements along the split dimension
         reduction_buffer = np.array(neighbour_shape[is_split])
-        comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
+        comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.MIN)
         if reduction_buffer < 0:
             raise ValueError("unable to construct tensor, shape of local data chunk does not match")
         ttl_shape = np.array(obj.shape)
