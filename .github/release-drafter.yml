@@ -29,6 +29,8 @@ categories:
     labels:
       - 'io'
       - 'communication'
+  - title: 'Google Summer of Code 2022'
+    label: 'GSoC22'
 change-template: '- #$NUMBER $TITLE (by @$AUTHOR)'
 categorie-template: '### $TITLE'
 exclude-labels:
