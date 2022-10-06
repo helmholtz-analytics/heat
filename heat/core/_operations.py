@@ -422,7 +422,7 @@ def __reduce_op(
     balanced = x.balanced
 
     # if local tensor is empty, replace it with the identity element
-    if 0 in x.lshape and (axis is None or (x.split in axis)):
+    if x.is_distributed() and 0 in x.lshape and (axis is None or split in axis):
         if neutral is None:
             neutral = float("nan")
         neutral_shape = x.gshape[:split] + (1,) + x.gshape[split + 1 :]
