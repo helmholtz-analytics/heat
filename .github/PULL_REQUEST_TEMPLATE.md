@@ -50,6 +50,3 @@ my be illegible. It may be easiest to save the output of each to a file.
 
 #### Does this change modify the behaviour of other functions? If so, which?
 yes / no
-
-<!-- Remove this line for GPU Cluster tests. It will need an approval. --->
-skip ci
