@@ -31,6 +31,8 @@ categories:
       - 'communication'
   - title: 'Google Summer of Code 2022'
     label: 'GSoC22'
+  - title: 'Array API'
+    label: 'array API'
 change-template: '- #$NUMBER $TITLE (by @$AUTHOR)'
 categorie-template: '### $TITLE'
 exclude-labels:
