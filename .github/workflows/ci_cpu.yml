@@ -10,7 +10,7 @@ jobs:
     - name: Wait Github Status Action
       uses: explorium-ai/wait-github-status-action@v1.1.0
       with:
-        name: pre-commit.ci - pr
+        name: "pre-commit.ci - pr"
         token: ${{ secrets.GITHUB_TOKEN }}
         sha: ${{ github.event.pull_request.head.sha }} # Must
     - name: Mirror + trigger CI
