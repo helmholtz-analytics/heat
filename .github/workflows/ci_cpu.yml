@@ -7,13 +7,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Wait Github Status Action
-      uses: explorium-ai/wait-github-status-action@v1.1.0
+    - uses: autotelic/action-wait-for-status-check@v1
+      id: wait-for-status
       with:
-        name: "pre-commit.ci - pr"
         token: ${{ secrets.GITHUB_TOKEN }}
-        sha: ${{ github.event.pull_request.head.sha }} # Must
+        statusName: "pre-commit.ci - pr"
+
     - name: Mirror + trigger CI
+      if: steps.wait-for-status.outputs.state == 'success'
       uses: SvanBoxel/gitlab-mirror-and-ci-action@master
       with:
         args: "https://gitlab.hzdr.de/haf/heat"
