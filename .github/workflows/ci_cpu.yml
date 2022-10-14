@@ -1,6 +1,9 @@
 name: Mirror and run GitLab CI
 
-on: [push]
+on:
+  push:
+    paths:
+      - 'heat/**'
 
 jobs:
   build:
