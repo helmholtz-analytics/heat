@@ -1,0 +1,17 @@
+name: trigger benchmarks job
+on: 
+  pull_request: 
+    types: [closed]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+    - name: Trigger benchmark 
+      uses: appleboy/gitlab-ci-action@master
+      with:
+        url: "https://gitlab.hzdr.de/haf/heat"
+        token: ${{ secrets.TOKEN }}
+        project_id: 100
+

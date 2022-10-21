@@ -1,16 +1,20 @@
-test:
+_env_setup: &env_setup
   image: nvidia/cuda:11.6.2-runtime-ubuntu20.04
   tags:
     - cuda
     - x86_64
-  script:
+  before_script:
     - apt update
     - apt -y install build-essential python3-pip curl git
     - DEBIAN_FRONTEND=noninteractive apt -y install libopenmpi-dev openmpi-bin openmpi-doc
     - apt -y install libhdf5-openmpi-dev libpnetcdf-dev
-    - pip install pytest coverage
     - pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
     - pip install .[hdf5,netcdf]
+
+test: 
+  <<: *env_setup
+  script:
+    - pip install pytest coverage
     - COVERAGE_FILE=report/cov/coverage1 HEAT_TEST_USE_DEVICE=cpu mpirun --allow-run-as-root -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/
     - COVERAGE_FILE=report/cov/coverage2 HEAT_TEST_USE_DEVICE=gpu mpirun --allow-run-as-root -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report3.xml heat/
     - COVERAGE_FILE=report/cov/coverage5 HEAT_TEST_USE_DEVICE=cpu mpirun --allow-run-as-root -n 5 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report5.xml heat/
@@ -27,3 +31,18 @@ test:
       - report/test/report*.xml
     reports:
       junit: report/test/report*.xml
+
+benchmark:
+  <<: *env_setup
+  variables:
+    PERUN_PUE: 1.5
+    PERUN_DATA_OUT: "./data"
+    PERUN_FORMAT: "yaml"
+  script:
+    # - pip install perun
+    - git clone https://github.com/helmholtz-analytics/heat-bench-stats.github
+    - cd heat-bench-stats
+    - sh ./run_benchmarks.sh
+    - git add -u
+    - git commit -m "benchmarks for commit $CI_COMMIT_BRANCH:$CI_COMMIT_SHORT_SHA"
+    - git push
