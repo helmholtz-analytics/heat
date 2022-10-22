@@ -91,6 +91,9 @@ def all(
     def local_all(t, *args, **kwargs):
         return torch.all(t != 0, *args, **kwargs)
 
+    if keepdim and axis is None:
+        axis = tuple(range(x.ndim))
+
     return _operations.__reduce_op(
         x, local_all, MPI.LAND, axis=axis, out=out, neutral=1, keepdim=keepdim
     )
@@ -195,6 +198,9 @@ def any(
 
     def local_any(t, *args, **kwargs):
         return torch.any(t != 0, *args, **kwargs)
+
+    if keepdim and axis is None:
+        axis = tuple(range(x.ndim))
 
     return _operations.__reduce_op(
         x, local_any, MPI.LOR, axis=axis, out=out, neutral=0, keepdim=keepdim

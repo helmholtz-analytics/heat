@@ -1,0 +1,47 @@
+categories:
+  - title: '🔥 Features'
+    labels:
+      - 'enhancement'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'bug :bug:'
+  - title: '🧹 Maintenance'
+    label: 'chore'
+  - title: '📜 Documentation'
+    label: 'documentation :book:'
+  - title: '🧪 Testing'
+    label: 'testing'
+  - title: '💯 Benchmarking'
+    label: 'benchmarking'
+  - title: 'Linear Algebra'
+    label: 'linalg'
+  - title: 'DNDarray'
+    label: 'dndarray'
+  - title: 'Arithmetic'
+    label: 'arithmetic'
+  - title: 'Random'
+    label: 'random'
+  - title: 'Logical'
+    label: 'logical'
+  - title: 'Manipulation'
+    label: 'manipulation'
+  - title: 'Communication'
+    labels:
+      - 'io'
+      - 'communication'
+  - title: 'Google Summer of Code 2022'
+    label: 'GSoC22'
+  - title: 'Array API'
+    label: 'array API'
+change-template: '- #$NUMBER $TITLE (by @$AUTHOR)'
+categorie-template: '### $TITLE'
+exclude-labels:
+- 'workflow'
+template: |
+  ## Changes
+
+  $CHANGES
+
+  ## Contributors
+
+  $CONTRIBUTORS
