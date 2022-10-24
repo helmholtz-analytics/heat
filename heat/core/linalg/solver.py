@@ -114,7 +114,7 @@ def lanczos(
         V = ht.ones((n, m), split=None, dtype=A.dtype, device=A.device)
 
     if v0 is None:
-        vr = ht.random.rand(n, split=V.split)
+        vr = ht.random.rand(n, split=V.split, dtype=V.dtype, device=V.device)
         v0 = vr / ht.norm(vr)
     else:
         if v0.split != V.split:
