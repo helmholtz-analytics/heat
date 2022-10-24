@@ -413,7 +413,9 @@ def array(
         reduction_buffer = np.array(neighbour_shape[is_split])
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.MIN)
         if reduction_buffer < 0:
-            raise ValueError("unable to construct tensor, shape of local data chunk does not match")
+            raise ValueError(
+                "Unable to construct DNDarray. Local data slices have inconsistent shapes or dimensions."
+            )
         ttl_shape = np.array(obj.shape)
         ttl_shape[is_split] = lshape[is_split]
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
