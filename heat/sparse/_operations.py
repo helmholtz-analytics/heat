@@ -4,7 +4,7 @@ Generalized MPI operations. i.e. element-wise binary operations
 import torch
 import numpy as np
 
-from heat.sparse.dcsr_matrix import Dcsr_matrix
+from heat.sparse.dcsr_matrix import DCSR_matrix
 
 from . import factories
 from ..core.communication import MPI
@@ -18,12 +18,12 @@ __all__ = []
 
 def __binary_op_sparse_csr(
     operation: Callable,
-    t1: Dcsr_matrix,
-    t2: Dcsr_matrix,
-    out: Optional[Dcsr_matrix] = None,
+    t1: DCSR_matrix,
+    t2: DCSR_matrix,
+    out: Optional[DCSR_matrix] = None,
     where: Optional[DNDarray] = None,
     fn_kwargs: Optional[Dict] = {},
-) -> Dcsr_matrix:
+) -> DCSR_matrix:
     """
     Generic wrapper for element-wise binary operations of two operands.
     Takes the operation function and the two operands involved in the operation as arguments.
@@ -33,11 +33,11 @@ def __binary_op_sparse_csr(
     operation : function
         The operation to be performed. Function that performs operation elements-wise on the involved tensors,
         e.g. add values from other to self
-    t1: Dcsr_matrix
+    t1: DCSR_matrix
         The first operand involved in the operation.
-    t2: Dcsr_matrix
+    t2: DCSR_matrix
         The second operand involved in the operation.
-    out: Dcsr_matrix, optional
+    out: DCSR_matrix, optional
         Output buffer in which the result is placed. If not provided, a freshly allocated matrix is returned.
     where: DNDarray, optional
         TODO
@@ -52,25 +52,25 @@ def __binary_op_sparse_csr(
 
     Returns
     -------
-    result: ht.sparse.Dcsr_matrix
-        A Dcsr_matrix containing the results of element-wise operation.
+    result: ht.sparse.DCSR_matrix
+        A DCSR_matrix containing the results of element-wise operation.
 
     Warning
     -------
     If both operands are distributed, they must be distributed along the same dimension, i.e. `t1.split = t2.split`.
     """
-    # Check inputs --> for now, only `Dcsr_matrix` accepted
+    # Check inputs --> for now, only `DCSR_matrix` accepted
     # TODO: Might have to include `DNDarray`
-    if not np.isscalar(t1) and not isinstance(t1, Dcsr_matrix):
+    if not np.isscalar(t1) and not isinstance(t1, DCSR_matrix):
         raise TypeError(
             f"Only Dcsr_matrices and numeric scalars are supported, but input was {type(t1)}"
         )
-    if not np.isscalar(t2) and not isinstance(t2, Dcsr_matrix):
+    if not np.isscalar(t2) and not isinstance(t2, DCSR_matrix):
         raise TypeError(
             f"Only Dcsr_matrices and numeric scalars are supported, but input was {type(t2)}"
         )
 
-    if not isinstance(t1, Dcsr_matrix) and not isinstance(t2, Dcsr_matrix):
+    if not isinstance(t1, DCSR_matrix) and not isinstance(t2, DCSR_matrix):
         raise TypeError(
             f"Operator only to be used with Dcsr_matrices, but input types were {type(t1)} and {type(t2)}"
         )
@@ -116,11 +116,11 @@ def __binary_op_sparse_csr(
 
         Parameters
         ----------
-        target : Dcsr_matrix
-            Dcsr_matrix determining the parameters
-        other : Dcsr_matrix
+        target : DCSR_matrix
+            DCSR_matrix determining the parameters
+        other : DCSR_matrix
             TODO
-            Dcsr_matrix to be adapted
+            DCSR_matrix to be adapted
         map : Tensor
             TODO
             lshape_map `other` should be matched to. Defaults to `target.lshape_map`
@@ -189,7 +189,7 @@ def __binary_op_sparse_csr(
     output_type = types.canonical_heat_type(result.dtype)
 
     if out is None and where is None:
-        return Dcsr_matrix(
+        return DCSR_matrix(
             array=result,
             gnnz=output_gnnz,
             gshape=output_shape,

@@ -36,7 +36,7 @@ class TestFactories(TestCase):
         """
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
-        self.assertIsInstance(heat_sparse_csr, ht.sparse.Dcsr_matrix)
+        self.assertIsInstance(heat_sparse_csr, ht.sparse.DCSR_matrix)
         self.assertEqual(heat_sparse_csr.dtype, ht.float32)
         self.assertEqual(heat_sparse_csr.indptr.dtype, torch.int64)
         self.assertEqual(heat_sparse_csr.indices.dtype, torch.int64)
@@ -149,7 +149,7 @@ class TestFactories(TestCase):
         """
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_scipy_sparse_csr)
 
-        self.assertIsInstance(heat_sparse_csr, ht.sparse.Dcsr_matrix)
+        self.assertIsInstance(heat_sparse_csr, ht.sparse.DCSR_matrix)
         self.assertEqual(heat_sparse_csr.dtype, ht.float32)
         self.assertEqual(heat_sparse_csr.indptr.dtype, torch.int64)
         self.assertEqual(heat_sparse_csr.indices.dtype, torch.int64)

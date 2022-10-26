@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import torch
 
-from .dcsr_matrix import Dcsr_matrix
+from .dcsr_matrix import DCSR_matrix
 
 from . import _operations
 
@@ -15,17 +15,17 @@ __all__ = [
 ]
 
 
-def sparse_add(t1: Dcsr_matrix, t2: Dcsr_matrix) -> Dcsr_matrix:
+def sparse_add(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
     """
     Element-wise addition of values from two operands, commutative.
-    Takes the first and second operand (scalar or :class:`~heat.sparse.Dcsr_matrix`) whose elements are to be added
-    as argument and returns a ``Dcsr_matrix`` containing the results of element-wise addition of ``t1`` and ``t2``.
+    Takes the first and second operand (scalar or :class:`~heat.sparse.DCSR_matrix`) whose elements are to be added
+    as argument and returns a ``DCSR_matrix`` containing the results of element-wise addition of ``t1`` and ``t2``.
 
     Parameters
     ----------
-    t1: Dcsr_matrix
+    t1: DCSR_matrix
         The first operand involved in the addition
-    t2: Dcsr_matrix
+    t2: DCSR_matrix
         The second operand involved in the addition
 
     Examples
@@ -58,23 +58,23 @@ def sparse_add(t1: Dcsr_matrix, t2: Dcsr_matrix) -> Dcsr_matrix:
     return _operations.__binary_op_sparse_csr(torch.add, t1, t2)
 
 
-Dcsr_matrix.__add__ = lambda self, other: sparse_add(self, other)
-Dcsr_matrix.__add__.__doc__ = sparse_add.__doc__
-Dcsr_matrix.__radd__ = lambda self, other: sparse_add(self, other)
-Dcsr_matrix.__radd__.__doc__ = sparse_add.__doc__
+DCSR_matrix.__add__ = lambda self, other: sparse_add(self, other)
+DCSR_matrix.__add__.__doc__ = sparse_add.__doc__
+DCSR_matrix.__radd__ = lambda self, other: sparse_add(self, other)
+DCSR_matrix.__radd__.__doc__ = sparse_add.__doc__
 
 
-def sparse_mul(t1: Dcsr_matrix, t2: Dcsr_matrix) -> Dcsr_matrix:
+def sparse_mul(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
     """
     Element-wise multiplication (NOT matrix multiplication) of values from two operands, commutative.
-    Takes the first and second operand (scalar or :class:`~heat.sparse.Dcsr_matrix`) whose elements are to be
+    Takes the first and second operand (scalar or :class:`~heat.sparse.DCSR_matrix`) whose elements are to be
     multiplied as argument.
 
     Parameters
     ----------
-    t1: Dcsr_matrix
+    t1: DCSR_matrix
         The first operand involved in the multiplication
-    t2: Dcsr_matrix
+    t2: DCSR_matrix
         The second operand involved in the multiplication
 
     Examples
@@ -107,7 +107,7 @@ def sparse_mul(t1: Dcsr_matrix, t2: Dcsr_matrix) -> Dcsr_matrix:
     return _operations.__binary_op_sparse_csr(torch.mul, t1, t2)
 
 
-Dcsr_matrix.__mul__ = lambda self, other: sparse_mul(self, other)
-Dcsr_matrix.__mul__.__doc__ = sparse_mul.__doc__
-Dcsr_matrix.__rmul__ = lambda self, other: sparse_mul(self, other)
-Dcsr_matrix.__rmul__.__doc__ = sparse_mul.__doc__
+DCSR_matrix.__mul__ = lambda self, other: sparse_mul(self, other)
+DCSR_matrix.__mul__.__doc__ = sparse_mul.__doc__
+DCSR_matrix.__rmul__ = lambda self, other: sparse_mul(self, other)
+DCSR_matrix.__rmul__.__doc__ = sparse_mul.__doc__

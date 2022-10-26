@@ -1,9 +1,9 @@
 """
-Manipulation operations for (potentially distributed) `Dcsr_matrix`.
+Manipulation operations for (potentially distributed) `DCSR_matrix`.
 """
 from __future__ import annotations
 
-from heat.sparse.dcsr_matrix import Dcsr_matrix
+from heat.sparse.dcsr_matrix import DCSR_matrix
 
 from ..core.dndarray import DNDarray
 from ..core.factories import empty
@@ -13,14 +13,14 @@ __all__ = [
 ]
 
 
-def todense(sparse_matrix: Dcsr_matrix, order=None, out: DNDarray = None):
+def todense(sparse_matrix: DCSR_matrix, order=None, out: DNDarray = None):
     """
-    Convert :class:`~heat.sparse.Dcsr_matrix` to a dense :class:`~heat.core.DNDarray`.
+    Convert :class:`~heat.sparse.DCSR_matrix` to a dense :class:`~heat.core.DNDarray`.
     Output follows the same distribution among processes as the input
 
     Parameters
     ----------
-    sparse_matrix : :class:`~heat.sparse.Dcsr_matrix`
+    sparse_matrix : :class:`~heat.sparse.DCSR_matrix`
         The sparse csr matrix which is to be converted to a dense array
     order: str, optional
         TODO
@@ -72,4 +72,4 @@ def todense(sparse_matrix: Dcsr_matrix, order=None, out: DNDarray = None):
     return out
 
 
-Dcsr_matrix.todense = lambda self, order=None, out=None: todense(self, order, out)
+DCSR_matrix.todense = lambda self, order=None, out=None: todense(self, order, out)

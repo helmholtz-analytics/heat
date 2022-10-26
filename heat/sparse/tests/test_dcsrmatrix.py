@@ -6,10 +6,10 @@ from heat.core.tests.test_suites.basic_test import TestCase
 from typing import Tuple
 
 
-class TestDcsr_matrix(TestCase):
+class TestDCSR_matrix(TestCase):
     @classmethod
     def setUpClass(cls):
-        super(TestDcsr_matrix, cls).setUpClass()
+        super(TestDCSR_matrix, cls).setUpClass()
         """
         A = [[0, 0, 1, 0, 2]
              [0, 0, 0, 0, 0]
@@ -172,14 +172,14 @@ class TestDcsr_matrix(TestCase):
 
         # check the copy case for uint8
         as_uint8 = heat_sparse_csr.astype(ht.uint8)
-        self.assertIsInstance(as_uint8, ht.sparse.Dcsr_matrix)
+        self.assertIsInstance(as_uint8, ht.sparse.DCSR_matrix)
         self.assertEqual(as_uint8.dtype, ht.uint8)
         self.assertEqual(as_uint8.larray.dtype, torch.uint8)
         self.assertIsNot(as_uint8, heat_sparse_csr)
 
         # check the copy case for uint8
         as_float64 = heat_sparse_csr.astype(ht.float64, copy=False)
-        self.assertIsInstance(as_float64, ht.sparse.Dcsr_matrix)
+        self.assertIsInstance(as_float64, ht.sparse.DCSR_matrix)
         self.assertEqual(as_float64.dtype, ht.float64)
         self.assertEqual(as_float64.larray.dtype, torch.float64)
         self.assertIs(as_float64, heat_sparse_csr)

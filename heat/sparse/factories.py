@@ -1,4 +1,4 @@
-"""Provides high-level Dcsr_matrix initialization functions"""
+"""Provides high-level DCSR_matrix initialization functions"""
 
 import torch
 import numpy as np
@@ -7,14 +7,13 @@ from scipy.sparse import csr_matrix as scipy_csr_matrix
 from typing import Optional, Type, Union
 import warnings
 
+from ..core import devices
+from ..core import types
 from ..core.communication import MPI, sanitize_comm, Communication
 from ..core.devices import Device
 from ..core.types import datatype
 
-from .dcsr_matrix import Dcsr_matrix
-
-from ..core import devices
-from ..core import types
+from .dcsr_matrix import DCSR_matrix
 
 __all__ = [
     "sparse_csr_matrix",
@@ -31,9 +30,9 @@ def sparse_csr_matrix(
     is_split: Optional[int] = None,
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
-) -> Dcsr_matrix:
+) -> DCSR_matrix:
     """
-    Create a :class:`~heat.sparse.Dcsr_matrix`.
+    Create a :class:`~heat.sparse.DCSR_matrix`.
 
     Parameters
     ----------
@@ -45,7 +44,7 @@ def sparse_csr_matrix(
         the :func:`~heat.sparse.dcsr_matrix.astype` method.
     split : int or None, optional
         The axis along which the passed array content ``obj`` is split and distributed in memory. Mutually exclusive
-        with ``is_split``. Dcsr_matrix only supports distribution along axis 0.
+        with ``is_split``. DCSR_matrix only supports distribution along axis 0.
     copy : bool, optional
         TODO
         If ``True`` (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested
@@ -62,7 +61,7 @@ def sparse_csr_matrix(
     is_split : int or None, optional
         Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
         interfacing with other distributed-memory code. The shape of the global array is automatically inferred.
-        Mutually exclusive with ``split``. Dcsr_matrix only supports distribution along axis 0.
+        Mutually exclusive with ``split``. DCSR_matrix only supports distribution along axis 0.
     device : str or Device, optional
         Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on (i.e. globally set default
         device).
@@ -78,7 +77,7 @@ def sparse_csr_matrix(
 
     Examples
     --------
-    Create a :class:`~heat.sparse.Dcsr_matrix` from :class:`torch.Tensor` (layout ==> torch.sparse_csr)
+    Create a :class:`~heat.sparse.DCSR_matrix` from :class:`torch.Tensor` (layout ==> torch.sparse_csr)
     >>> indptr = torch.tensor([0, 2, 3, 6])
     >>> indices = torch.tensor([0, 2, 2, 0, 1, 2])
     >>> data = torch.tensor([1, 2, 3, 4, 5, 6], dtype=torch.float)
@@ -87,13 +86,13 @@ def sparse_csr_matrix(
     >>> heat_sparse_csr
     (indptr: tensor([0, 2, 3, 6]), indices: tensor([0, 2, 2, 0, 1, 2]), data: tensor([1., 2., 3., 4., 5., 6.]), dtype=ht.float32, device=cpu:0, split=0)
 
-    Create a :class:`~heat.sparse.Dcsr_matrix` from :class:`scipy.sparse.csr_matrix`
+    Create a :class:`~heat.sparse.DCSR_matrix` from :class:`scipy.sparse.csr_matrix`
     >>> scipy_sparse_csr = scipy.sparse.csr_matrix((data, indices, indptr))
     >>> heat_sparse_csr = ht.sparse.sparse_csr_matrix(scipy_sparse_csr, split=0)
     >>> heat_sparse_csr
     (indptr: tensor([0, 2, 3, 6], dtype=torch.int32), indices: tensor([0, 2, 2, 0, 1, 2], dtype=torch.int32), data: tensor([1., 2., 3., 4., 5., 6.]), dtype=ht.float32, device=cpu:0, split=0)
 
-    Create a :class:`~heat.sparse.Dcsr_matrix` using data that is already distributed (with `is_split`)
+    Create a :class:`~heat.sparse.DCSR_matrix` using data that is already distributed (with `is_split`)
     >>> indptrs = [torch.tensor([0, 2, 3]), torch.tensor([0, 3])]
     >>> indices = [torch.tensor([0, 2, 2]), torch.tensor([0, 1, 2])]
     >>> data = [torch.tensor([1, 2, 3], dtype=torch.float),
@@ -198,7 +197,9 @@ def sparse_csr_matrix(
         # does not match with itself in shape
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.MIN)
         if reduction_buffer < 0:
-            raise ValueError("unable to construct tensor, shape of local data chunk does not match")
+            raise ValueError(
+                "Unable to construct DCSR_matrix. Local data slices have inconsistent shapes or dimensions."
+            )
 
         data = obj.values()
         indptr = obj.crow_indices()
@@ -236,7 +237,7 @@ def sparse_csr_matrix(
         device=device.torch_device if device is not None else devices.get_device().torch_device,
     )
 
-    return Dcsr_matrix(
+    return DCSR_matrix(
         array=sparse_array,
         gnnz=gnnz,
         gshape=gshape,
