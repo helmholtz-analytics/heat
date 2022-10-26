@@ -41,11 +41,11 @@ available image. SIB is thus used as a conversion tool.
 A simple `Dockerfile` (in addition to the one above) to be used with SIB could look like
 this:
 
-    FROM ghcr.io/helmholtz-analytics/heat:1.2.0_torch1.11_cuda11.5_py3.9
+	FROM ghcr.io/helmholtz-analytics/heat:1.2.0_torch1.11_cuda11.5_py3.9
 
 The invocation to build the image would be:
 
-    $ sib upload ./Dockerfile heat_1.2.0_torch.11_cuda11.5_py3.9
+	$ sib upload ./Dockerfile heat_1.2.0_torch.11_cuda11.5_py3.9
 	$ sib build --recipe-name heat_1.2.0_torch.11_cuda11.5_py3.9
 	$ sib download --recipe-name heat_1.2.0_torch.11_cuda11.5_py3.9
 
