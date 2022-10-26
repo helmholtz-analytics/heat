@@ -34,6 +34,8 @@ test:
 
 benchmark:
   <<: *env_setup
+  only:
+    - main
   variables:
     PERUN_PUE: 1.5
     PERUN_DATA_OUT: "./data"
@@ -42,7 +44,7 @@ benchmark:
     # - pip install perun
     - git clone https://github.com/helmholtz-analytics/heat-bench-stats.github
     - cd heat-bench-stats
-    - sh ./run_benchmarks.sh
+    - sh ./run_benchmarks.sh $CI_COMMIT_SHORT_SHA
     - git add -u
     - git commit -m "benchmarks for commit $CI_COMMIT_BRANCH:$CI_COMMIT_SHORT_SHA"
     - git push
