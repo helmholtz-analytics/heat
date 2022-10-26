@@ -434,7 +434,7 @@ def array(
 def asarray(
     obj: Iterable,
     dtype: Optional[Type[datatype]] = None,
-    copy: bool = None,
+    copy: Optional[bool] = None,
     order: str = "C",
     is_split: Optional[bool] = None,
     device: Optional[Union[str, Device]] = None,
