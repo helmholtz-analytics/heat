@@ -9,11 +9,11 @@ RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/
 
 FROM base AS source-install
 ARG HEAT_BRANCH
-RUN git clone -b ${HEAT_BRANCH} https://github.com/helmholtz-analytics/heat.git ; cd heat; pip install .[hdf5,netcdf]; cd ..; rm -rf heat
+RUN git clone -b ${HEAT_BRANCH} https://github.com/helmholtz-analytics/heat.git ; cd heat; pip install mpi4py --no-binary :all: ; pip install .[hdf5,netcdf]; pip cache purge ; cd ..; rm -rf heat
 
 FROM base AS release-install
 ARG PACKAGE_NAME
 ARG HEAT_VERSION
-RUN if [ "x${HEAT_VERSION}" = "x" ]; then pip install ${PACKAGE_NAME}[hdf5,netcdf]; else pip install ${PACKAGE_NAME}[hdf5,netcdf]==${HEAT_VERSION}; fi ; pip cache purge
+RUN pip install mpi4py --no-binary :all: ; if [ "x${HEAT_VERSION}" = "x" ]; then pip install ${PACKAGE_NAME}[hdf5,netcdf]; else pip install ${PACKAGE_NAME}[hdf5,netcdf]==${HEAT_VERSION}; fi ; pip cache purge
 
 FROM ${INSTALL_TYPE}-install AS final
