@@ -1,10 +1,10 @@
 name: benchmarking-test
 
 on:
-  push: 
+  push:
     branches: [ bencharking-with-pytest-for-genkgo ]
-    
-    
+
+
 jobs:
   run-benchmarks:
     name: benchmark automation
@@ -22,4 +22,3 @@ jobs:
           username: ${{ secrets.HDFML_USER_NAME }}
           privateKey: ${{ secrets.HDFML_KEY}}
           passphrase: ${{ secrets.HDFML_PASSPHRASE }}
-

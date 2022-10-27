@@ -11,7 +11,7 @@ _env_setup: &env_setup
     - pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
     - pip install .[hdf5,netcdf]
 
-test: 
+test:
   <<: *env_setup
   script:
     - pip install pytest coverage
