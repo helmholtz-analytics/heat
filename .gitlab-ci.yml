@@ -1,4 +1,4 @@
-_env_setup: &env_setup
+.env_setup: &env_setup
   image: nvidia/cuda:11.6.2-runtime-ubuntu20.04
   tags:
     - cuda
@@ -37,7 +37,7 @@ benchmark:
   only:
     - main
   variables:
-    PERUN_PUE: 1.5
+    PERUN_PUE: "1.5"
     PERUN_DATA_OUT: "./data"
     PERUN_FORMAT: "yaml"
   script:
