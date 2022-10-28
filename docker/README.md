@@ -23,6 +23,8 @@ repository, for example:
 	$ docker tag ea0a1040bf8a ghcr.io/helmholtz-analytics/heat:1.2.0_torch1.11_cuda11.5_py3.9
 	$ docker push ghcr.io/helmholtz-analytics/heat:1.2.0_torch1.11_cuda11.5_py3.9
 
+Please ensure that you push the same tag that you just created.
+
 ## Building for HPC
 
 With HeAT being a native HPC library, one would naturally want to build the container
