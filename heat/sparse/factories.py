@@ -23,9 +23,6 @@ __all__ = [
 def sparse_csr_matrix(
     obj: Union[torch.Tensor, scipy_csr_matrix],
     dtype: Optional[Type[datatype]] = None,
-    copy: bool = True,
-    ndmin: int = 0,
-    order: str = "C",
     split: Optional[int] = None,
     is_split: Optional[int] = None,
     device: Optional[Device] = None,
@@ -45,19 +42,6 @@ def sparse_csr_matrix(
     split : int or None, optional
         The axis along which the passed array content ``obj`` is split and distributed in memory. Mutually exclusive
         with ``is_split``. DCSR_matrix only supports distribution along axis 0.
-    copy : bool, optional
-        TODO
-        If ``True`` (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested
-        sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
-    ndmin : int, optional
-        TODO
-        Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
-        attached to the shape if ``ndim > 0`` and prefaced in case of ``ndim < 0`` to meet the requirement.
-    order: str, optional
-        TODO
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
-        meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
-        column-major order (Fortran-like).
     is_split : int or None, optional
         Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
         interfacing with other distributed-memory code. The shape of the global array is automatically inferred.
@@ -71,9 +55,7 @@ def sparse_csr_matrix(
     Raises
     ------
     NotImplementedError
-        If split parameter is not one of 0 or None.
-    NotImplementedError
-        If is_split parameter is not one of 0 or None.
+        If split and is_split parameters are not one of 0 or None.
 
     Examples
     --------
@@ -151,14 +133,14 @@ def sparse_csr_matrix(
 
         # Find the starting and ending indices for
         # col_indices and values tensors for this process
-        indicesStart = obj.crow_indices()[start]
-        indicesEnd = obj.crow_indices()[end]
+        indices_start = obj.crow_indices()[start]
+        indices_end = obj.crow_indices()[end]
 
         # Slice the data belonging to this process
-        data = obj.values()[indicesStart:indicesEnd]
+        data = obj.values()[indices_start:indices_end]
         # start:(end + 1) because indptr is of size (n + 1) for array with n rows
         indptr = obj.crow_indices()[start : end + 1]
-        indices = obj.col_indices()[indicesStart:indicesEnd]
+        indices = obj.col_indices()[indices_start:indices_end]
 
         indptr = indptr - indptr[0]
 
@@ -234,7 +216,7 @@ def sparse_csr_matrix(
         data,
         size=lshape,
         dtype=dtype.torch_type(),
-        device=device.torch_device if device is not None else devices.get_device().torch_device,
+        device=device.torch_device,
     )
 
     return DCSR_matrix(

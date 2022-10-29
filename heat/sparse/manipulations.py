@@ -1,10 +1,9 @@
-"""
-Manipulation operations for (potentially distributed) `DCSR_matrix`.
-"""
+"""Manipulation operations for (potentially distributed) `DCSR_matrix`."""
 from __future__ import annotations
 
 from heat.sparse.dcsr_matrix import DCSR_matrix
 
+from ..core.memory import sanitize_memory_layout
 from ..core.dndarray import DNDarray
 from ..core.factories import empty
 
@@ -13,7 +12,7 @@ __all__ = [
 ]
 
 
-def todense(sparse_matrix: DCSR_matrix, order=None, out: DNDarray = None):
+def todense(sparse_matrix: DCSR_matrix, order="C", out: DNDarray = None) -> DNDarray:
     """
     Convert :class:`~heat.sparse.DCSR_matrix` to a dense :class:`~heat.core.DNDarray`.
     Output follows the same distribution among processes as the input
@@ -23,8 +22,7 @@ def todense(sparse_matrix: DCSR_matrix, order=None, out: DNDarray = None):
     sparse_matrix : :class:`~heat.sparse.DCSR_matrix`
         The sparse csr matrix which is to be converted to a dense array
     order: str, optional
-        TODO
-        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created array. Default is ``order='C'``,
+        Options: ``'C'`` or ``'F'``. Specifies the memory layout of the newly created `DNDarray`. Default is ``order='C'``,
         meaning the array will be stored in row-major order (C-like). If ``order=‘F’``, the array will be stored in
         column-major order (Fortran-like).
     out : DNDarray
@@ -66,10 +64,12 @@ def todense(sparse_matrix: DCSR_matrix, order=None, out: DNDarray = None):
             dtype=sparse_matrix.dtype,
             device=sparse_matrix.device,
             comm=sparse_matrix.comm,
+            order=order,
         )
 
-    out.larray = sparse_matrix.larray.to_dense()
+    out.larray = sanitize_memory_layout(sparse_matrix.larray.to_dense(), order=order)
     return out
 
 
-DCSR_matrix.todense = lambda self, order=None, out=None: todense(self, order, out)
+DCSR_matrix.todense = lambda self, order="C", out=None: todense(self, order, out)
+DCSR_matrix.to_dense = lambda self, order="C", out=None: todense(self, order, out)
