@@ -8,9 +8,7 @@ Heat is a distributed tensor framework for high performance data analytics.
 
 Project Status
 --------------
-
-[![Jenkins](https://img.shields.io/jenkins/build?jobUrl=https%3A%2F%2Fheat-ci.fz-juelich.de%2Fjob%2Fheat%2Fjob%2Fheat%2Fjob%2Fmain%2F&label=CPU)](https://heat-ci.fz-juelich.de/blue/organizations/jenkins/heat%2Fheat/activity?branch=main)
-[![Jenkins](https://img.shields.io/jenkins/build?jobUrl=https%3A%2F%2Fheat-ci.fz-juelich.de%2Fjob%2FGPU%2520Cluster%2Fjob%2Fmain%2F&label=GPU)](https://heat-ci.fz-juelich.de/blue/organizations/jenkins/GPU%20Cluster%2Fmain/activity)
+[![Mirror and run GitLab CI](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cpu.yml/badge.svg)](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cpu.yml)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/helmholtz-analytics/heat/branch/main/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
