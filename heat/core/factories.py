@@ -381,9 +381,13 @@ def array(
         obj = sanitize_memory_layout(obj, order=order)
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
-        gshape = np.array(gshape)
-        lshape = np.array(lshape)
         obj = sanitize_memory_layout(obj, order=order)
+
+        # Check whether the shape of distributed data
+        # matches in all dimensions except the split axis
+        neighbour_shape = np.array(gshape)
+        lshape = np.array(lshape)
+
         if comm.rank < comm.size - 1:
             comm.Isend(lshape, dest=comm.rank + 1)
         if comm.rank != 0:
@@ -395,21 +399,23 @@ def array(
             if length != len(lshape):
                 discard_buffer = np.empty(length)
                 comm.Recv(discard_buffer, source=comm.rank - 1)
-                gshape[is_split] = np.iinfo(gshape.dtype).min
+                neighbour_shape[is_split] = np.iinfo(neighbour_shape.dtype).min
             else:
                 # check whether the individual shape elements match
-                comm.Recv(gshape, source=comm.rank - 1)
+                comm.Recv(neighbour_shape, source=comm.rank - 1)
                 for i in range(length):
                     if i == is_split:
                         continue
-                    elif lshape[i] != gshape[i] and lshape[i] - 1 != gshape[i]:
-                        gshape[is_split] = np.iinfo(gshape.dtype).min
+                    elif lshape[i] != neighbour_shape[i]:
+                        neighbour_shape[is_split] = np.iinfo(neighbour_shape.dtype).min
 
         # sum up the elements along the split dimension
-        reduction_buffer = np.array(gshape[is_split])
-        comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
+        reduction_buffer = np.array(neighbour_shape[is_split])
+        comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.MIN)
         if reduction_buffer < 0:
-            raise ValueError("unable to construct tensor, shape of local data chunk does not match")
+            raise ValueError(
+                "Unable to construct DNDarray. Local data slices have inconsistent shapes or dimensions."
+            )
         ttl_shape = np.array(obj.shape)
         ttl_shape[is_split] = lshape[is_split]
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
