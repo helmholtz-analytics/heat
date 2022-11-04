@@ -574,7 +574,11 @@ class TestDNDarray(TestCase):
 
         arr_split1 = ht.array(arr, split=1)
         mask_split1 = ht.array(mask, split=1)
-        self.assertTrue((arr_split1[mask_split1].numpy() == arr.numpy()[mask]).all())
+        self.assert_array_equal(arr_split1[mask_split1], arr.numpy()[mask])
+
+        arr_split2 = ht.array(arr, split=2)
+        mask_split2 = ht.array(mask, split=2)
+        self.assert_array_equal(arr_split2[mask_split2], arr.numpy()[mask])
 
     def test_int_cast(self):
         # simple scalar tensor
