@@ -106,7 +106,7 @@ def lanczos(
     n, column = A.shape
     if n != column:
         raise TypeError("Input Matrix A needs to be symmetric.")
-    T = ht.zeros((m, m))
+    T = ht.zeros((m, m), dtype=A.dtype, device=A.device)
     if A.split == 0:
         # This is done for better memory access in the reorthogonalization Gram-Schmidt algorithm
         V = ht.ones((n, m), split=0, dtype=A.dtype, device=A.device)
