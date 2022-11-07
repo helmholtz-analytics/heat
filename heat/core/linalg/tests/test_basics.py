@@ -294,19 +294,20 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(ainv.split, a.split)
         self.assertEqual(ainv.device, a.device)
         self.assertTupleEqual(ainv.shape, a.shape)
-        self.assertTrue(ht.allclose(ainv, ares, atol=1e-13))
+        self.assertTrue(ht.allclose(ainv, ares, atol=1e-15))
 
         ht.random.seed(42)
         a = ht.random.random((20, 20), dtype=ht.float64, split=1)
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=1, dtype=a.dtype)
-        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-13))
+        # loss of precision in distributed floating-point ops
+        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-12))
 
-        # ht.random.seed(42)
-        # a = ht.random.random((20, 20), dtype=ht.float64, split=0)
-        # ainv = ht.linalg.inv(a)
-        # i = ht.eye(a.shape, split=0, dtype=a.dtype)
-        # self.assertTrue(ht.allclose(a @ ainv, i))
+        ht.random.seed(42)
+        a = ht.random.random((20, 20), dtype=ht.float64, split=0)
+        ainv = ht.linalg.inv(a)
+        i = ht.eye(a.shape, split=0, dtype=a.dtype)
+        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-12))
 
         with self.assertRaises(RuntimeError):
             ht.linalg.inv(ht.array([1, 2, 3], split=0))
