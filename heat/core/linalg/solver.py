@@ -114,7 +114,15 @@ def lanczos(
         V = ht.ones((n, m), split=None, dtype=A.dtype, device=A.device)
 
     if v0 is None:
-        vr = ht.random.rand(n, split=V.split, dtype=V.dtype, device=V.device)
+        try:
+            vr = ht.random.rand(n, split=V.split, dtype=V.dtype, device=V.device)
+        except ValueError:
+            # V is complex
+            vr_dtype = ht.float64 if V.dtype is ht.complex128 else ht.float32
+            vr = (
+                ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device)
+                + ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device) * 1j
+            )
         v0 = vr / ht.norm(vr)
     else:
         if v0.split != V.split:
