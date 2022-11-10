@@ -60,3 +60,19 @@ class TestSolver(TestCase):
         # V T V.T must be = B, V transposed = V inverse
         lanczos_B = V @ T @ V_inv
         self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance))
+
+        # complex128
+        A = (
+            ht.random.randn(n, n, dtype=ht.float64, split=0)
+            + ht.random.randn(n, n, dtype=ht.float64, split=0) * 1j
+        )
+        A_conj = ht.conj(A)
+        B = A @ A_conj.T
+        # Lanczos decomposition with iterations m = n
+        V, T = ht.lanczos(B, m=n)
+        # V must be unitary
+        V_inv = ht.linalg.inv(V)
+        print(ht.allclose(V_inv, ht.conj(V).T))
+        # V T V* must be = B, V conjugate transpose = V inverse
+        lanczos_B = V @ T @ V_inv
+        print(ht.allclose(lanczos_B, B))
