@@ -32,7 +32,7 @@ class TestSolver(TestCase):
 
     def test_lanczos(self):
         # define positive definite matrix (n,n), split = 0
-        n = 10
+        n = 100
         A = ht.random.randn(n, n, dtype=ht.float64, split=0)
         B = A @ A.T
         # Lanczos decomposition with iterations m = n
