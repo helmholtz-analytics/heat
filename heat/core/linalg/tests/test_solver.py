@@ -37,6 +37,8 @@ class TestSolver(TestCase):
         B = A @ A.T
         # Lanczos decomposition with iterations m = n
         V, T = ht.lanczos(B, m=n)
+        self.assertTrue(V.dtype is B.dtype)
+        self.assertTrue(T.dtype is B.dtype)
         # V must be unitary
         V_inv = ht.linalg.inv(V)
         self.assertTrue(ht.allclose(V_inv, V.T))
@@ -44,14 +46,17 @@ class TestSolver(TestCase):
         lanczos_B = V @ T @ V_inv
         self.assertTrue(ht.allclose(lanczos_B, B))
 
-        # define positive definite matrix (n,n), split = 1
-        A = ht.random.randn(n, n, dtype=ht.float64, split=1)
+        # float32
+        A = ht.random.randn(n, n, dtype=ht.float32, split=0)
         B = A @ A.T
         # Lanczos decomposition with iterations m = n
         V, T = ht.lanczos(B, m=n)
+        self.assertTrue(V.dtype is B.dtype)
+        self.assertTrue(T.dtype is B.dtype)
         # V must be unitary
         V_inv = ht.linalg.inv(V)
-        self.assertTrue(ht.allclose(V_inv, V.T))
+        tolerance = 1e-4
+        self.assertTrue(ht.allclose(V_inv, V.T, atol=tolerance))
         # V T V.T must be = B, V transposed = V inverse
         lanczos_B = V @ T @ V_inv
-        self.assertTrue(ht.allclose(lanczos_B, B))
+        self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance))
