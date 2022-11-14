@@ -1,0 +1,20 @@
+name: Mirror and run GitLab CI
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Mirror + trigger CI
+      uses: SvanBoxel/gitlab-mirror-and-ci-action@master
+      with:
+        args: "https://gitlab.hzdr.de/haf/heat"
+      env:
+        FORCE_PUSH: "true"
+        GITLAB_HOSTNAME: "gitlab.hzdr.de"
+        GITLAB_USERNAME: ""
+        GITLAB_PASSWORD: ${{ secrets.GITLAB_TOKEN_1 }}
+        GITLAB_PROJECT_ID: "845"
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

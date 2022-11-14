@@ -1,7 +1,7 @@
 name: Bug Report
 description: File a bug report
 title: "[Bug]: "
-labels: ["bug"]
+labels: ["bug :bug:"]
 
 body:
   - type: markdown
@@ -44,18 +44,25 @@ body:
       label: Python version
       description: What Python version?
       options:
+        - 3.7
         - 3.8
         - 3.9
-        - 3.10
-        - 3.7
+        - "3.10"
   - type: dropdown
     id: pytorch-version
     attributes:
       label: PyTorch version
       description: What PyTorch version?
       options:
+        - 1.12
         - 1.11
-        - 1.10
+        - "1.10"
         - 1.9
         - 1.8
         - 1.7
+  - type: textarea
+    id: mpi-version
+    attributes:
+      label: MPI version
+      description: OpenMPI, ParaStation, IntelMPI version?
+      render: shell
