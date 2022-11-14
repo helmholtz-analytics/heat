@@ -101,6 +101,8 @@ def lanczos(
 
     if not (A.ndim == 2):
         raise RuntimeError("A needs to be a 2D matrix")
+    if A.dtype is ht.int32 or A.dtype is ht.int64:
+        raise TypeError("A can be float or complex, got {}".format(A.dtype))
     if not isinstance(m, (int, float)):
         raise TypeError("m must be int, got {}".format(type(m)))
 
