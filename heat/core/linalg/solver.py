@@ -85,7 +85,8 @@ def lanczos(
     Parameters
     ----------
     A : DNDarray
-        2D symmetric, positive definite Matrix
+        2D Hermitian (if complex) or symmetric positive definite matrix.
+        Only distribution along axis 0 is supported, i.e. `A.split` must be `0` or `None`.
     m : int
         Number of Lanczos iterations
     v0 : DNDarray, optional
@@ -96,12 +97,12 @@ def lanczos(
         Output Matrix for the Tridiagonal matrix, Shape = (m, m)
     """
     if not isinstance(A, DNDarray):
-        raise TypeError("A needs to be of type ht.dndarra, but was {}".format(type(A)))
+        raise TypeError("A needs to be of type ht.dndarray, but was {}".format(type(A)))
 
     if not (A.ndim == 2):
         raise RuntimeError("A needs to be a 2D matrix")
     if not isinstance(m, (int, float)):
-        raise TypeError("m must be eiter int or float, but was {}".format(type(m)))
+        raise TypeError("m must be int, got {}".format(type(m)))
 
     n, column = A.shape
     if n != column:
@@ -114,11 +115,13 @@ def lanczos(
         V = ht.ones((n, m), split=None, dtype=A.dtype, device=A.device)
 
     if v0 is None:
-        try:
+        if V.dtype is not ht.complex128 and V.dtype is not ht.complex64:
             vr = ht.random.rand(n, split=V.split, dtype=V.dtype, device=V.device)
-        except ValueError:
-            # V is complex
-            vr_dtype = ht.float64 if V.dtype is ht.complex128 else ht.float32
+        else:
+            if V.dtype is ht.complex128:
+                vr_dtype = ht.float64
+            elif V.dtype is ht.complex64:
+                vr_dtype = ht.float32
             vr = (
                 ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device)
                 + ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device) * 1j
