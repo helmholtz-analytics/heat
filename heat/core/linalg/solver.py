@@ -98,7 +98,6 @@ def lanczos(
     """
     if not isinstance(A, DNDarray):
         raise TypeError("A needs to be of type ht.dndarray, but was {}".format(type(A)))
-
     if not (A.ndim == 2):
         raise RuntimeError("A needs to be a 2D matrix")
     if A.dtype is ht.int32 or A.dtype is ht.int64:
@@ -114,6 +113,8 @@ def lanczos(
         # This is done for better memory access in the reorthogonalization Gram-Schmidt algorithm
         V = ht.ones((n, m), split=0, dtype=A.dtype, device=A.device)
     else:
+        if A.split == 1:
+            raise NotImplementedError("Distribution along axis 1 not implemented yet.")
         V = ht.ones((n, m), split=None, dtype=A.dtype, device=A.device)
 
     if v0 is None:
