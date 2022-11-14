@@ -85,8 +85,11 @@ class TestSolver(TestCase):
         with self.assertRaises(TypeError):
             A = torch.randn(10, 10)
             V, T = ht.lanczos(A, m=3)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(TypeError):
             A = ht.random.randn(10, 12)
+            V, T = ht.lanczos(A, m=3)
+        with self.assertRaises(RuntimeError):
+            A = ht.random.randn(10, 12, 12)
             V, T = ht.lanczos(A, m=3)
         with self.assertRaises(NotImplementedError):
             A = ht.random.randn(10, 10, split=1)
