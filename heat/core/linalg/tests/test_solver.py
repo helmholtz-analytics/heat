@@ -76,3 +76,18 @@ class TestSolver(TestCase):
         # V T V* must be = B, V conjugate transpose = V inverse
         lanczos_B = V @ T @ V_inv
         print(ht.allclose(lanczos_B, B))
+
+        with self.assertRaises(TypeError):
+            V, T = ht.lanczos(B, m="3")
+        with self.assertRaises(TypeError):
+            A = ht.random.randint(0, 5, (10, 10))
+            V, T = ht.lanczos(A, m=3)
+        with self.assertRaises(TypeError):
+            A = torch.randn(10, 10)
+            V, T = ht.lanczos(A, m=3)
+        with self.assertRaises(RuntimeError):
+            A = ht.random.randn(10, 12)
+            V, T = ht.lanczos(A, m=3)
+        with self.assertRaises(NotImplementedError):
+            A = ht.random.randn(10, 10, split=1)
+            V, T = ht.lanczos(A, m=3)
