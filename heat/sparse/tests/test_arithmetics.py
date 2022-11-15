@@ -204,6 +204,101 @@ class TestArithmetics(TestCase):
             self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_B.lshape)
             self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
 
+        if self.world_size == 6:
+            indptr_A = torch.tensor([0, 2, 2, 2, 2, 2], dtype=torch.int)
+            indices_A = torch.tensor([2, 4], dtype=torch.int)
+            data_A = torch.tensor([1, 2], dtype=torch.float)
+            torch_sparse_csr_A = torch.sparse_csr_tensor(indptr_A, indices_A, data_A)
+            heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(torch_sparse_csr_A, split=0)
+
+            indptr_B = torch.tensor([0, 2, 3, 5, 5, 5], dtype=torch.int)
+            indices_B = torch.tensor([0, 4, 2, 1, 3], dtype=torch.int)
+            data_B = torch.tensor([2, 3, 4, 1, 1], dtype=torch.float)
+            torch_sparse_csr_B = torch.sparse_csr_tensor(indptr_B, indices_B, data_B)
+            heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(torch_sparse_csr_B, split=0)
+
+            indptr_C_dist = [
+                torch.tensor([0, 3]),
+                torch.tensor([0, 1]),
+                torch.tensor([0, 2]),
+                torch.tensor([0, 0]),
+                torch.tensor([0, 0]),
+                torch.tensor([0]),
+            ]
+            indices_C_dist = [
+                torch.tensor([0, 2, 4]),
+                torch.tensor([2]),
+                torch.tensor([1, 3]),
+                torch.tensor([]),
+                torch.tensor([]),
+                torch.tensor([]),
+            ]
+            data_C_dist = [
+                torch.tensor([2, 1, 5]),
+                torch.tensor([4]),
+                torch.tensor([1, 1]),
+                torch.tensor([]),
+                torch.tensor([]),
+                torch.tensor([]),
+            ]
+
+            indptr_C = torch.tensor([0, 3, 4, 6, 6, 6], dtype=torch.int)
+            indices_C = torch.tensor([0, 2, 4, 2, 1, 3], dtype=torch.int)
+            data_C = torch.tensor([2, 1, 5, 4, 1, 1], dtype=torch.float)
+
+            heat_sparse_csr_C = heat_sparse_csr_A + heat_sparse_csr_B
+
+            self.assertIsInstance(heat_sparse_csr_C, ht.sparse.DCSR_matrix)
+            self.assertTrue((heat_sparse_csr_C.indptr == indptr_C).all())
+            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr_C.indices == indices_C).all())
+            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr_C.data == data_C).all())
+            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[self.rank]).all())
+            self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
+            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[self.rank]))
+            self.assertEqual(heat_sparse_csr_C.split, 0)
+            self.assertEqual(heat_sparse_csr_C.shape, heat_sparse_csr_A.shape)
+            self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_A.lshape)
+            self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
+
+            # Operands with different splits
+            heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(torch_sparse_csr_A, split=0)
+            heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(torch_sparse_csr_B, split=None)
+            heat_sparse_csr_C = heat_sparse_csr_A + heat_sparse_csr_B
+
+            self.assertIsInstance(heat_sparse_csr_C, ht.sparse.DCSR_matrix)
+            self.assertTrue((heat_sparse_csr_C.indptr == indptr_C).all())
+            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr_C.indices == indices_C).all())
+            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr_C.data == data_C).all())
+            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[self.rank]).all())
+            self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
+            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[self.rank]))
+            self.assertEqual(heat_sparse_csr_C.split, 0)
+            self.assertEqual(heat_sparse_csr_C.shape, heat_sparse_csr_A.shape)
+            self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_A.lshape)
+            self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
+
+            heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(torch_sparse_csr_A, split=None)
+            heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(torch_sparse_csr_B, split=0)
+            heat_sparse_csr_C = heat_sparse_csr_A + heat_sparse_csr_B
+
+            self.assertIsInstance(heat_sparse_csr_C, ht.sparse.DCSR_matrix)
+            self.assertTrue((heat_sparse_csr_C.indptr == indptr_C).all())
+            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr_C.indices == indices_C).all())
+            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr_C.data == data_C).all())
+            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[self.rank]).all())
+            self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
+            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[self.rank]))
+            self.assertEqual(heat_sparse_csr_C.split, 0)
+            self.assertEqual(heat_sparse_csr_C.shape, heat_sparse_csr_B.shape)
+            self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_B.lshape)
+            self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
+
         # scalar
         heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A)
 
@@ -416,6 +511,101 @@ class TestArithmetics(TestCase):
 
             heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A, split=None)
             heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_B, split=0)
+            heat_sparse_csr_C = heat_sparse_csr_A * heat_sparse_csr_B
+
+            self.assertIsInstance(heat_sparse_csr_C, ht.sparse.DCSR_matrix)
+            self.assertTrue((heat_sparse_csr_C.indptr == indptr_C).all())
+            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr_C.indices == indices_C).all())
+            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr_C.data == data_C).all())
+            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[self.rank]).all())
+            self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
+            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[self.rank]))
+            self.assertEqual(heat_sparse_csr_C.split, 0)
+            self.assertEqual(heat_sparse_csr_C.shape, heat_sparse_csr_B.shape)
+            self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_B.lshape)
+            self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
+
+        if self.world_size == 6:
+            indptr_A = torch.tensor([0, 2, 2, 2, 2, 2], dtype=torch.int)
+            indices_A = torch.tensor([2, 4], dtype=torch.int)
+            data_A = torch.tensor([1, 2], dtype=torch.float)
+            torch_sparse_csr_A = torch.sparse_csr_tensor(indptr_A, indices_A, data_A)
+            heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(torch_sparse_csr_A, split=0)
+
+            indptr_B = torch.tensor([0, 2, 3, 5, 5, 5], dtype=torch.int)
+            indices_B = torch.tensor([0, 4, 2, 1, 3], dtype=torch.int)
+            data_B = torch.tensor([2, 3, 4, 1, 1], dtype=torch.float)
+            torch_sparse_csr_B = torch.sparse_csr_tensor(indptr_B, indices_B, data_B)
+            heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(torch_sparse_csr_B, split=0)
+
+            indptr_C_dist = [
+                torch.tensor([0, 1]),
+                torch.tensor([0, 0]),
+                torch.tensor([0, 0]),
+                torch.tensor([0, 0]),
+                torch.tensor([0, 0]),
+                torch.tensor([0]),
+            ]
+            indices_C_dist = [
+                torch.tensor([4]),
+                torch.tensor([]),
+                torch.tensor([]),
+                torch.tensor([]),
+                torch.tensor([]),
+                torch.tensor([]),
+            ]
+            data_C_dist = [
+                torch.tensor([6]),
+                torch.tensor([]),
+                torch.tensor([]),
+                torch.tensor([]),
+                torch.tensor([]),
+                torch.tensor([]),
+            ]
+
+            indptr_C = torch.tensor([0, 1, 1, 1, 1, 1], dtype=torch.int)
+            indices_C = torch.tensor([4], dtype=torch.int)
+            data_C = torch.tensor([6], dtype=torch.float)
+
+            heat_sparse_csr_C = heat_sparse_csr_A * heat_sparse_csr_B
+
+            self.assertIsInstance(heat_sparse_csr_C, ht.sparse.DCSR_matrix)
+            self.assertTrue((heat_sparse_csr_C.indptr == indptr_C).all())
+            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr_C.indices == indices_C).all())
+            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr_C.data == data_C).all())
+            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[self.rank]).all())
+            self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
+            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[self.rank]))
+            self.assertEqual(heat_sparse_csr_C.split, 0)
+            self.assertEqual(heat_sparse_csr_C.shape, heat_sparse_csr_A.shape)
+            self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_A.lshape)
+            self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
+
+            # Operands with different splits
+            heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(torch_sparse_csr_A, split=0)
+            heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(torch_sparse_csr_B, split=None)
+            heat_sparse_csr_C = heat_sparse_csr_A * heat_sparse_csr_B
+
+            self.assertIsInstance(heat_sparse_csr_C, ht.sparse.DCSR_matrix)
+            self.assertTrue((heat_sparse_csr_C.indptr == indptr_C).all())
+            self.assertTrue((heat_sparse_csr_C.lindptr == indptr_C_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr_C.indices == indices_C).all())
+            self.assertTrue((heat_sparse_csr_C.lindices == indices_C_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr_C.data == data_C).all())
+            self.assertTrue((heat_sparse_csr_C.ldata == data_C_dist[self.rank]).all())
+            self.assertEqual(heat_sparse_csr_C.nnz, len(data_C))
+            self.assertEqual(heat_sparse_csr_C.lnnz, len(data_C_dist[self.rank]))
+            self.assertEqual(heat_sparse_csr_C.split, 0)
+            self.assertEqual(heat_sparse_csr_C.shape, heat_sparse_csr_A.shape)
+            self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_A.lshape)
+            self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
+
+            heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(torch_sparse_csr_A, split=None)
+            heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(torch_sparse_csr_B, split=0)
             heat_sparse_csr_C = heat_sparse_csr_A * heat_sparse_csr_B
 
             self.assertIsInstance(heat_sparse_csr_C, ht.sparse.DCSR_matrix)

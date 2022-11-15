@@ -96,12 +96,12 @@ def __binary_op_csr(
 
         if t2.split is None:
             t2 = factories.sparse_csr_matrix(t2.larray, split=0)
-    output_split, output_device, output_comm, output_balanced = (
-        t1.split,
-        t1.device,
-        t1.comm,
-        t1.balanced,
-    )
+
+    output_split = t1.split
+    output_device = t1.device
+    output_comm = t1.comm
+    output_balanced = t1.balanced
+    output_lshape = t1.lshape
 
     # sanitize out buffer
     if out is not None:
@@ -139,7 +139,12 @@ def __binary_op_csr(
 
     if out is None:
         return DCSR_matrix(
-            array=result,
+            array=torch.sparse_csr_tensor(
+                result.crow_indices().to(torch.int64),
+                result.col_indices().to(torch.int64),
+                result.values(),
+                size=output_lshape,
+            ),
             gnnz=output_gnnz,
             gshape=output_shape,
             dtype=output_type,
