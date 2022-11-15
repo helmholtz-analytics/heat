@@ -14,7 +14,7 @@ from typing import Callable, Optional, Dict
 __all__ = []
 
 
-def __binary_op_sparse_csr(
+def __binary_op_csr(
     operation: Callable,
     t1: DCSR_matrix,
     t2: DCSR_matrix,

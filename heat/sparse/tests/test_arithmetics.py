@@ -275,13 +275,13 @@ class TestArithmetics(TestCase):
             heat_sparse_csr_C = heat_sparse_csr_A + heat_sparse_csr_2x2
 
         with self.assertRaises(TypeError):
-            heat_sparse_csr_C = ht.sparse.sparse_add(2, 3)
+            heat_sparse_csr_C = ht.sparse.add(2, 3)
         with self.assertRaises(TypeError):
-            heat_sparse_csr_C = ht.sparse.sparse_add(heat_sparse_csr_2x2, torch_sparse_csr_2x2)
+            heat_sparse_csr_C = ht.sparse.add(heat_sparse_csr_2x2, torch_sparse_csr_2x2)
         with self.assertRaises(TypeError):
-            heat_sparse_csr_C = ht.sparse.sparse_add(torch_sparse_csr_2x2, heat_sparse_csr_2x2)
+            heat_sparse_csr_C = ht.sparse.add(torch_sparse_csr_2x2, heat_sparse_csr_2x2)
         with self.assertRaises(ValueError):
-            heat_sparse_csr_C = ht.sparse.sparse_add(heat_sparse_csr_2x2, heat_sparse_csr_A)
+            heat_sparse_csr_C = ht.sparse.add(heat_sparse_csr_2x2, heat_sparse_csr_A)
 
     def test_mul(self):
         heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A)
@@ -503,10 +503,10 @@ class TestArithmetics(TestCase):
             heat_sparse_csr_C = heat_sparse_csr_A * heat_sparse_csr_2x2
 
         with self.assertRaises(TypeError):
-            heat_sparse_csr_C = ht.sparse.sparse_mul(2, 3)
+            heat_sparse_csr_C = ht.sparse.mul(2, 3)
         with self.assertRaises(TypeError):
-            heat_sparse_csr_C = ht.sparse.sparse_mul(heat_sparse_csr_2x2, torch_sparse_csr_2x2)
+            heat_sparse_csr_C = ht.sparse.mul(heat_sparse_csr_2x2, torch_sparse_csr_2x2)
         with self.assertRaises(TypeError):
-            heat_sparse_csr_C = ht.sparse.sparse_mul(torch_sparse_csr_2x2, heat_sparse_csr_2x2)
+            heat_sparse_csr_C = ht.sparse.mul(torch_sparse_csr_2x2, heat_sparse_csr_2x2)
         with self.assertRaises(ValueError):
-            heat_sparse_csr_C = ht.sparse.sparse_mul(heat_sparse_csr_2x2, heat_sparse_csr_A)
+            heat_sparse_csr_C = ht.sparse.mul(heat_sparse_csr_2x2, heat_sparse_csr_A)
