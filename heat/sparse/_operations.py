@@ -1,4 +1,4 @@
-"""Generalized MPI operations. i.e. element-wise binary operations"""
+"""Generalized operations for DCSR_matrix"""
 import torch
 import numpy as np
 
@@ -27,7 +27,7 @@ def __binary_op_sparse_csr(
 
     Parameters
     ----------
-    operation : function
+    operation : PyTorch function
         The operation to be performed. Function that performs operation elements-wise on the involved tensors,
         e.g. add values from other to self
     t1: DCSR_matrix
@@ -44,10 +44,6 @@ def __binary_op_sparse_csr(
     -------
     result: ht.sparse.DCSR_matrix
         A DCSR_matrix containing the results of element-wise operation.
-
-    Warning
-    -------
-    If both operands are distributed, they must be distributed along the same dimension, i.e. `t1.split = t2.split`.
     """
     if not np.isscalar(t1) and not isinstance(t1, DCSR_matrix):
         raise TypeError(

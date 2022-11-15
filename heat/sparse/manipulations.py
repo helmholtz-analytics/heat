@@ -52,10 +52,14 @@ def todense(sparse_matrix: DCSR_matrix, order="C", out: DNDarray = None) -> DNDa
     """
     if out is not None:
         if out.shape != sparse_matrix.shape:
-            raise ValueError("Shape of output buffer does not match")
+            raise ValueError(
+                f"Expected output buffer with shape {sparse_matrix.shape} but was {out.shape}"
+            )
 
         if out.split != sparse_matrix.split:
-            raise ValueError("Split axis of output buffer does not match")
+            raise ValueError(
+                f"Expected output buffer with split axis {sparse_matrix.split} but was {out.split}"
+            )
 
     if out is None:
         out = empty(

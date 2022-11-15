@@ -28,15 +28,11 @@ def sparse_add(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
 
     Examples
     --------
-    >>> import heat as ht
-    >>> indptr = torch.tensor([0, 2, 3], dtype=torch.int64)
-    >>> indices = torch.tensor([0, 2, 2], dtype=torch.int64)
-    >>> data = torch.tensor([1, 2, 3], dtype=torch.float)
-    >>> torch_sparse_csr = torch.sparse_csr_tensor(indptr, indices, data)
-    >>> heat_sparse_csr = ht.sparse.sparse_csr_matrix(torch_sparse_csr, is_split=0)
+    >>> heat_sparse_csr
+    (indptr: tensor([0, 2, 3]), indices: tensor([0, 2, 2]), data: tensor([1., 2., 3.]), dtype=ht.float32, device=cpu:0, split=0)
     >>> heat_sparse_csr.todense()
     DNDarray([[1., 0., 2.],
-            [0., 0., 3.]], dtype=ht.float32, device=cpu:0, split=0)
+              [0., 0., 3.]], dtype=ht.float32, device=cpu:0, split=0)
     >>> sum_sparse = heat_sparse_csr + heat_sparse_csr
         (or)
     >>> sum_sparse = ht.sparse.sparse_add(heat_sparse_csr, heat_sparse_csr)
@@ -44,7 +40,7 @@ def sparse_add(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
     (indptr: tensor([0, 2, 3], dtype=torch.int32), indices: tensor([0, 2, 2], dtype=torch.int32), data: tensor([2., 4., 6.]), dtype=ht.float32, device=cpu:0, split=0)
     >>> sum_sparse.todense()
     DNDarray([[2., 0., 4.],
-            [0., 0., 6.]], dtype=ht.float32, device=cpu:0, split=0)
+              [0., 0., 6.]], dtype=ht.float32, device=cpu:0, split=0)
     """
     return _operations.__binary_op_sparse_csr(torch.add, t1, t2)
 
@@ -70,15 +66,11 @@ def sparse_mul(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
 
     Examples
     --------
-    >>> import heat as ht
-    >>> indptr = torch.tensor([0, 2, 3], dtype=torch.int)
-    >>> indices = torch.tensor([0, 2, 2], dtype=torch.int)
-    >>> data = torch.tensor([1, 2, 3], dtype=torch.float)
-    >>> torch_sparse_csr = torch.sparse_csr_tensor(indptr, indices, data)
-    >>> heat_sparse_csr = ht.sparse.sparse_csr_matrix(torch_sparse_csr, is_split=0)
+    >>> heat_sparse_csr
+    (indptr: tensor([0, 2, 3]), indices: tensor([0, 2, 2]), data: tensor([1., 2., 3.]), dtype=ht.float32, device=cpu:0, split=0)
     >>> heat_sparse_csr.todense()
     DNDarray([[1., 0., 2.],
-            [0., 0., 3.]], dtype=ht.float32, device=cpu:0, split=0)
+              [0., 0., 3.]], dtype=ht.float32, device=cpu:0, split=0)
     >>> pdt_sparse = heat_sparse_csr * heat_sparse_csr
         (or)
     >>> pdt_sparse = ht.sparse.sparse_mul(heat_sparse_csr, heat_sparse_csr)
@@ -86,7 +78,7 @@ def sparse_mul(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
     (indptr: tensor([0, 2, 3]), indices: tensor([0, 2, 2]), data: tensor([1., 4., 9.]), dtype=ht.float32, device=cpu:0, split=0)
     >>> pdt_sparse.todense()
     DNDarray([[1., 0., 4.],
-            [0., 0., 9.]], dtype=ht.float32, device=cpu:0, split=0)
+              [0., 0., 9.]], dtype=ht.float32, device=cpu:0, split=0)
     """
     return _operations.__binary_op_sparse_csr(torch.mul, t1, t2)
 

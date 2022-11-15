@@ -262,6 +262,12 @@ class DCSR_matrix:
         """
         return self.__split
 
+    def is_distributed(self) -> bool:
+        """
+        Determines whether the data of this ``DCSR_matrix`` is distributed across multiple processes.
+        """
+        return self.split is not None and self.comm.is_distributed()
+
     def counts_displs_nnz(self) -> Tuple[Tuple[int], Tuple[int]]:
         """
         Returns actual counts (number of non-zero items per process) and displacements (offsets) of the DCSR_matrix.

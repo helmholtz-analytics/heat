@@ -1,6 +1,4 @@
-"""
-Generalized MPI operations. i.e. element-wise binary operations
-"""
+"""Generalized operations for DNDarray"""
 
 import builtins
 import numpy as np

@@ -149,7 +149,7 @@ def sparse_csr_matrix(
         lshape = tuple(lshape)
 
     elif split is not None:
-        raise NotImplementedError("Not implemented for other splitting-axes")
+        raise NotImplementedError(f"Split axis {split} not supported for class DCSR_matrix")
 
     elif is_split == 0:
         # Check whether the distributed data matches in
@@ -203,7 +203,7 @@ def sparse_csr_matrix(
         split = is_split
 
     elif is_split is not None:
-        raise NotImplementedError("Not implemented for other splitting-axes")
+        raise NotImplementedError(f"Split axis {split} not supported for class DCSR_matrix")
 
     else:  # split is None and is_split is None
         data = obj.values()
