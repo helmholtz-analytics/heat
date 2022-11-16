@@ -294,7 +294,7 @@ class TestFactories(TestCase):
             )
 
             heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_scipy_sparse_csr, is_split=0)
-            self.assertEqual(heat_sparse_csr.shape, self.dist_scipy_sparse_csr.shape)
+            self.assertEqual(heat_sparse_csr.shape, self.ref_torch_sparse_csr.shape)
             self.assertEqual(heat_sparse_csr.lshape, lshape_dist[self.rank])
             self.assertEqual(heat_sparse_csr.split, 0)
             self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())
@@ -316,8 +316,7 @@ class TestFactories(TestCase):
                 shape=lshape_dist[self.rank],
             )
 
-            heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_scipy_sparse_csr, is_split=0)
-            self.assertEqual(heat_sparse_csr.shape, self.dist_scipy_sparse_csr.shape)
+            self.assertEqual(heat_sparse_csr.shape, self.ref_torch_sparse_csr.shape)
             self.assertEqual(heat_sparse_csr.lshape, lshape_dist[self.rank])
             self.assertEqual(heat_sparse_csr.split, 0)
             self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())

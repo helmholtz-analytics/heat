@@ -103,6 +103,7 @@ def sparse_csr_matrix(
             obj.indices,
             obj.data,
             device=device.torch_device if device is not None else devices.get_device().torch_device,
+            size=obj.shape,
         )
 
     # infer dtype from obj if not explicitly given
