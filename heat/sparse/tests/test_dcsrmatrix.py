@@ -68,6 +68,12 @@ class TestDCSR_matrix(TestCase):
             self.assertEqual(heat_sparse_csr.nnz, self.ref_torch_sparse_csr._nnz())
             self.assertEqual(heat_sparse_csr.lnnz, nnz_dist[self.rank])
 
+        # Number of processes > Number of rows
+        if self.world_size == 6:
+            nnz_dist = [2, 0, 1, 2, 1, 0]
+            self.assertEqual(heat_sparse_csr.nnz, self.ref_torch_sparse_csr._nnz())
+            self.assertEqual(heat_sparse_csr.lnnz, nnz_dist[self.rank])
+
     def test_shape(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
@@ -90,6 +96,13 @@ class TestDCSR_matrix(TestCase):
 
         if self.world_size == 3:
             lshape_dist = [(2, 5), (2, 5), (1, 5)]
+
+            self.assertEqual(heat_sparse_csr.shape, self.ref_torch_sparse_csr.shape)
+            self.assertEqual(heat_sparse_csr.lshape, lshape_dist[self.rank])
+
+        # Number of processes > Number of rows
+        if self.world_size == 6:
+            lshape_dist = [(1, 5), (1, 5), (1, 5), (1, 5), (1, 5), (0, 5)]
 
             self.assertEqual(heat_sparse_csr.shape, self.ref_torch_sparse_csr.shape)
             self.assertEqual(heat_sparse_csr.lshape, lshape_dist[self.rank])
@@ -120,6 +133,21 @@ class TestDCSR_matrix(TestCase):
             self.assertTrue((heat_sparse_csr.data == heat_sparse_csr.gdata).all())
             self.assertTrue((heat_sparse_csr.ldata == data_dist[self.rank]).all())
 
+        # Number of processes > Number of rows
+        if self.world_size == 6:
+            data_dist = [
+                torch.tensor([1, 2]),
+                torch.tensor([]),
+                torch.tensor([3]),
+                torch.tensor([4, 5]),
+                torch.tensor([6]),
+                torch.tensor([]),
+            ]
+
+            self.assertTrue((heat_sparse_csr.data == self.ref_data).all())
+            self.assertTrue((heat_sparse_csr.data == heat_sparse_csr.gdata).all())
+            self.assertTrue((heat_sparse_csr.ldata == data_dist[self.rank]).all())
+
     def test_indices(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
@@ -142,6 +170,21 @@ class TestDCSR_matrix(TestCase):
             self.assertTrue((heat_sparse_csr.indices == heat_sparse_csr.gindices).all())
             self.assertTrue((heat_sparse_csr.lindices == indices_dist[self.rank]).all())
 
+        # Number of processes > Number of rows
+        if self.world_size == 6:
+            indices_dist = [
+                torch.tensor([2, 4]),
+                torch.tensor([]),
+                torch.tensor([1]),
+                torch.tensor([0, 3]),
+                torch.tensor([4]),
+                torch.tensor([]),
+            ]
+
+            self.assertTrue((heat_sparse_csr.indices == self.ref_indices).all())
+            self.assertTrue((heat_sparse_csr.indices == heat_sparse_csr.gindices).all())
+            self.assertTrue((heat_sparse_csr.lindices == indices_dist[self.rank]).all())
+
     def test_indptr(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
@@ -159,6 +202,21 @@ class TestDCSR_matrix(TestCase):
 
         if self.world_size == 3:
             indptr_dist = [torch.tensor([0, 2, 2]), torch.tensor([0, 1, 3]), torch.tensor([0, 1])]
+
+            self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())
+            self.assertTrue((heat_sparse_csr.indptr == heat_sparse_csr.gindptr).all())
+            self.assertTrue((heat_sparse_csr.lindptr == indptr_dist[self.rank]).all())
+
+        # Number of processes > Number of rows
+        if self.world_size == 6:
+            indptr_dist = [
+                torch.tensor([0, 2]),
+                torch.tensor([0, 0]),
+                torch.tensor([0, 1]),
+                torch.tensor([0, 2]),
+                torch.tensor([0, 1]),
+                torch.tensor([0]),
+            ]
 
             self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())
             self.assertTrue((heat_sparse_csr.indptr == heat_sparse_csr.gindptr).all())

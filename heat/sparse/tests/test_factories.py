@@ -93,6 +93,46 @@ class TestFactories(TestCase):
             self.assertTrue((heat_sparse_csr.data == self.ref_data).all())
             self.assertTrue((heat_sparse_csr.ldata == data_dist[self.rank]).all())
 
+        # Number of processes > Number of rows
+        if self.world_size == 6:
+            indptr_dist = [
+                torch.tensor([0, 2]),
+                torch.tensor([0, 0]),
+                torch.tensor([0, 1]),
+                torch.tensor([0, 2]),
+                torch.tensor([0, 1]),
+                torch.tensor([0]),
+            ]
+            indices_dist = [
+                torch.tensor([2, 4]),
+                torch.tensor([]),
+                torch.tensor([1]),
+                torch.tensor([0, 3]),
+                torch.tensor([4]),
+                torch.tensor([]),
+            ]
+            data_dist = [
+                torch.tensor([1, 2]),
+                torch.tensor([]),
+                torch.tensor([3]),
+                torch.tensor([4, 5]),
+                torch.tensor([6]),
+                torch.tensor([]),
+            ]
+
+            lshape_dist = [(1, 5), (1, 5), (1, 5), (1, 5), (1, 5), (0, 5)]
+
+            heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr, split=0)
+            self.assertEqual(heat_sparse_csr.shape, self.ref_torch_sparse_csr.shape)
+            self.assertEqual(heat_sparse_csr.lshape, lshape_dist[self.rank])
+            self.assertEqual(heat_sparse_csr.split, 0)
+            self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())
+            self.assertTrue((heat_sparse_csr.lindptr == indptr_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr.indices == self.ref_indices).all())
+            self.assertTrue((heat_sparse_csr.lindices == indices_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr.data == self.ref_data).all())
+            self.assertTrue((heat_sparse_csr.ldata == data_dist[self.rank]).all())
+
         # Distributed case (is_split)
         if self.world_size == 2:
             indptr_dist = [torch.tensor([0, 2, 2, 3]), torch.tensor([0, 2, 3])]
@@ -200,6 +240,46 @@ class TestFactories(TestCase):
             self.assertTrue((heat_sparse_csr.data == self.ref_data).all())
             self.assertTrue((heat_sparse_csr.ldata == data_dist[self.rank]).all())
 
+        # Number of processes > Number of rows
+        if self.world_size == 6:
+            indptr_dist = [
+                torch.tensor([0, 2]),
+                torch.tensor([0, 0]),
+                torch.tensor([0, 1]),
+                torch.tensor([0, 2]),
+                torch.tensor([0, 1]),
+                torch.tensor([0]),
+            ]
+            indices_dist = [
+                torch.tensor([2, 4]),
+                torch.tensor([]),
+                torch.tensor([1]),
+                torch.tensor([0, 3]),
+                torch.tensor([4]),
+                torch.tensor([]),
+            ]
+            data_dist = [
+                torch.tensor([1, 2]),
+                torch.tensor([]),
+                torch.tensor([3]),
+                torch.tensor([4, 5]),
+                torch.tensor([6]),
+                torch.tensor([]),
+            ]
+
+            lshape_dist = [(1, 5), (1, 5), (1, 5), (1, 5), (1, 5), (0, 5)]
+
+            heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_scipy_sparse_csr, split=0)
+            self.assertEqual(heat_sparse_csr.shape, self.ref_scipy_sparse_csr.shape)
+            self.assertEqual(heat_sparse_csr.lshape, lshape_dist[self.rank])
+            self.assertEqual(heat_sparse_csr.split, 0)
+            self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())
+            self.assertTrue((heat_sparse_csr.lindptr == indptr_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr.indices == self.ref_indices).all())
+            self.assertTrue((heat_sparse_csr.lindices == indices_dist[self.rank]).all())
+            self.assertTrue((heat_sparse_csr.data == self.ref_data).all())
+            self.assertTrue((heat_sparse_csr.ldata == data_dist[self.rank]).all())
+
         # Distributed case (is_split)
         if self.world_size == 2:
             indptr_dist = [torch.tensor([0, 2, 2, 3]), torch.tensor([0, 2, 3])]
@@ -214,7 +294,7 @@ class TestFactories(TestCase):
             )
 
             heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_scipy_sparse_csr, is_split=0)
-            self.assertEqual(heat_sparse_csr.shape, self.ref_torch_sparse_csr.shape)
+            self.assertEqual(heat_sparse_csr.shape, self.dist_scipy_sparse_csr.shape)
             self.assertEqual(heat_sparse_csr.lshape, lshape_dist[self.rank])
             self.assertEqual(heat_sparse_csr.split, 0)
             self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())
@@ -236,8 +316,8 @@ class TestFactories(TestCase):
                 shape=lshape_dist[self.rank],
             )
 
-            heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_torch_sparse_csr, is_split=0)
-            self.assertEqual(heat_sparse_csr.shape, self.ref_torch_sparse_csr.shape)
+            heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_scipy_sparse_csr, is_split=0)
+            self.assertEqual(heat_sparse_csr.shape, self.dist_scipy_sparse_csr.shape)
             self.assertEqual(heat_sparse_csr.lshape, lshape_dist[self.rank])
             self.assertEqual(heat_sparse_csr.split, 0)
             self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())

@@ -204,6 +204,7 @@ class TestArithmetics(TestCase):
             self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_B.lshape)
             self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
 
+        # Number of processes > Number of rows
         if self.world_size == 6:
             indptr_A = torch.tensor([0, 2, 2, 2, 2, 2], dtype=torch.int)
             indices_A = torch.tensor([2, 4], dtype=torch.int)
@@ -527,6 +528,7 @@ class TestArithmetics(TestCase):
             self.assertEqual(heat_sparse_csr_C.lshape, heat_sparse_csr_B.lshape)
             self.assertEqual(heat_sparse_csr_C.dtype, ht.float)
 
+        # Number of processes > Number of rows
         if self.world_size == 6:
             indptr_A = torch.tensor([0, 2, 2, 2, 2, 2], dtype=torch.int)
             indices_A = torch.tensor([2, 4], dtype=torch.int)
