@@ -126,8 +126,8 @@ def lanczos(
             elif V.dtype is ht.complex64:
                 vr_dtype = ht.float32
             vr = (
-                ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device)
-                + ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device) * 1j
+                ht.random.randn(n, split=V.split, dtype=vr_dtype, device=V.device)
+                + ht.random.randn(n, split=V.split, dtype=vr_dtype, device=V.device) * 1j
             )
         v0 = vr / ht.norm(vr)
     else:
