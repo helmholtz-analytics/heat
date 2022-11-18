@@ -119,7 +119,7 @@ def lanczos(
 
     if v0 is None:
         if V.dtype is not ht.complex128 and V.dtype is not ht.complex64:
-            vr = ht.random.rand(n, split=V.split, dtype=V.dtype, device=V.device)
+            vr = ht.random.randn(n, split=V.split, dtype=V.dtype, device=V.device)
         else:
             if V.dtype is ht.complex128:
                 vr_dtype = ht.float64
