@@ -145,7 +145,7 @@ def lanczos(
         if ht.abs(beta) < 1e-10:
             # print("Lanczos breakdown in iteration {}".format(i))
             # Lanczos Breakdown, pick a random vector to continue
-            vr = ht.random.rand(n, dtype=A.dtype, split=V.split)
+            vr = ht.random.randn(n, dtype=A.dtype, split=V.split)
             # orthogonalize v_r with respect to all vectors v[i]
             for j in range(i):
                 vi_loc = V.larray[:, j]
