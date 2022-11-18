@@ -55,7 +55,10 @@ class TestSolver(TestCase):
         self.assertTrue(T.dtype is B.dtype)
         # V must be unitary
         V_inv = ht.linalg.inv(V)
-        tolerance = 1e-4
+        if int(torch.__version__.split(".")[1]) == 13:
+            tolerance = 1e-3
+        else:
+            tolerance = 1e-4
         self.assertTrue(ht.allclose(V_inv, V.T, atol=tolerance))
         # V T V.T must be = B, V transposed = V inverse
         lanczos_B = V @ T @ V_inv
