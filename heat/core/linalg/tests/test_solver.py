@@ -72,10 +72,8 @@ class TestSolver(TestCase):
         V, T = ht.lanczos(B, m=n)
         # V must be unitary
         V_inv = ht.linalg.inv(V)
-        print(ht.allclose(V_inv, ht.conj(V).T))
         # V T V* must be = B, V conjugate transpose = V inverse
         lanczos_B = V @ T @ V_inv
-        print(ht.allclose(lanczos_B, B))
 
         with self.assertRaises(TypeError):
             V, T = ht.lanczos(B, m="3")
