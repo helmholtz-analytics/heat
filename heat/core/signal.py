@@ -71,9 +71,9 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     [2/3] DNDarray([3., 3., 3., 2.])
     """
     if np.isscalar(a):
-            a = array([a])
+        a = array([a])
     if np.isscalar(v):
-            v = array([v])
+        v = array([v])
     if not isinstance(a, DNDarray):
         try:
             a = array(a)
