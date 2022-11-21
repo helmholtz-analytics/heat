@@ -46,24 +46,6 @@ class TestSolver(TestCase):
         lanczos_B = V @ T @ V_inv
         self.assertTrue(ht.allclose(lanczos_B, B))
 
-        # float32
-        A = ht.random.randn(n, n, dtype=ht.float32, split=0)
-        B = A @ A.T
-        # Lanczos decomposition with iterations m = n
-        V, T = ht.lanczos(B, m=n)
-        self.assertTrue(V.dtype is B.dtype)
-        self.assertTrue(T.dtype is B.dtype)
-        # V must be unitary
-        V_inv = ht.linalg.inv(V)
-        if int(torch.__version__.split(".")[1]) == 13:
-            tolerance = 1e-3
-        else:
-            tolerance = 1e-4
-        self.assertTrue(ht.allclose(V_inv, V.T, atol=tolerance))
-        # V T V.T must be = B, V transposed = V inverse
-        lanczos_B = V @ T @ V_inv
-        self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance))
-
         # complex128
         A = (
             ht.random.randn(n, n, dtype=ht.float64, split=0)
@@ -77,6 +59,56 @@ class TestSolver(TestCase):
         V_inv = ht.linalg.inv(V)
         # V T V* must be = B, V conjugate transpose = V inverse
         lanczos_B = V @ T @ V_inv
+
+        # single precision tolerance
+        if int(torch.__version__.split(".")[1]) == 13:
+            tolerance = 1e-3
+        else:
+            tolerance = 1e-4
+
+        # float32, pre_defined v0, split mismatch
+        A = ht.random.randn(n, n, dtype=ht.float32, split=0)
+        B = A @ A.T
+        v0 = ht.random.randn(n, device=A.device, split=None)
+        # Lanczos decomposition with iterations m = n
+        V, T = ht.lanczos(B, m=n, v0=v0)
+        self.assertTrue(V.dtype is B.dtype)
+        self.assertTrue(T.dtype is B.dtype)
+        # V must be unitary
+        V_inv = ht.linalg.inv(V)
+        self.assertTrue(ht.allclose(V_inv, V.T, atol=tolerance))
+        # V T V.T must be = B, V transposed = V inverse
+        lanczos_B = V @ T @ V_inv
+        self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance))
+
+        # complex64
+        A = (
+            ht.random.randn(n, n, dtype=ht.float32, split=0)
+            + ht.random.randn(n, n, dtype=ht.float32, split=0) * 1j
+        )
+        A_conj = ht.conj(A)
+        B = A @ A_conj.T
+        # Lanczos decomposition with iterations m = n
+        V, T = ht.lanczos(B, m=n)
+        # V must be unitary
+        V_inv = ht.linalg.inv(V)
+        # V T V* must be = B, V conjugate transpose = V inverse
+        lanczos_B = V @ T @ V_inv
+        self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance))
+
+        # non-distributed
+        A = ht.random.randn(n, n, dtype=ht.float64, split=None)
+        B = A @ A.T
+        # Lanczos decomposition with iterations m = n
+        V, T = ht.lanczos(B, m=n)
+        self.assertTrue(V.dtype is B.dtype)
+        self.assertTrue(T.dtype is B.dtype)
+        # V must be unitary
+        V_inv = ht.linalg.inv(V)
+        self.assertTrue(ht.allclose(V_inv, V.T))
+        # V T V.T must be = B, V transposed = V inverse
+        lanczos_B = V @ T @ V_inv
+        self.assertTrue(ht.allclose(lanczos_B, B))
 
         with self.assertRaises(TypeError):
             V, T = ht.lanczos(B, m="3")
