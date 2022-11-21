@@ -10,10 +10,10 @@ jobs:
     - name: Mirror + trigger CI
       uses: SvanBoxel/gitlab-mirror-and-ci-action@master
       with:
-        args: "https://gitlab.hzdr.de/haf/heat"
+        args: "https://codebase.helmholtz.cloud/haf/heat"
       env:
         FORCE_PUSH: "true"
-        GITLAB_HOSTNAME: "gitlab.hzdr.de"
+        GITLAB_HOSTNAME: "codebase.helmholtz.cloud"
         GITLAB_USERNAME: ""
         GITLAB_PASSWORD: ${{ secrets.GITLAB_TOKEN_1 }}
         GITLAB_PROJECT_ID: "845"
