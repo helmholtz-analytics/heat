@@ -1,7 +1,7 @@
 """Provides a collection of signal-processing operations"""
 
 import torch
-from typing import Union, Tuple, Sequence
+import numpy as np
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -15,14 +15,14 @@ __all__ = ["convolve"]
 
 def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     """
-    Returns the discrete, linear convolution of two one-dimensional `DNDarray`s.
+    Returns the discrete, linear convolution of two one-dimensional `DNDarray`s or scalars.
 
     Parameters
     ----------
-    a : DNDarray
-        One-dimensional signal `DNDarray` of shape (N,)
-    v : DNDarray
-        One-dimensional filter weight `DNDarray` of shape (M,).
+    a : DNDarray or scalar
+        One-dimensional signal `DNDarray` of shape (N,) or scalar.
+    v : DNDarray or scalar
+        One-dimensional filter weight `DNDarray` of shape (M,) or scalar.
     mode : str
         Can be 'full', 'valid', or 'same'. Default is 'full'.
         'full':
@@ -70,6 +70,10 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     [1/3] DNDarray([3., 3., 3., 3.])
     [2/3] DNDarray([3., 3., 3., 2.])
     """
+    if np.isscalar(a):
+            a = array([a])
+    if np.isscalar(v):
+            v = array([v])
     if not isinstance(a, DNDarray):
         try:
             a = array(a)
@@ -93,7 +97,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         a, v = v, a
 
     # compute halo size
-    halo_size = int(v.lshape_map[0][0] / 2)
+    halo_size = int(max(v.lshape_map) / 2)
 
     # pad DNDarray with zeros according to mode
     if mode == "full":

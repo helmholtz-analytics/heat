@@ -116,3 +116,7 @@ class TestSignal(TestCase):
         kernel = ht.ones(1).astype(ht.int)
         conv = ht.convolve(alt_signal, kernel)
         self.assertTrue(ht.equal(signal, conv))
+
+        conv = ht.convolve(1, 5)
+        print(ht.array([5]))
+        self.assertTrue(ht.equal(ht.array([5]), conv))
