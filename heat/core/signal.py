@@ -97,7 +97,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         a, v = v, a
 
     # compute halo size
-    halo_size = int(max(v.lshape_map) / 2)
+    halo_size = torch.max(v.lshape_map[:, 0]).item() // 2
 
     # pad DNDarray with zeros according to mode
     if mode == "full":

@@ -118,5 +118,4 @@ class TestSignal(TestCase):
         self.assertTrue(ht.equal(signal, conv))
 
         conv = ht.convolve(1, 5)
-        print(ht.array([5]))
         self.assertTrue(ht.equal(ht.array([5]), conv))
