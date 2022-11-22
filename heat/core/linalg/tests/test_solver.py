@@ -70,6 +70,7 @@ class TestSolver(TestCase):
         A = ht.random.randn(n, n, dtype=ht.float32, split=0)
         B = A @ A.T
         v0 = ht.random.randn(n, device=A.device, split=None)
+        v0 = v0 / ht.norm(v0)
         # Lanczos decomposition with iterations m = n
         V, T = ht.lanczos(B, m=n, v0=v0)
         self.assertTrue(V.dtype is B.dtype)
