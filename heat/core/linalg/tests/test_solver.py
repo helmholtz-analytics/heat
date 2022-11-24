@@ -95,7 +95,7 @@ class TestSolver(TestCase):
         # V T V* must be = B, V conjugate transpose = V inverse
         V_conj = ht.conj(V)
         lanczos_B = V @ T @ V_conj.T
-        self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance))
+        self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance * 100))
 
         # non-distributed
         A = ht.random.randn(n, n, dtype=ht.float64, split=None)
