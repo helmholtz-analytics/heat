@@ -92,10 +92,10 @@ class TestSolver(TestCase):
         # Lanczos decomposition with iterations m = n
         V, T = ht.lanczos(B, m=n)
         # V must be unitary
-        V_inv = ht.linalg.inv(V)
         # V T V* must be = B, V conjugate transpose = V inverse
-        lanczos_B = V @ T @ V_inv
-        self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance * 10))
+        V_conj = ht.conj(V)
+        lanczos_B = V @ T @ V_conj.T
+        self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance))
 
         # non-distributed
         A = ht.random.randn(n, n, dtype=ht.float64, split=None)
