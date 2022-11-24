@@ -148,6 +148,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         float_type = promote_types(signal.dtype, torch.float32).torch_type()
         signal = signal.to(float_type)
         weight = weight.to(float_type)
+        t_v = t_v.to(float_type)
 
     if v.is_distributed():
         size = v.comm.size
