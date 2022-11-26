@@ -117,6 +117,32 @@ if torch.cuda.device_count() > 0:
     # the GPU device should be exported as global symbol
     __all__.append("gpu")
 
+elif (
+    int(torch.__version__.split(".")[1]) >= 12
+    and torch.backends.mps.is_built()
+    and torch.backends.mps.is_available()
+):
+    # Apple's Metal GPU
+    gpu_id = 0
+    # create a new GPU device
+    gpu = Device("gpu", gpu_id, "mps:{}".format(gpu_id))
+    """
+    The standard GPU Device on Apple M1
+
+    Examples
+    --------
+    >>> ht.cpu
+    device(cpu:0)
+    >>> ht.ones((2, 3), device=ht.gpu)
+    DNDarray([[1., 1., 1.],
+          [1., 1., 1.]], dtype=ht.float32, device=mps:0, split=None)
+    """
+    # add a GPU device string
+    __device_mapping[gpu.device_type] = gpu
+    __device_mapping["mps"] = gpu
+    # the GPU device should be exported as global symbol
+    __all__.append("gpu")
+
 
 def get_device() -> Device:
     """
