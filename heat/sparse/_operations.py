@@ -126,7 +126,14 @@ def __binary_op_csr(
         out.balanced = (
             output_balanced  # At this point, inputs and out buffer assumed to be balanced
         )
-    result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
+
+    # If there are no non-zero elements in either tensors, skip torch operation to
+    #   1. Avoid unnecessary computation
+    #   2. Avoid undefined behaviour when no data in process
+    if t1.lnnz == 0 and t2.lnnz == 0:
+        result = t1.larray
+    else:
+        result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
 
     if output_split is not None:
         output_gnnz = torch.tensor(result._nnz())
