@@ -8,8 +8,8 @@ from typing import Tuple
 
 class TestDCSR_matrix(TestCase):
     @classmethod
-    def setUpClass(cls):
-        super(TestDCSR_matrix, cls).setUpClass()
+    def setUpClass(self):
+        super(TestDCSR_matrix, self).setUpClass()
         """
         A = [[0, 0, 1, 0, 2]
              [0, 0, 0, 0, 0]
@@ -17,15 +17,21 @@ class TestDCSR_matrix(TestCase):
              [4, 0, 0, 5, 0]
              [0, 0, 0, 0, 6]]
         """
-        cls.ref_indptr = torch.tensor([0, 2, 2, 3, 5, 6], dtype=torch.int)
-        cls.ref_indices = torch.tensor([2, 4, 1, 0, 3, 4], dtype=torch.int)
-        cls.ref_data = torch.tensor([1, 2, 3, 4, 5, 6], dtype=torch.float)
-        cls.ref_torch_sparse_csr = torch.sparse_csr_tensor(
-            cls.ref_indptr, cls.ref_indices, cls.ref_data
+        self.ref_indptr = torch.tensor(
+            [0, 2, 2, 3, 5, 6], dtype=torch.int, device=self.device.torch_device
+        )
+        self.ref_indices = torch.tensor(
+            [2, 4, 1, 0, 3, 4], dtype=torch.int, device=self.device.torch_device
+        )
+        self.ref_data = torch.tensor(
+            [1, 2, 3, 4, 5, 6], dtype=torch.float, device=self.device.torch_device
+        )
+        self.ref_torch_sparse_csr = torch.sparse_csr_tensor(
+            self.ref_indptr, self.ref_indices, self.ref_data, device=self.device.torch_device
         )
 
-        cls.world_size = ht.communication.MPI_WORLD.size
-        cls.rank = ht.communication.MPI_WORLD.rank
+        self.world_size = ht.communication.MPI_WORLD.size
+        self.rank = ht.communication.MPI_WORLD.rank
 
     def test_larray(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
@@ -120,33 +126,41 @@ class TestDCSR_matrix(TestCase):
 
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr, split=0)
         if self.world_size == 2:
-            data_dist = [torch.tensor([1, 2, 3]), torch.tensor([4, 5, 6])]
+            data_dist = [[1, 2, 3], [4, 5, 6]]
 
             self.assertTrue((heat_sparse_csr.data == self.ref_data).all())
             self.assertTrue((heat_sparse_csr.data == heat_sparse_csr.gdata).all())
-            self.assertTrue((heat_sparse_csr.ldata == data_dist[self.rank]).all())
+            self.assertTrue(
+                (
+                    heat_sparse_csr.ldata
+                    == torch.tensor(data_dist[self.rank], device=self.device.torch_device)
+                ).all()
+            )
 
         if self.world_size == 3:
-            data_dist = [torch.tensor([1, 2]), torch.tensor([3, 4, 5]), torch.tensor([6])]
+            data_dist = [[1, 2], [3, 4, 5], [6]]
 
             self.assertTrue((heat_sparse_csr.data == self.ref_data).all())
             self.assertTrue((heat_sparse_csr.data == heat_sparse_csr.gdata).all())
-            self.assertTrue((heat_sparse_csr.ldata == data_dist[self.rank]).all())
+            self.assertTrue(
+                (
+                    heat_sparse_csr.ldata
+                    == torch.tensor(data_dist[self.rank], device=self.device.torch_device)
+                ).all()
+            )
 
         # Number of processes > Number of rows
         if self.world_size == 6:
-            data_dist = [
-                torch.tensor([1, 2]),
-                torch.tensor([]),
-                torch.tensor([3]),
-                torch.tensor([4, 5]),
-                torch.tensor([6]),
-                torch.tensor([]),
-            ]
+            data_dist = [[1, 2], [], [3], [4, 5], [6], []]
 
             self.assertTrue((heat_sparse_csr.data == self.ref_data).all())
             self.assertTrue((heat_sparse_csr.data == heat_sparse_csr.gdata).all())
-            self.assertTrue((heat_sparse_csr.ldata == data_dist[self.rank]).all())
+            self.assertTrue(
+                (
+                    heat_sparse_csr.ldata
+                    == torch.tensor(data_dist[self.rank], device=self.device.torch_device)
+                ).all()
+            )
 
     def test_indices(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
@@ -157,33 +171,41 @@ class TestDCSR_matrix(TestCase):
 
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr, split=0)
         if self.world_size == 2:
-            indices_dist = [torch.tensor([2, 4, 1]), torch.tensor([0, 3, 4])]
+            indices_dist = [[2, 4, 1], [0, 3, 4]]
 
             self.assertTrue((heat_sparse_csr.indices == self.ref_indices).all())
             self.assertTrue((heat_sparse_csr.indices == heat_sparse_csr.gindices).all())
-            self.assertTrue((heat_sparse_csr.lindices == indices_dist[self.rank]).all())
+            self.assertTrue(
+                (
+                    heat_sparse_csr.lindices
+                    == torch.tensor(indices_dist[self.rank], device=self.device.torch_device)
+                ).all()
+            )
 
         if self.world_size == 3:
-            indices_dist = [torch.tensor([2, 4]), torch.tensor([1, 0, 3]), torch.tensor([4])]
+            indices_dist = [[2, 4], [1, 0, 3], [4]]
 
             self.assertTrue((heat_sparse_csr.indices == self.ref_indices).all())
             self.assertTrue((heat_sparse_csr.indices == heat_sparse_csr.gindices).all())
-            self.assertTrue((heat_sparse_csr.lindices == indices_dist[self.rank]).all())
+            self.assertTrue(
+                (
+                    heat_sparse_csr.lindices
+                    == torch.tensor(indices_dist[self.rank], device=self.device.torch_device)
+                ).all()
+            )
 
         # Number of processes > Number of rows
         if self.world_size == 6:
-            indices_dist = [
-                torch.tensor([2, 4]),
-                torch.tensor([]),
-                torch.tensor([1]),
-                torch.tensor([0, 3]),
-                torch.tensor([4]),
-                torch.tensor([]),
-            ]
+            indices_dist = [[2, 4], [], [1], [0, 3], [4], []]
 
             self.assertTrue((heat_sparse_csr.indices == self.ref_indices).all())
             self.assertTrue((heat_sparse_csr.indices == heat_sparse_csr.gindices).all())
-            self.assertTrue((heat_sparse_csr.lindices == indices_dist[self.rank]).all())
+            self.assertTrue(
+                (
+                    heat_sparse_csr.lindices
+                    == torch.tensor(indices_dist[self.rank], device=self.device.torch_device)
+                ).all()
+            )
 
     def test_indptr(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
@@ -194,33 +216,41 @@ class TestDCSR_matrix(TestCase):
 
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr, split=0)
         if self.world_size == 2:
-            indptr_dist = [torch.tensor([0, 2, 2, 3]), torch.tensor([0, 2, 3])]
+            indptr_dist = [[0, 2, 2, 3], [0, 2, 3]]
 
             self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())
             self.assertTrue((heat_sparse_csr.indptr == heat_sparse_csr.gindptr).all())
-            self.assertTrue((heat_sparse_csr.lindptr == indptr_dist[self.rank]).all())
+            self.assertTrue(
+                (
+                    heat_sparse_csr.lindptr
+                    == torch.tensor(indptr_dist[self.rank], device=self.device.torch_device)
+                ).all()
+            )
 
         if self.world_size == 3:
-            indptr_dist = [torch.tensor([0, 2, 2]), torch.tensor([0, 1, 3]), torch.tensor([0, 1])]
+            indptr_dist = [[0, 2, 2], [0, 1, 3], [0, 1]]
 
             self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())
             self.assertTrue((heat_sparse_csr.indptr == heat_sparse_csr.gindptr).all())
-            self.assertTrue((heat_sparse_csr.lindptr == indptr_dist[self.rank]).all())
+            self.assertTrue(
+                (
+                    heat_sparse_csr.lindptr
+                    == torch.tensor(indptr_dist[self.rank], device=self.device.torch_device)
+                ).all()
+            )
 
         # Number of processes > Number of rows
         if self.world_size == 6:
-            indptr_dist = [
-                torch.tensor([0, 2]),
-                torch.tensor([0, 0]),
-                torch.tensor([0, 1]),
-                torch.tensor([0, 2]),
-                torch.tensor([0, 1]),
-                torch.tensor([0]),
-            ]
+            indptr_dist = [[0, 2], [0, 0], [0, 1], [0, 2], [0, 1], [0]]
 
             self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())
             self.assertTrue((heat_sparse_csr.indptr == heat_sparse_csr.gindptr).all())
-            self.assertTrue((heat_sparse_csr.lindptr == indptr_dist[self.rank]).all())
+            self.assertTrue(
+                (
+                    heat_sparse_csr.lindptr
+                    == torch.tensor(indptr_dist[self.rank], device=self.device.torch_device)
+                ).all()
+            )
 
     def test_astype(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)

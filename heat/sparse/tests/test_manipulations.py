@@ -6,8 +6,8 @@ from heat.core.tests.test_suites.basic_test import TestCase
 
 class TestManipulations(TestCase):
     @classmethod
-    def setUpClass(cls):
-        super(TestManipulations, cls).setUpClass()
+    def setUpClass(self):
+        super(TestManipulations, self).setUpClass()
         """
         A = [[0, 0, 1, 0, 2]
              [0, 0, 0, 0, 0]
@@ -15,11 +15,17 @@ class TestManipulations(TestCase):
              [4, 0, 0, 5, 0]
              [0, 0, 0, 0, 6]]
         """
-        cls.ref_indptr = torch.tensor([0, 2, 2, 3, 5, 6], dtype=torch.int)
-        cls.ref_indices = torch.tensor([2, 4, 1, 0, 3, 4], dtype=torch.int)
-        cls.ref_data = torch.tensor([1, 2, 3, 4, 5, 6], dtype=torch.float)
-        cls.ref_torch_sparse_csr = torch.sparse_csr_tensor(
-            cls.ref_indptr, cls.ref_indices, cls.ref_data
+        self.ref_indptr = torch.tensor(
+            [0, 2, 2, 3, 5, 6], dtype=torch.int, device=self.device.torch_device
+        )
+        self.ref_indices = torch.tensor(
+            [2, 4, 1, 0, 3, 4], dtype=torch.int, device=self.device.torch_device
+        )
+        self.ref_data = torch.tensor(
+            [1, 2, 3, 4, 5, 6], dtype=torch.float, device=self.device.torch_device
+        )
+        self.ref_torch_sparse_csr = torch.sparse_csr_tensor(
+            self.ref_indptr, self.ref_indices, self.ref_data, device=self.device.torch_device
         )
 
     def test_todense(self):

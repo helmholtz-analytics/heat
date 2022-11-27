@@ -69,7 +69,7 @@ class DCSR_matrix:
 
         # Need to know the number of non-zero elements
         # in the processes with lesser rank
-        all_nnz = torch.zeros(self.comm.size + 1)
+        all_nnz = torch.zeros(self.comm.size + 1, device=self.device.torch_device)
 
         # Each process must drop their nnz in index = rank + 1
         all_nnz[self.comm.rank + 1] = self.lnnz
@@ -129,7 +129,9 @@ class DCSR_matrix:
         if self.split is None:
             return self.ldata
 
-        data_buffer = torch.zeros(size=(self.gnnz,), dtype=self.dtype.torch_type())
+        data_buffer = torch.zeros(
+            size=(self.gnnz,), dtype=self.dtype.torch_type(), device=self.device.torch_device
+        )
         counts, displs = self.counts_displs_nnz()
         self.comm.Allgatherv(self.ldata, (data_buffer, counts, displs))
         return data_buffer
@@ -180,7 +182,9 @@ class DCSR_matrix:
         if self.split is None:
             return self.lindices
 
-        indices_buffer = torch.zeros(size=(self.gnnz,), dtype=self.lindices.dtype)
+        indices_buffer = torch.zeros(
+            size=(self.gnnz,), dtype=self.lindices.dtype, device=self.device.torch_device
+        )
         counts, displs = self.counts_displs_nnz()
         self.comm.Allgatherv(self.lindices, (indices_buffer, counts, displs))
         return indices_buffer
