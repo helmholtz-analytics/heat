@@ -48,8 +48,8 @@ class TestSolver(TestCase):
 
         # complex128
         A = (
-            ht.random.randn(n, n, dtype=ht.float64, split=0)
-            + ht.random.randn(n, n, dtype=ht.float64, split=0) * 1j
+            ht.random.rand(n, n, dtype=ht.float64, split=0)
+            + ht.random.rand(n, n, dtype=ht.float64, split=0) * 1j
         )
         A_conj = ht.conj(A)
         B = A @ A_conj.T
@@ -57,8 +57,10 @@ class TestSolver(TestCase):
         V, T = ht.lanczos(B, m=n)
         # V must be unitary
         V_inv = ht.linalg.inv(V)
+        self.assertTrue(ht.allclose(V_inv, ht.conj(V).T))
         # V T V* must be = B, V conjugate transpose = V inverse
         lanczos_B = V @ T @ V_inv
+        self.assertTrue(ht.allclose(lanczos_B, B))
 
         # single precision tolerance
         if int(torch.__version__.split(".")[1]) == 13:
@@ -95,7 +97,7 @@ class TestSolver(TestCase):
         # V T V* must be = B, V conjugate transpose = V inverse
         V_conj = ht.conj(V)
         lanczos_B = V @ T @ V_conj.T
-        self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance * 100))
+        self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance))
 
         # non-distributed
         A = ht.random.randn(n, n, dtype=ht.float64, split=None)
