@@ -90,7 +90,7 @@ def lanczos(
     m : int
         Number of Lanczos iterations
     v0 : DNDarray, optional
-        1D starting vector of Euclidian norm 1. If not provided, a random vector will be used to start the algorithm
+        1D starting vector of Euclidean norm 1. If not provided, a random vector will be used to start the algorithm
     V_out : DNDarray, optional
         Output Matrix for the Krylow vectors, Shape = (n, m)
     T_out : DNDarray, optional
@@ -107,7 +107,7 @@ def lanczos(
 
     n, column = A.shape
     if n != column:
-        raise TypeError("Input Matrix A needs to be symmetric.")
+        raise TypeError("Input Matrix A needs to be symmetric positive-definite.")
     T = ht.zeros((m, m), dtype=A.dtype, device=A.device)
     if A.split == 0:
         # This is done for better memory access in the reorthogonalization Gram-Schmidt algorithm
@@ -119,24 +119,24 @@ def lanczos(
 
     if v0 is None:
         if V.dtype is not ht.complex128 and V.dtype is not ht.complex64:
-            vr = ht.random.randn(n, split=V.split, dtype=V.dtype, device=V.device)
+            vr = ht.random.rand(n, split=V.split, dtype=V.dtype, device=V.device)
         else:
             if V.dtype is ht.complex128:
                 vr_dtype = ht.float64
             elif V.dtype is ht.complex64:
                 vr_dtype = ht.float32
             vr = (
-                ht.random.randn(n, split=V.split, dtype=vr_dtype, device=V.device)
-                + ht.random.randn(n, split=V.split, dtype=vr_dtype, device=V.device) * 1j
+                ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device)
+                + ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device) * 1j
             )
         v0 = vr / ht.norm(vr)
     else:
         if v0.split != V.split:
             v0.resplit_(axis=V.split)
     # # 0th iteration
-    # # vector v0 has euklidian norm = 1
+    # # vector v0 has Euclidean norm = 1
     w = ht.matmul(A, v0)
-    alpha = ht.dot(w, v0)
+    alpha = ht.dot(ht.conj(w).T, v0)
     w = w - alpha * v0
     T[0, 0] = alpha
     V[:, 0] = v0
@@ -145,27 +145,35 @@ def lanczos(
         if ht.abs(beta) < 1e-10:
             # print("Lanczos breakdown in iteration {}".format(i))
             # Lanczos Breakdown, pick a random vector to continue
-            vr = ht.random.randn(n, dtype=A.dtype, split=V.split)
+            if V.dtype is not ht.complex128 and V.dtype is not ht.complex64:
+                vr = ht.random.rand(n, split=V.split, dtype=V.dtype, device=V.device)
+            else:
+                if V.dtype is ht.complex128:
+                    vr_dtype = ht.float64
+                elif V.dtype is ht.complex64:
+                    vr_dtype = ht.float32
+                vr = (
+                    ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device)
+                    + ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device) * 1j
+                )
             # orthogonalize v_r with respect to all vectors v[i]
             for j in range(i):
-                vi_loc = V.larray[:, j]
-                a = torch.dot(vr.larray, vi_loc)
-                b = torch.dot(vi_loc, vi_loc)
+                vi_loc = V._DNDarray__array[:, j]
+                a = torch.dot(vr.larray, torch.conj(vi_loc))
+                b = torch.dot(vi_loc, torch.conj(vi_loc))
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
-                vr.larray = vr.larray - a / b * vi_loc
-            # normalize v_r to Euclidian norm 1 and set as ith vector v
+                vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
+            # normalize v_r to Euclidean norm 1 and set as ith vector v
             vi = vr / ht.norm(vr)
         else:
             vr = w
 
             # Reorthogonalization
-            # ToDo: Rethink this; mask torch calls, See issue #494
-            # This is the fast solution, using item access on the ht.dndarray level is way slower
             for j in range(i):
                 vi_loc = V.larray[:, j]
-                a = torch.dot(vr._DNDarray__array, vi_loc)
-                b = torch.dot(vi_loc, vi_loc)
+                a = torch.dot(vr._DNDarray__array, torch.conj(vi_loc))
+                b = torch.dot(vi_loc, torch.conj(vi_loc))
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
                 A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
                 vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
@@ -173,7 +181,7 @@ def lanczos(
             vi = vr / ht.norm(vr)
 
         w = ht.matmul(A, vi)
-        alpha = ht.dot(w, vi)
+        alpha = ht.dot(ht.conj(w).T, vi)
 
         w = w - alpha * vi - beta * V[:, i - 1]
 
@@ -185,14 +193,15 @@ def lanczos(
     if V.split is not None:
         V.resplit_(axis=None)
 
+    # T is always real
     if T_out is not None:
-        T_out = T.copy()
+        T_out = T.real.copy()
         if V_out is not None:
             V_out = V.copy()
             return V_out, T_out
         return V, T_out
     elif V_out is not None:
         V_out = V.copy()
-        return V_out, T
+        return V_out, T.real
 
-    return V, T
+    return V, T.real
