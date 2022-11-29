@@ -54,7 +54,7 @@ class TestSolver(TestCase):
         A_conj = ht.conj(A)
         B = A @ A_conj.T
         m = n
-        V_out = ht.zeros((n, m), dtype=B.dtype, split=0, device=B.device, comm=B.comm)
+        V_out = ht.zeros((n, m), dtype=B.dtype, split=B.split, device=B.device, comm=B.comm)
         T_out = ht.zeros((m, m), dtype=ht.float64, device=B.device, comm=B.comm)
         # Lanczos decomposition with iterations m = n
         ht.lanczos(B, m=m, V_out=V_out, T_out=T_out)
@@ -106,14 +106,17 @@ class TestSolver(TestCase):
         A = ht.random.randn(n, n, dtype=ht.float64, split=None)
         B = A @ A.T
         # Lanczos decomposition with iterations m = n
-        V, T = ht.lanczos(B, m=n)
-        self.assertTrue(V.dtype is B.dtype)
-        self.assertTrue(T.dtype is B.dtype)
+        m = n
+        V_out = ht.zeros((n, m), dtype=B.dtype, split=B.split, device=B.device, comm=B.comm)
+        T_out = ht.zeros((m, m), dtype=ht.float64, device=B.device, comm=B.comm)
+        ht.lanczos(B, m=m, V_out=V_out, T_out=T_out)
+        self.assertTrue(V_out.dtype is B.dtype)
+        self.assertTrue(T_out.dtype is B.real.dtype)
         # V must be unitary
-        V_inv = ht.linalg.inv(V)
-        self.assertTrue(ht.allclose(V_inv, V.T))
+        V_inv = ht.linalg.inv(V_out)
+        self.assertTrue(ht.allclose(V_inv, V_out.T))
         # V T V.T must be = B, V transposed = V inverse
-        lanczos_B = V @ T @ V_inv
+        lanczos_B = V_out @ T_out @ V_inv
         self.assertTrue(ht.allclose(lanczos_B, B))
 
         with self.assertRaises(TypeError):
