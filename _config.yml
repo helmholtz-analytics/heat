@@ -16,16 +16,16 @@ minimal_mistakes_skin    : "default" # "air", "aqua", "contrast", "dark", "dirt"
 
 # Site Settings
 locale                   : "en-US"
-title                    : "Heat"
+title                    : "Helmholtz Analytics Toolkit"
 title_separator          : "-"
 subtitle                 : # site tagline that appears below site title in masthead
 name                     : "Helmholtz Analytics"
-description              : "An amazing website."
+description              : "Heat Website."
 url                      : "https://helmholtz-analytics.github.io" # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
 baseurl                  : "/heat" # the subpath of your site, e.g. "/blog"
 repository               : "helmholtz-analytics/heat" # GitHub username/repo-name e.g. "mmistakes/minimal-mistakes"
-teaser                   : # path of fallback teaser image, e.g. "/assets/images/500x300.png"
-logo                     : # path of logo image to display in the masthead, e.g. "/assets/images/88x88.png"
+teaser                   : "/assets/images/logo.png" # path of fallback teaser image, e.g. "/assets/images/500x300.png"
+logo                     : "/assets/images/logo_icon.png" # path of logo image to display in the masthead, e.g. "/assets/images/88x88.png"
 masthead_title           : # overrides the website title displayed in the masthead, use " " for no title
 # breadcrumbs            : false # true, false (default)
 words_per_minute         : 200
@@ -104,10 +104,10 @@ analytics:
 
 # Site Author
 author:
-  name             : "Helmholtz Analytics"
-  avatar           : # path of avatar image, e.g. "/assets/images/bio-photo.jpg"
-  bio              : "I am an **amazing** person."
-  location         : "Somewhere"
+  name             : "Heat"
+  avatar           : "/assets/images/image10.png" # path of avatar image, e.g. "/assets/images/bio-photo.jpg"
+  # bio              : "I am an **amazing** person."
+  # location         : "Somewhere"
   email            :
   links:
     - label: "Email"
@@ -124,7 +124,7 @@ author:
       # url: "https://facebook.com/"
     - label: "GitHub"
       icon: "fab fa-fw fa-github"
-      url: "https://github.com/helmholtz-analytics"
+      url: "https://github.com/helmholtz-analytics/heat"
     - label: "Instagram"
       icon: "fab fa-fw fa-instagram"
       # url: "https://instagram.com/"
