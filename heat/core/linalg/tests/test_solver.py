@@ -46,20 +46,23 @@ class TestSolver(TestCase):
         lanczos_B = V @ T @ V_inv
         self.assertTrue(ht.allclose(lanczos_B, B))
 
-        # complex128
+        # complex128, output buffers
         A = (
             ht.random.rand(n, n, dtype=ht.float64, split=0)
             + ht.random.rand(n, n, dtype=ht.float64, split=0) * 1j
         )
         A_conj = ht.conj(A)
         B = A @ A_conj.T
+        m = n
+        V_out = ht.zeros((n, m), dtype=B.dtype, split=0, device=B.device, comm=B.comm)
+        T_out = ht.zeros((m, m), dtype=ht.float64, device=B.device, comm=B.comm)
         # Lanczos decomposition with iterations m = n
-        V, T = ht.lanczos(B, m=n)
+        ht.lanczos(B, m=m, V_out=V_out, T_out=T_out)
         # V must be unitary
-        V_inv = ht.linalg.inv(V)
-        self.assertTrue(ht.allclose(V_inv, ht.conj(V).T))
+        V_inv = ht.linalg.inv(V_out)
+        self.assertTrue(ht.allclose(V_inv, ht.conj(V_out).T))
         # V T V* must be = B, V conjugate transpose = V inverse
-        lanczos_B = V @ T @ V_inv
+        lanczos_B = V_out @ T_out @ V_inv
         self.assertTrue(ht.allclose(lanczos_B, B))
 
         # single precision tolerance
