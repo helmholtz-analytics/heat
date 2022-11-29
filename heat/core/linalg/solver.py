@@ -112,14 +112,9 @@ def lanczos(
 
     # output data types: T is always Real
     A_is_complex = False
-    if A.dtype is not ht.complex128 and A.dtype is not ht.complex64:
-        T_dtype = A.dtype
-    else:
+    T_dtype = A.real.dtype
+    if A.dtype is ht.complex128 or A.dtype is ht.complex64:
         A_is_complex = True
-        if A.dtype is ht.complex128:
-            T_dtype = ht.float64
-        elif A.dtype is ht.complex64:
-            T_dtype = ht.float32
 
     # initialize or sanitize output buffers
     if T_out is not None:
@@ -145,7 +140,7 @@ def lanczos(
             V = V_out
         else:
             # This is done for better memory access in the reorthogonalization Gram-Schmidt algorithm
-            V = ht.ones((n, m), split=0, dtype=A.dtype, device=A.device, comm=A.comm)
+            V = ht.zeros((n, m), split=0, dtype=A.dtype, device=A.device, comm=A.comm)
     else:
         if A.split == 1:
             raise NotImplementedError("Distribution along axis 1 not implemented yet.")
@@ -159,7 +154,7 @@ def lanczos(
             )
             V = V_out
         else:
-            V = ht.ones((n, m), split=None, dtype=A.dtype, device=A.device, comm=A.comm)
+            V = ht.zeros((n, m), split=None, dtype=A.dtype, device=A.device, comm=A.comm)
 
     if v0 is None:
         vr = ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm)
