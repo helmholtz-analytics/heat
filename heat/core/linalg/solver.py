@@ -3,6 +3,7 @@ Collection of solvers for systems of linear equations.
 """
 import heat as ht
 from ..dndarray import DNDarray
+from ..sanitation import sanitize_out
 from typing import List, Dict, Any, TypeVar, Union, Tuple, Optional
 
 import torch
@@ -85,16 +86,16 @@ def lanczos(
     Parameters
     ----------
     A : DNDarray
-        2D Hermitian (if complex) or symmetric positive definite matrix.
+        2D Hermitian (if complex) or symmetric positive-definite matrix.
         Only distribution along axis 0 is supported, i.e. `A.split` must be `0` or `None`.
     m : int
         Number of Lanczos iterations
     v0 : DNDarray, optional
         1D starting vector of Euclidean norm 1. If not provided, a random vector will be used to start the algorithm
     V_out : DNDarray, optional
-        Output Matrix for the Krylow vectors, Shape = (n, m)
+        Output Matrix for the Krylow vectors, Shape = (n, m), dtype=A.dtype
     T_out : DNDarray, optional
-        Output Matrix for the Tridiagonal matrix, Shape = (m, m)
+        Output Matrix for the Tridiagonal matrix, Shape = (m, m).
     """
     if not isinstance(A, DNDarray):
         raise TypeError("A needs to be of type ht.dndarray, but was {}".format(type(A)))
@@ -108,27 +109,62 @@ def lanczos(
     n, column = A.shape
     if n != column:
         raise TypeError("Input Matrix A needs to be symmetric positive-definite.")
-    T = ht.zeros((m, m), dtype=A.dtype, device=A.device)
+
+    # output data types: T is always Real
+    A_is_complex = False
+    if A.dtype is not ht.complex128 and A.dtype is not ht.complex64:
+        T_dtype = A.dtype
+    else:
+        A_is_complex = True
+        if A.dtype is ht.complex128:
+            T_dtype = ht.float64
+        elif A.dtype is ht.complex64:
+            T_dtype = ht.float32
+
+    # initialize or sanitize output buffers
+    if T_out is not None:
+        sanitize_out(
+            T_out,
+            output_shape=(m, m),
+            output_split=None,
+            output_device=A.device,
+            output_comm=A.comm,
+        )
+        T = T_out
+    else:
+        T = ht.zeros((m, m), dtype=T_dtype, device=A.device, comm=A.comm)
     if A.split == 0:
-        # This is done for better memory access in the reorthogonalization Gram-Schmidt algorithm
-        V = ht.ones((n, m), split=0, dtype=A.dtype, device=A.device)
+        if V_out is not None:
+            sanitize_out(
+                V_out,
+                output_shape=(n, m),
+                output_split=0,
+                output_device=A.device,
+                output_comm=A.comm,
+            )
+            V = V_out
+        else:
+            # This is done for better memory access in the reorthogonalization Gram-Schmidt algorithm
+            V = ht.ones((n, m), split=0, dtype=A.dtype, device=A.device, comm=A.comm)
     else:
         if A.split == 1:
             raise NotImplementedError("Distribution along axis 1 not implemented yet.")
-        V = ht.ones((n, m), split=None, dtype=A.dtype, device=A.device)
+        if V_out is not None:
+            sanitize_out(
+                V_out,
+                output_shape=(n, m),
+                output_split=None,
+                output_device=A.device,
+                output_comm=A.comm,
+            )
+            V = V_out
+        else:
+            V = ht.ones((n, m), split=None, dtype=A.dtype, device=A.device, comm=A.comm)
 
     if v0 is None:
-        if V.dtype is not ht.complex128 and V.dtype is not ht.complex64:
-            vr = ht.random.rand(n, split=V.split, dtype=V.dtype, device=V.device)
-        else:
-            if V.dtype is ht.complex128:
-                vr_dtype = ht.float64
-            elif V.dtype is ht.complex64:
-                vr_dtype = ht.float32
-            vr = (
-                ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device)
-                + ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device) * 1j
-            )
+        vr = ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm)
+        if A_is_complex:
+            vr += ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm) * 1j
         v0 = vr / ht.norm(vr)
     else:
         if v0.split != V.split:
@@ -138,24 +174,20 @@ def lanczos(
     w = ht.matmul(A, v0)
     alpha = ht.dot(ht.conj(w).T, v0)
     w = w - alpha * v0
-    T[0, 0] = alpha
+    T[0, 0] = alpha.real
     V[:, 0] = v0
     for i in range(1, int(m)):
         beta = ht.norm(w)
         if ht.abs(beta) < 1e-10:
             # print("Lanczos breakdown in iteration {}".format(i))
             # Lanczos Breakdown, pick a random vector to continue
-            if V.dtype is not ht.complex128 and V.dtype is not ht.complex64:
-                vr = ht.random.rand(n, split=V.split, dtype=V.dtype, device=V.device)
-            else:
-                if V.dtype is ht.complex128:
-                    vr_dtype = ht.float64
-                elif V.dtype is ht.complex64:
-                    vr_dtype = ht.float32
-                vr = (
-                    ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device)
-                    + ht.random.rand(n, split=V.split, dtype=vr_dtype, device=V.device) * 1j
+            vr = ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm)
+            if A_is_complex:
+                vr += (
+                    ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm)
+                    * 1j
                 )
+
             # orthogonalize v_r with respect to all vectors v[i]
             for j in range(i):
                 vi_loc = V._DNDarray__array[:, j]
@@ -185,23 +217,12 @@ def lanczos(
 
         w = w - alpha * vi - beta * V[:, i - 1]
 
-        T[i - 1, i] = beta
-        T[i, i - 1] = beta
-        T[i, i] = alpha
+        T[i - 1, i] = beta.real
+        T[i, i - 1] = beta.real
+        T[i, i] = alpha.real
         V[:, i] = vi
 
     if V.split is not None:
         V.resplit_(axis=None)
 
-    # T is always real
-    if T_out is not None:
-        T_out = T.real.copy()
-        if V_out is not None:
-            V_out = V.copy()
-            return V_out, T_out
-        return V, T_out
-    elif V_out is not None:
-        V_out = V.copy()
-        return V_out, T.real
-
-    return V, T.real
+    return V, T
