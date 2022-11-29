@@ -25,7 +25,7 @@ url                      : "https://helmholtz-analytics.github.io" # the base ho
 baseurl                  : "/heat" # the subpath of your site, e.g. "/blog"
 repository               : "helmholtz-analytics/heat" # GitHub username/repo-name e.g. "mmistakes/minimal-mistakes"
 teaser                   : "/assets/images/logo.png" # path of fallback teaser image, e.g. "/assets/images/500x300.png"
-logo                     : "/assets/images/logo_icon.png" # path of logo image to display in the masthead, e.g. "/assets/images/88x88.png"
+logo                     : "/assets/images/image10.png" # path of logo image to display in the masthead, e.g. "/assets/images/88x88.png"
 masthead_title           : # overrides the website title displayed in the masthead, use " " for no title
 # breadcrumbs            : false # true, false (default)
 words_per_minute         : 200
@@ -105,7 +105,7 @@ analytics:
 # Site Author
 author:
   name             : "Heat"
-  avatar           : "/assets/images/image10.png" # path of avatar image, e.g. "/assets/images/bio-photo.jpg"
+  avatar           : "/assets/images/logo_icon.png" # path of avatar image, e.g. "/assets/images/bio-photo.jpg"
   # bio              : "I am an **amazing** person."
   # location         : "Somewhere"
   email            :
