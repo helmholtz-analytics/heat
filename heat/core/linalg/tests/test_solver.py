@@ -115,8 +115,10 @@ class TestSolver(TestCase):
         # V must be unitary
         V_inv = ht.linalg.inv(V_out)
         self.assertTrue(ht.allclose(V_inv, V_out.T))
+        # without output buffers
+        V, T = ht.lanczos(B, m=m)
         # V T V.T must be = B, V transposed = V inverse
-        lanczos_B = V_out @ T_out @ V_inv
+        lanczos_B = V @ T @ V.T
         self.assertTrue(ht.allclose(lanczos_B, B))
 
         with self.assertRaises(TypeError):
