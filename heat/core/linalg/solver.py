@@ -93,9 +93,9 @@ def lanczos(
     v0 : DNDarray, optional
         1D starting vector of Euclidean norm 1. If not provided, a random vector will be used to start the algorithm
     V_out : DNDarray, optional
-        Output Matrix for the Krylow vectors, Shape = (n, m), dtype=A.dtype
+        Output Matrix for the Krylow vectors, Shape = (n, m), dtype=A.dtype, must be initialized to zero
     T_out : DNDarray, optional
-        Output Matrix for the Tridiagonal matrix, Shape = (m, m).
+        Output Matrix for the Tridiagonal matrix, Shape = (m, m), must be initialized to zero
     """
     if not isinstance(A, DNDarray):
         raise TypeError("A needs to be of type ht.dndarray, but was {}".format(type(A)))
