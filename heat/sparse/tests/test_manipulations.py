@@ -7,6 +7,10 @@ from heat.core.tests.test_suites.basic_test import TestCase
 class TestManipulations(TestCase):
     @classmethod
     def setUpClass(self):
+
+        if int(torch.__version__.split(".")[1]) < 10:
+            return
+
         super(TestManipulations, self).setUpClass()
         """
         A = [[0, 0, 1, 0, 2]
@@ -29,6 +33,10 @@ class TestManipulations(TestCase):
         )
 
     def test_todense(self):
+
+        if int(torch.__version__.split(".")[1]) < 10:
+            return
+
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
         ref_dense_array = ht.array(

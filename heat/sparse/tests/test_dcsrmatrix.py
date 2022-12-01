@@ -9,6 +9,10 @@ from typing import Tuple
 class TestDCSR_matrix(TestCase):
     @classmethod
     def setUpClass(self):
+
+        if int(torch.__version__.split(".")[1]) < 10:
+            return
+
         super(TestDCSR_matrix, self).setUpClass()
         """
         A = [[0, 0, 1, 0, 2]
@@ -34,6 +38,10 @@ class TestDCSR_matrix(TestCase):
         self.rank = ht.communication.MPI_WORLD.rank
 
     def test_larray(self):
+
+        if int(torch.__version__.split(".")[1]) < 10:
+            return
+
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
         self.assertIsInstance(heat_sparse_csr.larray, torch.Tensor)
@@ -51,6 +59,10 @@ class TestDCSR_matrix(TestCase):
             self.assertNotEqual(tuple(heat_sparse_csr.larray.shape), heat_sparse_csr.gshape)
 
     def test_nnz(self):
+
+        if int(torch.__version__.split(".")[1]) < 10:
+            return
+
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
         self.assertIsInstance(heat_sparse_csr.nnz, int)
@@ -81,6 +93,10 @@ class TestDCSR_matrix(TestCase):
             self.assertEqual(heat_sparse_csr.lnnz, nnz_dist[self.rank])
 
     def test_shape(self):
+
+        if int(torch.__version__.split(".")[1]) < 10:
+            return
+
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
         self.assertIsInstance(heat_sparse_csr.shape, Tuple)
@@ -114,10 +130,18 @@ class TestDCSR_matrix(TestCase):
             self.assertEqual(heat_sparse_csr.lshape, lshape_dist[self.rank])
 
     def test_dtype(self):
+
+        if int(torch.__version__.split(".")[1]) < 10:
+            return
+
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
         self.assertEqual(heat_sparse_csr.dtype, ht.float32)
 
     def test_data(self):
+
+        if int(torch.__version__.split(".")[1]) < 10:
+            return
+
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
         self.assertTrue((heat_sparse_csr.data == self.ref_data).all())
@@ -163,6 +187,10 @@ class TestDCSR_matrix(TestCase):
             )
 
     def test_indices(self):
+
+        if int(torch.__version__.split(".")[1]) < 10:
+            return
+
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
         self.assertTrue((heat_sparse_csr.indices == self.ref_indices).all())
@@ -208,6 +236,10 @@ class TestDCSR_matrix(TestCase):
             )
 
     def test_indptr(self):
+
+        if int(torch.__version__.split(".")[1]) < 10:
+            return
+
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
         self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())
@@ -253,6 +285,10 @@ class TestDCSR_matrix(TestCase):
             )
 
     def test_astype(self):
+
+        if int(torch.__version__.split(".")[1]) < 10:
+            return
+
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
         # check starting invariant

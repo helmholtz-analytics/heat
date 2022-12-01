@@ -9,6 +9,10 @@ class TestFactories(TestCase):
     @classmethod
     def setUpClass(self):
         super(TestFactories, self).setUpClass()
+
+        if int(torch.__version__.split(".")[1]) < 10:
+            return
+
         """
         A = [[0, 0, 1, 0, 2]
              [0, 0, 0, 0, 0]
@@ -42,6 +46,17 @@ class TestFactories(TestCase):
         self.rank = ht.communication.MPI_WORLD.rank
 
     def test_sparse_csr_matrix(self):
+        if int(torch.__version__.split(".")[1]) < 10:
+            with self.assertRaises(RuntimeError):
+                ref_scipy_sparse_csr = scipy.sparse.csr_matrix(
+                    (
+                        torch.tensor([1, 2, 3, 4, 5, 6], dtype=torch.float, device="cpu"),
+                        torch.tensor([2, 4, 1, 0, 3, 4], dtype=torch.int, device="cpu"),
+                        torch.tensor([0, 2, 2, 3, 5, 6], dtype=torch.int, device="cpu"),
+                    )
+                )
+                heat_sparse_csr = ht.sparse.sparse_csr_matrix(ref_scipy_sparse_csr)
+            return
 
         """
         Input sparse: torch.Tensor
