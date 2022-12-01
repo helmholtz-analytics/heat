@@ -31,7 +31,8 @@ class DCSR_matrix:
     dtype : datatype
         The datatype of the array
     split : int or None
-        The axis on which the array is divided between processes
+        If split is not None, it denotes the axis on which the array is divided between processes.
+        DCSR_matrix only supports distribution along axis 0.
     device : Device
         The device on which the local arrays are using (cpu or gpu)
     comm : Communication

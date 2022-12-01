@@ -40,12 +40,12 @@ def sparse_csr_matrix(
         to hold the objects in the sequence. This argument can only be used to ‘upcast’ the array. For downcasting, use
         the :func:`~heat.sparse.dcsr_matrix.astype` method.
     split : int or None, optional
-        The axis along which the passed array content ``obj`` is split and distributed in memory. Mutually exclusive
-        with ``is_split``. DCSR_matrix only supports distribution along axis 0.
+        The axis along which the passed array content ``obj`` is split and distributed in memory. DCSR_matrix only supports
+        distribution along axis 0. Mutually exclusive with ``is_split``.
     is_split : int or None, optional
-        Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
-        interfacing with other distributed-memory code. The shape of the global array is automatically inferred.
-        Mutually exclusive with ``split``. DCSR_matrix only supports distribution along axis 0.
+        Specifies the axis along which the local data portions, passed in obj, are split across all machines. DCSR_matrix only
+        supports distribution along axis 0. Useful for interfacing with other distributed-memory code. The shape of the global
+        array is automatically inferred. Mutually exclusive with ``split``.
     device : str or Device, optional
         Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on (i.e. globally set default
         device).
@@ -54,7 +54,7 @@ def sparse_csr_matrix(
 
     Raises
     ------
-    NotImplementedError
+    ValueError
         If split and is_split parameters are not one of 0 or None.
 
     Examples
@@ -88,6 +88,10 @@ def sparse_csr_matrix(
     >>> heat_sparse_csr
     (indptr: tensor([0, 2, 3, 6]), indices: tensor([0, 2, 2, 0, 1, 2]), data: tensor([1., 2., 3., 4., 5., 6.]), dtype=ht.float32, device=cpu:0, split=0)
     """
+    # version check
+    if int(torch.__version__.split(".")[1]) < 10:
+        raise RuntimeError("ht.sparse requires torch >= 1.10")
+
     # sanitize the data type
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
@@ -150,7 +154,7 @@ def sparse_csr_matrix(
         lshape = tuple(lshape)
 
     elif split is not None:
-        raise NotImplementedError(f"Split axis {split} not supported for class DCSR_matrix")
+        raise ValueError(f"Split axis {split} not supported for class DCSR_matrix")
 
     elif is_split == 0:
         # Check whether the distributed data matches in
@@ -204,7 +208,7 @@ def sparse_csr_matrix(
         split = is_split
 
     elif is_split is not None:
-        raise NotImplementedError(f"Split axis {split} not supported for class DCSR_matrix")
+        raise ValueError(f"Split axis {split} not supported for class DCSR_matrix")
 
     else:  # split is None and is_split is None
         data = obj.values()
