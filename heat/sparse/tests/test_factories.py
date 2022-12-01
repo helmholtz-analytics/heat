@@ -455,10 +455,10 @@ class TestFactories(TestCase):
             )
 
         # Errors (torch.Tensor)
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(ValueError):
             heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr, split=1)
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(ValueError):
             dist_torch_sparse_csr = torch.sparse_csr_tensor(
                 torch.tensor([0, 0, 0], device=self.device.torch_device),  # indptr
                 torch.tensor([], dtype=torch.int64, device=self.device.torch_device),  # indices
@@ -469,10 +469,10 @@ class TestFactories(TestCase):
             heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_torch_sparse_csr, is_split=1)
 
         # Errors (scipy.sparse.csr_matrix)
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(ValueError):
             heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_scipy_sparse_csr, split=1)
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(ValueError):
             dist_scipy_sparse_csr = scipy.sparse.csr_matrix(
                 (
                     torch.tensor([], dtype=torch.int64, device="cpu"),  # data
