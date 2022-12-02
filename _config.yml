@@ -5,12 +5,12 @@ url: "https://helmholtz-analytics.github.io/heat"
 # THEME-SPECIFIC CONFIGURATION
 title: Heat                                   # site's title
 description: "A website with blog posts and pages"      # used by search engines
-avatar: assets/img/triangle.png                         # Empty for no avatar in navbar
-favicon: assets/favicon.ico                             # Icon displayed in the tab
+avatar: assets/img/heatlogo.png                         # Empty for no avatar in navbar
+favicon: assets/logo_icon.png                           # Icon displayed in the tab
 
 # Header and footer text
-header_text: ""  # Change Blog header text
-header_feature_image: assets/img/header/logo.png
+header_text: " "  # Change Blog header text
+header_feature_image: assets/img/header/heat.png
 header_feature_image_responsive: false
 footer_text: >
   Powered by <a href="https://jekyllrb.com/">Jekyll</a> with <a href="https://github.com/sylhare/Type-on-Strap">Type on Strap</a>
