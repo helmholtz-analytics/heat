@@ -4,7 +4,7 @@ url: "https://helmholtz-analytics.github.io/heat"
 
 # THEME-SPECIFIC CONFIGURATION
 title: Heat                                   # site's title
-description: "A website with blog posts and pages"      # used by search engines
+description: "Helmholtz Analytics Toolkit"      # used by search engines
 avatar: assets/img/heat.png                         # Empty for no avatar in navbar
 favicon: assets/logo_icon.png                           # Icon displayed in the tab
 
