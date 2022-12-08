@@ -4,7 +4,11 @@ import torch
 
 from heat.core.tests.test_suites.basic_test import TestCase
 
-@unittest.skipIf(int(torch.__version__.split(".")[1]) < 10, f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.")
+
+@unittest.skipIf(
+    int(torch.__version__.split(".")[1]) < 10,
+    f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.",
+)
 class TestManipulations(TestCase):
     @classmethod
     def setUpClass(self):

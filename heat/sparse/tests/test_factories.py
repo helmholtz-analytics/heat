@@ -5,7 +5,11 @@ import scipy
 
 from heat.core.tests.test_suites.basic_test import TestCase
 
-@unittest.skipIf(int(torch.__version__.split(".")[1]) < 10, f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.")
+
+@unittest.skipIf(
+    int(torch.__version__.split(".")[1]) < 10,
+    f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.",
+)
 class TestFactories(TestCase):
     @classmethod
     def setUpClass(self):
@@ -492,12 +496,8 @@ class TestFactories(TestCase):
                     torch.tensor(
                         [0] * ((self.rank + 1) + 1), device=self.device.torch_device
                     ),  # indptr
-                    torch.tensor(
-                        [], dtype=torch.int64, device=self.device.torch_device
-                    ),  # indices
-                    torch.tensor(
-                        [], dtype=torch.int64, device=self.device.torch_device
-                    ),  # data
+                    torch.tensor([], dtype=torch.int64, device=self.device.torch_device),  # indices
+                    torch.tensor([], dtype=torch.int64, device=self.device.torch_device),  # data
                     size=(self.rank + 1, self.rank + 1),
                 )
 

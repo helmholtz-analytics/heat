@@ -6,7 +6,11 @@ from heat.core.tests.test_suites.basic_test import TestCase
 
 from typing import Tuple
 
-@unittest.skipIf(int(torch.__version__.split(".")[1]) < 10, f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.")
+
+@unittest.skipIf(
+    int(torch.__version__.split(".")[1]) < 10,
+    f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.",
+)
 class TestDCSR_matrix(TestCase):
     @classmethod
     def setUpClass(self):
