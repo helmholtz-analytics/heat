@@ -90,7 +90,7 @@ def sparse_csr_matrix(
     """
     # version check
     if int(torch.__version__.split(".")[1]) < 10:
-        raise RuntimeError("ht.sparse requires torch >= 1.10")
+        raise RuntimeError(f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.")
 
     # sanitize the data type
     if dtype is not None:
