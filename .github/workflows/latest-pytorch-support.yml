@@ -10,8 +10,8 @@ env:
   new_major: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f1)
   new_minor: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f2)
   new_patch: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f3)
-  new_setup_patch: $(($env.new_patch+1))
-  new_setup_pytorch: ("$env.new_major"."$env.new_minor"."$env.new_setup_patch")
+  new_setup_patch: $((${{env.new_patch}}+1))
+  new_setup_pytorch: ("${{env.new_major}}"."${{env.new_minor}}"."${{env.new_setup_patch}}")
 permissions:
   contents: write
   issues: write
