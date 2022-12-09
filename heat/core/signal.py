@@ -92,7 +92,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         raise ValueError("Only 1-dimensional input DNDarrays are allowed")
     if mode == "same" and v.shape[0] % 2 == 0:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
-    if v.is_balanced() != True:
+    if not v.is_balanced():
         raise ValueError("Only balanced kernel weights are allowed")
 
     if v.shape[0] > a.shape[0]:
