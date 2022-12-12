@@ -1,0 +1,29 @@
+test:
+  image: nvidia/cuda:11.6.2-runtime-ubuntu20.04
+  tags:
+    - cuda
+    - x86_64
+  script:
+    - apt update
+    - apt -y install build-essential python3-pip curl git
+    - DEBIAN_FRONTEND=noninteractive apt -y install libopenmpi-dev openmpi-bin openmpi-doc
+    - apt -y install libhdf5-openmpi-dev libpnetcdf-dev
+    - pip install pytest coverage
+    - pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
+    - pip install .[hdf5,netcdf]
+    - COVERAGE_FILE=report/cov/coverage1 HEAT_TEST_USE_DEVICE=cpu mpirun --allow-run-as-root -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/
+    - COVERAGE_FILE=report/cov/coverage2 HEAT_TEST_USE_DEVICE=gpu mpirun --allow-run-as-root -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report3.xml heat/
+    - COVERAGE_FILE=report/cov/coverage5 HEAT_TEST_USE_DEVICE=cpu mpirun --allow-run-as-root -n 5 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report5.xml heat/
+    - COVERAGE_FILE=report/cov/coverage8 HEAT_TEST_USE_DEVICE=gpu mpirun --allow-run-as-root -n 6 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report6.xml heat/
+    - coverage combine report/cov/*
+    - coverage report
+    - coverage xml
+    - curl -Os https://uploader.codecov.io/latest/linux/codecov
+    - chmod +x codecov
+    - ./codecov -F unit -f ./coverage.xml -t $CODECOV_TOKEN -Z
+  artifacts:
+    when: always
+    paths:
+      - report/test/report*.xml
+    reports:
+      junit: report/test/report*.xml
