@@ -37,12 +37,14 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: 'release/1.2.x'
+      - name: Increment patch
+        run: |
+          echo "new_setup_patch=$((${{ env.new_patch }}+1))" >> $GITHUB_ENV
+      - name: Define version string
+        run: |
+          echo "new_setup_pytorch=$("${{ env.new_major }}"."${{ env.new_minor }}"."${{ env.new_setup_patch }}")" >> $GITHUB_ENV
       - name: Update setup.py
         run: |
-          echo ${{ env.previous_pytorch }}
-          echo ${{ env.new_pytorch }}
-          echo "new_setup_patch=$((${{ env.new_patch }}+1))" >> $GITHUB_ENV
-          echo "new_setup_pytorch=$("${{ env.new_major }}"."${{ env.new_minor }}"."${{ env.new_setup_patch }}")" >> $GITHUB_ENV
           echo ${{ env.new_setup_pytorch }}
           sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.new_setup_pytorch }}"'/g' setup.py
       - name: Define env variable
