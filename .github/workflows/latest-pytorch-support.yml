@@ -43,8 +43,8 @@ jobs:
           echo ${{ env.new_pytorch }}
           echo "new_setup_patch=$((${{ env.new_patch }}+1))" >> $GITHUB_ENV
           echo "new_setup_pytorch=$("${{ env.new_major }}"."${{ env.new_minor }}"."${{ env.new_setup_patch }}")" >> $GITHUB_ENV
+          echo ${{ env.new_setup_pytorch }}
           sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.new_setup_pytorch }}"'/g' setup.py
-          sed -i 's/'"${{ env.previous_pytorch }}"'/'"${{ env.new_pytorch }}"'/g' .github/pytorch-release-versions/pytorch-latest.txt
       - name: Define env variable
         run: |
           echo "new=$(<.github/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
