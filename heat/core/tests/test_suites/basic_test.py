@@ -136,8 +136,8 @@ class TestCase(unittest.TestCase):
             "Local shapes do not match. "
             "Got {} expected {}".format(heat_array.lshape, expected_array[slices].shape),
         )
-        local_heat_numpy = heat_array.numpy()
-        self.assertTrue(np.allclose(local_heat_numpy, expected_array))
+        # compare local tensors to corresponding slice of expected_array
+        self.assertTrue(np.allclose(heat_array.larray.numpy(), expected_array[slices]))
 
     def assert_func_equal(
         self,
