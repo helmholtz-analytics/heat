@@ -137,7 +137,7 @@ class TestCase(unittest.TestCase):
             "Got {} expected {}".format(heat_array.lshape, expected_array[slices].shape),
         )
         # compare local tensors to corresponding slice of expected_array
-        self.assertTrue(np.allclose(heat_array.larray.numpy(), expected_array[slices]))
+        self.assertTrue(np.allclose(heat_array.larray.cpu().numpy(), expected_array[slices]))
 
     def assert_func_equal(
         self,
