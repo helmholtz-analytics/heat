@@ -8,6 +8,16 @@ envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
 
 
 class TestDevices(TestCase):
+    def test_eq(self):
+        device = ht.Device("cpu", 0, "cpu:0")
+        self.assertEqual(device, ht.cpu)
+
+        device = ht.Device("gpu", 0, "gpu:0")
+        self.assertNotEqual(device, ht.cpu)
+
+        device = ht.Device("cpu", 1, "cpu:1")
+        self.assertNotEqual(device, ht.cpu)
+
     @unittest.skipIf(envar not in ["cpu"], "only supported for cpu")
     def test_get_default_device_cpu(self):
         self.assertIs(ht.get_device(), ht.cpu)

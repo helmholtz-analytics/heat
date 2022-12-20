@@ -74,6 +74,16 @@ class Device:
         """
         return "{}:{}".format(self.device_type, self.device_id)
 
+    def __eq__(self, other):
+        if isinstance(other, Device):
+            return (
+                True
+                if (self.device_type == other.device_type and self.device_id == other.device_id)
+                else False
+            )
+
+        return NotImplemented
+
 
 # create a CPU device singleton
 cpu = Device("cpu", 0, "cpu")
