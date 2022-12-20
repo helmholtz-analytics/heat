@@ -340,6 +340,7 @@ class MPICommunication(Communication):
             # this makes the math work below this function.
             obj.unsqueeze_(-1)
             squ = True
+
         mpi_type, elements = cls.mpi_type_and_elements_of(obj, counts, displs, is_contiguous)
         mpi_mem = cls.as_mpi_memory(obj)
         if squ:
@@ -1067,7 +1068,7 @@ class MPICommunication(Communication):
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
-        sbuf_is_contiguous, rbuf_is_contiguous = True, True
+        sbuf_is_contiguous, rbuf_is_contiguous = None, None
         # permute the send_axis order so that the split send_axis is the first to be transmitted
         if axis != 0:
             send_axis_permutation = list(range(sendbuf.ndimension()))
