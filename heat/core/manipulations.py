@@ -3372,6 +3372,9 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
     # early out for unchanged content
     if axis == arr.split:
         return arr.copy()
+    if not arr.is_distributed():
+        return factories.array(arr.larray, split=axis, device=arr.device, copy=True)
+
     if axis is None:
         # new_arr = arr.copy()
         gathered = torch.empty(
