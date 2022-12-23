@@ -137,7 +137,11 @@ class TestCase(unittest.TestCase):
             "Got {} expected {}".format(heat_array.lshape, expected_array[slices].shape),
         )
         # compare local tensors to corresponding slice of expected_array
-        self.assertTrue(ht.allclose(heat_array, ht.array(expected_array)))
+        is_allclose = np.allclose(heat_array.larray.cpu(), expected_array[slices])
+        ht_is_allclose = ht.array(
+            [is_allclose], dtype=ht.bool, is_split=0, device=heat_array.device
+        )
+        self.assertTrue(ht.all(ht_is_allclose))
 
     def assert_func_equal(
         self,
