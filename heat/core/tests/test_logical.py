@@ -182,6 +182,7 @@ class TestLogical(TestCase):
         c = ht.zeros((4, 6), split=0)
         d = ht.zeros((4, 6), split=1)
         e = ht.zeros((4, 6))
+        f = ht.float64([[2.000005, 2.000005], [2.000005, 2.000005]])
 
         self.assertFalse(ht.allclose(a, b))
         self.assertTrue(ht.allclose(a, b, atol=1e-04))
@@ -189,6 +190,7 @@ class TestLogical(TestCase):
         self.assertTrue(ht.allclose(a, 2))
         self.assertTrue(ht.allclose(a, 2.0))
         self.assertTrue(ht.allclose(2, a))
+        self.assertTrue(ht.allclose(f, a))
         self.assertTrue(ht.allclose(c, d))
         self.assertTrue(ht.allclose(c, e))
         self.assertTrue(e.allclose(c))

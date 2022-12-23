@@ -372,6 +372,24 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(a.split, 0)
         self.assertEqual(b.split, None)
 
+        # splits 0 None on 1 process
+        if a.comm.size == 1:
+            a = ht.ones((n, m), split=0)
+            b = ht.ones((j, k), split=None)
+            a[0] = ht.arange(1, m + 1)
+            a[:, -1] = ht.arange(1, n + 1)
+            b[0] = ht.arange(1, k + 1)
+            b[:, 0] = ht.arange(1, j + 1)
+            ret00 = ht.matmul(a, b, allow_resplit=True)
+
+            self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch)), 1)
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n, k))
+            self.assertEqual(ret00.dtype, ht.float)
+            self.assertEqual(ret00.split, None)
+            self.assertEqual(a.split, 0)
+            self.assertEqual(b.split, None)
+
         if a.comm.size > 1:
             # splits 00
             a = ht.ones((n, m), split=0, dtype=ht.float64)
