@@ -180,7 +180,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             # note, this is a binary operation between unevenly distributed dndarrays and will require communication, check out _operations.__binary_op()
             signal_filtered += global_signal_filtered[start_idx : start_idx + gshape]
             if r != size - 1:
-                start_idx += v.lshape_map[r + 1][0]
+                start_idx += v.lshape_map[r + 1][0].item()
         return signal_filtered
 
     else:
