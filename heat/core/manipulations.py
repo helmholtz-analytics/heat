@@ -3384,11 +3384,6 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
         arr.comm.Allgatherv(arr.larray, (gathered, counts, displs), recv_axis=arr.split)
         new_arr = factories.array(gathered, is_split=axis, device=arr.device, dtype=arr.dtype)
         return new_arr
-    # tensor needs be split/sliced locally
-    if arr.split is None:
-        temp = arr.larray[arr.comm.chunk(arr.shape, axis)[2]]
-        new_arr = factories.array(temp, is_split=axis, device=arr.device, dtype=arr.dtype)
-        return new_arr
 
     arr_tiles = tiling.SplitTiles(arr)
     new_arr = factories.empty(arr.gshape, split=axis, dtype=arr.dtype, device=arr.device)
