@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from scipy.sparse import csr_matrix as scipy_csr_matrix
 
-from typing import Optional, Type, Union
+from typing import Optional, Type, Iterable
 import warnings
 
 from ..core import devices
@@ -21,7 +21,7 @@ __all__ = [
 
 
 def sparse_csr_matrix(
-    obj: Union[torch.Tensor, scipy_csr_matrix],
+    obj: Iterable,
     dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
     is_split: Optional[int] = None,
@@ -33,8 +33,9 @@ def sparse_csr_matrix(
 
     Parameters
     ----------
-    obj : :class:`torch.Tensor` (layout ==> torch.sparse_csr) or :class:`scipy.sparse.csr_matrix`
-        Sparse tensor that needs to be distributed
+    obj : array_like
+        A tensor or array, any object exposing the array interface, an object whose ``__array__`` method returns an
+        array, or any (nested) sequence. Sparse tensor that needs to be distributed.
     dtype : datatype, optional
         The desired data-type for the sparse matrix. If not given, then the type will be determined as the minimum type required
         to hold the objects in the sequence. This argument can only be used to ‘upcast’ the array. For downcasting, use
