@@ -110,6 +110,20 @@ def sparse_csr_matrix(
             size=obj.shape,
         )
 
+    if not isinstance(obj, torch.Tensor):
+        try:
+            obj = torch.tensor(
+                obj,
+                device=device.torch_device
+                if device is not None
+                else devices.get_device().torch_device,
+            )
+        except RuntimeError:
+            raise TypeError(f"Invalid data of type {type(obj)}")
+
+    if obj.layout != torch.sparse_csr:
+        obj = obj.to_sparse_csr()
+
     # infer dtype from obj if not explicitly given
     if dtype is None:
         dtype = types.canonical_heat_type(obj.dtype)

@@ -22,6 +22,13 @@ class TestFactories(TestCase):
             [4, 0, 0, 5, 0]
             [0, 0, 0, 0, 6]]
         """
+        self.matrix_list = [
+            [0, 0, 1, 0, 2],
+            [0, 0, 0, 0, 0],
+            [0, 3, 0, 0, 0],
+            [4, 0, 0, 5, 0],
+            [0, 0, 0, 0, 6],
+        ]
         self.ref_indptr = torch.tensor(
             [0, 2, 2, 3, 5, 6], dtype=torch.int, device=self.device.torch_device
         )
@@ -458,6 +465,51 @@ class TestFactories(TestCase):
                     == torch.tensor(data_dist[self.rank], device=self.device.torch_device)
                 ).all()
             )
+
+        """
+        Input: torch.Tensor
+        """
+        torch_tensor = torch.tensor(
+            self.matrix_list, dtype=torch.float, device=self.device.torch_device
+        )
+        heat_sparse_csr = ht.sparse.sparse_csr_matrix(torch_tensor)
+
+        self.assertIsInstance(heat_sparse_csr, ht.sparse.DCSR_matrix)
+        self.assertEqual(heat_sparse_csr.dtype, ht.float32)
+        self.assertEqual(heat_sparse_csr.indptr.dtype, torch.int64)
+        self.assertEqual(heat_sparse_csr.indices.dtype, torch.int64)
+        self.assertEqual(heat_sparse_csr.shape, self.ref_torch_sparse_csr.shape)
+        self.assertEqual(heat_sparse_csr.lshape, self.ref_torch_sparse_csr.shape)
+        self.assertEqual(heat_sparse_csr.split, None)
+        self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())
+        self.assertTrue((heat_sparse_csr.lindptr == self.ref_indptr).all())
+        self.assertTrue((heat_sparse_csr.indices == self.ref_indices).all())
+        self.assertTrue((heat_sparse_csr.lindices == self.ref_indices).all())
+        self.assertTrue((heat_sparse_csr.data == self.ref_data).all())
+        self.assertTrue((heat_sparse_csr.ldata == self.ref_data).all())
+
+        """
+        Input: List[int]
+        """
+        heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.matrix_list)
+
+        self.assertIsInstance(heat_sparse_csr, ht.sparse.DCSR_matrix)
+        self.assertEqual(heat_sparse_csr.dtype, ht.int64)
+        self.assertEqual(heat_sparse_csr.indptr.dtype, torch.int64)
+        self.assertEqual(heat_sparse_csr.indices.dtype, torch.int64)
+        self.assertEqual(heat_sparse_csr.shape, self.ref_torch_sparse_csr.shape)
+        self.assertEqual(heat_sparse_csr.lshape, self.ref_torch_sparse_csr.shape)
+        self.assertEqual(heat_sparse_csr.split, None)
+        self.assertTrue((heat_sparse_csr.indptr == self.ref_indptr).all())
+        self.assertTrue((heat_sparse_csr.lindptr == self.ref_indptr).all())
+        self.assertTrue((heat_sparse_csr.indices == self.ref_indices).all())
+        self.assertTrue((heat_sparse_csr.lindices == self.ref_indices).all())
+        self.assertTrue((heat_sparse_csr.data == self.ref_data).all())
+        self.assertTrue((heat_sparse_csr.ldata == self.ref_data).all())
+
+        with self.assertRaises(TypeError):
+            # Passing an object which cant be converted into a torch.Tensor
+            heat_sparse_csr = ht.sparse.sparse_csr_matrix(self)
 
         # Errors (torch.Tensor)
         with self.assertRaises(ValueError):
