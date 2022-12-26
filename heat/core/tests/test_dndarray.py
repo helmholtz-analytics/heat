@@ -126,7 +126,6 @@ class TestDNDarray(TestCase):
             # test no data on process
             data_np = np.arange(2 * 12).reshape(2, 12)
             data = ht.array(data_np, split=0)
-            print("DEBUGGING: data.lshape_map = ", data.lshape_map)
             data.get_halo(1)
 
             data_with_halos = data.array_with_halos
@@ -572,8 +571,8 @@ class TestDNDarray(TestCase):
         )
 
         x_3d = ht.arange(20 * 4 * 3, split=0).reshape(20, 4, 3)
-        x_3d_sliced = x_3d[17:2:-2, :2, 2]
-        x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(20, 4, 3)[17:2:-2, :2, 2]
+        x_3d_sliced = x_3d[17:2:-2, :2, 1]
+        x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(20, 4, 3)[17:2:-2, :2, 1]
         self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
 
         # boolean mask, local
