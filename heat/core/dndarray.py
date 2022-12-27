@@ -666,10 +666,11 @@ class DNDarray:
         """
         output_shape = list(arr.gshape)
         split_bookkeeping = [None] * arr.ndim
-        if arr.is_distributed():
+        if arr.split is not None:
             split_bookkeeping[arr.split] = "split"
-            counts, displs = arr.counts_displs()
-            new_split = arr.split
+            if arr.is_distributed():
+                counts, displs = arr.counts_displs()
+                new_split = arr.split
 
         advanced_indexing = False
         arr_is_copy = False
@@ -849,6 +850,10 @@ class DNDarray:
                     key[i] = k.larray
                 elif not isinstance(k, torch.Tensor):
                     key[i] = torch.tensor(k, dtype=torch.int64, device=arr.larray.device)
+            elif isinstance(k, int):
+                # single-element indexing along axis i
+                output_shape = output_shape[:i] + output_shape[i + 1 :]
+                split_bookkeeping = split_bookkeeping[:i] + split_bookkeeping[i + 1 :]
             elif isinstance(k, slice) and k != slice(None):
                 start, stop, step = k.start, k.stop, k.step
                 if start is None:
@@ -949,6 +954,7 @@ class DNDarray:
 
         key = tuple(key)
         output_shape = tuple(output_shape)
+        print("DEBUGGING: split_bookkeeping = ", split_bookkeeping)
         new_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
 
         return arr, key, output_shape, new_split, split_key_is_sorted, out_is_balanced
@@ -1084,7 +1090,7 @@ class DNDarray:
             split_key_is_sorted,
             out_is_balanced,
         ) = self.__process_key(key)
-        print("DEBUGGING: processed key = ", key)
+        print("DEBUGGING: processed key, output_split = ", key, output_split)
         # TODO: test that key for not affected dims is always slice(None)
         # including match between self.split and key after self manipulation
 
@@ -1151,12 +1157,13 @@ class DNDarray:
                 selection.unsqueeze_(dim=1)
             outgoing_request_key = torch.cat((outgoing_request_key, selection), dim=0)
         print("DEBUGGING: outgoing_request_key = ", outgoing_request_key)
+        print("RECV_COUNTS = ", recv_counts)
         # share recv_counts among all processes
         comm_matrix = torch.empty(
             (self.comm.size, self.comm.size), dtype=recv_counts.dtype, device=recv_counts.device
         )
         self.comm.Allgather(recv_counts, comm_matrix)
-        print("DEBUGGING: comm_matrix = ", comm_matrix)
+        print("DEBUGGING: comm_matrix = ", comm_matrix, comm_matrix.shape)
 
         outgoing_request_key_counts = comm_matrix[self.comm.rank]
         outgoing_request_key_displs = torch.cat(
@@ -1170,8 +1177,6 @@ class DNDarray:
             ),
             dim=0,
         ).cumsum(dim=0)[:-1]
-        print("DEBUGGING: outgoing_request_key_displs = ", outgoing_request_key_displs)
-        print("DEBUGGING: outgoing_request_key_counts = ", outgoing_request_key_counts)
         incoming_request_key_counts = comm_matrix[:, self.comm.rank]
         incoming_request_key_displs = torch.cat(
             (
@@ -1184,8 +1189,6 @@ class DNDarray:
             ),
             dim=0,
         ).cumsum(dim=0)[:-1]
-        print("DEBUGGING: incoming_request_key_displs = ", incoming_request_key_displs)
-        print("DEBUGGING: incoming_request_key_counts = ", incoming_request_key_counts)
 
         if return_1d:
             incoming_request_key = torch.empty(
@@ -1232,24 +1235,30 @@ class DNDarray:
         recv_buf = torch.empty(
             tuple(output_lshape), dtype=self.larray.dtype, device=self.larray.device
         )
-        recv_displs = outgoing_request_key_displs
-        send_counts = incoming_request_key_counts
-        send_displs = incoming_request_key_displs
+        recv_counts = torch.squeeze(recv_counts, dim=1).tolist()
+        recv_displs = outgoing_request_key_displs.tolist()
+        send_counts = incoming_request_key_counts.tolist()
+        send_displs = incoming_request_key_displs.tolist()
+        print("BEFORE ALLTOALLV: recv_counts = ", recv_counts)
         self.comm.Alltoallv(
-            (send_buf, send_counts, send_displs), (recv_buf, recv_counts, recv_displs)
+            (send_buf, send_counts, send_displs),
+            (recv_buf, recv_counts, recv_displs),
+            send_axis=output_split,
         )
 
         # reorganize incoming counts according to original key order along split axis
         if return_1d:
             key = torch.stack(key, dim=1).tolist()
             outgoing_request_key = outgoing_request_key.tolist()
+            map = [outgoing_request_key.index(k) for k in key]
         else:
             print("key[output_split] = ", key[output_split])
             key = key[output_split].tolist()
             print("key = ", key)
             outgoing_request_key = outgoing_request_key.squeeze_(1).tolist()
-        print("outgoing_request_key = ", outgoing_request_key)
-        map = [outgoing_request_key.index(k) for k in key]
+            map = [slice(None)] * recv_buf.ndim
+            map[output_split] = [outgoing_request_key.index(k) for k in key]
+
         indexed_arr = recv_buf[map]
         return factories.array(indexed_arr, is_split=output_split)
 
