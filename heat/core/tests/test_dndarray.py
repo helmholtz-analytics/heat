@@ -570,10 +570,12 @@ class TestDNDarray(TestCase):
             .item()
         )
 
+        # slicing with negative step
         x_3d = ht.arange(20 * 4 * 3, split=0).reshape(20, 4, 3)
-        x_3d_sliced = x_3d[17:2:-2, :2, 1]
+        x_3d_sliced = x_3d[17:2:-2, :2, ht.array(1)]
         x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(20, 4, 3)[17:2:-2, :2, 1]
         self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
+        self.assertTrue(x_3d_sliced.split == 0)
 
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)

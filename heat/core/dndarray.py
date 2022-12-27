@@ -802,13 +802,13 @@ class DNDarray:
 
         key = list(key) if isinstance(key, Iterable) else [key]
 
-        # check for ellipsis, newaxis. NB: (np.newaxis is None)===true
+        # check for ellipsis, newaxis. NB: (np.newaxis is None)==True
         add_dims = sum(k is None for k in key)
         ellipsis = sum(isinstance(k, type(...)) for k in key)
         if ellipsis > 1:
             raise ValueError("key can only contain 1 ellipsis")
-        # replace with explicit `slice(None)` for interested dimensions
         if ellipsis == 1:
+            # replace with explicit `slice(None)` for interested dimensions
             # output_shape, split_bookkeeping not affected
             expand_key = [slice(None)] * (arr.ndim + add_dims)
             ellipsis_index = key.index(...)
@@ -816,14 +816,11 @@ class DNDarray:
             expand_key[ellipsis_index - len(key) :] = key[ellipsis_index + 1 :]
             key = expand_key
         while add_dims > 0:
-            # expand array dims, output_shape, split_bookkeeping to reflect newaxis
+            # expand array dims: output_shape, split_bookkeeping to reflect newaxis
             # replace newaxis with slice(None) in key
             for i, k in reversed(list(enumerate(key))):
                 if k is None:
                     key[i] = slice(None)
-                    if not arr_is_copy:
-                        arr = arr.copy()
-                        arr_is_copy = True
                     arr = arr.expand_dims(i - add_dims + 1)
                     output_shape = (
                         output_shape[: i - add_dims + 1] + [1] + output_shape[i - add_dims + 1 :]
@@ -841,10 +838,16 @@ class DNDarray:
         for i, k in enumerate(key):
             if isinstance(k, Iterable) or isinstance(k, DNDarray):
                 # advanced indexing across dimensions
-                print("DEBUGGING: k = ", k)
-                advanced_indexing = True
-                advanced_indexing_dims.append(i)
-                if not isinstance(k, DNDarray):
+                if getattr(k, "ndim", 1) == 0:
+                    # single-element indexing along axis i
+                    output_shape = output_shape[:i] + output_shape[i + 1 :]
+                    split_bookkeeping = split_bookkeeping[:i] + split_bookkeeping[i + 1 :]
+                else:
+                    advanced_indexing = True
+                    advanced_indexing_dims.append(i)
+                if isinstance(k, DNDarray):
+                    key[i] = k.larray
+                elif not isinstance(k, torch.Tensor):
                     key[i] = torch.tensor(k, dtype=torch.int64, device=arr.larray.device)
             elif isinstance(k, slice) and k != slice(None):
                 start, stop, step = k.start, k.stop, k.step
@@ -924,6 +927,7 @@ class DNDarray:
                 non_adv_ind_dims = list(
                     i for i in range(arr.ndim) if i not in advanced_indexing_dims
                 )
+                # TODO: work this out without array copy
                 if not arr_is_copy:
                     arr = arr.copy()
                     arr_is_copy = True
@@ -1007,6 +1011,7 @@ class DNDarray:
         print("DEBUGGING: RAW KEY = ", key)
 
         # Single-element indexing
+        # TODO: single-element indexing along split axis belongs here as well
         scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
         if scalar:
             output_shape = self.gshape[1:]
@@ -1220,6 +1225,7 @@ class DNDarray:
             )
 
         print("AFTER: incoming_request_key = ", incoming_request_key)
+        print("OUTPUT_SHAPE = ", output_shape)
         send_buf = self.larray[incoming_request_key]
         output_lshape = list(output_shape)
         output_lshape[output_split] = key[output_split].shape[0]
