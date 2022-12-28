@@ -674,7 +674,7 @@ class DNDarray:
 
         advanced_indexing = False
         arr_is_copy = False
-        split_key_is_sorted = True
+        split_key_is_sorted = 1
         out_is_balanced = False
 
         if isinstance(key, (DNDarray, torch.Tensor, np.ndarray)):
@@ -760,7 +760,7 @@ class DNDarray:
 
                     output_shape = (key[0].shape[0],)
                     new_split = 0
-                    split_key_is_sorted = False
+                    split_key_is_sorted = 0
                     out_is_balanced = True
                 return arr, key, output_shape, new_split, split_key_is_sorted, out_is_balanced
 
@@ -882,12 +882,12 @@ class DNDarray:
                     if arr.is_distributed() and new_split == i:
                         # distribute key and proceed with non-ordered indexing
                         key[i] = factories.array(key[i], split=0, device=arr.device).larray
-                        split_key_is_sorted = False
+                        split_key_is_sorted = -1
                         out_is_balanced = True
                 elif step > 0 and start < stop:
                     output_shape[i] = int(torch.tensor((stop - start) / step).ceil().item())
                     if arr.is_distributed() and new_split == i:
-                        split_key_is_sorted = True
+                        split_key_is_sorted = 1
                         out_is_balanced = False
                         if (
                             stop >= displs[arr.comm.rank]
@@ -1105,7 +1105,7 @@ class DNDarray:
         # data are not distributed or split dimension is not affected by indexing
         # if not self.is_distributed() or key[self.split] == slice(None):
         print("split_key_is_sorted, key = ", split_key_is_sorted, key)
-        if split_key_is_sorted:
+        if split_key_is_sorted == 1:
             indexed_arr = self.larray[key]
             return DNDarray(
                 indexed_arr,
@@ -1145,7 +1145,33 @@ class DNDarray:
         )
 
         # process-local: calculate which/how many elements will be received from what process
-        for i in range(self.comm.size):
+        if split_key_is_sorted == -1:
+            # key is sorted in descending order
+            # shrink selection of active processes
+            if key[original_split].numel() > 0:
+                key_edges = torch.cat(
+                    (key[original_split][-1].reshape(-1), key[original_split][0].reshape(-1)), dim=0
+                ).unique()
+                displs = torch.tensor(displs, device=self.larray.device)
+                _, inverse, counts = torch.cat((displs, key_edges), dim=0).unique(
+                    sorted=True, return_inverse=True, return_counts=True
+                )
+                if key_edges.numel() == 2:
+                    correction = counts[inverse[-2]] % 2
+                    start_rank = inverse[-2] - correction
+                    correction += counts[inverse[-1]] % 2
+                    end_rank = inverse[-1] - correction + 1
+                elif key_edges.numel() == 1:
+                    correction = counts[inverse[-1]] % 2
+                    start_rank = inverse[-1] - correction
+                    end_rank = start_rank + 1
+            else:
+                start_rank = 0
+                end_rank = 0
+        else:
+            start_rank = 0
+            end_rank = self.comm.size
+        for i in range(start_rank, end_rank):
             cond1 = key[original_split] >= displs[i]
             if i != self.comm.size - 1:
                 cond2 = key[original_split] < displs[i + 1]
@@ -1257,6 +1283,9 @@ class DNDarray:
         )
 
         # reorganize incoming counts according to original key order along split axis
+        # if split_key_is_sorted == -1:
+        #     indexed_arr = recv_buf.flip(dims=(output_split,))
+        # else:
         if return_1d:
             key = torch.stack(key, dim=1).tolist()
             outgoing_request_key = outgoing_request_key.tolist()
@@ -1266,12 +1295,7 @@ class DNDarray:
             outgoing_request_key = outgoing_request_key.squeeze_(1).tolist()
             map = [slice(None)] * recv_buf.ndim
             map[output_split] = [outgoing_request_key.index(k) for k in key]
-
         indexed_arr = recv_buf[map]
-        print(
-            factories.array(indexed_arr, is_split=output_split).lshape,
-            factories.array(indexed_arr, is_split=output_split).gshape,
-        )
         return factories.array(indexed_arr, is_split=output_split)
 
         # TODO: boolean indexing with data.split != 0
