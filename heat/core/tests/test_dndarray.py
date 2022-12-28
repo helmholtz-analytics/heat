@@ -563,28 +563,48 @@ class TestDNDarray(TestCase):
         # Slicing and striding
         x = ht.arange(20, split=0)
         x_sliced = x[1:11:3]
-        x_sliced.balance_()
-        self.assertTrue(
-            (x_sliced == ht.array([1, 4, 7, 10], dtype=x.dtype, device=x.device, split=0))
-            .all()
-            .item()
-        )
+        x_np = np.arange(20)
+        x_sliced_np = x_np[1:11:3]
+        self.assert_array_equal(x_sliced, x_sliced_np)
+        self.assertTrue(x_sliced.split == 0)
 
-        # slicing with negative step along the split axis
-        x_3d = ht.arange(20 * 4 * 3, split=0).reshape(20, 4, 3)
+        # slicing with negative step along split axis 0
+        shape = (20, 4, 3)
+        x_3d = ht.arange(20 * 4 * 3, split=0).reshape(shape)
         x_3d_sliced = x_3d[17:2:-2, :2, ht.array(1)]
-        x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(20, 4, 3)[17:2:-2, :2, 1]
+        x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[17:2:-2, :2, 1]
         self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
         self.assertTrue(x_3d_sliced.split == 0)
 
-        # slicing with negative step, split 1
-        x_3d = ht.arange(20 * 4 * 3).reshape(4, 20, 3)
+        # slicing with negative step along split 1
+        shape = (4, 20, 3)
+        x_3d = ht.arange(20 * 4 * 3).reshape(shape)
         x_3d.resplit_(axis=1)
         key = [slice(None, 2), slice(17, 2, -2), 1]
         x_3d_sliced = x_3d[key]
-        x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(4, 20, 3)[:2, 17:2:-2, 1]
+        x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[:2, 17:2:-2, 1]
         self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
         self.assertTrue(x_3d_sliced.split == 1)
+
+        # slicing with negative step along split 2 and loss of axis < split
+        shape = (4, 3, 20)
+        x_3d = ht.arange(20 * 4 * 3).reshape(shape)
+        x_3d.resplit_(axis=2)
+        key = [slice(None, 2), 1, slice(17, 10, -2)]
+        x_3d_sliced = x_3d[key]
+        x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[:2, 1, 17:10:-2]
+        self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
+        self.assertTrue(x_3d_sliced.split == 1)
+
+        # slicing with negative step along split 2 and loss of all axes but split
+        shape = (4, 3, 20)
+        x_3d = ht.arange(20 * 4 * 3).reshape(shape)
+        x_3d.resplit_(axis=2)
+        key = [0, 1, slice(17, 13, -1)]
+        x_3d_sliced = x_3d[key]
+        x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[0, 1, 17:13:-1]
+        self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
+        self.assertTrue(x_3d_sliced.split == 0)
 
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)

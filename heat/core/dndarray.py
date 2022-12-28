@@ -836,13 +836,17 @@ class DNDarray:
         # check for advanced indexing and slices
         print("DEBUGGING: key = ", key)
         advanced_indexing_dims = []
+        lose_dims = 0
         for i, k in enumerate(key):
             if isinstance(k, Iterable) or isinstance(k, DNDarray):
                 # advanced indexing across dimensions
                 if getattr(k, "ndim", 1) == 0:
                     # single-element indexing along axis i
-                    output_shape = output_shape[:i] + output_shape[i + 1 :]
-                    split_bookkeeping = split_bookkeeping[:i] + split_bookkeeping[i + 1 :]
+                    output_shape[i] = None
+                    split_bookkeeping = (
+                        split_bookkeeping[: i - lose_dims] + split_bookkeeping[i - lose_dims + 1 :]
+                    )
+                    lose_dims += 1
                 else:
                     advanced_indexing = True
                     advanced_indexing_dims.append(i)
@@ -852,8 +856,11 @@ class DNDarray:
                     key[i] = torch.tensor(k, dtype=torch.int64, device=arr.larray.device)
             elif isinstance(k, int):
                 # single-element indexing along axis i
-                output_shape = output_shape[:i] + output_shape[i + 1 :]
-                split_bookkeeping = split_bookkeeping[:i] + split_bookkeeping[i + 1 :]
+                output_shape[i] = None
+                split_bookkeeping = (
+                    split_bookkeeping[: i - lose_dims] + split_bookkeeping[i - lose_dims + 1 :]
+                )
+                lose_dims += 1
             elif isinstance(k, slice) and k != slice(None):
                 start, stop, step = k.start, k.stop, k.step
                 if start is None:
@@ -953,8 +960,9 @@ class DNDarray:
             key += [slice(None)] * (arr.ndim - len(key))
 
         key = tuple(key)
+        for i in range(output_shape.count(None)):
+            output_shape.remove(None)
         output_shape = tuple(output_shape)
-        print("DEBUGGING: split_bookkeeping = ", split_bookkeeping)
         new_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
 
         return arr, key, output_shape, new_split, split_key_is_sorted, out_is_balanced
@@ -1222,16 +1230,18 @@ class DNDarray:
         else:
             incoming_request_key -= displs[self.comm.rank]
             incoming_request_key = (
-                key[:output_split]
+                key[:original_split]
                 + (incoming_request_key.squeeze_(1).tolist(),)
-                + key[output_split + 1 :]
+                + key[original_split + 1 :]
             )
 
         print("AFTER: incoming_request_key = ", incoming_request_key)
         print("OUTPUT_SHAPE = ", output_shape)
+        print("OUTPUT_SPLIT = ", output_split)
+
         send_buf = self.larray[incoming_request_key]
         output_lshape = list(output_shape)
-        output_lshape[output_split] = key[output_split].shape[0]
+        output_lshape[output_split] = key[original_split].shape[0]
         recv_buf = torch.empty(
             tuple(output_lshape), dtype=self.larray.dtype, device=self.larray.device
         )
@@ -1252,14 +1262,16 @@ class DNDarray:
             outgoing_request_key = outgoing_request_key.tolist()
             map = [outgoing_request_key.index(k) for k in key]
         else:
-            print("key[output_split] = ", key[output_split])
-            key = key[output_split].tolist()
-            print("key = ", key)
+            key = key[original_split].tolist()
             outgoing_request_key = outgoing_request_key.squeeze_(1).tolist()
             map = [slice(None)] * recv_buf.ndim
             map[output_split] = [outgoing_request_key.index(k) for k in key]
 
         indexed_arr = recv_buf[map]
+        print(
+            factories.array(indexed_arr, is_split=output_split).lshape,
+            factories.array(indexed_arr, is_split=output_split).gshape,
+        )
         return factories.array(indexed_arr, is_split=output_split)
 
         # TODO: boolean indexing with data.split != 0
