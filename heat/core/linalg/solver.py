@@ -3,6 +3,7 @@ Collection of solvers for systems of linear equations.
 """
 import heat as ht
 from ..dndarray import DNDarray
+from ..sanitation import sanitize_out
 from typing import List, Dict, Any, TypeVar, Union, Tuple, Optional
 
 import torch
@@ -85,100 +86,189 @@ def lanczos(
     Parameters
     ----------
     A : DNDarray
-        2D symmetric, positive definite Matrix
+        2D Hermitian (if complex) or symmetric positive-definite matrix.
+        Only distribution along axis 0 is supported, i.e. `A.split` must be `0` or `None`.
     m : int
         Number of Lanczos iterations
     v0 : DNDarray, optional
-        1D starting vector of Euclidian norm 1. If not provided, a random vector will be used to start the algorithm
+        1D starting vector of Euclidean norm 1. If not provided, a random vector will be used to start the algorithm
     V_out : DNDarray, optional
-        Output Matrix for the Krylow vectors, Shape = (n, m)
+        Output Matrix for the Krylow vectors, Shape = (n, m), dtype=A.dtype, must be initialized to zero
     T_out : DNDarray, optional
-        Output Matrix for the Tridiagonal matrix, Shape = (m, m)
+        Output Matrix for the Tridiagonal matrix, Shape = (m, m), must be initialized to zero
     """
     if not isinstance(A, DNDarray):
-        raise TypeError("A needs to be of type ht.dndarra, but was {}".format(type(A)))
-
+        raise TypeError("A needs to be of type ht.dndarray, but was {}".format(type(A)))
     if not (A.ndim == 2):
         raise RuntimeError("A needs to be a 2D matrix")
+    if A.dtype is ht.int32 or A.dtype is ht.int64:
+        raise TypeError("A can be float or complex, got {}".format(A.dtype))
     if not isinstance(m, (int, float)):
-        raise TypeError("m must be eiter int or float, but was {}".format(type(m)))
+        raise TypeError("m must be int, got {}".format(type(m)))
 
     n, column = A.shape
     if n != column:
-        raise TypeError("Input Matrix A needs to be symmetric.")
-    T = ht.zeros((m, m))
+        raise TypeError("Input Matrix A needs to be symmetric positive-definite.")
+
+    # output data types: T is always Real
+    A_is_complex = A.dtype is ht.complex128 or A.dtype is ht.complex64
+    T_dtype = A.real.dtype
+
+    # initialize or sanitize output buffers
+    if T_out is not None:
+        sanitize_out(
+            T_out,
+            output_shape=(m, m),
+            output_split=None,
+            output_device=A.device,
+            output_comm=A.comm,
+        )
+        T = T_out
+    else:
+        T = ht.zeros((m, m), dtype=T_dtype, device=A.device, comm=A.comm)
     if A.split == 0:
-        # This is done for better memory access in the reorthogonalization Gram-Schmidt algorithm
-        V = ht.ones((n, m), split=0, dtype=A.dtype, device=A.device)
-    else:
-        V = ht.ones((n, m), split=None, dtype=A.dtype, device=A.device)
-
-    if v0 is None:
-        vr = ht.random.rand(n, split=V.split)
-        v0 = vr / ht.norm(vr)
-    else:
-        if v0.split != V.split:
-            v0.resplit_(axis=V.split)
-    # # 0th iteration
-    # # vector v0 has euklidian norm = 1
-    w = ht.matmul(A, v0)
-    alpha = ht.dot(w, v0)
-    w = w - alpha * v0
-    T[0, 0] = alpha
-    V[:, 0] = v0
-    for i in range(1, int(m)):
-        beta = ht.norm(w)
-        if ht.abs(beta) < 1e-10:
-            # print("Lanczos breakdown in iteration {}".format(i))
-            # Lanczos Breakdown, pick a random vector to continue
-            vr = ht.random.rand(n, dtype=A.dtype, split=V.split)
-            # orthogonalize v_r with respect to all vectors v[i]
-            for j in range(i):
-                vi_loc = V.larray[:, j]
-                a = torch.dot(vr.larray, vi_loc)
-                b = torch.dot(vi_loc, vi_loc)
-                A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
-                A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
-                vr.larray = vr.larray - a / b * vi_loc
-            # normalize v_r to Euclidian norm 1 and set as ith vector v
-            vi = vr / ht.norm(vr)
+        if V_out is not None:
+            sanitize_out(
+                V_out,
+                output_shape=(n, m),
+                output_split=0,
+                output_device=A.device,
+                output_comm=A.comm,
+            )
+            V = V_out
         else:
-            vr = w
+            # This is done for better memory access in the reorthogonalization Gram-Schmidt algorithm
+            V = ht.zeros((n, m), split=0, dtype=A.dtype, device=A.device, comm=A.comm)
+    else:
+        if A.split == 1:
+            raise NotImplementedError("Distribution along axis 1 not implemented yet.")
+        if V_out is not None:
+            sanitize_out(
+                V_out,
+                output_shape=(n, m),
+                output_split=None,
+                output_device=A.device,
+                output_comm=A.comm,
+            )
+            V = V_out
+        else:
+            V = ht.zeros((n, m), split=None, dtype=A.dtype, device=A.device, comm=A.comm)
 
-            # Reorthogonalization
-            # ToDo: Rethink this; mask torch calls, See issue #494
-            # This is the fast solution, using item access on the ht.dndarray level is way slower
-            for j in range(i):
-                vi_loc = V.larray[:, j]
-                a = torch.dot(vr._DNDarray__array, vi_loc)
-                b = torch.dot(vi_loc, vi_loc)
-                A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
-                A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
-                vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
+    if A_is_complex:
+        if v0 is None:
+            vr = (
+                ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm)
+                + ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm) * 1j
+            )
+            v0 = vr / ht.norm(vr)
+        else:
+            if v0.split != V.split:
+                v0.resplit_(axis=V.split)
+        # # 0th iteration
+        # # vector v0 has Euclidean norm = 1
+        w = ht.matmul(A, v0)
+        alpha = ht.dot(ht.conj(w).T, v0)
+        w = w - alpha * v0
+        T[0, 0] = alpha.real
+        V[:, 0] = v0
+        for i in range(1, int(m)):
+            beta = ht.norm(w)
+            if ht.abs(beta) < 1e-10:
+                # print("Lanczos breakdown in iteration {}".format(i))
+                # Lanczos Breakdown, pick a random vector to continue
+                vr = (
+                    ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm)
+                    + ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm)
+                    * 1j
+                )
+                # orthogonalize v_r with respect to all vectors v[i]
+                for j in range(i):
+                    vi_loc = V._DNDarray__array[:, j]
+                    a = torch.dot(vr.larray, torch.conj(vi_loc))
+                    b = torch.dot(vi_loc, torch.conj(vi_loc))
+                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
+                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
+                    vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
+                # normalize v_r to Euclidean norm 1 and set as ith vector v
+                vi = vr / ht.norm(vr)
+            else:
+                vr = w
 
-            vi = vr / ht.norm(vr)
+                # Reorthogonalization
+                for j in range(i):
+                    vi_loc = V.larray[:, j]
+                    a = torch.dot(vr._DNDarray__array, torch.conj(vi_loc))
+                    b = torch.dot(vi_loc, torch.conj(vi_loc))
+                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
+                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
+                    vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
 
-        w = ht.matmul(A, vi)
-        alpha = ht.dot(w, vi)
+                vi = vr / ht.norm(vr)
 
-        w = w - alpha * vi - beta * V[:, i - 1]
+            w = ht.matmul(A, vi)
+            alpha = ht.dot(ht.conj(w).T, vi)
 
-        T[i - 1, i] = beta
-        T[i, i - 1] = beta
-        T[i, i] = alpha
-        V[:, i] = vi
+            w = w - alpha * vi - beta * V[:, i - 1]
+
+            T[i - 1, i] = beta.real
+            T[i, i - 1] = beta.real
+            T[i, i] = alpha.real
+            V[:, i] = vi
+    else:
+        if v0 is None:
+            vr = ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm)
+            v0 = vr / ht.norm(vr)
+        else:
+            if v0.split != V.split:
+                v0.resplit_(axis=V.split)
+        # # 0th iteration
+        # # vector v0 has Euclidean norm = 1
+        w = ht.matmul(A, v0)
+        alpha = ht.dot(w, v0)
+        w = w - alpha * v0
+        T[0, 0] = alpha
+        V[:, 0] = v0
+        for i in range(1, int(m)):
+            beta = ht.norm(w)
+            if ht.abs(beta) < 1e-10:
+                # print("Lanczos breakdown in iteration {}".format(i))
+                # Lanczos Breakdown, pick a random vector to continue
+                vr = ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm)
+                # orthogonalize v_r with respect to all vectors v[i]
+                for j in range(i):
+                    vi_loc = V._DNDarray__array[:, j]
+                    a = torch.dot(vr.larray, vi_loc)
+                    b = torch.dot(vi_loc, vi_loc)
+                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
+                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
+                    vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
+                # normalize v_r to Euclidean norm 1 and set as ith vector v
+                vi = vr / ht.norm(vr)
+            else:
+                vr = w
+
+                # Reorthogonalization
+                for j in range(i):
+                    vi_loc = V.larray[:, j]
+                    a = torch.dot(vr._DNDarray__array, vi_loc)
+                    b = torch.dot(vi_loc, vi_loc)
+                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
+                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
+                    vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
+
+                vi = vr / ht.norm(vr)
+
+            w = ht.matmul(A, vi)
+            alpha = ht.dot(w, vi)
+
+            w = w - alpha * vi - beta * V[:, i - 1]
+
+            T[i - 1, i] = beta
+            T[i, i - 1] = beta
+            T[i, i] = alpha
+            V[:, i] = vi
 
     if V.split is not None:
         V.resplit_(axis=None)
-
-    if T_out is not None:
-        T_out = T.copy()
-        if V_out is not None:
-            V_out = V.copy()
-            return V_out, T_out
-        return V, T_out
-    elif V_out is not None:
-        V_out = V.copy()
-        return V_out, T
 
     return V, T
