@@ -1249,7 +1249,7 @@ class DNDarray:
                 incoming_request_key_displs.tolist(),
             ),
         )
-        print("DEBUGGING:incoming_request_key = ", incoming_request_key)
+        # print("DEBUGGING:incoming_request_key = ", incoming_request_key)
         if return_1d:
             incoming_request_key = list(incoming_request_key[:, d] for d in range(self.ndim))
             incoming_request_key[original_split] -= displs[self.comm.rank]
@@ -1261,9 +1261,9 @@ class DNDarray:
                 + key[original_split + 1 :]
             )
 
-        print("AFTER: incoming_request_key = ", incoming_request_key)
-        print("OUTPUT_SHAPE = ", output_shape)
-        print("OUTPUT_SPLIT = ", output_split)
+        # print("AFTER: incoming_request_key = ", incoming_request_key)
+        # print("OUTPUT_SHAPE = ", output_shape)
+        # print("OUTPUT_SPLIT = ", output_split)
 
         send_buf = self.larray[incoming_request_key]
         output_lshape = list(output_shape)
@@ -1275,7 +1275,6 @@ class DNDarray:
         recv_displs = outgoing_request_key_displs.tolist()
         send_counts = incoming_request_key_counts.tolist()
         send_displs = incoming_request_key_displs.tolist()
-        print("BEFORE ALLTOALLV: recv_counts = ", recv_counts)
         self.comm.Alltoallv(
             (send_buf, send_counts, send_displs),
             (recv_buf, recv_counts, recv_displs),
@@ -1283,18 +1282,28 @@ class DNDarray:
         )
 
         # reorganize incoming counts according to original key order along split axis
-        # if split_key_is_sorted == -1:
-        #     indexed_arr = recv_buf.flip(dims=(output_split,))
-        # else:
         if return_1d:
-            key = torch.stack(key, dim=1).tolist()
+            key = torch.stack(key, dim=1)  # .tolist()
+            unique_keys, inverse = key.unique(dim=0, sorted=True, return_inverse=True)
+            if unique_keys.shape == key.shape:
+                pass
+            key = key.tolist()
             outgoing_request_key = outgoing_request_key.tolist()
+            # TODO: major bottleneck, replace with some vectorized sorting solution or use available info
             map = [outgoing_request_key.index(k) for k in key]
         else:
-            key = key[original_split].tolist()
-            outgoing_request_key = outgoing_request_key.squeeze_(1).tolist()
+            key = key[original_split]
+            outgoing_request_key = outgoing_request_key.squeeze_(1)
+            # incoming elements likely already stacked in ascending or descending order
+            if key == outgoing_request_key:
+                return factories.array(recv_buf, is_split=output_split)
+            if key == outgoing_request_key.flip(dims=(0,)):
+                return factories.array(recv_buf.flip(dims=(output_split,)), is_split=output_split)
+
             map = [slice(None)] * recv_buf.ndim
-            map[output_split] = [outgoing_request_key.index(k) for k in key]
+            map[output_split] = outgoing_request_key.argsort(stable=True)[
+                key.argsort(stable=True).argsort(stable=True)
+            ]
         indexed_arr = recv_buf[map]
         return factories.array(indexed_arr, is_split=output_split)
 
