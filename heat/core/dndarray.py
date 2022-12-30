@@ -910,7 +910,7 @@ class DNDarray:
             print("DEBUGGING: advanced_indexing_shapes = ", advanced_indexing_shapes)
             # shapes of indexing arrays must be broadcastable
             try:
-                broadcasted_shape = torch.broadcast_shapes(advanced_indexing_shapes)
+                broadcasted_shape = torch.broadcast_shapes(*advanced_indexing_shapes)
             except RuntimeError:
                 raise IndexError(
                     "Shape mismatch: indexing arrays could not be broadcast together with shapes: {}".format(
@@ -1283,27 +1283,35 @@ class DNDarray:
 
         # reorganize incoming counts according to original key order along split axis
         if return_1d:
-            key = torch.stack(key, dim=1)  # .tolist()
-            unique_keys, inverse = key.unique(dim=0, sorted=True, return_inverse=True)
-            if unique_keys.shape == key.shape:
-                pass
-            key = key.tolist()
-            outgoing_request_key = outgoing_request_key.tolist()
-            # TODO: major bottleneck, replace with some vectorized sorting solution or use available info
-            map = [outgoing_request_key.index(k) for k in key]
-        else:
-            key = key[original_split]
-            outgoing_request_key = outgoing_request_key.squeeze_(1)
-            # incoming elements likely already stacked in ascending or descending order
-            if key == outgoing_request_key:
-                return factories.array(recv_buf, is_split=output_split)
-            if key == outgoing_request_key.flip(dims=(0,)):
-                return factories.array(recv_buf.flip(dims=(output_split,)), is_split=output_split)
+            key = torch.stack(key, dim=1)
+            _, key_inverse = key.unique(dim=0, sorted=True, return_inverse=True)
+            if _.shape == key.shape:
+                _, ork_inverse = outgoing_request_key.unique(
+                    dim=0, sorted=True, return_inverse=True
+                )
+                map = ork_inverse.argsort(stable=True)[
+                    key_inverse.argsort(stable=True).argsort(stable=True)
+                ]
+            else:
+                # major bottleneck
+                key = key.tolist()
+                outgoing_request_key = outgoing_request_key.tolist()
+                map = [outgoing_request_key.index(k) for k in key]
+            indexed_arr = recv_buf[map]
+            return factories.array(indexed_arr, is_split=output_split)
 
-            map = [slice(None)] * recv_buf.ndim
-            map[output_split] = outgoing_request_key.argsort(stable=True)[
-                key.argsort(stable=True).argsort(stable=True)
-            ]
+        key = key[original_split]
+        outgoing_request_key = outgoing_request_key.squeeze_(1)
+        # incoming elements likely already stacked in ascending or descending order
+        if (key == outgoing_request_key).all():
+            return factories.array(recv_buf, is_split=output_split)
+        if (key == outgoing_request_key.flip(dims=(0,))).all():
+            return factories.array(recv_buf.flip(dims=(output_split,)), is_split=output_split)
+
+        map = [slice(None)] * recv_buf.ndim
+        map[output_split] = outgoing_request_key.argsort(stable=True)[
+            key.argsort(stable=True).argsort(stable=True)
+        ]
         indexed_arr = recv_buf[map]
         return factories.array(indexed_arr, is_split=output_split)
 
