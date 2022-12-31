@@ -580,7 +580,7 @@ class TestDNDarray(TestCase):
         shape = (4, 20, 3)
         x_3d = ht.arange(20 * 4 * 3).reshape(shape)
         x_3d.resplit_(axis=1)
-        key = [slice(None, 2), slice(17, 2, -2), 1]
+        key = (slice(None, 2), slice(17, 2, -2), 1)
         x_3d_sliced = x_3d[key]
         x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[:2, 17:2:-2, 1]
         self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
@@ -590,7 +590,7 @@ class TestDNDarray(TestCase):
         shape = (4, 3, 20)
         x_3d = ht.arange(20 * 4 * 3).reshape(shape)
         x_3d.resplit_(axis=2)
-        key = [slice(None, 2), 1, slice(17, 10, -2)]
+        key = (slice(None, 2), 1, slice(17, 10, -2))
         x_3d_sliced = x_3d[key]
         x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[:2, 1, 17:10:-2]
         self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
@@ -600,7 +600,7 @@ class TestDNDarray(TestCase):
         shape = (4, 3, 20)
         x_3d = ht.arange(20 * 4 * 3).reshape(shape)
         x_3d.resplit_(axis=2)
-        key = [0, 1, slice(17, 13, -1)]
+        key = (0, 1, slice(17, 13, -1))
         x_3d_sliced = x_3d[key]
         x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[0, 1, 17:13:-1]
         self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
@@ -624,6 +624,17 @@ class TestDNDarray(TestCase):
         arr_split2 = ht.array(arr, split=2)
         mask_split2 = ht.array(mask, split=2)
         self.assert_array_equal(arr_split2[mask_split2], arr.numpy()[mask])
+
+        # TODO: x[(1,1,1,1)] vs. x[[1,1,1,1]]
+        # advanced indexing
+        x = ht.arange(60, split=0).reshape(5, 3, 4)
+        x_np = np.arange(60).reshape(5, 3, 4)
+        k1 = np.array([0, 4, 1, 0])
+        k2 = np.array([0, 2, 1, 0])
+        k3 = np.array([1, 2, 3, 1])
+        self.assert_array_equal(
+            x[ht.array(k1, split=0), ht.array(k2, split=0), ht.array(k3, split=0)], x_np[k1, k2, k3]
+        )
 
     def test_int_cast(self):
         # simple scalar tensor

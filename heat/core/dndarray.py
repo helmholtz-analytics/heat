@@ -666,17 +666,22 @@ class DNDarray:
         """
         output_shape = list(arr.gshape)
         split_bookkeeping = [None] * arr.ndim
+        new_split = arr.split
         if arr.split is not None:
             split_bookkeeping[arr.split] = "split"
             if arr.is_distributed():
                 counts, displs = arr.counts_displs()
-                new_split = arr.split
 
         advanced_indexing = False
         arr_is_copy = False
-        split_key_is_sorted = 1
+        split_key_is_sorted = 0
         out_is_balanced = False
 
+        if isinstance(key, list):
+            try:
+                key = torch.tensor(key, device=arr.larray.device)
+            except RuntimeError:
+                raise IndexError("Invalid indices: expected a list of integers, got {}".format(key))
         if isinstance(key, (DNDarray, torch.Tensor, np.ndarray)):
             if key.dtype in (bool, uint8, torch.bool, torch.uint8, np.bool, np.uint8):
                 # boolean indexing: shape must match arr.shape
@@ -707,6 +712,7 @@ class DNDarray:
                     output_shape = tuple(key[0].shape)
                     new_split = None if arr.split is None else 0
                     out_is_balanced = True
+                    split_key_is_sorted = 1
                     return arr, key, output_shape, new_split, split_key_is_sorted, out_is_balanced
 
                 # arr is distributed
@@ -732,6 +738,7 @@ class DNDarray:
                         key[i] = k.larray
                     key[arr.split] -= displs[arr.comm.rank]
                     key = tuple(key)
+                    split_key_is_sorted = 1
                 else:
                     key = key.larray.nonzero(as_tuple=False)
                     # construct global key array
@@ -809,7 +816,7 @@ class DNDarray:
         if ellipsis > 1:
             raise ValueError("key can only contain 1 ellipsis")
         if ellipsis == 1:
-            # replace with explicit `slice(None)` for interested dimensions
+            # replace with explicit `slice(None)` for affected dimensions
             # output_shape, split_bookkeeping not affected
             expand_key = [slice(None)] * (arr.ndim + add_dims)
             ellipsis_index = key.index(...)
@@ -850,6 +857,9 @@ class DNDarray:
                 else:
                     advanced_indexing = True
                     advanced_indexing_dims.append(i)
+                    if arr.is_distributed() and i == arr.split:
+                        # make no assumption on data locality wrt key
+                        split_key_is_sorted = 0
                 if isinstance(k, DNDarray):
                     key[i] = k.larray
                 elif not isinstance(k, torch.Tensor):
@@ -1171,6 +1181,10 @@ class DNDarray:
         else:
             start_rank = 0
             end_rank = self.comm.size
+        all_local_indexing = torch.ones(
+            (self.comm.size,), dtype=torch.bool, device=self.larray.device
+        )
+        all_local_indexing[start_rank:end_rank] = False
         for i in range(start_rank, end_rank):
             cond1 = key[original_split] >= displs[i]
             if i != self.comm.size - 1:
@@ -1184,12 +1198,21 @@ class DNDarray:
                 # advanced indexing returning 1D array (e.g. boolean indexing)
                 selection = list(k[cond1 & cond2] for k in key)
                 recv_counts[i, :] = selection[0].shape[0]
+                if i == self.comm.rank:
+                    all_local_indexing[i] = selection[0].shape[0] == key[0].shape[0]
                 selection = torch.stack(selection, dim=1)
             else:
                 selection = key[original_split][cond1 & cond2]
                 recv_counts[i, :] = selection.shape[0]
+                if i == self.comm.rank:
+                    all_local_indexing[i] = selection.shape[0] == key[original_split].shape[0]
                 selection.unsqueeze_(dim=1)
             outgoing_request_key = torch.cat((outgoing_request_key, selection), dim=0)
+        all_local_indexing = factories.array(all_local_indexing, is_split=0, device=self.device)
+        if all_local_indexing.all().item():
+            indexed_arr = self.larray[key]
+            return factories.array(indexed_arr, is_split=output_split, device=self.device)
+
         print("DEBUGGING: outgoing_request_key = ", outgoing_request_key)
         print("RECV_COUNTS = ", recv_counts)
         # share recv_counts among all processes
@@ -1285,18 +1308,16 @@ class DNDarray:
         if return_1d:
             key = torch.stack(key, dim=1)
             _, key_inverse = key.unique(dim=0, sorted=True, return_inverse=True)
-            if _.shape == key.shape:
-                _, ork_inverse = outgoing_request_key.unique(
-                    dim=0, sorted=True, return_inverse=True
-                )
-                map = ork_inverse.argsort(stable=True)[
-                    key_inverse.argsort(stable=True).argsort(stable=True)
-                ]
-            else:
-                # major bottleneck
-                key = key.tolist()
-                outgoing_request_key = outgoing_request_key.tolist()
-                map = [outgoing_request_key.index(k) for k in key]
+            # if _.shape == key.shape:
+            _, ork_inverse = outgoing_request_key.unique(dim=0, sorted=True, return_inverse=True)
+            map = ork_inverse.argsort(stable=True)[
+                key_inverse.argsort(stable=True).argsort(stable=True)
+            ]
+            # else:
+            #     # major bottleneck
+            #     key = key.tolist()
+            #     outgoing_request_key = outgoing_request_key.tolist()
+            #     map = [outgoing_request_key.index(k) for k in key]
             indexed_arr = recv_buf[map]
             return factories.array(indexed_arr, is_split=output_split)
 
