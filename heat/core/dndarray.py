@@ -813,16 +813,19 @@ class DNDarray:
         # check for ellipsis, newaxis. NB: (np.newaxis is None)==True
         add_dims = sum(k is None for k in key)
         ellipsis = sum(isinstance(k, type(...)) for k in key)
-        if ellipsis > 1:
-            raise ValueError("key can only contain 1 ellipsis")
         if ellipsis == 1:
             # replace with explicit `slice(None)` for affected dimensions
             # output_shape, split_bookkeeping not affected
             expand_key = [slice(None)] * (arr.ndim + add_dims)
             ellipsis_index = key.index(...)
             expand_key[:ellipsis_index] = key[:ellipsis_index]
-            expand_key[ellipsis_index - len(key) :] = key[ellipsis_index + 1 :]
+            expand_key[ellipsis_index - (len(key) - ellipsis - ellipsis_index) :] = key[
+                ellipsis_index + 1 :
+            ]
             key = expand_key
+            print("DEBUGGING: ELLIPSIS: ", key)
+        elif ellipsis > 1:
+            raise ValueError("key can only contain 1 ellipsis")
         while add_dims > 0:
             # expand array dims: output_shape, split_bookkeeping to reflect newaxis
             # replace newaxis with slice(None) in key
@@ -840,6 +843,8 @@ class DNDarray:
                     )
                     add_dims -= 1
 
+        # recalculate new split axis after dimensions manipulation
+        new_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
         # check for advanced indexing and slices
         print("DEBUGGING: key = ", key)
         advanced_indexing_dims = []

@@ -615,6 +615,43 @@ class TestDNDarray(TestCase):
         self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
         self.assertTrue(x_3d_sliced.split == 0)
 
+        # DIMENSIONAL INDEXING
+        # ellipsis
+        x_np = np.array([[[1], [2], [3]], [[4], [5], [6]]])
+        x_np_ellipsis = x_np[..., 0]
+        x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
+
+        # local
+        x_ellipsis = x[..., 0]
+        x_slice = x[:, :, 0]
+        self.assert_array_equal(x_ellipsis, x_np_ellipsis)
+        self.assert_array_equal(x_slice, x_np_ellipsis)
+
+        # distributed
+        x.resplit_(axis=1)
+        x_ellipsis = x[..., 0]
+        x_slice = x[:, :, 0]
+        self.assert_array_equal(x_ellipsis, x_np_ellipsis)
+        self.assert_array_equal(x_slice, x_np_ellipsis)
+        self.assertTrue(x_ellipsis.split == 1)
+
+        # newaxis: local
+        x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
+        x_np_newaxis = x_np[:, np.newaxis, :2, :]
+        x_newaxis = x[:, np.newaxis, :2, :]
+        x_none = x[:, None, :2, :]
+        self.assert_array_equal(x_newaxis, x_np_newaxis)
+        self.assert_array_equal(x_none, x_np_newaxis)
+
+        # newaxis: distributed
+        x.resplit_(axis=1)
+        x_newaxis = x[:, np.newaxis, :2, :]
+        x_none = x[:, None, :2, :]
+        self.assert_array_equal(x_newaxis, x_np_newaxis)
+        self.assert_array_equal(x_none, x_np_newaxis)
+        self.assertTrue(x_newaxis.split == 2)
+        self.assertTrue(x_none.split == 2)
+
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
         np.random.seed(42)
