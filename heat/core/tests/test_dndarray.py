@@ -568,6 +568,15 @@ class TestDNDarray(TestCase):
         self.assert_array_equal(x_sliced, x_sliced_np)
         self.assertTrue(x_sliced.split == 0)
 
+        # 1-element slice along split axis
+        x = ht.arange(20).reshape(4, 5)
+        x.resplit_(axis=1)
+        x_sliced = x[:, 2:3]
+        x_np = np.arange(20).reshape(4, 5)
+        x_sliced_np = x_np[:, 2:3]
+        self.assert_array_equal(x_sliced, x_sliced_np)
+        self.assertTrue(x_sliced.split == 1)
+
         # slicing with negative step along split axis 0
         shape = (20, 4, 3)
         x_3d = ht.arange(20 * 4 * 3, split=0).reshape(shape)
@@ -625,7 +634,6 @@ class TestDNDarray(TestCase):
         mask_split2 = ht.array(mask, split=2)
         self.assert_array_equal(arr_split2[mask_split2], arr.numpy()[mask])
 
-        # TODO: x[(1,1,1,1)] vs. x[[1,1,1,1]]
         # advanced indexing
         x = ht.arange(60, split=0).reshape(5, 3, 4)
         x_np = np.arange(60).reshape(5, 3, 4)

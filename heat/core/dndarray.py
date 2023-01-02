@@ -674,7 +674,7 @@ class DNDarray:
 
         advanced_indexing = False
         arr_is_copy = False
-        split_key_is_sorted = 0
+        split_key_is_sorted = 1
         out_is_balanced = False
 
         if isinstance(key, list):
@@ -891,7 +891,9 @@ class DNDarray:
                     output_shape[i] = len(key[i])
                     if arr.is_distributed() and new_split == i:
                         # distribute key and proceed with non-ordered indexing
-                        key[i] = factories.array(key[i], split=0, device=arr.device).larray
+                        key[i] = factories.array(
+                            key[i], split=0, device=arr.device, copy=False
+                        ).larray
                         split_key_is_sorted = -1
                         out_is_balanced = True
                 elif step > 0 and start < stop:
@@ -899,13 +901,26 @@ class DNDarray:
                     if arr.is_distributed() and new_split == i:
                         split_key_is_sorted = 1
                         out_is_balanced = False
-                        if (
-                            stop >= displs[arr.comm.rank]
-                            and start < displs[arr.comm.rank] + counts[arr.comm.rank]
-                        ):
+                        local_arr_end = displs[arr.comm.rank] + counts[arr.comm.rank]
+                        if stop > displs[arr.comm.rank] and start < local_arr_end:
+                            print(
+                                "stop, start, displs[arr.comm.rank], displs[arr.comm.rank] + counts[arr.comm.rank] = ",
+                                stop,
+                                start,
+                                displs[arr.comm.rank],
+                                displs[arr.comm.rank] + counts[arr.comm.rank],
+                            )
                             index_in_cycle = (displs[arr.comm.rank] - start) % step
-                            local_start = 0 if index_in_cycle == 0 else step - index_in_cycle
-                            local_stop = stop - displs[arr.comm.rank]
+                            if start >= displs[arr.comm.rank]:
+                                # slice begins on current rank
+                                local_start = start - displs[arr.comm.rank]
+                            else:
+                                local_start = 0 if index_in_cycle == 0 else step - index_in_cycle
+                            if stop <= local_arr_end:
+                                # slice ends on current rank
+                                local_stop = stop - displs[arr.comm.rank]
+                            else:
+                                local_stop = local_arr_end
                             key[i] = slice(local_start, local_stop, step)
                         else:
                             key[i] = slice(0, 0)
@@ -1208,10 +1223,14 @@ class DNDarray:
                     all_local_indexing[i] = selection.shape[0] == key[original_split].shape[0]
                 selection.unsqueeze_(dim=1)
             outgoing_request_key = torch.cat((outgoing_request_key, selection), dim=0)
-        all_local_indexing = factories.array(all_local_indexing, is_split=0, device=self.device)
+        all_local_indexing = factories.array(
+            all_local_indexing, is_split=0, device=self.device, copy=False
+        )
         if all_local_indexing.all().item():
             indexed_arr = self.larray[key]
-            return factories.array(indexed_arr, is_split=output_split, device=self.device)
+            return factories.array(
+                indexed_arr, is_split=output_split, device=self.device, copy=False
+            )
 
         print("DEBUGGING: outgoing_request_key = ", outgoing_request_key)
         print("RECV_COUNTS = ", recv_counts)
@@ -1319,22 +1338,24 @@ class DNDarray:
             #     outgoing_request_key = outgoing_request_key.tolist()
             #     map = [outgoing_request_key.index(k) for k in key]
             indexed_arr = recv_buf[map]
-            return factories.array(indexed_arr, is_split=output_split)
+            return factories.array(indexed_arr, is_split=output_split, copy=False)
 
         key = key[original_split]
         outgoing_request_key = outgoing_request_key.squeeze_(1)
         # incoming elements likely already stacked in ascending or descending order
         if (key == outgoing_request_key).all():
-            return factories.array(recv_buf, is_split=output_split)
+            return factories.array(recv_buf, is_split=output_split, copy=False)
         if (key == outgoing_request_key.flip(dims=(0,))).all():
-            return factories.array(recv_buf.flip(dims=(output_split,)), is_split=output_split)
+            return factories.array(
+                recv_buf.flip(dims=(output_split,)), is_split=output_split, copy=False
+            )
 
         map = [slice(None)] * recv_buf.ndim
         map[output_split] = outgoing_request_key.argsort(stable=True)[
             key.argsort(stable=True).argsort(stable=True)
         ]
         indexed_arr = recv_buf[map]
-        return factories.array(indexed_arr, is_split=output_split)
+        return factories.array(indexed_arr, is_split=output_split, copy=False)
 
         # TODO: boolean indexing with data.split != 0
         # __process_key() returns locally correct key
