@@ -76,7 +76,7 @@ class Device:
 
     def __eq__(self, other: Any) -> bool:
         """
-        Overloads the `==` operator.
+        Overloads the `==` operator for local equal check.
 
         Parameters
         ----------
