@@ -652,6 +652,31 @@ class TestDNDarray(TestCase):
         self.assertTrue(x_newaxis.split == 2)
         self.assertTrue(x_none.split == 2)
 
+        x = ht.arange(5, split=0)
+        x_np = np.arange(5)
+        y = x[:, np.newaxis] + x[np.newaxis, :]
+        y_np = x_np[:, np.newaxis] + x_np[np.newaxis, :]
+        self.assert_array_equal(y, y_np)
+        self.assertTrue(y.split == 0)
+
+        # ADVANCED INDEXING
+        # 1d
+        x = ht.arange(10, 1, -1, split=0)
+        x_np = np.arange(10, 1, -1)
+        x_adv_ind = x[np.array([3, 3, 1, 8])]
+        x_np_adv_ind = x_np[np.array([3, 3, 1, 8])]
+        self.assert_array_equal(x_adv_ind, x_np_adv_ind)
+
+        # 3d, split 0
+        x = ht.arange(60, split=0).reshape(5, 3, 4)
+        x_np = np.arange(60).reshape(5, 3, 4)
+        k1 = np.array([0, 4, 1, 0])
+        k2 = np.array([0, 2, 1, 0])
+        k3 = np.array([1, 2, 3, 1])
+        self.assert_array_equal(
+            x[ht.array(k1, split=0), ht.array(k2, split=0), ht.array(k3, split=0)], x_np[k1, k2, k3]
+        )
+
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
         np.random.seed(42)
@@ -670,16 +695,6 @@ class TestDNDarray(TestCase):
         arr_split2 = ht.array(arr, split=2)
         mask_split2 = ht.array(mask, split=2)
         self.assert_array_equal(arr_split2[mask_split2], arr.numpy()[mask])
-
-        # advanced indexing
-        x = ht.arange(60, split=0).reshape(5, 3, 4)
-        x_np = np.arange(60).reshape(5, 3, 4)
-        k1 = np.array([0, 4, 1, 0])
-        k2 = np.array([0, 2, 1, 0])
-        k3 = np.array([1, 2, 3, 1])
-        self.assert_array_equal(
-            x[ht.array(k1, split=0), ht.array(k2, split=0), ht.array(k3, split=0)], x_np[k1, k2, k3]
-        )
 
     def test_int_cast(self):
         # simple scalar tensor

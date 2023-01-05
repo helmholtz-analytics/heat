@@ -773,8 +773,10 @@ class DNDarray:
 
             # advanced indexing on first dimension: first dim will expand to shape of key
             output_shape = tuple(list(key.shape) + output_shape[1:])
+            print("DEBUGGING ADV IND: output_shape = ", output_shape)
             # adjust split axis accordingly
             if arr.is_distributed():
+                counts, displs = arr.counts_displs()
                 if arr.split != 0:
                     # split axis is not affected
                     split_bookkeeping = [None] * key.ndim + split_bookkeeping[1:]
@@ -793,18 +795,49 @@ class DNDarray:
                             new_split = tuple(key.shape).index(arr.shape[0])
                         else:
                             new_split = key.ndim - 1
+                        try:
+                            key_split = key[new_split].larray
+                            sorted, _ = key_split.sort(stable=True)
+                        except AttributeError:
+                            key_split = key[new_split]
+                            sorted = key_split.sort()
                     else:
                         new_split = 0
-                    # assess if key is sorted along split axis
-                    try:
-                        key_split = key[new_split].larray
-                        sorted, _ = key_split.sort()
-                    except AttributeError:
-                        key_split = key[new_split]
-                        sorted = key_split.sort()
-                    split_key_is_sorted = torch.tensor(
-                        (key_split == sorted).all(), dtype=torch.uint8
-                    )
+                        # assess if key is sorted along split axis
+                        try:
+                            # DNDarray key
+                            sorted, _ = torch.sort(key.larray, stable=True)
+                            split_key_is_sorted = torch.tensor(
+                                (key.larray == sorted).all(),
+                                dtype=torch.uint8,
+                                device=key.larray.device,
+                            )
+                            if key.split is not None:
+                                out_is_balanced = key.balanced
+                                split_key_is_sorted = factories.array(
+                                    [split_key_is_sorted], is_split=0, device=arr.device, copy=False
+                                ).all()
+                            key = key.larray
+                        except AttributeError:
+                            # torch or ndarray key
+                            try:
+                                sorted, _ = torch.sort(key, stable=True)
+                            except TypeError:
+                                # ndarray key
+                                sorted = torch.tensor(np.sort(key), device=arr.larray.device)
+                            split_key_is_sorted = torch.tensor(
+                                key == sorted, dtype=torch.uint8
+                            ).item()
+                            if not split_key_is_sorted:
+                                # prepare for distributed non-ordered indexing: distribute torch/numpy key
+                                key = factories.array(key, split=0, device=arr.device).larray
+                                out_is_balanced = True
+                        if split_key_is_sorted:
+                            # extract local key
+                            cond1 = key >= displs[arr.comm.rank]
+                            cond2 = key < displs[arr.comm.rank] + counts[arr.comm.rank]
+                            key = key[cond1 & cond2]
+                            out_is_balanced = False
 
             return arr, key, output_shape, new_split, split_key_is_sorted, out_is_balanced
 
@@ -1052,7 +1085,7 @@ class DNDarray:
         """
         # key can be: int, tuple, list, slice, DNDarray, torch tensor, numpy array, or sequence thereof
         # Trivial cases
-        print("DEBUGGING: RAW KEY = ", key)
+        print("DEBUGGING: RAW KEY = ", key, type(key))
 
         # Single-element indexing
         # TODO: single-element indexing along split axis belongs here as well
@@ -1153,11 +1186,17 @@ class DNDarray:
         original_split = self.split
 
         # determine whether indexed array will be 1D or nD
-        key_shapes = []
-        for k in key:
-            key_shapes.append(getattr(k, "shape", None))
-        return_1d = key_shapes.count(key_shapes[original_split]) == self.ndim
+        try:
+            return_1d = getattr(key, "ndim") == self.ndim
+        except AttributeError:
+            # key is tuple of torch tensors
+            key_shapes = []
+            for k in key:
+                key_shapes.append(getattr(k, "shape", None))
+            print("KEY SHAPES = ", key_shapes)
+            return_1d = key_shapes.count(key_shapes[original_split]) == self.ndim
 
+        print("RANK, RETURN_1D = ", self.comm.rank, return_1d)
         # send and receive "request key" info on what data element to ship where
         recv_counts = torch.zeros((self.comm.size, 1), dtype=torch.int64, device=self.larray.device)
 
@@ -1206,21 +1245,37 @@ class DNDarray:
         )
         all_local_indexing[start_rank:end_rank] = False
         for i in range(start_rank, end_rank):
-            cond1 = key[original_split] >= displs[i]
-            if i != self.comm.size - 1:
-                cond2 = key[original_split] < displs[i + 1]
-            else:
-                # cond2 is always true
-                cond2 = torch.ones(
-                    (key[original_split].shape[0],), dtype=torch.bool, device=self.larray.device
-                )
+            try:
+                cond1 = key >= displs[i]
+                if i != self.comm.size - 1:
+                    cond2 = key < displs[i + 1]
+                else:
+                    # cond2 is always true
+                    cond2 = torch.ones((key.shape[0],), dtype=torch.bool, device=self.larray.device)
+            except TypeError:
+                cond1 = key[original_split] >= displs[i]
+                if i != self.comm.size - 1:
+                    cond2 = key[original_split] < displs[i + 1]
+                else:
+                    # cond2 is always true
+                    cond2 = torch.ones(
+                        (key[original_split].shape[0],), dtype=torch.bool, device=self.larray.device
+                    )
             if return_1d:
-                # advanced indexing returning 1D array (e.g. boolean indexing)
-                selection = list(k[cond1 & cond2] for k in key)
-                recv_counts[i, :] = selection[0].shape[0]
-                if i == self.comm.rank:
-                    all_local_indexing[i] = selection[0].shape[0] == key[0].shape[0]
-                selection = torch.stack(selection, dim=1)
+                # advanced indexing returning 1D array
+                if isinstance(key, torch.Tensor):
+                    selection = key[cond1 & cond2]
+                    recv_counts[i, :] = selection.shape[0]
+                    if i == self.comm.rank:
+                        all_local_indexing[i] = selection.shape[0] == key.shape[0]
+                    selection.unsqueeze_(dim=1)
+                else:
+                    # key is tuple of torch tensors
+                    selection = list(k[cond1 & cond2] for k in key)
+                    recv_counts[i, :] = selection[0].shape[0]
+                    if i == self.comm.rank:
+                        all_local_indexing[i] = selection[0].shape[0] == key[0].shape[0]
+                    selection = torch.stack(selection, dim=1)
             else:
                 selection = key[original_split][cond1 & cond2]
                 recv_counts[i, :] = selection.shape[0]
@@ -1296,7 +1351,7 @@ class DNDarray:
                 incoming_request_key_displs.tolist(),
             ),
         )
-        # print("DEBUGGING:incoming_request_key = ", incoming_request_key)
+        print("DEBUGGING:incoming_request_key = ", incoming_request_key)
         if return_1d:
             incoming_request_key = list(incoming_request_key[:, d] for d in range(self.ndim))
             incoming_request_key[original_split] -= displs[self.comm.rank]
@@ -1308,13 +1363,16 @@ class DNDarray:
                 + key[original_split + 1 :]
             )
 
-        # print("AFTER: incoming_request_key = ", incoming_request_key)
+        print("AFTER: incoming_request_key = ", incoming_request_key)
         # print("OUTPUT_SHAPE = ", output_shape)
         # print("OUTPUT_SPLIT = ", output_split)
 
         send_buf = self.larray[incoming_request_key]
         output_lshape = list(output_shape)
-        output_lshape[output_split] = key[original_split].shape[0]
+        if getattr(key, "ndim", 0) == 1:
+            output_lshape[output_split] = key.shape[0]
+        else:
+            output_lshape[output_split] = key[original_split].shape[0]
         recv_buf = torch.empty(
             tuple(output_lshape), dtype=self.larray.dtype, device=self.larray.device
         )
@@ -1330,7 +1388,8 @@ class DNDarray:
 
         # reorganize incoming counts according to original key order along split axis
         if return_1d:
-            key = torch.stack(key, dim=1)
+            if isinstance(key, tuple):
+                key = torch.stack(key, dim=1)
             _, key_inverse = key.unique(dim=0, sorted=True, return_inverse=True)
             # if _.shape == key.shape:
             _, ork_inverse = outgoing_request_key.unique(dim=0, sorted=True, return_inverse=True)
