@@ -319,7 +319,7 @@ class MPICommunication(Communication):
         obj: torch.Tensor,
         counts: Tuple[int] = None,
         displs: Tuple[int] = None,
-        is_contiguous: bool = None,
+        is_contiguous: Optional[bool] = None,
     ) -> List[Union[MPI.memory, Tuple[int, int], MPI.Datatype]]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
