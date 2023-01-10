@@ -244,7 +244,7 @@ class MPICommunication(Communication):
         obj: Union[DNDarray, torch.Tensor],
         counts: Tuple[int],
         displs: Tuple[int],
-        is_contiguous: bool,
+        is_contiguous: Optional[bool],
     ) -> Tuple[MPI.Datatype, Tuple[int, ...]]:
         """
         Determines the MPI data type and number of respective elements for the given tensor (:class:`~heat.core.dndarray.DNDarray`
