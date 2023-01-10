@@ -259,8 +259,8 @@ class MPICommunication(Communication):
             Optional counts arguments for variable MPI-calls (e.g. Alltoallv)
         displs : Tuple[ints,...], optional
             Optional displacements arguments for variable MPI-calls (e.g. Alltoallv)
-        is_contiguous: bool, optional
-            Optional information on global contiguity of the memory-distributed object. If `None`, it will be set to local contiguity via ``torch.Tensor.is_contiguous()``.
+        is_contiguous: bool
+            Information on global contiguity of the memory-distributed object. If `None`, it will be set to local contiguity via ``torch.Tensor.is_contiguous()``.
         # ToDo: The option to explicitely specify the counts and displacements to be send still needs propper implementation
         """
         mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
