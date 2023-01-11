@@ -59,3 +59,6 @@ def parter(
         raise ValueError("expected split value to be either {{None,0,1}}, but was {}".format(split))
 
     return 1.0 / (II - JJ + 0.5)
+
+
+# def pos def matrix
