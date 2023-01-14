@@ -1,4 +1,4 @@
-## Heat Quick Start
+# Heat Quick Start
 
 No-frills instructions for [new users](#new-users-condaconda-pippip-hpchpc-dockerdocker) and [new contributors](#new-contributors).
 
