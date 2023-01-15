@@ -116,7 +116,7 @@ def cross(
         a_2d = True
         shape = tuple(1 if i == axisa else j for i, j in enumerate(a.shape))
         a = manipulations.concatenate(
-            [a, factories.zeros(shape, dtype=a.dtype, device=a.device)], axis=axisa
+            [a, factories.zeros(shape, dtype=a.dtype, device=a.device, comm=a.comm)], axis=axisa
         )
     if b.shape[axisb] == 2:
         b_2d = True
@@ -207,7 +207,7 @@ def det(a: DNDarray) -> DNDarray:
 
     acopy = a.copy()
     acopy = manipulations.reshape(acopy, (-1, m, m), new_split=a.split - a.ndim + 3)
-    adet = factories.ones(acopy.shape[0], dtype=a.dtype, device=a.device)
+    adet = factories.ones(acopy.shape[0], dtype=a.dtype, device=a.device, comm=a.comm)
 
     for k in range(adet.shape[0]):
         m = 0
@@ -513,7 +513,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
             # if either of A or B is a vector
-            ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device)
+            ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device, comm=a.comm)
             if gpu_int_flag:
                 ret = og_type(ret, device=a.device)
             return ret
@@ -522,7 +522,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
             hold = a.larray @ b.larray
 
-            c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device)
+            c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device, comm=a.comm)
             c.larray[slice_0.start : slice_0.stop, :] += hold
             c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
             if gpu_int_flag:
@@ -537,7 +537,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         b.resplit_(0)
         res = a.larray @ b.larray
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
-        ret = factories.array(res, split=None, device=a.device)
+        ret = factories.array(res, split=None, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -560,7 +560,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     ) and not vector_flag:
         split = a.split if a.split is not None else b.split
         split = split if not vector_flag else 0
-        c = factories.zeros((a.gshape[-2], b.gshape[1]), split=split, dtype=c_type, device=a.device)
+        c = factories.zeros((a.gshape[-2], b.gshape[1]), split=split, dtype=c_type, device=a.device, comm=a.comm)
         c.larray += a.larray @ b.larray
 
         ret = c if not vector_flag else c.squeeze()
@@ -575,7 +575,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c += a.larray @ b.larray[a_idx[1].start : a_idx[1].start + a.lshape[-1], :]
         a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         c = c if not vector_flag else c.squeeze()
-        ret = factories.array(c, split=a.split if b.gshape[1] > 1 else 0, device=a.device)
+        ret = factories.array(c, split=a.split if b.gshape[1] > 1 else 0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -586,7 +586,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c += a.larray[:, b_idx[0].start : b_idx[0].start + b.lshape[0]] @ b.larray
         b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         c = c if not vector_flag else c.squeeze()
-        ret = factories.array(c, split=b.split if a.gshape[-2] > 1 else 0, device=a.device)
+        ret = factories.array(c, split=b.split if a.gshape[-2] > 1 else 0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -601,7 +601,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c = c if not vector_flag else c.squeeze()
         split = a.split if b.gshape[1] > 1 else 0
         split = split if not vector_flag else 0
-        ret = factories.array(c, split=split, device=a.device)
+        ret = factories.array(c, split=split, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -612,7 +612,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c = c if not vector_flag else c.squeeze()
         split = b.split if a.gshape[1] > 1 else 0
         split = split if not vector_flag else 0
-        ret = factories.array(c, is_split=split, device=a.device)
+        ret = factories.array(c, is_split=split, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -688,10 +688,10 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     # for the communication scheme, the output array needs to be created
     c_shape = (a.gshape[-2], b.gshape[1])
-    c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=a.device)
+    c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=a.device, comm=a.comm)
 
     # get the index map for c
-    c_index_map = factories.zeros((c.comm.size, 2, 2), device=a.device)
+    c_index_map = factories.zeros((c.comm.size, 2, 2), device=a.device, comm=a.comm)
     c_idx = c.comm.chunk(c.shape, c.split)[2]
     c_index_map[c.comm.rank, 0, :] = (c_idx[0].start, c_idx[0].stop)
     c_index_map[c.comm.rank, 1, :] = (c_idx[1].start, c_idx[1].stop)
@@ -912,7 +912,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             if c_loc.nelement() == 1:
                 c_loc = torch.tensor(c_loc, device=tdev)
 
-            c = factories.array(c_loc, is_split=0, device=a.device)
+            c = factories.array(c_loc, is_split=0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
         return c
@@ -1016,7 +1016,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     c.larray[:, : b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1
                 del a_lp_data[pr]
         if vector_flag:
-            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device)
+            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
         return c
@@ -1059,7 +1059,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 c.larray[: sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr]
                 del b_lp_data[pr]
         if vector_flag:
-            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device)
+            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
 
@@ -1083,7 +1083,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         if vector_flag:
             split = 0
             res = res.squeeze()
-        c = factories.array(res, split=split, device=a.device)
+        c = factories.array(res, split=split, device=a.device, comm=a.comm)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
         return c
