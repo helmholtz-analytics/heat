@@ -15,56 +15,10 @@ Project Status
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
 
-NEW! Contributors' TL;DR
-------------------------
 
-* set up development env and install dependencies, e.g. with conda
-```
-conda create -n heat-dev python=3.9
-conda activate heat-dev
-conda install -c conda-forge openmpi
-conda install -c conda-forge mpi4py
-conda install -c conda-forge "hdf5=*=mpi*"
-conda install -c conda-forge netcdf4
-conda install -c conda-forge scikit-learn
-conda install -c pytorch pytorch torchvision
-```
-* clone GitHub repo
-```
-git clone git@github.com:helmholtz-analytics/heat.git
-cd heat/
-```
-* DID IT WORK?? check with
-```
-python
-Python 3.9.15 | packaged by conda-forge | (main, Nov 22 2022, 08:48:25)
-[Clang 14.0.6 ] on darwin
-Type "help", "copyright", "credits" or "license" for more information.
->>> import heat as ht
->>>
-```
-(it worked!)
-
-* check Issues, e.g. "good first issues" (link) or anything interesting, pick one
-* create a new branch named [TYPE]/[ISSUE_NR]-[TITLE],
-TYPE can be `features`, `bugs`, `docs`, `workflows`, e.g.:
-`git checkout -b features/1031-support-xarrays`
-
-* you can't commit without installing the `pre-commit` hooks:
-```
-conda install pre-commit
-conda install black
-conda install flake8
-pre-commit install
-```
-
-
-* DON'T: call `numpy` functions internally. They don't support GPUs. DO: call `torch` functions.
-
-* DON'T: ping us to ask "Where do I start?". DO: get started based on what interests you!
-
-
-
+NEW!
+----
+- [Quick Start](quick_start.md) for new users and contributors (Jan 14, 2023)
 
 
 Goals
@@ -95,7 +49,9 @@ Features
 Getting Started
 ---------------
 
-Check out our Jupyter Notebook [tutorial](https://github.com/helmholtz-analytics/heat/blob/main/scripts/tutorial.ipynb)
+TL;DR: [Quick Start](quick_start.md)
+
+Check out our Jupyter Notebook [tutorial]((https://github.com/helmholtz-analytics/heat/blob/main/scripts/)tutorial.ipynb)
 right here on Github or in the /scripts directory.
 
 The complete documentation of the latest version is always deployed on
@@ -123,6 +79,8 @@ or automatically using the setup.py.
 Installation
 ------------
 
+TL;DR: [Quick Start](quick_start.md)
+
 Tagged releases are made available on the
 [Python Package Index (PyPI)](https://pypi.org/project/heat/). You can typically
 install the latest version with
@@ -139,6 +97,7 @@ More information can be found [here](https://pytorch.org/get-started/locally/).
 
 Hacking
 -------
+TL;DR: [Quick Start](quick_start.md)
 
 If you want to work with the development version, you can check out the sources using
 
