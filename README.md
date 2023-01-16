@@ -21,7 +21,6 @@ NEW!
 - [Quick Start](quick_start.md) for new users and contributors (Jan 14, 2023)
 
 
-
 Goals
 -----
 
