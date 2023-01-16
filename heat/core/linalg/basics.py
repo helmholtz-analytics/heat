@@ -522,7 +522,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
             hold = a.larray @ b.larray
 
-            c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device, comm=a.comm)
+            c = factories.zeros(
+                (a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device, comm=a.comm
+            )
             c.larray[slice_0.start : slice_0.stop, :] += hold
             c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
             if gpu_int_flag:
@@ -560,7 +562,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     ) and not vector_flag:
         split = a.split if a.split is not None else b.split
         split = split if not vector_flag else 0
-        c = factories.zeros((a.gshape[-2], b.gshape[1]), split=split, dtype=c_type, device=a.device, comm=a.comm)
+        c = factories.zeros(
+            (a.gshape[-2], b.gshape[1]), split=split, dtype=c_type, device=a.device, comm=a.comm
+        )
         c.larray += a.larray @ b.larray
 
         ret = c if not vector_flag else c.squeeze()
@@ -575,7 +579,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c += a.larray @ b.larray[a_idx[1].start : a_idx[1].start + a.lshape[-1], :]
         a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         c = c if not vector_flag else c.squeeze()
-        ret = factories.array(c, split=a.split if b.gshape[1] > 1 else 0, device=a.device, comm=a.comm)
+        ret = factories.array(
+            c, split=a.split if b.gshape[1] > 1 else 0, device=a.device, comm=a.comm
+        )
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -586,7 +592,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c += a.larray[:, b_idx[0].start : b_idx[0].start + b.lshape[0]] @ b.larray
         b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         c = c if not vector_flag else c.squeeze()
-        ret = factories.array(c, split=b.split if a.gshape[-2] > 1 else 0, device=a.device, comm=a.comm)
+        ret = factories.array(
+            c, split=b.split if a.gshape[-2] > 1 else 0, device=a.device, comm=a.comm
+        )
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
