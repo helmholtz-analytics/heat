@@ -34,7 +34,7 @@ categories:
     label: 'chore'
   - title: '🧪 Testing'
     label: 'testing'
-  
+
 change-template: '- #$NUMBER $TITLE (by @$AUTHOR)'
 categorie-template: '### $TITLE'
 exclude-labels:
