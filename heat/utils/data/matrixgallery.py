@@ -8,9 +8,45 @@ from ...core.communication import Communication
 from ...core.devices import Device
 from ...core.types import datatype
 from typing import Type, Union
+import numpy as np
 
-__all__ = ["parter"]
+__all__ = ["hermitian","parter"]
 
+
+def hermitian(
+    size: int,
+    gshape: tuple = None,
+    dtype: Type[datatype] = core.float64,
+) -> DNDarray:
+    """
+    Generates a Hermitian matrix of a given size.
+    
+    Parameters
+    ----------
+    size : int
+        size of the resulting square matrix
+    gshape: tuple, optional
+        The global shape of the matrix, defaults to (n,n)
+    dtype: Type[datatype], optional
+        The desired data-type for the array, defaults to ht.float64.
+    """
+    if dtype == "complex":
+        # Create a matrix with complex normal distrition values
+        matrix = np.random.randn(size,size) + 1j * np.random.randn(size,size)
+
+        # Making the matrix Hermitian
+        matrix = (matrix + np.conj(matrix.T))/2
+
+
+    else:
+        # Creating a matrix with normal distrition values
+        matrix = np.random.randn(size,size)
+
+        # Giving the matrix the right data type
+        matrix = matrix.astype(dtype)
+
+        # Making the matrix positive definite
+        matrix = matrix @ matrix.T
 
 def parter(
     n: int,
@@ -60,5 +96,3 @@ def parter(
 
     return 1.0 / (II - JJ + 0.5)
 
-
-# def pos def matrix
