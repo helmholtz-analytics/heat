@@ -84,20 +84,11 @@ class Device:
             The object to compare with
         """
         if isinstance(other, Device):
-            return (
-                True
-                if (self.device_type == other.device_type and self.device_id == other.device_id)
-                else False
-            )
-
-        if isinstance(other, torch.device):
-            return (
-                True
-                if (self.device_type == other.type and self.device_id == other.index)
-                else False
-            )
-
-        return NotImplemented
+            return self.device_type == other.device_type and self.device_id == other.device_id
+        elif isinstance(other, torch.device):
+            return self.device_type == other.type and self.device_id == other.index
+        else:
+            return NotImplemented
 
 
 # create a CPU device singleton
