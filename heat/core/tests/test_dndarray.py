@@ -126,7 +126,6 @@ class TestDNDarray(TestCase):
             # test no data on process
             data_np = np.arange(2 * 12).reshape(2, 12)
             data = ht.array(data_np, split=0)
-            print("DEBUGGING: data.lshape_map = ", data.lshape_map)
             data.get_halo(1)
 
             data_with_halos = data.array_with_halos
