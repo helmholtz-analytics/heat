@@ -6,8 +6,8 @@
 
 Heat is a distributed tensor framework for high performance data analytics.
 
-Project Status
---------------
+# Project Status
+
 [![Mirror and run GitLab CI](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cb.yml/badge.svg)](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cb.yml)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/helmholtz-analytics/heat/branch/main/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
@@ -15,14 +15,7 @@ Project Status
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
 
-NEW!
---------------
-- [Quick Start](quick_start.md) for new users and contributors (Jan 14, 2023)
-
-
-
-Goals
------
+# Goals
 
 Heat is a flexible and seamless open-source software for high performance data
 analytics and machine learning. It provides highly optimized algorithms and data
@@ -37,8 +30,7 @@ scientific and data science applications.
 Heat allows you to tackle your actual Big Data challenges that go beyond the
 computational and memory needs of your laptop and desktop.
 
-Features
---------
+# Features
 
 * High-performance n-dimensional tensors
 * CPU, GPU and distributed computation using MPI
@@ -46,19 +38,18 @@ Features
 * Abstracted communication via split tensors
 * Python API
 
-Getting Started
----------------
+# Getting Started
 
-TL;DR: [Quick Start](quick_start.md)
+TL;DR: [Quick Start](quick_start.md) Read this to get a quick overview of Heat.
 
-Check out our Jupyter Notebook [tutorial]((https://github.com/helmholtz-analytics/heat/blob/main/scripts/)tutorial.ipynb)
-right here on Github or in the /scripts directory.
+Check out our Jupyter Notebook [**Tutorial**](https://github.com/helmholtz-analytics/heat/blob/main/scripts/)
+right here on Github or in the /scripts directory, to learn and understand about the basics and working of Heat.
 
 The complete documentation of the latest version is always deployed on
 [Read the Docs](https://heat.readthedocs.io/).
 
-Support Channels
-----------------
+
+# Support Channels
 
 We use [StackOverflow](https://stackoverflow.com/tags/pyheat/) as a forum for questions about Heat.
 If you do not find an answer to your question, then please ask a new question there and be sure to
@@ -66,8 +57,7 @@ tag it with "pyheat".
 
 You can also reach us on [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions).
 
-Requirements
-------------
+# Requirements
 
 Heat requires Python 3.7 or newer.
 Heat is based on [PyTorch](https://pytorch.org/). Specifically, we are exploiting
@@ -75,52 +65,53 @@ PyTorch's support for GPUs *and* MPI parallelism. For MPI support we utilize
 [mpi4py](https://mpi4py.readthedocs.io). Both packages can be installed via pip
 or automatically using the setup.py.
 
-
-Installation
-------------
-
-TL;DR: [Quick Start](quick_start.md)
+# Installation
 
 Tagged releases are made available on the
 [Python Package Index (PyPI)](https://pypi.org/project/heat/). You can typically
 install the latest version with
 
-> $ pip install heat[hdf5,netcdf]
+```
+$ pip install heat[hdf5,netcdf]
+```
 
 where the part in brackets is a list of optional dependencies. You can omit
 it, if you do not need HDF5 or NetCDF support.
 
 **It is recommended to use the most recent supported version of PyTorch!**
 
-It is also very important to ensure that the PyTorch version is compatible with the local CUDA installation.
+**It is also very important to ensure that the PyTorch version is compatible with the local CUDA installation.**
 More information can be found [here](https://pytorch.org/get-started/locally/).
 
-Hacking
--------
-TL;DR: [Quick Start](quick_start.md)
+# Hacking
 
 If you want to work with the development version, you can check out the sources using
-
-> $ git clone https://github.com/helmholtz-analytics/heat.git
+```
+$ git clone <https://github.com/helmholtz-analytics/heat.git>
+```
 
 The installation can then be done from the checked-out sources with
+```
+$ pip install heat[hdf5,netcdf,dev]
+```
 
-> $ pip install .[hdf5,netcdf,dev]
+# Contribution guidelines
 
-We welcome contributions from the community, please check out our [Contribution Guidelines](contributing.md) before getting started!
+**We welcome contributions from the community, if you want to contribute to heat, be sure to review the [Contribution Guidelines](contributing.md) before getting started!**
 
-License
--------
+We use [GitHub issues](https://github.com/helmholtz-analytics/heat/issues) for tracking requests and bugs, please see [Discussions](https://github.com/helmholtz-analytics/heat/discussions) for general questions and discussion, and You can also get in touch with us on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo). You can sign up with your GitHub credentials. Once you log in, you can introduce yourself on the `Town Square` channel.
+
+
+# License
 
 Heat is distributed under the MIT license, see our
 [LICENSE](LICENSE) file.
 
-Citing Heat
------------
+# Citing Heat
 
 If you find Heat helpful for your research, please mention it in your publications. You can cite:
 
-- Götz, M., Debus, C., Coquelin, D., Krajsek, K., Comito, C., Knechtges, P., Hagemeier, B., Tarnawa, M., Hanselmann, S., Siggel, S., Basermann, A. & Streit, A. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In 2020 IEEE International Conference on Big Data (Big Data) (pp. 276-287). IEEE, DOI: 10.1109/BigData50022.2020.9378050.
+* Götz, M., Debus, C., Coquelin, D., Krajsek, K., Comito, C., Knechtges, P., Hagemeier, B., Tarnawa, M., Hanselmann, S., Siggel, S., Basermann, A. & Streit, A. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In 2020 IEEE International Conference on Big Data (Big Data) (pp. 276-287). IEEE, DOI: 10.1109/BigData50022.2020.9378050.
 
 ```
 @inproceedings{heat2020,
@@ -148,8 +139,7 @@ If you find Heat helpful for your research, please mention it in your publicatio
 }
 ```
 
-Acknowledgements
-----------------
+## Acknowledgements
 
 *This work is supported by the [Helmholtz Association Initiative and
 Networking Fund](https://www.helmholtz.de/en/about_us/the_association/initiating_and_networking/)
