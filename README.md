@@ -40,13 +40,48 @@ computational and memory needs of your laptop and desktop.
 
 # Getting Started
 
-TL;DR: [Quick Start](quick_start.md) Read this to get a quick overview of Heat.
+TL;DR: [Quick Start](quick_start.md) (Read this to get a quick overview of Heat).
 
 Check out our Jupyter Notebook [**Tutorial**](https://github.com/helmholtz-analytics/heat/blob/main/scripts/)
 right here on Github or in the /scripts directory, to learn and understand about the basics and working of Heat.
 
 The complete documentation of the latest version is always deployed on
 [Read the Docs](https://heat.readthedocs.io/).
+
+***Try your first Heat program***
+
+```shell
+$ python
+```
+
+```python
+>>> import heat as ht
+>>> x = ht.arange(10,split=0)
+>>> print(x)
+DNDarray([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=ht.int32, device=cpu:0, split=0)
+>>> y = ht.ones(10,split=0)
+>>> print(y)
+DNDarray([1., 1., 1., 1., 1., 1., 1., 1., 1., 1.], dtype=ht.float32, device=cpu:0, split=0)
+>>> print(x + y)
+DNDarray([ 1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9., 10.], dtype=ht.float32, device=cpu:0, split=0)
+```
+
+### Also, you can test your setup by running the [`heat_test.py`](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_test.py) script:
+
+```shell
+mpirun -n 2 python heat_test.py
+```
+
+### It should print something like this:
+
+```shell
+x is distributed:  True
+Global DNDarray x:  DNDarray([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=ht.int32, device=cpu:0, split=0)
+Global DNDarray x:
+Local torch tensor on rank  0 :  tensor([0, 1, 2, 3, 4], dtype=torch.int32)
+Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
+```
+
 
 
 # Support Channels
@@ -86,21 +121,22 @@ More information can be found [here](https://pytorch.org/get-started/locally/).
 # Hacking
 
 If you want to work with the development version, you can check out the sources using
+
 ```
 $ git clone <https://github.com/helmholtz-analytics/heat.git>
 ```
 
 The installation can then be done from the checked-out sources with
+
 ```
 $ pip install heat[hdf5,netcdf,dev]
 ```
 
 # Contribution guidelines
 
-**We welcome contributions from the community, if you want to contribute to heat, be sure to review the [Contribution Guidelines](contributing.md) before getting started!**
+**We welcome contributions from the community, if you want to contribute to Heat, be sure to review the [Contribution Guidelines](contributing.md) before getting started!**
 
 We use [GitHub issues](https://github.com/helmholtz-analytics/heat/issues) for tracking requests and bugs, please see [Discussions](https://github.com/helmholtz-analytics/heat/discussions) for general questions and discussion, and You can also get in touch with us on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo). You can sign up with your GitHub credentials. Once you log in, you can introduce yourself on the `Town Square` channel.
-
 
 # License
 
