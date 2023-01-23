@@ -157,6 +157,8 @@ If you’re unsure where to start or how your skills fit in, reach out! You can 
 
 **If you are new to contributing to open source, [this guide](https://opensource.guide/how-to-contribute/) helps explain why, what, and how to get involved.**
 
+### For people who want to contribute through GSoC 2023 program, here is a [quick Guide](https://github.com/MLSC-BSOITR/Ultimate-GSOC-Guide/blob/main/GSoC2023Presentation.pdf) about the complete program.
+
 # License
 
 Heat is distributed under the MIT license, see our
