@@ -1,0 +1,16 @@
+cat heat-nvidia.def
+Bootstrap: docker
+From: nvcr.io/nvidia/pytorch:22.12-py3
+
+%files
+    ./tzdata.seed /tmp/tzdata.seed
+
+%post
+    debconf-set-selections /tmp/tzdata.seed
+    apt update && DEBIAN_FRONTEND=noninteractive apt install -y build-essential openssh-client python3-dev git && apt clean && rm -rf /var/lib/apt/lists/*
+    git clone -b main https://github.com/helmholtz-analytics/heat.git
+    cd heat
+    pip install mpi4py --no-binary :all:
+    pip install .[hdf5,netcdf]
+    cd ..
+    rm -rf heat

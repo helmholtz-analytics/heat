@@ -12,6 +12,8 @@ branches can be specified using `--build-arg=HEAT_BRANCH=branchname`.
 
 ## General build
 
+### Docker
+
 The [Dockerfile](./Dockerfile) guiding the build of the Docker image is located in this
 directory. It is typically most convenient to `cd` over here and run the Docker build as:
 
@@ -25,7 +27,7 @@ repository, for example:
 
 Please ensure that you push the same tag that you just created.
 
-## Building for HPC
+### Building for HPC
 
 With HeAT being a native HPC library, one would naturally want to build the container
 image also for HPC systems, such as the ones available at [Juelich Supercomputing Centre
@@ -51,6 +53,14 @@ The invocation to build the image would be:
 	$ sib build --recipe-name heat_1.2.0_torch.11_cuda11.5_py3.9
 	$ sib download --recipe-name heat_1.2.0_torch.11_cuda11.5_py3.9
 
+### Apptainer (formerly singularity)
+
+Simpler method that generates a .sif file directly using an Apptainer definition file, an alternative to
+Dockerfile. This method does not support build arguments, so version, branch and type of installation have to
+changed in the definition file.
+
+    $ singularity build heat_1.2.0_torch.11_cuda11.5_py3.9.sif heat-singularity-image.def
+
 ## Running on HPC
 
 	$ singularity run --nv heat_1.2.0_torch.11_cuda11.5_py3.9.sif /bin/bash
@@ -63,3 +73,18 @@ The invocation to build the image would be:
 
 The `--nv` argument to `singularity`enables NVidia GPU support, which is desired for
 HeAT.
+
+### Multi-node example
+
+The following file can be used as an example to use the singularity file together with SLURM, which allows heat to work in a multi-node environment.
+
+```bash
+#!/bin/bash
+#SBATCH --time 0:10:00
+#SBATCH --nodes 2
+#SBATCH --tasks-per-node 2
+
+...
+
+srun --mpi="pmi2" singularity exec --nv --bind /scratch heat_1.2.0_torch.11_cuda11.5_py3.9.sif bash -c "cd ~/code/heat/examples/lasso; python demo.py"
+```
