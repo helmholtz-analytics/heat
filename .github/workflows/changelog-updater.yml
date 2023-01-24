@@ -22,6 +22,6 @@ jobs:
       - name: Commit updated CHANGELOG
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          branch: main
+          branch: release/1.2.x
           commit_message: Update CHANGELOG
           file_pattern: CHANGELOG.md

@@ -249,7 +249,11 @@ class MPICommunication(Communication):
 
     @classmethod
     def mpi_type_and_elements_of(
-        cls, obj: Union[DNDarray, torch.Tensor], counts: Tuple[int], displs: Tuple[int]
+        cls,
+        obj: Union[DNDarray, torch.Tensor],
+        counts: Tuple[int],
+        displs: Tuple[int],
+        is_contiguous: Optional[bool],
     ) -> Tuple[MPI.Datatype, Tuple[int, ...]]:
         """
         Determines the MPI data type and number of respective elements for the given tensor (:class:`~heat.core.dndarray.DNDarray`
@@ -264,12 +268,18 @@ class MPICommunication(Communication):
             Optional counts arguments for variable MPI-calls (e.g. Alltoallv)
         displs : Tuple[ints,...], optional
             Optional displacements arguments for variable MPI-calls (e.g. Alltoallv)
+        is_contiguous: bool
+            Information on global contiguity of the memory-distributed object. If `None`, it will be set to local contiguity via ``torch.Tensor.is_contiguous()``.
         # ToDo: The option to explicitely specify the counts and displacements to be send still needs propper implementation
         """
         mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
 
-        # simple case, continuous memory can be transmitted as is
-        if obj.is_contiguous():
+        # simple case, contiguous memory can be transmitted as is
+        if is_contiguous is None:
+            # determine local contiguity
+            is_contiguous = obj.is_contiguous()
+
+        if is_contiguous:
             if counts is None:
                 return mpi_type, elements
             else:
@@ -282,7 +292,7 @@ class MPICommunication(Communication):
                     ),
                 )
 
-        # non-continuous memory, e.g. after a transpose, has to be packed in derived MPI types
+        # non-contiguous memory, e.g. after a transpose, has to be packed in derived MPI types
         elements = obj.shape[0]
         shape = obj.shape[1:]
         strides = [1] * len(shape)
@@ -314,7 +324,11 @@ class MPICommunication(Communication):
 
     @classmethod
     def as_buffer(
-        cls, obj: torch.Tensor, counts: Tuple[int] = None, displs: Tuple[int] = None
+        cls,
+        obj: torch.Tensor,
+        counts: Tuple[int] = None,
+        displs: Tuple[int] = None,
+        is_contiguous: Optional[bool] = None,
     ) -> List[Union[MPI.memory, Tuple[int, int], MPI.Datatype]]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
@@ -327,14 +341,16 @@ class MPICommunication(Communication):
             Optional counts arguments for variable MPI-calls (e.g. Alltoallv)
         displs : Tuple[int,...], optional
             Optional displacements arguments for variable MPI-calls (e.g. Alltoallv)
+        is_contiguous: bool, optional
+            Optional information on global contiguity of the memory-distributed object.
         """
         squ = False
         if not obj.is_contiguous() and obj.ndim == 1:
             # this makes the math work below this function.
             obj.unsqueeze_(-1)
             squ = True
-        mpi_type, elements = cls.mpi_type_and_elements_of(obj, counts, displs)
 
+        mpi_type, elements = cls.mpi_type_and_elements_of(obj, counts, displs, is_contiguous)
         mpi_mem = cls.as_mpi_memory(obj)
         if squ:
             # the squeeze happens in the mpi_type_and_elements_of function in the case of a
@@ -1046,7 +1062,6 @@ class MPICommunication(Communication):
                         type(sendbuf)
                     )
                 )
-
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
@@ -1062,17 +1077,18 @@ class MPICommunication(Communication):
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
-
+        sbuf_is_contiguous, rbuf_is_contiguous = None, None
         # permute the send_axis order so that the split send_axis is the first to be transmitted
         if axis != 0:
             send_axis_permutation = list(range(sendbuf.ndimension()))
             send_axis_permutation[0], send_axis_permutation[axis] = axis, 0
             sendbuf = sendbuf.permute(*send_axis_permutation)
+            sbuf_is_contiguous = False
 
-        if axis != 0:
             recv_axis_permutation = list(range(recvbuf.ndimension()))
             recv_axis_permutation[0], recv_axis_permutation[axis] = axis, 0
             recvbuf = recvbuf.permute(*recv_axis_permutation)
+            rbuf_is_contiguous = False
         else:
             recv_axis_permutation = None
 
@@ -1083,20 +1099,18 @@ class MPICommunication(Communication):
         if sendbuf is MPI.IN_PLACE or not isinstance(sendbuf, torch.Tensor):
             mpi_sendbuf = sbuf
         else:
-            mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs)
+            mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs, sbuf_is_contiguous)
             if send_counts is not None:
                 mpi_sendbuf[1] = mpi_sendbuf[1][0][self.rank]
 
         if recvbuf is MPI.IN_PLACE or not isinstance(recvbuf, torch.Tensor):
             mpi_recvbuf = rbuf
         else:
-            mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs)
+            mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs, rbuf_is_contiguous)
             if recv_counts is None:
                 mpi_recvbuf[1] //= self.size
-
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
-
         return exit_code, sbuf, rbuf, original_recvbuf, recv_axis_permutation
 
     def Allgather(
@@ -1269,7 +1283,7 @@ class MPICommunication(Communication):
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
 
-        # Simple case, continuous buffers can be transmitted as is
+        # Simple case, contiguous buffers can be transmitted as is
         if send_axis < 2 and recv_axis < 2:
             send_axis_permutation = list(range(recvbuf.ndimension()))
             recv_axis_permutation = list(range(recvbuf.ndimension()))
