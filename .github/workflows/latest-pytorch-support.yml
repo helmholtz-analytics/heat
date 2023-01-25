@@ -16,10 +16,11 @@ permissions:
   pull-requests: write
 jobs:
   latest-torch-support:
-    strategy:
-      matrix:
-        branches: ['main', 'release/1.2.x']
     runs-on: ubuntu-latest
+    if:
+      contains('
+        refs/heads/workflows/fix-pytorch-update-action
+      ', github.ref)
     steps:
       - uses: actions/checkout@v2
       - uses: JasonEtco/create-an-issue@v2
@@ -43,6 +44,7 @@ jobs:
       - name: Define version string
         run: |
           echo "new_setup_pytorch=$("${{ env.new_major }}"."${{ env.new_minor }}"."${{ env.new_setup_patch }}")" >> $GITHUB_ENV
+          echo ${{ env.new_setup_pytorch }}
       - name: Update setup.py
         run: |
           echo ${{ env.new_setup_pytorch }}
