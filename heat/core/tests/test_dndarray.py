@@ -660,6 +660,22 @@ class TestDNDarray(TestCase):
         self.assertTrue(y.split == 0)
 
         # ADVANCED INDEXING
+        # "x[(1, 2, 3),] is fundamentally different than x[(1, 2, 3)]"
+
+        x_np = np.arange(60).reshape(5, 3, 4)
+        indexed_x_np = x_np[(1, 2, 3)]
+        adv_indexed_x_np = x_np[
+            (1, 2, 3),
+        ]
+        x = ht.array(x_np, split=0)
+        indexed_x = x[(1, 2, 3)]
+        adv_indexed_x = x[
+            (1, 2, 3),
+        ]
+        print("DEBUGGING: indexed_x, indexed_x_np = ", indexed_x.item(), indexed_x_np)
+        self.assertTrue(indexed_x.item() == np.array(indexed_x_np))
+        self.assert_array_equal(adv_indexed_x, adv_indexed_x_np)
+
         # 1d
         x = ht.arange(10, 1, -1, split=0)
         x_np = np.arange(10, 1, -1)
@@ -667,7 +683,7 @@ class TestDNDarray(TestCase):
         x_np_adv_ind = x_np[np.array([3, 3, 1, 8])]
         self.assert_array_equal(x_adv_ind, x_np_adv_ind)
 
-        # 3d, split 0
+        # 3d, split 0, non-unique, non-ordered key along split axis
         x = ht.arange(60, split=0).reshape(5, 3, 4)
         x_np = np.arange(60).reshape(5, 3, 4)
         k1 = np.array([0, 4, 1, 0])
