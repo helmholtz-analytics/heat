@@ -672,7 +672,6 @@ class TestDNDarray(TestCase):
         adv_indexed_x = x[
             (1, 2, 3),
         ]
-        print("DEBUGGING: indexed_x, indexed_x_np = ", indexed_x.item(), indexed_x_np)
         self.assertTrue(indexed_x.item() == np.array(indexed_x_np))
         self.assert_array_equal(adv_indexed_x, adv_indexed_x_np)
 

@@ -786,7 +786,7 @@ class DNDarray:
             output_shape = tuple(list(key.shape) + output_shape[1:])
             print("DEBUGGING ADV IND: output_shape = ", output_shape)
             # adjust split axis accordingly
-            if arr.is_distributed():
+            if arr_is_distributed:
                 counts, displs = arr.counts_displs()
                 if arr.split != 0:
                     # split axis is not affected
@@ -901,6 +901,7 @@ class DNDarray:
         # check for advanced indexing and slices
         print("DEBUGGING: key = ", key)
         advanced_indexing_dims = []
+        advanced_indexing_shapes = []
         lose_dims = 0
         for i, k in enumerate(key):
             if isinstance(k, Iterable) or isinstance(k, DNDarray):
@@ -912,32 +913,51 @@ class DNDarray:
                         split_bookkeeping[: i - lose_dims] + split_bookkeeping[i - lose_dims + 1 :]
                     )
                     lose_dims += 1
+                    if arr_is_distributed and i == arr.split:
+                        # single-element indexing along split axis
+                        # work out root process for Bcast
+                        key[i] = k.item() + arr.shape[i] if k < 0 else k.item()
+                        if key[i] in displs:
+                            root = displs.index(key[i])
+                        else:
+                            displs = torch.cat(
+                                (torch.tensor(displs), torch.tensor(key[i]).reshape(-1)), dim=0
+                            )
+                            _, sorted_indices = displs.unique(sorted=True, return_inverse=True)
+                            root = sorted_indices[-1] - 1
+                        # correct key for rank-specific displacement
+                        if arr.comm.rank == root:
+                            key[i] -= displs[root]
+                    else:
+                        key[i] = k.item()
                 else:
                     advanced_indexing = True
                     advanced_indexing_dims.append(i)
-                    # if arr.is_distributed() and i == arr.split:
-                    #     # make no assumption on data locality wrt key
-                    #     split_key_is_sorted = 0
-                if isinstance(k, DNDarray):
-                    key[i] = k.larray
-                elif not isinstance(k, torch.Tensor):
-                    key[i] = torch.tensor(k, dtype=torch.int64, device=arr.larray.device)
-                if arr_is_distributed and i == arr.split:
-                    # make no assumption on data locality wrt key
-                    sorted, _ = torch.sort(key[i], stable=True)
-                    sort_status = torch.tensor(
-                        (key[i] == sorted).all(), dtype=torch.uint8, device=key[i].device
-                    )
-                    arr.comm.Allreduce(MPI.IN_PLACE, sort_status, MPI.SUM)
-                    split_key_is_sorted = 1 if sort_status.item() == arr.comm.size else 0
-                    split_key_shape = key[i].shape
-                    if split_key_is_sorted:
-                        # extract local key
-                        cond1 = key[i] >= displs[arr.comm.rank]
-                        cond2 = key[i] < displs[arr.comm.rank] + counts[arr.comm.rank]
-                        key[i] = key[i][cond1 & cond2]
-                        key[i] -= displs[arr.comm.rank]
-                        out_is_balanced = False
+                    if isinstance(k, DNDarray):
+                        advanced_indexing_shapes.append(k.gshape)
+                        if arr_is_distributed and i == arr.split:
+                            out_is_balanced = k.balanced
+                            if k.is_distributed():
+                                # we have no info on order of indices
+                                split_key_is_sorted = 0
+                        key[i] = k.larray
+                    elif not isinstance(k, torch.Tensor):
+                        key[i] = torch.tensor(k, dtype=torch.int64, device=arr.larray.device)
+                        advanced_indexing_shapes.append(tuple(key[i].shape))
+                        # IMPORTANT: here we assume that torch or ndarray key is THE SAME SET OF GLOBAL INDICES on every rank
+                        if arr_is_distributed and i == arr.split:
+                            # make no assumption on data locality wrt key
+                            out_is_balanced = None
+                            # assess if indices are in ascending order
+                            if (key[i] == torch.sort(key[i], stable=True)[0]).all():
+                                split_key_is_sorted = 1
+                                # extract local key
+                                cond1 = key[i] >= displs[arr.comm.rank]
+                                cond2 = key[i] < displs[arr.comm.rank] + counts[arr.comm.rank]
+                                key[i] = key[i][cond1 & cond2]
+                                key[i] -= displs[arr.comm.rank]
+                            else:
+                                split_key_is_sorted = 0
             elif isinstance(k, int):
                 # single-element indexing along axis i
                 output_shape[i] = None
@@ -957,9 +977,8 @@ class DNDarray:
                         )
                         _, sorted_indices = displs.unique(sorted=True, return_inverse=True)
                         root = sorted_indices[-1] - 1
-                    # allocate buffer on all processes
+                    # correct key for rank-specific displacement
                     if arr.comm.rank == root:
-                        # correct key for rank-specific displacement
                         key[i] -= displs[root]
 
             elif isinstance(k, slice) and k != slice(None):
@@ -1023,13 +1042,6 @@ class DNDarray:
 
         if advanced_indexing:
             print("ADV IND KEY = ", key)
-            advanced_indexing_shapes = tuple(tuple(key[i].shape) for i in advanced_indexing_dims)
-            if arr_is_distributed:
-                advanced_indexing_shapes = (
-                    advanced_indexing_shapes[: arr.split]
-                    + split_key_shape
-                    + advanced_indexing_shapes[arr.split + 1 :]
-                )
             print("DEBUGGING: advanced_indexing_shapes = ", advanced_indexing_shapes)
             # shapes of indexing arrays must be broadcastable
             try:
