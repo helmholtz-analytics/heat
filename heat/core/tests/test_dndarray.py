@@ -691,6 +691,40 @@ class TestDNDarray(TestCase):
         self.assert_array_equal(
             x[ht.array(k1, split=0), ht.array(k2, split=0), ht.array(k3, split=0)], x_np[k1, k2, k3]
         )
+        # broadcasting shapes
+        self.assert_array_equal(x[ht.array(k1, split=0), ht.array(1), 2], x_np[k1, 1, 2])
+        # test exception: broadcasting mismatching shapes
+        k2 = np.array([0, 2, 1])
+        with self.assertRaises(IndexError):
+            x[k1, k2, k3]
+
+        # more broadcasting
+        x_np = np.arange(12).reshape(4, 3)
+        rows = np.array([0, 3])
+        cols = np.array([0, 2])
+        x = ht.arange(12).reshape(4, 3)
+        x.resplit_(1)
+        x_np_indexed = x_np[rows[:, np.newaxis], cols]
+        x_indexed = x[ht.array(rows)[:, np.newaxis], cols]
+        self.assert_array_equal(x_indexed, x_np_indexed)
+        self.assertTrue(x_indexed.split == 1)
+
+        # combining advanced and basic indexing
+        y_np = np.arange(35).reshape(5, 7)
+        y_np_indexed = y_np[np.array([0, 2, 4]), 1:3]
+        y = ht.array(y_np, split=1)
+        y_indexed = y[ht.array([0, 2, 4]), 1:3]
+        self.assert_array_equal(y_indexed, y_np_indexed)
+        self.assertTrue(y_indexed.split == 1)
+
+        x_np = np.arange(10 * 20 * 30).reshape(10, 20, 30)
+        x = ht.array(x_np, split=1)
+        ind_array = ht.random.randint(0, 20, (2, 3, 4), dtype=ht.int64)
+        ind_array_np = ind_array.numpy()
+        x_np_indexed = x_np[..., ind_array_np, :]
+        x_indexed = x[..., ind_array, :]
+        self.assert_array_equal(x_indexed, x_np_indexed)
+        self.assertTrue(x_indexed.split == 3)
 
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)

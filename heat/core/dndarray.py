@@ -1382,6 +1382,7 @@ class DNDarray:
                         all_local_indexing[i] = selection[0].shape[0] == key[0].shape[0]
                     selection = torch.stack(selection, dim=1)
             else:
+                print("DEBUGGING: key[original_split] = ", key[original_split])
                 selection = key[original_split][cond1 & cond2]
                 recv_counts[i, :] = selection.shape[0]
                 if i == self.comm.rank:
