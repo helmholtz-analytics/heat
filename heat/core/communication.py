@@ -1371,8 +1371,9 @@ class MPICommunication(Communication):
         recv_axis: int = None,
     ):
         """
-        All processes send data to all processes: The jth block sent from process i is received by process j and is
-        placed in the ith block of recvbuf.
+        Uniform data exchange between all processes: Collective communication operation that allows equal amount of data exchange
+        with all other processes. The jth block sent from process i is received by process j and is placed in the ith block of
+        recvbuf.
 
         Parameters
         ----------
@@ -1407,8 +1408,9 @@ class MPICommunication(Communication):
         recv_axis: int = None,
     ):
         """
-        v-call of Alltoall: All processes send different amount of data to, and receive different amount of data
-        from, all processes
+        Non-uniform data exchange between all processes: Generalized collective operation in which all processes exchange variable
+        amounts of data from all other processes. The j-th block of process i's local sendbuf sent is stored in the ith block of
+        process j's local recvbuf.
 
         Parameters
         ----------
@@ -1443,7 +1445,9 @@ class MPICommunication(Communication):
         recv_axis: int = None,
     ) -> MPIRequest:
         """
-        Nonblocking Alltoall
+        Nonblocking uniform data exchange between all processes: Collective communication operation that allows equal amount of data
+        exchange with all other processes. The jth block sent from process i is received by process j and is placed in the ith block
+        of recvbuf.
 
         Parameters
         ----------
@@ -1473,8 +1477,9 @@ class MPICommunication(Communication):
         recv_axis: int = None,
     ) -> MPIRequest:
         """
-        Nonblocking v-call of Alltoall: All processes send different amount of data to, and receive different amount of
-        data from, all processes
+        Nonblocking variable data exchange between all processes: Generalized collective operation in which all processes exchange
+        variable amounts of data from all other processes. The j-th block of process i's local sendbuf sent is stored in the ith block
+        of process j's local recvbuf.
 
         Parameters
         ----------
