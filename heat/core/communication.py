@@ -1402,8 +1402,8 @@ class MPICommunication(Communication):
 
     def Alltoallv(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Tuple[DNDarray, torch.Tensor, Any],
+        recvbuf: Tuple[DNDarray, torch.Tensor, Any],
         send_axis: int = 0,
         recv_axis: int = None,
     ):
@@ -1414,9 +1414,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Tuple[DNDarray, torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Tuple[DNDarray, torch.Tensor, Any]
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
