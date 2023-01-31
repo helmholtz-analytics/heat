@@ -9,7 +9,7 @@ from ...core.devices import Device
 from ...core.types import datatype
 from typing import Type, Union
 
-__all__ = ["parter"]
+__all__ = ["parter", "hermitian"]
 
 
 def parter(
@@ -59,3 +59,34 @@ def parter(
         raise ValueError("expected split value to be either {{None,0,1}}, but was {}".format(split))
 
     return 1.0 / (II - JJ + 0.5)
+
+
+def hermitian(
+    n: int,
+    split: Union[None, int] = None,
+    device: Union[None, str, Device] = None,
+    comm: Union[None, Communication] = None,
+    dtype: Type[datatype] = core.float32,
+) -> DNDarray:
+    """
+    Generates a Hermitian matrix of arbitrary size. A Hermitian matrix is a square matrix that is equal to the transpose of its
+    conjugate matrix.
+
+    Parameters
+    ----------
+    n : int
+        size of the resulting square matrix
+    split: None or int, optional
+        The axis along which the array content is split and distributed in memory.
+    device: None or str or Device, optional
+        Specifies the device the tensor shall be allocated on, defaults globally set default device.
+    comm : Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+    dtype: Type[datatype], optional
+        The desired data-type for the array, defaults to ht.float64.
+
+    References
+    ----------
+    [1] https://en.wikipedia.org/wiki/Hermitian_matrix
+    """
+    pass
