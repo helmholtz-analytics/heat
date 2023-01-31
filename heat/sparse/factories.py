@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from scipy.sparse import csr_matrix as scipy_csr_matrix
 
-from typing import Optional, Type, Union
+from typing import Optional, Type, Iterable
 import warnings
 
 from ..core import devices
@@ -21,7 +21,7 @@ __all__ = [
 
 
 def sparse_csr_matrix(
-    obj: Union[torch.Tensor, scipy_csr_matrix],
+    obj: Iterable,
     dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
     is_split: Optional[int] = None,
@@ -33,8 +33,9 @@ def sparse_csr_matrix(
 
     Parameters
     ----------
-    obj : :class:`torch.Tensor` (layout ==> torch.sparse_csr) or :class:`scipy.sparse.csr_matrix`
-        Sparse tensor that needs to be distributed
+    obj : array_like
+        A tensor or array, any object exposing the array interface, an object whose ``__array__`` method returns an
+        array, or any (nested) sequence. Sparse tensor that needs to be distributed.
     dtype : datatype, optional
         The desired data-type for the sparse matrix. If not given, then the type will be determined as the minimum type required
         to hold the objects in the sequence. This argument can only be used to ‘upcast’ the array. For downcasting, use
@@ -87,6 +88,10 @@ def sparse_csr_matrix(
     >>> heat_sparse_csr = ht.sparse.sparse_csr_matrix(local_torch_sparse_csr, is_split=0)
     >>> heat_sparse_csr
     (indptr: tensor([0, 2, 3, 6]), indices: tensor([0, 2, 2, 0, 1, 2]), data: tensor([1., 2., 3., 4., 5., 6.]), dtype=ht.float32, device=cpu:0, split=0)
+
+    Create a :class:`~heat.sparse.DCSR_matrix` from List
+    >>> ht.sparse.sparse_csr_matrix([[0, 0, 1], [1, 0, 2], [0, 0, 3]])
+    (indptr: tensor([0, 1, 3, 4]), indices: tensor([2, 0, 2, 2]), data: tensor([1, 1, 2, 3]), dtype=ht.int64, device=cpu:0, split=None)
     """
     # version check
     if int(torch.__version__.split(".")[1]) < 10:
@@ -109,6 +114,20 @@ def sparse_csr_matrix(
             device=device.torch_device if device is not None else devices.get_device().torch_device,
             size=obj.shape,
         )
+
+    if not isinstance(obj, torch.Tensor):
+        try:
+            obj = torch.tensor(
+                obj,
+                device=device.torch_device
+                if device is not None
+                else devices.get_device().torch_device,
+            )
+        except RuntimeError:
+            raise TypeError(f"Invalid data of type {type(obj)}")
+
+    if obj.layout != torch.sparse_csr:
+        obj = obj.to_sparse_csr()
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
