@@ -89,4 +89,7 @@ def hermitian(
     ----------
     [1] https://en.wikipedia.org/wiki/Hermitian_matrix
     """
-    pass
+    matrix = core.arange(n * n, dtype=dtype, device=device, comm=comm).reshape(n, n)
+    matrix += 1j * core.arange(n * n).reshape(n, n)
+    matrix = matrix + core.conj(matrix.T)
+    return matrix
