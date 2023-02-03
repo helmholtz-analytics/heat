@@ -24,6 +24,8 @@ categories:
     label: 'manipulation'
   - title: 'Random'
     label: 'random'
+  - title: 'Sparse'
+    label: 'sparse'
   - title: 'Google Summer of Code 2022'
     label: 'GSoC22'
   - title: '💯 Benchmarking'
