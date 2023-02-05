@@ -787,7 +787,6 @@ class DNDarray:
             print("DEBUGGING ADV IND: output_shape = ", output_shape)
             # adjust split axis accordingly
             if arr_is_distributed:
-                counts, displs = arr.counts_displs()
                 if arr.split != 0:
                     # split axis is not affected
                     split_bookkeeping = [None] * key.ndim + split_bookkeeping[1:]
@@ -858,7 +857,15 @@ class DNDarray:
                             key = key[cond1 & cond2]
                             key -= displs[arr.comm.rank]
                             out_is_balanced = False
-
+            else:
+                try:
+                    out_is_balanced = key.balanced
+                    new_split = key.split
+                    key = key.larray
+                except AttributeError:
+                    # torch or numpy key, non-distributed indexed array
+                    out_is_balanced = True
+                    new_split = None
             return arr, key, output_shape, new_split, split_key_is_sorted, out_is_balanced, root
 
         key = list(key) if isinstance(key, Iterable) else [key]
@@ -937,9 +944,9 @@ class DNDarray:
                         advanced_indexing_shapes.append(k.gshape)
                         if arr_is_distributed and i == arr.split:
                             out_is_balanced = k.balanced
-                            if k.is_distributed():
-                                # we have no info on order of indices
-                                split_key_is_sorted = 0
+                            # we have no info on order of indices
+                            split_key_is_sorted = 0
+                            k = k.resplit(-1)
                         key[i] = k.larray
                     elif not isinstance(k, torch.Tensor):
                         key[i] = torch.tensor(k, dtype=torch.int64, device=arr.larray.device)
@@ -949,7 +956,14 @@ class DNDarray:
                             # make no assumption on data locality wrt key
                             out_is_balanced = None
                             # assess if indices are in ascending order
-                            if (key[i] == torch.sort(key[i], stable=True)[0]).all():
+                            print(
+                                "DEBUGGING: torch.sort(key[i], stable=True)[0] = ",
+                                torch.sort(key[i], stable=True)[0],
+                            )
+                            if (
+                                key[i].ndim == 1
+                                and (key[i] == torch.sort(key[i], stable=True)[0]).all()
+                            ):
                                 split_key_is_sorted = 1
                                 # extract local key
                                 cond1 = key[i] >= displs[arr.comm.rank]
@@ -1300,8 +1314,17 @@ class DNDarray:
                 key_shapes.append(getattr(k, "shape", None))
             print("KEY SHAPES = ", key_shapes)
             return_1d = key_shapes.count(key_shapes[original_split]) == self.ndim
+            # check for broadcasted indexing: key along split axis is not 1D
+            broadcasted_indexing = (
+                key_shapes[original_split] is not None and len(key_shapes[original_split]) > 1
+            )
+            if broadcasted_indexing:
+                broadcast_shape = key_shapes[original_split]
+                key = list(key)
+                key[original_split] = key[original_split].flatten()
+                key = tuple(key)
+            # print("RANK, RETURN_1D, broadcasted_indexing = ", self.comm.rank, return_1d, broadcasted_indexing)
 
-        print("RANK, RETURN_1D = ", self.comm.rank, return_1d)
         # send and receive "request key" info on what data element to ship where
         recv_counts = torch.zeros((self.comm.size, 1), dtype=torch.int64, device=self.larray.device)
 
@@ -1320,7 +1343,7 @@ class DNDarray:
 
         # process-local: calculate which/how many elements will be received from what process
         if split_key_is_sorted == -1:
-            # key is sorted in descending order
+            # key is sorted in descending order (i.e. slicing w/ negative step)
             # shrink selection of active processes
             if key[original_split].numel() > 0:
                 key_edges = torch.cat(
@@ -1393,6 +1416,9 @@ class DNDarray:
             all_local_indexing, is_split=0, device=self.device, copy=False
         )
         if all_local_indexing.all().item():
+            # TODO: if advanced indexing, indexed array must be a copy. Probably addressed by torch
+            if broadcasted_indexing:
+                key[original_split] = key[original_split].reshape(broadcast_shape)
             indexed_arr = self.larray[key]
             return factories.array(
                 indexed_arr, is_split=output_split, device=self.device, copy=False
@@ -1510,20 +1536,22 @@ class DNDarray:
             indexed_arr = recv_buf[map]
             return factories.array(indexed_arr, is_split=output_split, copy=False)
 
-        key = key[original_split]
+        # key = key[original_split]
         outgoing_request_key = outgoing_request_key.squeeze_(1)
         # incoming elements likely already stacked in ascending or descending order
-        if (key == outgoing_request_key).all():
+        if (key[original_split] == outgoing_request_key).all():
             return factories.array(recv_buf, is_split=output_split, copy=False)
-        if (key == outgoing_request_key.flip(dims=(0,))).all():
+        if (key[original_split] == outgoing_request_key.flip(dims=(0,))).all():
             return factories.array(
                 recv_buf.flip(dims=(output_split,)), is_split=output_split, copy=False
             )
 
         map = [slice(None)] * recv_buf.ndim
         map[output_split] = outgoing_request_key.argsort(stable=True)[
-            key.argsort(stable=True).argsort(stable=True)
+            key[original_split].argsort(stable=True).argsort(stable=True)
         ]
+        if broadcasted_indexing:
+            map[output_split] = map[output_split].reshape(broadcast_shape)
         indexed_arr = recv_buf[map]
         return factories.array(indexed_arr, is_split=output_split, copy=False)
 
