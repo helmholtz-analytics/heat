@@ -895,8 +895,20 @@ def load_csv(
         # In case there are some empty lines in the csv file
         local_tensor = local_tensor[:actual_length]
 
-        resulting_tensor = factories.array(
-            local_tensor, dtype=dtype, is_split=0, device=device, comm=comm
+        total_actual_lines = torch.empty(size, dtype=torch.int32)
+        comm.Allgather(torch.tensor([actual_length], dtype=torch.int32), total_actual_lines)
+
+        cumsum = total_actual_lines.cumsum(dim=0).tolist()
+        gshape = (cumsum[-1], columns[0].item())
+
+        resulting_tensor = DNDarray(
+            local_tensor,
+            gshape=gshape,
+            dtype=dtype,
+            split=0,
+            device=device,
+            comm=comm,
+            balanced=None,
         )
         resulting_tensor.balance_()
 
