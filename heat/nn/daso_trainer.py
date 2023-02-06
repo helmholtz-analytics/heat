@@ -5,17 +5,28 @@ MPI enabled data parallel optimizers
 import inspect
 import math
 import torch
-import torch.distributed
+import torch.nn as nn
+import torch.cuda.amp as amp
+import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as tDDP
 from typing import Union, List, Tuple, Dict
 
 from ..core.communication import MPICommunication
 from ..core.communication import MPI
 from ..core.communication import MPI_WORLD
-from .utils import DetectMetricPlateau
+from ..optim.utils import DetectMetricPlateau
+
+try:
+    import nvidia.dali as dali
+
+    has_dali = True
+except ImportError:
+    has_dali = False
 
 
-__all__ = ["DataParallelOptimizer", "DASO"]
+import gc
+
+__all__ = ["DASOTrainer"]
 
 
 def __sum_f16_cb(buffer_a, buffer_b, _):
@@ -43,7 +54,7 @@ mpi_sum_f16 = MPI.Op.Create(__sum_f16_cb, commute=True)
 mpi_sum_bfloat = MPI.Op.Create(__sum_bfloat_cb, commute=True)
 
 
-class DASO:
+class DASOTrainer(nn.Module):
     r"""
     Optimizer wrapper to use the Distributed Asynchronous and Selective Optimization (DASO) method.
 
@@ -91,7 +102,7 @@ class DASO:
     comm: MPICommunication, optional
         The MPI communicator to use for training. \n
         Default: :func:`MPI_WORLD <heat.core.comm.MPI_WORLD>`
-    warmup_epochs: int, optional
+    warmup_steps: int, optional
         The number of epochs to complete with a blocking averaging operation after each batch before entering
         the cycling phase.\n
         Default: 4
@@ -135,15 +146,17 @@ class DASO:
 
     def __init__(
         self,
+        model: nn.Module,
         local_optimizer: torch.optim.Optimizer,
         cooldown_threshold: float,
+        cooldown_up_down: str = "lt",
+        ddp_kwargs: dict = None,
         comm: MPICommunication = MPI_WORLD,
-        warmup_epochs: int = 4,
-        cooldown_epochs: int = 4,
+        warmup_batches: int = 500,
         scheduler: torch.optim.lr_scheduler = None,
         stability_level: float = 0.05,
         max_global_skips: int = 4,
-        sending_chunk_size: int = 20_000_000,  # 10 MB per bucket
+        sending_chunk_size: int = 1048576,  # 10 MB per bucket
         downcast_type: torch.dtype = torch.bfloat16,
         use_mpi_groups: bool = True,
         skip_reduction_factor: int = 2,
@@ -152,6 +165,10 @@ class DASO:
         verbose: bool = False,
     ):  # noqa: D107
         # check dtypes
+        # self.enable_jit =
+        super(DASOTrainer, self).__init__()
+
+        self.module, self.lcl_model, self.lcl_group = None, None, None
         frame = inspect.currentframe()
         init_args = inspect.getargvalues(frame)[3]
         self.__init_checktypes(init_args)
@@ -179,26 +196,31 @@ class DASO:
         self.loc_gpus = loc_gpus
         local_rank = rank % loc_gpus
         self.local_skip = 1
-        if loc_gpus > 1:
-            base_loc_ranks = list(range(0, self.comm.size, loc_gpus))
-            reduced_comms, reduced_ranks = [], []
-            for i in range(loc_gpus):
-                lp_ranks = [j + i for j in base_loc_ranks]
-                if use_mpi_groups:
-                    new_group = self.comm.group.Incl(lp_ranks)
-                    new_comm = self.comm.Create_group(new_group)
-                    reduced_comms.append(MPICommunication(new_comm))
-                else:
-                    color = 111 + i if rank in lp_ranks else 222 + i
-                    key = 0 + i if rank in lp_ranks else 444 + i
-                    reduced_comms.append(MPICommunication(self.comm.Split(color, key)))
-                reduced_ranks.append(tuple(lp_ranks))
-            self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
-            self.base_loc_ranks = base_loc_ranks
-            self.device = "cuda:" + str(local_rank)
-            torch.cuda.set_device(device=self.device)
+        if loc_gpus < 1:
+            raise RuntimeError(f"Not enough GPUs! local gpus: {loc_gpus}")
 
-        self.current_batch, self.last_batch = 0, None
+        # create MPI Groups
+        base_loc_ranks = list(range(0, self.comm.size, loc_gpus))
+        reduced_comms, reduced_ranks = [], []
+        for i in range(loc_gpus):
+            lp_ranks = [j + i for j in base_loc_ranks]
+            if use_mpi_groups:
+                new_group = self.comm.group.Incl(lp_ranks)
+                new_comm = self.comm.Create_group(new_group)
+                reduced_comms.append(MPICommunication(new_comm))
+            else:
+                color = 111 + i if rank in lp_ranks else 222 + i
+                key = 0 + i if rank in lp_ranks else 444 + i
+                reduced_comms.append(MPICommunication(self.comm.Split(color, key)))
+            reduced_ranks.append(tuple(lp_ranks))
+        self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
+        self.base_loc_ranks = base_loc_ranks
+        self.device = "cuda:" + str(local_rank)
+        torch.cuda.set_device(device=self.device)
+
+        self._ddp_inits(model, ddp_kwargs, enable_graph=True)
+
+        self.batch, self.last_batch = 0, None
 
         self._prev_params = []
         self.epoch = 0
@@ -209,9 +231,10 @@ class DASO:
         self.batches_to_wait = 0
         self.max_gs = max_global_skips
 
-        self.warmup_epochs = warmup_epochs
+        self.warmup_steps = warmup_batches
         self.cooldown = False
         self.cooldown_threshold = cooldown_threshold
+        self.cooldown_up_down = 1 if cooldown_up_down == "gt" else -1
 
         # used in the sending of the params
         self._param_send_buffer_size = None
@@ -231,12 +254,477 @@ class DASO:
         self._gs8_waits = 3
         self._gs8_waited = 0
 
-        self.split_val = sending_chunk_size
+        bytes_dtype = int(torch.finfo(downcast_type).bits // 8)
+
+        self.split_val = sending_chunk_size // bytes_dtype
 
         # TODO: its possible that the split indexes could be used to avoid the concatenating method used currently
         self.split_inds = None
         self.amp = False
+
+        # check for MP lamb
+        try:
+            from apex.optimizers.fused_mixed_precision_lamb import FusedMixedPrecisionLamb
+
+            have_mp_lamb = True
+        except ImportError:
+            have_mp_lamb = False
+
+        if have_mp_lamb and isinstance(self.optimizer, FusedMixedPrecisionLamb):
+            self.enable_mp_lamb = True
+        else:
+            self.enable_mp_lamb = False
+
+        self.enable_gpu_scheduler = self.enable_distributed_lamb or self.enable_mp_lamb
+
+        # we need this for distlamb
+        if self.enable_gpu_scheduler:
+            # we need that in order for it to work with async graph capture
+            self.lr_cpu = torch.tensor([0.0], dtype=torch.float32, device="cpu").pin_memory()
+
+        if self.enable_mp_lamb and (self.scheduler is not None):
+            # we need to fix what the scheduler screwed up: initializing the
+            # former removed the lr from the gpu:
+            for group, lr_gpu in zip(self.optimizer.param_groups, self.scheduler.group_lrs_gpu):
+                group["lr"] = lr_gpu
+            # we need to update the backups as well
+            self.scheduler.group_lrs_backup = [x.clone() for x in self.scheduler.group_lrs_gpu]
+
+        self.entering_cooldown = False
         self.print0("Finished DASO init")
+
+    def _ddp_inits(self, model, ddp_kwargs, enable_graph=True):
+        # create new torch group for local models
+        # get the rank which is rank 0 on every node
+        node_start_rank = (self.comm.size // self.loc_gpus) * self.loc_gpus
+        # create the list of the next four
+        node_local_ranks = list(range(node_start_rank, node_start_rank + self.loc_gpus))
+        self.lcl_group = dist.new_group(node_local_ranks)
+
+        # self.rank = self.comm.rank
+        local_rank = self.comm.rank % self.loc_gpus
+        self.device = torch.device("cuda", local_rank)
+        torch.cuda.set_device(device=self.device)
+
+        self.models = {}
+        self.streams = {}
+
+        if enable_graph:
+            self.streams["local"] = torch.cuda.Stream()
+            with self.streams["local"]:
+                self.models["local"] = tDDP(
+                    model, device_ids=[local_rank], process_group=self.lcl_group
+                )
+
+            self.streams["global"] = torch.cuda.Stream()
+            with self.streams["global"]:
+                self.models["global"] = tDDP(model, device_ids=[local_rank], **ddp_kwargs)
+        else:
+            self.streams["local"] = None
+            self.models["local"] = tDDP(
+                model, device_ids=[local_rank], process_group=self.lcl_group
+            )
+            self.streams["global"] = None
+            self.models["global"] = tDDP(model, device_ids=[local_rank], **ddp_kwargs)
+
+        self.jit_scriptable = True
+        for m in model.modules():
+            if hasattr(m, "jit_scriptable"):
+                self.jit_scriptable = self.jit_scriptable and m.jit_scriptable
+                if not self.jit_scriptable:
+                    break
+
+    def _compile_models(self, input_shape):
+        # exit if we do not compile
+        if not self.enable_jit:
+            return
+        for lg in ["local", "global"]:
+            # set model to train just to be sure
+            self.models[lg].train()
+
+            # input example
+            input_example = torch.zeros(
+                (self.batch_size, *input_shape), dtype=torch.float32, device=self.device
+            )
+            input_example.normal_()
+
+            # convert to half if requested
+            if self.force_fp16:
+                input_example = input_example.half()
+
+            # we need to convert to NHWC if necessary
+            if self.enable_nhwc:
+                input_example = input_example.contiguous(memory_format=torch.channels_last)
+
+            # compile the model
+            with amp.autocast(enabled=self.enable_amp):
+                # extract the right thing to jit
+                # if isinstance(model, DistributedDataParallel): -> always DDP here!
+                # GBN is not scriptable, we need to workaround here
+                if self.jit_scriptable:
+                    self.models[lg].module = torch.jit.script(self.models[lg].module)
+                else:
+                    self.models[lg].module = torch.jit.trace(
+                        self.models[lg].module, input_example, check_trace=False
+                    )
+
+                # the criterion is always scriptable
+                self.criterion = torch.jit.script(self.criterion)
+
+    def _warmup(self, input_shape, label_shape, num_warmup=1):
+        # create input:
+        input_example = torch.zeros(
+            (self.batch_size, *input_shape), dtype=torch.float32, device=self.device
+        )
+        input_example.normal_()
+        label_example = torch.zeros(
+            (self.batch_size, *label_shape), dtype=torch.int64, device=self.device
+        )
+
+        for lg in ["local", "global"]:
+            # set model to train just to be sure
+            self.models[lg].train()
+
+            # extract or create stream
+            # get the local and global streams
+
+            # convert to half if requested
+            if self.force_fp16:
+                input_example = input_example.half()
+
+            # we need to convert to NHWC if necessary
+            if self.enable_nhwc:
+                input_example = input_example.contiguous(memory_format=torch.channels_last)
+
+            # wait for ambient stream before starting capture
+            self.streams[lg].wait_stream(torch.cuda.current_stream())
+
+            with torch.cuda.stream(self.streams[lg]):
+                # warmup:
+                for _ in range(num_warmup):
+                    self.optimizer.zero_grad()
+
+                    with amp.autocast(enabled=self.enable_amp):
+                        output = self.models[lg](input_example)
+                        loss = self.criterion(output, label_example)
+
+                    self.gscaler.scale(loss).backward()
+
+            # FIXME: need to change the current stream multiple times??? what do?
+            torch.cuda.current_stream().wait_stream(self.streams[lg])
+
+    def capture_models(self, input_shape, label_shape, num_warmup=1, graph_pool=None):
+        # create input:
+        self.static_input = torch.zeros(
+            (self.batch_size, *input_shape), dtype=torch.float32, device=self.device
+        )
+        self.static_input.normal_()
+        self.static_label = torch.zeros(
+            (self.batch_size, *label_shape), dtype=torch.int64, device=self.device
+        )
+        # convert to half if requested
+        if self.force_fp16:
+            self.static_input = self.static_input.half()
+
+        # we need to convert to NHWC if necessary
+        if self.enable_nhwc:
+            self.static_input = self.static_input.contiguous(memory_format=torch.channels_last)
+
+        self.graphs = {"local": None, "global": None}
+
+        self._capture(local_global="local", num_warmup=num_warmup, graph_pool=graph_pool)
+        self._capture(local_global="global", num_warmup=num_warmup, graph_pool=graph_pool)
+
+    def _capture(self, local_global, num_warmup=1, graph_pool=None):
+        # todo: what do to about the graph pool??
+        # exit if we do not capture
+        if not self.enable_graph:
+            return
+
+        # capture both models -> one for the local one for global
+        # set model to train just to be sure
+
+        self.models[local_global].train()
+
+        # wait for ambient stream before starting capture
+        self.streams[local_global].wait_stream(torch.cuda.current_stream())
+
+        # enter stream context
+        with torch.cuda.stream(self.streams[local_global]):
+            # warmup:
+            for _ in range(num_warmup):
+                self.optimizer.zero_grad()
+
+                # FW pass
+                with amp.autocast(enabled=self.enable_amp):
+                    output = self.models[local_global](self.static_input)
+                    loss = self.criterion(output, self.static_label)
+
+                    # BW pass
+                self.gscaler.scale(loss).backward()
+
+                # mixed precision lamb postprocessing
+                if self.enable_mp_lamb:
+                    self.gscaler.step(self.optimizer)
+                    self.gscaler.update()
+                    lr = self.scheduler.group_lrs_gpu[0]
+                    self.scheduler.step_gpu()
+                    for idg, group in enumerate(self.optimizer.param_groups):
+                        group["lr"].copy_(self.scheduler.group_lrs_gpu[idg])
+
+            # sync streams
+            self.streams[local_global].synchronize()
+
+            # clean up
+            if num_warmup > 0:
+                del output, loss
+                if self.enable_gpu_scheduler:
+                    del lr
+            gc.collect()
+            torch.cuda.empty_cache()
+
+            # create graph
+
+            self.graphs[local_global] = torch.cuda.CUDAGraph()
+
+            # zero grads before capture:
+            self.model.zero_grad(set_to_none=True)
+
+            # start capture
+            if graph_pool is not None:
+                self.graphs[local_global].capture_begin(pool=graph_pool)
+            else:
+                self.graphs[local_global].capture_begin()
+
+            # FW pass
+            with amp.autocast(enabled=self.enable_amp):
+                self.static_output = self.model(self.static_input)
+                self.static_loss = self.criterion(self.static_output, self.static_label)
+
+            # BW pass
+            self.gscaler.scale(self.static_loss).backward()
+
+            # should also be done
+
+            # mp lamb postprocessing
+            if self.enable_mp_lamb:
+                self.gscaler.step(self.optimizer)
+                self.gscaler.update()
+                self.static_lr = self.scheduler.group_lrs_gpu[0]
+                self.scheduler.step_gpu()
+                for idg, group in enumerate(self.optimizer.param_groups):
+                    group["lr"].copy_(self.scheduler.group_lrs_gpu[idg])
+
+            # end capture
+            self.graphs[local_global].capture_end()
+
+            # sync up
+            self.streams[local_global].synchronize()
+
+        torch.cuda.current_stream().wait_stream(self.streams[local_global])
+
+        return
+
+    def compile_warmup_capture(self, input_shape, label_shape, num_warmup=1, graph_pool=None):
+        self.print0("starting compile")
+        self._compile_models(input_shape)
+        self.print0("starting warmup")
+        self._warmup(input_shape, label_shape, num_warmup)
+        self.print0("starting capture")
+        self.capture_models(input_shape, label_shape, num_warmup, graph_pool)
+        self.print0("dont with compile/warmup/capture")
+
+    def train_epoch(self, train_loader, batch_size, train_loader_len=None, to_gpu=False):
+        self.batch_size = batch_size
+        epoch_len = train_loader_len if train_loader_len is not None else self.last_batch
+        loss, outputs, current_lr = None, None, None
+        for elems in train_loader:
+            data = elems[0]
+            labels = elems[1]
+            if to_gpu:
+                data = data.to(self.device)
+                labels = labels.to(self.device)
+            # loss, outputs, current_lr = self.step(data, labels, train_loader_len)
+            loss, outputs, current_lr = self.step(data, labels, epoch_len)
+        if self.last_batch is None:
+            self.last_batch = self.batch
+        return loss, outputs, current_lr
+
+    def step(self, data, label, num_batches):
+        """
+        Perform a single optimization step.
+        This will perform the `step` operations of the local optimizer,
+        local learning rate scheduler (if defined), and the gradient scaler used in automatic mixed
+        precision (if defined).
+
+        Also in the step is the logic used for when to send and receive the global/local synchronizations.
+        Global Syncs occur on batches for which the modulus of the batch number and the `global_skip` number is 0.
+        If `batches_to_wait` > 0, the next batches have only local syncs. After that number of batches,
+        the data during the global sync phase is received.
+
+        Local synchronization can also be turned off if desired by increasing `local_skips` above 1.
+
+        Notes
+        -----
+        self.last_batch must be set!
+        """
+        # stages: warmup -> full normal sync
+        #         cycling -> cycle on the batches not the epochs
+        #         cooldown -> full normal sync
+        # need full sync at the end of every epoch!
+        #   idea: run a blocking sync 1 batch before end, then normal full sync on the last batch
+        # need number of steps in an epoch
+
+        self.batch += 1
+        if num_batches is None and self.last_batch is None:
+            self.epoch_iter = self.batch
+        else:
+            self.epoch_iter = self.batch % num_batches
+
+        if self.batch < self.warmup_steps:  # warmup
+            case = 0
+            model = "global"
+        elif self.epoch_iter == self.last_batch - 2 or self.entering_cooldown:
+            # end of epoch
+            case = 1
+            model = "global"
+        elif self.cooldown or self.epoch_iter + self.batches_to_wait > self.last_batch:
+            # cooldown phase
+            case = 3
+            model = "global"
+        else:  # cycling
+            case = 2
+            model = "local"
+
+        # key:
+        #   warmup - 0
+        #   end of epoch/end of cycling - 1
+        #   cycling - 2
+        #   cooldown - 3
+        #       also: epoch cooldown -> 3 (happens when the batches to wait would go past the epoch)
+
+        self.models[model].train()
+        self.models[model].__getattr__(self.cast_dtype)()
+        # to NHWC
+        if self.enable_nhwc:
+            # NOTE: this is designed for DEEPCAM! will need to be modified for each usecase.... :(
+            shp = data.shape
+            N, H, W, C = (self.batch_size, shp[1], shp[2], shp[3])
+            data = torch.as_strided(data, size=[N, C, H, W], stride=[C * H * W, 1, W * C, C])
+        # forward - backward - local opt - scheduler ==============================================
+        if self.graphs[model] is None:
+            with amp.autocast(enabled=self.enable_amp):
+                outputs = self.models[model].forward(data)
+                loss = self.criterion(outputs, label)
+
+            # prepare optimizer
+            self.local_optimizer.zero_grad()
+
+            # backward pass
+            self.scaler.scale(loss).backward()
+
+            # # check for ddp mode
+            # if self.ddp_mode == "sync":
+            #     dist.barrier(
+            #         device_ids=[comm.get_local_rank()], group=comm.get_data_parallel_group()
+            #     )
+
+            # update scaler
+            self.scaler.step(self.local_optimizer)
+            self.scaler.update()
+
+            if self.enable_gpu_scheduler:
+                self.static_lr = self.scheduler.group_lrs_gpu[0]
+        else:
+            # run graph
+            self.static_input.copy_(data)
+            self.static_label.copy_(label)
+            self.graphs[model].replay()
+
+            # # check for ddp mode
+            # if self.ddp_mode == "sync":
+            #     dist.barrier(
+            #         device_ids=[comm.get_local_rank()], group=comm.get_data_parallel_group()
+            #     )
+
+            if not self.enable_gpu_scheduler:
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+
+            # copy variables
+            loss = self.static_loss.detach().clone()
+            outputs = self.static_output.detach().clone()
+        # get current learning rate
+        if self.enable_gpu_scheduler:
+            current_lr = self.static_lr.detach().clone()
+        else:
+            current_lr = self.optimizer.param_groups[0]["lr"]
+
+        # scheduler step if requested:
+        if self.scheduler is not None:
+            # switch depending on where scheduler runs
+            if not self.enable_gpu_scheduler:
+                self.scheduler.step()
+            else:
+                if self.graph is None:
+                    self.scheduler.step_gpu()
+                    if self.enable_distributed_lamb:
+                        self.optimizer._lr.copy_(self.scheduler.group_lrs_gpu[0])
+                    else:
+                        for idg, group in enumerate(self.optimizer.param_groups):
+                            group["lr"].copy_(self.scheduler.group_lrs_gpu[idg])
+        # =========================================================================================
+        # done at this point: forward - backward - optimizer step
+        # determine when to next send/recv
+        #   if the next send/recv is sooner, wait for it and put off the switch to the next batch
+
+        if self.batch == num_batches:
+            self.epoch += 1
+
+        # key:
+        #   warmup - 0
+        #   end of epoch/end of cycling - 1
+        #   cycling - 2
+        #   cooldown - 3
+        if case == 0 or case == 3:
+            return loss, outputs, current_lr
+        elif case == 1:  # before end of epoch / end of cycling
+            self._global_sync(0)
+            if self.entering_cooldown:
+                self.cooldown = True
+            return loss, outputs, current_lr
+        elif case == 2:  # cycling
+            # normal cycling logic
+            # if the batches to wait goes beyond the end of epoch, do nothing
+            if self.batch % 10 == 9:
+                avg_loss = self.cycling_skip_logic(loss, loss_globally_averaged=False)
+                c1 = self.cooldown_up_down * avg_loss
+                c2 = self.cooldown_up_down * self.cooldown_threshold
+                if c1 > c2:
+                    self.entering_cooldown = True
+            return loss, outputs, current_lr
+
+        # next steps: start sending/receiving data
+        # return loss, outputs, current_lr
+        gs = self.global_skip
+        # ls = self.local_skip
+        # determine if to do the syncs
+        # this logic is all based on the current epoch iteration
+        gmod = self.epoch_iter % gs if gs > 0 else 0
+        # lmod = self.epoch_iter % ls if ls > 0 else 0
+
+        btw = (
+            self.batches_to_wait if self.batches_to_wait + self.epoch_iter <= self.last_batch else 0
+        )
+
+        # do full sync on global skips and on the last batch
+        if self.epoch_iter == self.last_batch or gmod == 0:
+            return self._global_sync(btw)
+
+        if gmod == btw:
+            # local updates should be on before this is called!
+            self._gs_rcv_update_params()
+            self._local_update(self._send_mod_m1)
 
     def add_scaler(self, scaler: torch.cuda.amp.GradScaler) -> None:
         """
@@ -267,10 +755,8 @@ class DASO:
                 f"cooldown_threshold must be an int, "
                 f"currently {type(args['cooldown_threshold'])}"
             )
-        if not isinstance(args["warmup_epochs"], int):
-            raise TypeError(
-                f"warmup_epochs must be an int, currently {type(args['warmup_epochs'])}"
-            )
+        if not isinstance(args["warmup_steps"], int):
+            raise TypeError(f"warmup_steps must be an int, currently {type(args['warmup_steps'])}")
         if not isinstance(args["cooldown_epochs"], int):
             raise TypeError(
                 f"cooldown_epochs must be an int, currently {type(args['cooldown_epochs'])}"
@@ -317,8 +803,8 @@ class DASO:
                 f"local_skip_factor must be an integer, currently {type(args['local_skip_factor'])}"
             )
 
-        if args["warmup_epochs"] < 0:
-            raise ValueError(f"warmup_epochs must be >= 0, currently {args['warmup_epochs']}")
+        if args["warmup_steps"] < 0:
+            raise ValueError(f"warmup_steps must be >= 0, currently {args['warmup_steps']}")
         if args["cooldown_epochs"] < 0:
             raise ValueError(f"cooldown_epochs must be >= 0, currently {args['cooldown_epochs']}")
         if args["max_global_skips"] < 0:
@@ -339,37 +825,9 @@ class DASO:
             )
 
     @torch.no_grad()
-    def is_cooldown(self, target: float, above_below: bool = "below") -> None:
-        """
-        Determine of training should enter cooldown phase
-
-        Parameters
-        ----------
-        target:
-            value
-        above_below:
-            flag
-
-        Returns
-        -------
-        None
-        """
-        if above_below not in ["above", "below"]:
-            raise ValueError(
-                f"above_below must be either above of below (inclusive). "
-                f"currently {above_below}"
-            )
-        if above_below == "above" and target >= self.cooldown_threshold:
-            self.cooldown = True
-        elif above_below == "below" and target <= self.cooldown_threshold:
-            self.cooldown = True
-        else:
-            self.cooldown = False
-
-    @torch.no_grad()
-    def epoch_loss_logic(
+    def cycling_skip_logic(
         self, loss: Union[torch.Tensor, int, float], loss_globally_averaged: bool = False
-    ) -> None:
+    ) -> torch.Tensor:
         """
         Function controlling the number of batches between global synchronizations and the batches to wait before
         receiving the sent parameters. The warm-up and cool-down phases are also controlled here.
@@ -386,45 +844,16 @@ class DASO:
             boolean if the loss is already globally averaged
         """
         if not loss_globally_averaged:
-            loss_send = torch.zeros(self.comm.size)
-            # loss.data -> this will get the raw number from the lass value and nothing else
-            loss_send[self.comm.rank] = loss.data if isinstance(loss, torch.Tensor) else loss
-            self.comm.Allreduce(MPI.IN_PLACE, loss_send, MPI.SUM)
-            avg_loss = torch.mean(loss_send)
+            # loss_send = torch.zeros(self.comm.size)
+            # # loss.data -> this will get the raw number from the lass value and nothing else
+            # loss_send[self.comm.rank] = loss.data if isinstance(loss, torch.Tensor) else loss
+            # self.comm.Allreduce(MPI.IN_PLACE, loss_send, MPI.SUM)
+            # avg_loss = torch.mean(loss_send)
+            loss_send = loss.data if isinstance(loss, torch.Tensor) else loss
+            loss_send /= self.comm.size
+            avg_loss = self.comm.allreduce(loss_send)
         else:
             avg_loss = torch.tensor(loss)
-
-        if self.epoch < self.warmup_epochs:
-            self.global_skip = 0
-            self.local_skip = 0
-            self.batches_to_wait = 0
-
-            self.print0(
-                f"Warmup Phase, parameters of next epoch\n\t Global Skips: {self.global_skip}, "
-                f" Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
-            )
-            return
-
-        elif self.warmup_epochs == self.epoch:
-            self.global_skip = 4
-            self.local_skip = 1
-            self.batches_to_wait = 1
-
-            self.print0(
-                f"End of Warmup Phase, parameters of next epoch\n\t Global Skips: {self.global_skip}, "
-                f" Local Skips {self.local_skip}, Batches to wait: {self.batches_to_wait}"
-            )
-
-        if self.cooldown:
-            self.global_skip = 0
-            self.local_skip = 0
-            self.batches_to_wait = 0
-
-            self.print0(
-                f"Cooldown Phase, parameters of next epoch:\n\tGlobal Skips: {self.global_skip}, "
-                f" Local Skips {self.local_skip:.4f}, Batches to wait: {self.batches_to_wait}"
-            )
-            return
 
         if self.global_skip == self.max_gs and self.max_gs > 4:
             self._gs8_waited += 1
@@ -439,28 +868,31 @@ class DASO:
         if stable and self.global_skip > 1:
             # drop gs by factor of 2
             self.global_skip //= self.skip_reduction_factor
-            self.local_skip //= self.skip_reduction_factor
             self.batches_to_wait -= 1  # old was //= 2
 
-            self.print0("dropping skips")
+            # self.print0("dropping skips")
 
             if self.global_skip > 0:
-                if self.batches_to_wait == 0:
+                if self.batches_to_wait == 0:  # avoid blocking case during cycling
                     self.batches_to_wait = 1
-                if self.local_skip == 0:
-                    self.local_skip = 1
             self._gs8_waited = 0
+            changed = True
         elif self.global_skip == 1 and stable:
             self.global_skip = self.max_gs
-            self.local_skip = self.max_gs // self.local_skip_factor
             self.batches_to_wait = self.max_gs // self.local_skip_factor
 
             self._gs8_waited = 0
-        self.print0(
-            f"\tNext Parameters: Global Skips: {self.global_skip}, Local Skips {self.local_skip}, "
-            f" Batches to wait: {self.batches_to_wait}, \n\tCurrent loss: {avg_loss:.4f}, "
-            f" Worse epochs: {self.stability.num_bad_epochs}"
-        )
+            changed = True
+        else:
+            changed = False
+
+        if changed:
+            self.print0(
+                f"\tNext Parameters: Global Skips: {self.global_skip}, Local Skips {self.local_skip}, "
+                f" Batches to wait: {self.batches_to_wait}, \n\tCurrent loss: {avg_loss:.4f}, "
+                f" Worse epochs: {self.stability.num_bad_epochs}"
+            )
+        return avg_loss
 
     @torch.no_grad()
     def _global_sync(self, batches_to_wait: int) -> None:
@@ -482,7 +914,7 @@ class DASO:
             # needs to happen on all ranks:
             self._local_update(self._send_mod_m1)
 
-        if self.current_batch == self.last_batch or self.batches_to_wait == 0:
+        if self.batch == self.last_batch or batches_to_wait == 0:
             # receive the sent data to sync params across all ranks
             if self.comm.rank in current_ranks:
                 self._gs_rcv_update_params_last_batch(current_ranks)
@@ -490,21 +922,21 @@ class DASO:
                 if len(self._prev_params) > 0:
                     raise ValueError(
                         f"DEBUG: OFF RANKS! len(prev_params) > 0! {len(self._prev_params)}"
-                        f" batch number {self.current_batch}"
+                        f" batch number {self.batch}"
                     )
             self._local_update(self._send_mod)
 
             self._send_mod_m1 = None
 
-            if self.current_batch == self.last_batch:
+            if self.batch == self.last_batch:
                 self._send_mod = 0
                 self.epoch += 1
-                self.current_batch = 0
+                self.batch = 0
             else:
-                self.current_batch += 1
+                self.batch += 1
                 self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
         else:
-            self.current_batch += 1
+            self.batch += 1
             self._send_mod_m1 = self._send_mod
             self._send_mod = self._send_mod + 1 if self._send_mod <= self.loc_gpus - 2 else 0
 
@@ -686,14 +1118,12 @@ class DASO:
     @torch.no_grad()
     def _local_update(self, sending_process: Tuple) -> None:
         # use torch to send the network parameters of a single process to the other processes
-        if not torch.distributed.is_initialized() or sending_process is None:
+        if sending_process is None:
             return
         snds = {}
         for name, param in self.module.named_parameters():
             if param.requires_grad:
-                snds[name] = torch.distributed.broadcast(
-                    param, sending_process, async_op=True
-                )  # default is SUM
+                snds[name] = dist.broadcast(param, sending_process, async_op=True)  # default is SUM
         for name, param in self.module.named_parameters():
             if param.requires_grad:
                 snds[name].wait()
@@ -733,179 +1163,94 @@ class DASO:
         self.global_skip = 0
         self.local_skip = 0
         self.batches_to_wait = 0
-        self.current_batch = 0
+        self.batch = 0
         self._prev_params = []
         self.epoch = 0
         self._gs8_waited = 0
         self.zero_grad()
 
-    def set_model(self, model: torch.nn.Module) -> None:
-        """
-        Set the local model for the optimizer.
-        This should be called during the init of :func:`nn.DataParallelMultiGPU <heat.nn.data_parallel.DataParallelMultiGPU>`.
-        However, this can also be called manually.
-
-        Parameters
-        ----------
-        model: torch.nn.Module
-            the local torch model.
-        """
-        self.module = model
-
-    def _start_local_sync(self) -> None:
-        """
-        *Start* local synchronizations for the next batches
-        """
-        if not isinstance(self.module, tDDP) or self.module.require_backward_grad_sync:
-            # this has no effect if the module is not locally distributed in torch
-            return
-        self.module.require_backward_grad_sync = True
-
-    def step(self) -> None:
-        """
-        Perform a single optimization step.
-        This will perform the `step` operations of the local optimizer,
-        local learning rate scheduler (if defined), and the gradient scaler used in automatic mixed
-        precision (if defined).
-
-        Also in the step is the logic used for when to send and receive the global/local synchronizations.
-        Global Syncs occur on batches for which the modulus of the batch number and the `global_skip` number is 0.
-        If `batches_to_wait` > 0, the next batches have only local syncs. After that number of batches,
-        the data during the global sync phase is received.
-
-        Local synchronization can also be turned off if desired by increasing `local_skips` above 1.
-
-        Notes
-        -----
-        self.last_batch must be set!
-        """
-        if self.last_batch is None:
-            raise ValueError(
-                "self.last_batch must be set as the number of batches (len(dataloader))"
-            )
-
-        if self.amp:
-            self.scaler.step(self.local_optimizer)
-            # todo: add something to tell if the grads have infs or nans
-            # Updates the scale for next iteration.
-            self.scaler.update()
-        elif self.scheduler is None:
-            self.local_optimizer.step()
-        else:
-            self.scheduler.step()
-        batch = self.current_batch
-        # knowing next_batch is important to make sure that the local sync is on
-        #       or if the next is the last batch
-        next_batch = batch + 1
-        gs = self.global_skip
-        ls = self.local_skip
-        # determine if to do the syncs
-        gmod = batch % gs if gs > 0 else 0
-        lmod = batch % ls if ls > 0 else 0
-
-        batches_to_wait = self.batches_to_wait
-        # ensure that the batch that will receive will be before the end of the training loop
-        btw = (
-            batches_to_wait
-            if batches_to_wait + batch <= self.last_batch
-            else self.last_batch - batch
-        )
-        # do full sync on global skips and on the last batch
-        if batch == self.last_batch or gmod == 0:
-            return self._global_sync(btw)
-
-        if next_batch % gs == 0:
-            self._start_local_sync()
-            self.current_batch += 1
-            return
-
-        if gmod < btw:
-            # do nothing on these batches (maintain the local sync)
-            self.current_batch += 1
-            if next_batch == self.last_batch:
-                self._start_local_sync()
-            return
-        elif gmod == btw:
-            # local updates should be on before this is called!
-            self._gs_rcv_update_params()
-            self._local_update(self._send_mod_m1)
-            if ls > 1:
-                self._stop_local_sync()
-
-        if ls == 1 and next_batch != self.last_batch:
-            self.current_batch += 1
-            self._start_local_sync()
-            return
-
-        if lmod == 0:
-            self._stop_local_sync()
-        elif next_batch % ls == 0:
-            self._start_local_sync()
-
-        if next_batch == self.last_batch:
-            self._start_local_sync()
-
-        self.current_batch += 1
-
-    def _stop_local_sync(self) -> None:
-        """
-        Stop local synchronizations for the next batches
-        """
-        if not isinstance(self.module, tDDP) or not self.module.require_backward_grad_sync:
-            # this has no effect if the module is not locally distributed in torch
-            return
-        self.module.require_backward_grad_sync = False
-
-    def zero_grad(self) -> None:
-        """
-        Reset gradients of local optimizer's parameters.
-        """
-        # reset view onto params in order to reset all gradients
-        self.local_optimizer.param_groups[0]["params"] = self.params_ref[:]
-        self.local_optimizer.zero_grad()
-
-
-class DataParallelOptimizer:
-    """
-    Uses a torch.optim.Optimizer for data parallelism. It should be used in combination with DataParallel (DP) class.
-    To optimize a DP module, DP optimizer has to be passed to DP module during its initialization.
-    See :func:`nn.DataParallel <heat.nn.data_parallel.DataParallel>` for a basic example of usage.
-
-    Attributes
-    ----------
-    torch_optimizer : torch.optim.Optimizer
-        the wrapped Torch optimizer
-    blocking : bool
-        use blocking communications or not. will typically be overwritten by :func:`nn.DataParallel <heat.nn.data_parallel.DataParallel>`
-    """
-
-    def __init__(
-        self, torch_optimizer: torch.optim.Optimizer, blocking: bool = False
-    ):  # noqa: D107
-        self.torch_optimizer = torch_optimizer
-        if not isinstance(blocking, bool):
-            raise TypeError(f"blocking parameter must be a boolean, currently {type(blocking)}")
-        # flag indicating if communication during parameter updates is blocking.
-        self.blocking_parameter_updates = blocking
-        # flag indicating if optimizer should take a step during next iteration (only relevant for non-blocking)
-        self.update_next = False
-        # reference of optimizer's params
-        self.params_ref = torch_optimizer.param_groups[0]["params"]
-
-    def step(self) -> None:
-        """
-        Force torch optimizer to update model parameters. For blocking, optimizer immediately updates parameters. For
-        non-blocking, optimizer will update parameters during next forward.
-        """
-        if self.blocking_parameter_updates:
-            self.torch_optimizer.step()
-        else:
-            self.update_next = True
-
-    def zero_grad(self) -> None:
-        """
-        Reset gradients of optimizer's params.
-        """
-        # reset view onto params in order to reset all gradients
-        self.torch_optimizer.param_groups[0]["params"] = self.params_ref[:]
-        self.torch_optimizer.zero_grad()
+    # def step(self) -> None:
+    #     """
+    #     Perform a single optimization step.
+    #     This will perform the `step` operations of the local optimizer,
+    #     local learning rate scheduler (if defined), and the gradient scaler used in automatic mixed
+    #     precision (if defined).
+    #
+    #     Also in the step is the logic used for when to send and receive the global/local synchronizations.
+    #     Global Syncs occur on batches for which the modulus of the batch number and the `global_skip` number is 0.
+    #     If `batches_to_wait` > 0, the next batches have only local syncs. After that number of batches,
+    #     the data during the global sync phase is received.
+    #
+    #     Local synchronization can also be turned off if desired by increasing `local_skips` above 1.
+    #
+    #     Notes
+    #     -----
+    #     self.last_batch must be set!
+    #     """
+    #     if self.last_batch is None:
+    #         raise ValueError(
+    #             "self.last_batch must be set as the number of batches (len(dataloader))"
+    #         )
+    #
+    #     if self.amp:
+    #         self.scaler.step(self.local_optimizer)
+    #         # todo: add something to tell if the grads have infs or nans
+    #         # Updates the scale for next iteration.
+    #         self.scaler.update()
+    #     elif self.scheduler is None:
+    #         self.local_optimizer.step()
+    #     else:
+    #         self.scheduler.step()
+    #     batch = self.batch
+    #     # knowing next_batch is important to make sure that the local sync is on
+    #     #       or if the next is the last batch
+    #     next_batch = batch + 1
+    #     gs = self.global_skip
+    #     ls = self.local_skip
+    #     # determine if to do the syncs
+    #     gmod = batch % gs if gs > 0 else 0
+    #     lmod = batch % ls if ls > 0 else 0
+    #
+    #     batches_to_wait = self.batches_to_wait
+    #     # ensure that the batch that will receive will be before the end of the training loop
+    #     btw = (
+    #         batches_to_wait
+    #         if batches_to_wait + batch <= self.last_batch
+    #         else self.last_batch - batch
+    #     )
+    #     # do full sync on global skips and on the last batch
+    #     if batch == self.last_batch or gmod == 0:
+    #         return self._global_sync(btw)
+    #
+    #     if next_batch % gs == 0:
+    #         self._start_local_sync()
+    #         self.batch += 1
+    #         return
+    #
+    #     if gmod < btw:
+    #         # do nothing on these batches (maintain the local sync)
+    #         self.batch += 1
+    #         if next_batch == self.last_batch:
+    #             self._start_local_sync()
+    #         return
+    #     elif gmod == btw:
+    #         # local updates should be on before this is called!
+    #         self._gs_rcv_update_params()
+    #         self._local_update(self._send_mod_m1)
+    #         if ls > 1:
+    #             self._stop_local_sync()
+    #
+    #     if ls == 1 and next_batch != self.last_batch:
+    #         self.batch += 1
+    #         self._start_local_sync()
+    #         return
+    #
+    #     if lmod == 0:
+    #         self._stop_local_sync()
+    #     elif next_batch % ls == 0:
+    #         self._start_local_sync()
+    #
+    #     if next_batch == self.last_batch:
+    #         self._start_local_sync()
+    #
+    #     self.batch += 1

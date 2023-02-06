@@ -13,6 +13,7 @@ from . import functional
 
 if sys.version_info.minor >= 7:
     from .data_parallel import *
+    from .daso_trainer import *
 
     functional.__getattr__ = functional.func_getattr
 
@@ -33,6 +34,7 @@ if sys.version_info.minor >= 7:
 else:
     from . import data_parallel
     from . import tests
+    from . import daso_trainer
 
     class Wrapper(object):
         """
@@ -43,6 +45,7 @@ else:
             self.wrapped = wrapped
             self.torch_all = torch.nn.modules.__all__
             self.data_parallel_all = data_parallel.__all__
+            self.daso_trainer_all = daso_trainer.__all__
 
         def __getattr__(self, name):
             """
@@ -55,6 +58,8 @@ else:
                 return functional
             elif name in self.data_parallel_all:
                 return data_parallel.__getattribute__(name)
+            elif name in self.daso_trainer_all:
+                return daso_trainer.__getattribute__(name)
             elif name == "tests":
                 return tests
             else:
