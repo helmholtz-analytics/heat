@@ -16,6 +16,10 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
 
+# New
+
+[Quick Start](quick_start.md) for new users and contributors (Jan 14, 2023).
+
 # Goals
 
 Heat is a flexible and seamless open-source software for high performance data
