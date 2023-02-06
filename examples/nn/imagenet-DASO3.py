@@ -18,10 +18,13 @@ import sys
 
 import pandas as pd
 
+from PIL import ImageFile
+#ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 sys.path.append("../../")
 import heat as ht
-
-
+#os.sched_affinity(0)
+#os.system("taskset -p 0xff %d" % os.getpid())
 def print0(*args, **kwargs):
     if ht.MPI_WORLD.rank == 0:
         print(*args, **kwargs)
@@ -39,14 +42,14 @@ def parse():
         "--train",
         metavar="DIR",
         default="/p/project/haf/data/imagenet/train/",
-        nargs="*",
+        #nargs="*",
         help="path(s) to training dataset (TFRecords)",
     )
     parser.add_argument(
         "--validate",
         metavar="DIR",
         default="/p/project/haf/data/imagenet/val/",
-        nargs="*",
+        #nargs="*",
         help="path(s) to validation datasets (TFRecords)",
     )
     parser.add_argument(
@@ -278,6 +281,8 @@ def main():
     args.rank = ht.MPI_WORLD.rank
     rank = args.rank
     device = torch.device("cpu")
+    #print('before torch comm setup')
+    #print(torch.cuda.device_count())
     if torch.cuda.device_count() > 1:
         args.gpus = torch.cuda.device_count()
         loc_rank = rank % args.gpus
@@ -402,7 +407,7 @@ def main():
         print0("Output dict:", fname)
 
     train_dataset = datasets.ImageFolder(
-        args.train_dir,
+        args.train,
         transform=transforms.Compose(
             [
                 transforms.RandomResizedCrop(224),
@@ -412,21 +417,36 @@ def main():
             ]
         ),
     )
+    #print(args.train) 
+#    train_dataset = datasets.ImageNet(
+#        args.train, 
+#        split='train',
+#        transform=transforms.Compose(
+#            [
+ #               transforms.RandomResizedCrop(224),
+  #              transforms.RandomHorizontalFlip(),
+   #             transforms.ToTensor(),
+    #            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+#            ]
+ #       ),
+  #  )
 
     train_sampler = torch.utils.data.distributed.DistributedSampler(
-        train_dataset, num_replicas=args.world_size, rank=rank
+        train_dataset, num_replicas=args.world_size, rank=rank, drop_last=True,
     )
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=args.batch_size,
         sampler=train_sampler,
         num_workers=4,
-        pin_memory=True,
-        multiprocessing_context="fork",  # helps with infiniband issues?? (from hvd)
+        #pin_memory=True,
+        persistent_workers=True,
+        #prefetch_factor=8,
+      #  multiprocessing_context="fork",  # helps with infiniband issues?? (from hvd)
     )
 
     val_dataset = datasets.ImageFolder(
-        args.val_dir,
+        args.validate,
         transform=transforms.Compose(
             [
                 transforms.Resize(256),
@@ -436,16 +456,31 @@ def main():
             ]
         ),
     )
+
+#    val_dataset = datasets.ImageNet(
+ #       args.train,
+  #      split='val',
+   #     transform=transforms.Compose(
+    #        [
+     #           transforms.RandomResizedCrop(224),
+      #          transforms.RandomHorizontalFlip(),
+       #         transforms.ToTensor(),
+        #        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+         #   ]
+#        ),
+ #   )
+
     val_sampler = torch.utils.data.distributed.DistributedSampler(
-        val_dataset, num_replicas=args.world_size, rank=rank
+        val_dataset, num_replicas=args.world_size, rank=rank, shuffle=False, drop_last=True,
     )
     val_loader = torch.utils.data.DataLoader(
         val_dataset,
-        batch_size=args.val_batch_size,
+        batch_size=args.batch_size,
         sampler=val_sampler,
         num_workers=4,
-        pin_memory=True,
-        multiprocessing_context="fork",  # helps with infiniband issues?? (from hvd)
+        #pin_memory=True,
+        persistent_workers=True,
+       # multiprocessing_context="fork",  # helps with infiniband issues?? (from hvd)
     )
 
     if args.evaluate:
@@ -512,8 +547,8 @@ def main():
             # save the dict to pick up after the checkpoint
             save_obj(out_dict, fname)
 
-        train_loader.reset()
-        val_loader.reset()
+        #train_loader.reset()
+        #val_loader.reset()
 
     if args.rank == 0:
         print("\nRESULTS\n")
@@ -537,7 +572,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     top5 = AverageMeter()
 
     total_train_time = time.perf_counter()
-
+    #print0("starting training step:", epoch)
     # switch to train mode
     model.train()
     end = time.time()
@@ -546,8 +581,8 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     # TODO: how to handle this?
     optimizer.last_batch = train_loader_len - 1
     for i, data in enumerate(train_loader):
-        input = data[0]["data"].cuda(dev)
-        target = data[0]["label"].squeeze().cuda(dev).long()
+        input = data[0].cuda(dev)
+        target = data[1].squeeze().cuda(dev).long()
 
         if 0 <= args.prof == i:
             print("Profiling begun at iteration {}".format(i))
@@ -589,7 +624,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
 
         if args.prof >= 0:
             torch.cuda.nvtx.range_pop()
-
+        #print0(i)
         if i % args.print_freq == 0 or i == train_loader_len - 1:
             # Every print_freq iterations, check the loss, accuracy, and speed.
             # For best performance, it doesn't make sense to print these metrics every
@@ -642,6 +677,7 @@ def train(dev, train_loader, model, criterion, optimizer, epoch):
     top5.avg = reduce_tensor(torch.tensor(top5.avg), comm=model.comm)
     batch_time.avg = reduce_tensor(torch.tensor(batch_time.avg), comm=model.comm)
     losses.avg = reduce_tensor(torch.tensor(losses.avg), comm=model.comm)
+    #print('end of training')
     return batch_time.avg, top1.avg, top5.avg, losses.avg, total_train_time
 
 
@@ -655,11 +691,11 @@ def validate(dev, val_loader, model, criterion):
     model.eval()
 
     end = time.time()
-
+    val_loader_len = len(val_loader)
     for i, data in enumerate(val_loader):
-        input = data[0]["data"].cuda(dev)
-        target = data[0]["label"].squeeze().cuda(dev).long()
-        val_loader_len = int(val_loader._size / args.batch_size)
+        input = data[0].cuda(dev)
+        target = data[1].squeeze().cuda(dev).long()
+        #val_loader_len = int(val_loader._size / args.batch_size)
 
         # compute output
         with torch.no_grad():
