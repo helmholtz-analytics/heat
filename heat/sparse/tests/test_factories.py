@@ -554,3 +554,10 @@ class TestFactories(TestCase):
                 )
 
                 heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_torch_sparse_csr, is_split=0)
+
+        # Error when number of dimensions is not 2
+        with self.assertRaises(ValueError):
+            heat_sparse_csr = ht.sparse.sparse_csr_matrix([0, 1])  # 1-D input
+
+        with self.assertRaises(ValueError):
+            heat_sparse_csr = ht.sparse.sparse_csr_matrix([[[0, 1]]])  # > 2-D input
