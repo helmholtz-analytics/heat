@@ -4,9 +4,9 @@ on:
   push:
     paths:
       - '.github/pytorch-release-versions/*'
-env:
-  previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')
-  new_pytorch: $(<.github/pytorch-release-versions/pytorch-latest.txt)
+#env:
+#  "previous_pytorch:$(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')"
+#  new_pytorch: $(<.github/pytorch-release-versions/pytorch-latest.txt)
 #  new_major: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f1)
 #  new_minor: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f2)
 #  new_patch: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f3)
@@ -38,6 +38,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: 'release/1.2.x'
+      - name: Set env variables
+        run: |
+          echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
+          echo "new_pytorch=$(<.github/pytorch-release-versions/pytorch-latest.txt)"  >> $GITHUB_ENV
 #      - name: Increment patch
 #        run: |
 #          echo ${{ env.new_patch }}
