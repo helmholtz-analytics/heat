@@ -7,9 +7,9 @@ on:
 env:
   previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')
   new_pytorch: $(<.github/pytorch-release-versions/pytorch-latest.txt)
-  new_major: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f1)
-  new_minor: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f2)
-  new_patch: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f3)
+#  new_major: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f1)
+#  new_minor: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f2)
+#  new_patch: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f3)
 permissions:
   contents: write
   issues: write
@@ -38,22 +38,22 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: 'release/1.2.x'
-      - name: Increment patch
-        run: |
-          echo ${{ env.new_patch }}
-          echo "new_setup_patch=$((${{ env.new_patch }}+1))" >> $GITHUB_ENV
-          echo ${{ env.new_setup_patch }}
-      - name: Define version string
-        run: |
-          echo ${{ env.new_major }}
-          echo ${{ env.new_minor }}
-          echo ${{ env.new_setup_patch }}
-          echo "new_setup_pytorch=$("${{ env.new_major }}"."${{ env.new_minor }}"."${{ env.new_setup_patch }}")" >> $GITHUB_ENV
-          echo ${{ env.new_setup_pytorch }}
+#      - name: Increment patch
+#        run: |
+#          echo ${{ env.new_patch }}
+#          echo "new_setup_patch=$((${{ env.new_patch }}+1))" >> $GITHUB_ENV
+#          echo ${{ env.new_setup_patch }}
+#      - name: Define version string
+#        run: |
+#          echo ${{ env.new_major }}
+#          echo ${{ env.new_minor }}
+#          echo ${{ env.new_setup_patch }}
+#          echo "new_setup_pytorch=$("${{ env.new_major }}"."${{ env.new_minor }}"."${{ env.new_setup_patch }}")" >> $GITHUB_ENV
+#          echo ${{ env.new_setup_pytorch }}
       - name: Update setup.py
         run: |
-          echo ${{ env.new_setup_pytorch }}
-          sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.new_setup_pytorch }}"'/g' setup.py
+          echo ${{ env.new_pytorch }}
+          sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.new_pytorch }}"'/g' setup.py
       - name: Define env variable
         run: |
           echo "new=$(<.github/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
