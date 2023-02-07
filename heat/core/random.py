@@ -114,8 +114,8 @@ def __counter_sequence(
         raise ValueError("Shape is to big with {} elements".format(total_elements))
 
     if split is None:
-        values = torch.ceil(total_elements / 2)
-        even_end = total_elements % 2 == 0
+        values = total_elements.item() // 2 + total_elements.item() % 2
+        even_end = total_elements.item() % 2 == 0
         lslice = slice(None) if even_end else slice(None, -1)
         start = c_1
         end = start + int(values)
