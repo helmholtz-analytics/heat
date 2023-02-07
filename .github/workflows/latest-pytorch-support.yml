@@ -52,7 +52,7 @@ jobs:
 #          echo ${{ env.new_setup_pytorch }}
       - name: Update setup.py
         run: |
-          echo ${{ env.new_pytorch }}
+          echo $new_pytorch #${{ env.new_pytorch }}
           sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.new_pytorch }}"'/g' setup.py
       - name: Define env variable
         run: |
