@@ -125,7 +125,7 @@ def __counter_sequence(
         counts, displs, _ = comm.counts_displs_shape(shape, split)
 
         # Calculate number of local elements per process
-        local_elements = [total_elements / shape[split] * counts[i] for i in range(size)]
+        local_elements = [total_elements.item() / shape[split] * counts[i] for i in range(size)]
         cum_elements = torch.cumsum(torch.tensor(local_elements, device=device.torch_device), dim=0)
 
         # Calculate the correct borders and slices
