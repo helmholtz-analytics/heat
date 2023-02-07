@@ -22,7 +22,7 @@ jobs:
         refs/heads/workflows/fix-pytorch-update-action
       ', github.ref)
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: JasonEtco/create-an-issue@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -34,7 +34,7 @@ jobs:
           update_existing: true
           search_existing: open
       - name: Check out new branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: 'release/1.2.x'
@@ -53,7 +53,7 @@ jobs:
         run: |
           echo "new=$(<.github/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
       - name: Create PR from branch
-        uses: peter-evans/create-pull-request@v3
+        uses: peter-evans/create-pull-request@v4
         with:
             base: release/1.2.x
             delete-branch: true
