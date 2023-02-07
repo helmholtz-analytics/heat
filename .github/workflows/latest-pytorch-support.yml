@@ -42,9 +42,12 @@ jobs:
         run: |
           echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
           echo "new_pytorch=$(<.github/pytorch-release-versions/pytorch-latest.txt)"  >> $GITHUB_ENV
-          echo "new_major=$(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f1)" >> $GITHUB_ENV
-          echo "new_minor=$(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f2)" >> $GITHUB_ENV
-          echo "new_patch=$(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f3)" >> $GITHUB_ENV
+          #echo "new_major=$(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f1)" >> $GITHUB_ENV
+          #echo "new_minor=$(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f2)" >> $GITHUB_ENV
+          #echo "new_patch=$(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f3)" >> $GITHUB_ENV
+      - name: Define major minor patch envs
+        run: |
+          echo "new_patch=$(${{env.new_pytorch}} | cut -d'.' -f3)" >> $GITHUB_ENV
       - name: Increment patch
         run: |
           echo ${{ env.new_patch }}
