@@ -40,7 +40,7 @@ jobs:
           ref: 'release/1.2.x'
       - name: Set env variables
         run: |
-          echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
+          # echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
           echo "new_pytorch=$(<.github/pytorch-release-versions/pytorch-latest.txt)"  >> $GITHUB_ENV
 #      - name: Increment patch
 #        run: |
