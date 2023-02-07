@@ -40,22 +40,25 @@ jobs:
           ref: 'release/1.2.x'
       - name: Set env variables
         run: |
-          # echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
+          echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
           echo "new_pytorch=$(<.github/pytorch-release-versions/pytorch-latest.txt)"  >> $GITHUB_ENV
-#      - name: Increment patch
-#        run: |
-#          echo ${{ env.new_patch }}
-#          echo "new_setup_patch=$((${{ env.new_patch }}+1))" >> $GITHUB_ENV
-#          echo ${{ env.new_setup_patch }}
-#      - name: Define version string
-#        run: |
-#          echo ${{ env.new_major }}
-#          echo ${{ env.new_minor }}
-#          echo ${{ env.new_setup_patch }}
-#          echo "new_setup_pytorch=$("${{ env.new_major }}"."${{ env.new_minor }}"."${{ env.new_setup_patch }}")" >> $GITHUB_ENV
-#          echo ${{ env.new_setup_pytorch }}
+          echo "new_major=$(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f1)" >> $GITHUB_ENV
+          echo "new_minor=$(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f2)" >> $GITHUB_ENV
+          echo "new_patch=$(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f3)" >> $GITHUB_ENV
+      - name: Increment patch
+        run: |
+          echo ${{ env.new_patch }}
+          echo "new_setup_patch=$((${{ env.new_patch }}+1))" >> $GITHUB_ENV
+      - name: Define version string
+        run: |
+          echo ${{ env.new_major }}
+          echo ${{ env.new_minor }}
+          echo ${{ env.new_setup_patch }}
+          echo "new_setup_pytorch=$("${{ env.new_major }}"."${{ env.new_minor }}"."${{ env.new_setup_patch }}")" >> $GITHUB_ENV
       - name: Update setup.py
         run: |
+          echo ${{ env.new_setup_pytorch }}
+          echo ${{ env.previous_pytorch }}
           echo ${{ env.new_pytorch }}
 #          sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.new_pytorch }}"'/g' setup.py
 #      - name: Define env variable
