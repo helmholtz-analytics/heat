@@ -40,9 +40,14 @@ jobs:
           ref: 'release/1.2.x'
       - name: Increment patch
         run: |
+          echo ${{ env.new_patch }}
           echo "new_setup_patch=$((${{ env.new_patch }}+1))" >> $GITHUB_ENV
+          echo ${{ env.new_setup_patch }}
       - name: Define version string
         run: |
+          echo ${{ env.new_major }}
+          echo ${{ env.new_minor }}
+          echo ${{ env.new_setup_patch }}
           echo "new_setup_pytorch=$("${{ env.new_major }}"."${{ env.new_minor }}"."${{ env.new_setup_patch }}")" >> $GITHUB_ENV
           echo ${{ env.new_setup_pytorch }}
       - name: Update setup.py
