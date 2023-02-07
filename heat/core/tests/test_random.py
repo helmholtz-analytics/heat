@@ -405,7 +405,6 @@ class TestRandom(TestCase):
         self.assertFalse(np.allclose(b, c))
 
     def test_randperm(self):
-
         if self.device.torch_device == "cpu":
             state = torch.random.get_rng_state()
         else:

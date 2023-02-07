@@ -251,6 +251,7 @@ class DataParallel(tnn.Module):
         param_name : str
             Name of the parameter
         """
+
         # hook function for blocking gradient data exchange
         def _hook(grad_loc: torch.Tensor) -> torch.Tensor:
             with torch.no_grad():
@@ -287,6 +288,7 @@ class DataParallel(tnn.Module):
         layer_name : str
             Name of the layer
         """
+
         # hook function for non-blocking parameter update
         def _hook(_, input_):
             # update parameters of given layer
