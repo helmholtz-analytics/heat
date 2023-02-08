@@ -8,14 +8,18 @@ Heat is a distributed tensor framework for high performance data analytics.
 
 Project Status
 --------------
-
-[![Jenkins](https://img.shields.io/jenkins/build?jobUrl=https%3A%2F%2Fheat-ci.fz-juelich.de%2Fjob%2Fheat%2Fjob%2Fheat%2Fjob%2Fmain%2F&label=CPU)](https://heat-ci.fz-juelich.de/blue/organizations/jenkins/heat%2Fheat/activity?branch=main)
-[![Jenkins](https://img.shields.io/jenkins/build?jobUrl=https%3A%2F%2Fheat-ci.fz-juelich.de%2Fjob%2FGPU%2520Cluster%2Fjob%2Fmain%2F&label=GPU)](https://heat-ci.fz-juelich.de/blue/organizations/jenkins/GPU%20Cluster%2Fmain/activity)
+[![Mirror and run GitLab CI](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cb.yml/badge.svg)](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cb.yml)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/helmholtz-analytics/heat/branch/main/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
+
+NEW!
+--------------
+- [Quick Start](quick_start.md) for new users and contributors (Jan 14, 2023)
+
+
 
 Goals
 -----
@@ -45,7 +49,9 @@ Features
 Getting Started
 ---------------
 
-Check out our Jupyter Notebook [tutorial](https://github.com/helmholtz-analytics/heat/blob/main/scripts/tutorial.ipynb)
+TL;DR: [Quick Start](quick_start.md)
+
+Check out our Jupyter Notebook [tutorial]((https://github.com/helmholtz-analytics/heat/blob/main/scripts/)tutorial.ipynb)
 right here on Github or in the /scripts directory.
 
 The complete documentation of the latest version is always deployed on
@@ -73,6 +79,8 @@ or automatically using the setup.py.
 Installation
 ------------
 
+TL;DR: [Quick Start](quick_start.md)
+
 Tagged releases are made available on the
 [Python Package Index (PyPI)](https://pypi.org/project/heat/). You can typically
 install the latest version with
@@ -89,6 +97,7 @@ More information can be found [here](https://pytorch.org/get-started/locally/).
 
 Hacking
 -------
+TL;DR: [Quick Start](quick_start.md)
 
 If you want to work with the development version, you can check out the sources using
 

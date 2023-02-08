@@ -1385,6 +1385,8 @@ class DNDarray:
         axis = sanitize_axis(self.shape, axis)
 
         # early out for unchanged content
+        if self.comm.size == 1:
+            self.__split = axis
         if axis == self.split:
             return self
 
