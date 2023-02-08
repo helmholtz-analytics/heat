@@ -127,7 +127,11 @@ def sparse_csr_matrix(
             raise TypeError(f"Invalid data of type {type(obj)}")
 
     if obj.layout != torch.sparse_csr:
-        obj = obj.to_sparse_csr()
+        if obj.ndim == 2:
+            obj = obj.to_sparse_csr()
+        else:
+            raise Exception("The number of dimensions must be 2, found "+ str(obj.ndim))
+
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
