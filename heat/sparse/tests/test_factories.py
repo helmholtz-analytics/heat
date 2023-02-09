@@ -15,7 +15,7 @@ class TestFactories(TestCase):
     def setUpClass(self):
         super(TestFactories, self).setUpClass()
 
-        """
+        """ 
         A = [[0, 0, 1, 0, 2]
             [0, 0, 0, 0, 0]
             [0, 3, 0, 0, 0]
@@ -554,3 +554,6 @@ class TestFactories(TestCase):
                 )
 
                 heat_sparse_csr = ht.sparse.sparse_csr_matrix(dist_torch_sparse_csr, is_split=0)
+
+        self.assertRaises(ValueError, ht.sparse.sparse_csr_matrix, torch.tensor([0, 1]))
+        self.assertRaises(ValueError, ht.sparse.sparse_csr_matrix, torch.tensor([[[1, 0, 3]]]))
