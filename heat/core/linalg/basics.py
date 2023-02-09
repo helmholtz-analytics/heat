@@ -512,6 +512,13 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     if b.dtype != c_type:
         b = c_type(b, device=b.device)
 
+    # early out for single-process setup, torch matmul
+    if a.comm.size == 1:
+        ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device)
+        if gpu_int_flag:
+            ret = og_type(ret, device=a.device)
+        return ret
+
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
             # if either of A or B is a vector
@@ -519,17 +526,17 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             if gpu_int_flag:
                 ret = og_type(ret, device=a.device)
             return ret
-        else:
-            a.resplit_(0)
-            slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
-            hold = a.larray @ b.larray
 
-            c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device)
-            c.larray[slice_0.start : slice_0.stop, :] += hold
-            c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-            if gpu_int_flag:
-                c = og_type(c, device=a.device)
-            return c
+        a.resplit_(0)
+        slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
+        hold = a.larray @ b.larray
+
+        c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device)
+        c.larray[slice_0.start : slice_0.stop, :] += hold
+        c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+        if gpu_int_flag:
+            c = og_type(c, device=a.device)
+        return c
 
     # if they are vectors they need to be expanded to be the proper dimensions
     vector_flag = False  # flag to run squeeze at the end of the function
