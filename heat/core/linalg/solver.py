@@ -2,7 +2,8 @@
 Collection of solvers for systems of linear equations.
 """
 import heat as ht
-from heat.core.dndarray import DNDarray
+from ..dndarray import DNDarray
+from ..sanitation import sanitize_out
 from typing import List, Dict, Any, TypeVar, Union, Tuple, Optional
 
 import torch
