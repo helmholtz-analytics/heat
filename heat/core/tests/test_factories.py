@@ -1035,5 +1035,3 @@ class TestFactories(TestCase):
             ht.zeros_like(ones, dtype="abc")
         with self.assertRaises(TypeError):
             ht.zeros_like(ones, split="axis")
-
-

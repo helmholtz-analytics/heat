@@ -15,7 +15,7 @@ class TestFactories(TestCase):
     def setUpClass(self):
         super(TestFactories, self).setUpClass()
 
-        """ 
+        """
         A = [[0, 0, 1, 0, 2]
             [0, 0, 0, 0, 0]
             [0, 3, 0, 0, 0]
