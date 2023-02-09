@@ -1035,3 +1035,21 @@ class TestFactories(TestCase):
             ht.zeros_like(ones, dtype="abc")
         with self.assertRaises(TypeError):
             ht.zeros_like(ones, split="axis")
+
+    def test_dimensions(self):
+        # for a two dimension tensor no error is raised
+
+        # more than two dimension tensors with sparse_csr layout 
+        a = torch.tensor([[[0, 1]]], dtype=torch.float64).to_sparse_csr()
+        self.assertRaises(ValueError, ht.sparse.sparse_csr_matrix, a)
+
+        # for one dimension 
+        self.assertRaises(ValueError, ht.sparse.sparse_csr_matrix, torch.tensor([0, 1]))
+        self.assertRaises(ValueError, ht.sparse.sparse_csr_matrix, torch.tensor([1, 0, 3]))
+        self.assertRaises(ValueError, ht.sparse.sparse_csr_matrix, torch.tensor([ ]))
+        self.assertRaises(ValueError, ht.sparse.sparse_csr_matrix, torch.tensor([1, 0, 3, 4]))
+
+        # for more than one dimension
+        self.assertRaises(ValueError, ht.sparse.sparse_csr_matrix, torch.tensor([[[1, 0, 3]]]))
+        self.assertRaises(ValueError, ht.sparse.sparse_csr_matrix, torch.tensor([[[0, 1, 2, 3, 4],[5, 6, 7, 8, 9]],[[10, 11, 12, 13, 14],[15, 16, 17, 18, 19]],[[20, 21, 22, 23, 24],[25, 26, 27, 28, 29]],]))
+        
