@@ -1387,6 +1387,8 @@ class DNDarray:
         # early out for unchanged content
         if self.comm.size == 1:
             self.__split = axis
+            if axis is None:
+                self.__partitions_dict__ = None
         if axis == self.split:
             return self
 
