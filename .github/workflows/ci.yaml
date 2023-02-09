@@ -20,20 +20,23 @@ jobs:
         pytorch-version:
           - 'torch==1.7.1+cpu torchvision==0.8.2+cpu torchaudio==0.7.2'
           - 'torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1'
-          - 'torch==1.9.0+cpu torchvision==0.10.0+cpu torchaudio==0.9.0'
-          - 'torch==1.12.0+cpu torchvision==0.13.0+cpu torchaudio==0.12.0'
+          - 'torch==1.9.1+cpu torchvision==0.10.1+cpu torchaudio==0.9.1'
+          - 'torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1'
+        exclude:
+          - py-version: 3.9
+            pytorch-version: 'torch==1.7.1+cpu torchvision==0.8.2+cpu torchaudio==0.7.2'
 
 
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup MPI
         uses: mpi4py/setup-mpi@v1
         with:
           mpi: ${{ matrix.mpi }}
       - name: Use Python ${{ matrix.py-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.py-version }}
           architecture: x64
