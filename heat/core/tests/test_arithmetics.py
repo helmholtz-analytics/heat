@@ -646,6 +646,10 @@ class TestArithmetics(TestCase):
         self.assertEqual(shape_split_axis_tuple_prod.split, None)
         self.assertTrue((shape_split_axis_tuple_prod == expected_result).all())
 
+        # empty array
+        empty = ht.array([])
+        self.assertEqual(ht.prod(empty), ht.array([1.0]))
+
         # exceptions
         with self.assertRaises(ValueError):
             ht.ones(array_len).prod(axis=1)
@@ -792,6 +796,10 @@ class TestArithmetics(TestCase):
         self.assertEqual(shape_split_axis_tuple_sum.split, None)
         self.assertTrue((shape_split_axis_tuple_sum == expected_result).all())
 
+        # empty array
+        empty = ht.array([])
+        self.assertEqual(ht.sum(empty), ht.array([0.0]))
+
         # exceptions
         with self.assertRaises(ValueError):
             ht.ones(array_len).sum(axis=1)
@@ -824,7 +832,7 @@ class TestArithmetics(TestCase):
         )
         tensor = ht.float32([[1, 4], [2, 3]])
         num = 3
-        for (attr, op, commutative) in operators:
+        for attr, op, commutative in operators:
             try:
                 func = tensor.__getattribute__(attr)
             except AttributeError:

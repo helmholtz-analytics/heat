@@ -1,3 +1,22 @@
+# v1.2.1
+
+## Changes
+
+- #1048 Support PyTorch 1.13.0 on branch release/1.2.x (by @github-actions)
+
+## 🐛 Bug Fixes
+
+- #1038 Lanczos decomposition `linalg.solver.lanczos`:  Support double precision, complex data types (by @ClaudiaComito)
+- #1034 `ht.array`, closed loophole allowing `DNDarray` construction with incompatible shapes of local arrays (by @Mystic-Slice)
+
+## Linear Algebra
+
+- #1038 Lanczos decomposition `linalg.solver.lanczos`:  Support double precision, complex data types (by @ClaudiaComito)
+
+## 🧪 Testing
+
+- #1025 mirror repository on gitlab + ci (by @mtar)
+- #1014 fix: set cuda rng state on gpu tests for test_random.py (by @JuanPedroGHM)
 
 # v1.2.0
 
@@ -126,6 +145,7 @@ Example on 2 processes:
 
 ### Misc.
 - [#761](https://github.com/helmholtz-analytics/heat/pull/761) New feature: `result_type`
+- [#788](https://github.com/helmholtz-analytics/heat/pull/788) Added the partition interface `DNDarray` for use with DPPY
 - [#794](https://github.com/helmholtz-analytics/heat/pull/794) New feature: `meshgrid`
 - [#821](https://github.com/helmholtz-analytics/heat/pull/821) Enhancement: it is no longer necessary to load-balance an imbalanced `DNDarray` before gathering it onto all processes. In short: `ht.resplit(array, None)` now works on imbalanced arrays as well.
 
