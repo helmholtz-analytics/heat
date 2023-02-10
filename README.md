@@ -18,10 +18,10 @@ Heat is a distributed tensor framework for high performance data analytics.
 
 # New
 - SAVE THE DATE 📆 On Feb 23rd, Google Summer of Code Community Talk with Stephanie Taylor, Google Summer of Code Program Manager - [sign up here](https://docs.google.com/forms/d/e/1FAIpQLSdsXkVhHY54cYCnYfhMe0p42R3WB0uqIptnqdduhsP_zXBp8Q/viewform) by Feb 22nd if you want to attend
-- We've submitted our application to be part of Google Summer of Code 2023 🙏 
+- We've submitted our application to be part of Google Summer of Code 2023 🙏
    - [List of Ideas](https://docs.google.com/document/d/1OKUf_n_whN0M20c__jj8R5jyGABPYYxmdBfyzto4OZk) (subject to change)
    - [Related Issues](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+label%3AGSoC2023) (subject to change)
-   - [Good First Issues](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) (updated frequently)  
+   - [Good First Issues](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) (updated frequently)
    - [Quick Start](quick_start.md) for new users and contributors
 
 # Goals
