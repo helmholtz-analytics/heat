@@ -126,7 +126,6 @@ class TestDNDarray(TestCase):
             # test no data on process
             data_np = np.arange(2 * 12).reshape(2, 12)
             data = ht.array(data_np, split=0)
-            print("DEBUGGING: data.lshape_map = ", data.lshape_map)
             data.get_halo(1)
 
             data_with_halos = data.array_with_halos
@@ -805,6 +804,20 @@ class TestDNDarray(TestCase):
         self.assertTrue(
             ht.equal(int16_tensor | int16_vector, ht.bitwise_or(int16_tensor, int16_vector))
         )
+
+    def test_partitioned(self):
+        a = ht.zeros((120, 120), split=0)
+        parted = a.__partitioned__
+        self.assertEqual(parted["shape"], (120, 120))
+        self.assertEqual(parted["partition_tiling"], (a.comm.size, 1))
+        self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
+
+        a.resplit_(None)
+        self.assertIsNone(a.__partitions_dict__)
+        parted = a.__partitioned__
+        self.assertEqual(parted["shape"], (120, 120))
+        self.assertEqual(parted["partition_tiling"], (1, 1))
+        self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
 
     def test_redistribute(self):
         # need to test with 1, 2, 3, and 4 dims
