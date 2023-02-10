@@ -72,7 +72,6 @@ class TestArithmetics(TestCase):
         self.scalar = self.scalar.item()
 
     def test_add(self):
-
         heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A)
         heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_B)
 
@@ -731,7 +730,6 @@ class TestArithmetics(TestCase):
             heat_sparse_csr_C = ht.sparse.add(heat_sparse_csr_2x2, heat_sparse_csr_A)
 
     def test_mul(self):
-
         heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A)
         heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_B)
 

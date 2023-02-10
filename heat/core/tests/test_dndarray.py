@@ -29,7 +29,6 @@ class TestDNDarray(TestCase):
         data = ht.array(data_np, split=1)
 
         if data.comm.size == 2:
-
             halo_next = torch.tensor(np.array([[4, 5], [10, 11]]), device=data.device.torch_device)
             halo_prev = torch.tensor(np.array([[2, 3], [8, 9]]), device=data.device.torch_device)
 
@@ -94,7 +93,6 @@ class TestDNDarray(TestCase):
                 self.assertEqual(data.halo_next, None)
 
         if data.comm.size == 3:
-
             halo_1 = torch.tensor(np.array([[2], [8]]), device=data.device.torch_device)
             halo_2 = torch.tensor(np.array([[3], [9]]), device=data.device.torch_device)
             halo_3 = torch.tensor(np.array([[4], [10]]), device=data.device.torch_device)
