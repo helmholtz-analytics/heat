@@ -7,7 +7,6 @@ from .test_suites.basic_test import TestCase
 
 class TestOperations(TestCase):
     def test___binary_bit_op_broadcast(self):
-
         # broadcast without split
         left_tensor = ht.ones((4, 1), dtype=ht.int32)
         right_tensor = ht.ones((1, 2), dtype=ht.int32)

@@ -2382,7 +2382,6 @@ class TestCommunication(TestCase):
         )
 
     def test_allgathervSorting(self):
-
         test1 = self.sorted3Dtensor.copy()
         test2 = self.sorted3Dtensor.copy()
         test3 = self.sorted3Dtensor.copy()
