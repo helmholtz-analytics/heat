@@ -272,3 +272,74 @@ def lanczos(
         V.resplit_(axis=None)
 
     return V, T
+
+def triangular_solve( A: DNDarray, B: DNDarray ) -> DNDarray:
+    """
+    Solver for a system of equations :math: `Ax = B`, where A is a triangular matrix
+
+    Parameters
+    ---------
+    A : DNDarray
+        2D symmetric, Triangular Matrix
+    B : DNDarray
+        2D Matrix            
+    """
+
+    if not isinstance(A, DNDarray) or not isinstance(B, DNDarray):
+        raise TypeError(
+            "A and B need to be of type ht.DNDarray, but were {}, {}, {}".format(
+                type(A), type(B)
+            )
+        )
+
+    if not A.ndim == 2:
+        raise RuntimeError("A needs to be a 2D matrix")
+
+    (m,m1) = A.shape
+    (m2,n) = B.shape
+    if not (m1 == m):
+        raise TypeError("A must be a square matrix")
+    if not (m == m2):
+        raise TypeError("A and B must have same number of rows")
+
+    type = "Upper"
+    if type == 'Upper':
+        for i in range(m):
+            for j in range(i+1,m):
+                if not A[j,i] == 0:
+                    type = "Lower"
+            if type == 'Lower':
+                break
+    
+    if type == 'Lower':
+        for i in range(m):
+            for j in range(0,i):
+                if not A[j,i] == 0:
+                    type = "Not"
+            if type == 'Not':
+                break
+
+    if type == 'Not':
+        raise TypeError("The matrix A is not a triangular matrix, please use cg solver")
+
+    for i in range(m):
+        if A[i,i] == 0:
+            raise TypeError("The matrix A is not full rank, hense the system cannot be solved")
+
+    x = ht.zeros((m,n,))
+
+    for i in range(n):
+        b = ht.zeros(m)
+        bi = B[:,i]
+        if type == 'Upper':
+            for j in range(m-1,-1,-1):
+                value = ((bi - b)[j]) / A[j,j]
+                b += value*(A[:,j])
+                x[j,i] = value
+        else:
+            for j in range(0,m,+1):
+                value = ((bi - b)[j]) / A[j,j]
+                b += value*(A[:,j])
+                x[j,i] = value
+
+    return x
