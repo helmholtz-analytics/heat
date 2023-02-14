@@ -287,9 +287,7 @@ def triangular_solve( A: DNDarray, B: DNDarray ) -> DNDarray:
     """
 
     if not isinstance(A, DNDarray) or not isinstance(B, DNDarray):
-        raise TypeError(
-            "A and B need to be of type ht.DNDarray, but were {}, {}".format(type(A), type(B))
-        )
+        raise TypeError("A and B need to be of type ht.DNDarray")
 
     if not A.ndim == 2:
         raise RuntimeError("A needs to be a 2D matrix")
