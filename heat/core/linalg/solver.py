@@ -274,7 +274,7 @@ def lanczos(
     return V, T
 
 
-def triangular_solve( A: DNDarray, B: DNDarray ) -> DNDarray:
+def triangular_solve(A: DNDarray, B: DNDarray) -> DNDarray:
     """
     Solver for a system of equations :math: `Ax = B`, where A is a triangular matrix
 
