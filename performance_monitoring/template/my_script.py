@@ -77,7 +77,7 @@ def do_one_measurement(key):
 for k in range(num_measurements):
     for s in range(num_samples):
         measurements[k] += do_one_measurement(measurement_keys[k])
-    measurements[k] /= num_measurements
+    measurements[k] /= num_samples
 
 # print and save the data
 if MPI.COMM_WORLD.rank == 0:
