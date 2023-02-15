@@ -17,7 +17,6 @@ from .types import datatype
 from . import devices
 from . import types
 
-
 __all__ = [
     "arange",
     "array",
@@ -25,6 +24,8 @@ __all__ = [
     "empty",
     "empty_like",
     "eye",
+    "from_partitioned",
+    "from_partition_dict",
     "full",
     "full_like",
     "linspace",
@@ -42,7 +43,7 @@ def arange(
     dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
     device: Optional[Union[str, Device]] = None,
-    comm: Optional[Communication] = None
+    comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
     Return evenly spaced values within a given interval.
@@ -381,9 +382,13 @@ def array(
         obj = sanitize_memory_layout(obj, order=order)
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
-        gshape = np.array(gshape)
-        lshape = np.array(lshape)
         obj = sanitize_memory_layout(obj, order=order)
+
+        # Check whether the shape of distributed data
+        # matches in all dimensions except the split axis
+        neighbour_shape = np.array(gshape)
+        lshape = np.array(lshape)
+
         if comm.rank < comm.size - 1:
             comm.Isend(lshape, dest=comm.rank + 1)
         if comm.rank != 0:
@@ -395,21 +400,23 @@ def array(
             if length != len(lshape):
                 discard_buffer = np.empty(length)
                 comm.Recv(discard_buffer, source=comm.rank - 1)
-                gshape[is_split] = np.iinfo(gshape.dtype).min
+                neighbour_shape[is_split] = np.iinfo(neighbour_shape.dtype).min
             else:
                 # check whether the individual shape elements match
-                comm.Recv(gshape, source=comm.rank - 1)
+                comm.Recv(neighbour_shape, source=comm.rank - 1)
                 for i in range(length):
                     if i == is_split:
                         continue
-                    elif lshape[i] != gshape[i] and lshape[i] - 1 != gshape[i]:
-                        gshape[is_split] = np.iinfo(gshape.dtype).min
+                    elif lshape[i] != neighbour_shape[i]:
+                        neighbour_shape[is_split] = np.iinfo(neighbour_shape.dtype).min
 
         # sum up the elements along the split dimension
-        reduction_buffer = np.array(gshape[is_split])
-        comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.SUM)
+        reduction_buffer = np.array(neighbour_shape[is_split])
+        comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.MIN)
         if reduction_buffer < 0:
-            raise ValueError("unable to construct tensor, shape of local data chunk does not match")
+            raise ValueError(
+                "Unable to construct DNDarray. Local data slices have inconsistent shapes or dimensions."
+            )
         ttl_shape = np.array(obj.shape)
         ttl_shape[is_split] = lshape[is_split]
         comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
@@ -724,7 +731,7 @@ def __factory_like(
     device: Device,
     comm: Communication,
     order: str = "C",
-    **kwargs
+    **kwargs,
 ) -> DNDarray:
     """
     Abstracted '...-like' factory function for HeAT :class:`~heat.core.dndarray.DNDarray` initialization
@@ -784,6 +791,156 @@ def __factory_like(
     comm = sanitize_comm(comm)
 
     return factory(shape, dtype=dtype, split=split, device=device, comm=comm, order=order, **kwargs)
+
+
+def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:
+    """
+    Return a newly created DNDarray constructed from the '__partitioned__' attributed of the input object.
+    Memory of local partitions will be shared (zero-copy) as long as supported by data objects.
+    Currently supports numpy ndarrays and torch tensors as data objects.
+    Current limitations:
+      * Partitions must be ordered in the partition-grid by rank
+      * Only one split-axis
+      * Only one partition per rank
+      * Only SPMD-style __partitioned__
+
+    Parameters
+    ----------
+    x : object
+        Requires x.__partitioned__
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+
+    See also
+    --------
+    :func:`ht.core.DNDarray.create_partition_interface <ht.core.DNDarray.create_partition_interface>`.
+
+    Raises
+    ------
+    AttributeError
+        If not hasattr(x, "__partitioned__") or if underlying data has no dtype.
+    TypeError
+        If it finds an unsupported array types
+    RuntimeError
+        If other unsupported content is found.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.ones((44,55), split=0)
+    >>> b = ht.from_partitioned(a)
+    >>> assert (a==b).all()
+    >>> a[40] = 4711
+    >>> assert (a==b).all()
+    """
+    comm = sanitize_comm(comm)
+    parted = x.__partitioned__
+    return __from_partition_dict_helper(parted, comm)
+
+
+def from_partition_dict(parted: dict, comm: Optional[Communication] = None) -> DNDarray:
+    """
+    Return a newly created DNDarray constructed from the '__partitioned__' attributed of the input object.
+    Memory of local partitions will be shared (zero-copy) as long as supported by data objects.
+    Currently supports numpy ndarrays and torch tensors as data objects.
+    Current limitations:
+      * Partitions must be ordered in the partition-grid by rank
+      * Only one split-axis
+      * Only one partition per rank
+      * Only SPMD-style __partitioned__
+
+    Parameters
+    ----------
+    parted : dict
+        A partition dictionary used to create the new DNDarray
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+
+    See also
+    --------
+    :func:`ht.core.DNDarray.create_partition_interface <ht.core.DNDarray.create_partition_interface>`.
+
+    Raises
+    ------
+    AttributeError
+        If not hasattr(x, "__partitioned__") or if underlying data has no dtype.
+    TypeError
+        If it finds an unsupported array types
+    RuntimeError
+        If other unsupported content is found.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.ones((44,55), split=0)
+    >>> b = ht.from_partition_dict(a.__partitioned__)
+    >>> assert (a==b).all()
+    >>> a[40] = 4711
+    >>> assert (a==b).all()
+    """
+    comm = sanitize_comm(comm)
+    return __from_partition_dict_helper(parted, comm)
+
+
+def __from_partition_dict_helper(parted: dict, comm: Communication):
+    # helper to create a DNDarray from a partition table (dictionary)
+    # the dictionary must be in the same form as the DNDarray.__partitioned__ property creates
+    if "locals" not in parted:
+        raise RuntimeError("Non-SPMD __partitioned__ not supported")
+    try:
+        gshape = parted["shape"]
+    except KeyError:
+        raise RuntimeError(
+            "partition dictionary must have a 'shape' entry, see DNDarray.create_partition_interface for more details"
+        )
+    try:
+        lparts = parted["locals"]
+    except KeyError:
+        raise RuntimeError(
+            "partition dictionary must have a 'local' entry, see DNDarray.create_partition_interface for more details"
+        )
+    if len(lparts) != 1:
+        raise RuntimeError("Only exactly one partition per rank supported (yet)")
+    parts = parted["partitions"]
+    lpart = parted["get"](parts[lparts[0]]["data"])
+    if isinstance(lpart, np.ndarray):
+        data = torch.from_numpy(lpart)
+    elif isinstance(lpart, torch.Tensor):
+        data = lpart
+    else:
+        raise TypeError(f"Only numpy arrays and torch tensors supported (not {type(lpart)}")
+    htype = types.canonical_heat_type(data.dtype)
+
+    # get split axis
+    gshape_list = list(gshape)
+    lshape_list = list(data.shape)
+    shape_diff = torch.tensor(
+        [g - l for g, l in zip(gshape_list, lshape_list)]
+    )  # dont care about device
+    nz = torch.nonzero(shape_diff)
+
+    if nz.numel() > 1:
+        raise RuntimeError("only one split axis allowed, check the ")
+    elif nz.numel() == 1:
+        split = nz[0].item()
+    else:
+        split = None
+
+    expected = {
+        int(x["location"][0]): (
+            comm.chunk(gshape, split, x["location"][0])[1:],
+            (x["shape"], x["start"]),
+        )
+        for x in parts.values()
+    }
+    balanced = all(x[0][0] == x[1][0] for x in expected.values())
+
+    ret = DNDarray(
+        data, gshape, htype, split, devices.sanitize_device(None), sanitize_comm(comm), balanced
+    )
+    ret.__partitions_dict__ = parted
+
+    return ret
 
 
 def full(
