@@ -12,8 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      # imitation of a build process
-      - name: Build
+      - name: Test
         run: echo test
 
       - name: Save PR number
