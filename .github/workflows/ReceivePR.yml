@@ -1,25 +1,20 @@
 name: Receive PR
 
-# read-only repo token
-# no access to secrets
+# Only as a temporary fix.
 on:
-  pull_request:
+  pull_request_target:
+    types: [labeled]
 
 jobs:
   build:
+    name: Build and test
     runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'safe to test')
 
     steps:
       - uses: actions/checkout@v2
 
-      - name: Test
-        run: echo test
-
-      - name: Save PR number
+      - name: PR number
         run: |
           mkdir -p ./pr
-          echo ${{ github.event.number }} > ./pr/NR
-      - uses: actions/upload-artifact@v2
-        with:
-          name: pr
-          path: pr/
+          echo ${{ github.event.number }}
