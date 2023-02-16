@@ -9,14 +9,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    steps:        
+    steps:
       - uses: actions/checkout@v2
 
-      - uses: autotelic/action-wait-for-status-check@v1
-        id: wait-for-status
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          statusName: "pre-commit.ci - pr"
+      # imitation of a build process
+      - name: Build
+        run: echo test
 
       - name: Save PR number
         run: |
