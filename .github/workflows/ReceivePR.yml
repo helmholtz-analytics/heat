@@ -1,0 +1,39 @@
+name: Receive PR
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Use Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+          architecture: x64
+
+      - name: Setup MPI
+        uses: mpi4py/setup-mpi@v1
+        with:
+          mpi: openmpi
+
+      - name: Test
+        run: |
+          pip install .[dev]
+          pre-commit run --all-files
+          python -m unittest
+
+      - name: Save PR number
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+        run: |
+          mkdir -p ./pr
+          echo $PR_NUMBER > ./pr/pr_number
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pr_number
+          path: pr/
