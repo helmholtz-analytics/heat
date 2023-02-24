@@ -230,6 +230,11 @@ class TestRandom(TestCase):
         self.assertFalse(np.array_equal(a, c))
         self.assertFalse(np.array_equal(b, c))
 
+        # To check working with large number of elements
+        ht.random.randn(6667, 3523, dtype=ht.float64, split=None)
+        ht.random.randn(6667, 3523, dtype=ht.float64, split=0)
+        ht.random.randn(6667, 3523, dtype=ht.float64, split=1)
+
     def test_randint(self):
         # Checked that the random values are in the correct range
         a = ht.random.randint(low=0, high=10, size=(10, 10), dtype=ht.int64)
@@ -405,7 +410,6 @@ class TestRandom(TestCase):
         self.assertFalse(np.allclose(b, c))
 
     def test_randperm(self):
-
         if self.device.torch_device == "cpu":
             state = torch.random.get_rng_state()
         else:

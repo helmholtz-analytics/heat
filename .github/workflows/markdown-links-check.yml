@@ -1,0 +1,20 @@
+name: Markdown Links Check
+# runs every monday at 9 am
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: gaurav-nelson/github-action-markdown-link-check@v1
+        # checks all markdown files from root but ignores subfolders
+        # By Removing the max-depth variable we can modify it -> to check all the .md files in the entire repo.
+        with:
+          use-quiet-mode: 'yes'
+          # Specifying yes to show only errors in the output
+          use-verbose-mode: 'yes'
+          # Specifying yes to show detailed HTTP status for checked links.
+          max-depth: 0
