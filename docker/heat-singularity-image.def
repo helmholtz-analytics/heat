@@ -1,6 +1,6 @@
 cat heat-nvidia.def
 Bootstrap: docker
-From: nvcr.io/nvidia/pytorch:22.12-py3
+From: nvcr.io/nvidia/pytorch:22.05-py3
 
 %files
     ./tzdata.seed /tmp/tzdata.seed
