@@ -46,7 +46,7 @@ cd heat/docker
 docker build -t heat:latest .
 ```
 
-See [our docker README](https://github.com/helmholtz-analytics/heat/tree/main/docker/README.md) for other details. 
+See [our docker README](https://github.com/helmholtz-analytics/heat/tree/main/docker/README.md) for other details.
 
 
 ### Test
