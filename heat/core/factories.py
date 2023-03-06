@@ -331,16 +331,21 @@ def array(
                 and (
                     device is None
                     or device.torch_device
-                    == getattr(obj, "device", devices.get_device().torch_device)
+                    == str(getattr(obj, "device", devices.get_device().torch_device))
                 )
             ):
                 raise ValueError(
                     "argument `copy` is set to False, but copy of input object is necessary. \n Set copy=None to reuse the memory buffer whenever possible and allow for copies otherwise."
                 )
-        obj = torch.as_tensor(
-            obj,
-            device=device.torch_device if device is not None else devices.get_device().torch_device,
-        )
+        try:
+            obj = torch.as_tensor(
+                obj,
+                device=device.torch_device
+                if device is not None
+                else devices.get_device().torch_device,
+            )
+        except RuntimeError:
+            raise TypeError("invalid data of type {}".format(type(obj)))
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
@@ -388,7 +393,7 @@ def array(
     # content shall be split, chunk the passed data object up
     if split is not None:
         _, _, slices = comm.chunk(gshape, split)
-        obj = obj[slices].clone()
+        obj = obj[slices]
         obj = sanitize_memory_layout(obj, order=order)
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
