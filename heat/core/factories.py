@@ -150,7 +150,7 @@ def arange(
 def array(
     obj: Iterable,
     dtype: Optional[Type[datatype]] = None,
-    copy: bool = True,
+    copy: bool = None,
     ndmin: int = 0,
     order: str = "C",
     split: Optional[int] = None,
@@ -171,7 +171,8 @@ def array(
         to hold the objects in the sequence. This argument can only be used to ‘upcast’ the array. For downcasting, use
         the :func:`~heat.core.dndarray.astype` method.
     copy : bool, optional
-        If ``True`` (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested
+        If ``None`` (default),
+        If ``True``, then the object is copied. Otherwise, a copy will only be made if obj is a nested
         sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
     ndmin : int, optional
         Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
@@ -197,6 +198,8 @@ def array(
     ------
     NotImplementedError
         If order is one of the NumPy options ``'K'`` or ``'A'``.
+    ValueError
+        If `copy` is False but array arguments make a copy necessary.
 
     Examples
     --------
@@ -284,18 +287,16 @@ def array(
          [torch.LongStorage of size 6]
     """
     # array already exists; no copy
-    if (
-        isinstance(obj, DNDarray)
-        and not copy
-        and (dtype is None or dtype == obj.dtype)
-        and (split is None or split == obj.split)
-        and (is_split is None or is_split == obj.split)
-        and (device is None or device == obj.device)
-    ):
-        return obj
-
-    # extract the internal tensor in case of a heat tensor
     if isinstance(obj, DNDarray):
+        if not copy:
+            if (
+                (dtype is None or dtype == obj.dtype)
+                and (split is None or split == obj.split)
+                and (is_split is None or is_split == obj.split)
+                and (device is None or device == obj.device)
+            ):
+                return obj
+        # extract the internal tensor
         obj = obj.larray
 
     # sanitize the data type
@@ -323,13 +324,23 @@ def array(
             except RuntimeError:
                 raise TypeError("invalid data of type {}".format(type(obj)))
     else:
-        if not isinstance(obj, DNDarray):
-            obj = torch.as_tensor(
-                obj,
-                device=device.torch_device
-                if device is not None
-                else devices.get_device().torch_device,
-            )
+        if copy is False and not np.isscalar(obj):
+            # Python array-API compliance, cf. https://data-apis.org/array-api/2022.12/API_specification/generated/array_api.asarray.html
+            if not (
+                (dtype is None or dtype == types.canonical_heat_type(obj.dtype))
+                and (
+                    device is None
+                    or device.torch_device
+                    == getattr(obj, "device", devices.get_device().torch_device)
+                )
+            ):
+                raise ValueError(
+                    "argument `copy` is set to False, but copy of input object is necessary. \n Set copy=None to reuse the memory buffer whenever possible and allow for copies otherwise."
+                )
+        obj = torch.as_tensor(
+            obj,
+            device=device.torch_device if device is not None else devices.get_device().torch_device,
+        )
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
