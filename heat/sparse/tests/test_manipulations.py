@@ -12,7 +12,6 @@ from heat.core.tests.test_suites.basic_test import TestCase
 class TestManipulations(TestCase):
     @classmethod
     def setUpClass(self):
-
         super(TestManipulations, self).setUpClass()
         """
         A = [[0, 0, 1, 0, 2]
@@ -35,7 +34,6 @@ class TestManipulations(TestCase):
         )
 
     def test_todense(self):
-
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
         ref_dense_array = ht.array(
