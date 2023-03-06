@@ -53,12 +53,10 @@ class Lasso:
         theta = torch.zeros(n, 1, device=x.device)
         # looping until max number of iterations or convergence
         for i in range(self.max_iter):
-
             theta_old = theta.clone()
 
             # looping through each coordinate
             for j in range(n):
-
                 y_est = (x @ theta)[:, 0]
 
                 rho = (x[:, j] * (y - y_est + theta[j] * x[:, j])).mean()
