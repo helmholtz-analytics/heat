@@ -392,9 +392,11 @@ def array(
 
     # content shall be split, chunk the passed data object up
     if split is not None:
+        # only keep local slice
         _, _, slices = comm.chunk(gshape, split)
-        obj = obj[slices]
-        obj = sanitize_memory_layout(obj, order=order)
+        _ = obj[slices].clone()
+        del obj
+        obj = sanitize_memory_layout(_, order=order)
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
         obj = sanitize_memory_layout(obj, order=order)
@@ -504,7 +506,7 @@ def asarray(
     >>> ht.asarray(a, dtype=ht.float64) is a
     False
     """
-    return array(obj, dtype=dtype, copy=False, order=order, is_split=is_split, device=device)
+    return array(obj, dtype=dtype, copy=None, order=order, is_split=is_split, device=device)
 
 
 def empty(
