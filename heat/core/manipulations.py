@@ -122,31 +122,44 @@ def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
 
 def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     """
-    Broadcasts an array to a specified shape.
-
+    Broadcasts an array to a specified shape. Returns a view of ``x`` if ``x`` is not distributed, otherwise it returns a broadcasted, distributed, load-balanced copy of ``x``.
     Parameters
     ----------
     x : DNDarray
-        DNDarray to broadcast.
+        `DNDarray` to broadcast.
     shape : Tuple[int, ...]
-        Array shape. Must be compatible with x.
+        Array shape. Must be compatible with ``x``.
     """
-    # figure out the output split axis via dndarray.__torch_proxy__ and named tensors functionality
     try:
-        torch_proxy = x.__torch_proxy__
+        view = not x.is_distributed()
     except AttributeError:
         raise TypeError("'x' must be a DNDarray, currently {}".format(type(x)))
 
-    split_tags = [None]*x.ndim
+    # figure out the output split axis via dndarray.__torch_proxy__ and named tensors functionality
+    torch_proxy = x.__torch_proxy__
+    split_tags = [None] * x.ndim
     if x.split is not None:
         split_tags[x.split] = "split"
     torch_proxy = torch.tensor(torch_proxy, names=split_tags)
     torch_proxy = torch_proxy.broadcast_to(shape)
     output_split = torch_proxy.names.index("split")
-
-    # exploit binary operations broadcasting 
-    broadcasted = factories.zeros(shape, dtype=x.dtype, split=output_split, device = x.device, comm=x.comm)
-    broadcasted += x
+    if view:
+        # return a view of the input data
+        broadcasted = factories.array(
+            x.larray.broadcast_to(shape),
+            dtype=x.dtype,
+            split=output_split,
+            device=x.device,
+            comm=x.comm,
+            copy=False,
+        )
+    else:
+        # input is distributed, return a broadcasted copy of input
+        # exploit binary operations broadcasting
+        broadcasted = factories.zeros(
+            shape, dtype=x.dtype, split=output_split, device=x.device, comm=x.comm
+        )
+        broadcasted += x
 
     return broadcasted
 
