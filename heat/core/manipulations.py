@@ -136,13 +136,15 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
         raise TypeError("'x' must be a DNDarray, currently {}".format(type(x)))
 
     # figure out the output split axis via dndarray.__torch_proxy__ and named tensors functionality
-    torch_proxy = x.__torch_proxy__
+    torch_proxy = x.__torch_proxy__()
     split_tags = [None] * x.ndim
     if x.split is not None:
         split_tags[x.split] = "split"
-    torch_proxy = torch.tensor(torch_proxy, names=split_tags)
-    torch_proxy = torch_proxy.broadcast_to(shape)
-    output_split = torch_proxy.names.index("split")
+        torch_proxy = torch.tensor(torch_proxy, names=split_tags)
+        torch_proxy = torch_proxy.broadcast_to(shape)
+        output_split = torch_proxy.names.index("split")
+    else:
+        output_split = None
     if view:
         # return a view of the input data
         broadcasted = factories.array(
