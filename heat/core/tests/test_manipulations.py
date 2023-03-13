@@ -41,6 +41,11 @@ class TestManipulations(TestCase):
         self.assertEqual(broadcasted.shape, (3, 4))
         self.assertEqual(broadcasted.dtype, ht.float32)
 
+        # test distribution following view
+        a = ht.arange(5)
+        broadcasted = ht.broadcast_to(a, (10, 5))
+        # self.assertTrue((a.larray.storage() is broadcasted.larray.storage()))
+
     def test_column_stack(self):
         # test local column_stack, 2-D arrays
         a = np.arange(10, dtype=np.float32).reshape(5, 2)
