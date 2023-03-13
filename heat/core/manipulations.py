@@ -137,15 +137,17 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     except AttributeError:
         raise TypeError("'x' must be a DNDarray, currently {}".format(type(x)))
 
-    split_tags = [None]*x.ndim
+    split_tags = [None] * x.ndim
     if x.split is not None:
         split_tags[x.split] = "split"
     torch_proxy = torch.tensor(torch_proxy, names=split_tags)
     torch_proxy = torch_proxy.broadcast_to(shape)
     output_split = torch_proxy.names.index("split")
 
-    # exploit binary operations broadcasting 
-    broadcasted = factories.zeros(shape, dtype=x.dtype, split=output_split, device = x.device, comm=x.comm)
+    # exploit binary operations broadcasting
+    broadcasted = factories.zeros(
+        shape, dtype=x.dtype, split=output_split, device=x.device, comm=x.comm
+    )
     broadcasted += x
 
     return broadcasted
