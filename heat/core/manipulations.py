@@ -131,12 +131,24 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     shape : Tuple[int, ...]
         Array shape. Must be compatible with x.
     """
-    if not isinstance(x, DNDarray):
+    # figure out the output split axis via dndarray.__torch_proxy__ and named tensors functionality
+    try:
+        torch_proxy = x.__torch_proxy__
+    except AttributeError:
         raise TypeError("'x' must be a DNDarray, currently {}".format(type(x)))
 
-    broadcasted = torch.broadcast_to(x.larray, shape)
+    split_tags = [None]*x.ndim
+    if x.split is not None:
+        split_tags[x.split] = "split"
+    torch_proxy = torch.tensor(torch_proxy, names=split_tags)
+    torch_proxy = torch_proxy.broadcast_to(shape)
+    output_split = torch_proxy.names.index("split")
 
-    return factories.array(broadcasted, dtype=x.dtype, device=x.device)
+    # exploit binary operations broadcasting 
+    broadcasted = factories.zeros(shape, dtype=x.dtype, split=output_split, device = x.device, comm=x.comm)
+    broadcasted += x
+
+    return broadcasted
 
 
 def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
