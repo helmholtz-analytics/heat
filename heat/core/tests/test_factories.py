@@ -307,6 +307,10 @@ class TestFactories(TestCase):
         # invalid communicator
         with self.assertRaises(TypeError):
             ht.array((4,), comm={})
+        # copy=False but copy is necessary
+        data = np.arange(10)
+        with self.assertRaises(ValueError):
+            ht.array(data, dtype=ht.int32, copy=False)
 
         # data already distributed but don't match in shape
         if self.get_size() > 1:
