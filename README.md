@@ -55,11 +55,8 @@ computational and memory needs of your laptop and desktop.
 
 # Support Channels
 
-We use [StackOverflow](https://stackoverflow.com/tags/pyheat/) as a forum for questions about Heat.
-If you do not find an answer to your question, then please ask a new question there and be sure to
-tag it with "pyheat".
-
-You can also reach us on [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions).
+We use [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions) as a forum for questions about Heat.
+If you found a bug or miss a feature, then please file a new [issue](https://github.com/helmholtz-analytics/heat/issues/new/choose).
 
 # Requirements
 
