@@ -324,7 +324,7 @@ def array(
             except RuntimeError:
                 raise TypeError("invalid data of type {}".format(type(obj)))
     else:
-        if copy is False and not np.isscalar(obj):
+        if copy is False and not np.isscalar(obj) and not isinstance(obj, (Tuple, List)):
             # Python array-API compliance, cf. https://data-apis.org/array-api/2022.12/API_specification/generated/array_api.asarray.html
             if not (
                 (dtype is None or dtype == types.canonical_heat_type(obj.dtype))
