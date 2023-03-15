@@ -171,9 +171,9 @@ def array(
         to hold the objects in the sequence. This argument can only be used to ‘upcast’ the array. For downcasting, use
         the :func:`~heat.core.dndarray.astype` method.
     copy : bool, optional
-        If ``None`` (default),
-        If ``True``, then the object is copied. Otherwise, a copy will only be made if obj is a nested
-        sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
+        If ``True``, the input object is copied.
+        If ``False``, input which supports the buffer protocol is never copied.
+        If ``None`` (default), the function reuses the existing memory buffer if possible, and copies otherwise.
     ndmin : int, optional
         Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
         attached to the shape if ``ndim > 0`` and prefaced in case of ``ndim < 0`` to meet the requirement.
@@ -199,7 +199,7 @@ def array(
     NotImplementedError
         If order is one of the NumPy options ``'K'`` or ``'A'``.
     ValueError
-        If `copy` is False but array arguments make a copy necessary.
+        If ``copy`` is False but a copy is necessary.
 
     Examples
     --------
