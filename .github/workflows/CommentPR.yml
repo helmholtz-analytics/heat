@@ -63,6 +63,6 @@ jobs:
 
       - name: 'Push branch'
         run: |
-          git fetch origin pull/${{ needs.upload.outputs.PR_NR }}/head:${{ needs.upload.outputs.PR_NR }}
-          git checkout ${{ needs.upload.outputs.PR_NR }}
+          git fetch origin pull/${{ needs.upload.outputs.PR_NR }}/head:pr/${{ needs.upload.outputs.PR_NR }}
+          git checkout pr/${{ needs.upload.outputs.PR_NR }}
           git push --repo=${{ secrets.CB_REPO }}
