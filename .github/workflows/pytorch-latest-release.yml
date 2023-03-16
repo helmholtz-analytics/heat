@@ -23,9 +23,7 @@ jobs:
         id: git-check
         run: echo "::set-output name=modified::$([ -z "`git status --porcelain`" ] && echo "false" || echo "true")"
       - name: Delete working branch if it already exists
-        if: ${{ git ls-remote --exit-code origin refs/heads/${{ env.working_branch }} }}
-        run: |
-          git push --delete origin ${{ env.working_branch }}
+        run: git push --delete origin ${{ env.working_branch }} || true
       - name: Commit latest PyTorch release version to new branch
         if: ${{ steps.git-check.outputs.modified == 'true' }}
         run: |
