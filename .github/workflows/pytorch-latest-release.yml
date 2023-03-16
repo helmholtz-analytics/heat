@@ -26,7 +26,6 @@ jobs:
         if: git show-ref --verify --quiet refs/heads/${{ env.working_branch }}
         run: |
           git push --delete origin ${{ env.working_branch }}
-          git branch -d ${{ env.working_branch }}
       - name: Commit latest PyTorch release version to new branch
         if: ${{ steps.git-check.outputs.modified == 'true' }}
         run: |
