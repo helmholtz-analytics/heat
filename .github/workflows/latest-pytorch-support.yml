@@ -13,9 +13,10 @@ permissions:
 jobs:
   latest-torch-support:
     runs-on: ubuntu-latest
+    # ${{ env.working_branch }} environment variable in job-level conditional if not supported
     if:
       contains('
-        refs/heads/${{ env.working_branch }}
+        refs/heads/workflows/new-pytorch-release
       ', github.ref)
     steps:
       - uses: actions/checkout@v3
