@@ -2,10 +2,11 @@ name: Support latest PyTorch
 
 on:
   push:
+    branches: [ workflows/new-pytorch-release-branch, workflows/new-pytorch-main-branch ]
     paths:
       - '.github/pytorch-release-versions/*'
 env:
-  working_branch: workflows/new-pytorch-release
+  working_branch: ${{ github.ref }}
 permissions:
   contents: write
   issues: write
@@ -13,11 +14,6 @@ permissions:
 jobs:
   latest-torch-support:
     runs-on: ubuntu-latest
-    # ${{ env.working_branch }} environment variable in job-level conditional if not supported
-    if:
-      contains('
-        refs/heads/workflows/new-pytorch-release
-      ', github.ref)
     steps:
       - uses: actions/checkout@v3
       - uses: JasonEtco/create-an-issue@v2
@@ -49,14 +45,21 @@ jobs:
           echo ${{ env.previous_pytorch }}
           echo ${{ env.new_pytorch }}
           sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.setup_pytorch }}"'/g' setup.py
+      - name: Define base branch
+        run: |
+          if [[ ${{ github.ref }} =~ .*main.* ]]; then
+            echo "base_branch=main" >> $GITHUB_ENV
+          elif [[ ${{ github.ref }} =~ .*release.* ]]; then
+            echo "base_branch=release/1.2.x" >> $GITHUB_ENV
+          fi
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v4
         with:
-            base: release/1.2.x
+            base: ${{ env.base_branch }}
             delete-branch: true
             token: ${{ secrets.GITHUB_TOKEN }}
             commit-message: Support latest PyTorch release
-            title: Support PyTorch ${{ env.new_pytorch }} on branch release/1.2.x
+            title: Support PyTorch ${{ env.new_pytorch }} on branch ${{ env.base_branch }}
             body: |
               Run tests on latest PyTorch release
               Issue/s resolved: #${{ steps.create-issue.outputs.number }}
