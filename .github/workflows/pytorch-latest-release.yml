@@ -1,7 +1,8 @@
 name: Get latest PyTorch release version
 on:
+  workflow_dispatch:
   schedule:
-    - cron:  '0 3 * * 1,4'
+    - cron:  '0 3 * * 1-5'
 permissions:
   contents: write
 jobs:
@@ -16,13 +17,13 @@ jobs:
         run: |
           curl -sL https://api.github.com/repos/pytorch/pytorch/releases/latest | \
           jq -r ".tag_name" | tr -d 'v' > .github/pytorch-release-versions/pytorch-latest.txt
-      - name: Check for modified files
+      - name: Check if file has been modified
         id: git-check
-#        run: echo ::set-output name=modified::$([ -z "`git status --porcelain`" ] && echo "false" || echo "true")
-        run: echo "{modified}={$([ -z "`git status --porcelain`" ] && echo "false" || echo "true")}" >> $GITHUB_OUTPUT
-      - name: Commit latest PyTorch release version
-        if: steps.git-check.outputs.modified == 'true'
+        run: echo "::set-output name=modified::$([ -z "`git status --porcelain`" ] && echo "false" || echo "true")"
+      - name: Commit latest PyTorch release version to new branch
+        if: ${{ steps.git-check.outputs.modified == 'true' }} # use correct syntax here
         run: |
+          git checkout -b workflows/new-pytorch-release # create local branch from reference
           echo "new=$(<.github/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
           git config --global user.name 'ClaudiaComito'
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
