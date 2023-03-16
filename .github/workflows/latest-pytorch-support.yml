@@ -41,9 +41,6 @@ jobs:
           echo "setup_pytorch=$(.github/workflows/increment_version.sh ${{ env.new_pytorch }})" >> $GITHUB_ENV
       - name: Update setup.py
         run: |
-          echo ${{ env.setup_pytorch }}
-          echo ${{ env.previous_pytorch }}
-          echo ${{ env.new_pytorch }}
           sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.setup_pytorch }}"'/g' setup.py
       - name: Define base branch
         run: |
