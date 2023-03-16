@@ -159,12 +159,7 @@ class MPICommunication(Communication):
         return self.size > 1
 
     def chunk(
-        self,
-        shape: Tuple[int],
-        split: int,
-        rank: int = None,
-        w_size: int = None,
-        sparse: bool = False,
+        self, shape: Tuple[int], split: int, rank: int = None, w_size: int = None
     ) -> Tuple[int, Tuple[int], Tuple[slice]]:
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
@@ -184,8 +179,7 @@ class MPICommunication(Communication):
         w_size : int, optional
             The MPI world size, defaults to ``self.size``.
             Intended for creating chunk maps without communication
-        sparse : bool, optional
-            Specifies whether the array is a sparse matrix
+
         """
         # ensure the split axis is valid, we actually do not need it
         split = sanitize_axis(shape, split)
@@ -207,9 +201,6 @@ class MPICommunication(Communication):
         else:
             start = rank * chunk + remainder
         end = start + chunk
-
-        if sparse:
-            return start, end
 
         return (
             start,
