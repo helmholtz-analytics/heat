@@ -13,7 +13,7 @@ import heat.optim as optim
 from heat.optim.lr_scheduler import StepLR
 from heat.utils import vision_transforms
 from heat.utils.data.cifar10ssl import CIFAR10SSLDataset
-from heat.core.communication import MPIGather, backward, get_comm
+from heat.core.communication import AdjointGather, backward, get_comm
 
 comm = get_comm()
 
@@ -94,7 +94,65 @@ class Net(ht.nn.Module):
         return out
 
 
-def main(batch_size=32, temperature=0.5, num_iter=10, lr=1e-2):
+def main(temperature=0.5, num_iter=10):
+    # Training settings
+    parser = argparse.ArgumentParser(description="SimCLR Cifar-10 Example")
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=32,
+        metavar="N",
+        help="input batch size for training (default: 32)",
+    )
+    parser.add_argument(
+        "--test-batch-size",
+        type=int,
+        default=1000,
+        metavar="N",
+        help="input batch size for testing (default: 1000)",
+    )
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=10,
+        metavar="N",
+        help="number of epochs to train (default: 10)",
+    )
+    parser.add_argument(
+        "--lr", type=float, default=0.001, metavar="LR", help="learning rate (default: 0.001)"
+    )
+    parser.add_argument(
+        "--weight_decay", type=float, default=1e-6, metavar="WD", help="weight_decay (default: 1e-6)"
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.5,
+        metavar="M",
+        help="Temperature parameter used for the softmax function (default: 0.5)",
+    )
+    parser.add_argument(
+        "--no-cuda", action="store_true", default=False, help="disables CUDA training"
+    )
+    parser.add_argument("--seed", type=int, default=1, metavar="S", help="random seed (default: 1)")
+    parser.add_argument(
+        "--log-interval",
+        type=int,
+        default=10,
+        metavar="N",
+        help="how many batches to wait before logging training status",
+    )
+    parser.add_argument(
+        "--save-model", action="store_true", default=False, help="For Saving the current Model"
+    )
+    args = parser.parse_args()
+    use_cuda = not args.no_cuda and torch.cuda.is_available()
+    torch.manual_seed(args.seed)
+    device = torch.device("cuda" if use_cuda else "cpu")
+    kwargs = {"batch_size": args.batch_size}
+    if use_cuda:
+        kwargs.update({"num_workers": 0, "pin_memory": True})
+
     torch.manual_seed(0)
 
     train_transform = ht.utils.vision_transforms.Compose(
@@ -131,14 +189,14 @@ def main(batch_size=32, temperature=0.5, num_iter=10, lr=1e-2):
         ishuffle=False,
         test_set=True,
     )
+    kwargs = {"batch_size": args.batch_size}
 
-    kwargs = {"batch_size": 32}
     train_loader = ht.utils.data.datatools.DataLoader(dataset=dataset1, **kwargs)
     test_loader = ht.utils.data.datatools.DataLoader(dataset=dataset2, **kwargs)
 
-    torch.manual_seed(0)
+    torch.manual_seed(args.seed)
     model = Net()
-    optimizer = optim.Adadelta(model.parameters(), lr=0.1)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     blocking = True
     dp_optim = ht.optim.DataParallelOptimizer(optimizer, blocking=blocking)
     net = ht.nn.DataParallel(
@@ -148,26 +206,32 @@ def main(batch_size=32, temperature=0.5, num_iter=10, lr=1e-2):
         blocking_parameter_updates=blocking,
         scale_gradient_average=comm.size,
     )
-    torch.manual_seed(0)
+
     net.train()
-    torch.manual_seed(0)
-    model.train()
-    torch.manual_seed(0)
+    epoch=1
+    for batch_idx, (data_view1, data_view2, _) in enumerate(train_loader):
+        data_view1, data_view2 = data_view1.to(device), data_view2.to(device)
 
-    for xiter, (x1, x2, _) in enumerate(train_loader):
+        output1 = net(data_view1)
+        output2 = net(data_view2)
+
+        output1 = AdjointGather(output1)
+        output2 = AdjointGather(output2)
+
         dp_optim.zero_grad()
-        x1 = net(x1)
-        x2 = net(x2)
-
-        output1 = MPIGather(x1)
-        output2 = MPIGather(x2)
 
         if comm.rank == 0:
             # apply single node SimCLR loss function
-            loss = simclr_loss(output1, output2, batch_size, temperature, comm.size)
+            loss = simclr_loss(output1, output2, args.batch_size, args.temperature, comm.size)
             # envoce backward pass
             loss.backward()
-            print("loss: ", xiter, loss)
+
+            if batch_idx % args.log_interval == 0:
+                print(
+                    f"Train Epoch: {epoch} [{batch_idx * len(data_view1)}/{len(train_loader.dataset)} "
+                    f"({100.0 * batch_idx / len(train_loader):.0f}%)]\tLoss: {loss.item():.4f}"
+                )
+            # print("loss: ", xiter, loss)
         if comm.rank > 0:
             # envoce backward pass on dummy variables
             backward(output1 + output2)
@@ -175,4 +239,5 @@ def main(batch_size=32, temperature=0.5, num_iter=10, lr=1e-2):
         dp_optim.step()
 
 
-main()
+if __name__ == "__main__":
+    main()
