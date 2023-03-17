@@ -305,3 +305,11 @@ MANIFEST
 travis_wait_*.log
 testing.py
 heat/datasets/MNISTDataset
+heat/datasets/cifar-10-python.tar.gz
+heat/datasets/cifar-10-batches-py/
+
+
+
+
+
+

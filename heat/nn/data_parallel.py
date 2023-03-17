@@ -55,6 +55,7 @@ class DataParallel(tnn.Module):
         comm: MPICommunication,
         optimizer: Union[optim.DataParallelOptimizer, List, Tuple],
         blocking_parameter_updates: bool = False,
+        scale_gradient_average: Union[int, float] = 1
     ):  # noqa: D107
         if isinstance(optimizer, optim.DASO):
             raise TypeError(
@@ -64,6 +65,7 @@ class DataParallel(tnn.Module):
         self.module = module
         self.comm = comm
         self.blocking_parameter_updates = blocking_parameter_updates
+        self.scale_gradient_average = scale_gradient_average
 
         self._dp_optimizers = list()
         self._layer_wait_handles = OrderedDict()
@@ -235,7 +237,7 @@ class DataParallel(tnn.Module):
         """
         grad_loc_bf = grad_loc.to(torch.float)  # bfloat16)
         # average local gradients
-        grad_loc_bf *= 1 / float(self.comm.size)
+        grad_loc_bf *= self.scale_gradient_average / float(self.comm.size)
         # perform MPI Allreduce to compute global gradient
         self.comm.Allreduce(MPI.IN_PLACE, grad_loc_bf, MPI.SUM)  # mpi_sum_bf16)
         return grad_loc_bf.to(grad_loc.dtype)
@@ -257,7 +259,7 @@ class DataParallel(tnn.Module):
             with torch.no_grad():
                 wrk = grad_loc.to(torch.float)  # bfloat16)
             # counterbalance local gradient averaging
-            wrk *= 1 / float(self.comm.size)
+            wrk *= self.scale_gradient_average / float(self.comm.size)
             # perform MPI IAllreduce to compute global gradient, returns wait handle
             wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, wrk, MPI.SUM)  # mpi_sum_bf16)
             # if layer wait handle dict does not contain the layer, add it -> automatically tracks reversed layer order
