@@ -1960,5 +1960,108 @@ def use_comm(comm: Communication = None):
     __default_comm = sanitize_comm(comm)
 
 
+
+
+
+
+
+class MPIGather_Class(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, tensor, root: int = 0, axis: int = 0):
+        ctx.root = root
+        ctx.axis = axis
+        mpi_type = MPI_WORLD._MPICommunication__mpi_type_mappings[tensor.dtype]
+        tensor_shape = list(tensor.shape)
+        tensor_shape[axis] = tensor_shape[axis] * MPI_WORLD.size
+        output = torch.empty(tensor_shape, dtype=tensor.dtype)
+        output = (
+            output.cuda(tensor.get_device())
+            if (tensor.is_cuda and CUDA_AWARE_MPI)
+            else output
+        )
+        MPI_WORLD.Gather(tensor, output, root, axis)
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_outputs):
+        root = ctx.root
+        axis = ctx.axis
+        tensor_shape = list(grad_outputs.shape)
+        tensor_shape[axis] = tensor_shape[axis] // MPI_WORLD.size
+        output = torch.empty(tensor_shape, dtype=grad_outputs.dtype)
+        output = (
+            output.cuda(grad_outputs.get_device())
+            if (grad_outputs.is_cuda and CUDA_AWARE_MPI)
+            else output
+        )
+        MPI_WORLD.Scatter(grad_outputs, output, root, axis)
+        return (output, None, None)
+
+
+def MPIGather(tensor, root: int = 0, axis: int = 0):
+    return MPIGather_Class.apply(tensor, root, axis)
+
+
+
+
+
+
+
+
+class MPIScatter_Class(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, tensor, root: int = 0, axis: int = 0):
+        root = ctx.root
+        axis = ctx.axis
+        mpi_type = MPI_WORLD._MPICommunication__mpi_type_mappings[tensor.dtype]
+        tensor_shape = list(tensor.shape)
+        tensor_shape[axis] = tensor_shape[axis] // MPI_WORLD.size
+        output = torch.empty(tensor_shape, dtype=tensor.dtype)
+        output = (
+            output.cuda(tensor.get_device())
+            if (grad_outputs.is_cuda and CUDA_AWARE_MPI)
+            else output
+        )
+        MPI_WORLD.Scatter(tensor, output, root, axis)
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_outputs):
+        root = ctx.root
+        axis = ctx.axis
+        tensor_shape = list(grad_outputs.shape)
+        tensor_shape[axis] = tensor_shape[axis] * MPI_WORLD.size
+        output = torch.empty(tensor_shape, dtype=grad_outputs.dtype)
+        output = (
+            output.cuda(grad_outputs.get_device())
+            if (grad_outputs.is_cuda and CUDA_AWARE_MPI)
+            else output
+        )
+        MPI_WORLD.Gather(grad_outputs, output)
+        return (output, None, None)
+
+
+def MPIScatter(tensor, root: int = 0, axis: int = 0):
+    return MPIScatter_Class.apply(tensor, root, axis)
+
+
+
+def backward(loss: torch.Tensor) -> None:
+    """
+    Computes the backward pass to compute gradients of the loss with respect to the input tensors.
+
+    Args:
+        loss (torch.Tensor): The loss tensor to compute gradients from.
+
+    Returns:
+        None
+    """
+    # Zero out the gradients of the input tensor(s)
+    loss = 0.0 * loss
+
+    # Compute gradients of the loss tensor with respect to the input tensor(s)
+    loss.mean().backward()
+
+
 # import at the end of file to break circular dependencies
 from .dndarray import DNDarray

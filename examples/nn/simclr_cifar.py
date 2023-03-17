@@ -1,5 +1,5 @@
 """
-Simple example demonstrating the equivalence of single node and distributed SimCLR
+Simple example demonstrating distributed SimCLR
 """
 from __future__ import print_function
 import argparse
@@ -33,8 +33,7 @@ def simclr_loss(out_1, out_2, batch_size, temperature, npes):
     loss = (-torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
     return loss
 
-
-
+pip3 install --upgrade --pre torch==2.0.0.dev20230228+cpu --index-url https://download.pytorch.org/whl/nightly/cpu
 
 class Net(ht.nn.Module):
     def __init__(self):
@@ -111,12 +110,10 @@ def main(batch_size=32, temperature=0.5, num_iter=10, lr=1e-2):
     net.train()
     torch.manual_seed(0)
     model.train()
-
     torch.manual_seed(0)
 
     for xiter, (x1, x2, _) in enumerate(train_loader):
         dp_optim.zero_grad()
-        print('dd: ', type(x1))
         x1 = net(x1)
         x2 = net(x2)
 
