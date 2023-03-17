@@ -1,7 +1,6 @@
 """
-Simple example demonstrating distributed SimCLR
+Example demonstrating distributed SimCLR on Cifar-10
 """
-from __future__ import print_function
 import argparse
 import sys
 import time
@@ -19,17 +18,58 @@ from heat.core.communication import MPIGather, backward, get_comm
 comm = get_comm()
 
 
-def simclr_loss(out_1, out_2, batch_size, temperature, npes):
-    # simclr loss according to https://arxiv.org/abs/2002.05709
-    out = torch.cat([out_1, out_2], dim=0)
-    sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
+def simclr_loss(
+    output1: torch.Tensor,
+    output2: torch.Tensor,
+    batch_size: int,
+    temperature: float,
+    num_processes: int,
+) -> torch.Tensor:
+    """
+    Computes the SimCLR loss.
+
+    Parameters
+    ----------
+    output1 : torch.Tensor
+        Output tensor of the first set of augmented images. Shape (batch_size, feature_dim).
+    output2 : torch.Tensor
+        Output tensor of the second set of augmented images. Shape (batch_size, feature_dim).
+    batch_size : int
+        Number of samples in a batch.
+    temperature : float
+        Temperature parameter used for the softmax function.
+    num_processes : int
+        Number of processing elements used for parallel computing.
+
+    Returns
+    -------
+    torch.Tensor
+        SimCLR loss tensor of shape (1,).
+    """
+    # Concatenate the output tensors.
+    output = torch.cat([output1, output2], dim=0)
+
+    # Compute the similarity matrix.
+    similarity_matrix = torch.exp(torch.mm(output, output.t().contiguous()) / temperature)
+
+    # Create a mask to exclude the diagonal entries of the similarity matrix.
     mask = (
-        torch.ones_like(sim_matrix) - torch.eye(2 * npes * batch_size, device=sim_matrix.device)
+        torch.ones_like(similarity_matrix)
+        - torch.eye(2 * num_processes * batch_size, device=similarity_matrix.device)
     ).bool()
-    sim_matrix = sim_matrix.masked_select(mask).view(2 * npes * batch_size, -1)
-    pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
-    pos_sim = torch.cat([pos_sim, pos_sim], dim=0)
-    loss = (-torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
+
+    # Mask the similarity matrix and reshape it.
+    similarity_matrix = similarity_matrix.masked_select(mask).view(
+        2 * num_processes * batch_size, -1
+    )
+
+    # Compute the positive similarities and concatenate them.
+    positive_similarity = torch.exp(torch.sum(output1 * output2, dim=-1) / temperature)
+    positive_similarity = torch.cat([positive_similarity, positive_similarity], dim=0)
+
+    # Compute the loss.
+    loss = (-torch.log(positive_similarity / similarity_matrix.sum(dim=-1))).mean()
+
     return loss
 
 
@@ -57,7 +97,7 @@ class Net(ht.nn.Module):
 def main(batch_size=32, temperature=0.5, num_iter=10, lr=1e-2):
     torch.manual_seed(0)
 
-    transform = ht.utils.vision_transforms.Compose(
+    train_transform = ht.utils.vision_transforms.Compose(
         [
             vision_transforms.RandomHorizontalFlip(p=0.5),
             vision_transforms.RandomApply(
@@ -69,18 +109,25 @@ def main(batch_size=32, temperature=0.5, num_iter=10, lr=1e-2):
         ]
     )
 
+    test_transform = ht.utils.vision_transforms.Compose(
+        [
+            vision_transforms.ToTensor(),
+            vision_transforms.Normalize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010]),
+        ]
+    )
+
     dataset1 = CIFAR10SSLDataset(
         "../../heat/datasets",
         download=True,
         train=True,
-        transform=transform,
+        transform=train_transform,
         ishuffle=False,
     )
     dataset2 = CIFAR10SSLDataset(
         "../../heat/datasets",
         download=True,
         train=False,
-        transform=transform,
+        transform=test_transform,
         ishuffle=False,
         test_set=True,
     )
