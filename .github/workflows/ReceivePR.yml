@@ -2,6 +2,8 @@ name: Receive PR
 
 on:
   pull_request:
+    paths-ignore:
+      - 'doc/**'
 
 jobs:
   build:
