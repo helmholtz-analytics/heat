@@ -85,7 +85,7 @@ class CIFAR10SSLDataset(datasets.CIFAR10):
         split: int = 0,
         ishuffle: bool = False,
         test_set: bool = False,
-        comm: Optional[Communication] = None
+        comm: Optional[Communication] = None,
     ):  # noqa: D107
         super().__init__(
             root,
@@ -98,7 +98,7 @@ class CIFAR10SSLDataset(datasets.CIFAR10):
             raise ValueError("split must be 0 or None")
         split = split if not test_set else None
         array = factories.array(self.data, split=split, comm=comm)
-        
+
         targets = factories.array(self.targets, split=split, comm=comm)
         self.test_set = test_set
         self.partial_dataset = False
@@ -108,7 +108,7 @@ class CIFAR10SSLDataset(datasets.CIFAR10):
         self.ishuffle = ishuffle
         if split is not None:
             min_data_split = array.gshape[0] // array.comm.size
-            print('array: ', array.gshape)
+            print("array: ", array.gshape)
             arb_slice = slice(min_data_split)
             self._cut_slice = arb_slice
             self.lcl_half = min_data_split // 2
@@ -120,7 +120,6 @@ class CIFAR10SSLDataset(datasets.CIFAR10):
             self.data = array._DNDarray__array
             self.targets = targets._DNDarray__array
         # getitem and len are defined by torch's MNIST class
-
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         """

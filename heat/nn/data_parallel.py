@@ -55,7 +55,7 @@ class DataParallel(tnn.Module):
         comm: MPICommunication,
         optimizer: Union[optim.DataParallelOptimizer, List, Tuple],
         blocking_parameter_updates: bool = False,
-        scale_gradient_average: Union[int, float] = 1
+        scale_gradient_average: Union[int, float] = 1,
     ):  # noqa: D107
         if isinstance(optimizer, optim.DASO):
             raise TypeError(

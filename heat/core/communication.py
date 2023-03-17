@@ -1960,11 +1960,6 @@ def use_comm(comm: Communication = None):
     __default_comm = sanitize_comm(comm)
 
 
-
-
-
-
-
 class MPIGather_Class(torch.autograd.Function):
     @staticmethod
     def forward(ctx, tensor, root: int = 0, axis: int = 0):
@@ -1974,11 +1969,7 @@ class MPIGather_Class(torch.autograd.Function):
         tensor_shape = list(tensor.shape)
         tensor_shape[axis] = tensor_shape[axis] * MPI_WORLD.size
         output = torch.empty(tensor_shape, dtype=tensor.dtype)
-        output = (
-            output.cuda(tensor.get_device())
-            if (tensor.is_cuda and CUDA_AWARE_MPI)
-            else output
-        )
+        output = output.cuda(tensor.get_device()) if (tensor.is_cuda and CUDA_AWARE_MPI) else output
         MPI_WORLD.Gather(tensor, output, root, axis)
         return output
 
@@ -2000,12 +1991,6 @@ class MPIGather_Class(torch.autograd.Function):
 
 def MPIGather(tensor, root: int = 0, axis: int = 0):
     return MPIGather_Class.apply(tensor, root, axis)
-
-
-
-
-
-
 
 
 class MPIScatter_Class(torch.autograd.Function):
@@ -2043,7 +2028,6 @@ class MPIScatter_Class(torch.autograd.Function):
 
 def MPIScatter(tensor, root: int = 0, axis: int = 0):
     return MPIScatter_Class.apply(tensor, root, axis)
-
 
 
 def backward(loss: torch.Tensor) -> None:

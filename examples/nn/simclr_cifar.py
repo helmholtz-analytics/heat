@@ -24,8 +24,7 @@ def simclr_loss(out_1, out_2, batch_size, temperature, npes):
     out = torch.cat([out_1, out_2], dim=0)
     sim_matrix = torch.exp(torch.mm(out, out.t().contiguous()) / temperature)
     mask = (
-        torch.ones_like(sim_matrix)
-        - torch.eye(2 * npes * batch_size, device=sim_matrix.device)
+        torch.ones_like(sim_matrix) - torch.eye(2 * npes * batch_size, device=sim_matrix.device)
     ).bool()
     sim_matrix = sim_matrix.masked_select(mask).view(2 * npes * batch_size, -1)
     pos_sim = torch.exp(torch.sum(out_1 * out_2, dim=-1) / temperature)
@@ -33,7 +32,6 @@ def simclr_loss(out_1, out_2, batch_size, temperature, npes):
     loss = (-torch.log(pos_sim / sim_matrix.sum(dim=-1))).mean()
     return loss
 
-pip3 install --upgrade --pre torch==2.0.0.dev20230228+cpu --index-url https://download.pytorch.org/whl/nightly/cpu
 
 class Net(ht.nn.Module):
     def __init__(self):
@@ -53,7 +51,6 @@ class Net(ht.nn.Module):
         out = F.relu(self.fc1(out))
         out = F.relu(self.fc2(out))
         out = self.fc3(out)
-        # out = F.log_softmax(out, dim=1)
         return out
 
 
@@ -68,9 +65,7 @@ def main(batch_size=32, temperature=0.5, num_iter=10, lr=1e-2):
             ),
             vision_transforms.RandomGrayscale(p=0.2),
             vision_transforms.ToTensor(),
-            vision_transforms.Normalize(
-                (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
-            ),
+            vision_transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ]
     )
 
@@ -120,9 +115,7 @@ def main(batch_size=32, temperature=0.5, num_iter=10, lr=1e-2):
         output1 = MPIGather(x1)
         output2 = MPIGather(x2)
 
-        # print("qqaqKKKK: ", output1.shape, x1.shape, batch_size)
         if comm.rank == 0:
-            # print('out_mult: ', comm.rank, output1.mean(), output2.mean())
             # apply single node SimCLR loss function
             loss = simclr_loss(output1, output2, batch_size, temperature, comm.size)
             # envoce backward pass
@@ -134,5 +127,5 @@ def main(batch_size=32, temperature=0.5, num_iter=10, lr=1e-2):
 
         dp_optim.step()
 
-      
+
 main()
