@@ -1,7 +1,8 @@
 name: Get latest PyTorch release version
 on:
+  workflow_dispatch:
   schedule:
-    - cron:  '0 3 * * 1,4'
+    - cron:  '0 3 * * 1,5'
 permissions:
   contents: write
 jobs:
