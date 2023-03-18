@@ -134,7 +134,7 @@ if torch.cuda.device_count() > 0:
     __all__.append("gpu")
 
 elif (
-    int(torch.__version__.split(".")[1]) >= 12
+    (int(torch.__version__.split(".")[0]) > 1 or int(torch.__version__.split(".")[1]) > 11)
     and torch.backends.mps.is_built()
     and torch.backends.mps.is_available()
 ):
