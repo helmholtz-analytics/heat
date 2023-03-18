@@ -140,7 +140,19 @@ def allclose(
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
-    _local_allclose = torch.tensor(torch.allclose(t1.larray, t2.larray, rtol, atol, equal_nan))
+    try:
+        _local_allclose = torch.tensor(torch.allclose(t1.larray, t2.larray, rtol, atol, equal_nan))
+    except RuntimeError:
+        promoted_dtype = torch.promote_types(t1.larray.dtype, t2.larray.dtype)
+        _local_allclose = torch.tensor(
+            torch.allclose(
+                t1.larray.type(promoted_dtype),
+                t2.larray.type(promoted_dtype),
+                rtol,
+                atol,
+                equal_nan,
+            )
+        )
 
     # If x is distributed, then y is also distributed along the same axis
     if t1.comm.is_distributed():

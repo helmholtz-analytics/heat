@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import torch
 
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from . import communication
 
@@ -73,6 +73,22 @@ class Device:
         Return the descriptive information of :class:`~heat.core.device.Device`.
         """
         return "{}:{}".format(self.device_type, self.device_id)
+
+    def __eq__(self, other: Any) -> bool:
+        """
+        Overloads the `==` operator for local equal check.
+
+        Parameters
+        ----------
+        other : Any
+            The object to compare with
+        """
+        if isinstance(other, Device):
+            return self.device_type == other.device_type and self.device_id == other.device_id
+        elif isinstance(other, torch.device):
+            return self.device_type == other.type and self.device_id == other.index
+        else:
+            return NotImplemented
 
 
 # create a CPU device singleton

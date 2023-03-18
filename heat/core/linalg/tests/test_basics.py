@@ -237,7 +237,6 @@ class TestLinalgBasics(TestCase):
         self.assertTupleEqual(ainv.shape, a.shape)
         self.assertTrue(ht.allclose(ainv, ares, atol=1e-6))
 
-        # distributed
         a = ht.array([[5.0, -3, 2], [-3, 2, -1], [-3, 2, -2]], split=0)
         ainv = ht.linalg.inv(a)
         self.assertEqual(ainv.split, a.split)
@@ -245,6 +244,7 @@ class TestLinalgBasics(TestCase):
         self.assertTupleEqual(ainv.shape, a.shape)
         self.assertTrue(ht.allclose(ainv, ares, atol=1e-6))
 
+        ares = ht.array([[2.0, 2, 1], [3, 4, 1], [0, 1, -1]], split=1)
         a = ht.array([[5.0, -3, 2], [-3, 2, -1], [-3, 2, -2]], split=1)
         ainv = ht.linalg.inv(a)
         self.assertEqual(ainv.split, a.split)
@@ -281,7 +281,7 @@ class TestLinalgBasics(TestCase):
         self.assertTrue(ht.allclose(ainv, ares, atol=1e-6))
 
         # pivoting row change
-        ares = ht.array([[-1, 0, 2], [2, 0, -1], [-6, 3, 0]], dtype=ht.double) / 3.0
+        ares = ht.array([[-1, 0, 2], [2, 0, -1], [-6, 3, 0]], dtype=ht.double, split=0) / 3.0
         a = ht.array([[1, 2, 0], [2, 4, 1], [2, 1, 0]], dtype=ht.double, split=0)
         ainv = ht.linalg.inv(a)
         self.assertEqual(ainv.split, a.split)
@@ -289,6 +289,7 @@ class TestLinalgBasics(TestCase):
         self.assertTupleEqual(ainv.shape, a.shape)
         self.assertTrue(ht.allclose(ainv, ares, atol=1e-6))
 
+        ares = ht.array([[-1, 0, 2], [2, 0, -1], [-6, 3, 0]], dtype=ht.double, split=1) / 3.0
         a = ht.array([[1, 2, 0], [2, 4, 1], [2, 1, 0]], dtype=ht.double, split=1)
         ainv = ht.linalg.inv(a)
         self.assertEqual(ainv.split, a.split)
@@ -365,8 +366,27 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(ret00.shape, (n, k))
         self.assertEqual(ret00.dtype, ht.float)
         self.assertEqual(ret00.split, None)
-        self.assertEqual(a.split, 0)
+        if a.comm.size > 1:
+            self.assertEqual(a.split, 0)
         self.assertEqual(b.split, None)
+
+        # splits 0 None on 1 process
+        if a.comm.size == 1:
+            a = ht.ones((n, m), split=0)
+            b = ht.ones((j, k), split=None)
+            a[0] = ht.arange(1, m + 1)
+            a[:, -1] = ht.arange(1, n + 1)
+            b[0] = ht.arange(1, k + 1)
+            b[:, 0] = ht.arange(1, j + 1)
+            ret00 = ht.matmul(a, b, allow_resplit=True)
+
+            self.assertEqual(ht.all(ret00 == ht.array(a_torch @ b_torch)), 1)
+            self.assertIsInstance(ret00, ht.DNDarray)
+            self.assertEqual(ret00.shape, (n, k))
+            self.assertEqual(ret00.dtype, ht.float)
+            self.assertEqual(ret00.split, None)
+            self.assertEqual(a.split, 0)
+            self.assertEqual(b.split, None)
 
         if a.comm.size > 1:
             # splits 00
