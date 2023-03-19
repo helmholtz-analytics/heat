@@ -1879,15 +1879,20 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
 
     # tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
     tdevice = a.device.torch_device
+
+    # lazy lazy
+    orig_split = a.split
+    if a.split is not None:
+        a.resplit_(axis=0)
+
     local_a = a.larray
 
     # check new_split parameter
     new_split = kwargs.get("new_split")
     if new_split is None:
-        new_split = a.split
+        new_split = orig_split
     new_split = stride_tricks.sanitize_axis(shape, new_split)
 
-    print("SANITIZED SHAPE = ", shape)
     if not a.is_distributed():
         if a.comm.size > 1 and new_split is not None:
             # keep local slice only
@@ -1943,7 +1948,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         # calculate target number of elements on each rank
         target_numel = torch.zeros((size, len(shape)), dtype=torch.int64, device=tdevice)
         for i in range(size):
-            _, local_shape, _ = a.comm.chunk(shape, new_split, rank=i)
+            _, local_shape, _ = a.comm.chunk(shape, a.split, rank=i)
             target_numel[i] = torch.tensor(local_shape)
             if i == rank:
                 second_local_shape = local_shape
@@ -1951,20 +1956,20 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         if (target_numel == current_numel).all():
             local_a = local_a.reshape(second_local_shape)
         else:
-            second_local_shape = list(shape)
-            second_local_shape[a.split] = -1
-            try:
-                local_a = local_a.reshape(second_local_shape)
-            except RuntimeError:
-                # redistribution is necessary before reshaping
-                # define target map for redistribution
-                target_map = lshape_map.clone()
-                target_map[:, a.split] = target_numel
-                # else:
-                #     pre_split_numel = torch.prod(lshape_map[:,:a.split], dim=1)
-                # target_map[:,a.split] = target_numel // pre_split_numel
-                reshape_first_pass.redistribute_(target_map=target_map)
-                local_a = reshape_first_pass.larray.reshape(second_local_shape)
+            # second_local_shape = list(shape)
+            # second_local_shape[a.split] = -1
+            # try:
+            #     local_a = local_a.reshape(second_local_shape)
+            # except RuntimeError:
+            # redistribution is necessary before reshaping
+            # define target map for redistribution
+            target_map = lshape_map.clone()
+            target_map[:, a.split] = target_numel
+            # else:
+            #     pre_split_numel = torch.prod(lshape_map[:,:a.split], dim=1)
+            # target_map[:,a.split] = target_numel // pre_split_numel
+            reshape_first_pass.redistribute_(target_map=target_map)
+            local_a = reshape_first_pass.larray.reshape(second_local_shape)
         reshape_second_pass = DNDarray(
             local_a,
             gshape=shape,
@@ -1974,7 +1979,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
             comm=a.comm,
             balanced=None,
         )
-        reshape_second_pass.balance_()  # necessary?
+        #        reshape_second_pass.balance_()  # necessary?
         reshape_second_pass.resplit_(axis=new_split)
     else:
         pass
