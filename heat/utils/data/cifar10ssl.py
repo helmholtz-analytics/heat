@@ -108,7 +108,6 @@ class CIFAR10SSLDataset(datasets.CIFAR10):
         self.ishuffle = ishuffle
         if split is not None:
             min_data_split = array.gshape[0] // array.comm.size
-            print("array: ", array.gshape)
             arb_slice = slice(min_data_split)
             self._cut_slice = arb_slice
             self.lcl_half = min_data_split // 2
@@ -119,7 +118,7 @@ class CIFAR10SSLDataset(datasets.CIFAR10):
             self.lcl_half = array.gshape[0] // 2
             self.data = array._DNDarray__array
             self.targets = targets._DNDarray__array
-        # getitem and len are defined by torch's MNIST class
+        
 
     def __getitem__(self, index: int) -> Tuple[Any, Any]:
         """

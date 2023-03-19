@@ -307,6 +307,8 @@ testing.py
 heat/datasets/MNISTDataset
 heat/datasets/cifar-10-python.tar.gz
 heat/datasets/cifar-10-batches-py/
+examples/nn/data/
+examples/nn/simcrl/
 
 
 

@@ -1960,7 +1960,7 @@ def use_comm(comm: Communication = None):
     __default_comm = sanitize_comm(comm)
 
 
-class MPIGather_Class(torch.autograd.Function):
+class AdjointGather_Class(torch.autograd.Function):
     @staticmethod
     def forward(ctx, tensor, root: int = 0, axis: int = 0):
         ctx.root = root
@@ -1989,11 +1989,11 @@ class MPIGather_Class(torch.autograd.Function):
         return (output, None, None)
 
 
-def MPIGather(tensor, root: int = 0, axis: int = 0):
-    return MPIGather_Class.apply(tensor, root, axis)
+def AdjointGather(tensor, root: int = 0, axis: int = 0):
+    return AdjointGather_Class.apply(tensor, root, axis)
 
 
-class MPIScatter_Class(torch.autograd.Function):
+class AdjointScatter_Class(torch.autograd.Function):
     @staticmethod
     def forward(ctx, tensor, root: int = 0, axis: int = 0):
         root = ctx.root
@@ -2026,8 +2026,8 @@ class MPIScatter_Class(torch.autograd.Function):
         return (output, None, None)
 
 
-def MPIScatter(tensor, root: int = 0, axis: int = 0):
-    return MPIScatter_Class.apply(tensor, root, axis)
+def AdjointScatter(tensor, root: int = 0, axis: int = 0):
+    return AdjointScatter_Class.apply(tensor, root, axis)
 
 
 def backward(loss: torch.Tensor) -> None:

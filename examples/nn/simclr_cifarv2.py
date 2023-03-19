@@ -125,6 +125,7 @@ class Net(ht.nn.Module):
 def main(temperature=0.5, num_iter=10):
     # Training settings
     parser = argparse.ArgumentParser(description="SimCLR Cifar-10 Example")
+    parser.add_argument('--feature_dim', default=128, type=int, help='Feature dim for latent vector')
     parser.add_argument(
         "--batch-size",
         type=int,
@@ -222,10 +223,9 @@ def main(temperature=0.5, num_iter=10):
     train_loader = ht.utils.data.datatools.DataLoader(dataset=dataset1, **kwargs)
     test_loader = ht.utils.data.datatools.DataLoader(dataset=dataset2, **kwargs)
 
-
-
     torch.manual_seed(args.seed)
-    model = Net().to(device)
+    #model = Net().to(device)
+    model = Model_Sup(args.feature_dim).to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     blocking = True
     dp_optim = ht.optim.DataParallelOptimizer(optimizer, blocking=blocking)
