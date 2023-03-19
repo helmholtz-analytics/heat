@@ -2207,7 +2207,7 @@ class TestManipulations(TestCase):
         result = ht.array(
             torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape((4, 5, 3)), split=1
         )
-        reshaped = a.reshape((4, 5, 3))
+        reshaped = a.reshape((4, 5, 3), new_split=1)
 
         self.assertEqual(reshaped.size, result.size)
         self.assertEqual(reshaped.shape, result.shape)

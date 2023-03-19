@@ -1877,45 +1877,9 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
             raise TypeError(e)
     shape = np_proxy.reshape(shape).shape  # sanitized shape according to numpy
 
-    tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
-
-    def reshape_argsort_counts_displs(
-        shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
-    ):
-        """
-        Compute the send order, counts, and displacements.
-        """
-        shape1 = torch.tensor(shape1, dtype=torch.int)
-        lshape1 = torch.tensor(lshape1, dtype=torch.int)
-        shape2 = torch.tensor(shape2, dtype=torch.int)
-        # constants
-        width = torch.prod(lshape1[axis1:], dtype=torch.int)
-        height = torch.prod(lshape1[:axis1], dtype=torch.int)
-        global_len = torch.prod(shape1[axis1:])
-        ulen = torch.prod(shape2[axis2 + 1 :])
-        gindex = displs1[comm.rank] * torch.prod(shape1[axis1 + 1 :])
-
-        # Get axis position on new split axis
-        mask = torch.arange(width, device=tdevice) + gindex
-        mask = mask + torch.arange(height, device=tdevice).reshape([height, 1]) * global_len
-        try:
-            mask = (torch.divide(mask, ulen, rounding_mode="floor")) % shape2[axis2]
-        except TypeError:
-            mask = (torch.floor_divide(mask, ulen)) % shape2[axis2]
-        mask = mask.flatten()
-
-        # Compute return values
-        counts = torch.zeros(comm.size, dtype=torch.int)
-        displs = torch.zeros_like(counts)
-        argsort = torch.empty_like(mask, dtype=torch.long)
-        plz = 0
-        for i in range(len(displs2) - 1):
-            mat = torch.where((mask >= displs2[i]) & (mask < displs2[i + 1]))[0]
-            counts[i] = mat.numel()
-            argsort[plz : counts[i] + plz] = mat
-            plz += counts[i]
-        displs[1:] = torch.cumsum(counts[:-1], dim=0)
-        return argsort, counts, displs
+    # tdtype, tdevice = a.dtype.torch_type(), a.device.torch_device
+    tdevice = a.device.torch_device
+    local_a = a.larray
 
     # check new_split parameter
     new_split = kwargs.get("new_split")
@@ -1923,63 +1887,201 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         new_split = a.split
     new_split = stride_tricks.sanitize_axis(shape, new_split)
 
-    # Forward to Pytorch directly
-    if a.split is None:
-        local_reshape = torch.reshape(a.larray, shape)
-        if new_split is None:
-            return DNDarray(
-                local_reshape,
-                shape,
-                dtype=a.dtype,
-                split=None,
-                device=a.device,
-                comm=a.comm,
-                balanced=True,
-            )
-        _, _, local_slice = a.comm.chunk(shape, new_split)
-        local_reshape = local_reshape[local_slice]
+    print("SANITIZED SHAPE = ", shape)
+    if not a.is_distributed():
+        if a.comm.size > 1 and new_split is not None:
+            # keep local slice only
+            _, _, local_slice = a.comm.chunk(shape, new_split)
+            _ = local_a.reshape(shape)
+            local_a = _[local_slice].contiguous()
+            del _
+        else:
+            local_a = local_a.reshape(shape)
         return DNDarray(
-            local_reshape,
-            shape,
+            local_a,
+            gshape=shape,
             dtype=a.dtype,
             split=new_split,
-            comm=a.comm,
             device=a.device,
+            comm=a.comm,
             balanced=True,
         )
 
-    # Create new flat result tensor
-    _, local_shape, _ = a.comm.chunk(shape, new_split)
-    data = torch.empty(local_shape, dtype=tdtype, device=tdevice).flatten()
+    lshape_map = a.lshape_map
+    rank = a.comm.rank
+    size = a.comm.size
 
-    # Calculate the counts and displacements
-    _, old_displs, _ = a.comm.counts_displs_shape(a.shape, a.split)
-    _, new_displs, _ = a.comm.counts_displs_shape(shape, new_split)
-
-    old_displs += (a.shape[a.split],)
-    new_displs += (shape[new_split],)
-
-    sendsort, sendcounts, senddispls = reshape_argsort_counts_displs(
-        a.shape, a.lshape, old_displs, a.split, shape, new_displs, new_split, a.comm
+    # flatten dimensions from split axis on, e.g. if split = 1, (3,4,5) -> (3,20)
+    local_elements_off_split = torch.prod(lshape_map[:, a.split :], dim=1)
+    first_local_shape = tuple(lshape_map[rank, : a.split].tolist()) + (
+        local_elements_off_split[rank].item(),
     )
-    recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(
-        shape, local_shape, new_displs, new_split, a.shape, old_displs, a.split, a.comm
+    local_a = local_a.reshape(first_local_shape)
+    first_global_shape = tuple(lshape_map[rank, : a.split].tolist()) + (
+        local_elements_off_split.sum().item(),
     )
-
-    # rearrange order
-    send = a.larray.flatten()[sendsort]
-    a.comm.Alltoallv((send, sendcounts, senddispls), (data, recvcounts, recvdispls))
-
-    # original order
-    backsort = torch.argsort(recvsort)
-    data = data[backsort]
-
-    # Reshape local tensor
-    data = data.reshape(local_shape)
-
-    return DNDarray(
-        data, shape, dtype=a.dtype, split=new_split, device=a.device, comm=a.comm, balanced=True
+    reshape_first_pass = DNDarray(
+        local_a,
+        gshape=first_global_shape,
+        dtype=a.dtype,
+        split=a.split,
+        device=a.device,
+        comm=a.comm,
+        balanced=a.balanced,
     )
+    new_lshape_map = lshape_map[:, : a.split + 1]
+    new_lshape_map[:, a.split] = local_elements_off_split
+    reshape_first_pass.__lshape_map = new_lshape_map
+
+    # redistribute if necessary
+    # new_split = None and a.split = None have already been ruled out
+
+    # TODO: basic cases here are a.split == 0 and a.split != 0
+    if a.split == 0:
+        lshape_map = reshape_first_pass.lshape_map
+        current_numel = torch.prod(lshape_map, dim=1)
+        # calculate target number of elements on each rank
+        target_numel = torch.zeros((size, len(shape)), dtype=torch.int64, device=tdevice)
+        for i in range(size):
+            _, local_shape, _ = a.comm.chunk(shape, new_split, rank=i)
+            target_numel[i] = torch.tensor(local_shape)
+            if i == rank:
+                second_local_shape = local_shape
+        target_numel = torch.prod(target_numel, dim=1)
+        if (target_numel == current_numel).all():
+            local_a = local_a.reshape(second_local_shape)
+        else:
+            second_local_shape = list(shape)
+            second_local_shape[a.split] = -1
+            try:
+                local_a = local_a.reshape(second_local_shape)
+            except RuntimeError:
+                # redistribution is necessary before reshaping
+                # define target map for redistribution
+                target_map = lshape_map.clone()
+                target_map[:, a.split] = target_numel
+                # else:
+                #     pre_split_numel = torch.prod(lshape_map[:,:a.split], dim=1)
+                # target_map[:,a.split] = target_numel // pre_split_numel
+                reshape_first_pass.redistribute_(target_map=target_map)
+                local_a = reshape_first_pass.larray.reshape(second_local_shape)
+        reshape_second_pass = DNDarray(
+            local_a,
+            gshape=shape,
+            dtype=a.dtype,
+            split=0,
+            device=a.device,
+            comm=a.comm,
+            balanced=None,
+        )
+        reshape_second_pass.balance_()  # necessary?
+        reshape_second_pass.resplit_(axis=new_split)
+    else:
+        pass
+
+    return reshape_second_pass
+
+    # def reshape_argsort_counts_displs(
+    #     shape1, lshape1, displs1, axis1, shape2, displs2, axis2, comm
+    # ):
+    #     """
+    #     Compute the send order, counts, and displacements.
+    #     """
+    #     shape1 = torch.tensor(shape1, dtype=torch.int)
+    #     lshape1 = torch.tensor(lshape1, dtype=torch.int)
+    #     shape2 = torch.tensor(shape2, dtype=torch.int)
+    #     # constants
+    #     width = torch.prod(lshape1[axis1:], dtype=torch.int)
+    #     height = torch.prod(lshape1[:axis1], dtype=torch.int)
+    #     global_len = torch.prod(shape1[axis1:])
+    #     ulen = torch.prod(shape2[axis2 + 1 :])
+    #     gindex = displs1[comm.rank] * torch.prod(shape1[axis1 + 1 :])
+
+    #     # Get axis position on new split axis
+    #     mask = torch.arange(width, device=tdevice) + gindex
+    #     mask = mask + torch.arange(height, device=tdevice).reshape([height, 1]) * global_len
+    #     try:
+    #         mask = (torch.divide(mask, ulen, rounding_mode="floor")) % shape2[axis2]
+    #     except TypeError:
+    #         mask = (torch.floor_divide(mask, ulen)) % shape2[axis2]
+    #     mask = mask.flatten()
+
+    #     # Compute return values
+    #     counts = torch.zeros(comm.size, dtype=torch.int)
+    #     displs = torch.zeros_like(counts)
+    #     argsort = torch.empty_like(mask, dtype=torch.long)
+    #     plz = 0
+    #     for i in range(len(displs2) - 1):
+    #         mat = torch.where((mask >= displs2[i]) & (mask < displs2[i + 1]))[0]
+    #         counts[i] = mat.numel()
+    #         argsort[plz : counts[i] + plz] = mat
+    #         plz += counts[i]
+    #     displs[1:] = torch.cumsum(counts[:-1], dim=0)
+    #     return argsort, counts, displs
+
+    # # check new_split parameter
+    # new_split = kwargs.get("new_split")
+    # if new_split is None:
+    #     new_split = a.split
+    # new_split = stride_tricks.sanitize_axis(shape, new_split)
+
+    # # Forward to Pytorch directly
+    # if a.split is None:
+    #     local_reshape = torch.reshape(a.larray, shape)
+    #     if new_split is None:
+    #         return DNDarray(
+    #             local_reshape,
+    #             shape,
+    #             dtype=a.dtype,
+    #             split=None,
+    #             device=a.device,
+    #             comm=a.comm,
+    #             balanced=True,
+    #         )
+    #     _, _, local_slice = a.comm.chunk(shape, new_split)
+    #     local_reshape = local_reshape[local_slice]
+    #     return DNDarray(
+    #         local_reshape,
+    #         shape,
+    #         dtype=a.dtype,
+    #         split=new_split,
+    #         comm=a.comm,
+    #         device=a.device,
+    #         balanced=True,
+    #     )
+
+    # # Create new flat result tensor
+    # _, local_shape, _ = a.comm.chunk(shape, new_split)
+    # data = torch.empty(local_shape, dtype=tdtype, device=tdevice).flatten()
+
+    # # Calculate the counts and displacements
+    # _, old_displs, _ = a.comm.counts_displs_shape(a.shape, a.split)
+    # _, new_displs, _ = a.comm.counts_displs_shape(shape, new_split)
+
+    # old_displs += (a.shape[a.split],)
+    # new_displs += (shape[new_split],)
+
+    # sendsort, sendcounts, senddispls = reshape_argsort_counts_displs(
+    #     a.shape, a.lshape, old_displs, a.split, shape, new_displs, new_split, a.comm
+    # )
+    # recvsort, recvcounts, recvdispls = reshape_argsort_counts_displs(
+    #     shape, local_shape, new_displs, new_split, a.shape, old_displs, a.split, a.comm
+    # )
+
+    # # rearrange order
+    # send = a.larray.flatten()[sendsort]
+    # a.comm.Alltoallv((send, sendcounts, senddispls), (data, recvcounts, recvdispls))
+
+    # # original order
+    # backsort = torch.argsort(recvsort)
+    # data = data[backsort]
+
+    # # Reshape local tensor
+    # data = data.reshape(local_shape)
+
+    # return DNDarray(
+    #     data, shape, dtype=a.dtype, split=new_split, device=a.device, comm=a.comm, balanced=True
+    # )
 
 
 DNDarray.reshape = lambda self, *shape, **kwargs: reshape(self, *shape, **kwargs)
