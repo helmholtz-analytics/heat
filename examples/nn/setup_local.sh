@@ -6,6 +6,8 @@ python3 -m venv simcrl
 source simcrl/bin/activate
 # Here you can install other  required packages
 
+
+pip install torch
 pip install torchvision
 pip install requests
 pip install thop
