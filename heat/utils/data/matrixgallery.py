@@ -7,9 +7,13 @@ from ...core.dndarray import DNDarray
 from ...core.communication import Communication
 from ...core.devices import Device
 from ...core.types import datatype
-from typing import Type, Union
+from ...core.random import randn, rand
+from ...core.linalg import qr, matmul
+from ...core.manipulations import diag, sort
+from ...core.exponential import log
+from typing import Type, Union, Tuple, Callable
 
-__all__ = ["parter"]
+__all__ = ["parter", "random_known_singularvalues", "random_known_rank"]
 
 
 def parter(
@@ -59,3 +63,89 @@ def parter(
         raise ValueError("expected split value to be either {{None,0,1}}, but was {}".format(split))
 
     return 1.0 / (II - JJ + 0.5)
+
+
+def random_orthogonal(
+    m: int,
+    n: int,
+    split: Union[None, int] = None,
+    device: Union[None, str, Device] = None,
+    comm: Union[None, Communication] = None,
+    dtype: Type[datatype] = core.float32,
+) -> DNDarray:
+    """Auxiliary routine: creates a random mxn matrix with orthonormal columns
+    Caveat: this is done by QR of mxn matrices with i.i.d. normal entries, so this does not produce the uniform distribution on the orthogonal matrices...
+    """
+    if n > m:
+        raise RuntimeError("No orthogonal matrix of shape %d x %d possible." % (m, n))
+
+    # TODO: if QR does not make problems anymore, replace split=None by split=split
+    U = randn(m, n, split=None, dtype=dtype, comm=comm, device=device)
+    Q, _ = qr(U)
+
+    return Q[:, :n].resplit_(split)
+
+
+def random_known_singularvalues(
+    m: int,
+    n: int,
+    singular_values: DNDarray,
+    split: Union[None, int] = None,
+    device: Union[None, str, Device] = None,
+    comm: Union[None, Communication] = None,
+    dtype: Type[datatype] = core.float32,
+) -> Tuple[DNDarray, Tuple[DNDarray]]:
+    """
+    Creates an m x n matrix with singular values given by the entries of the input array singular_values.
+    Caveat: if the entries of singular_values are not sorted, the singular value decomposition of A is so as well....
+    The singular vectors are chosen randomly (cf. random_orthogonal)
+    """
+    if not isinstance(singular_values, DNDarray):
+        raise RuntimeError(
+            "Argument singular_values needs to be a DNDarray but is {}.".format(
+                type(singular_values)
+            )
+        )
+    if not singular_values.ndim == 1:
+        raise RuntimeError(
+            "Argument singular_values needs to be a 1D array, but dimension is {}.".format(
+                singular_values.ndim
+            )
+        )
+    if singular_values.shape[0] > min(m, n):
+        raise RuntimeError("Number of given singular values must not exceed matrix dimensions.")
+
+    r = singular_values.shape[0]
+    U = random_orthogonal(m, r, split=split, device=device, comm=comm, dtype=dtype)
+    V = random_orthogonal(n, r, split=split, device=device, comm=comm, dtype=dtype)
+
+    A = matmul(U, matmul(diag(singular_values), V.T))
+
+    return A.resplit_(split), (U, singular_values, V)
+
+
+def random_known_rank(
+    m: int,
+    n: int,
+    r: int,
+    quantile_function: Callable = lambda x: -log(x),
+    split: Union[None, int] = None,
+    device: Union[None, str, Device] = None,
+    comm: Union[None, Communication] = None,
+    dtype: Type[datatype] = core.float32,
+) -> Tuple[DNDarray, Tuple[DNDarray]]:
+    """
+    Creates a random m x n matrix with rank r.
+    This routine uses random_known_singular values with r singular randomly chosen
+    w.r.t. the distribution with quantile function given by the input quantile_function. Default yields exponential distibution with parameter lambda=1.
+    Unlike random_known_singularvalues, the singular values of the output are sorted in descending order.
+    """
+    if r > min(m, n):
+        raise RuntimeError("rank must not exceed matrix dimensions.")
+
+    singular_values = rand(r, dtype=dtype, comm=comm, device=device)
+    singular_values = sort(quantile_function(singular_values), descending=True)[0]
+
+    return random_known_singularvalues(
+        m, n, singular_values, split=split, device=device, comm=comm, dtype=dtype
+    )
