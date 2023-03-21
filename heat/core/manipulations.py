@@ -1534,7 +1534,7 @@ def redistribute(
     Examples
     --------
     >>> st = ht.ones((50, 81, 67), split=2)
-    >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+    >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int64)
     >>> target_map[0, 2] = 67
     >>> print(target_map)
     [0/2] tensor([[ 0,  0, 67],

@@ -189,7 +189,7 @@ class DNDarray:
         Number of total elements of the ``DNDarray``
         """
         return torch.prod(
-            torch.tensor(self.gshape, dtype=torch.int, device=self.device.torch_device)
+            torch.tensor(self.gshape, dtype=torch.int64, device=self.device.torch_device)
         ).item()
 
     @property
@@ -581,7 +581,7 @@ class DNDarray:
             return self.__lshape_map.clone()
 
         lshape_map = torch.zeros(
-            (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
+            (self.comm.size, self.ndim), dtype=torch.int64, device=self.device.torch_device
         )
         if not self.is_distributed:
             lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
@@ -1048,7 +1048,7 @@ class DNDarray:
         Examples
         --------
         >>> st = ht.ones((50, 81, 67), split=2)
-        >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+        >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int64)
         >>> target_map[0, 2] = 67
         >>> print(target_map)
         [0/2] tensor([[ 0,  0, 67],
@@ -1564,7 +1564,7 @@ class DNDarray:
                 local_keys = []
                 # below is used if the target needs to be reshaped
                 target_reshape_map = torch.zeros(
-                    (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
+                    (self.comm.size, self.ndim), dtype=torch.int64, device=self.device.torch_device
                 )
                 for r in range(self.comm.size):
                     if r not in actives:
