@@ -529,5 +529,4 @@ def compute_local_truncated_svd(
         err_squared_loc = torch.linalg.norm(sigma_loc) ** 2
         sigma_loc = torch.zeros(1, dtype=U_loc.dtype, device=U_loc.device)
         U_loc = torch.zeros(U_loc.shape[0], 1, dtype=U_loc.dtype, device=U_loc.device)
-        print(U_loc.shape, sigma_loc.shape)
         return U_loc, sigma_loc, err_squared_loc
