@@ -462,7 +462,8 @@ def hsvd(
     if transposeflag or full:
         V = matmul(A.T, U)
         sigma = vector_norm(V, axis=0)
-        V = matmul(V, diag(1 / sigma))
+        if vector_norm(sigma) > 0:
+            V = matmul(V, diag(1 / sigma))
 
         if transposeflag and full:
             return V, sigma, U, rel_error_estimate
@@ -498,27 +499,35 @@ def compute_local_truncated_svd(
     elif U_loc.dtype == torch.float32:
         noiselevel = 1e-7
 
-    cut_noise_rank = max(torch.argwhere(sigma_loc >= noiselevel)) + 1
+    no_noise_idx = torch.argwhere(sigma_loc >= noiselevel)
 
-    if loctol is None:
-        loc_trunc_rank = min(maxrank, cut_noise_rank)
-    else:
-        ideal_trunc_rank = min(
-            torch.argwhere(
-                torch.tensor(
-                    [torch.norm(sigma_loc[k:]) ** 2 for k in range(sigma_loc.shape[0] + 1)],
-                    device=U_loc.device,
+    if len(no_noise_idx) != 0:
+        cut_noise_rank = max(no_noise_idx) + 1
+        if loctol is None:
+            loc_trunc_rank = min(maxrank, cut_noise_rank)
+        else:
+            ideal_trunc_rank = min(
+                torch.argwhere(
+                    torch.tensor(
+                        [torch.norm(sigma_loc[k:]) ** 2 for k in range(sigma_loc.shape[0] + 1)],
+                        device=U_loc.device,
+                    )
+                    < loctol**2
                 )
-                < loctol**2
             )
-        )
-        loc_trunc_rank = min(maxrank, ideal_trunc_rank, cut_noise_rank)
-        if loc_trunc_rank != ideal_trunc_rank:
-            print(
-                "in hSVD (level %d, process %d): abs tol = %2.2e requires truncation to rank %d, but maxrank=%d. Loss of desired precision (reltol) very likely!"
-                % (level, proc_id, loctol, ideal_trunc_rank, maxrank)
-            )
+            loc_trunc_rank = min(maxrank, ideal_trunc_rank, cut_noise_rank)
+            if loc_trunc_rank != ideal_trunc_rank:
+                print(
+                    "in hSVD (level %d, process %d): abs tol = %2.2e requires truncation to rank %d, but maxrank=%d. Loss of desired precision (reltol) very likely!"
+                    % (level, proc_id, loctol, ideal_trunc_rank, maxrank)
+                )
 
-    loc_trunc_rank = min(sigma_loc.shape[0], loc_trunc_rank + safetyshift)
-    err_squared_loc = torch.linalg.norm(sigma_loc[loc_trunc_rank - safetyshift :]) ** 2
-    return U_loc[:, :loc_trunc_rank], sigma_loc[:loc_trunc_rank], err_squared_loc
+        loc_trunc_rank = min(sigma_loc.shape[0], loc_trunc_rank + safetyshift)
+        err_squared_loc = torch.linalg.norm(sigma_loc[loc_trunc_rank - safetyshift :]) ** 2
+        return U_loc[:, :loc_trunc_rank], sigma_loc[:loc_trunc_rank], err_squared_loc
+    else:
+        err_squared_loc = torch.linalg.norm(sigma_loc) ** 2
+        sigma_loc = torch.zeros(1, dtype=U_loc.dtype, device=U_loc.device)
+        U_loc = torch.zeros(U_loc.shape[0], 1, dtype=U_loc.dtype, device=U_loc.device)
+        print(U_loc.shape, sigma_loc.shape)
+        return U_loc, sigma_loc, err_squared_loc

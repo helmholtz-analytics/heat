@@ -23,6 +23,7 @@ class TestHSVD(TestCase):
             ht.random.randn(15 * nprocs, 50, dtype=ht.float64, split=0),
             ht.random.randn(15 * nprocs, 50, dtype=ht.float32, split=None),
             ht.random.randn(50, 15 * nprocs, dtype=ht.float64, split=None),
+            ht.zeros((50, 15 * nprocs), dtype=ht.float32, split=1),
         ]
         reltols = [1e-1, 1e-2, 1e-3]
         ranks = [5, 10, 15]
@@ -42,27 +43,34 @@ class TestHSVD(TestCase):
             for r in ranks:
                 U, sigma, V, err_est = ht.linalg.hsvd_rank(A, r, full=True, silent=True)
                 hsvd_rk = U.shape[1]
-                self.assertEqual(hsvd_rk, r)
-                if A.split == 1:
-                    U_orth_err = (
-                        ht.norm(
-                            U.T @ U
-                            - ht.eye(hsvd_rk, dtype=U.dtype, split=U.T.split, device=U.device)
+
+                if ht.norm(A) > 0:
+                    self.assertEqual(hsvd_rk, r)
+                    if A.split == 1:
+                        U_orth_err = (
+                            ht.norm(
+                                U.T @ U
+                                - ht.eye(hsvd_rk, dtype=U.dtype, split=U.T.split, device=U.device)
+                            )
+                            / hsvd_rk**0.5
                         )
-                        / hsvd_rk**0.5
-                    )
-                    self.assertTrue(U_orth_err <= dtype_tol)
-                if A.split == 0:
-                    V_orth_err = (
-                        ht.norm(
-                            V.T @ V
-                            - ht.eye(hsvd_rk, dtype=V.dtype, split=V.T.split, device=V.device)
+                        self.assertTrue(U_orth_err <= dtype_tol)
+                    if A.split == 0:
+                        V_orth_err = (
+                            ht.norm(
+                                V.T @ V
+                                - ht.eye(hsvd_rk, dtype=V.dtype, split=V.T.split, device=V.device)
+                            )
+                            / hsvd_rk**0.5
                         )
-                        / hsvd_rk**0.5
-                    )
-                    self.assertTrue(V_orth_err <= dtype_tol)
-                true_rel_err = ht.norm(U @ ht.diag(sigma) @ V.T - A) / ht.norm(A)
-                self.assertTrue(true_rel_err <= err_est)
+                        self.assertTrue(V_orth_err <= dtype_tol)
+                    true_rel_err = ht.norm(U @ ht.diag(sigma) @ V.T - A) / ht.norm(A)
+                    self.assertTrue(true_rel_err <= err_est)
+                else:
+                    self.assertEqual(hsvd_rk, 1)
+                    self.assertEqual(ht.norm(U), 0)
+                    self.assertEqual(ht.norm(sigma), 0)
+                    self.assertEqual(ht.norm(V), 0)
 
                 # check if wrong parameter choice is catched
                 with self.assertRaises(RuntimeError):
@@ -71,28 +79,35 @@ class TestHSVD(TestCase):
             for tol in reltols:
                 U, sigma, V, err_est = ht.linalg.hsvd_reltol(A, tol, full=True, silent=True)
                 hsvd_rk = U.shape[1]
-                if A.split == 1:
-                    U_orth_err = (
-                        ht.norm(
-                            U.T @ U
-                            - ht.eye(hsvd_rk, dtype=U.dtype, split=U.T.split, device=U.device)
+
+                if ht.norm(A) > 0:
+                    if A.split == 1:
+                        U_orth_err = (
+                            ht.norm(
+                                U.T @ U
+                                - ht.eye(hsvd_rk, dtype=U.dtype, split=U.T.split, device=U.device)
+                            )
+                            / hsvd_rk**0.5
                         )
-                        / hsvd_rk**0.5
-                    )
-                    print(U_orth_err)
-                    self.assertTrue(U_orth_err <= dtype_tol)
-                if A.split == 0:
-                    V_orth_err = (
-                        ht.norm(
-                            V.T @ V
-                            - ht.eye(hsvd_rk, dtype=V.dtype, split=V.T.split, device=V.device)
+                        print(U_orth_err)
+                        self.assertTrue(U_orth_err <= dtype_tol)
+                    if A.split == 0:
+                        V_orth_err = (
+                            ht.norm(
+                                V.T @ V
+                                - ht.eye(hsvd_rk, dtype=V.dtype, split=V.T.split, device=V.device)
+                            )
+                            / hsvd_rk**0.5
                         )
-                        / hsvd_rk**0.5
-                    )
-                    self.assertTrue(V_orth_err <= dtype_tol)
-                true_rel_err = ht.norm(U @ ht.diag(sigma) @ V.T - A) / ht.norm(A)
-                self.assertTrue(true_rel_err <= err_est)
-                self.assertTrue(true_rel_err <= tol)
+                        self.assertTrue(V_orth_err <= dtype_tol)
+                    true_rel_err = ht.norm(U @ ht.diag(sigma) @ V.T - A) / ht.norm(A)
+                    self.assertTrue(true_rel_err <= err_est)
+                    self.assertTrue(true_rel_err <= tol)
+                else:
+                    self.assertEqual(hsvd_rk, 1)
+                    self.assertEqual(ht.norm(U), 0)
+                    self.assertEqual(ht.norm(sigma), 0)
+                    self.assertEqual(ht.norm(V), 0)
 
                 # check if wrong parameter choices are catched
                 with self.assertRaises(RuntimeError):
