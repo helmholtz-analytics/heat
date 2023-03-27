@@ -435,7 +435,6 @@ def hsvd(
             # in these nodes we only send the local arrays to the respective future node
             A.comm.Send(U_loc, send_to[A.comm.rank], tag=A.comm.rank)
             A.comm.Send(err_squared_loc, send_to[A.comm.rank], tag=2 * no_procs + A.comm.rank)
-            del U_loc
 
         if len(future_nodes) == 1:
             finished = True
