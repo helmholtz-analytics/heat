@@ -15,4 +15,5 @@ from . import nn
 from . import optim
 from . import regression
 from . import spatial
+from . import sparse
 from . import utils
