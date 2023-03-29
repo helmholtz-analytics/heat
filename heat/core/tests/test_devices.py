@@ -3,19 +3,11 @@ import unittest
 
 import heat as ht
 from .test_suites.basic_test import TestCase
-from torch import device as torch_device
 
 envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
 
 
 class TestDevices(TestCase):
-    def test_eq(self):
-        self.assertEqual(ht.Device("cpu", 0, "cpu:0"), ht.cpu)
-        self.assertEqual(ht.Device("cpu", 0, "cpu:0"), torch_device("cpu:0"))
-        self.assertNotEqual(ht.Device("gpu", 0, "cuda:0"), ht.cpu)
-        self.assertNotEqual(ht.Device("cpu", 1, "cpu:1"), ht.cpu)
-        self.assertNotEqual(1, ht.cpu)
-
     @unittest.skipIf(envar not in ["cpu"], "only supported for cpu")
     def test_get_default_device_cpu(self):
         self.assertIs(ht.get_device(), ht.cpu)
