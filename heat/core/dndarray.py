@@ -80,6 +80,7 @@ class DNDarray:
         self.__ishalo = False
         self.__halo_next = None
         self.__halo_prev = None
+        self.__partitions_dict__ = None
         self.__lshape_map = None
 
         # check for inconsistencies between torch and heat devices
@@ -182,6 +183,24 @@ class DNDarray:
         Number of dimensions of the ``DNDarray``
         """
         return len(self.__gshape)
+
+    @property
+    def __partitioned__(self) -> dict:
+        """
+        This will return a dictionary containing information useful for working with the partitioned
+        data. These items include the shape of the data on each process, the starting index of the data
+        that a process has, the datatype of the data, the local devices, as well as the global
+        partitioning scheme.
+
+        An example of the output and shape is shown in :func:`ht.core.DNDarray.create_partition_interface <ht.core.DNDarray.create_partition_interface>`.
+
+        Returns
+        -------
+        dictionary with the partition interface
+        """
+        if self.__partitions_dict__ is None:
+            self.__partitions_dict__ = self.create_partition_interface()
+        return self.__partitions_dict__
 
     @property
     def size(self) -> int:
@@ -598,6 +617,104 @@ class DNDarray:
 
         self.__lshape_map = lshape_map
         return lshape_map.clone()
+
+    def create_partition_interface(self):
+        """
+        Create a partition interface in line with the DPPY proposal. This is subject to change.
+        The intention of this to facilitate the usage of a general format for the referencing of
+        distributed datasets.
+
+        An example of the output and shape is shown below.
+
+        __partitioned__ = {
+            'shape': (27, 3, 2),
+            'partition_tiling': (4, 1, 1),
+            'partitions': {
+                (0, 0, 0): {
+                    'start': (0, 0, 0),
+                    'shape': (7, 3, 2),
+                    'data': tensor([...], dtype=torch.int32),
+                    'location': [0],
+                    'dtype': torch.int32,
+                    'device': 'cpu'
+                },
+                (1, 0, 0): {
+                    'start': (7, 0, 0),
+                    'shape': (7, 3, 2),
+                    'data': None,
+                    'location': [1],
+                    'dtype': torch.int32,
+                    'device': 'cpu'
+                },
+                (2, 0, 0): {
+                    'start': (14,  0,  0),
+                    'shape': (7, 3, 2),
+                    'data': None,
+                    'location': [2],
+                    'dtype': torch.int32,
+                    'device': 'cpu'
+                },
+                (3, 0, 0): {
+                    'start': (21,  0,  0),
+                    'shape': (6, 3, 2),
+                    'data': None,
+                    'location': [3],
+                    'dtype': torch.int32,
+                    'device': 'cpu'
+                }
+            },
+            'locals': [(rank, 0, 0)],
+            'get': lambda x: x,
+        }
+
+        Returns
+        -------
+        dictionary containing the partition interface as shown above.
+        """
+        lshape_map = self.create_lshape_map()
+        start_idx_map = torch.zeros_like(lshape_map)
+
+        part_tiling = [1] * self.ndim
+        lcls = [0] * self.ndim
+
+        z = torch.tensor([0], device=self.device.torch_device, dtype=self.dtype.torch_type())
+        if self.split is not None:
+            starts = torch.cat((z, torch.cumsum(lshape_map[:, self.split], dim=0)[:-1]), dim=0)
+            lcls[self.split] = self.comm.rank
+            part_tiling[self.split] = self.comm.size
+        else:
+            starts = torch.zeros(self.ndim, dtype=torch.int, device=self.device.torch_device)
+
+        start_idx_map[:, self.split] = starts
+
+        partitions = {}
+        base_key = [0] * self.ndim
+        for r in range(self.comm.size):
+            if self.split is not None:
+                base_key[self.split] = r
+                dat = None if r != self.comm.rank else self.larray
+            else:
+                dat = self.larray
+            partitions[tuple(base_key)] = {
+                "start": tuple(start_idx_map[r].tolist()),
+                "shape": tuple(lshape_map[r].tolist()),
+                "data": dat,
+                "location": [r],
+                "dtype": self.dtype.torch_type(),
+                "device": self.device.torch_device,
+            }
+
+        partition_dict = {
+            "shape": self.gshape,
+            "partition_tiling": tuple(part_tiling),
+            "partitions": partitions,
+            "locals": [tuple(lcls)],
+            "get": lambda x: x,
+        }
+
+        self.__partitions_dict__ = partition_dict
+
+        return partition_dict
 
     def __float__(self) -> DNDarray:
         """
@@ -1268,8 +1385,15 @@ class DNDarray:
         axis = sanitize_axis(self.shape, axis)
 
         # early out for unchanged content
+        if self.comm.size == 1:
+            self.__split = axis
+            if axis is None:
+                self.__partitions_dict__ = None
         if axis == self.split:
             return self
+
+        self.__partitions_dict__ = None
+
         if axis is None:
             gathered = torch.empty(
                 self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device

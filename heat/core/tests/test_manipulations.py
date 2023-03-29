@@ -2992,6 +2992,16 @@ class TestManipulations(TestCase):
             self.assertEqual(data2.lshape, (data.comm.size, 1))
             self.assertEqual(data2.split, 1)
 
+            # resplitting a non-distributed DNDarray with split not None
+            if ht.MPI_WORLD.size == 1:
+                data = ht.zeros(10, 10, split=0)
+                data2 = ht.resplit(data, 1)
+                data3 = ht.resplit(data, None)
+                self.assertTrue((data == data2).all())
+                self.assertTrue((data == data3).all())
+                self.assertEqual(data2.split, 1)
+                self.assertTrue(data3.split is None)
+
             # splitting an unsplit tensor should result in slicing the tensor locally
             shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
             data = ht.zeros(shape)
