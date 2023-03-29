@@ -138,7 +138,7 @@ elif (
     and torch.backends.mps.is_built()
     and torch.backends.mps.is_available()
 ):
-    # Apple's Metal GPU
+    # Apple's Metal Performance Shaders (MPS) available
     gpu_id = 0
     # create a new GPU device
     gpu = Device("gpu", gpu_id, "mps:{}".format(gpu_id))
