@@ -252,6 +252,7 @@ class DataParallel(tnn.Module):
             Name of the parameter
         """
         # hook function for blocking gradient data exchange
+
         def _hook(grad_loc: torch.Tensor) -> torch.Tensor:
             with torch.no_grad():
                 wrk = grad_loc.to(torch.float)  # bfloat16)
@@ -288,6 +289,7 @@ class DataParallel(tnn.Module):
             Name of the layer
         """
         # hook function for non-blocking parameter update
+
         def _hook(_, input_):
             # update parameters of given layer
             param_slice = self._param_slices[layer_name]
