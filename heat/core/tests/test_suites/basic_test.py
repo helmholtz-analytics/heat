@@ -10,7 +10,6 @@ import torch
 
 # TODO adapt for GPU once this is working properly
 class TestCase(unittest.TestCase):
-
     __comm = MPICommunication()
     __device = None
 
