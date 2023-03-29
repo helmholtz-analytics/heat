@@ -1,33 +1,5 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-authors:
-- family-names: "Götz"
-  given-names: "Markus"
-- family-names: "Debus"
-  given-names: "Charlotte"
-- family-names: "Coquelin"
-  given-names: "Daniel"
-- family-names: "Krajsek"
-  given-names: "Kai"
-- family-names: "Comito"
-  given-names: "Claudia"
-- family-names: "Knechtges"
-  given-names: "Philipp"
-- family-names: "Hagemeier"
-  given-names: "Björn"
-- family-names: "Tarnawa"
-  given-names: "Michael"
-- family-names: "Hanselmann"
-  given-names: "Simon"
-- family-names: "Siggel"
-  given-names: "Martin"
-- family-names: "Basermann"
-  given-names: "Achim"
-- family-names: "Streit"
-  given-names: "Achim"
-title: "Heat - Helmholtz Analytics Toolkit"
-version: 1.1.0
-date-released: 2021-09-21
 url: "https://github.com/helmholtz-analytics/heat"
 preferred-citation:
   type: conference-paper

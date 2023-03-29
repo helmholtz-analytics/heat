@@ -2,7 +2,6 @@
 
 import torch
 import numpy as np
-from typing import Union, Tuple, Sequence
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -42,7 +41,6 @@ def convgenpad(a, signal, pad, boundary, fillvalue):
     dimz = 2 * dim - 2
     # check if more than one rank is involved
     if a.is_distributed() and a.split is not None:
-
         # set the padding of the first rank
         if a.comm.rank == 0:
             pad[dime - 2 * a.split] = 0
@@ -317,6 +315,10 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
               [2., 4., 6., 6., 6., 4., 2.],
               [1., 2., 3., 3., 3., 2., 1.]], dtype=ht.float32, device=cpu:0, split=1)
     """
+    if np.isscalar(a):
+        a = array([a])
+    if np.isscalar(v):
+        v = array([v])
     if not isinstance(a, DNDarray):
         try:
             a = array(a)
@@ -362,8 +364,8 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
 
     if mode == "full":
         pad_0 = v.shape[1] - 1
-        pad_1 = v.shape[0] - 1
         gshape_0 = v.shape[0] + a.shape[0] - 1
+        pad_1 = v.shape[0] - 1
         gshape_1 = v.shape[1] + a.shape[1] - 1
         pad = list((pad_0, pad_0, pad_1, pad_1))
         gshape = (gshape_0, gshape_1)
@@ -458,7 +460,6 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
         return signal_filtered
 
     else:
-
         # apply torch convolution operator
         signal_filtered = fc.conv2d(signal, weight)
 

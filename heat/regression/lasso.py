@@ -145,12 +145,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
 
         # Looping until max number of iterations or convergence
         for i in range(self.max_iter):
-
             theta_old = theta.copy()
 
             # Looping through each coordinate
             for j in range(n):
-
                 X_j = ht.array(x.larray[:, j : j + 1], is_split=0)
 
                 y_est = x @ theta

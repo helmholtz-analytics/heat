@@ -1,18 +1,17 @@
 test:
-  image: nvidia/cuda:11.6.2-runtime-ubuntu20.04
+  image: nvcr.io/nvidia/pytorch:22.11-py3
   tags:
     - cuda
     - x86_64
   script:
     - apt update
     - apt -y install build-essential python3-pip curl git
-    - DEBIAN_FRONTEND=noninteractive apt -y install libopenmpi-dev openmpi-bin openmpi-doc
-    - apt -y install libhdf5-openmpi-dev libpnetcdf-dev
+    - "curl -X POST -H \"Accept: application/vnd.github+json\" -H \"Authorization: Bearer $GITHUB_TOKEN\" -H \"X-GitHub-Api-Version: 2022-11-28\" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$CI_COMMIT_SHA -d '{\"state\":\"pending\",\"target_url\":\"https://codebase.helmholtz.cloud/haf/heat/-/jobs/$CI_JOB_ID\",\"description\":\"The build runs!\",\"context\":\"continuous-integration/codebase\"}'\n"
     - pip install pytest coverage
-    - pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu116
     - pip install .[hdf5,netcdf]
     - COVERAGE_FILE=report/cov/coverage1 HEAT_TEST_USE_DEVICE=cpu mpirun --allow-run-as-root -n 1 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report1.xml heat/
-    - COVERAGE_FILE=report/cov/coverage2 HEAT_TEST_USE_DEVICE=gpu mpirun --allow-run-as-root -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report3.xml heat/
+    - COVERAGE_FILE=report/cov/coverage2 HEAT_TEST_USE_DEVICE=cpu mpirun --allow-run-as-root -n 2 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report2.xml heat/
+    - COVERAGE_FILE=report/cov/coverage3 HEAT_TEST_USE_DEVICE=gpu mpirun --allow-run-as-root -n 3 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report3.xml heat/
     - COVERAGE_FILE=report/cov/coverage5 HEAT_TEST_USE_DEVICE=cpu mpirun --allow-run-as-root -n 5 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report5.xml heat/
     - COVERAGE_FILE=report/cov/coverage8 HEAT_TEST_USE_DEVICE=gpu mpirun --allow-run-as-root -n 6 coverage run --source=heat --parallel-mode -m pytest --junitxml=report/test/report6.xml heat/
     - coverage combine report/cov/*
@@ -21,6 +20,13 @@ test:
     - curl -Os https://uploader.codecov.io/latest/linux/codecov
     - chmod +x codecov
     - ./codecov -F unit -f ./coverage.xml -t $CODECOV_TOKEN -Z
+  after_script:
+    - |
+      case $CI_JOB_STATUS in
+        'success') curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$CI_COMMIT_SHA -d '{"state":"success","target_url":"https://codebase.helmholtz.cloud/haf/heat/-/jobs/$CI_JOB_ID","description":"The build succeeded!","context":"continuous-integration/codebase"}';;
+        'failed') curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$CI_COMMIT_SHA -d '{"state":"failure","target_url":"https://codebase.helmholtz.cloud/haf/heat/-/jobs/$CI_JOB_ID","description":"The build failed!","context":"continuous-integration/codebase"}';;
+        *) curl -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/helmholtz-analytics/heat/statuses/$CI_COMMIT_SHA -d '{"state":"error","target_url":"https://codebase.helmholtz.cloud/haf/heat/-/jobs/$CI_JOB_ID","description":"The build errored!","context":"continuous-integration/codebase"}';;
+      esac
   artifacts:
     when: always
     paths:

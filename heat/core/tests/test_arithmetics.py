@@ -832,7 +832,7 @@ class TestArithmetics(TestCase):
         )
         tensor = ht.float32([[1, 4], [2, 3]])
         num = 3
-        for (attr, op, commutative) in operators:
+        for attr, op, commutative in operators:
             try:
                 func = tensor.__getattribute__(attr)
             except AttributeError:
