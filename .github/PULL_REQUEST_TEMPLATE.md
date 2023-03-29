@@ -46,7 +46,7 @@ my be illegible. It may be easiest to save the output of each to a file.
 - [ ] All split configurations tested
 - [ ] Multiple dtypes tested in relevant functions
 - [ ] Documentation updated (if needed)
-- [ ] Title of PR is suitable for corresponding CHANGELOG entry
+- [ ] Updated changelog.md under the title "Pending Additions"
 
 #### Does this change modify the behaviour of other functions? If so, which?
 yes / no
