@@ -306,7 +306,7 @@ class TestStatistics(TestCase):
             ht.average(random_5d, weights=random_weights.numpy(), axis=axis)
         with self.assertRaises(TypeError):
             ht.average(random_5d, weights=random_weights, axis=None)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(NotImplementedError):
             ht.average(random_5d, weights=random_weights, axis=(1, 2))
         random_weights = ht.random.randn(random_5d.gshape[axis], random_5d.gshape[axis + 1])
         with self.assertRaises(TypeError):

@@ -9,7 +9,7 @@ Heat is a distributed tensor framework for high performance data analytics.
 # Project Status
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
-[![Mirror and run GitLab CI](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cb.yml/badge.svg)](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cb.yml)
+[![CI workflow](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cb.yml/badge.svg)](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cb.yml)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/helmholtz-analytics/heat/branch/main/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -17,12 +17,18 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
 
 # New
-- SAVE THE DATE 📆 On Feb 23rd, Google Summer of Code Community Talk with Stephanie Taylor, Google Summer of Code Program Manager - [sign up here](https://docs.google.com/forms/d/e/1FAIpQLSdsXkVhHY54cYCnYfhMe0p42R3WB0uqIptnqdduhsP_zXBp8Q/viewform) by Feb 22nd if you want to attend
-- We've submitted our application to be part of Google Summer of Code 2023 🙏
+- **NO GSoC WITH US THIS YEAR**. On Feb 21st we learned that our Organisation has not been selected this year. Congratulations to the [GSoC 2023 Mentoring Orgs](https://summerofcode.withgoogle.com/programs/2023/organizations)!
+
+  Thanks everybody for your interest and contributions! 🙏  We will still review every PR. Remember to add your full name to your GitHub profile, so you'll appear as recognizable co-author with the next release.
+
+  We wish everybody good luck with the program! Let us know how it went...
+
+<!-- - SAVE THE DATE 📆 On Feb 23rd, Google Summer of Code Community Talk with Stephanie Taylor, Google Summer of Code Program Manager - [sign up here](https://docs.google.com/forms/d/e/1FAIpQLSdsXkVhHY54cYCnYfhMe0p42R3WB0uqIptnqdduhsP_zXBp8Q/viewform) by Feb 22nd if you want to attend -->
+<!-- - We've submitted our application to be part of Google Summer of Code 2023 🙏
    - [List of Ideas](https://docs.google.com/document/d/1OKUf_n_whN0M20c__jj8R5jyGABPYYxmdBfyzto4OZk) (subject to change)
    - [Related Issues](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+label%3AGSoC2023) (subject to change)
    - [Good First Issues](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) (updated frequently)
-   - [Quick Start](quick_start.md) for new users and contributors
+   - [Quick Start](quick_start.md) for new users and contributors -->
 
 # Goals
 
@@ -49,11 +55,8 @@ computational and memory needs of your laptop and desktop.
 
 # Support Channels
 
-We use [StackOverflow](https://stackoverflow.com/tags/pyheat/) as a forum for questions about Heat.
-If you do not find an answer to your question, then please ask a new question there and be sure to
-tag it with "pyheat".
-
-You can also reach us on [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions).
+We use [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions) as a forum for questions about Heat.
+If you found a bug or miss a feature, then please file a new [issue](https://github.com/helmholtz-analytics/heat/issues/new/choose).
 
 # Requirements
 
@@ -165,8 +168,6 @@ Small improvements or fixes are always appreciated; issues labeled as **"good fi
 If you’re unsure where to start or how your skills fit in, reach out! You can ask us here on GitHub, by leaving a comment on a relevant issue that is already open.
 
 **If you are new to contributing to open source, [this guide](https://opensource.guide/how-to-contribute/) helps explain why, what, and how to get involved.**
-
-### For people who want to contribute through GSoC 2023 program, here is a [quick Guide](https://github.com/MLSC-BSOITR/Ultimate-GSOC-Guide/blob/main/GSoC2023Presentation.pdf) about the complete program.
 
 # License
 
