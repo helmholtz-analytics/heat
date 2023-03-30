@@ -2,7 +2,10 @@ name: Support latest PyTorch
 
 on:
   push:
-    branches: [ workflows/new-pytorch-release-branch, workflows/new-pytorch-main-branch ]
+    branches:
+      - 'workflows/new-pytorch-release-branch'
+      - 'workflows/new-pytorch-main-branch'
+      - 'workflows/test-pytorch-workflow'
     paths:
       - '.github/pytorch-release-versions/*'
 env:
