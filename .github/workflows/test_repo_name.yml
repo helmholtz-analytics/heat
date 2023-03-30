@@ -1,5 +1,8 @@
 name: Check repo name
 on:
+  push:
+    branches:
+      - workflows/test-pytorch-workflow
   workflow_dispatch:
 jobs:
   check-repo-name:
