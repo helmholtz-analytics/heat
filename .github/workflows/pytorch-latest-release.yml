@@ -11,7 +11,7 @@ permissions:
 jobs:
   get-version:
     runs-on: ubuntu-latest
-    if: github.repository == 'hemlholtz-analytics/heat'
+    if: ${{ github.repository }} == 'hemlholtz-analytics/heat'
     steps:
       - uses: actions/checkout@v3
         with:
