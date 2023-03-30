@@ -1,0 +1,11 @@
+name: Check repository name
+on:
+  workflow_dispatch:
+jobs:
+  check-repo-name:
+    runs-on: ubuntu-latest
+#    if: github.repository == 'hemlholtz-analytics/heat'
+    steps:
+      - name: Check repository name
+        run: |
+          echo "Repository name is ${{ github.repository }}"
