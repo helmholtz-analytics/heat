@@ -1,4 +1,4 @@
-name: Check repository name
+name: Check repo name
 on:
   workflow_dispatch:
 jobs:
