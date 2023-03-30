@@ -1,6 +1,5 @@
 name: Check repo name
 on:
-  workflow_dispatch:
   push:
     branches:
       - workflows/test-pytorch-workflow
