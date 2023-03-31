@@ -1,0 +1,44 @@
+name: Benchmark
+on:
+  [push]
+
+jobs:
+  benchmark:
+    name: Continuous Benchmarking
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup MPI
+        uses: mpi4py/setup-mpi@v1
+      - name: Use Python 3.8
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.7
+          architecture: x64
+      - name: Test
+        run: |
+            pip install torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1
+            pip install .[cb]
+            PERUN_RUN_ID=N4 mpirun -n 4 python benchmarks/cb/linalg.py
+            jq -s flatten bench_data/*.json > bench_data/all_benchmarks.json
+
+      # Download previous benchmark result from cache (if exists)
+      - name: Download previous benchmark data
+        uses: actions/cache@v3
+        with:
+          path: ./cache
+          key: ${{ runner.os }}-benchmark
+      # Run `github-action-benchmark` action
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          # What benchmark tool the output.txt came from
+          tool: 'customSmallerIsBetter'
+          # Where the output from the benchmark tool is stored
+          output-file-path: bench_data/all_benchmarks.json
+          # Where the previous data file is stored
+          external-data-json-path: ./cache/benchmark-data.json
+          # Workflow will fail when an alert happens
+          fail-on-alert: true
+      # Upload the updated cache file for the next job by actions/cache
