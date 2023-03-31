@@ -45,14 +45,21 @@ jobs:
       - name: Update setup.py
         run: |
           sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.setup_pytorch }}"'/g' setup.py
+      - name: Define base branch
+        run: |
+          if [[ ${{ github.ref }} =~ .*main.* ]]; then
+            echo "base_branch=main" >> $GITHUB_ENV
+          elif [[ ${{ github.ref }} =~ .*release.* ]]; then
+            echo "base_branch=release/1.2.x" >> $GITHUB_ENV
+          fi
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v4
         with:
-            base: ${{ env.working_branch }}
+            base: ${{ env.base_branch }}
             delete-branch: true
             token: ${{ secrets.GITHUB_TOKEN }}
             commit-message: Support latest PyTorch release
-            title: Support PyTorch ${{ env.new_pytorch }} on branch '${{ env.working_branch }}'
+            title: Support PyTorch ${{ env.new_pytorch }} on branch ${{ env.base_branch }}
             body: |
               Run tests on latest PyTorch release
               Issue/s resolved: #${{ steps.create-issue.outputs.number }}
