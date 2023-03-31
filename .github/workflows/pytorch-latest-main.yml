@@ -33,5 +33,5 @@ jobs:
           echo "new=$(<.github/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
           git config --global user.name 'ClaudiaComito'
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
-          git commit -am "[skip ci] New PyTorch release ${{ env.new }}"
+          git commit -am "New PyTorch release ${{ env.new }}"
           git push --set-upstream origin ${{ env.working_branch }}
