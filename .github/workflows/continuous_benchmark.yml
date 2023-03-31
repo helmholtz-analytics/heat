@@ -18,7 +18,7 @@ jobs:
           architecture: x64
       - name: Test
         run: |
-            pip install torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1
+            pip install torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1 -f https://download.pytorch.org/whl/torch_stable.html
             pip install .[cb]
             PERUN_RUN_ID=N4 mpirun -n 4 python benchmarks/cb/linalg.py
             jq -s flatten bench_data/*.json > bench_data/all_benchmarks.json
