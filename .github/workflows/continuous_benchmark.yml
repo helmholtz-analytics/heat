@@ -14,7 +14,7 @@ jobs:
       - name: Use Python 3.8
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.8 # Perun only supports 3.8 and ahead
           architecture: x64
       - name: Test
         run: |
