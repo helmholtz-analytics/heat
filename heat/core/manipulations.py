@@ -864,9 +864,7 @@ def flip(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     flipped = torch.flip(a.larray, axis)
 
     if a.split not in axis:
-        return DNDarray(
-            flipped, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
-        )
+        return DNDarray(flipped, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm)
 
     # Need to redistribute tensors on split axis
     # Get local shapes
@@ -2218,9 +2216,7 @@ def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarra
         raise ValueError("Axes={} out of range for array of ndim={}.".format(axes, m.ndim))
 
     if m.split is None:
-        return DNDarray(
-            torch.rot90(m.larray, k, axes), dtype=m.dtype, device=m.device, comm=m.comm
-        )
+        return DNDarray(torch.rot90(m.larray, k, axes), dtype=m.dtype, device=m.device, comm=m.comm)
 
     try:
         k = int(k)
@@ -3956,9 +3952,7 @@ def topk(
         is_split = a.split
         split = None
 
-    final_array = DNDarray(
-        gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split
-    )
+    final_array = DNDarray(gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split)
     final_indices = DNDarray(
         gindices, dtype=types.int64, device=a.device, split=split, is_split=is_split
     )
