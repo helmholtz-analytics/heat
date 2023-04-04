@@ -30,18 +30,39 @@ jobs:
           path: ./cache
           key: ${{ runner.os }}-benchmark
       # Run `github-action-benchmark` action
-      - name: Store benchmark result
+      - name: Compare benchmark result
+        if: ${{github.ref != 'refs/head/main'}}
         uses: benchmark-action/github-action-benchmark@v1
         with:
-          # What benchmark tool the output.txt came from
-          tool: 'customSmallerIsBetter'
-          # Where the output from the benchmark tool is stored
-          output-file-path: bench_data/all_benchmarks.json
-          # Where the previous data file is stored
-          external-data-json-path: ./cache/benchmark-data.json
-          # Workflow will fail when an alert happens
-          fail-on-alert: true
           github-token: ${{secrets.GITHUB_TOKEN}}
+          # Benchmark action input and output
+          tool: 'customSmallerIsBetter'
+          output-file-path: bench_data/all_benchmarks.json
+          external-data-json-path: ./cache/benchmark-data.json
+          # Alert configuration
+          fail-on-alert: true
           comment-on-alert: true
-          summary-always: true
+          # Ignore results from non main branches.
+          save-data-file: true
+          # Pages configuration
+          auto-pages: true
+          gh-repository: github.com/helmholtz-analytics/heat-bench-stats/
+          benchmark-data-dir-path: dev/bench
+      - name: Save benchmark result and update gh-pages-chart
+        if: ${{github.ref == 'refs/head/main'}}
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          # Benchmark action input and output
+          tool: 'customSmallerIsBetter'
+          output-file-path: bench_data/all_benchmarks.json
+          external-data-json-path: ./cache/benchmark-data.json
+          # Alert configuration
+          fail-on-alert: false  # Don't fail on main branch
+          comment-on-alert: true
+          # Save benchmarks from the main branch
+          save-data-file: true
+          # Pages configuration
+          auto-pages: true
+          benchmark-data-dir-path: dev/bench
       # Upload the updated cache file for the next job by actions/cache
