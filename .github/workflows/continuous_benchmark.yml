@@ -22,16 +22,8 @@ jobs:
             pip install .[cb]
             PERUN_RUN_ID=N4 mpirun -n 4 python benchmarks/cb/linalg.py
             jq -s flatten bench_data/*.json > bench_data/all_benchmarks.json
-
-      # Download previous benchmark result from cache (if exists)
-      # - name: Download previous benchmark data
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: ./cache
-      #     key: ${{ runner.os }}-benchmark
-      # Run `github-action-benchmark` action
       - name: Compare benchmark result
-        if: ${{github.ref != 'refs/head/main'}}
+        if: ${{github.ref != 'refs/heads/main'}}
         uses: benchmark-action/github-action-benchmark@v1
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
@@ -43,14 +35,13 @@ jobs:
           fail-on-alert: true
           comment-on-alert: true
           # Ignore results from non main branches.
-          save-data-file: true
+          save-data-file: false
           # Pages configuration
-          auto-push: true
-          gh-repository: github.com/helmholtz-analytics/heat-bench-stats
-          git-pages-branch: gh-pages
+          auto-push: false
+          gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
       - name: Save benchmark result and update gh-pages-chart
-        if: ${{github.ref == 'refs/head/main'}}
+        if: ${{github.ref == 'refs/heads/main'}}
         uses: benchmark-action/github-action-benchmark@v1
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
@@ -65,5 +56,6 @@ jobs:
           save-data-file: true
           # Pages configuration
           auto-push: true
+          gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
       # Upload the updated cache file for the next job by actions/cache
