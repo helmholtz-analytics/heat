@@ -24,11 +24,11 @@ jobs:
             jq -s flatten bench_data/*.json > bench_data/all_benchmarks.json
 
       # Download previous benchmark result from cache (if exists)
-      - name: Download previous benchmark data
-        uses: actions/cache@v3
-        with:
-          path: ./cache
-          key: ${{ runner.os }}-benchmark
+      # - name: Download previous benchmark data
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: ./cache
+      #     key: ${{ runner.os }}-benchmark
       # Run `github-action-benchmark` action
       - name: Compare benchmark result
         if: ${{github.ref != 'refs/head/main'}}
@@ -38,7 +38,7 @@ jobs:
           # Benchmark action input and output
           tool: 'customSmallerIsBetter'
           output-file-path: bench_data/all_benchmarks.json
-          external-data-json-path: ./cache/benchmark-data.json
+          # external-data-json-path: ./cache/benchmark-data.json
           # Alert configuration
           fail-on-alert: true
           comment-on-alert: true
@@ -56,7 +56,7 @@ jobs:
           # Benchmark action input and output
           tool: 'customSmallerIsBetter'
           output-file-path: bench_data/all_benchmarks.json
-          external-data-json-path: ./cache/benchmark-data.json
+          # external-data-json-path: ./cache/benchmark-data.json
           # Alert configuration
           fail-on-alert: false  # Don't fail on main branch
           comment-on-alert: true
