@@ -45,7 +45,7 @@ jobs:
           # Ignore results from non main branches.
           save-data-file: true
           # Pages configuration
-          auto-pages: true
+          auto-push: true
           gh-repository: github.com/helmholtz-analytics/heat-bench-stats/
           benchmark-data-dir-path: dev/bench
       - name: Save benchmark result and update gh-pages-chart
@@ -63,6 +63,6 @@ jobs:
           # Save benchmarks from the main branch
           save-data-file: true
           # Pages configuration
-          auto-pages: true
+          auto-push: true
           benchmark-data-dir-path: dev/bench
       # Upload the updated cache file for the next job by actions/cache
