@@ -46,7 +46,8 @@ jobs:
           save-data-file: true
           # Pages configuration
           auto-push: true
-          gh-repository: github.com/helmholtz-analytics/heat-bench-stats/
+          gh-repository: github.com/helmholtz-analytics/heat-bench-stats
+          git-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
       - name: Save benchmark result and update gh-pages-chart
         if: ${{github.ref == 'refs/head/main'}}
