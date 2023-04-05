@@ -26,14 +26,13 @@ def qr_cpu(n: int = 2000):
 
 
 @monitor()
-def lanczos_cpu(n: int = 300):
+def lanczos_cpu(n: int = 100):
     A = ht.random.random((n, n), dtype=ht.float64, split=0)
     B = A @ A.T
     V, T = ht.lanczos(B, m=n)
 
 
-if __name__ == "__main__":
-    matmul_cpu_split_0()
-    matmul_cpu_split_1()
-    qr_cpu()
-    lanczos_cpu()
+matmul_cpu_split_0()
+matmul_cpu_split_1()
+qr_cpu()
+lanczos_cpu()
