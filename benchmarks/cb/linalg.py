@@ -26,7 +26,7 @@ def qr_cpu(n: int = 2000):
 
 
 @monitor()
-def lanczos_cpu(n: int = 100):
+def lanczos_cpu(n: int = 50):
     A = ht.random.random((n, n), dtype=ht.float64, split=0)
     B = A @ A.T
     V, T = ht.lanczos(B, m=n)
