@@ -94,7 +94,7 @@ def sparse_csr_matrix(
     (indptr: tensor([0, 1, 3, 4]), indices: tensor([2, 0, 2, 2]), data: tensor([1, 1, 2, 3]), dtype=ht.int64, device=cpu:0, split=None)
     """
     # version check
-    if int(torch.__version__.split(".")[1]) < 10:
+    if int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 10:
         raise RuntimeError(f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.")
 
     # sanitize the data type
