@@ -184,18 +184,19 @@ class TestFactories(TestCase):
             ).all()
         )
 
-        # distributed array, chunk local data (split)
-        tensor_2d = ht.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]], split=0)
-        self.assertIsInstance(tensor_2d, ht.DNDarray)
-        self.assertEqual(tensor_2d.dtype, ht.float32)
-        self.assertEqual(tensor_2d.gshape, (3, 3))
-        self.assertEqual(len(tensor_2d.lshape), 2)
-        self.assertLessEqual(tensor_2d.lshape[0], 3)
-        self.assertEqual(tensor_2d.lshape[1], 3)
-        self.assertEqual(tensor_2d.split, 0)
+        # distributed array, chunk local data (split), copy True
+        array_2d = np.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]])
+        dndarray_2d = ht.array(array_2d, split=0, copy=True)
+        self.assertIsInstance(dndarray_2d, ht.DNDarray)
+        self.assertEqual(dndarray_2d.dtype, ht.float32)
+        self.assertEqual(dndarray_2d.gshape, (3, 3))
+        self.assertEqual(len(dndarray_2d.lshape), 2)
+        self.assertLessEqual(dndarray_2d.lshape[0], 3)
+        self.assertEqual(dndarray_2d.lshape[1], 3)
+        self.assertEqual(dndarray_2d.split, 0)
         self.assertTrue(
             (
-                tensor_2d.larray == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
+                dndarray_2d.larray == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
             ).all()
         )
 
@@ -292,6 +293,9 @@ class TestFactories(TestCase):
         # iterable, but unsuitable type
         with self.assertRaises(TypeError):
             ht.array("abc")
+        # iterable, but unsuitable type, with copy=True
+        with self.assertRaises(TypeError):
+            ht.array("abc", copy=True)
         # unknown dtype
         with self.assertRaises(TypeError):
             ht.array((4,), dtype="a")
