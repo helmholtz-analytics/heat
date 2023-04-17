@@ -1827,15 +1827,19 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     a : DNDarray
         The input array
     shape : Union[int, Tuple[int,...]]
-        Shape of the new array
+        Shape of the new array. Must be compatible with the original shape. If an integer, then the result will be a 1-D array of that length.
+        One shape dimension can be -1. In this case, the value is inferred from the length of the array and remaining dimensions.
     new_split : int, optional
-        The new split axis if `a` is a split DNDarray. None denotes same axis.
-        Default : None
+        The distribution axis of the reshaped array. Default: None (same distribution axis as `a`).
 
     Raises
     ------
     ValueError
         If the number of elements in the new shape is inconsistent with the input data.
+
+    Notes
+    -----
+    `reshape()` might require significant communication among processes. Operating along split axis 0 is recommended.
 
     See Also
     --------
