@@ -23,8 +23,19 @@ class TestManipulations(TestCase):
         self.assertTrue(all(x.shape == (3, 2, 3) for x in broadcasted))
         self.assertTrue(all(x.dtype == a.dtype for a, x in zip(arrays, broadcasted)))
 
+        # check broadcast_arrays on one array only
+        a = ht.array([[1], [2]])
+        (a_broadcasted,) = ht.broadcast_arrays(a)
+        self.assertTrue(ht.equal(a_broadcasted, a))
+
+        # check exceptions
         with self.assertRaises(TypeError):
             ht.broadcast_arrays(ht.ones((2, 3)), 4, False)
+
+        a = ht.ones((5, 1, 5), split=0)
+        b = ht.ones((5, 5, 5), split=1)
+        with self.assertRaises(ValueError):
+            ht.broadcast_arrays(a, b)
 
     def tests_broadcast_to(self):
         a = ht.array([1, 2, 3])
@@ -41,10 +52,20 @@ class TestManipulations(TestCase):
         self.assertEqual(broadcasted.shape, (3, 4))
         self.assertEqual(broadcasted.dtype, ht.float32)
 
-        # test distribution following view
+        # check split
+        a = ht.zeros((5, 5), split=0)
+        broadcasted = ht.broadcast_to(a, (5, 5, 5))
+        self.assertEqual(broadcasted.split, 1)
+
+        # test view
         a = ht.arange(5)
         broadcasted = ht.broadcast_to(a, (10, 5))
-        # self.assertTrue((a.larray.storage() is broadcasted.larray.storage()))
+        a[0] = 5
+        self.assertTrue(ht.equal(a, broadcasted[0]))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.broadcast_to(a.larray, (10, 5))
 
     def test_column_stack(self):
         # test local column_stack, 2-D arrays

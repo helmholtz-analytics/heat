@@ -130,10 +130,7 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     shape : Tuple[int, ...]
         Array shape. Must be compatible with ``x``.
     """
-    try:
-        view = not x.is_distributed()
-    except AttributeError:
-        raise TypeError("'x' must be a DNDarray, currently {}".format(type(x)))
+    sanitation.sanitize_in(x)
 
     # figure out the output split axis via dndarray.__torch_proxy__ and named tensors functionality
     torch_proxy = x.__torch_proxy__()
@@ -145,15 +142,17 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
         output_split = torch_proxy.names.index("split")
     else:
         output_split = None
-    if view:
+
+    if not x.is_distributed():
         # return a view of the input data
-        broadcasted = factories.array(
+        broadcasted = DNDarray(
             x.larray.broadcast_to(shape),
+            gshape=shape,
             dtype=x.dtype,
             split=output_split,
             device=x.device,
             comm=x.comm,
-            copy=False,
+            balanced=True,
         )
     else:
         # input is distributed, return a broadcasted copy of input
@@ -162,6 +161,7 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
             shape, dtype=x.dtype, split=output_split, device=x.device, comm=x.comm
         )
         broadcasted += x
+        del x
 
     return broadcasted
 
