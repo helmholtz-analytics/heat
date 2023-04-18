@@ -1,6 +1,8 @@
 name: Benchmark
 on:
-  [push]
+  push:
+    branches:
+      - main
 
 jobs:
   benchmark:
@@ -22,24 +24,6 @@ jobs:
             pip install .[cb]
             PERUN_RUN_ID=N4 mpirun -n 4 python benchmarks/cb/main.py
             jq -s flatten bench_data/*.json > bench_data/all_benchmarks.json
-      - name: Compare benchmark result
-        if: ${{github.ref != 'refs/heads/main'}}
-        uses: benchmark-action/github-action-benchmark@v1
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          # Benchmark action input and output
-          tool: 'customSmallerIsBetter'
-          output-file-path: bench_data/all_benchmarks.json
-          # external-data-json-path: ./cache/benchmark-data.json
-          # Alert configuration
-          fail-on-alert: true
-          comment-on-alert: true
-          # Ignore results from non main branches.
-          save-data-file: false
-          # Pages configuration
-          auto-push: false
-          gh-pages-branch: gh-pages
-          benchmark-data-dir-path: dev/bench
       - name: Save benchmark result and update gh-pages-chart
         if: ${{github.ref == 'refs/heads/main'}}
         uses: benchmark-action/github-action-benchmark@v1
