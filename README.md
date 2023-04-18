@@ -8,7 +8,7 @@ Heat is a distributed tensor framework for high performance data analytics.
 
 Project Status
 --------------
-[![Mirror and run GitLab CI](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cpu.yml/badge.svg)](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cpu.yml)
+[![CI workflow](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cb.yml/badge.svg)](https://github.com/helmholtz-analytics/heat/actions/workflows/ci_cb.yml)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
 [![codecov](https://codecov.io/gh/helmholtz-analytics/heat/branch/main/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -52,11 +52,8 @@ The complete documentation of the latest version is always deployed on
 Support Channels
 ----------------
 
-We use [StackOverflow](https://stackoverflow.com/tags/pyheat/) as a forum for questions about Heat.
-If you do not find an answer to your question, then please ask a new question there and be sure to
-tag it with "pyheat".
-
-You can also reach us on [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions).
+We use [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions) as a forum for questions about Heat.
+If you found a bug or miss a feature, then please file a new [issue](https://github.com/helmholtz-analytics/heat/issues/new/choose).
 
 Requirements
 ------------
