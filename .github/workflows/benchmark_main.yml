@@ -1,12 +1,12 @@
-name: Benchmark
+name: Benchmark main and save
 on:
   push:
     branches:
       - main
 
 jobs:
-  benchmark:
-    name: Continuous Benchmarking
+  benchmark-main:
+    name: Benchmark main and save
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
