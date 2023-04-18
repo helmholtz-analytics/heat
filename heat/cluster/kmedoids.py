@@ -98,7 +98,7 @@ class KMedoids(_KCluster):
 
                 dist = self._metric(x, median)
                 _, displ, _ = x.comm.counts_displs_shape(shape=x.shape, axis=0)
-                idx = dist.argmin(axis=0, keepdim=False).item()
+                idx = dist.argmin(axis=0, keepdims=False).item()
                 proc = 0
                 for p in range(x.comm.size):
                     if displ[p] > idx:

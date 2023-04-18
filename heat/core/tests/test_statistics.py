@@ -24,14 +24,14 @@ class TestStatistics(TestCase):
         self.assertTrue((result.larray == data.larray.argmax(0)).all())
 
         # 3D local tensor, minor axis
-        result = ht.argmax(data, axis=-1, keepdim=True)
+        result = ht.argmax(data, axis=-1, keepdims=True)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result.larray.dtype, torch.int64)
         self.assertEqual(result.shape, (3, 4, 1))
         self.assertEqual(result.lshape, (3, 4, 1))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.larray == data.larray.argmax(-1, keepdim=True)).all())
+        self.assertTrue((result.larray == data.larray.argmax(-1, keepdims=True)).all())
 
         # 1D split tensor, no axis
         data = ht.arange(-10, 10, split=0)
@@ -126,7 +126,7 @@ class TestStatistics(TestCase):
         self.assertTrue((result.larray == data.larray.argmin(0)).all())
 
         # 3D local tensor, minor axis
-        result = ht.argmin(data, axis=-1, keepdim=True)
+        result = ht.argmin(data, axis=-1, keepdims=True)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result.larray.dtype, torch.int64)

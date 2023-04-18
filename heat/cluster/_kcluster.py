@@ -204,7 +204,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         """
         # calculate the distance matrix and determine the closest centroid
         distances = self._metric(x, self._cluster_centers)
-        matching_centroids = distances.argmin(axis=1, keepdim=True)
+        matching_centroids = distances.argmin(axis=1, keepdims=True)
 
         return matching_centroids
 

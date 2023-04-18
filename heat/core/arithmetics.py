@@ -907,7 +907,7 @@ def prod(
     DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__reduce_op(
-        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdims
+        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
     )
 
 
@@ -996,7 +996,7 @@ def sum(
     """
     # TODO: make me more numpy API complete Issue #101
     return _operations.__reduce_op(
-        a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdims
+        a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
     )
 
 
