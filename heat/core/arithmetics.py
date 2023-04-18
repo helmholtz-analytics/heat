@@ -793,6 +793,37 @@ def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[ 1.,  8.],
             [27., 64.]], dtype=ht.float32, device=cpu:0, split=None)
     """
+    # early exit for integer scalars
+    if isinstance(t2, int):
+        try:
+            result = torch.pow(t1.larray, t2)
+            return DNDarray(
+                result,
+                gshape=t1.gshape,
+                dtype=t1.dtype,
+                device=t1.device,
+                split=t1.split,
+                comm=t1.comm,
+                balanced=t1.balanced,
+            )
+        except AttributeError:
+            # t1 is no DNDarray
+            pass
+    elif isinstance(t1, int):
+        try:
+            result = torch.pow(t1, t2.larray)
+            return DNDarray(
+                result,
+                gshape=t2.gshape,
+                dtype=t2.dtype,
+                device=t2.device,
+                split=t2.split,
+                comm=t2.comm,
+                balanced=t2.balanced,
+            )
+        except AttributeError:
+            # t2 is no DNDarray
+            pass
     return _operations.__binary_op(torch.pow, t1, t2)
 
 
