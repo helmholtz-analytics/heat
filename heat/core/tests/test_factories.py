@@ -188,7 +188,7 @@ class TestFactories(TestCase):
         array_2d = np.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]])
         dndarray_2d = ht.array(array_2d, split=0, copy=True)
         self.assertIsInstance(dndarray_2d, ht.DNDarray)
-        self.assertEqual(dndarray_2d.dtype, ht.float32)
+        self.assertEqual(dndarray_2d.dtype, ht.float64)
         self.assertEqual(dndarray_2d.gshape, (3, 3))
         self.assertEqual(len(dndarray_2d.lshape), 2)
         self.assertLessEqual(dndarray_2d.lshape[0], 3)
