@@ -1,11 +1,13 @@
 name: Benchmark PR
 on:
-  pull_request_target:
-    types: [review_requested]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    branches: [main]
 
 jobs:
   benchmark-pr:
     name: Benchmark PR
+    if: contains(github.event.pull_request.labels.*.name, 'PR talk')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
