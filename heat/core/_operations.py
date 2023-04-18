@@ -84,6 +84,38 @@ def __binary_op(
         )
     promoted_type = types.result_type(t1, t2).torch_type()
 
+    # early out for integer scalar terms
+    if isinstance(t2, int):
+        try:
+            result = operation(t1.larray, t2)
+            return DNDarray(
+                result,
+                gshape=t1.gshape,
+                dtype=t1.dtype,
+                device=t1.device,
+                split=t1.split,
+                comm=t1.comm,
+                balanced=t1.balanced,
+            )
+        except AttributeError:
+            # t1 is a scalar
+            pass
+    elif isinstance(t1, int):
+        try:
+            result = operation(t1, t2.larray)
+            return DNDarray(
+                result,
+                gshape=t2.gshape,
+                dtype=t2.dtype,
+                device=t2.device,
+                split=t2.split,
+                comm=t2.comm,
+                balanced=t2.balanced,
+            )
+        except AttributeError:
+            # t2 is a scalar
+            pass
+
     # Make inputs Dndarrays
     if np.isscalar(t1) and np.isscalar(t2):
         try:
