@@ -4,7 +4,7 @@ distributed hierarchical SVD
 import numpy as np
 import collections
 import torch
-from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple
+from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple, Optional
 
 from ..communication import MPICommunication
 from ..dndarray import DNDarray
@@ -33,7 +33,7 @@ def hsvd_rank(
     maxrank: int,
     full: bool = False,
     maxmergedim: Union[int, None] = None,
-    safetyshift: int = 5,
+    safetyshift: Optional[int] = 5,
     silent: bool = True,
 ) -> Union[
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
@@ -66,6 +66,10 @@ def hsvd_rank(
         if full=True: U, Sigma, V, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree).
         if full=False: U, a-posteriori error estimate
 
+    Notes
+    -------
+    SVDs of matrices up to size A.size[0] x [2 * (maxrank + safetyshift) + 1] need to be computed on a single MPI-process during merging; too large values for maxrank and safetyshift therefore may result in memory issues.
+
     References
     -------
     [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
@@ -74,23 +78,19 @@ def hsvd_rank(
     if not isinstance(A, DNDarray):
         raise TypeError("Argument needs to be a DNDarray but is {}.".format(type(A)))
     if not A.ndim == 2:
-        raise TypeError("A needs to be a 2D matrix")
+        raise ValueError("A needs to be a 2D matrix")
     if not A.dtype == types.float32 and not A.dtype == types.float64:
         raise TypeError(
             "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
                 A.dtype
             )
         )
-    # if A.comm.rank == 0:
-    #     print(
-    #         "INFO: Please be aware of the fact that hiearchical SVD (hSVD) with prescribed trunction rank maxrank only yields accurate results when the underlying matrix is of low-rank structure with rank at most maxrank."
-    #     )
     A_local_size = max(A.lshape_map[:, 1])
 
     if maxmergedim is not None and maxmergedim < 2 * (maxrank + safetyshift) + 1:
         raise RuntimeError(
             "maxmergedim=%d is too small. Please ensure `maxmergedim > 2*(maxrank + safetyshift)`, or set `maxmergedim=None` in order to work with the default value."
-            % (maxrank, maxmergedim)
+            % maxmergedim
         )
 
     if maxmergedim is None:
@@ -98,10 +98,6 @@ def hsvd_rank(
             maxmergedim = A_local_size
         else:
             maxmergedim = 2 * (maxrank + safetyshift) + 1
-            if A.comm.rank == 0:
-                print(
-                    "Warning: Given maxrank (or saftyshift) is so large that arrays of size larger than A.larray have to be dealt with on a single process. This may cause memory issues."
-                )
 
     return hsvd(
         A,
@@ -119,12 +115,12 @@ def hsvd_rank(
 def hsvd_rtol(
     A: DNDarray,
     rtol: float,
-    full: bool = False,
+    full: Optional[bool] = False,
     maxrank: Union[int, None] = None,
     maxmergedim: Union[int, None] = None,
-    safetyshift: int = 5,
+    safetyshift: Optional[int] = 5,
     no_of_merges: Union[int, None] = None,
-    silent: bool = True,
+    silent: Optional[bool] = True,
 ) -> Union[
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
 ]:
@@ -165,6 +161,13 @@ def hsvd_rtol(
     silent : bool, optional
         silent=False implies that some information on the computations are printed. The default is True.
 
+    Notes
+    -------
+    SVDs of matrices up to size A.size[0] x [2 * (maxrank + safetyshift) + 1] need to be computed on a single MPI-process during merging; too large values for maxrank and safetyshift therefore may result in memory issues.
+    For similar reasons, prescribing only rtol and the number of processes to be merged in each step (without specifying maxrank or maxmergedim) may result in memory issues.
+    Although prescribing maxrank is therefore strongly recommended to avoid memory issues, but may result in loss of desired precision (rtol). If this occures, a separate warning will be raised.
+
+
     Returns
     -------
     (Union[    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray])
@@ -179,48 +182,32 @@ def hsvd_rtol(
     if not isinstance(A, DNDarray):
         raise TypeError("Argument needs to be a DNDarray but is {}.".format(type(A)))
     if not A.ndim == 2:
-        raise TypeError("A needs to be a 2D matrix")
+        raise ValueError("A needs to be a 2D matrix")
     if not A.dtype == types.float32 and not A.dtype == types.float64:
         raise TypeError(
             "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
                 A.dtype
             )
         )
-    # if A.comm.rank == 0:
-    #     print(
-    #         "INFO: Please be aware of the fact that hiearchical SVD (hSVD) with prescribed rtol is only efficient when the rank to reach this accuracy is rather small compared to the overal matrix size. In other cases, either memory issues or loss of desired precision may occure."
-    #     )
     A_local_size = max(A.lshape_map[:, 1])
 
     if maxmergedim is not None and maxrank is None:
         maxrank = floor(A_local_size / 2) - safetyshift
         if maxrank <= 0:
-            raise RuntimeError("maxmergedim is too small or safetyshift is too large.")
-        if A.comm.rank == 0:
-            print(
-                "Warning: Prescribing maxmergedim is recommended to avoid memory issues, but may result in loss of desired precision (rtol). If this occures, a separate warning will be raised."
-            )
+            raise ValueError("safetyshift is too large.")
 
     if maxmergedim is None and maxrank is not None:
         if A_local_size >= 2 * (maxrank + safetyshift):
             maxmergedim = A_local_size
         else:
             maxmergedim = 2 * (maxrank + safetyshift) + 1
-            if A.comm.rank == 0:
-                print(
-                    "Warning: Given maxrank (or saftyshift) is so large that arrays of size larger than A.larray have to be dealt with on a single process. This may cause memory issues."
-                )
-        if A.comm.rank == 0:
-            print(
-                "Warning: Prescribing maxrank is recommended to avoid memory issues, but may result in loss of desired precision (rtol). If this occures, a separate warning will be raised."
-            )
 
     if (
         maxmergedim is not None
         and maxrank is not None
         and maxmergedim < 2 * (maxrank + safetyshift) + 1
     ):
-        raise RuntimeError(
+        raise ValueError(
             "Given maxrank=%d, the choice maxmergedim=%d is too small. Please ensure maxmergedim > 2*(maxrank + safetyshift) or do not specify maxmergedim in order to work with the default value."
             % (maxrank, maxmergedim)
         )
@@ -230,13 +217,9 @@ def hsvd_rtol(
             no_of_merges = 2
         maxmergedim = 2 * (A.shape[1] + safetyshift) + 1
         maxrank = A.shape[1]
-        if A.comm.rank == 0:
-            print(
-                "Warning: Prescribing only rtol and the number of processes to be merged in each step (without specifying maxrank or maxmergedim) may result in memory issues."
-            )
 
     if no_of_merges is not None and no_of_merges < 2:
-        raise RuntimeError(
+        raise ValueError(
             "It is required that no_of_merges >= 2. Please consider omitting this argument in order to use the default value."
         )
 
@@ -263,11 +246,11 @@ def hsvd(
     maxrank: Union[int, None] = None,
     maxmergedim: Union[int, None] = None,
     rtol: Union[float, None] = None,
-    safetyshift: int = 0,
+    safetyshift: Optional[int] = 0,
     no_of_merges: Union[int, None] = None,
-    full: bool = False,
-    silent: bool = True,
-    warnings_off: bool = False,
+    full: Optional[bool] = False,
+    silent: Optional[bool] = True,
+    warnings_off: Optional[bool] = False,
 ) -> Union[
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
 ]:
