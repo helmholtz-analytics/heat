@@ -1,8 +1,3 @@
-""" Reminder for me: To run this file go to home/heat and execute
-mpirun -np XXX python -m unittest -vf heat/core/linalg/tests/test_svdtools.py
-"""
-
-
 import torch
 import os
 import unittest
@@ -25,14 +20,14 @@ class TestHSVD(TestCase):
             ht.random.randn(50, 15 * nprocs, dtype=ht.float64, split=None),
             ht.zeros((50, 15 * nprocs), dtype=ht.float32, split=1),
         ]
-        reltols = [1e-1, 1e-2, 1e-3]
+        rtols = [1e-1, 1e-2, 1e-3]
         ranks = [5, 10, 15]
 
         # check if hsvd yields "reasonable" results for random matrices, i.e.
         #    U (resp. V) is orthogonal for split=1 (resp. split=0)
         #    hsvd_rank yields the correct rank
         #    the true reconstruction error is <= error estimate
-        #    for hsvd_reltol: true reconstruction error <= reltol (provided no further options)
+        #    for hsvd_rtol: true reconstruction error <= rtol (provided no further options)
 
         for A in test_matrices:
             if A.dtype == ht.float64:
@@ -76,8 +71,8 @@ class TestHSVD(TestCase):
                 with self.assertRaises(RuntimeError):
                     ht.linalg.hsvd_rank(A, r, maxmergedim=4)
 
-            for tol in reltols:
-                U, sigma, V, err_est = ht.linalg.hsvd_reltol(A, tol, full=True, silent=True)
+            for tol in rtols:
+                U, sigma, V, err_est = ht.linalg.hsvd_rtol(A, tol, full=True, silent=True)
                 hsvd_rk = U.shape[1]
 
                 if ht.norm(A) > 0:
@@ -111,11 +106,11 @@ class TestHSVD(TestCase):
 
                 # check if wrong parameter choices are catched
                 with self.assertRaises(RuntimeError):
-                    ht.linalg.hsvd_reltol(A, tol, maxmergedim=4)
+                    ht.linalg.hsvd_rtol(A, tol, maxmergedim=4)
                 with self.assertRaises(RuntimeError):
-                    ht.linalg.hsvd_reltol(A, tol, maxmergedim=10, maxrank=11)
+                    ht.linalg.hsvd_rtol(A, tol, maxmergedim=10, maxrank=11)
                 with self.assertRaises(RuntimeError):
-                    ht.linalg.hsvd_reltol(A, tol, no_of_merges=1)
+                    ht.linalg.hsvd_rtol(A, tol, no_of_merges=1)
 
         # check if wrong input arrays are catched
         wrong_test_matrices = [
@@ -138,7 +133,7 @@ class TestHSVD(TestCase):
 
         # check if full=False yields the correct number of outputs (=1)
         self.assertEqual(len(ht.linalg.hsvd_rank(test_matrices[0], 5)), 2)
-        self.assertEqual(len(ht.linalg.hsvd_reltol(test_matrices[0], 5e-1)), 2)
+        self.assertEqual(len(ht.linalg.hsvd_rtol(test_matrices[0], 5e-1)), 2)
 
         # check if hsvd_rank yields correct results for maxrank <= truerank
 

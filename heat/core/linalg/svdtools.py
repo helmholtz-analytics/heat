@@ -1,5 +1,5 @@
 """
-distributed hierarchical SVD - first draft
+distributed hierarchical SVD
 """
 import numpy as np
 import collections
@@ -20,7 +20,7 @@ from .. import statistics
 from math import log, ceil, floor, sqrt
 
 
-__all__ = ["hsvd_rank", "hsvd_reltol", "hsvd"]
+__all__ = ["hsvd_rank", "hsvd_rtol", "hsvd"]
 
 
 #########################################################################################
@@ -31,9 +31,9 @@ __all__ = ["hsvd_rank", "hsvd_reltol", "hsvd"]
 def hsvd_rank(
     A: DNDarray,
     maxrank: int,
+    full: bool = False,
     maxmergedim: Union[int, None] = None,
     safetyshift: int = 5,
-    full: bool = False,
     silent: bool = True,
 ) -> Union[
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
@@ -52,12 +52,9 @@ def hsvd_rank(
         truncation rank.
     full : bool, optional
         full=True implies that also Sigma and V are computed and returned. The default is False.
-
-    'Expert' parameters
-    ----------
-
     maxmergedim : Union[int, None], optional
         maximal size of the concatenation matrices during the merging procedure. The default is None and results in an appropriate choice depending on the size of the local slices of A and maxrank.
+        Too small choices for this parameter will result in failure if the maximal size of the concatenation matrices does not allow to merge at least two matrices. Too large choices for this parameter can cause memory errors if the resulting merging problem becomes too large.
     safetyshift : int, optional
         Increases the actual truncation rank within the computations by a safety shift. The default is 5.
     silent : bool, optional
@@ -75,11 +72,11 @@ def hsvd_rank(
     [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
     if not isinstance(A, DNDarray):
-        raise RuntimeError("Argument needs to be a DNDarray but is {}.".format(type(A)))
+        raise TypeError("Argument needs to be a DNDarray but is {}.".format(type(A)))
     if not A.ndim == 2:
-        raise RuntimeError("A needs to be a 2D matrix")
+        raise TypeError("A needs to be a 2D matrix")
     if not A.dtype == types.float32 and not A.dtype == types.float64:
-        raise RuntimeError(
+        raise TypeError(
             "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
                 A.dtype
             )
@@ -110,7 +107,7 @@ def hsvd_rank(
         A,
         maxrank=maxrank,
         maxmergedim=maxmergedim,
-        reltol=None,
+        rtol=None,
         safetyshift=safetyshift,
         no_of_merges=None,
         full=full,
@@ -119,14 +116,14 @@ def hsvd_rank(
     )
 
 
-def hsvd_reltol(
+def hsvd_rtol(
     A: DNDarray,
-    reltol: float,
+    rtol: float,
+    full: bool = False,
     maxrank: Union[int, None] = None,
     maxmergedim: Union[int, None] = None,
     safetyshift: int = 5,
     no_of_merges: Union[int, None] = None,
-    full: bool = False,
     silent: bool = True,
 ) -> Union[
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
@@ -134,7 +131,7 @@ def hsvd_reltol(
     """
     Hierchical SVD (hSVD) with prescribed upper bound on the relative reconstruction error.
     If A = U diag(sigma) V^T is the true SVD of A, this routine computes an approximation for U[:,:r] (and sigma[:r], V[:,:r])
-    such that the rel. reconstruction error ||A-U[:,:r] diag(sigma[:r]) V[:,:r]^T ||_F / ||A||_F does not exceed reltol.
+    such that the rel. reconstruction error ||A-U[:,:r] diag(sigma[:r]) V[:,:r]^T ||_F / ||A||_F does not exceed rtol.
 
     The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
 
@@ -142,17 +139,13 @@ def hsvd_reltol(
     ----------
     A : DNDarray
         2D-array (float32/64) of which the hSVD has to be computed.
-    reltol : float
+    rtol : float
         desired upper bound on the relative reconstruction error ||A-U Sigma V^T ||_F / ||A||_F. This upper bound is processed into 'local'
         tolerances during the actual computations assuming the worst case scenario of a binary "merging tree"; therefore, the a-posteriori
-        error for the relative error using the true "merging tree" (see output) may be significantly smaller than reltol.
+        error for the relative error using the true "merging tree" (see output) may be significantly smaller than rtol.
         Prescription of maxrank or maxmergedim (disabled in default) can result in loss of desired precision, but can help to avoid memory issues.
     full : bool, optional
         full=True implies that also Sigma and V are computed and returned. The default is False.
-
-
-    'Expert' parameters
-    ------
     no_of_merges : Union[int, None], optional
         Maximum number of processes to be merged at each step. If no further arguments are provided (see below),
         this completely determines the "merging tree" and may cause memory issues. The default is None and results in a binary merging tree.
@@ -164,6 +157,7 @@ def hsvd_reltol(
         Setting only maxrank (and not maxmergedim) results in an appropriate default choice for maxmergedim depending on the size of the local slices of A and the value of maxrank.
     maxmergedim : Union[int, None], optional
         maximal size of the concatenation matrices during the merging procedure. The default is None and results in an appropriate choice depending on the size of the local slices of A and maxrank. The default is None.
+        Too small choices for this parameter will result in failure if the maximal size of the concatenation matrices does not allow to merge at least two matrices. Too large choices for this parameter can cause memory errors if the resulting merging problem becomes too large.
         Setting at least one of maxrank and maxmergedim is recommended to avoid memory issues, but can result in loss of desired precision.
         Setting only maxmergedim (and not maxrank) results in an appropriate default choice for maxrank.
     safetyshift : int, optional
@@ -183,18 +177,18 @@ def hsvd_reltol(
     [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
     if not isinstance(A, DNDarray):
-        raise RuntimeError("Argument needs to be a DNDarray but is {}.".format(type(A)))
+        raise TypeError("Argument needs to be a DNDarray but is {}.".format(type(A)))
     if not A.ndim == 2:
-        raise RuntimeError("A needs to be a 2D matrix")
+        raise TypeError("A needs to be a 2D matrix")
     if not A.dtype == types.float32 and not A.dtype == types.float64:
-        raise RuntimeError(
+        raise TypeError(
             "Argument needs to be a DNDarray with datatype float32 or float64, but data type is {}.".format(
                 A.dtype
             )
         )
     # if A.comm.rank == 0:
     #     print(
-    #         "INFO: Please be aware of the fact that hiearchical SVD (hSVD) with prescribed reltol is only efficient when the rank to reach this accuracy is rather small compared to the overal matrix size. In other cases, either memory issues or loss of desired precision may occure."
+    #         "INFO: Please be aware of the fact that hiearchical SVD (hSVD) with prescribed rtol is only efficient when the rank to reach this accuracy is rather small compared to the overal matrix size. In other cases, either memory issues or loss of desired precision may occure."
     #     )
     A_local_size = max(A.lshape_map[:, 1])
 
@@ -204,7 +198,7 @@ def hsvd_reltol(
             raise RuntimeError("maxmergedim is too small or safetyshift is too large.")
         if A.comm.rank == 0:
             print(
-                "Warning: Prescribing maxmergedim is recommended to avoid memory issues, but may result in loss of desired precision (reltol). If this occures, a separate warning will be raised."
+                "Warning: Prescribing maxmergedim is recommended to avoid memory issues, but may result in loss of desired precision (rtol). If this occures, a separate warning will be raised."
             )
 
     if maxmergedim is None and maxrank is not None:
@@ -218,7 +212,7 @@ def hsvd_reltol(
                 )
         if A.comm.rank == 0:
             print(
-                "Warning: Prescribing maxrank is recommended to avoid memory issues, but may result in loss of desired precision (reltol). If this occures, a separate warning will be raised."
+                "Warning: Prescribing maxrank is recommended to avoid memory issues, but may result in loss of desired precision (rtol). If this occures, a separate warning will be raised."
             )
 
     if (
@@ -238,7 +232,7 @@ def hsvd_reltol(
         maxrank = A.shape[1]
         if A.comm.rank == 0:
             print(
-                "Warning: Prescribing only reltol and the number of processes to be merged in each step (without specifying maxrank or maxmergedim) may result in memory issues."
+                "Warning: Prescribing only rtol and the number of processes to be merged in each step (without specifying maxrank or maxmergedim) may result in memory issues."
             )
 
     if no_of_merges is not None and no_of_merges < 2:
@@ -250,7 +244,7 @@ def hsvd_reltol(
         A,
         maxrank=maxrank,
         maxmergedim=maxmergedim,
-        reltol=reltol,
+        rtol=rtol,
         safetyshift=safetyshift,
         no_of_merges=no_of_merges,
         full=full,
@@ -268,7 +262,7 @@ def hsvd(
     A: DNDarray,
     maxrank: Union[int, None] = None,
     maxmergedim: Union[int, None] = None,
-    reltol: Union[float, None] = None,
+    rtol: Union[float, None] = None,
     safetyshift: int = 0,
     no_of_merges: Union[int, None] = None,
     full: bool = False,
@@ -280,7 +274,7 @@ def hsvd(
     """
     This function computes an approximate truncated SVD of A utilizing a distributed hiearchical algorithm; see the references.
     The present function `hsvd` is a low-level routine, provides many options/parameters, but no default values, and is not recommended for usage by non-experts since conflicts
-    arising from inappropriate parameter choice will not be catched. We strongly recommend to use the corresponding high-level functions `hsvd_rank` and `hsvd_reltol` instead.
+    arising from inappropriate parameter choice will not be catched. We strongly recommend to use the corresponding high-level functions `hsvd_rank` and `hsvd_rtol` instead.
 
     Input
     -------
@@ -290,7 +284,7 @@ def hsvd(
         truncation rank of the SVD
     maxmergedim: Union[int, None] = None
         maximal size of the concatenation matrices when "merging" the local SVDs
-    reltol: Union[float, None] = None
+    rtol: Union[float, None] = None
         upper bound on the relative reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (may deteriorate due to other parameters)
     safetyshift: int = 0
         shift that increases the actual truncation rank of the local SVDs during the computations in order to increase accuracy
@@ -316,7 +310,7 @@ def hsvd(
     """
     if not warnings_off and A.comm.rank == 0:
         print(
-            "Warning: You are using the 'expert variant' of hierarchical SVD with the maximum number of parameters to choose. Please consider using the variants hsvd_rank or hsvd_reltol with less parameters and appropriate default choices instead if you are not familar to the algorithmic details."
+            "Warning: You are using the 'expert variant' of hierarchical SVD with the maximum number of parameters to choose. Please consider using the variants hsvd_rank or hsvd_rtol with less parameters and appropriate default choices instead if you are not familar to the algorithmic details."
         )
 
     # if split dimension is 0, transpose matrix and remember this
@@ -329,8 +323,8 @@ def hsvd(
 
     Anorm = vector_norm(A)
 
-    if reltol is not None:
-        loctol = Anorm.larray * reltol / sqrt(2 * no_procs - 1)
+    if rtol is not None:
+        loctol = Anorm.larray * rtol / sqrt(2 * no_procs - 1)
     else:
         loctol = None
 
@@ -518,7 +512,7 @@ def compute_local_truncated_svd(
             loc_trunc_rank = min(maxrank, ideal_trunc_rank, cut_noise_rank)
             if loc_trunc_rank != ideal_trunc_rank:
                 print(
-                    "in hSVD (level %d, process %d): abs tol = %2.2e requires truncation to rank %d, but maxrank=%d. Loss of desired precision (reltol) very likely!"
+                    "in hSVD (level %d, process %d): abs tol = %2.2e requires truncation to rank %d, but maxrank=%d. Loss of desired precision (rtol) very likely!"
                     % (level, proc_id, loctol, ideal_trunc_rank, maxrank)
                 )
 
