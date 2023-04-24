@@ -161,18 +161,17 @@ def hsvd_rtol(
     silent : bool, optional
         silent=False implies that some information on the computations are printed. The default is True.
 
-    Notes
-    -------
-    SVDs of matrices up to size A.size[0] x [2 * (maxrank + safetyshift) + 1] need to be computed on a single MPI-process during merging; too large values for maxrank and safetyshift therefore may result in memory issues.
-    For similar reasons, prescribing only rtol and the number of processes to be merged in each step (without specifying maxrank or maxmergedim) may result in memory issues.
-    Although prescribing maxrank is therefore strongly recommended to avoid memory issues, but may result in loss of desired precision (rtol). If this occures, a separate warning will be raised.
-
-
     Returns
     -------
     (Union[    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray])
         if full=True: U, Sigma, V, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree used in the computations).
         if full=False: U, a-posteriori error estimate
+
+    Notes
+    -------
+    SVDs of matrices up to size A.size[0] x [2 * (maxrank + safetyshift) + 1] need to be computed on a single MPI-process during merging; too large values for maxrank and safetyshift therefore may result in memory issues.
+    For similar reasons, prescribing only rtol and the number of processes to be merged in each step (without specifying maxrank or maxmergedim) may result in memory issues.
+    Although prescribing maxrank is therefore strongly recommended to avoid memory issues, but may result in loss of desired precision (rtol). If this occures, a separate warning will be raised.
 
     References
     -------
@@ -208,8 +207,8 @@ def hsvd_rtol(
         and maxmergedim < 2 * (maxrank + safetyshift) + 1
     ):
         raise ValueError(
-            "Given maxrank=%d, the choice maxmergedim=%d is too small. Please ensure maxmergedim > 2*(maxrank + safetyshift) or do not specify maxmergedim in order to work with the default value."
-            % (maxrank, maxmergedim)
+            "maxmergedim=%d is too small. Please ensure `maxmergedim > 2*(maxrank + safetyshift)`, or set `maxmergedim=None` in order to work with the default value."
+            % maxmergedim
         )
 
     if maxmergedim is None and maxrank is None:
@@ -289,11 +288,6 @@ def hsvd(
     [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
     [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
-    if not warnings_off and A.comm.rank == 0:
-        print(
-            "Warning: You are using the 'expert variant' of hierarchical SVD with the maximum number of parameters to choose. Please consider using the variants hsvd_rank or hsvd_rtol with less parameters and appropriate default choices instead if you are not familar to the algorithmic details."
-        )
-
     # if split dimension is 0, transpose matrix and remember this
     transposeflag = False
     if A.split == 0:
@@ -465,7 +459,9 @@ def compute_local_truncated_svd(
     safetyshift: int,
 ) -> Tuple[torch.Tensor, torch.Tensor, float]:
     """
-    Auxiliary routine for hsvd: computes the truncated SVD of the respective local array
+    Auxiliary routine for hsvd: computes the truncated SVD ("U-factor" and "sigma-factor" of the SVD, i.e. first and second output) of the respective local array `U_loc` together with an estimate for the truncation error (third output).
+    Truncation of the SVD either to absolute (!) tolerance `loctol` or to maximal rank `maxrank` is performed; moreover, singular values close to or below the level of "numerical noise" (1e-14 for float64, 1e-7 for float32) are cut.
+    A safetyshift is added, i.e. the final truncation rank determined from `loctol` and `maxrank` is increased by `safetyshift`.
     """
     U_loc, sigma_loc, _ = torch.linalg.svd(U_loc, full_matrices=False)
 
