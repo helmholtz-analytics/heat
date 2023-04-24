@@ -105,18 +105,16 @@ class TestHSVD(TestCase):
                     self.assertEqual(ht.norm(V), 0)
 
                 # check if wrong parameter choices are catched
-                with self.assertRaises(RuntimeError):
+                with self.assertRaises(ValueError):
                     ht.linalg.hsvd_rtol(A, tol, maxmergedim=4)
-                with self.assertRaises(RuntimeError):
+                with self.assertRaises(ValueError):
                     ht.linalg.hsvd_rtol(A, tol, maxmergedim=10, maxrank=11)
-                with self.assertRaises(RuntimeError):
+                with self.assertRaises(ValueError):
                     ht.linalg.hsvd_rtol(A, tol, no_of_merges=1)
 
         # check if wrong input arrays are catched
         wrong_test_matrices = [
             0,
-            ht.ones((15, 15 * nprocs, 15), split=1, dtype=ht.float64),
-            ht.ones(15 * nprocs, split=0, dtype=ht.float64),
             ht.ones((50, 15 * nprocs), dtype=ht.int8, split=1),
             ht.ones((50, 15 * nprocs), dtype=ht.int16, split=1),
             ht.ones((50, 15 * nprocs), dtype=ht.int32, split=1),
@@ -126,10 +124,20 @@ class TestHSVD(TestCase):
         ]
 
         for A in wrong_test_matrices:
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(TypeError):
                 ht.linalg.hsvd_rank(A, 5)
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(TypeError):
                 ht.linalg.hsvd_rank(A, 1e-1)
+
+        wrong_test_matrices = [
+            ht.ones((15, 15 * nprocs, 15), split=1, dtype=ht.float64),
+            ht.ones(15 * nprocs, split=0, dtype=ht.float64),
+        ]
+        for wrong_arr in wrong_test_matrices:
+            with self.assertRaises(ValueError):
+                ht.linalg.hsvd_rank(wrong_arr, 5)
+            with self.assertRaises(ValueError):
+                ht.linalg.hsvd_rtol(wrong_arr, 1e-1)
 
         # check if full=False yields the correct number of outputs (=1)
         self.assertEqual(len(ht.linalg.hsvd_rank(test_matrices[0], 5)), 2)
