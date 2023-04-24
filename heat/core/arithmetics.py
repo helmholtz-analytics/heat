@@ -902,7 +902,7 @@ def prod(
     a: DNDarray,
     axis: Union[int, Tuple[int, ...]] = None,
     out: DNDarray = None,
-    keepdim: bool = None,
+    keepdims: bool = None,
 ) -> DNDarray:
     """
     Return the product of array elements over a given axis in form of a DNDarray shaped as a but with the specified axis removed.
@@ -919,7 +919,7 @@ def prod(
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output, but
         the datatype of the output values will be cast if necessary.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
         option, the result will broadcast correctly against the input array.
 
@@ -938,11 +938,11 @@ def prod(
     DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__reduce_op(
-        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
+        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
     )
 
 
-DNDarray.prod = lambda self, axis=None, out=None, keepdim=None: prod(self, axis, out, keepdim)
+DNDarray.prod = lambda self, axis=None, out=None, keepdims=None: prod(self, axis, out, keepdims)
 DNDarray.prod.__doc__ = prod.__doc__
 
 
@@ -992,7 +992,7 @@ def sum(
     a: DNDarray,
     axis: Union[int, Tuple[int, ...]] = None,
     out: DNDarray = None,
-    keepdim: bool = None,
+    keepdims: bool = None,
 ) -> DNDarray:
     """
     Sum of array elements over a given axis. An array with the same shape as ``self.__array`` except for the specified
@@ -1009,7 +1009,7 @@ def sum(
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output, but
         the datatype of the output values will be cast if necessary.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
         option, the result will broadcast correctly against the input array.
 
@@ -1027,8 +1027,8 @@ def sum(
     """
     # TODO: make me more numpy API complete Issue #101
     return _operations.__reduce_op(
-        a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
+        a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
     )
 
 
-DNDarray.sum = lambda self, axis=None, out=None, keepdim=None: sum(self, axis, out, keepdim)
+DNDarray.sum = lambda self, axis=None, out=None, keepdims=None: sum(self, axis, out, keepdims)
