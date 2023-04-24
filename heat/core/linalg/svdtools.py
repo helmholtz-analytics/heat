@@ -219,9 +219,7 @@ def hsvd_rtol(
         maxrank = A.shape[1]
 
     if no_of_merges is not None and no_of_merges < 2:
-        raise ValueError(
-            "It is required that no_of_merges >= 2. Please consider omitting this argument in order to use the default value."
-        )
+        raise ValueError("`no_of_merges` must be >= 2.")
 
     return hsvd(
         A,
