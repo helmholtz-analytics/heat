@@ -242,9 +242,7 @@ def hsvd_reltol(
             )
 
     if no_of_merges is not None and no_of_merges < 2:
-        raise ValueError(
-            "`no_of_merges` must be >= 2."
-        )
+        raise ValueError("`no_of_merges` must be >= 2.")
 
     return hsvd(
         A,
