@@ -92,7 +92,7 @@ def hsvd_rank(
 
     if maxmergedim is not None and maxmergedim < 2 * (maxrank + safetyshift) + 1:
         raise RuntimeError(
-            "Given maxrank=%d, the choice maxmergedim=%d is too small. Please ensure maxmergedim > 2*(maxrank + safetyshift) or do not specify maxmergedim in order to work with the default value."
+            "maxmergedim=%d is too small. Please ensure `maxmergedim > 2*(maxrank + safetyshift)`, or set `maxmergedim=None` in order to work with the default value."
             % (maxrank, maxmergedim)
         )
 
