@@ -539,7 +539,6 @@ class TestArithmetics(TestCase):
     def test_pow(self):
         result = ht.array([[1.0, 4.0], [9.0, 16.0]])
         commutated_result = ht.array([[2.0, 4.0], [8.0, 16.0]])
-
         self.assertTrue(ht.equal(ht.pow(self.a_scalar, self.a_scalar), ht.array(4.0)))
         self.assertTrue(ht.equal(ht.pow(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.pow(self.a_scalar, self.a_tensor), commutated_result))
