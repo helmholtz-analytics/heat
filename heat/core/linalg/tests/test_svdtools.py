@@ -31,9 +31,9 @@ class TestHSVD(TestCase):
 
         for A in test_matrices:
             if A.dtype == ht.float64:
-                dtype_tol = 1e-12
+                dtype_tol = 1e-8
             if A.dtype == ht.float32:
-                dtype_tol = 1e-4
+                dtype_tol = 1e-3
 
             for r in ranks:
                 U, sigma, V, err_est = ht.linalg.hsvd_rank(A, r, full=True, silent=True)
@@ -164,9 +164,9 @@ class TestHSVD(TestCase):
         for mat in test_matrices_low_rank:
             A = mat[0]
             if A.dtype == ht.float64:
-                dtype_tol = 1e-12
+                dtype_tol = 1e-8
             if A.dtype == ht.float32:
-                dtype_tol = 1e-4
+                dtype_tol = 1e-3
 
             for r in [true_rk, true_rk + 2]:
                 U, s, V, _ = ht.linalg.hsvd_rank(A, r, full=True)

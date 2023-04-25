@@ -320,10 +320,8 @@ def hsvd(
 
     finished = False
     while not finished:
-        # communicate dimension of currenlty active nodes to all other nodes
-        dims_global = torch.zeros(no_procs)
-        dims_global[A.comm.rank] = U_loc.shape[1]
-        dims_global = A.comm.allgather(dims_global)
+        # communicate dimension of each nodes to all other nodes
+        dims_global = A.comm.allgather(U_loc.shape[1])
 
         if A.comm.rank == 0 and not silent:
             print(
