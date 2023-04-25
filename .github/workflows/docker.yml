@@ -1,0 +1,68 @@
+name: 'Build and upload Docker img'
+on:
+    workflow_dispatch:
+        inputs:
+            heat_version:
+                description: 'HeAT version'
+                required: true
+                default: '1.2.2'
+                type: string
+            pytorch_img:
+                description: 'Base PyTorch Img'
+                required: true
+                default: '23.03-py3'
+                type: string
+            name:
+                description: 'Output Image name'
+                required: true
+                default: 'heat:1.2.2_torch1.13_cu12.1'
+                type: string
+jobs:
+    build-and-push-img:
+        runs-on: ubuntu-latest
+        steps:
+            -
+              name: Checkout
+              uses: actions/checkout@v3
+            -
+              name: Set up QEMU
+              uses: docker/setup-qemu-action@v2
+            -
+              name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v2
+              with:
+                driver: docker
+            -
+              name: Login to GitHub Container Registry
+              uses: docker/login-action@v2
+              with:
+                registry: ghcr.io
+                username: ${{ github.repository_owner }}
+                password: ${{ secrets.GITHUB_TOKEN }}
+            -
+              name: Build
+              uses: docker/build-push-action@v4
+              with:
+                context: docker/
+                build-args: |
+                    HEAT_VERSION=${{ inputs.heat_version }}
+                    PYTORCH_IMG=${{ inputs.pytorch_img}}
+                load: true
+                tags: |
+                  test_${{ inputs.name }}
+            -
+              name: Test
+              run: |
+                docker images
+                docker run -v `pwd`:`pwd` -w `pwd` --rm test_${{ inputs.name }} pytest
+            -
+              name: Build and push
+              uses: docker/build-push-action@v4
+              with:
+                context: docker/
+                build-args: |
+                    HEAT_VERSION=${{ inputs.heat_version }}
+                    PYTORCH_IMG=${{ inputs.pytorch_img}}
+                push: true
+                tags: |
+                  ghcr.io/helmholtz-analytics/${{ inputs.name }}

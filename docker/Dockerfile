@@ -1,10 +1,10 @@
 ARG PACKAGE_NAME=heat
 ARG HEAT_VERSION=1.2.2
-ARG NVIDIA_IMG=22.12-py3
+ARG PYTORCH_IMG=22.05-py3
 ARG HEAT_BRANCH=main
 ARG INSTALL_TYPE=release
 
-FROM nvcr.io/nvidia/pytorch:${NVIDIA_IMG} AS base
+FROM nvcr.io/nvidia/pytorch:${PYTORCH_IMG} AS base
 COPY ./tzdata.seed /tmp/tzdata.seed
 RUN debconf-set-selections /tmp/tzdata.seed
 RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y build-essential openssh-client python3-dev git && apt clean && rm -rf /var/lib/apt/lists/*

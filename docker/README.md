@@ -17,49 +17,49 @@ branches can be specified using `--build-arg=HEAT_BRANCH=branchname`.
 The [Dockerfile](./Dockerfile) guiding the build of the Docker image is located in this
 directory. It is typically most convenient to `cd` over here and run the Docker build as:
 
-	$ docker build .
+```console
+$ docker build --build-args HEAT_VERSION=1.2.2 --PYTORCH_IMG=22.05-py3 -t heat:local .
+```
 
-The resulting image (ID) should then be tagged for subsequent upload (push) to a
-repository, for example:
+We also offer prebuilt images in our [Package registry](https://github.com/helmholtz-analytics/heat/pkgs/container/heat) from which you can pull existing images:
 
-	$ docker tag ea0a1040bf8a ghcr.io/helmholtz-analytics/heat:1.2.0_torch1.11_cuda11.5_py3.9
-	$ docker push ghcr.io/helmholtz-analytics/heat:1.2.0_torch1.11_cuda11.5_py3.9
 
-Please ensure that you push the same tag that you just created.
+```console
+$ docker pull ghcr.io/helmholtz-analytics/heat:1.2.0-dev_torch1.12_cuda11.7_py3.8
+```
 
 ### Building for HPC
 
 With HeAT being a native HPC library, one would naturally want to build the container
 image also for HPC systems, such as the ones available at [Juelich Supercomputing Centre
-(JSC)](https://www.fz-juelich.de/jsc/ "Juelich Supercomputing Centre").
+(JSC)](https://www.fz-juelich.de/jsc/ "Juelich Supercomputing Centre"). We show two ways to convert the existing images from the registry into singularity containers.
 
-HPC centres may run a choice of Apptainer or Singularity, which may incur limitations to
-the flexibility of building images. For instance, the Singularity Image Builder (SIB)
-does not work with the arguments mentioned above, such that these will have to be
-avoided.
+#### Apptainer (formerly singularity)
 
-However, SIB is capable of using just about any available Docker image from any
-registry, such that a specific Singularity image can be built by simply referencing the
-available image. SIB is thus used as a conversion tool.
+To use one of the existing images from our registry:
+
+	$ apptainer build heat.sif docker://ghcr.io/helmholtz-analytics/heat:1.2.0-dev_torch1.12_cuda11.7_py3.8
+
+Building the image can require root access in some systems. If that is the case, we recomend build the image on a local machine, and then upload it to the desired HPC system.
+
+If you see an error indicating that there is not enough space, use the --tmpdir flag of the build command. [Apptainer docs](https://apptainer.org/docs/user/latest/build_a_container.html)
+
+#### SIB (Singularity Image Builder)
 
 A simple `Dockerfile` (in addition to the one above) to be used with SIB could look like
 this:
 
-	FROM ghcr.io/helmholtz-analytics/heat:1.2.0_torch1.11_cuda11.5_py3.9
+	FROM ghcr.io/helmholtz-analytics/heat:1.2.0_torch1.12_cuda11.7_py3.8
 
 The invocation to build the image would be:
 
-	$ sib upload ./Dockerfile heat_1.2.0_torch.11_cuda11.5_py3.9
-	$ sib build --recipe-name heat_1.2.0_torch.11_cuda11.5_py3.9
-	$ sib download --recipe-name heat_1.2.0_torch.11_cuda11.5_py3.9
+	$ sib upload ./Dockerfile heat_1.2.0_torch1.12_cuda11.7_py3.8
+	$ sib build --recipe-name heat_1.2.0_torch1.12_cuda11.7_py3.8
+	$ sib download --recipe-name heat_1.2.0_torch1.12_cuda11.7_py3.8
 
-### Apptainer (formerly singularity)
-
-Simpler method that generates a .sif file directly using an Apptainer definition file, an alternative to
-Dockerfile. This method does not support build arguments, so version, branch and type of installation have to
-changed in the definition file.
-
-    $ singularity build heat_1.2.0_torch.11_cuda11.5_py3.9.sif heat-singularity-image.def
+However, SIB is capable of using just about any available Docker image from any
+registry, such that a specific Singularity image can be built by simply referencing the
+available image. SIB is thus used as a conversion tool.
 
 ## Running on HPC
 

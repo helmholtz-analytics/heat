@@ -32,10 +32,10 @@ pip install heat[hdf5,netcdf]
 
 ### Docker
 
-Get the docker image
+Get the docker image from our package repository
 
 ```
-docker pull ghcr.io/helmholtz-analytics/heat:latest
+docker pull ghcr.io/helmholtz-analytics/heat:1.2.0-dev_torch1.12_cuda11.7_py3.8
 ```
 
 or build it from our Dockerfile
