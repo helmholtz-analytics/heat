@@ -32,7 +32,7 @@ def hsvd_rank(
     A: DNDarray,
     maxrank: int,
     full: bool = False,
-    maxmergedim: Union[int, None] = None,
+    maxmergedim: Optional[int] = None,
     safetyshift: Optional[int] = 5,
     silent: bool = True,
 ) -> Union[
