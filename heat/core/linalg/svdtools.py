@@ -119,7 +119,7 @@ def hsvd_rtol(
     maxrank: Optional[int] = None,
     maxmergedim: Optional[int] = None,
     safetyshift: int = 5,
-    no_of_merges: Union[int, None] = None,
+    no_of_merges: Optional[int] = None,
     silent: Optional[bool] = True,
 ) -> Union[
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
