@@ -246,7 +246,7 @@ def hsvd(
     safetyshift: Optional[int] = 0,
     no_of_merges: Union[int, None] = None,
     full: bool = False,
-    silent: Optional[bool] = True,
+    silent: bool = True,
     warnings_off: Optional[bool] = False,
 ) -> Union[
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
