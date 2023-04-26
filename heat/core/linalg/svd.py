@@ -4,10 +4,10 @@ SVD related functions
 
 import torch
 
-from .qr import __split0_r_calc, __split0_q_loop, __split1_qr_loop
-from .. import dndarray
-from .. import factories
-from .. import tiling
+from qr import __split0_r_calc, __split0_q_loop, __split1_qr_loop
+from heat.core import dndarray
+from heat.core import factories
+from heat.core import tiling
 
 __all__ = ["block_diagonalize"]
 
