@@ -243,7 +243,7 @@ def hsvd(
     maxrank: Optional[int] = None,
     maxmergedim: Optional[int] = None,
     rtol: Optional[float] = None,
-    safetyshift: Optional[int] = 0,
+    safetyshift: int = 0,
     no_of_merges: Union[int, None] = None,
     full: bool = False,
     silent: bool = True,
