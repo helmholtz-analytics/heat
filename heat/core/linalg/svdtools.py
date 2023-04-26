@@ -52,7 +52,7 @@ def hsvd_rank(
         truncation rank.
     full : bool, optional
         full=True implies that also Sigma and V are computed and returned. The default is False.
-    maxmergedim : Union[int, None], optional
+    maxmergedim : int, optional
         maximal size of the concatenation matrices during the merging procedure. The default is None and results in an appropriate choice depending on the size of the local slices of A and maxrank.
         Too small choices for this parameter will result in failure if the maximal size of the concatenation matrices does not allow to merge at least two matrices. Too large choices for this parameter can cause memory errors if the resulting merging problem becomes too large.
     safetyshift : int, optional
@@ -142,16 +142,16 @@ def hsvd_rtol(
         Prescription of maxrank or maxmergedim (disabled in default) can result in loss of desired precision, but can help to avoid memory issues.
     full : bool, optional
         full=True implies that also Sigma and V are computed and returned. The default is False.
-    no_of_merges : Union[int, None], optional
+    no_of_merges : int, optional
         Maximum number of processes to be merged at each step. If no further arguments are provided (see below),
         this completely determines the "merging tree" and may cause memory issues. The default is None and results in a binary merging tree.
         Note that no_of_merges dominates maxrank and maxmergedim in the sense that at most no_of_merges processes are merged
         even if maxrank and maxmergedim would allow merging more processes.
-    maxrank : Union[int, None], optional
+    maxrank : int, optional
         maximal truncation rank. The default is None.
         Setting at least one of maxrank and maxmergedim is recommended to avoid memory issues, but can result in loss of desired precision.
         Setting only maxrank (and not maxmergedim) results in an appropriate default choice for maxmergedim depending on the size of the local slices of A and the value of maxrank.
-    maxmergedim : Union[int, None], optional
+    maxmergedim : int, optional
         maximal size of the concatenation matrices during the merging procedure. The default is None and results in an appropriate choice depending on the size of the local slices of A and maxrank. The default is None.
         Too small choices for this parameter will result in failure if the maximal size of the concatenation matrices does not allow to merge at least two matrices. Too large choices for this parameter can cause memory errors if the resulting merging problem becomes too large.
         Setting at least one of maxrank and maxmergedim is recommended to avoid memory issues, but can result in loss of desired precision.
@@ -244,7 +244,7 @@ def hsvd(
     maxmergedim: Optional[int] = None,
     rtol: Optional[float] = None,
     safetyshift: int = 0,
-    no_of_merges: Union[int, None] = None,
+    no_of_merges: Optional[int] = 2,
     full: bool = False,
     silent: bool = True,
     warnings_off: bool = False,
@@ -260,21 +260,21 @@ def hsvd(
     -------
     A: DNDarray
         2D-array (float32/64) of which hSVD has to be computed
-    maxrank: Union[int, None] = None
+    maxrank: int, optional
         truncation rank of the SVD
-    maxmergedim: Union[int, None] = None
+    maxmergedim: int, optional
         maximal size of the concatenation matrices when "merging" the local SVDs
-    rtol: Union[float, None] = None
+    rtol: float, optional
         upper bound on the relative reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (may deteriorate due to other parameters)
-    safetyshift: int = 0
+    safetyshift: int, optional
         shift that increases the actual truncation rank of the local SVDs during the computations in order to increase accuracy
-    no_of_merges: Union[int, None] = None
+    no_of_merges: int, optional
         maximum number of local SVDs to be "merged" at one step
-    full: bool = False
+    full: bool, optional
         determines whether to compute U, Sigma, V (full) or not (then U only)
-    silent: bool = True
+    silent: bool, optional
         determines whether to print infos on the computations performed (silent=False)
-    warnings_off: bool = False
+    warnings_off: bool, optional
         switch on and off warnings that are not intended for the high-level routines based on this function
 
     Returns
