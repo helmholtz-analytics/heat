@@ -241,7 +241,7 @@ def hsvd_rtol(
 def hsvd(
     A: DNDarray,
     maxrank: Optional[int] = None,
-    maxmergedim: Union[int, None] = None,
+    maxmergedim: Optional[int] = None,
     rtol: Union[float, None] = None,
     safetyshift: Optional[int] = 0,
     no_of_merges: Union[int, None] = None,
