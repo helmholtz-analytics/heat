@@ -33,7 +33,7 @@ def hsvd_rank(
     maxrank: int,
     full: bool = False,
     maxmergedim: Optional[int] = None,
-    safetyshift: Optional[int] = 5,
+    safetyshift: int = 5,
     silent: bool = True,
 ) -> Union[
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
