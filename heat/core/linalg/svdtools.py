@@ -452,7 +452,7 @@ def compute_local_truncated_svd(
     proc_id: int,
     U_loc: torch.Tensor,
     maxrank: int,
-    loctol: Union[float, None],
+    loctol: Optional[float],
     safetyshift: int,
 ) -> Tuple[torch.Tensor, torch.Tensor, float]:
     """
