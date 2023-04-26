@@ -117,7 +117,7 @@ def hsvd_rtol(
     rtol: float,
     full: bool = False,
     maxrank: Optional[int] = None,
-    maxmergedim: Union[int, None] = None,
+    maxmergedim: Optional[int] = None,
     safetyshift: Optional[int] = 5,
     no_of_merges: Union[int, None] = None,
     silent: Optional[bool] = True,
