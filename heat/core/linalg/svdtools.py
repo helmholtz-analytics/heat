@@ -240,7 +240,7 @@ def hsvd_rtol(
 
 def hsvd(
     A: DNDarray,
-    maxrank: Union[int, None] = None,
+    maxrank: Optional[int] = None,
     maxmergedim: Union[int, None] = None,
     rtol: Union[float, None] = None,
     safetyshift: Optional[int] = 0,
