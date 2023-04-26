@@ -245,7 +245,7 @@ def hsvd(
     rtol: Union[float, None] = None,
     safetyshift: Optional[int] = 0,
     no_of_merges: Union[int, None] = None,
-    full: Optional[bool] = False,
+    full: bool = False,
     silent: Optional[bool] = True,
     warnings_off: Optional[bool] = False,
 ) -> Union[
