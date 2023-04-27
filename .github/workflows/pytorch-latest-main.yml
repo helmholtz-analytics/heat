@@ -1,11 +1,11 @@
-name: Get latest PyTorch version release branch
+name: Get latest PyTorch version main branch
 on:
   workflow_dispatch:
   schedule:
-    - cron:  '0 3 * * 1-5'
+    - cron:  '0 3 * * 1,4'
 env:
-  working_branch: workflows/new-pytorch-release-branch
-  base_branch: release/1.2.x
+  working_branch: workflows/new-pytorch-main-branch
+  base_branch: main
 permissions:
   contents: write
 jobs:
