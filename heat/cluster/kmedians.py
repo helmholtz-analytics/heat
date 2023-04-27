@@ -95,7 +95,7 @@ class KMedians(_KCluster):
             else:
                 if clean.shape[0] <= ht.MPI_WORLD.size:
                     clean.resplit_(axis=None)
-                median = ht.median(clean, axis=0, keepdim=True)
+                median = ht.median(clean, axis=0, keepdims=True)
                 new_cluster_centers[i : i + 1, :] = median
 
         return new_cluster_centers
