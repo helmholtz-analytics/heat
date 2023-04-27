@@ -414,7 +414,7 @@ def __reduce_op(
     axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
     if isinstance(axis, int):
         axis = (axis,)
-    keepdim = kwargs.get("keepdim")
+    keepdims = kwargs.get("keepdims")
     out = kwargs.get("out")
     split = x.split
     balanced = x.balanced
@@ -448,7 +448,7 @@ def __reduce_op(
             ):  # no neutral element for max/min
                 partial = partial_op(partial, dim=dim, keepdim=True)
             output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
-        if not keepdim and not len(partial.shape) == 1:
+        if not keepdims and not len(partial.shape) == 1:
             gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
             lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
             output_shape = gshape_losedim
@@ -466,7 +466,7 @@ def __reduce_op(
             balanced = True
             if x.comm.is_distributed():
                 x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
-        elif axis is not None and not keepdim:
+        elif axis is not None and not keepdims:
             down_dims = len(tuple(dim for dim in axis if dim < x.split))
             split -= down_dims
             balanced = x.balanced

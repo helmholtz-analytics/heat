@@ -336,6 +336,10 @@ class TestArithmetics(TestCase):
         self.assertEqual(ht_diff.split, 1)
         self.assertEqual(ht_diff.dtype, ht_array.dtype)
 
+        # test n=0
+        ht_diff = ht.diff(ht_array, n=0)
+        self.assertTrue(ht.equal(ht_diff, ht_array))
+
         # raises
         with self.assertRaises(ValueError):
             ht.diff(ht_array, n=-2)
@@ -535,7 +539,6 @@ class TestArithmetics(TestCase):
     def test_pow(self):
         result = ht.array([[1.0, 4.0], [9.0, 16.0]])
         commutated_result = ht.array([[2.0, 4.0], [8.0, 16.0]])
-
         self.assertTrue(ht.equal(ht.pow(self.a_scalar, self.a_scalar), ht.array(4.0)))
         self.assertTrue(ht.equal(ht.pow(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.pow(self.a_scalar, self.a_tensor), commutated_result))
@@ -544,6 +547,11 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.pow(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.pow(self.a_split_tensor, self.a_tensor), commutated_result))
 
+        # test scalar base and exponent
+        self.assertTrue(ht.equal(ht.pow(2, 3), ht.array(8)))
+        self.assertTrue(ht.equal(ht.pow(2, 3.5), ht.array(11.313708498984761)))
+
+        # test exceptions
         with self.assertRaises(ValueError):
             ht.pow(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
@@ -832,7 +840,7 @@ class TestArithmetics(TestCase):
         )
         tensor = ht.float32([[1, 4], [2, 3]])
         num = 3
-        for (attr, op, commutative) in operators:
+        for attr, op, commutative in operators:
             try:
                 func = tensor.__getattribute__(attr)
             except AttributeError:
