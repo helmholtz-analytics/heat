@@ -44,5 +44,6 @@ setup(
         "netcdf": ["netCDF4>=1.5.6"],
         "dev": ["pre-commit>=1.18.3"],
         "examples": ["scikit-learn>=0.24.0", "matplotlib>=3.1.0"],
+        "cb": ["perun>=0.2.0"],
     },
 )

@@ -2071,7 +2071,7 @@ class TestLinalgBasics(TestCase):
         a = ht.full((4, 4), 2, split=0)
         b = ht.ones(4)
 
-        c = ht.linalg.vecdot(a, b, axis=0, keepdim=True)
+        c = ht.linalg.vecdot(a, b, axis=0, keepdims=True)
         self.assertEqual(c.dtype, ht.float32)
         self.assertEqual(c.device, a.device)
         self.assertTrue(ht.equal(c, ht.array([[8, 8, 8, 8]])))
@@ -2118,7 +2118,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(vn.device, b0.device)
         self.assertTrue(ht.allclose(vn, ht.array([5.38516481, 1.41421356, 5.38516481], split=0)))
 
-        # split matrix axis keepdim norm 3
+        # split matrix axis keepdims norm 3
         vn = ht.vector_norm(b1, axis=1, keepdims=True, ord=3)
         self.assertEqual(vn.split, None)
         self.assertEqual(vn.dtype, b1.dtype)
