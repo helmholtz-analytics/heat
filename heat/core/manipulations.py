@@ -2630,7 +2630,6 @@ def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DND
     # start of actual algorithm
 
     if x.split == axis and x.is_distributed():
-
         if isinstance(indices_or_sections, int):
             # CASE 1 number of processes == indices_or_selections -> split already done due to distribution
             if x.comm.size == indices_or_sections:

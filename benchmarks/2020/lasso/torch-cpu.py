@@ -53,12 +53,10 @@ class Lasso:
         theta = torch.zeros(n, 1, device=x.device)
         # looping until max number of iterations or convergence
         for i in range(self.max_iter):
-
             theta_old = theta.clone()
 
             # looping through each coordinate
             for j in range(n):
-
                 y_est = (x @ theta)[:, 0]
 
                 rho = (x[:, j] * (y - y_est + theta[j] * x[:, j])).mean()
@@ -83,7 +81,7 @@ class Lasso:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="PyTorch lasso gpu benchmark")
+    parser = argparse.ArgumentParser(description="PyTorch lasso cpu benchmark")
     parser.add_argument("--file", type=str, help="file to benchmark")
     parser.add_argument("--dataset", type=str, help="dataset within file to benchmark")
     parser.add_argument("--labels", type=str, help="dataset within file pointing to the labels")
@@ -93,8 +91,8 @@ if __name__ == "__main__":
 
     print("Loading data... {}[{}]".format(args.file, args.dataset), end="")
     with h5py.File(args.file, "r") as handle:
-        data = torch.Tensor(handle[args.dataset], device="cuda")
-        labels = torch.Tensor(handle[args.labels], device="cuda")
+        data = torch.Tensor(handle[args.dataset], device="cpu")
+        labels = torch.Tensor(handle[args.labels], device="cpu")
     print("\t[OK]")
 
     for trial in range(args.trials):
