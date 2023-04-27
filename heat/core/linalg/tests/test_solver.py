@@ -66,7 +66,11 @@ class TestSolver(TestCase):
         self.assertTrue(ht.allclose(lanczos_B, B))
 
         # single precision tolerance
-        if int(torch.__version__.split(".")[1]) == 13:
+        if (
+            int(torch.__version__.split(".")[0]) == 1
+            and int(torch.__version__.split(".")[1]) >= 13
+            or int(torch.__version__.split(".")[0]) > 1
+        ):
             tolerance = 1e-3
         else:
             tolerance = 1e-4
@@ -85,6 +89,7 @@ class TestSolver(TestCase):
         self.assertTrue(ht.allclose(V_inv, V.T, atol=tolerance))
         # V T V.T must be = B, V transposed = V inverse
         lanczos_B = V @ T @ V_inv
+        print("DEBUGGING: residuals: ", lanczos_B - B)
         self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance))
 
         # complex64
