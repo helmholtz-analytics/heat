@@ -1,0 +1,45 @@
+name: Benchmark main and save
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  benchmark-main:
+    name: Benchmark main and save
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup MPI
+        uses: mpi4py/setup-mpi@v1
+      - name: Use Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10.11 # Perun only supports 3.8 and ahead
+          architecture: x64
+      - name: Test
+        run: |
+            pip install torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1 -f https://download.pytorch.org/whl/torch_stable.html
+            pip install .[cb]
+            PERUN_RUN_ID=N4 mpirun -n 4 python benchmarks/cb/main.py
+            jq -s flatten bench_data/*.json > bench_data/all_benchmarks.json
+      - name: Save benchmark result and update gh-pages-chart
+        if: ${{github.ref == 'refs/heads/main'}}
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          # Benchmark action input and output
+          tool: 'customSmallerIsBetter'
+          output-file-path: bench_data/all_benchmarks.json
+          # external-data-json-path: ./cache/benchmark-data.json
+          # Alert configuration
+          fail-on-alert: false  # Don't fail on main branch
+          comment-on-alert: true
+          # Save benchmarks from the main branch
+          save-data-file: true
+          # Pages configuration
+          auto-push: true
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+      # Upload the updated cache file for the next job by actions/cache

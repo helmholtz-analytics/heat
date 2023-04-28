@@ -88,13 +88,13 @@ class KMeans(_KCluster):
             selection = (matching_centroids == i).astype(ht.int64)
             # accumulate points and total number of points in cluster
             assigned_points = x * selection
-            points_in_cluster = selection.sum(axis=0, keepdim=True).clip(
+            points_in_cluster = selection.sum(axis=0, keepdims=True).clip(
                 1.0, ht.iinfo(ht.int64).max
             )
 
             # compute the new centroids
             new_cluster_centers[i : i + 1, :] = (assigned_points / points_in_cluster).sum(
-                axis=0, keepdim=True
+                axis=0, keepdims=True
             )
 
         return new_cluster_centers
