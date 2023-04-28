@@ -131,7 +131,7 @@ def bitwise_and(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return _operations.__binary_op(torch.Tensor.__and__, t1, t2)
+    return _operations.__binary_op(torch.bitwise_and, t1, t2)
 
 
 DNDarray.__and__ = lambda self, other: bitwise_and(self, other)
@@ -175,7 +175,7 @@ def bitwise_or(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarr
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return _operations.__binary_op(torch.Tensor.__or__, t1, t2)
+    return _operations.__binary_op(torch.bitwise_or, t1, t2)
 
 
 DNDarray.__or__ = lambda self, other: bitwise_or(self, other)
@@ -214,7 +214,7 @@ def bitwise_xor(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return _operations.__binary_op(torch.Tensor.__xor__, t1, t2)
+    return _operations.__binary_op(torch.bitwise_xor, t1, t2)
 
 
 DNDarray.__xor__ = lambda self, other: bitwise_xor(self, other)
