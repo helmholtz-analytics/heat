@@ -579,7 +579,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(type(x.item()), float)
 
         x = ht.zeros((1, 2))
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             x.item()
 
     def test_len(self):
