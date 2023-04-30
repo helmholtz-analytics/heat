@@ -579,8 +579,13 @@ class TestDNDarray(TestCase):
         self.assertEqual(type(x.item()), float)
 
         x = ht.zeros((1, 2))
-        with self.assertRaises(RuntimeError):
-            x.item()
+
+        if int(torch.__version__.split(".")[0]) <= 1:
+            with self.assertRaises(ValueError):
+                x.item()
+        elif int(torch.__version__.split(".")[0]) == 2:
+            with self.assertRaises(RuntimeError):
+                x.item()
 
     def test_len(self):
         # vector
