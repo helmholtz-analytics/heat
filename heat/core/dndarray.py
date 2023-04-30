@@ -1484,7 +1484,7 @@ class DNDarray:
         for c, k in enumerate(key):
             try:
                 key[c] = k.item()
-            except (AttributeError, RuntimeError):
+            except (AttributeError, ValueError):
                 pass
 
         rank = self.comm.rank
