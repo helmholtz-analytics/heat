@@ -14,6 +14,7 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
+[![Github-Pages - Benchmarks](https://img.shields.io/badge/Github--Pages-Benchmarks-2ea44f)](https://helmholtz-analytics.github.io/heat/dev/bench)
 
 # Goals
 
