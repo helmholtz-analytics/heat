@@ -169,7 +169,7 @@ def hsvd_rtol(
 
     Notes
     -------
-    SVDs of matrices up to size A.size[0] x [2 * (maxrank + safetyshift) + 1] need to be computed on a single MPI-process during merging; too large values for maxrank and safetyshift therefore may result in memory issues.
+    The maximum size of the process local SVDs to be computed during merging is proportional to the non-split size of the input A and (maxrank + safetyshift). Therefore, conservative choice of maxrank and safetyshift is advised to avoid memory issues.
     For similar reasons, prescribing only rtol and the number of processes to be merged in each step (without specifying maxrank or maxmergedim) may result in memory issues.
     Although prescribing maxrank is therefore strongly recommended to avoid memory issues, but may result in loss of desired precision (rtol). If this occures, a separate warning will be raised.
 
