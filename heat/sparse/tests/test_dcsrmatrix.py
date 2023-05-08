@@ -8,8 +8,8 @@ from typing import Tuple
 
 
 @unittest.skipIf(
-    int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 10,
-    f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.",
+    int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 12,
+    f"ht.sparse requires torch >= 1.12. Found version {torch.__version__}.",
 )
 class TestDCSR_matrix(TestCase):
     @classmethod
