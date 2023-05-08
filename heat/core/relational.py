@@ -119,9 +119,9 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
             return equal(x.item(), y)
         elif y.gnumel == 1:
             return equal(x, y.item())
-        elif not x.comm == y.comm:
+        elif x.comm != y.comm:
             raise NotImplementedError("Not implemented for other comms")
-        elif not x.gshape == y.gshape:
+        elif x.gshape != y.gshape:
             return False
 
         if x.split is None and y.split is None:
@@ -152,10 +152,8 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
                 y = factories.array(
                     y.larray[tuple(idx)], is_split=x.split, copy=False, comm=y.comm, device=y.device
                 )
-        elif not x.split == y.split:
-            raise ValueError(
-                "DNDarrays must have the same split axes, found {} and {}".format(x.split, y.split)
-            )
+        elif x.split != y.split:
+            raise ValueError("DNDarrays must have the same split axes, found {x.split} and {y.split}")
         elif not (x.is_balanced(force_check=False) and y.is_balanced(force_check=False)):
             x_lmap = x.lshape_map
             y_lmap = y.lshape_map

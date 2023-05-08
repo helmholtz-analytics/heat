@@ -64,7 +64,7 @@ def sanitize_memory_layout(x: torch.Tensor, order: str = "C") -> torch.Tensor:
     #   we should assume that the tensors are row major or are distributed the default way
     sdiff = stride[1:] - stride[:-1]
     column_major = all(sdiff >= 0)
-    row_major = True if not column_major else False
+    row_major = not column_major
     if (order == "C" and row_major) or (order == "F" and column_major):
         # do nothing
         return x
@@ -81,7 +81,5 @@ def sanitize_memory_layout(x: torch.Tensor, order: str = "C") -> torch.Tensor:
         return y
     else:
         raise ValueError(
-            "combination of order and layout not permitted, order: {} column major: {} row major: {}".format(
-                order, column_major, row_major
-            )
+            f"combination of order and layout not permitted, order: {order} column major: {column_major} row major: {row_major}"
         )
