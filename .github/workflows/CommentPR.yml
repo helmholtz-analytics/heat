@@ -61,8 +61,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: 'Push branch'
+      - name: 'Trigger Workflow'
         run: |
-          git fetch origin pull/${{ needs.upload.outputs.PR_NR }}/head:pr/${{ needs.upload.outputs.PR_NR }}
-          git checkout pr/${{ needs.upload.outputs.PR_NR }}
-          git push --repo=${{ secrets.CB_REPO }}
+         curl -s -X POST \
+           --fail \
+           -F token=${{ secrets.CB_PIPELINE }} \
+           -F "ref=nvidiapytorch2211" \
+           -F "variables[PR]=${{ needs.upload.outputs.PR_NR }}" \
+           https://codebase.helmholtz.cloud/api/v4/projects/7605/trigger/pipeline -o /dev/null
