@@ -30,7 +30,7 @@ X = X / ht.sqrt((ht.mean(X**2, axis=0)))
 estimator = lasso.Lasso(max_iter=100)
 
 # List  lasso model parameters
-theta_list = []
+theta_list = list()
 
 # Range of lambda values
 lamda = np.logspace(0, 4, 10) / 10
@@ -58,5 +58,7 @@ else:
     distributed = False
 
 # plot only with first rank
-if distributed is False or distributed == 0:
+if distributed is False:
+    plt.show()
+elif distributed == 0:
     plt.show()
