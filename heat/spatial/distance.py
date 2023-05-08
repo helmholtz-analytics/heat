@@ -129,8 +129,7 @@ def _manhattan_fast(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     y : torch.Tensor
         2D tensor of size :math:`n x f`
     """
-    d = torch.sum(torch.abs(x.unsqueeze(1) - y.unsqueeze(0)), dim=2)
-    return d
+    return torch.sum(torch.abs(x.unsqueeze(1) - y.unsqueeze(0)), dim=2)
 
 
 def cdist(X: DNDarray, Y: DNDarray = None, quadratic_expansion: bool = False) -> DNDarray:
@@ -252,7 +251,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                 mpi_type = MPI.DOUBLE
             else:
                 raise NotImplementedError(
-                    "Datatype {} currently not supported as input".format(X.dtype)
+                    f"Datatype {X.dtype} currently not supported as input"
                 )
 
         d = factories.zeros(
@@ -363,43 +362,27 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
 
         else:
             raise NotImplementedError(
-                "Input split was X.split = {}. Splittings other than 0 or None currently not supported.".format(
-                    X.split
-                )
+                f"Input split was X.split = {X.split}. Splittings other than 0 or None currently not supported."
             )
-    # Y is not None
     else:
         if len(Y.shape) > 2:
             raise NotImplementedError(
-                "Only 2D data matrices are supported, but input shapes were X: {}, Y: {}".format(
-                    X.shape, Y.shape
-                )
+                f"Only 2D data matrices are supported, but input shapes were X: {X.shape}, Y: {Y.shape}"
             )
 
         if X.comm != Y.comm:
             raise NotImplementedError("Differing communicators not supported")
 
-        if X.split is None:
-            if Y.split is None:
-                split = None
-            elif Y.split == 0:
-                split = 1
-            else:
-                raise NotImplementedError(
-                    "Input splits were X.split = {}, Y.split = {}. Splittings other than 0 or None currently not supported.".format(
-                        X.split, Y.split
-                    )
-                )
-        elif X.split == 0:
-            split = X.split
-        else:
-            # ToDo: Find out if even possible
+        if X.split is None and Y.split is None:
+            split = None
+        elif X.split is None and Y.split == 0:
+            split = 1
+        elif X.split is None or X.split != 0:
             raise NotImplementedError(
-                "Input splits were X.split = {}, Y.split = {}. Splittings other than 0 or None currently not supported.".format(
-                    X.split, Y.split
-                )
+                f"Input splits were X.split = {X.split}, Y.split = {Y.split}. Splittings other than 0 or None currently not supported."
             )
-
+        else:
+            split = X.split
         promoted_type = types.promote_types(X.dtype, Y.dtype)
         promoted_type = types.promote_types(promoted_type, types.float32)
         X = X.astype(promoted_type)
@@ -412,7 +395,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
             mpi_type = MPI.DOUBLE
         else:
             raise NotImplementedError(
-                "Datatype {} currently not supported as input".format(X.dtype)
+                f"Datatype {X.dtype} currently not supported as input"
             )
 
         d = factories.zeros(
@@ -485,10 +468,8 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                     d_ij = metric(x_, moving)
                     d.larray[:, columns[0] : columns[1]] = d_ij
 
-            else:
-                raise NotImplementedError(
-                    "Input splits were X.split = {}, Y.split = {}. Splittings other than 0 or None currently not supported.".format(
-                        X.split, Y.split
-                    )
-                )
+        elif X.split == 0:
+            raise NotImplementedError(
+                f"Input splits were X.split = {X.split}, Y.split = {Y.split}. Splittings other than 0 or None currently not supported."
+            )
     return d
