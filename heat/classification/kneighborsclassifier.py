@@ -86,20 +86,18 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
         """
         # check for type consistency
         if not isinstance(x, DNDarray) or not isinstance(y, DNDarray):
-            raise TypeError("x and y must be DNDarrays but were {} {}".format(type(x), type(y)))
+            raise TypeError(f"x and y must be DNDarrays but were {type(x)} {type(y)}")
 
         # ensure that x is a two-dimensional matrix
         if len(x.shape) != 2:
-            raise ValueError("x must be two-dimensional, but was {}".format(len(x.shape)))
+            raise ValueError(f"x must be two-dimensional, but was {len(x.shape)}")
         self.x = x
         self.n_samples_fit_ = x.shape[0]
 
         # ensure that x and y have the same number of samples
         if x.shape[0] != y.shape[0]:
             raise ValueError(
-                "Number of samples x and y samples mismatch, got {}, {}".format(
-                    x.shape[0], y.shape[0]
-                )
+                f"Number of samples x and y samples mismatch, got {x.shape[0]}, {y.shape[0]}"
             )
 
         # checks the labels for correct dimensionality and encode one-hot
@@ -111,7 +109,7 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
             self.outputs_2d_ = True
         else:
             raise ValueError(
-                "y needs to be one- or two-dimensional, but was {}".format(len(y.shape))
+                f"y needs to be one- or two-dimensional, but was {len(y.shape)}"
             )
 
     def predict(self, x: DNDarray) -> DNDarray:

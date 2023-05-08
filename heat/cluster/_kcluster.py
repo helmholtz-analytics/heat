@@ -248,7 +248,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         """
         # input sanitation
         if not isinstance(x, DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
+            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
 
         # determine the centroids
         return self._assign_to_cluster(x)
