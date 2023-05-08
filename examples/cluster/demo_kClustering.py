@@ -75,7 +75,7 @@ def main():
     data = create_spherical_dataset(
         num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
     )
-    print("4 Spherical  with radius 1.0, each {} samples (dtype = ht.float32) ".format(n))
+    print(f"4 Spherical  with radius 1.0, each {n} samples (dtype = ht.float32) ")
     for name, c in clusterer.items():
         c.fit(data)
         print(
@@ -92,7 +92,9 @@ def main():
     reference = ht.array(
         [[-80, -80, -80], [-40, -40, -40], [40, 40, 40], [80, 80, 80]], dtype=ht.float32
     )
-    print("4 Spherical clusters with radius 10, each {} samples (dtype = ht.int32) ".format(n))
+    print(
+        f"4 Spherical clusters with radius 10, each {n} samples (dtype = ht.int32) "
+    )
     for name, c in clusterer.items():
         c.fit(data)
         print(
