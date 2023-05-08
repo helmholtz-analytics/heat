@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1682566049959,
+  "lastUpdate": 1683533024084,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -72,6 +72,78 @@ window.BENCHMARK_DATA = {
             "value": 12.917398452758789,
             "unit": "s",
             "range": 0.052389681339263916
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "m.tarnawa@fz-juelich.de",
+            "name": "Michael Tarnawa",
+            "username": "mtar"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7ca840102ee6ba51eb3db9c393dab973562f9cf1",
+          "message": "Outsource CI workflow (main) (#1144)\n\n* change ci to public target repository\r\n\r\n* add more pytorch versions in matrix\r\n\r\n* delete gitlab file\r\n\r\n* Use gitlab's badge\r\n\r\n* sparse tests increase min pytorch to 1.12\r\n\r\n* update ref",
+          "timestamp": "2023-05-08T09:47:07+02:00",
+          "tree_id": "b47ac8cf8376639ad244c6cfa73a2d4439bf5fe9",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/7ca840102ee6ba51eb3db9c393dab973562f9cf1"
+        },
+        "date": 1683533022745,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "kmeans_cpu - RUNTIME",
+            "value": 1.3607841730117798,
+            "unit": "s",
+            "range": 0.09720459580421448
+          },
+          {
+            "name": "kmedians_cpu - RUNTIME",
+            "value": 5.596490859985352,
+            "unit": "s",
+            "range": 4.744739055633545
+          },
+          {
+            "name": "kmedoids_cpu - RUNTIME",
+            "value": 5.109837532043457,
+            "unit": "s",
+            "range": 0.9763903021812439
+          },
+          {
+            "name": "lanczos_cpu - RUNTIME",
+            "value": 40.129493713378906,
+            "unit": "s",
+            "range": 2.6870570182800293
+          },
+          {
+            "name": "matmul_cpu_split_0 - RUNTIME",
+            "value": 1.2492748498916626,
+            "unit": "s",
+            "range": 0.11195642501115799
+          },
+          {
+            "name": "matmul_cpu_split_1 - RUNTIME",
+            "value": 1.1880028247833252,
+            "unit": "s",
+            "range": 0.11158335208892822
+          },
+          {
+            "name": "qr_cpu - RUNTIME",
+            "value": 9.023608207702637,
+            "unit": "s",
+            "range": 0.6376816034317017
+          },
+          {
+            "name": "reshape_cpu - RUNTIME",
+            "value": 12.526630401611328,
+            "unit": "s",
+            "range": 0.2068168818950653
           }
         ]
       }
