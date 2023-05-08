@@ -46,9 +46,7 @@ def calculate_accuracy(new_y, verification_y):
 
     if new_y.gshape != verification_y.gshape:
         raise ValueError(
-            "Expecting results of same length, got {}, {}".format(
-                new_y.gshape, verification_y.gshape
-            )
+            f"Expecting results of same length, got {new_y.gshape}, {verification_y.gshape}"
         )
 
     count = ht.sum(ht.where(new_y == verification_y, 1, 0))
@@ -145,4 +143,4 @@ def verify_algorithm(x, y, split_number, split_size, k, seed=None):
     return accuracies
 
 
-print("Accuracy: {}".format(verify_algorithm(X, Y, 1, 30, 5, 1)))
+print(f"Accuracy: {verify_algorithm(X, Y, 1, 30, 5, 1)}")
