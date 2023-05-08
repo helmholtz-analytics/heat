@@ -3,7 +3,7 @@ on:
     workflow_dispatch:
         inputs:
             heat_version:
-                description: 'HeAT version'
+                description: 'Heat version'
                 required: true
                 default: '1.2.2'
                 type: string
