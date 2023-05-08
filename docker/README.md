@@ -1,6 +1,6 @@
-# Docker images of HeAT
+# Docker images of Heat
 
-There is some flexibility to building the Docker images of HeAT.
+There is some flexibility to building the Docker images of Heat.
 
 Firstly, one can build from the released version taken from PyPI. This will either be
 the latest release or the version set through the `--build-arg=HEAT_VERSION=1.2.0`
@@ -30,8 +30,8 @@ $ docker pull ghcr.io/helmholtz-analytics/heat:1.2.0-dev_torch1.12_cuda11.7_py3.
 
 ### Building for HPC
 
-With HeAT being a native HPC library, one would naturally want to build the container
-image also for HPC systems, such as the ones available at [Juelich Supercomputing Centre
+With Heat being a native HPC library, one would naturally want to build the container
+image also for HPC systems, such as the ones available at [Jülich Supercomputing Centre
 (JSC)](https://www.fz-juelich.de/jsc/ "Juelich Supercomputing Centre"). We show two ways to convert the existing images from the registry into singularity containers.
 
 #### Apptainer (formerly singularity)
@@ -72,7 +72,7 @@ available image. SIB is thus used as a conversion tool.
 	...
 
 The `--nv` argument to `singularity`enables NVidia GPU support, which is desired for
-HeAT.
+Heat.
 
 ### Multi-node example
 
