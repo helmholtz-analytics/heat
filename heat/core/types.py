@@ -103,7 +103,7 @@ class datatype:
         """
         torch_type = cls.torch_type()
         if torch_type is NotImplemented:
-            raise TypeError("cannot create '{}' instances".format(cls))
+            raise TypeError(f"cannot create '{cls}' instances")
 
         value_count = len(value)
 
@@ -113,8 +113,7 @@ class datatype:
 
         # check whether there are too many arguments
         if value_count >= 2:
-            raise TypeError("function takes at most 1 argument ({} given)".format(value_count))
-        # if no value is given, we will initialize the value to be zero
+            raise TypeError(f"function takes at most 1 argument ({value_count} given)")
         elif value_count == 0:
             value = ((0,),)
 
@@ -518,7 +517,7 @@ def canonical_heat_type(a_type: Union[str, Type[datatype], Any]) -> Type[datatyp
     try:
         return __type_mappings[a_type]
     except KeyError:
-        raise TypeError("data type {} is not understood".format(a_type))
+        raise TypeError(f"data type {a_type} is not understood")
 
 
 def heat_type_is_exact(ht_dtype: Type[datatype]) -> bool:
@@ -598,7 +597,7 @@ def heat_type_of(
     try:
         return canonical_heat_type(type(obj[0]))
     except (KeyError, IndexError, TypeError):
-        raise TypeError("data type of {} is not understood".format(obj))
+        raise TypeError(f"data type of {obj} is not understood")
 
 
 # type code assignment
@@ -722,9 +721,9 @@ def can_cast(
     True
     """
     if not isinstance(casting, str):
-        raise TypeError("expected string, found {}".format(type(casting)))
+        raise TypeError(f"expected string, found {type(casting)}")
     if casting not in __cast_kinds:
-        raise ValueError("casting must be one of {}".format(str(__cast_kinds)[1:-1]))
+        raise ValueError(f"casting must be one of {str(__cast_kinds)[1:-1]}")
 
     # obtain the types codes of the canonical HeAT types
     try:
@@ -990,7 +989,7 @@ class finfo:
             pass
 
         if dtype not in _inexact:
-            raise TypeError("Data type {} not inexact, not supported".format(dtype))
+            raise TypeError(f"Data type {dtype} not inexact, not supported")
 
         return super(finfo, cls).__new__(cls)._init(dtype)
 
@@ -1036,7 +1035,7 @@ class iinfo:
             pass
 
         if dtype not in _exact:
-            raise TypeError("Data type {} not exact, not supported".format(dtype))
+            raise TypeError(f"Data type {dtype} not exact, not supported")
 
         return super(iinfo, cls).__new__(cls)._init(dtype)
 
