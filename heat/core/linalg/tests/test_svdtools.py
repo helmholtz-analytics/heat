@@ -36,7 +36,7 @@ class TestHSVD(TestCase):
                 dtype_tol = 1e-3
 
             for r in ranks:
-                U, sigma, V, err_est = ht.linalg.hsvd_rank(A, r, full=True, silent=True)
+                U, sigma, V, err_est = ht.linalg.hsvd_rank(A, r, compute_sv=True, silent=True)
                 hsvd_rk = U.shape[1]
 
                 if ht.norm(A) > 0:
@@ -72,7 +72,7 @@ class TestHSVD(TestCase):
                     ht.linalg.hsvd_rank(A, r, maxmergedim=4)
 
             for tol in rtols:
-                U, sigma, V, err_est = ht.linalg.hsvd_rtol(A, tol, full=True, silent=True)
+                U, sigma, V, err_est = ht.linalg.hsvd_rtol(A, tol, compute_sv=True, silent=True)
                 hsvd_rk = U.shape[1]
 
                 if ht.norm(A) > 0:
@@ -139,7 +139,7 @@ class TestHSVD(TestCase):
             with self.assertRaises(ValueError):
                 ht.linalg.hsvd_rtol(wrong_arr, 1e-1)
 
-        # check if full=False yields the correct number of outputs (=1)
+        # check if compute_sv=False yields the correct number of outputs (=1)
         self.assertEqual(len(ht.linalg.hsvd_rank(test_matrices[0], 5)), 2)
         self.assertEqual(len(ht.linalg.hsvd_rtol(test_matrices[0], 5e-1)), 2)
 
@@ -169,7 +169,7 @@ class TestHSVD(TestCase):
                 dtype_tol = 1e-3
 
             for r in [true_rk, true_rk + 2]:
-                U, s, V, _ = ht.linalg.hsvd_rank(A, r, full=True)
+                U, s, V, _ = ht.linalg.hsvd_rank(A, r, compute_sv=True)
                 V = V[:, :true_rk].resplit(V.split)
                 U = U[:, :true_rk].resplit(U.split)
                 s = s[:true_rk]
