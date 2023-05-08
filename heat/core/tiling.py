@@ -2,7 +2,9 @@
 Tiling functions/classes. With these classes, you can classes you can address blocks of data in a DNDarray
 """
 
+
 from __future__ import annotations
+import itertools
 import torch
 from typing import List, Tuple, Union
 
@@ -86,7 +88,7 @@ class SplitTiles:
             tile_dims[arr.split] = lshape_map[..., arr.split]
         w_size = arr.comm.size
         for ax in range(arr.ndim):
-            if arr.split is None or not ax == arr.split:
+            if arr.split is None or ax != arr.split:
                 size = arr.gshape[ax]
                 chunk = size // w_size
                 remainder = size % w_size
@@ -214,7 +216,7 @@ class SplitTiles:
         """
         # todo: strides can be implemented with using a list of slices for each dimension
         if not isinstance(key, (tuple, slice, int, torch.tensor)):
-            raise TypeError("key type not supported: {}".format(type(key)))
+            raise TypeError(f"key type not supported: {type(key)}")
         arr = self.__DNDarray
         # if arr.comm.rank not in self.tile_locations[key]:
         #     return None
@@ -291,9 +293,7 @@ class SplitTiles:
             which tiles to get
         """
         arb_slices = self.__get_tile_slices(key)
-        inds = []
-        for sl in arb_slices:
-            inds.append(sl.stop - sl.start)
+        inds = [sl.stop - sl.start for sl in arb_slices]
         return tuple(inds)
 
     def __setitem__(
@@ -316,9 +316,9 @@ class SplitTiles:
         see getitem function for this class
         """
         if not isinstance(key, (tuple, slice, int, torch.Tensor)):
-            raise TypeError("key type not supported: {}".format(type(key)))
+            raise TypeError(f"key type not supported: {type(key)}")
         if not isinstance(value, (torch.Tensor, int, float)):
-            raise TypeError("value type not supported: {}".format(type(value)))
+            raise TypeError(f"value type not supported: {type(value)}")
         # todo: is it okay for cross-split setting? this can be problematic,
         #   but it is fine if the data shapes match up
         if self.__DNDarray.comm.rank not in self.tile_locations[key]:
@@ -375,13 +375,13 @@ class SquareDiagTiles:
     def __init__(self, arr: DNDarray, tiles_per_proc: int = 2) -> None:  # noqa: D107
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
         if not isinstance(arr, DNDarray):
-            raise TypeError("arr must be a DNDarray, is currently a {}".format(type(self)))
+             raise TypeError(f"arr must be a DNDarray, is currently a {type(self)}")
         if not isinstance(tiles_per_proc, int):
-            raise TypeError("tiles_per_proc must be an int, is currently a {}".format(type(self)))
+            raise TypeError(f"tiles_per_proc must be an int, is currently a {type(self)}")
         if tiles_per_proc < 1:
-            raise ValueError("Tiles per process must be >= 1, currently: {}".format(tiles_per_proc))
+            raise ValueError(f"Tiles per process must be >= 1, currently: {tiles_per_proc}")
         if len(arr.shape) != 2:
-            raise ValueError("Arr must be 2 dimensional, current shape {}".format(arr.shape))
+            raise ValueError(f"Arr must be 2 dimensional, current shape {arr.shape}")
 
         lshape_map = arr.create_lshape_map(force_check=True)
 
@@ -420,11 +420,9 @@ class SquareDiagTiles:
                 for e in empties:
                     row_per_proc_list[e] = 0
 
-        row_inds = []
-        for c in col_inds:
-            # set the row indices to be the same for all of the column indices
-            #   (however many there are)
-            row_inds.append(c)
+        row_inds = list(col_inds)
+        # set the row indices to be the same for all of the column indices
+        #   (however many there are)
 
         if arr.split == 0 and arr.gshape[0] < arr.gshape[1]:
             # need to adjust the very last tile to be the remaining
@@ -530,7 +528,7 @@ class SquareDiagTiles:
         # need to add to col inds with the rest of the columns
         tile_columns = sum(col_per_proc_list)
         r = last_diag_pr + 1
-        for i in range(len(col_inds), tile_columns):
+        for _ in range(len(col_inds), tile_columns):
             col_inds.append(lshape_map[r, 1])
             r += 1
         # if the 1st dim is > 0th dim then in split=1 the cols need to be extended
@@ -691,16 +689,14 @@ class SquareDiagTiles:
             input=torch.tensor(row_inds, device=arr.larray.device) == 0, as_tuple=False
         )
         lp_map = lshape_map.tolist()
-        for i in range(last_diag_pr.item() + 1, arr.comm.size):
-            # loop over all of the rest of the processes
-            for t in range(tiles_per_proc):
-                _, lshape, _ = arr.comm.chunk(lp_map[i], 0, rank=t, w_size=tiles_per_proc)
-                # row_inds[nz[0].item()] = lshape[0]
-                if row_inds[-1] == 0:
-                    row_inds[-1] = lshape[0]
-                else:
-                    row_inds.append(lshape[0])
-                nz = nz[1:]
+        for i, t in itertools.product(range(last_diag_pr.item() + 1, arr.comm.size), range(tiles_per_proc)):
+            _, lshape, _ = arr.comm.chunk(lp_map[i], 0, rank=t, w_size=tiles_per_proc)
+            # row_inds[nz[0].item()] = lshape[0]
+            if row_inds[-1] == 0:
+                row_inds[-1] = lshape[0]
+            else:
+                row_inds.append(lshape[0])
+            nz = nz[1:]
 
     @staticmethod
     def __last_tile_row_adjust_sp1(arr: DNDarray, row_inds: List[int, ...]) -> None:
@@ -854,7 +850,7 @@ class SquareDiagTiles:
         split = self.__DNDarray.split
         pr = self.tile_map[key][..., 2].unique()
         if pr.numel() > 1:
-            raise ValueError("Tile/s must be located on one process. currently on: {}".format(pr))
+            raise ValueError(f"Tile/s must be located on one process. currently on: {pr}")
         row_inds = self.row_indices + [self.__DNDarray.gshape[0]]
         col_inds = self.col_indices + [self.__DNDarray.gshape[1]]
 
@@ -925,7 +921,7 @@ class SquareDiagTiles:
         local_arr = arr.larray
         if not isinstance(key, (int, tuple, slice)):
             raise TypeError(
-                "key must be an int, tuple, or slice, is currently {}".format(type(key))
+                f"key must be an int, tuple, or slice, is currently {type(key)}"
             )
         involved_procs = tile_map[key][..., 2].unique()
         if involved_procs.nelement() == 1 and involved_procs == arr.comm.rank:
@@ -1097,9 +1093,7 @@ class SquareDiagTiles:
         """
         if not isinstance(tiles_to_match, SquareDiagTiles):
             raise TypeError(
-                "tiles_to_match must be a SquareDiagTiles object, currently: {}".format(
-                    type(tiles_to_match)
-                )
+                f"tiles_to_match must be a SquareDiagTiles object, currently: {type(tiles_to_match)}"
             )
         base_dnd = self.__DNDarray
         match_dnd = tiles_to_match.__DNDarray

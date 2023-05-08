@@ -54,16 +54,18 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
                 resulting_shape[i] = max(a, b)
             else:
                 raise ValueError(
-                    "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
+                    f"operands could not be broadcast, input shapes {shape_a} {shape_b}"
                 )
         return tuple(resulting_shape[::-1])
     except TypeError:
-        raise TypeError("operand 1 must be tuple of ints, not {}".format(type(shape_a)))
+        raise TypeError(f"operand 1 must be tuple of ints, not {type(shape_a)}")
     except NameError:
-        raise TypeError("operands must be tuples of ints, not {} and {}".format(shape_a, shape_b))
+        raise TypeError(
+            f"operands must be tuples of ints, not {shape_a} and {shape_b}"
+        )
     except RuntimeError:
         raise ValueError(
-            "operands could not be broadcast, input shapes {} {}".format(shape_a, shape_b)
+            f"operands could not be broadcast, input shapes {shape_a} {shape_b}"
         )
 
     return tuple(resulting_shape)
@@ -111,14 +113,17 @@ def sanitize_axis(
     if len(shape) == 0:
         axis = None
 
-    if axis is not None:
-        if not isinstance(axis, int) and not isinstance(axis, tuple):
-            raise TypeError("axis must be None or int or tuple, but was {}".format(type(axis)))
+    if (
+        axis is not None
+        and not isinstance(axis, int)
+        and not isinstance(axis, tuple)
+    ):
+        raise TypeError(f"axis must be None or int or tuple, but was {type(axis)}")
     if isinstance(axis, tuple):
         axis = tuple(dim + len(shape) if dim < 0 else dim for dim in axis)
         for dim in axis:
             if dim < 0 or dim >= len(shape):
-                raise ValueError("axis {} is out of bounds for shape {}".format(axis, shape))
+                raise ValueError(f"axis {axis} is out of bounds for shape {shape}")
         return axis
 
     if axis is None or 0 <= axis < len(shape):
@@ -127,7 +132,7 @@ def sanitize_axis(
         axis += len(shape)
 
     if axis < 0 or axis >= len(shape):
-        raise ValueError("axis {} is out of bounds for shape {}".format(axis, shape))
+        raise ValueError(f"axis {axis} is out of bounds for shape {shape}")
 
     return axis
 
@@ -164,7 +169,7 @@ def sanitize_shape(shape: Union[int, Tuple[int, ...]], lval: int = 0) -> Tuple[i
         raise TypeError("expected sequence object with length >= 0 or a single integer")
     TypeError: expected sequence object with length >= 0 or a single integer
     """
-    shape = (shape,) if not hasattr(shape, "__iter__") else tuple(shape)
+    shape = tuple(shape) if hasattr(shape, "__iter__") else (shape, )
 
     for dimension in shape:
         if issubclass(type(dimension), np.integer):
