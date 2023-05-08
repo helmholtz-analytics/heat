@@ -65,15 +65,15 @@ class DataParallel(tnn.Module):
         self.comm = comm
         self.blocking_parameter_updates = blocking_parameter_updates
 
-        self._dp_optimizers = list()
+        self._dp_optimizers = []
         self._layer_wait_handles = OrderedDict()
-        self._fwd_hook_handles = list()
+        self._fwd_hook_handles = []
         # set of layers' names with active wait handles (only relevant for non-blocking)
         self._active_layers = set()
         # slices of parameters belonging to one and the same layer
-        self._param_slices = dict()
+        self._param_slices = {}
         # pytorch internal parameter indexing
-        self._param_indices = dict()
+        self._param_indices = {}
 
         # raise error if no DP optimizer is given
         if not isinstance(optimizer, (list, tuple)):
@@ -84,20 +84,17 @@ class DataParallel(tnn.Module):
 
         # current implementation of non-blocking communication during parameter updates has some limitations that cause
         # fallback onto blocking in case of overstepping them
-        if not self.blocking_parameter_updates:
-            # usage of multiple optimizers isn't supported nor is the
-            # usage of optimizer with parameters being unequal to model's parameters
-            if (
-                len(optimizer) > 1
-                or list(module.parameters())
-                != optimizer[0].torch_optimizer.param_groups[0]["params"]
-            ):
-                self.blocking_parameter_updates = True
-                warnings.warn(
-                    "Usage of more than one DataParallelOptimizer causes fallback on blocking MPI "
-                    "communication during parameter updates.",
-                    stacklevel=2,
-                )
+        if not self.blocking_parameter_updates and (
+            len(optimizer) > 1
+            or list(module.parameters())
+            != optimizer[0].torch_optimizer.param_groups[0]["params"]
+        ):
+            self.blocking_parameter_updates = True
+            warnings.warn(
+                "Usage of more than one DataParallelOptimizer causes fallback on blocking MPI "
+                "communication during parameter updates.",
+                stacklevel=2,
+            )
 
         # assign given optimizers to this model
         for dp_optimizer in optimizer:
@@ -262,7 +259,7 @@ class DataParallel(tnn.Module):
             wait_handle = self.comm.Iallreduce(MPI.IN_PLACE, wrk, MPI.SUM)  # mpi_sum_bf16)
             # if layer wait handle dict does not contain the layer, add it -> automatically tracks reversed layer order
             if layer_name not in self._layer_wait_handles:
-                self._layer_wait_handles[layer_name] = list()
+                self._layer_wait_handles[layer_name] = []
             # add layer to set of active layers
             self._active_layers.add(layer_name)
             # assign wait handle to its layer, layer-internal sorting by size
@@ -342,7 +339,7 @@ class DataParallelMultiGPU(tnn.Module):
         if torch.cuda.device_count() > 1:
             self.loc_gpus = torch.cuda.device_count()
             local_rank = rank % self.loc_gpus
-            device = "cuda:" + str(local_rank)
+            device = f"cuda:{str(local_rank)}"
             torch.cuda.set_device(device=device)
             module = tnn.parallel.DistributedDataParallel(module, device_ids=[local_rank])
         else:
