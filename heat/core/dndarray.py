@@ -207,9 +207,13 @@ class DNDarray:
         """
         Number of total elements of the ``DNDarray``
         """
-        return torch.prod(
-            torch.tensor(self.gshape, dtype=torch.int64, device=self.device.torch_device)
-        ).item()
+        return (
+            torch.prod(
+                torch.tensor(self.gshape, dtype=torch.float64, device=self.device.torch_device)
+            )
+            .long()
+            .item()
+        )
 
     @property
     def gnbytes(self) -> int:
