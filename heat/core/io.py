@@ -103,11 +103,11 @@ else:
         [1/2] (2,)
         """
         if not isinstance(path, str):
-            raise TypeError("path must be str, not {}".format(type(path)))
+            raise TypeError(f"path must be str, not {type(path)}")
         elif not isinstance(dataset, str):
             raise TypeError("dataset must be str, not {}".format(type(dataset)))
         elif split is not None and not isinstance(split, int):
-            raise TypeError("split must be None or int, not {}".format(type(split)))
+            raise TypeError(f"split must be None or int, not {type(split)}")
 
         # infer the type and communicator for the loaded array
         dtype = types.canonical_heat_type(dtype)
@@ -178,16 +178,16 @@ else:
         >>> ht.save_hdf5(x, 'data.h5', dataset='DATA')
         """
         if not isinstance(data, DNDarray):
-            raise TypeError("data must be heat tensor, not {}".format(type(data)))
+            raise TypeError(f"data must be heat tensor, not {type(data)}")
         if not isinstance(path, str):
-            raise TypeError("path must be str, not {}".format(type(path)))
+            raise TypeError(f"path must be str, not {type(path)}")
         if not isinstance(dataset, str):
-            raise TypeError("dataset must be str, not {}".format(type(path)))
+            raise TypeError(f"dataset must be str, not {type(path)}")
 
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
             raise ValueError(
-                "mode was {}, not in possible modes {}".format(mode, __VALID_WRITE_MODES)
+                f"mode was {mode}, not in possible modes {__VALID_WRITE_MODES}"
             )
 
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
@@ -314,11 +314,11 @@ else:
         [1/2] (2,)
         """
         if not isinstance(path, str):
-            raise TypeError("path must be str, not {}".format(type(path)))
+            raise TypeError(f"path must be str, not {type(path)}")
         if not isinstance(variable, str):
-            raise TypeError("dataset must be str, not {}".format(type(variable)))
+            raise TypeError(f"dataset must be str, not {type(variable)}")
         if split is not None and not isinstance(split, int):
-            raise TypeError("split must be None or int, not {}".format(type(split)))
+            raise TypeError(f"split must be None or int, not {type(split)}")
 
         # infer the canonical heat datatype
         dtype = types.canonical_heat_type(dtype)
@@ -691,7 +691,7 @@ def load(
     DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
     """
     if not isinstance(path, str):
-        raise TypeError("Expected path to be str, but was {}".format(type(path)))
+        raise TypeError(f"Expected path to be str, but was {type(path)}")
     extension = os.path.splitext(path)[-1].strip().lower()
 
     if extension in __CSV_EXTENSION:
@@ -700,14 +700,14 @@ def load(
         if supports_hdf5():
             return load_hdf5(path, *args, **kwargs)
         else:
-            raise RuntimeError("hdf5 is required for file extension {}".format(extension))
+            raise RuntimeError(f"hdf5 is required for file extension {extension}")
     elif extension in __NETCDF_EXTENSIONS:
         if supports_netcdf():
             return load_netcdf(path, *args, **kwargs)
         else:
-            raise RuntimeError("netcdf is required for file extension {}".format(extension))
+            raise RuntimeError(f"netcdf is required for file extension {extension}")
     else:
-        raise ValueError("Unsupported file extension {}".format(extension))
+        raise ValueError(f"Unsupported file extension {extension}")
 
 
 def load_csv(
@@ -775,13 +775,13 @@ def load_csv(
     [3/3] (35, 4)
     """
     if not isinstance(path, str):
-        raise TypeError("path must be str, not {}".format(type(path)))
+        raise TypeError(f"path must be str, not {type(path)}")
     if not isinstance(sep, str):
-        raise TypeError("separator must be str, not {}".format(type(sep)))
+        raise TypeError(f"separator must be str, not {type(sep)}")
     if not isinstance(header_lines, int):
-        raise TypeError("header_lines must int, not {}".format(type(header_lines)))
+        raise TypeError(f"header_lines must int, not {type(header_lines)}")
     if split not in [None, 0, 1]:
-        raise ValueError("split must be in [None, 0, 1], but is {}".format(split))
+        raise ValueError(f"split must be in [None, 0, 1], but is {split}")
 
     # infer the type and communicator for the loaded array
     dtype = types.canonical_heat_type(dtype)
@@ -798,7 +798,7 @@ def load_csv(
             data = f.readlines()
             data = data[header_lines:]
             result = []
-            for i, line in enumerate(data):
+            for line in data:
                 values = line.replace("\n", "").replace("\r", "").split(sep)
                 values = [float(val) for val in values]
                 result.append(values)
@@ -818,7 +818,7 @@ def load_csv(
             for pos, l in enumerate(r):
                 if chr(l) == "\n":
                     # Check if it is part of '\r\n'
-                    if not chr(r[pos - 1]) == "\r":
+                    if chr(r[pos - 1]) != "\r":
                         line_starts.append(pos + 1)
                 elif chr(l) == "\r":
                     # check if file line is terminated by '\r\n'
@@ -959,14 +959,14 @@ def save_csv(
         needed and thus may leave garbage at the end of existing files.
     """
     if not isinstance(path, str):
-        raise TypeError("path must be str, not {}".format(type(path)))
+        raise TypeError(f"path must be str, not {type(path)}")
     if not isinstance(sep, str):
-        raise TypeError("separator must be str, not {}".format(type(sep)))
+        raise TypeError(f"separator must be str, not {type(sep)}")
     # check this to allow None
     if not isinstance(header_lines, Iterable) and header_lines is not None:
-        raise TypeError("header_lines must Iterable[str], not {}".format(type(header_lines)))
+        raise TypeError(f"header_lines must Iterable[str], not {type(header_lines)}")
     if data.split not in [None, 0, 1]:
-        raise ValueError("split must be in [None, 0, 1], but is {}".format(data.split))
+        raise ValueError(f"split must be in [None, 0, 1], but is {data.split}")
 
     if os.path.exists(path) and truncate:
         if data.comm.rank == 0:
@@ -1088,23 +1088,23 @@ def save(
     >>> ht.save(x, 'data.h5', 'DATA', mode='a')
     """
     if not isinstance(path, str):
-        raise TypeError("Expected path to be str, but was {}".format(type(path)))
+        raise TypeError(f"Expected path to be str, but was {type(path)}")
     extension = os.path.splitext(path)[-1].strip().lower()
 
     if extension in __HDF5_EXTENSIONS:
         if supports_hdf5():
             save_hdf5(data, path, *args, **kwargs)
         else:
-            raise RuntimeError("hdf5 is required for file extension {}".format(extension))
+            raise RuntimeError(f"hdf5 is required for file extension {extension}")
     elif extension in __NETCDF_EXTENSIONS:
         if supports_netcdf():
             save_netcdf(data, path, *args, **kwargs)
         else:
-            raise RuntimeError("netcdf is required for file extension {}".format(extension))
+            raise RuntimeError(f"netcdf is required for file extension {extension}")
     elif extension in __CSV_EXTENSION:
         save_csv(data, path, *args, **kwargs)
     else:
-        raise ValueError("Unsupported file extension {}".format(extension))
+        raise ValueError(f"Unsupported file extension {extension}")
 
 
 DNDarray.save = lambda self, path, *args, **kwargs: save(self, path, *args, **kwargs)
