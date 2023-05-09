@@ -1953,7 +1953,11 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
         target_numel[i] = torch.tensor(local_shape)
         if i == rank:
             second_local_shape = local_shape
-    target_numel = torch.prod(target_numel, dim=1)
+    try:
+        target_numel = torch.prod(target_numel, dim=1)
+    except RuntimeError:
+        # newer PyTorch versions on older GPUs: torch.prod() on integer tensors not supported
+        target_numel = torch.prod(target_numel.to(torch.float64), dim=1).to(torch.int64)
     if (target_numel == current_numel).all():
         local_a = local_a.reshape(second_local_shape)
     else:

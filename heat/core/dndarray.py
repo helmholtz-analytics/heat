@@ -207,13 +207,20 @@ class DNDarray:
         """
         Number of total elements of the ``DNDarray``
         """
-        return (
-            torch.prod(
-                torch.tensor(self.gshape, dtype=torch.float64, device=self.device.torch_device)
+        try:
+            size = torch.prod(
+                torch.tensor(self.gshape, dtype=torch.int64, device=self.device.torch_device)
+            ).item()
+        except RuntimeError:
+            # newer PyTorch versions on older GPUs: torch.prod() on integer tensors not supported
+            size = (
+                torch.prod(
+                    torch.tensor(self.gshape, dtype=torch.float64, device=self.device.torch_device)
+                )
+                .long()
+                .item()
             )
-            .long()
-            .item()
-        )
+        return size
 
     @property
     def gnbytes(self) -> int:
