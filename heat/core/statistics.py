@@ -1067,9 +1067,7 @@ def __merge_moments(
         USA.
     """
     if len(m1) != len(m2):
-        raise ValueError(
-            f"m1 and m2 must be same length, currently {len(m1)} and {len(m2)}"
-        )
+        raise ValueError(f"m1 and m2 must be same length, currently {len(m1)} and {len(m2)}")
     n1, n2 = m1[-1], m2[-1]
     mu1, mu2 = m1[-2], m2[-2]
     n = n1 + n2

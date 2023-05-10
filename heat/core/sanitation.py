@@ -279,9 +279,7 @@ def sanitize_out(
         if shape, split direction, or device of the output buffer ``out`` do not match the operation result.
     """
     if not isinstance(out, DNDarray):
-        raise TypeError(
-            f"expected `out` to be None or a DNDarray, but was {type(out)}"
-        )
+        raise TypeError(f"expected `out` to be None or a DNDarray, but was {type(out)}")
 
     out_proxy = out.__torch_proxy__()
     out_proxy.names = [
@@ -292,17 +290,13 @@ def sanitize_out(
 
     check_proxy = torch.ones(1).expand(output_shape)
     check_proxy.names = [
-        "split"
-        if (output_split is not None and i == output_split)
-        else f"_{i}"
+        "split" if (output_split is not None and i == output_split) else f"_{i}"
         for i in range(check_proxy.ndim)
     ]
     check_proxy = check_proxy.squeeze()
 
     if out_proxy.shape != check_proxy.shape:
-        raise ValueError(
-            f"Expecting output buffer of shape {output_shape}, got {out.shape}"
-        )
+        raise ValueError(f"Expecting output buffer of shape {output_shape}, got {out.shape}")
     count_split = int(out.split is not None) + int(output_split is not None)
     if count_split == 1:
         raise ValueError(
@@ -326,9 +320,7 @@ def sanitize_out(
                     "Split axis of output buffer is inconsistent with split semantics for this operation."
                 )
     if out.device != output_device:
-        raise ValueError(
-            f"Device mismatch: out is on {out.device}, should be on {output_device}"
-        )
+        raise ValueError(f"Device mismatch: out is on {out.device}, should be on {output_device}")
     if output_comm is not None and out.comm != output_comm:
         try:
             raise NotImplementedError(

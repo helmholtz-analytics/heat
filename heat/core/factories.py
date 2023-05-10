@@ -324,9 +324,7 @@ def array(
     elif not isinstance(obj, DNDarray):
         obj = torch.as_tensor(
             obj,
-            device=device.torch_device
-            if device is not None
-            else devices.get_device().torch_device,
+            device=device.torch_device if device is not None else devices.get_device().torch_device,
         )
 
     # infer dtype from obj if not explicitly given
@@ -1102,9 +1100,7 @@ def linspace(
     stop = float(stop)
     num = int(num)
     if num < 0:
-        raise ValueError(
-            f"number of samples 'num' must be non-negative integer, but was {num}"
-        )
+        raise ValueError(f"number of samples 'num' must be non-negative integer, but was {num}")
     step = (stop - start) / max(1, num - 1 if endpoint else num)
 
     # sanitize device and comm

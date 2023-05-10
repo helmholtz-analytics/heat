@@ -936,10 +936,7 @@ class DNDarray:
             if len(loc_inds[0]) != 0:
                 # select same local indices for other (non-split) dimensions if necessary
                 for i, k in enumerate(lkey):
-                    if (
-                        isinstance(k, (list, torch.Tensor, DNDarray))
-                        and i != self.split
-                    ):
+                    if isinstance(k, (list, torch.Tensor, DNDarray)) and i != self.split:
                         lkey[i] = k[loc_inds]
                 # correct local indices for offset
                 inds = inds[loc_inds] - chunk_start
@@ -1195,9 +1192,7 @@ class DNDarray:
             lshape_map = self.create_lshape_map(force_check=True)
         else:
             if not isinstance(lshape_map, torch.Tensor):
-                raise TypeError(
-                    f"lshape_map must be a torch.Tensor, currently {type(lshape_map)}"
-                )
+                raise TypeError(f"lshape_map must be a torch.Tensor, currently {type(lshape_map)}")
             if lshape_map.shape != (self.comm.size, len(self.gshape)):
                 raise ValueError(
                     f"lshape_map must have the shape ({self.comm.size}, {len(self.gshape)}), currently {lshape_map.shape}"

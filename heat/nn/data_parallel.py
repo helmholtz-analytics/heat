@@ -86,8 +86,7 @@ class DataParallel(tnn.Module):
         # fallback onto blocking in case of overstepping them
         if not self.blocking_parameter_updates and (
             len(optimizer) > 1
-            or list(module.parameters())
-            != optimizer[0].torch_optimizer.param_groups[0]["params"]
+            or list(module.parameters()) != optimizer[0].torch_optimizer.param_groups[0]["params"]
         ):
             self.blocking_parameter_updates = True
             warnings.warn(

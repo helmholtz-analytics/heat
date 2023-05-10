@@ -108,9 +108,7 @@ class KNeighborsClassifier(ht.BaseEstimator, ht.ClassificationMixin):
             self.y = y
             self.outputs_2d_ = True
         else:
-            raise ValueError(
-                f"y needs to be one- or two-dimensional, but was {len(y.shape)}"
-            )
+            raise ValueError(f"y needs to be one- or two-dimensional, but was {len(y.shape)}")
 
     def predict(self, x: DNDarray) -> DNDarray:
         """

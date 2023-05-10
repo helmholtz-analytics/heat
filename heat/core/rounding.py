@@ -255,11 +255,11 @@ def modf(x: DNDarray, out: Optional[Tuple[DNDarray, DNDarray]] = None) -> Tuple[
 
     if out is not None:
         if not isinstance(out, tuple):
-            raise TypeError(
-                f"expected out to be None or a tuple of DNDarray, but was {type(out)}")
+            raise TypeError(f"expected out to be None or a tuple of DNDarray, but was {type(out)}")
         if len(out) != 2:
             raise ValueError(
-                f"expected out to be a tuple of length 2, but was of length {len(out)}")
+                f"expected out to be a tuple of length 2, but was of length {len(out)}"
+            )
         if (not isinstance(out[0], DNDarray)) or (not isinstance(out[1], DNDarray)):
             raise TypeError(
                 f"expected out to be None or a tuple of DNDarray, but was ({type(out[0])}, {type(out[1])})"

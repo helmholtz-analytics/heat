@@ -1257,9 +1257,7 @@ class MPICommunication(Communication):
         if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError(
-                f"sendbuf of type {type(sendbuf)} does not support send_axis != 0"
-            )
+            raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
 
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
@@ -1267,9 +1265,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError(
-                f"recvbuf of type {type(recvbuf)} does not support send_axis != 0"
-            )
+            raise TypeError(f"recvbuf of type {type(recvbuf)} does not support send_axis != 0")
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
@@ -1533,9 +1529,7 @@ class MPICommunication(Communication):
         if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError(
-                f"sendbuf of type {type(sendbuf)} does not support send_axis != 0"
-            )
+            raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
 
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
@@ -1543,9 +1537,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError(
-                f"recvbuf of type {type(recvbuf)} does not support send_axis != 0"
-            )
+            raise TypeError(f"recvbuf of type {type(recvbuf)} does not support send_axis != 0")
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf

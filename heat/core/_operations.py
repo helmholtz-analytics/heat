@@ -90,9 +90,7 @@ def __binary_op(
             t1 = factories.array(t1)
             t2 = factories.array(t2)
         except (ValueError, TypeError):
-            raise TypeError(
-                f"Data type not supported, inputs were {type(t1)} and {type(t2)}"
-            )
+            raise TypeError(f"Data type not supported, inputs were {type(t1)} and {type(t2)}")
     elif np.isscalar(t1) and isinstance(t2, DNDarray):
         try:
             t1 = factories.array(t1, device=t2.device, comm=t2.comm)
@@ -305,7 +303,7 @@ def __local_op(
     x: DNDarray,
     out: Optional[DNDarray] = None,
     no_cast: Optional[bool] = False,
-    **kwargs
+    **kwargs,
 ) -> DNDarray:
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
@@ -335,9 +333,7 @@ def __local_op(
     # perform sanitation
     sanitation.sanitize_in(x)
     if out is not None and not isinstance(out, DNDarray):
-        raise TypeError(
-            f"expected out to be None or an ht.DNDarray, but was {type(out)}"
-        )
+        raise TypeError(f"expected out to be None or an ht.DNDarray, but was {type(out)}")
 
     # infer the output type of the tensor
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
@@ -381,7 +377,7 @@ def __reduce_op(
     partial_op: Callable,
     reduction_op: Callable,
     neutral: Optional[Union[int, float]] = None,
-    **kwargs
+    **kwargs,
 ) -> DNDarray:
     """
     Generic wrapper for reduction operations, e.g. :func:`sum() <heat.arithmetics.sum>`, :func:`prod() <heat.arithmetics.prod>`

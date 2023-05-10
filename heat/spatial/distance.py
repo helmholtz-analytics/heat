@@ -250,9 +250,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                 torch_type = torch.float64
                 mpi_type = MPI.DOUBLE
             else:
-                raise NotImplementedError(
-                    f"Datatype {X.dtype} currently not supported as input"
-                )
+                raise NotImplementedError(f"Datatype {X.dtype} currently not supported as input")
 
         d = factories.zeros(
             (X.shape[0], X.shape[0]), dtype=X.dtype, split=X.split, device=X.device, comm=X.comm
@@ -394,9 +392,7 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
             torch_type = torch.float64
             mpi_type = MPI.DOUBLE
         else:
-            raise NotImplementedError(
-                f"Datatype {X.dtype} currently not supported as input"
-            )
+            raise NotImplementedError(f"Datatype {X.dtype} currently not supported as input")
 
         d = factories.zeros(
             (X.shape[0], Y.shape[0]), dtype=promoted_type, split=split, device=X.device, comm=X.comm

@@ -153,7 +153,9 @@ def equal(x: Union[DNDarray, float, int], y: Union[DNDarray, float, int]) -> boo
                     y.larray[tuple(idx)], is_split=x.split, copy=False, comm=y.comm, device=y.device
                 )
         elif x.split != y.split:
-            raise ValueError("DNDarrays must have the same split axes, found {x.split} and {y.split}")
+            raise ValueError(
+                "DNDarrays must have the same split axes, found {x.split} and {y.split}"
+            )
         elif not (x.is_balanced(force_check=False) and y.is_balanced(force_check=False)):
             x_lmap = x.lshape_map
             y_lmap = y.lshape_map

@@ -186,9 +186,7 @@ else:
 
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
-            raise ValueError(
-                f"mode was {mode}, not in possible modes {__VALID_WRITE_MODES}"
-            )
+            raise ValueError(f"mode was {mode}, not in possible modes {__VALID_WRITE_MODES}")
 
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
         is_split = data.split is not None

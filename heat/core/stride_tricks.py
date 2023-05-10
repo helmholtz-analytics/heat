@@ -60,13 +60,9 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
     except TypeError:
         raise TypeError(f"operand 1 must be tuple of ints, not {type(shape_a)}")
     except NameError:
-        raise TypeError(
-            f"operands must be tuples of ints, not {shape_a} and {shape_b}"
-        )
+        raise TypeError(f"operands must be tuples of ints, not {shape_a} and {shape_b}")
     except RuntimeError:
-        raise ValueError(
-            f"operands could not be broadcast, input shapes {shape_a} {shape_b}"
-        )
+        raise ValueError(f"operands could not be broadcast, input shapes {shape_a} {shape_b}")
 
     return tuple(resulting_shape)
 
@@ -113,11 +109,7 @@ def sanitize_axis(
     if len(shape) == 0:
         axis = None
 
-    if (
-        axis is not None
-        and not isinstance(axis, int)
-        and not isinstance(axis, tuple)
-    ):
+    if axis is not None and not isinstance(axis, int) and not isinstance(axis, tuple):
         raise TypeError(f"axis must be None or int or tuple, but was {type(axis)}")
     if isinstance(axis, tuple):
         axis = tuple(dim + len(shape) if dim < 0 else dim for dim in axis)
@@ -169,7 +161,7 @@ def sanitize_shape(shape: Union[int, Tuple[int, ...]], lval: int = 0) -> Tuple[i
         raise TypeError("expected sequence object with length >= 0 or a single integer")
     TypeError: expected sequence object with length >= 0 or a single integer
     """
-    shape = tuple(shape) if hasattr(shape, "__iter__") else (shape, )
+    shape = tuple(shape) if hasattr(shape, "__iter__") else (shape,)
 
     for dimension in shape:
         if issubclass(type(dimension), np.integer):

@@ -358,7 +358,7 @@ def diff(
                 elif p_el.gshape != pend_shape:
                     raise ValueError(
                         f"shape mismatch: expected prepend/append to be {pend_shape}, got {p_el.gshape}"
-                        )
+                    )
                 if p == 0:
                     # prepend
                     a = manipulations.concatenate((p_el, a), axis=axis)

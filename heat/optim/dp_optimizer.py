@@ -655,9 +655,7 @@ class DASO:
         if not torch.distributed.is_initialized() or sending_process is None:
             return
         snds = {
-            name: torch.distributed.broadcast(
-                param, sending_process, async_op=True
-            )
+            name: torch.distributed.broadcast(param, sending_process, async_op=True)
             for name, param in self.module.named_parameters()
             if param.requires_grad
         }

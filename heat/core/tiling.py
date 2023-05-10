@@ -375,7 +375,7 @@ class SquareDiagTiles:
     def __init__(self, arr: DNDarray, tiles_per_proc: int = 2) -> None:  # noqa: D107
         # lshape_map -> rank (int), lshape (tuple of the local lshape, self.lshape)
         if not isinstance(arr, DNDarray):
-             raise TypeError(f"arr must be a DNDarray, is currently a {type(self)}")
+            raise TypeError(f"arr must be a DNDarray, is currently a {type(self)}")
         if not isinstance(tiles_per_proc, int):
             raise TypeError(f"tiles_per_proc must be an int, is currently a {type(self)}")
         if tiles_per_proc < 1:
@@ -689,7 +689,9 @@ class SquareDiagTiles:
             input=torch.tensor(row_inds, device=arr.larray.device) == 0, as_tuple=False
         )
         lp_map = lshape_map.tolist()
-        for i, t in itertools.product(range(last_diag_pr.item() + 1, arr.comm.size), range(tiles_per_proc)):
+        for i, t in itertools.product(
+            range(last_diag_pr.item() + 1, arr.comm.size), range(tiles_per_proc)
+        ):
             _, lshape, _ = arr.comm.chunk(lp_map[i], 0, rank=t, w_size=tiles_per_proc)
             # row_inds[nz[0].item()] = lshape[0]
             if row_inds[-1] == 0:
@@ -920,9 +922,7 @@ class SquareDiagTiles:
         tile_map = self.__tile_map
         local_arr = arr.larray
         if not isinstance(key, (int, tuple, slice)):
-            raise TypeError(
-                f"key must be an int, tuple, or slice, is currently {type(key)}"
-            )
+            raise TypeError(f"key must be an int, tuple, or slice, is currently {type(key)}")
         involved_procs = tile_map[key][..., 2].unique()
         if involved_procs.nelement() == 1 and involved_procs == arr.comm.rank:
             st0, sp0, st1, sp1 = self.get_start_stop(key=key)

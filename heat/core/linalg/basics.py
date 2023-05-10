@@ -85,19 +85,14 @@ def cross(
     sanitation.sanitize_in(b)
 
     if a.device != b.device:
-        raise ValueError(
-            f"'a' and 'b' must have the same device type, {a.device} != {b.device}"
-        )
+        raise ValueError(f"'a' and 'b' must have the same device type, {a.device} != {b.device}")
     if a.comm != b.comm:  # pragma: no cover
         raise ValueError(f"'a' and 'b' must have the same comm, {a.comm} != {b.comm}")
 
     a_2d, b_2d = False, False
     a_shape, b_shape = list(a.shape), list(b.shape)
 
-    if (
-        axis != -1
-        or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1
-    ):
+    if axis != -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
         axis = stride_tricks.sanitize_axis(a.shape, axis)
         axisa, axisb, axisc = (axis,) * 3
     else:
@@ -138,9 +133,7 @@ def cross(
 
     # by now split axes must be aligned
     if a.split != b.split:
-        raise ValueError(
-            f"'a' and 'b' must have the same split, {a.split} != {b.split}"
-        )
+        raise ValueError(f"'a' and 'b' must have the same split, {a.split} != {b.split}")
 
     if not (a.is_balanced and b.is_balanced):
         # TODO: replace with sanitize_redistribute after #888 is merged
@@ -1499,9 +1492,7 @@ def outer(
     if b.ndim > 1:
         b = manipulations.flatten(b)
     if a.ndim == 0 or b.ndim == 0:
-        raise RuntimeError(
-            f"a, b must be 1-D DNDarrays, but were {a.ndim}-D and {b.ndim}-D"
-        )
+        raise RuntimeError(f"a, b must be 1-D DNDarrays, but were {a.ndim}-D and {b.ndim}-D")
 
     outer_gshape = (a.gshape[0], b.gshape[0])
     t_a = a.larray
@@ -1617,9 +1608,7 @@ def projection(a: DNDarray, b: DNDarray) -> DNDarray:
         The vector to project onto. Must be a 1D ``DNDarray``
     """
     if not isinstance(a, DNDarray) or not isinstance(b, DNDarray):
-        raise TypeError(
-            f"a, b must be of type ht.DNDarray, but were {type(a)}, {type(b)}"
-        )
+        raise TypeError(f"a, b must be of type ht.DNDarray, but were {type(a)}, {type(b)}")
 
     if len(a.shape) != 1 or len(b.shape) != 1:
         raise RuntimeError(

@@ -279,11 +279,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     if arr0.ndim != arr1.ndim:
         raise ValueError("DNDarrays must have the same number of dimensions")
 
-    if any(
-        arr0.gshape[i] != arr1.gshape[i]
-        for i in range(len(arr0.gshape))
-        if i != axis
-    ):
+    if any(arr0.gshape[i] != arr1.gshape[i] for i in range(len(arr0.gshape)) if i != axis):
         raise ValueError(
             f"Arrays cannot be concatenated, shapes must be the same in every axis except the selected axis: {arr0.gshape}, {arr1.gshape}"
         )
@@ -308,9 +304,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
 
     # non-matching splits when both arrays are split
     elif s0 != s1 and all([s is not None for s in [s0, s1]]):
-        raise RuntimeError(
-            f"DNDarrays given have differing split axes, arr0 {s0} arr1 {s1}"
-        )
+        raise RuntimeError(f"DNDarrays given have differing split axes, arr0 {s0} arr1 {s1}")
 
     elif (s0 is None and s1 != axis) or (s1 is None and s0 != axis):
         _, _, arr0_slice = arr1.comm.chunk(arr0.shape, arr1.split)
@@ -340,7 +334,7 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
             return out
 
         else:
-        t_arr0 = arr0.larray
+            t_arr0 = arr0.larray
             t_arr1 = arr1.larray
             # maps are created for where the data is and the output shape is calculated
             lshape_map = torch.zeros((2, arr0.comm.size, len(arr0.gshape)), dtype=torch.int)
@@ -1265,10 +1259,7 @@ def pad(
 
     # no shortcut - padding of various dimensions
     else:
-        if any(
-            not (isinstance(pad_tuple, (tuple, list)))
-            for pad_tuple in pad_width
-        ):
+        if any(not (isinstance(pad_tuple, (tuple, list))) for pad_tuple in pad_width):
             raise TypeError(
                 f"Invalid type for pad_width {pad_width}.\nApart from shortcut options (--> documentation),"
                 "pad_width has to be a sequence of (2 elements) sequences (sequence=tuple or list)."
@@ -1691,9 +1682,9 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
         else:
             if repeats.split is not None:
                 warnings.warn(
-                    f"For broadcast via array_like repeats, `repeats` must not be "
-                    "distributed (along axis {repeats.split}).\n`repeats` will be "
-                    "copied with new split axis None."
+                    "For broadcast via array_like repeats, `repeats` must not be "
+                    "distributed (along axis {}).\n`repeats` will be "
+                    "copied with new split axis None.".format(repeats.split)
                 )
                 repeats = resplit(repeats, None)
             repeated_array_torch = torch.repeat_interleave(
@@ -1740,7 +1731,7 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
             if a.split != 0:
                 warnings.warn(
                     f"If `axis` is None, `a` has to be split along axis 0 (not {a.split}) if distributed.\n`a` will be copied "
-                     "with new split axis 0."
+                    "with new split axis 0."
                 )
                 a = resplit(a, 0)
 
@@ -1758,13 +1749,13 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
                 device=repeats.device,
                 comm=repeats.comm,
             )
-        
+
         # axis is not None
         elif a.split == axis:
             if repeats.split != 0:
                 warnings.warn(
                     f"If `axis` equals `a.split`, `repeats` has to be split along axis 0 (not {repeats.split}) if distributed.\n`repeats` will be copied "
-                     "with new split axis 0"
+                    "with new split axis 0"
                 )
                 repeats = resplit(repeats, 0)
 
@@ -1773,7 +1764,7 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
             if repeats.split is not None:
                 warnings.warn(
                     f"If `axis` != `a.split`, `repeast` must not be distributed (along axis {repeats.split}).\n`repeats` will be copied with new "
-                     "split axis None."
+                    "split axis None."
                 )
                 repeats = resplit(repeats, None)
 
@@ -2086,13 +2077,13 @@ def roll(
             raise TypeError(f"axis must be an integer, list or a tuple, got {type(axis)}")
 
         if len(shift) != len(axis):
-            raise ValueError(f"shift and axis length must be the same, got {len(shift)} and {len(axis)}")
+            raise ValueError(
+                f"shift and axis length must be the same, got {len(shift)} and {len(axis)}"
+            )
 
         for i in range(len(shift)):
             if not isinstance(shift[i], int):
-                raise TypeError(
-                    f"Element {i} in shift is not an integer, got {type(shift[i])}"
-                )
+                raise TypeError(f"Element {i} in shift is not an integer, got {type(shift[i])}")
             if not isinstance(axis[i], int):
                 raise TypeError(f"Element {i} in axis is not an integer, got {type(axis[i])}")
 
@@ -2641,7 +2632,7 @@ def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DND
             if indices_or_sections.split is not None:
                 warnings.warn(
                     f"`indices_or_sections` might not be distributed (along axis {indices_or_sections.split}) "
-                     "if `x` is not distributed.\n`indices_or_sections` will be copied with new split axis None."
+                    "if `x` is not distributed.\n`indices_or_sections` will be copied with new split axis None."
                 )
                 indices_or_sections = resplit(indices_or_sections, None)
 
@@ -3000,7 +2991,8 @@ def swapaxes(x: DNDarray, axis1: int, axis2: int) -> DNDarray:
         axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
     except TypeError:
         raise TypeError(
-            f"'axis1' and 'axis2' must be of type int, found {type(axis1)} and {type(axis2)}")
+            f"'axis1' and 'axis2' must be of type int, found {type(axis1)} and {type(axis2)}"
+        )
 
     return linalg.transpose(x, axes)
 
@@ -3605,7 +3597,8 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
                     _ = x_proxy.repeat(reps)
                 except TypeError:
                     raise TypeError(
-                        f"reps must be a sequence of ints, got {[type(i) for i in reps]}")
+                        f"reps must be a sequence of ints, got {[type(i) for i in reps]}"
+                    )
                 except RuntimeError:
                     pass
     except RuntimeError:

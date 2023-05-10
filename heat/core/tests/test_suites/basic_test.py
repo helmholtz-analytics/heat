@@ -197,9 +197,7 @@ class TestCase(unittest.TestCase):
         >>> self.assert_func_equal([5, 5, 5, 5], ht.unique, np.unique, heat_arg=heat_args, numpy_args=numpy_args)
         """
         if not isinstance(shape, tuple) and not isinstance(shape, list):
-            raise ValueError(
-                f"The shape must be either a list or a tuple but was {type(shape)}"
-            )
+            raise ValueError(f"The shape must be either a list or a tuple but was {type(shape)}")
 
         for dtype in data_types:
             tensor = self.__create_random_np_array(shape, dtype=dtype, low=low, high=high)

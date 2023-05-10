@@ -92,9 +92,7 @@ def main():
     reference = ht.array(
         [[-80, -80, -80], [-40, -40, -40], [40, 40, 40], [80, 80, 80]], dtype=ht.float32
     )
-    print(
-        f"4 Spherical clusters with radius 10, each {n} samples (dtype = ht.int32) "
-    )
+    print(f"4 Spherical clusters with radius 10, each {n} samples (dtype = ht.int32) ")
     for name, c in clusterer.items():
         c.fit(data)
         print(

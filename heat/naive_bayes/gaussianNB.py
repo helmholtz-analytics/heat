@@ -88,9 +88,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             raise ValueError(f"input needs to be a ht.DNDarray, but was {type(y)}")
         if y.ndim != 1:
             raise ValueError(f"expected y to be a 1-D tensor, is {y.ndim}-D")
-        if sample_weight is not None and not isinstance(
-            sample_weight, ht.DNDarray
-        ):
+        if sample_weight is not None and not isinstance(sample_weight, ht.DNDarray):
             raise ValueError(
                 f"sample_weight needs to be a ht.DNDarray, but was {type(sample_weight)}"
             )
@@ -275,7 +273,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             if sample_weight.shape != (n_samples,):
                 raise ValueError(
                     f"sample_weight.shape == {sample_weight.shape}, expected {(n_samples, )}!"
-                    )
+                )
 
         # If the ratio of data variance between dimensions is too small, it
         # will cause numerical errors. To address this, we artificially
@@ -323,7 +321,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
             if x.shape[1] != self.theta_.shape[1]:
                 raise ValueError(
                     f"Number of features {x.shape[1]} does not match previous data {self.theta_.shape[1]}."
-                    )
+                )
             # Put epsilon back in each time
             self.sigma_[:, :] -= self.epsilon_
 

@@ -51,7 +51,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         boundary: str = "upper",
         n_lanczos: int = 300,
         assign_labels: str = "kmeans",
-        **params
+        **params,
     ):
         self.n_clusters = n_clusters
         self.gamma = gamma
