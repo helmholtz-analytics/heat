@@ -1,0 +1,49 @@
+name: Benchmarks report
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_url:
+        required: true
+        type: string
+
+jobs:
+  bench_report:
+    name: Benchmark report
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Download artifact"
+        run: curl ${{ inputs.artifact_url }} --output perun_report.json
+      - name: Save benchmark result and update gh-pages-chart
+        if: ${{github.ref == 'refs/heads/main'}}
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          # Benchmark action input and output
+          tool: "customSmallerIsBetter"
+          output-file-path: perun_report.json
+          # Alert configuration
+          fail-on-alert: false # Don't fail on main branch
+          comment-on-alert: true
+          # Save benchmarks from the main branch
+          save-data-file: true
+          # Pages configuration
+          auto-push: true
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+      - name: Compare benchmark result
+        if: ${{github.ref != 'refs/heads/main'}}
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          # Benchmark action input and output
+          tool: 'customSmallerIsBetter'
+          output-file-path: .json
+          # Alert configuration
+          fail-on-alert: true
+          comment-on-alert: true
+          # Ignore results from non main branches.
+          save-data-file: false
+          # Pages configuration
+          auto-push: false
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench

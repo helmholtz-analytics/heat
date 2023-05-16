@@ -1,0 +1,36 @@
+name: Trigger benchmarks
+on:
+  push:
+    branches:
+      - main
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  trigger-benchmark:
+    name: Trigger Benchmark
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Trigger benchmarks (PR)
+        id: setup_pr
+        if: contains(github.event.pull_request.labels.*.name, 'benchmark PR')
+        shell: bash
+        run: |
+          curl -s -X POST \
+           --fail \
+           -F token=${{ secrets.BENCH_PIPE_TRIGGER }} \
+           -F "ref=main" \
+           -F "variables[PR]=${{ github.event.pull_request.number }}" \
+           https://codebase.helmholtz.cloud/api/v4/projects/7605/trigger/pipeline -o /dev/null
+      - name: Trigger benchmarks (Push main)
+        id: setup_push
+        if: ${{ github.event_name == 'push' }}
+        shell: bash
+        run: |
+          curl -s -X POST \
+           --fail \
+           -F token=${{ secrets.BENCH_PIPE_TRIGGER }} \
+           -F "ref=main" \
+           -F "variables[SHA]=${{ GITHUB_SHA }}" \
+           https://codebase.helmholtz.cloud/api/v4/projects/7605/trigger/pipeline -o /dev/null
