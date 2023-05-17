@@ -3,8 +3,8 @@ name: Test Array API
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled]
-  # pull_request_review:
-  #   types: [submitted]
+  pull_request_review:
+    types: [submitted]
 
 jobs:
   build:
