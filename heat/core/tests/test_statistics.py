@@ -24,14 +24,14 @@ class TestStatistics(TestCase):
         self.assertTrue((result.larray == data.larray.argmax(0)).all())
 
         # 3D local tensor, minor axis
-        result = ht.argmax(data, axis=-1, keepdim=True)
+        result = ht.argmax(data, axis=-1, keepdims=True)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result.larray.dtype, torch.int64)
         self.assertEqual(result.shape, (3, 4, 1))
         self.assertEqual(result.lshape, (3, 4, 1))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.larray == data.larray.argmax(-1, keepdim=True)).all())
+        self.assertTrue((result.larray == data.larray.argmax(-1, keepdims=True)).all())
 
         # 1D split tensor, no axis
         data = ht.arange(-10, 10, split=0)
@@ -126,7 +126,7 @@ class TestStatistics(TestCase):
         self.assertTrue((result.larray == data.larray.argmin(0)).all())
 
         # 3D local tensor, minor axis
-        result = ht.argmin(data, axis=-1, keepdim=True)
+        result = ht.argmin(data, axis=-1, keepdims=True)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result.larray.dtype, torch.int64)
@@ -306,7 +306,7 @@ class TestStatistics(TestCase):
             ht.average(random_5d, weights=random_weights.numpy(), axis=axis)
         with self.assertRaises(TypeError):
             ht.average(random_5d, weights=random_weights, axis=None)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(NotImplementedError):
             ht.average(random_5d, weights=random_weights, axis=(1, 2))
         random_weights = ht.random.randn(random_5d.gshape[axis], random_5d.gshape[axis + 1])
         with self.assertRaises(TypeError):
@@ -721,7 +721,7 @@ class TestStatistics(TestCase):
         self.assertTrue((maximum_vertical.larray == comparison.max(dim=0, keepdim=True)[0]).all())
 
         # maximum along second axis
-        maximum_horizontal = ht.max(ht_array, axis=1, keepdim=True)
+        maximum_horizontal = ht.max(ht_array, axis=1, keepdims=True)
 
         self.assertIsInstance(maximum_horizontal, ht.DNDarray)
         self.assertEqual(maximum_horizontal.shape, (4, 1))
@@ -984,7 +984,7 @@ class TestStatistics(TestCase):
 
         # min along second axis
         ht_array = ht.array(data, dtype=ht.int16)
-        minimum_horizontal = ht.min(ht_array, axis=1, keepdim=True)
+        minimum_horizontal = ht.min(ht_array, axis=1, keepdims=True)
 
         self.assertIsInstance(minimum_horizontal, ht.DNDarray)
         self.assertEqual(minimum_horizontal.shape, (4, 1))
@@ -1181,9 +1181,9 @@ class TestStatistics(TestCase):
         q = [0.1, 2.3, 15.9, 50.0, 84.1, 97.7, 99.9]
         axis = 2
         p_np = np.percentile(x_np, q, axis=axis, interpolation="lower", keepdims=True)
-        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdim=True)
+        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdims=True)
         out = ht.empty(p_np.shape, dtype=ht.float64, split=None, device=x_ht.device)
-        ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdim=True)
+        ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdims=True)
         self.assertEqual(p_ht.numpy()[5].all(), p_np[5].all())
         self.assertEqual(out.numpy()[2].all(), p_np[2].all())
         self.assertTrue(p_ht.shape == p_np.shape)

@@ -39,7 +39,7 @@ class TestRounding(TestCase):
         # check whether output works
         # for abs==absolute
         output_tensor = ht.zeros(20, split=0)
-        self.assertEqual(output_tensor.sum(axis=0, keepdim=True), 0)
+        self.assertEqual(output_tensor.sum(axis=0, keepdims=True), 0)
         ht.absolute(float32_tensor, out=output_tensor)
 
         self.assertEqual(output_tensor.sum(axis=0), 100)
