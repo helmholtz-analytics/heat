@@ -34,7 +34,7 @@ jobs:
     - name: Checkout array-api-tests
       uses: actions/checkout@v3
       with:
-        repository: data-api/array-api-tests
+        repository: data-apis/array-api-tests
         ref: 2022.09.30
         path: array-api-tests
         submodules: 'true'
