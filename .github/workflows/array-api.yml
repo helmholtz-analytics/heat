@@ -1,14 +1,14 @@
 name: Test Array API
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, labeled]
+  # pull_request:
+  #   types: [opened, synchronize, reopened, labeled]
   pull_request_review:
     types: [submitted]
 
 jobs:
   build:
-    if: contains(github.event.pull_request.labels.*.name, 'test array API')
+#    if: contains(github.event.pull_request.labels.*.name, 'test array API')
     runs-on: ubuntu-latest
     strategy:
       matrix:
