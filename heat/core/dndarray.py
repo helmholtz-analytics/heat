@@ -459,6 +459,12 @@ class DNDarray:
             dim=self.split,
         )
 
+    def __array__(self) -> np.ndarray:
+        """
+        Returns a view of the process-local array as a numpy ndarray.
+        """
+        return self.larray.__array__()
+
     def astype(self, dtype, copy=True) -> DNDarray:
         """
         Returns a casted version of this array.
@@ -468,7 +474,7 @@ class DNDarray:
         Parameters
         ----------
         dtype : datatype
-            HeAT type to which the array is cast
+            Heat type to which the array is cast
         copy : bool, optional
             By default the operation returns a copy of this array. If copy is set to ``False`` the cast is performed
             in-place and this array is returned
