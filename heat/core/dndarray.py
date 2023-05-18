@@ -461,8 +461,7 @@ class DNDarray:
 
     def __array__(self) -> np.ndarray:
         """
-        Returns a view of the process-local array as a numpy ndarray, if the array resides on CPU.
-        Otherwise, it returns a copy of the process-local array as numpy ndarray on CPU.
+        Returns a view of the process-local slice of the :class:`DNDarray` as a numpy ndarray, if the ``DNDarray`` resides on CPU. Otherwise, it returns a copy, on CPU, of the process-local slice of ``DNDarray`` as numpy ndarray.
         """
         return self.larray.cpu().__array__()
 
