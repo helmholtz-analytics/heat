@@ -1114,8 +1114,8 @@ class DNDarray:
 
     def numpy(self) -> np.array:
         """
-        Convert :class:`DNDarray` to numpy array. If the ``DNDarray`` is distributed it will be merged beforehand. If the ``DNDarray``
-        resides on the GPU, it will be copied to the CPU first.
+        Returns a copy of the :class:`DNDarray` as numpy ndarray. If the ``DNDarray`` is distributed, an MPI Allgather operation will be performed beforehand, i.e. each MPI process will end up holding a copy of the entire array in memory.  Make sure single-process memory is sufficient! If the ``DNDarray``
+        resides on the GPU, the underlying data will be copied to the CPU first.
 
         Examples
         --------
