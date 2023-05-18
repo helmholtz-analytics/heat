@@ -237,6 +237,7 @@ class TestDNDarray(TestCase):
 
         self.assertTrue((x.__array__() == x.numpy()).all())
         self.assertIsInstance(x.__array__(), np.ndarray)
+        self.assertIsInstance(x.__array__().dtype, "int32")
         self.assertEqual(x.__array__().shape, x.gshape)
 
         # distributed case
@@ -244,6 +245,7 @@ class TestDNDarray(TestCase):
 
         self.assertTrue((x.__array__() == x.larray.numpy()).all())
         self.assertIsInstance(x.__array__(), np.ndarray)
+        self.assertIsInstance(x.__array__().dtype, "float64")
         self.assertEqual(x.__array__().shape, x.lshape)
 
     def test_larray(self):
