@@ -11,7 +11,6 @@ jobs:
     name: Trigger Benchmark
     runs-on: ubuntu-latest
     steps:
-
       - name: Trigger benchmarks (PR)
         id: setup_pr
         if: contains(github.event.pull_request.labels.*.name, 'benchmark PR')
@@ -32,5 +31,5 @@ jobs:
            --fail \
            -F token=${{ secrets.BENCH_PIPE_TRIGGER }} \
            -F "ref=main" \
-           -F "variables[SHA]=${{ GITHUB_SHA }}" \
+           -F "variables[SHA]=$GITHUB_SHA" \
            https://codebase.helmholtz.cloud/api/v4/projects/7605/trigger/pipeline -o /dev/null
