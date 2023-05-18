@@ -231,6 +231,21 @@ class TestDNDarray(TestCase):
             self.assertTrue(data.halo_prev is prev_halo or (data.halo_prev == prev_halo).all())
             self.assertTrue(data.halo_next is next_halo or (data.halo_next == next_halo).all())
 
+    def test_array(self):
+        # undistributed case
+        x = ht.arange(6 * 7 * 8).reshape((6, 7, 8))
+
+        self.assertTrue((x.__array__() == x.numpy()).all())
+        self.assertIsInstance(x.__array__(), np.ndarray)
+        self.assertEqual(x.__array__().shape, x.gshape)
+
+        # distributed case
+        x = ht.arange(6 * 7 * 8, dtype=ht.float64, split=0).reshape((6, 7, 8))
+
+        self.assertTrue((x.__array__() == x.larray.numpy()).all())
+        self.assertIsInstance(x.__array__(), np.ndarray)
+        self.assertEqual(x.__array__().shape, x.lshape)
+
     def test_larray(self):
         # undistributed case
         x = ht.arange(6 * 7 * 8).reshape((6, 7, 8))
