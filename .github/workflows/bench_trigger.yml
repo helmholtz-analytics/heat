@@ -21,7 +21,7 @@ jobs:
            -F token=${{ secrets.BENCH_PIPE_TRIGGER }} \
            -F "ref=main" \
            -F "variables[PR]=${{ github.event.pull_request.number }}" \
-           https://codebase.helmholtz.cloud/api/v4/projects/7605/trigger/pipeline -o /dev/null
+           https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
       - name: Trigger benchmarks (Push main)
         id: setup_push
         if: ${{ github.event_name == 'push' }}
@@ -32,4 +32,4 @@ jobs:
            -F token=${{ secrets.BENCH_PIPE_TRIGGER }} \
            -F "ref=main" \
            -F "variables[SHA]=$GITHUB_SHA" \
-           https://codebase.helmholtz.cloud/api/v4/projects/7605/trigger/pipeline -o /dev/null
+           https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
