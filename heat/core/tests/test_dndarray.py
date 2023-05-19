@@ -236,7 +236,7 @@ class TestDNDarray(TestCase):
         x = ht.arange(6 * 7 * 8).reshape((6, 7, 8))
         x_np = np.arange(6 * 7 * 8, dtype=np.int32).reshape((6, 7, 8))
 
-        self.assertTrue((x.__array__() == x.numpy()).all())
+        self.assertTrue((x.__array__() == x_np).all())
         self.assertIsInstance(x.__array__(), np.ndarray)
         self.assertEqual(x.__array__().dtype, x_np.dtype)
         self.assertEqual(x.__array__().shape, x.gshape)
@@ -245,7 +245,7 @@ class TestDNDarray(TestCase):
         x = ht.arange(6 * 7 * 8, dtype=ht.float64, split=0).reshape((6, 7, 8))
         x_np = np.arange(6 * 7 * 8, dtype=np.float64).reshape((6, 7, 8))
 
-        self.assertTrue((x.__array__() == x.larray.numpy()).all())
+        self.assertTrue((x.__array__() == x.larray.cpu().numpy()).all())
         self.assertIsInstance(x.__array__(), np.ndarray)
         self.assertEqual(x.__array__().dtype, x_np.dtype)
         self.assertEqual(x.__array__().shape, x.lshape)
