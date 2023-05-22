@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684742391436,
+  "lastUpdate": 1684748047744,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -288,6 +288,78 @@ window.BENCHMARK_DATA = {
             "value": 1.1258480548858643,
             "unit": "s",
             "range": 0.05847302824258804
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "m.tarnawa@fz-juelich.de",
+            "name": "Michael Tarnawa",
+            "username": "mtar"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f400d14b7324c2f7180eb8ae7c2070de066135eb",
+          "message": "Merge pull request #1152 from helmholtz-analytics/support/694-amd-hip\n\nsupport amd HIP testing",
+          "timestamp": "2023-05-22T11:21:10+02:00",
+          "tree_id": "3660c17358ac7b03d42d170fd2c00b414f79b302",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/f400d14b7324c2f7180eb8ae7c2070de066135eb"
+        },
+        "date": 1684748047091,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "kmeans_cpu - RUNTIME",
+            "value": 0.8988556861877441,
+            "unit": "s",
+            "range": 0.0637301653623581
+          },
+          {
+            "name": "kmedians_cpu - RUNTIME",
+            "value": 5.219430446624756,
+            "unit": "s",
+            "range": 4.604112148284912
+          },
+          {
+            "name": "kmedoids_cpu - RUNTIME",
+            "value": 4.559315204620361,
+            "unit": "s",
+            "range": 0.9846170544624329
+          },
+          {
+            "name": "lanczos_cpu - RUNTIME",
+            "value": 38.10189437866211,
+            "unit": "s",
+            "range": 2.76328444480896
+          },
+          {
+            "name": "matmul_cpu_split_0 - RUNTIME",
+            "value": 0.810444176197052,
+            "unit": "s",
+            "range": 0.06511379033327103
+          },
+          {
+            "name": "matmul_cpu_split_1 - RUNTIME",
+            "value": 0.8347999453544617,
+            "unit": "s",
+            "range": 0.026931846514344215
+          },
+          {
+            "name": "qr_cpu - RUNTIME",
+            "value": 6.731255531311035,
+            "unit": "s",
+            "range": 0.7050207257270813
+          },
+          {
+            "name": "reshape_cpu - RUNTIME",
+            "value": 1.0273901224136353,
+            "unit": "s",
+            "range": 0.03521817550063133
           }
         ]
       }
