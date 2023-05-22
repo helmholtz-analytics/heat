@@ -18,12 +18,12 @@ def matmul_cpu_split_1(n: int = 3000):
     a @ b
 
 
-@monitor()
-def qr_cpu(n: int = 2000):
-    for t in range(1, 3):
-        for sp in range(2):
-            a = ht.random.random((n, n), split=sp)
-            qr = a.qr(tiles_per_proc=t)
+# @monitor()
+# def qr_cpu(n: int = 2000):
+#     for t in range(1, 3):
+#         for sp in range(2):
+#             a = ht.random.random((n, n), split=sp)
+#             qr = a.qr(tiles_per_proc=t)
 
 
 @monitor()
@@ -35,7 +35,7 @@ def lanczos_cpu(n: int = 50):
 
 @monitor()
 def hierachical_svd_rank(data, r):
-    approx_svd = ht.linalg.hsvd_rank(data, rank=r, compute_sv=True, silent=True)
+    approx_svd = ht.linalg.hsvd_rank(data, maxrank=r, compute_sv=True, silent=True)
 
 
 @monitor()
@@ -45,7 +45,7 @@ def hierachical_svd_tol(data, tol):
 
 matmul_cpu_split_0()
 matmul_cpu_split_1()
-qr_cpu()
+# qr_cpu()
 lanczos_cpu()
 
 mnist = (
