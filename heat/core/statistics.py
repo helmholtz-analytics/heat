@@ -783,7 +783,7 @@ def max(
     x: DNDarray,
     axis: Optional[Union[int, Tuple[int, ...]]] = None,
     out: Optional[DNDarray] = None,
-    keepdim: Optional[bool] = None,
+    keepdims: Optional[bool] = None,
 ) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
@@ -800,7 +800,7 @@ def max(
     out : DNDarray, optional
         Tuple of two output arrays ``(max, max_indices)``. Must be of the same shape and buffer length as the expected
         output. The minimum value of an output element. Must be present to allow computation on empty slice.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
@@ -828,13 +828,13 @@ def max(
 
     smallest_value = -sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdim=keepdim
+        x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdims=keepdims
     )
 
 
 DNDarray.max: Callable[
     [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray
-] = lambda x, axis=None, out=None, keepdim=None: max(x, axis, out, keepdim)
+] = lambda x, axis=None, out=None, keepdims=None: max(x, axis, out, keepdims)
 DNDarray.max.__doc__ = max.__doc__
 
 
@@ -1015,7 +1015,7 @@ DNDarray.mean: Callable[[DNDarray, Union[int, List, Tuple]], DNDarray] = lambda 
 DNDarray.mean.__doc__ = mean.__doc__
 
 
-def median(x: DNDarray, axis: Optional[int] = None, keepdim: bool = False) -> DNDarray:
+def median(x: DNDarray, axis: Optional[int] = None, keepdims: bool = False) -> DNDarray:
     """
     Compute the median of the data along the specified axis.
     Returns the median of the ``DNDarray`` elements.
@@ -1028,16 +1028,16 @@ def median(x: DNDarray, axis: Optional[int] = None, keepdim: bool = False) -> DN
         Axis along which the median is computed. Default is ``None``, i.e.,
         the median is computed along a flattened version of the ``DNDarray``.
 
-    keepdim : bool, optional
+    keepdims : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array ``a``.
     """
-    return percentile(x, q=50, axis=axis, keepdim=keepdim)
+    return percentile(x, q=50, axis=axis, keepdims=keepdims)
 
 
 DNDarray.median: Callable[
     [DNDarray, int, bool], DNDarray
-] = lambda x, axis=None, keepdim=False: median(x, axis, keepdim)
+] = lambda x, axis=None, keepdims=False: median(x, axis, keepdims)
 DNDarray.mean.__doc__ = mean.__doc__
 
 
@@ -1116,7 +1116,7 @@ def min(
     x: DNDarray,
     axis: Optional[Union[int, Tuple[int, ...]]] = None,
     out: Optional[DNDarray] = None,
-    keepdim: Optional[bool] = None,
+    keepdims: Optional[bool] = None,
 ) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
@@ -1133,7 +1133,7 @@ def min(
     out : Tuple[DNDarray,DNDarray], optional
         Tuple of two output arrays ``(min, min_indices)``. Must be of the same shape and buffer length as the expected
         output. The maximum value of an output element. Must be present to allow computation on empty slice.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
@@ -1162,13 +1162,13 @@ def min(
 
     largest_value = sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdim=keepdim
+        x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdims=keepdims
     )
 
 
 DNDarray.min: Callable[
     [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray
-] = lambda self, axis=None, out=None, keepdim=None: min(self, axis, out, keepdim)
+] = lambda self, axis=None, out=None, keepdims=None: min(self, axis, out, keepdims)
 DNDarray.min.__doc__ = min.__doc__
 
 
@@ -1412,7 +1412,7 @@ def percentile(
     axis: Optional[int] = None,
     out: Optional[DNDarray] = None,
     interpolation: str = "linear",
-    keepdim: bool = False,
+    keepdims: bool = False,
 ) -> DNDarray:
     r"""
     Compute the q-th percentile of the data along the specified axis.
@@ -1445,7 +1445,7 @@ def percentile(
 
         - ‘midpoint’: :math:`(i + j) / 2`.
 
-    keepdim : bool, optional
+    keepdims : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array x.
     """
@@ -1485,7 +1485,7 @@ def percentile(
             permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
             percentile = percentile.permute(permute_dims)
 
-        if keepdim:
+        if keepdims:
             # leave reduced dimension as size (1,)
             percentile.unsqueeze_(dim=axis + 1)
 
@@ -1531,7 +1531,7 @@ def percentile(
         t_q = t_q.flatten()
 
     # shape of output DNDarray
-    if keepdim:
+    if keepdims:
         output_shape = (nperc,) + gshape[:axis] + (1,) + gshape[axis + 1 :]
     else:
         output_shape = (nperc,) + gshape[:axis] + gshape[axis + 1 :]
