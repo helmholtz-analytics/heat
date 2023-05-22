@@ -47,7 +47,7 @@ Check out our Jupyter Notebook [tutorial](https://github.com/helmholtz-analytics
 right here on Github or in the /scripts directory.
 
 The complete documentation of the latest version is always deployed on
-[Read the Docs](https://heat.readthedocs.io/).
+[Read the Docs](https://heat.readthedocs.io/en/stable/).
 
 Support Channels
 ----------------
