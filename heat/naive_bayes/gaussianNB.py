@@ -382,7 +382,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # Update only if no priors are provided
         if self.priors is None:
             # distributed class_count_: sum along distribution axis
-            self.class_count_ = self.class_count_.sum(axis=0, keepdim=True)
+            self.class_count_ = self.class_count_.sum(axis=0, keepdims=True)
             # Empirical prior, with sample_weight taken into account
             self.class_prior_ = (self.class_count_ / self.class_count_.sum()).squeeze(0)
 
@@ -409,7 +409,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         a: DNDarray,
         axis: Optional[Union[int, Tuple[int, ...]]] = None,
         b: Optional[DNDarray] = None,
-        keepdim: bool = False,
+        keepdims: bool = False,
         return_sign: bool = False,
     ) -> DNDarray:
         """
@@ -425,7 +425,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         axis : None or int or Tuple [int,...], optional
             Axis or axes over which the sum is taken. By default ``axis`` is ``None``,
             and all elements are summed.
-        keepdim : bool, optional
+        keepdims : bool, optional
             If this is set to ``True``, the axes which are reduced are left in the
             result as dimensions with size one. With this option, the result
             will broadcast correctly against the original array.
@@ -446,7 +446,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         if b is not None:
             raise NotImplementedError("Not implemented for weighted logsumexp")
 
-        a_max = ht.max(a, axis=axis, keepdim=True)
+        a_max = ht.max(a, axis=axis, keepdims=True)
 
         # TODO: sanitize a_max / implement isfinite(): sanitation module, cf. #468
         # if a_max.ndim > 0:
@@ -461,14 +461,14 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # else:
         tmp = ht.exp(a - a_max)
 
-        s = ht.sum(tmp, axis=axis, keepdim=keepdim)
+        s = ht.sum(tmp, axis=axis, keepdims=keepdims)
         if return_sign:
             raise NotImplementedError("Not implemented for return_sign")
             # sgn = np.sign(s)  # TODO: np.sign
             # s *= sgn  # /= makes more sense but we need zero -> zero
         out = ht.log(s)
 
-        if not keepdim:
+        if not keepdims:
             a_max = ht.squeeze(a_max, axis=axis)
         out += a_max
 
