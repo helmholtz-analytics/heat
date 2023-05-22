@@ -151,7 +151,7 @@ def arange(
 def array(
     obj: Iterable,
     dtype: Optional[Type[datatype]] = None,
-    copy: bool = None,
+    copy: Optional[bool] = None,
     ndmin: int = 0,
     order: str = "C",
     split: Optional[int] = None,
@@ -201,6 +201,8 @@ def array(
         If order is one of the NumPy options ``'K'`` or ``'A'``.
     ValueError
         If ``copy`` is False but a copy is necessary.
+    TypeError
+        If the input object cannot be converted to a torch.Tensor, hence it cannot be converted to a :class:`~heat.core.dndarray.DNDarray`.
 
     Examples
     --------
