@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1683533024084,
+  "lastUpdate": 1684724647700,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -144,6 +144,78 @@ window.BENCHMARK_DATA = {
             "value": 12.526630401611328,
             "unit": "s",
             "range": 0.2068168818950653
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "39374113+ClaudiaComito@users.noreply.github.com",
+            "name": "Claudia Comito",
+            "username": "ClaudiaComito"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8abbc161454a10d02025b58365904f6be623409a",
+          "message": "Features/560 reshape speedup (#1125)\n\n* reshape speed up first draft\r\n\r\n* lazy solution for non-zero split\r\n\r\n* remove dead code\r\n\r\n* remove test change\r\n\r\n* double precision for lshape_map, target_map\r\n\r\n* expand docs\r\n\r\n* prevent torch.prod() RuntimeError on older GPUs when input is int or long",
+          "timestamp": "2023-05-22T04:50:40+02:00",
+          "tree_id": "16f5a79210d34e878e1459356c5cb8c17122ea67",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/8abbc161454a10d02025b58365904f6be623409a"
+        },
+        "date": 1684724646853,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "kmeans_cpu - RUNTIME",
+            "value": 0.9409732818603516,
+            "unit": "s",
+            "range": 0.10981494933366776
+          },
+          {
+            "name": "kmedians_cpu - RUNTIME",
+            "value": 4.830145835876465,
+            "unit": "s",
+            "range": 3.8494036197662354
+          },
+          {
+            "name": "kmedoids_cpu - RUNTIME",
+            "value": 4.587499141693115,
+            "unit": "s",
+            "range": 1.0906234979629517
+          },
+          {
+            "name": "lanczos_cpu - RUNTIME",
+            "value": 41.0870246887207,
+            "unit": "s",
+            "range": 2.2554943561553955
+          },
+          {
+            "name": "matmul_cpu_split_0 - RUNTIME",
+            "value": 0.7591880559921265,
+            "unit": "s",
+            "range": 0.06596166640520096
+          },
+          {
+            "name": "matmul_cpu_split_1 - RUNTIME",
+            "value": 0.7841414213180542,
+            "unit": "s",
+            "range": 0.08697084337472916
+          },
+          {
+            "name": "qr_cpu - RUNTIME",
+            "value": 6.583443641662598,
+            "unit": "s",
+            "range": 0.5895178318023682
+          },
+          {
+            "name": "reshape_cpu - RUNTIME",
+            "value": 1.1486433744430542,
+            "unit": "s",
+            "range": 0.035412367433309555
           }
         ]
       }
