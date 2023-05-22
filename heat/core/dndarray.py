@@ -207,9 +207,13 @@ class DNDarray:
         """
         Number of total elements of the ``DNDarray``
         """
-        return torch.prod(
-            torch.tensor(self.gshape, dtype=torch.int, device=self.device.torch_device)
-        ).item()
+        return (
+            torch.prod(
+                torch.tensor(self.gshape, dtype=torch.float64, device=self.device.torch_device)
+            )
+            .long()
+            .item()
+        )
 
     @property
     def gnbytes(self) -> int:
@@ -459,6 +463,12 @@ class DNDarray:
             dim=self.split,
         )
 
+    def __array__(self) -> np.ndarray:
+        """
+        Returns a view of the process-local slice of the :class:`DNDarray` as a numpy ndarray, if the ``DNDarray`` resides on CPU. Otherwise, it returns a copy, on CPU, of the process-local slice of ``DNDarray`` as numpy ndarray.
+        """
+        return self.larray.cpu().__array__()
+
     def astype(self, dtype, copy=True) -> DNDarray:
         """
         Returns a casted version of this array.
@@ -468,7 +478,7 @@ class DNDarray:
         Parameters
         ----------
         dtype : datatype
-            HeAT type to which the array is cast
+            Heat type to which the array is cast
         copy : bool, optional
             By default the operation returns a copy of this array. If copy is set to ``False`` the cast is performed
             in-place and this array is returned
@@ -600,7 +610,7 @@ class DNDarray:
             return self.__lshape_map.clone()
 
         lshape_map = torch.zeros(
-            (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
+            (self.comm.size, self.ndim), dtype=torch.int64, device=self.device.torch_device
         )
         if not self.is_distributed:
             lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
@@ -1107,8 +1117,9 @@ class DNDarray:
 
     def numpy(self) -> np.array:
         """
-        Convert :class:`DNDarray` to numpy array. If the ``DNDarray`` is distributed it will be merged beforehand. If the ``DNDarray``
-        resides on the GPU, it will be copied to the CPU first.
+        Returns a copy of the :class:`DNDarray` as numpy ndarray. If the ``DNDarray`` resides on the GPU, the underlying data will be copied to the CPU first.
+
+        If the ``DNDarray`` is distributed, an MPI Allgather operation will be performed before converting to np.ndarray, i.e. each MPI process will end up holding a copy of the entire array in memory.  Make sure process memory is sufficient!
 
         Examples
         --------
@@ -1165,7 +1176,7 @@ class DNDarray:
         Examples
         --------
         >>> st = ht.ones((50, 81, 67), split=2)
-        >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int)
+        >>> target_map = torch.zeros((st.comm.size, 3), dtype=torch.int64)
         >>> target_map[0, 2] = 67
         >>> print(target_map)
         [0/2] tensor([[ 0,  0, 67],
@@ -1685,7 +1696,7 @@ class DNDarray:
                 local_keys = []
                 # below is used if the target needs to be reshaped
                 target_reshape_map = torch.zeros(
-                    (self.comm.size, self.ndim), dtype=torch.int, device=self.device.torch_device
+                    (self.comm.size, self.ndim), dtype=torch.int64, device=self.device.torch_device
                 )
                 for r in range(self.comm.size):
                     if r not in actives:
