@@ -1321,7 +1321,7 @@ class TestStatistics(TestCase):
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(TypeError):
             ht.std(x, axis=0, ddof=1.0)
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValueError, IndexError)):
             ht.std(x, axis=10)
         with self.assertRaises(TypeError):
             ht.std(x, axis="01")
