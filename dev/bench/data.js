@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684724647700,
+  "lastUpdate": 1684742391436,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -216,6 +216,78 @@ window.BENCHMARK_DATA = {
             "value": 1.1486433744430542,
             "unit": "s",
             "range": 0.035412367433309555
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "39374113+ClaudiaComito@users.noreply.github.com",
+            "name": "Claudia Comito",
+            "username": "ClaudiaComito"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6205a5eca137afaa5c19a1e7ccd2ee8a331329b0",
+          "message": "Introduce `DNDarray.__array__()` method (#1154)\n\n* implement __array__ method\r\n\r\n* test __array__ method\r\n\r\n* test __array__ method\r\n\r\n* copy to CPU if necessary\r\n\r\n* update .numpy() docs\r\n\r\n* update .numpy() docs\r\n\r\n* update docs\r\n\r\n* update .numpy() docs\r\n\r\n* fix np dtype comparison\r\n\r\n* fix np dtype comparison\r\n\r\n* fix GPU array comparison",
+          "timestamp": "2023-05-22T09:46:41+02:00",
+          "tree_id": "76642d29fe5bbe4afafb9855c84eb0bd28add9de",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/6205a5eca137afaa5c19a1e7ccd2ee8a331329b0"
+        },
+        "date": 1684742390899,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "kmeans_cpu - RUNTIME",
+            "value": 0.8627721667289734,
+            "unit": "s",
+            "range": 0.05123291537165642
+          },
+          {
+            "name": "kmedians_cpu - RUNTIME",
+            "value": 4.71013879776001,
+            "unit": "s",
+            "range": 3.7869374752044678
+          },
+          {
+            "name": "kmedoids_cpu - RUNTIME",
+            "value": 4.644545555114746,
+            "unit": "s",
+            "range": 0.9805055856704712
+          },
+          {
+            "name": "lanczos_cpu - RUNTIME",
+            "value": 40.26018142700195,
+            "unit": "s",
+            "range": 1.976609230041504
+          },
+          {
+            "name": "matmul_cpu_split_0 - RUNTIME",
+            "value": 0.8286346197128296,
+            "unit": "s",
+            "range": 0.06730403751134872
+          },
+          {
+            "name": "matmul_cpu_split_1 - RUNTIME",
+            "value": 0.7945326566696167,
+            "unit": "s",
+            "range": 0.05571514740586281
+          },
+          {
+            "name": "qr_cpu - RUNTIME",
+            "value": 6.884799957275391,
+            "unit": "s",
+            "range": 0.5157168507575989
+          },
+          {
+            "name": "reshape_cpu - RUNTIME",
+            "value": 1.1258480548858643,
+            "unit": "s",
+            "range": 0.05847302824258804
           }
         ]
       }
