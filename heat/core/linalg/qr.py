@@ -386,10 +386,7 @@ def __split0_r_calc(
         if rank not in loop_size_remaining and rank not in [rem1, rem2]:
             break  # if the rank is done then exit the loop
         # send the data to the corresponding processes
-        try:
-            half_prs_rem = torch.div(procs_remaining, 2, rounding_mode="floor")
-        except TypeError:  # torch 1.7 version
-            half_prs_rem = torch.floor_divide(procs_remaining, 2)
+        half_prs_rem = torch.div(procs_remaining, 2, rounding_mode="floor")
 
         zipped = zip(
             loop_size_remaining.flatten()[:half_prs_rem],

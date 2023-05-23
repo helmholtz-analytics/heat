@@ -1193,10 +1193,10 @@ class TestManipulations(TestCase):
         a = ht.zeros((3, 4, 5))
 
         moved = ht.moveaxis(a, 0, -1)
-        self.assertEquals(moved.shape, (4, 5, 3))
+        self.assertEqual(moved.shape, (4, 5, 3))
 
         moved = ht.moveaxis(a, [0, 1], [-1, -2])
-        self.assertEquals(moved.shape, (5, 4, 3))
+        self.assertEqual(moved.shape, (5, 4, 3))
 
         with self.assertRaises(TypeError):
             ht.moveaxis(a, source="r", destination=3)
