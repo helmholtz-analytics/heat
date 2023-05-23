@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684748047744,
+  "lastUpdate": 1684831715841,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -360,6 +360,78 @@ window.BENCHMARK_DATA = {
             "value": 1.0273901224136353,
             "unit": "s",
             "range": 0.03521817550063133
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "m.tarnawa@fz-juelich.de",
+            "name": "Michael Tarnawa",
+            "username": "mtar"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f99cce1453e161ef400cbe1119ac6fef80dfd1fa",
+          "message": "Drop support for PyTorch 1.7, Python 3.6 (#1147)\n\n* increase min pytorch & delete old code\r\n\r\n* delete code for python < 3.7\r\n\r\n* remove pytorch 1.7 from test matrix\r\n\r\n* call bitwise functions instead of tensor builtins\r\n\r\n* replace python 3.7 with 3.10 in tests\r\n\r\n* increase min python + numpy\r\n\r\n* update deprecated functions\r\n\r\n* Place 3.10 in quotes so it doesn't get interpreted as 3.1\r\n\r\n* Update ci.yaml\r\n\r\nexclude python 3.10 and pytorch 1.8/1.9\r\n\r\n* Update ci.yaml\r\n\r\nExclude Python 3.10 & PyTorch 1.10\r\n\r\n---------\r\n\r\nCo-authored-by: Claudia Comito <39374113+ClaudiaComito@users.noreply.github.com>",
+          "timestamp": "2023-05-23T10:34:33+02:00",
+          "tree_id": "daef152187a22241c34bfac8e8373136ae55535b",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/f99cce1453e161ef400cbe1119ac6fef80dfd1fa"
+        },
+        "date": 1684831714798,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "kmeans_cpu - RUNTIME",
+            "value": 1.0331406593322754,
+            "unit": "s",
+            "range": 0.06368827074766159
+          },
+          {
+            "name": "kmedians_cpu - RUNTIME",
+            "value": 5.409095764160156,
+            "unit": "s",
+            "range": 4.7657294273376465
+          },
+          {
+            "name": "kmedoids_cpu - RUNTIME",
+            "value": 4.845440864562988,
+            "unit": "s",
+            "range": 1.0106961727142334
+          },
+          {
+            "name": "lanczos_cpu - RUNTIME",
+            "value": 39.47422409057617,
+            "unit": "s",
+            "range": 2.9162349700927734
+          },
+          {
+            "name": "matmul_cpu_split_0 - RUNTIME",
+            "value": 0.951638400554657,
+            "unit": "s",
+            "range": 0.06195865571498871
+          },
+          {
+            "name": "matmul_cpu_split_1 - RUNTIME",
+            "value": 1.0053038597106934,
+            "unit": "s",
+            "range": 0.05874303728342056
+          },
+          {
+            "name": "qr_cpu - RUNTIME",
+            "value": 6.7009596824646,
+            "unit": "s",
+            "range": 0.5610595941543579
+          },
+          {
+            "name": "reshape_cpu - RUNTIME",
+            "value": 1.3282134532928467,
+            "unit": "s",
+            "range": 0.032579205930233
           }
         ]
       }
