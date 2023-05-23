@@ -12,21 +12,24 @@ jobs:
       fail-fast: false
       matrix:
         py-version:
-          - 3.7
           - 3.8
           - 3.9
+          - '3.10'
         mpi: [ 'openmpi' ]
         install-options: [ '.', '.[hdf5,netcdf]' ]
         pytorch-version:
-          - 'torch==1.7.1+cpu torchvision==0.8.2+cpu torchaudio==0.7.2'
           - 'torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1'
           - 'torch==1.9.1+cpu torchvision==0.10.1+cpu torchaudio==0.9.1'
           - 'torch==1.10.1+cpu torchvision==0.11.2+cpu torchaudio==0.10.1'
           - 'torch==1.11.0+cpu torchvision==0.12.0+cpu torchaudio==0.11.0'
           - 'torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1'
         exclude:
-          - py-version: 3.9
-            pytorch-version: 'torch==1.7.1+cpu torchvision==0.8.2+cpu torchaudio==0.7.2'
+          - py-version: '3.10'
+            pytorch-version: 'torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1'
+          - py-version: '3.10'
+            pytorch-version: 'torch==1.9.1+cpu torchvision==0.10.1+cpu torchaudio==0.9.1'
+          - py-version: '3.10'
+            pytorch-version: 'torch==1.10.1+cpu torchvision==0.11.2+cpu torchaudio==0.10.1'
 
 
     name: Python ${{ matrix.py-version }} with ${{ matrix.pytorch-version }}; options ${{ matrix.install-options }}
