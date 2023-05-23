@@ -51,6 +51,6 @@ lanczos_cpu()
 
 data = ht.utils.data.matrixgallery.random_known_rank(
     1000, 500 * MPI.COMM_WORLD.Get_size(), 10, split=1, dtype=ht.float32
-)
+)[0]
 hierachical_svd_rank(data, 10)
 hierachical_svd_tol(data, 1e-2)
