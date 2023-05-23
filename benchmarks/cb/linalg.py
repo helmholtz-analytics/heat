@@ -1,6 +1,7 @@
 # flake8: noqa
 import heat as ht
 import torchvision.datasets as datasets
+from mpi4py import MPI
 from perun.decorator import monitor
 
 
@@ -18,12 +19,12 @@ def matmul_cpu_split_1(n: int = 3000):
     a @ b
 
 
-# @monitor()
-# def qr_cpu(n: int = 2000):
-#     for t in range(1, 3):
-#         for sp in range(2):
-#             a = ht.random.random((n, n), split=sp)
-#             qr = a.qr(tiles_per_proc=t)
+@monitor()
+def qr_cpu(n: int = 2000):
+    for t in range(1, 3):
+        for sp in range(2):
+            a = ht.random.random((n, n), split=sp)
+            qr = a.qr(tiles_per_proc=t)
 
 
 @monitor()
@@ -45,15 +46,11 @@ def hierachical_svd_tol(data, tol):
 
 matmul_cpu_split_0()
 matmul_cpu_split_1()
-# qr_cpu()
+qr_cpu()
 lanczos_cpu()
 
-mnist = (
-    datasets.MNIST(root="./data", train=True, download=True, transform=None)
-    .data.reshape((60000, 28 * 28))
-    .T
+data = ht.utils.data.matrixgallery.random_known_rank(
+    1000, 500 * MPI.COMM_WORLD.Get_size(), 10, split=1, dtype=ht.float32
 )
-mnist = ht.array(mnist, dtype=ht.float32, split=None, device="cpu").resplit_(1)
-
-hierachical_svd_rank(mnist, 10)
-hierachical_svd_tol(mnist, 1e-2)
+hierachical_svd_rank(data, 10)
+hierachical_svd_tol(data, 1e-2)
