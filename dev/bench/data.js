@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684831715841,
+  "lastUpdate": 1684863622975,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -432,6 +432,78 @@ window.BENCHMARK_DATA = {
             "value": 1.3282134532928467,
             "unit": "s",
             "range": 0.032579205930233
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "39374113+ClaudiaComito@users.noreply.github.com",
+            "name": "Claudia Comito",
+            "username": "ClaudiaComito"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "468999e108a72485b3688f54c8d7fe2f984f8045",
+          "message": "Support PyTorch 2.0.1 on branch `main` (#1155)\n\n* Support latest PyTorch release\r\n\r\n* Update setup.py\r\n\r\n* Specify allclose tolerance in test_inv()\r\n\r\n* Increase allclose tolerance in test_inv\r\n\r\n* Increase allclose tolerance for distributed floating-point operations\r\n\r\n* fix working branches selection\r\n\r\n* add pr workflow (#1127)\r\n\r\n* add pr workflow\r\n\r\n* [pre-commit.ci] auto fixes from pre-commit.com hooks\r\n\r\nfor more information, see https://pre-commit.ci\r\n\r\n* Update README.md\r\n\r\n* Update .gitlab-ci.yml\r\n\r\n---------\r\n\r\nCo-authored-by: pre-commit-ci[bot] <66853113+pre-commit-ci[bot]@users.noreply.github.com>\r\n\r\n* Support latest PyTorch release\r\n\r\n* expand version check to torch 2\r\n\r\n* dndarray.item() to return ValueError if dndarray.size > 1\r\n\r\n* increase min pytorch & delete old code\r\n\r\n* delete code for python < 3.7\r\n\r\n* remove pytorch 1.7 from test matrix\r\n\r\n* call bitwise functions instead of tensor builtins\r\n\r\n* Fixed bugs due to behaviour change in torch.nn.Module.zero_grad() and torch.Tensor.item() in torch 2.0 (#1149)\r\n\r\n* Support latest PyTorch release\r\n\r\n* Fixed bug in optimizer due to change in default behaviour of zero_grad() function in torch 2.0\r\n\r\n* Fixed bug in due to change in behaviour of torch.Tensor.item() in torch 2.0\r\n\r\n* Fixed version in setup.py\r\n\r\n* Modified tests to work for torch 1.0 also\r\n\r\n---------\r\n\r\nCo-authored-by: ClaudiaComito <ClaudiaComito@users.noreply.github.com>\r\n\r\n* update test_item\r\n\r\n* replace python 3.7 with 3.10 in tests\r\n\r\n* increase min python + numpy\r\n\r\n* Add Interoperability chapter\r\n\r\n* update deprecated functions\r\n\r\n* switch ref\r\n\r\n* bump pytorch version\r\n\r\n* define branch name for Pytorch release PR\r\n\r\n* Add torch 2.0.0 to matrix\r\n\r\n* Test latest torch patch, fix 1.8 entries\r\n\r\n---------\r\n\r\nCo-authored-by: ClaudiaComito <ClaudiaComito@users.noreply.github.com>\r\nCo-authored-by: Michael Tarnawa <m.tarnawa@fz-juelich.de>\r\nCo-authored-by: pre-commit-ci[bot] <66853113+pre-commit-ci[bot]@users.noreply.github.com>\r\nCo-authored-by: Ashwath V A <73862377+Mystic-Slice@users.noreply.github.com>",
+          "timestamp": "2023-05-23T19:26:43+02:00",
+          "tree_id": "4298fe3897568cd95d835ffc2d9cc53b298fb3fe",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/468999e108a72485b3688f54c8d7fe2f984f8045"
+        },
+        "date": 1684863622471,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "kmeans_cpu - RUNTIME",
+            "value": 1.3457703590393066,
+            "unit": "s",
+            "range": 0.0818895697593689
+          },
+          {
+            "name": "kmedians_cpu - RUNTIME",
+            "value": 5.620911598205566,
+            "unit": "s",
+            "range": 4.693271636962891
+          },
+          {
+            "name": "kmedoids_cpu - RUNTIME",
+            "value": 5.0497331619262695,
+            "unit": "s",
+            "range": 0.9303812980651855
+          },
+          {
+            "name": "lanczos_cpu - RUNTIME",
+            "value": 40.066925048828125,
+            "unit": "s",
+            "range": 2.2695720195770264
+          },
+          {
+            "name": "matmul_cpu_split_0 - RUNTIME",
+            "value": 0.8463083505630493,
+            "unit": "s",
+            "range": 0.05460250750184059
+          },
+          {
+            "name": "matmul_cpu_split_1 - RUNTIME",
+            "value": 0.8126780390739441,
+            "unit": "s",
+            "range": 0.048105787485837936
+          },
+          {
+            "name": "qr_cpu - RUNTIME",
+            "value": 7.060009002685547,
+            "unit": "s",
+            "range": 0.18940185010433197
+          },
+          {
+            "name": "reshape_cpu - RUNTIME",
+            "value": 1.1943029165267944,
+            "unit": "s",
+            "range": 0.060206275433301926
           }
         ]
       }
