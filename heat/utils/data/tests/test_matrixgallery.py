@@ -1,5 +1,6 @@
 import heat as ht
-
+import unittest
+import torch
 from heat.core.tests.test_suites.basic_test import TestCase
 
 
@@ -32,6 +33,7 @@ class TestMatrixgallery(TestCase):
         with self.assertRaises(ValueError):
             ht.utils.data.matrixgallery.parter(20, split=2, comm=ht.MPI_WORLD)
 
+    @unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
     def test_random_orthogonal(self):
         with self.assertRaises(RuntimeError):
             ht.utils.data.matrixgallery.random_orthogonal(10, 20)
@@ -44,6 +46,7 @@ class TestMatrixgallery(TestCase):
         # self.assertTrue(Q_orth_err <= 1e-6)
         self.__check_orthogonality(Q)
 
+    @unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
     def test_random_known_singularvalues(self):
         with self.assertRaises(RuntimeError):
             ht.utils.data.matrixgallery.random_known_singularvalues(30, 20, "abc", split=1)
@@ -69,6 +72,7 @@ class TestMatrixgallery(TestCase):
         A_err = ht.norm(A - U @ ht.diag(S) @ V.T) / ht.norm(A)
         self.assertTrue(A_err <= dtype_tol)
 
+    @unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
     def test_random_known_rank(self):
         with self.assertRaises(RuntimeError):
             ht.utils.data.matrixgallery.random_known_rank(30, 20, 25, split=1)
