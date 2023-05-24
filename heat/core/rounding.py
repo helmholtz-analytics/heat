@@ -388,22 +388,21 @@ def sign(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     DNDarray([(1+0j), (1+0j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     # special case for complex values
-    if not types.heat_type_is_complexfloating(x.dtype):
-        return _operations.__local_op(torch.sign, x, out)
-    sanitation.sanitize_in(x)
-    if out is not None:
-        sanitation.sanitize_out(out, x.shape, x.split, x.device)
-        out.larray.copy_(x.larray)
-        data = out.larray
-    else:
-        data = torch.clone(x.larray)
-    # NOTE remove when min version >= 1.9
-    if "1.7" in torch.__version__ or "1.8" in torch.__version__:
-        pos = data != 0
-    else:  # pragma: no cover
-        indices = torch.nonzero(data)
-        pos = torch.split(indices, 1, 1)
-    data[pos] = x.larray[pos] / torch.sqrt(torch.square(x.larray[pos]))
+    if types.heat_type_is_complexfloating(x.dtype):
+        sanitation.sanitize_in(x)
+        if out is not None:
+            sanitation.sanitize_out(out, x.shape, x.split, x.device)
+            out.larray.copy_(x.larray)
+            data = out.larray
+        else:
+            data = torch.clone(x.larray)
+        # NOTE remove when min version >= 1.9
+        if "1.8" in torch.__version__:  # pragma: no cover
+            pos = data != 0
+        else:
+            indices = torch.nonzero(data)
+            pos = torch.split(indices, 1, 1)
+        data[pos] = x.larray[pos] / torch.sqrt(torch.square(x.larray[pos]))
 
     if out is not None:
         out.__dtype = types.heat_type_of(data)

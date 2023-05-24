@@ -827,7 +827,7 @@ class DASO:
         """
         # reset view onto params in order to reset all gradients
         self.local_optimizer.param_groups[0]["params"] = self.params_ref[:]
-        self.local_optimizer.zero_grad()
+        self.local_optimizer.zero_grad(set_to_none=False)
 
 
 class DataParallelOptimizer:
@@ -873,4 +873,4 @@ class DataParallelOptimizer:
         """
         # reset view onto params in order to reset all gradients
         self.torch_optimizer.param_groups[0]["params"] = self.params_ref[:]
-        self.torch_optimizer.zero_grad()
+        self.torch_optimizer.zero_grad(set_to_none=False)
