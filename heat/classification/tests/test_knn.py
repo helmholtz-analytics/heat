@@ -10,9 +10,9 @@ class TestKNN(TestCase):
     def test_split_none(self):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
-        keys = [0 for _ in range(50)]
-        keys.extend(1 for _ in range(50, 100))
-        keys.extend(2 for _ in range(100, 150))
+        keys = ht.zeros(150)
+        keys[50:100] = 1
+        keys[100:] = 2
         y = ht.array(keys)
 
         knn = KNeighborsClassifier(n_neighbors=5)
@@ -28,9 +28,9 @@ class TestKNN(TestCase):
     def test_split_zero(self):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data", split=0)
 
-        keys = [0 for _ in range(50)]
-        keys.extend(1 for _ in range(50, 100))
-        keys.extend(2 for _ in range(100, 150))
+        keys = ht.zeros(150)
+        keys[50:100] = 1
+        keys[100:] = 2
         y = ht.array(keys)
 
         knn = KNeighborsClassifier(n_neighbors=5)
@@ -74,14 +74,15 @@ class TestKNN(TestCase):
     ):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
-        keys = [0 for _ in range(50)]
-        keys.extend(1 for _ in range(50, 100))
-        keys.extend(2 for _ in range(100, 150))
+        keys = ht.zeros(150)
+        keys[50:100] = 1
+        keys[100:] = 2
         labels = ht.array(keys, split=0)
 
-        keys = [[1, 0, 0] for _ in range(50)]
-        keys.extend([0, 1, 0] for _ in range(50, 100))
-        keys.extend([0, 0, 1] for _ in range(100, 150))
+        keys = ht.zeros((150, 3))
+        keys[50:100, 0] = 1
+        keys[100:, 1] = 1
+        keys[100:, 2] = 1
         y = ht.array(keys)
 
         knn = KNeighborsClassifier(n_neighbors=5)

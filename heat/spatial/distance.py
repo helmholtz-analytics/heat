@@ -371,16 +371,23 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
         if X.comm != Y.comm:
             raise NotImplementedError("Differing communicators not supported")
 
-        if X.split is None and Y.split is None:
-            split = None
-        elif X.split is None and Y.split == 0:
-            split = 1
-        elif X.split is None or X.split != 0:
+        if X.split is None:
+            if Y.split is None:
+                split = None
+            elif Y.split == 0:
+                split = 1
+            else:
+                raise NotImplementedError(
+                    f"Input splits were X.split = {X.split}, Y.split = {Y.split}. Splittings other than 0 or None currently not supported."
+                )
+        elif X.split == 0:
+            split = X.split
+        else:
+            # ToDo: Find out if even possible
             raise NotImplementedError(
                 f"Input splits were X.split = {X.split}, Y.split = {Y.split}. Splittings other than 0 or None currently not supported."
             )
-        else:
-            split = X.split
+
         promoted_type = types.promote_types(X.dtype, Y.dtype)
         promoted_type = types.promote_types(promoted_type, types.float32)
         X = X.astype(promoted_type)
