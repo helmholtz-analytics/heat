@@ -3040,6 +3040,7 @@ def unique(
         else:
             heat_output = factories.array(torch_output, dtype=a.dtype, split=None, device=a.device)
         return heat_output
+
     local_data = a.larray
     unique_axis = None
     inverse_indices = None
@@ -3073,7 +3074,7 @@ def unique(
     uniques_buf = torch.empty((a.comm.Get_size(),), dtype=torch.int32)
     a.comm.Allgather(uniques, uniques_buf)
 
-    if axis is None:
+    if axis is None or axis == a.split:
         is_split = None
         split = a.split
 
