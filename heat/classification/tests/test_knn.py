@@ -80,8 +80,8 @@ class TestKNN(TestCase):
         labels = ht.array(keys, split=0)
 
         keys = ht.zeros((150, 3))
-        keys[50:100, 0] = 1
-        keys[100:, 1] = 1
+        keys[:50, 0] = 1
+        keys[50:100, 1] = 1
         keys[100:, 2] = 1
         y = ht.array(keys)
 
