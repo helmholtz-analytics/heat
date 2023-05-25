@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1684863622975,
+  "lastUpdate": 1685007718525,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -504,6 +504,78 @@ window.BENCHMARK_DATA = {
             "value": 1.1943029165267944,
             "unit": "s",
             "range": 0.060206275433301926
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "112093564+mrfh92@users.noreply.github.com",
+            "name": "Fabian Hoppe",
+            "username": "mrfh92"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5fd3af5e6ba8c12b89a3bb80ee1c05ae49a4de5b",
+          "message": "Merge pull request #1075 from AsRaNi1/Communicator-not-properly-initialized-when-creating-new-DNDarrays-in-some-routines/1074-my-bug-fix\n\nFixed initialization of DNDarrays communicator in some routines",
+          "timestamp": "2023-05-25T11:28:04+02:00",
+          "tree_id": "0fefe822e3ad13c426a22230d176be12246185ab",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/5fd3af5e6ba8c12b89a3bb80ee1c05ae49a4de5b"
+        },
+        "date": 1685007717392,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "kmeans_cpu - RUNTIME",
+            "value": 1.4233367443084717,
+            "unit": "s",
+            "range": 0.10170768201351166
+          },
+          {
+            "name": "kmedians_cpu - RUNTIME",
+            "value": 5.2173333168029785,
+            "unit": "s",
+            "range": 3.9342546463012695
+          },
+          {
+            "name": "kmedoids_cpu - RUNTIME",
+            "value": 5.108536720275879,
+            "unit": "s",
+            "range": 1.0454715490341187
+          },
+          {
+            "name": "lanczos_cpu - RUNTIME",
+            "value": 40.01653289794922,
+            "unit": "s",
+            "range": 2.342420816421509
+          },
+          {
+            "name": "matmul_cpu_split_0 - RUNTIME",
+            "value": 0.8153241276741028,
+            "unit": "s",
+            "range": 0.038919467478990555
+          },
+          {
+            "name": "matmul_cpu_split_1 - RUNTIME",
+            "value": 0.8794156908988953,
+            "unit": "s",
+            "range": 0.08604833483695984
+          },
+          {
+            "name": "qr_cpu - RUNTIME",
+            "value": 6.73513650894165,
+            "unit": "s",
+            "range": 0.6942393183708191
+          },
+          {
+            "name": "reshape_cpu - RUNTIME",
+            "value": 1.2570745944976807,
+            "unit": "s",
+            "range": 0.04073786735534668
           }
         ]
       }
