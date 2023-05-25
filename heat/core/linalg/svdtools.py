@@ -316,6 +316,7 @@ def hsvd(
         loctol = None
 
     # compute the SVDs on the 0th level
+    # Important notice: in the following 'node' refers to the nodes of the tree-like merging structure of hSVD, not to the compute nodes of an HPC-cluster
     level = 0
     active_nodes = [i for i in range(no_procs)]
     if A.comm.rank == 0 and not silent:
