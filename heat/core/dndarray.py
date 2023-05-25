@@ -1107,6 +1107,10 @@ class DNDarray:
         >>> x.item()
         0.0
         """
+        if self.size > 1:
+            raise ValueError("only one-element DNDarrays can be converted to Python scalars")
+        # make sure the element is on every process
+        self.resplit_(None)
         return self.__array.item()
 
     def __len__(self) -> int:
@@ -1616,7 +1620,7 @@ class DNDarray:
         for c, k in enumerate(key):
             try:
                 key[c] = k.item()
-            except (AttributeError, ValueError):
+            except (AttributeError, ValueError, RuntimeError):
                 pass
 
         rank = self.comm.rank
