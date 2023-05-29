@@ -306,6 +306,7 @@ def average(
                 torch.broadcast_tensors(cumwgt.larray, result.larray)[0],
                 is_split=result.split,
                 device=result.device,
+                comm=result.comm,
                 copy=False,
             )
         return (result, cumwgt)
@@ -1282,6 +1283,7 @@ def __moment_w_axis(
             is_split=x.split if axis > x.split else x.split - 1,
             dtype=x.dtype,
             device=x.device,
+            comm=x.comm,
             copy=False,
         )
     elif not isinstance(axis, (list, tuple, torch.Tensor)):
@@ -1326,6 +1328,7 @@ def __moment_w_axis(
         function(x.larray, **kwargs),
         is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
         device=x.device,
+        comm=x.comm,
         copy=False,
     )
 

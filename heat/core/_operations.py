@@ -294,7 +294,11 @@ def __cum_op(
         return out
 
     return factories.array(
-        cumop, dtype=x.dtype if dtype is None else dtype, is_split=x.split, device=x.device
+        cumop,
+        dtype=x.dtype if dtype is None else dtype,
+        is_split=x.split,
+        device=x.device,
+        comm=x.comm,
     )
 
 

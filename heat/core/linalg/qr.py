@@ -97,8 +97,8 @@ def qr(
         except AttributeError:
             q, r = a.larray.qr(some=False)
 
-        q = factories.array(q, device=a.device)
-        r = factories.array(r, device=a.device)
+        q = factories.array(q, device=a.device, comm=a.comm)
+        r = factories.array(r, device=a.device, comm=a.comm)
         ret = QR(q if calc_q else None, r)
         return ret
     # =============================== Prep work ====================================================
