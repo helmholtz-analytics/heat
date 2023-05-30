@@ -86,5 +86,5 @@ The following file can be used as an example to use the singularity file togethe
 
 ...
 
-srun --mpi="pmi2" singularity exec --nv --bind /scratch heat_1.2.0_torch.11_cuda11.5_py3.9.sif bash -c "cd ~/code/heat/examples/lasso; python demo.py"
+srun --mpi="pmi2" singularity exec --nv heat_1.2.0_torch.11_cuda11.5_py3.9.sif bash -c "cd ~/code/heat/examples/lasso; python demo.py"
 ```
