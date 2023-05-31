@@ -84,7 +84,7 @@ class TestHSVD(TestCase):
                             )
                             / hsvd_rk**0.5
                         )
-                        print(U_orth_err)
+                        # print(U_orth_err)
                         self.assertTrue(U_orth_err <= dtype_tol)
                     if A.split == 0:
                         V_orth_err = (

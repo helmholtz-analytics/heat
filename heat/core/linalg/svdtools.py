@@ -395,7 +395,7 @@ def hsvd(
                 # receive concatenated U_loc and err_squared_loc
                 #                print("recv_from[A.comm.rank][k], tag", A.comm.rank, k, recv_from[A.comm.rank][k])
                 A.comm.Recv(U_loc[k + 1], recv_from[A.comm.rank][k], tag=recv_from[A.comm.rank][k])
-                err_squared_loc[k + 1] = U_loc[k + 1][-1][0]
+                err_squared_loc[k + 1] = U_loc[k + 1][-1, 0]
                 U_loc[k + 1] = U_loc[k + 1][:-1]
 
             # concatenate the received arrays
@@ -432,7 +432,7 @@ def hsvd(
             # print("send_to[A.comm.rank], tag", send_to[A.comm.rank], A.comm.rank)
             A.comm.Send(U_loc, send_to[A.comm.rank], tag=A.comm.rank)
             # separate U_loc and err_squared_loc again
-            err_squared_loc = U_loc[-1][0]
+            err_squared_loc = U_loc[-1, 0]
             U_loc = U_loc[:-1]
         if len(future_nodes) == 1:
             finished = True
@@ -440,16 +440,20 @@ def hsvd(
             active_nodes = future_nodes
     # print("DEBUGGING: rank ", A.comm.rank, "finished")
     # After completion of the SVD, distribute the result from process 0 to all processes again
+    # stack U_loc and err_squared_loc to avoid sending multiple messages
+    err_squared_loc = torch.full((1, U_loc.shape[1]), err_squared_loc)
+    U_loc = torch.vstack([U_loc, err_squared_loc])
     U_loc_shape = A.comm.bcast(U_loc.shape, root=0)
     if A.comm.rank != 0:
         U_loc = torch.zeros(U_loc_shape, dtype=A.larray.dtype, device=A.device.torch_device)
-    req = A.comm.Ibcast(U_loc, root=0)
-    req.Wait()
-    req = A.comm.Ibcast(err_squared_loc, root=0)
-    req.Wait()
+    A.comm.Bcast(U_loc, root=0)
+    # req = A.comm.Ibcast(U_loc, root=0)
+    # req.Wait()
+    # req = A.comm.Ibcast(err_squared_loc, root=0)
+    # req.Wait()
 
-    U = factories.array(U_loc, device=A.device, split=None, comm=A.comm)
-
+    err_squared_loc = U_loc[-1, 0]
+    U = factories.array(U_loc[:-1], device=A.device, split=None, comm=A.comm)
     rel_error_estimate = (
         factories.array(err_squared_loc**0.5, device=A.device, split=None, comm=A.comm) / Anorm
     )
@@ -469,7 +473,7 @@ def hsvd(
             return V, rel_error_estimate
         else:
             return U, sigma, V, rel_error_estimate
-        return U, rel_error_estimate
+    #        return U, rel_error_estimate
 
     return U, rel_error_estimate
 
