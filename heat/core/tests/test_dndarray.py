@@ -596,6 +596,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(type(x.item()), float)
 
         x = ht.zeros((1, 2))
+
         with self.assertRaises(ValueError):
             x.item()
 
