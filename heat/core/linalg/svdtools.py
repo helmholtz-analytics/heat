@@ -350,6 +350,7 @@ def hsvd(
         used_budget = 0
         k = 0
         counter = 0
+        #        print("active_nodes", active_nodes)
         while k < len(active_nodes):
             current_idx = active_nodes[k]
             if used_budget + dims_global[current_idx] > maxmergedim or counter == no_of_merges:
@@ -376,17 +377,19 @@ def hsvd(
             ]
             U_loc = [U_loc] + [
                 torch.zeros(
-                    (A.shape[0], dims_global[i]), dtype=A.larray.dtype, device=A.device.torch_device
+                    (A.shape[0] + 1, dims_global[i]),
+                    dtype=A.larray.dtype,
+                    device=A.device.torch_device,
                 )
                 for i in recv_from[A.comm.rank]
             ]
             for k in range(len(recv_from[A.comm.rank])):
+                # receive concatenated U_loc and err_squared_loc
                 A.comm.Recv(U_loc[k + 1], recv_from[A.comm.rank][k], tag=recv_from[A.comm.rank][k])
-                A.comm.Recv(
-                    err_squared_loc[k + 1],
-                    recv_from[A.comm.rank][k],
-                    tag=2 * no_procs + recv_from[A.comm.rank][k],
-                )
+                # separate U_loc and err_squared_loc
+                err_squared_loc[k + 1] = U_loc[k + 1][-1, 0]
+                U_loc[k + 1] = U_loc[k + 1][:-1]
+
             # concatenate the received arrays
             U_loc = torch.hstack(U_loc)
             err_squared_loc = sum(err_squared_loc)
@@ -412,25 +415,28 @@ def hsvd(
         elif A.comm.rank in active_nodes and A.comm.rank not in future_nodes:
             # NOT FUTURE NODES
             # in these nodes we only send the local arrays to the respective future node
+            # concatenate U_loc and err_squared_loc to avoid sending multiple messages
+            err_squared_loc = torch.full((1, U_loc.shape[1]), err_squared_loc, device=U_loc.device)
+            U_loc = torch.vstack([U_loc, err_squared_loc])
             A.comm.Send(U_loc, send_to[A.comm.rank], tag=A.comm.rank)
-            A.comm.Send(err_squared_loc, send_to[A.comm.rank], tag=2 * no_procs + A.comm.rank)
-
+            # separate U_loc and err_squared_loc again
+            err_squared_loc = U_loc[-1, 0]
+            U_loc = U_loc[:-1]
         if len(future_nodes) == 1:
             finished = True
         else:
             active_nodes = future_nodes
-
     # After completion of the SVD, distribute the result from process 0 to all processes again
+    # stack U_loc and err_squared_loc to avoid sending multiple messages
+    err_squared_loc = torch.full((1, U_loc.shape[1]), err_squared_loc, device=U_loc.device)
+    U_loc = torch.vstack([U_loc, err_squared_loc])
     U_loc_shape = A.comm.bcast(U_loc.shape, root=0)
     if A.comm.rank != 0:
         U_loc = torch.zeros(U_loc_shape, dtype=A.larray.dtype, device=A.device.torch_device)
-    req = A.comm.Ibcast(U_loc, root=0)
-    req.Wait()
-    req = A.comm.Ibcast(err_squared_loc, root=0)
-    req.Wait()
-
-    U = factories.array(U_loc, device=A.device, split=None, comm=A.comm)
-
+    A.comm.Bcast(U_loc, root=0)
+    # separate U_loc and err_squared_loc again
+    err_squared_loc = U_loc[-1, 0]
+    U = factories.array(U_loc[:-1], device=A.device, split=None, comm=A.comm)
     rel_error_estimate = (
         factories.array(err_squared_loc**0.5, device=A.device, split=None, comm=A.comm) / Anorm
     )
@@ -444,13 +450,12 @@ def hsvd(
         if vector_norm(sigma) > 0:
             V = matmul(V, diag(1 / sigma))
 
-        if transposeflag and compute_sv:
-            return V, sigma, U, rel_error_estimate
-        elif transposeflag and not compute_sv:
+        if transposeflag:
+            if compute_sv:
+                return V, sigma, U, rel_error_estimate
             return V, rel_error_estimate
-        else:
-            return U, sigma, V, rel_error_estimate
-        return U, rel_error_estimate
+
+        return U, sigma, V, rel_error_estimate
 
     return U, rel_error_estimate
 

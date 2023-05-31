@@ -67,7 +67,7 @@ class TestHSVD(TestCase):
                     self.assertEqual(ht.norm(sigma), 0)
                     self.assertEqual(ht.norm(V), 0)
 
-                # check if wrong parameter choice is catched
+                # check if wrong parameter choice is caught
                 with self.assertRaises(RuntimeError):
                     ht.linalg.hsvd_rank(A, r, maxmergedim=4)
 
@@ -84,7 +84,7 @@ class TestHSVD(TestCase):
                             )
                             / hsvd_rk**0.5
                         )
-                        print(U_orth_err)
+                        # print(U_orth_err)
                         self.assertTrue(U_orth_err <= dtype_tol)
                     if A.split == 0:
                         V_orth_err = (
