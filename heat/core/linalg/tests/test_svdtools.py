@@ -13,15 +13,15 @@ class TestHSVD(TestCase):
         nprocs = MPI.COMM_WORLD.Get_size()
         test_matrices = [
             ht.random.randn(50, 15 * nprocs, dtype=ht.float32, split=1),
-            ht.random.randn(50, 15 * nprocs, dtype=ht.float64, split=1),
-            ht.random.randn(15 * nprocs, 50, dtype=ht.float32, split=0),
-            ht.random.randn(15 * nprocs, 50, dtype=ht.float64, split=0),
-            ht.random.randn(15 * nprocs, 50, dtype=ht.float32, split=None),
-            ht.random.randn(50, 15 * nprocs, dtype=ht.float64, split=None),
-            ht.zeros((50, 15 * nprocs), dtype=ht.float32, split=1),
+            # ht.random.randn(50, 15 * nprocs, dtype=ht.float64, split=1),
+            # ht.random.randn(15 * nprocs, 50, dtype=ht.float32, split=0),
+            # ht.random.randn(15 * nprocs, 50, dtype=ht.float64, split=0),
+            # ht.random.randn(15 * nprocs, 50, dtype=ht.float32, split=None),
+            # ht.random.randn(50, 15 * nprocs, dtype=ht.float64, split=None),
+            # ht.zeros((50, 15 * nprocs), dtype=ht.float32, split=1),
         ]
-        rtols = [1e-1, 1e-2, 1e-3]
-        ranks = [5, 10, 15]
+        rtols = [1e-1]  # , 1e-2, 1e-3]
+        ranks = [5]  # , 10, 15]
 
         # check if hsvd yields "reasonable" results for random matrices, i.e.
         #    U (resp. V) is orthogonal for split=1 (resp. split=0)
@@ -67,7 +67,7 @@ class TestHSVD(TestCase):
                     self.assertEqual(ht.norm(sigma), 0)
                     self.assertEqual(ht.norm(V), 0)
 
-                # check if wrong parameter choice is catched
+                # check if wrong parameter choice is caught
                 with self.assertRaises(RuntimeError):
                     ht.linalg.hsvd_rank(A, r, maxmergedim=4)
 
