@@ -427,7 +427,7 @@ def hsvd(
             # A.comm.Send(U_loc, send_to[A.comm.rank], tag=A.comm.rank)
             # A.comm.Send(err_squared_loc, send_to[A.comm.rank], tag=2 * no_procs + A.comm.rank)
             # concatenate U_loc and err_squared_loc to avoid sending multiple messages
-            err_squared_loc = torch.full((1, U_loc.shape[1]), err_squared_loc)
+            err_squared_loc = torch.full((1, U_loc.shape[1]), err_squared_loc, device=U_loc.device)
             U_loc = torch.vstack([U_loc, err_squared_loc])
             # print("send_to[A.comm.rank], tag", send_to[A.comm.rank], A.comm.rank)
             A.comm.Send(U_loc, send_to[A.comm.rank], tag=A.comm.rank)
@@ -441,7 +441,7 @@ def hsvd(
     # print("DEBUGGING: rank ", A.comm.rank, "finished")
     # After completion of the SVD, distribute the result from process 0 to all processes again
     # stack U_loc and err_squared_loc to avoid sending multiple messages
-    err_squared_loc = torch.full((1, U_loc.shape[1]), err_squared_loc)
+    err_squared_loc = torch.full((1, U_loc.shape[1]), err_squared_loc, device=U_loc.device)
     U_loc = torch.vstack([U_loc, err_squared_loc])
     U_loc_shape = A.comm.bcast(U_loc.shape, root=0)
     if A.comm.rank != 0:
