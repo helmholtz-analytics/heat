@@ -2,7 +2,7 @@ name: Benchmarks report
 on:
   workflow_dispatch:
     inputs:
-      artifact_url:
+      job_id:
         required: true
         type: string
 
@@ -11,8 +11,14 @@ jobs:
     name: Benchmark report
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v3
       - name: "Download artifact"
-        run: curl ${{ inputs.artifact_url }} --output perun_report.json
+        run: |
+          curl --location \
+          --header "PRIVATE-TOKEN: ${{ secrets.GITLAB_TOKEN }}" \
+          --output perun_benchmarks.json \
+          "https://codebase.helmholtz.cloud/api/v4/projects/7930/jobs/${{ inputs.job_id }}/artifacts/heat/bench_data/perun_benchmarks.json"
       - name: Save benchmark result and update gh-pages-chart
         if: ${{github.ref == 'refs/heads/main'}}
         uses: benchmark-action/github-action-benchmark@v1
@@ -20,7 +26,7 @@ jobs:
           github-token: ${{secrets.GITHUB_TOKEN}}
           # Benchmark action input and output
           tool: "customSmallerIsBetter"
-          output-file-path: perun_report.json
+          output-file-path: perun_benchmarks.json
           # Alert configuration
           fail-on-alert: false # Don't fail on main branch
           comment-on-alert: true
@@ -37,7 +43,7 @@ jobs:
           github-token: ${{secrets.GITHUB_TOKEN}}
           # Benchmark action input and output
           tool: 'customSmallerIsBetter'
-          output-file-path: .json
+          output-file-path: perun_benchmarks.json
           # Alert configuration
           fail-on-alert: true
           comment-on-alert: true
