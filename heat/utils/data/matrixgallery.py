@@ -113,7 +113,9 @@ def random_known_singularvalues(
             )
         )
     if singular_values.shape[0] > min(m, n):
-        raise RuntimeError(f"Number of given singular values must not exceed matrix dimensions. Got {singular_values.shape[0]} singular values for matrix size ({m}, {n}).")
+        raise RuntimeError(
+            f"Number of given singular values must not exceed matrix dimensions. Got {singular_values.shape[0]} singular values for matrix size ({m}, {n})."
+        )
 
     r = singular_values.shape[0]
     U = random_orthogonal(m, r, split=split, device=device, comm=comm, dtype=dtype)
