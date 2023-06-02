@@ -23,9 +23,9 @@ from math import log, ceil, floor, sqrt
 __all__ = ["hsvd_rank", "hsvd_rtol", "hsvd"]
 
 
-########################################################################################
+#########################################################################################
 # user-friendly versions of hSVD
-########################################################################################
+#########################################################################################
 
 
 def hsvd_rank(
@@ -77,7 +77,6 @@ def hsvd_rank(
 
     See Also
     ---------
-
     :func:`hsvd`
     :func:`hsvd_rtol`
         References
@@ -190,7 +189,6 @@ def hsvd_rtol(
         To avoid confusion, note that `rtol` in this routine does not have any similarity to `tol` in scikit learn's TruncatedSVD.
     See Also
     ---------
-
     :func:`hsvd`
     :func:`hsvd_rank`
         References
