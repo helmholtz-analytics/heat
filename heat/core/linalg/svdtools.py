@@ -424,8 +424,6 @@ def hsvd(
                 U_loc = torch.linalg.matmul(U_loc, torch.diag(sigma_loc))
             err_squared_loc += err_squared_loc_new
         elif A.comm.rank in active_nodes and A.comm.rank not in future_nodes:
-            # NOT FUTURE NODES
-            # in these nodes we only send the local arrays to the respective future node
             # concatenate U_loc and err_squared_loc to avoid sending multiple messages
             err_squared_loc = torch.full((1, U_loc.shape[1]), err_squared_loc, device=U_loc.device)
             U_loc = torch.vstack([U_loc, err_squared_loc])
