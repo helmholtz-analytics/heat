@@ -39,51 +39,51 @@ def hsvd_rank(
     Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
 ]:
     """
-    Hierarchical SVD (hSVD) with prescribed truncation rank `maxrank`.
-    If A = U diag(sigma) V^T is the true SVD of A, this routine computes an approximation for U[:,:maxrank] (and sigma[:maxrank], V[:,:maxrank]).
+        Hierarchical SVD (hSVD) with prescribed truncation rank `maxrank`.
+        If A = U diag(sigma) V^T is the true SVD of A, this routine computes an approximation for U[:,:maxrank] (and sigma[:maxrank], V[:,:maxrank]).
 
-    The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
+        The accuracy of this approximation depends on the structure of A ("low-rank" is best) and appropriate choice of parameters.
 
-    One can expect a similar outcome from this routine as for sci-kit learn's TruncatedSVD (with `algorithm='randomized'`) although a different, determinstic algorithm is applied here. Hereby, the parameters `n_components`
-    and `n_oversamples` (sci-kit learn) roughly correspond to `maxrank` and `safetyshift` (see below).
+        One can expect a similar outcome from this routine as for sci-kit learn's TruncatedSVD (with `algorithm='randomized'`) although a different, determinstic algorithm is applied here. Hereby, the parameters `n_components`
+        and `n_oversamples` (sci-kit learn) roughly correspond to `maxrank` and `safetyshift` (see below).
 
-    Parameters
-    ----------
-    A : DNDarray
-        2D-array (float32/64) of which the hSVD has to be computed.
-    maxrank : int
-        truncation rank. (This parameter corresponds to `n_components` in sci-kit learn's TruncatedSVD.)
-    compute_sv : bool, optional
-        compute_sv=True implies that also Sigma and V are computed and returned. The default is False.
-    maxmergedim : int, optional
-        maximal size of the concatenation matrices during the merging procedure. The default is None and results in an appropriate choice depending on the size of the local slices of A and maxrank.
-        Too small choices for this parameter will result in failure if the maximal size of the concatenation matrices does not allow to merge at least two matrices. Too large choices for this parameter can cause memory errors if the resulting merging problem becomes too large.
-    safetyshift : int, optional
-        Increases the actual truncation rank within the computations by a safety shift. The default is 5. (There is some similarity to `n_oversamples` in sci-kit learn's TruncatedSVD.)
-    silent : bool, optional
-        silent=False implies that some information on the computations are printed. The default is True.
+        Parameters
+        ----------
+        A : DNDarray
+            2D-array (float32/64) of which the hSVD has to be computed.
+        maxrank : int
+            truncation rank. (This parameter corresponds to `n_components` in sci-kit learn's TruncatedSVD.)
+        compute_sv : bool, optional
+            compute_sv=True implies that also Sigma and V are computed and returned. The default is False.
+        maxmergedim : int, optional
+            maximal size of the concatenation matrices during the merging procedure. The default is None and results in an appropriate choice depending on the size of the local slices of A and maxrank.
+            Too small choices for this parameter will result in failure if the maximal size of the concatenation matrices does not allow to merge at least two matrices. Too large choices for this parameter can cause memory errors if the resulting merging problem becomes too large.
+        safetyshift : int, optional
+            Increases the actual truncation rank within the computations by a safety shift. The default is 5. (There is some similarity to `n_oversamples` in sci-kit learn's TruncatedSVD.)
+        silent : bool, optional
+            silent=False implies that some information on the computations are printed. The default is True.
 
-    Returns
-    -------
-    (Union[    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray])
-        if compute_sv=True: U, Sigma, V, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree).
-        if compute_sv=False: U, a-posteriori error estimate
+        Returns
+        -------
+        (Union[    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray])
+            if compute_sv=True: U, Sigma, V, a-posteriori error estimate for the reconstruction error ||A-U Sigma V^T ||_F / ||A||_F (computed according to [2] along the "true" merging tree).
+            if compute_sv=False: U, a-posteriori error estimate
 
-    Notes
-    -------
-    The size of the process local SVDs to be computed during merging is proportional to the non-split size of the input A and (maxrank + safetyshift). Therefore, conservative choice of maxrank and safetyshift is advised to avoid memory issues.
-    Note that, as sci-kit learn's randomized SVD, this routine is different from `numpy.linalg.svd` because not all singular values and vectors are computed
-    and even those computed may be inaccurate if the input matrix exhibts a unfavorable structure.
+        Notes
+        -------
+        The size of the process local SVDs to be computed during merging is proportional to the non-split size of the input A and (maxrank + safetyshift). Therefore, conservative choice of maxrank and safetyshift is advised to avoid memory issues.
+        Note that, as sci-kit learn's randomized SVD, this routine is different from `numpy.linalg.svd` because not all singular values and vectors are computed
+        and even those computed may be inaccurate if the input matrix exhibts a unfavorable structure.
 
-See Also
----------
+    See Also
+    ---------
 
-:func:`hsvd`
-:func:`hsvd_rtol`
-    References
-    -------
-    [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
-    [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
+    :func:`hsvd`
+    :func:`hsvd_rtol`
+        References
+        -------
+        [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
+        [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
     if not isinstance(A, DNDarray):
         raise TypeError("Argument needs to be a DNDarray but is {}.".format(type(A)))
