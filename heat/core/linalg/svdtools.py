@@ -75,7 +75,11 @@ def hsvd_rank(
     Note that, as sci-kit learn's randomized SVD, this routine is different from `numpy.linalg.svd` because not all singular values and vectors are computed
     and even those computed may be inaccurate if the input matrix exhibts a unfavorable structure.
 
+See Also
+---------
 
+:func:`hsvd`
+:func:`hsvd_rtol`
     References
     -------
     [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
