@@ -97,8 +97,8 @@ def random_known_singularvalues(
 ) -> Tuple[DNDarray, Tuple[DNDarray]]:
     """
     Creates an m x n matrix with singular values given by the entries of the input array singular_values.
-    Caveat: if the entries of singular_values are not sorted, the singular value decomposition of A is so as well....
-    The singular vectors are chosen randomly (cf. random_orthogonal)
+    Caveat: if the entries of `singular_values` are not sorted, the singular value decomposition of A (returned as second output) is so as well.
+    The singular vectors are chosen randomly using :func:`random_orthogonal`.
     """
     if not isinstance(singular_values, DNDarray):
         raise RuntimeError(
@@ -140,7 +140,7 @@ def random_known_rank(
     Creates a random m x n matrix with rank r.
     This routine uses :func:`random_known_singularvalues` with r singular values randomly chosen
     w.r.t. the distribution with quantile function given by the input quantile_function. Default yields exponential distibution with parameter lambda=1.
-    Unlike random_known_singularvalues, the singular values of the output are sorted in descending order.
+    Unlike in :func:`random_known_singularvalues`, here the singular values of the output are sorted in descending order.
     """
     if r > min(m, n):
         raise RuntimeError("rank must not exceed matrix dimensions.")

@@ -322,9 +322,9 @@ def hsvd(
     Anorm = vector_norm(A)
 
     if rtol is not None:
-        loctol = Anorm.larray * rtol / sqrt(2 * no_procs - 1)
+        loc_atol = Anorm.larray * rtol / sqrt(2 * no_procs - 1)
     else:
-        loctol = None
+        loc_atol = None
 
     # compute the SVDs on the 0th level
     # Important notice: in the following 'node' refers to the nodes of the tree-like merging structure of hSVD, not to the compute nodes of an HPC-cluster
@@ -338,7 +338,7 @@ def hsvd(
         )
 
     U_loc, sigma_loc, err_squared_loc = compute_local_truncated_svd(
-        level, A.comm.rank, A.larray, maxrank, loctol, safetyshift
+        level, A.comm.rank, A.larray, maxrank, loc_atol, safetyshift
     )
     U_loc = torch.linalg.matmul(U_loc, torch.diag(sigma_loc))
 
@@ -416,7 +416,7 @@ def hsvd(
             if len(future_nodes) == 1:
                 safetyshift = 0
             U_loc, sigma_loc, err_squared_loc_new = compute_local_truncated_svd(
-                level, A.comm.rank, U_loc, maxrank, loctol, safetyshift
+                level, A.comm.rank, U_loc, maxrank, loc_atol, safetyshift
             )
 
             if len(future_nodes) > 1:
@@ -479,13 +479,13 @@ def compute_local_truncated_svd(
     proc_id: int,
     U_loc: torch.Tensor,
     maxrank: int,
-    loctol: Optional[float],
+    loc_atol: Optional[float],
     safetyshift: int,
 ) -> Tuple[torch.Tensor, torch.Tensor, float]:
     """
     Auxiliary routine for hsvd: computes the truncated SVD ("U-factor" and "sigma-factor" of the SVD, i.e. first and second output) of the respective local array `U_loc` together with an estimate for the truncation error (third output).
-    Truncation of the SVD either to absolute (!) tolerance `loctol` or to maximal rank `maxrank` is performed; moreover, singular values close to or below the level of "numerical noise" (1e-14 for float64, 1e-7 for float32) are cut.
-    A safetyshift is added, i.e. the final truncation rank determined from `loctol` and `maxrank` is increased by `safetyshift`.
+    Truncation of the SVD either to absolute (!) tolerance `loc_atol` or to maximal rank `maxrank` is performed; moreover, singular values close to or below the level of "numerical noise" (1e-14 for float64, 1e-7 for float32) are cut.
+    A safetyshift is added, i.e. the final truncation rank determined from `loc_atol` and `maxrank` is increased by `safetyshift`.
     """
     U_loc, sigma_loc, _ = torch.linalg.svd(U_loc, full_matrices=False)
 
@@ -498,7 +498,7 @@ def compute_local_truncated_svd(
 
     if len(no_noise_idx) != 0:
         cut_noise_rank = max(no_noise_idx) + 1
-        if loctol is None:
+        if loc_atol is None:
             loc_trunc_rank = min(maxrank, cut_noise_rank)
         else:
             ideal_trunc_rank = min(
@@ -507,14 +507,14 @@ def compute_local_truncated_svd(
                         [torch.norm(sigma_loc[k:]) ** 2 for k in range(sigma_loc.shape[0] + 1)],
                         device=U_loc.device,
                     )
-                    < loctol**2
+                    < loc_atol**2
                 )
             )
             loc_trunc_rank = min(maxrank, ideal_trunc_rank, cut_noise_rank)
             if loc_trunc_rank != ideal_trunc_rank:
                 print(
                     "in hSVD (level %d, process %d): abs tol = %2.2e requires truncation to rank %d, but maxrank=%d. Loss of desired precision (rtol) very likely!"
-                    % (level, proc_id, loctol, ideal_trunc_rank, maxrank)
+                    % (level, proc_id, loc_atol, ideal_trunc_rank, maxrank)
                 )
 
         loc_trunc_rank = min(sigma_loc.shape[0], loc_trunc_rank + safetyshift)
