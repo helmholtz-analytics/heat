@@ -138,7 +138,7 @@ def random_known_rank(
 ) -> Tuple[DNDarray, Tuple[DNDarray]]:
     """
     Creates a random m x n matrix with rank r.
-    This routine uses random_known_singular values with r singular randomly chosen
+    This routine uses :func:`random_known_singularvalues` with r singular values randomly chosen
     w.r.t. the distribution with quantile function given by the input quantile_function. Default yields exponential distibution with parameter lambda=1.
     Unlike random_known_singularvalues, the singular values of the output are sorted in descending order.
     """

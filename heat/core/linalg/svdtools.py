@@ -305,6 +305,11 @@ def hsvd(
     -------
     [1] Iwen, Ong. A distributed and incremental SVD algorithm for agglomerative data analysis on large networks. SIAM J. Matrix Anal. Appl., 37(4), 2016.
     [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
+
+    See Also
+    ---------
+    :func:`hsvd_rank`
+    :func:`hsvd_rtol`
     """
     # if split dimension is 0, transpose matrix and remember this
     transposeflag = False
