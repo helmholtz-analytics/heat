@@ -2120,7 +2120,7 @@ def roll(
                 cumsum_map = torch.cumsum(lshape_map, dim=0)  # cumulate along axis
                 indices = torch.arange(size, device=x.device.torch_device)
                 # NOTE Can be removed when min version>=1.9
-                if "1.7." in torch.__version__ or "1.8." in torch.__version__:
+                if "1.8." in torch.__version__:  # pragma: no cover
                     lshape_map = lshape_map.to(torch.int64)
                 index_map = torch.repeat_interleave(indices, lshape_map)  # index -> process
 
@@ -3162,10 +3162,13 @@ def unique(
         )
         if isinstance(torch_output, tuple):
             heat_output = tuple(
-                factories.array(i, dtype=a.dtype, split=None, device=a.device) for i in torch_output
+                factories.array(i, dtype=a.dtype, split=None, device=a.device, comm=a.comm)
+                for i in torch_output
             )
         else:
-            heat_output = factories.array(torch_output, dtype=a.dtype, split=None, device=a.device)
+            heat_output = factories.array(
+                torch_output, dtype=a.dtype, split=None, device=a.device, comm=a.comm
+            )
         return heat_output
 
     local_data = a.larray
@@ -3443,7 +3446,7 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
     if axis == arr.split:
         return arr.copy()
     if not arr.is_distributed():
-        return factories.array(arr.larray, split=axis, device=arr.device, copy=True)
+        return factories.array(arr.larray, split=axis, device=arr.device, comm=arr.comm, copy=True)
 
     if axis is None:
         # new_arr = arr.copy()
@@ -3452,7 +3455,9 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
         )
         counts, displs = arr.counts_displs()
         arr.comm.Allgatherv(arr.larray, (gathered, counts, displs), recv_axis=arr.split)
-        new_arr = factories.array(gathered, is_split=axis, device=arr.device, dtype=arr.dtype)
+        new_arr = factories.array(
+            gathered, is_split=axis, device=arr.device, comm=arr.comm, dtype=arr.dtype
+        )
         return new_arr
 
     arr_tiles = tiling.SplitTiles(arr)
@@ -4031,7 +4036,7 @@ def topk(
         gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split
     )
     final_indices = factories.array(
-        gindices, dtype=types.int64, device=a.device, split=split, is_split=is_split
+        gindices, dtype=types.int64, device=a.device, comm=a.comm, split=split, is_split=is_split
     )
 
     if out is not None:
