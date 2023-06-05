@@ -10,9 +10,14 @@ class TestKNN(TestCase):
     def test_split_none(self):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
-        keys = ht.zeros(150)
-        keys[50:100] = 1
-        keys[100:] = 2
+        # generate keys for the iris.h5 dataset
+        keys = []
+        for i in range(50):
+            keys.append(0)
+        for i in range(50, 100):
+            keys.append(1)
+        for i in range(100, 150):
+            keys.append(2)
         y = ht.array(keys)
 
         knn = KNeighborsClassifier(n_neighbors=5)
@@ -28,9 +33,14 @@ class TestKNN(TestCase):
     def test_split_zero(self):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data", split=0)
 
-        keys = ht.zeros(150)
-        keys[50:100] = 1
-        keys[100:] = 2
+        # generate keys for the iris.h5 dataset
+        keys = []
+        for i in range(50):
+            keys.append(0)
+        for i in range(50, 100):
+            keys.append(1)
+        for i in range(100, 150):
+            keys.append(2)
         y = ht.array(keys)
 
         knn = KNeighborsClassifier(n_neighbors=5)
@@ -74,15 +84,24 @@ class TestKNN(TestCase):
     ):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
-        keys = ht.zeros(150)
-        keys[50:100] = 1
-        keys[100:] = 2
+        # keys as label array
+        keys = []
+        for i in range(50):
+            keys.append(0)
+        for i in range(50, 100):
+            keys.append(1)
+        for i in range(100, 150):
+            keys.append(2)
         labels = ht.array(keys, split=0)
 
-        keys = ht.zeros((150, 3))
-        keys[:50, 0] = 1
-        keys[50:100, 1] = 1
-        keys[100:, 2] = 1
+        # keys as one_hot
+        keys = []
+        for i in range(50):
+            keys.append([1, 0, 0])
+        for i in range(50, 100):
+            keys.append([0, 1, 0])
+        for i in range(100, 150):
+            keys.append([0, 0, 1])
         y = ht.array(keys)
 
         knn = KNeighborsClassifier(n_neighbors=5)
