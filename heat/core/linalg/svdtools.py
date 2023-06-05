@@ -494,15 +494,17 @@ def compute_local_truncated_svd(
     elif U_loc.dtype == torch.float32:
         noiselevel = 1e-7
 
-    no_noise_idx = torch.argwhere(sigma_loc >= noiselevel)
+    # the "intuitive" choice torch.argwhere is only available in torch>=1.11.0, so we need to use torch.nonzero that works similar
+    no_noise_idx = torch.nonzero(sigma_loc >= noiselevel)
 
     if len(no_noise_idx) != 0:
         cut_noise_rank = max(no_noise_idx) + 1
         if loc_atol is None:
             loc_trunc_rank = min(maxrank, cut_noise_rank)
         else:
+            # the "intuitive" choice torch.argwhere is only available in torch>=1.11.0, so we need to use torch.nonzero that works similar
             ideal_trunc_rank = min(
-                torch.argwhere(
+                torch.nonzero(
                     torch.tensor(
                         [torch.norm(sigma_loc[k:]) ** 2 for k in range(sigma_loc.shape[0] + 1)],
                         device=U_loc.device,
@@ -510,6 +512,7 @@ def compute_local_truncated_svd(
                     < loc_atol**2
                 )
             )
+
             loc_trunc_rank = min(maxrank, ideal_trunc_rank, cut_noise_rank)
             if loc_trunc_rank != ideal_trunc_rank:
                 print(
