@@ -340,7 +340,7 @@ def hsvd(
     U_loc, sigma_loc, err_squared_loc = compute_local_truncated_svd(
         level, A.comm.rank, A.larray, maxrank, loc_atol, safetyshift
     )
-    U_loc = torch.linalg.matmul(U_loc, torch.diag(sigma_loc))
+    U_loc = torch.matmul(U_loc, torch.diag(sigma_loc))
 
     finished = False
     while not finished:
@@ -421,7 +421,7 @@ def hsvd(
 
             if len(future_nodes) > 1:
                 # prepare next level or...
-                U_loc = torch.linalg.matmul(U_loc, torch.diag(sigma_loc))
+                U_loc = torch.matmul(U_loc, torch.diag(sigma_loc))
             err_squared_loc += err_squared_loc_new
         elif A.comm.rank in active_nodes and A.comm.rank not in future_nodes:
             # concatenate U_loc and err_squared_loc to avoid sending multiple messages
