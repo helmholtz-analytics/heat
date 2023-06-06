@@ -200,7 +200,7 @@ def array(
     NotImplementedError
         If order is one of the NumPy options ``'K'`` or ``'A'``.
     ValueError
-        If ``copy`` is False but a copy is necessary.
+        If ``copy`` is False but a copy is necessary to satisfy other requirements (e.g. different dtype, device, etc.).
     TypeError
         If the input object cannot be converted to a torch.Tensor, hence it cannot be converted to a :class:`~heat.core.dndarray.DNDarray`.
 
