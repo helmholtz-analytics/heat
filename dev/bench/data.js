@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1685007718525,
+  "lastUpdate": 1686050263702,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -576,6 +576,90 @@ window.BENCHMARK_DATA = {
             "value": 1.2570745944976807,
             "unit": "s",
             "range": 0.04073786735534668
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "112093564+mrfh92@users.noreply.github.com",
+            "name": "Fabian Hoppe",
+            "username": "mrfh92"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1bc1ccaa27bb030f2b04931ce2dc6dbae055942e",
+          "message": "Merge pull request #1126 from helmholtz-analytics/features/1041-hsvd-new\n\nadded implementation of hSVD (`heat.linalg.hsvd`, hierarchical SVD) allowing for truncation both by rank (`heat.linalg.hsvd_rank`) and accuracy (`heat.linalg.hsvd_rtol`)",
+          "timestamp": "2023-06-06T13:04:10+02:00",
+          "tree_id": "26c9d8b1f7b3677f137fce88515bea192f96d961",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/1bc1ccaa27bb030f2b04931ce2dc6dbae055942e"
+        },
+        "date": 1686050263087,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "hierachical_svd_rank_N4 - RUNTIME",
+            "value": 0.20815221965312958,
+            "unit": "s",
+            "range": 0.01585559733211994
+          },
+          {
+            "name": "hierachical_svd_tol_N4 - RUNTIME",
+            "value": 0.27276965975761414,
+            "unit": "s",
+            "range": 0.05782872438430786
+          },
+          {
+            "name": "kmeans_cpu_N4 - RUNTIME",
+            "value": 1.3340585231781006,
+            "unit": "s",
+            "range": 0.0755491629242897
+          },
+          {
+            "name": "kmedians_cpu_N4 - RUNTIME",
+            "value": 5.560429096221924,
+            "unit": "s",
+            "range": 4.55959415435791
+          },
+          {
+            "name": "kmedoids_cpu_N4 - RUNTIME",
+            "value": 5.081908226013184,
+            "unit": "s",
+            "range": 1.1351022720336914
+          },
+          {
+            "name": "lanczos_cpu_N4 - RUNTIME",
+            "value": 40.4936408996582,
+            "unit": "s",
+            "range": 1.4693344831466675
+          },
+          {
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
+            "value": 0.7979428172111511,
+            "unit": "s",
+            "range": 0.040488023310899734
+          },
+          {
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "value": 0.8364278674125671,
+            "unit": "s",
+            "range": 0.052982114255428314
+          },
+          {
+            "name": "qr_cpu_N4 - RUNTIME",
+            "value": 6.182063102722168,
+            "unit": "s",
+            "range": 0.7953183650970459
+          },
+          {
+            "name": "reshape_cpu_N4 - RUNTIME",
+            "value": 1.1357619762420654,
+            "unit": "s",
+            "range": 0.06439079344272614
           }
         ]
       }
