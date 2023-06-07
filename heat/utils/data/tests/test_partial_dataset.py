@@ -3,6 +3,7 @@ import torch
 import unittest
 
 
+@unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
 class TestPartialDataset(unittest.TestCase):
     @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_partial_h5_dataset(self):
