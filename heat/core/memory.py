@@ -58,17 +58,19 @@ def sanitize_memory_layout(x: torch.Tensor, order: str = "C") -> torch.Tensor:
     if x.ndim < 2 or x.numel() == 0:
         # do nothing
         return x
-    dims = list(range(x.ndim))
-    stride = torch.tensor(x.stride())
+    stride_diff = torch.as_tensor(x.stride())
     # since strides can get a bit wonky with operations like transpose
     #   we should assume that the tensors are row major or are distributed the default way
-    sdiff = stride[1:] - stride[:-1]
-    column_major = all(sdiff >= 0)
+    stride_diff = stride_diff[1:] - stride_diff[:-1]
+    column_major = torch.all(stride_diff >= 0)
     row_major = True if not column_major else False
+    del stride_diff
     if (order == "C" and row_major) or (order == "F" and column_major):
         # do nothing
+        del column_major, row_major
         return x
-    elif (order == "C" and column_major) or (order == "F" and row_major):
+    if (order == "C" and column_major) or (order == "F" and row_major):
+        dims = list(range(x.ndim))
         dims = tuple(reversed(dims))
         y = torch.empty_like(x)
         permutation = x.permute(dims).contiguous()
@@ -78,6 +80,7 @@ def sanitize_memory_layout(x: torch.Tensor, order: str = "C") -> torch.Tensor:
             x.shape,
             tuple(reversed(permutation.stride())),
         )
+        del permutation, dims, column_major, row_major, x
         return y
     else:
         raise ValueError(
