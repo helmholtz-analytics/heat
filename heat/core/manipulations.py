@@ -172,12 +172,30 @@ def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
 def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     """
     Broadcasts an array to a specified shape. Returns a view of ``x`` if ``x`` is not distributed, otherwise it returns a broadcasted, distributed, load-balanced copy of ``x``.
+
     Parameters
     ----------
     x : DNDarray
         `DNDarray` to broadcast.
     shape : Tuple[int, ...]
         Array shape. Must be compatible with ``x``.
+
+    Raises
+    ------
+    ValueError
+        If the array is not compatible with the new shape according to PyTorch's broadcasting rules.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.arange(100, split=0)
+    >>> b = ht.broadcast_to(a, (10,100))
+    >>> b.shape
+    (10, 100)
+    >>> b.split
+    1
+    >>> c = ht.broadcast_to(a, (100, 10))
+    ValueError: Shape mismatch: object cannot be broadcast to the given shape. Original shape: (100,), target shape: (100, 10)
     """
     sanitation.sanitize_in(x)
 
@@ -187,9 +205,20 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
     if x.split is not None:
         split_tags[x.split] = "split"
         torch_proxy = torch.tensor(torch_proxy, names=split_tags)
-        torch_proxy = torch_proxy.broadcast_to(shape)
+        try:
+            torch_proxy = torch_proxy.broadcast_to(shape)
+        except RuntimeError:
+            raise ValueError(
+                f"Shape mismatch: object cannot be broadcast to the given shape. Original shape: {x.shape}, target shape: {shape}"
+            )
         output_split = torch_proxy.names.index("split")
     else:
+        try:
+            torch_proxy = torch_proxy.broadcast_to(shape)
+        except RuntimeError:
+            raise ValueError(
+                f"Shape mismatch: object cannot be broadcast to the given shape. Original shape: {x.shape}, target shape: {shape}"
+            )
         output_split = None
 
     if not x.is_distributed():
