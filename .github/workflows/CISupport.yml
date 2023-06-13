@@ -1,4 +1,4 @@
-name: Start CI Run
+name: Start CI Support Run
 
 on:
   push:
