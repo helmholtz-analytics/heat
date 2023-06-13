@@ -396,6 +396,7 @@ def array(
     # content shall be split, chunk the passed data object up
     if comm.size == 1 or split is None and is_split is None:
         obj = sanitize_memory_layout(obj, order=order)
+        split = is_split if is_split is not None else split
 
     elif split is not None:
         # only keep local slice
@@ -443,7 +444,6 @@ def array(
             raise ValueError(
                 "Unable to construct DNDarray. Local data slices have inconsistent shapes or dimensions."
             )
-        del reduction_buffer
 
         total_split_shape = np.array(lshape[is_split])
         comm.Allreduce(MPI.IN_PLACE, total_split_shape, MPI.SUM)
@@ -455,7 +455,6 @@ def array(
         gmatch = comm.allreduce(match, MPI.SUM)
         if gmatch != comm.size:
             balanced = False
-        del match, gmatch, lshape, test_lshape, total_split_shape, is_split
 
     return DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
 
