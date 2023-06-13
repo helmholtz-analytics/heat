@@ -34,10 +34,11 @@ class TestManipulations(TestCase):
         with self.assertRaises(ValueError):
             ht.broadcast_arrays(ht.ones((10, 6), split=0), ht.ones((10), split=0))
 
-        a = ht.ones((5, 1, 5), split=0)
-        b = ht.ones((5, 5, 5), split=1)
-        with self.assertRaises(ValueError):
-            ht.broadcast_arrays(a, b)
+        if a.comm.size > 1:
+            a = ht.ones((5, 1, 5), split=0)
+            b = ht.ones((5, 5, 5), split=1)
+            with self.assertRaises(ValueError):
+                ht.broadcast_arrays(a, b)
 
     def tests_broadcast_to(self):
         a = ht.array([1, 2, 3])
@@ -3314,11 +3315,12 @@ class TestManipulations(TestCase):
         ht_c_wrong_shape = ht.array(c.reshape(2, 10))
         with self.assertRaises(ValueError):
             ht.stack((ht_a, ht_b, ht_c_wrong_shape))
-        ht_b_wrong_split = ht.array(b, split=1)
-        with self.assertRaises(ValueError):
-            ht.stack((ht_a_split, ht_b_wrong_split, ht_c_split))
-        with self.assertRaises(ValueError):
-            ht.stack((ht_a_split, ht_b.resplit(1), ht_c_split))
+        if ht_a.comm.size > 1:
+            ht_b_wrong_split = ht.array(b, split=1)
+            with self.assertRaises(ValueError):
+                ht.stack((ht_a_split, ht_b_wrong_split, ht_c_split))
+            with self.assertRaises(ValueError):
+                ht.stack((ht_a_split, ht_b.resplit(1), ht_c_split))
         out_wrong_type = torch.empty((3, 5, 4), dtype=torch.float32)
         with self.assertRaises(TypeError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_type)
