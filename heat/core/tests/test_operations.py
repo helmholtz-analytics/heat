@@ -1,4 +1,5 @@
 import torch
+import platform
 
 import heat as ht
 import numpy as np
@@ -92,10 +93,12 @@ class TestOperations(TestCase):
         c = ht.array([1, 2, 3, 4], comm=ht.MPI_SELF)
         with self.assertRaises(NotImplementedError):
             b + c
-        with self.assertRaises(TypeError):
-            ht.minimum(a, np.float128(1))
-        with self.assertRaises(TypeError):
-            ht.minimum(np.float128(1), a)
+        # skip tests on arm64 architecture
+        if platform.machine() != "arm64":
+            with self.assertRaises(TypeError):
+                ht.minimum(a, np.float128(1))
+            with self.assertRaises(TypeError):
+                ht.minimum(np.float128(1), a)
         with self.assertRaises(NotImplementedError):
             a.resplit(1) * b
         with self.assertRaises(ValueError):
