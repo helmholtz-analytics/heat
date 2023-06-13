@@ -93,29 +93,59 @@ DNDarray.balance.__doc__ = balance.__doc__
 
 def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
     """
-    Broadcasts one or more arrays against one another.
+    Broadcasts one or more arrays against one another. Returns the broadcasted arrays, distributed along the split dimension of the first array in the list. If the first array is not distributed, the output will not be distributed.
 
     Parameters
     ----------
     arrays : DNDarray
         An arbitrary number of to-be broadcasted ``DNDarray``s.
+
+    Notes
+    -----
+    Broadcasted arrays are a view of the original arrays if possible, otherwise a copy is made.
     """
     if len(arrays) <= 1:
         return arrays
 
     try:
         arrays = sanitation.sanitize_distribution(*arrays, target=arrays[0])
+        output_split, output_comm, output_balanced = (
+            arrays[0].split,
+            arrays[0].comm,
+            arrays[0].balanced,
+        )
     except NotImplementedError as e:
         raise ValueError(e)
 
-    # extract torch tensors
-    t_arrays = list(array.larray for array in arrays)
+    gshapes = []
+    t_arrays = []
+    for array in arrays:
+        # extract global shapes
+        gshapes.append(array.gshape)
+        # extract local torch tensors
+        t_arrays.append(array.larray)
+    t_arrays = tuple(t_arrays)
 
+    # broadcast the global shapes
+    output_shape = tuple(torch.broadcast_shapes(*gshapes))
+    del gshapes
+
+    # broadcast the local torch tensors: this is a view of the original data
     broadcasted = torch.broadcast_tensors(*t_arrays)
 
     out = []
     for i in range(len(broadcasted)):
-        out.append(factories.array(broadcasted[i], dtype=arrays[i].dtype, device=arrays[i].device))
+        out.append(
+            DNDarray(
+                broadcasted[i],
+                gshape=output_shape,
+                dtype=arrays[i].dtype,
+                split=output_split,
+                device=arrays[i].device,
+                comm=output_comm,
+                balanced=output_balanced,
+            )
+        )
 
     return out
 
