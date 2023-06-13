@@ -76,11 +76,6 @@ def balance(array: DNDarray, copy=False) -> DNDarray:
         the original array and return that array. Otherwise (true), a balanced copy of the array
         will be returned.
         Default: False
-
-    Returns
-    -------
-    balanced : DNDarray
-        The balanced DNDarray
     """
     cpy = array.copy() if copy else array
     cpy.balance_()
@@ -103,6 +98,26 @@ def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
     Notes
     -----
     Broadcasted arrays are a view of the original arrays if possible, otherwise a copy is made.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.ones((100, 10), split=0)
+    >>> b = ht.ones((10,), split=None)
+    >>> c = ht.ones((1, 10), split=1)
+    >>> d, e, f = ht.broadcast_arrays(a, b, c)
+    >>> d.shape
+    (100, 10)
+    >>> e.shape
+    (100, 10)
+    >>> f.shape
+    (100, 10)
+    >>> d.split
+    0
+    >>> e.split
+    0
+    >>> f.split
+    0
     """
     if len(arrays) <= 1:
         return arrays
@@ -127,8 +142,12 @@ def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
     t_arrays = tuple(t_arrays)
 
     # broadcast the global shapes
-    output_shape = tuple(torch.broadcast_shapes(*gshapes))
-    del gshapes
+    try:
+        output_shape = tuple(torch.broadcast_shapes(*gshapes))
+    except RuntimeError:
+        raise ValueError(
+            f"Shape mismatch: objects cannot be broadcast to a single shape. Original shapes: {gshapes}"
+        )
 
     # broadcast the local torch tensors: this is a view of the original data
     broadcasted = torch.broadcast_tensors(*t_arrays)
