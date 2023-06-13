@@ -31,6 +31,8 @@ class TestManipulations(TestCase):
         # check exceptions
         with self.assertRaises(TypeError):
             ht.broadcast_arrays(ht.ones((2, 3)), 4, False)
+        with self.assertRaises(ValueError):
+            ht.broadcast_arrays(ht.ones((10, 6), split=0), ht.ones((10), split=0))
 
         a = ht.ones((5, 1, 5), split=0)
         b = ht.ones((5, 5, 5), split=1)
