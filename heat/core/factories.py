@@ -485,7 +485,7 @@ def asarray(
     order: str, optional
         Whether to use row-major (C-style) or column-major (Fortran-style) memory representation. Defaults to ‘C’.
     is_split : None or int, optional
-        Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
+        Specifies the axis along which the local data portions, passed in obj, are split across all MPI processes. Useful for
         interfacing with other HPC code. The shape of the global tensor is automatically inferred.
     device : str, ht.Device or None, optional
         Specifies the device the tensor shall be allocated on. By default, it is inferred from the input data.
