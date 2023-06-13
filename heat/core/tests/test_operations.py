@@ -95,11 +95,11 @@ class TestOperations(TestCase):
         if ht.MPI_WORLD.size > 1:
             with self.assertRaises(NotImplementedError):
                 b + c
+            with self.assertRaises(NotImplementedError):
+                a.resplit(1) * b
         with self.assertRaises(TypeError):
             ht.minimum(a, np.float128(1))
         with self.assertRaises(TypeError):
             ht.minimum(np.float128(1), a)
-        with self.assertRaises(NotImplementedError):
-            a.resplit(1) * b
         with self.assertRaises(ValueError):
             a[2:] * b
