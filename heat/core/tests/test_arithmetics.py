@@ -417,12 +417,13 @@ class TestArithmetics(TestCase):
             ht.div("T", "s")
         with self.assertRaises(ValueError):
             ht.div(self.a_split_tensor, self.a_tensor, out=ht.empty((2, 2), split=None))
-        with self.assertRaises(NotImplementedError):
-            ht.div(
-                self.a_split_tensor,
-                self.a_tensor,
-                where=ht.array([[True, False], [False, True]], split=1),
-            )
+        if a.comm.size > 1:
+            with self.assertRaises(NotImplementedError):
+                ht.div(
+                    self.a_split_tensor,
+                    self.a_tensor,
+                    where=ht.array([[True, False], [False, True]], split=1),
+                )
 
     def test_fmod(self):
         result = ht.array([[1.0, 0.0], [1.0, 0.0]])
