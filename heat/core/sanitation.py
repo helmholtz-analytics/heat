@@ -63,6 +63,13 @@ def sanitize_distribution(
     """
     out = []
     sanitize_in(target)
+    # early out on 1 process
+    if target.comm.size == 1:
+        for arg in args:
+            sanitize_in(arg)
+            out.append(arg)
+        return tuple(out) if len(out) > 1 else out[0]
+
     target_split = target.split
     if diff_map is not None:
         sanitize_in_tensor(diff_map)
