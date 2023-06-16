@@ -47,14 +47,16 @@ If you want to play around with our new features in order to explore them yourse
 ```
 import heat as ht 
 
-X = ht.load('<my_data.h5>', dataset='<name_of_my_data>', split=1)
+# load data from hdf5-file (on CPU by default)
+X = ht.load('<my_data_file>.h5', dataset='<name_of_my_data>', split=1)
 
-#truncation w.r.t. rank
+# truncated SVD, truncation w.r.t. rank
 U_rk,S_rk,V_rk,errest_rk=ht.linalg.hsvd_rank(X, maxrank=10,compute_sv=True,silent=False)
 
-#truncation w.r.t. accuracy
+# truncated SVD, truncation w.r.t. accuracy
 U_tol,S_tol,V_tol,errest_tol=ht.linalg.hsvd_rtol(X, rtol=1e-1,compute_sv=True,silent=False)
 
+# print respective error estimates for the truncation
 print(errest_rk, errest_tol)
 ```
 
@@ -97,7 +99,7 @@ srun python my_script.py
 
 When trying to compute the SVD/PCA for a large data set on a single workstation or compute node (a so-called *"shared-memory environment"*), one easily runs into troubles: let us, e.g., consider a data set of roughly 200GB that consists of about 85000 RGB-images (1024x192 pixels each), flattened into a matrix of size $$\approx$$ 590000 x 85000. When trying to use `scikit-learn` (which is limited to shared-memory parallelism) for computing a truncated SVD (truncation to rank 1000) of this matrix, you easily exceed typical memory bounds for "normal" compute nodes of a cluster such as 256GB (dotted line in the plot below); instead you need to use special compute nodes with a larger RAM, e.g., 1 TB. *Memory-distributed parallelism* allows you to circumvent this issue by being able to use more than one compute node resulting in a much lower memory consumption per node; we show this in the plot below on behalf of Heats new `heat.linalg.hsvd_rank`-routine that will be explained in detail afterwards.  
 
-![](images/hsvd_mem_scaling.jpg)
+![](images/hsvd_mem_scaling.png)
 
 It is important to note that SVD/PCA is not *"embarrissingly parallel"* (or *"data parallel"*), i.e. splitting your entire data set $$X$$ into batches that can be processed independently on different workers is not possible due to the way how SVD/PCA works; in fact, SVD/PCA is such a valuable tool because it describes the overal structure of your entire data set instead of just looking onto subsets separately. Instead, when computing an SVD/PCA on more than one worker in parallel (i.e., making use of memory-distributed parallelism) more advanced algorithms need to be used: nontrivial communication between the workers is required. 
 
