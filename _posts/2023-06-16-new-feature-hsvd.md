@@ -10,7 +10,7 @@ We have implemented an algorithm for computing an approximate, truncated SVD/PCA
 
 ## SVD, PCA, and their truncated counterparts in a nutshell 
 
-Let $X \in \mathbb{R}^{m \times n}$ be a matrix, e.g., given by a data set consisting of $m$ data points $\in \mathbb{R}^n$ stacked together. The so-called **singular value decomposition (SVD)** of $X$ is given by 
+Let $$X \in \mathbb{R}^{m \times n}$$ be a matrix, e.g., given by a data set consisting of $m$ data points $\in \mathbb{R}^n$ stacked together. The so-called **singular value decomposition (SVD)** of $X$ is given by 
 ```math
 X = U \Sigma V^T
 ```
