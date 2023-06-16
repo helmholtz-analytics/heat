@@ -1,10 +1,8 @@
 ---
 layout: post
-title: 'a new feature: memory-distributed hierarchical SVD in Heat'
+title: 'Memory-distributed hierarchical SVD in Heat'
 tags: hSVD, new feature 
 ---
-
-# a new feature: memory-distributed hierarchical SVD in Heat 
 
 ## TL;DR 
 
@@ -103,7 +101,7 @@ Fortunately, this is exactly what Heat is made for: to facilitate data analytics
 
 Let us start explaining the "distributed hierachical" idea with an example easier than SVD and restrict ourselves to 2 workers: the computation of the mean value. Let us assume we are given $m+n$ numbers of which $m$ are on worker 1 ("Process 1") and $n$ on worker 2 ("Process 2").  
 
-![]( images/hsvd_meanval.jpg)
+![](images/hsvd_meanval.jpg)
 
 First we compute the mean value of the numbers on each worker separately in parallel. Then we need to communicate our results: here, we send the mean value computed on worker 2 to worker 1. After that, the two "local" results need to be "merged" into a global result. 
 
@@ -121,10 +119,10 @@ Finally, it has to be noted that the idea outlined so far can easily be generali
 
 Heat allows you to get the best out of your existing hardware: either you can use the power of *GPUs* to speed up your computations (note that memory-distributed parallelism becomes very important here due to the rather limited memory of GPUs!) or you can profit from so-called *hybrid parallelism* on CPU. The latter means that memory-distributed parallelism (MPI via `mpi4py`) and shared-memory parallelism within an MPI-process (multithreading via `OpenMP`, inherited from our process-local compute engine `PyTorch`) go hand in hand. Below we show the speedups achieved by using Heat compared to `scikit-learn` for computing truncated SVDs with different truncation rank. 
 
-![](/images/hsvd_times_5.jpg)
-![](/images/hsvd_times_50.jpg)
-![](/images/hsvd_times_500.jpg)
-![](/images/hsvd_times_1000.jpg)
+![](images/hsvd_times_5.jpg)
+![](images/hsvd_times_50.jpg)
+![](images/hsvd_times_500.jpg)
+![](images/hsvd_times_1000.jpg)
 
 The GPU-nodes used for this experiment were equipped with 4 Nvidia A100 80GB each, but it has to be mentioned that Heat also supports AMD GPUs (tested as part of our CI). 
 
