@@ -1,6 +1,6 @@
 ---
 layout: post
-title: a new feature: memory-distributed hierarchical SVD in Heat
+title: 'a new feature: memory-distributed hierarchical SVD in Heat'
 tags: hSVD, new feature 
 ---
 
