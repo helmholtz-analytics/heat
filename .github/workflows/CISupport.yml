@@ -14,6 +14,6 @@ jobs:
          curl -s -X POST \
            --fail \
            -F token=${{ secrets.CB_PIPELINE }} \
-           -F "ref=latest" \
+           -F "ref=heat/support" \
            -F "variables[SHA]=$GITHUB_SHA" \
            https://codebase.helmholtz.cloud/api/v4/projects/7605/trigger/pipeline -o /dev/null
