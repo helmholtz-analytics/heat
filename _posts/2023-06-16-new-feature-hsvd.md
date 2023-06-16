@@ -12,14 +12,20 @@ We have implemented an algorithm for computing an approximate, truncated SVD/PCA
 
 ## SVD, PCA, and their truncated counterparts in a nutshell 
 
-Let $X \in \mathbb{R}^{m \times n}$ be a matrix, e.g., given by a data set consisting of $m$ data points $\in \mathbb{R}^n$ stacked together. The so-called **singular value decomposition (SVD)** of $X$ is given by $X = U \Sigma V^T$ where $U \in \mathbb{R}^{m \times r_X}$ and $V \in \mathbb{R}^{n \times r_X}$ have orthonormal columns, $\Sigma = \text{diag}(\sigma_1,...,\sigma_{r_X}) \in \mathbb{R}^{r_X \times r_X}$ is a diagonal matrix containing the so-called singular values $\sigma_1 \geq \sigma_2 \geq ... \geq \sigma_{r_X} > 0$, and $r_X \leq \min(m,n)$ denotes the rank of $X$ (i.e. the dimension of the subspace of $\mathbb{R}^m$ spanned by the columns of $X$). Since $\Sigma = U^T X V$ is diangonal, one can imagine this decomposition as finding orthogonal coordinate transformations under which $X$ looks "linear". 
+Let $X \in \mathbb{R}^{m \times n}$ be a matrix, e.g., given by a data set consisting of $m$ data points $\in \mathbb{R}^n$ stacked together. The so-called **singular value decomposition (SVD)** of $X$ is given by 
+```math
+X = U \Sigma V^T
+```
+where $U \in \mathbb{R}^{m \times r_X}$ and $V \in \mathbb{R}^{n \times r_X}$ have orthonormal columns, $\Sigma = \text{diag}(\sigma_1,...,\sigma_{r_X}) \in \mathbb{R}^{r_X \times r_X}$ is a diagonal matrix containing the so-called singular values $\sigma_1 \geq \sigma_2 \geq ... \geq \sigma_{r_X} > 0$, and $r_X \leq \min(m,n)$ denotes the rank of $X$ (i.e. the dimension of the subspace of $\mathbb{R}^m$ spanned by the columns of $X$). Since $\Sigma = U^T X V$ is diangonal, one can imagine this decomposition as finding orthogonal coordinate transformations under which $X$ looks "linear". 
 
 In data science, SVD is more often known as **principle component analysis (PCA)**, the columns of $U$ being called the principle components of $X$. In fact, in many applications **truncated SVD/PCA** suffices: to reduce $X$ to the "essential" information, one chooses a truncation rank $0 < r \leq r_X$ and considers the truncated SVD/PCA given by 
 ```math
 X \approx X_r := U_{[:,:r]} \Sigma_{[:r,:r]} V_{[:,:r]}^T
 ```
 where we have used `numpy`-like notation for selecting only the first $r$ columns of $U$ and $V$, respectively. The rationale behind this is that if the first $r$ singular values of $X$ are much larger than the remaining ones, $X_r$ will still contain all "essential" information contained in $X$; in mathematical terms: 
-$$ \lVert X_r - X \rVert_{F}^2 = \sum_{i=r+1}^{r_X} \sigma_i^2, $$
+```math
+\lVert X_r - X \rVert_{F}^2 = \sum_{i=r+1}^{r_X} \sigma_i^2, 
+```
 where $\lVert \cdot \rVert_F$ denotes the Frobenius norm. Thus, truncated SVD/PCA may be used for, e.g.,  
 * filtering away non-essential information in order to get a "feeling" for the main characteristics of your data set, 
 * to detect linear (or "almost" linear) dependencies in your data, 
@@ -125,7 +131,10 @@ The GPU-nodes used for this experiment were equipped with 4 Nvidia A100 80GB eac
 
 ### Different ways to truncate 
 
-In all above examples, explanations, and experiments we have considered *truncation w.r.t. an a-priori fixed rank*, i.e. all appearing SVDs have been cut after a prescribed number of columns. This corresponds to our routine `heat.linalg.hsvd_rank`. A different way of doing truncations is to truncated in such a way that a *prescribed accuracy* (in terms of the relative reconstruction error, see below) is reached; this is done in `heat.linalg.hsvd_rtol`, based on corresponding error estimates from Ref. [2]: in essence, the well-known error estimate for $X-X_r$ in the Frobenius-norm (see section "SVD, PCA, and their truncated counterparts in a nutshell" above) is used to choose $r$ adaptively at each truncation. Moreover, "local" truncation errors are propagated through the "merging" tree in order to ensure that finally the upper bound on the relative reconstruction error $\frac{\lVert X - U U^T X \rVert_F}{\lVert X \rVert_F} \overset{!}{\leq} \text{rtol}$
+In all above examples, explanations, and experiments we have considered *truncation w.r.t. an a-priori fixed rank*, i.e. all appearing SVDs have been cut after a prescribed number of columns. This corresponds to our routine `heat.linalg.hsvd_rank`. A different way of doing truncations is to truncated in such a way that a *prescribed accuracy* (in terms of the relative reconstruction error, see below) is reached; this is done in `heat.linalg.hsvd_rtol`, based on corresponding error estimates from Ref. [2]: in essence, the well-known error estimate for $X-X_r$ in the Frobenius-norm (see section "SVD, PCA, and their truncated counterparts in a nutshell" above) is used to choose $r$ adaptively at each truncation. Moreover, "local" truncation errors are propagated through the "merging" tree in order to ensure that finally the upper bound on the relative reconstruction error 
+```math
+\frac{\lVert X - U U^T X \rVert_F}{\lVert X \rVert_F} \overset{!}{\leq} \text{rtol}
+```
 is satisfied, where $U$ denotes the approximate left-singular vectors of $X$ computed by `heat.linalg.hsvd_rtol`. Evaluation of the used error estimate is much cheaper than computing the true error and is also done during `heat.linalg.hsvd_rank`. *Consequently, hierarchical SVD gives you an impression on how much information of your data you loose by applying the chosen truncation scheme almost for free!*
 
 Using `heat.linalg.hsvd` you can prescribe truncation w.r.t. both rank and accuracy (and you can access also some additional parameters of the algorithm); usage of this routine, however, is a bit tricky (as you can run into memory limitations or infinite loops by inappropriate choice of parameters) and therefore only recommended to users familar to the algorithmic details. 
