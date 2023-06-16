@@ -93,7 +93,7 @@ srun python my_script.py
 
 When trying to compute the SVD/PCA for a large data set on a single workstation or compute node (a so-called *"shared-memory environment"*), one easily runs into troubles: let us, e.g., consider a data set of roughly 200GB that consists of about 85000 RGB-images (1024x192 pixels each), flattened into a matrix of size $\approx$ 590000 x 85000. When trying to use `scikit-learn` (which is limited to shared-memory parallelism) for computing a truncated SVD (truncation to rank 1000) of this matrix, you easily exceed typical memory bounds for "normal" compute nodes of a cluster such as 256GB (dotted line in the plot below); instead you need to use special compute nodes with a larger RAM, e.g., 1 TB. *Memory-distributed parallelism* allows you to circumvent this issue by being able to use more than one compute node resulting in a much lower memory consumption per node; we show this in the plot below on behalf of Heats new `heat.linalg.hsvd_rank`-routine that will be explained in detail afterwards.  
 
-![](/images/hsvd_mem_scaling.jpg)
+![](images/hsvd_mem_scaling.jpg)
 
 It is important to note that SVD/PCA is not *"embarrissingly parallel"* (or *"data parallel"*), i.e. splitting your entire data set $X$ into batches that can be processed independently on different workers is not possible due to the way how SVD/PCA works; in fact, SVD/PCA is such a valuable tool because it describes the overal structure of your entire data set instead of just looking onto subsets separately. Instead, when computing an SVD/PCA on more than one worker in parallel (i.e., making use of memory-distributed parallelism) more advanced algorithms need to be used: nontrivial communication between the workers is required. 
 
@@ -103,13 +103,13 @@ Fortunately, this is exactly what Heat is made for: to facilitate data analytics
 
 Let us start explaining the "distributed hierachical" idea with an example easier than SVD and restrict ourselves to 2 workers: the computation of the mean value. Let us assume we are given $m+n$ numbers of which $m$ are on worker 1 ("Process 1") and $n$ on worker 2 ("Process 2").  
 
-![](/images/hsvd_meanval.jpg)
+![]( images/hsvd_meanval.jpg)
 
 First we compute the mean value of the numbers on each worker separately in parallel. Then we need to communicate our results: here, we send the mean value computed on worker 2 to worker 1. After that, the two "local" results need to be "merged" into a global result. 
 
 In the case of SVD, the approach roughly stays the same. However, the "merging" step needs to be modified, of course, and becomes more involved. 
 
-![](/images/hsvd_hsvdalg.jpg)
+![]( /images/hsvd_hsvdalg.jpg)
 
 Again, we start with "local" computations that can be performed separately on each worker in parallel. After that, the results need to be communicated and "merged" as well; however, unlike for the mean value computation some accuracy *must* be lost in the "merging" step due to the truncation (that cannot be avoided since otherwise memory consumption could increase indefinitely). This is the reason why the hieararchical SVD algorithms yields **approximations** for the truncated SVD in general, the results being exact only in the case of so-called *low-rank data*, i.e. in the case $r \geq r_X$. 
 
