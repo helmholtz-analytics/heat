@@ -1,7 +1,7 @@
 ---
 layout: post
 title: 'Memory-distributed hierarchical SVD in Heat'
-tags: hSVD, 'new feature', SVD, PCA 
+tags: hSVD, newfeature, SVD, PCA 
 ---
 
 ## TL;DR 
