@@ -465,9 +465,9 @@ class DNDarray:
 
     def __array__(self) -> np.ndarray:
         """
-        Returns a view of the process-local array as a numpy ndarray.
+        Returns a view of the process-local slice of the :class:`DNDarray` as a numpy ndarray, if the ``DNDarray`` resides on CPU. Otherwise, it returns a copy, on CPU, of the process-local slice of ``DNDarray`` as numpy ndarray.
         """
-        return self.larray.__array__()
+        return self.larray.cpu().__array__()
 
     def astype(self, dtype, copy=True) -> DNDarray:
         """
@@ -1107,6 +1107,10 @@ class DNDarray:
         >>> x.item()
         0.0
         """
+        if self.size > 1:
+            raise ValueError("only one-element DNDarrays can be converted to Python scalars")
+        # make sure the element is on every process
+        self.resplit_(None)
         return self.__array.item()
 
     def __len__(self) -> int:
@@ -1117,8 +1121,9 @@ class DNDarray:
 
     def numpy(self) -> np.array:
         """
-        Convert :class:`DNDarray` to numpy array. If the ``DNDarray`` is distributed it will be merged beforehand. If the ``DNDarray``
-        resides on the GPU, it will be copied to the CPU first.
+        Returns a copy of the :class:`DNDarray` as numpy ndarray. If the ``DNDarray`` resides on the GPU, the underlying data will be copied to the CPU first.
+
+        If the ``DNDarray`` is distributed, an MPI Allgather operation will be performed before converting to np.ndarray, i.e. each MPI process will end up holding a copy of the entire array in memory.  Make sure process memory is sufficient!
 
         Examples
         --------
@@ -1615,7 +1620,7 @@ class DNDarray:
         for c, k in enumerate(key):
             try:
                 key[c] = k.item()
-            except (AttributeError, ValueError):
+            except (AttributeError, ValueError, RuntimeError):
                 pass
 
         rank = self.comm.rank
