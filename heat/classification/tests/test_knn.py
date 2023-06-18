@@ -11,46 +11,36 @@ class TestKNN(TestCase):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
         # generate keys for the iris.h5 dataset
-        keys = []
-        for i in range(50):
-            keys.append(0)
-        for i in range(50, 100):
-            keys.append(1)
-        for i in range(100, 150):
-            keys.append(2)
-        y = ht.array(keys)
+        labels = ht.zeros(150, dtype=ht.int32)
+        labels[50:100] = 1
+        labels[100:] = 2
 
         knn = KNeighborsClassifier(n_neighbors=5)
-        knn.fit(x, y)
+        knn.fit(x, labels)
         result = knn.predict(x)
 
         self.assertTrue(ht.is_estimator(knn))
         self.assertTrue(ht.is_classifier(knn))
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, y.shape)
+        self.assertEqual(result.shape, labels.shape)
 
     @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_split_zero(self):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data", split=0)
 
         # generate keys for the iris.h5 dataset
-        keys = []
-        for i in range(50):
-            keys.append(0)
-        for i in range(50, 100):
-            keys.append(1)
-        for i in range(100, 150):
-            keys.append(2)
-        y = ht.array(keys)
+        labels = ht.zeros(150, dtype=ht.int32)
+        labels[50:100] = 1
+        labels[100:] = 2
 
         knn = KNeighborsClassifier(n_neighbors=5)
-        knn.fit(x, y)
+        knn.fit(x, labels)
         result = knn.predict(x)
 
         self.assertTrue(ht.is_estimator(knn))
         self.assertTrue(ht.is_classifier(knn))
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, y.shape)
+        self.assertEqual(result.shape, labels.shape)
 
     def test_exception(self):
         a = ht.zeros((3,))
@@ -84,24 +74,14 @@ class TestKNN(TestCase):
     ):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
-        # keys as label array
-        keys = []
-        for i in range(50):
-            keys.append(0)
-        for i in range(50, 100):
-            keys.append(1)
-        for i in range(100, 150):
-            keys.append(2)
-        labels = ht.array(keys, split=0)
+        labels = ht.zeros(150, dtype=ht.int32, split=0)
+        labels[50:100] = 1
+        labels[100:] = 2
 
         # keys as one_hot
-        keys = []
-        for i in range(50):
-            keys.append([1, 0, 0])
-        for i in range(50, 100):
-            keys.append([0, 1, 0])
-        for i in range(100, 150):
-            keys.append([0, 0, 1])
+        keys = ht.zeros((150, 3), dtype=ht.int32)
+        keys[50:100, 1] = 1
+        keys[100:, 2] = 1
         y = ht.array(keys)
 
         knn = KNeighborsClassifier(n_neighbors=5)
