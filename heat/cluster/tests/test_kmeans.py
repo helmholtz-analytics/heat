@@ -87,13 +87,15 @@ class TestKMeans(TestCase):
 
         # different datatype
         n = 20 * ht.MPI_WORLD.size
-        data = create_spherical_dataset(
-            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float64, random_state=seed
-        )
-        kmeans = ht.cluster.KMeans(n_clusters=4, init="kmeans++")
-        kmeans.fit(data)
-        self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
-        self.assertEqual(kmeans.cluster_centers_.shape, (4, 3))
+        # MPS does not support float64
+        if not data.larray.is_mps:
+            data = create_spherical_dataset(
+                num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float64, random_state=seed
+            )
+            kmeans = ht.cluster.KMeans(n_clusters=4, init="kmeans++")
+            kmeans.fit(data)
+            self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
+            self.assertEqual(kmeans.cluster_centers_.shape, (4, 3))
 
         # on Ints (different radius, offset and datatype
         data = create_spherical_dataset(

@@ -4079,10 +4079,15 @@ def topk(
         metadata = torch.tensor(
             [k, dim, largest, sorted, local_shape_len, *local_shape], device=indices.device
         )
-        send_buffer = torch.cat(
-            (metadata.double(), result.double().flatten(), indices.flatten().double())
-        )
-
+        try:
+            send_buffer = torch.cat(
+                (metadata.double(), result.double().flatten(), indices.flatten().double())
+            )
+        except TypeError:
+            # MPS does not support double precision
+            send_buffer = torch.cat(
+                (metadata.float(), result.float().flatten(), indices.flatten().float())
+            )
         return send_buffer
 
     gres = _operations.__reduce_op(

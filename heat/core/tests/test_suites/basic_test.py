@@ -44,11 +44,18 @@ class TestCase(unittest.TestCase):
             if torch.cuda.is_available():
                 torch.cuda.set_device(torch.device(ht.gpu.torch_device))
                 other_device = ht.gpu
-        elif envar == "gpu" and torch.cuda.is_available():
-            ht.use_device("gpu")
-            torch.cuda.set_device(torch.device(ht.gpu.torch_device))
-            ht_device = ht.gpu
-            other_device = ht.cpu
+            elif torch.backends.mps.is_built() and torch.backends.mps.is_available():
+                other_device = ht.gpu
+        elif envar == "gpu":
+            if torch.cuda.is_available():
+                ht.use_device("gpu")
+                torch.cuda.set_device(torch.device(ht.gpu.torch_device))
+                ht_device = ht.gpu
+                other_device = ht.cpu
+            elif torch.backends.mps.is_built() and torch.backends.mps.is_available():
+                ht.use_device("gpu")
+                ht_device = ht.gpu
+                other_device = ht.cpu
         else:
             raise RuntimeError(
                 "Value '{}' of environment variable 'HEAT_TEST_USE_DEVICE' is unsupported".format(

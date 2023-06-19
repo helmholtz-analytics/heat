@@ -207,13 +207,24 @@ class DNDarray:
         """
         Number of total elements of the ``DNDarray``
         """
-        return (
-            torch.prod(
-                torch.tensor(self.gshape, dtype=torch.float64, device=self.device.torch_device)
+        try:
+            size = (
+                torch.prod(
+                    torch.tensor(self.gshape, dtype=torch.float64, device=self.device.torch_device)
+                )
+                .long()
+                .item()
             )
-            .long()
-            .item()
-        )
+        except TypeError:
+            # MPS does not support double precision
+            size = (
+                torch.prod(
+                    torch.tensor(self.gshape, dtype=torch.float32, device=self.device.torch_device)
+                )
+                .int()
+                .item()
+            )
+        return size
 
     @property
     def gnbytes(self) -> int:
@@ -581,7 +592,12 @@ class DNDarray:
         """
         if self.split is not None:
             counts = self.lshape_map[:, self.split]
-            displs = [0] + torch.cumsum(counts, dim=0)[:-1].tolist()
+            try:
+                displs = [0] + torch.cumsum(counts, dim=0)[:-1].tolist()
+            except RuntimeError:
+                # MPS does not support cumsum op with int64 input
+                counts = counts.int()
+                displs = [0] + torch.cumsum(counts, dim=0)[:-1].tolist()
             return tuple(counts.tolist()), tuple(displs)
         else:
             raise ValueError("Non-distributed DNDarray. Cannot calculate counts and displacements.")

@@ -92,16 +92,18 @@ class TestOperations(TestCase):
         self.assertTrue(ht.equal(a[0:1] * b, b))
         self.assertTrue(ht.equal(b * a[0:1], b))
 
-        c = ht.array([1, 2, 3, 4], comm=ht.MPI_SELF)
-        with self.assertRaises(NotImplementedError):
-            b + c
         # skip tests on arm64 architecture
         if platform.machine() != "arm64":
             with self.assertRaises(TypeError):
                 ht.minimum(a, np.float128(1))
             with self.assertRaises(TypeError):
                 ht.minimum(np.float128(1), a)
-        with self.assertRaises(NotImplementedError):
-            a.resplit(1) * b
+        # skip tests on 1 process
+        if ht.MPI_WORLD.size > 1:
+            c = ht.array([1, 2, 3, 4], comm=ht.MPI_SELF)
+            with self.assertRaises(NotImplementedError):
+                b + c
+            with self.assertRaises(NotImplementedError):
+                a.resplit(1) * b
         with self.assertRaises(ValueError):
             a[2:] * b

@@ -173,6 +173,10 @@ def __binary_op(
         sanitation.sanitize_out(out, output_shape, output_split, output_device, output_comm)
         t1, t2 = sanitation.sanitize_distribution(t1, t2, target=out)
 
+    # MPS does not support float32
+    if t1.larray.is_mps and promoted_type == torch.float64:
+        promoted_type = torch.float32
+
     result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
 
     if out is None and where is None:

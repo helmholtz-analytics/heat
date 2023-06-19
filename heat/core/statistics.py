@@ -95,7 +95,13 @@ def argmax(
             offset, _, _ = x.comm.chunk(shape, x.split)
             indices += torch.tensor(offset, dtype=indices.dtype)
 
-        return torch.cat([maxima.double(), indices.double()])
+        try:
+            out = torch.cat([maxima.double(), indices.double()])
+        except TypeError:
+            # MPS framework doesn't support float64
+            out = torch.cat([maxima.float(), indices.float()])
+
+        return out
 
     # axis sanitation
     if axis is not None and not isinstance(axis, int):
@@ -153,21 +159,27 @@ def argmin(
         # argmin will be the flattened index, computed standalone and the actual minimum value obtain separately
         if len(args) <= 1 and axis < 0:
             indices = torch.argmin(*args, **kwargs).reshape(1)
-            minimums = args[0].flatten()[indices]
+            minima = args[0].flatten()[indices]
 
             # artificially flatten the input tensor shape to correct the offset computation
             axis = 0
             shape = [np.prod(shape)]
         # usual case where indices and minimum values are both returned. Axis is not equal to None
         else:
-            minimums, indices = torch.min(*args, **kwargs)
+            minima, indices = torch.min(*args, **kwargs)
 
         # add offset of data chunks if reduction is computed across split axis
         if axis == x.split:
             offset, _, _ = x.comm.chunk(shape, x.split)
             indices += torch.tensor(offset, dtype=indices.dtype)
 
-        return torch.cat([minimums.double(), indices.double()])
+        try:
+            out = torch.cat([minima.double(), indices.double()])
+        except TypeError:
+            # MPS framework doesn't support float64
+            out = torch.cat([minima.float(), indices.float()])
+
+        return out
 
     # axis sanitation
     if axis is not None and not isinstance(axis, int):

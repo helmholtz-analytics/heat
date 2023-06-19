@@ -89,7 +89,6 @@ class TestSolver(TestCase):
         self.assertTrue(ht.allclose(V_inv, V.T, atol=tolerance))
         # V T V.T must be = B, V transposed = V inverse
         lanczos_B = V @ T @ V_inv
-        print("DEBUGGING: residuals: ", lanczos_B - B)
         self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance))
 
         # complex64
