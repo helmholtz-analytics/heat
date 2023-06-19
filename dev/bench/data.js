@@ -26,49 +26,49 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "kmeans_cpu - RUNTIME",
+            "name": "kmeans_cpu_N4 - RUNTIME",
             "value": 1.0064384937286377,
             "unit": "s",
             "range": 0.06588414311408997
           },
           {
-            "name": "kmedians_cpu - RUNTIME",
+            "name": "kmedians_cpu_N4 - RUNTIME",
             "value": 5.23874568939209,
             "unit": "s",
             "range": 4.7537031173706055
           },
           {
-            "name": "kmedoids_cpu - RUNTIME",
+            "name": "kmedoids_cpu_N4 - RUNTIME",
             "value": 4.608992576599121,
             "unit": "s",
             "range": 1.0803240537643433
           },
           {
-            "name": "lanczos_cpu - RUNTIME",
+            "name": "lanczos_cpu_N4 - RUNTIME",
             "value": 40.65354537963867,
             "unit": "s",
             "range": 2.2326583862304688
           },
           {
-            "name": "matmul_cpu_split_0 - RUNTIME",
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
             "value": 0.9593979120254517,
             "unit": "s",
             "range": 0.0668589398264885
           },
           {
-            "name": "matmul_cpu_split_1 - RUNTIME",
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
             "value": 0.9952268600463867,
             "unit": "s",
             "range": 0.05162478983402252
           },
           {
-            "name": "qr_cpu - RUNTIME",
+            "name": "qr_cpu_N4 - RUNTIME",
             "value": 7.1640496253967285,
             "unit": "s",
             "range": 0.788973867893219
           },
           {
-            "name": "reshape_cpu - RUNTIME",
+            "name": "reshape_cpu_N4 - RUNTIME",
             "value": 12.917398452758789,
             "unit": "s",
             "range": 0.052389681339263916
@@ -98,49 +98,49 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "kmeans_cpu - RUNTIME",
+            "name": "kmeans_cpu_N4 - RUNTIME",
             "value": 1.3607841730117798,
             "unit": "s",
             "range": 0.09720459580421448
           },
           {
-            "name": "kmedians_cpu - RUNTIME",
+            "name": "kmedians_cpu_N4 - RUNTIME",
             "value": 5.596490859985352,
             "unit": "s",
             "range": 4.744739055633545
           },
           {
-            "name": "kmedoids_cpu - RUNTIME",
+            "name": "kmedoids_cpu_N4 - RUNTIME",
             "value": 5.109837532043457,
             "unit": "s",
             "range": 0.9763903021812439
           },
           {
-            "name": "lanczos_cpu - RUNTIME",
+            "name": "lanczos_cpu_N4 - RUNTIME",
             "value": 40.129493713378906,
             "unit": "s",
             "range": 2.6870570182800293
           },
           {
-            "name": "matmul_cpu_split_0 - RUNTIME",
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
             "value": 1.2492748498916626,
             "unit": "s",
             "range": 0.11195642501115799
           },
           {
-            "name": "matmul_cpu_split_1 - RUNTIME",
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
             "value": 1.1880028247833252,
             "unit": "s",
             "range": 0.11158335208892822
           },
           {
-            "name": "qr_cpu - RUNTIME",
+            "name": "qr_cpu_N4 - RUNTIME",
             "value": 9.023608207702637,
             "unit": "s",
             "range": 0.6376816034317017
           },
           {
-            "name": "reshape_cpu - RUNTIME",
+            "name": "reshape_cpu_N4 - RUNTIME",
             "value": 12.526630401611328,
             "unit": "s",
             "range": 0.2068168818950653
@@ -170,49 +170,49 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "kmeans_cpu - RUNTIME",
+            "name": "kmeans_cpu_N4 - RUNTIME",
             "value": 0.9409732818603516,
             "unit": "s",
             "range": 0.10981494933366776
           },
           {
-            "name": "kmedians_cpu - RUNTIME",
+            "name": "kmedians_cpu_N4 - RUNTIME",
             "value": 4.830145835876465,
             "unit": "s",
             "range": 3.8494036197662354
           },
           {
-            "name": "kmedoids_cpu - RUNTIME",
+            "name": "kmedoids_cpu_N4 - RUNTIME",
             "value": 4.587499141693115,
             "unit": "s",
             "range": 1.0906234979629517
           },
           {
-            "name": "lanczos_cpu - RUNTIME",
+            "name": "lanczos_cpu_N4 - RUNTIME",
             "value": 41.0870246887207,
             "unit": "s",
             "range": 2.2554943561553955
           },
           {
-            "name": "matmul_cpu_split_0 - RUNTIME",
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
             "value": 0.7591880559921265,
             "unit": "s",
             "range": 0.06596166640520096
           },
           {
-            "name": "matmul_cpu_split_1 - RUNTIME",
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
             "value": 0.7841414213180542,
             "unit": "s",
             "range": 0.08697084337472916
           },
           {
-            "name": "qr_cpu - RUNTIME",
+            "name": "qr_cpu_N4 - RUNTIME",
             "value": 6.583443641662598,
             "unit": "s",
             "range": 0.5895178318023682
           },
           {
-            "name": "reshape_cpu - RUNTIME",
+            "name": "reshape_cpu_N4 - RUNTIME",
             "value": 1.1486433744430542,
             "unit": "s",
             "range": 0.035412367433309555
@@ -242,49 +242,49 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "kmeans_cpu - RUNTIME",
+            "name": "kmeans_cpu_N4 - RUNTIME",
             "value": 0.8627721667289734,
             "unit": "s",
             "range": 0.05123291537165642
           },
           {
-            "name": "kmedians_cpu - RUNTIME",
+            "name": "kmedians_cpu_N4 - RUNTIME",
             "value": 4.71013879776001,
             "unit": "s",
             "range": 3.7869374752044678
           },
           {
-            "name": "kmedoids_cpu - RUNTIME",
+            "name": "kmedoids_cpu_N4 - RUNTIME",
             "value": 4.644545555114746,
             "unit": "s",
             "range": 0.9805055856704712
           },
           {
-            "name": "lanczos_cpu - RUNTIME",
+            "name": "lanczos_cpu_N4 - RUNTIME",
             "value": 40.26018142700195,
             "unit": "s",
             "range": 1.976609230041504
           },
           {
-            "name": "matmul_cpu_split_0 - RUNTIME",
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
             "value": 0.8286346197128296,
             "unit": "s",
             "range": 0.06730403751134872
           },
           {
-            "name": "matmul_cpu_split_1 - RUNTIME",
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
             "value": 0.7945326566696167,
             "unit": "s",
             "range": 0.05571514740586281
           },
           {
-            "name": "qr_cpu - RUNTIME",
+            "name": "qr_cpu_N4 - RUNTIME",
             "value": 6.884799957275391,
             "unit": "s",
             "range": 0.5157168507575989
           },
           {
-            "name": "reshape_cpu - RUNTIME",
+            "name": "reshape_cpu_N4 - RUNTIME",
             "value": 1.1258480548858643,
             "unit": "s",
             "range": 0.05847302824258804
@@ -314,49 +314,49 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "kmeans_cpu - RUNTIME",
+            "name": "kmeans_cpu_N4 - RUNTIME",
             "value": 0.8988556861877441,
             "unit": "s",
             "range": 0.0637301653623581
           },
           {
-            "name": "kmedians_cpu - RUNTIME",
+            "name": "kmedians_cpu_N4 - RUNTIME",
             "value": 5.219430446624756,
             "unit": "s",
             "range": 4.604112148284912
           },
           {
-            "name": "kmedoids_cpu - RUNTIME",
+            "name": "kmedoids_cpu_N4 - RUNTIME",
             "value": 4.559315204620361,
             "unit": "s",
             "range": 0.9846170544624329
           },
           {
-            "name": "lanczos_cpu - RUNTIME",
+            "name": "lanczos_cpu_N4 - RUNTIME",
             "value": 38.10189437866211,
             "unit": "s",
             "range": 2.76328444480896
           },
           {
-            "name": "matmul_cpu_split_0 - RUNTIME",
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
             "value": 0.810444176197052,
             "unit": "s",
             "range": 0.06511379033327103
           },
           {
-            "name": "matmul_cpu_split_1 - RUNTIME",
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
             "value": 0.8347999453544617,
             "unit": "s",
             "range": 0.026931846514344215
           },
           {
-            "name": "qr_cpu - RUNTIME",
+            "name": "qr_cpu_N4 - RUNTIME",
             "value": 6.731255531311035,
             "unit": "s",
             "range": 0.7050207257270813
           },
           {
-            "name": "reshape_cpu - RUNTIME",
+            "name": "reshape_cpu_N4 - RUNTIME",
             "value": 1.0273901224136353,
             "unit": "s",
             "range": 0.03521817550063133
@@ -386,49 +386,49 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "kmeans_cpu - RUNTIME",
+            "name": "kmeans_cpu_N4 - RUNTIME",
             "value": 1.0331406593322754,
             "unit": "s",
             "range": 0.06368827074766159
           },
           {
-            "name": "kmedians_cpu - RUNTIME",
+            "name": "kmedians_cpu_N4 - RUNTIME",
             "value": 5.409095764160156,
             "unit": "s",
             "range": 4.7657294273376465
           },
           {
-            "name": "kmedoids_cpu - RUNTIME",
+            "name": "kmedoids_cpu_N4 - RUNTIME",
             "value": 4.845440864562988,
             "unit": "s",
             "range": 1.0106961727142334
           },
           {
-            "name": "lanczos_cpu - RUNTIME",
+            "name": "lanczos_cpu_N4 - RUNTIME",
             "value": 39.47422409057617,
             "unit": "s",
             "range": 2.9162349700927734
           },
           {
-            "name": "matmul_cpu_split_0 - RUNTIME",
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
             "value": 0.951638400554657,
             "unit": "s",
             "range": 0.06195865571498871
           },
           {
-            "name": "matmul_cpu_split_1 - RUNTIME",
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
             "value": 1.0053038597106934,
             "unit": "s",
             "range": 0.05874303728342056
           },
           {
-            "name": "qr_cpu - RUNTIME",
+            "name": "qr_cpu_N4 - RUNTIME",
             "value": 6.7009596824646,
             "unit": "s",
             "range": 0.5610595941543579
           },
           {
-            "name": "reshape_cpu - RUNTIME",
+            "name": "reshape_cpu_N4 - RUNTIME",
             "value": 1.3282134532928467,
             "unit": "s",
             "range": 0.032579205930233
@@ -458,49 +458,49 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "kmeans_cpu - RUNTIME",
+            "name": "kmeans_cpu_N4 - RUNTIME",
             "value": 1.3457703590393066,
             "unit": "s",
             "range": 0.0818895697593689
           },
           {
-            "name": "kmedians_cpu - RUNTIME",
+            "name": "kmedians_cpu_N4 - RUNTIME",
             "value": 5.620911598205566,
             "unit": "s",
             "range": 4.693271636962891
           },
           {
-            "name": "kmedoids_cpu - RUNTIME",
+            "name": "kmedoids_cpu_N4 - RUNTIME",
             "value": 5.0497331619262695,
             "unit": "s",
             "range": 0.9303812980651855
           },
           {
-            "name": "lanczos_cpu - RUNTIME",
+            "name": "lanczos_cpu_N4 - RUNTIME",
             "value": 40.066925048828125,
             "unit": "s",
             "range": 2.2695720195770264
           },
           {
-            "name": "matmul_cpu_split_0 - RUNTIME",
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
             "value": 0.8463083505630493,
             "unit": "s",
             "range": 0.05460250750184059
           },
           {
-            "name": "matmul_cpu_split_1 - RUNTIME",
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
             "value": 0.8126780390739441,
             "unit": "s",
             "range": 0.048105787485837936
           },
           {
-            "name": "qr_cpu - RUNTIME",
+            "name": "qr_cpu_N4 - RUNTIME",
             "value": 7.060009002685547,
             "unit": "s",
             "range": 0.18940185010433197
           },
           {
-            "name": "reshape_cpu - RUNTIME",
+            "name": "reshape_cpu_N4 - RUNTIME",
             "value": 1.1943029165267944,
             "unit": "s",
             "range": 0.060206275433301926
@@ -530,49 +530,49 @@ window.BENCHMARK_DATA = {
         "tool": "customSmallerIsBetter",
         "benches": [
           {
-            "name": "kmeans_cpu - RUNTIME",
+            "name": "kmeans_cpu_N4 - RUNTIME",
             "value": 1.4233367443084717,
             "unit": "s",
             "range": 0.10170768201351166
           },
           {
-            "name": "kmedians_cpu - RUNTIME",
+            "name": "kmedians_cpu_N4 - RUNTIME",
             "value": 5.2173333168029785,
             "unit": "s",
             "range": 3.9342546463012695
           },
           {
-            "name": "kmedoids_cpu - RUNTIME",
+            "name": "kmedoids_cpu_N4 - RUNTIME",
             "value": 5.108536720275879,
             "unit": "s",
             "range": 1.0454715490341187
           },
           {
-            "name": "lanczos_cpu - RUNTIME",
+            "name": "lanczos_cpu_N4 - RUNTIME",
             "value": 40.01653289794922,
             "unit": "s",
             "range": 2.342420816421509
           },
           {
-            "name": "matmul_cpu_split_0 - RUNTIME",
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
             "value": 0.8153241276741028,
             "unit": "s",
             "range": 0.038919467478990555
           },
           {
-            "name": "matmul_cpu_split_1 - RUNTIME",
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
             "value": 0.8794156908988953,
             "unit": "s",
             "range": 0.08604833483695984
           },
           {
-            "name": "qr_cpu - RUNTIME",
+            "name": "qr_cpu_N4 - RUNTIME",
             "value": 6.73513650894165,
             "unit": "s",
             "range": 0.6942393183708191
           },
           {
-            "name": "reshape_cpu - RUNTIME",
+            "name": "reshape_cpu_N4 - RUNTIME",
             "value": 1.2570745944976807,
             "unit": "s",
             "range": 0.04073786735534668
