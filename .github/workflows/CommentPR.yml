@@ -68,4 +68,4 @@ jobs:
            -F token=${{ secrets.CB_PIPELINE }} \
            -F "ref=pt20" \
            -F "variables[PR]=${{ needs.upload.outputs.PR_NR }}" \
-           https://codebase.helmholtz.cloud/api/v4/projects/7605/trigger/pipeline -o /dev/null
+           https://gitlab.hzdr.de/api/v4/projects/7605/trigger/pipeline -o /dev/null
