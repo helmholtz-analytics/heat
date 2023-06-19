@@ -74,10 +74,12 @@ class TestOperations(TestCase):
 
         with self.assertRaises(TypeError):
             ht.bitwise_and(ht.ones((1, 2)), "wrong type")
-        with self.assertRaises(NotImplementedError):
-            ht.bitwise_or(
-                ht.ones((1, 2), dtype=ht.int32, split=0), ht.ones((1, 2), dtype=ht.int32, split=1)
-            )
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(NotImplementedError):
+                ht.bitwise_or(
+                    ht.ones((1, 2), dtype=ht.int32, split=0),
+                    ht.ones((1, 2), dtype=ht.int32, split=1),
+                )
 
         a = ht.ones((4, 4), split=None)
         b = ht.zeros((4, 4), split=0)
