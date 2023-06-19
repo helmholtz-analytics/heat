@@ -11,36 +11,36 @@ class TestKNN(TestCase):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
         # generate keys for the iris.h5 dataset
-        labels = ht.zeros(150, dtype=ht.int32)
-        labels[50:100] = 1
-        labels[100:] = 2
+        y = ht.zeros(150, dtype=ht.int32)
+        y[50:100] = 1
+        y[100:] = 2
 
         knn = KNeighborsClassifier(n_neighbors=5)
-        knn.fit(x, labels)
+        knn.fit(x, y)
         result = knn.predict(x)
 
         self.assertTrue(ht.is_estimator(knn))
         self.assertTrue(ht.is_classifier(knn))
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, labels.shape)
+        self.assertEqual(result.shape, y.shape)
 
     @unittest.skipUnless(ht.supports_hdf5(), "Requires HDF5")
     def test_split_zero(self):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data", split=0)
 
         # generate keys for the iris.h5 dataset
-        labels = ht.zeros(150, dtype=ht.int32)
-        labels[50:100] = 1
-        labels[100:] = 2
+        y = ht.zeros(150, dtype=ht.int32)
+        y[50:100] = 1
+        y[100:] = 2
 
         knn = KNeighborsClassifier(n_neighbors=5)
-        knn.fit(x, labels)
+        knn.fit(x, y)
         result = knn.predict(x)
 
         self.assertTrue(ht.is_estimator(knn))
         self.assertTrue(ht.is_classifier(knn))
         self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, labels.shape)
+        self.assertEqual(result.shape, y.shape)
 
     def test_exception(self):
         a = ht.zeros((3,))
@@ -79,10 +79,9 @@ class TestKNN(TestCase):
         labels[100:] = 2
 
         # keys as one_hot
-        keys = ht.zeros((150, 3), dtype=ht.int32)
-        keys[50:100, 1] = 1
-        keys[100:, 2] = 1
-        y = ht.array(keys)
+        y = ht.zeros((150, 3), dtype=ht.int32)
+        y[50:100, 1] = 1
+        y[100:, 2] = 1
 
         knn = KNeighborsClassifier(n_neighbors=5)
         knn.fit(x, y)
