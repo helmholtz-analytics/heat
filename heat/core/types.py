@@ -513,6 +513,9 @@ def canonical_heat_type(a_type: Union[str, Type[datatype], Any]) -> Type[datatyp
     except TypeError:
         pass
 
+    # extract type of numpy.dtype
+    a_type = getattr(a_type, "type", a_type)
+
     # try to look the corresponding type up
     try:
         return __type_mappings[a_type]
