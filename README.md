@@ -46,8 +46,10 @@ Getting Started
 Check out our Jupyter Notebook [tutorial](https://github.com/helmholtz-analytics/heat/blob/main/scripts/tutorial.ipynb)
 right here on Github or in the /scripts directory.
 
-The complete documentation of the latest version is always deployed on
-[Read the Docs](https://heat.readthedocs.io/).
+The complete documentation of the **stable version** is always deployed on
+[Read the Docs](https://heat.readthedocs.io/en/stable/).
+
+You can checkout the documentation of the **latest version** [Here](https://heat.readthedocs.io/en/latest/).
 
 Support Channels
 ----------------
