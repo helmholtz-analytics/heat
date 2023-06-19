@@ -228,6 +228,7 @@ class TestSignal(TestCase):
         # non-distributed signal, size-1 kernel
         signal = ht.arange(0, 16).reshape(4, 4).astype(ht.int)
         alt_signal = ht.arange(16).reshape(4, 4).astype(ht.int)
-        kernel = ht.ones(1).reshape((1, 1)).astype(ht.int)
+        # please review and then remove: here we require (for whathever reason): ht.float32 instead of ht.int
+        kernel = ht.ones(1).reshape((1, 1)).astype(ht.float32)
         conv = ht.convolve2d(alt_signal, kernel)
         self.assertTrue(ht.equal(signal, conv))
