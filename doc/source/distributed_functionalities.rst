@@ -1,0 +1,91 @@
+Functionalities as other Libraries
+==============================================
+
+Inference
+---------
+Heat is a Python package for accelerated and distributed tensor computations. Internally, it is based on PyTorch. Heat has various functionalities similar to that of numpy/scipy and scikit-learn. What more is offered is that it supports distributed tensor computations for accelerated computations. The implementations allows us to tackle use cases that would otherwise exceed memory limits of a single node. Below listed are the various operatiosn that are performed on heat, just like any other tensor library:
+
+Summary Table
+-------------
+
+.. list-table::
+   :widths: 100 150
+   :header-rows: 1
+
+   * - Function
+     - Implementation
+   * - Array Initialization
+     - ``ht.array([[1, 2, 3],[4, 5, 6],[7, 8, 9]], split=1)``
+   * - Array of zeros
+     - ``ht.zeros((3, 4))``
+   * - Array of ones
+     - ``ht.ones((3,4))``
+   * - Identity Matrix
+     - ``ht.eye(3)``
+   * - Basic Mathematical Functions
+     - | ``ht.sin(ht.array([1, 2, 3]))``
+       | ``ht.cos(ht.array([3, 4, 5]))``
+       | ``ht.log(ht.array([5, 6, 7]))``
+       | ``ht.exp(ht.array([7, 8, 9]))``
+       | ``ht.sqrt(ht.array([9, 1, 2]))``
+       | ``ht.min(ht.array([4, 8, 9]))``
+       | ``ht.max(ht.array([1, 1, 7]))``
+       | ``ht.unique(ht.array([3, 6, 6]))``
+       | ``ht.mean(ht.array([9, 1, 2]))``
+       | ``ht.median(ht.array([5, 1, 5]))``
+   * - Matrix Multiplication
+     - ``ht.matmul(a, b)``
+   * - Dot and Cross Products
+     - | ``ht.cross(a, b)``
+       | ``ht.dot(a, b)``
+   * - Determinant
+     - ``ht.det(a)``
+   * - Reshape
+     - ``ht.reshape(a, (2,4))``
+   * - Transpose
+     - ``ht.transpose(a)``
+   * - Q R Decomposition
+     - ``ht.linalg.qr(a)``
+   * - Stack DNDarrays
+     - ``ht.column_stack((a, b, c)).larray``
+   * - Concatinate DNDarrays
+     - ``ht.concatenate((x, y), axis=0)``
+   * - Flatten
+     - ``ht.flatten(a)``
+   * - Copy
+     - ``ht.copy(a)``
+   * - Random Integers
+     - ``ht.random.randit((3, 4))``
+   * - Rounded Value Element Wise
+     - ``ht.rounding.round(a)``
+   * - Split Tiles
+     - ``a.tiling.create_split_tiles()``
+   * - Linear Regression
+     - ``lr = ht.regression.lasso.Lasso(max_iter=10)``
+   * - K Nearest Neighbour
+     - ``knn = ht.classification.kneighborsclassifier.KNeighborsClassifier(n_neighbors=1)``
+   * - Gaussian Naive Bayes
+     - ``clf=ht.naive_bayes.GaussianNB()``
+   * - K-Means Clustering
+     - ``heat.cluster.kmeans.KMeans()``
+   * - Linear Convolution
+     - ``ht.signal.convolve(array, weights)``
+   * - Data Parallelism
+     - | ``ht.nn.layer_name()``
+       | An example of this is shown in examples/mnist.py
+   * - Data Parallel Optimizer
+     - ``ht.optim.dp_optimizer.DataParallelOptimizer(optimizer)``
+   * - Distributed Compressed Sparse Row Matrix
+     - ``ht.sparse.sparse_csr_matrix(local_torch_sparse_csr, is_split=0)``
+   * - Euclidean Distance
+     - ``ht.spatial.distance.cdist(X, Y)``
+   * - Manhattan Distance
+     - ``ht.spatial.distance.manhattan(X, Y)``
+   * - Gaussian Distance
+     - ``ht.spatial.distance.rbf(a, b)``
+   * - Data Loader
+     - ``ht.utils.data.datatools.DataLoader(dataset=data)``
+   * - MNIST Dataset
+     - ``ht.utils.data.mnist.MNISTDataset(path_to_mnist_dataset)``
+   * - Shuffle Data Between Processors
+     - ``ht.utils.data.datatools.dataset_shuffle()``
