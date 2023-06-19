@@ -73,10 +73,12 @@ class TestOperations(TestCase):
 
         with self.assertRaises(TypeError):
             ht.bitwise_and(ht.ones((1, 2)), "wrong type")
-        with self.assertRaises(NotImplementedError):
-            ht.bitwise_or(
-                ht.ones((1, 2), dtype=ht.int32, split=0), ht.ones((1, 2), dtype=ht.int32, split=1)
-            )
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(NotImplementedError):
+                ht.bitwise_or(
+                    ht.ones((1, 2), dtype=ht.int32, split=0),
+                    ht.ones((1, 2), dtype=ht.int32, split=1),
+                )
 
         a = ht.ones((4, 4), split=None)
         b = ht.zeros((4, 4), split=0)
@@ -90,13 +92,14 @@ class TestOperations(TestCase):
         self.assertTrue(ht.equal(b * a[0:1], b))
 
         c = ht.array([1, 2, 3, 4], comm=ht.MPI_SELF)
-        with self.assertRaises(NotImplementedError):
-            b + c
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(NotImplementedError):
+                b + c
+            with self.assertRaises(NotImplementedError):
+                a.resplit(1) * b
         with self.assertRaises(TypeError):
             ht.minimum(a, np.float128(1))
         with self.assertRaises(TypeError):
             ht.minimum(np.float128(1), a)
-        with self.assertRaises(NotImplementedError):
-            a.resplit(1) * b
         with self.assertRaises(ValueError):
             a[2:] * b

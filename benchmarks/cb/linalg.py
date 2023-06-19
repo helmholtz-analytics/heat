@@ -1,5 +1,7 @@
 # flake8: noqa
 import heat as ht
+import torchvision.datasets as datasets
+from mpi4py import MPI
 from perun.decorator import monitor
 
 
@@ -32,7 +34,23 @@ def lanczos_cpu(n: int = 50):
     V, T = ht.lanczos(B, m=n)
 
 
+@monitor()
+def hierachical_svd_rank(data, r):
+    approx_svd = ht.linalg.hsvd_rank(data, maxrank=r, compute_sv=True, silent=True)
+
+
+@monitor()
+def hierachical_svd_tol(data, tol):
+    approx_svd = ht.linalg.hsvd_rtol(data, rtol=tol, compute_sv=True, silent=True)
+
+
 matmul_cpu_split_0()
 matmul_cpu_split_1()
 qr_cpu()
 lanczos_cpu()
+
+data = ht.utils.data.matrixgallery.random_known_rank(
+    1000, 500 * MPI.COMM_WORLD.Get_size(), 10, split=1, dtype=ht.float32
+)[0]
+hierachical_svd_rank(data, 10)
+hierachical_svd_tol(data, 1e-2)

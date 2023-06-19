@@ -24,6 +24,8 @@ from . import _operations
 
 __all__ = [
     "balance",
+    "broadcast_arrays",
+    "broadcast_to",
     "column_stack",
     "concatenate",
     "diag",
@@ -74,11 +76,6 @@ def balance(array: DNDarray, copy=False) -> DNDarray:
         the original array and return that array. Otherwise (true), a balanced copy of the array
         will be returned.
         Default: False
-
-    Returns
-    -------
-    balanced : DNDarray
-        The balanced DNDarray
     """
     cpy = array.copy() if copy else array
     cpy.balance_()
@@ -87,6 +84,164 @@ def balance(array: DNDarray, copy=False) -> DNDarray:
 
 DNDarray.balance = lambda self, copy=False: balance(self, copy)
 DNDarray.balance.__doc__ = balance.__doc__
+
+
+def broadcast_arrays(*arrays: DNDarray) -> List[DNDarray]:
+    """
+    Broadcasts one or more arrays against one another. Returns the broadcasted arrays, distributed along the split dimension of the first array in the list. If the first array is not distributed, the output will not be distributed.
+
+    Parameters
+    ----------
+    arrays : DNDarray
+        An arbitrary number of to-be broadcasted ``DNDarray``s.
+
+    Notes
+    -----
+    Broadcasted arrays are a view of the original arrays if possible, otherwise a copy is made.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.ones((100, 10), split=0)
+    >>> b = ht.ones((10,), split=None)
+    >>> c = ht.ones((1, 10), split=1)
+    >>> d, e, f = ht.broadcast_arrays(a, b, c)
+    >>> d.shape
+    (100, 10)
+    >>> e.shape
+    (100, 10)
+    >>> f.shape
+    (100, 10)
+    >>> d.split
+    0
+    >>> e.split
+    0
+    >>> f.split
+    0
+    """
+    if len(arrays) <= 1:
+        return arrays
+
+    try:
+        arrays = sanitation.sanitize_distribution(*arrays, target=arrays[0])
+        output_split, output_comm, output_balanced = (
+            arrays[0].split,
+            arrays[0].comm,
+            arrays[0].balanced,
+        )
+    except NotImplementedError as e:
+        raise ValueError(e)
+
+    gshapes = []
+    t_arrays = []
+    for array in arrays:
+        # extract global shapes
+        gshapes.append(array.gshape)
+        # extract local torch tensors
+        t_arrays.append(array.larray)
+    t_arrays = tuple(t_arrays)
+
+    # broadcast the global shapes
+    try:
+        output_shape = tuple(torch.broadcast_shapes(*gshapes))
+    except RuntimeError:
+        raise ValueError(
+            f"Shape mismatch: objects cannot be broadcast to a single shape. Original shapes: {gshapes}"
+        )
+
+    # broadcast the local torch tensors: this is a view of the original data
+    broadcasted = torch.broadcast_tensors(*t_arrays)
+
+    out = []
+    for i in range(len(broadcasted)):
+        out.append(
+            DNDarray(
+                broadcasted[i],
+                gshape=output_shape,
+                dtype=arrays[i].dtype,
+                split=output_split,
+                device=arrays[i].device,
+                comm=output_comm,
+                balanced=output_balanced,
+            )
+        )
+
+    return out
+
+
+def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
+    """
+    Broadcasts an array to a specified shape. Returns a view of ``x`` if ``x`` is not distributed, otherwise it returns a broadcasted, distributed, load-balanced copy of ``x``.
+
+    Parameters
+    ----------
+    x : DNDarray
+        `DNDarray` to broadcast.
+    shape : Tuple[int, ...]
+        Array shape. Must be compatible with ``x``.
+
+    Raises
+    ------
+    ValueError
+        If the array is not compatible with the new shape according to PyTorch's broadcasting rules.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.arange(100, split=0)
+    >>> b = ht.broadcast_to(a, (10,100))
+    >>> b.shape
+    (10, 100)
+    >>> b.split
+    1
+    >>> c = ht.broadcast_to(a, (100, 10))
+    ValueError: Shape mismatch: object cannot be broadcast to the given shape. Original shape: (100,), target shape: (100, 10)
+    """
+    sanitation.sanitize_in(x)
+
+    # figure out the output split axis via dndarray.__torch_proxy__ and named tensors functionality
+    torch_proxy = x.__torch_proxy__()
+    split_tags = [None] * x.ndim
+    if x.split is not None:
+        split_tags[x.split] = "split"
+        torch_proxy = torch.tensor(torch_proxy, names=split_tags)
+        try:
+            torch_proxy = torch_proxy.broadcast_to(shape)
+        except RuntimeError:
+            raise ValueError(
+                f"Shape mismatch: object cannot be broadcast to the given shape. Original shape: {x.shape}, target shape: {shape}"
+            )
+        output_split = torch_proxy.names.index("split")
+    else:
+        try:
+            torch_proxy = torch_proxy.broadcast_to(shape)
+        except RuntimeError:
+            raise ValueError(
+                f"Shape mismatch: object cannot be broadcast to the given shape. Original shape: {x.shape}, target shape: {shape}"
+            )
+        output_split = None
+
+    if not x.is_distributed():
+        # return a view of the input data
+        broadcasted = DNDarray(
+            x.larray.broadcast_to(shape),
+            gshape=shape,
+            dtype=x.dtype,
+            split=output_split,
+            device=x.device,
+            comm=x.comm,
+            balanced=True,
+        )
+    else:
+        # input is distributed, return a broadcasted copy of input
+        # exploit binary operations broadcasting
+        broadcasted = factories.zeros(
+            shape, dtype=x.dtype, split=output_split, device=x.device, comm=x.comm
+        )
+        broadcasted += x
+        del x
+
+    return broadcasted
 
 
 def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
