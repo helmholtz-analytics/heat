@@ -92,9 +92,10 @@ class TestOperations(TestCase):
         self.assertTrue(ht.equal(a[0:1] * b, b))
         self.assertTrue(ht.equal(b * a[0:1], b))
 
-        c = ht.array([1, 2, 3, 4], comm=ht.MPI_SELF)
-        with self.assertRaises(NotImplementedError):
-            b + c
+        if ht.MPI_WORLD.size > 1:
+            c = ht.array([1, 2, 3, 4], comm=ht.MPI_SELF)
+            with self.assertRaises(NotImplementedError):
+                b + c
         # skip tests on arm64 architecture
         if platform.machine() != "arm64":
             with self.assertRaises(TypeError):
