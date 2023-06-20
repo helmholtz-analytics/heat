@@ -28,12 +28,15 @@ minor: int = 2 # <-- update to 3
 """Indicates feature extension."""
 micro: int = 2 # <-- update to 0
 """Indicates revisions for bugfixes."""
-extension: str = "dev" # <-- set to ""
+extension: str = "dev" # <-- set to None
 """Indicates special builds, e.g. for specific hardware."""
 ```
 
-3. Draft release notes:
+3. Commit and push new `version.py` in `release/1.3.x` 
+
+4. Draft release notes:
   - Go to the GitHub repo's [Releases](https://github.com/helmholtz-analytics/heat/releases) page.
+  - The release notes draft is automated. Edit as needed
 
 
 
