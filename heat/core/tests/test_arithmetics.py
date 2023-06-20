@@ -287,7 +287,13 @@ class TestArithmetics(TestCase):
             ht.cumsum(ht.ones((2, 2)), 2)
 
     def test_diff(self):
-        ht_array = ht.random.rand(20, 20, 20, split=None)
+        is_mps = (
+            ht.get_device().device_type.startswith("gpu")
+            and torch.backends.mps.is_built()
+            and torch.backends.mps.is_available()
+        )
+        dtype = ht.float32 if is_mps else ht.float64
+        ht_array = ht.random.rand(20, 20, 20, split=None, dtype=dtype)
         arb_slice = [0] * 3
         for dim in range(0, 3):  # loop over 3 dimensions
             arb_slice[dim] = slice(None)
@@ -315,11 +321,14 @@ class TestArithmetics(TestCase):
                         ht_diff_pend = ht.diff(lp_array, n=nl, axis=ax, prepend=0, append=ht_append)
                         np_append = np.ones(append_shape, dtype=lp_array.larray.cpu().numpy().dtype)
                         np_diff_pend = ht.array(
-                            np.diff(np_array, n=nl, axis=ax, prepend=0, append=np_append)
+                            np.diff(np_array, n=nl, axis=ax, prepend=0, append=np_append).astype(
+                                lp_array.larray.cpu().numpy().dtype
+                            ),
+                            dtype=dtype,
                         )
                         self.assertTrue(ht.equal(ht_diff_pend, np_diff_pend))
                         self.assertEqual(ht_diff_pend.split, sp)
-                        self.assertEqual(ht_diff_pend.dtype, ht.float64)
+                        self.assertEqual(ht_diff_pend.dtype, dtype)
 
         np_array = ht_array.numpy()
         ht_diff = ht.diff(ht_array, n=2)
@@ -328,7 +337,7 @@ class TestArithmetics(TestCase):
         self.assertEqual(ht_diff.split, None)
         self.assertEqual(ht_diff.dtype, ht_array.dtype)
 
-        ht_array = ht.random.rand(20, 20, 20, split=1, dtype=ht.float64)
+        ht_array = ht.random.rand(20, 20, 20, split=1, dtype=dtype)
         np_array = ht_array.copy().numpy()
         ht_diff = ht.diff(ht_array, n=2)
         np_diff = ht.array(np.diff(np_array, n=2))
@@ -512,27 +521,38 @@ class TestArithmetics(TestCase):
             ht.mul("T", "s")
 
     def test_neg(self):
+        is_mps = (
+            ht.get_device().device_type.startswith("gpu")
+            and torch.backends.mps.is_built()
+            and torch.backends.mps.is_available()
+        )
         self.assertTrue(ht.equal(ht.neg(ht.array([-1, 1])), ht.array([1, -1])))
         self.assertTrue(ht.equal(-ht.array([-1.0, 1.0]), ht.array([1.0, -1.0])))
-
-        a = ht.array([1 + 1j, 2 - 2j, 3, 4j, 5], split=0)
-        b = out = ht.empty(5, dtype=ht.complex64, split=0)
-        ht.negative(a, out=out)
-        self.assertTrue(ht.equal(out, ht.array([-1 - 1j, -2 + 2j, -3, -4j, -5], split=0)))
-        self.assertIs(out, b)
+        if not is_mps:
+            a = ht.array([1 + 1j, 2 - 2j, 3, 4j, 5], split=0)
+            b = out = ht.empty(5, dtype=ht.complex64, split=0)
+            ht.negative(a, out=out)
+            self.assertTrue(ht.equal(out, ht.array([-1 - 1j, -2 + 2j, -3, -4j, -5], split=0)))
+            self.assertIs(out, b)
 
         with self.assertRaises(TypeError):
             ht.neg(1)
 
     def test_pos(self):
+        is_mps = (
+            ht.get_device().device_type.startswith("gpu")
+            and torch.backends.mps.is_built()
+            and torch.backends.mps.is_available()
+        )
         self.assertTrue(ht.equal(ht.pos(ht.array([-1, 1])), ht.array([-1, 1])))
         self.assertTrue(ht.equal(+ht.array([-1.0, 1.0]), ht.array([-1.0, 1.0])))
 
-        a = ht.array([1 + 1j, 2 - 2j, 3, 4j, 5], split=0)
-        b = out = ht.empty(5, dtype=ht.complex64, split=0)
-        ht.positive(a, out=out)
-        self.assertTrue(ht.equal(out, a))
-        self.assertIs(out, b)
+        if not is_mps:
+            a = ht.array([1 + 1j, 2 - 2j, 3, 4j, 5], split=0)
+            b = out = ht.empty(5, dtype=ht.complex64, split=0)
+            ht.positive(a, out=out)
+            self.assertTrue(ht.equal(out, a))
+            self.assertIs(out, b)
 
         with self.assertRaises(TypeError):
             ht.pos(1)
