@@ -7,7 +7,9 @@ These are basic instructions for internal use. Will be expanded as need arises.
 
 In the following, we assume we are about to release Heat v1.3.0.
 
-1. Starting from  `main`, create a new release branch, e.g.:
+**PRE-REQUISITE:** all intended PRs are merged, all tests have passed, and the `main` branch is ready for release.
+
+1. We will release all new features in the development branch `main`. Branch off  `main` to create a new release branch, e.g.:
 ```bash
 git checkout main
 git pull
@@ -20,13 +22,17 @@ git checkout -b release/1.3.x
 
 major: int = 1
 """Indicates Heat's main version."""
-minor: int = 2 # update to 3
+minor: int = 2 # <-- update to 3
 """Indicates feature extension."""
-micro: int = 2 # update to 0
+micro: int = 2 # <-- update to 0
 """Indicates revisions for bugfixes."""
-extension: str = "dev" # set to ""
+extension: str = "dev" # <-- set to ""
 """Indicates special builds, e.g. for specific hardware."""
 ```
+
+3. Draft release notes:
+  - Go to the GitHub repo's [Releases](https://github.com/helmholtz-analytics/heat/releases) page.
+
 
 
 ### Patch release
