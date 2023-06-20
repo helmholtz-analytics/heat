@@ -7,7 +7,9 @@ These are basic instructions for internal use. Will be expanded as need arises.
 
 In the following, we assume we are about to release Heat v1.3.0.
 
-**PRE-REQUISITE:** all intended PRs are merged, all tests have passed, and the `main` branch is ready for release.
+**PRE-REQUISITES:**
+- You need [PyPi](https://pypi.org/), [Test.PyPi](https://test.pypi.org/) account
+- all intended PRs are merged, all tests have passed, and the `main` branch is ready for release.
 
 1. We will release all new features in the development branch `main`. Branch off  `main` to create a new release branch, e.g.:
 ```bash
