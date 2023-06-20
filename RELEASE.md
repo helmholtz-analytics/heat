@@ -56,7 +56,15 @@ extension: str = "dev" # <-- set to None
    ```bash
    twine upload dist/*
    ```
-
+ 8. Go back to the Release Notes draft and publish them. The new release is out!
+ 9. Now merge `release/1.3.x` into `main`
+    ```bash
+    git checkout main
+    git pull
+    git merge release/1.3.x --no-ff --no-commit
+    ```
+ 11. We want the version on `main` to be `1.3.0-dev`. Check out a new branch, update `version.py` and create a PR with `main` as base branch.
+ 12. Get approval and merge. You're done!
 
 
 ### Patch release
