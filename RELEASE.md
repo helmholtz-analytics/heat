@@ -49,6 +49,5 @@ extension: str = "dev" # <-- set to None
    You might have to install the `build` package first (i.e. with `conda install build` or `pip install build`)
 
 
-
 ### Patch release
 (e.g. 1.3.1 --> 1.3.2)
