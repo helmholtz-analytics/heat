@@ -57,13 +57,15 @@ extension: str = "dev" # <-- set to None
    twine upload dist/*
    ```
  8. Go back to the Release Notes draft and publish them. The new release is out!
- 9. Now merge `release/1.3.x` into `main`
+ 9. Now we want to update `main` to the latest version, and we want the version on `main` to be `1.3.0-dev`.
     ```bash
     git checkout main
     git pull
+    git checkout -b workflows/update-version-main
     git merge release/1.3.x --no-ff --no-commit
     ```
- 11. We want the version on `main` to be `1.3.0-dev`. Check out a new branch, update `version.py` and create a PR with `main` as base branch.
+    Modify `version.py` so that `extension` is `"dev"`. 
+ 11. Create a PR with `main` as base branch.
  12. Get approval and merge. You're done!
 
 
