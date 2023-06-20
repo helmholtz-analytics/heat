@@ -263,6 +263,22 @@ def __cum_op(
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
 
+    if x.larray.is_mps:
+        if x.dtype == types.int64:
+            warnings.warn(
+                "MPS does not support cumulative operations on int64, using int32 instead"
+            )
+            x = x.astype(types.int32)
+        if dtype is not None:
+            if dtype == types.float64:
+                warnings.warn("MPS does not support float64, using float32 instead")
+                dtype = types.float32
+            elif dtype == types.int64:
+                warnings.warn(
+                    "MPS does not support cumulative operations on int64, using int32 instead"
+                )
+                dtype = types.int32
+
     if out is not None:
         sanitation.sanitize_out(out, x.shape, x.split, x.device)
         dtype = out.dtype
