@@ -41,7 +41,12 @@ extension: str = "dev" # <-- set to None
   - Edit release notes as needed (see older releases)
   - Click on Save but do not publish yet
 
-5.Build wheel in your local `heat/` directory, make sure you are on branch `release/1.3.x`.
+5. Build wheel in your local `heat/` directory, make sure you are on branch `release/1.3.x`.
+   ```bash
+   rm -f dist/*
+   python -m build
+   ```
+   You might have to install the `build` package first (i.e. with `conda install build` or `pip install build`) 
 
 
 
