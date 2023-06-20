@@ -4,8 +4,6 @@ title: 'Memory-distributed hierarchical SVD in Heat'
 tags: hSVD newfeature SVD PCA 
 ---
 
-## TL;DR 
-
 We have implemented an algorithm for computing an approximate, truncated SVD/PCA in Heat; see `heat.linalg.hsvd_rank` and `heat.linalg.hsvd_rtol`. What this actually is, why it is helpful, and how it works, will be explained below. 
 
 ## SVD, PCA, and their truncated counterparts in a nutshell 
