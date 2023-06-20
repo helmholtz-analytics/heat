@@ -52,6 +52,11 @@ extension: str = "dev" # <-- set to None
      twine upload -r testpypi dist/*
      ```
     `twine` will prompt for your username and password.
+ 7. When everything works, upload to PyPI:
+   ```bash
+   twine upload dist/*
+   ```
+
 
 
 ### Patch release
