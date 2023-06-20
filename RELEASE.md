@@ -36,7 +36,12 @@ extension: str = "dev" # <-- set to None
 
 4. Draft release notes:
   - Go to the GitHub repo's [Releases](https://github.com/helmholtz-analytics/heat/releases) page.
-  - The release notes draft is automated. Edit as needed
+  - The release notes draft is automated. Click on Edit Draft
+  - Select new tag: v1.3.0. Modify Target branch: `release/1.3.x`
+  - Edit release notes as needed (see older releases)
+  - Click on Save but do not publish yet
+
+5. 
 
 
 
