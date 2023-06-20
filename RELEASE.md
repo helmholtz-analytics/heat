@@ -32,7 +32,7 @@ extension: str = "dev" # <-- set to None
 """Indicates special builds, e.g. for specific hardware."""
 ```
 
-3. Commit and push new `version.py` in `release/1.3.x` 
+3. Commit and push new `version.py` in `release/1.3.x`
 
 4. Draft release notes:
   - Go to the GitHub repo's [Releases](https://github.com/helmholtz-analytics/heat/releases) page.
