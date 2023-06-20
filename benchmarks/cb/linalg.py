@@ -1,5 +1,6 @@
 # flake8: noqa
 import heat as ht
+import itertools
 import torchvision.datasets as datasets
 from mpi4py import MPI
 from perun.decorator import monitor
@@ -21,10 +22,9 @@ def matmul_cpu_split_1(n: int = 3000):
 
 @monitor()
 def qr_cpu(n: int = 2000):
-    for t in range(1, 3):
-        for sp in range(2):
-            a = ht.random.random((n, n), split=sp)
-            qr = a.qr(tiles_per_proc=t)
+    for t, sp in itertools.product(range(1, 3), range(2)):
+        a = ht.random.random((n, n), split=sp)
+        qr = a.qr(tiles_per_proc=t)
 
 
 @monitor()

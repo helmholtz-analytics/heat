@@ -13,13 +13,13 @@ if __name__ == "__main__":
 
     ht.use_device("cpu")
 
-    print("Loading data... {}[{}]".format(args.file, args.dataset), end="")
+    print(f"Loading data... {args.file}[{args.dataset}]", end="")
     data = ht.load(args.file, dataset=args.dataset, split=0)
     print("\t[OK]")
 
     print("quadratic_expansion=False")
     for trial in range(args.trials):
-        print("Trial {}...".format(trial), end="")
+        print(f"Trial {trial}...", end="")
         start = time.perf_counter()
         dist = ht.spatial.distance.cdist(data, data, quadratic_expansion=False)
         end = time.perf_counter()
@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     print("quadratic_expansion=True")
     for trial in range(args.trials):
-        print("Trial {}...".format(trial), end="")
+        print(f"Trial {trial}...", end="")
         start = time.perf_counter()
         dist = ht.spatial.distance.cdist(data, data, quadratic_expansion=True)
         end = time.perf_counter()

@@ -318,8 +318,9 @@ class TestStatistics(TestCase):
         with self.assertRaises(ZeroDivisionError):
             ht.average(random_5d, weights=zero_weights, axis=axis)
         weights_5d_split_mismatch = ht.ones(random_5d.gshape, split=-1)
-        with self.assertRaises(NotImplementedError):
-            ht.average(random_5d, weights=weights_5d_split_mismatch, axis=axis)
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(NotImplementedError):
+                ht.average(random_5d, weights=weights_5d_split_mismatch, axis=axis)
 
         with self.assertRaises(TypeError):
             ht_array.average(axis=1.1)
@@ -860,9 +861,10 @@ class TestStatistics(TestCase):
         random_volume_5 = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
             ht.maximum(random_volume_1, random_volume_5)
-        random_volume_6 = ht.random.randn(6, 3, 3, split=1)
-        with self.assertRaises(NotImplementedError):
-            ht.maximum(random_volume_1, random_volume_6)
+        if ht.MPI_WORLD.size > 1:
+            random_volume_6 = ht.random.randn(6, 3, 3, split=1)
+            with self.assertRaises(NotImplementedError):
+                ht.maximum(random_volume_1, random_volume_6)
         output1 = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
             ht.maximum(random_volume_1, random_volume_2, out=output1)
@@ -1127,9 +1129,10 @@ class TestStatistics(TestCase):
         random_volume_3 = np.array(7.2)
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_3, random_volume_1)
-        random_volume_3 = ht.random.randn(6, 3, 3, split=1)
-        with self.assertRaises(NotImplementedError):
-            ht.minimum(random_volume_1, random_volume_3)
+        if ht.MPI_WORLD.size > 1:
+            random_volume_3 = ht.random.randn(6, 3, 3, split=1)
+            with self.assertRaises(NotImplementedError):
+                ht.minimum(random_volume_1, random_volume_3)
         output = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_1, random_volume_2, out=output)

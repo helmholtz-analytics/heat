@@ -173,11 +173,11 @@ def set_printoptions(
     torch.set_printoptions(precision, threshold, edgeitems, linewidth, profile, sci_mode)
 
     # HeAT profiles will print a bit wider than PyTorch does
-    if profile == "default" and linewidth is None:
-        torch._tensor_str.PRINT_OPTS.linewidth = _DEFAULT_LINEWIDTH
-    elif profile == "short" and linewidth is None:
-        torch._tensor_str.PRINT_OPTS.linewidth = _DEFAULT_LINEWIDTH
-    elif profile == "full" and linewidth is None:
+    if (
+        (profile == "default" and linewidth is None)
+        or (profile == "short" and linewidth is None)
+        or (profile == "full" and linewidth is None)
+    ):
         torch._tensor_str.PRINT_OPTS.linewidth = _DEFAULT_LINEWIDTH
 
 
