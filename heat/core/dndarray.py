@@ -1260,14 +1260,25 @@ class DNDarray:
                 )
             # no info on balanced status
             self.__balanced = False
-        lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
-        chunk_cumsum = torch.cat(
-            (
-                torch.tensor([0], device=self.device.torch_device),
-                torch.cumsum(target_map[..., self.split], dim=0),
-            ),
-            dim=0,
-        )
+        try:
+            lshape_cumsum = torch.cumsum(lshape_map[..., self.split], dim=0)
+            chunk_cumsum = torch.cat(
+                (
+                    torch.tensor([0], device=self.device.torch_device),
+                    torch.cumsum(target_map[..., self.split], dim=0),
+                ),
+                dim=0,
+            )
+        except RuntimeError:
+            # MPS does not support cumsum op with int64 input
+            lshape_cumsum = torch.cumsum(lshape_map[..., self.split].to(torch.int32), dim=0)
+            chunk_cumsum = torch.cat(
+                (
+                    torch.tensor([0], device=self.device.torch_device),
+                    torch.cumsum(target_map[..., self.split].to(torch.int32), dim=0),
+                ),
+                dim=0,
+            )
         # need the data start as well for process 0
         for rcv_pr in range(self.comm.size - 1):
             st = chunk_cumsum[rcv_pr].item()

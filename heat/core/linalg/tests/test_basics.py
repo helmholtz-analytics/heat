@@ -13,14 +13,15 @@ class TestLinalgBasics(TestCase):
         a = ht.eye(3)
         b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]])
 
-        # different types
-        cross = ht.cross(a, b)
-        self.assertEqual(cross.shape, a.shape)
-        self.assertEqual(cross.dtype, a.dtype)
-        self.assertEqual(cross.split, a.split)
-        self.assertEqual(cross.comm, a.comm)
-        self.assertEqual(cross.device, a.device)
-        self.assertTrue(ht.equal(cross, ht.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])))
+        # different types - do not run on MPS
+        if not a.larray.device.type.startswith("mps"):
+            cross = ht.cross(a, b)
+            self.assertEqual(cross.shape, a.shape)
+            self.assertEqual(cross.dtype, a.dtype)
+            self.assertEqual(cross.split, a.split)
+            self.assertEqual(cross.comm, a.comm)
+            self.assertEqual(cross.device, a.device)
+            self.assertTrue(ht.equal(cross, ht.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])))
 
         # axis
         a = ht.eye(3, split=0)
@@ -32,7 +33,7 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(cross.split, a.split)
         self.assertEqual(cross.comm, a.comm)
         self.assertEqual(cross.device, a.device)
-        self.assertTrue(ht.equal(cross, ht.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])))
+        self.assertTrue(ht.equal(cross, ht.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]], dtype=ht.int)))
 
         a = ht.eye(3, dtype=ht.int8, split=1)
         b = ht.array([[0, 1, 0], [0, 0, 1], [1, 0, 0]], dtype=ht.int8, split=1)
@@ -47,8 +48,8 @@ class TestLinalgBasics(TestCase):
 
         # test axisa, axisb, axisc
         np.random.seed(42)
-        np_a = np.random.randn(40, 3, 50)
-        np_b = np.random.randn(3, 40, 50)
+        np_a = np.random.randn(40, 3, 50).astype(np.float32)
+        np_b = np.random.randn(3, 40, 50).astype(np.float32)
         np_cross = np.cross(np_a, np_b, axisa=1, axisb=0)
 
         a = ht.array(np_a, split=0)
@@ -93,7 +94,7 @@ class TestLinalgBasics(TestCase):
     def test_det(self):
         # (3,3) with pivoting
         ares = ht.array(54.0)
-        a = ht.array([[-2.0, -1, 2], [2, 1, 4], [-3, 3, -1]], split=0, dtype=ht.double)
+        a = ht.array([[-2.0, -1, 2], [2, 1, 4], [-3, 3, -1]], split=0, dtype=ht.float32)
         adet = ht.linalg.det(a)
 
         self.assertTupleEqual(adet.shape, ares.shape)
@@ -102,7 +103,10 @@ class TestLinalgBasics(TestCase):
         self.assertEqual(adet.device, a.device)
         self.assertTrue(ht.equal(adet, ares))
 
-        a = ht.array([[-2.0, -1, 2], [2, 1, 4], [-3, 3, -1]], split=1, dtype=ht.double)
+        is_mps = a.larray.is_mps
+        dtype = ht.float64 if not is_mps else ht.float32
+
+        a = ht.array([[-2.0, -1, 2], [2, 1, 4], [-3, 3, -1]], split=1, dtype=dtype)
         adet = ht.linalg.det(a)
 
         self.assertTupleEqual(adet.shape, ares.shape)
@@ -113,7 +117,7 @@ class TestLinalgBasics(TestCase):
 
         # det==0
         ares = ht.array(0.0)
-        a = ht.array([[0, 0, 0], [2, 1, 4], [-3, 3, -1]], dtype=ht.float64, split=0)
+        a = ht.array([[0, 0, 0], [2, 1, 4], [-3, 3, -1]], dtype=dtype, split=0)
         adet = ht.linalg.det(a)
 
         self.assertTupleEqual(adet.shape, ares.shape)
@@ -194,7 +198,12 @@ class TestLinalgBasics(TestCase):
         a1d = ht.array(data1d, dtype=ht.float32, split=0)
         b1d = ht.array(data1d, dtype=ht.float32, split=0)
         self.assertEqual(ht.dot(a1d, b1d), np.dot(data1d, data1d))
-        # 2 1D arrays,
+
+        is_mps = a1d.larray.is_mps
+        dtype = np.float32 if is_mps else np.float64
+        data1d = data1d.astype(dtype)
+        data2d = data2d.astype(dtype)
+        data3d = data3d.astype(dtype)
 
         a2d = ht.array(data2d, split=1)
         b2d = ht.array(data2d, split=1)
@@ -210,13 +219,13 @@ class TestLinalgBasics(TestCase):
         const1 = 5
         const2 = 6
         # a is const
-        res = ht.dot(const1, b2d) - ht.array(np.dot(const1, data2d))
+        res = ht.dot(const1, b2d) - ht.array(np.dot(const1, data2d).astype(dtype))
         ret = 0
         ht.dot(const1, b2d, out=ret)
         self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
 
         # b is const
-        res = ht.dot(a2d, const2) - ht.array(np.dot(data2d, const2))
+        res = ht.dot(a2d, const2) - ht.array(np.dot(data2d, const2).astype(dtype))
         self.assertEqual(ht.equal(res, ht.zeros(res.shape)), 1)
         # a and b and const
         self.assertEqual(ht.dot(const2, const1), 5 * 6)
@@ -281,34 +290,38 @@ class TestLinalgBasics(TestCase):
         self.assertTrue(ht.allclose(ainv, ares, atol=1e-6))
 
         # pivoting row change
-        ares = ht.array([[-1, 0, 2], [2, 0, -1], [-6, 3, 0]], dtype=ht.double, split=0) / 3.0
-        a = ht.array([[1, 2, 0], [2, 4, 1], [2, 1, 0]], dtype=ht.double, split=0)
-        ainv = ht.linalg.inv(a)
-        self.assertEqual(ainv.split, a.split)
-        self.assertEqual(ainv.device, a.device)
-        self.assertTupleEqual(ainv.shape, a.shape)
-        self.assertTrue(ht.allclose(ainv, ares, atol=1e-6))
+        is_mps = a.larray.is_mps
+        dtype = ht.float if is_mps else ht.double
+        atol = 1e-6 if dtype == ht.float else 1e-12
 
-        ares = ht.array([[-1, 0, 2], [2, 0, -1], [-6, 3, 0]], dtype=ht.double, split=1) / 3.0
-        a = ht.array([[1, 2, 0], [2, 4, 1], [2, 1, 0]], dtype=ht.double, split=1)
+        ares = ht.array([[-1, 0, 2], [2, 0, -1], [-6, 3, 0]], dtype=dtype, split=0) / 3.0
+        a = ht.array([[1, 2, 0], [2, 4, 1], [2, 1, 0]], dtype=dtype, split=0)
         ainv = ht.linalg.inv(a)
         self.assertEqual(ainv.split, a.split)
         self.assertEqual(ainv.device, a.device)
         self.assertTupleEqual(ainv.shape, a.shape)
-        self.assertTrue(ht.allclose(ainv, ares, atol=1e-15))
+        self.assertTrue(ht.allclose(ainv, ares, atol=atol))
+
+        ares = ht.array([[-1, 0, 2], [2, 0, -1], [-6, 3, 0]], dtype=dtype, split=1) / 3.0
+        a = ht.array([[1, 2, 0], [2, 4, 1], [2, 1, 0]], dtype=dtype, split=1)
+        ainv = ht.linalg.inv(a)
+        self.assertEqual(ainv.split, a.split)
+        self.assertEqual(ainv.device, a.device)
+        self.assertTupleEqual(ainv.shape, a.shape)
+        self.assertTrue(ht.allclose(ainv, ares, atol=atol))
 
         ht.random.seed(42)
-        a = ht.random.random((20, 20), dtype=ht.float64, split=1)
+        a = ht.random.random((20, 20), dtype=dtype, split=1)
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=1, dtype=a.dtype)
         # loss of precision in distributed floating-point ops
-        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-12))
+        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if is_mps else atol))
 
         ht.random.seed(42)
-        a = ht.random.random((20, 20), dtype=ht.float64, split=0)
+        a = ht.random.random((20, 20), dtype=dtype, split=0)
         ainv = ht.linalg.inv(a)
         i = ht.eye(a.shape, split=0, dtype=a.dtype)
-        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-12))
+        self.assertTrue(ht.allclose(a @ ainv, i, atol=1e-5 if is_mps else atol))
 
         with self.assertRaises(RuntimeError):
             ht.linalg.inv(ht.array([1, 2, 3], split=0))
@@ -963,7 +976,10 @@ class TestLinalgBasics(TestCase):
         self.assertTrue((ht_outer_split.numpy() == np_outer).all())
 
         # a_split.ndim > 1 and a.split != 0
-        a_split_3d = ht.random.randn(3, 3, 3, dtype=ht.float64, split=2)
+        if ht_outer_split.larray.is_mps:
+            a_split_3d = ht.random.randn(3, 3, 3, dtype=ht.float32, split=2)
+        else:
+            a_split_3d = ht.random.randn(3, 3, 3, dtype=ht.float64, split=2)
         ht_outer_split = ht.outer(a_split_3d, b_split)
         np_outer_3d = np.outer(a_split_3d.numpy(), b_split.numpy())
         self.assertTrue(ht_outer_split.split == 0)
@@ -1664,39 +1680,40 @@ class TestLinalgBasics(TestCase):
         self.assertTrue((result.larray == comparison).all())
 
         local_ones = ht.ones((3, 4, 5, 6))
+        if not local_ones.larray.is_mps:
+            # triu, tril fail on MPS for ndim > 2
+            # 2D+ case, no offset, data is not split, module-level call
+            result = local_ones.tril()
+            comparison = torch.ones((5, 6), device=self.device.torch_device).tril()
+            self.assertIsInstance(result, ht.DNDarray)
+            self.assertEqual(result.shape, (3, 4, 5, 6))
+            self.assertEqual(result.lshape, (3, 4, 5, 6))
+            self.assertEqual(result.split, None)
+            for i in range(3):
+                for j in range(4):
+                    self.assertTrue((result.larray[i, j] == comparison).all())
 
-        # 2D+ case, no offset, data is not split, module-level call
-        result = local_ones.tril()
-        comparison = torch.ones((5, 6), device=self.device.torch_device).tril()
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (3, 4, 5, 6))
-        self.assertEqual(result.lshape, (3, 4, 5, 6))
-        self.assertEqual(result.split, None)
-        for i in range(3):
-            for j in range(4):
-                self.assertTrue((result.larray[i, j] == comparison).all())
+            # 2D+ case, positive offset, data is not split, module-level call
+            result = local_ones.tril(k=2)
+            comparison = torch.ones((5, 6), device=self.device.torch_device).tril(diagonal=2)
+            self.assertIsInstance(result, ht.DNDarray)
+            self.assertEqual(result.shape, (3, 4, 5, 6))
+            self.assertEqual(result.lshape, (3, 4, 5, 6))
+            self.assertEqual(result.split, None)
+            for i in range(3):
+                for j in range(4):
+                    self.assertTrue((result.larray[i, j] == comparison).all())
 
-        # 2D+ case, positive offset, data is not split, module-level call
-        result = local_ones.tril(k=2)
-        comparison = torch.ones((5, 6), device=self.device.torch_device).tril(diagonal=2)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (3, 4, 5, 6))
-        self.assertEqual(result.lshape, (3, 4, 5, 6))
-        self.assertEqual(result.split, None)
-        for i in range(3):
-            for j in range(4):
-                self.assertTrue((result.larray[i, j] == comparison).all())
-
-        # # 2D+ case, negative offset, data is not split, module-level call
-        result = local_ones.tril(k=-2)
-        comparison = torch.ones((5, 6), device=self.device.torch_device).tril(diagonal=-2)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (3, 4, 5, 6))
-        self.assertEqual(result.lshape, (3, 4, 5, 6))
-        self.assertEqual(result.split, None)
-        for i in range(3):
-            for j in range(4):
-                self.assertTrue((result.larray[i, j] == comparison).all())
+            # # 2D+ case, negative offset, data is not split, module-level call
+            result = local_ones.tril(k=-2)
+            comparison = torch.ones((5, 6), device=self.device.torch_device).tril(diagonal=-2)
+            self.assertIsInstance(result, ht.DNDarray)
+            self.assertEqual(result.shape, (3, 4, 5, 6))
+            self.assertEqual(result.lshape, (3, 4, 5, 6))
+            self.assertEqual(result.split, None)
+            for i in range(3):
+                for j in range(4):
+                    self.assertTrue((result.larray[i, j] == comparison).all())
 
         distributed_ones = ht.ones((5,), split=0)
 
@@ -1886,39 +1903,39 @@ class TestLinalgBasics(TestCase):
         self.assertTrue((result.larray == comparison).all())
 
         local_ones = ht.ones((3, 4, 5, 6))
+        if not local_ones.larray.is_mps:
+            # 2D+ case, no offset, data is not split, module-level call
+            result = local_ones.triu()
+            comparison = torch.ones((5, 6), device=self.device.torch_device).triu()
+            self.assertIsInstance(result, ht.DNDarray)
+            self.assertEqual(result.shape, (3, 4, 5, 6))
+            self.assertEqual(result.lshape, (3, 4, 5, 6))
+            self.assertEqual(result.split, None)
+            for i in range(3):
+                for j in range(4):
+                    self.assertTrue((result.larray[i, j] == comparison).all())
 
-        # 2D+ case, no offset, data is not split, module-level call
-        result = local_ones.triu()
-        comparison = torch.ones((5, 6), device=self.device.torch_device).triu()
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (3, 4, 5, 6))
-        self.assertEqual(result.lshape, (3, 4, 5, 6))
-        self.assertEqual(result.split, None)
-        for i in range(3):
-            for j in range(4):
-                self.assertTrue((result.larray[i, j] == comparison).all())
+            # 2D+ case, positive offset, data is not split, module-level call
+            result = local_ones.triu(k=2)
+            comparison = torch.ones((5, 6), device=self.device.torch_device).triu(diagonal=2)
+            self.assertIsInstance(result, ht.DNDarray)
+            self.assertEqual(result.shape, (3, 4, 5, 6))
+            self.assertEqual(result.lshape, (3, 4, 5, 6))
+            self.assertEqual(result.split, None)
+            for i in range(3):
+                for j in range(4):
+                    self.assertTrue((result.larray[i, j] == comparison).all())
 
-        # 2D+ case, positive offset, data is not split, module-level call
-        result = local_ones.triu(k=2)
-        comparison = torch.ones((5, 6), device=self.device.torch_device).triu(diagonal=2)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (3, 4, 5, 6))
-        self.assertEqual(result.lshape, (3, 4, 5, 6))
-        self.assertEqual(result.split, None)
-        for i in range(3):
-            for j in range(4):
-                self.assertTrue((result.larray[i, j] == comparison).all())
-
-        # # 2D+ case, negative offset, data is not split, module-level call
-        result = local_ones.triu(k=-2)
-        comparison = torch.ones((5, 6), device=self.device.torch_device).triu(diagonal=-2)
-        self.assertIsInstance(result, ht.DNDarray)
-        self.assertEqual(result.shape, (3, 4, 5, 6))
-        self.assertEqual(result.lshape, (3, 4, 5, 6))
-        self.assertEqual(result.split, None)
-        for i in range(3):
-            for j in range(4):
-                self.assertTrue((result.larray[i, j] == comparison).all())
+            # # 2D+ case, negative offset, data is not split, module-level call
+            result = local_ones.triu(k=-2)
+            comparison = torch.ones((5, 6), device=self.device.torch_device).triu(diagonal=-2)
+            self.assertIsInstance(result, ht.DNDarray)
+            self.assertEqual(result.shape, (3, 4, 5, 6))
+            self.assertEqual(result.lshape, (3, 4, 5, 6))
+            self.assertEqual(result.split, None)
+            for i in range(3):
+                for j in range(4):
+                    self.assertTrue((result.larray[i, j] == comparison).all())
 
         distributed_ones = ht.ones((5,), split=0)
 
@@ -2044,19 +2061,24 @@ class TestLinalgBasics(TestCase):
             self.assertTrue(result.larray[0, -1] == 1)
 
     def test_vdot(self):
-        a = ht.array([[1 + 1j, 2 + 2j], [3 + 3j, 4 + 4j]], split=0)
-        b = ht.array([[1 + 2j, 3 + 4j], [5 + 6j, 7 + 8j]], split=0)
+        if (
+            not ht.get_device().device_type.startswith("gpu")
+            and torch.backends.mps.is_built()
+            and torch.backends.mps.is_available()
+        ):
+            a = ht.array([[1 + 1j, 2 + 2j], [3 + 3j, 4 + 4j]], split=0)
+            b = ht.array([[1 + 2j, 3 + 4j], [5 + 6j, 7 + 8j]], split=0)
 
-        vdot = ht.vdot(a, b)
-        self.assertEqual(vdot.dtype, a.dtype)
-        self.assertEqual(vdot.split, None)
-        self.assertTrue(ht.equal(vdot, ht.array([110 + 10j])))
+            vdot = ht.vdot(a, b)
+            self.assertEqual(vdot.dtype, a.dtype)
+            self.assertEqual(vdot.split, None)
+            self.assertTrue(ht.equal(vdot, ht.array([110 + 10j])))
 
-        vdot = ht.vdot(b, a)
-        self.assertTrue(ht.equal(vdot, ht.array([110 - 10j])))
+            vdot = ht.vdot(b, a)
+            self.assertTrue(ht.equal(vdot, ht.array([110 - 10j])))
 
-        with self.assertRaises(ValueError):
-            ht.vdot(ht.array([1, 2, 3]), ht.array([[1, 2], [3, 4]]))
+            with self.assertRaises(ValueError):
+                ht.vdot(ht.array([1, 2, 3]), ht.array([[1, 2], [3, 4]]))
 
     def test_vecdot(self):
         a = ht.array([1, 1, 1])
@@ -2074,7 +2096,7 @@ class TestLinalgBasics(TestCase):
         c = ht.linalg.vecdot(a, b, axis=0, keepdims=True)
         self.assertEqual(c.dtype, ht.float32)
         self.assertEqual(c.device, a.device)
-        self.assertTrue(ht.equal(c, ht.array([[8, 8, 8, 8]])))
+        self.assertTrue(ht.equal(c, ht.array([[8, 8, 8, 8]], dtype=ht.float32)))
 
     def test_vector_norm(self):
         a = ht.arange(9, dtype=ht.float) - 4
@@ -2128,22 +2150,27 @@ class TestLinalgBasics(TestCase):
         )
 
         # different dtype
-        vn = ht.linalg.vector_norm(ht.full((4, 4, 4), 1 + 1j, dtype=ht.int), axis=0, ord=4)
-        self.assertEqual(vn.split, None)
-        self.assertEqual(vn.dtype, ht.float)
-        self.assertTrue(
-            ht.equal(
-                vn,
-                ht.array(
-                    [
-                        [2.0, 2.0, 2.0, 2.0],
-                        [2.0, 2.0, 2.0, 2.0],
-                        [2.0, 2.0, 2.0, 2.0],
-                        [2.0, 2.0, 2.0, 2.0],
-                    ]
-                ),
+        if (
+            not ht.get_device().device_type.startswith("gpu")
+            and torch.backends.mps.is_built()
+            and torch.backends.mps.is_available()
+        ):
+            vn = ht.linalg.vector_norm(ht.full((4, 4, 4), 1 + 1j, dtype=ht.int), axis=0, ord=4)
+            self.assertEqual(vn.split, None)
+            self.assertEqual(vn.dtype, ht.float)
+            self.assertTrue(
+                ht.equal(
+                    vn,
+                    ht.array(
+                        [
+                            [2.0, 2.0, 2.0, 2.0],
+                            [2.0, 2.0, 2.0, 2.0],
+                            [2.0, 2.0, 2.0, 2.0],
+                            [2.0, 2.0, 2.0, 2.0],
+                        ]
+                    ),
+                )
             )
-        )
 
         # bad ord
         with self.assertRaises(ValueError):

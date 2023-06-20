@@ -387,9 +387,16 @@ class SquareDiagTiles:
 
         # if there is only one element of the diagonal on the next process
         d = 1 if tiles_per_proc <= 2 else tiles_per_proc - 1
-        redist = torch.where(
-            torch.cumsum(lshape_map[..., arr.split], dim=0) >= arr.gshape[arr.split - 1] - d
-        )[0]
+        try:
+            redist = torch.where(
+                torch.cumsum(lshape_map[..., arr.split], dim=0) >= arr.gshape[arr.split - 1] - d
+            )[0]
+        except RuntimeError:
+            # cumsum operation on double precision tensors not supported on MPS
+            redist = torch.where(
+                torch.cumsum(lshape_map[..., arr.split].int(), dim=0)
+                >= arr.gshape[arr.split - 1] - d
+            )[0]
         if redist.numel() > 0 and arr.gshape[0] > arr.gshape[1] and redist[0] != arr.comm.size - 1:
             target_map = lshape_map.clone()
             target_map[redist[0]] += d
@@ -467,11 +474,18 @@ class SquareDiagTiles:
         )
         # if arr.split == 0:  # adjust the 1st dim to be the cumsum
         col_inds = [0] + col_inds[:-1]
-        col_inds = torch.tensor(col_inds, device=arr.larray.device).cumsum(dim=0)
+        try:
+            col_inds = torch.tensor(col_inds, device=arr.larray.device).cumsum(dim=0)
+        except RuntimeError:
+            # cumsum operation on double precision tensors not supported on MPS
+            col_inds = torch.tensor(col_inds, device=arr.larray.device).int().cumsum(dim=0)
         # if arr.split == 1:  # adjust the 0th dim to be the cumsum
         row_inds = [0] + row_inds[:-1]
-        row_inds = torch.tensor(row_inds, device=arr.larray.device).cumsum(dim=0)
-
+        try:
+            row_inds = torch.tensor(row_inds, device=arr.larray.device).cumsum(dim=0)
+        except RuntimeError:
+            # cumsum operation on double precision tensors not supported on MPS
+            row_inds = torch.tensor(row_inds, device=arr.larray.device).int().cumsum(dim=0)
         for num, c in enumerate(col_inds):  # set columns
             tile_map[:, num, 1] = c
         for num, r in enumerate(row_inds):  # set rows
@@ -534,12 +548,25 @@ class SquareDiagTiles:
             col_inds.append(lshape_map[r, 1])
             r += 1
         # if the 1st dim is > 0th dim then in split=1 the cols need to be extended
-        col_proc_ind = torch.cumsum(
-            torch.tensor(col_per_proc_list, device=arr.larray.device), dim=0
-        )
+        try:
+            col_proc_ind = torch.cumsum(
+                torch.tensor(col_per_proc_list, device=arr.larray.device), dim=0
+            )
+        except RuntimeError:
+            # cumsum operation on double precision tensors not supported on MPS
+            col_proc_ind = torch.cumsum(
+                torch.tensor(col_per_proc_list, device=arr.larray.device).int(), dim=0
+            )
         for pr in range(arr.comm.size):
-            lshape_cumsum = torch.cumsum(lshape_map[..., 1], dim=0)
-            col_cumsum = torch.cumsum(torch.tensor(col_inds, device=arr.larray.device), dim=0)
+            try:
+                lshape_cumsum = torch.cumsum(lshape_map[..., 1], dim=0)
+                col_cumsum = torch.cumsum(torch.tensor(col_inds, device=arr.larray.device), dim=0)
+            except RuntimeError:
+                # cumsum operation on double precision tensors not supported on MPS
+                lshape_cumsum = torch.cumsum(lshape_map[..., 1].int(), dim=0)
+                col_cumsum = torch.cumsum(
+                    torch.tensor(col_inds, device=arr.larray.device).int(), dim=0
+                )
             diff = lshape_cumsum[pr] - col_cumsum[col_proc_ind[pr] - 1]
             if diff > 0 and pr <= last_diag_pr:
                 col_per_proc_list[pr] += 1
@@ -624,13 +651,27 @@ class SquareDiagTiles:
             The number of divisions per process
         """
         last_tile_cols = tiles_per_proc
-        last_dia_pr = torch.where(lshape_map[..., arr.split].cumsum(dim=0) >= min(arr.gshape))[0][0]
+        try:
+            last_dia_pr = torch.where(lshape_map[..., arr.split].cumsum(dim=0) >= min(arr.gshape))[
+                0
+            ][0]
+        except RuntimeError:
+            # cumsum operation on double precision tensors is not supported on MPS
+            last_dia_pr = torch.where(
+                lshape_map[..., arr.split].int().cumsum(dim=0) >= min(arr.gshape)
+            )[0][0]
 
         # adjust for small blocks on the last diag pr:
         last_pr_minus1 = last_dia_pr - 1 if last_dia_pr > 0 else 0
-        rem_cols_last_pr = abs(
-            min(arr.gshape) - lshape_map[..., arr.split].cumsum(dim=0)[last_pr_minus1]
-        )
+        try:
+            rem_cols_last_pr = abs(
+                min(arr.gshape) - lshape_map[..., arr.split].cumsum(dim=0)[last_pr_minus1]
+            )
+        except RuntimeError:
+            # cumsum operation on double precision tensors is not supported on MPS
+            rem_cols_last_pr = abs(
+                min(arr.gshape) - lshape_map[..., arr.split].int().cumsum(dim=0)[last_pr_minus1]
+            )
         # this is the number of rows/columns after the last diagonal on the last diagonal pr
         try:
             num_after_diag = torch.div(rem_cols_last_pr, last_tile_cols, rounding_mode="floor")
@@ -653,7 +694,11 @@ class SquareDiagTiles:
             col_per_proc_list.extend([1] * (arr.comm.size - last_dia_pr - 1).item())
         # need to determine the proper number of tile rows/columns
         tile_columns = tiles_per_proc * last_dia_pr + last_tile_cols
-        diag_crossings = lshape_map[..., arr.split].cumsum(dim=0)[: last_dia_pr + 1]
+        try:
+            diag_crossings = lshape_map[..., arr.split].cumsum(dim=0)[: last_dia_pr + 1]
+        except RuntimeError:
+            # cumsum operation on double precision tensors is not supported on MPS
+            diag_crossings = lshape_map[..., arr.split].int().cumsum(dim=0)[: last_dia_pr + 1]
         diag_crossings[-1] = (
             diag_crossings[-1] if diag_crossings[-1] <= min(arr.gshape) else min(arr.gshape)
         )
@@ -1170,7 +1215,11 @@ class SquareDiagTiles:
 
             targe_map = self.lshape_map.clone()
             targe_map[..., 0] = target_0
-            target_0_c = torch.cumsum(target_0, dim=0)
+            try:
+                target_0_c = torch.cumsum(target_0, dim=0)
+            except RuntimeError:
+                # cumsum operation on double precision tensors not supported on MPS
+                target_0_c = torch.cumsum(target_0.int(), dim=0)
             self.__row_per_proc_list = []
             st = 0
             rows_per = torch.tensor(

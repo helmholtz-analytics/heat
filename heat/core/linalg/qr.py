@@ -130,9 +130,15 @@ def qr(
 
         q_dict = {}
         q_dict_waits = {}
-        proc_tile_start = torch.cumsum(
-            torch.tensor(tile_rows_per_pr_trmd, device=r.device.torch_device), dim=0
-        )
+        try:
+            proc_tile_start = torch.cumsum(
+                torch.tensor(tile_rows_per_pr_trmd, device=r.device.torch_device), dim=0
+            )
+        except RuntimeError:
+            # cumsum operation on double precision tensors not supported on MPS
+            proc_tile_start = torch.cumsum(
+                torch.tensor(tile_rows_per_pr_trmd, device=r.device.torch_device).int(), dim=0
+            )
         # ------------------------------------ R Calculation ---------------------------------------
         for col in range(
             tile_columns
@@ -216,9 +222,16 @@ def __split0_global_q_dict_set(
     """
     # q is already created, the job of this function is to create the group the merging q's together
     # it takes the merge qs, splits them, then puts them into a new dictionary
-    proc_tile_start = torch.cumsum(
-        torch.tensor(r_tiles.tile_rows_per_process, device=r_tiles.arr.larray.device), dim=0
-    )
+    try:
+        proc_tile_start = torch.cumsum(
+            torch.tensor(r_tiles.tile_rows_per_process, device=r_tiles.arr.larray.device), dim=0
+        )
+    except RuntimeError:
+        # cumsum operation on double precision tensors not supported on MPS
+        proc_tile_start = torch.cumsum(
+            torch.tensor(r_tiles.tile_rows_per_process, device=r_tiles.arr.larray.device).int(),
+            dim=0,
+        )
     diag_proc = torch.nonzero(input=proc_tile_start > col, as_tuple=False)[0].item()
     proc_tile_start = torch.cat(
         (torch.tensor([0], device=r_tiles.arr.larray.device), proc_tile_start[:-1]), dim=0
@@ -887,9 +900,15 @@ def __split1_qr_loop(
     # loop over each column, need to do the QR for each tile in the column(should be rows)
     # need to get the diagonal process
     rank = r_tiles.arr.comm.rank
-    cols_on_proc = torch.cumsum(
-        torch.tensor(r_tiles.tile_columns_per_process, device=r_torch_device), dim=0
-    )
+    try:
+        cols_on_proc = torch.cumsum(
+            torch.tensor(r_tiles.tile_columns_per_process, device=r_torch_device), dim=0
+        )
+    except RuntimeError:
+        # cumsum operation on double precision tensors not supported on MPS
+        cols_on_proc = torch.cumsum(
+            torch.tensor(r_tiles.tile_columns_per_process, device=r_torch_device).int(), dim=0
+        )
     not_completed_processes = torch.nonzero(input=dcol < cols_on_proc, as_tuple=False).flatten()
     diag_process = not_completed_processes[0].item()
     tile_rows = r_tiles.tile_rows
