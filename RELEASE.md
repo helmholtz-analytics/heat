@@ -41,7 +41,7 @@ extension: str = "dev" # <-- set to None
   - Edit release notes as needed (see older releases)
   - Click on Save but do not publish yet
 
-5.
+5.Build wheel in your local `heat/` directory, make sure you are on branch `release/1.3.x`.
 
 
 
