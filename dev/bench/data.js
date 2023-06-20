@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687262706408,
+  "lastUpdate": 1687266951915,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -912,6 +912,90 @@ window.BENCHMARK_DATA = {
             "value": 1.2732521295547485,
             "unit": "s",
             "range": 0.04698130860924721
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.hagemeier@fz-juelich.de",
+            "name": "Björn Hagemeier",
+            "username": "bhagemeier"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "966a7a840872b0f7e201c240bc45e2384921e2ce",
+          "message": "Dockerfile and accompanying documentation (#970)\n\n* Dockerfile and accompanying documentation\r\n\r\nThe Dockerfile provides some flexibility in selecting which version of HeAT should be inside\r\nthe Docker image. Also, one can choose whether to install from source or from PyPI.\r\n\r\n* README.md describing containerization\r\n\r\n* Fix indentation in README.md\r\n\r\nSome code sections had a mix of spaces and tabs, which have now been\r\nconvertd into tabs.\r\n\r\n* Docker support\r\n\r\nUse pytorch 1.11\r\nFix problem with CUDA package repo keys\r\n\r\n* Ensure mpi4py installation from source\r\n\r\n* Migrate to NVidia PyTorch base image\r\n\r\nNVidia images come with support for HPC systems desirable for our uses.\r\nThey work a little differently internally and required some changes.\r\n\r\nThe tzdata configuration configures the CET/CEST timezone, which seems\r\nto be required when installing additional packages.\r\n\r\nThere is an issue with pip caches in the image, which led to the final\r\ncache purge to fail in the PyPI release based build. This is fixed\r\nthrough a final invocation of true.\r\n\r\n* Provide sample file for Singularity\r\n\r\n* feat: singularity definition file and slurm multi-node example in the docker readme\r\n\r\n* docs: quick_start.md has a docker section with link to docker readme\r\n\r\n* [pre-commit.ci] auto fixes from pre-commit.com hooks\r\n\r\nfor more information, see https://pre-commit.ci\r\n\r\n* ci: docker cleanup\r\n\r\n* ci: build docker action, updated docs\r\n\r\n* Apply suggestions from code review\r\n\r\nCo-authored-by: Claudia Comito <39374113+ClaudiaComito@users.noreply.github.com>\r\n\r\n* README suggestions\r\n\r\n* docs: removed system specific flag from example slurm file\r\n\r\n---------\r\n\r\nCo-authored-by: Gutiérrez Hermosillo Muriedas, Juan Pedro <juanpedroghm@gmail.com>\r\nCo-authored-by: pre-commit-ci[bot] <66853113+pre-commit-ci[bot]@users.noreply.github.com>\r\nCo-authored-by: Claudia Comito <39374113+ClaudiaComito@users.noreply.github.com>",
+          "timestamp": "2023-06-20T15:02:15+02:00",
+          "tree_id": "b5d148d6866ec7989df95ce86a2d42b0f190e16d",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/966a7a840872b0f7e201c240bc45e2384921e2ce"
+        },
+        "date": 1687266951204,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "hierachical_svd_rank_N4 - RUNTIME",
+            "value": 0.22041860222816467,
+            "unit": "s",
+            "range": 0.024018704891204834
+          },
+          {
+            "name": "hierachical_svd_tol_N4 - RUNTIME",
+            "value": 0.2794017493724823,
+            "unit": "s",
+            "range": 0.03424530103802681
+          },
+          {
+            "name": "kmeans_cpu_N4 - RUNTIME",
+            "value": 1.2342188358306885,
+            "unit": "s",
+            "range": 0.051946934312582016
+          },
+          {
+            "name": "kmedians_cpu_N4 - RUNTIME",
+            "value": 5.46388578414917,
+            "unit": "s",
+            "range": 4.5065388679504395
+          },
+          {
+            "name": "kmedoids_cpu_N4 - RUNTIME",
+            "value": 5.0080976486206055,
+            "unit": "s",
+            "range": 1.0073717832565308
+          },
+          {
+            "name": "lanczos_cpu_N4 - RUNTIME",
+            "value": 39.77582931518555,
+            "unit": "s",
+            "range": 2.422520637512207
+          },
+          {
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
+            "value": 0.7612134218215942,
+            "unit": "s",
+            "range": 0.0695384070277214
+          },
+          {
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "value": 0.7703195214271545,
+            "unit": "s",
+            "range": 0.04877445101737976
+          },
+          {
+            "name": "qr_cpu_N4 - RUNTIME",
+            "value": 6.442999362945557,
+            "unit": "s",
+            "range": 0.668419599533081
+          },
+          {
+            "name": "reshape_cpu_N4 - RUNTIME",
+            "value": 1.0710986852645874,
+            "unit": "s",
+            "range": 0.07150645554065704
           }
         ]
       }
