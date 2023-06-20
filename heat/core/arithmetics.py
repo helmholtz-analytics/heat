@@ -327,7 +327,7 @@ def diff(
     if n == 0:
         return a
     if n < 0:
-        raise ValueError("diff requires that n be a positive number, got {}".format(n))
+        raise ValueError(f"diff requires that n be a positive number, got {n}")
     if not isinstance(a, DNDarray):
         raise TypeError("'a' must be a DNDarray")
 
@@ -353,13 +353,11 @@ def diff(
                     pass
                 elif not isinstance(p_el, DNDarray):
                     raise TypeError(
-                        "prepend/append should be a scalar or a DNDarray, was {}".format(type(p_el))
+                        f"prepend/append should be a scalar or a DNDarray, was {type(p_el)}"
                     )
                 elif p_el.gshape != pend_shape:
                     raise ValueError(
-                        "shape mismatch: expected prepend/append to be {}, got {}".format(
-                            pend_shape, p_el.gshape
-                        )
+                        f"shape mismatch: expected prepend/append to be {pend_shape}, got {p_el.gshape}"
                     )
                 if p == 0:
                     # prepend
@@ -747,7 +745,7 @@ def pos(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     def torch_pos(torch_tensor, out=None):
         if not torch.is_tensor(torch_tensor):
-            raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
+            raise TypeError(f"Input is not a torch tensor but {type(torch_tensor)}")
         return out.copy_(torch_tensor)
 
     if out is not None:
