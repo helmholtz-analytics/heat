@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687266951915,
+  "lastUpdate": 1687281228618,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -996,6 +996,90 @@ window.BENCHMARK_DATA = {
             "value": 1.0710986852645874,
             "unit": "s",
             "range": 0.07150645554065704
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "39374113+ClaudiaComito@users.noreply.github.com",
+            "name": "Claudia Comito",
+            "username": "ClaudiaComito"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f98ccc6eaa298a77a65fd7847d8f1f04691e4fc2",
+          "message": "update version after release of v1.3.0 (#1167)",
+          "timestamp": "2023-06-20T18:59:56+02:00",
+          "tree_id": "c8795b5046495f76052214b82419fc5fc7df6d0b",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/f98ccc6eaa298a77a65fd7847d8f1f04691e4fc2"
+        },
+        "date": 1687281227116,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "hierachical_svd_rank_N4 - RUNTIME",
+            "value": 0.22124862670898438,
+            "unit": "s",
+            "range": 0.030435005202889442
+          },
+          {
+            "name": "hierachical_svd_tol_N4 - RUNTIME",
+            "value": 0.27973777055740356,
+            "unit": "s",
+            "range": 0.04762342944741249
+          },
+          {
+            "name": "kmeans_cpu_N4 - RUNTIME",
+            "value": 1.358171820640564,
+            "unit": "s",
+            "range": 0.0987866148352623
+          },
+          {
+            "name": "kmedians_cpu_N4 - RUNTIME",
+            "value": 5.0979509353637695,
+            "unit": "s",
+            "range": 3.916285514831543
+          },
+          {
+            "name": "kmedoids_cpu_N4 - RUNTIME",
+            "value": 4.819827079772949,
+            "unit": "s",
+            "range": 1.0077662467956543
+          },
+          {
+            "name": "lanczos_cpu_N4 - RUNTIME",
+            "value": 39.493404388427734,
+            "unit": "s",
+            "range": 2.39079213142395
+          },
+          {
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
+            "value": 0.7739747166633606,
+            "unit": "s",
+            "range": 0.03930717706680298
+          },
+          {
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "value": 0.8921969532966614,
+            "unit": "s",
+            "range": 0.05291367322206497
+          },
+          {
+            "name": "qr_cpu_N4 - RUNTIME",
+            "value": 6.896584510803223,
+            "unit": "s",
+            "range": 0.6321520209312439
+          },
+          {
+            "name": "reshape_cpu_N4 - RUNTIME",
+            "value": 1.1826903820037842,
+            "unit": "s",
+            "range": 0.033491428941488266
           }
         ]
       }
