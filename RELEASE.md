@@ -64,7 +64,7 @@ extension: str = "dev" # <-- set to None
     git checkout -b workflows/update-version-main
     git merge release/1.3.x --no-ff --no-commit
     ```
-    Modify `version.py` so that `extension` is `"dev"`.
+    Modify `version.py` so that `extension` is `"dev"`. Commit and push the changes.
  11. Create a PR with `main` as base branch.
  12. Get approval and merge. You're done!
 
