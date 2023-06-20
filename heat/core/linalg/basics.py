@@ -85,16 +85,14 @@ def cross(
     sanitation.sanitize_in(b)
 
     if a.device != b.device:
-        raise ValueError(
-            "'a' and 'b' must have the same device type, {} != {}".format(a.device, b.device)
-        )
+        raise ValueError(f"'a' and 'b' must have the same device type, {a.device} != {b.device}")
     if a.comm != b.comm:  # pragma: no cover
-        raise ValueError("'a' and 'b' must have the same comm, {} != {}".format(a.comm, b.comm))
+        raise ValueError(f"'a' and 'b' must have the same comm, {a.comm} != {b.comm}")
 
     a_2d, b_2d = False, False
     a_shape, b_shape = list(a.shape), list(b.shape)
 
-    if not axis == -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
+    if axis != -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
         axis = stride_tricks.sanitize_axis(a.shape, axis)
         axisa, axisb, axisc = (axis,) * 3
     else:
@@ -135,7 +133,7 @@ def cross(
 
     # by now split axes must be aligned
     if a.split != b.split:
-        raise ValueError("'a' and 'b' must have the same split, {} != {}".format(a.split, b.split))
+        raise ValueError(f"'a' and 'b' must have the same split, {a.split} != {b.split}")
 
     if not (a.is_balanced and b.is_balanced):
         # TODO: replace with sanitize_redistribute after #888 is merged
@@ -194,7 +192,7 @@ def det(a: DNDarray) -> DNDarray:
     # no split in the square matrices
     if not a.is_distributed() or a.split < a.ndim - 2:
         data = torch.linalg.det(a.larray)
-        sp = None if not a.is_distributed() else a.split
+        sp = a.split if a.is_distributed() else None
         return DNDarray(
             data,
             a.shape[:-2],
@@ -396,9 +394,8 @@ def inv(a: DNDarray) -> DNDarray:
 
             # Circumvent an issue with DNDarray setter and getter that caused precision errors
             if a.split == a.ndim - 2:
-                if rank < acopy.comm.size - 1:
-                    if i >= displs[rank + 1]:
-                        rank += 1
+                if rank < acopy.comm.size - 1 and i >= displs[rank + 1]:
+                    rank += 1
                 if acopy.comm.rank == rank:
                     ainv.larray[k, i - displs[rank], :] /= scale
                     acopy.larray[k, i - displs[rank], :] /= scale
@@ -489,9 +486,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     """
     if a.gshape[-1] != b.gshape[0]:
         raise ValueError(
-            "If the last dimension of a ({}) is not the same size as the second-to-last dimension of b. ({})".format(
-                a.gshape[-1], b.gshape[-2]
-            )
+            f"If the last dimension of a ({a.gshape[-1]}) is not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
         )
 
     # determine if a larger type is needed for c
@@ -656,7 +651,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         kB = a.gshape[-1] // a.comm.size
     elif b.split == len(a.gshape) - 2:
         kB = b.gshape[0] // b.comm.size
-        kB = kB if kB < a.gshape[-1] else a.gshape[-1]
+        kB = min(kB, a.gshape[-1])
 
     if a.lshape[-1] % kB != 0 or (kB == 1 and a.lshape[-1] != 1):
         rem_a = 1
@@ -873,11 +868,10 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     b_rem[pr - 1] = b_lp_data[pr - 1][-1]
 
                 # this loop is to take care of the remainders in dim0 of A
-                if a_rem_locs0.nelement() != 0:
-                    if r_loc is not None:
-                        st = index_map[pr - 1, 1, 0, 0].item()
-                        sp = index_map[pr - 1, 1, 0, 1].item()
-                        c.larray[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
+                if a_rem_locs0.nelement() != 0 and r_loc is not None:
+                    st = index_map[pr - 1, 1, 0, 0].item()
+                    sp = index_map[pr - 1, 1, 0, 1].item()
+                    c.larray[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
                 del b_lp_data[pr - 1]
 
             # need to wait if its the last loop, also need to collect the remainders
@@ -903,17 +897,16 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     b_rem[pr] = b_lp_data[pr][-1]
 
                 # this loop is to take care of the remainders in the 0th dimension of A
-                if a_rem_locs0.nelement() != 0:
-                    if r_loc is not None:
-                        st = index_map[pr, 1, 0, 0].item()
-                        sp = index_map[pr, 1, 0, 1].item()
+                if a_rem_locs0.nelement() != 0 and r_loc is not None:
+                    st = index_map[pr, 1, 0, 0].item()
+                    sp = index_map[pr, 1, 0, 1].item()
 
-                        if split_01_flag:
-                            st1 = index_map[pr, 1, 1, 0].item()
-                            sp1 = index_map[pr, 1, 1, 1].item()
-                            c.larray[r_loc.item(), st1:sp1] += r[st:sp] @ b_lp_data[pr]
-                        else:
-                            c.larray[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr]
+                    if split_01_flag:
+                        st1 = index_map[pr, 1, 1, 0].item()
+                        sp1 = index_map[pr, 1, 1, 1].item()
+                        c.larray[r_loc.item(), st1:sp1] += r[st:sp] @ b_lp_data[pr]
+                    else:
+                        c.larray[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr]
 
                 # set the final blocks on the last loop, then adjust for the
                 # the remainders which were collected in b_rem
@@ -989,12 +982,11 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     # takes care of the remainders in b as well as dim0 of a
                     a_rem[:, pr - 1] = a_lp_data[pr - 1][:, -1]
                 # this loop is to take care of the remainders in dim1 of B
-                if b_rem_locs1.nelement() != 0:
-                    if r_loc is not None:
-                        st = index_map[pr - 1, 0, 1, 0].item()
-                        sp = index_map[pr - 1, 0, 1, 1].item()
+                if b_rem_locs1.nelement() != 0 and r_loc is not None:
+                    st = index_map[pr - 1, 0, 1, 0].item()
+                    sp = index_map[pr - 1, 0, 1, 1].item()
 
-                        c.larray[:, r_loc.item()] += (a_lp_data[pr - 1] @ r[st:sp, None]).flatten()
+                    c.larray[:, r_loc.item()] += (a_lp_data[pr - 1] @ r[st:sp, None]).flatten()
 
                 del a_lp_data[pr - 1]
 
@@ -1020,11 +1012,10 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     # this is to save the data from B required by the remainders from dim1 of A
                     a_rem[:, pr] = a_lp_data[pr][:, -1]
                 # this loop is to take care of the remainders in the 0th dimension of A
-                if b_rem_locs1.nelement() != 0:
-                    if r_loc is not None:
-                        st = index_map[pr, 0, 1, 0].item()
-                        sp = index_map[pr, 0, 1, 1].item()
-                        c.larray[:, r_loc.item()] += (a_lp_data[pr] @ r[st:sp, None]).flatten()
+                if b_rem_locs1.nelement() != 0 and r_loc is not None:
+                    st = index_map[pr, 0, 1, 0].item()
+                    sp = index_map[pr, 0, 1, 1].item()
+                    c.larray[:, r_loc.item()] += (a_lp_data[pr] @ r[st:sp, None]).flatten()
                 # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
                 if a_rem_locs1.numel():
                     c.larray[:, : b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1
@@ -1498,9 +1489,7 @@ def outer(
         device = devices[0]
     else:
         raise RuntimeError(
-            "input arrays on different devices: input 0 on {}, input 1 on {}".format(
-                devices[0], devices[1]
-            )
+            f"input arrays on different devices: input 0 on {devices[0]}, input 1 on {devices[1]}"
         )
 
     # sanitize dimensions
@@ -1510,9 +1499,7 @@ def outer(
     if b.ndim > 1:
         b = manipulations.flatten(b)
     if a.ndim == 0 or b.ndim == 0:
-        raise RuntimeError(
-            "a, b must be 1-D DNDarrays, but were {}-D and {}-D".format(a.ndim, b.ndim)
-        )
+        raise RuntimeError(f"a, b must be 1-D DNDarrays, but were {a.ndim}-D and {b.ndim}-D")
 
     outer_gshape = (a.gshape[0], b.gshape[0])
     t_a = a.larray
@@ -1628,13 +1615,11 @@ def projection(a: DNDarray, b: DNDarray) -> DNDarray:
         The vector to project onto. Must be a 1D ``DNDarray``
     """
     if not isinstance(a, DNDarray) or not isinstance(b, DNDarray):
-        raise TypeError(
-            "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
-        )
+        raise TypeError(f"a, b must be of type ht.DNDarray, but were {type(a)}, {type(b)}")
 
     if len(a.shape) != 1 or len(b.shape) != 1:
         raise RuntimeError(
-            "a, b must be vectors of length 1, but were {}, {}".format(len(a.shape), len(b.shape))
+            f"a, b must be vectors of length 1, but were {len(a.shape)}, {len(b.shape)}"
         )
 
     return (dot(a, b) / dot(b, b)) * b
@@ -1838,10 +1823,7 @@ def trace(
 
     # sanitize axis1, axis2 (make sure axis1 < axis2)
     if axis1 > axis2:
-        tmp = axis1
-        axis1 = axis2
-        axis2 = tmp
-
+        axis1, axis2 = axis2, axis1
     # ----------------------------------
     # CASE split axis NOT IN trace axes
     # ----------------------------------
@@ -1913,11 +1895,7 @@ def trace(
 
     if a.is_distributed():
         # (...and a.split not in (axis1, axis2))
-        if a.split < axis2:
-            gather_axis = a.split
-        else:
-            gather_axis = a.split - 2
-
+        gather_axis = a.split if a.split < axis2 else a.split - 2
         # check if gather_axis is in range of result
         if gather_axis >= sum_along_diagonals_t.ndim:
             gather_axis = sum_along_diagonals_t.ndim - 1
@@ -2092,7 +2070,7 @@ def transpose(a: DNDarray, axes: Optional[List[int]] = None) -> DNDarray:
             raise ValueError("axes do not match tensor shape")
         for index, axis in enumerate(axes):
             if not isinstance(axis, int):
-                raise TypeError("axis must be an integer, but was {}".format(type(axis)))
+                raise TypeError(f"axis must be an integer, but was {type(axis)}")
             elif axis < 0:
                 axes[index] = axis + dimensions
 
@@ -2156,7 +2134,7 @@ def __tri_op(m: DNDarray, k: int, op: Callable) -> DNDarray:
     try:
         k = int(k)
     except ValueError:
-        raise TypeError("Expected k to be integral, but was {}".format(type(k)))
+        raise TypeError(f"Expected k to be integral, but was {type(k)}")
 
     # chunk the global shape of the tensor to obtain the offset compared to the other ranks
     offset, _, _ = m.comm.chunk(m.shape, m.split)
@@ -2404,7 +2382,7 @@ def vector_norm(
         s = (complex_math.conj(x) * x).real
         return exponential.sqrt(arithmetics.sum(s, axis=axis, keepdims=keepdims))
     elif isinstance(ord, str):
-        raise ValueError("Norm order {} is invalid for vectors".format(ord))
+        raise ValueError(f"Norm order {ord} is invalid for vectors")
     else:
         ret = arithmetics.pow(rounding.abs(x), ord)
         ret = arithmetics.sum(ret, axis=axis, keepdims=keepdims)

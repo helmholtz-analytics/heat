@@ -12,14 +12,14 @@ if __name__ == "__main__":
     parser.add_argument("--trials", type=int, help="number of benchmark trials")
     args = parser.parse_args()
 
-    print("Loading data... {}[{}]".format(args.file, args.dataset), end="")
+    print(f"Loading data... {args.file}[{args.dataset}]", end="")
     with h5py.File(args.file, "r") as handle:
         data = torch.tensor(handle[args.dataset], device="cuda")
     print("\t[OK]")
 
     for trial in range(args.trials):
-        print("Trial {}...".format(trial), end="")
+        print(f"Trial {trial}...", end="")
         start = time.perf_counter()
         dist = torch.cdist(data, data)
         end = time.perf_counter()
-        print("\t{}s".format(end - start))
+        print(f"\t{end - start}s")

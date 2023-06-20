@@ -127,7 +127,7 @@ def sparse_csr_matrix(
             raise TypeError(f"Invalid data of type {type(obj)}")
 
     if obj.ndim != 2:
-        raise ValueError("The number of dimensions must be 2, found " + str(obj.ndim))
+        raise ValueError(f"The number of dimensions must be 2, found {str(obj.ndim)}")
 
     if obj.layout != torch.sparse_csr:
         obj = obj.to_sparse_csr()
@@ -146,7 +146,8 @@ def sparse_csr_matrix(
 
     if str(obj.device) != device.torch_device:
         warnings.warn(
-            "Array 'obj' is not on device '{}'. It will be moved to it.".format(device), UserWarning
+            f"Array 'obj' is not on device '{device}'. It will be moved to it.",
+            UserWarning,
         )
         obj = obj.to(device.torch_device)
 
