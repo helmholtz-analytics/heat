@@ -445,7 +445,12 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
         raise RuntimeError("Communicators of passed arrays mismatch.")
 
     # identify common data type
+    is_mps = arr0.larray.is_mps or arr1.larray.is_mps
     out_dtype = types.promote_types(arr0.dtype, arr1.dtype)
+    if is_mps and out_dtype == types.float64:
+        warnings.warn("MPS does not support float64, using float32 instead")
+        out_dtype = types.float32
+
     if arr0.dtype != out_dtype:
         arr0 = out_dtype(arr0, device=arr0.device)
     if arr1.dtype != out_dtype:
