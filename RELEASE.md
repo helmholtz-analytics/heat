@@ -47,7 +47,11 @@ extension: str = "dev" # <-- set to None
    python -m build
    ```
    You might have to install the `build` package first (i.e. with `conda install build` or `pip install build`)
- 6. Upload to Test PyPI and verify things look right. You need to install `twine` first.
+ 6. Upload to Test PyPI and verify things look right. You need to install `twine` first. 
+    ```bash
+     twine upload -r testpypi dist/*
+     ```
+    `twine` will prompt for your username and password.
 
 
 ### Patch release
