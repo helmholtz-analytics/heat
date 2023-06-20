@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687180182447,
+  "lastUpdate": 1687262706408,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -828,6 +828,90 @@ window.BENCHMARK_DATA = {
             "value": 1.0855686664581299,
             "unit": "s",
             "range": 0.04543221369385719
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "sai.suraj.27.729@gmail.com",
+            "name": "Sai-Suraj-27",
+            "username": "Sai-Suraj-27"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9ea256b0085808aa5db50320b11114d08a9373e8",
+          "message": "Refactoring for efficiency and readability (#1150)\n\n* Reformatted some code in a few files to make it more cleaner.\r\n\r\n* Used f-strings whereever they can be used but not used, also merged some nested if conditions.\r\n\r\n* Used f-strings whereever they can be used but not used, also merged some nested if conditions.\r\n\r\n* updated conf.py file by using f-strings at required places.\r\n\r\n* Reformatted some code in 4 more files, to make it better.\r\n\r\n* Updated more files by using f-strings wherever required.\r\n\r\n* Updated some more files to make them more cleaner.\r\n\r\n* Reformatted some code in 5 more files, to make it better.\r\n\r\n* Made the code a little cleaner in 3 more files.\r\n\r\n* Reformatted some code in 6 more files, to make it better.\r\n\r\n* Updated 5 more files to make them a little more cleaner and better.\r\n\r\n* Reformatted some code in 6 more files, to make them better.\r\n\r\n* Updated 5 more files to make them a little more cleaner and better.\r\n\r\n* Updated a few more files to make their code much cleaner and better.\r\n\r\n* Fixed errors in pre-commit checks.\r\n\r\n* Updated the code in 2 files as per the suggested changes.\r\n\r\n* Made changes to resolve the errors in tests.\r\n\r\n* corrected a small error in test_knn.py file.\r\n\r\n* Reverted the small changes made in test_knn.py\r\n\r\n* Made the suggested changes to test_knn.py file.\r\n\r\n* Update test_knn.py\r\n\r\n* Undoing the changes made in test_knn.py file.\r\n\r\n* Changed the dtype from ht.int32 to ht.int64 in test_knn.py file.\r\n\r\n---------\r\n\r\nCo-authored-by: Claudia Comito <39374113+ClaudiaComito@users.noreply.github.com>",
+          "timestamp": "2023-06-20T13:50:33+02:00",
+          "tree_id": "c8cfd580478e896907f7167b8bf91de098a6a307",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/9ea256b0085808aa5db50320b11114d08a9373e8"
+        },
+        "date": 1687262705181,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "hierachical_svd_rank_N4 - RUNTIME",
+            "value": 0.219100683927536,
+            "unit": "s",
+            "range": 0.01044752448797226
+          },
+          {
+            "name": "hierachical_svd_tol_N4 - RUNTIME",
+            "value": 0.3291913866996765,
+            "unit": "s",
+            "range": 0.05191640555858612
+          },
+          {
+            "name": "kmeans_cpu_N4 - RUNTIME",
+            "value": 1.5395084619522095,
+            "unit": "s",
+            "range": 0.0899520292878151
+          },
+          {
+            "name": "kmedians_cpu_N4 - RUNTIME",
+            "value": 5.364592552185059,
+            "unit": "s",
+            "range": 4.4310102462768555
+          },
+          {
+            "name": "kmedoids_cpu_N4 - RUNTIME",
+            "value": 5.169771671295166,
+            "unit": "s",
+            "range": 1.1930651664733887
+          },
+          {
+            "name": "lanczos_cpu_N4 - RUNTIME",
+            "value": 39.88731384277344,
+            "unit": "s",
+            "range": 2.326538562774658
+          },
+          {
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
+            "value": 0.9160690307617188,
+            "unit": "s",
+            "range": 0.056772567331790924
+          },
+          {
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "value": 0.9194231033325195,
+            "unit": "s",
+            "range": 0.06780950725078583
+          },
+          {
+            "name": "qr_cpu_N4 - RUNTIME",
+            "value": 7.410874843597412,
+            "unit": "s",
+            "range": 0.4855055809020996
+          },
+          {
+            "name": "reshape_cpu_N4 - RUNTIME",
+            "value": 1.2732521295547485,
+            "unit": "s",
+            "range": 0.04698130860924721
           }
         ]
       }
