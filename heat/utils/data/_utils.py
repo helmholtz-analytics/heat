@@ -137,7 +137,7 @@ def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
 
     train_start, train_stop, output_name_lcl_train = _find_output_name_and_stsp(num_train)
     val_start, val_stop, output_name_lcl_val = _find_output_name_and_stsp(num_val)
-    output_name_lcl_val = output_name_lcl_val[:-3] + "_validation.h5"
+    output_name_lcl_val = f"{output_name_lcl_val[:-3]}_validation.h5"
 
     # create the output files
     train_lcl_file = h5py.File(output_name_lcl_train, "w")

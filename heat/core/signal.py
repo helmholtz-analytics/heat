@@ -123,12 +123,12 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         try:
             a = array(a)
         except TypeError:
-            raise TypeError("non-supported type for signal: {}".format(type(a)))
+            raise TypeError(f"non-supported type for signal: {type(a)}")
     if not isinstance(v, DNDarray):
         try:
             v = array(v)
         except TypeError:
-            raise TypeError("non-supported type for filter: {}".format(type(v)))
+            raise TypeError(f"non-supported type for filter: {type(v)}")
     promoted_type = promote_types(a.dtype, v.dtype)
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
@@ -157,7 +157,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         pad_size = 0
         gshape = a.shape[0] - v.shape[0] + 1
     else:
-        raise ValueError("Supported modes are 'full', 'valid', 'same', got {}".format(mode))
+        raise ValueError(f"Supported modes are 'full', 'valid', 'same', got {mode}")
 
     a = pad(a, pad_size, "constant", 0)
 
