@@ -104,14 +104,12 @@ def __counter_sequence(
     # extract the counter state of the random number generator
     if dtype is torch.int32:
         c_0 = (__counter & (max_count << 32)) >> 32
-        c_1 = __counter & max_count
     else:  # torch.int64
         c_0 = (__counter & (max_count << 64)) >> 64
-        c_1 = __counter & max_count
-
+    c_1 = __counter & max_count
     total_elements = torch.prod(torch.tensor(shape))
     if total_elements.item() > 2 * max_count:
-        raise ValueError("Shape is to big with {} elements".format(total_elements))
+        raise ValueError(f"Shape is to big with {total_elements} elements")
 
     if split is None:
         values = total_elements.item() // 2 + total_elements.item() % 2
@@ -310,9 +308,9 @@ def normal(
     >>> ht.random.normal(ht.array([-1,2]), ht.array([0.5, 2]), (2,))
     DNDarray([-1.4669,  1.6596], dtype=ht.float64, device=cpu:0, split=None)
     """
-    if not (isinstance(mean, float) or isinstance(mean, int)) and not isinstance(mean, DNDarray):
+    if not (isinstance(mean, (float, int))) and not isinstance(mean, DNDarray):
         raise TypeError("'mean' must be float or DNDarray")
-    if not (isinstance(std, float) or isinstance(std, int)) and not isinstance(std, DNDarray):
+    if not (isinstance(std, (float, int))) and not isinstance(std, DNDarray):
         raise TypeError("'mean' must be float or DNDarray")
 
     if ((isinstance(std, float) or isinstance(std, int)) and std < 0) or (
@@ -445,7 +443,7 @@ def rand(
 
     # ensure that the passed dimensions are positive integer-likes
     shape = tuple(int(ele) for ele in args)
-    if not all(ele > 0 for ele in shape):
+    if any(ele <= 0 for ele in shape):
         raise ValueError("negative dimensions are not allowed")
 
     # make sure the remaining parameters are of proper type
@@ -473,7 +471,7 @@ def rand(
         )
     else:
         # Unsupported type
-        raise ValueError("dtype is none of ht.float32 or ht.float64 but was {}".format(dtype))
+        raise ValueError(f"dtype is none of ht.float32 or ht.float64 but was {dtype}")
 
     return DNDarray(values, shape, dtype, split, device, comm, balanced)
 
@@ -541,7 +539,7 @@ def randint(
     except TypeError:
         shape = (int(size),)
     else:
-        if not all(ele >= 0 for ele in shape):
+        if any(ele < 0 for ele in shape):
             raise ValueError("negative dimensions are not allowed")
 
     # sanitize the data type
@@ -813,7 +811,7 @@ def set_state(state: Tuple[str, int, int, int, float]):
     ValueError
         If one of the items in the state tuple is of wrong type or value.
     """
-    if not isinstance(state, tuple) or (len(state) != 3 and len(state) != 5):
+    if not isinstance(state, tuple) or len(state) not in [3, 5]:
         raise TypeError("state needs to be a three- or five-tuple")
 
     if state[0] != "Threefry":

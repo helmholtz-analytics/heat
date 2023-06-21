@@ -194,7 +194,7 @@ class DASO:
                 reduced_ranks.append(tuple(lp_ranks))
             self.reduced_comms, self.reduced_ranks = reduced_comms, reduced_ranks
             self.base_loc_ranks = base_loc_ranks
-            self.device = "cuda:" + str(local_rank)
+            self.device = f"cuda:{str(local_rank)}"
             torch.cuda.set_device(device=self.device)
 
         self.current_batch, self.last_batch = 0, None
@@ -654,12 +654,11 @@ class DASO:
         # use torch to send the network parameters of a single process to the other processes
         if not torch.distributed.is_initialized() or sending_process is None:
             return
-        snds = {}
-        for name, param in self.module.named_parameters():
-            if param.requires_grad:
-                snds[name] = torch.distributed.broadcast(
-                    param, sending_process, async_op=True
-                )  # default is SUM
+        snds = {
+            name: torch.distributed.broadcast(param, sending_process, async_op=True)
+            for name, param in self.module.named_parameters()
+            if param.requires_grad
+        }
         for name, param in self.module.named_parameters():
             if param.requires_grad:
                 snds[name].wait()
@@ -675,7 +674,7 @@ class DASO:
         """
         st = 0
         cast_type = torch.float if cast == 2 else torch.bfloat16 if cast == 0 else torch.half
-        for name, par in iter_dict.items():
+        for par in iter_dict.values():
             if par.requires_grad:
                 # flatten and prep the data for sending
                 p = torch.flatten(par)
