@@ -249,11 +249,19 @@ def _torch_data(dndarray, summarize) -> DNDarray:
 
                 if offset < edgeitems + 1:
                     end = min(dndarray.lshape[i], edgeitems + 1 - offset)
-                    data = torch.index_select(data, i, torch.arange(end))
+                    data = torch.index_select(
+                        data, i, torch.arange(end, device=dndarray.device.torch_device)
+                    )
                 elif dndarray.gshape[i] - edgeitems < offset - dndarray.lshape[i]:
                     global_start = dndarray.gshape[i] - edgeitems
                     data = torch.index_select(
-                        data, i, torch.arange(max(0, global_start - offset), dndarray.lshape[i])
+                        data,
+                        i,
+                        torch.arange(
+                            max(0, global_start - offset),
+                            dndarray.lshape[i],
+                            device=dndarray.device.torch_device,
+                        ),
                     )
         # exchange data
         received = dndarray.comm.gather(data)
