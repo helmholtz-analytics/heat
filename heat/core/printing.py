@@ -267,6 +267,7 @@ def _torch_data(dndarray, summarize) -> DNDarray:
         received = dndarray.comm.gather(data)
         if dndarray.comm.rank == 0:
             # concatenate data along the split axis
+            print(dndarray.comm.rank, received, dndarray.split)
             data = torch.cat(received, dim=dndarray.split)
 
     return data
