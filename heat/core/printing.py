@@ -240,7 +240,11 @@ def _torch_data(dndarray, summarize) -> DNDarray:
             if i != dndarray.split:
                 start_tensor = torch.index_select(data, i, torch.arange(edgeitems + 1))
                 end_tensor = torch.index_select(
-                    data, i, torch.arange(dndarray.lshape[i] - edgeitems, dndarray.lshape[i])
+                    data,
+                    i,
+                    torch.arange(
+                        dndarray.lshape[i] - edgeitems, dndarray.lshape[i], device=data.device
+                    ),
                 )
                 data = torch.cat([start_tensor, end_tensor], dim=i)
             # split-dimension , need to respect the global offset
@@ -249,9 +253,7 @@ def _torch_data(dndarray, summarize) -> DNDarray:
 
                 if offset < edgeitems + 1:
                     end = min(dndarray.lshape[i], edgeitems + 1 - offset)
-                    data = torch.index_select(
-                        data, i, torch.arange(end, device=dndarray.device.torch_device)
-                    )
+                    data = torch.index_select(data, i, torch.arange(end, device=data.device))
                 elif dndarray.gshape[i] - edgeitems < offset - dndarray.lshape[i]:
                     global_start = dndarray.gshape[i] - edgeitems
                     data = torch.index_select(
@@ -260,14 +262,14 @@ def _torch_data(dndarray, summarize) -> DNDarray:
                         torch.arange(
                             max(0, global_start - offset),
                             dndarray.lshape[i],
-                            device=dndarray.device.torch_device,
+                            device=data.device,
                         ),
                     )
         # exchange data
         received = dndarray.comm.gather(data)
         if dndarray.comm.rank == 0:
             # concatenate data along the split axis
-            print(dndarray.comm.rank, received, dndarray.split)
+            print(received, dndarray.split)
             data = torch.cat(received, dim=dndarray.split)
 
     return data
