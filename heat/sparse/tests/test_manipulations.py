@@ -6,13 +6,12 @@ from heat.core.tests.test_suites.basic_test import TestCase
 
 
 @unittest.skipIf(
-    int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 10,
-    f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.",
+    int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 12,
+    f"ht.sparse requires torch >= 1.12. Found version {torch.__version__}.",
 )
 class TestManipulations(TestCase):
     @classmethod
     def setUpClass(self):
-
         super(TestManipulations, self).setUpClass()
         """
         A = [[0, 0, 1, 0, 2]
@@ -35,7 +34,6 @@ class TestManipulations(TestCase):
         )
 
     def test_todense(self):
-
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
         ref_dense_array = ht.array(

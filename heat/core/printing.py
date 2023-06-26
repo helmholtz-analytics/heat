@@ -173,11 +173,11 @@ def set_printoptions(
     torch.set_printoptions(precision, threshold, edgeitems, linewidth, profile, sci_mode)
 
     # HeAT profiles will print a bit wider than PyTorch does
-    if profile == "default" and linewidth is None:
-        torch._tensor_str.PRINT_OPTS.linewidth = _DEFAULT_LINEWIDTH
-    elif profile == "short" and linewidth is None:
-        torch._tensor_str.PRINT_OPTS.linewidth = _DEFAULT_LINEWIDTH
-    elif profile == "full" and linewidth is None:
+    if (
+        (profile == "default" and linewidth is None)
+        or (profile == "short" and linewidth is None)
+        or (profile == "full" and linewidth is None)
+    ):
         torch._tensor_str.PRINT_OPTS.linewidth = _DEFAULT_LINEWIDTH
 
 
@@ -285,11 +285,4 @@ def _tensor_str(dndarray, indent: int) -> str:
     torch_data = _torch_data(dndarray, summarize)
     formatter = torch._tensor_str._Formatter(torch_data)
 
-    if int(torch.__version__[2]) <= 5 and int(torch.__version__[0]) == 0:
-        return torch._tensor_str._tensor_str_with_formatter(
-            torch_data, indent, formatter, summarize
-        )
-    else:
-        return torch._tensor_str._tensor_str_with_formatter(
-            torch_data, indent, summarize, formatter
-        )
+    return torch._tensor_str._tensor_str_with_formatter(torch_data, indent, summarize, formatter)

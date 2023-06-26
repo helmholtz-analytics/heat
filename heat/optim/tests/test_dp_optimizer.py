@@ -138,7 +138,7 @@ class TestDASO(TestCase):
 
         gpus = torch.cuda.device_count()
         loc_rank = ht.MPI_WORLD.rank % gpus
-        device = "cuda:" + str(loc_rank)
+        device = f"cuda:{str(loc_rank)}"
         os.environ["MASTER_ADDR"] = "localhost"
         os.environ["MASTER_PORT"] = "29500"
         os.environ["NCCL_SOCKET_IFNAME"] = "ib"

@@ -94,7 +94,7 @@ def sparse_csr_matrix(
     (indptr: tensor([0, 1, 3, 4]), indices: tensor([2, 0, 2, 2]), data: tensor([1, 1, 2, 3]), dtype=ht.int64, device=cpu:0, split=None)
     """
     # version check
-    if int(torch.__version__.split(".")[1]) < 10:
+    if int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 10:
         raise RuntimeError(f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.")
 
     # sanitize the data type
@@ -126,6 +126,9 @@ def sparse_csr_matrix(
         except RuntimeError:
             raise TypeError(f"Invalid data of type {type(obj)}")
 
+    if obj.ndim != 2:
+        raise ValueError(f"The number of dimensions must be 2, found {str(obj.ndim)}")
+
     if obj.layout != torch.sparse_csr:
         obj = obj.to_sparse_csr()
 
@@ -143,7 +146,8 @@ def sparse_csr_matrix(
 
     if str(obj.device) != device.torch_device:
         warnings.warn(
-            "Array 'obj' is not on device '{}'. It will be moved to it.".format(device), UserWarning
+            f"Array 'obj' is not on device '{device}'. It will be moved to it.",
+            UserWarning,
         )
         obj = obj.to(device.torch_device)
 

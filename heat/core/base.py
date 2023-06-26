@@ -43,7 +43,7 @@ class BaseEstimator:
         deep : bool, default: True
             If ``True``, will return the parameters for this estimator and contained sub-objects that are estimators.
         """
-        params = dict()
+        params = {}
 
         for key in self._parameter_names():
             value = getattr(self, key)
@@ -82,9 +82,7 @@ class BaseEstimator:
         for key, value in params.items():
             if key not in parameter_names:
                 raise ValueError(
-                    "Invalid parameter {} for estimator {}. Check the list of available parameters with `estimator.get_params().keys()`.".format(
-                        key, self
-                    )
+                    f"Invalid parameter {key} for estimator {self}. Check the list of available parameters with `estimator.get_params().keys()`."
                 )
 
             if isinstance(value, dict):

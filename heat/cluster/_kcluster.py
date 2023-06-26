@@ -204,7 +204,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         """
         # calculate the distance matrix and determine the closest centroid
         distances = self._metric(x, self._cluster_centers)
-        matching_centroids = distances.argmin(axis=1, keepdim=True)
+        matching_centroids = distances.argmin(axis=1, keepdims=True)
 
         return matching_centroids
 
@@ -248,7 +248,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         """
         # input sanitation
         if not isinstance(x, DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
+            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
 
         # determine the centroids
         return self._assign_to_cluster(x)
