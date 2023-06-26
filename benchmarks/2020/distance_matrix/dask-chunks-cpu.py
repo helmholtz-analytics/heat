@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     client = Client(scheduler_file=os.path.join(os.getcwd(), "scheduler.json"))
 
-    print("Loading data... {}[{}]".format(args.file, args.dataset), end="")
+    print(f"Loading data... {args.file}[{args.dataset}]", end="")
     workers = len(client.scheduler_info()["workers"])
     with h5py.File(args.file, "r") as handle:
         ch = handle[args.dataset].shape[0] // workers
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     print("\t[OK]")
 
     for trial in range(args.trials):
-        print("Trial {}...".format(trial), end="")
+        print(f"Trial {trial}...", end="")
         start = time.perf_counter()
         dist = dmm.euclidean_distances(data, data).compute()
         end = time.perf_counter()
