@@ -274,7 +274,8 @@ def _torch_data(dndarray, summarize) -> DNDarray:
             # Indeed, `received` may be a list of tensors on cuda device 0, cuda device 1, ... therefore, we need to move all entries of the list to cuda device 0 before applying `cat`.
             device0 = received[0].device
             received = [tens.to(device0) for tens in received]
-            data = torch.cat(received, dim=dndarray.split.to(device0))
+            print(received)
+            data = torch.cat(received, dim=dndarray.split)
     return data
 
 
