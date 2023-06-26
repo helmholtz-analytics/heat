@@ -429,3 +429,11 @@ class TestPrinting(TestCase):
 
         if dndarray.comm.rank == 0:
             self.assertEqual(comparison, __str)
+
+
+class TestPrintingGPU(TestCase):
+    def test_print_GPU(self):
+        # this test case also includes GPU now, checking the output is not done; only test whether the routine itself works...
+        a0 = ht.arange(2**20, dtype=ht.float32).reshape((2**10, 2**10)).resplit_(0)
+        a1 = ht.arange(2**20, dtype=ht.float32).reshape((2**10, 2**10)).resplit_(1)
+        print(a0, a1)
