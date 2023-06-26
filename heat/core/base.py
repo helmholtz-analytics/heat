@@ -140,6 +140,53 @@ class ClassificationMixin:
         raise NotImplementedError()
 
 
+class TransformMixin:
+    """
+    Mixin for all transformations in HeAT.
+    """
+
+    def fit(self, x: DNDarray):
+        """
+        Fits the transformation model.
+
+        Parameters
+        ----------
+        x : DNDarray
+            Training instances to train on. Shape = (n_samples, n_features)
+
+        y : DNDarray
+            Class values to fit. Shape = (n_samples, )
+
+        """
+        raise NotImplementedError()
+
+    def fit_transform(self, x: DNDarray) -> DNDarray:
+        """
+        Fits model and returns transformed data for each input sample
+        Convenience method; equivalent to calling :func:`fit` followed by :func:`transform`.
+
+        Parameters
+        ----------
+        x : DNDarray
+            Input data to be transformed. Shape = (n_samples, n_features)
+        y : DNDarray
+            Class values to fit. Shape = (n_samples, )
+        """
+        self.fit(x)
+        return self.transform(x)
+
+    def transform(self, x: DNDarray) -> DNDarray:
+        """
+        Transforms the input data.
+
+         Parameters
+         ----------
+         x : DNDarray
+             Values to transform. Shape = (n_samples, n_features)
+        """
+        raise NotImplementedError()
+
+
 class ClusteringMixin:
     """
     Clustering mixin for all clusterers in HeAT.
