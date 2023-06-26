@@ -238,7 +238,9 @@ def _torch_data(dndarray, summarize) -> DNDarray:
 
             # non-split dimension, can slice locally
             if i != dndarray.split:
-                start_tensor = torch.index_select(data, i, torch.arange(edgeitems + 1))
+                start_tensor = torch.index_select(
+                    data, i, torch.arange(edgeitems + 1, device=data.device)
+                )
                 end_tensor = torch.index_select(
                     data,
                     i,
