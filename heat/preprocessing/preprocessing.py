@@ -42,11 +42,11 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         # transform the input data X according to mean_ and var_ from the scaler...
         # ... either with copy...
         if self.copy:
-            return (X - self.mean_) / self.var_
+            return (X - self.mean_) / (self.var_) ** 0.5
         # ... or in-place:
         else:
             X -= self.mean_
-            X /= self.var_
+            X /= (self.var_) ** 0.5
             return X
 
     def inverse_transform(self, Y):
@@ -54,9 +54,9 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         Apply the inverse transformation associated with the standard scaler
         """
         if self.copy:
-            return Y * self.var_ + self.mean_
+            return Y * (self.var_) ** 0.5 + self.mean_
         # ... or in-place:
         else:
-            Y *= self.var_
+            Y *= (self.var_) ** 0.5
             Y += self.mean_
             return Y

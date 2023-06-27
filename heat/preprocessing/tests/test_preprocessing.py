@@ -3,15 +3,22 @@ import heat as ht
 import numpy as np
 import sklearn.preprocessing
 from mpi4py import MPI
+import os
 
 from ...core.tests.test_suites.basic_test import TestCase
+
+envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
 
 
 class TestStandardScaler(TestCase):
     def test_standard_scaler(self):
-        for dt in [ht.float32, ht.float64]:
+        if envar not in ["cpu"]:
+            dts = [ht.float32]
+        else:
+            dts = [ht.float32, ht.float64]
+        for dt in dts:
             if dt == ht.float32:
-                atol = 1e-6
+                atol = 1e-7
             if dt == ht.float64:
                 atol = 1e-14
 
