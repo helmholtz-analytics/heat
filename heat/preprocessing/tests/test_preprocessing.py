@@ -1,7 +1,6 @@
 import unittest
 import heat as ht
 import numpy as np
-import sklearn.preprocessing
 from mpi4py import MPI
 import os
 
