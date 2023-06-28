@@ -268,6 +268,8 @@ def _torch_data(dndarray, summarize) -> DNDarray:
                         ),
                     )
         # exchange data
+        to_rcv = dndarray.comm.gather(data.shape)
+        print(to_rcv)
         received = dndarray.comm.gather(data)
 
         if dndarray.comm.rank == 0:
