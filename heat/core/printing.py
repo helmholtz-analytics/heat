@@ -270,7 +270,8 @@ def _torch_data(dndarray, summarize) -> DNDarray:
         # exchange data
         to_rcv_shape = dndarray.comm.gather(data.shape)
         to_rcv_shape = torch.cat(to_rcv_shape, dim=dndarray.split)
-        print(dndarray.comm.rank, to_rcv_shape)
+        if dndarray.comm.rank == 0:
+            print(dndarray.comm.rank, to_rcv_shape)
         received = dndarray.comm.gather(data)
 
         if dndarray.comm.rank == 0:
