@@ -268,12 +268,7 @@ def _torch_data(dndarray, summarize) -> DNDarray:
                         ),
                     )
         # exchange data
-        to_rcv_shape = dndarray.comm.gather(data.shape)
-        to_rcv_shape = torch.cat(to_rcv_shape, dim=dndarray.split)
-        if dndarray.comm.rank == 0:
-            print(dndarray.comm.rank, to_rcv_shape)
         received = dndarray.comm.gather(data)
-
         if dndarray.comm.rank == 0:
             # concatenate data along the split axis
             # problem: CUDA-aware MPI `gather`s all `data` in a list of tensors on MPI-process no. 0, but not necessarily on the same cuda device.
