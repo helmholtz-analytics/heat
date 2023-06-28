@@ -109,7 +109,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         Apply inverse of MinMaxScaler
         """
         if self.copy:
-            X = (Y - self.feature_range[0]) / self.data_range_ + self.data_min_
+            X = (Y - self.feature_range[0]) / self.scale_ + self.data_min_
             return X
         else:
             Y -= self.feature_range[0]
@@ -127,11 +127,11 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
         self.norm_ = norm
         self.copy = copy
         if norm == "l2":
-            self.ord = 2
+            self.ord_ = 2
         elif norm == "l1":
-            self.ord = 1
+            self.ord_ = 1
         elif norm == "max":
-            self.ord = ht.inf
+            self.ord_ = ht.inf
         else:
             raise NotImplementedError(
                 "Normalization with respect to norms other than l2, l1 or linfty not yet implemented. We apologize for the inconvenience."
@@ -146,10 +146,10 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
         Normalize all data entries
         """
         if self.copy:
-            Y = X / ht.norm(X, axis=1, ord=self.ord)
+            Y = X / ht.norm(X, axis=1, ord=self.ord_).reshape((-1, 1))
             return Y
         else:
-            X /= ht.norm(X, axis=1, ord=self.ord)
+            X /= ht.norm(X, axis=1, ord=self.ord_).reshape((-1, 1))
             return X
 
 
@@ -207,8 +207,17 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
         unit_variance=False
     ):
         self.with_centering = with_centering
+        self.with_scaling = with_scaling
         self.quantile_range = quantile_range
         self.copy = copy
+        if (
+            self.quantile_range[0] >= self.quantile_range[1]
+            or self.quantile_range[1] > 100.0
+            or self.quantile_range[0] < 0.0
+        ):
+            raise ValueError(
+                "Lower bound of quantile range must be strictly smaller than uppert bound; both bounds need to be between 0.0 and 100.0."
+            )
         if unit_variance:
             raise NotImplementedError(
                 "Robust Scaler with additional unit variance scaling is not yet implemented. We apologize for the inconvenience."
