@@ -105,9 +105,14 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         self.mean_ = ht.mean(X, axis=0)
         self.var_ = ht.var(X, axis=0)
 
-        # TODO: if var is below machine precision, set it to 1...
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # check if var_ is below machine precision for some features, set scaling factor to 1 for these features
         self.scale_ = self.var_
+        tol = _tol_wrt_dtype(X)
+        if self.scale_.min() < tol:
+            self.scale_ = ht.where(self.scale_ >= tol, self.scale_, ht.ones_like(self.scale_))
+            print(
+                "At least one of the features is almost constant (w.r.t. machine precision) and will not be scaled for this reason."
+            )
         self.scale_ = 1.0 / (self.scale_) ** 0.5
         return self
 
@@ -239,10 +244,20 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         self.data_max_ = ht.max(X, axis=0)
         self.data_range_ = self.data_max_ - self.data_min_
 
-        # TODO: do something if self.data_range_ is too small
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # if data_range is below machine precision for a feature, set scaling factor to 1 for this feature
         self.scale_ = self.data_range_
-        self.scale_ = (self.feature_range[1] - self.feature_range[0]) / self.scale_
+        tol = _tol_wrt_dtype(X)
+        if self.scale_.min() < tol:
+            self.scale_ = ht.where(
+                self.scale_ >= tol,
+                (self.feature_range[1] - self.feature_range[0]) / self.scale_,
+                ht.ones_like(self.scale_),
+            )
+            print(
+                "At least one of the features is almost constant (w.r.t. machine precision) and will not be scaled for this reason."
+            )
+        else:
+            self.scale_ = (self.feature_range[1] - self.feature_range[0]) / self.scale_
 
         self.min_ = -self.data_min_ * self.scale_ + self.feature_range[0]
         return self
@@ -362,8 +377,14 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
         """
         _check_if_2D_float_DNDarray(X)
         X_norms = ht.norm(X, axis=1, ord=self.ord_).reshape((-1, 1))
-        # TODO: Check for zero norms and replace them by ones...
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        # if norm of data point is close to zero (w.r.t. machine precision), do not scale this data point
+        tol = _tol_wrt_dtype(X)
+        if X_norms.min() < tol:
+            X_norms = ht.where(X_norms >= tol, X_norms, ht.ones_like(X_norms))
+            print(
+                "At least one of the data points has almost zero norm (w.r.t. machine precision) and will not be scaled for this reason."
+            )
         if self.copy:
             Y = X / X_norms
             return Y
@@ -419,9 +440,14 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
         _check_if_2D_float_DNDarray(X)
         self.max_abs_ = ht.norm(X, axis=0, ord=ht.inf)
 
-        # TODO: do sth if max_abs is too small...
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        # if max abs is close to machine precision for some feature, do not scale this feature
+        tol = _tol_wrt_dtype(X)
         self.scale_ = self.max_abs_
+        if self.scale_.min() < tol:
+            self.scale_ = ht.where(self.scale_ >= tol, self.scale_, ht.ones_like(self.scale_))
+            print(
+                "At least one of the features is almost constant (w.r.t. machine precision) and will not be scaled for this reason."
+            )
         self.scale_ = 1.0 / self.scale_
         return self
 
@@ -572,9 +598,14 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
                 X, self.quantile_range[0], axis=0
             )
 
-            # TODO: do sth if iqr is too small
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            # if length of iqr is close to zero, do not scale this feature
             self.scale_ = self.iqr_
+            tol = _tol_wrt_dtype(X)
+            if self.scale_.min() < tol:
+                ht.where(self.scale_ >= tol, self.scale_, ht.ones_like(self.scale_))
+                print(
+                    "At least one of the features is almost constant (w.r.t. machine precision) and will not be scaled for this reason."
+                )
             self.scale_ = 1.0 / self.scale_
         return self
 
