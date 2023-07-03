@@ -268,7 +268,7 @@ def _torch_data(dndarray, summarize) -> DNDarray:
                         ),
                     )
         # exchange data
-        exchange_sizes = dndarray.comm.gather(data.shape)
+        exchange_sizes = dndarray.comm.gather(torch.tensor(data.shape))
         print(dndarray.comm.rank, exchange_sizes)
         if dndarray.comm.rank == 0:
             recv_size = exchange_sizes[0]
