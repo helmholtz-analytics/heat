@@ -5,7 +5,6 @@ from perun.decorator import monitor
 
 mnist_data = MNISTDataset("../../heat/datasets", train=True, split=0)
 data = mnist_data.htdata.reshape((28 * 28, -1)).T / 255
-print(data.min(), data.max())
 
 
 @monitor()
