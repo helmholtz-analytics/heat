@@ -276,7 +276,8 @@ def _torch_data(dndarray, summarize) -> DNDarray:
             recv_buf = torch.zeros(recv_size, dtype=data.dtype, device=data.device)
         else:
             recv_buf = None
-        dndarray.comm.Gather(data, recv_buf, axis=dndarray.split, recv_axis=dndarray.split)
+        dndarray.comm.Gather(data, recv_buf)
+        print(dndarray.comm.rank, recv_buf)
 
         received = dndarray.comm.gather(data)
         if dndarray.comm.rank == 0:
