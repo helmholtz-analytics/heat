@@ -274,7 +274,7 @@ def _torch_data(dndarray, summarize) -> DNDarray:
             recv_size[dndarray.split] = sum([s[dndarray.split] for s in exchange_sizes])
             recv_buf = torch.zeros(tuple(recv_size), dtype=data.dtype, device=data.device)
         else:
-            recv_buf = torch.empty(tuple(torch.ones(data.ndim)))
+            recv_buf = torch.empty(tuple(torch.ones(data.ndim, dtype=torch.int32)))
         dndarray.comm.Gather(data, recv_buf, axis=dndarray.split, recv_axis=dndarray.split)
         print(dndarray.comm.rank, recv_buf)
 
