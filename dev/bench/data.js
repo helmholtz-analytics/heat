@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1687774555100,
+  "lastUpdate": 1688385687276,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -1164,6 +1164,90 @@ window.BENCHMARK_DATA = {
             "value": 1.3596116304397583,
             "unit": "s",
             "range": 0.06540459394454956
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "112093564+mrfh92@users.noreply.github.com",
+            "name": "Fabian Hoppe",
+            "username": "mrfh92"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "405d9b985c131f80afe33b1d2b2bd8125f97cf62",
+          "message": "Merge pull request #1173 from helmholtz-analytics/fix/changelog-updater\n\nChangelog updater action fix",
+          "timestamp": "2023-07-03T13:46:58+02:00",
+          "tree_id": "403ee60b1197c55de786761d54762bbe63dba349",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/405d9b985c131f80afe33b1d2b2bd8125f97cf62"
+        },
+        "date": 1688385686491,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "hierachical_svd_rank_N4 - RUNTIME",
+            "value": 0.23451419174671173,
+            "unit": "s",
+            "range": 0.023987354710698128
+          },
+          {
+            "name": "hierachical_svd_tol_N4 - RUNTIME",
+            "value": 0.29232892394065857,
+            "unit": "s",
+            "range": 0.0527816116809845
+          },
+          {
+            "name": "kmeans_cpu_N4 - RUNTIME",
+            "value": 1.3277208805084229,
+            "unit": "s",
+            "range": 0.0941959023475647
+          },
+          {
+            "name": "kmedians_cpu_N4 - RUNTIME",
+            "value": 5.213129043579102,
+            "unit": "s",
+            "range": 4.287837982177734
+          },
+          {
+            "name": "kmedoids_cpu_N4 - RUNTIME",
+            "value": 5.16896915435791,
+            "unit": "s",
+            "range": 1.0000478029251099
+          },
+          {
+            "name": "lanczos_cpu_N4 - RUNTIME",
+            "value": 42.04335403442383,
+            "unit": "s",
+            "range": 0.4768431782722473
+          },
+          {
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
+            "value": 0.8573762774467468,
+            "unit": "s",
+            "range": 0.056673262268304825
+          },
+          {
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "value": 0.8971904516220093,
+            "unit": "s",
+            "range": 0.06855850666761398
+          },
+          {
+            "name": "qr_cpu_N4 - RUNTIME",
+            "value": 7.060193061828613,
+            "unit": "s",
+            "range": 0.21249920129776
+          },
+          {
+            "name": "reshape_cpu_N4 - RUNTIME",
+            "value": 1.2614878416061401,
+            "unit": "s",
+            "range": 0.04088260605931282
           }
         ]
       }
