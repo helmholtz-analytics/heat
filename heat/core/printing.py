@@ -268,6 +268,11 @@ def _torch_data(dndarray, summarize) -> DNDarray:
                         ),
                     )
         # exchange data
+        recv_size = dndarray.comm.gather(data.shape)
+        print(dndarray.comm.rank, recv_size)
+        if dndarray.comm.rank == 0:
+            recv_size.sum(axis=dndarray.split)
+
         received = dndarray.comm.gather(data)
         if dndarray.comm.rank == 0:
             # concatenate data along the split axis
