@@ -15,14 +15,14 @@ if __name__ == "__main__":
 
     ht.use_device("gpu")
 
-    print("Loading data... {}[{}]".format(args.file, args.dataset), end="")
+    print(f"Loading data... {args.file}[{args.dataset}]", end="")
     data = ht.load(args.file, dataset=args.dataset, split=0)
     print("\t[OK]")
 
     for trial in range(args.trials):
-        print("Trial {}...".format(trial), end="")
+        print(f"Trial {trial}...", end="")
         kmeans = ht.cluster.KMeans(n_clusters=args.clusters, max_iter=args.iterations)
         start = time.perf_counter()
         kmeans.fit(data)
         end = time.perf_counter()
-        print("\t{}s".format(end - start))
+        print(f"\t{end - start}s")

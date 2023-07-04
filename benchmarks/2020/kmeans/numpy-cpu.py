@@ -69,15 +69,15 @@ if __name__ == "__main__":
     parser.add_argument("--iterations", type=int, help="kmeans iterations")
     args = parser.parse_args()
 
-    print("Loading data... {}[{}]".format(args.file, args.dataset), end="")
+    print(f"Loading data... {args.file}[{args.dataset}]", end="")
     with h5py.File(args.file, "r") as handle:
         data = np.array(handle[args.dataset])
     print("\t[OK]")
 
     for trial in range(args.trials):
-        print("Trial {}...".format(trial), end="")
+        print(f"Trial {trial}...", end="")
         kmeans = KMeans(n_clusters=args.clusters, max_iter=args.iterations)
         start = time.perf_counter()
         kmeans.fit(data)
         end = time.perf_counter()
-        print("\t{}s".format(end - start))
+        print(f"\t{end - start}s")

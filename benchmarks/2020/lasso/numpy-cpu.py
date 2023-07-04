@@ -67,11 +67,10 @@ class Lasso:
                     theta[j] = self.soft_threshold(rho)
 
             diff = self.rmse(theta, theta_old)
-            if self.tol is not None:
-                if diff < self.tol:
-                    self.n_iter = i + 1
-                    self.__theta = theta
-                    break
+            if self.tol is not None and diff < self.tol:
+                self.n_iter = i + 1
+                self.__theta = theta
+                break
 
         self.__theta = theta
 
@@ -88,16 +87,16 @@ if __name__ == "__main__":
     parser.add_argument("--iterations", type=int, help="iterations")
     args = parser.parse_args()
 
-    print("Loading data... {}[{}]".format(args.file, args.dataset), end="")
+    print(f"Loading data... {args.file}[{args.dataset}]", end="")
     with h5py.File(args.file, "r") as handle:
         data = np.array(handle[args.dataset])
         labels = np.array(handle[args.labels])
     print("\t[OK]")
 
     for trial in range(args.trials):
-        print("Trial {}...".format(trial), end="")
+        print(f"Trial {trial}...", end="")
         lasso = Lasso(max_iter=args.iterations, tol=-1.0)
         start = time.perf_counter()
         lasso.fit(data, labels)
         end = time.perf_counter()
-        print("\t{}s".format(end - start))
+        print(f"\t{end - start}s")

@@ -1,0 +1,2 @@
+# This is a sample file to use with the Singularity image builder
+FROM ghcr.io/helmholtz-analytics/heat:1.2.0_torch1.11_cuda11.5_py3.9

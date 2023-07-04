@@ -110,7 +110,7 @@ master_doc = "index"
 from datetime import datetime
 
 project = "Heat"
-copyright = "{}, Helmholtz Analytics Framework Consortium".format(datetime.now().year)
+copyright = f"{datetime.now().year}, Helmholtz Analytics Framework Consortium"
 author = "Helmholtz Analytics Framework Consortium"
 
 # The version info for the project you're documenting, acts as replacement for
@@ -121,12 +121,10 @@ author = "Helmholtz Analytics Framework Consortium"
 sys.path.insert(0, "../../heat/core")
 import version as ht_version
 
-version = "{}.{}.{}".format(ht_version.major, ht_version.minor, ht_version.micro)
+version = f"{ht_version.major}.{ht_version.minor}.{ht_version.micro}"
 # The full version, including alpha/beta/rc tags.
 if ht_version.extension:
-    release = "{}.{}.{}-{}".format(
-        ht_version.major, ht_version.minor, ht_version.micro, ht_version.extension
-    )
+    release = f"{ht_version.major}.{ht_version.minor}.{ht_version.micro}-{ht_version.extension}"
 else:
     release = version
 
