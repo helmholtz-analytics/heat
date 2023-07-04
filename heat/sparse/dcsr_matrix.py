@@ -337,3 +337,21 @@ class DCSR_matrix:
         if self.comm.rank != 0:
             return ""
         return print_string
+
+    def __str__(self) -> str:
+        """
+        Computes a string representation of the passed ``DCSR_matrix``.
+        """
+        size = self.__gshape
+        nnz = self.__gnnz
+
+        print_string = (
+            f"indices={self.indices}, "
+            f"data={self.data}, DCSR_matrix(size={size}, "
+            f"nnz={nnz}, split={self.__split})"
+        )
+
+        if self.__comm.rank != 0:
+            return ""
+
+        return print_string
