@@ -351,7 +351,7 @@ class DCSR_matrix:
             f"size={size}, nnz={nnz}, split={self.__split})"
         )
 
-        if self.__comm.rank != 0:
+        if self.comm.rank != 0:
             return ""
 
         return print_string
