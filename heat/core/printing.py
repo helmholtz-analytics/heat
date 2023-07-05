@@ -269,14 +269,15 @@ def _torch_data(dndarray, summarize) -> DNDarray:
                     )
         # exchange data
         exchange_sizes = dndarray.comm.gather(torch.tensor(data.shape))
+        recv_buf = torch.empty(0)
         if dndarray.comm.rank == 0:
             recv_size = exchange_sizes[0]
             recv_size[dndarray.split] = sum([s[dndarray.split] for s in exchange_sizes])
             recv_buf = torch.zeros(tuple(recv_size), dtype=data.dtype, device=data.device)
-        else:
-            recv_buf = torch.empty(0)
+        print(dndarray.comm.rank, data.shape, recv_buf.shape)
         dndarray.comm.Gather(data, recv_buf)
-    return recv_buf
+        data = recv_buf
+    return data
 
 
 def _tensor_str(dndarray, indent: int) -> str:
