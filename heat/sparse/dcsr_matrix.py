@@ -347,8 +347,8 @@ class DCSR_matrix:
 
         print_string = (
             f"indices={self.indices}, "
-            f"data={self.data}, DCSR_matrix(size={size}, "
-            f"nnz={nnz}, split={self.__split})"
+            f"data={self.data}, "
+            f"size={size}, nnz={nnz}, split={self.__split})"
         )
 
         if self.__comm.rank != 0:
