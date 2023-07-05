@@ -32,22 +32,27 @@ class DXarray:
     def __init__(
         self,
         values: ht.DNDarray,
-        dims: list,
+        dims: Union[list, None],
         coords: dict,
         name: Union[str, None] = None,
         attrs: dict = {},
     ):
         self.__values = values
+        self.__name = name
+        self.__attrs = attrs
+
+        if dims is not None:
+            assert len(self.__dims) == self.__values.ndim
+            self.__dims = dims
+        else:
+            self.__dims = ["dim_%d" % k for k in range(self.__values.ndim)]
         self.__dims = dims
+
         self.__coords = coords
         self.__split = values.split
         self.__device = values.device
         self.__comm = values.comm
-        self.__name = name
-        self.__attrs = attrs
 
-        assert len(self.__dims) == self.__values.ndim
-        assert len(self.__dims) == len(self.__coords)
         for coord_item in coords.items():
             if coord_item[1] is not None:
                 assert (
