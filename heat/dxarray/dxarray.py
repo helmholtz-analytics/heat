@@ -27,6 +27,13 @@ class DXarray:
         DXarray of same shape as the original one, also split along the same split axis ("physical coordinates").
     split: Union[int,None]
         dimension along which the DXarray is split (analogous to split dimension of DNDarray)
+
+    Notes
+    ---------------
+    Some attributes of DNDarray are not included in DXarray, e.g., gshape, lshape, larray etc., and need to be accessed by
+    DXarray.values.gshape etc.
+    This is in order to avoid confusion, because a DXarray is built of possibly several DNDarrays which could cause confusion
+    to which gshape etc. a global attribute DXarray.gshape could refer to.
     """
 
     def __init__(
