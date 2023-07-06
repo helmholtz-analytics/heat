@@ -17,4 +17,3 @@ from . import regression
 from . import sparse
 from . import spatial
 from . import utils
-from . import dxarray
