@@ -5,6 +5,7 @@ Implements a distributed counterpart of xarray built on top of Heats DNDarray cl
 import torch
 import heat as ht
 import xarray as xr
+from xarray import DataArray
 from typing import Union
 
 # imports of "dxarray_..."-dependencies at the end to avoid cyclic dependence
@@ -118,13 +119,7 @@ class DXarray:
         self.__dims_without_coords = dims_without_coords
 
         # check if all appearing DNDarrays are balanced: as a result, the DXarray is balanced if and only if all DNDarrays are balanced
-        if coords is not None:
-            balanced = values.balanced and all(
-                [coord_item[1].balanced for coord_item in coords.items()]
-            )
-        else:
-            balanced = values.balanced
-        self.__balanced = balanced
+        self.__balanced = dxarray_sanitation.check_if_balanced(self.__values, self.__coords)
 
         # if no names are provided, introduce generic names "dim_N", N = 0,1,...
         if dims is None:
@@ -158,7 +153,7 @@ class DXarray:
         return self.__coords
 
     @property
-    def split(self) -> Union[int, None]:
+    def split(self) -> Union[str, None]:
         """
         Get split dimension from DXarray
         """
@@ -209,7 +204,9 @@ class DXarray:
     @property
     def balanced(self) -> bool:
         """
-        Check whether all DNDarrays in DXarray are balanced
+        Get the attributed `balanced` of DXarray.
+        Does not check whether the current value of this attribute is consistent!
+        (This can be ensured by calling :meth:`DXarray.is_balanced(force_check=True)` first.)
         """
         return self.__balanced
 
@@ -253,14 +250,18 @@ class DXarray:
     Private methods of DXarray class
     """
 
-    def __dim_name_to_idx(self, names: Union[str, tuple, list, None]):
+    def __dim_name_to_idx(
+        self, names: Union[str, tuple, list, None]
+    ) -> Union[str, tuple, list, None]:
         """
         Converts a string (or tuple of strings) referring to dimensions of the DXarray to the corresponding numeric index (tuple of indices) of these dimensions.
         Inverse of :meth:`__dim_idx_to_name`.
         """
         return dim_name_to_idx(self.__dims, names)
 
-    def __dim_idx_to_name(self, idxs: Union[int, tuple, list, None]):
+    def __dim_idx_to_name(
+        self, idxs: Union[int, tuple, list, None]
+    ) -> Union[int, tuple, list, None]:
         """
         Converts an numeric index (or tuple of such indices) referring to the dimensions of the DXarray to the corresponding name string (or tuple of name strings).
         Inverse of :meth:`__dim_name_to_idx`.
@@ -336,6 +337,83 @@ class DXarray:
             )
         else:
             return ""
+
+    """
+    Public Methods of DXarray
+    """
+
+    def is_balanced(self, force_check: bool = False) -> bool:
+        """
+        Checks if DXarray is balanced. If `force_check = False` (default), the current value of the
+        attribute `balanced` is returned unless this current value is None (i.e. no information on
+        no information available); only in the latter case, or if `force_check = True`, the value
+        of the attribute `balanced` is updated before being returned.
+
+        """
+        if self.__balanced is None or force_check:
+            self.__balanced = dxarray_sanitation.check_if_balanced(self.__values, self.__coords)
+        return self.__balanced
+
+    def resplit_(self, dim: Union[str, None] = None):
+        """
+        In-place option for resplitting a :class:`DXarray`.
+        """
+        if dim is not None and dim not in self.__dims:
+            raise ValueError(
+                "Input `dim` in resplit_ must be either None or a dimension of the underlying DXarray."
+            )
+        # early out if nothing is to do
+        if self.__split == dim:
+            return self
+        else:
+            # resplit the value array accordingly
+            self.__values.resplit_(self.__dim_name_to_idx(dim))
+            if self.__coords is not None:
+                for item in self.__coords.items():
+                    if isinstance(item[0], str) and item[0] == dim:
+                        item[1].resplit_(0)
+                    elif isinstance(item[0], tuple) and dim in item[0]:
+                        item[1].resplit_(dim)
+            self.__split = dim
+            return self
+
+    def balance_(self):
+        """
+        In-place option for balancing a :class:`DXarray`.
+        """
+        if self.is_balanced(force_check=True):
+            return self
+        else:
+            self.__values.balance_()
+            if self.__coords is not None:
+                for item in self.__coords.items():
+                    item[1].balance_()
+            self.__balanced = True
+            return self
+
+    def xarray(self):
+        """
+        Convert given DXarray (possibly distributed over some processes) to a non-distributed xarray (:class:`xarray.DataArray`)
+        """
+        non_dist_copy = self.resplit_(None)
+        if non_dist_copy.coords is None:
+            xarray_coords = None
+        else:
+            xarray_coords = {
+                item[0]: item[1].cpu().numpy()
+                if isinstance(item[1], ht.DNDarray)
+                else item[1].xarray()
+                for item in non_dist_copy.coords.items()
+            }
+        xarray = DataArray(
+            non_dist_copy.values.cpu().numpy(),
+            dims=non_dist_copy.dims,
+            coords=xarray_coords,
+            name=non_dist_copy.name,
+            attrs=non_dist_copy.attrs,
+        )
+        del non_dist_copy
+        return xarray
 
 
 from . import dxarray_sanitation

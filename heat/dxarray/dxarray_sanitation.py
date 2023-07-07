@@ -164,3 +164,21 @@ def check_attrs(attrs: Any):
     """
     if not (isinstance(attrs, dict) or attrs is None):
         raise TypeError("`attrs` must be a dictionary or None, but is ", type(attrs), ".")
+
+
+def check_if_balanced(values: ht.DNDarray, coords: Union[dict, None]):
+    """
+    Checks if a DXarray with values and coords is balanced, i.e., equally distributed on each process
+    A DXarray is balanced if and only if all underlying DNDarrays are balanced.
+    """
+    if values.balanced is None:
+        return None
+    else:
+        if coords is not None:
+            if None in [coord_item[1].balanced for coord_item in coords.items()]:
+                return None
+            else:
+                balanced = values.balanced and all(
+                    [coord_item[1].balanced for coord_item in coords.items()]
+                )
+                return balanced
