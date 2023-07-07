@@ -1071,7 +1071,9 @@ def nanprod(
     )
 
 
-DNDarray.nanprod = lambda self, axis=None, out=None, keepdims=None: nanprod(self, axis, out, keepdims)
+DNDarray.nanprod = lambda self, axis=None, out=None, keepdims=None: nanprod(
+    self, axis, out, keepdims
+)
 DNDarray.nanprod.__doc__ = nanprod.__doc__
 
 
@@ -1254,7 +1256,9 @@ def nan_to_num(
     )
 
 
-DNDarray.nan_to_num = lambda self, out=None, no_cast=True, nan=0.0, posinf=None, neginf=None: nan_to_num(
-    self, out=out, no_cast=no_cast, nan=nan, posinf=posinf, neginf=neginf
+DNDarray.nan_to_num = (
+    lambda self, out=None, no_cast=True, nan=0.0, posinf=None, neginf=None: nan_to_num(
+        self, out=out, no_cast=no_cast, nan=nan, posinf=posinf, neginf=neginf
+    )
 )
 DNDarray.nan_to_num.__doc__ = nan_to_num.__doc__
