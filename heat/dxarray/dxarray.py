@@ -7,7 +7,48 @@ import heat as ht
 import xarray as xr
 from typing import Union
 
+# imports of "dxarray_..."-dependencies at the end to avoid cyclic dependence
+
 __all__ = ["DXarray"]
+
+
+# Auxiliary functions
+
+
+def dim_name_to_idx(dims: list, names: Union[str, tuple, list, None]) -> Union[int, tuple, list]:
+    """
+    Converts a string "names" (or tuple of strings) referring to dimensions stored in "dims" to the corresponding numeric index (tuple of indices) of these dimensions.
+    Inverse of :func:`dim_idx_to_name`.
+    """
+    if names is None:
+        return None
+    elif isinstance(names, str):
+        return dims.index(names)
+    elif isinstance(names, tuple):
+        names_list = list(names)
+        return tuple([dims.index(name) for name in names_list])
+    elif isinstance(names, list):
+        return [dims.index(name) for name in names]
+    else:
+        raise TypeError("Input names must be None, string, list of strings, or tuple of strings.")
+
+
+def dim_idx_to_name(dims: list, idxs: Union[int, tuple, list, None]) -> Union[str, tuple, list]:
+    """
+    Converts an numeric index "idxs" (or tuple of such indices) referring to the dimensions stored in "dims" to the corresponding name string (or tuple of name strings).
+    Inverse of :func:`dim_name_to_idx`.
+    """
+    if idxs is None:
+        return None
+    elif isinstance(idxs, int):
+        return dims[idxs]
+    elif isinstance(idxs, tuple):
+        idxs_list = list(idxs)
+        return tuple([dims[idx] for idx in idxs_list])
+    elif isinstance(idxs, list):
+        return [dims[idx] for idx in idxs]
+    else:
+        raise TypeError("Input idxs must be None, int, list of ints, or tuple of ints.")
 
 
 class DXarray:
@@ -34,6 +75,7 @@ class DXarray:
     DXarray.values.gshape etc.
     This is in order to avoid confusion, because a DXarray is built of possibly several DNDarrays which could cause confusion
     to which gshape etc. a global attribute DXarray.gshape could refer to.
+    Currently, it is checked whether values and coords are on the same `device`; in principle, this is unnecessary.
     """
 
     def __init__(
@@ -47,80 +89,48 @@ class DXarray:
         """
         Constructor for DXarray class
         """
+        # Check compatibility of the input arguments
+        dxarray_sanitation.check_compatibility_values_dims_coords(values, dims, coords)
+        dxarray_sanitation.check_name(name)
+        dxarray_sanitation.check_attrs(attrs)
+
+        # after the checks, set the directly given attributes...
+
         self.__values = values
         self.__name = name
         self.__attrs = attrs
-
-        # check if names of dims are given (and whether their number fits the number of dims of the values array)
-        # if no names are provided, introduce generic names "dim_N", N = 0,1,...
-        if dims is not None:
-            assert len(dims) == self.__values.ndim
-            self.__dims = dims
-        else:
-            self.__dims = ["dim_%d" % k for k in range(self.__values.ndim)]
-
-        # set attribute split: use dimension name instead of idx since we are in class DXarray instead of DNDarray
-        self.__split = self.__dim_idx_to_name(values.split)
-
-        # check consistency of the coordinates provided
-        if coords is not None:
-            # go through all entries in the dictionary coords
-            for coord_item in coords.items():
-                coord_item_dims = coord_item[0]
-                coord_item_coords = coord_item[1]
-                # first case: "classical" coordinates for a single dimension, sometimes referred to "logical coordinates"
-                if isinstance(coord_item_dims, str):
-                    # here, the coordinates must be given by a one-dimensional DNDarray...
-                    assert isinstance(coord_item_coords, ht.DNDarray)
-                    assert coord_item_coords.ndim == 1
-                    # ... with matching device and communicator, ...
-                    assert coord_item_coords.device == self.__values.device
-                    assert coord_item_coords.comm == self.__values.comm
-                    # ... correct shape, and ...
-                    assert (
-                        coord_item_coords.gshape[0]
-                        == self.__values.gshape[self.__dim_name_to_idx(coord_item_dims)]
-                    )
-                    # ... that is split if and only if the coordinates refer to the split dimension of the DXarray
-                    if coord_item_dims == self.__split:
-                        assert coord_item_coords.split == 0
-                    else:
-                        assert coord_item_coords.split is None
-                # second case: "physical coordinates" - two or more dimensions are "merged" together and equipped with a coordinate array
-                # that cannot be expressed as meshgrid of 1d coordinate arrays
-                elif isinstance(coord_item_dims, tuple):
-                    # now, the coordinates must be given as a DXarray...
-                    assert isinstance(coord_item_coords, DXarray)
-                    # ... with matching dimension names, ...
-                    assert coord_item_coords.dims == list(coord_item_dims)
-                    # ... shape, ...
-                    assert (
-                        torch.tensor(coord_item_coords.values.gshape)
-                        == torch.tensor(self.__values.gshape)[
-                            self.__dim_name_to_idx(list(coord_item_dims))
-                        ]
-                    ).all()
-                    # ... device and communicator, ...
-                    assert coord_item_coords.device == self.__values.device
-                    assert coord_item_coords.comm == self.__values.comm
-                    # ... and split dimension.
-                    if self.__split in coord_item_dims:
-                        assert coord_item_coords.split == self.__split
-                    else:
-                        assert coord_item_coords.split is None
-
-        # after the consistency checks, set the remaining attributes of the DXarray
         self.__coords = coords
         self.__device = values.device
         self.__comm = values.comm
 
-        if self.__coords is not None:
-            self.__dims_with_coords = sum([list(it[0]) for it in coords.items()], [])
+        # ... and determine those not directly given:
+        # since we are in the DXarray class, split dimension is given by a string
+        self.__split = dim_idx_to_name(dims, values.split)
+
+        # determine dimensions with and without coordinates
+        if coords is not None:
+            dims_with_coords = sum([list(it[0]) for it in coords.items()], [])
         else:
-            self.__dims_with_coords = []
-        self.__dims_without_coords = [
-            dim for dim in self.__dims if dim not in self.__dims_with_coords
-        ]
+            dims_with_coords = []
+        dims_without_coords = [dim for dim in dims if dim not in dims_with_coords]
+
+        self.__dims_with_cooords = dims_with_coords
+        self.__dims_without_coords = dims_without_coords
+
+        # check if all appearing DNDarrays are balanced: as a result, the DXarray is balanced if and only if all DNDarrays are balanced
+        if coords is not None:
+            balanced = values.balanced and all(
+                [coord_item[1].balanced for coord_item in coords.items()]
+            )
+        else:
+            balanced = values.balanced
+        self.__balanced = balanced
+
+        # if no names are provided, introduce generic names "dim_N", N = 0,1,...
+        if dims is None:
+            self.__dims = ["dim_%d" % k for k in range(self.__values.ndim)]
+        else:
+            self.__dims = dims
 
     """
     Attribute getters and setters for the DXarray class
@@ -196,30 +206,51 @@ class DXarray:
         """
         return self.__dims_without_coordinates
 
+    @property
+    def balanced(self) -> bool:
+        """
+        Check whether all DNDarrays in DXarray are balanced
+        """
+        return self.__balanced
+
     @values.setter
-    def values(self, arr: ht.DNDarray):
+    def values(self, newvalues: ht.DNDarray):
         """
         Set value array of DXarray
         """
-        # TODO: perform some consistency checks...
-        self.__values = arr
+        dxarray_sanitation.check_compatibility_values_dims_coords(
+            newvalues, self.__dims, self.__coords
+        )
+        self.__values = newvalues
+
+    @coords.setter
+    def coors(self, newcoords: Union[dict, None]):
+        """
+        Set coordinates of DXarray
+        """
+        dxarray_sanitation.check_compatibility_values_dims_coords(
+            self.__values, self.__dims, newcoords
+        )
+        self.__coords = newcoords
 
     @name.setter
-    def name(self, name: str):
+    def name(self, newname: Union[str, None]):
         """
         Set name of DXarray
         """
-        self.__name = name
+        dxarray_sanitation.check_name(newname)
+        self.__name = newname
 
     @attrs.setter
-    def attrs(self, attributes: dict):
+    def attrs(self, newattrs: Union[dict, None]):
         """
         Set attributes of DXarray
         """
-        self.__attrs = attributes
+        dxarray_sanitation.check_attrs(newattrs)
+        self.__attrs = newattrs
 
     """
-    Methods of DXarray class
+    Private methods of DXarray class
     """
 
     def __dim_name_to_idx(self, names: Union[str, tuple, list, None]):
@@ -227,36 +258,19 @@ class DXarray:
         Converts a string (or tuple of strings) referring to dimensions of the DXarray to the corresponding numeric index (tuple of indices) of these dimensions.
         Inverse of :meth:`__dim_idx_to_name`.
         """
-        if names is None:
-            return None
-        elif isinstance(names, str):
-            return self.__dims.index(names)
-        elif isinstance(names, tuple):
-            names_list = list(names)
-            return tuple([self.__dims.index(name) for name in names_list])
-        elif isinstance(names, list):
-            return [self.__dims.index(name) for name in names]
-        else:
-            raise TypeError("Input must be None, string, list of strings, or tuple of strings.")
+        return dim_name_to_idx(self.__dims, names)
 
     def __dim_idx_to_name(self, idxs: Union[int, tuple, list, None]):
         """
         Converts an numeric index (or tuple of such indices) referring to the dimensions of the DXarray to the corresponding name string (or tuple of name strings).
         Inverse of :meth:`__dim_name_to_idx`.
         """
-        if idxs is None:
-            return None
-        elif isinstance(idxs, int):
-            return self.__dims[idxs]
-        elif isinstance(idxs, tuple):
-            idxs_list = list(idxs)
-            return tuple([self.__dims[idx] for idx in idxs_list])
-        elif isinstance(idxs, list):
-            return [self.__dims[idx] for idx in idxs]
-        else:
-            raise TypeError("Input must be None, int, list of ints, or tuple of ints.")
+        return dim_idx_to_name(self.__dims, idxs)
 
     def __repr__(self) -> str:
+        """
+        Representation of DXarray as string. Required for printing.
+        """
         if self.__name is not None:
             print_name = self.__name
         else:
@@ -322,3 +336,7 @@ class DXarray:
             )
         else:
             return ""
+
+
+from . import dxarray_sanitation
+from . import dxarray_manipulations
