@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os.path
+from math import log10
 import numpy as np
 import torch
 import warnings
@@ -14,6 +15,8 @@ from . import types
 
 from .communication import Communication, MPI, MPI_WORLD, sanitize_comm
 from .dndarray import DNDarray
+from .manipulations import hsplit, vsplit
+from .statistics import max as smax, min as smin
 from .stride_tricks import sanitize_axis
 from .types import datatype
 
@@ -23,7 +26,7 @@ __HDF5_EXTENSIONS = frozenset([".h5", ".hdf5"])
 __NETCDF_EXTENSIONS = frozenset([".nc", ".nc4", "netcdf"])
 __NETCDF_DIM_TEMPLATE = "{}_dim_{}"
 
-__all__ = ["load", "load_csv", "save", "supports_hdf5", "supports_netcdf"]
+__all__ = ["load", "load_csv", "save_csv", "save", "supports_hdf5", "supports_netcdf"]
 
 try:
     import h5py
@@ -34,7 +37,6 @@ except ImportError:
         Returns ``True`` if HeAT supports reading from and writing to HDF5 files, ``False`` otherwise.
         """
         return False
-
 
 else:
     # add functions to exports
@@ -101,11 +103,11 @@ else:
         [1/2] (2,)
         """
         if not isinstance(path, str):
-            raise TypeError("path must be str, not {}".format(type(path)))
+            raise TypeError(f"path must be str, not {type(path)}")
         elif not isinstance(dataset, str):
             raise TypeError("dataset must be str, not {}".format(type(dataset)))
         elif split is not None and not isinstance(split, int):
-            raise TypeError("split must be None or int, not {}".format(type(split)))
+            raise TypeError(f"split must be None or int, not {type(split)}")
 
         # infer the type and communicator for the loaded array
         dtype = types.canonical_heat_type(dtype)
@@ -144,7 +146,9 @@ else:
 
             return DNDarray(data, gshape, dtype, split, device, comm, balanced)
 
-    def save_hdf5(data: str, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]):
+    def save_hdf5(
+        data: DNDarray, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]
+    ):
         """
         Saves ``data`` to an HDF5 file. Attempts to utilize parallel I/O if possible.
 
@@ -174,17 +178,15 @@ else:
         >>> ht.save_hdf5(x, 'data.h5', dataset='DATA')
         """
         if not isinstance(data, DNDarray):
-            raise TypeError("data must be heat tensor, not {}".format(type(data)))
+            raise TypeError(f"data must be heat tensor, not {type(data)}")
         if not isinstance(path, str):
-            raise TypeError("path must be str, not {}".format(type(path)))
+            raise TypeError(f"path must be str, not {type(path)}")
         if not isinstance(dataset, str):
-            raise TypeError("dataset must be str, not {}".format(type(path)))
+            raise TypeError(f"dataset must be str, not {type(path)}")
 
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
-            raise ValueError(
-                "mode was {}, not in possible modes {}".format(mode, __VALID_WRITE_MODES)
-            )
+            raise ValueError(f"mode was {mode}, not in possible modes {__VALID_WRITE_MODES}")
 
         # chunk the data, if no split is set maximize parallel I/O and chunk first axis
         is_split = data.split is not None
@@ -236,7 +238,6 @@ except ImportError:
         Returns ``True`` if HeAT supports reading from and writing to netCDF4 files, ``False`` otherwise.
         """
         return False
-
 
 else:
     # add functions to visible exports
@@ -311,11 +312,11 @@ else:
         [1/2] (2,)
         """
         if not isinstance(path, str):
-            raise TypeError("path must be str, not {}".format(type(path)))
+            raise TypeError(f"path must be str, not {type(path)}")
         if not isinstance(variable, str):
-            raise TypeError("dataset must be str, not {}".format(type(variable)))
+            raise TypeError(f"dataset must be str, not {type(variable)}")
         if split is not None and not isinstance(split, int):
-            raise TypeError("split must be None or int, not {}".format(type(split)))
+            raise TypeError(f"split must be None or int, not {type(split)}")
 
         # infer the canonical heat datatype
         dtype = types.canonical_heat_type(dtype)
@@ -346,14 +347,14 @@ else:
             return DNDarray(data, gshape, dtype, split, device, comm, balanced)
 
     def save_netcdf(
-        data: str,
+        data: DNDarray,
         path: str,
         variable: str,
         mode: str = "w",
         dimension_names: Union[list, tuple, str] = None,
         is_unlimited: bool = False,
         file_slices: Union[Iterable[int], slice, bool] = slice(None),
-        **kwargs: Dict[str, object]
+        **kwargs: Dict[str, object],
     ):
         """
         Saves data to a netCDF4 file. Attempts to utilize parallel I/O if possible.
@@ -688,7 +689,7 @@ def load(
     DNDarray([ 1.0000,  2.7183,  7.3891, 20.0855, 54.5981], dtype=ht.float32, device=cpu:0, split=None)
     """
     if not isinstance(path, str):
-        raise TypeError("Expected path to be str, but was {}".format(type(path)))
+        raise TypeError(f"Expected path to be str, but was {type(path)}")
     extension = os.path.splitext(path)[-1].strip().lower()
 
     if extension in __CSV_EXTENSION:
@@ -697,14 +698,14 @@ def load(
         if supports_hdf5():
             return load_hdf5(path, *args, **kwargs)
         else:
-            raise RuntimeError("hdf5 is required for file extension {}".format(extension))
+            raise RuntimeError(f"hdf5 is required for file extension {extension}")
     elif extension in __NETCDF_EXTENSIONS:
         if supports_netcdf():
             return load_netcdf(path, *args, **kwargs)
         else:
-            raise RuntimeError("netcdf is required for file extension {}".format(extension))
+            raise RuntimeError(f"netcdf is required for file extension {extension}")
     else:
-        raise ValueError("Unsupported file extension {}".format(extension))
+        raise ValueError(f"Unsupported file extension {extension}")
 
 
 def load_csv(
@@ -772,13 +773,13 @@ def load_csv(
     [3/3] (35, 4)
     """
     if not isinstance(path, str):
-        raise TypeError("path must be str, not {}".format(type(path)))
+        raise TypeError(f"path must be str, not {type(path)}")
     if not isinstance(sep, str):
-        raise TypeError("separator must be str, not {}".format(type(sep)))
+        raise TypeError(f"separator must be str, not {type(sep)}")
     if not isinstance(header_lines, int):
-        raise TypeError("header_lines must int, not {}".format(type(header_lines)))
+        raise TypeError(f"header_lines must int, not {type(header_lines)}")
     if split not in [None, 0, 1]:
-        raise ValueError("split must be in [None, 0, 1], but is {}".format(split))
+        raise ValueError(f"split must be in [None, 0, 1], but is {split}")
 
     # infer the type and communicator for the loaded array
     dtype = types.canonical_heat_type(dtype)
@@ -795,7 +796,7 @@ def load_csv(
             data = f.readlines()
             data = data[header_lines:]
             result = []
-            for i, line in enumerate(data):
+            for line in data:
                 values = line.replace("\n", "").replace("\r", "").split(sep)
                 values = [float(val) for val in values]
                 result.append(values)
@@ -815,7 +816,7 @@ def load_csv(
             for pos, l in enumerate(r):
                 if chr(l) == "\n":
                     # Check if it is part of '\r\n'
-                    if not chr(r[pos - 1]) == "\r":
+                    if chr(r[pos - 1]) != "\r":
                         line_starts.append(pos + 1)
                 elif chr(l) == "\r":
                     # check if file line is terminated by '\r\n'
@@ -920,6 +921,140 @@ def load_csv(
     return resulting_tensor
 
 
+def save_csv(
+    data: DNDarray,
+    path: str,
+    header_lines: Iterable[str] = None,
+    sep: str = ",",
+    decimals: int = -1,
+    encoding: str = "utf-8",
+    comm: Optional[Communication] = None,
+    truncate: bool = True,
+):
+    """
+    Saves data to CSV files. Only 2D data, all split axes.
+
+    Parameters
+    ----------
+    data : DNDarray
+        The DNDarray to be saved to CSV.
+    path : str
+        The path as a string.
+    header_lines : Iterable[str]
+        Optional iterable of str to prepend at the beginning of the file. No
+        pound sign or any other comment marker will be inserted.
+    sep : str
+        The separator character used in this CSV.
+    decimals: int
+        Number of digits after decimal point.
+    encoding : str
+        The encoding to be used in this CSV.
+    comm : Optional[Communication]
+        An optional object of type Communication to be used.
+    truncate : bool
+        Whether to truncate an existing file before writing, i.e. fully overwrite it.
+        The sane default is True. Setting it to False will not shorten files if
+        needed and thus may leave garbage at the end of existing files.
+    """
+    if not isinstance(path, str):
+        raise TypeError(f"path must be str, not {type(path)}")
+    if not isinstance(sep, str):
+        raise TypeError(f"separator must be str, not {type(sep)}")
+    # check this to allow None
+    if not isinstance(header_lines, Iterable) and header_lines is not None:
+        raise TypeError(f"header_lines must Iterable[str], not {type(header_lines)}")
+    if data.split not in [None, 0, 1]:
+        raise ValueError(f"split must be in [None, 0, 1], but is {data.split}")
+
+    if os.path.exists(path) and truncate:
+        if data.comm.rank == 0:
+            os.truncate(path, 0)
+        # avoid truncating and writing at the same time
+        data.comm.handle.Barrier()
+
+    amode = MPI.MODE_WRONLY | MPI.MODE_CREATE
+    csv_out = MPI.File.Open(data.comm.handle, path, amode)
+
+    # will be needed as an additional offset later
+    hl_displacement = 0
+    if header_lines is not None:
+        hl_displacement = sum(len(hl) for hl in header_lines)
+        # count additions everywhere, but write only on rank 0, avoiding reduce op to share final hl_displacement
+        for hl in header_lines:
+            if not hl.endswith("\n"):
+                hl = hl + "\n"
+                hl_displacement = hl_displacement + 1
+            if data.comm.rank == 0 and header_lines:
+                csv_out.Write(hl.encode(encoding))
+
+    # formatting and element width
+    data_min = smin(data).item()  # at least min is used twice, so cache it here
+    data_max = smax(data).item()
+    sign = 1 if data_min < 0 else 0
+    if abs(data_max) > 0 or abs(data_min) > 0:
+        pre_point_digits = int(log10(max(abs(data_max), abs(data_min)))) + 1
+    else:
+        pre_point_digits = 1
+
+    dec_sep = 1
+    fmt = ""
+    if types.issubdtype(data.dtype, types.integer):
+        decimals = 0
+        dec_sep = 0
+        if sign == 1:
+            fmt = "%%%-dd" % (pre_point_digits + 1)
+        else:
+            fmt = "%%%dd" % (pre_point_digits)
+    elif types.issubdtype(data.dtype, types.floating):
+        if decimals == -1:
+            decimals = 7 if data.dtype is types.float32 else 15
+        if sign == 1:
+            fmt = "%%%-d.%df" % (pre_point_digits + decimals + 2, decimals)
+        else:
+            fmt = "%%%d.%df" % (pre_point_digits + decimals + 1, decimals)
+
+    # sign + decimal separator + pre separator digits + decimals (post separator)
+    item_size = decimals + dec_sep + sign + pre_point_digits
+    # each item is one position larger than its representation, either b/c of separator or line break
+    row_width = item_size + 1
+    if len(data.shape) > 1:
+        row_width = data.shape[1] * (item_size + 1)
+
+    offset = hl_displacement  # all splits
+    if data.split == 0:
+        _, displs = data.counts_displs()
+        offset = offset + displs[data.comm.rank] * row_width
+    elif data.split == 1:
+        _, displs = data.counts_displs()
+        offset = offset + displs[data.comm.rank] * (item_size + 1)
+
+    for i in range(data.lshape[0]):
+        # if lshape is of the form (x,), then there will only be a single element per row
+        if len(data.lshape) == 1:
+            row = fmt % (data.larray[i])
+        else:
+            if data.lshape[1] == 0:
+                break
+            row = sep.join(fmt % (item) for item in data.larray[i])
+
+        if (
+            data.split is None
+            or data.split == 0
+            or displs[data.comm.rank] + data.lshape[1] == data.shape[1]
+        ):
+            row = row + "\n"
+        else:
+            row = row + sep
+
+        if data.split is not None or data.comm.rank == 0:
+            csv_out.Write_at(offset, row.encode("utf-8"))
+
+        offset = offset + row_width
+
+    csv_out.Close()
+    data.comm.handle.Barrier()
+
+
 def save(
     data: DNDarray, path: str, *args: Optional[List[object]], **kwargs: Optional[Dict[str, object]]
 ):
@@ -951,21 +1086,23 @@ def save(
     >>> ht.save(x, 'data.h5', 'DATA', mode='a')
     """
     if not isinstance(path, str):
-        raise TypeError("Expected path to be str, but was {}".format(type(path)))
+        raise TypeError(f"Expected path to be str, but was {type(path)}")
     extension = os.path.splitext(path)[-1].strip().lower()
 
     if extension in __HDF5_EXTENSIONS:
         if supports_hdf5():
             save_hdf5(data, path, *args, **kwargs)
         else:
-            raise RuntimeError("hdf5 is required for file extension {}".format(extension))
+            raise RuntimeError(f"hdf5 is required for file extension {extension}")
     elif extension in __NETCDF_EXTENSIONS:
         if supports_netcdf():
             save_netcdf(data, path, *args, **kwargs)
         else:
-            raise RuntimeError("netcdf is required for file extension {}".format(extension))
+            raise RuntimeError(f"netcdf is required for file extension {extension}")
+    elif extension in __CSV_EXTENSION:
+        save_csv(data, path, *args, **kwargs)
     else:
-        raise ValueError("Unsupported file extension {}".format(extension))
+        raise ValueError(f"Unsupported file extension {extension}")
 
 
 DNDarray.save = lambda self, path, *args, **kwargs: save(self, path, *args, **kwargs)

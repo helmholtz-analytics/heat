@@ -1,6 +1,4 @@
-"""
-Generalized MPI operations. i.e. element-wise binary operations
-"""
+"""Generalized operations for DNDarray"""
 
 import builtins
 import numpy as np
@@ -26,6 +24,7 @@ def __binary_op(
     t1: Union[DNDarray, int, float],
     t2: Union[DNDarray, int, float],
     out: Optional[DNDarray] = None,
+    where: Optional[DNDarray] = None,
     fn_kwargs: Optional[Dict] = {},
 ) -> DNDarray:
     """
@@ -38,11 +37,17 @@ def __binary_op(
         The operation to be performed. Function that performs operation elements-wise on the involved tensors,
         e.g. add values from other to self
     t1: DNDarray or scalar
-        The first operand involved in the operation,
+        The first operand involved in the operation.
     t2: DNDarray or scalar
-        The second operand involved in the operation,
+        The second operand involved in the operation.
     out: DNDarray, optional
-        Output buffer in which the result is placed
+        Output buffer in which the result is placed. If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the result of the operation. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations within
+        it where the condition is False will remain uninitialized. If distributed, the split axis (after
+        broadcasting if required) must match that of the `out` array.
     fn_kwargs: Dict, optional
         keyword arguments used for the given operation
         Default: {} (empty dictionary)
@@ -71,11 +76,11 @@ def __binary_op(
     # Check inputs
     if not np.isscalar(t1) and not isinstance(t1, DNDarray):
         raise TypeError(
-            "Only DNDarrays and numeric scalars are supported, but input was {}".format(type(t1))
+            f"Only DNDarrays and numeric scalars are supported, but input was {type(t1)}"
         )
     if not np.isscalar(t2) and not isinstance(t2, DNDarray):
         raise TypeError(
-            "Only DNDarrays and numeric scalars are supported, but input was {}".format(type(t2))
+            f"Only DNDarrays and numeric scalars are supported, but input was {type(t2)}"
         )
     promoted_type = types.result_type(t1, t2).torch_type()
 
@@ -85,22 +90,24 @@ def __binary_op(
             t1 = factories.array(t1)
             t2 = factories.array(t2)
         except (ValueError, TypeError):
-            raise TypeError(
-                "Data type not supported, inputs were {} and {}".format(type(t1), type(t2))
-            )
+            raise TypeError(f"Data type not supported, inputs were {type(t1)} and {type(t2)}")
     elif np.isscalar(t1) and isinstance(t2, DNDarray):
         try:
             t1 = factories.array(t1, device=t2.device, comm=t2.comm)
         except (ValueError, TypeError):
-            raise TypeError("Data type not supported, input was {}".format(type(t1)))
+            raise TypeError(f"Data type not supported, input was {type(t1)}")
     elif isinstance(t1, DNDarray) and np.isscalar(t2):
         try:
             t2 = factories.array(t2, device=t1.device, comm=t1.comm)
         except (ValueError, TypeError):
-            raise TypeError("Data type not supported, input was {}".format(type(t2)))
+            raise TypeError(f"Data type not supported, input was {type(t2)}")
 
     # Make inputs have the same dimensionality
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
+    if where is not None:
+        output_shape = stride_tricks.broadcast_shape(where.shape, output_shape)
+        while len(where.shape) < len(output_shape):
+            where = where.expand_dims(axis=0)
     # Broadcasting allows additional empty dimensions on the left side
     # TODO simplify this once newaxis-indexing is supported to get rid of the loops
     while len(t1.shape) < len(output_shape):
@@ -163,23 +170,35 @@ def __binary_op(
     if out is not None:
         sanitation.sanitize_out(out, output_shape, output_split, output_device, output_comm)
         t1, t2 = sanitation.sanitize_distribution(t1, t2, target=out)
-        out.larray[:] = operation(
-            t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs
+
+    result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
+
+    if out is None and where is None:
+        return DNDarray(
+            result,
+            output_shape,
+            types.heat_type_of(result),
+            output_split,
+            device=output_device,
+            comm=output_comm,
+            balanced=output_balanced,
         )
-        return out
-    # print(t1.lshape, t2.lshape)
 
-    result = operation(t1.larray.type(promoted_type), t2.larray.type(promoted_type), **fn_kwargs)
+    if where is not None:
+        if out is None:
+            out = factories.empty(
+                output_shape,
+                dtype=promoted_type,
+                split=output_split,
+                device=output_device,
+                comm=output_comm,
+            )
+        if where.split != out.split:
+            where = sanitation.sanitize_distribution(where, target=out)
+        result = torch.where(where.larray, result, out.larray)
 
-    return DNDarray(
-        result,
-        output_shape,
-        types.heat_type_of(result),
-        output_split,
-        device=output_device,
-        comm=output_comm,
-        balanced=output_balanced,
-    )
+    out.larray.copy_(result)
+    return out
 
 
 def __cum_op(
@@ -275,7 +294,11 @@ def __cum_op(
         return out
 
     return factories.array(
-        cumop, dtype=x.dtype if dtype is None else dtype, is_split=x.split, device=x.device
+        cumop,
+        dtype=x.dtype if dtype is None else dtype,
+        is_split=x.split,
+        device=x.device,
+        comm=x.comm,
     )
 
 
@@ -284,7 +307,7 @@ def __local_op(
     x: DNDarray,
     out: Optional[DNDarray] = None,
     no_cast: Optional[bool] = False,
-    **kwargs
+    **kwargs,
 ) -> DNDarray:
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
@@ -314,7 +337,7 @@ def __local_op(
     # perform sanitation
     sanitation.sanitize_in(x)
     if out is not None and not isinstance(out, DNDarray):
-        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
+        raise TypeError(f"expected out to be None or an ht.DNDarray, but was {type(out)}")
 
     # infer the output type of the tensor
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
@@ -361,7 +384,7 @@ def __reduce_op(
     partial_op: Callable,
     reduction_op: Callable,
     neutral: Optional[Union[int, float]] = None,
-    **kwargs
+    **kwargs,
 ) -> DNDarray:
     """
     Generic wrapper for reduction operations, e.g. :func:`sum() <heat.arithmetics.sum>`, :func:`prod() <heat.arithmetics.prod>`
@@ -396,13 +419,13 @@ def __reduce_op(
     axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
     if isinstance(axis, int):
         axis = (axis,)
-    keepdim = kwargs.get("keepdim")
+    keepdims = kwargs.get("keepdims")
     out = kwargs.get("out")
     split = x.split
     balanced = x.balanced
 
     # if local tensor is empty, replace it with the identity element
-    if 0 in x.lshape and (axis is None or (x.split in axis)):
+    if x.is_distributed() and 0 in x.lshape and (axis is None or split in axis):
         if neutral is None:
             neutral = float("nan")
         neutral_shape = x.gshape[:split] + (1,) + x.gshape[split + 1 :]
@@ -428,7 +451,7 @@ def __reduce_op(
             ):  # no neutral element for max/min
                 partial = partial_op(partial, dim=dim, keepdim=True)
             output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
-        if not keepdim and not len(partial.shape) == 1:
+        if not keepdims and len(partial.shape) != 1:
             gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
             lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
             output_shape = gshape_losedim
@@ -446,7 +469,7 @@ def __reduce_op(
             balanced = True
             if x.comm.is_distributed():
                 x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
-        elif axis is not None and not keepdim:
+        elif axis is not None and not keepdims:
             down_dims = len(tuple(dim for dim in axis if dim < x.split))
             split -= down_dims
             balanced = x.balanced
@@ -467,9 +490,7 @@ def __reduce_op(
         sanitation.sanitize_out(out, output_shape, split, x.device)
         if arg_op and out.dtype != types.canonical_heat_type(partial.dtype):
             raise TypeError(
-                "Data type mismatch: out.dtype should be {}, is {}".format(
-                    types.canonical_heat_type(partial.dtype), out.dtype
-                )
+                f"Data type mismatch: out.dtype should be {types.canonical_heat_type(partial.dtype)}, is {out.dtype}"
             )
         out._DNDarray__array = partial
         return out

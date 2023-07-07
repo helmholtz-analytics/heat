@@ -357,9 +357,9 @@ class TestTypeConversion(TestCase):
     def test_finfo(self):
         info32 = ht.finfo(ht.float32)
         self.assertEqual(info32.bits, 32)
-        self.assertEqual(info32.max, (2 - 2 ** -23) * 2 ** 127)
+        self.assertEqual(info32.max, (2 - 2**-23) * 2**127)
         self.assertEqual(info32.min, -info32.max)
-        self.assertEqual(info32.eps, 2 ** -23)
+        self.assertEqual(info32.eps, 2**-23)
 
         with self.assertRaises(TypeError):
             ht.finfo(1)
@@ -375,6 +375,7 @@ class TestTypeConversion(TestCase):
         self.assertEqual(info32.bits, 32)
         self.assertEqual(info32.max, 2147483647)
         self.assertEqual(info32.min, -2147483648)
+        self.assertEqual(ht.iinfo(ht.uint8).min, 0)
 
         with self.assertRaises(TypeError):
             ht.iinfo(1.0)

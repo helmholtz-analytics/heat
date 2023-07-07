@@ -29,7 +29,6 @@ class TestDNDarray(TestCase):
         data = ht.array(data_np, split=1)
 
         if data.comm.size == 2:
-
             halo_next = torch.tensor(np.array([[4, 5], [10, 11]]), device=data.device.torch_device)
             halo_prev = torch.tensor(np.array([[2, 3], [8, 9]]), device=data.device.torch_device)
 
@@ -94,7 +93,6 @@ class TestDNDarray(TestCase):
                 self.assertEqual(data.halo_next, None)
 
         if data.comm.size == 3:
-
             halo_1 = torch.tensor(np.array([[2], [8]]), device=data.device.torch_device)
             halo_2 = torch.tensor(np.array([[3], [9]]), device=data.device.torch_device)
             halo_3 = torch.tensor(np.array([[4], [10]]), device=data.device.torch_device)
@@ -123,12 +121,6 @@ class TestDNDarray(TestCase):
             # exception for too large halos
             with self.assertRaises(ValueError):
                 data.get_halo(4)
-            # exception on non balanced tensor
-            with self.assertRaises(RuntimeError):
-                data_nobalance = ht.array(
-                    torch.empty(((data.comm.rank + 1) * 2, 3, 4)), is_split=0, device=data.device
-                )
-                data_nobalance.get_halo(1)
             # test no data on process
             data_np = np.arange(2 * 12).reshape(2, 12)
             data = ht.array(data_np, split=0)
@@ -166,6 +158,97 @@ class TestDNDarray(TestCase):
                 self.assertTrue(data.halo_prev is None)
                 self.assertTrue(data.halo_next is None)
                 self.assertEqual(data_with_halos.shape, (12, 0))
+
+        # test halo of imbalanced dndarray
+        if data.comm.size > 2:
+            # test for split=0
+            t_data = torch.arange(
+                5 * data.comm.rank, dtype=torch.float64, device=data.larray.device
+            ).reshape(data.comm.rank, 5)
+            if data.comm.rank > 0:
+                prev_data = torch.arange(
+                    5 * (data.comm.rank - 1), dtype=torch.float64, device=data.larray.device
+                ).reshape(data.comm.rank - 1, 5)
+            if data.comm.rank < data.comm.size - 1:
+                next_data = torch.arange(
+                    5 * (data.comm.rank + 1), dtype=torch.float64, device=data.larray.device
+                ).reshape(data.comm.rank + 1, 5)
+            data = ht.array(t_data, is_split=0)
+            data.get_halo(1)
+            data_with_halos = data.array_with_halos
+            if data.comm.rank == 0:
+                prev_halo = None
+                next_halo = None
+                new_split_size = 0
+            elif data.comm.rank == 1:
+                prev_halo = None
+                next_halo = next_data[0]
+                new_split_size = data.larray.shape[0] + 1
+            elif data.comm.rank == data.comm.size - 1:
+                prev_halo = prev_data[-1]
+                next_halo = None
+                new_split_size = data.larray.shape[0] + 1
+            else:
+                prev_halo = prev_data[-1]
+                next_halo = next_data[0]
+                new_split_size = data.larray.shape[0] + 2
+            self.assertEqual(data_with_halos.shape, (new_split_size, 5))
+            self.assertTrue(data.halo_prev is prev_halo or (data.halo_prev == prev_halo).all())
+            self.assertTrue(data.halo_next is next_halo or (data.halo_next == next_halo).all())
+
+            # test for split=1
+            t_data = torch.arange(
+                5 * data.comm.rank, dtype=torch.float64, device=data.larray.device
+            ).reshape(5, -1)
+            if data.comm.rank > 0:
+                prev_data = torch.arange(
+                    5 * (data.comm.rank - 1), dtype=torch.float64, device=data.larray.device
+                ).reshape(5, -1)
+            if data.comm.rank < data.comm.size - 1:
+                next_data = torch.arange(
+                    5 * (data.comm.rank + 1), dtype=torch.float64, device=data.larray.device
+                ).reshape(5, -1)
+            data = ht.array(t_data, is_split=1)
+            data.get_halo(1)
+            data_with_halos = data.array_with_halos
+            if data.comm.rank == 0:
+                prev_halo = None
+                next_halo = None
+                new_split_size = 0
+            elif data.comm.rank == 1:
+                prev_halo = None
+                next_halo = next_data[:, 0].unsqueeze_(1)
+                new_split_size = data.larray.shape[1] + 1
+            elif data.comm.rank == data.comm.size - 1:
+                prev_halo = prev_data[:, -1].unsqueeze_(1)
+                next_halo = None
+                new_split_size = data.larray.shape[1] + 1
+            else:
+                prev_halo = prev_data[:, -1].unsqueeze_(1)
+                next_halo = next_data[:, 0].unsqueeze_(1)
+                new_split_size = data.larray.shape[1] + 2
+            self.assertEqual(data_with_halos.shape, (5, new_split_size))
+            self.assertTrue(data.halo_prev is prev_halo or (data.halo_prev == prev_halo).all())
+            self.assertTrue(data.halo_next is next_halo or (data.halo_next == next_halo).all())
+
+    def test_array(self):
+        # undistributed case
+        x = ht.arange(6 * 7 * 8).reshape((6, 7, 8))
+        x_np = np.arange(6 * 7 * 8, dtype=np.int32).reshape((6, 7, 8))
+
+        self.assertTrue((x.__array__() == x_np).all())
+        self.assertIsInstance(x.__array__(), np.ndarray)
+        self.assertEqual(x.__array__().dtype, x_np.dtype)
+        self.assertEqual(x.__array__().shape, x.gshape)
+
+        # distributed case
+        x = ht.arange(6 * 7 * 8, dtype=ht.float64, split=0).reshape((6, 7, 8))
+        x_np = np.arange(6 * 7 * 8, dtype=np.float64).reshape((6, 7, 8))
+
+        self.assertTrue((x.__array__() == x.larray.cpu().numpy()).all())
+        self.assertIsInstance(x.__array__(), np.ndarray)
+        self.assertEqual(x.__array__().dtype, x_np.dtype)
+        self.assertEqual(x.__array__().shape, x.lshape)
 
     def test_larray(self):
         # undistributed case
@@ -513,6 +596,7 @@ class TestDNDarray(TestCase):
         self.assertEqual(type(x.item()), float)
 
         x = ht.zeros((1, 2))
+
         with self.assertRaises(ValueError):
             x.item()
 
@@ -738,6 +822,20 @@ class TestDNDarray(TestCase):
         self.assertTrue(
             ht.equal(int16_tensor | int16_vector, ht.bitwise_or(int16_tensor, int16_vector))
         )
+
+    def test_partitioned(self):
+        a = ht.zeros((120, 120), split=0)
+        parted = a.__partitioned__
+        self.assertEqual(parted["shape"], (120, 120))
+        self.assertEqual(parted["partition_tiling"], (a.comm.size, 1))
+        self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
+
+        a.resplit_(None)
+        self.assertIsNone(a.__partitions_dict__)
+        parted = a.__partitioned__
+        self.assertEqual(parted["shape"], (120, 120))
+        self.assertEqual(parted["partition_tiling"], (1, 1))
+        self.assertEqual(parted["partitions"][(0, 0)]["start"], (0, 0))
 
     def test_redistribute(self):
         # need to test with 1, 2, 3, and 4 dims

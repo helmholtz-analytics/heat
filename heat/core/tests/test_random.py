@@ -44,7 +44,10 @@ class TestRandom(TestCase):
     def test_permutation(self):
         # Reset RNG
         ht.random.seed()
-        state = torch.random.get_rng_state()
+        if self.device.torch_device == "cpu":
+            state = torch.random.get_rng_state()
+        else:
+            state = torch.cuda.get_rng_state(self.device.torch_device)
 
         # results
         a = ht.random.permutation(10)
@@ -58,7 +61,10 @@ class TestRandom(TestCase):
         c0 = ht.random.permutation(ht.resplit(c_arr, 0))
         c1 = ht.random.permutation(ht.resplit(c_arr, 1))
 
-        torch.set_rng_state(state)
+        if self.device.torch_device == "cpu":
+            torch.random.set_rng_state(state)
+        else:
+            torch.cuda.set_rng_state(state, self.device.torch_device)
 
         # torch results to compare to
         a_cmp = torch.randperm(a.shape[0], device=self.device.torch_device)
@@ -224,6 +230,11 @@ class TestRandom(TestCase):
         self.assertFalse(np.array_equal(a, c))
         self.assertFalse(np.array_equal(b, c))
 
+        # To check working with large number of elements
+        ht.random.randn(6667, 3523, dtype=ht.float64, split=None)
+        ht.random.randn(6667, 3523, dtype=ht.float64, split=0)
+        ht.random.randn(6667, 3523, dtype=ht.float64, split=1)
+
     def test_randint(self):
         # Checked that the random values are in the correct range
         a = ht.random.randint(low=0, high=10, size=(10, 10), dtype=ht.int64)
@@ -239,6 +250,14 @@ class TestRandom(TestCase):
         a = ht.random.randint(1, size=(10,), split=0, dtype=ht.int64)
         b = ht.zeros((10,), dtype=ht.int64, split=0)
         self.assertTrue(ht.equal(a, b))
+
+        # size parameter allows int arguments
+        a = ht.random.randint(1, size=10, split=0, dtype=ht.int64)
+        self.assertTrue(ht.equal(a, b))
+
+        # size is None
+        a = ht.random.randint(0, 10)
+        self.assertEqual(a.shape, ())
 
         # Two arrays with the same seed and same number of elements have the same random values
         ht.random.seed(13579)
@@ -391,7 +410,10 @@ class TestRandom(TestCase):
         self.assertFalse(np.allclose(b, c))
 
     def test_randperm(self):
-        state = torch.random.get_rng_state()
+        if self.device.torch_device == "cpu":
+            state = torch.random.get_rng_state()
+        else:
+            state = torch.cuda.get_rng_state(self.device.torch_device)
 
         # results
         a = ht.random.randperm(10, dtype=ht.int32)
@@ -399,7 +421,10 @@ class TestRandom(TestCase):
         c = ht.random.randperm(5, split=0)
         d = ht.random.randperm(5, dtype=ht.float64)
 
-        torch.random.set_rng_state(state)
+        if self.device.torch_device == "cpu":
+            torch.random.set_rng_state(state)
+        else:
+            torch.cuda.set_rng_state(state, self.device.torch_device)
 
         # torch results to compare to
         a_cmp = torch.randperm(10, dtype=torch.int32, device=self.device.torch_device)
