@@ -10,7 +10,7 @@ from typing import Union
 
 # imports of "dxarray_..."-dependencies at the end to avoid cyclic dependence
 
-__all__ = ["DXarray"]
+__all__ = ["DXarray", "from_xarray"]
 
 
 # Auxiliary functions
@@ -414,6 +414,34 @@ class DXarray:
         )
         del non_dist_copy
         return xarray
+
+
+def from_xarray(
+    xarray: xr.DataArray,
+    split: Union[str, None] = None,
+    device: ht.Device = None,
+    comm: ht.Communication = None,
+) -> DXarray:
+    """
+    Generates a DXarray from a given xarray (:class:`xarray.DataArray`)
+    """
+    coords_dict = {
+        item[0]: item[1].values if len(item[0]) == 1 else item[1] for item in xarray.coords.items()
+    }
+    print(coords_dict)
+    dxarray = DXarray(
+        ht.DNDarray(torch.from_numpy(xarray.values), device=device, comm=comm),
+        dims=list(xarray.dims),
+        coords=coords_dict,
+        name=xarray.name,
+        attrs=xarray.attrs,
+    )
+    if split is not None:
+        if split not in dxarray.dims:
+            raise ValueError('split dimension "', split, '" is not a dimension of input array.')
+        else:
+            dxarray.resplit_(split)
+    return dxarray
 
 
 from . import dxarray_sanitation
