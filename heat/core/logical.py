@@ -106,7 +106,11 @@ DNDarray.all.__doc__ = all.__doc__
 
 
 def allclose(
-    x: DNDarray, y: DNDarray, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False
+    x: DNDarray,
+    y: DNDarray,
+    rtol: Optional[float] = None,
+    atol: Optional[float] = None,
+    equal_nan: bool = False,
 ) -> bool:
     """
     Test whether two tensors are element-wise equal within a tolerance. Returns ``True`` if ``|x-y|<=atol+rtol*|y|``
@@ -139,17 +143,48 @@ def allclose(
     """
     t1, t2 = __sanitize_close_input(x, y)
 
+    # Here the adjustment of rtol and atol for float32 arrays increases the values of rtol and atol
+    # effectively decreasing the precision required to return True.
+    # By adjusting the tolerance values, it allows for a looser comparison
+    # that considers the reduced precision of float32 arrays.
+
+    try:
+        dtype_precision = torch.finfo(t1.larray.dtype).bits
+    except TypeError:
+        dtype_precision = torch.iinfo(t1.larray.dtype).bits
+
+    adjustment_factor = 1.0
+
+    if dtype_precision != 64:
+        adjustment_factor = 64 / dtype_precision
+
+    if rtol is None:
+        rtol = 1e-05
+        adjusted_rtol = rtol * adjustment_factor
+
+    else:
+        adjusted_rtol = rtol
+
+    if atol is None:
+        atol = 1e-08
+        adjusted_atol = atol * adjustment_factor
+
+    else:
+        adjusted_atol = atol
+
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
     try:
-        _local_allclose = torch.tensor(torch.allclose(t1.larray, t2.larray, rtol, atol, equal_nan))
+        _local_allclose = torch.tensor(
+            torch.allclose(t1.larray, t2.larray, adjusted_rtol, adjusted_atol, equal_nan)
+        )
     except RuntimeError:
         promoted_dtype = torch.promote_types(t1.larray.dtype, t2.larray.dtype)
         _local_allclose = torch.tensor(
             torch.allclose(
                 t1.larray.type(promoted_dtype),
                 t2.larray.type(promoted_dtype),
-                rtol,
-                atol,
+                adjusted_rtol,
+                adjusted_atol,
                 equal_nan,
             )
         )
@@ -505,7 +540,7 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
         """
         if not isinstance(x, DNDarray):
             if np.ndim(x) != 0:
-                raise TypeError("Expected DNDarray or numeric scalar, input was {}".format(type(x)))
+                raise TypeError(f"Expected DNDarray or numeric scalar, input was {type(x)}")
 
             dtype = getattr(x, "dtype", float)
             device = getattr(y, "device", None)
