@@ -252,9 +252,9 @@ def average(
     """
     # perform sanitation
     if not isinstance(x, DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+        raise TypeError(f"expected x to be a ht.DNDarray, but was {type(x)}")
     if weights is not None and not isinstance(weights, DNDarray):
-        raise TypeError("expected weights to be a ht.DNDarray, but was {}".format(type(x)))
+        raise TypeError(f"expected weights to be a ht.DNDarray, but was {type(x)}")
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
     if weights is None:
@@ -768,7 +768,7 @@ def kurtosis(
             res -= 3.0
         return res.item() if res.gnumel == 1 else res
     elif isinstance(axis, (list, tuple)):
-        raise TypeError("axis cannot be a list or a tuple, currently {}".format(type(axis)))
+        raise TypeError(f"axis cannot be a list or a tuple, currently {type(axis)}")
     else:
         return __moment_w_axis(__torch_kurtosis, x, axis, None, unbiased, Fischer)
 
@@ -1068,9 +1068,7 @@ def __merge_moments(
         USA.
     """
     if len(m1) != len(m2):
-        raise ValueError(
-            "m1 and m2 must be same length, currently {} and {}".format(len(m1), len(m2))
-        )
+        raise ValueError(f"m1 and m2 must be same length, currently {len(m1)} and {len(m2)}")
     n1, n2 = m1[-1], m2[-1]
     mu1, mu2 = m1[-2], m2[-2]
     n = n1 + n2
@@ -1259,7 +1257,7 @@ def __moment_w_axis(
     output_shape = list(x.shape)
     if isinstance(axis, int):
         if axis >= len(x.shape):
-            raise ValueError("axis must be < {}, currently is {}".format(len(x.shape), axis))
+            raise ValueError(f"axis must be < {len(x.shape)}, currently is {axis}")
         axis = stride_tricks.sanitize_axis(x.shape, axis)
         # only one axis given
         output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
@@ -1495,7 +1493,7 @@ def percentile(
     # sanitize input
     if not isinstance(x, DNDarray):
         raise TypeError("expected x to be a DNDarray, but was {}".format(type(x)))
-    if isinstance(axis, list) or isinstance(axis, tuple):
+    if isinstance(axis, (list, tuple)):
         raise NotImplementedError("ht.percentile(), tuple axis not implemented yet")
 
     if axis is None:
@@ -1508,7 +1506,7 @@ def percentile(
     t_x = x.larray
 
     # sanitize q
-    if isinstance(q, list) or isinstance(q, tuple):
+    if isinstance(q, (list, tuple)):
         t_perc_dtype = torch.promote_types(type(q[0]), torch.float32)
         t_q = torch.tensor(q, dtype=t_perc_dtype, device=t_x.device)
     elif np.isscalar(q):
@@ -1770,7 +1768,7 @@ def std(
         else:
             unbiased = bool(ddof)
         ddof = 1 if unbiased else ddof
-    if not x.is_distributed() and str(x.device)[:3] == "cpu":
+    if not x.is_distributed() and str(x.device).startswith("cpu"):
         loc = np.std(x.larray.numpy(), axis=axis, ddof=ddof)
         if loc.size == 1:
             return loc.item()
