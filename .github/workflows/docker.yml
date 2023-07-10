@@ -43,8 +43,7 @@ jobs:
               name: Build
               uses: docker/build-push-action@v4
               with:
-                context: docker/
-                file: Dockerfile.release
+                file: docker/Dockerfile.release
                 build-args: |
                     HEAT_VERSION=${{ inputs.heat_version }}
                     PYTORCH_IMG=${{ inputs.pytorch_img}}
@@ -60,8 +59,7 @@ jobs:
               name: Build and push
               uses: docker/build-push-action@v4
               with:
-                context: docker/
-                file: Dockerfile.release
+                file: docker/Dockerfile.release
                 build-args: |
                     HEAT_VERSION=${{ inputs.heat_version }}
                     PYTORCH_IMG=${{ inputs.pytorch_img}}
