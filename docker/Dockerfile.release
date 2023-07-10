@@ -12,4 +12,3 @@ ARG PACKAGE_NAME
 ARG HEAT_VERSION
 RUN pip install mpi4py --no-binary :all:
 RUN pip install ${PACKAGE_NAME}[hdf5,netcdf]==${HEAT_VERSION}
-RUN pip cache purge
