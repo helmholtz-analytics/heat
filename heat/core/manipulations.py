@@ -9,7 +9,7 @@ import warnings
 
 from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
 
-from .communication import MPI
+from .communication import MPI, sanitize_comm, Communication
 from .dndarray import DNDarray
 
 from . import arithmetics
@@ -21,6 +21,7 @@ from . import stride_tricks
 from . import tiling
 from . import types
 from . import _operations
+from . import devices
 
 __all__ = [
     "balance",
@@ -36,6 +37,7 @@ __all__ = [
     "flip",
     "fliplr",
     "flipud",
+    "from_numpy",
     "hsplit",
     "hstack",
     "moveaxis",
@@ -1092,6 +1094,34 @@ def flipud(a: DNDarray) -> DNDarray:
     (2/2) tensor([0,1,2])
     """
     return flip(a, 0)
+
+
+def from_numpy(
+    x: np.ndarray,
+    split: Optional[int] = None,
+    device: Optional[Union[str, devices.Device]] = None,
+    comm: Optional[Communication] = None,
+) -> DNDarray:
+    """
+    Creates DNDarray from given NumPy Array. The data type is determined by the data type of the Numpy Array.
+    Split-dimension, device and communicator can be prescribed as usual.
+    Inverse of :meth:`DNDarray.numpy()`.
+    """
+    dtype = types.canonical_heat_type(x.dtype)
+    device = devices.sanitize_device(device)
+    comm = sanitize_comm(comm)
+    xht = DNDarray(
+        torch.from_numpy(x).to(device.torch_device),
+        x.shape,
+        dtype=dtype,
+        split=None,
+        device=device,
+        comm=comm,
+        balanced=True,
+    )
+    if split is not None:
+        xht.resplit_(split)
+    return xht
 
 
 def hsplit(x: DNDarray, indices_or_sections: Iterable) -> List[DNDarray, ...]:

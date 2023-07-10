@@ -426,11 +426,19 @@ def from_xarray(
     Generates a DXarray from a given xarray (:class:`xarray.DataArray`)
     """
     coords_dict = {
-        item[0]: item[1].values if len(item[0]) == 1 else item[1] for item in xarray.coords.items()
+        item[0]: ht.from_numpy(item[1].values, device=device, comm=comm)
+        if len(item[0]) == 1
+        else DXarray(
+            ht.from_numpy(item[1].values, device=device, comm=comm),
+            dims=list(item[0]),
+            coords=None,
+            name=item[1].name.__str__(),
+            attrs=item[1].attrs,
+        )
+        for item in xarray.coords.items()
     }
-    print(coords_dict)
     dxarray = DXarray(
-        ht.DNDarray(torch.from_numpy(xarray.values), device=device, comm=comm),
+        ht.from_numpy(xarray.values, device=device, comm=comm),
         dims=list(xarray.dims),
         coords=coords_dict,
         name=xarray.name,
