@@ -726,16 +726,25 @@ negative = neg
 """Alias for :py:func:`neg`"""
 
 
-def copysign(a: DNDarray, b: Union[DNDarray, float, int]) -> DNDarray:
+def copysign(a: DNDarray, b: Union[DNDarray, float, int], /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = None) -> DNDarray:
     """
     Create a new floating-point tensor with the magnitude of 'a' and the sign of 'b', elementwise
 
     Parameters
     ----------
-    a:   DNDarray
-         The input array
-    b:   DNDarray or Number
-         value(s) whose signbit(s) are applied to the magnitudes in 'a'
+    a:     DNDarray
+           The input array
+    b:     DNDarray or Number
+           value(s) whose signbit(s) are applied to the magnitudes in 'a'
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the divided value. Elsewhere, the `out` array will retain its original value. If
+        an uninitialized `out` array is created via the default `out=None`, locations within it where the
+        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
+        if required) must match that of the `out` array.
 
     Examples
     --------
@@ -744,14 +753,14 @@ def copysign(a: DNDarray, b: Union[DNDarray, float, int]) -> DNDarray:
     >>> ht.copysign(ht.array([3., 2., -8., -2., 4.]), ht.array([1., -1., 1., -1., 1.]))
     DNDarray([ 3., -2.,  8., -2.,  4.], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.copysign, a, b)
+    return _operations.__binary_op(torch.copysign, a, b, out, where)
 
 
 DNDarray.copysign = lambda self, other: copysign(self, other)
 DNDarray.copysign.__doc__ = copysign.__doc__
 
 
-def lcm(a: DNDarray, b: DNDarray) -> DNDarray:
+def lcm(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = None) -> DNDarray:
     """
     Returns the lowest common multiple of |a| and |b|
 
@@ -761,6 +770,15 @@ def lcm(a: DNDarray, b: DNDarray) -> DNDarray:
          The first input array
     b:   DNDarray
          the second input tensor
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the divided value. Elsewhere, the `out` array will retain its original value. If
+        an uninitialized `out` array is created via the default `out=None`, locations within it where the
+        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
+        if required) must match that of the `out` array.
 
     Examples
     --------
@@ -769,14 +787,14 @@ def lcm(a: DNDarray, b: DNDarray) -> DNDarray:
     >>> ht.lcm(a,b)
     DNDarray([ 6, 12, 15], dtype=ht.int64, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.lcm, a, b)
+    return _operations.__binary_op(torch.lcm, a, b, out, where)
 
 
 DNDarray.lcm = lambda self, other: lcm(self, other)
 DNDarray.lcm.__doc__ = lcm.__doc__
 
 
-def hypot(a: DNDarray, b: DNDarray) -> DNDarray:
+def hypot(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = None) -> DNDarray:
     """
     Given the 'legs' of a right triangle, return its hypotenuse.
 
@@ -786,6 +804,15 @@ def hypot(a: DNDarray, b: DNDarray) -> DNDarray:
          The first input array
     b:   DNDarray
          the second input tensor
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the divided value. Elsewhere, the `out` array will retain its original value. If
+        an uninitialized `out` array is created via the default `out=None`, locations within it where the
+        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
+        if required) must match that of the `out` array.
 
     Examples
     --------
@@ -794,7 +821,7 @@ def hypot(a: DNDarray, b: DNDarray) -> DNDarray:
     >>> ht.hypot(a,b)
     DNDarray([2.2361, 3.6056, 3.6056], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.hypot, a, b)
+    return _operations.__binary_op(torch.hypot, a, b, out, where)
 
 
 DNDarray.hypot = lambda self, other: hypot(self, other)
