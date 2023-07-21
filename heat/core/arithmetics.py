@@ -436,7 +436,7 @@ def div(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
     out: Optional[DNDarray] = None,
-    where: Optional[DNDarray] = None,
+    where: Optional[DNDarray] = True,
 ) -> DNDarray:
     """
     Element-wise true division of values of operand ``t1`` by values of operands ``t2`` (i.e ``t1/t2``).
@@ -726,7 +726,7 @@ negative = neg
 """Alias for :py:func:`neg`"""
 
 
-def copysign(a: DNDarray, b: Union[DNDarray, float, int], /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = None) -> DNDarray:
+def copysign(a: DNDarray, b: Union[DNDarray, float, int], /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True) -> DNDarray:
     """
     Create a new floating-point tensor with the magnitude of 'a' and the sign of 'b', elementwise
 
@@ -760,7 +760,7 @@ DNDarray.copysign = lambda self, other: copysign(self, other)
 DNDarray.copysign.__doc__ = copysign.__doc__
 
 
-def lcm(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = None) -> DNDarray:
+def lcm(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True) -> DNDarray:
     """
     Returns the lowest common multiple of |a| and |b|
 
@@ -794,7 +794,7 @@ DNDarray.lcm = lambda self, other: lcm(self, other)
 DNDarray.lcm.__doc__ = lcm.__doc__
 
 
-def hypot(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = None) -> DNDarray:
+def hypot(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True) -> DNDarray:
     """
     Given the 'legs' of a right triangle, return its hypotenuse.
 
