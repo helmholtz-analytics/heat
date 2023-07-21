@@ -349,11 +349,7 @@ def __local_op(
 
     # no defined output tensor, return a freshly created one
     if out is None:
-        for key, value in kwargs.items():
-            print("{0} = {1}".format(key, value))
-
         result = operation(x.larray.type(torch_type), **kwargs)
-        print("result", result)
         return DNDarray(
             result,
             x.gshape,
