@@ -347,6 +347,7 @@ class DCSR_matrix:
 
         print_string = (
             f"DCSR_matrix(indices={self.indices},\n"
+            f"            indptr={self.indptr},\n"
             f"            data={self.data},\n"
             f"            size={size}, nnz={nnz}, split={self.__split})"
         )
