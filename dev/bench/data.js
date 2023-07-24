@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1689325457292,
+  "lastUpdate": 1690187794791,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -1332,6 +1332,90 @@ window.BENCHMARK_DATA = {
             "value": 1.2115697860717773,
             "unit": "s",
             "range": 0.048984088003635406
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "112093564+mrfh92@users.noreply.github.com",
+            "name": "Fabian Hoppe",
+            "username": "mrfh92"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "009a91aba5d68b7dc52121949b3e505f965fa765",
+          "message": "Merge pull request #1170 from helmholtz-analytics/bug/1121-print-fails-on-gpu\n\n`ht.print` can now print arrays distributed over `n>1` GPUs",
+          "timestamp": "2023-07-24T10:22:43+02:00",
+          "tree_id": "83fc134312ed9b857f6c8a755ebedab2fb9e0087",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/009a91aba5d68b7dc52121949b3e505f965fa765"
+        },
+        "date": 1690187794006,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "hierachical_svd_rank_N4 - RUNTIME",
+            "value": 0.24136164784431458,
+            "unit": "s",
+            "range": 0.014989631250500679
+          },
+          {
+            "name": "hierachical_svd_tol_N4 - RUNTIME",
+            "value": 0.3060407042503357,
+            "unit": "s",
+            "range": 0.04474097862839699
+          },
+          {
+            "name": "kmeans_cpu_N4 - RUNTIME",
+            "value": 1.3213037252426147,
+            "unit": "s",
+            "range": 0.07807199656963348
+          },
+          {
+            "name": "kmedians_cpu_N4 - RUNTIME",
+            "value": 5.438258171081543,
+            "unit": "s",
+            "range": 4.532651901245117
+          },
+          {
+            "name": "kmedoids_cpu_N4 - RUNTIME",
+            "value": 4.776575088500977,
+            "unit": "s",
+            "range": 1.0958740711212158
+          },
+          {
+            "name": "lanczos_cpu_N4 - RUNTIME",
+            "value": 39.36615753173828,
+            "unit": "s",
+            "range": 2.6294941902160645
+          },
+          {
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
+            "value": 0.8351085782051086,
+            "unit": "s",
+            "range": 0.04033607244491577
+          },
+          {
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "value": 0.9164949655532837,
+            "unit": "s",
+            "range": 0.07127095013856888
+          },
+          {
+            "name": "qr_cpu_N4 - RUNTIME",
+            "value": 6.665530204772949,
+            "unit": "s",
+            "range": 0.8261171579360962
+          },
+          {
+            "name": "reshape_cpu_N4 - RUNTIME",
+            "value": 1.1730554103851318,
+            "unit": "s",
+            "range": 0.048380810767412186
           }
         ]
       }
