@@ -221,9 +221,11 @@ def _torch_data(dndarray, summarize) -> DNDarray:
     # data is not split, we can use it as is
     if dndarray.split is None or dndarray.comm.size == 1:
         data = dndarray.larray
+        return data
     # split, but no summary required, we collect it
     elif not summarize:
         data = dndarray.copy().resplit_(None).larray
+        return data
     # split, but summarized, collect the slices from all nodes and pass it on
     else:
         edgeitems = torch._tensor_str.PRINT_OPTS.edgeitems
@@ -268,6 +270,9 @@ def _torch_data(dndarray, summarize) -> DNDarray:
                         ),
                     )
         # exchange data
+        gathered_data = dndarray.comm.gather(data)
+        if dndarray.comm.rank == 0:
+            gathered_data = torch.cat(gathered_data, axis=dndarray.split)
         exchange_sizes = dndarray.comm.allgather(torch.tensor(data.shape))
         counts = tuple([s[dndarray.split] for s in exchange_sizes])
         counts_0 = tuple([0] + [s[dndarray.split] for s in exchange_sizes])
@@ -275,9 +280,12 @@ def _torch_data(dndarray, summarize) -> DNDarray:
         recv_size = exchange_sizes[0].clone()
         recv_size[dndarray.split] = sum(counts)
         recv_buf = torch.empty(tuple(recv_size), dtype=data.dtype, device=data.device)
-        dndarray.comm.Gatherv(data, (recv_buf, counts, displs), recv_axis=dndarray.split)
-        data = recv_buf
-    return data
+        dndarray.comm.Gatherv(
+            data, (recv_buf, counts, displs), axis=dndarray.split, recv_axis=dndarray.split
+        )
+        if dndarray.comm.rank == 0:
+            print(dndarray.comm.rank, recv_buf == gathered_data)
+        return recv_buf
 
 
 def _tensor_str(dndarray, indent: int) -> str:
