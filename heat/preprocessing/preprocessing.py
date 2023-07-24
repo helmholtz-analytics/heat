@@ -24,7 +24,7 @@ def _check_if_2D_float_DNDarray(input):
         )
 
 
-# auxiliary function that checks whether parameter of a Scaler and data to be transformed with this scaler have matching shapes
+# auxiliary function that checks whether parameter of a Scaler and data to be transformed with this Scaler have matching shapes
 def _check_no_of_features(param, inputdata):
     if param.shape[0] != inputdata.shape[1]:
         raise ValueError(
