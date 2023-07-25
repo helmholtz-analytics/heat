@@ -756,10 +756,6 @@ def copysign(a: DNDarray, b: Union[DNDarray, float, int], /, out: Optional[DNDar
     return _operations.__binary_op(torch.copysign, a, b, out, where)
 
 
-DNDarray.copysign = lambda self, other: copysign(self, other)
-DNDarray.copysign.__doc__ = copysign.__doc__
-
-
 def lcm(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True) -> DNDarray:
     """
     Returns the lowest common multiple of |a| and |b|
@@ -790,10 +786,6 @@ def lcm(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: O
     return _operations.__binary_op(torch.lcm, a, b, out, where)
 
 
-DNDarray.lcm = lambda self, other: lcm(self, other)
-DNDarray.lcm.__doc__ = lcm.__doc__
-
-
 def hypot(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True) -> DNDarray:
     """
     Given the 'legs' of a right triangle, return its hypotenuse.
@@ -822,10 +814,6 @@ def hypot(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where:
     DNDarray([2.2361, 3.6056, 3.6056], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.hypot, a, b, out, where)
-
-
-DNDarray.hypot = lambda self, other: hypot(self, other)
-DNDarray.hypot.__doc__ = hypot.__doc__
 
 
 def pos(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
@@ -1098,10 +1086,6 @@ def nanprod(
     )
 
 
-DNDarray.nanprod = lambda self, axis=None, out=None, keepdims=None: nanprod(self, axis, out, keepdims)
-DNDarray.nanprod.__doc__ = nanprod.__doc__
-
-
 def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise subtraction of values of operand ``t2`` from values of operands ``t1`` (i.e ``t1-t2``)
@@ -1237,10 +1221,6 @@ def nansum(
     )
 
 
-DNDarray.nansum = lambda self, axis=None, out=None, keepdims=None: nansum(self, axis, out, keepdims)
-DNDarray.nansum.__doc__ = nansum.__doc__
-
-
 def nan_to_num(
     a: DNDarray, nan: float = 0.0, posinf: float = None, neginf: float = None, out: DNDarray = None
 ) -> DNDarray:
@@ -1279,9 +1259,3 @@ def nan_to_num(
     return _operations.__local_op(
         torch.nan_to_num, a, out=out, no_cast=True, nan=nan, posinf=posinf, neginf=neginf
     )
-
-
-DNDarray.nan_to_num = lambda self, out=None, no_cast=True, nan=0.0, posinf=None, neginf=None: nan_to_num(
-    self, out=out, no_cast=no_cast, nan=nan, posinf=posinf, neginf=neginf
-)
-DNDarray.nan_to_num.__doc__ = nan_to_num.__doc__
