@@ -104,7 +104,7 @@ def __binary_op(
 
     # Make inputs have the same dimensionality
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-    if where is not None:
+    if where is not True:
         output_shape = stride_tricks.broadcast_shape(where.shape, output_shape)
         while len(where.shape) < len(output_shape):
             where = where.expand_dims(axis=0)
@@ -173,7 +173,7 @@ def __binary_op(
 
     result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
 
-    if out is None and where is None:
+    if out is None and where is True:
         return DNDarray(
             result,
             output_shape,
