@@ -95,7 +95,7 @@ class KMedians(_KCluster):
             else:
                 if clean.shape[0] <= ht.MPI_WORLD.size:
                     clean.resplit_(axis=None)
-                median = ht.median(clean, axis=0, keepdim=True)
+                median = ht.median(clean, axis=0, keepdims=True)
                 new_cluster_centers[i : i + 1, :] = median
 
         return new_cluster_centers
@@ -111,7 +111,7 @@ class KMedians(_KCluster):
         """
         # input sanitation
         if not isinstance(x, ht.DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
+            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
 
         # initialize the clustering
         self._initialize_cluster_centers(x)

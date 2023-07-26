@@ -17,7 +17,6 @@ from .types import datatype
 from . import devices
 from . import types
 
-
 __all__ = [
     "arange",
     "array",
@@ -25,6 +24,8 @@ __all__ = [
     "empty",
     "empty_like",
     "eye",
+    "from_partitioned",
+    "from_partition_dict",
     "full",
     "full_like",
     "linspace",
@@ -42,7 +43,7 @@ def arange(
     dtype: Optional[Type[datatype]] = None,
     split: Optional[int] = None,
     device: Optional[Union[str, Device]] = None,
-    comm: Optional[Communication] = None
+    comm: Optional[Communication] = None,
 ) -> DNDarray:
     """
     Return evenly spaced values within a given interval.
@@ -122,9 +123,7 @@ def arange(
         num = int(np.ceil((stop - start) / step))
     else:
         raise TypeError(
-            "function takes minimum one and at most 3 positional arguments ({} given)".format(
-                num_of_param
-            )
+            f"function takes minimum one and at most 3 positional arguments ({num_of_param} given)"
         )
 
     # sanitize device and comm
@@ -150,7 +149,7 @@ def arange(
 def array(
     obj: Iterable,
     dtype: Optional[Type[datatype]] = None,
-    copy: bool = True,
+    copy: Optional[bool] = None,
     ndmin: int = 0,
     order: str = "C",
     split: Optional[int] = None,
@@ -171,8 +170,9 @@ def array(
         to hold the objects in the sequence. This argument can only be used to ‘upcast’ the array. For downcasting, use
         the :func:`~heat.core.dndarray.astype` method.
     copy : bool, optional
-        If ``True`` (default), then the object is copied. Otherwise, a copy will only be made if obj is a nested
-        sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
+        If ``True``, the input object is copied.
+        If ``False``, input which supports the buffer protocol is never copied.
+        If ``None`` (default), the function reuses the existing memory buffer if possible, and copies otherwise.
     ndmin : int, optional
         Specifies the minimum number of dimensions that the resulting array should have. Ones will, if needed, be
         attached to the shape if ``ndim > 0`` and prefaced in case of ``ndim < 0`` to meet the requirement.
@@ -197,6 +197,10 @@ def array(
     ------
     NotImplementedError
         If order is one of the NumPy options ``'K'`` or ``'A'``.
+    ValueError
+        If ``copy`` is False but a copy is necessary to satisfy other requirements (e.g. different dtype, device, etc.).
+    TypeError
+        If the input object cannot be converted to a torch.Tensor, hence it cannot be converted to a :class:`~heat.core.dndarray.DNDarray`.
 
     Examples
     --------
@@ -284,18 +288,16 @@ def array(
          [torch.LongStorage of size 6]
     """
     # array already exists; no copy
-    if (
-        isinstance(obj, DNDarray)
-        and not copy
-        and (dtype is None or dtype == obj.dtype)
-        and (split is None or split == obj.split)
-        and (is_split is None or is_split == obj.split)
-        and (device is None or device == obj.device)
-    ):
-        return obj
-
-    # extract the internal tensor in case of a heat tensor
     if isinstance(obj, DNDarray):
+        if not copy:
+            if (
+                (dtype is None or dtype == obj.dtype)
+                and (split is None or split == obj.split)
+                and (is_split is None or is_split == obj.split)
+                and (device is None or device == obj.device)
+            ):
+                return obj
+        # extract the internal tensor
         obj = obj.larray
 
     # sanitize the data type
@@ -323,13 +325,28 @@ def array(
             except RuntimeError:
                 raise TypeError("invalid data of type {}".format(type(obj)))
     else:
-        if not isinstance(obj, DNDarray):
+        if copy is False and not np.isscalar(obj) and not isinstance(obj, (Tuple, List)):
+            # Python array-API compliance, cf. https://data-apis.org/array-api/2022.12/API_specification/generated/array_api.asarray.html
+            if not (
+                (dtype is None or dtype == types.canonical_heat_type(obj.dtype))
+                and (
+                    device is None
+                    or device.torch_device
+                    == str(getattr(obj, "device", devices.get_device().torch_device))
+                )
+            ):
+                raise ValueError(
+                    "argument `copy` is set to False, but copy of input object is necessary. \n Set copy=None to reuse the memory buffer whenever possible and allow for copies otherwise."
+                )
+        try:
             obj = torch.as_tensor(
                 obj,
                 device=device.torch_device
                 if device is not None
                 else devices.get_device().torch_device,
             )
+        except RuntimeError:
+            raise TypeError("invalid data of type {}".format(type(obj)))
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
@@ -345,13 +362,14 @@ def array(
 
     if str(obj.device) != device.torch_device:
         warnings.warn(
-            "Array 'obj' is not on device '{}'. It will be moved to it.".format(device), UserWarning
+            f"Array 'obj' is not on device '{device}'. It will be moved to it.",
+            UserWarning,
         )
         obj = obj.to(device.torch_device)
 
     # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
-        raise TypeError("expected ndmin to be int, but was {}".format(type(ndmin)))
+        raise TypeError(f"expected ndmin to be int, but was {type(ndmin)}")
 
     # reshape the object to encompass additional dimensions
     ndmin_abs = abs(ndmin) - len(obj.shape)
@@ -375,10 +393,18 @@ def array(
     balanced = True
 
     # content shall be split, chunk the passed data object up
-    if split is not None:
-        _, _, slices = comm.chunk(gshape, split)
-        obj = obj[slices].clone()
+    if comm.size == 1 or split is None and is_split is None:
         obj = sanitize_memory_layout(obj, order=order)
+        split = is_split if is_split is not None else split
+
+    elif split is not None:
+        # only keep local slice
+        _, _, slices = comm.chunk(gshape, split)
+        _ = obj[slices].clone()
+        del obj
+
+        obj = sanitize_memory_layout(_, order=order)
+
     # check with the neighboring rank whether the local shape would fit into a global shape
     elif is_split is not None:
         obj = sanitize_memory_layout(obj, order=order)
@@ -395,44 +421,39 @@ def array(
             status = MPI.Status()
             comm.Probe(source=comm.rank - 1, status=status)
             length = status.Get_count() // lshape.dtype.itemsize
+            del status
             # the number of shape elements does not match with the 'left' rank
             if length != len(lshape):
                 discard_buffer = np.empty(length)
                 comm.Recv(discard_buffer, source=comm.rank - 1)
-                neighbour_shape[is_split] = np.iinfo(neighbour_shape.dtype).min
+                lshape[is_split] = np.iinfo(lshape.dtype).min
             else:
                 # check whether the individual shape elements match
                 comm.Recv(neighbour_shape, source=comm.rank - 1)
                 for i in range(length):
-                    if i == is_split:
-                        continue
-                    elif lshape[i] != neighbour_shape[i]:
-                        neighbour_shape[is_split] = np.iinfo(neighbour_shape.dtype).min
+                    if i != is_split:
+                        if lshape[i] != neighbour_shape[i]:
+                            lshape[is_split] = np.iinfo(lshape.dtype).min
+            del neighbour_shape
 
         # sum up the elements along the split dimension
-        reduction_buffer = np.array(neighbour_shape[is_split])
+        reduction_buffer = np.array(lshape[is_split])
         comm.Allreduce(MPI.IN_PLACE, reduction_buffer, MPI.MIN)
         if reduction_buffer < 0:
             raise ValueError(
                 "Unable to construct DNDarray. Local data slices have inconsistent shapes or dimensions."
             )
-        ttl_shape = np.array(obj.shape)
-        ttl_shape[is_split] = lshape[is_split]
-        comm.Allreduce(MPI.IN_PLACE, ttl_shape, MPI.SUM)
-        gshape[is_split] = ttl_shape[is_split]
+
+        total_split_shape = np.array(lshape[is_split])
+        comm.Allreduce(MPI.IN_PLACE, total_split_shape, MPI.SUM)
+        gshape[is_split] = total_split_shape.item()
         split = is_split
         # compare to calculated balanced lshape (cf. dndarray.is_balanced())
-        gshape = tuple(int(ele) for ele in gshape)
-        lshape = tuple(int(ele) for ele in lshape)
-        _, _, chk = comm.chunk(gshape, split)
-        test_lshape = tuple([x.stop - x.start for x in chk])
-        match = 1 if test_lshape == lshape else 0
+        _, test_lshape, _ = comm.chunk(gshape, split)
+        match = (test_lshape == lshape).all().astype(int)
         gmatch = comm.allreduce(match, MPI.SUM)
         if gmatch != comm.size:
             balanced = False
-
-    elif split is None and is_split is None:
-        obj = sanitize_memory_layout(obj, order=order)
 
     return DNDarray(obj, tuple(gshape), dtype, split, device, comm, balanced)
 
@@ -440,6 +461,7 @@ def array(
 def asarray(
     obj: Iterable,
     dtype: Optional[Type[datatype]] = None,
+    copy: Optional[bool] = None,
     order: str = "C",
     is_split: Optional[bool] = None,
     device: Optional[Union[str, Device]] = None,
@@ -455,10 +477,14 @@ def asarray(
         tuples of tuples, tuples of lists and ndarrays.
     dtype : dtype, optional
         By default, the data-type is inferred from the input data.
+    copy : bool, optional
+        If ``True``, then the object is copied.  If ``False``, the object is not copied and a ``ValueError`` is
+        raised in the case a copy would be necessary. If ``None``, a copy will only be made if `obj` is a nested
+        sequence or if a copy is needed to satisfy any of the other requirements, e.g. ``dtype``.
     order: str, optional
         Whether to use row-major (C-style) or column-major (Fortran-style) memory representation. Defaults to ‘C’.
     is_split : None or int, optional
-        Specifies the axis along which the local data portions, passed in obj, are split across all machines. Useful for
+        Specifies the axis along which the local data portions, passed in obj, are split across all MPI processes. Useful for
         interfacing with other HPC code. The shape of the global tensor is automatically inferred.
     device : str, ht.Device or None, optional
         Specifies the device the tensor shall be allocated on. By default, it is inferred from the input data.
@@ -488,7 +514,7 @@ def asarray(
     >>> ht.asarray(a, dtype=ht.float64) is a
     False
     """
-    return array(obj, dtype=dtype, copy=False, order=order, is_split=is_split, device=device)
+    return array(obj, dtype=dtype, copy=copy, order=order, is_split=is_split, device=device)
 
 
 def empty(
@@ -730,7 +756,7 @@ def __factory_like(
     device: Device,
     comm: Communication,
     order: str = "C",
-    **kwargs
+    **kwargs,
 ) -> DNDarray:
     """
     Abstracted '...-like' factory function for HeAT :class:`~heat.core.dndarray.DNDarray` initialization
@@ -781,7 +807,7 @@ def __factory_like(
     # infer split axis
     if split is None:
         try:
-            split = a.split if not isinstance(a, str) else None
+            split = None if isinstance(a, str) else a.split
         except AttributeError:
             # do not split at all
             pass
@@ -790,6 +816,156 @@ def __factory_like(
     comm = sanitize_comm(comm)
 
     return factory(shape, dtype=dtype, split=split, device=device, comm=comm, order=order, **kwargs)
+
+
+def from_partitioned(x, comm: Optional[Communication] = None) -> DNDarray:
+    """
+    Return a newly created DNDarray constructed from the '__partitioned__' attributed of the input object.
+    Memory of local partitions will be shared (zero-copy) as long as supported by data objects.
+    Currently supports numpy ndarrays and torch tensors as data objects.
+    Current limitations:
+      * Partitions must be ordered in the partition-grid by rank
+      * Only one split-axis
+      * Only one partition per rank
+      * Only SPMD-style __partitioned__
+
+    Parameters
+    ----------
+    x : object
+        Requires x.__partitioned__
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+
+    See also
+    --------
+    :func:`ht.core.DNDarray.create_partition_interface <ht.core.DNDarray.create_partition_interface>`.
+
+    Raises
+    ------
+    AttributeError
+        If not hasattr(x, "__partitioned__") or if underlying data has no dtype.
+    TypeError
+        If it finds an unsupported array types
+    RuntimeError
+        If other unsupported content is found.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.ones((44,55), split=0)
+    >>> b = ht.from_partitioned(a)
+    >>> assert (a==b).all()
+    >>> a[40] = 4711
+    >>> assert (a==b).all()
+    """
+    comm = sanitize_comm(comm)
+    parted = x.__partitioned__
+    return __from_partition_dict_helper(parted, comm)
+
+
+def from_partition_dict(parted: dict, comm: Optional[Communication] = None) -> DNDarray:
+    """
+    Return a newly created DNDarray constructed from the '__partitioned__' attributed of the input object.
+    Memory of local partitions will be shared (zero-copy) as long as supported by data objects.
+    Currently supports numpy ndarrays and torch tensors as data objects.
+    Current limitations:
+      * Partitions must be ordered in the partition-grid by rank
+      * Only one split-axis
+      * Only one partition per rank
+      * Only SPMD-style __partitioned__
+
+    Parameters
+    ----------
+    parted : dict
+        A partition dictionary used to create the new DNDarray
+    comm: Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+
+    See also
+    --------
+    :func:`ht.core.DNDarray.create_partition_interface <ht.core.DNDarray.create_partition_interface>`.
+
+    Raises
+    ------
+    AttributeError
+        If not hasattr(x, "__partitioned__") or if underlying data has no dtype.
+    TypeError
+        If it finds an unsupported array types
+    RuntimeError
+        If other unsupported content is found.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> a = ht.ones((44,55), split=0)
+    >>> b = ht.from_partition_dict(a.__partitioned__)
+    >>> assert (a==b).all()
+    >>> a[40] = 4711
+    >>> assert (a==b).all()
+    """
+    comm = sanitize_comm(comm)
+    return __from_partition_dict_helper(parted, comm)
+
+
+def __from_partition_dict_helper(parted: dict, comm: Communication):
+    # helper to create a DNDarray from a partition table (dictionary)
+    # the dictionary must be in the same form as the DNDarray.__partitioned__ property creates
+    if "locals" not in parted:
+        raise RuntimeError("Non-SPMD __partitioned__ not supported")
+    try:
+        gshape = parted["shape"]
+    except KeyError:
+        raise RuntimeError(
+            "partition dictionary must have a 'shape' entry, see DNDarray.create_partition_interface for more details"
+        )
+    try:
+        lparts = parted["locals"]
+    except KeyError:
+        raise RuntimeError(
+            "partition dictionary must have a 'local' entry, see DNDarray.create_partition_interface for more details"
+        )
+    if len(lparts) != 1:
+        raise RuntimeError("Only exactly one partition per rank supported (yet)")
+    parts = parted["partitions"]
+    lpart = parted["get"](parts[lparts[0]]["data"])
+    if isinstance(lpart, np.ndarray):
+        data = torch.from_numpy(lpart)
+    elif isinstance(lpart, torch.Tensor):
+        data = lpart
+    else:
+        raise TypeError(f"Only numpy arrays and torch tensors supported (not {type(lpart)}")
+    htype = types.canonical_heat_type(data.dtype)
+
+    # get split axis
+    gshape_list = list(gshape)
+    lshape_list = list(data.shape)
+    shape_diff = torch.tensor(
+        [g - l for g, l in zip(gshape_list, lshape_list)]
+    )  # dont care about device
+    nz = torch.nonzero(shape_diff)
+
+    if nz.numel() > 1:
+        raise RuntimeError("only one split axis allowed, check the ")
+    elif nz.numel() == 1:
+        split = nz[0].item()
+    else:
+        split = None
+
+    expected = {
+        int(x["location"][0]): (
+            comm.chunk(gshape, split, x["location"][0])[1:],
+            (x["shape"], x["start"]),
+        )
+        for x in parts.values()
+    }
+    balanced = all(x[0][0] == x[1][0] for x in expected.values())
+
+    ret = DNDarray(
+        data, gshape, htype, split, devices.sanitize_device(None), sanitize_comm(comm), balanced
+    )
+    ret.__partitions_dict__ = parted
+
+    return ret
 
 
 def full(
@@ -953,9 +1129,7 @@ def linspace(
     stop = float(stop)
     num = int(num)
     if num < 0:
-        raise ValueError(
-            "number of samples 'num' must be non-negative integer, but was {}".format(num)
-        )
+        raise ValueError(f"number of samples 'num' must be non-negative integer, but was {num}")
     step = (stop - start) / max(1, num - 1 if endpoint else num)
 
     # sanitize device and comm
@@ -1117,7 +1291,7 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
 
     shape = tuple(array.size for array in arrays)
 
-    return list(
+    return [
         DNDarray(
             array=grid,
             gshape=shape,
@@ -1128,7 +1302,7 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
             balanced=True,
         )
         for grid in grids
-    )
+    ]
 
 
 def ones(

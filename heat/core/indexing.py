@@ -183,7 +183,5 @@ def where(
         return nonzero(cond)
     else:
         raise TypeError(
-            "either both or neither x and y must be given and both must be DNDarrays or numerical scalars({}, {})".format(
-                type(x), type(y)
-            )
+            f"either both or neither x and y must be given and both must be DNDarrays or numerical scalars({type(x)}, {type(y)})"
         )

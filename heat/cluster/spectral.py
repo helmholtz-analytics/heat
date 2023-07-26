@@ -51,7 +51,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         boundary: str = "upper",
         n_lanczos: int = 300,
         assign_labels: str = "kmeans",
-        **params
+        **params,
     ):
         self.n_clusters = n_clusters
         self.gamma = gamma
@@ -164,7 +164,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         """
         # 1. input sanitation
         if not isinstance(x, DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
+            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
         if x.split is not None and x.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
         # 2. Embed Dataset into lower-dimensional Eigenvector space
@@ -206,7 +206,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
         """
         # input sanitation
         if not isinstance(x, DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
+            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
         if x.split is not None and x.split != 0:
             raise NotImplementedError("Not implemented for other splitting-axes")
 

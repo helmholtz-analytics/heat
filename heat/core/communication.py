@@ -159,7 +159,12 @@ class MPICommunication(Communication):
         return self.size > 1
 
     def chunk(
-        self, shape: Tuple[int], split: int, rank: int = None, w_size: int = None
+        self,
+        shape: Tuple[int],
+        split: int,
+        rank: int = None,
+        w_size: int = None,
+        sparse: bool = False,
     ) -> Tuple[int, Tuple[int], Tuple[slice]]:
         """
         Calculates the chunk of data that will be assigned to this compute node given a global data shape and a split
@@ -179,7 +184,8 @@ class MPICommunication(Communication):
         w_size : int, optional
             The MPI world size, defaults to ``self.size``.
             Intended for creating chunk maps without communication
-
+        sparse : bool, optional
+            Specifies whether the array is a sparse matrix
         """
         # ensure the split axis is valid, we actually do not need it
         split = sanitize_axis(shape, split)
@@ -201,6 +207,9 @@ class MPICommunication(Communication):
         else:
             start = rank * chunk + remainder
         end = start + chunk
+
+        if sparse:
+            return start, end
 
         return (
             start,
@@ -244,7 +253,7 @@ class MPICommunication(Communication):
         obj: Union[DNDarray, torch.Tensor],
         counts: Tuple[int],
         displs: Tuple[int],
-        is_contiguous: bool,
+        is_contiguous: Optional[bool],
     ) -> Tuple[MPI.Datatype, Tuple[int, ...]]:
         """
         Determines the MPI data type and number of respective elements for the given tensor (:class:`~heat.core.dndarray.DNDarray`
@@ -259,8 +268,8 @@ class MPICommunication(Communication):
             Optional counts arguments for variable MPI-calls (e.g. Alltoallv)
         displs : Tuple[ints,...], optional
             Optional displacements arguments for variable MPI-calls (e.g. Alltoallv)
-        is_contiguous: bool, optional
-            Optional information on global contiguity of the memory-distributed object. If `None`, it will be set to local contiguity via ``torch.Tensor.is_contiguous()``.
+        is_contiguous: bool
+            Information on global contiguity of the memory-distributed object. If `None`, it will be set to local contiguity via ``torch.Tensor.is_contiguous()``.
         # ToDo: The option to explicitely specify the counts and displacements to be send still needs propper implementation
         """
         mpi_type, elements = cls.__mpi_type_mappings[obj.dtype], torch.numel(obj)
@@ -273,15 +282,14 @@ class MPICommunication(Communication):
         if is_contiguous:
             if counts is None:
                 return mpi_type, elements
-            else:
-                factor = np.prod(obj.shape[1:])
-                return (
-                    mpi_type,
-                    (
-                        tuple(factor * ele for ele in counts),
-                        (tuple(factor * ele for ele in displs)),
-                    ),
-                )
+            factor = np.prod(obj.shape[1:])
+            return (
+                mpi_type,
+                (
+                    tuple(factor * ele for ele in counts),
+                    (tuple(factor * ele for ele in displs)),
+                ),
+            )
 
         # non-contiguous memory, e.g. after a transpose, has to be packed in derived MPI types
         elements = obj.shape[0]
@@ -319,7 +327,7 @@ class MPICommunication(Communication):
         obj: torch.Tensor,
         counts: Tuple[int] = None,
         displs: Tuple[int] = None,
-        is_contiguous: bool = None,
+        is_contiguous: Optional[bool] = None,
     ) -> List[Union[MPI.memory, Tuple[int, int], MPI.Datatype]]:
         """
         Converts a passed ``torch.Tensor`` into a memory buffer object with associated number of elements and MPI data type.
@@ -1046,25 +1054,19 @@ class MPICommunication(Communication):
             sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf.larray
-        if not isinstance(sendbuf, torch.Tensor):
-            if axis != 0:
-                raise TypeError(
-                    "sendbuf of type {} does not support concatenation axis != 0".format(
-                        type(sendbuf)
-                    )
-                )
+        if not isinstance(sendbuf, torch.Tensor) and axis != 0:
+            raise TypeError(
+                f"sendbuf of type {type(sendbuf)} does not support concatenation axis != 0"
+            )
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
-        if not isinstance(recvbuf, torch.Tensor):
-            if axis != 0:
-                raise TypeError(
-                    "recvbuf of type {} does not support concatenation axis != 0".format(
-                        type(recvbuf)
-                    )
-                )
+        if not isinstance(recvbuf, torch.Tensor) and axis != 0:
+            raise TypeError(
+                f"recvbuf of type {type(recvbuf)} does not support concatenation axis != 0"
+            )
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
@@ -1240,9 +1242,7 @@ class MPICommunication(Communication):
         """
         if send_axis is None:
             raise NotImplementedError(
-                "AllToAll needs send_axis and recv_axis to be specified but was send_axis = {}, recv_axis = {}. Please set send_axis and recv_axis".format(
-                    send_axis, recv_axis
-                )
+                f"AllToAll needs send_axis and recv_axis to be specified but was send_axis = {send_axis}, recv_axis = {recv_axis}. Please set send_axis and recv_axis"
             )
         # align the output buffer in the same way as the input buffer by default
         if recv_axis is None:
@@ -1257,9 +1257,7 @@ class MPICommunication(Communication):
         if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError(
-                "sendbuf of type {} does not support send_axis != 0".format(type(sendbuf))
-            )
+            raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
 
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
@@ -1267,9 +1265,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError(
-                "recvbuf of type {} does not support send_axis != 0".format(type(recvbuf))
-            )
+            raise TypeError(f"recvbuf of type {type(recvbuf)} does not support send_axis != 0")
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
@@ -1533,9 +1529,7 @@ class MPICommunication(Communication):
         if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError(
-                "sendbuf of type {} does not support send_axis != 0".format(type(sendbuf))
-            )
+            raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
 
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
@@ -1543,9 +1537,7 @@ class MPICommunication(Communication):
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError(
-                "recvbuf of type {} does not support send_axis != 0".format(type(recvbuf))
-            )
+            raise TypeError(f"recvbuf of type {type(recvbuf)} does not support send_axis != 0")
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
@@ -1935,7 +1927,7 @@ def sanitize_comm(comm: Optional[Communication]) -> Communication:
     elif isinstance(comm, Communication):
         return comm
 
-    raise TypeError("Unknown communication, must be instance of {}".format(Communication))
+    raise TypeError(f"Unknown communication, must be instance of {Communication}")
 
 
 def use_comm(comm: Communication = None):
