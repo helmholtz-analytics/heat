@@ -12,7 +12,6 @@ from typing import Union
 
 __all__ = ["DXarray", "from_xarray"]
 
-
 # Auxiliary functions
 
 
