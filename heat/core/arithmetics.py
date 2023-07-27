@@ -131,7 +131,7 @@ def bitwise_and(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return _operations.__binary_op(torch.Tensor.__and__, t1, t2)
+    return _operations.__binary_op(torch.bitwise_and, t1, t2)
 
 
 DNDarray.__and__ = lambda self, other: bitwise_and(self, other)
@@ -175,7 +175,7 @@ def bitwise_or(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarr
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return _operations.__binary_op(torch.Tensor.__or__, t1, t2)
+    return _operations.__binary_op(torch.bitwise_or, t1, t2)
 
 
 DNDarray.__or__ = lambda self, other: bitwise_or(self, other)
@@ -214,7 +214,7 @@ def bitwise_xor(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return _operations.__binary_op(torch.Tensor.__xor__, t1, t2)
+    return _operations.__binary_op(torch.bitwise_xor, t1, t2)
 
 
 DNDarray.__xor__ = lambda self, other: bitwise_xor(self, other)
@@ -327,7 +327,7 @@ def diff(
     if n == 0:
         return a
     if n < 0:
-        raise ValueError("diff requires that n be a positive number, got {}".format(n))
+        raise ValueError(f"diff requires that n be a positive number, got {n}")
     if not isinstance(a, DNDarray):
         raise TypeError("'a' must be a DNDarray")
 
@@ -353,13 +353,11 @@ def diff(
                     pass
                 elif not isinstance(p_el, DNDarray):
                     raise TypeError(
-                        "prepend/append should be a scalar or a DNDarray, was {}".format(type(p_el))
+                        f"prepend/append should be a scalar or a DNDarray, was {type(p_el)}"
                     )
                 elif p_el.gshape != pend_shape:
                     raise ValueError(
-                        "shape mismatch: expected prepend/append to be {}, got {}".format(
-                            pend_shape, p_el.gshape
-                        )
+                        f"shape mismatch: expected prepend/append to be {pend_shape}, got {p_el.gshape}"
                     )
                 if p == 0:
                     # prepend
@@ -531,10 +529,7 @@ def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray
     DNDarray([[1., 0.],
               [1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    if int(torch.__version__.split(".")[1]) > 7:
-        return _operations.__binary_op(torch.div, t1, t2, fn_kwargs={"rounding_mode": "floor"})
-    else:
-        return _operations.__binary_op(torch.floor_divide, t1, t2)
+    return _operations.__binary_op(torch.div, t1, t2, fn_kwargs={"rounding_mode": "floor"})
 
 
 DNDarray.__floordiv__ = lambda self, other: floordiv(self, other)
@@ -750,7 +745,7 @@ def pos(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
 
     def torch_pos(torch_tensor, out=None):
         if not torch.is_tensor(torch_tensor):
-            raise TypeError("Input is not a torch tensor but {}".format(type(torch_tensor)))
+            raise TypeError(f"Input is not a torch tensor but {type(torch_tensor)}")
         return out.copy_(torch_tensor)
 
     if out is not None:
@@ -793,6 +788,37 @@ def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[ 1.,  8.],
             [27., 64.]], dtype=ht.float32, device=cpu:0, split=None)
     """
+    # early exit for integer scalars
+    if isinstance(t2, int):
+        try:
+            result = torch.pow(t1.larray, t2)
+            return DNDarray(
+                result,
+                gshape=t1.gshape,
+                dtype=t1.dtype,
+                device=t1.device,
+                split=t1.split,
+                comm=t1.comm,
+                balanced=t1.balanced,
+            )
+        except AttributeError:
+            # t1 is no DNDarray
+            pass
+    elif isinstance(t1, int):
+        try:
+            result = torch.pow(t1, t2.larray)
+            return DNDarray(
+                result,
+                gshape=t2.gshape,
+                dtype=t2.dtype,
+                device=t2.device,
+                split=t2.split,
+                comm=t2.comm,
+                balanced=t2.balanced,
+            )
+        except AttributeError:
+            # t2 is no DNDarray
+            pass
     return _operations.__binary_op(torch.pow, t1, t2)
 
 
@@ -871,7 +897,7 @@ def prod(
     a: DNDarray,
     axis: Union[int, Tuple[int, ...]] = None,
     out: DNDarray = None,
-    keepdim: bool = None,
+    keepdims: bool = None,
 ) -> DNDarray:
     """
     Return the product of array elements over a given axis in form of a DNDarray shaped as a but with the specified axis removed.
@@ -888,7 +914,7 @@ def prod(
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output, but
         the datatype of the output values will be cast if necessary.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
         option, the result will broadcast correctly against the input array.
 
@@ -907,11 +933,11 @@ def prod(
     DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__reduce_op(
-        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdim=keepdim
+        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
     )
 
 
-DNDarray.prod = lambda self, axis=None, out=None, keepdim=None: prod(self, axis, out, keepdim)
+DNDarray.prod = lambda self, axis=None, out=None, keepdims=None: prod(self, axis, out, keepdims)
 DNDarray.prod.__doc__ = prod.__doc__
 
 
@@ -961,7 +987,7 @@ def sum(
     a: DNDarray,
     axis: Union[int, Tuple[int, ...]] = None,
     out: DNDarray = None,
-    keepdim: bool = None,
+    keepdims: bool = None,
 ) -> DNDarray:
     """
     Sum of array elements over a given axis. An array with the same shape as ``self.__array`` except for the specified
@@ -978,7 +1004,7 @@ def sum(
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output, but
         the datatype of the output values will be cast if necessary.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
         option, the result will broadcast correctly against the input array.
 
@@ -996,8 +1022,8 @@ def sum(
     """
     # TODO: make me more numpy API complete Issue #101
     return _operations.__reduce_op(
-        a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdim=keepdim
+        a, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
     )
 
 
-DNDarray.sum = lambda self, axis=None, out=None, keepdim=None: sum(self, axis, out, keepdim)
+DNDarray.sum = lambda self, axis=None, out=None, keepdims=None: sum(self, axis, out, keepdims)
