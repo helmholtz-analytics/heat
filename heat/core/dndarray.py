@@ -800,10 +800,10 @@ class DNDarray:
                 arr_is_distributed = True
 
         advanced_indexing = False
-        arr_is_copy = False
         split_key_is_sorted = 1  # can be 1: ascending, 0: not sorted, -1: descending
         out_is_balanced = False
         root = None
+        transpose_axes = tuple(range(arr.ndim))
 
         if isinstance(key, list):
             try:
@@ -849,6 +849,7 @@ class DNDarray:
                         split_key_is_sorted,
                         out_is_balanced,
                         root,
+                        transpose_axes,
                     )
 
                 # arr is distributed
@@ -905,7 +906,16 @@ class DNDarray:
                     new_split = 0
                     split_key_is_sorted = 0
                     out_is_balanced = True
-                return arr, key, output_shape, new_split, split_key_is_sorted, out_is_balanced, root
+                return (
+                    arr,
+                    key,
+                    output_shape,
+                    new_split,
+                    split_key_is_sorted,
+                    out_is_balanced,
+                    root,
+                    transpose_axes,
+                )
 
             # advanced indexing on first dimension: first dim will expand to shape of key
             output_shape = tuple(list(key.shape) + output_shape[1:])
@@ -991,7 +1001,16 @@ class DNDarray:
                     # torch or numpy key, non-distributed indexed array
                     out_is_balanced = True
                     new_split = None
-            return arr, key, output_shape, new_split, split_key_is_sorted, out_is_balanced, root
+            return (
+                arr,
+                key,
+                output_shape,
+                new_split,
+                split_key_is_sorted,
+                out_is_balanced,
+                root,
+                transpose_axes,
+            )
 
         key = list(key) if isinstance(key, Iterable) else [key]
 
@@ -1028,8 +1047,10 @@ class DNDarray:
                     )
                     add_dims -= 1
 
-        # recalculate new split axis after dimensions manipulation
+        # recalculate new_split, transpose_axes after dimensions manipulation
         new_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
+        transpose_axes = tuple(range(arr.ndim))
+
         # check for advanced indexing and slices
         print("DEBUGGING: key = ", key)
         advanced_indexing_dims = []
@@ -1211,11 +1232,9 @@ class DNDarray:
                 non_adv_ind_dims = list(
                     i for i in range(arr.ndim) if i not in advanced_indexing_dims
                 )
-                # TODO: work this out without array copy
-                if not arr_is_copy:
-                    arr = arr.copy()
-                    arr_is_copy = True
-                arr = arr.transpose(advanced_indexing_dims + non_adv_ind_dims)
+                # keep track of transpose axes order, to be able to transpose back later
+                transpose_axes = tuple(advanced_indexing_dims + non_adv_ind_dims)
+                arr = arr.transpose(transpose_axes)
                 output_shape = list(arr.gshape)
                 output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
                 split_bookkeeping = [None] * arr.ndim
@@ -1244,7 +1263,16 @@ class DNDarray:
             split_key_is_sorted,
             out_is_balanced,
         )
-        return arr, key, output_shape, new_split, split_key_is_sorted, out_is_balanced, root
+        return (
+            arr,
+            key,
+            output_shape,
+            new_split,
+            split_key_is_sorted,
+            out_is_balanced,
+            root,
+            transpose_axes,
+        )
 
     def __get_local_slice(self, key: slice):
         split = self.split
@@ -1378,7 +1406,13 @@ class DNDarray:
             split_key_is_sorted,
             out_is_balanced,
             root,
+            transpose_axes,
         ) = self.__process_key(key)
+
+        backwards_transpose_axes = (
+            torch.tensor(transpose_axes, device=self.larray.device).argsort(stable=True).tolist()
+        )
+
         print("DEBUGGING: processed key, output_split = ", key, output_split)
 
         if root is not None:
@@ -1401,6 +1435,8 @@ class DNDarray:
                 comm=self.comm,
                 balanced=True,
             )
+            # transpose array back if needed
+            self = self.transpose(backwards_transpose_axes)
             return indexed_arr
 
         # TODO: test that key for not affected dims is always slice(None)
@@ -1411,6 +1447,8 @@ class DNDarray:
         print("split_key_is_sorted, key = ", split_key_is_sorted, key)
         if split_key_is_sorted == 1:
             indexed_arr = self.larray[key]
+            # transpose array back if needed
+            self = self.transpose(backwards_transpose_axes)
             return DNDarray(
                 indexed_arr,
                 gshape=output_shape,
@@ -1545,6 +1583,8 @@ class DNDarray:
             if broadcasted_indexing:
                 key[original_split] = key[original_split].reshape(broadcast_shape)
             indexed_arr = self.larray[key]
+            # transpose array back if needed
+            self = self.transpose(backwards_transpose_axes)
             return factories.array(
                 indexed_arr, is_split=output_split, device=self.device, copy=False
             )
@@ -1649,6 +1689,8 @@ class DNDarray:
             (recv_buf, recv_counts, recv_displs),
             send_axis=send_axis,
         )
+        # transpose original array back if needed, all further indexing on recv_buf
+        self = self.transpose(backwards_transpose_axes)
 
         # reorganize incoming counts according to original key order along split axis
         if return_1d:
@@ -1660,17 +1702,12 @@ class DNDarray:
             map = ork_inverse.argsort(stable=True)[
                 key_inverse.argsort(stable=True).argsort(stable=True)
             ]
-            # else:
-            #     # major bottleneck
-            #     key = key.tolist()
-            #     outgoing_request_key = outgoing_request_key.tolist()
-            #     map = [outgoing_request_key.index(k) for k in key]
             indexed_arr = recv_buf[map]
             return factories.array(indexed_arr, is_split=output_split, copy=False)
 
-        # key = key[original_split]
         outgoing_request_key = outgoing_request_key.squeeze_(1)
         # incoming elements likely already stacked in ascending or descending order
+        # TODO: is this check really worth it? blanket argsort solution below might be ok
         if (key[original_split] == outgoing_request_key).all():
             return factories.array(recv_buf, is_split=output_split, copy=False)
         if (key[original_split] == outgoing_request_key.flip(dims=(0,))).all():
