@@ -58,6 +58,7 @@ else:
         path: str,
         dataset: str,
         dtype: datatype = types.float32,
+        load_shape: Optional[Union[tuple, int]] = None,
         split: Optional[int] = None,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
@@ -73,6 +74,9 @@ else:
             Name of the dataset to be read.
         dtype : datatype, optional
             Data type of the resulting array.
+        load_shape : tuple of ints, int, or None, optional
+            if None (default), the whole dataset is loaded from the file specified in path
+            if int or tuple of ints, only entries of the dataset up this index (for each axis) are loaded
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
         device : str, optional
@@ -108,6 +112,10 @@ else:
             raise TypeError("dataset must be str, not {}".format(type(dataset)))
         elif split is not None and not isinstance(split, int):
             raise TypeError(f"split must be None or int, not {type(split)}")
+        if not (isinstance(load_shape, tuple) or isinstance(load_shape, int) or load_shape is None):
+            raise TypeError(
+                f"load_shape must be tuple of ints, int, or None, not {type(load_shape)}"
+            )
 
         # infer the type and communicator for the loaded array
         dtype = types.canonical_heat_type(dtype)
@@ -118,7 +126,18 @@ else:
         # actually load the data from the HDF5 file
         with h5py.File(path, "r") as handle:
             data = handle[dataset]
-            gshape = tuple(data.shape)
+            if isinstance(load_shape, tuple):
+                if not len(load_shape) == len(data.shape):
+                    raise ValueError(
+                        "if load_shape is tuple of int, its length must be equal to the number of dimensions of the dataset."
+                    )
+                gshape = tuple(np.minimum(np.array(load_shape), np.array(data.shape)))
+            elif isinstance(load_shape, int):
+                if load_shape <= 0:
+                    raise ValueError("if load_shape is int, it must be a positive integer.")
+                gshape = tuple(np.minimum(load_shape, np.array(data.shape)))
+            else:
+                gshape = tuple(data.shape)
             dims = len(gshape)
             split = sanitize_axis(gshape, split)
             _, _, indices = comm.chunk(gshape, split)
