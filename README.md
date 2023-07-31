@@ -41,7 +41,7 @@ computational and memory needs of your laptop and desktop.
 * CPU, GPU and distributed computation using MPI
 * Powerful data analytics and machine learning methods
 * Abstracted communication via split tensors
-* Python API 
+* Python API
 
 # Support Channels
 
