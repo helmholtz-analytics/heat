@@ -2,7 +2,7 @@
 name: Feature request
 about: Suggest missing features or functionalities
 title: ''
-labels: ''
+labels: 'enhancement'
 assignees: ''
 
 ---
