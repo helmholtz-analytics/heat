@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     ht.use_device("gpu")
 
-    print("Loading data... {}[{}]".format(args.file, args.dataset), end="")
+    print(f"Loading data... {args.file}[{args.dataset}]", end="")
     data = ht.load(args.file, dataset=args.dataset, split=0)
     print("\t[OK]")
 
