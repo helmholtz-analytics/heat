@@ -525,7 +525,6 @@ class TestArithmetics(TestCase):
             ht.neg(1)
 
     def test_copysign(self):
-
         a = ht.array([3, 2, -8, -2, 4])
         b = ht.array([3.0, 2.0, -8.0, -2.0, 4.0])
         result = ht.array([3.0, 2.0, 8.0, 2.0, 4.0])
@@ -543,7 +542,6 @@ class TestArithmetics(TestCase):
             ht.copysign(a, 1j)
 
     def test_lcm(self):
-
         a = ht.array([5, 10, 15])
         b = ht.array([3, 4, 5])
         c = ht.array([3.0, 4.0, 5.0])
@@ -559,7 +557,6 @@ class TestArithmetics(TestCase):
             ht.lcm(a, ht.array([15, 20]))
 
     def test_hypot(self):
-
         a = a = ht.array([2.0])
         b = b = ht.array([1.0, 3.0, 5.0])
         gt = ht.array([5, 13, 29])
