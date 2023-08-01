@@ -228,7 +228,14 @@ DNDarray.__xor__ = lambda self, other: bitwise_xor(self, other)
 DNDarray.__xor__.__doc__ = bitwise_xor.__doc__
 
 
-def copysign(a: DNDarray, b: Union[DNDarray, float, int], /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True) -> DNDarray:
+def copysign(
+    a: DNDarray,
+    b: Union[DNDarray, float, int],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Optional[DNDarray] = True,
+) -> DNDarray:
     """
     Create a new floating-point tensor with the magnitude of 'a' and the sign of 'b', elementwise
 
@@ -579,7 +586,9 @@ floor_divide = floordiv
 """Alias for :py:func:`floordiv`"""
 
 
-def hypot(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True) -> DNDarray:
+def hypot(
+    a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True
+) -> DNDarray:
     """
     Given the 'legs' of a right triangle, return its hypotenuse.
 
@@ -644,7 +653,9 @@ bitwise_not = invert
 """Alias for :py:func:`invert`"""
 
 
-def lcm(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True) -> DNDarray:
+def lcm(
+    a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True
+) -> DNDarray:
     """
     Returns the lowest common multiple of |a| and |b|
 
