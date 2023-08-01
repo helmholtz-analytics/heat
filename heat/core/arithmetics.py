@@ -864,9 +864,7 @@ def nanprod(
     ]), axis=1)
     DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
     """
-    b = a.copy()
-    is_nan = logical.isnan(b)
-    b[is_nan] = 1
+    b = nan_to_num(a, nan=1)
 
     return _operations.__reduce_op(
         b, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
@@ -911,12 +909,8 @@ def nansum(
     DNDarray([[3.],
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    b = a.copy()
-    is_nan = logical.isnan(b)
-    b[is_nan] = 0
-
     return _operations.__reduce_op(
-        b, torch.sum, MPI.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
+        a, torch.nansum, MPI.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
     )
 
 
