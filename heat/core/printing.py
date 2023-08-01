@@ -238,9 +238,15 @@ def _torch_data(dndarray, summarize) -> DNDarray:
 
             # non-split dimension, can slice locally
             if i != dndarray.split:
-                start_tensor = torch.index_select(data, i, torch.arange(edgeitems + 1))
+                start_tensor = torch.index_select(
+                    data, i, torch.arange(edgeitems + 1, device=data.device)
+                )
                 end_tensor = torch.index_select(
-                    data, i, torch.arange(dndarray.lshape[i] - edgeitems, dndarray.lshape[i])
+                    data,
+                    i,
+                    torch.arange(
+                        dndarray.lshape[i] - edgeitems, dndarray.lshape[i], device=data.device
+                    ),
                 )
                 data = torch.cat([start_tensor, end_tensor], dim=i)
             # split-dimension , need to respect the global offset
@@ -249,18 +255,27 @@ def _torch_data(dndarray, summarize) -> DNDarray:
 
                 if offset < edgeitems + 1:
                     end = min(dndarray.lshape[i], edgeitems + 1 - offset)
-                    data = torch.index_select(data, i, torch.arange(end))
+                    data = torch.index_select(data, i, torch.arange(end, device=data.device))
                 elif dndarray.gshape[i] - edgeitems < offset - dndarray.lshape[i]:
                     global_start = dndarray.gshape[i] - edgeitems
                     data = torch.index_select(
-                        data, i, torch.arange(max(0, global_start - offset), dndarray.lshape[i])
+                        data,
+                        i,
+                        torch.arange(
+                            max(0, global_start - offset),
+                            dndarray.lshape[i],
+                            device=data.device,
+                        ),
                     )
         # exchange data
         received = dndarray.comm.gather(data)
         if dndarray.comm.rank == 0:
             # concatenate data along the split axis
+            # problem: CUDA-aware MPI `gather`s all `data` in a list of tensors on MPI-process no. 0, but not necessarily on the same cuda device.
+            # Indeed, `received` may be a list of tensors on cuda device 0, cuda device 1, ... therefore, we need to move all entries of the list to cuda device 0 before applying `cat`.
+            device0 = received[0].device
+            received = [tens.to(device0) for tens in received]
             data = torch.cat(received, dim=dndarray.split)
-
     return data
 
 
