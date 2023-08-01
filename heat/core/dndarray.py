@@ -795,14 +795,14 @@ class DNDarray:
         arr : DNDarray
             The ``DNDarray`` to be indexed. Its dimensions might have been modified if advanced, dimensional, broadcasted indexing is used.
         key : Union(Tuple[Any, ...], DNDarray, np.ndarray, torch.Tensor, slice, int, List[int, ...])
-            The processed key ready for indexing ``arr``. Its dimensions match the (potentially modified) dimensions of the ``DNDarray``.
+            The processed key ready for indexing ``arr``. Its dimensions match the (potentially modified) dimensions of ``arr``.
             Note: the key indices along the split axis are LOCAL indices, i.e. refer to the process-local data, if ordered indexing is used. Otherwise, they are GLOBAL indices, referring to the global memory-distributed DNDarray. Communication to extract the non-ordered elements of the input ``DNDarray`` is handled by the ``__getitem__`` function.
         output_shape : Tuple[int, ...]
             The shape of the output ``DNDarray``
         new_split : int
             The new split axis
         split_key_is_sorted : int
-            Whether the split key is sorted. Can be 1: ascending, 0: not sorted, -1: descending
+            Whether the split key is sorted or ordered. Can be 1: ascending, 0: not ordered, -1: descending order.
         out_is_balanced : bool
             Whether the output ``DNDarray`` is balanced
         root : int
