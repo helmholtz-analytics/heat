@@ -192,6 +192,23 @@ class TestArithmetics(TestCase):
         with self.assertRaises(TypeError):
             ht.bitwise_xor(self.an_int_scalar, self.a_scalar)
 
+    def test_copysign(self):
+        a = ht.array([3, 2, -8, -2, 4])
+        b = ht.array([3.0, 2.0, -8.0, -2.0, 4.0])
+        result = ht.array([3.0, 2.0, 8.0, 2.0, 4.0])
+
+        self.assertAlmostEqual(ht.mean(ht.copysign(a, 1.0) - result).item(), 0.0)
+        self.assertAlmostEqual(ht.mean(ht.copysign(a, -1.0) + result).item(), 0.0)
+        self.assertAlmostEqual(ht.mean(ht.copysign(a, a) - a).item(), 0.0)
+        self.assertAlmostEqual(ht.mean(ht.copysign(b, b) - b).item(), 0.0)
+        self.assertEquals(ht.copysign(a, 1.0).dtype, ht.float32)
+        self.assertEquals(ht.copysign(b, 1.0).dtype, ht.float32)
+        self.assertNotEqual(ht.copysign(a, 1.0).dtype, ht.int64)
+
+        with self.assertRaises(TypeError):
+            ht.copysign(a, "T")
+            ht.copysign(a, 1j)
+
     def test_cumprod(self):
         a = ht.full((2, 4), 2, dtype=ht.int32)
         result = ht.array([[2, 4, 8, 16], [2, 4, 8, 16]], dtype=ht.int32)
@@ -454,6 +471,22 @@ class TestArithmetics(TestCase):
         with self.assertRaises(TypeError):
             ht.fmod("T", "s")
 
+    def test_hypot(self):
+        a = a = ht.array([2.0])
+        b = b = ht.array([1.0, 3.0, 5.0])
+        gt = ht.array([5, 13, 29])
+        result = (ht.hypot(a, b) ** 2).astype(ht.int64)
+
+        self.assertTrue(ht.equal(gt, result))
+        self.assertEquals(result.dtype, ht.int64)
+
+        with self.assertRaises(TypeError):
+            ht.hypot(a)
+        with self.assertRaises(TypeError):
+            ht.hypot("a", "b")
+        with self.assertRaises(RuntimeError):
+            ht.hypot(a.astype(ht.int32), b.astype(ht.int32))
+
     def test_invert(self):
         int8_tensor = ht.array([[0, 1], [2, -2]], dtype=ht.int8)
         uint8_tensor = ht.array([[23, 2], [45, 234]], dtype=ht.uint8)
@@ -470,6 +503,21 @@ class TestArithmetics(TestCase):
 
         with self.assertRaises(TypeError):
             ht.invert(float_tensor)
+
+    def test_lcm(self):
+        a = ht.array([5, 10, 15])
+        b = ht.array([3, 4, 5])
+        c = ht.array([3.0, 4.0, 5.0])
+        result = ht.array([15, 20, 15])
+
+        self.assertTrue(ht.equal(ht.lcm(a, b), result))
+        self.assertTrue(ht.equal(ht.lcm(a, a), a))
+        self.assertEquals(ht.lcm(a, b).dtype, ht.int64)
+
+        with self.assertRaises(RuntimeError):
+            ht.lcm(a, c)
+        with self.assertRaises(ValueError):
+            ht.lcm(a, ht.array([15, 20]))
 
     def test_left_shift(self):
         int_tensor = ht.array([[0, 1], [2, 3]])
@@ -511,6 +559,92 @@ class TestArithmetics(TestCase):
         with self.assertRaises(TypeError):
             ht.mul("T", "s")
 
+    def test_nan_to_num(self):
+        arr = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf])
+        a = ht.nan_to_num(arr)
+        self.assertTrue(torch.equal(a.larray, torch.nan_to_num(arr.larray)))
+
+        arr = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf], split=0)
+        a = ht.nan_to_num(arr, nan=0, posinf=1, neginf=-1)
+        self.assertTrue(
+            torch.equal(a.larray, torch.nan_to_num(arr.larray, nan=0, posinf=1, neginf=-1))
+        )
+
+    def test_nanprod(self):
+        array_len = 11
+
+        # check prod over all float elements of 1d tensor locally
+        shape_noaxis = ht.zeros(array_len)
+        shape_noaxis[0] = ht.nan
+        no_axis_nanprod = ht.nanprod(shape_noaxis)
+
+        self.assertIsInstance(no_axis_nanprod, ht.DNDarray)
+        self.assertEqual(no_axis_nanprod.shape, (1,))
+        self.assertEqual(no_axis_nanprod.lshape, (1,))
+        self.assertEqual(no_axis_nanprod.dtype, ht.float32)
+        self.assertEqual(no_axis_nanprod.larray.dtype, torch.float32)
+        self.assertEqual(no_axis_nanprod.split, None)
+        self.assertEqual(no_axis_nanprod.larray, 0)
+
+        out_noaxis = ht.ones((1,))
+        ht.nanprod(shape_noaxis, out=out_noaxis)
+        self.assertTrue(out_noaxis.larray == shape_noaxis.larray.nan_to_num().prod())
+
+        # check sum over all float elements of split 1d tensor
+        shape_noaxis_split = ht.arange(array_len, split=0).astype(ht.float32)
+        shape_noaxis_split[0] = ht.nan
+        shape_noaxis_split_nanprod = ht.nanprod(shape_noaxis_split)
+
+        self.assertIsInstance(shape_noaxis_split_nanprod, ht.DNDarray)
+        self.assertEqual(shape_noaxis_split_nanprod.shape, (1,))
+        self.assertEqual(shape_noaxis_split_nanprod.lshape, (1,))
+        self.assertEqual(shape_noaxis_split_nanprod.dtype, ht.float32)
+        self.assertEqual(shape_noaxis_split_nanprod.larray.dtype, torch.float32)
+        self.assertEqual(shape_noaxis_split_nanprod.split, None)
+        print(shape_noaxis_split_nanprod.larray)
+        self.assertEqual(shape_noaxis_split_nanprod, np.math.factorial(10))
+
+        out_noaxis = ht.ones((1,))
+        ht.nanprod(shape_noaxis_split, out=out_noaxis)
+        self.assertEqual(out_noaxis.larray, np.math.factorial(10))
+
+    def test_nansum(self):
+        array_len = 11
+
+        # check sum over all float elements of 1d tensor locally
+        shape_noaxis = ht.ones(array_len)
+        shape_noaxis[0] = ht.nan
+        no_axis_nansum = ht.nansum(shape_noaxis)
+
+        self.assertIsInstance(no_axis_nansum, ht.DNDarray)
+        self.assertEqual(no_axis_nansum.shape, (1,))
+        self.assertEqual(no_axis_nansum.lshape, (1,))
+        self.assertEqual(no_axis_nansum.dtype, ht.float32)
+        self.assertEqual(no_axis_nansum.larray.dtype, torch.float32)
+        self.assertEqual(no_axis_nansum.split, None)
+        self.assertEqual(no_axis_nansum.larray, array_len - 1)
+
+        out_noaxis = ht.zeros((1,))
+        ht.nansum(shape_noaxis, out=out_noaxis)
+        self.assertTrue(out_noaxis.larray == shape_noaxis.larray.nansum())
+
+        # check sum over all float elements of split 1d tensor
+        shape_noaxis_split = ht.arange(array_len, split=0).astype(ht.float32)
+        shape_noaxis_split[0] = ht.nan
+        shape_noaxis_split_nansum = ht.nansum(shape_noaxis_split)
+
+        self.assertIsInstance(shape_noaxis_split_nansum, ht.DNDarray)
+        self.assertEqual(shape_noaxis_split_nansum.shape, (1,))
+        self.assertEqual(shape_noaxis_split_nansum.lshape, (1,))
+        self.assertEqual(shape_noaxis_split_nansum.dtype, ht.float32)
+        self.assertEqual(shape_noaxis_split_nansum.larray.dtype, torch.float32)
+        self.assertEqual(shape_noaxis_split_nansum.split, None)
+        self.assertEqual(shape_noaxis_split_nansum, 55)
+
+        out_noaxis = ht.zeros((1,))
+        ht.nansum(shape_noaxis_split, out=out_noaxis)
+        self.assertEqual(out_noaxis.larray, 55)
+
     def test_neg(self):
         self.assertTrue(ht.equal(ht.neg(ht.array([-1, 1])), ht.array([1, -1])))
         self.assertTrue(ht.equal(-ht.array([-1.0, 1.0]), ht.array([1.0, -1.0])))
@@ -523,54 +657,6 @@ class TestArithmetics(TestCase):
 
         with self.assertRaises(TypeError):
             ht.neg(1)
-
-    def test_copysign(self):
-        a = ht.array([3, 2, -8, -2, 4])
-        b = ht.array([3.0, 2.0, -8.0, -2.0, 4.0])
-        result = ht.array([3.0, 2.0, 8.0, 2.0, 4.0])
-
-        self.assertAlmostEqual(ht.mean(ht.copysign(a, 1.0) - result).item(), 0.0)
-        self.assertAlmostEqual(ht.mean(ht.copysign(a, -1.0) + result).item(), 0.0)
-        self.assertAlmostEqual(ht.mean(ht.copysign(a, a) - a).item(), 0.0)
-        self.assertAlmostEqual(ht.mean(ht.copysign(b, b) - b).item(), 0.0)
-        self.assertEquals(ht.copysign(a, 1.0).dtype, ht.float32)
-        self.assertEquals(ht.copysign(b, 1.0).dtype, ht.float32)
-        self.assertNotEqual(ht.copysign(a, 1.0).dtype, ht.int64)
-
-        with self.assertRaises(TypeError):
-            ht.copysign(a, "T")
-            ht.copysign(a, 1j)
-
-    def test_lcm(self):
-        a = ht.array([5, 10, 15])
-        b = ht.array([3, 4, 5])
-        c = ht.array([3.0, 4.0, 5.0])
-        result = ht.array([15, 20, 15])
-
-        self.assertTrue(ht.equal(ht.lcm(a, b), result))
-        self.assertTrue(ht.equal(ht.lcm(a, a), a))
-        self.assertEquals(ht.lcm(a, b).dtype, ht.int64)
-
-        with self.assertRaises(RuntimeError):
-            ht.lcm(a, c)
-        with self.assertRaises(ValueError):
-            ht.lcm(a, ht.array([15, 20]))
-
-    def test_hypot(self):
-        a = a = ht.array([2.0])
-        b = b = ht.array([1.0, 3.0, 5.0])
-        gt = ht.array([5, 13, 29])
-        result = (ht.hypot(a, b) ** 2).astype(ht.int64)
-
-        self.assertTrue(ht.equal(gt, result))
-        self.assertEquals(result.dtype, ht.int64)
-
-        with self.assertRaises(TypeError):
-            ht.hypot(a)
-        with self.assertRaises(TypeError):
-            ht.hypot("a", "b")
-        with self.assertRaises(RuntimeError):
-            ht.hypot(a.astype(ht.int32), b.astype(ht.int32))
 
     def test_pos(self):
         self.assertTrue(ht.equal(ht.pos(ht.array([-1, 1])), ht.array([-1, 1])))
@@ -866,43 +952,6 @@ class TestArithmetics(TestCase):
             ht.ones((4, 4)).sum(axis=0, out=out_noaxis)
         with self.assertRaises(TypeError):
             ht.ones(array_len).sum(axis="bad_axis_type")
-
-    def test_nansum(self):
-        array_len = 11
-
-        # check sum over all float elements of 1d tensor locally
-        shape_noaxis = ht.ones(array_len)
-        shape_noaxis[0] = ht.nan
-        no_axis_nansum = shape_noaxis.nansum()
-
-        self.assertIsInstance(no_axis_nansum, ht.DNDarray)
-        self.assertEqual(no_axis_nansum.shape, (1,))
-        self.assertEqual(no_axis_nansum.lshape, (1,))
-        self.assertEqual(no_axis_nansum.dtype, ht.float32)
-        self.assertEqual(no_axis_nansum.larray.dtype, torch.float32)
-        self.assertEqual(no_axis_nansum.split, None)
-        self.assertEqual(no_axis_nansum.larray, array_len - 1)
-
-        out_noaxis = ht.zeros((1,))
-        ht.nansum(shape_noaxis, out=out_noaxis)
-        self.assertTrue(out_noaxis.larray == shape_noaxis.larray.nansum())
-
-        # check sum over all float elements of split 1d tensor
-        shape_noaxis_split = ht.arange(array_len, split=0).astype(ht.float32)
-        shape_noaxis_split[0] = ht.nan
-        shape_noaxis_split_nansum = shape_noaxis_split.nansum()
-
-        self.assertIsInstance(shape_noaxis_split_nansum, ht.DNDarray)
-        self.assertEqual(shape_noaxis_split_nansum.shape, (1,))
-        self.assertEqual(shape_noaxis_split_nansum.lshape, (1,))
-        self.assertEqual(shape_noaxis_split_nansum.dtype, ht.float32)
-        self.assertEqual(shape_noaxis_split_nansum.larray.dtype, torch.float32)
-        self.assertEqual(shape_noaxis_split_nansum.split, None)
-        self.assertEqual(shape_noaxis_split_nansum, 55)
-
-        out_noaxis = ht.zeros((1,))
-        ht.nansum(shape_noaxis_split, out=out_noaxis)
-        self.assertEqual(out_noaxis.larray, 55)
 
     def test_right_hand_side_operations(self):
         """

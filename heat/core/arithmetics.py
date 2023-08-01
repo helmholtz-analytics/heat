@@ -228,7 +228,14 @@ DNDarray.__xor__ = lambda self, other: bitwise_xor(self, other)
 DNDarray.__xor__.__doc__ = bitwise_xor.__doc__
 
 
-def copysign(a: DNDarray, b: Union[DNDarray, float, int], /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True) -> DNDarray:
+def copysign(
+    a: DNDarray,
+    b: Union[DNDarray, float, int],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Optional[DNDarray] = True,
+) -> DNDarray:
     """
     Create a new floating-point tensor with the magnitude of 'a' and the sign of 'b', elementwise
 
@@ -579,7 +586,9 @@ floor_divide = floordiv
 """Alias for :py:func:`floordiv`"""
 
 
-def hypot(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True) -> DNDarray:
+def hypot(
+    a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True
+) -> DNDarray:
     """
     Given the 'legs' of a right triangle, return its hypotenuse.
 
@@ -644,7 +653,9 @@ bitwise_not = invert
 """Alias for :py:func:`invert`"""
 
 
-def lcm(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True) -> DNDarray:
+def lcm(
+    a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True
+) -> DNDarray:
     """
     Returns the lowest common multiple of |a| and |b|
 
@@ -791,8 +802,8 @@ def nan_to_num(
     """
     Replaces NaNs, positive infinity values, and negative infinity values in the input 'a' with the values specified by
     nan, posinf, and neginf, respectively. By default, NaNs are replaced with zero, positive infinity is replaced with
-    the greatest finite value representable by input’s dtype, and negative infinity is replaced with the least finite
-    value representable by input’s dtype.
+    the greatest finite value representable by input's dtype, and negative infinity is replaced with the least finite
+    value representable by input's dtype.
 
     Parameters
     ----------
@@ -802,10 +813,10 @@ def nan_to_num(
         Value to be used to replace NaNs. Default value is 0.0.
     posinf : float, optional
         Value to replace positive infinity values with. If None, positive infinity values are
-        replaced with the greatest finite value of the input’s dtype. Default value is None.
+        replaced with the greatest finite value of the input's dtype. Default value is None.
     neginf : float, optional
         Value to replace negative infinity values with. If None, negative infinity values are
-        replaced with the greatest negative finite value of the input’s dtype. Default value is None.
+        replaced with the greatest negative finite value of the input's dtype. Default value is None.
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the expected output, but
         the datatype of the output values will be cast if necessary.
