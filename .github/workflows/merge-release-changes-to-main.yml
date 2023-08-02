@@ -23,10 +23,10 @@ jobs:
               with:
                 token: ${{ secrets.GITHUB_TOKEN }}
                 ref: '${{ env.starting_branch }}'
-            # - name: Create working branch
-            #   run: |
-            #     git checkout -b ${{ env.working_branch }} ${{ env.starting_branch }}
-            #     git push --set-upstream origin ${{ env.working_branch }}
+            - name: Create working branch
+              run: |
+                git checkout -b ${{ env.working_branch }} ${{ env.starting_branch }}
+                git push --set-upstream origin ${{ env.working_branch }}
             # - name: Create a pull request
             #   uses: peter-evans/create-pull-request@v4
             #   with:
