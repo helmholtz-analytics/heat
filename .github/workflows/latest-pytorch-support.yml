@@ -49,7 +49,7 @@ jobs:
           if [[ ${{ github.ref }} =~ .*main.* ]]; then
             echo "base_branch=main" >> $GITHUB_ENV
           elif [[ ${{ github.ref }} =~ .*release.* ]]; then
-            echo "base_branch=release/1.2.x" >> $GITHUB_ENV
+            echo "base_branch=release/1.3.x" >> $GITHUB_ENV
           fi
       - name: Create PR from branch
         uses: peter-evans/create-pull-request@v4

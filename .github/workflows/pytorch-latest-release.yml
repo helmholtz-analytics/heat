@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 env:
   working_branch: support/new-pytorch-release-branch
-  base_branch: release/1.2.x
+  base_branch: release/1.3.x
 permissions:
   contents: write
 jobs:
