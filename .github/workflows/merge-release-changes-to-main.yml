@@ -30,7 +30,7 @@ jobs:
             - name: Check for differences between release and main
               run: |
                 git fetch origin ${{ env.base_branch }}
-                DIFF=$(git diff origin/${{ env.base_branch }}...${{ env.working_branch }})
+                DIFF=$(git log origin/${{ env.base_branch }}..${{ env.working_branch }})
                 if [ -z "$DIFF" ]; then
                   echo "No differences found. Exiting without creating a pull request."
                   exit 0
