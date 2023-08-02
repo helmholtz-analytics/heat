@@ -23,26 +23,17 @@ jobs:
               with:
                 token: ${{ secrets.GITHUB_TOKEN }}
                 ref: '${{ env.starting_branch }}'
-            - name: Create working branch
-              run: |
-                git checkout -b ${{ env.working_branch }} ${{ env.starting_branch }}
-                git pull ${{ env.working_branch }}
-                git push --set-upstream origin ${{ env.working_branch }}
-            # - name: Check for differences between release and main
+            # - name: Create working branch
             #   run: |
-            #     git fetch origin ${{ env.base_branch }}
-            #     DIFF=$(git log origin/${{ env.base_branch }}..${{ env.working_branch }})
-            #     if [ -z "$DIFF" ]; then
-            #       echo "No differences found. Exiting without creating a pull request."
-            #       exit 0
-            #     fi
-            - name: Create a pull request
-              uses: peter-evans/create-pull-request@v4
-              with:
-                delete-branch: true
-                token: ${{ secrets.GITHUB_TOKEN }}
-                commit-message: 'Merge release changes to main'
-                title: 'Merge ${{ env.starting_branch }} changes to ${{ env.base_branch }}'
-                body: 'This PR merges changes from release branch to main branch'
-                branch: '${{ env.working_branch }}'
-                base: '${{ env.base_branch }}'
+            #     git checkout -b ${{ env.working_branch }} ${{ env.starting_branch }}
+            #     git push --set-upstream origin ${{ env.working_branch }}
+            # - name: Create a pull request
+            #   uses: peter-evans/create-pull-request@v4
+            #   with:
+            #     delete-branch: true
+            #     token: ${{ secrets.GITHUB_TOKEN }}
+            #     commit-message: 'Merge release changes to main'
+            #     title: 'Merge ${{ env.starting_branch }} changes to ${{ env.base_branch }}'
+            #     body: 'This PR merges changes from release branch to main branch'
+            #     branch: '${{ env.working_branch }}'
+            #     base: '${{ env.base_branch }}'
