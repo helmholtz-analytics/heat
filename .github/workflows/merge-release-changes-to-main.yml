@@ -26,6 +26,7 @@ jobs:
             - name: Create working branch
               run: |
                 git checkout -b ${{ env.working_branch }} ${{ env.starting_branch }}
+                git pull
                 git push --set-upstream origin ${{ env.working_branch }}
             # - name: Check for differences between release and main
             #   run: |
