@@ -16,16 +16,16 @@ jobs:
         runs-on: ubuntu-latest
         if: ${{ github.repository }} == 'hemlholtz-analytics/heat'
         steps:
-            # - uses: actions/checkout@v3
-            #   with:
-            #     token: ${{ secrets.GITHUB_TOKEN }}
-            #     ref: '${{ env.starting_branch }}'
+          # make sure that new branch is created from starting_branch
+            - uses: actions/checkout@v3
+              with:
+                token: ${{ secrets.GITHUB_TOKEN }}
+                ref: '${{ env.starting_branch }}'
             - name: Delete working branch if it already exists
               run: git push --delete origin ${{ env.working_branch }} || true
             - name: Create working branch
               run: |
                 git checkout ${{ env.starting_branch }}
-                git pull
                 git checkout -b ${{ env.working_branch }}
                 git push --set-upstream origin ${{ env.working_branch }}
             - name: Create a pull request
