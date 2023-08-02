@@ -1,7 +1,7 @@
 on:
     push:
       branches:
-        - 'release/**'
+        - 'workflows/gh-action-merge-release-changes-into-main'
 env:
     base_branch: ${{ github.ref }}
     working_branch: workflows/merge-release-changes-to-main
