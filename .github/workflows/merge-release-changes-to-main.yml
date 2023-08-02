@@ -3,8 +3,9 @@ on:
       branches:
         - 'workflows/gh-action-merge-release-changes-into-main'
 env:
-    base_branch: ${{ github.ref }}
+    starting_branch: ${{ github.ref }}
     working_branch: workflows/merge-release-changes-to-main
+    base_branch: main
 permissions:
     contents: write
     issues: write
@@ -18,7 +19,7 @@ jobs:
             - uses: actions/checkout@v3
               with:
                 token: ${{ secrets.GITHUB_TOKEN }}
-                ref: '${{ env.base_branch }}'
+                ref: '${{ env.starting_branch }}'
             - name: Delete working branch if it already exists
               run: git push --delete origin ${{ env.working_branch }} || true
             - name: Create working branch
@@ -31,7 +32,7 @@ jobs:
                 delete-branch: true
                 token: ${{ secrets.GITHUB_TOKEN }}
                 commit-message: 'Merge release changes to main'
-                title: 'Merge release changes to main'
+                title: 'Merge ${{ env.starting_branch }} changes to ${{ env.base_branch }}'
                 body: 'This PR merges changes from release branch to main branch'
                 branch: '${{ env.working_branch }}'
-                base: main
+                base: '${{ env.base_branch }}'
