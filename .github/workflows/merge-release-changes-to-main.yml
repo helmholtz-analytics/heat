@@ -24,20 +24,13 @@ jobs:
             - name: Create working branch
               run: |
                 git checkout -b ${{ env.working_branch }}
-                git config --global user.name 'ClaudiaComito'
-                git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
-                git commit -am "Push new branch"
-                git push --set-upstream origin ${{ env.working_branch }}
-    pull_request:
-        needs: check_out
-        runs-on: ubuntu-latest
-        steps:
-        - name: Create a pull request
-          uses: peter-evans/create-pull-request@v3
-          with:
-            token: ${{ secrets.GHACTIONS }}
-            commit-message: 'Merge release changes to main'
-            title: 'Merge release changes to main'
-            body: 'This PR merges changes from release branch to main branch'
-            branch: '${{ env.working_branch }}'
-            base: main
+            - name: Create a pull request
+              uses: peter-evans/create-pull-request@v4
+              with:
+                delete-branch: true
+                token: ${{ secrets.GITHUB_TOKEN }}
+                commit-message: 'Merge release changes to main'
+                title: 'Merge release changes to main'
+                body: 'This PR merges changes from release branch to main branch'
+                branch: '${{ env.working_branch }}'
+                base: main
