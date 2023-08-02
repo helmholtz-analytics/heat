@@ -4,7 +4,6 @@ on:
         - 'workflows/gh-action-merge-release-changes-into-main'
 env:
     starting_branch: ${{ github.ref }}
-    #starting_branch: release/1.3.x
     working_branch: workflows/merge-release-changes-to-main
     base_branch: main
 permissions:
@@ -20,14 +19,13 @@ jobs:
           # make sure that new branch is created from starting_branch
             - name: Delete working branch if it already exists
               run: git push --delete origin ${{ env.working_branch }} || true
-            # - uses: actions/checkout@v3
-            #   with:
-            #     token: ${{ secrets.GITHUB_TOKEN }}
-            #     ref: '${{ env.starting_branch }}'
+            - uses: actions/checkout@v3
+              with:
+                token: ${{ secrets.GITHUB_TOKEN }}
+                ref: '${{ env.starting_branch }}'
             - name: Create working branch
               run: |
-                git checkout ${{ env.starting_branch }}
-                git checkout -b ${{ env.working_branch }}
+                git checkout -b ${{ env.working_branch }} ${{ env.starting_branch }}
                 git push --set-upstream origin ${{ env.working_branch }}
             - name: Create a pull request
               uses: peter-evans/create-pull-request@v4
