@@ -17,7 +17,7 @@ jobs:
         steps:
             - uses: actions/checkout@v3
               with:
-                token: ${{ secrets.GHACTIONS }}
+                token: ${{ secrets.GITHUB_TOKEN }}
                 ref: '${{ env.base_branch }}'
             - name: Delete working branch if it already exists
               run: git push --delete origin ${{ env.working_branch }} || true
