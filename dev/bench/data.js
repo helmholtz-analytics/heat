@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691141054250,
+  "lastUpdate": 1691154437501,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -1584,6 +1584,90 @@ window.BENCHMARK_DATA = {
             "value": 1.3018343448638916,
             "unit": "s",
             "range": 0.061232734471559525
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "39374113+ClaudiaComito@users.noreply.github.com",
+            "name": "Claudia Comito",
+            "username": "ClaudiaComito"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "549deb9c7e7732696c5b7a96bbd8f01c5bd03f53",
+          "message": "Small fixes to automated branch creation on Issue assignment (#1190)\n\n* small changes to branch creation action, update docs\r\n\r\n* update quick_start\r\n\r\n* Update quick_start.md",
+          "timestamp": "2023-08-04T14:51:17+02:00",
+          "tree_id": "981b44c24ca3e79a3ea00c361f9c8773a64f9e6d",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/549deb9c7e7732696c5b7a96bbd8f01c5bd03f53"
+        },
+        "date": 1691154436762,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "hierachical_svd_rank_N4 - RUNTIME",
+            "value": 0.27335071563720703,
+            "unit": "s",
+            "range": 0.034357961267232895
+          },
+          {
+            "name": "hierachical_svd_tol_N4 - RUNTIME",
+            "value": 0.33771198987960815,
+            "unit": "s",
+            "range": 0.046306051313877106
+          },
+          {
+            "name": "kmeans_cpu_N4 - RUNTIME",
+            "value": 1.9356781244277954,
+            "unit": "s",
+            "range": 0.12699483335018158
+          },
+          {
+            "name": "kmedians_cpu_N4 - RUNTIME",
+            "value": 6.227564811706543,
+            "unit": "s",
+            "range": 4.617743968963623
+          },
+          {
+            "name": "kmedoids_cpu_N4 - RUNTIME",
+            "value": 5.638108730316162,
+            "unit": "s",
+            "range": 1.0548932552337646
+          },
+          {
+            "name": "lanczos_cpu_N4 - RUNTIME",
+            "value": 39.32331085205078,
+            "unit": "s",
+            "range": 2.513068437576294
+          },
+          {
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
+            "value": 1.2127825021743774,
+            "unit": "s",
+            "range": 0.08655709028244019
+          },
+          {
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "value": 1.3259118795394897,
+            "unit": "s",
+            "range": 0.08576948195695877
+          },
+          {
+            "name": "qr_cpu_N4 - RUNTIME",
+            "value": 9.925756454467773,
+            "unit": "s",
+            "range": 0.29191234707832336
+          },
+          {
+            "name": "reshape_cpu_N4 - RUNTIME",
+            "value": 1.3343473672866821,
+            "unit": "s",
+            "range": 0.0658719390630722
           }
         ]
       }
