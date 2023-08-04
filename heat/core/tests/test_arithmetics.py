@@ -425,6 +425,34 @@ class TestArithmetics(TestCase):
                     where=ht.array([[True, False], [False, True]], split=1),
                 )
 
+    def test_divmod(self):
+        # basic tests as floor_device and mod are tested separately
+        result = (
+            ht.array(
+                [
+                    [
+                        0.0,
+                        1.0,
+                    ],
+                    [1.0, 2.0],
+                ]
+            ),
+            ht.array([[1.0, 0.0], [1.0, 0.0]]),
+        )
+        dm = ht.divmod(self.a_tensor, self.a_scalar)
+
+        self.assertIsInstance(dm, tuple)
+        self.assertTrue(ht.equal(ht.divmod(self.a_tensor, self.a_scalar)[0], result[0]))
+        self.assertTrue(ht.equal(ht.divmod(self.a_tensor, self.a_scalar)[1], result[1]))
+
+        result = (ht.array([1.0, 1.0]), ht.array([0.0, 0.0]))
+        dm = divmod(self.a_scalar, self.a_vector)
+        self.assertTrue(ht.equal(dm[0], result[0]))
+        self.assertTrue(ht.equal(dm[1], result[1]))
+
+        with self.assertRaises(TypeError):
+            divmod(self.another_tensor, self.erroneous_type)
+
     def test_fmod(self):
         result = ht.array([[1.0, 0.0], [1.0, 0.0]])
         an_int_tensor = ht.array([[5, 3], [4, 1]])

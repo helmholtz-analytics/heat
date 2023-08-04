@@ -36,6 +36,7 @@ __all__ = [
     "cumsum",
     "diff",
     "div",
+    "divmod",
     "divide",
     "floordiv",
     "floor_divide",
@@ -91,9 +92,16 @@ def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(torch.add, t1, t2)
 
 
-DNDarray.__add__ = lambda self, other: add(self, other)
+def _add(self, other):
+    try:
+        return add(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__add__ = _add
 DNDarray.__add__.__doc__ = add.__doc__
-DNDarray.__radd__ = lambda self, other: add(self, other)
+DNDarray.__radd__ = lambda self, other: _add(other, self)
 DNDarray.__radd__.__doc__ = add.__doc__
 
 
@@ -134,7 +142,16 @@ def bitwise_and(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
     return _operations.__binary_op(torch.bitwise_and, t1, t2)
 
 
-DNDarray.__and__ = lambda self, other: bitwise_and(self, other)
+def _and(self, other):
+    try:
+        return bitwise_and(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__and__ = _and
+DNDarray.__and__.__doc__ = bitwise_and.__doc__
+DNDarray.__and__ = lambda self, other: _and(other, self)
 DNDarray.__and__.__doc__ = bitwise_and.__doc__
 
 
@@ -178,7 +195,16 @@ def bitwise_or(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarr
     return _operations.__binary_op(torch.bitwise_or, t1, t2)
 
 
-DNDarray.__or__ = lambda self, other: bitwise_or(self, other)
+def _or(self, other):
+    try:
+        return bitwise_or(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__or__ = _or
+DNDarray.__or__.__doc__ = bitwise_or.__doc__
+DNDarray.__or__ = lambda self, other: _or(other, self)
 DNDarray.__or__.__doc__ = bitwise_or.__doc__
 
 
@@ -217,7 +243,16 @@ def bitwise_xor(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
     return _operations.__binary_op(torch.bitwise_xor, t1, t2)
 
 
-DNDarray.__xor__ = lambda self, other: bitwise_xor(self, other)
+def _xor(self, other):
+    try:
+        return bitwise_xor(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__xor__ = _xor
+DNDarray.__xor__.__doc__ = bitwise_xor.__doc__
+DNDarray.__xor__ = lambda self, other: _xor(other, self)
 DNDarray.__xor__.__doc__ = bitwise_xor.__doc__
 
 
@@ -468,14 +503,66 @@ def div(
     return _operations.__binary_op(torch.true_divide, t1, t2, out, where)
 
 
-DNDarray.__truediv__ = lambda self, other: div(self, other)
+def _truediv(self, other):
+    try:
+        return div(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__truediv__ = _truediv
 DNDarray.__truediv__.__doc__ = div.__doc__
-DNDarray.__rtruediv__ = lambda self, other: div(other, self)
+DNDarray.__rtruediv__ = lambda self, other: _truediv(other, self)
 DNDarray.__rtruediv__.__doc__ = div.__doc__
 
 # Alias in compliance with numpy API
 divide = div
 """Alias for :py:func:`div`"""
+
+
+def divmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> Tuple[DNDarray, DNDarray]:
+    """
+    Element-wise division remainder and quotient from an integer division of values of operand ``t1`` by values of operand ``t2`` (i.e. C Library function divmod).
+    Result has the sign as the dividend ``t1``. Operation is not commutative.
+
+    Parameters
+    ----------
+    t1: DNDarray or scalar
+        The first operand whose values are divided (may be floats)
+    t2: DNDarray or scalar
+        The second operand by whose values is divided (may be floats)
+
+    Examples
+    --------
+    >>> ht.divmod(2.0, 2.0)
+    (DNDarray([1.], dtype=ht.float32, device=cpu:0, split=None), DNDarray([0.], dtype=ht.float32, device=cpu:0, split=None))
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.divmod(T1, T2)
+    (DNDarray([[0., 1.],
+               [1., 2.]], dtype=ht.float32, device=cpu:0, split=None), DNDarray([[1., 0.],
+               [1., 0.]], dtype=ht.float32, device=cpu:0, split=None))
+    >>> s = 2.0
+    >>> ht.divmod(s, T1)
+    (DNDarray([[2., 1.],
+               [0., 0.]], dtype=ht.float32, device=cpu:0, split=None), DNDarray([[0., 0.],
+               [2., 2.]], dtype=ht.float32, device=cpu:0, split=None))
+    """
+    # PyTorch has no divmod function
+    return (floordiv(t1, t2), mod(t1, t2))
+
+
+def _divmod(self, other):
+    try:
+        return divmod(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__divmod__ = _divmod
+DNDarray.__divmod__.__doc__ = divmod.__doc__
+DNDarray.__rdivmod__ = lambda self, other: _divmod(other, self)
+DNDarray.__rdivmod__.__doc__ = divmod.__doc__
 
 
 def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
@@ -532,9 +619,16 @@ def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray
     return _operations.__binary_op(torch.div, t1, t2, fn_kwargs={"rounding_mode": "floor"})
 
 
-DNDarray.__floordiv__ = lambda self, other: floordiv(self, other)
+def _floordiv(self, other):
+    try:
+        return floordiv(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__floordiv__ = _floordiv
 DNDarray.__floordiv__.__doc__ = floordiv.__doc__
-DNDarray.__rfloordiv__ = lambda self, other: floordiv(other, self)
+DNDarray.__rfloordiv__ = lambda self, other: _floordiv(other, self)
 DNDarray.__rfloordiv__.__doc__ = floordiv.__doc__
 
 # Alias in compliance with numpy API
@@ -604,7 +698,16 @@ def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
 
 
-DNDarray.__lshift__ = lambda self, other: left_shift(self, other)
+def _lshift(self, other):
+    try:
+        return left_shift(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__lshift__ = _lshift
+DNDarray.__lshift__.__doc__ = left_shift.__doc__
+DNDarray.__lshift__ = lambda self, other: _lshift(other, self)
 DNDarray.__lshift__.__doc__ = left_shift.__doc__
 
 
@@ -638,9 +741,16 @@ def mod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     return remainder(t1, t2)
 
 
-DNDarray.__mod__ = lambda self, other: mod(self, other)
+def _mod(self, other):
+    try:
+        return mod(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__mod__ = _mod
 DNDarray.__mod__.__doc__ = mod.__doc__
-DNDarray.__rmod__ = lambda self, other: mod(other, self)
+DNDarray.__rmod__ = lambda self, other: _mod(other, self)
 DNDarray.__rmod__.__doc__ = mod.__doc__
 
 
@@ -678,9 +788,16 @@ def mul(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(torch.mul, t1, t2)
 
 
-DNDarray.__mul__ = lambda self, other: mul(self, other)
+def _mul(self, other):
+    try:
+        return mul(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__mul__ = _mul
 DNDarray.__mul__.__doc__ = mul.__doc__
-DNDarray.__rmul__ = lambda self, other: mul(self, other)
+DNDarray.__rmul__ = lambda self, other: _mul(other, self)
 DNDarray.__rmul__.__doc__ = mul.__doc__
 
 # Alias in compliance with numpy API
@@ -822,9 +939,16 @@ def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(torch.pow, t1, t2)
 
 
-DNDarray.__pow__ = lambda self, other: pow(self, other)
+def _pow(self, other):
+    try:
+        return pow(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__pow__ = _pow
 DNDarray.__pow__.__doc__ = pow.__doc__
-DNDarray.__rpow__ = lambda self, other: pow(other, self)
+DNDarray.__rpow__ = lambda self, other: _pow(other, self)
 DNDarray.__rpow__.__doc__ = pow.__doc__
 
 
@@ -889,8 +1013,17 @@ def right_shift(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
     return _operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
 
 
-DNDarray.__rshift__ = lambda self, other: right_shift(self, other)
+def _rshift(self, other):
+    try:
+        return right_shift(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__rshift__ = _rshift
 DNDarray.__rshift__.__doc__ = right_shift.__doc__
+DNDarray.__rrshift__ = lambda self, other: _rshift(other, self)
+DNDarray.__rrshift__.__doc__ = right_shift.__doc__
 
 
 def prod(
@@ -970,9 +1103,16 @@ def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(torch.sub, t1, t2)
 
 
-DNDarray.__sub__ = lambda self, other: sub(self, other)
+def _sub(self, other):
+    try:
+        return sub(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__sub__ = _sub
 DNDarray.__sub__.__doc__ = sub.__doc__
-DNDarray.__rsub__ = lambda self, other: sub(other, self)
+DNDarray.__rsub__ = lambda self, other: _sub(other, self)
 DNDarray.__rsub__.__doc__ = sub.__doc__
 
 
