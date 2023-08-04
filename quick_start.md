@@ -67,9 +67,9 @@ Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
 
 ## New Contributors
 
-1. Pick an Issue you'd like to work on. Check out [Good First Issues](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22), start from most recent.
+1. Pick an Issue you'd like to work on. Check out [Good First Issues](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22), start from most recent. Feel free to assign to yourself.
 
-2. **NEW!** As soon as an issue is assigned to a contributor, a new branch will be created (a comment will be posted under the relevant issue). Do use this branch to make your changes, it has been checked out from the correct base branch (i.e. `main` for new features, `release/*` for bug fixes).
+2. **IMPORTANT:** As soon as an issue is assigned, a new branch will be created (a comment will be posted under the relevant issue). Do use this branch to make your changes, it has been checked out from the correct base branch (i.e. `main` for new features, `release/*` for bug fixes).
 
 3. [Fork](https://docs.github.com/en/get-started/quickstart/contributing-to-projects) or, if you have write access, clone the [Heat repository](https://github.com/helmholtz-analytics/heat).
 
