@@ -677,7 +677,7 @@ class TestDNDarray(TestCase):
         self.assertTrue(y.split == 0)
 
         # ADVANCED INDEXING
-        # "x[(1, 2, 3),] is fundamentally different than x[(1, 2, 3)]"
+        # "x[(1, 2, 3),] is fundamentally different from x[(1, 2, 3)]"
 
         x_np = np.arange(60).reshape(5, 3, 4)
         indexed_x_np = x_np[(1, 2, 3)]
@@ -704,7 +704,23 @@ class TestDNDarray(TestCase):
         self.assert_array_equal(
             x[ht.array(k1, split=0), ht.array(k2, split=0), ht.array(k3, split=0)], x_np[k1, k2, k3]
         )
+        # advanced indexing on non-consecutive dimensions
+        x = ht.arange(60, split=0).reshape(5, 3, 4, new_split=1)
+        x_copy = x.copy()
+        x_np = np.arange(60).reshape(5, 3, 4)
+        k1 = np.array([0, 4, 1, 0])
+        k2 = 0
+        k3 = np.array([1, 2, 3, 1])
+        key = (k1, k2, k3)
+        self.assert_array_equal(x[key], x_np[key])
+        # check that x is unchanged after internal manipulation
+        self.assertTrue(x.shape == x_copy.shape)
+        self.assertTrue(x.split == x_copy.split)
+        self.assertTrue(x.lshape == x_copy.lshape)
+        self.assertTrue((x == x_copy).all().item())
+
         # broadcasting shapes
+        x.resplit_(axis=0)
         self.assert_array_equal(x[ht.array(k1, split=0), ht.array(1), 2], x_np[k1, 1, 2])
         # test exception: broadcasting mismatching shapes
         k2 = np.array([0, 2, 1])
