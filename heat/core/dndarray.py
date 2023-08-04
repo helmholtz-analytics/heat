@@ -1075,15 +1075,12 @@ class DNDarray:
                 # advanced indexing across dimensions
                 if getattr(k, "ndim", 1) == 0:
                     # single-element indexing along axis i
-                    output_shape[i] = None
-                    split_bookkeeping = (
-                        split_bookkeeping[: i - lose_dims] + split_bookkeeping[i - lose_dims + 1 :]
-                    )
+                    output_shape[i], split_bookkeeping[i] = None, None
                     lose_dims += 1
                     if arr_is_distributed and i == arr.split:
                         # single-element indexing along split axis
                         # work out root process for Bcast
-                        key[i] = k.item() + arr.shape[i] if k < 0 else k.item()
+                        key[i] = k.item() + arr.shape[i] if k.item() < 0 else k.item()
                         if key[i] in displs:
                             root = displs.index(key[i])
                         else:
@@ -1131,10 +1128,7 @@ class DNDarray:
                                 split_key_is_sorted = 0
             elif isinstance(k, int):
                 # single-element indexing along axis i
-                output_shape[i] = None
-                split_bookkeeping = (
-                    split_bookkeeping[: i - lose_dims] + split_bookkeeping[i - lose_dims + 1 :]
-                )
+                output_shape[i], split_bookkeeping[i] = None, None
                 lose_dims += 1
                 if arr_is_distributed and i == arr.split:
                     # single-element indexing along split axis
@@ -1255,11 +1249,9 @@ class DNDarray:
                     .tolist()
                 )
                 # output shape and split bookkeeping
-                output_shape = list(arr.gshape)
+                output_shape = list(output_shape[i] for i in transpose_axes)
                 output_shape[: len(advanced_indexing_dims)] = broadcasted_shape
-                split_bookkeeping = [None] * arr.ndim
-                if arr_is_distributed:
-                    split_bookkeeping[arr.split] = "split"
+                split_bookkeeping = list(split_bookkeeping[i] for i in transpose_axes)
                 split_bookkeeping = [None] * add_dims + split_bookkeeping
                 # modify key to match the new dimension order
                 key = [key[i] for i in advanced_indexing_dims] + [key[i] for i in non_adv_ind_dims]
@@ -1272,7 +1264,9 @@ class DNDarray:
 
         key = tuple(key)
         for i in range(output_shape.count(None)):
+            lost_dim = output_shape.index(None)
             output_shape.remove(None)
+            split_bookkeeping = split_bookkeeping[:lost_dim] + split_bookkeeping[lost_dim + 1 :]
         output_shape = tuple(output_shape)
         new_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
         print(
