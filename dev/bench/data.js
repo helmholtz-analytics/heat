@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1690204504606,
+  "lastUpdate": 1691141054250,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -1500,6 +1500,90 @@ window.BENCHMARK_DATA = {
             "value": 1.2957892417907715,
             "unit": "s",
             "range": 0.036403100937604904
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "39374113+ClaudiaComito@users.noreply.github.com",
+            "name": "Claudia Comito",
+            "username": "ClaudiaComito"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1524a761015ae169f94794d5719e171e8dccf7b3",
+          "message": "Merge latest 1.3.x updates into `main` (#1188)\n\n* update version to 1.3.0\r\n\r\n* Create .readthedocs.yaml (#1187)\r\n\r\n* Update heat/core/version.py\r\n\r\n---------\r\n\r\nCo-authored-by: Michael Tarnawa <m.tarnawa@fz-juelich.de>",
+          "timestamp": "2023-08-04T11:08:35+02:00",
+          "tree_id": "2113f1a6014b646b469f02f2a21004ec1eb5ab5d",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/1524a761015ae169f94794d5719e171e8dccf7b3"
+        },
+        "date": 1691141052930,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "hierachical_svd_rank_N4 - RUNTIME",
+            "value": 0.26202335953712463,
+            "unit": "s",
+            "range": 0.024828922003507614
+          },
+          {
+            "name": "hierachical_svd_tol_N4 - RUNTIME",
+            "value": 0.3398238718509674,
+            "unit": "s",
+            "range": 0.04830550774931908
+          },
+          {
+            "name": "kmeans_cpu_N4 - RUNTIME",
+            "value": 2.0454630851745605,
+            "unit": "s",
+            "range": 0.10846072435379028
+          },
+          {
+            "name": "kmedians_cpu_N4 - RUNTIME",
+            "value": 6.077889442443848,
+            "unit": "s",
+            "range": 3.951051950454712
+          },
+          {
+            "name": "kmedoids_cpu_N4 - RUNTIME",
+            "value": 5.871243476867676,
+            "unit": "s",
+            "range": 1.0575283765792847
+          },
+          {
+            "name": "lanczos_cpu_N4 - RUNTIME",
+            "value": 41.26012420654297,
+            "unit": "s",
+            "range": 1.60458505153656
+          },
+          {
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
+            "value": 1.152302861213684,
+            "unit": "s",
+            "range": 0.04583846777677536
+          },
+          {
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "value": 1.1569578647613525,
+            "unit": "s",
+            "range": 0.06399905681610107
+          },
+          {
+            "name": "qr_cpu_N4 - RUNTIME",
+            "value": 9.02987289428711,
+            "unit": "s",
+            "range": 0.5764942765235901
+          },
+          {
+            "name": "reshape_cpu_N4 - RUNTIME",
+            "value": 1.3018343448638916,
+            "unit": "s",
+            "range": 0.061232734471559525
           }
         ]
       }
