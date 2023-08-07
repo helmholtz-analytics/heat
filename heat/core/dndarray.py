@@ -156,6 +156,7 @@ class DNDarray:
         -----------
         Please use this function with care, as it might corrupt/invalidate the metadata in the ``DNDarray`` instance.
         """
+        print("DEBUGGING: larray setter")
         # sanitize tensor input
         sanitation.sanitize_in_tensor(array)
         # verify consistency of tensor shape with global DNDarray
@@ -1288,6 +1289,49 @@ class DNDarray:
             backwards_transpose_axes,
         )
 
+    def __process_scalar_key(
+        arr: DNDarray, key: Union[int, DNDarray, torch.Tensor, np.ndarray]
+    ) -> Tuple(int, int):
+        """
+        Private method to process a single-item scalar key used for indexing a ``DNDarray``.
+
+        """
+        device = arr.larray.device
+        try:
+            # is key an ndarray or DNDarray?
+            key = key.copy().item()
+        except AttributeError:
+            try:
+                # is key a torch tensor?
+                key = key.clone().item()
+            except AttributeError:
+                # key is already an integer, do nothing
+                pass
+        if arr.is_distributed() and arr.split == 0:
+            # adjust negative key
+            if key < 0:
+                key += arr.shape[0]
+            # work out active process
+            _, displs = arr.counts_displs()
+            if key in displs:
+                root = displs.index(key)
+            else:
+                displs = torch.cat(
+                    (
+                        torch.tensor(displs, device=device),
+                        torch.tensor(key, device=device).reshape(-1),
+                    ),
+                    dim=0,
+                )
+                _, sorted_indices = displs.unique(sorted=True, return_inverse=True)
+                root = sorted_indices[-1] - 1
+            # correct key for rank-specific displacement
+            if arr.comm.rank == root:
+                key -= displs[root]
+        else:
+            root = None
+        return key, root
+
     def __get_local_slice(self, key: slice):
         split = self.split
         if split is None:
@@ -1357,17 +1401,8 @@ class DNDarray:
         scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
         if scalar:
             output_shape = self.gshape[1:]
-            try:
-                # is key an ndarray or DNDarray?
-                key = key.copy().item()
-            except AttributeError:
-                try:
-                    # is key a torch tensor?
-                    key = key.clone().item()
-                except AttributeError:
-                    # key is already an integer, do nothing
-                    pass
-            if not self.is_distributed() or original_split != 0:
+            key, root = self.__process_scalar_key(key)
+            if root is None:
                 # single-element indexing along non-split axis
                 indexed_arr = self.larray[key]
                 output_split = (
@@ -1383,21 +1418,9 @@ class DNDarray:
                     balanced=self.balanced,
                 )
                 return indexed_arr
-            # single-element indexing along split axis:
-            # check for negative key
-            key = key + self.shape[0] if key < 0 else key
-            # identify root process
-            _, displs = self.counts_displs()
-            if key in displs:
-                root = displs.index(key)
-            else:
-                displs = torch.cat((torch.tensor(displs), torch.tensor(key).reshape(-1)), dim=0)
-                _, sorted_indices = displs.unique(sorted=True, return_inverse=True)
-                root = sorted_indices[-1] - 1
-            # allocate buffer on all processes
+            # root is not None: single-element indexing along split axis
+            # prepare for Bcast: allocate buffer on all processes
             if self.comm.rank == root:
-                # correct key for rank-specific displacement
-                key -= displs[root]
                 indexed_arr = self.larray[key]
             else:
                 indexed_arr = torch.zeros(
@@ -2240,8 +2263,13 @@ class DNDarray:
             """
             Setter for not advanced indexing, i.e. when arr[key] is an in-place view of arr.
             """
-            if not isinstance(value, DNDarray):
-                value = factories.array(value, device=arr.device, comm=arr.comm)
+            value_split = value.split if isinstance(value, DNDarray) else None
+            try:
+                value = factories.array(
+                    value, dtype=arr.dtype, split=value_split, device=arr.device, comm=arr.comm
+                )
+            except TypeError:
+                raise TypeError(f"Cannot assign object of type {type(value)} to DNDarray.")
             while value.ndim < arr.ndim:  # broadcasting
                 value = value.expand_dims(0)
             sanitation.sanitize_out(arr, value.shape, value.split, value.device, value.comm)
@@ -2252,7 +2280,28 @@ class DNDarray:
         if key is None or key == ... or key == slice(None):
             return __set(self, value)
 
-        self, key, output_shape, output_split, advanced_indexing = self.__process_key(key)
+        # scalar key
+        scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
+        if scalar:
+            key, root = self.__process_scalar_key(key)
+            if root is not None:
+                if self.comm.rank == root:
+                    self.larray[key] = value.larray
+            else:
+                self.larray[key] = value.larray
+            return
+
+        (
+            self,
+            key,
+            output_shape,
+            output_split,
+            split_key_is_sorted,
+            out_is_balanced,
+            root,
+            backwards_transpose_axes,
+        ) = self.__process_key(key)
+
         # if advanced_indexing:
         #     raise Exception("Advanced indexing is not supported yet")
 
