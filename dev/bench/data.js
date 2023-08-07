@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691154437501,
+  "lastUpdate": 1691397090905,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -1668,6 +1668,90 @@ window.BENCHMARK_DATA = {
             "value": 1.3343473672866821,
             "unit": "s",
             "range": 0.0658719390630722
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "juanpedroghm@gmail.com",
+            "name": "JuanPedroGHM",
+            "username": "JuanPedroGHM"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7482f14dca5574d054b3eba47070c33e49f6ad74",
+          "message": "FAIR-RS and best practice badges (#1143)\n\n* ci: fair software workflow\r\n\r\n* Update README.md: added FAIR badge as required by FAIR action\r\n\r\n* Update README.md: added zenodo/doi badge\r\n\r\n* Update README.md: corrected zenodo/doi badge to all-version-doi\r\n\r\n* Update README.md: added pypi badge\r\n\r\n* Update README.md: correction\r\n\r\n* Trigger workflow\r\n\r\n* [pre-commit.ci] auto fixes from pre-commit.com hooks\r\n\r\nfor more information, see https://pre-commit.ci\r\n\r\n* Add OpenSSF Best Practices badge\r\n\r\n* docs: rearrange badges by color, removed fair-software action\r\n\r\n* reorganize / relabel badges\r\n\r\n* [pre-commit.ci] auto fixes from pre-commit.com hooks\r\n\r\nfor more information, see https://pre-commit.ci\r\n\r\n* Update README.md\r\n\r\n* [pre-commit.ci] auto fixes from pre-commit.com hooks\r\n\r\nfor more information, see https://pre-commit.ci\r\n\r\n* Test - Update README.md\r\n\r\n* Update README.md\r\n\r\n---------\r\n\r\nCo-authored-by: Fabian Hoppe <112093564+mrfh92@users.noreply.github.com>\r\nCo-authored-by: Claudia Comito <39374113+ClaudiaComito@users.noreply.github.com>\r\nCo-authored-by: pre-commit-ci[bot] <66853113+pre-commit-ci[bot]@users.noreply.github.com>",
+          "timestamp": "2023-08-07T10:16:57+02:00",
+          "tree_id": "595ced4f79fad949f12a565566f52ea727a96b70",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/7482f14dca5574d054b3eba47070c33e49f6ad74"
+        },
+        "date": 1691397089780,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "hierachical_svd_rank_N4 - RUNTIME",
+            "value": 0.21091003715991974,
+            "unit": "s",
+            "range": 0.014791554771363735
+          },
+          {
+            "name": "hierachical_svd_tol_N4 - RUNTIME",
+            "value": 0.292398065328598,
+            "unit": "s",
+            "range": 0.04492587968707085
+          },
+          {
+            "name": "kmeans_cpu_N4 - RUNTIME",
+            "value": 1.3392932415008545,
+            "unit": "s",
+            "range": 0.09163504093885422
+          },
+          {
+            "name": "kmedians_cpu_N4 - RUNTIME",
+            "value": 5.540284156799316,
+            "unit": "s",
+            "range": 4.387272357940674
+          },
+          {
+            "name": "kmedoids_cpu_N4 - RUNTIME",
+            "value": 5.125346660614014,
+            "unit": "s",
+            "range": 0.9564374685287476
+          },
+          {
+            "name": "lanczos_cpu_N4 - RUNTIME",
+            "value": 41.636573791503906,
+            "unit": "s",
+            "range": 0.7615768909454346
+          },
+          {
+            "name": "matmul_cpu_split_0_N4 - RUNTIME",
+            "value": 0.8575516939163208,
+            "unit": "s",
+            "range": 0.07045251131057739
+          },
+          {
+            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "value": 0.8904763460159302,
+            "unit": "s",
+            "range": 0.05301974341273308
+          },
+          {
+            "name": "qr_cpu_N4 - RUNTIME",
+            "value": 6.388546466827393,
+            "unit": "s",
+            "range": 0.8297274112701416
+          },
+          {
+            "name": "reshape_cpu_N4 - RUNTIME",
+            "value": 1.164061188697815,
+            "unit": "s",
+            "range": 0.06034034118056297
           }
         ]
       }
