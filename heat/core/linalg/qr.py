@@ -76,17 +76,15 @@ def qr(
         raise TypeError("'a' must be a DNDarray")
     if not isinstance(tiles_per_proc, (int, torch.Tensor)):
         raise TypeError(
-            "tiles_per_proc must be an int or a torch.Tensor, "
-            "currently {}".format(type(tiles_per_proc))
+            f"tiles_per_proc must be an int or a torch.Tensor, currently {type(tiles_per_proc)}"
         )
     if not isinstance(calc_q, bool):
-        raise TypeError("calc_q must be a bool, currently {}".format(type(calc_q)))
+        raise TypeError(f"calc_q must be a bool, currently {type(calc_q)}")
     if not isinstance(overwrite_a, bool):
-        raise TypeError("overwrite_a must be a bool, currently {}".format(type(overwrite_a)))
+        raise TypeError(f"overwrite_a must be a bool, currently {type(overwrite_a)}")
     if isinstance(tiles_per_proc, torch.Tensor):
         raise ValueError(
-            "tiles_per_proc must be a single element torch.Tenor or int, "
-            "currently has {} entries".format(tiles_per_proc.numel())
+            f"tiles_per_proc must be a single element torch.Tenor or int, currently has {tiles_per_proc.numel()} entries"
         )
     if len(a.shape) != 2:
         raise ValueError("Array 'a' must be 2 dimensional")
@@ -99,8 +97,8 @@ def qr(
         except AttributeError:
             q, r = a.larray.qr(some=False)
 
-        q = factories.array(q, device=a.device)
-        r = factories.array(r, device=a.device)
+        q = factories.array(q, device=a.device, comm=a.comm)
+        r = factories.array(r, device=a.device, comm=a.comm)
         ret = QR(q if calc_q else None, r)
         return ret
     # =============================== Prep work ====================================================
@@ -251,10 +249,7 @@ def __split0_global_q_dict_set(
         bottom_left = lp_q[base_size[0] :, : base_size[0]]
         bottom_right = lp_q[base_size[0] :, base_size[0] :]
         # need to adjust the keys to be the global row
-        if diag_proc == r0:
-            col1 = col
-        else:
-            col1 = proc_tile_start[r0].item()
+        col1 = col if diag_proc == r0 else proc_tile_start[r0].item()
         col2 = proc_tile_start[r1].item()
         # col0 and col1 are the columns numbers
         # r0 and r1 are the ranks
@@ -371,7 +366,7 @@ def __split0_r_calc(
     rem2 = None
     offset = not_completed_prs[0]
     loop_size_remaining = not_completed_prs.clone()
-    completed = False if loop_size_remaining.size()[0] > 1 else True
+    completed = bool(loop_size_remaining.size()[0] <= 1)
     procs_remaining = loop_size_remaining.size()[0]
     loop = 0
     while not completed:
@@ -386,10 +381,7 @@ def __split0_r_calc(
         if rank not in loop_size_remaining and rank not in [rem1, rem2]:
             break  # if the rank is done then exit the loop
         # send the data to the corresponding processes
-        try:
-            half_prs_rem = torch.div(procs_remaining, 2, rounding_mode="floor")
-        except TypeError:  # torch 1.7 version
-            half_prs_rem = torch.floor_divide(procs_remaining, 2)
+        half_prs_rem = torch.div(procs_remaining, 2, rounding_mode="floor")
 
         zipped = zip(
             loop_size_remaining.flatten()[:half_prs_rem],

@@ -1,0 +1,16 @@
+name: Create branch on assignment
+
+on:
+  # The issues event below is only needed for the default (auto) mode,
+  # you can remove it otherwise
+  issues:
+    types: [ assigned ]
+
+jobs:
+  create_issue_branch_job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Issue Branch
+        uses: robvanderleek/create-issue-branch@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

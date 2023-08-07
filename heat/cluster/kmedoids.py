@@ -94,11 +94,11 @@ class KMedoids(_KCluster):
             else:
                 if clean.shape[0] <= ht.MPI_WORLD.size:
                     clean.resplit_(axis=None)
-                median = ht.median(clean, axis=0, keepdim=True)
+                median = ht.median(clean, axis=0, keepdims=True)
 
                 dist = self._metric(x, median)
                 _, displ, _ = x.comm.counts_displs_shape(shape=x.shape, axis=0)
-                idx = dist.argmin(axis=0, keepdim=False).item()
+                idx = dist.argmin(axis=0, keepdims=False).item()
                 proc = 0
                 for p in range(x.comm.size):
                     if displ[p] > idx:
@@ -124,7 +124,7 @@ class KMedoids(_KCluster):
         """
         # input sanitation
         if not isinstance(x, DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
+            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
 
         # initialize the clustering
         self._initialize_cluster_centers(x)
