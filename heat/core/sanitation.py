@@ -288,23 +288,31 @@ def sanitize_out(
     if not isinstance(out, DNDarray):
         raise TypeError(f"expected `out` to be None or a DNDarray, but was {type(out)}")
 
-    out_proxy = out.__torch_proxy__()
-    out_proxy.names = [
-        "split" if (out.split is not None and i == out.split) else f"_{i}"
-        for i in range(out_proxy.ndim)
-    ]
-    out_proxy = out_proxy.squeeze()
+    if len(output_shape) == 0:
+        # 0-dimensional arrays don't need so many checks
+        if len(out.shape) != 0:
+            raise ValueError(f"Expecting output buffer of shape {output_shape}, got {out.shape}")
+        # 0-dimensional arrays cannot be split
+        count_split = 0
+    else:
+        out_proxy = out.__torch_proxy__()
+        out_proxy.names = [
+            "split" if (out.split is not None and i == out.split) else f"_{i}"
+            for i in range(out_proxy.ndim)
+        ]
+        out_proxy = out_proxy.squeeze()
 
-    check_proxy = torch.ones(1).expand(output_shape)
-    check_proxy.names = [
-        "split" if (output_split is not None and i == output_split) else f"_{i}"
-        for i in range(check_proxy.ndim)
-    ]
-    check_proxy = check_proxy.squeeze()
+        check_proxy = torch.ones(1).expand(output_shape)
+        check_proxy.names = [
+            "split" if (output_split is not None and i == output_split) else f"_{i}"
+            for i in range(check_proxy.ndim)
+        ]
+        check_proxy = check_proxy.squeeze()
 
-    if out_proxy.shape != check_proxy.shape:
-        raise ValueError(f"Expecting output buffer of shape {output_shape}, got {out.shape}")
-    count_split = int(out.split is not None) + int(output_split is not None)
+        if out_proxy.shape != check_proxy.shape:
+            raise ValueError(f"Expecting output buffer of shape {output_shape}, got {out.shape}")
+        count_split = int(out.split is not None) + int(output_split is not None)
+
     if count_split == 1:
         raise ValueError(
             "Split axis of output buffer is inconsistent with split semantics for this operation."
@@ -326,6 +334,7 @@ def sanitize_out(
                 raise ValueError(
                     "Split axis of output buffer is inconsistent with split semantics for this operation."
                 )
+
     if out.device != output_device:
         raise ValueError(f"Device mismatch: out is on {out.device}, should be on {output_device}")
     if output_comm is not None and out.comm != output_comm:
