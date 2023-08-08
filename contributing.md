@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Heat, we really appreciate your t
  * To set up your environment for Heat development, follow these [instructions](README.md#Hacking).
  * We strongly recommend getting in touch with the core developers, either here on GitHub (by filing and/or commenting on an Issue) or on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo), before starting to work on a contribution. We are a small team and it's good to know who is currently working on what.
  * Our git workflow is described in a lot of detail [below](#developing-contributions).
- * **TL;DR for experts:**
+ * **TL;DR for experts:** (Also check out [Quick Start](quick_start.md#new-contributors))
  1. `git add`, `pre-commit run --all-files` and `git commit` as needed;
  2. `git rebase -i main` to rebase and tidy up your commits;
  3. `git push` to publish to the remote repository.
@@ -66,11 +66,7 @@ also install the pre-commit hook with
 pre-commit install
 ````
 
-* Create a branch for the feature you want to work on. Since the branch name will appear in the merge message, use a sensible name. The naming scheme is as follows `<KIND-OF-CONTRIBUTION/<ISSUE-NR>-<NAME>`, where the kind of the contribution should be *features* for an entirely new feature, *bug* for, well, a bug and *enhancement* for things like performance optimizations for example. Please make sure that *NAME* very briefly summarizes the content of your contribution.
-
-```
-git checkout -b features/123-boolean-operators
-```
+* **NEW** As of Aug 2023, as soon as an issue is assigned, a branch is created and its name posted in a comment under the original issue. **Do adopt this branch** for your development, it is guaranteed to have the correct source branch - `release/...` for bug fixes, `main` for new features, docs updates etc.
 
 * Commit locally as you progress:
 
