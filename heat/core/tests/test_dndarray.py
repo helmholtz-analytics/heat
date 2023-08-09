@@ -684,8 +684,8 @@ class TestDNDarray(TestCase):
         adv_indexed_x_np = x_np[(1, 2, 3),]
         x = ht.array(x_np, split=0)
         indexed_x = x[(1, 2, 3)]
-        adv_indexed_x = x[(1, 2, 3),]
         self.assertTrue(indexed_x.item() == np.array(indexed_x_np))
+        adv_indexed_x = x[(1, 2, 3),]
         self.assert_array_equal(adv_indexed_x, adv_indexed_x_np)
 
         # 1d
