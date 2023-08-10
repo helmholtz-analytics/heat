@@ -779,6 +779,7 @@ class DNDarray:
         arr: DNDarray,
         key: Union[Tuple[int, ...], List[int, ...]],
         return_local_indices: Optional[bool] = False,
+        op: Optional[str] = None,
     ) -> Tuple:
         """
         Private method to process the key used for indexing a ``DNDarray`` so that it can be applied to the process-local data, i.e. `key` must be "torch-proof".
@@ -796,6 +797,8 @@ class DNDarray:
             The key used for indexing
         return_local_indices : bool, optional
             Whether to return the process-local indices of the key in the split dimension. This is only possible when the indexing key in the split dimension is ordered e.g. `split_key_is_ordered == 1`. Default: False
+        op : str, optional
+            The indexing operation that the key is being processed for. Get be "get" for `__getitem__` or "set" for `__setitem__`. Default: "get".
 
         Returns
         -------
@@ -1146,18 +1149,29 @@ class DNDarray:
                 if step is None:
                     step = 1
                 if step < 0 and start > stop:
+                    print("TEST LOCAL SLICE: ", arr.__get_local_slice(k))
                     # PyTorch doesn't support negative step as of 1.13
                     # Lazy solution, potentially large memory footprint
                     # TODO: implement ht.fromiter (implemented in ASSET_ht)
-                    key[i] = list(range(start, stop, step))
+                    key[i] = torch.tensor(list(range(start, stop, step)), device=arr.larray.device)
                     output_shape[i] = len(key[i])
+                    split_key_is_ordered = -1
                     if arr_is_distributed and new_split == i:
-                        # distribute key and proceed with non-ordered indexing
-                        key[i] = factories.array(
-                            key[i], split=0, device=arr.device, copy=False
-                        ).larray
-                        split_key_is_ordered = -1
-                        out_is_balanced = True
+                        if op == "set":
+                            # setitem: flip key and keep process-local indices
+                            key[i] = key[i].flip(0)
+                            cond1 = key[i] >= displs[arr.comm.rank]
+                            cond2 = key[i] < displs[arr.comm.rank] + counts[arr.comm.rank]
+                            key[i] = key[i][cond1 & cond2]
+                            if return_local_indices:
+                                key[i] -= displs[arr.comm.rank]
+                        else:
+                            # getitem: distribute key and proceed with non-ordered indexing
+                            key[i] = factories.array(
+                                key[i], split=0, device=arr.device, copy=False
+                            ).larray
+                            print("DEBUGGING: key[i] = ", key[i])
+                            out_is_balanced = True
                 elif step > 0 and start < stop:
                     output_shape[i] = int(torch.tensor((stop - start) / step).ceil().item())
                     if arr_is_distributed and new_split == i:
@@ -1668,15 +1682,13 @@ class DNDarray:
             incoming_request_key -= displs[self.comm.rank]
             incoming_request_key = (
                 key[:original_split]
-                + (incoming_request_key.squeeze_(1).tolist(),)
+                + (incoming_request_key.squeeze_(1),)
                 + key[original_split + 1 :]
             )
 
         print("AFTER: incoming_request_key = ", incoming_request_key)
-        # print("OUTPUT_SHAPE = ", output_shape)
-        # print("OUTPUT_SPLIT = ", output_split)
-
-        send_buf = self.larray[incoming_request_key]
+        print("original_split = ", original_split)
+        # calculate shape of local recv buffer
         output_lshape = list(output_shape)
         if getattr(key, "ndim", 0) == 1:
             output_lshape[output_split] = key.shape[0]
@@ -1684,18 +1696,64 @@ class DNDarray:
             if broadcasted_indexing:
                 output_lshape = (
                     output_lshape[:original_split]
-                    + [torch.prod(torch.tensor(broadcast_shape, device=send_buf.device)).item()]
+                    + [torch.prod(torch.tensor(broadcast_shape, device=self.larray.device)).item()]
                     + output_lshape[output_split + 1 :]
                 )
             else:
                 output_lshape[output_split] = key[original_split].shape[0]
+        # allocate recv buffer
         recv_buf = torch.empty(
             tuple(output_lshape), dtype=self.larray.dtype, device=self.larray.device
         )
+
+        # index local data into send_buf.
+        send_empty = sum(
+            list(isinstance(k, torch.Tensor) and k.numel() == 0 for k in incoming_request_key)
+        )  # incoming_request_key.count([])
+        if send_empty:
+            # Edge case 1. empty slice along split axis: send_buf is 0-element tensor
+            empty_shape = list(output_shape)
+            empty_shape[output_split] = 0
+            send_buf = torch.empty(empty_shape, dtype=self.larray.dtype, device=self.larray.device)
+        else:
+            send_buf = self.larray[incoming_request_key]
+            # Edge case 2. local single-element indexing results into local loss of split axis
+            if send_buf.ndim < len(output_lshape):
+                all_keys_scalar = sum(
+                    list(
+                        np.isscalar(k) or k.numel() == 1 and getattr(k, "ndim", 2) < 2
+                        for k in incoming_request_key
+                    )
+                ) == len(incoming_request_key)
+                if not all_keys_scalar:
+                    send_buf = send_buf.unsqueeze_(dim=output_split)
+
+        print("OUTPUT_SHAPE = ", output_shape)
+        print("OUTPUT_SPLIT = ", output_split)
+        print("SEND_BUF SHAPE = ", send_buf.shape)
+
+        # output_lshape = list(output_shape)
+        # if getattr(key, "ndim", 0) == 1:
+        #     output_lshape[output_split] = key.shape[0]
+        # else:
+        #     if broadcasted_indexing:
+        #         output_lshape = (
+        #             output_lshape[:original_split]
+        #             + [torch.prod(torch.tensor(broadcast_shape, device=send_buf.device)).item()]
+        #             + output_lshape[output_split + 1 :]
+        #         )
+        #     else:
+        #         output_lshape[output_split] = key[original_split].shape[0]
+        # recv_buf = torch.empty(
+        #     tuple(output_lshape), dtype=self.larray.dtype, device=self.larray.device
+        # )
         recv_counts = torch.squeeze(recv_counts, dim=1).tolist()
         recv_displs = outgoing_request_key_displs.tolist()
         send_counts = incoming_request_key_counts.tolist()
         send_displs = incoming_request_key_displs.tolist()
+        print("DEBUGGING: send_buf recv_buf shape= ", send_buf.shape, recv_buf.shape)
+        print("DEBUGGING: send_counts recv_counts = ", send_counts, recv_counts)
+        print("DEBUGGING: send_displs recv_displs = ", send_displs, recv_displs)
         print("DEBUGGING: output_split = ", output_split)
         self.comm.Alltoallv(
             (send_buf, send_counts, send_displs),
@@ -2265,7 +2323,7 @@ class DNDarray:
             return
 
         if key is None or key == ... or key == slice(None):
-            return __set(self, self.larray, value)
+            return __set(self, value)
 
         # torch_device = self.larray.device
 
@@ -2290,7 +2348,7 @@ class DNDarray:
             out_is_balanced,
             root,
             backwards_transpose_axes,
-        ) = self.__process_key(key, return_local_indices=True)
+        ) = self.__process_key(key, return_local_indices=True, op="set")
 
         # sanitize value
         value_split = value.split if isinstance(value, DNDarray) else None
@@ -2311,7 +2369,7 @@ class DNDarray:
                 )
         # TODO: sanitize distribution without allocating getitem array
 
-        if split_key_is_ordered:
+        if split_key_is_ordered == 1:
             # data are not distributed or split dimension is not affected by indexing
             # key all local
             if root is not None:
@@ -2321,6 +2379,30 @@ class DNDarray:
             else:
                 self.larray[key] = value.larray
             self = self.transpose(backwards_transpose_axes)
+            return
+
+        if split_key_is_ordered == -1:
+            # key is in descending order, i.e. slice with negative step
+
+            # flip value, match value distribution to keys
+            value = manipulations.flip(value, axis=output_split)
+            split_key = factories.array(
+                key[output_split], is_split=0, device=self.device, comm=self.comm
+            )
+            if value.is_distributed():
+                target_map = value.lshape_map
+                target_map[:, output_split] = split_key.lshape_map[:, 0]
+                print(
+                    "DEBUGGING: TEST target_map, value.lshape_map = ", target_map, value.lshape_map
+                )
+                value.redistribute_(target_map=target_map)
+
+            process_is_inactive = sum(
+                list(isinstance(k, torch.Tensor) and k.numel() == 0 for k in key)
+            )
+            if not process_is_inactive:
+                # only assign values if key does not contain empty slices
+                self.larray[key] = value.larray
             return
 
         # process-local indices
