@@ -19,6 +19,8 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![Benchmarks](https://img.shields.io/badge/Github--Pages-Benchmarks-2ea44f)](https://helmholtz-analytics.github.io/heat/dev/bench)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
+#TODO: add what is necessary for spack! 
+
 # Goals
 
 Heat is a flexible and seamless open-source software for high performance data
