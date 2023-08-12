@@ -2403,7 +2403,11 @@ class DNDarray:
             if not process_is_inactive:
                 # only assign values if key does not contain empty slices
                 self.larray[key] = value.larray
+            self = self.transpose(backwards_transpose_axes)
             return
+
+        # non-ordered key along split axis
+        # indices are global
 
         # process-local indices
 
