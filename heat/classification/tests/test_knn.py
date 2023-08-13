@@ -11,14 +11,9 @@ class TestKNN(TestCase):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
         # generate keys for the iris.h5 dataset
-        keys = []
-        for i in range(50):
-            keys.append(0)
-        for i in range(50, 100):
-            keys.append(1)
-        for i in range(100, 150):
-            keys.append(2)
-        y = ht.array(keys)
+        y = ht.zeros(150, dtype=ht.int64)
+        y[50:100] = 1
+        y[100:] = 2
 
         knn = KNeighborsClassifier(n_neighbors=5)
         knn.fit(x, y)
@@ -34,14 +29,9 @@ class TestKNN(TestCase):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data", split=0)
 
         # generate keys for the iris.h5 dataset
-        keys = []
-        for i in range(50):
-            keys.append(0)
-        for i in range(50, 100):
-            keys.append(1)
-        for i in range(100, 150):
-            keys.append(2)
-        y = ht.array(keys)
+        y = ht.zeros(150, dtype=ht.int64)
+        y[50:100] = 1
+        y[100:] = 2
 
         knn = KNeighborsClassifier(n_neighbors=5)
         knn.fit(x, y)
@@ -86,25 +76,15 @@ class TestKNN(TestCase):
     ):
         x = ht.load_hdf5("heat/datasets/iris.h5", dataset="data")
 
-        # keys as label array
-        keys = []
-        for i in range(50):
-            keys.append(0)
-        for i in range(50, 100):
-            keys.append(1)
-        for i in range(100, 150):
-            keys.append(2)
-        labels = ht.array(keys, dtype=ht.int32, split=0)
+        labels = ht.zeros(150, dtype=ht.int64, split=0)
+        labels[50:100] = 1
+        labels[100:] = 2
 
         # keys as one_hot
-        keys = []
-        for i in range(50):
-            keys.append([1, 0, 0])
-        for i in range(50, 100):
-            keys.append([0, 1, 0])
-        for i in range(100, 150):
-            keys.append([0, 0, 1])
-        y = ht.array(keys, dtype=ht.int32)
+        y = ht.zeros((150, 3), dtype=ht.int64)
+        y[50:100, 1] = 1
+        y[100:, 2] = 1
+
         knn = KNeighborsClassifier(n_neighbors=5)
         knn.fit(x, y)
         result = knn.predict(x)

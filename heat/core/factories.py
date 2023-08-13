@@ -123,9 +123,7 @@ def arange(
         num = int(np.ceil((stop - start) / step))
     else:
         raise TypeError(
-            "function takes minimum one and at most 3 positional arguments ({} given)".format(
-                num_of_param
-            )
+            f"function takes minimum one and at most 3 positional arguments ({num_of_param} given)"
         )
 
     # sanitize device and comm
@@ -364,13 +362,14 @@ def array(
 
     if str(obj.device) != device.torch_device:
         warnings.warn(
-            "Array 'obj' is not on device '{}'. It will be moved to it.".format(device), UserWarning
+            f"Array 'obj' is not on device '{device}'. It will be moved to it.",
+            UserWarning,
         )
         obj = obj.to(device.torch_device)
 
     # sanitize minimum number of dimensions
     if not isinstance(ndmin, int):
-        raise TypeError("expected ndmin to be int, but was {}".format(type(ndmin)))
+        raise TypeError(f"expected ndmin to be int, but was {type(ndmin)}")
 
     # reshape the object to encompass additional dimensions
     ndmin_abs = abs(ndmin) - len(obj.shape)
@@ -808,7 +807,7 @@ def __factory_like(
     # infer split axis
     if split is None:
         try:
-            split = a.split if not isinstance(a, str) else None
+            split = None if isinstance(a, str) else a.split
         except AttributeError:
             # do not split at all
             pass
@@ -1130,9 +1129,7 @@ def linspace(
     stop = float(stop)
     num = int(num)
     if num < 0:
-        raise ValueError(
-            "number of samples 'num' must be non-negative integer, but was {}".format(num)
-        )
+        raise ValueError(f"number of samples 'num' must be non-negative integer, but was {num}")
     step = (stop - start) / max(1, num - 1 if endpoint else num)
 
     # sanitize device and comm
@@ -1294,7 +1291,7 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
 
     shape = tuple(array.size for array in arrays)
 
-    return list(
+    return [
         DNDarray(
             array=grid,
             gshape=shape,
@@ -1305,7 +1302,7 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
             balanced=True,
         )
         for grid in grids
-    )
+    ]
 
 
 def ones(

@@ -30,11 +30,24 @@ pip install heat[hdf5,netcdf]
 ```
 [Test](#test) your installation.
 
-### HPC
-Work in progress...
-
 ### Docker
-Work in progress ([PR 970](https://github.com/helmholtz-analytics/heat/pull/970))
+
+Get the docker image from our package repository
+
+```
+docker pull ghcr.io/helmholtz-analytics/heat:1.2.0-dev_torch1.12_cuda11.7_py3.8
+```
+
+or build it from our Dockerfile
+
+```
+git clone https://github.com/helmholtz-analytics/heat.git
+cd heat/docker
+docker build -t heat:latest .
+```
+
+See [our docker README](https://github.com/helmholtz-analytics/heat/tree/main/docker/README.md) for other details.
+
 
 ### Test
 In your terminal, test your setup with the [`heat_test.py`](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_test.py) script:
@@ -54,30 +67,25 @@ Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
 
 ## New Contributors
 
-1. [Fork](https://docs.github.com/en/get-started/quickstart/contributing-to-projects) or, if you have write access, clone the [Heat repository](https://github.com/helmholtz-analytics/heat).
+1. Pick an Issue you'd like to work on. Check out [Good First Issues](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22), start from most recent. Get in touch and ask to be assigned to the issue.
 
-2. Create a virtual environment `heat_dev` with all dependencies via [heat_dev.yml](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_dev.yml). Note that `heat_dev.yml` does not install Heat via `pip` (as opposed to [`heat_env.yml`](#conda) for users).
+2. **IMPORTANT:** As soon as an issue is assigned, a new branch will be created (a comment will be posted under the relevant issue). Do use this branch to make your changes, it has been checked out from the correct source branch (i.e. `main` for new features, `release/*` for bug fixes).
+
+3. [Fork](https://docs.github.com/en/get-started/quickstart/contributing-to-projects) or, if you have write access, clone the [Heat repository](https://github.com/helmholtz-analytics/heat).
+
+4. Create a virtual environment `heat_dev` with all dependencies via [heat_dev.yml](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_dev.yml). Note that `heat_dev.yml` does not install Heat via `pip` (as opposed to [`heat_env.yml`](#conda) for users).
 
     ```
     conda env create -f heat_dev.yml
     conda activate heat_dev
     ```
 
-
-3. In the `/heat` directory of your local repo, install the [pre-commit hooks]( https://pre-commit.com/):
+5. In the `/heat` directory of your local repo, install the [pre-commit hooks]( https://pre-commit.com/):
 
     ```
     cd $MY_REPO_DIR/heat/
     pre-commit install
     ```
-
-4. Pick an Issue you'd like to work on. Check out [Good First Issues](https://github.com/helmholtz-analytics/heat/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22), start from most recent.
-
-5. [New branches](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#creating-a-branch-to-work-on) should be named according to the following scheme:
-   - New feature: `features/ISSUE_NUMBER-my-new-feature`
-   - Bug fix: `bugs/ISSUE_NUMBER-my-bug-fix`
-   - Documentation: `docs/ISSUE_NUMBER-my-better-docs`
-   - Automation (CI, GitHub Actions etc.): `workflows/ISSUE_NUMBER-my-fancy-workflow`
 
 6. Write and run (locally) [unit tests](https://docs.python.org/3/library/unittest.html) for any change you introduce. Here's a sample of our [test modules](https://github.com/helmholtz-analytics/heat/tree/main/heat/core/tests).
 
@@ -112,7 +120,7 @@ Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
     ```
 
 
-7. After [making and pushing](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#making-and-pushing-changes) your changes, go ahead and [create a Pull Request](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#making-a-pull-request). Make sure you go through the Due Diligence checklist (part of our PR template).
+7. After [making and pushing](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#making-and-pushing-changes) your changes, go ahead and [create a Pull Request](https://docs.github.com/en/get-started/quickstart/contributing-to-projects#making-a-pull-request). Make sure you go through the Due Diligence checklist (part of our PR template). Consider [allowing us to edit your branch](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork#enabling-repository-maintainer-permissions-on-existing-pull-requests) for a smoother review process.
 
 
     ## Thank you so much for your time!

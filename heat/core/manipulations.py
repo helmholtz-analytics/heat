@@ -428,16 +428,15 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     arr0, arr1 = arrays
 
     if not isinstance(axis, int):
-        raise TypeError("axis must be an integer, currently: {}".format(type(axis)))
+        raise TypeError(f"axis must be an integer, currently: {type(axis)}")
     axis = stride_tricks.sanitize_axis(arr0.gshape, axis)
 
     if arr0.ndim != arr1.ndim:
         raise ValueError("DNDarrays must have the same number of dimensions")
 
-    if not all([arr0.gshape[i] == arr1.gshape[i] for i in range(len(arr0.gshape)) if i != axis]):
+    if any(arr0.gshape[i] != arr1.gshape[i] for i in range(len(arr0.gshape)) if i != axis):
         raise ValueError(
-            "Arrays cannot be concatenated, shapes must be the same in every axis "
-            "except the selected axis: {}, {}".format(arr0.gshape, arr1.gshape)
+            f"Arrays cannot be concatenated, shapes must be the same in every axis except the selected axis: {arr0.gshape}, {arr1.gshape}"
         )
 
     # different communicators may not be concatenated
@@ -465,11 +464,8 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
 
     # non-matching splits when both arrays are split
     elif s0 != s1 and all([s is not None for s in [s0, s1]]):
-        raise RuntimeError(
-            "DNDarrays given have differing split axes, arr0 {} arr1 {}".format(s0, s1)
-        )
+        raise RuntimeError(f"DNDarrays given have differing split axes, arr0 {s0} arr1 {s1}")
 
-    # unsplit and split array
     elif (s0 is None and s1 != axis) or (s1 is None and s0 != axis):
         _, _, arr0_slice = arr1.comm.chunk(arr0.shape, arr1.split)
         _, _, arr1_slice = arr0.comm.chunk(arr1.shape, arr0.split)
@@ -483,8 +479,8 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
 
         return out
 
-    elif s0 == s1 or any([s is None for s in [s0, s1]]):
-        if s0 != axis and all([s is not None for s in [s0, s1]]):
+    elif s0 == s1 or any(s is None for s in [s0, s1]):
+        if s0 != axis and all(s is not None for s in [s0, s1]):
             # the axis is different than the split axis, this case can be easily implemented
             # torch cat arrays together and return a new array that is_split
 
@@ -1389,10 +1385,10 @@ def pad(
         return array
 
     if not isinstance(array, DNDarray):
-        raise TypeError("expected array to be a ht.DNDarray, but was {}".format(type(array)))
+        raise TypeError(f"expected array to be a ht.DNDarray, but was {type(array)}")
 
     if not isinstance(mode, str):
-        raise TypeError("expected mode to be a string, but was {}".format(type(mode)))
+        raise TypeError(f"expected mode to be a string, but was {type(mode)}")
 
     # shortcut int for all dimensions
     if isinstance(pad_width, int):
@@ -1400,20 +1396,16 @@ def pad(
 
     elif not isinstance(pad_width, (tuple, list)):
         raise TypeError(
-            "expected pad_width to be an integer or a sequence (tuple or list), but was {}".format(
-                type(pad_width)
-            )
+            f"expected pad_width to be an integer or a sequence (tuple or list), but was {type(pad_width)}"
         )
 
     # shortcut one sequence within a sequence for all dimensions - ((before,after), ) = pad_width
     elif len(pad_width) == 1:
         if isinstance(pad_width[0], int):
             pad = (pad_width[0],) * 2 * len(array.shape)
-        elif not (isinstance(pad_width[0], tuple) or isinstance(pad_width[0], list)):
+        elif not (isinstance(pad_width[0], (tuple, list))):
             raise TypeError(
-                "For shortcut option '1 sequence for all dimensions', expected element within pad_width to be a tuple or list, but was {}".format(
-                    type(pad_width[0])
-                )
+                f"For shortcut option '1 sequence for all dimensions', expected element within pad_width to be a tuple or list, but was {type(pad_width[0])}"
             )
         elif len(pad_width[0]) == 2:
             pad = pad_width[0] * len(array.shape)
@@ -1429,15 +1421,12 @@ def pad(
 
     # no shortcut - padding of various dimensions
     else:
-        if any(
-            not (isinstance(pad_tuple, tuple) or isinstance(pad_tuple, list))
-            for pad_tuple in pad_width
-        ):
+        if any(not (isinstance(pad_tuple, (tuple, list))) for pad_tuple in pad_width):
             raise TypeError(
                 f"Invalid type for pad_width {pad_width}.\nApart from shortcut options (--> documentation),"
                 "pad_width has to be a sequence of (2 elements) sequences (sequence=tuple or list)."
             )
-        pad = tuple()
+        pad = ()
         # Transform numpy pad_width to torch pad (--> one tuple containing all padding spans)
         for pad_tuple in pad_width:
             if isinstance(pad_tuple, list):
@@ -1458,10 +1447,10 @@ def pad(
             )
 
     # value_tuple = all padding values stored in 1 tuple
-    if isinstance(constant_values, tuple) or isinstance(constant_values, list):
-        value_tuple = tuple()
+    if isinstance(constant_values, (tuple, list)):
+        value_tuple = ()
         # sequences for each dimension defined within one sequence
-        if isinstance(constant_values[0], tuple) or isinstance(constant_values[0], list):
+        if isinstance(constant_values[0], (tuple, list)):
             # one sequence for all dimensions - values = ((before, after),)
             if len(constant_values) == 1:
                 value_tuple = constant_values[0] * (len(pad) // 2)
@@ -1775,28 +1764,22 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
             a = factories.array(a)
         else:
             raise TypeError(
-                "`a` must be a ht.DNDarray, np.ndarray, list, tuple, integer, or float, currently: {}".format(
-                    type(a)
-                )
+                f"`a` must be a ht.DNDarray, np.ndarray, list, tuple, integer, or float, currently: {type(a)}"
             )
 
     # sanitation `axis`
     if axis is not None and not isinstance(axis, int):
-        raise TypeError("`axis` must be an integer or None, currently: {}".format(type(axis)))
+        raise TypeError(f"`axis` must be an integer or None, currently: {type(axis)}")
 
     if axis is not None and (axis >= len(a.shape) or axis < 0):
         raise ValueError(
-            "Invalid input for `axis`. Value has to be either None or between 0 and {}, not {}.".format(
-                len(a.shape) - 1, axis
-            )
+            f"Invalid input for `axis`. Value has to be either None or between 0 and {len(a.shape) - 1}, not {axis}."
         )
 
     # sanitation `repeats`
     if not isinstance(repeats, (int, list, tuple, np.ndarray, DNDarray)):
         raise TypeError(
-            "`repeats` must be an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {}".format(
-                type(repeats)
-            )
+            f"`repeats` must be an integer, list, tuple, np.ndarray or ht.DNDarray of integers, currently: {type(repeats)}"
         )
 
     # no broadcast implied
@@ -1815,24 +1798,20 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
                 )
             else:
                 raise TypeError(
-                    "Invalid dtype for ht.DNDarray `repeats`. Has to be integer,"
-                    " but was {}".format(repeats.dtype)
+                    f"Invalid dtype for ht.DNDarray `repeats`. Has to be integer, but was {repeats.dtype}"
                 )
         elif isinstance(repeats, np.ndarray):
             if not types.can_cast(repeats.dtype.type, types.int64):
                 raise TypeError(
-                    "Invalid dtype for np.ndarray `repeats`. Has to be integer,"
-                    " but was {}".format(repeats.dtype.type)
+                    f"Invalid dtype for np.ndarray `repeats`. Has to be integer, but was {repeats.dtype.type}"
                 )
             repeats = factories.array(
                 repeats, dtype=types.int64, is_split=None, device=a.device, comm=a.comm
             )
-        # invalid list/tuple
         elif not all(isinstance(r, int) for r in repeats):
             raise TypeError(
                 "Invalid type within `repeats`. All components of `repeats` must be integers."
             )
-        # valid list/tuple
         else:
             repeats = factories.array(
                 repeats, dtype=types.int64, is_split=None, device=a.device, comm=a.comm
@@ -1845,8 +1824,7 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
         # check `repeats` is 1-dimensional
         if len(repeats.shape) != 1:
             raise ValueError(
-                "Invalid input for `repeats`. `repeats` must be a 1d-object or integer, but "
-                "was {}-dimensional.".format(len(repeats.shape))
+                f"Invalid input for `repeats`. `repeats` must be a 1d-object or integer, but was {len(repeats.shape)}-dimensional."
             )
 
     # start of algorithm
@@ -1858,8 +1836,7 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
     if isinstance(repeats, int) or repeats.gnumel == 1:
         if axis is None and a.split is not None and a.split != 0:
             warnings.warn(
-                "If axis is None, `a` has to be split along axis 0 (not {}) if distributed.\n`a` will be "
-                "copied with new split axis 0.".format(a.split)
+                f"If axis is None, `a` has to be split along axis 0 (not {a.split}) if distributed.\n`a` will be copied with new split axis 0."
             )
             a = resplit(a, 0)
         if isinstance(repeats, int):
@@ -1883,8 +1860,8 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
         if a.split is None:
             if repeats.split is not None:
                 warnings.warn(
-                    "If `a` is undistributed, `repeats` also has to be undistributed (not split along axis {}).\n`repeats` will be copied "
-                    "with new split axis None.".format(repeats.split)
+                    f"If `a` is undistributed, `repeats` also has to be undistributed (not split along axis {repeats.split}).\n`repeats` will be copied "
+                    "with new split axis None."
                 )
                 repeats = resplit(repeats, None)
 
@@ -1893,80 +1870,72 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
                 # check matching shapes (repetition defined for every element)
                 if a.gnumel != repeats.gnumel:
                     raise ValueError(
-                        "Invalid input. Sizes of flattened `a` ({}) and `repeats` ({}) are not same. "
-                        "Please revise your definition specifying repetitions for all elements "
-                        "of the DNDarray `a` or replace repeats with a single"
-                        " scalar.".format(a.gnumel, repeats.gnumel)
+                        f"Invalid input. Sizes of flattened `a` ({a.gnumel}) and `repeats` ({repeats.gnumel}) are not same. "
+                        "Please revise your definition specifying repetitions for all elements of the DNDarray `a` "
+                        "or replace repeats with a single scalar."
                     )
             # axis is not None
             elif a.lshape[axis] != repeats.lnumel:
                 raise ValueError(
-                    "Invalid input. Amount of elements of `repeats` ({}) and of `a` in the specified axis ({}) "
+                    f"Invalid input. Amount of elements of `repeats` ({repeats.lnumel}) and of `a` in the specified axis ({a.lshape[axis]}) "
                     "are not the same. Please revise your definition specifying repetitions for all elements "
-                    "of the DNDarray `a` or replace `repeats` with a single scalar".format(
-                        repeats.lnumel, a.lshape[axis]
-                    )
+                    "of the DNDarray `a` or replace `repeats` with a single scalar"
                 )
         # DISTRIBUTED CASE (a distributed)
-        else:
-            if axis is None:
-                if a.gnumel != repeats.gnumel:
-                    raise ValueError(
-                        "Invalid input. Sizes of flattened `a` ({}) and `repeats` ({}) are not same. "
-                        "Please revise your definition specifying repetitions for all elements "
-                        "of the DNDarray `a` or replace `repeats` with a single"
-                        " scalar.".format(a.gnumel, repeats.gnumel)
-                    )
-
-                if a.split != 0:
-                    warnings.warn(
-                        "If `axis` is None, `a` has to be split along axis 0 (not {}) if distributed.\n`a` will be copied"
-                        " with new split axis 0.".format(a.split)
-                    )
-                    a = resplit(a, 0)
-
-                repeats = repeats.reshape(a.gshape)
-                if repeats.split != 0:
-                    warnings.warn(
-                        "If `axis` is None, `repeats` has to be split along axis 0 (not {}) if distributed.\n`repeats` will be copied"
-                        " with new split axis 0.".format(repeats.split)
-                    )
-                    repeats = resplit(repeats, 0)
-                flatten_repeats_t = torch.flatten(repeats._DNDarray__array)
-                repeats = factories.array(
-                    flatten_repeats_t,
-                    is_split=repeats.split,
-                    device=repeats.device,
-                    comm=repeats.comm,
+        elif axis is None:
+            if a.gnumel != repeats.gnumel:
+                raise ValueError(
+                    f"Invalid input. Sizes of flattened `a` ({a.gnumel}) and `repeats` ({repeats.gnumel}) are not same. "
+                    "Please revise your definition specifying repetitions for all elements of the DNDarray `a` "
+                    "or replace `repeats` with a single scalar."
                 )
 
-            # axis is not None
-            else:
-                if a.split == axis:
-                    if repeats.split != 0:
-                        warnings.warn(
-                            "If `axis` equals `a.split`, `repeats` has to be split along axis 0 (not {}) if distributed.\n"
-                            "`repeats` will be copied with new split axis 0".format(repeats.split)
-                        )
-                        repeats = resplit(repeats, 0)
+            if a.split != 0:
+                warnings.warn(
+                    f"If `axis` is None, `a` has to be split along axis 0 (not {a.split}) if distributed.\n`a` will be copied "
+                    "with new split axis 0."
+                )
+                a = resplit(a, 0)
 
-                # a.split != axis
-                else:
-                    if repeats.split is not None:
-                        warnings.warn(
-                            "If `axis` != `a.split`, `repeast` must not be distributed (along axis {}).\n`repeats` will be copied with new"
-                            " split axis None.".format(repeats.split)
-                        )
-                        repeats = resplit(repeats, None)
+            repeats = repeats.reshape(a.gshape)
+            if repeats.split != 0:
+                warnings.warn(
+                    f"If `axis` is None, `repeats` has to be split along axis 0 (not {repeats.split}) if distributed.\n`repeats` will be copied "
+                    "with new split axis 0."
+                )
+                repeats = resplit(repeats, 0)
+            flatten_repeats_t = torch.flatten(repeats._DNDarray__array)
+            repeats = factories.array(
+                flatten_repeats_t,
+                is_split=repeats.split,
+                device=repeats.device,
+                comm=repeats.comm,
+            )
 
-                    if a.lshape[axis] != repeats.lnumel:
-                        raise ValueError(
-                            "Invalid input. Amount of elements of `repeats` ({}) and of `a` in the specified axis ({}) "
-                            "are not the same. Please revise your definition specifying repetitions for all elements "
-                            "of the DNDarray `a` or replace `repeats` with a single scalar".format(
-                                repeats.lnumel, a.lshape[axis]
-                            )
-                        )
+        # axis is not None
+        elif a.split == axis:
+            if repeats.split != 0:
+                warnings.warn(
+                    f"If `axis` equals `a.split`, `repeats` has to be split along axis 0 (not {repeats.split}) if distributed.\n`repeats` will be copied "
+                    "with new split axis 0"
+                )
+                repeats = resplit(repeats, 0)
+
+        # a.split != axis
+        else:
+            if repeats.split is not None:
+                warnings.warn(
+                    f"If `axis` != `a.split`, `repeast` must not be distributed (along axis {repeats.split}).\n`repeats` will be copied with new "
+                    "split axis None."
+                )
+                repeats = resplit(repeats, None)
+
+            if a.lshape[axis] != repeats.lnumel:
+                raise ValueError(
+                    f"Invalid input. Amount of elements of `repeats` ({repeats.lnumel}) and of `a` in the specified axis ({a.lshape[axis]}) "
+                    "are not the same. Please revise your definition specifying repetitions for all elements "
+                    "of the DNDarray `a` or replace `repeats` with a single scalar"
+                )
 
         repeated_array_torch = torch.repeat_interleave(
             a._DNDarray__array, repeats._DNDarray__array, axis
@@ -2246,7 +2215,7 @@ def roll(
             try:
                 axis = sanitation.sanitize_sequence(axis)
             except TypeError:
-                raise TypeError("axis must be a int, list or a tuple, got {}".format(type(axis)))
+                raise TypeError(f"axis must be a int, list or a tuple, got {type(axis)}")
 
             shift = [shift] * len(axis)
 
@@ -2256,29 +2225,23 @@ def roll(
         try:
             shift = sanitation.sanitize_sequence(shift)
         except TypeError:
-            raise TypeError("shift must be an integer, list or a tuple, got {}".format(type(shift)))
+            raise TypeError(f"shift must be an integer, list or a tuple, got {type(shift)}")
 
         try:
             axis = sanitation.sanitize_sequence(axis)
         except TypeError:
-            raise TypeError("axis must be an integer, list or a tuple, got {}".format(type(axis)))
+            raise TypeError(f"axis must be an integer, list or a tuple, got {type(axis)}")
 
         if len(shift) != len(axis):
             raise ValueError(
-                "shift and axis length must be the same, got {} and {}".format(
-                    len(shift), len(axis)
-                )
+                f"shift and axis length must be the same, got {len(shift)} and {len(axis)}"
             )
 
         for i in range(len(shift)):
             if not isinstance(shift[i], int):
-                raise TypeError(
-                    "Element {} in shift is not an integer, got {}".format(i, type(shift[i]))
-                )
+                raise TypeError(f"Element {i} in shift is not an integer, got {type(shift[i])}")
             if not isinstance(axis[i], int):
-                raise TypeError(
-                    "Element {} in axis is not an integer, got {}".format(i, type(axis[i]))
-                )
+                raise TypeError(f"Element {i} in axis is not an integer, got {type(axis[i])}")
 
         if x.split is not None and (x.split in axis or (x.split - x.ndim) in axis):
             # remove split axis elements
@@ -2365,13 +2328,13 @@ def rot90(m: DNDarray, k: int = 1, axes: Sequence[int, int] = (0, 1)) -> DNDarra
         raise ValueError("len(axes) must be 2.")
 
     if not isinstance(m, DNDarray):
-        raise TypeError("expected m to be a ht.DNDarray, but was {}".format(type(m)))
+        raise TypeError(f"expected m to be a ht.DNDarray, but was {type(m)}")
 
     if axes[0] == axes[1] or np.absolute(axes[0] - axes[1]) == m.ndim:
         raise ValueError("Axes must be different.")
 
     if axes[0] >= m.ndim or axes[0] < -m.ndim or axes[1] >= m.ndim or axes[1] < -m.ndim:
-        raise ValueError("Axes={} out of range for array of ndim={}.".format(axes, m.ndim))
+        raise ValueError(f"Axes={axes} out of range for array of ndim={m.ndim}.")
 
     if m.split is None:
         return factories.array(
@@ -2415,7 +2378,7 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
     """
     # sanitize input
     if not isinstance(a, DNDarray):
-        raise TypeError("Expected a to be a DNDarray but was {}".format(type(a)))
+        raise TypeError(f"Expected a to be a DNDarray but was {type(a)}")
 
     return a.gshape
 
@@ -2493,7 +2456,7 @@ def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DN
         gather_displs = (0,) + tuple(np.cumsum(gather_counts[:-1]))
 
         pivot_dim = list(transposed.size())
-        pivot_dim[0] = size * sum([1 for x in counts if x > 0])
+        pivot_dim[0] = size * sum(x > 0 for x in counts)
 
         # share the local pivots with root process
         pivot_buffer = torch.empty(
@@ -2748,21 +2711,17 @@ def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DND
 
     # sanitize axis
     if not isinstance(axis, int):
-        raise TypeError("Expected `axis` to be an integer, but was {}".format(type(axis)))
+        raise TypeError(f"Expected `axis` to be an integer, but was {type(axis)}")
     if axis < 0 or axis > len(x.gshape) - 1:
         raise ValueError(
-            "Invalid input for `axis`. Valid range is between 0 and {}, but was {}".format(
-                len(x.gshape) - 1, axis
-            )
+            f"Invalid input for `axis`. Valid range is between 0 and {len(x.gshape) - 1}, but was {axis}"
         )
 
     # sanitize indices_or_sections
     if isinstance(indices_or_sections, int):
         if x.gshape[axis] % indices_or_sections != 0:
             raise ValueError(
-                "DNDarray with shape {} can't be divided equally into {} chunks along axis {}".format(
-                    x.gshape, indices_or_sections, axis
-                )
+                f"DNDarray with shape {x.gshape} can't be divided equally into {indices_or_sections} chunks along axis {axis}"
             )
         # np to torch mapping - calculate size of resulting data chunks
         indices_or_sections_t = x.gshape[axis] // indices_or_sections
@@ -2772,15 +2731,11 @@ def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DND
             indices_or_sections = factories.array(indices_or_sections)
         if len(indices_or_sections.gshape) != 1:
             raise ValueError(
-                "Expected indices_or_sections to be 1-dimensional, but was {}-dimensional instead.".format(
-                    len(indices_or_sections.gshape) - 1
-                )
+                f"Expected indices_or_sections to be 1-dimensional, but was {len(indices_or_sections.gshape) - 1}-dimensional instead."
             )
     else:
         raise TypeError(
-            "Expected `indices_or_sections` to be array_like (DNDarray, list or tuple), but was {}".format(
-                type(indices_or_sections)
-            )
+            f"Expected `indices_or_sections` to be array_like (DNDarray, list or tuple), but was {type(indices_or_sections)}"
         )
 
     # start of actual algorithm
@@ -2796,7 +2751,7 @@ def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DND
                     for i in range(indices_or_sections)
                 ]
 
-            # # CASE 2 number of processes != indices_or_selections -> reorder (and split) chunks correctly
+            # CASE 2 number of processes != indices_or_selections -> reorder (and split) chunks correctly
             else:
                 # no data
                 if x.lshape[axis] == 0:
@@ -2832,10 +2787,8 @@ def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DND
         else:
             if indices_or_sections.split is not None:
                 warnings.warn(
-                    "`indices_or_sections` might not be distributed (along axis {}) if `x` is not distributed.\n"
-                    "`indices_or_sections` will be copied with new split axis None.".format(
-                        indices_or_sections.split
-                    )
+                    f"`indices_or_sections` might not be distributed (along axis {indices_or_sections.split}) "
+                    "if `x` is not distributed.\n`indices_or_sections` will be copied with new split axis None."
                 )
                 indices_or_sections = resplit(indices_or_sections, None)
 
@@ -2907,7 +2860,6 @@ def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DND
             indices_or_sections_t = indices_or_sections_t.tolist()
 
             sub_arrays_t = torch.split(x._DNDarray__array, indices_or_sections_t, axis)
-
     sub_arrays_ht = [
         factories.array(sub_DNDarray, dtype=x.dtype, is_split=x.split, device=x.device, comm=x.comm)
         for sub_DNDarray in sub_arrays_t
@@ -2986,7 +2938,7 @@ def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
         elif isinstance(axis, tuple):
             dim_is_one = bool(torch.tensor(list(x.shape[dim] == 1 for dim in axis)).all())
         if not dim_is_one:
-            raise ValueError("Dimension along axis {} is not 1 for shape {}".format(axis, x.shape))
+            raise ValueError(f"Dimension along axis {axis} is not 1 for shape {x.shape}")
 
     if axis is None:
         axis = tuple(i for i, dim in enumerate(x.shape) if dim == 1)
@@ -3001,7 +2953,7 @@ def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
 
     # Calculate new split axis according to squeezed shape
     if x.split is not None:
-        split = x.split - len(list(dim for dim in axis if dim < x.split))
+        split = x.split - len([dim for dim in axis if dim < x.split])
     else:
         split = None
 
@@ -3118,10 +3070,10 @@ def stack(
             *arrays, target=target
         )  # also checks target again
     except NotImplementedError as e:  # transform split axis error to ValueError
-        raise ValueError(e)
+        raise ValueError(e) from e
 
     # extract torch tensors
-    t_arrays = list(array.larray for array in arrays)
+    t_arrays = [array.larray for array in arrays]
 
     # output shape and split
     axis = stride_tricks.sanitize_axis(target.gshape + (len(arrays),), axis)
@@ -3137,7 +3089,7 @@ def stack(
         result_dtype = types.canonical_heat_type(t_stacked.dtype)
     except Exception as e:
         if "size" in e.args[0] or "shape" in e.args[0]:
-            raise ValueError(e)
+            raise ValueError(e) from e
         raise e
 
     # return stacked DNDarrays
@@ -3195,9 +3147,7 @@ def swapaxes(x: DNDarray, axis1: int, axis2: int) -> DNDarray:
         axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
     except TypeError:
         raise TypeError(
-            "'axis1' and 'axis2' must be of type int, found {} and {}".format(
-                type(axis1), type(axis2)
-            )
+            f"'axis1' and 'axis2' must be of type int, found {type(axis1)} and {type(axis2)}"
         )
 
     return linalg.transpose(x, axes)
@@ -3544,7 +3494,6 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
             gathered, is_split=axis, device=arr.device, comm=arr.comm, dtype=arr.dtype
         )
         return new_arr
-
     arr_tiles = tiling.SplitTiles(arr)
     new_arr = factories.empty(arr.gshape, split=axis, dtype=arr.dtype, device=arr.device)
     new_tiles = tiling.SplitTiles(new_arr)
@@ -3563,7 +3512,7 @@ def resplit(arr: DNDarray, axis: int = None) -> DNDarray:
             to_send = arr_tiles[key]
             if spr == rank and spr != rpr:
                 waits.append(arr.comm.Isend(to_send.clone(), dest=rpr, tag=rank))
-            elif spr == rpr and rpr == rank:
+            elif spr == rpr == rank:
                 new_tiles[key] = to_send.clone()
             elif rank == rpr:
                 buf = torch.zeros_like(new_tiles[key])
@@ -3653,7 +3602,7 @@ def row_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
     [1/2] tensor([[10, 11, 12, 13, 14]])
     [2/2] tensor([[15, 16, 17, 18, 19]])
     """
-    arr_dims = list(array.ndim for array in arrays)
+    arr_dims = [array.ndim for array in arrays]
     # sanitation, arrays can be 1-d or 2-d, see sanitation module #468
     over_dims = [i for i, j in enumerate(arr_dims) if j > 2]
     if len(over_dims) > 0:
@@ -3788,7 +3737,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
     except AttributeError:
         try:
             _ = x.shape
-            raise TypeError("Input can be a DNDarray or a scalar, is {}".format(type(x)))
+            raise TypeError(f"Input can be a DNDarray or a scalar, is {type(x)}")
         except AttributeError:
             x = factories.array(x).reshape(1)
 
@@ -3810,9 +3759,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
                     _ = x_proxy.repeat(reps)
                 except TypeError:
                     raise TypeError(
-                        "reps must be a sequence of ints, got {}".format(
-                            list(type(i) for i in reps)
-                        )
+                        f"reps must be a sequence of ints, got {[type(i) for i in reps]}"
                     )
                 except RuntimeError:
                     pass
@@ -3879,7 +3826,7 @@ def tile(x: DNDarray, reps: Sequence[int, ...]) -> DNDarray:
 
     # keep track of repetitions:
     # local_x_starts.shape, local_x_ends.shape changing from (size,) to (reps[split], size)
-    reps_indices = list(x.gshape[x.split] * rep for rep in (range(reps[x.split])))
+    reps_indices = [x.gshape[x.split] * rep for rep in (range(reps[x.split]))]
     t_reps_indices = torch.tensor(reps_indices, dtype=torch.int32, device=local_x.device).reshape(
         len(reps_indices), 1
     )

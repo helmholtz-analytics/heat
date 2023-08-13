@@ -133,9 +133,9 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
         _, n = x.shape
 
         if y.ndim > 2:
-            raise ValueError("y.ndim must <= 2, currently: {}".format(y.ndim))
+            raise ValueError(f"y.ndim must <= 2, currently: {y.ndim}")
         if x.ndim != 2:
-            raise ValueError("X.ndim must == 2, currently: {}".format(x.ndim))
+            raise ValueError(f"X.ndim must == 2, currently: {x.ndim}")
 
         if len(y.shape) == 1:
             y = ht.expand_dims(y, axis=1)
@@ -163,11 +163,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
                     theta[j] = self.soft_threshold(rho)
 
             diff = self.rmse(theta, theta_old)
-            if self.tol is not None:
-                if diff < self.tol:
-                    self.n_iter = i + 1
-                    self.__theta = theta
-                    break
+            if self.tol is not None and diff < self.tol:
+                self.n_iter = i + 1
+                self.__theta = theta
+                break
 
         self.n_iter = i + 1
         self.__theta = theta
