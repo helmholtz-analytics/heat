@@ -1,21 +1,19 @@
 """Provides high-level DNDarray initialization functions"""
 
+import warnings
+from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Type, Union
+
 import numpy as np
 import torch
-import warnings
 
-from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, List
-
-from .communication import MPI, sanitize_comm, Communication
+from . import devices, types
+from .communication import MPI, Communication, sanitize_comm
 from .devices import Device
 from .dndarray import DNDarray
 from .memory import sanitize_memory_layout
 from .sanitation import sanitize_in, sanitize_sequence
 from .stride_tricks import sanitize_axis, sanitize_shape
 from .types import datatype
-
-from . import devices
-from . import types
 
 __all__ = [
     "arange",

@@ -2,7 +2,6 @@
 from typing import Callable
 
 import heat as ht
-
 from heat.core.dndarray import DNDarray
 
 

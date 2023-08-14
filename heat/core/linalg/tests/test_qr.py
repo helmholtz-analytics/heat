@@ -1,9 +1,11 @@
-import heat as ht
-import numpy as np
 import os
-import torch
 import unittest
 import warnings
+
+import numpy as np
+import torch
+
+import heat as ht
 
 from ...tests.test_suites.basic_test import TestCase
 

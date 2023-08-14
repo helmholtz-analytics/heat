@@ -1,14 +1,15 @@
 """Provides DCSR_matrix, a distributed compressed sparse row matrix"""
 from __future__ import annotations
 
+from typing import Tuple, TypeVar, Union
+
 import torch
 from mpi4py import MPI
-from typing import Union, Tuple, TypeVar
 
 from ..core.devices import Device
 from ..core.dndarray import DNDarray
 from ..core.factories import array
-from ..core.types import datatype, canonical_heat_type
+from ..core.types import canonical_heat_type, datatype
 
 __all__ = ["DCSR_matrix"]
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import argparse
-import heat as ht
 import time
+
+import heat as ht
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="HeAT kmeans gpu benchmark")

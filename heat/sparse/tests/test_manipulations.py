@@ -1,7 +1,8 @@
 import unittest
-import heat as ht
+
 import torch
 
+import heat as ht
 from heat.core.tests.test_suites.basic_test import TestCase
 
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 import argparse
-import h5py
-import numpy as np
 import time
 
+import h5py
+import numpy as np
 from scipy.spatial.distance import cdist
 
 if __name__ == "__main__":

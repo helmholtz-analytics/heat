@@ -1,9 +1,11 @@
-from typing import Type
-import torch
 import os
 import unittest
-import heat as ht
+from typing import Type
+
 import numpy as np
+import torch
+
+import heat as ht
 
 from ...tests.test_suites.basic_test import TestCase
 

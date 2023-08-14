@@ -1,6 +1,8 @@
-import heat as ht
-import torch
 import unittest
+
+import torch
+
+import heat as ht
 
 
 class TestDataParallel(unittest.TestCase):

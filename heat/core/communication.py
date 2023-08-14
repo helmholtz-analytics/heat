@@ -3,13 +3,13 @@ Module implementing the communication layer of HeAT
 """
 from __future__ import annotations
 
-import numpy as np
 import os
 import subprocess
-import torch
+from typing import Any, Callable, List, Optional, Tuple, Union
 
+import numpy as np
+import torch
 from mpi4py import MPI
-from typing import Any, Callable, Optional, List, Tuple, Union
 
 from .stride_tricks import sanitize_axis
 

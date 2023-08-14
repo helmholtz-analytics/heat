@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 
 import argparse
+import os
+import time
+
 import dask
 import dask.array as da
 import dask_ml.cluster as dmc
 import h5py
-import os
-import time
-
 from dask.distributed import Client
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Dask kmeans auto cpu benchmark")

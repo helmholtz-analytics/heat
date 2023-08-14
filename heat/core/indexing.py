@@ -2,13 +2,13 @@
 Functions relating to indices of items within DNDarrays, i.e. `where()`
 """
 
-import torch
-from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence
+from typing import Any, Dict, List, Sequence, Tuple, TypeVar, Union
 
+import torch
+
+from . import sanitation, types
 from .communication import MPI
 from .dndarray import DNDarray
-from . import sanitation
-from . import types
 
 __all__ = ["nonzero", "where"]
 

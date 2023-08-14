@@ -2,18 +2,19 @@
 add modules/namespaces to the heat namespace
 """
 
+from . import (
+    classification,
+    cluster,
+    core,
+    graph,
+    naive_bayes,
+    nn,
+    optim,
+    regression,
+    sparse,
+    spatial,
+    utils,
+)
 from .core import *
-from .core.linalg import *
 from .core import __version__
-
-from . import core
-from . import classification
-from . import cluster
-from . import graph
-from . import naive_bayes
-from . import nn
-from . import optim
-from . import regression
-from . import sparse
-from . import spatial
-from . import utils
+from .core.linalg import *

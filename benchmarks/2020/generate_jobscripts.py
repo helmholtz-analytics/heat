@@ -5,7 +5,6 @@ import json
 import multiprocessing
 import os
 import sys
-
 from typing import Dict, List
 
 TEMPLATE = """#!/bin/bash -x

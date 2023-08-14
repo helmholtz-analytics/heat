@@ -2,14 +2,11 @@
 This module handles operations focussing on complex numbers.
 """
 
-import torch
 from typing import Optional
 
-from . import _operations
-from . import constants
-from . import factories
-from . import trigonometrics
-from . import types
+import torch
+
+from . import _operations, constants, factories, trigonometrics, types
 from .dndarray import DNDarray
 
 __all__ = ["angle", "conj", "conjugate", "imag", "real"]

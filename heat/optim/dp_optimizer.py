@@ -4,16 +4,14 @@ MPI enabled data parallel optimizers
 
 import inspect
 import math
+from typing import Dict, List, Tuple, Union
+
 import torch
 import torch.distributed
 from torch.nn.parallel import DistributedDataParallel as tDDP
-from typing import Union, List, Tuple, Dict
 
-from ..core.communication import MPICommunication
-from ..core.communication import MPI
-from ..core.communication import MPI_WORLD
+from ..core.communication import MPI, MPI_WORLD, MPICommunication
 from .utils import DetectMetricPlateau
-
 
 __all__ = ["DataParallelOptimizer", "DASO"]
 

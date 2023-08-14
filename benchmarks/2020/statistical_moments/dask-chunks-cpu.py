@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 
 import argparse
-import dask.array as da
-import h5py
 import os
 import time
 
+import dask.array as da
+import h5py
 from dask.distributed import Client
 from mpi4py import MPI
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Dask auto statistical moments cpu benchmark")

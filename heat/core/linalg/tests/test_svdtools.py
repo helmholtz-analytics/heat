@@ -1,9 +1,11 @@
-import torch
 import os
 import unittest
-import heat as ht
+
 import numpy as np
+import torch
 from mpi4py import MPI
+
+import heat as ht
 
 from ...tests.test_suites.basic_test import TestCase
 

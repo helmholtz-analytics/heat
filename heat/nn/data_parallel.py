@@ -2,18 +2,15 @@
 This file is for the general data parallel neural network classes.
 """
 import warnings
+from collections import OrderedDict
+from typing import Any, Callable, Dict, List, Tuple, Union
+
 import torch
 import torch.distributed
 import torch.nn as tnn
 
-from collections import OrderedDict
-from typing import Any, Callable, Dict, List, Union, Tuple
-
 from .. import optim
-from ..core.communication import MPI
-from ..core.communication import MPI_WORLD
-from ..core.communication import MPICommunication
-
+from ..core.communication import MPI, MPI_WORLD, MPICommunication
 
 __all__ = ["DataParallel", "DataParallelMultiGPU"]
 

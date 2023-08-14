@@ -2,9 +2,10 @@
 File with the available transforms for images
 """
 
-import torchvision.transforms
 import sys
 import unittest
+
+import torchvision.transforms
 
 
 def __getattr__(name):

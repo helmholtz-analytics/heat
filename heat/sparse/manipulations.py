@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from heat.sparse.dcsr_matrix import DCSR_matrix
 
-from ..core.memory import sanitize_memory_layout
 from ..core.dndarray import DNDarray
 from ..core.factories import empty
+from ..core.memory import sanitize_memory_layout
 
 __all__ = [
     "todense",

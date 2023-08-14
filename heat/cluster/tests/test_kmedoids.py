@@ -1,4 +1,5 @@
 import unittest
+
 import heat as ht
 from heat.utils.data.spherical import create_spherical_dataset
 

@@ -1,10 +1,10 @@
 import os
 import unittest
 
-import heat as ht
 import numpy as np
 import torch
 
+import heat as ht
 from heat.utils.data.spherical import create_spherical_dataset
 
 from ...core.tests.test_suites.basic_test import TestCase

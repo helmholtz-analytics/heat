@@ -2,18 +2,12 @@
 Logical functions for the DNDarrays
 """
 
+from typing import Callable, Optional, Tuple, Union
+
 import numpy as np
 import torch
 
-from typing import Callable, Optional, Tuple, Union
-
-from . import factories
-from . import manipulations
-
-from . import _operations
-from . import stride_tricks
-from . import types
-
+from . import _operations, factories, manipulations, stride_tricks, types
 from .communication import MPI
 from .dndarray import DNDarray
 

@@ -1,10 +1,11 @@
+from itertools import combinations
+
 import numpy as np
 import torch
-
-from itertools import combinations
 from scipy import stats as ss
 
 import heat as ht
+
 from .test_suites.basic_test import TestCase
 
 

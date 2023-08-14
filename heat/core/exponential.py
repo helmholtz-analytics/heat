@@ -2,8 +2,9 @@
 This module computes exponential and logarithmic operations.
 """
 
-import torch
 from typing import Optional
+
+import torch
 
 from . import _operations
 from .dndarray import DNDarray

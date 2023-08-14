@@ -2,17 +2,11 @@
 from __future__ import annotations
 
 import time
-import torch
-
 from typing import List, Optional, Tuple, Type, Union
 
-from . import communication
-from . import devices
-from . import factories
-from . import logical
-from . import stride_tricks
-from . import types
+import torch
 
+from . import communication, devices, factories, logical, stride_tricks, types
 from .communication import Communication
 from .devices import Device
 from .dndarray import DNDarray

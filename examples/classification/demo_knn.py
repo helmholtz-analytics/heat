@@ -1,11 +1,11 @@
-import sys
 import os
 import random
+import sys
+
+import pkg_resources
 
 import heat as ht
 from heat.classification.kneighborsclassifier import KNeighborsClassifier
-
-import pkg_resources
 
 # Load dataset from hdf5 file
 iris_path = pkg_resources.resource_filename(

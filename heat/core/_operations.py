@@ -1,19 +1,15 @@
 """Generalized operations for DNDarray"""
 
 import builtins
+import warnings
+from typing import Callable, Dict, Optional, Type, Union
+
 import numpy as np
 import torch
-import warnings
 
+from . import factories, sanitation, statistics, stride_tricks, types
 from .communication import MPI, MPI_WORLD
-from . import factories
-from . import stride_tricks
-from . import sanitation
-from . import statistics
 from .dndarray import DNDarray
-from . import types
-
-from typing import Callable, Optional, Type, Union, Dict
 
 __all__ = []
 __BOOLEAN_OPS = [MPI.LAND, MPI.LOR, MPI.BAND, MPI.BOR]

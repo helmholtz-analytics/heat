@@ -1,22 +1,21 @@
 import argparse
-import os
-import shutil
-import time
 import math
-from mpi4py import MPI
+import os
+import pickle
+import shutil
+import sys
+import time
 
+import pandas as pd
 import torch
-import torch.nn as nn
-import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
+import torch.nn as nn
+import torch.nn.parallel
 import torch.optim
 import torch.utils.data
 import torchvision.models as models
-import pickle
-import sys
-
-import pandas as pd
+from mpi4py import MPI
 
 sys.path.append("../../")
 import heat as ht
@@ -28,11 +27,11 @@ def print0(*args, **kwargs):
 
 
 try:
-    from nvidia.dali.plugin.pytorch import DALIClassificationIterator
-    from nvidia.dali.pipeline import Pipeline
     import nvidia.dali as dali
     import nvidia.dali.ops as ops
     import nvidia.dali.tfrecord as tfrec
+    from nvidia.dali.pipeline import Pipeline
+    from nvidia.dali.plugin.pytorch import DALIClassificationIterator
 except ImportError:
     print0("Please install DALI from https://www.github.com/NVIDIA/DALI to run this example.")
     ht.MPI.Finalize()

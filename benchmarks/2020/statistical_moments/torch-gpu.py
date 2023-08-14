@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import argparse
-import h5py
 import time
+
+import h5py
 import torch
 
 if __name__ == "__main__":

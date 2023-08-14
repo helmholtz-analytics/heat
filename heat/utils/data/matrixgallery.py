@@ -2,16 +2,18 @@
 Generate matrices for specific tests and functions
 """
 
+from typing import Callable, Tuple, Type, Union
+
 from heat import core
-from ...core.dndarray import DNDarray
+
 from ...core.communication import Communication
 from ...core.devices import Device
-from ...core.types import datatype
-from ...core.random import randn, rand
-from ...core.linalg import qr, matmul
-from ...core.manipulations import diag, sort
+from ...core.dndarray import DNDarray
 from ...core.exponential import log
-from typing import Type, Union, Tuple, Callable
+from ...core.linalg import matmul, qr
+from ...core.manipulations import diag, sort
+from ...core.random import rand, randn
+from ...core.types import datatype
 
 __all__ = ["parter", "random_known_singularvalues", "random_known_rank"]
 

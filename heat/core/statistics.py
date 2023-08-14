@@ -1,23 +1,26 @@
 """
 Distributed statistical operations.
 """
+from typing import Any, Callable, List, Optional, Tuple, Union
+
 import numpy as np
 import torch
-from typing import Any, Callable, Union, Tuple, List, Optional
 
+from . import (
+    _operations,
+    arithmetics,
+    constants,
+    exponential,
+    factories,
+    linalg,
+    logical,
+    manipulations,
+    sanitation,
+    stride_tricks,
+    types,
+)
 from .communication import MPI
-from . import arithmetics
-from . import exponential
-from . import factories
-from . import linalg
-from . import manipulations
-from . import _operations
 from .dndarray import DNDarray
-from . import types
-from . import sanitation
-from . import stride_tricks
-from . import logical
-from . import constants
 
 __all__ = [
     "argmax",

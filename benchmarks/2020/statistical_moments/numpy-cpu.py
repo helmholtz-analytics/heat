@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 import argparse
+import time
+
 import h5py
 import numpy as np
-import time
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="NumPy statistical moments cpu benchmark")

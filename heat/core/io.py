@@ -2,21 +2,19 @@
 from __future__ import annotations
 
 import os.path
-from math import log10
-import numpy as np
-import torch
 import warnings
-
+from math import log10
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
-from . import devices
-from . import factories
-from . import types
+import numpy as np
+import torch
 
-from .communication import Communication, MPI, MPI_WORLD, sanitize_comm
+from . import devices, factories, types
+from .communication import MPI, MPI_WORLD, Communication, sanitize_comm
 from .dndarray import DNDarray
 from .manipulations import hsplit, vsplit
-from .statistics import max as smax, min as smin
+from .statistics import max as smax
+from .statistics import min as smin
 from .stride_tricks import sanitize_axis
 from .types import datatype
 

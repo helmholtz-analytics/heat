@@ -1,5 +1,6 @@
-import heat as ht
 from perun.decorator import monitor
+
+import heat as ht
 
 
 @monitor()

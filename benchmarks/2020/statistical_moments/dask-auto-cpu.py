@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 import argparse
-import dask.array as da
-import h5py
 import os
 import time
 
+import dask.array as da
+import h5py
 from dask.distributed import Client
 
 if __name__ == "__main__":

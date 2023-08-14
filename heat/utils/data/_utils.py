@@ -5,9 +5,10 @@ The functions contained within are not tested, nor actively supported
 """
 
 import base64
-import numpy as np
 import os
 import struct
+
+import numpy as np
 
 
 def dali_tfrecord2idx(train_dir, train_idx_dir, val_dir, val_idx_dir):

@@ -1,7 +1,7 @@
 """
 Module Implementing the Kmeans Algorithm
 """
-from typing import Optional, Union, TypeVar
+from typing import Optional, TypeVar, Union
 
 import heat as ht
 from heat.cluster._kcluster import _KCluster

@@ -2,9 +2,10 @@
 Implementation of the LASSO regression
 """
 
+from typing import Optional, Union
+
 import heat as ht
 from heat.core.dndarray import DNDarray
-from typing import Union, Optional
 
 
 class Lasso(ht.RegressionMixin, ht.BaseEstimator):

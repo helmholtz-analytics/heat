@@ -1,13 +1,13 @@
 """
 Module for (pairwise) distance functions
 """
-import torch
-import numpy as np
-from mpi4py import MPI
 from typing import Callable
 
-from ..core import factories
-from ..core import types
+import numpy as np
+import torch
+from mpi4py import MPI
+
+from ..core import factories, types
 from ..core.dndarray import DNDarray
 
 __all__ = ["cdist", "manhattan", "rbf"]

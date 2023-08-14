@@ -4,9 +4,11 @@ Tiling functions/classes. With these classes, you can classes you can address bl
 
 
 from __future__ import annotations
+
 import itertools
-import torch
 from typing import List, Tuple, Union
+
+import torch
 
 from .dndarray import DNDarray
 

@@ -2,8 +2,9 @@
 Base-module for k-clustering algorithms
 """
 
+from typing import Callable, Optional, Union
+
 import heat as ht
-from typing import Optional, Union, Callable
 from heat.core.dndarray import DNDarray
 
 

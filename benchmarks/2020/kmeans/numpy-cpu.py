@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 import argparse
-import h5py
-import numpy as np
 import time
 
+import h5py
+import numpy as np
 from sklearn.metrics import pairwise_distances
 
 

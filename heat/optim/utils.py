@@ -3,10 +3,9 @@ Utility functions for the heat optimizers
 """
 
 import math
+from typing import Dict, Optional
+
 import torch
-
-from typing import Optional, Dict
-
 
 __all__ = ["DetectMetricPlateau"]
 

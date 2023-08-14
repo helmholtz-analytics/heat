@@ -4,12 +4,11 @@ handle different devices. Current options: CPU (default), GPU
 
 from __future__ import annotations
 
-import torch
-
 from typing import Any, Optional, Union
 
-from . import communication
+import torch
 
+from . import communication
 
 __all__ = ["Device", "cpu", "get_device", "sanitize_device", "use_device"]
 

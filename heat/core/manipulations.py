@@ -3,24 +3,25 @@ Manipulation operations for (potentially distributed) `DNDarray`s.
 """
 from __future__ import annotations
 
+import warnings
+from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Type, Union
+
 import numpy as np
 import torch
-import warnings
 
-from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
-
+from . import (
+    _operations,
+    arithmetics,
+    factories,
+    indexing,
+    linalg,
+    sanitation,
+    stride_tricks,
+    tiling,
+    types,
+)
 from .communication import MPI
 from .dndarray import DNDarray
-
-from . import arithmetics
-from . import factories
-from . import indexing
-from . import linalg
-from . import sanitation
-from . import stride_tricks
-from . import tiling
-from . import types
-from . import _operations
 
 __all__ = [
     "balance",

@@ -4,16 +4,15 @@ Trig functions
 
 from __future__ import annotations
 
-import torch
-
 from typing import Callable, Optional
 
+import torch
+
+from . import types
+from ._operations import __binary_op as binary_op
+from ._operations import __local_op as local_op
 from .constants import pi
 from .dndarray import DNDarray
-from ._operations import __local_op as local_op
-from ._operations import __binary_op as binary_op
-from . import types
-
 
 __all__ = [
     "acos",

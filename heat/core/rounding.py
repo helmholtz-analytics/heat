@@ -2,15 +2,13 @@
 Rounding functions for DNDarrays
 """
 
+from typing import Callable, Optional, Tuple, Type
+
 import torch
-from typing import Type, Tuple, Optional, Callable
+
+from . import _operations, dndarray, sanitation, types
 from .dndarray import DNDarray
 from .types import datatype
-
-from . import _operations
-from . import dndarray
-from . import sanitation
-from . import types
 
 __all__ = [
     "abs",

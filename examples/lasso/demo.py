@@ -1,16 +1,15 @@
-import numpy as np
-import torch
-import sys
 import os
+import sys
 
-import heat as ht
+import numpy as np
+import pkg_resources
+import plotfkt
+import torch
 from matplotlib import pyplot as plt
 from sklearn import datasets
+
+import heat as ht
 import heat.regression.lasso as lasso
-
-import plotfkt
-
-import pkg_resources
 
 # read scikit diabetes data set
 diabetes = datasets.load_diabetes()

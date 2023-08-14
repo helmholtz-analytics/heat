@@ -1,11 +1,11 @@
-import unittest
 import os
-
-from heat.core import dndarray, MPICommunication, MPI, types, factories
-import heat as ht
+import unittest
 
 import numpy as np
 import torch
+
+import heat as ht
+from heat.core import MPI, MPICommunication, dndarray, factories, types
 
 
 # TODO adapt for GPU once this is working properly

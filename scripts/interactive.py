@@ -3,10 +3,10 @@
 # start this script as a regular MPI Python script, but enable stdin forwarding, i.e.
 # mpirun -np <procs> -stdin all python interactive.py
 
-from mpi4py import MPI
-
 import code
 import sys
+
+from mpi4py import MPI
 
 
 class HeatInterpreter(code.InteractiveConsole):

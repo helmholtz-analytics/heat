@@ -2,10 +2,12 @@
 Module for Spectral Clustering, a graph-based machine learning algorithm
 """
 
-import heat as ht
 import math
-import torch
 from typing import Tuple
+
+import torch
+
+import heat as ht
 from heat.core.dndarray import DNDarray
 
 

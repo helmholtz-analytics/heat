@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 import argparse
+import time
+
 import h5py
 import numpy as np
-import time
 
 
 class Lasso:

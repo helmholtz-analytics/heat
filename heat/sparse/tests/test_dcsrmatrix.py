@@ -1,10 +1,10 @@
 import unittest
-import heat as ht
+from typing import Tuple
+
 import torch
 
+import heat as ht
 from heat.core.tests.test_suites.basic_test import TestCase
-
-from typing import Tuple
 
 
 @unittest.skipIf(

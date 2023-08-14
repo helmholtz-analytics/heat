@@ -2,14 +2,15 @@
 QR decomposition of (distributed) 2-D ``DNDarray``s.
 """
 import collections
-import torch
-from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple
+from typing import Any, Callable, Dict, Tuple, Type, TypeVar, Union
 
-from ..communication import MPICommunication
-from ..types import datatype
-from ..tiling import SquareDiagTiles
-from ..dndarray import DNDarray
+import torch
+
 from .. import factories
+from ..communication import MPICommunication
+from ..dndarray import DNDarray
+from ..tiling import SquareDiagTiles
+from ..types import datatype
 
 __all__ = ["qr"]
 

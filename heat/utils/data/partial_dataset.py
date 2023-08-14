@@ -5,14 +5,13 @@ Tool for using a dataset which will not fit in memory with neural networks
 import math
 import queue
 import threading
-import torch
 import time
+from typing import Callable, Iterator, List, Union
 
+import torch
 from torch.utils import data as torch_data
-from typing import Callable, List, Iterator, Union
 
-from ...core.communication import MPICommunication
-from ...core.communication import MPI_WORLD
+from ...core.communication import MPI_WORLD, MPICommunication
 
 __all__ = ["PartialH5Dataset", "PartialH5DataLoaderIter"]
 

@@ -1,14 +1,14 @@
 """Provides a collection of signal-processing operations"""
 
-import torch
 import numpy as np
+import torch
+import torch.nn.functional as fc
 
 from .communication import MPI
 from .dndarray import DNDarray
-from .types import promote_types
-from .manipulations import pad, flip
 from .factories import array, zeros
-import torch.nn.functional as fc
+from .manipulations import flip, pad
+from .types import promote_types
 
 __all__ = ["convolve"]
 

@@ -1,6 +1,6 @@
-from setuptools import setup, find_packages
 import codecs
 
+from setuptools import find_packages, setup
 
 with codecs.open("README.md", "r", "utf-8") as handle:
     long_description = handle.read()

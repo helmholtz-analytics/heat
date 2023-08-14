@@ -3,18 +3,14 @@ Functions for relational oprations, i.e. equal/no equal...
 """
 from __future__ import annotations
 
-import torch
-import numpy as np
-
 from typing import Union
 
+import numpy as np
+import torch
+
+from . import _operations, dndarray, factories, sanitation, types
 from .communication import MPI
 from .dndarray import DNDarray
-from . import _operations
-from . import dndarray
-from . import types
-from . import sanitation
-from . import factories
 
 __all__ = [
     "eq",

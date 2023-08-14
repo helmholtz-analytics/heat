@@ -3,18 +3,15 @@ Collection of validation/sanitation routines.
 """
 from __future__ import annotations
 
+import warnings
+from typing import Any, List, Sequence, Tuple, Union
+
 import numpy as np
 import torch
-import warnings
-from typing import Any, Union, Sequence, List, Tuple
 
+from . import factories, stride_tricks, types
 from .communication import MPI, Communication
 from .dndarray import DNDarray
-
-from . import factories
-from . import stride_tricks
-from . import types
-
 
 __all__ = [
     "sanitize_distribution",

@@ -1,6 +1,6 @@
 import unittest
-import heat as ht
 
+import heat as ht
 from heat.classification.kneighborsclassifier import KNeighborsClassifier
 from heat.core.tests.test_suites.basic_test import TestCase
 

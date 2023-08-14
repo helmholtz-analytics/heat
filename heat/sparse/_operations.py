@@ -1,15 +1,15 @@
 """Generalized operations for DCSR_matrix"""
-import torch
+from typing import Callable, Dict, Optional
+
 import numpy as np
+import torch
 
 from heat.sparse.dcsr_matrix import DCSR_matrix
 
-from . import factories
+from ..core import types
 from ..core.communication import MPI
 from ..core.dndarray import DNDarray
-from ..core import types
-
-from typing import Callable, Optional, Dict
+from . import factories
 
 __all__ = []
 

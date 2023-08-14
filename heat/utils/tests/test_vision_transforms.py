@@ -1,5 +1,6 @@
-import heat as ht
 import unittest
+
+import heat as ht
 
 
 class TestVisionTransforms(unittest.TestCase):

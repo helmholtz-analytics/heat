@@ -1,10 +1,11 @@
 """
 Module Implementing the Kmedians Algorithm
 """
+from typing import Optional, TypeVar, Union
+
 import heat as ht
 from heat.cluster._kcluster import _KCluster
 from heat.core.dndarray import DNDarray
-from typing import Optional, Union, TypeVar
 
 
 class KMedians(_KCluster):

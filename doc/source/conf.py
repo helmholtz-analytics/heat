@@ -21,8 +21,9 @@ documentation root, use os.path.abspath to make it absolute, like shown here.
 
 import os
 import sys
+
 import sphinx_rtd_theme
-from sphinx.ext.napoleon.docstring import NumpyDocstring, GoogleDocstring
+from sphinx.ext.napoleon.docstring import GoogleDocstring, NumpyDocstring
 
 # sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath("../../heat"))

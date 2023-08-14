@@ -6,16 +6,12 @@ from __future__ import annotations
 
 import builtins
 import collections
+from typing import Any, Iterable, Optional, Tuple, Type, Union
+
 import numpy as np
 import torch
 
-from . import communication
-from . import devices
-from . import factories
-from . import _operations
-from . import sanitation
-
-from typing import Type, Union, Tuple, Any, Iterable, Optional
+from . import _operations, communication, devices, factories, sanitation
 
 __all__ = [
     "datatype",

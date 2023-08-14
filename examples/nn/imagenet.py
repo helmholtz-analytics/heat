@@ -8,8 +8,8 @@ import warnings
 
 import numpy as np
 import torch
-import torchvision.transforms as transforms
 import torchvision.models as models
+import torchvision.transforms as transforms
 
 sys.path.append("../../")
 import heat as ht

@@ -5,11 +5,11 @@ It contains data parallel specific nn modules. It also includes all of the modul
 """
 
 import sys
-import torch
 import unittest
 
-from . import functional
+import torch
 
+from . import functional
 
 if sys.version_info.minor >= 7:
     from .data_parallel import *
@@ -31,8 +31,7 @@ if sys.version_info.minor >= 7:
                 raise AttributeError(f"module {name} not implemented in Torch or Heat")
 
 else:
-    from . import data_parallel
-    from . import tests
+    from . import data_parallel, tests
 
     class Wrapper(object):
         """

@@ -1,6 +1,8 @@
-import heat as ht
-import torch
 import unittest
+
+import torch
+
+import heat as ht
 
 
 @unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")

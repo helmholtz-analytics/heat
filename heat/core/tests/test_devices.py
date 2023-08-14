@@ -2,6 +2,7 @@ import os
 import unittest
 
 import heat as ht
+
 from .test_suites.basic_test import TestCase
 
 envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")

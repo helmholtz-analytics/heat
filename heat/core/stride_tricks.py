@@ -3,10 +3,10 @@ A collection of functions used for inferring or correcting things before major c
 """
 
 import itertools
+from typing import Tuple, Union
+
 import numpy as np
 import torch
-
-from typing import Tuple, Union
 
 
 def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple[int, ...]:

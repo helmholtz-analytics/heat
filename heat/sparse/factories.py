@@ -1,18 +1,16 @@
 """Provides high-level DCSR_matrix initialization functions"""
 
-import torch
+import warnings
+from typing import Iterable, Optional, Type
+
 import numpy as np
+import torch
 from scipy.sparse import csr_matrix as scipy_csr_matrix
 
-from typing import Optional, Type, Iterable
-import warnings
-
-from ..core import devices
-from ..core import types
-from ..core.communication import MPI, sanitize_comm, Communication
+from ..core import devices, types
+from ..core.communication import MPI, Communication, sanitize_comm
 from ..core.devices import Device
 from ..core.types import datatype
-
 from .dcsr_matrix import DCSR_matrix
 
 __all__ = [

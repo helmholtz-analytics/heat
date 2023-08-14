@@ -2,27 +2,28 @@
 Basic linear algebra operations on distributed ``DNDarray``
 """
 import itertools
+import warnings
+from typing import Callable, List, Optional, Tuple, Union
+
 import numpy as np
 import torch
-import warnings
-
-from typing import List, Callable, Union, Optional, Tuple
-
 from torch._C import Value
 
+from .. import (
+    arithmetics,
+    complex_math,
+    constants,
+    exponential,
+    factories,
+    manipulations,
+    rounding,
+    sanitation,
+    statistics,
+    stride_tricks,
+    types,
+)
 from ..communication import MPI
-from .. import arithmetics
-from .. import complex_math
-from .. import constants
-from .. import exponential
 from ..dndarray import DNDarray
-from .. import factories
-from .. import manipulations
-from .. import rounding
-from .. import sanitation
-from .. import statistics
-from .. import stride_tricks
-from .. import types
 
 __all__ = [
     "cross",

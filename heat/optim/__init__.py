@@ -5,13 +5,13 @@ It contains data parallel specific optimizers and learning rate schedulers. It a
 optimizers and learning rate schedulers in the torch namespace
 """
 
-from .lr_scheduler import *
-from . import utils
-
 import sys
-import torch
 import unittest
 
+import torch
+
+from . import utils
+from .lr_scheduler import *
 
 if sys.version_info.minor >= 7:
     from .dp_optimizer import *
@@ -36,8 +36,7 @@ if sys.version_info.minor >= 7:
                     raise AttributeError(f"module {name} not implemented in torch.optim")
 
 else:
-    from . import dp_optimizer
-    from . import tests
+    from . import dp_optimizer, tests
 
     class _Wrapper36(object):
         """

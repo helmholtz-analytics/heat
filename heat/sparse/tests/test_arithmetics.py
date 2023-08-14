@@ -1,10 +1,10 @@
-import unittest
-import heat as ht
-import torch
-import numpy as np
-
 import random
+import unittest
 
+import numpy as np
+import torch
+
+import heat as ht
 from heat.core.tests.test_suites.basic_test import TestCase
 
 
