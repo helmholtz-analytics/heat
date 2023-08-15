@@ -13,7 +13,6 @@ from ..communication import MPICommunication
 from ..dndarray import DNDarray
 from ..indexing import where
 from ..linalg import matmul, vector_norm
-from ..manipulations import balance, diag, hstack, vstack
 
 # from ..random import randn
 
@@ -525,3 +524,6 @@ def compute_local_truncated_svd(
         sigma_loc = torch.zeros(1, dtype=U_loc.dtype, device=U_loc.device)
         U_loc = torch.zeros(U_loc.shape[0], 1, dtype=U_loc.dtype, device=U_loc.device)
         return U_loc, sigma_loc, err_squared_loc
+
+
+from ..manipulations import balance, diag, hstack, vstack
