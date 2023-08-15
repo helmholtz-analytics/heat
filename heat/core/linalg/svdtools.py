@@ -14,7 +14,8 @@ from ..dndarray import DNDarray
 from ..indexing import where
 from ..linalg import matmul, vector_norm
 from ..manipulations import balance, diag, hstack, vstack
-from ..random import randn
+
+# from ..random import randn
 
 __all__ = ["hsvd_rank", "hsvd_rtol", "hsvd"]
 

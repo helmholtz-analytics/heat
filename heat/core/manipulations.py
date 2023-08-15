@@ -9,6 +9,17 @@ from typing import Callable, Iterable, List, Optional, Sequence, Tuple, Type, Un
 import numpy as np
 import torch
 
+from . import (
+    _operations,
+    arithmetics,
+    factories,
+    indexing,
+    linalg,
+    sanitation,
+    stride_tricks,
+    tiling,
+    types,
+)
 from .communication import MPI
 from .dndarray import DNDarray
 
@@ -4116,15 +4127,3 @@ def mpi_topk(a, b, mpi_type):
 
 
 MPI_TOPK = MPI.Op.Create(mpi_topk, commute=True)
-
-from . import (
-    _operations,
-    arithmetics,
-    factories,
-    indexing,
-    linalg,
-    sanitation,
-    stride_tricks,
-    tiling,
-    types,
-)
