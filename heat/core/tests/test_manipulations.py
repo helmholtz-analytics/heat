@@ -173,7 +173,6 @@ class TestManipulations(TestCase):
         with self.assertRaises(TypeError):
             ht.broadcast_to(a.larray, (10, 5))
 
-
     def test_column_stack(self):
         # test local column_stack, 2-D arrays
         a = np.arange(10, dtype=np.float32).reshape(5, 2)
