@@ -1,3 +1,15 @@
+## Due Diligence
+<!--- Please address the following points before setting your PR "ready for review".
+--->
+- General:
+    - [ ]  **base branch** must be `main` for new features, latest release branch (e.g. `release/1.3.x`) for bug fixes
+    - [ ]  **title** of the PR is suitable to appear in the [Release Notes](https://github.com/helmholtz-analytics/heat/releases/latest)
+- Implementation:
+    - [ ] unit tests: all split configurations tested
+    - [ ] unit tests: multiple dtypes tested
+    - [ ] documentation updated where needed
+
+
 ## Description
 
 <!--- Include a summary of the change/s.
@@ -42,14 +54,5 @@ my be illegible. It may be easiest to save the output of each to a file.
 --->
 
 
-## Due Diligence
-- [ ] All split configurations tested
-- [ ] Multiple dtypes tested in relevant functions
-- [ ] Documentation updated (if needed)
-- [ ] Updated changelog.md under the title "Pending Additions"
-
 #### Does this change modify the behaviour of other functions? If so, which?
 yes / no
-
-<!-- Remove this line for GPU Cluster tests. It will need an approval. --->
-skip ci

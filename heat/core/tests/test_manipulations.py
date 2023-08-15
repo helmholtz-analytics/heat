@@ -109,6 +109,71 @@ class TestManipulations(TestCase):
         with self.assertRaises(TypeError):
             ht.argsort(data, axis="1")
 
+    def test_broadcast_arrays(self):
+        a = ht.array([[1], [2]])
+        b = ht.array([[0, 1]])
+        a_broadcasted, b_broadcasted = ht.broadcast_arrays(a, b)
+        self.assertTrue(ht.equal(a_broadcasted, ht.array([[1, 1], [2, 2]])))
+        self.assertTrue(ht.equal(b_broadcasted, ht.array([[0, 1], [0, 1]])))
+
+        # check dtype
+        arrays = [
+            ht.arange(9, dtype=ht.int32).reshape((3, 1, 3)),
+            ht.arange(6, dtype=ht.float32).reshape((1, 2, 3)),
+            ht.array([[[True], [False]]]),
+        ]
+        broadcasted = ht.broadcast_arrays(*arrays)
+        self.assertTrue(all(x.shape == (3, 2, 3) for x in broadcasted))
+        self.assertTrue(all(x.dtype == a.dtype for a, x in zip(arrays, broadcasted)))
+
+        # check broadcast_arrays on one array only
+        a = ht.array([[1], [2]])
+        (a_broadcasted,) = ht.broadcast_arrays(a)
+        self.assertTrue(ht.equal(a_broadcasted, a))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.broadcast_arrays(ht.ones((2, 3)), 4, False)
+        with self.assertRaises(ValueError):
+            ht.broadcast_arrays(ht.ones((10, 6), split=0), ht.ones((10), split=0))
+
+        if a.comm.size > 1:
+            a = ht.ones((5, 1, 5), split=0)
+            b = ht.ones((5, 5, 5), split=1)
+            with self.assertRaises(ValueError):
+                ht.broadcast_arrays(a, b)
+
+    def tests_broadcast_to(self):
+        a = ht.array([1, 2, 3])
+        broadcasted = ht.broadcast_to(a, (3, 3))
+        self.assertTrue(ht.equal(broadcasted, ht.array([[1, 2, 3], [1, 2, 3], [1, 2, 3]])))
+
+        # check dtype
+        bool_array = ht.array([[False, True]])
+        broadcasted = ht.broadcast_to(bool_array, (5, 2))
+        self.assertEqual(broadcasted.shape, (5, 2))
+        self.assertEqual(broadcasted.dtype, ht.bool)
+        float_array = ht.arange(3, dtype=ht.float32).reshape((3, 1))
+        broadcasted = ht.broadcast_to(float_array, (3, 4))
+        self.assertEqual(broadcasted.shape, (3, 4))
+        self.assertEqual(broadcasted.dtype, ht.float32)
+
+        # check split
+        a = ht.zeros((5, 5), split=0)
+        broadcasted = ht.broadcast_to(a, (5, 5, 5))
+        self.assertEqual(broadcasted.split, 1)
+
+        # test view
+        a = ht.arange(5)
+        broadcasted = ht.broadcast_to(a, (10, 5))
+        a[0] = 5
+        self.assertTrue(ht.equal(a, broadcasted[0]))
+
+        # check exceptions
+        with self.assertRaises(TypeError):
+            ht.broadcast_to(a.larray, (10, 5))
+
+
     def test_column_stack(self):
         # test local column_stack, 2-D arrays
         a = np.arange(10, dtype=np.float32).reshape(5, 2)
@@ -1296,10 +1361,10 @@ class TestManipulations(TestCase):
         a = ht.zeros((3, 4, 5))
 
         moved = ht.moveaxis(a, 0, -1)
-        self.assertEquals(moved.shape, (4, 5, 3))
+        self.assertEqual(moved.shape, (4, 5, 3))
 
         moved = ht.moveaxis(a, [0, 1], [-1, -2])
-        self.assertEquals(moved.shape, (5, 4, 3))
+        self.assertEqual(moved.shape, (5, 4, 3))
 
         with self.assertRaises(TypeError):
             ht.moveaxis(a, source="r", destination=3)
@@ -3095,6 +3160,16 @@ class TestManipulations(TestCase):
             self.assertEqual(data2.lshape, (data.comm.size, 1))
             self.assertEqual(data2.split, 1)
 
+            # resplitting a non-distributed DNDarray with split not None
+            if ht.MPI_WORLD.size == 1:
+                data = ht.zeros(10, 10, split=0)
+                data2 = ht.resplit(data, 1)
+                data3 = ht.resplit(data, None)
+                self.assertTrue((data == data2).all())
+                self.assertTrue((data == data3).all())
+                self.assertEqual(data2.split, 1)
+                self.assertTrue(data3.split is None)
+
             # splitting an unsplit tensor should result in slicing the tensor locally
             shape = (ht.MPI_WORLD.size, ht.MPI_WORLD.size)
             data = ht.zeros(shape)
@@ -3344,11 +3419,12 @@ class TestManipulations(TestCase):
         ht_c_wrong_shape = ht.array(c.reshape(2, 10))
         with self.assertRaises(ValueError):
             ht.stack((ht_a, ht_b, ht_c_wrong_shape))
-        ht_b_wrong_split = ht.array(b, split=1)
-        with self.assertRaises(ValueError):
-            ht.stack((ht_a_split, ht_b_wrong_split, ht_c_split))
-        with self.assertRaises(ValueError):
-            ht.stack((ht_a_split, ht_b.resplit(1), ht_c_split))
+        if ht_a.comm.size > 1:
+            ht_b_wrong_split = ht.array(b, split=1)
+            with self.assertRaises(ValueError):
+                ht.stack((ht_a_split, ht_b_wrong_split, ht_c_split))
+            with self.assertRaises(ValueError):
+                ht.stack((ht_a_split, ht_b.resplit(1), ht_c_split))
         out_wrong_type = torch.empty((3, 5, 4), dtype=torch.float32)
         with self.assertRaises(TypeError):
             ht.stack((ht_a_split, ht_b_split, ht_c_split), out=out_wrong_type)
