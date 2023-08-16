@@ -2,26 +2,22 @@ name: Support latest PyTorch
 
 on:
   push:
+    branches:
+      - 'support/new-pytorch-release-branch'
+      - 'support/new-pytorch-main-branch'
     paths:
       - '.github/pytorch-release-versions/*'
 env:
-  previous_pytorch: $(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')
-  new_pytorch: $(<.github/pytorch-release-versions/pytorch-latest.txt)
-  new_major: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f1)
-  new_minor: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f2)
-  new_patch: $(<.github/pytorch-release-versions/pytorch-latest.txt | cut -d'.' -f3)
+  working_branch: ${{ github.ref }}
 permissions:
   contents: write
   issues: write
   pull-requests: write
 jobs:
   latest-torch-support:
-    strategy:
-      matrix:
-        branches: ['main', 'release/1.2.x']
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: JasonEtco/create-an-issue@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -33,31 +29,37 @@ jobs:
           update_existing: true
           search_existing: open
       - name: Check out new branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: 'release/1.2.x'
-      - name: Increment patch
+          ref: '${{ env.working_branch }}'
+      - name: Set env variables
         run: |
-          echo "new_setup_patch=$((${{ env.new_patch }}+1))" >> $GITHUB_ENV
-      - name: Define version string
+          echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
+          echo "new_pytorch=$(<.github/pytorch-release-versions/pytorch-latest.txt)"  >> $GITHUB_ENV
+      - name: Increment version
         run: |
-          echo "new_setup_pytorch=$("${{ env.new_major }}"."${{ env.new_minor }}"."${{ env.new_setup_patch }}")" >> $GITHUB_ENV
+          chmod +x .github/workflows/increment_version.sh
+          echo "setup_pytorch=$(.github/workflows/increment_version.sh ${{ env.new_pytorch }})" >> $GITHUB_ENV
       - name: Update setup.py
         run: |
-          echo ${{ env.new_setup_pytorch }}
-          sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.new_setup_pytorch }}"'/g' setup.py
-      - name: Define env variable
+          sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.setup_pytorch }}"'/g' setup.py
+      - name: Define base branch
         run: |
-          echo "new=$(<.github/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
+          if [[ ${{ github.ref }} =~ .*main.* ]]; then
+            echo "base_branch=main" >> $GITHUB_ENV
+          elif [[ ${{ github.ref }} =~ .*release.* ]]; then
+            echo "base_branch=release/1.2.x" >> $GITHUB_ENV
+          fi
       - name: Create PR from branch
-        uses: peter-evans/create-pull-request@v3
+        uses: peter-evans/create-pull-request@v4
         with:
-            base: release/1.2.x
+            base: ${{ env.base_branch }}
+            branch: ${{ env.working_branch }}
             delete-branch: true
             token: ${{ secrets.GITHUB_TOKEN }}
             commit-message: Support latest PyTorch release
-            title: Support PyTorch ${{ env.new }} on branch release/1.2.x
+            title: Support PyTorch ${{ env.new_pytorch }} on branch ${{ env.base_branch }}
             body: |
               Run tests on latest PyTorch release
               Issue/s resolved: #${{ steps.create-issue.outputs.number }}

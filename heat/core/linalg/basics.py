@@ -85,16 +85,14 @@ def cross(
     sanitation.sanitize_in(b)
 
     if a.device != b.device:
-        raise ValueError(
-            "'a' and 'b' must have the same device type, {} != {}".format(a.device, b.device)
-        )
+        raise ValueError(f"'a' and 'b' must have the same device type, {a.device} != {b.device}")
     if a.comm != b.comm:  # pragma: no cover
-        raise ValueError("'a' and 'b' must have the same comm, {} != {}".format(a.comm, b.comm))
+        raise ValueError(f"'a' and 'b' must have the same comm, {a.comm} != {b.comm}")
 
     a_2d, b_2d = False, False
     a_shape, b_shape = list(a.shape), list(b.shape)
 
-    if not axis == -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
+    if axis != -1 or torch.unique(torch.tensor([axisa, axisb, axisc, axis])).numel() == 1:
         axis = stride_tricks.sanitize_axis(a.shape, axis)
         axisa, axisb, axisc = (axis,) * 3
     else:
@@ -116,7 +114,7 @@ def cross(
         a_2d = True
         shape = tuple(1 if i == axisa else j for i, j in enumerate(a.shape))
         a = manipulations.concatenate(
-            [a, factories.zeros(shape, dtype=a.dtype, device=a.device)], axis=axisa
+            [a, factories.zeros(shape, dtype=a.dtype, device=a.device, comm=a.comm)], axis=axisa
         )
     if b.shape[axisb] == 2:
         b_2d = True
@@ -135,7 +133,7 @@ def cross(
 
     # by now split axes must be aligned
     if a.split != b.split:
-        raise ValueError("'a' and 'b' must have the same split, {} != {}".format(a.split, b.split))
+        raise ValueError(f"'a' and 'b' must have the same split, {a.split} != {b.split}")
 
     if not (a.is_balanced and b.is_balanced):
         # TODO: replace with sanitize_redistribute after #888 is merged
@@ -194,7 +192,7 @@ def det(a: DNDarray) -> DNDarray:
     # no split in the square matrices
     if not a.is_distributed() or a.split < a.ndim - 2:
         data = torch.linalg.det(a.larray)
-        sp = None if not a.is_distributed() else a.split
+        sp = a.split if a.is_distributed() else None
         return DNDarray(
             data,
             a.shape[:-2],
@@ -207,7 +205,7 @@ def det(a: DNDarray) -> DNDarray:
 
     acopy = a.copy()
     acopy = manipulations.reshape(acopy, (-1, m, m), new_split=a.split - a.ndim + 3)
-    adet = factories.ones(acopy.shape[0], dtype=a.dtype, device=a.device)
+    adet = factories.ones(acopy.shape[0], dtype=a.dtype, device=a.device, comm=a.comm)
 
     for k in range(adet.shape[0]):
         m = 0
@@ -396,9 +394,8 @@ def inv(a: DNDarray) -> DNDarray:
 
             # Circumvent an issue with DNDarray setter and getter that caused precision errors
             if a.split == a.ndim - 2:
-                if rank < acopy.comm.size - 1:
-                    if i >= displs[rank + 1]:
-                        rank += 1
+                if rank < acopy.comm.size - 1 and i >= displs[rank + 1]:
+                    rank += 1
                 if acopy.comm.rank == rank:
                     ainv.larray[k, i - displs[rank], :] /= scale
                     acopy.larray[k, i - displs[rank], :] /= scale
@@ -475,6 +472,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     [1/1] tensor([[3., 1., 1., 1., 1., 1., 1.],
                   [4., 1., 1., 1., 1., 1., 1.]])
     >>> linalg.matmul(a, b).larray
+
     [0/1] tensor([[18.,  8.,  9., 10.],
                   [14.,  6.,  7.,  8.],
                   [18.,  7.,  8.,  9.],
@@ -488,9 +486,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     """
     if a.gshape[-1] != b.gshape[0]:
         raise ValueError(
-            "If the last dimension of a ({}) is not the same size as the second-to-last dimension of b. ({})".format(
-                a.gshape[-1], b.gshape[-2]
-            )
+            f"If the last dimension of a ({a.gshape[-1]}) is not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
         )
 
     # determine if a larger type is needed for c
@@ -520,7 +516,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
             # if either of A or B is a vector
-            ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device)
+            ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device, comm=a.comm)
             if gpu_int_flag:
                 ret = og_type(ret, device=a.device)
             return ret
@@ -529,7 +525,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
         hold = a.larray @ b.larray
 
-        c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device)
+        c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device, comm=a.comm)
         c.larray[slice_0.start : slice_0.stop, :] += hold
         c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         if gpu_int_flag:
@@ -544,7 +540,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         b.resplit_(0)
         res = a.larray @ b.larray
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
-        ret = factories.array(res, split=None, device=a.device)
+        ret = factories.array(res, split=None, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -567,7 +563,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     ) and not vector_flag:
         split = a.split if a.split is not None else b.split
         split = split if not vector_flag else 0
-        c = factories.zeros((a.gshape[-2], b.gshape[1]), split=split, dtype=c_type, device=a.device)
+        c = factories.zeros(
+            (a.gshape[-2], b.gshape[1]), split=split, dtype=c_type, device=a.device, comm=a.comm
+        )
         c.larray += a.larray @ b.larray
 
         ret = c if not vector_flag else c.squeeze()
@@ -582,7 +580,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c += a.larray @ b.larray[a_idx[1].start : a_idx[1].start + a.lshape[-1], :]
         a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         c = c if not vector_flag else c.squeeze()
-        ret = factories.array(c, split=a.split if b.gshape[1] > 1 else 0, device=a.device)
+        ret = factories.array(
+            c, split=a.split if b.gshape[1] > 1 else 0, device=a.device, comm=a.comm
+        )
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -593,7 +593,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c += a.larray[:, b_idx[0].start : b_idx[0].start + b.lshape[0]] @ b.larray
         b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         c = c if not vector_flag else c.squeeze()
-        ret = factories.array(c, split=b.split if a.gshape[-2] > 1 else 0, device=a.device)
+        ret = factories.array(
+            c, split=b.split if a.gshape[-2] > 1 else 0, device=a.device, comm=a.comm
+        )
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -608,7 +610,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c = c if not vector_flag else c.squeeze()
         split = a.split if b.gshape[1] > 1 else 0
         split = split if not vector_flag else 0
-        ret = factories.array(c, split=split, device=a.device)
+        ret = factories.array(c, split=split, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -619,7 +621,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c = c if not vector_flag else c.squeeze()
         split = b.split if a.gshape[1] > 1 else 0
         split = split if not vector_flag else 0
-        ret = factories.array(c, is_split=split, device=a.device)
+        ret = factories.array(c, is_split=split, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -649,7 +651,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         kB = a.gshape[-1] // a.comm.size
     elif b.split == len(a.gshape) - 2:
         kB = b.gshape[0] // b.comm.size
-        kB = kB if kB < a.gshape[-1] else a.gshape[-1]
+        kB = min(kB, a.gshape[-1])
 
     if a.lshape[-1] % kB != 0 or (kB == 1 and a.lshape[-1] != 1):
         rem_a = 1
@@ -695,10 +697,10 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     # for the communication scheme, the output array needs to be created
     c_shape = (a.gshape[-2], b.gshape[1])
-    c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=a.device)
+    c = factories.zeros(c_shape, split=a.split, dtype=c_type, device=a.device, comm=a.comm)
 
     # get the index map for c
-    c_index_map = factories.zeros((c.comm.size, 2, 2), device=a.device)
+    c_index_map = factories.zeros((c.comm.size, 2, 2), device=a.device, comm=a.comm)
     c_idx = c.comm.chunk(c.shape, c.split)[2]
     c_index_map[c.comm.rank, 0, :] = (c_idx[0].start, c_idx[0].stop)
     c_index_map[c.comm.rank, 1, :] = (c_idx[1].start, c_idx[1].stop)
@@ -866,11 +868,10 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     b_rem[pr - 1] = b_lp_data[pr - 1][-1]
 
                 # this loop is to take care of the remainders in dim0 of A
-                if a_rem_locs0.nelement() != 0:
-                    if r_loc is not None:
-                        st = index_map[pr - 1, 1, 0, 0].item()
-                        sp = index_map[pr - 1, 1, 0, 1].item()
-                        c.larray[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
+                if a_rem_locs0.nelement() != 0 and r_loc is not None:
+                    st = index_map[pr - 1, 1, 0, 0].item()
+                    sp = index_map[pr - 1, 1, 0, 1].item()
+                    c.larray[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr - 1]
                 del b_lp_data[pr - 1]
 
             # need to wait if its the last loop, also need to collect the remainders
@@ -896,17 +897,16 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     b_rem[pr] = b_lp_data[pr][-1]
 
                 # this loop is to take care of the remainders in the 0th dimension of A
-                if a_rem_locs0.nelement() != 0:
-                    if r_loc is not None:
-                        st = index_map[pr, 1, 0, 0].item()
-                        sp = index_map[pr, 1, 0, 1].item()
+                if a_rem_locs0.nelement() != 0 and r_loc is not None:
+                    st = index_map[pr, 1, 0, 0].item()
+                    sp = index_map[pr, 1, 0, 1].item()
 
-                        if split_01_flag:
-                            st1 = index_map[pr, 1, 1, 0].item()
-                            sp1 = index_map[pr, 1, 1, 1].item()
-                            c.larray[r_loc.item(), st1:sp1] += r[st:sp] @ b_lp_data[pr]
-                        else:
-                            c.larray[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr]
+                    if split_01_flag:
+                        st1 = index_map[pr, 1, 1, 0].item()
+                        sp1 = index_map[pr, 1, 1, 1].item()
+                        c.larray[r_loc.item(), st1:sp1] += r[st:sp] @ b_lp_data[pr]
+                    else:
+                        c.larray[r_loc.item(), :] += r[st:sp] @ b_lp_data[pr]
 
                 # set the final blocks on the last loop, then adjust for the
                 # the remainders which were collected in b_rem
@@ -919,7 +919,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             if c_loc.nelement() == 1:
                 c_loc = torch.tensor(c_loc, device=tdev)
 
-            c = factories.array(c_loc, is_split=0, device=a.device)
+            c = factories.array(c_loc, is_split=0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
         return c
@@ -982,12 +982,11 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     # takes care of the remainders in b as well as dim0 of a
                     a_rem[:, pr - 1] = a_lp_data[pr - 1][:, -1]
                 # this loop is to take care of the remainders in dim1 of B
-                if b_rem_locs1.nelement() != 0:
-                    if r_loc is not None:
-                        st = index_map[pr - 1, 0, 1, 0].item()
-                        sp = index_map[pr - 1, 0, 1, 1].item()
+                if b_rem_locs1.nelement() != 0 and r_loc is not None:
+                    st = index_map[pr - 1, 0, 1, 0].item()
+                    sp = index_map[pr - 1, 0, 1, 1].item()
 
-                        c.larray[:, r_loc.item()] += (a_lp_data[pr - 1] @ r[st:sp, None]).flatten()
+                    c.larray[:, r_loc.item()] += (a_lp_data[pr - 1] @ r[st:sp, None]).flatten()
 
                 del a_lp_data[pr - 1]
 
@@ -1013,17 +1012,16 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     # this is to save the data from B required by the remainders from dim1 of A
                     a_rem[:, pr] = a_lp_data[pr][:, -1]
                 # this loop is to take care of the remainders in the 0th dimension of A
-                if b_rem_locs1.nelement() != 0:
-                    if r_loc is not None:
-                        st = index_map[pr, 0, 1, 0].item()
-                        sp = index_map[pr, 0, 1, 1].item()
-                        c.larray[:, r_loc.item()] += (a_lp_data[pr] @ r[st:sp, None]).flatten()
+                if b_rem_locs1.nelement() != 0 and r_loc is not None:
+                    st = index_map[pr, 0, 1, 0].item()
+                    sp = index_map[pr, 0, 1, 1].item()
+                    c.larray[:, r_loc.item()] += (a_lp_data[pr] @ r[st:sp, None]).flatten()
                 # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
                 if a_rem_locs1.numel():
                     c.larray[:, : b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1
                 del a_lp_data[pr]
         if vector_flag:
-            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device)
+            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
         return c
@@ -1066,7 +1064,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 c.larray[: sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr]
                 del b_lp_data[pr]
         if vector_flag:
-            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device)
+            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
 
@@ -1090,7 +1088,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         if vector_flag:
             split = 0
             res = res.squeeze()
-        c = factories.array(res, split=split, device=a.device)
+        c = factories.array(res, split=split, device=a.device, comm=a.comm)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
         return c
@@ -1185,17 +1183,17 @@ def matrix_norm(
         if col_axis > row_axis and not keepdims:
             col_axis -= 1
         return statistics.max(
-            arithmetics.sum(rounding.abs(x), axis=row_axis, keepdim=keepdims),
+            arithmetics.sum(rounding.abs(x), axis=row_axis, keepdims=keepdims),
             axis=col_axis,
-            keepdim=keepdims,
+            keepdims=keepdims,
         )
     elif ord == -1:
         if col_axis > row_axis and not keepdims:
             col_axis -= 1
         return statistics.min(
-            arithmetics.sum(rounding.abs(x), axis=row_axis, keepdim=keepdims),
+            arithmetics.sum(rounding.abs(x), axis=row_axis, keepdims=keepdims),
             axis=col_axis,
-            keepdim=keepdims,
+            keepdims=keepdims,
         )
     elif ord == 2:
         raise NotImplementedError("The largest singular value can't be computed yet.")
@@ -1205,21 +1203,21 @@ def matrix_norm(
         if row_axis > col_axis and not keepdims:
             row_axis -= 1
         return statistics.max(
-            arithmetics.sum(rounding.abs(x), axis=col_axis, keepdim=keepdims),
+            arithmetics.sum(rounding.abs(x), axis=col_axis, keepdims=keepdims),
             axis=row_axis,
-            keepdim=keepdims,
+            keepdims=keepdims,
         )
     elif ord == -constants.inf:
         if row_axis > col_axis and not keepdims:
             row_axis -= 1
         return statistics.min(
-            arithmetics.sum(rounding.abs(x), axis=col_axis, keepdim=keepdims),
+            arithmetics.sum(rounding.abs(x), axis=col_axis, keepdims=keepdims),
             axis=row_axis,
-            keepdim=keepdims,
+            keepdims=keepdims,
         )
     elif ord in [None, "fro"]:
         return exponential.sqrt(
-            arithmetics.sum((complex_math.conj(x) * x).real, axis=axis, keepdim=keepdims)
+            arithmetics.sum((complex_math.conj(x) * x).real, axis=axis, keepdims=keepdims)
         )
     elif ord == "nuc":
         raise NotImplementedError("The nuclear norm can't be computed yet.")
@@ -1491,9 +1489,7 @@ def outer(
         device = devices[0]
     else:
         raise RuntimeError(
-            "input arrays on different devices: input 0 on {}, input 1 on {}".format(
-                devices[0], devices[1]
-            )
+            f"input arrays on different devices: input 0 on {devices[0]}, input 1 on {devices[1]}"
         )
 
     # sanitize dimensions
@@ -1503,9 +1499,7 @@ def outer(
     if b.ndim > 1:
         b = manipulations.flatten(b)
     if a.ndim == 0 or b.ndim == 0:
-        raise RuntimeError(
-            "a, b must be 1-D DNDarrays, but were {}-D and {}-D".format(a.ndim, b.ndim)
-        )
+        raise RuntimeError(f"a, b must be 1-D DNDarrays, but were {a.ndim}-D and {b.ndim}-D")
 
     outer_gshape = (a.gshape[0], b.gshape[0])
     t_a = a.larray
@@ -1621,13 +1615,11 @@ def projection(a: DNDarray, b: DNDarray) -> DNDarray:
         The vector to project onto. Must be a 1D ``DNDarray``
     """
     if not isinstance(a, DNDarray) or not isinstance(b, DNDarray):
-        raise TypeError(
-            "a, b must be of type ht.DNDarray, but were {}, {}".format(type(a), type(b))
-        )
+        raise TypeError(f"a, b must be of type ht.DNDarray, but were {type(a)}, {type(b)}")
 
     if len(a.shape) != 1 or len(b.shape) != 1:
         raise RuntimeError(
-            "a, b must be vectors of length 1, but were {}, {}".format(len(a.shape), len(b.shape))
+            f"a, b must be vectors of length 1, but were {len(a.shape)}, {len(b.shape)}"
         )
 
     return (dot(a, b) / dot(b, b)) * b
@@ -1831,10 +1823,7 @@ def trace(
 
     # sanitize axis1, axis2 (make sure axis1 < axis2)
     if axis1 > axis2:
-        tmp = axis1
-        axis1 = axis2
-        axis2 = tmp
-
+        axis1, axis2 = axis2, axis1
     # ----------------------------------
     # CASE split axis NOT IN trace axes
     # ----------------------------------
@@ -1906,11 +1895,7 @@ def trace(
 
     if a.is_distributed():
         # (...and a.split not in (axis1, axis2))
-        if a.split < axis2:
-            gather_axis = a.split
-        else:
-            gather_axis = a.split - 2
-
+        gather_axis = a.split if a.split < axis2 else a.split - 2
         # check if gather_axis is in range of result
         if gather_axis >= sum_along_diagonals_t.ndim:
             gather_axis = sum_along_diagonals_t.ndim - 1
@@ -2085,7 +2070,7 @@ def transpose(a: DNDarray, axes: Optional[List[int]] = None) -> DNDarray:
             raise ValueError("axes do not match tensor shape")
         for index, axis in enumerate(axes):
             if not isinstance(axis, int):
-                raise TypeError("axis must be an integer, but was {}".format(type(axis)))
+                raise TypeError(f"axis must be an integer, but was {type(axis)}")
             elif axis < 0:
                 axes[index] = axis + dimensions
 
@@ -2149,7 +2134,7 @@ def __tri_op(m: DNDarray, k: int, op: Callable) -> DNDarray:
     try:
         k = int(k)
     except ValueError:
-        raise TypeError("Expected k to be integral, but was {}".format(type(k)))
+        raise TypeError(f"Expected k to be integral, but was {type(k)}")
 
     # chunk the global shape of the tensor to obtain the offset compared to the other ranks
     offset, _, _ = m.comm.chunk(m.shape, m.split)
@@ -2277,7 +2262,7 @@ def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
 
 
 def vecdot(
-    x1: DNDarray, x2: DNDarray, axis: Optional[int] = None, keepdim: Optional[bool] = None
+    x1: DNDarray, x2: DNDarray, axis: Optional[int] = None, keepdims: Optional[bool] = None
 ) -> DNDarray:
     """
     Computes the (vector) dot product of two DNDarrays.
@@ -2290,7 +2275,7 @@ def vecdot(
         second input array. Must be compatible with x1.
     axis : int, optional
         axis over which to compute the dot product. The last dimension is used if 'None'.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to 'True', the axes which are reduced are left in the result as dimensions with size one.
 
     See Also
@@ -2310,7 +2295,7 @@ def vecdot(
     if axis is None:
         axis = m.ndim - 1
 
-    return arithmetics.sum(m, axis=axis, keepdim=keepdim)
+    return arithmetics.sum(m, axis=axis, keepdims=keepdims)
 
 
 def vector_norm(
@@ -2386,20 +2371,20 @@ def vector_norm(
             raise TypeError("'axis' must be an integer or 1-tuple for vectors.")
 
     if ord == constants.INF:
-        return statistics.max(rounding.abs(x), axis=axis, keepdim=keepdims)
+        return statistics.max(rounding.abs(x), axis=axis, keepdims=keepdims)
     elif ord == -constants.INF:
-        return statistics.min(rounding.abs(x), axis=axis, keepdim=keepdims)
+        return statistics.min(rounding.abs(x), axis=axis, keepdims=keepdims)
     elif ord == 0:
-        return arithmetics.sum(x != 0, axis=axis, keepdim=keepdims).astype(types.float)
+        return arithmetics.sum(x != 0, axis=axis, keepdims=keepdims).astype(types.float)
     elif ord == 1:
-        return arithmetics.sum(rounding.abs(x), axis=axis, keepdim=keepdims)
+        return arithmetics.sum(rounding.abs(x), axis=axis, keepdims=keepdims)
     elif ord is None or ord == 2:
         s = (complex_math.conj(x) * x).real
-        return exponential.sqrt(arithmetics.sum(s, axis=axis, keepdim=keepdims))
+        return exponential.sqrt(arithmetics.sum(s, axis=axis, keepdims=keepdims))
     elif isinstance(ord, str):
-        raise ValueError("Norm order {} is invalid for vectors".format(ord))
+        raise ValueError(f"Norm order {ord} is invalid for vectors")
     else:
         ret = arithmetics.pow(rounding.abs(x), ord)
-        ret = arithmetics.sum(ret, axis=axis, keepdim=keepdims)
+        ret = arithmetics.sum(ret, axis=axis, keepdims=keepdims)
         ret = arithmetics.pow(ret, 1.0 / ord)
         return ret
