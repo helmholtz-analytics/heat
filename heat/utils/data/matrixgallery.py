@@ -15,6 +15,7 @@ from typing import Type, Union, Tuple, Callable
 
 __all__ = ["hermitian", "parter", "random_known_singularvalues", "random_known_rank"]
 
+
 def hermitian(
     n: int,
     split: Union[None, int] = None,
@@ -47,6 +48,7 @@ def hermitian(
     matrix += 1j * core.arange(n * n).reshape(n, n)
     matrix = matrix + core.conj(matrix.T)
     return matrix
+
 
 def parter(
     n: int,
