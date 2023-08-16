@@ -1,8 +1,14 @@
+import os
+import unittest
+import platform
+
 import numpy as np
 import torch
 import heat as ht
 
 from .test_suites.basic_test import TestCase
+
+envar = os.getenv("HEAT_TEST_USE_DEVICE", "cpu")
 
 
 class TestCommunication(TestCase):
@@ -69,6 +75,9 @@ class TestCommunication(TestCase):
         self.assertTrue(hasattr(ht.communication, "CUDA_AWARE_MPI"))
         self.assertIsInstance(ht.communication.CUDA_AWARE_MPI, bool)
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_contiguous_memory_buffer(self):
         # vector heat tensor
         vector_data = ht.arange(1, 10)
@@ -111,6 +120,9 @@ class TestCommunication(TestCase):
         self.assertTrue((tensor_data == tensor_out).all())
         self.assertTrue(tensor_out.is_contiguous())
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_non_contiguous_memory_buffer(self):
         # non-contiguous source
         non_contiguous_data = ht.ones((3, 2)).T
@@ -211,11 +223,13 @@ class TestCommunication(TestCase):
 
         newcomm.Free()
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_allgather(self):
         # contiguous data
         data = ht.ones((1, 7))
         output = ht.zeros((ht.MPI_WORLD.size, 7))
-
         # ensure prior invariants
         self.assertTrue(data.larray.is_contiguous())
         self.assertTrue(output.larray.is_contiguous())
@@ -347,6 +361,9 @@ class TestCommunication(TestCase):
             output = np.array([[0] * 3 * ht.MPI_WORLD.size])
             ht.MPI_WORLD.Allgatherv(data, output, recv_axis=1)
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_allgatherv(self):
         # contiguous data buffer, contiguous output buffer
         data = ht.ones((ht.MPI_WORLD.rank + 1, 10))
@@ -454,6 +471,9 @@ class TestCommunication(TestCase):
         self.assertTrue((output[0] == first_line).all())
         self.assertTrue((output[output.lshape[0] - 1] == last_line).all())
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_allreduce(self):
         # contiguous data
         data = ht.ones((10, 2), dtype=ht.int8)
@@ -505,6 +525,9 @@ class TestCommunication(TestCase):
         self.assertTrue(out.larray.is_contiguous())
         self.assertTrue((out.larray == data.comm.size).all())
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_alltoall(self):
         # contiguous data
         data = ht.array([[ht.MPI_WORLD.rank] * 10] * ht.MPI_WORLD.size)
@@ -587,6 +610,9 @@ class TestCommunication(TestCase):
             output = np.array([[0] * 3 * ht.MPI_WORLD.size])
             ht.MPI_WORLD.Alltoall(data, output, send_axis=1)
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_alltoallv(self):
         # contiguous data buffer
         data = ht.array([[ht.MPI_WORLD.rank] * 10] * (ht.MPI_WORLD.size + 1))
@@ -702,6 +728,9 @@ class TestCommunication(TestCase):
         )
         self.assertTrue((output.larray == comparison).all())
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_bcast(self):
         # contiguous data
         data = ht.arange(10, dtype=ht.int64)
@@ -734,6 +763,9 @@ class TestCommunication(TestCase):
             ).all()
         )
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_exscan(self):
         # contiguous data
         data = ht.ones((5, 3), dtype=ht.int64)
@@ -785,6 +817,9 @@ class TestCommunication(TestCase):
         self.assertTrue(out.larray.is_contiguous())
         self.assertTrue((out.larray == data.comm.rank).all())
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_gather(self):
         # contiguous data
         data = ht.ones((1, 5))
@@ -866,6 +901,9 @@ class TestCommunication(TestCase):
                 ).all()
             )
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_gatherv(self):
         # contiguous data buffer, contiguous output buffer
         data = ht.ones((ht.MPI_WORLD.rank + 1, 10))
@@ -963,6 +1001,9 @@ class TestCommunication(TestCase):
                 ).all()
             )
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_iallgather(self):
         try:
             # contiguous data
@@ -1048,6 +1089,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_iallgatherv(self):
         try:
             # contiguous data buffer, contiguous output buffer
@@ -1150,6 +1194,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_iallreduce(self):
         try:
             # contiguous data
@@ -1209,6 +1256,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_ialltoall(self):
         try:
             # contiguous data
@@ -1291,6 +1341,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_ialltoallv(self):
         try:
             # contiguous data buffer
@@ -1427,6 +1480,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_ibcast(self):
         try:
             # contiguous data
@@ -1468,6 +1524,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_iexscan(self):
         try:
             # contiguous data
@@ -1527,6 +1586,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_igather(self):
         try:
             # contiguous data
@@ -1633,6 +1695,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_igatherv(self):
         try:
             # contiguous data buffer, contiguous output buffer
@@ -1743,6 +1808,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_ireduce(self):
         try:
             # contiguous data
@@ -1805,6 +1873,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_iscan(self):
         try:
             # contiguous data
@@ -1864,6 +1935,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_iscatter(self):
         try:
             # contiguous data
@@ -1954,6 +2028,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_iscatterv(self):
         try:
             # contiguous data buffer, contiguous output buffer
@@ -2060,6 +2137,9 @@ class TestCommunication(TestCase):
         except NotImplementedError:
             pass
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_mpi_in_place(self):
         size = ht.MPI_WORLD.size
         data = ht.ones((size, size), dtype=ht.int32)
@@ -2068,6 +2148,9 @@ class TestCommunication(TestCase):
         self.assertTrue((data.larray == size).all())
         # MPI Inplace is not allowed for AllToAll
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_reduce(self):
         # contiguous data
         data = ht.ones((10, 2), dtype=ht.int32)
@@ -2122,6 +2205,9 @@ class TestCommunication(TestCase):
         if data.comm.rank == 0:
             self.assertTrue((out.larray == data.comm.size).all())
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_scan(self):
         # contiguous data
         data = ht.ones((5, 3), dtype=ht.float64)
@@ -2173,6 +2259,9 @@ class TestCommunication(TestCase):
         self.assertTrue(out.larray.is_contiguous())
         self.assertTrue((out.larray == data.comm.rank + 1).all())
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_scatter(self):
         # contiguous data
         if ht.MPI_WORLD.rank == 0:
@@ -2246,6 +2335,9 @@ class TestCommunication(TestCase):
         self.assertFalse(output.larray.is_contiguous())
         self.assertTrue((output.larray == torch.ones(5, 2, device=self.device.torch_device)).all())
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_scatter_like_axes(self):
         # input and output are not split
         data = ht.array([[ht.MPI_WORLD.rank] * ht.MPI_WORLD.size] * ht.MPI_WORLD.size)
@@ -2292,6 +2384,9 @@ class TestCommunication(TestCase):
 
         self.assertTrue((output.larray == comparison).all())
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_scatterv(self):
         # contiguous data buffer, contiguous output buffer
         input_count = ht.MPI_WORLD.size * (ht.MPI_WORLD.size + 1)
@@ -2381,6 +2476,9 @@ class TestCommunication(TestCase):
             (output.larray == torch.ones(output_count, 12, device=self.device.torch_device)).all()
         )
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_allgathervSorting(self):
         test1 = self.sorted3Dtensor.copy()
         test2 = self.sorted3Dtensor.copy()
@@ -2419,6 +2517,9 @@ class TestCommunication(TestCase):
         )
         self.assertTrue(torch.equal(gathered3, result.larray))
 
+    @unittest.skipIf(
+        envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
+    )
     def test_alltoallSorting(self):
         test1 = self.sorted3Dtensor.copy()
         test1.resplit_(axis=2)
