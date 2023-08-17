@@ -46,6 +46,8 @@ categories:
     label: 'graph'
   - title: 'Indexing'
     label: 'indexing'
+  - title: 'Interoperability'
+    label: 'interoperability'
   - title: 'Linear Algebra'
     label: 'linalg'
   - title: 'Logical'

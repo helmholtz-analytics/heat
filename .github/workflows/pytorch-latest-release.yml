@@ -2,7 +2,7 @@ name: Get latest PyTorch version release branch
 on:
   workflow_dispatch:
 env:
-  working_branch: workflows/new-pytorch-release-branch
+  working_branch: support/new-pytorch-release-branch
   base_branch: release/1.2.x
 permissions:
   contents: write

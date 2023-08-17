@@ -505,7 +505,7 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
         """
         if not isinstance(x, DNDarray):
             if np.ndim(x) != 0:
-                raise TypeError("Expected DNDarray or numeric scalar, input was {}".format(type(x)))
+                raise TypeError(f"Expected DNDarray or numeric scalar, input was {type(x)}")
 
             dtype = getattr(x, "dtype", float)
             device = getattr(y, "device", None)

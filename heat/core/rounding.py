@@ -252,25 +252,21 @@ def modf(x: DNDarray, out: Optional[Tuple[DNDarray, DNDarray]] = None) -> Tuple[
     (DNDarray([ 0.0000, -0.6000, -0.2000, -0.8000, -0.4000,  0.0000,  0.4000,  0.8000,  0.2000,  0.6000], dtype=ht.float32, device=cpu:0, split=None), DNDarray([-2., -1., -1., -0., -0.,  0.,  0.,  0.,  1.,  1.], dtype=ht.float32, device=cpu:0, split=None))
     """
     if not isinstance(x, DNDarray):
-        raise TypeError("expected x to be a DNDarray, but was {}".format(type(x)))
+        raise TypeError(f"expected x to be a DNDarray, but was {type(x)}")
 
     integralParts = trunc(x)
     fractionalParts = x - integralParts
 
     if out is not None:
         if not isinstance(out, tuple):
-            raise TypeError(
-                "expected out to be None or a tuple of DNDarray, but was {}".format(type(out))
-            )
+            raise TypeError(f"expected out to be None or a tuple of DNDarray, but was {type(out)}")
         if len(out) != 2:
             raise ValueError(
-                "expected out to be a tuple of length 2, but was of length {}".format(len(out))
+                f"expected out to be a tuple of length 2, but was of length {len(out)}"
             )
         if (not isinstance(out[0], DNDarray)) or (not isinstance(out[1], DNDarray)):
             raise TypeError(
-                "expected out to be None or a tuple of DNDarray, but was ({}, {})".format(
-                    type(out[0]), type(out[1])
-                )
+                f"expected out to be None or a tuple of DNDarray, but was ({type(out[0])}, {type(out[1])})"
             )
         out[0].larray = fractionalParts.larray
         out[1].larray = integralParts.larray
@@ -396,36 +392,35 @@ def sign(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     DNDarray([(1+0j), (1+0j)], dtype=ht.complex64, device=cpu:0, split=None)
     """
     # special case for complex values
-    if types.heat_type_is_complexfloating(x.dtype):
-        sanitation.sanitize_in(x)
-        if out is not None:
-            sanitation.sanitize_out(out, x.shape, x.split, x.device)
-            out.larray.copy_(x.larray)
-            data = out.larray
-        else:
-            data = torch.clone(x.larray)
-        # NOTE remove when min version >= 1.9
-        if "1.7" in torch.__version__ or "1.8" in torch.__version__:
-            pos = data != 0
-        else:  # pragma: no cover
-            indices = torch.nonzero(data)
-            pos = torch.split(indices, 1, 1)
-        data[pos] = x.larray[pos] / torch.sqrt(torch.square(x.larray[pos]))
+    if not types.heat_type_is_complexfloating(x.dtype):
+        return _operations.__local_op(torch.sign, x, out)
+    sanitation.sanitize_in(x)
+    if out is not None:
+        sanitation.sanitize_out(out, x.shape, x.split, x.device)
+        out.larray.copy_(x.larray)
+        data = out.larray
+    else:
+        data = torch.clone(x.larray)
+    # NOTE remove when min version >= 1.9
+    if "1.8" in torch.__version__:  # pragma: no cover
+        pos = data != 0
+    else:
+        indices = torch.nonzero(data)
+        pos = torch.split(indices, 1, 1)
+    data[pos] = x.larray[pos] / torch.sqrt(torch.square(x.larray[pos]))
 
-        if out is not None:
-            out.__dtype = types.heat_type_of(data)
-            return out
-        return DNDarray(
-            data,
-            gshape=x.shape,
-            dtype=types.heat_type_of(data),
-            split=x.split,
-            device=x.device,
-            comm=x.comm,
-            balanced=x.balanced,
-        )
-
-    return _operations.__local_op(torch.sign, x, out)
+    if out is not None:
+        out.__dtype = types.heat_type_of(data)
+        return out
+    return DNDarray(
+        data,
+        gshape=x.shape,
+        dtype=types.heat_type_of(data),
+        split=x.split,
+        device=x.device,
+        comm=x.comm,
+        balanced=x.balanced,
+    )
 
 
 def trunc(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:

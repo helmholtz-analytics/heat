@@ -87,7 +87,7 @@ class MNISTDataset(datasets.MNIST):
         )
         if split != 0 and split is not None:
             raise ValueError("split must be 0 or None")
-        split = split if not test_set else None
+        split = None if test_set else split
         array = factories.array(self.data, split=split)
         targets = factories.array(self.targets, split=split)
         self.test_set = test_set
