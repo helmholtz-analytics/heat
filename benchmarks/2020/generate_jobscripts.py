@@ -140,9 +140,8 @@ def generate_jobscripts(args: argparse.Namespace) -> None:
             # submit the jobs
             if args.submit:
                 for jobscript in jobscripts:
-                    os.system("sbatch {}".format(jobscript))
+                    os.system(f"sbatch {jobscript}")
 
-        # skip over directories without config.json
         except FileNotFoundError:
             continue
 

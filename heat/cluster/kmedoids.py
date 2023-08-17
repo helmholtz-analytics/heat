@@ -124,7 +124,7 @@ class KMedoids(_KCluster):
         """
         # input sanitation
         if not isinstance(x, DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
+            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
 
         # initialize the clustering
         self._initialize_cluster_centers(x)

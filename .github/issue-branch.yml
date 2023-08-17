@@ -1,0 +1,15 @@
+mode: auto
+silent: false
+branchName: '${issue.number}-${issue.title}'
+defaultBranch: 'main'
+
+branches:
+  - label: bug
+    name: release/1.3.x
+    prefix: bugs/
+  - label: enhancement
+    prefix: features/
+  - label: documentation
+    prefix: docs/
+  - label: workflows
+    prefix: workflows/

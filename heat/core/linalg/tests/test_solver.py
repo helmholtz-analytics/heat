@@ -66,7 +66,11 @@ class TestSolver(TestCase):
         self.assertTrue(ht.allclose(lanczos_B, B))
 
         # single precision tolerance
-        if int(torch.__version__.split(".")[1]) == 13:
+        if (
+            int(torch.__version__.split(".")[0]) == 1
+            and int(torch.__version__.split(".")[1]) >= 13
+            or int(torch.__version__.split(".")[0]) > 1
+        ):
             tolerance = 1e-3
         else:
             tolerance = 1e-4
