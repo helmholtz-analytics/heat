@@ -24,7 +24,9 @@ __all__ = [
     "argmin",
     "average",
     "bincount",
+    "bucketize",
     "cov",
+    "digitize",
     "histc",
     "histogram",
     "kurtosis",
@@ -250,9 +252,9 @@ def average(
     """
     # perform sanitation
     if not isinstance(x, DNDarray):
-        raise TypeError("expected x to be a ht.DNDarray, but was {}".format(type(x)))
+        raise TypeError(f"expected x to be a ht.DNDarray, but was {type(x)}")
     if weights is not None and not isinstance(weights, DNDarray):
-        raise TypeError("expected weights to be a ht.DNDarray, but was {}".format(type(x)))
+        raise TypeError(f"expected weights to be a ht.DNDarray, but was {type(x)}")
     axis = stride_tricks.sanitize_axis(x.shape, axis)
 
     if weights is None:
@@ -304,6 +306,7 @@ def average(
                 torch.broadcast_tensors(cumwgt.larray, result.larray)[0],
                 is_split=result.split,
                 device=result.device,
+                comm=result.comm,
                 copy=False,
             )
         return (result, cumwgt)
@@ -388,6 +391,79 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
     )
 
 
+def bucketize(
+    input: DNDarray,
+    boundaries: Union[DNDarray, torch.Tensor],
+    out_int32: bool = False,
+    right: bool = False,
+    out: DNDarray = None,
+) -> DNDarray:
+    """
+    Returns the indices of the buckets to which each value in the input belongs, where the boundaries of the buckets are set by boundaries.
+
+    Parameters
+    ----------
+    input : DNDarray
+        The input array.
+    boundaries : DNDarray or torch.Tensor
+        monotonically increasing sequence defining the bucket boundaries, 1-dimensional, not distributed
+    out_int32 : bool, optional
+        set the dtype of the output to ``ht.int64`` (`False`) or ``ht.int32`` (True)
+    right : bool, optional
+        indicate whether the buckets include the right (`False`) or left (`True`) boundaries, see Notes.
+    out : DNDarray, optional
+        The output array, must be the shame shape and split as the input array.
+
+    Notes
+    -----
+    This function uses the PyTorch's setting for ``right``:
+
+    ===== ====================================
+    right returned index `i` satisfies
+    ===== ====================================
+    False boundaries[i-1] < x <= boundaries[i]
+    True  boundaries[i-1] <= x < boundaries[i]
+    ===== ====================================
+
+    Raises
+    ------
+    RuntimeError
+        If `boundaries` is distributed.
+
+    See Also
+    --------
+    digitize
+        NumPy-like version of this function.
+
+    Examples
+    --------
+    >>> boundaries = ht.array([1, 3, 5, 7, 9])
+    >>> v = ht.array([[3, 6, 9], [3, 6, 9]])
+    >>> ht.bucketize(v, boundaries)
+    DNDarray([[1, 3, 4],
+              [1, 3, 4]], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.bucketize(v, boundaries, right=True)
+    DNDarray([[2, 3, 5],
+              [2, 3, 5]], dtype=ht.int64, device=cpu:0, split=None)
+    """
+    if isinstance(boundaries, DNDarray):
+        if boundaries.is_distributed():
+            raise RuntimeError("'boundaries' must not be distributed.")
+        boundaries = boundaries.larray
+    else:
+        boundaries = torch.as_tensor(boundaries)
+
+    return _operations.__local_op(
+        torch.bucketize,
+        input,
+        out,
+        no_cast=True,
+        boundaries=boundaries,
+        out_int32=out_int32,
+        right=right,
+    )
+
+
 def cov(
     m: DNDarray,
     y: Optional[DNDarray] = None,
@@ -461,6 +537,81 @@ def cov(
     c = linalg.dot(x, x.T)
     c /= norm
     return c
+
+
+def digitize(x: DNDarray, bins: Union[DNDarray, torch.Tensor], right: bool = False) -> DNDarray:
+    """
+    Return the indices of the bins to which each value in the input array `x` belongs.
+    If values in `x` are beyond the bounds of bins, 0 or len(bins) is returned as appropriate.
+
+    Parameters
+    ----------
+    x : DNDarray
+        The input array
+    bins : DNDarray or torch.Tensor
+        A 1-dimensional array containing a monotonic sequence describing the bin boundaries, not distributed.
+    right : bool, optional
+        Indicating whether the intervals include the right or the left bin edge, see Notes.
+
+    Notes
+    -----
+    This function uses NumPy's setting for ``right``:
+
+    ===== ============= ============================
+    right order of bins returned index `i` satisfies
+    ===== ============= ============================
+    False increasing    bins[i-1] <= x < bins[i]
+    True  increasing    bins[i-1] < x <= bins[i]
+    False decreasing    bins[i-1] > x >= bins[i]
+    True  decreasing    bins[i-1] >= x > bins[i]
+    ===== ============= ============================
+
+    Raises
+    ------
+    RuntimeError
+        If `bins` is distributed.
+
+    See Also
+    --------
+    bucketize
+        PyTorch-like version of this function.
+
+    Examples
+    --------
+    >>> x = ht.array([1.2, 10.0, 12.4, 15.5, 20.])
+    >>> bins = ht.array([0, 5, 10, 15, 20])
+    >>> ht.digitize(x,bins,right=True)
+    DNDarray([1, 2, 3, 4, 4], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.digitize(x,bins,right=False)
+    DNDarray([1, 3, 3, 4, 5], dtype=ht.int64, device=cpu:0, split=None)
+    """
+    if isinstance(bins, DNDarray):
+        if bins.is_distributed():
+            raise RuntimeError("'bins' must not be distributed.")
+        bins = bins.larray
+    else:
+        bins = torch.as_tensor(bins)
+
+    reverse = False
+
+    if bins[0] > bins[-1]:
+        bins = torch.flipud(bins)
+        reverse = True
+
+    result = _operations.__local_op(
+        torch.bucketize,
+        x,
+        out=None,
+        no_cast=True,
+        boundaries=bins,
+        out_int32=False,
+        right=not right,
+    )
+
+    if reverse:
+        result = bins.numel() - result
+
+    return result
 
 
 def histc(
@@ -617,7 +768,7 @@ def kurtosis(
             res -= 3.0
         return res.item() if res.gnumel == 1 else res
     elif isinstance(axis, (list, tuple)):
-        raise TypeError("axis cannot be a list or a tuple, currently {}".format(type(axis)))
+        raise TypeError(f"axis cannot be a list or a tuple, currently {type(axis)}")
     else:
         return __moment_w_axis(__torch_kurtosis, x, axis, None, unbiased, Fischer)
 
@@ -632,7 +783,7 @@ def max(
     x: DNDarray,
     axis: Optional[Union[int, Tuple[int, ...]]] = None,
     out: Optional[DNDarray] = None,
-    keepdim: Optional[bool] = None,
+    keepdims: Optional[bool] = None,
 ) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
@@ -649,7 +800,7 @@ def max(
     out : DNDarray, optional
         Tuple of two output arrays ``(max, max_indices)``. Must be of the same shape and buffer length as the expected
         output. The minimum value of an output element. Must be present to allow computation on empty slice.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
@@ -677,13 +828,13 @@ def max(
 
     smallest_value = -sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdim=keepdim
+        x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdims=keepdims
     )
 
 
 DNDarray.max: Callable[
     [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray
-] = lambda x, axis=None, out=None, keepdim=None: max(x, axis, out, keepdim)
+] = lambda x, axis=None, out=None, keepdims=None: max(x, axis, out, keepdims)
 DNDarray.max.__doc__ = max.__doc__
 
 
@@ -864,7 +1015,7 @@ DNDarray.mean: Callable[[DNDarray, Union[int, List, Tuple]], DNDarray] = lambda 
 DNDarray.mean.__doc__ = mean.__doc__
 
 
-def median(x: DNDarray, axis: Optional[int] = None, keepdim: bool = False) -> DNDarray:
+def median(x: DNDarray, axis: Optional[int] = None, keepdims: bool = False) -> DNDarray:
     """
     Compute the median of the data along the specified axis.
     Returns the median of the ``DNDarray`` elements.
@@ -877,16 +1028,16 @@ def median(x: DNDarray, axis: Optional[int] = None, keepdim: bool = False) -> DN
         Axis along which the median is computed. Default is ``None``, i.e.,
         the median is computed along a flattened version of the ``DNDarray``.
 
-    keepdim : bool, optional
+    keepdims : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array ``a``.
     """
-    return percentile(x, q=50, axis=axis, keepdim=keepdim)
+    return percentile(x, q=50, axis=axis, keepdims=keepdims)
 
 
 DNDarray.median: Callable[
     [DNDarray, int, bool], DNDarray
-] = lambda x, axis=None, keepdim=False: median(x, axis, keepdim)
+] = lambda x, axis=None, keepdims=False: median(x, axis, keepdims)
 DNDarray.mean.__doc__ = mean.__doc__
 
 
@@ -917,9 +1068,7 @@ def __merge_moments(
         USA.
     """
     if len(m1) != len(m2):
-        raise ValueError(
-            "m1 and m2 must be same length, currently {} and {}".format(len(m1), len(m2))
-        )
+        raise ValueError(f"m1 and m2 must be same length, currently {len(m1)} and {len(m2)}")
     n1, n2 = m1[-1], m2[-1]
     mu1, mu2 = m1[-2], m2[-2]
     n = n1 + n2
@@ -965,7 +1114,7 @@ def min(
     x: DNDarray,
     axis: Optional[Union[int, Tuple[int, ...]]] = None,
     out: Optional[DNDarray] = None,
-    keepdim: Optional[bool] = None,
+    keepdims: Optional[bool] = None,
 ) -> DNDarray:
     # TODO: initial : scalar, optional Issue #101
     """
@@ -982,7 +1131,7 @@ def min(
     out : Tuple[DNDarray,DNDarray], optional
         Tuple of two output arrays ``(min, min_indices)``. Must be of the same shape and buffer length as the expected
         output. The maximum value of an output element. Must be present to allow computation on empty slice.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
@@ -1011,13 +1160,13 @@ def min(
 
     largest_value = sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdim=keepdim
+        x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdims=keepdims
     )
 
 
 DNDarray.min: Callable[
     [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray
-] = lambda self, axis=None, out=None, keepdim=None: min(self, axis, out, keepdim)
+] = lambda self, axis=None, out=None, keepdims=None: min(self, axis, out, keepdims)
 DNDarray.min.__doc__ = min.__doc__
 
 
@@ -1108,7 +1257,7 @@ def __moment_w_axis(
     output_shape = list(x.shape)
     if isinstance(axis, int):
         if axis >= len(x.shape):
-            raise ValueError("axis must be < {}, currently is {}".format(len(x.shape), axis))
+            raise ValueError(f"axis must be < {len(x.shape)}, currently is {axis}")
         axis = stride_tricks.sanitize_axis(x.shape, axis)
         # only one axis given
         output_shape = [output_shape[it] for it in range(len(output_shape)) if it != axis]
@@ -1134,6 +1283,7 @@ def __moment_w_axis(
             is_split=x.split if axis > x.split else x.split - 1,
             dtype=x.dtype,
             device=x.device,
+            comm=x.comm,
             copy=False,
         )
     elif not isinstance(axis, (list, tuple, torch.Tensor)):
@@ -1178,6 +1328,7 @@ def __moment_w_axis(
         function(x.larray, **kwargs),
         is_split=x.split if x.split < len(output_shape) else len(output_shape) - 1,
         device=x.device,
+        comm=x.comm,
         copy=False,
     )
 
@@ -1259,7 +1410,7 @@ def percentile(
     axis: Optional[int] = None,
     out: Optional[DNDarray] = None,
     interpolation: str = "linear",
-    keepdim: bool = False,
+    keepdims: bool = False,
 ) -> DNDarray:
     r"""
     Compute the q-th percentile of the data along the specified axis.
@@ -1292,7 +1443,7 @@ def percentile(
 
         - ‘midpoint’: :math:`(i + j) / 2`.
 
-    keepdim : bool, optional
+    keepdims : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array x.
     """
@@ -1332,7 +1483,7 @@ def percentile(
             permute_dims = (axis,) + dims[:axis] + dims[axis + 1 :]
             percentile = percentile.permute(permute_dims)
 
-        if keepdim:
+        if keepdims:
             # leave reduced dimension as size (1,)
             percentile.unsqueeze_(dim=axis + 1)
 
@@ -1342,7 +1493,7 @@ def percentile(
     # sanitize input
     if not isinstance(x, DNDarray):
         raise TypeError("expected x to be a DNDarray, but was {}".format(type(x)))
-    if isinstance(axis, list) or isinstance(axis, tuple):
+    if isinstance(axis, (list, tuple)):
         raise NotImplementedError("ht.percentile(), tuple axis not implemented yet")
 
     if axis is None:
@@ -1355,7 +1506,7 @@ def percentile(
     t_x = x.larray
 
     # sanitize q
-    if isinstance(q, list) or isinstance(q, tuple):
+    if isinstance(q, (list, tuple)):
         t_perc_dtype = torch.promote_types(type(q[0]), torch.float32)
         t_q = torch.tensor(q, dtype=t_perc_dtype, device=t_x.device)
     elif np.isscalar(q):
@@ -1378,7 +1529,7 @@ def percentile(
         t_q = t_q.flatten()
 
     # shape of output DNDarray
-    if keepdim:
+    if keepdims:
         output_shape = (nperc,) + gshape[:axis] + (1,) + gshape[axis + 1 :]
     else:
         output_shape = (nperc,) + gshape[:axis] + gshape[axis + 1 :]
@@ -1617,7 +1768,7 @@ def std(
         else:
             unbiased = bool(ddof)
         ddof = 1 if unbiased else ddof
-    if not x.is_distributed() and str(x.device)[:3] == "cpu":
+    if not x.is_distributed() and str(x.device).startswith("cpu"):
         loc = np.std(x.larray.numpy(), axis=axis, ddof=ddof)
         if loc.size == 1:
             return loc.item()

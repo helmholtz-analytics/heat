@@ -14,5 +14,6 @@ from . import naive_bayes
 from . import nn
 from . import optim
 from . import regression
+from . import sparse
 from . import spatial
 from . import utils

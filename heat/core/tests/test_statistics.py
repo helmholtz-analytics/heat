@@ -24,14 +24,14 @@ class TestStatistics(TestCase):
         self.assertTrue((result.larray == data.larray.argmax(0)).all())
 
         # 3D local tensor, minor axis
-        result = ht.argmax(data, axis=-1, keepdim=True)
+        result = ht.argmax(data, axis=-1, keepdims=True)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result.larray.dtype, torch.int64)
         self.assertEqual(result.shape, (3, 4, 1))
         self.assertEqual(result.lshape, (3, 4, 1))
         self.assertEqual(result.split, None)
-        self.assertTrue((result.larray == data.larray.argmax(-1, keepdim=True)).all())
+        self.assertTrue((result.larray == data.larray.argmax(-1, keepdims=True)).all())
 
         # 1D split tensor, no axis
         data = ht.arange(-10, 10, split=0)
@@ -126,7 +126,7 @@ class TestStatistics(TestCase):
         self.assertTrue((result.larray == data.larray.argmin(0)).all())
 
         # 3D local tensor, minor axis
-        result = ht.argmin(data, axis=-1, keepdim=True)
+        result = ht.argmin(data, axis=-1, keepdims=True)
         self.assertIsInstance(result, ht.DNDarray)
         self.assertEqual(result.dtype, ht.int64)
         self.assertEqual(result.larray.dtype, torch.int64)
@@ -318,8 +318,9 @@ class TestStatistics(TestCase):
         with self.assertRaises(ZeroDivisionError):
             ht.average(random_5d, weights=zero_weights, axis=axis)
         weights_5d_split_mismatch = ht.ones(random_5d.gshape, split=-1)
-        with self.assertRaises(NotImplementedError):
-            ht.average(random_5d, weights=weights_5d_split_mismatch, axis=axis)
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(NotImplementedError):
+                ht.average(random_5d, weights=weights_5d_split_mismatch, axis=axis)
 
         with self.assertRaises(TypeError):
             ht_array.average(axis=1.1)
@@ -360,6 +361,33 @@ class TestStatistics(TestCase):
 
         with self.assertRaises(ValueError):
             ht.bincount(ht.array([0, 1, 2, 3], split=0), weights=ht.array([1, 2, 3, 4]))
+
+    def test_bucketize(self):
+        boundaries = ht.array([1, 3, 5, 7, 9])
+        v = ht.array([[3, 6, 9], [3, 6, 9]])
+        a = ht.bucketize(v, boundaries)
+
+        self.assertTrue(ht.equal(a, ht.array([[1, 3, 4], [1, 3, 4]])))
+        self.assertTrue(a.dtype, ht.int64)
+        self.assertTrue(a.shape, v.shape)
+
+        a = ht.bucketize(v, boundaries, right=True)
+        self.assertTrue(ht.equal(a, ht.array([[2, 3, 5], [2, 3, 5]])))
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue(a.shape, v.shape)
+
+        boundaries, _ = torch.sort(torch.rand(5, device=self.device.torch_device))
+        v = torch.rand(6, device=self.device.torch_device)
+        t = torch.bucketize(v, boundaries, out_int32=True)
+
+        v = ht.array(v, split=0)
+        a = ht.bucketize(v, boundaries, out_int32=True)
+        self.assertTrue(ht.equal(ht.resplit(a, None), ht.asarray(t)))
+        self.assertEqual(a.dtype, ht.int32)
+
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(RuntimeError):
+                ht.bucketize(a, ht.array([0.0, 0.5, 1.0], split=0))
 
     def test_cov(self):
         x = ht.array([[0, 2], [1, 1], [2, 0]], dtype=ht.float, split=1).T
@@ -441,6 +469,51 @@ class TestStatistics(TestCase):
             ht.cov(htdata, ht.zeros((1, 2, 3)))
         with self.assertRaises(ValueError):
             ht.cov(htdata, ddof=10000)
+
+    def test_digitize(self):
+        x = ht.array([1.2, 10.0, 12.4, 15.5, 20.0])
+        bins = ht.array([0, 5, 10, 15, 20])
+        a = ht.digitize(x, bins, right=True)
+        t = np.digitize(x.numpy(), bins.numpy(), right=True)
+
+        self.assertTrue((a.numpy() == t).all())
+        self.assertTrue(a.dtype, ht.int64)
+        self.assertTrue(a.shape, x.shape)
+
+        a = ht.digitize(x, bins, right=False)
+        t = np.digitize(x.numpy(), bins.numpy(), right=False)
+        self.assertTrue((a.numpy() == t).all())
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue(a.shape, x.shape)
+
+        bins = ht.flipud(bins)
+        a = ht.digitize(x, bins, right=True)
+        t = np.digitize(x.numpy(), bins.numpy(), right=True)
+        self.assertTrue((a.numpy() == t).all())
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue(a.shape, x.shape)
+
+        a = ht.digitize(x, bins, right=False)
+        t = np.digitize(x.numpy(), bins.numpy(), right=False)
+        self.assertTrue((a.numpy() == t).all())
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue(a.shape, x.shape)
+
+        y = ht.array([[1.2, 7.3, 10.0], [12.4, 15.5, 20.0]], split=0)
+        a = ht.digitize(y, bins, right=False)
+        self.assertTrue(ht.equal(a, ht.array([[4, 3, 2], [2, 1, 0]], split=0)))
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue(a.shape, y.shape)
+
+        y = ht.array([[1.2, 7.3, 10.0], [12.4, 15.5, 20.0]], split=1)
+        a = ht.digitize(y, bins, right=False)
+        self.assertTrue(ht.equal(a, ht.array([[4, 3, 2], [2, 1, 0]], split=1)))
+        self.assertEqual(a.dtype, ht.int64)
+        self.assertTrue(a.shape, x.shape)
+
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(RuntimeError):
+                ht.digitize(a, ht.array([0.0, 0.5, 1.0], split=0))
 
     def test_histc(self):
         # few entries and float64
@@ -649,7 +722,7 @@ class TestStatistics(TestCase):
         self.assertTrue((maximum_vertical.larray == comparison.max(dim=0, keepdim=True)[0]).all())
 
         # maximum along second axis
-        maximum_horizontal = ht.max(ht_array, axis=1, keepdim=True)
+        maximum_horizontal = ht.max(ht_array, axis=1, keepdims=True)
 
         self.assertIsInstance(maximum_horizontal, ht.DNDarray)
         self.assertEqual(maximum_horizontal.shape, (4, 1))
@@ -788,9 +861,10 @@ class TestStatistics(TestCase):
         random_volume_5 = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
             ht.maximum(random_volume_1, random_volume_5)
-        random_volume_6 = ht.random.randn(6, 3, 3, split=1)
-        with self.assertRaises(NotImplementedError):
-            ht.maximum(random_volume_1, random_volume_6)
+        if ht.MPI_WORLD.size > 1:
+            random_volume_6 = ht.random.randn(6, 3, 3, split=1)
+            with self.assertRaises(NotImplementedError):
+                ht.maximum(random_volume_1, random_volume_6)
         output1 = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
             ht.maximum(random_volume_1, random_volume_2, out=output1)
@@ -912,7 +986,7 @@ class TestStatistics(TestCase):
 
         # min along second axis
         ht_array = ht.array(data, dtype=ht.int16)
-        minimum_horizontal = ht.min(ht_array, axis=1, keepdim=True)
+        minimum_horizontal = ht.min(ht_array, axis=1, keepdims=True)
 
         self.assertIsInstance(minimum_horizontal, ht.DNDarray)
         self.assertEqual(minimum_horizontal.shape, (4, 1))
@@ -1055,9 +1129,10 @@ class TestStatistics(TestCase):
         random_volume_3 = np.array(7.2)
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_3, random_volume_1)
-        random_volume_3 = ht.random.randn(6, 3, 3, split=1)
-        with self.assertRaises(NotImplementedError):
-            ht.minimum(random_volume_1, random_volume_3)
+        if ht.MPI_WORLD.size > 1:
+            random_volume_3 = ht.random.randn(6, 3, 3, split=1)
+            with self.assertRaises(NotImplementedError):
+                ht.minimum(random_volume_1, random_volume_3)
         output = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_1, random_volume_2, out=output)
@@ -1109,9 +1184,9 @@ class TestStatistics(TestCase):
         q = [0.1, 2.3, 15.9, 50.0, 84.1, 97.7, 99.9]
         axis = 2
         p_np = np.percentile(x_np, q, axis=axis, interpolation="lower", keepdims=True)
-        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdim=True)
+        p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdims=True)
         out = ht.empty(p_np.shape, dtype=ht.float64, split=None, device=x_ht.device)
-        ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdim=True)
+        ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdims=True)
         self.assertEqual(p_ht.numpy()[5].all(), p_np[5].all())
         self.assertEqual(out.numpy()[2].all(), p_np[2].all())
         self.assertTrue(p_ht.shape == p_np.shape)
@@ -1249,7 +1324,7 @@ class TestStatistics(TestCase):
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(TypeError):
             ht.std(x, axis=0, ddof=1.0)
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValueError, IndexError)):
             ht.std(x, axis=10)
         with self.assertRaises(TypeError):
             ht.std(x, axis="01")
