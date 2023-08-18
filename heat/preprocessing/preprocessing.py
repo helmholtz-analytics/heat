@@ -3,6 +3,7 @@ Module implementing basic data preprocessing techniques
 """
 
 import heat as ht
+from typing import Optional, Tuple
 
 """
 The implementation is heavily inspired by the corresponding routines in scikit-learn (https://scikit-learn.org/stable/modules/preprocessing.html).
@@ -20,7 +21,7 @@ def _check_if_2D_float_DNDarray(input):
             "Input of preprocessing routines must be a 2D DNDarray of shape (n_datapoints, n_features), but dimension is %d."
             % input.ndim
         )
-    if input.dtype not in [ht.float32, ht.float64]:
+    if ht.heat_type_is_exact(input.dtype):
         raise TypeError(
             "Supported data types for preprocessing routines are float32 and float64, but dtype of input is",
             input.dtype,
@@ -38,6 +39,7 @@ def _check_n_features(param, inputdata):
 
 
 # auxiliary function that returns expected precision depending on input data type
+# this is used to determine whether a feature is almost constant (w.r.t. machine precision) and should therefore not be scaled
 def _tol_wrt_dtype(inputdata):
     if inputdata.dtype == ht.float32:
         return 1e-7
@@ -74,12 +76,12 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         Featurewise variance of the given data. Equal to ``None`` when ``with_std=False``.
     """
 
-    def __init__(self, *, copy=True, with_mean=True, with_std=True):
+    def __init__(self, *, copy: bool = True, with_mean: bool = True, with_std: bool = True):
         self.with_mean = with_mean
         self.with_std = with_std
         self.copy = copy
 
-    def fit(self, X, sample_weight=None):
+    def fit(self, X: ht.DNDarray, sample_weight: Optional[ht.DNDarray] = None):
         """
         Fit ``StandardScaler`` to the given data ``X``, i.e. compute mean and standard deviation of ``X`` to be used for later scaling.
 
@@ -88,23 +90,20 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         X : DNDarray of shape (n_datapoints, n_features).
             Data used to compute the mean and standard deviation used for later featurewise scaling.
 
-        y : None
-            Ignored.
-
         sample_weight : Not yet supported.
             Raises ``NotImplementedError``.
         """
         if sample_weight is not None:
             NotImplementedError(
-                "Standard scaler with sample weights is not yet implemented. We apologize for the inconvenience."
+                "Standard scaler with sample weights is not yet implemented. You can open an issue to request this feature on  https://github.com/helmholtz-analytics/heat."
             )
         _check_if_2D_float_DNDarray(X)
 
-        # determine mean and variance of the input data X
+        # determine mean and variance of the input data X and store them in self.mean_ and self.var_
         self.mean_ = ht.mean(X, axis=0)
         self.var_ = ht.var(X, axis=0)
 
-        # check if var_ is below machine precision for some features, set scaling factor to 1 for these features
+        # check if var_ is below machine precision for some features, set scaling factor to 1 for these features if so and print warning
         self.scale_ = self.var_
         tol = _tol_wrt_dtype(X)
         if self.scale_.min() < tol:
@@ -117,7 +116,7 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         self.scale_ = 1.0 / (self.scale_) ** 0.5
         return self
 
-    def transform(self, X):
+    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
         """Applies standardization to input data ``X`` by centering and scaling w.r.t. mean and std previously computed saved in ``StandardScaler`` with :meth:``fit``.
 
         Parameters
@@ -137,7 +136,7 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
             X *= self.scale_
             return X
 
-    def inverse_transform(self, Y):
+    def inverse_transform(self, Y: ht.DNDarray) -> ht.DNDarray:
         """
         Scale back the data to the original representation, i.e. apply the inverse of :meth:``transform`` to the input ``Y``.
 
@@ -197,23 +196,27 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         range per feature in the input data set
     """
 
-    def __init__(self, feature_range=(0, 1), *, copy=True, clip=False):
+    def __init__(
+        self,
+        feature_range: Tuple[float, float] = (0.0, 1.0),
+        *,
+        copy: bool = True,
+        clip: bool = False
+    ):
         self.copy = copy
         self.feature_range = feature_range
         self.clip = clip
         if clip:
             raise NotImplementedError(
-                "Clipped MinMaxScaler is not yet implemented. We apologize for the inconvenience."
+                "Clipped MinMaxScaler is not yet implemented. You can open an issue to request this feature on  https://github.com/helmholtz-analytics/heat."
             )
-        # TODO: Implement clipped version
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if feature_range[1] <= feature_range[0]:
             raise ValueError(
                 "Upper bound of feature_range must be strictly larger than lower bound, but provided bounds are %2.2e and %2.2e"
                 % (self.feature_range[0], self.feature_range[1])
             )
 
-    def fit(self, X):
+    def fit(self, X: ht.DNDarray):
         """
         Fit the MinMaxScaler: i.e. compute the parameters required for later scaling.
 
@@ -221,9 +224,6 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         ----------
         X : DNDarray of shape (n_datapoints, n_features)
             data set to which scaler shall be fitted.
-
-        y : None
-            Ignored.
         """
         _check_if_2D_float_DNDarray(X)
         self.data_min_ = ht.min(X, axis=0)
@@ -244,7 +244,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         self.min_ = -self.data_min_ * self.scale_ + self.feature_range[0]
         return self
 
-    def transform(self, X):
+    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
         """
         Transform input data with MinMaxScaler: i.e. scale features of ``X`` according to feature_range.
 
@@ -264,7 +264,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
             X += self.feature_range[0]
             return X
 
-    def inverse_transform(self, Y):
+    def inverse_transform(self, Y: ht.DNDarray) -> ht.DNDarray:
         """
         Apply the inverse of :meth:``fit``.
 
@@ -310,7 +310,7 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
     Since :meth:``transform`` is not bijective, there is no back-transformation :meth:``inverse_transform``.
     """
 
-    def __init__(self, norm="l2", *, copy=True):
+    def __init__(self, norm: str = "l2", *, copy: bool = True):
         self.norm_ = norm
         self.copy = copy
         if norm == "l2":
@@ -321,16 +321,14 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
             self.ord_ = ht.inf
         else:
             raise NotImplementedError(
-                "Normalization with respect to norms other than l2, l1 or linfty not yet implemented. We apologize for the inconvenience."
+                "Normalization with respect to norms other than l2, l1 or linfty not yet implemented. You can open an issue to request this feature on  https://github.com/helmholtz-analytics/heat."
             )
-        # TODO: Compatibility with Heat norms via ord
-        # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    def fit(self, X):
+    def fit(self, X: ht.DNDarray):
         """Since :object:``Normalizer`` is stateless, this function is only a dummy."""
         return self
 
-    def transform(self, X):
+    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
         """
         Apply Normalizer trasformation: scales each data point of the input data set ``X`` to unit norm (w.r.t. to ``norm``).
 
@@ -384,10 +382,10 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
         Per feature maximum absolute value of the input data.
     """
 
-    def __init__(self, *, copy=True):
+    def __init__(self, *, copy: bool = True):
         self.copy = copy
 
-    def fit(self, X):
+    def fit(self, X: ht.DNDarray):
         """
         Fit MaxAbsScaler to input data ``X``: compute the parameters to be used for later scaling.
 
@@ -395,9 +393,6 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
         ----------
         X : DNDarray of shape (n_datapoints, n_features)
             The data set to which the scaler shall be fitted.
-
-        y : None
-            Ignored.
         """
         _check_if_2D_float_DNDarray(X)
         self.max_abs_ = ht.norm(X, axis=0, ord=ht.inf)
@@ -413,7 +408,7 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
         self.scale_ = 1.0 / self.scale_
         return self
 
-    def transform(self, X):
+    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
         """
         Scale the data with the MaxAbsScaler.
 
@@ -431,7 +426,7 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
             X *= self.scale_
             return X
 
-    def inverse_transform(self, Y):
+    def inverse_transform(self, Y: ht.DNDarray) -> ht.DNDarray:
         """
         Apply the inverse of :meth:``transform``, i.e. scale the input data ``Y`` back to the original representation.
 
@@ -495,11 +490,11 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
     def __init__(
         self,
         *,
-        with_centering=True,
-        with_scaling=True,
-        quantile_range=(25.0, 75.0),
-        copy=True,
-        unit_variance=False
+        with_centering: bool = True,
+        with_scaling: bool = True,
+        quantile_range: Tuple[float, float] = (25.0, 75.0),
+        copy: bool = True,
+        unit_variance: bool = False
     ):
         self.with_centering = with_centering
         self.with_scaling = with_scaling
@@ -520,12 +515,12 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
             )
         if unit_variance:
             raise NotImplementedError(
-                "Robust Scaler with additional unit variance scaling is not yet implemented. We apologize for the inconvenience."
+                "Robust Scaler with additional unit variance scaling is not yet implemented. You can open an issue to request this feature on  https://github.com/helmholtz-analytics/heat."
             )
         else:
             self.unit_variance = unit_variance
 
-    def fit(self, X):
+    def fit(self, X: ht.DNDarray):
         """
         Fit RobustScaler to given data set, i.e. compute the parameters required for transformation.
 
@@ -533,9 +528,6 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
         ----------
         X : DNDarray of shape (n_datapoints, n_features)
             Data to which the Scaler should be fitted.
-
-        y : Ignored
-            Not used, present here for API consistency by convention.
         """
         _check_if_2D_float_DNDarray(X)
         if self.with_centering:
@@ -558,7 +550,7 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
             self.scale_ = 1.0 / self.scale_
         return self
 
-    def transform(self, X):
+    def transform(self, X: ht.DNDarray) -> ht.DNDarray:
         """
         Transform given data with RobustScaler
 
@@ -586,7 +578,7 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
                 X *= self.scale_
             return X
 
-    def inverse_transform(self, Y):
+    def inverse_transform(self, Y: ht.DNDarray) -> ht.DNDarray:
         """
         Apply inverse of :meth:``transform``.
 

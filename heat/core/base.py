@@ -153,10 +153,6 @@ class TransformMixin:
         ----------
         x : DNDarray
             Training instances to train on. Shape = (n_samples, n_features)
-
-        y : DNDarray
-            Class values to fit. Shape = (n_samples, )
-
         """
         raise NotImplementedError()
 
@@ -169,8 +165,6 @@ class TransformMixin:
         ----------
         x : DNDarray
             Input data to be transformed. Shape = (n_samples, n_features)
-        y : DNDarray
-            Class values to fit. Shape = (n_samples, )
         """
         self.fit(x)
         return self.transform(x)
@@ -273,6 +267,18 @@ def is_classifier(estimator: object) -> bool:
         Estimator object to test.
     """
     return isinstance(estimator, ClassificationMixin)
+
+
+def is_transformer(estimator: object) -> bool:
+    """
+    Return ``True`` if the given estimator is a transformer, ``False`` otherwise.
+
+    Parameters
+    ----------
+    estimator : object
+        Estimator object to test.
+    """
+    return isinstance(estimator, TransformMixin)
 
 
 def is_estimator(estimator: object) -> bool:
