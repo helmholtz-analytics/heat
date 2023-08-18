@@ -893,8 +893,10 @@ def load_csv(
         # In case there are some empty lines in the csv file
         local_tensor = local_tensor[:actual_length]
 
-        total_actual_lines = torch.tensor(actual_length, dtype=torch.int64, device=local_tensor.device)
-        comm.Allreduce(MPI.IN_PLACE,total_actual_lines,MPI.SUM)
+        total_actual_lines = torch.tensor(
+            actual_length, dtype=torch.int64, device=local_tensor.device
+        )
+        comm.Allreduce(MPI.IN_PLACE, total_actual_lines, MPI.SUM)
 
         gshape = (total_actual_lines.item(), columns[0].item())
 
