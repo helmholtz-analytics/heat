@@ -37,17 +37,16 @@ def hermitian(
     comm : Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     dtype: Type[datatype], optional
-        The desired data-type for the array, defaults to ht.float64.
+        The desired data-type for the array, defaults to ht.complex64.
 
     References
     ----------
     [1] https://en.wikipedia.org/wiki/Hermitian_matrix
     """
-    matrix = core.arange(n * n, dtype=dtype, device=device, comm=comm).reshape(n, n)
-    matrix += 1j * core.arange(n * n).reshape(n, n)
-    matrix = matrix + core.conj(matrix.T)
-    return matrix
-
+    real_dtype = types.float32 if dtype is types.complex64 else types.float64
+    matrix = randn(n,n, dtype=real_dtype, split=split, device=device)
+    matrix += 1j * randn(n,n, dtype=real_dtype, split=split, device=device)
+    return matrix @ core.conj(matrix).T
 
 def parter(
     n: int,
