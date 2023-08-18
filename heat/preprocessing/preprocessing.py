@@ -4,6 +4,10 @@ Module implementing basic data preprocessing techniques
 
 import heat as ht
 
+"""
+The implementation is heavily inspired by the corresponding routines in scikit-learn (https://scikit-learn.org/stable/modules/preprocessing.html).
+"""
+
 
 # auxiliary function that checks if input array is appropriate to serve as data set for fitting or transforming
 def _check_if_2D_float_DNDarray(input):
@@ -89,11 +93,6 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
 
         sample_weight : Not yet supported.
             Raises ``NotImplementedError``.
-
-        Returns
-        -------
-        self : object
-            Fitted scaler.
         """
         if sample_weight is not None:
             NotImplementedError(
@@ -127,11 +126,6 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
             The data set to be standardized.
         copy : bool, default=None
             Copy the input ``X`` or not.
-
-        Returns
-        -------
-        X_tr : DNDarray of same shape as input ``X``.
-            Standardized data set.
         """
         _check_if_2D_float_DNDarray(X)
         _check_n_features(self.mean_, X)
@@ -153,11 +147,6 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
             Data to be scaled back.
         copy : bool, default=None
             Copy the input ``Y`` or not.
-
-        Returns
-        -------
-        Y_tr : DNDarray of same shape as input ``Y``.
-            Scaled-back data set.
         """
         _check_if_2D_float_DNDarray(Y)
         _check_n_features(self.mean_, Y)
@@ -235,11 +224,6 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
 
         y : None
             Ignored.
-
-        Returns
-        -------
-        self : object
-            Fitted scaler.
         """
         _check_if_2D_float_DNDarray(X)
         self.data_min_ = ht.min(X, axis=0)
@@ -268,11 +252,6 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         ----------
         X : DNDarray of shape (n_datapoints, n_features)
             Data set to be transformed.
-
-        Returns
-        -------
-        X_tr : DND of same shape as input ``X``.
-            Transformed data.
         """
         _check_if_2D_float_DNDarray(X)
         _check_n_features(self.data_min_, X)
@@ -293,11 +272,6 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         ----------
         Y : DNDarray of shape (n_datapoints, n_features)
             Data set to be transformed back.
-
-        Returns
-        -------
-        Y_tr : DND of same shape as input ``Y``.
-            Back-transformed data.
         """
         _check_if_2D_float_DNDarray(Y)
         _check_n_features(self.data_min_, Y)
@@ -367,11 +341,6 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
 
         copy : bool, default=None
             ``copy=False`` enables in-place transformation.
-
-        Returns
-        -------
-        X_tr : DNDarray of shape (n_datapoints, n_features)
-            Transformed data set.
         """
         _check_if_2D_float_DNDarray(X)
         X_norms = ht.norm(X, axis=1, ord=self.ord_).reshape((-1, 1))
@@ -429,11 +398,6 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
 
         y : None
             Ignored.
-
-        Returns
-        -------
-        self : object
-            Fitted scaler.
         """
         _check_if_2D_float_DNDarray(X)
         self.max_abs_ = ht.norm(X, axis=0, ord=ht.inf)
@@ -457,11 +421,6 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
         ----------
         X : DNDarray of shape (n_datapoints, n_features)
             The data set to be scaled.
-
-        Returns
-        -------
-        X_tr : DNDarray of same shape as input ``X``.
-            Transformed data set.
         """
         _check_if_2D_float_DNDarray(X)
         _check_n_features(self.scale_, X)
@@ -480,11 +439,6 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
         ----------
         Y : DNDarray of shape (n_datapoints, n_features)
             The data set to be transformed back.
-
-        Returns
-        -------
-        Y_tr : DNDarray of same shape as input ``Y``.
-            Back-transformed array.
         """
         _check_if_2D_float_DNDarray(Y)
         _check_n_features(self.scale_, Y)
@@ -582,11 +536,6 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
 
         y : Ignored
             Not used, present here for API consistency by convention.
-
-        Returns
-        -------
-        self : object
-            Fitted scaler.
         """
         _check_if_2D_float_DNDarray(X)
         if self.with_centering:
@@ -617,11 +566,6 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
         ----------
         X : DNDarray of shape (n_datapoints, n_features)
             Data set to be transformed.
-
-        Returns
-        -------
-        X_tr : DNDarray of same shape as input ``X``
-            Transformed data set.
         """
         _check_if_2D_float_DNDarray(X)
         if self.with_centering:
@@ -650,11 +594,6 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
         ----------
         Y : DNDarray of shape (n_datapoints, n_features)
             Data to be back-transformed
-
-        Returns
-        -------
-        Y_tr : DNDarray of same shape as input ``Y``
-            Back-transformed data set.
         """
         _check_if_2D_float_DNDarray(Y)
         if self.with_centering:
