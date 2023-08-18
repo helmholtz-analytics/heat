@@ -24,8 +24,7 @@ def hermitian(
     dtype: Type[datatype] = core.complex64,
 ) -> DNDarray:
     """
-    Generates a Hermitian matrix of arbitrary size. A Hermitian matrix is a square matrix that is equal to the transpose of its
-    conjugate matrix.
+    Generates a Hermitian matrix of size `(n,n)`. A Hermitian matrix is a  complex square matrix that is equal to its conjugate transpose.
 
     Parameters
     ----------
