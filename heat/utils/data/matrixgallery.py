@@ -21,7 +21,7 @@ def hermitian(
     split: Union[None, int] = None,
     device: Union[None, str, Device] = None,
     comm: Union[None, Communication] = None,
-    dtype: Type[datatype] = core.float32,
+    dtype: Type[datatype] = core.complex64,
 ) -> DNDarray:
     """
     Generates a Hermitian matrix of arbitrary size. A Hermitian matrix is a square matrix that is equal to the transpose of its
