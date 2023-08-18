@@ -13,7 +13,7 @@ def _check_if_2D_float_DNDarray(input):
         )
     if not input.ndim == 2:
         raise ValueError(
-            "Input of preprocessing routines must be a 2D DNDarray of shape (no_data_points, no_of_features), but dimension is %d."
+            "Input of preprocessing routines must be a 2D DNDarray of shape (n_datapoints, n_features), but dimension is %d."
             % input.ndim
         )
     if input.dtype not in [ht.float32, ht.float64]:
@@ -25,7 +25,7 @@ def _check_if_2D_float_DNDarray(input):
 
 
 # auxiliary function that checks whether parameter of a Scaler and data to be transformed with this Scaler have matching shapes
-def _check_no_of_features(param, inputdata):
+def _check_n_features(param, inputdata):
     if param.shape[0] != inputdata.shape[1]:
         raise ValueError(
             "Scaler has been fitted on a data set with %d features, but shall now be applied to data with %d features."
@@ -43,7 +43,7 @@ def _tol_wrt_dtype(inputdata):
 
 class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
     """Sandardization of features to mean 0 and variance 1 by affine linear transformation; similar to `sklearn.preprocessing.StandardScaler`.
-    The data set to be scaled is assumed to be stored as 2D-`DNDarray` of shape (no_data_points, no_of_features).
+    The data set to be scaled is assumed to be stored as 2D-`DNDarray` of shape (n_datapoints, n_features).
     Shifting to mean 0 and scaling to variance 1 is applied to each feature independently.
 
     Parameters
@@ -59,14 +59,14 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
 
     Attributes
     ----------
-    scale_ : DNDarray of shape (no_of_features,) or None
+    scale_ : DNDarray of shape (n_features,) or None
         Per feature relative scaling of the data to achieve unit
         variance. Set to ``None`` (no variance scaling applied) if ``var = None`` or ``var`` below machine precision.
 
-    mean_ : DNDarray of shape (no_of_features,) or None
+    mean_ : DNDarray of shape (n_features,) or None
         The mean value for each feature. Equal to ``None`` when ``with_mean=False``.
 
-    var_ : DNDarray of shape (no_of_features,) or None
+    var_ : DNDarray of shape (n_features,) or None
         Featurewise variance of the given data. Equal to ``None`` when ``with_std=False``.
     """
 
@@ -81,7 +81,7 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : DNDarray of shape (no_data_points, no_of_features).
+        X : DNDarray of shape (n_datapoints, n_features).
             Data used to compute the mean and standard deviation used for later featurewise scaling.
 
         y : None
@@ -123,7 +123,7 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : DNDarray (no_data_points, no_of_features)
+        X : DNDarray (n_datapoints, n_features)
             The data set to be standardized.
         copy : bool, default=None
             Copy the input ``X`` or not.
@@ -134,7 +134,7 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
             Standardized data set.
         """
         _check_if_2D_float_DNDarray(X)
-        _check_no_of_features(self.mean_, X)
+        _check_n_features(self.mean_, X)
         if self.copy:
             return (X - self.mean_) * self.scale_
         # ... or in-place:
@@ -149,7 +149,7 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        Y : DNDarray of shape (no_data_points, no_of_features)
+        Y : DNDarray of shape (n_datapoints, n_features)
             Data to be scaled back.
         copy : bool, default=None
             Copy the input ``Y`` or not.
@@ -160,7 +160,7 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
             Scaled-back data set.
         """
         _check_if_2D_float_DNDarray(Y)
-        _check_no_of_features(self.mean_, Y)
+        _check_n_features(self.mean_, Y)
         if self.copy:
             return Y / self.scale_ + self.mean_
         # ... or in-place:
@@ -174,7 +174,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
     """
     Min-Max-Scaler: transforms the features by scaling each feature (affine) linearly to the prescribed range;
     similar to `sklearn.preprocessing.MinMaxScaler`.
-    The data set to be scaled is assumed to be stored as 2D-`DNDarray` of shape (no_data_points, no_of_features).
+    The data set to be scaled is assumed to be stored as 2D-`DNDarray` of shape (n_datapoints, n_features).
 
     Each feature is scaled and translated individually such that it is in the given range on the input data set,
     e.g. between zero and one (default).
@@ -192,19 +192,19 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
 
     Attributes
     ----------
-    min_ : DNDarray of shape (no_of_features,)
+    min_ : DNDarray of shape (n_features,)
         translation required per feature
 
-    scale_ : DNDarray of shape (no_of_features,)
+    scale_ : DNDarray of shape (n_features,)
         scaling required per feature
 
-    data_min_ : DNDarray of shape (no_of_features,)
+    data_min_ : DNDarray of shape (n_features,)
         minimum per feature in the input data set
 
-    data_max_ : DNDarray of shape (no_of_features,)
+    data_max_ : DNDarray of shape (n_features,)
         maximum per feature in the input data set
 
-    data_range_ : DNDarray of shape (no_of_features,)
+    data_range_ : DNDarray of shape (n_features,)
         range per feature in the input data set
     """
 
@@ -230,7 +230,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : DNDarray of shape (no_data_points, no_of_features)
+        X : DNDarray of shape (n_datapoints, n_features)
             data set to which scaler shall be fitted.
 
         y : None
@@ -266,7 +266,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : DNDarray of shape (no_data_points, no_of_features)
+        X : DNDarray of shape (n_datapoints, n_features)
             Data set to be transformed.
 
         Returns
@@ -275,7 +275,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
             Transformed data.
         """
         _check_if_2D_float_DNDarray(X)
-        _check_no_of_features(self.data_min_, X)
+        _check_n_features(self.data_min_, X)
         if self.copy:
             Y = (X - self.data_min_) * self.scale_ + self.feature_range[0]
             return Y
@@ -291,7 +291,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        Y : DNDarray of shape (no_data_points, no_of_features)
+        Y : DNDarray of shape (n_datapoints, n_features)
             Data set to be transformed back.
 
         Returns
@@ -300,7 +300,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
             Back-transformed data.
         """
         _check_if_2D_float_DNDarray(Y)
-        _check_no_of_features(self.data_min_, Y)
+        _check_n_features(self.data_min_, Y)
         if self.copy:
             X = (Y - self.feature_range[0]) / self.scale_ + self.data_min_
             return X
@@ -314,7 +314,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
 class Normalizer(ht.TransformMixin, ht.BaseEstimator):
     """
     Normalizer: each data point of a data set is scaled to unit norm independently.
-    The data set to be scaled is assumed to be stored as 2D-`DNDarray` of shape (no_data_points, no_of_features); therefore
+    The data set to be scaled is assumed to be stored as 2D-`DNDarray` of shape (n_datapoints, n_features); therefore
     the Normalizer scales each row to unit norm. This object is similar to `sklearn.preprocessing.Normalizer`.
 
     Parameters
@@ -362,7 +362,7 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : DNDarray of shape (no_data_points, no_of_features)
+        X : DNDarray of shape (n_datapoints, n_features)
             The data set to be normalized.
 
         copy : bool, default=None
@@ -370,7 +370,7 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
 
         Returns
         -------
-        X_tr : DNDarray of shape (no_data_points, no_of_features)
+        X_tr : DNDarray of shape (n_datapoints, n_features)
             Transformed data set.
         """
         _check_if_2D_float_DNDarray(X)
@@ -395,7 +395,7 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
 class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
     """
     MaxAbsScaler: scale each feature of a given data set linearly by its maximum absolute value. The underyling data set to be scaled is
-    assumed to be stored as a 2D-`DNDarray` of shape (no_data_points, no_of_features); this routine is similar to
+    assumed to be stored as a 2D-`DNDarray` of shape (n_datapoints, n_features); this routine is similar to
     `sklearn.preprocessing.MaxAbsScaler`.
 
     Each feature is scaled individually such that the maximal absolute value of each feature after transformation will be 1.0.
@@ -408,10 +408,10 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
 
     Attributes
     ----------
-    scale_ : DNDarray of shape (no_of_features,)
+    scale_ : DNDarray of shape (n_features,)
         Per feature relative scaling of the data.
 
-    max_abs_ : DNDarray of shape (no_of_features,)
+    max_abs_ : DNDarray of shape (n_features,)
         Per feature maximum absolute value of the input data.
     """
 
@@ -424,7 +424,7 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : DNDarray of shape (no_data_points, no_of_features)
+        X : DNDarray of shape (n_datapoints, n_features)
             The data set to which the scaler shall be fitted.
 
         y : None
@@ -455,7 +455,7 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : DNDarray of shape (no_data_points, no_of_features)
+        X : DNDarray of shape (n_datapoints, n_features)
             The data set to be scaled.
 
         Returns
@@ -464,7 +464,7 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
             Transformed data set.
         """
         _check_if_2D_float_DNDarray(X)
-        _check_no_of_features(self.scale_, X)
+        _check_n_features(self.scale_, X)
         if self.copy:
             Y = X * self.scale_
             return Y
@@ -478,7 +478,7 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        Y : DNDarray of shape (no_data_points, no_of_features)
+        Y : DNDarray of shape (n_datapoints, n_features)
             The data set to be transformed back.
 
         Returns
@@ -487,7 +487,7 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
             Back-transformed array.
         """
         _check_if_2D_float_DNDarray(Y)
-        _check_no_of_features(self.scale_, Y)
+        _check_n_features(self.scale_, Y)
         if self.copy:
             X = Y / self.scale_
             return X
@@ -504,7 +504,7 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
     to ``sklearn.preprocessing.RobustScaler``.
 
     The underyling data set to be scaled is
-    assumed to be stored as a 2D-`DNDarray` of shape (no_data_points, no_of_features).
+    assumed to be stored as a 2D-`DNDarray` of shape (n_datapoints, n_features).
     Each feature is centered and scaled independently.
 
     Parameters
@@ -528,10 +528,10 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
 
     Attributes
     ----------
-    center_ : DNDarray of shape (no_of_features,)
+    center_ : DNDarray of shape (n_features,)
         Feature-wise median value of the given data set.
 
-    iqr_ : DNDarray of shape (no_of_features,)
+    iqr_ : DNDarray of shape (n_features,)
         length of the interquantile range for each feature.
 
     scale_ : array of floats
@@ -577,7 +577,7 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : DNDarray of shape (no_data_points, no_of_features)
+        X : DNDarray of shape (n_datapoints, n_features)
             Data to which the Scaler should be fitted.
 
         y : Ignored
@@ -615,7 +615,7 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        X : DNDarray of shape (no_data_points, no_of_features)
+        X : DNDarray of shape (n_datapoints, n_features)
             Data set to be transformed.
 
         Returns
@@ -625,9 +625,9 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
         """
         _check_if_2D_float_DNDarray(X)
         if self.with_centering:
-            _check_no_of_features(self.center_, X)
+            _check_n_features(self.center_, X)
         if self.with_scaling:
-            _check_no_of_features(self.scale_, X)
+            _check_n_features(self.scale_, X)
         if self.copy:
             Y = X
             if self.with_centering:
@@ -648,7 +648,7 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
 
         Parameters
         ----------
-        Y : DNDarray of shape (no_data_points, no_of_features)
+        Y : DNDarray of shape (n_datapoints, n_features)
             Data to be back-transformed
 
         Returns
@@ -658,9 +658,9 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
         """
         _check_if_2D_float_DNDarray(Y)
         if self.with_centering:
-            _check_no_of_features(self.center_, Y)
+            _check_n_features(self.center_, Y)
         if self.with_scaling:
-            _check_no_of_features(self.scale_, Y)
+            _check_n_features(self.scale_, Y)
         if self.copy:
             X = Y
             if self.with_scaling:
