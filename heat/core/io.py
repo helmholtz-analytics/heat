@@ -896,8 +896,7 @@ def load_csv(
         total_actual_lines = torch.tensor(actual_length, dtype=torch.int64, device=local_tensor.device)
         comm.Allreduce(MPI.IN_PLACE,total_actual_lines,MPI.SUM)
 
-        cumsum = total_actual_lines.cumsum(dim=0).tolist()
-        gshape = (cumsum[-1], columns[0].item())
+        gshape = (total_actual_lines.item(), columns[0].item())
 
         resulting_tensor = DNDarray(
             local_tensor,
