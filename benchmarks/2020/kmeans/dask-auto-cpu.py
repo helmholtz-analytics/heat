@@ -22,17 +22,17 @@ if __name__ == "__main__":
 
     client = Client(scheduler_file=os.path.join(os.getcwd(), "scheduler.json"))
 
-    print("Loading data... {}[{}]".format(args.file, args.dataset), end="")
+    print(f"Loading data... {args.file}[{args.dataset}]", end="")
     with h5py.File(args.file, "r") as handle:
         data = da.from_array(handle[args.dataset], chunks=("auto", -1)).persist()
     print("\t[OK]")
 
     for trial in range(args.trials):
-        print("Trial {}...".format(trial), end="")
+        print(f"Trial {trial}...", end="")
         kmeans = dmc.KMeans(
             n_clusters=args.clusters, max_iter=args.iterations, init="random", tol=-1.0
         )
         start = time.perf_counter()
         kmeans.fit(data)
         end = time.perf_counter()
-        print("\t{}s".format(end - start))
+        print(f"\t{end - start}s")

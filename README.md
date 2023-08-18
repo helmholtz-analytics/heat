@@ -8,19 +8,23 @@ Heat is a distributed tensor framework for high performance data analytics.
 
 # Project Status
 
-[![pipeline status](https://codebase.helmholtz.cloud/helmholtz-analytics/ci/badges/heat/base/pipeline.svg)](https://codebase.helmholtz.cloud/helmholtz-analytics/ci/-/commits/heat/base)
+[![CPU/CUDA/ROCm tests](https://codebase.helmholtz.cloud/helmholtz-analytics/ci/badges/heat/base/pipeline.svg)](https://codebase.helmholtz.cloud/helmholtz-analytics/ci/-/commits/heat/base)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
-[![codecov](https://codecov.io/gh/helmholtz-analytics/heat/branch/main/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![coverage](https://codecov.io/gh/helmholtz-analytics/heat/branch/main/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![PyPI Version](https://img.shields.io/pypi/v/heat)](https://pypi.org/project/heat/)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
-[![Github-Pages - Benchmarks](https://img.shields.io/badge/Github--Pages-Benchmarks-2ea44f)](https://helmholtz-analytics.github.io/heat/dev/bench)
+[![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F-green)](https://fair-software.eu)
+[![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7688/badge)](https://bestpractices.coreinfrastructure.org/projects/7688)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
+[![Benchmarks](https://img.shields.io/badge/Github--Pages-Benchmarks-2ea44f)](https://helmholtz-analytics.github.io/heat/dev/bench)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 # Goals
 
 Heat is a flexible and seamless open-source software for high performance data
 analytics and machine learning. It provides highly optimized algorithms and data
-structures for tensor computations using CPUs, GPUs and distributed cluster
+structures for tensor computations using CPUs, GPUs, and distributed cluster
 systems on top of MPI. The goal of Heat is to fill the gap between data
 analytics and machine learning libraries with a strong focus on single-node
 performance, and traditional high-performance computing (HPC). Heat's generic
@@ -34,7 +38,7 @@ computational and memory needs of your laptop and desktop.
 # Features
 
 * High-performance n-dimensional tensors
-* CPU, GPU and distributed computation using MPI
+* CPU, GPU, and distributed computation using MPI
 * Powerful data analytics and machine learning methods
 * Abstracted communication via split tensors
 * Python API
@@ -89,7 +93,7 @@ $ pip install heat[hdf5,netcdf,dev]
 TL;DR: [Quick Start](quick_start.md) (Read this to get a quick overview of Heat).
 
 Check out our Jupyter Notebook [**Tutorial**](https://github.com/helmholtz-analytics/heat/blob/main/scripts/)
-right here on Github or in the /scripts directory, to learn and understand about the basics and working of Heat.
+right here on GitHub or in the /scripts directory, to learn and understand about the basics and working of Heat.
 
 The complete documentation of the latest version is always deployed on
 [Read the Docs](https://heat.readthedocs.io/).

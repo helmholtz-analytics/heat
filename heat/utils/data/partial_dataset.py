@@ -94,7 +94,7 @@ class PartialH5Dataset(torch_data.Dataset):
         self.torch_device = "cpu"
         if torch.cuda.is_available() and use_gpu:
             dev_id = MPI_WORLD.rank % torch.cuda.device_count()
-            self.torch_device = torch.device("cuda:" + str(dev_id))
+            self.torch_device = torch.device(f"cuda:{str(dev_id)}")
             torch.cuda.set_device(dev_id)
 
         f = h5py.File(file, "r")
