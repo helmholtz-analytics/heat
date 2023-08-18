@@ -43,7 +43,7 @@ def hermitian(
     ----------
     [1] https://en.wikipedia.org/wiki/Hermitian_matrix
     """
-    real_dtype = types.float32 if dtype is types.complex64 else types.float64
+    real_dtype = core.float32 if dtype is core.complex64 else core.float64
     matrix = randn(n, n, dtype=real_dtype, split=split, device=device)
     matrix += 1j * randn(n, n, dtype=real_dtype, split=split, device=device)
     return matrix @ core.conj(matrix).T
