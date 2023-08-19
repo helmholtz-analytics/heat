@@ -25,7 +25,7 @@ class TestMatrixgallery(TestCase):
             ht.utils.data.matrixgallery.hermitian(10, 20)
 
         A = ht.utils.data.matrixgallery.hermitian(20, split=1)
-        A_err = ht.norm(A - A.T.conj()) / ht.norm(A)
+        A_err = ht.norm(A - A.T.conj().resplit_(1)) / ht.norm(A)
         self.assertTrue(A_err <= 1e-6)
 
     def test_parter(self):
