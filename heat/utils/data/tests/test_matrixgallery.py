@@ -25,8 +25,13 @@ class TestMatrixgallery(TestCase):
             ht.utils.data.matrixgallery.hermitian(10, 20)
 
         A = ht.utils.data.matrixgallery.hermitian(20, split=1)
-        A_err = ht.norm(A - A.T.conj().resplit_(1)) / ht.norm(A)
+        A_err = ht.norm(A - A.T.conj().resplit_(A.split)) / ht.norm(A)
         self.assertTrue(A_err <= 1e-6)
+
+        # test double precision
+        A = ht.utils.data.matrixgallery.hermitian(20, dtype=ht.complex128, split=0)
+        A_err = ht.norm(A - A.T.conj().resplit_(A.split)) / ht.norm(A)
+        self.assertTrue(A_err <= 1e-12)
 
     def test_parter(self):
         parter = ht.utils.data.matrixgallery.parter(20)
