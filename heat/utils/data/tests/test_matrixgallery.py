@@ -20,6 +20,14 @@ class TestMatrixgallery(TestCase):
             dtype_tol = 1e-6
         self.assertTrue(U_orth_err <= dtype_tol)
 
+    def test_hermitian(self):
+        with self.assertRaises(ValueError):
+            ht.utils.data.matrixgallery.hermitian(10, 20)
+
+        A = ht.utils.data.matrixgallery.hermitian(20, split=1)
+        A_err = ht.norm(A - A.T.conj()) / ht.norm(A)
+        self.assertTrue(A_err <= 1e-6)
+
     def test_parter(self):
         parter = ht.utils.data.matrixgallery.parter(20)
         self.__check_parter(parter)
