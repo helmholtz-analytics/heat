@@ -13,7 +13,40 @@ from ...core.manipulations import diag, sort
 from ...core.exponential import log
 from typing import Type, Union, Tuple, Callable
 
-__all__ = ["parter", "random_known_singularvalues", "random_known_rank"]
+__all__ = ["hermitian", "parter", "random_known_singularvalues", "random_known_rank"]
+
+
+def hermitian(
+    n: int,
+    split: Union[None, int] = None,
+    device: Union[None, str, Device] = None,
+    comm: Union[None, Communication] = None,
+    dtype: Type[datatype] = core.complex64,
+) -> DNDarray:
+    """
+    Generates a Hermitian matrix of size `(n,n)`. A Hermitian matrix is a  complex square matrix that is equal to its conjugate transpose.
+
+    Parameters
+    ----------
+    n : int
+        size of the resulting square matrix
+    split: None or int, optional
+        The axis along which the array content is split and distributed in memory.
+    device: None or str or Device, optional
+        Specifies the device the tensor shall be allocated on, defaults globally set default device.
+    comm : Communication, optional
+        Handle to the nodes holding distributed parts or copies of this array.
+    dtype: Type[datatype], optional
+        The desired data-type for the array, defaults to ht.complex64.
+
+    References
+    ----------
+    [1] https://en.wikipedia.org/wiki/Hermitian_matrix
+    """
+    real_dtype = core.float32 if dtype is core.complex64 else core.float64
+    matrix = randn(n, n, dtype=real_dtype, split=split, device=device)
+    matrix += 1j * randn(n, n, dtype=real_dtype, split=split, device=device)
+    return matrix @ core.conj(matrix).T
 
 
 def parter(
