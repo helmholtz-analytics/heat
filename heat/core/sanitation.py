@@ -300,8 +300,7 @@ def sanitize_out(
         if output_device != out.device:
             raise ValueError(f"Expecting output buffer on device {output_device}, got {out.device}")
 
-        if output_comm != out.comm:
-            raise ValueError(f"Expecting output buffer on comm {output_comm}, got {out.comm}")
+    # check that communicators match
     if output_comm is not None and out.comm != output_comm:
         try:
             raise NotImplementedError(
