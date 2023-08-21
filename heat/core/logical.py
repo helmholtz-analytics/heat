@@ -41,7 +41,7 @@ def all(
     x: DNDarray,
     axis: Union[int, Tuple[int], None] = None,
     out: Optional[DNDarray] = None,
-    keepdim: bool = False,
+    keepdims: bool = False,
 ) -> Union[DNDarray, bool]:
     """
     Test whether all array elements along a given axis evaluate to ``True``.
@@ -59,7 +59,7 @@ def all(
     out : DNDarray, optional
         Alternate output array in which to place the result. It must have the same shape as the expected output
         and its type is preserved.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
@@ -93,14 +93,17 @@ def all(
     def local_all(t, *args, **kwargs):
         return torch.all(t != 0, *args, **kwargs)
 
+    if keepdims and axis is None:
+        axis = tuple(range(x.ndim))
+
     return _operations.__reduce_op(
-        x, local_all, MPI.LAND, axis=axis, out=out, neutral=1, keepdim=keepdim
+        x, local_all, MPI.LAND, axis=axis, out=out, neutral=1, keepdims=keepdims
     )
 
 
 DNDarray.all: Callable[
     [Union[int, Tuple[int], None], Optional[DNDarray], bool], Union[DNDarray, bool]
-] = lambda self, axis=None, out=None, keepdim=False: all(self, axis, out, keepdim)
+] = lambda self, axis=None, out=None, keepdims=False: all(self, axis, out, keepdims)
 DNDarray.all.__doc__ = all.__doc__
 
 
@@ -139,7 +142,19 @@ def allclose(
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
-    _local_allclose = torch.tensor(torch.allclose(t1.larray, t2.larray, rtol, atol, equal_nan))
+    try:
+        _local_allclose = torch.tensor(torch.allclose(t1.larray, t2.larray, rtol, atol, equal_nan))
+    except RuntimeError:
+        promoted_dtype = torch.promote_types(t1.larray.dtype, t2.larray.dtype)
+        _local_allclose = torch.tensor(
+            torch.allclose(
+                t1.larray.type(promoted_dtype),
+                t2.larray.type(promoted_dtype),
+                rtol,
+                atol,
+                equal_nan,
+            )
+        )
 
     # If x is distributed, then y is also distributed along the same axis
     if t1.comm.is_distributed():
@@ -157,7 +172,7 @@ DNDarray.allclose.__doc__ = all.__doc__
 
 
 def any(
-    x, axis: Optional[int] = None, out: Optional[DNDarray] = None, keepdim: bool = False
+    x, axis: Optional[int] = None, out: Optional[DNDarray] = None, keepdims: bool = False
 ) -> DNDarray:
     """
     Returns a :class:`~heat.core.dndarray.DNDarray` containing the result of the test whether any array elements along a
@@ -174,7 +189,7 @@ def any(
     out : DNDarray, optional
         Alternative output tensor in which to place the result. It must have the same shape as the expected output.
         The output is a array with ``datatype=bool``.
-    keepdim : bool, optional
+    keepdims : bool, optional
         If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result will broadcast correctly against the original array.
 
@@ -198,14 +213,17 @@ def any(
     def local_any(t, *args, **kwargs):
         return torch.any(t != 0, *args, **kwargs)
 
+    if keepdims and axis is None:
+        axis = tuple(range(x.ndim))
+
     return _operations.__reduce_op(
-        x, local_any, MPI.LOR, axis=axis, out=out, neutral=0, keepdim=keepdim
+        x, local_any, MPI.LOR, axis=axis, out=out, neutral=0, keepdims=keepdims
     )
 
 
 DNDarray.any: Callable[
     [DNDarray, Optional[int], Optional[DNDarray], bool], DNDarray
-] = lambda self, axis=None, out=None, keepdim=False: any(self, axis, out, keepdim)
+] = lambda self, axis=None, out=None, keepdims=False: any(self, axis, out, keepdims)
 DNDarray.any.__doc__ = any.__doc__
 
 
@@ -489,7 +507,7 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
         """
         if not isinstance(x, DNDarray):
             if np.ndim(x) != 0:
-                raise TypeError("Expected DNDarray or numeric scalar, input was {}".format(type(x)))
+                raise TypeError(f"Expected DNDarray or numeric scalar, input was {type(x)}")
 
             dtype = getattr(x, "dtype", float)
             device = getattr(y, "device", None)
