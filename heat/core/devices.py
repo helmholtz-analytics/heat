@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import torch
 
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 from . import communication
 
@@ -66,13 +66,29 @@ class Device:
         """
         Return the unambiguous information of :class:`~heat.core.device.Device`.
         """
-        return "device({})".format(self.__str__())
+        return f"device({self.__str__()})"
 
     def __str__(self) -> str:
         """
         Return the descriptive information of :class:`~heat.core.device.Device`.
         """
-        return "{}:{}".format(self.device_type, self.device_id)
+        return f"{self.device_type}:{self.device_id}"
+
+    def __eq__(self, other: Any) -> bool:
+        """
+        Overloads the `==` operator for local equal check.
+
+        Parameters
+        ----------
+        other : Any
+            The object to compare with
+        """
+        if isinstance(other, Device):
+            return self.device_type == other.device_type and self.device_id == other.device_id
+        elif isinstance(other, torch.device):
+            return self.device_type == other.type and self.device_id == other.index
+        else:
+            return NotImplemented
 
 
 # create a CPU device singleton
@@ -99,7 +115,7 @@ if torch.cuda.device_count() > 0:
     # GPUs are assigned round-robin to the MPI processes
     gpu_id = communication.MPI_WORLD.rank % torch.cuda.device_count()
     # create a new GPU device
-    gpu = Device("gpu", gpu_id, "cuda:{}".format(gpu_id))
+    gpu = Device("gpu", gpu_id, f"cuda:{gpu_id}")
     """
     The standard GPU Device
 
@@ -149,9 +165,7 @@ def sanitize_device(device: Optional[Union[str, Device]] = None) -> Device:
     try:
         return __device_mapping[device.strip().lower()]
     except (AttributeError, KeyError, TypeError):
-        raise ValueError(
-            "Unknown device, must be one of {}".format(", ".join(__device_mapping.keys()))
-        )
+        raise ValueError(f'Unknown device, must be one of {", ".join(__device_mapping.keys())}')
 
 
 def use_device(device: Optional[Union[str, Device]] = None) -> None:

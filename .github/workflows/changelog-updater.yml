@@ -1,0 +1,32 @@
+name: 'Update Changelog'
+
+on:
+  release:
+    types: [released]
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          repository: helmholtz-analytics/heat
+          ref: ${{ github.event.release.target_commitish }}
+      - name: Update Changelog
+        run: |
+          echo ${{ format('\# {0} - {1}', env.GITHUB_REF, github.event.release.name) }} > cl_title.md
+          echo ${{ github.event.release.body }} > cl_new_body.md
+          echo "" > newline.txt
+          cat cl_title.md newline.txt cl_new_body.md newline.txt CHANGELOG.md > tmp
+          mv tmp CHANGELOG.md
+          rm cl_title.md
+          rm cl_new_body.md
+          rm newline.txt
+          cat CHANGELOG.md
+      - name: Commit updated CHANGELOG
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          branch: ${{ github.event.release.target_commitish }}
+          commit_message: Update CHANGELOG
+          file_pattern: CHANGELOG.md

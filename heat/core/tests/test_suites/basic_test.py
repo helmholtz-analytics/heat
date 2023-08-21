@@ -10,7 +10,6 @@ import torch
 
 # TODO adapt for GPU once this is working properly
 class TestCase(unittest.TestCase):
-
     __comm = MPICommunication()
     __device = None
 
@@ -52,9 +51,7 @@ class TestCase(unittest.TestCase):
             other_device = ht.cpu
         else:
             raise RuntimeError(
-                "Value '{}' of environment variable 'HEAT_TEST_USE_DEVICE' is unsupported".format(
-                    envar
-                )
+                f"Value '{envar}' of environment variable 'HEAT_TEST_USE_DEVICE' is unsupported"
             )
 
         cls.device, cls.other_device, cls.envar = ht_device, other_device, envar
@@ -107,21 +104,17 @@ class TestCase(unittest.TestCase):
         self.assertIsInstance(
             heat_array,
             dndarray.DNDarray,
-            "The array to test was not a instance of ht.DNDarray. "
-            "Instead got {}.".format(type(heat_array)),
+            f"The array to test was not a instance of ht.DNDarray. Instead got {type(heat_array)}.",
         )
         self.assertIsInstance(
             expected_array,
             np.ndarray,
-            "The array to test against was not a instance of numpy.ndarray or torch.Tensor "
-            "Instead got {}.".format(type(expected_array)),
+            f"The array to test against was not a instance of numpy.ndarray or torch.Tensor Instead got {type(expected_array)}.",
         )
         self.assertEqual(
             heat_array.shape,
             expected_array.shape,
-            "Global shapes do not match. Got {} expected {}".format(
-                heat_array.shape, expected_array.shape
-            ),
+            f"Global shapes do not match. Got {heat_array.shape} expected {expected_array.shape}",
         )
 
         if not heat_array.is_balanced():
@@ -133,11 +126,14 @@ class TestCase(unittest.TestCase):
         self.assertEqual(
             heat_array.lshape,
             expected_array[slices].shape,
-            "Local shapes do not match. "
-            "Got {} expected {}".format(heat_array.lshape, expected_array[slices].shape),
+            f"Local shapes do not match. Got {heat_array.lshape} expected {expected_array[slices].shape}",
         )
-        local_heat_numpy = heat_array.numpy()
-        self.assertTrue(np.allclose(local_heat_numpy, expected_array))
+        # compare local tensors to corresponding slice of expected_array
+        is_allclose = np.allclose(heat_array.larray.cpu(), expected_array[slices])
+        ht_is_allclose = ht.array(
+            [is_allclose], dtype=ht.bool, is_split=0, device=heat_array.device
+        )
+        self.assertTrue(ht.all(ht_is_allclose))
 
     def assert_func_equal(
         self,
@@ -201,9 +197,7 @@ class TestCase(unittest.TestCase):
         >>> self.assert_func_equal([5, 5, 5, 5], ht.unique, np.unique, heat_arg=heat_args, numpy_args=numpy_args)
         """
         if not isinstance(shape, tuple) and not isinstance(shape, list):
-            raise ValueError(
-                "The shape must be either a list or a tuple but was {}".format(type(shape))
-            )
+            raise ValueError(f"The shape must be either a list or a tuple but was {type(shape)}")
 
         for dtype in data_types:
             tensor = self.__create_random_np_array(shape, dtype=dtype, low=low, high=high)
@@ -283,8 +277,7 @@ class TestCase(unittest.TestCase):
             np_array = tensor.cpu().numpy().copy()
         else:
             raise TypeError(
-                "The input tensors type must be one of [tuple, list, "
-                + "numpy.ndarray, torch.tensor] but is {}".format(type(tensor))
+                f"The input tensors type must be one of [tuple, list, numpy.ndarray, torch.tensor] but is {type(tensor)}"
             )
 
         dtype = types.canonical_heat_type(torch_tensor.dtype)
@@ -321,7 +314,7 @@ class TestCase(unittest.TestCase):
         elif order == "F":
             return self.assertTrue(column_major)
         else:
-            raise ValueError("expected order to be 'C' or 'F', but was {}".format(order))
+            raise ValueError(f"expected order to be 'C' or 'F', but was {order}")
 
     def __create_random_np_array(self, shape, dtype=np.float32, low=-10000, high=10000):
         """
@@ -364,9 +357,7 @@ class TestCase(unittest.TestCase):
             array = np.random.randint(low=low, high=high, size=shape)
         else:
             raise ValueError(
-                "Unsupported dtype. Expected a subclass of `np.floating` or `np.integer` but got {}".format(
-                    dtype
-                )
+                f"Unsupported dtype. Expected a subclass of `np.floating` or `np.integer` but got {dtype}"
             )
         array = array.astype(dtype)
         return array
