@@ -1,18 +1,17 @@
 ## Contributing to Heat
 
 Thank you for your interest in contributing to Heat, we really appreciate your time and effort!
+
  * If you want to report a bug, or propose a new feature, you can file an [Issue](https://github.com/helmholtz-analytics/heat/issues/new/choose).
  * You can also get in touch with us on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo). You can sign up with your GitHub credentials. Once you log in, you can introduce yourself on the `Town Square` channel.
  * To set up your environment for Heat development, follow these [instructions](README.md#Hacking).
  * We strongly recommend getting in touch with the core developers, either here on GitHub (by filing and/or commenting on an Issue) or on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo), before starting to work on a contribution. We are a small team and it's good to know who is currently working on what.
  * Our git workflow is described in a lot of detail [below](#developing-contributions).
- * **TL;DR for experts:**
+ * **TL;DR for experts:** (Also check out [Quick Start](quick_start.md#new-contributors))
+
  1. `git add`, `pre-commit run --all-files` and `git commit` as needed;
  2. `git rebase -i main` to rebase and tidy up your commits;
  3. `git push` to publish to the remote repository.
-
-
-
 
 *The following is based on the SciPy community's [Contributing to NumPy](https://numpy.org/doc/stable/dev/) guidelines.*
 
@@ -66,11 +65,7 @@ also install the pre-commit hook with
 pre-commit install
 ````
 
-* Create a branch for the feature you want to work on. Since the branch name will appear in the merge message, use a sensible name. The naming scheme is as follows `<KIND-OF-CONTRIBUTION/<ISSUE-NR>-<NAME>`, where the kind of the contribution should be *features* for an entirely new feature, *bug* for, well, a bug and *enhancement* for things like performance optimizations for example. Please make sure that *NAME* very briefly summarizes the content of your contribution.
-
-```
-git checkout -b features/123-boolean-operators
-```
+* **NEW** As of Aug 2023, as soon as an issue is assigned, a branch is created and its name is posted in a comment under the original issue. **Do adopt this branch** for your development, it is guaranteed to have the correct source branch - `release/...` for bug fixes, `main` for new features, docs updates, etc.
 
 * Commit locally as you progress:
 
@@ -79,8 +74,8 @@ git add
 pre-commit run --all-files
 git commit
 ```
-Use a properly formatted commit message, write tests that fail before your change and pass afterward, run all the tests locally and in parallel for different process counts (`mpirun -np <PROCESSES>`). Be sure to document any changed behavior in docstrings, keeping to Heat's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/documentation_howto.rst).
 
+Use a properly formatted commit message, write tests that fail before your change and pass afterward, run all the tests locally and in parallel for different process counts (`mpirun -np <PROCESSES>`). Be sure to document any changed behavior in docstrings, keeping to Heat's [docstring standard](https://github.com/helmholtz-analytics/heat/blob/main/doc/source/documentation_howto.rst).
 
 #### Publishing your Contributions
 
@@ -96,17 +91,17 @@ git push origin features/123-boolean-operators
 
 * Go to GitHub. The new branch will show up with a green Pull Request button. Make sure the title and message are clear, concise, and self-explanatory. Then click the button to submit it.
 
-* If your commit introduces a new feature or changes functionality, **please explain your changes and the thinking behind them**. This greatly simplifies the review process. For bug fixes, documentation updates, etc., this is generally not necessary, though if you do not get any reaction, do feel free to ask for review.
+* If your commit introduces a new feature or changes functionality, **please explain your changes and the thinking behind them**. This greatly simplifies the review process. For bug fixes, documentation updates, etc., this is generally not necessary, though if you do not get any reaction, do feel free to ask for a review.
 
 * Phrase the PR title as a changelog message and make sure the PR is properly tagged ('enhancement', 'bug', 'ci/cd', 'chore', 'documentation').
 
 #### Review Process
 
-* Reviewers (the other developers and interested community members) will write inline and/or general comments on your Pull Request (PR) to help you improve its implementation, documentation and style. Every single developer working on the project has their code reviewed, and we’ve come to see it as friendly conversation from which we all learn and the overall code quality benefits. Therefore, please don’t let the review discourage you from contributing: its only aim is to improve the quality of project, not to criticize (we are, after all, very grateful for the time you’re donating!).
+* Reviewers (the other developers and interested community members) will write inline and/or general comments on your Pull Request (PR) to help you improve its implementation, documentation, and style. Every single developer working on the project has their code reviewed, and we’ve come to see it as a friendly conversation from which we all learn and the overall code quality benefits. Therefore, please don’t let the review discourage you from contributing: its only aim is to improve the quality of the project, not to criticize (we are, after all, very grateful for the time you’re donating!).
 
-* To update your PR, make your changes on your local repository, commit, run tests and push to your fork. As soon as those changes are pushed up (to the same branch as before) the PR will update automatically. If you have no idea how to fix the test failures, you may push your changes anyway and ask for help in a PR comment.
+* To update your PR, make your changes on your local repository, commit, run tests, and push to your fork. As soon as those changes are pushed up (to the same branch as before) the PR will update automatically. If you have no idea how to fix the test failures, you may push your changes anyway and ask for help in a PR comment.
 
-* Various continuous integration (CI) services are triggered after each PR update to build the code, run unit tests, measure code coverage and check coding style of your branch. The CI tests must pass before your PR can be merged. If CI fails, you can find out why by clicking on the “failed” icon (red cross) and inspecting the build and test log. To avoid overuse and waste of this resource, test your work locally before committing.
+* Various continuous integration (CI) services are triggered after each PR update to build the code, run unit tests, measure code coverage, and check the coding style of your branch. The CI tests must pass before your PR can be merged. If CI fails, you can find out why by clicking on the “failed” icon (red cross) and inspecting the build and test log. To avoid overuse and waste of this resource, test your work locally before committing.
 
 * There might also be a "failed" red cross, if the test coverage (i.e. the test code lines) is not high enough. There might be good reasons for this that should be properly described in the PR message. In most cases however, a sufficient test coverage should be achieved through adequate unit tests.
 
