@@ -1,6 +1,4 @@
-"""
-Generalized MPI operations. i.e. element-wise binary operations
-"""
+"""Generalized operations for DNDarray"""
 
 import builtins
 import numpy as np
@@ -78,11 +76,11 @@ def __binary_op(
     # Check inputs
     if not np.isscalar(t1) and not isinstance(t1, DNDarray):
         raise TypeError(
-            "Only DNDarrays and numeric scalars are supported, but input was {}".format(type(t1))
+            f"Only DNDarrays and numeric scalars are supported, but input was {type(t1)}"
         )
     if not np.isscalar(t2) and not isinstance(t2, DNDarray):
         raise TypeError(
-            "Only DNDarrays and numeric scalars are supported, but input was {}".format(type(t2))
+            f"Only DNDarrays and numeric scalars are supported, but input was {type(t2)}"
         )
     promoted_type = types.result_type(t1, t2).torch_type()
 
@@ -92,19 +90,17 @@ def __binary_op(
             t1 = factories.array(t1)
             t2 = factories.array(t2)
         except (ValueError, TypeError):
-            raise TypeError(
-                "Data type not supported, inputs were {} and {}".format(type(t1), type(t2))
-            )
+            raise TypeError(f"Data type not supported, inputs were {type(t1)} and {type(t2)}")
     elif np.isscalar(t1) and isinstance(t2, DNDarray):
         try:
             t1 = factories.array(t1, device=t2.device, comm=t2.comm)
         except (ValueError, TypeError):
-            raise TypeError("Data type not supported, input was {}".format(type(t1)))
+            raise TypeError(f"Data type not supported, input was {type(t1)}")
     elif isinstance(t1, DNDarray) and np.isscalar(t2):
         try:
             t2 = factories.array(t2, device=t1.device, comm=t1.comm)
         except (ValueError, TypeError):
-            raise TypeError("Data type not supported, input was {}".format(type(t2)))
+            raise TypeError(f"Data type not supported, input was {type(t2)}")
 
     # Make inputs have the same dimensionality
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
@@ -298,7 +294,11 @@ def __cum_op(
         return out
 
     return factories.array(
-        cumop, dtype=x.dtype if dtype is None else dtype, is_split=x.split, device=x.device
+        cumop,
+        dtype=x.dtype if dtype is None else dtype,
+        is_split=x.split,
+        device=x.device,
+        comm=x.comm,
     )
 
 
@@ -307,7 +307,7 @@ def __local_op(
     x: DNDarray,
     out: Optional[DNDarray] = None,
     no_cast: Optional[bool] = False,
-    **kwargs
+    **kwargs,
 ) -> DNDarray:
     """
     Generic wrapper for local operations, which do not require communication. Accepts the actual operation function as
@@ -337,7 +337,7 @@ def __local_op(
     # perform sanitation
     sanitation.sanitize_in(x)
     if out is not None and not isinstance(out, DNDarray):
-        raise TypeError("expected out to be None or an ht.DNDarray, but was {}".format(type(out)))
+        raise TypeError(f"expected out to be None or an ht.DNDarray, but was {type(out)}")
 
     # infer the output type of the tensor
     # we need floating point numbers here, due to PyTorch only providing sqrt() implementation for float32/64
@@ -381,7 +381,7 @@ def __reduce_op(
     partial_op: Callable,
     reduction_op: Callable,
     neutral: Optional[Union[int, float]] = None,
-    **kwargs
+    **kwargs,
 ) -> DNDarray:
     """
     Generic wrapper for reduction operations, e.g. :func:`sum() <heat.arithmetics.sum>`, :func:`prod() <heat.arithmetics.prod>`
@@ -416,13 +416,13 @@ def __reduce_op(
     axis = stride_tricks.sanitize_axis(x.shape, kwargs.get("axis"))
     if isinstance(axis, int):
         axis = (axis,)
-    keepdim = kwargs.get("keepdim")
+    keepdims = kwargs.get("keepdims")
     out = kwargs.get("out")
     split = x.split
     balanced = x.balanced
 
     # if local tensor is empty, replace it with the identity element
-    if 0 in x.lshape and (axis is None or (x.split in axis)):
+    if x.is_distributed() and 0 in x.lshape and (axis is None or split in axis):
         if neutral is None:
             neutral = float("nan")
         neutral_shape = x.gshape[:split] + (1,) + x.gshape[split + 1 :]
@@ -437,8 +437,12 @@ def __reduce_op(
 
     # apply the partial reduction operation to the local tensor
     if axis is None:
-        partial = partial_op(partial).reshape(-1)
-        output_shape = (1,)
+        partial = partial_op(partial)
+        if partial.ndim > 0:
+            partial = partial.reshape(-1)
+            output_shape = (1,)
+        else:
+            output_shape = ()
         balanced = True
     else:
         output_shape = x.gshape
@@ -448,7 +452,7 @@ def __reduce_op(
             ):  # no neutral element for max/min
                 partial = partial_op(partial, dim=dim, keepdim=True)
             output_shape = output_shape[:dim] + (1,) + output_shape[dim + 1 :]
-        if not keepdim and not len(partial.shape) == 1:
+        if not keepdims and len(partial.shape) != 1:
             gshape_losedim = tuple(x.gshape[dim] for dim in range(len(x.gshape)) if dim not in axis)
             lshape_losedim = tuple(x.lshape[dim] for dim in range(len(x.lshape)) if dim not in axis)
             output_shape = gshape_losedim
@@ -466,7 +470,7 @@ def __reduce_op(
             balanced = True
             if x.comm.is_distributed():
                 x.comm.Allreduce(MPI.IN_PLACE, partial, reduction_op)
-        elif axis is not None and not keepdim:
+        elif axis is not None and not keepdims:
             down_dims = len(tuple(dim for dim in axis if dim < x.split))
             split -= down_dims
             balanced = x.balanced
@@ -487,9 +491,7 @@ def __reduce_op(
         sanitation.sanitize_out(out, output_shape, split, x.device)
         if arg_op and out.dtype != types.canonical_heat_type(partial.dtype):
             raise TypeError(
-                "Data type mismatch: out.dtype should be {}, is {}".format(
-                    types.canonical_heat_type(partial.dtype), out.dtype
-                )
+                f"Data type mismatch: out.dtype should be {types.canonical_heat_type(partial.dtype)}, is {out.dtype}"
             )
         out._DNDarray__array = partial
         return out

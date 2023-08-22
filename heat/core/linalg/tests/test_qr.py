@@ -14,6 +14,7 @@ else:
     extended_tests = False
 
 
+@unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
 class TestQR(TestCase):
     @unittest.skipIf(not extended_tests, "extended tests")
     def test_qr_sp0_ext(self):

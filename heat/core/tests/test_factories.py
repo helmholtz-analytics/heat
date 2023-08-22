@@ -82,7 +82,7 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_dtype_float32.larray.dtype, torch.float32)
         self.assertEqual(three_arg_arange_dtype_float32.split, 0)
         # make an in direct check for the sequence, compare against the gaussian sum
-        self.assertEqual(three_arg_arange_dtype_float32.sum(axis=0, keepdim=True), 20.0)
+        self.assertEqual(three_arg_arange_dtype_float32.sum(axis=0, keepdims=True), 20.0)
 
         # testing setting dtype to int16
         three_arg_arange_dtype_short = ht.arange(0, 10, 2.0, dtype=torch.int16)
@@ -93,7 +93,7 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_dtype_short.larray.dtype, torch.int16)
         self.assertEqual(three_arg_arange_dtype_short.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
-        self.assertEqual(three_arg_arange_dtype_short.sum(axis=0, keepdim=True), 20)
+        self.assertEqual(three_arg_arange_dtype_short.sum(axis=0, keepdims=True), 20)
 
         # testing setting dtype to float64
         three_arg_arange_dtype_float64 = ht.arange(0, 10, 2, dtype=torch.float64)
@@ -104,7 +104,7 @@ class TestFactories(TestCase):
         self.assertEqual(three_arg_arange_dtype_float64.larray.dtype, torch.float64)
         self.assertEqual(three_arg_arange_dtype_float64.split, None)
         # make an in direct check for the sequence, compare against the gaussian sum
-        self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdim=True), 20.0)
+        self.assertEqual(three_arg_arange_dtype_float64.sum(axis=0, keepdims=True), 20.0)
 
         # exceptions
         with self.assertRaises(ValueError):
@@ -184,18 +184,19 @@ class TestFactories(TestCase):
             ).all()
         )
 
-        # distributed array, chunk local data (split)
-        tensor_2d = ht.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]], split=0)
-        self.assertIsInstance(tensor_2d, ht.DNDarray)
-        self.assertEqual(tensor_2d.dtype, ht.float32)
-        self.assertEqual(tensor_2d.gshape, (3, 3))
-        self.assertEqual(len(tensor_2d.lshape), 2)
-        self.assertLessEqual(tensor_2d.lshape[0], 3)
-        self.assertEqual(tensor_2d.lshape[1], 3)
-        self.assertEqual(tensor_2d.split, 0)
+        # distributed array, chunk local data (split), copy True
+        array_2d = np.array([[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]])
+        dndarray_2d = ht.array(array_2d, split=0, copy=True)
+        self.assertIsInstance(dndarray_2d, ht.DNDarray)
+        self.assertEqual(dndarray_2d.dtype, ht.float64)
+        self.assertEqual(dndarray_2d.gshape, (3, 3))
+        self.assertEqual(len(dndarray_2d.lshape), 2)
+        self.assertLessEqual(dndarray_2d.lshape[0], 3)
+        self.assertEqual(dndarray_2d.lshape[1], 3)
+        self.assertEqual(dndarray_2d.split, 0)
         self.assertTrue(
             (
-                tensor_2d.larray == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
+                dndarray_2d.larray == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
             ).all()
         )
 
@@ -292,6 +293,9 @@ class TestFactories(TestCase):
         # iterable, but unsuitable type
         with self.assertRaises(TypeError):
             ht.array("abc")
+        # iterable, but unsuitable type, with copy=True
+        with self.assertRaises(TypeError):
+            ht.array("abc", copy=True)
         # unknown dtype
         with self.assertRaises(TypeError):
             ht.array((4,), dtype="a")
@@ -307,6 +311,16 @@ class TestFactories(TestCase):
         # invalid communicator
         with self.assertRaises(TypeError):
             ht.array((4,), comm={})
+        # copy=False but copy is necessary
+        data = np.arange(10)
+        with self.assertRaises(ValueError):
+            ht.array(data, dtype=ht.int32, copy=False)
+
+        # data already distributed but don't match in shape
+        if self.get_size() > 1:
+            with self.assertRaises(ValueError):
+                dim = self.get_rank() + 1
+                ht.array([[0] * dim] * dim, is_split=0)
 
     def test_asarray(self):
         # same heat array
@@ -490,6 +504,68 @@ class TestFactories(TestCase):
         self.assertEqual(eye.shape, shape)
         self.assertEqual(eye.split, 1)
 
+    def test_from_partitioned(self):
+        a = ht.zeros((120, 120), split=0)
+        b = ht.from_partitioned(a, comm=a.comm)
+        a[2, :] = 128
+        self.assertTrue(ht.equal(a, b))
+
+        a.resplit_(None)
+        b = ht.from_partitioned(a, comm=a.comm)
+        self.assertTrue(ht.equal(a, b))
+
+        a.resplit_(1)
+        b = ht.from_partitioned(a, comm=a.comm)
+        b[50] = 94
+        self.assertTrue(ht.equal(a, b))
+
+        del b.__partitioned__["shape"]
+        with self.assertRaises(RuntimeError):
+            _ = ht.from_partitioned(b)
+        b.__partitions_dict__ = None
+        _ = b.__partitioned__
+
+        del b.__partitioned__["locals"]
+        with self.assertRaises(RuntimeError):
+            _ = ht.from_partitioned(b)
+        b.__partitions_dict__ = None
+        _ = b.__partitioned__
+
+        del b.__partitioned__["locals"]
+        with self.assertRaises(RuntimeError):
+            _ = ht.from_partitioned(b)
+        b.__partitions_dict__ = None
+        _ = b.__partitioned__
+
+    def test_from_partition_dict(self):
+        a = ht.zeros((120, 120), split=0)
+        b = ht.from_partition_dict(a.__partitioned__, comm=a.comm)
+        a[0, 0] = 100
+        self.assertTrue(ht.equal(a, b))
+
+        a.resplit_(None)
+        a[0, 0] = 50
+        b = ht.from_partition_dict(a.__partitioned__, comm=a.comm)
+        self.assertTrue(ht.equal(a, b))
+
+        del b.__partitioned__["shape"]
+        with self.assertRaises(RuntimeError):
+            _ = ht.from_partition_dict(b.__partitioned__)
+        b.__partitions_dict__ = None
+        _ = b.__partitioned__
+
+        del b.__partitioned__["locals"]
+        with self.assertRaises(RuntimeError):
+            _ = ht.from_partition_dict(b.__partitioned__)
+        b.__partitions_dict__ = None
+        _ = b.__partitioned__
+
+        del b.__partitioned__["locals"]
+        with self.assertRaises(RuntimeError):
+            _ = ht.from_partition_dict(b.__partitioned__)
+        b.__partitions_dict__ = None
+        _ = b.__partitioned__
+
     def test_full(self):
         # simple tensor
         data = ht.full((10, 2), 4)
@@ -586,6 +662,9 @@ class TestFactories(TestCase):
         self.assertEqual(ascending.larray.dtype, torch.float32)
         self.assertEqual(ascending.split, None)
 
+        zero_samples = ht.linspace(-3, 5, num=0)
+        self.assertEqual(zero_samples.size, 0)
+
         # simple inverse linear space
         descending = ht.linspace(-5, 3, num=100)
         self.assertIsInstance(descending, ht.DNDarray)
@@ -633,8 +712,6 @@ class TestFactories(TestCase):
             ht.linspace(-5, 3, split=1)
         with self.assertRaises(ValueError):
             ht.linspace(-5, 3, num=-1)
-        with self.assertRaises(ValueError):
-            ht.linspace(-5, 3, num=0)
 
     def test_logspace(self):
         # simple log space
@@ -645,6 +722,9 @@ class TestFactories(TestCase):
         self.assertEqual(ascending.dtype, ht.float32)
         self.assertEqual(ascending.larray.dtype, torch.float32)
         self.assertEqual(ascending.split, None)
+
+        zero_samples = ht.logspace(-3, 5, num=0)
+        self.assertEqual(zero_samples.size, 0)
 
         # simple inverse log space
         descending = ht.logspace(-5, 3, num=100)
@@ -687,8 +767,6 @@ class TestFactories(TestCase):
             ht.logspace(-5, 3, split=1)
         with self.assertRaises(ValueError):
             ht.logspace(-5, 3, num=-1)
-        with self.assertRaises(ValueError):
-            ht.logspace(-5, 3, num=0)
 
     def test_meshgrid(self):
         # arrays < 2
