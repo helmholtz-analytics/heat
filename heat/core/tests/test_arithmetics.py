@@ -301,7 +301,7 @@ class TestArithmetics(TestCase):
                         # only generating the number once and then
                         ht_diff = ht.diff(lp_array, n=nl, axis=ax)
                         np_diff = ht.array(np.diff(np_array, n=nl, axis=ax))
-
+                        print(nl, ht_diff, np_diff, sep="\n")
                         self.assertTrue(ht.equal(ht_diff, np_diff))
                         self.assertEqual(ht_diff.split, sp)
                         self.assertEqual(ht_diff.dtype, lp_array.dtype)
@@ -343,7 +343,10 @@ class TestArithmetics(TestCase):
         # edge cases
         ht_arr = ht.ones((2, 1, 2), split=0)
         ht_diff = ht.diff(ht_arr, axis=1)
+        self.assertEqual(ht_diff.gshape, (2, 0, 2))
 
+        ht_arr = ht.ones((2, 1, 2), split=1)
+        ht_diff = ht.diff(ht_arr, axis=1)
         self.assertEqual(ht_diff.gshape, (2, 0, 2))
 
         # raises
