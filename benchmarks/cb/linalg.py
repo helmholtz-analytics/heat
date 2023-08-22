@@ -10,6 +10,7 @@ from perun import monitor
 def matmul_split_0(a, b):
     a @ b
 
+
 @monitor()
 def matmul_split_1(a, b):
     a @ b
@@ -35,6 +36,7 @@ def hierachical_svd_rank(data, r):
 @monitor()
 def hierachical_svd_tol(data, tol):
     approx_svd = ht.linalg.hsvd_rtol(data, rtol=tol, compute_sv=True, silent=True)
+
 
 @monitor()
 def lanczos(B):
