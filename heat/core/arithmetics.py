@@ -404,7 +404,7 @@ def diff(
         if rank < size - 1:
             cr_slice = [slice(None)] * len(a.shape)
             # slice of 1 element in the selected axis for the shape creation
-            cr_slice[axis] = 1
+            cr_slice[axis] = slice(0, 1, None)
             recv_data = torch.ones(
                 ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type(), device=a.device.torch_device
             )
