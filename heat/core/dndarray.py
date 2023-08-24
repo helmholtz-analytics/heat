@@ -599,10 +599,10 @@ class DNDarray:
         [1/2] (50, 81, 67)
         [2/2] (50, 81, 0)
         """
-        if not self.is_distributed():
-            return
         if target_rnk >= self.comm.size:
             raise ValueError("target rank is out of bounds")
+        if not self.is_distributed():
+            return
 
         target_map = torch.zeros((self.comm.size, self.ndim), dtype=torch.int64)
         target_map[target_rnk, self.split] = self.gshape[self.split]
