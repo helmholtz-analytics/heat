@@ -403,6 +403,42 @@ class TestDNDarray(TestCase):
             with self.assertRaises(TypeError):
                 bool(ht.full((ht.MPI_WORLD.size,), 2, split=0))
 
+    def test_collect(self):
+        st = ht.zeros((50,), split=0)
+        if st.comm.size >= 3:
+            st.collect_()
+            if st.comm.rank == 0:
+                self.assertEqual(st.lshape, (50,))
+            else:
+                self.assertEqual(st.lshape, (0,))
+
+            st = ht.zeros((50, 50), split=1)
+            st.collect_(2)
+            if st.comm.rank == 2:
+                self.assertEqual(st.lshape, (50, 50))
+            else:
+                self.assertEqual(st.lshape, (50, 0))
+            st.collect_(1)
+            if st.comm.rank == 1:
+                self.assertEqual(st.lshape, (50, 50))
+            else:
+                self.assertEqual(st.lshape, (50, 0))
+
+            st = ht.zeros((50, 81, 67), split=2)
+            st.collect_(1)
+            if st.comm.rank == 1:
+                self.assertEqual(st.lshape, (50, 81, 67))
+            else:
+                self.assertEqual(st.lshape, (50, 81, 0))
+
+            st = ht.zeros((5, 8, 31), split=None)  # nothing should happen
+            st.collect_()
+            self.assertEqual(st.lshape, st.gshape)
+
+        st = ht.zeros((50, 81, 67), split=0)
+        with self.assertRaises(ValueError):
+            st.collect_(st.comm.size + 1)
+
     def test_complex_cast(self):
         # simple scalar tensor
         a = ht.ones(1)

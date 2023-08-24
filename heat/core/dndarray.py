@@ -566,6 +566,48 @@ class DNDarray:
 
         raise TypeError("only size-1 arrays can be converted to Python scalars")
 
+    def collect_(self, target_rnk: int = 0) -> None:
+        """
+        A method collecting a distributed tensor to one rank, chosen by the target_rnk variable, and zero by default.
+        It is a specific case of the redistribute_ method.
+
+        Parameters
+        ----------
+        target_rnk : int, optional
+            The rank to which the tensor will be collected.
+
+        Raises
+        ------
+        ValueError
+            If the target rank is out of bounds.
+
+        Examples
+        --------
+        >>> a = st = ht.ones((50, 81, 67), split=2)
+        >>> print(st.lshape)
+        [0/2] (50, 81, 23)
+        [1/2] (50, 81, 22)
+        [2/2] (50, 81, 22)
+        >>> st.collect_()
+        >>> print(st.lshape)
+        [0/2] (50, 81, 67)
+        [1/2] (50, 81, 0)
+        [2/2] (50, 81, 0)
+        >>> st.collect_(1)
+        >>> print(st.lshape)
+        [0/2] (50, 81, 0)
+        [1/2] (50, 81, 67)
+        [2/2] (50, 81, 0)
+        """
+        if not self.is_distributed():
+            return
+        if target_rnk >= self.comm.size:
+            raise ValueError("target rank is out of bounds")
+
+        target_map = torch.zeros((self.comm.size, self.ndim), dtype=torch.int64)
+        target_map[target_rnk, self.split] = self.gshape[self.split]
+        self.redistribute_(target_map=target_map)
+
     def __complex__(self) -> DNDarray:
         """
         Complex scalar casting.
