@@ -578,6 +578,8 @@ class DNDarray:
 
         Raises
         ------
+        TypeError
+            If the target rank is not an integer.
         ValueError
             If the target rank is out of bounds.
 
@@ -599,6 +601,8 @@ class DNDarray:
         [1/2] (50, 81, 67)
         [2/2] (50, 81, 0)
         """
+        if not isinstance(target_rnk, int):
+            raise TypeError(f"target rank must be of type int , but was {type(target_rnk)}")
         if target_rnk >= self.comm.size:
             raise ValueError("target rank is out of bounds")
         if not self.is_distributed():

@@ -436,6 +436,12 @@ class TestDNDarray(TestCase):
             self.assertEqual(st.lshape, st.gshape)
 
         st = ht.zeros((50, 81, 67), split=0)
+        with self.assertRaises(TypeError):
+            st.collect_("st.comm.size + 1")
+        with self.assertRaises(TypeError):
+            st.collect_(1.0)
+        with self.assertRaises(TypeError):
+            st.collect_((1, 3))
         with self.assertRaises(ValueError):
             st.collect_(st.comm.size + 1)
 
