@@ -589,8 +589,8 @@ floor_divide = floordiv
 def hypot(
     a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True
 ) -> DNDarray:
-    """
-    Given the 'legs' of a right triangle, return its hypotenuse.
+    r"""
+    Given the 'legs' of a right triangle, return its hypotenuse. Equivalent to :math:`\sqrt{a^2 + b^2}`, element-wise.
 
     Parameters
     ----------
