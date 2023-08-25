@@ -25,22 +25,22 @@ def hermitian(
     positive_definite: bool = False,
 ) -> DNDarray:
     """
-    Generates a random Hermitian matrix of size `(n,n)`. A Hermitian matrix is a complex square matrix that is equal to its conjugate transpose; for real data-types this routine 
-    returns a random symmetric matrix of size `(n,n)`. 
+    Generates a random Hermitian matrix of size `(n,n)`. A Hermitian matrix is a complex square matrix that is equal to its conjugate transpose; for real data-types this routine
+    returns a random symmetric matrix of size `(n,n)`.
 
     If `positive_definite=True`, the output is given by ::math`\frac{1}{n} R R^H` with ::math`R \in \mathbb{K}^{n\times n}` having entries distributed according to the standard normal distribution.
-    This corresponds to sampling a random matrix according to the so-called Wishart distribution; see, e.g., [2], and also [3] for additional information regarding the asymptotic distribution of 
-    the singular values. The output matrix will be positive definite with probability 1. 
-    
-    If `positive_definite=False`, the output is ::math`R+R^H` with ::math`R` generated as above. 
+    This corresponds to sampling a random matrix according to the so-called Wishart distribution; see, e.g., [2], and also [3] for additional information regarding the asymptotic distribution of
+    the singular values. The output matrix will be positive definite with probability 1.
+
+    If `positive_definite=False`, the output is ::math`R+R^H` with ::math`R` generated as above.
 
     Parameters
     ----------
     n : int
         size of the resulting square matrix
     dtype: Type[datatype], optional
-        The desired data-type for the array, defaults to ht.complex64; only floating-point data-types allowed. 
-        For real data-types, i.e. float32 and float64, a matrix with real entries (i.e. a symmetric one) is returned. 
+        The desired data-type for the array, defaults to ht.complex64; only floating-point data-types allowed.
+        For real data-types, i.e. float32 and float64, a matrix with real entries (i.e. a symmetric one) is returned.
     split: None or int, optional
         The axis along which the array content is split and distributed in memory.
     device: None or str or Device, optional
@@ -56,16 +56,16 @@ def hermitian(
     [2] https://en.wikipedia.org/wiki/Wishart_distribution
     [3] https://en.wikipedia.org/wiki/Marchenko%E2%80%93Pastur_distribution
     """
-    if heat_type_is_complexfloating(dtype): 
+    if heat_type_is_complexfloating(dtype):
         real_dtype = core.float32 if dtype is core.complex64 else core.float64
         matrix = randn(n, n, dtype=real_dtype, split=split, device=device, comm=comm)
         matrix += 1j * randn(n, n, dtype=real_dtype, split=split, device=device, comm=comm)
     elif not heat_type_is_exact(dtype):
         matrix = randn(n, n, dtype=dtype, split=split, device=device, comm=comm)
     else:
-        raise ValueError('dtype must be floating-point data-type but is ',dtype,'.')         
+        raise ValueError("dtype must be floating-point data-type but is ", dtype, ".")
     if positive_definite:
-        return 1/n*matrix @ core.conj(matrix).T
+        return 1 / n * matrix @ core.conj(matrix).T
 
     return matrix + core.conj(matrix).T.resplit_(split)
 
