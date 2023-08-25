@@ -7,10 +7,9 @@ import numpy as np
 import os
 import subprocess
 import torch
-
 from mpi4py import MPI
-from typing import Any, Callable, Optional, List, Tuple, Union
 
+from typing import Any, Callable, Optional, List, Tuple, Union
 from .stride_tricks import sanitize_axis
 
 CUDA_AWARE_MPI = False
