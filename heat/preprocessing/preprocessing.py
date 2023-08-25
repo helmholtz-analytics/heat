@@ -5,6 +5,11 @@ Module implementing basic data preprocessing techniques
 import heat as ht
 from typing import Optional, Tuple
 
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
+
 """
 The implementation is heavily inspired by the corresponding routines in scikit-learn (https://scikit-learn.org/stable/modules/preprocessing.html).
 """
@@ -81,7 +86,7 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         self.with_std = with_std
         self.copy = copy
 
-    def fit(self, X: ht.DNDarray, sample_weight: Optional[ht.DNDarray] = None):
+    def fit(self, X: ht.DNDarray, sample_weight: Optional[ht.DNDarray] = None) -> Self:
         """
         Fit ``StandardScaler`` to the given data ``X``, i.e. compute mean and standard deviation of ``X`` to be used for later scaling.
 
@@ -216,7 +221,7 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
                 % (self.feature_range[0], self.feature_range[1])
             )
 
-    def fit(self, X: ht.DNDarray):
+    def fit(self, X: ht.DNDarray) -> Self:
         """
         Fit the MinMaxScaler: i.e. compute the parameters required for later scaling.
 
@@ -324,7 +329,7 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
                 "Normalization with respect to norms other than l2, l1 or linfty not yet implemented. You can open an issue to request this feature on  https://github.com/helmholtz-analytics/heat."
             )
 
-    def fit(self, X: ht.DNDarray):
+    def fit(self, X: ht.DNDarray) -> Self:
         """Since :object:``Normalizer`` is stateless, this function is only a dummy."""
         return self
 
@@ -385,7 +390,7 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
     def __init__(self, *, copy: bool = True):
         self.copy = copy
 
-    def fit(self, X: ht.DNDarray):
+    def fit(self, X: ht.DNDarray) -> Self:
         """
         Fit MaxAbsScaler to input data ``X``: compute the parameters to be used for later scaling.
 
@@ -520,7 +525,7 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
         else:
             self.unit_variance = unit_variance
 
-    def fit(self, X: ht.DNDarray):
+    def fit(self, X: ht.DNDarray) -> Self:
         """
         Fit RobustScaler to given data set, i.e. compute the parameters required for transformation.
 
