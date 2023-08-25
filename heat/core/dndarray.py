@@ -566,14 +566,14 @@ class DNDarray:
 
         raise TypeError("only size-1 arrays can be converted to Python scalars")
 
-    def collect_(self, target_rnk: int = 0) -> None:
+    def collect_(self, target_rank: Optional[int] = 0) -> None:
         """
         A method collecting a distributed tensor to one rank, chosen by the target_rnk variable, and zero by default.
         It is a specific case of the redistribute_ method.
 
         Parameters
         ----------
-        target_rnk : int, optional
+        target_rank : int, optional
             The rank to which the tensor will be collected.
 
         Raises
@@ -601,15 +601,17 @@ class DNDarray:
         [1/2] (50, 81, 67)
         [2/2] (50, 81, 0)
         """
-        if not isinstance(target_rnk, int):
-            raise TypeError(f"target rank must be of type int , but was {type(target_rnk)}")
-        if target_rnk >= self.comm.size:
+        if not isinstance(target_rank, int):
+            raise TypeError(f"target rank must be of type int , but was {type(target_rank)}")
+        if target_rank >= self.comm.size:
             raise ValueError("target rank is out of bounds")
         if not self.is_distributed():
             return
 
-        target_map = torch.zeros((self.comm.size, self.ndim), dtype=torch.int64)
-        target_map[target_rnk, self.split] = self.gshape[self.split]
+        target_map = self.lshape_map.clone()
+        for i in range(self.comm.size):
+            # branchless way of putting 0 in all entries except for the target rank
+            target_map[i, self.split] = self.gshape[self.split] * (i == target_rank)
         self.redistribute_(target_map=target_map)
 
     def __complex__(self) -> DNDarray:
