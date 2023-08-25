@@ -26,20 +26,24 @@ class TestMatrixgallery(TestCase):
         with self.assertRaises(ValueError):
             ht.utils.data.matrixgallery.hermition(20, split=0, dtype=ht.int32)
 
-        # test default: complex single precision, not positive definite 
+        # test default: complex single precision, not positive definite
         A = ht.utils.data.matrixgallery.hermitian(20, split=1)
         A_err = ht.norm(A - A.T.conj().resplit_(A.split)) / ht.norm(A)
         self.assertTrue(A_err <= 1e-6)
-        
-        for posdef in [True, False]: 
+
+        for posdef in [True, False]:
             # test complex double precision
-            A = ht.utils.data.matrixgallery.hermitian(20, dtype=ht.complex128, split=0,positive_definite=posdef)
+            A = ht.utils.data.matrixgallery.hermitian(
+                20, dtype=ht.complex128, split=0, positive_definite=posdef
+            )
             A_err = ht.norm(A - A.T.conj().resplit_(A.split)) / ht.norm(A)
             self.assertTrue(A.dtype == ht.complex128)
             self.assertTrue(A_err <= 1e-12)
-    
+
             # test real datatype
-            A = ht.utils.data.matrixgallery.hermitian(20, dtype=ht.float32, split=0,positive_definite=posdef)
+            A = ht.utils.data.matrixgallery.hermitian(
+                20, dtype=ht.float32, split=0, positive_definite=posdef
+            )
             A_err = ht.norm(A - A.T.conj().resplit_(A.split)) / ht.norm(A)
             self.assertTrue(A_err <= 1e-6)
             self.assertTrue(A.dtype == ht.float32)
