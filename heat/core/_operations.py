@@ -437,8 +437,12 @@ def __reduce_op(
 
     # apply the partial reduction operation to the local tensor
     if axis is None:
-        partial = partial_op(partial).reshape(-1)
-        output_shape = (1,)
+        partial = partial_op(partial)
+        if partial.ndim > 0:
+            partial = partial.reshape(-1)
+            output_shape = (1,)
+        else:
+            output_shape = ()
         balanced = True
     else:
         output_shape = x.gshape
