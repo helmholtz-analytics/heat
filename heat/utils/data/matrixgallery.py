@@ -24,15 +24,15 @@ def hermitian(
     comm: Union[None, Communication] = None,
     positive_definite: bool = False,
 ) -> DNDarray:
-    """
+    r"""
     Generates a random Hermitian matrix of size `(n,n)`. A Hermitian matrix is a complex square matrix that is equal to its conjugate transpose; for real data-types this routine
     returns a random symmetric matrix of size `(n,n)`.
 
-    If `positive_definite=True`, the output is given by ::math`\frac{1}{n} R R^H` with ::math`R \in \mathbb{K}^{n\times n}` having entries distributed according to the standard normal distribution.
+    If `positive_definite=True`, the output is given by :math:`\frac{1}{n} R R^H` with :math:`R\in\mathbb{K}^{n\times n}` having entries distributed according to the standard normal distribution.
     This corresponds to sampling a random matrix according to the so-called Wishart distribution; see, e.g., [2], and also [3] for additional information regarding the asymptotic distribution of
     the singular values. The output matrix will be positive definite with probability 1.
 
-    If `positive_definite=False`, the output is ::math`R+R^H` with ::math`R` generated as above.
+    If `positive_definite=False`, the output is :math:`R+R^H` with :math:`R` generated as above.
 
     Parameters
     ----------
