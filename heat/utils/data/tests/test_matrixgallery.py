@@ -24,7 +24,7 @@ class TestMatrixgallery(TestCase):
         with self.assertRaises(ValueError):
             ht.utils.data.matrixgallery.hermitian(10, 20)
         with self.assertRaises(ValueError):
-            ht.utils.data.matrixgallery.hermition(20, split=0, dtype=ht.int32)
+            ht.utils.data.matrixgallery.hermitian(20, split=0, dtype=ht.int32)
 
         # test default: complex single precision, not positive definite
         A = ht.utils.data.matrixgallery.hermitian(20, split=1)
