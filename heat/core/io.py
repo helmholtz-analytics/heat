@@ -912,8 +912,21 @@ def load_csv(
         # In case there are some empty lines in the csv file
         local_tensor = local_tensor[:actual_length]
 
-        resulting_tensor = factories.array(
-            local_tensor, dtype=dtype, is_split=0, device=device, comm=comm
+        total_actual_lines = torch.tensor(
+            actual_length, dtype=torch.int64, device=local_tensor.device
+        )
+        comm.Allreduce(MPI.IN_PLACE, total_actual_lines, MPI.SUM)
+
+        gshape = (total_actual_lines.item(), columns[0].item())
+
+        resulting_tensor = DNDarray(
+            local_tensor,
+            gshape=gshape,
+            dtype=dtype,
+            split=0,
+            device=device,
+            comm=comm,
+            balanced=None,
         )
         resulting_tensor.balance_()
 
