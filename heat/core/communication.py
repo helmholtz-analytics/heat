@@ -63,17 +63,10 @@ class MPIRequest:
         Waits for an MPI request to complete
         """
         self.handle.Wait(status)
-        if (
-            self.tensor is not None
-            and isinstance(self.tensor, torch.Tensor)
-        ): 
+        if self.tensor is not None and isinstance(self.tensor, torch.Tensor):
             if self.permutation is not None:
                 self.recvbuf = self.recvbuf.permute(self.permutation)
-        if (
-            self.tensor is not None 
-            and self.tensor.is_cuda
-            and not CUDA_AWARE_MPI
-        ):
+        if self.tensor is not None and self.tensor.is_cuda and not CUDA_AWARE_MPI:
             self.tensor.copy_(self.recvbuf)
 
     def __getattr__(self, name: str) -> Callable:
@@ -1559,7 +1552,6 @@ class MPICommunication(Communication):
         sbuf = sendbuf if CUDA_AWARE_MPI or not isinstance(sendbuf, torch.Tensor) else sendbuf.cpu()
         rbuf = recvbuf if CUDA_AWARE_MPI or not isinstance(recvbuf, torch.Tensor) else recvbuf.cpu()
 
-
         if sendbuf is not MPI.IN_PLACE:
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs)
             if send_counts is None:
@@ -1572,7 +1564,6 @@ class MPICommunication(Communication):
                 mpi_recvbuf[1] //= recv_factor
         else:
             mpi_recvbuf = rbuf
-            
 
         # perform the scatter operation
         exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
@@ -1825,7 +1816,6 @@ class MPICommunication(Communication):
         #    original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
 
         return exit_code, sbuf, rbuf, original_recvbuf, recv_axis_permutation
-
 
     def Iscatter(
         self,
