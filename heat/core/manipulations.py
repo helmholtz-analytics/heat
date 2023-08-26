@@ -26,6 +26,7 @@ __all__ = [
     "balance",
     "broadcast_arrays",
     "broadcast_to",
+    "collect",
     "column_stack",
     "concatenate",
     "diag",
