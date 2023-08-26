@@ -19,6 +19,39 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![Benchmarks](https://img.shields.io/badge/Github--Pages-Benchmarks-2ea44f)](https://helmholtz-analytics.github.io/heat/dev/bench)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
+Table of contents:
+ COPILOT WILL FILL OUT AT THE END
+
+# What is Heat for?
+
+Heat builds on [PyTorch](https://pytorch.org/) and [mpi4py](https://mpi4py.readthedocs.io) to provide high-performance computing infrastructure for memory-intensive applications within the NumPy/SciPy ecosystem.
+
+
+With Heat you can:
+- port existing NumPy/SciPy code from single-CPU to multi-node clusters with minimal coding effort (EXAMPLE);
+- exploit the entire, cumulative RAM of your many nodes for memory-intensive operations and algorithms (EXAMPLE);
+- run your NumPy/SciPy code on GPUs (CUDA, ROCm, coming up: Apple MPS) (EXAMPLE).
+
+
+Where's the catch? A few things you can't do with Heat (yet):
+- Heat does not support all NumPy/SciPy functions (yet), same with scikit-learn algorithms. If you need a functionality that is not yet supported:
+  - [search existing issues](https://github.com/helmholtz-analytics/heat/issues) and make sure to comment if someone else already requested it;
+  - otherwise please [open a new issue](https://github.com/helmholtz-analytics/heat/issues/new/choose).
+
+- Heat does not support deployments across physically distributed clusters. (TOO STRONG?)
+
+
+Here's a summary of supported functions and algorithms: (DRAFT)
+
+| Numpy Module | Supported |
+|--------------|-----------|
+| random | ✔️ |
+| linalg | ✔️ |
+| fft | ❌ |
+
+
+Check out the [Heat API Reference](https://heat.readthedocs.io/en/latest/autoapi/index.html) for a complete list.
+
 # Goals
 
 Heat is a flexible and seamless open-source software for high performance data
@@ -73,19 +106,6 @@ it, if you do not need HDF5 or NetCDF support.
 **It is also very important to ensure that the PyTorch version is compatible with the local CUDA installation.**
 More information can be found [here](https://pytorch.org/get-started/locally/).
 
-# Hacking
-
-If you want to work with the development version, you can check out the sources using
-
-```
-$ git clone <https://github.com/helmholtz-analytics/heat.git>
-```
-
-The installation can then be done from the checked-out sources with
-
-```
-$ pip install heat[hdf5,netcdf,dev]
-```
 
 # Getting Started
 
@@ -131,7 +151,7 @@ Local torch tensor on rank  0 :  tensor([0, 1, 2, 3, 4], dtype=torch.int32)
 Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
 ```
 
-## Resources:
+## Resources
 
 * [Heat Tutorials](https://heat.readthedocs.io/en/latest/tutorials.html)
 * [Heat API Reference](https://heat.readthedocs.io/en/latest/autoapi/index.html)
