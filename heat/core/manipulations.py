@@ -97,8 +97,10 @@ def to_sparse(array: DNDarray) -> DCSR_matrix:
 
     return result
 
+
 DNDarray.to_sparse: Callable[[DNDarray], DCSR_matrix] = lambda self: to_sparse(self)
 DNDarray.to_sparse.__doc__ = to_sparse.__doc__
+
 
 def balance(array: DNDarray, copy=False) -> DNDarray:
     """
