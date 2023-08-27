@@ -9,6 +9,9 @@ import warnings
 
 from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
 
+from heat.sparse.dcsr_matrix import DCSR_matrix
+from heat.sparse.factories import sparse_csr_matrix
+
 from .communication import MPI
 from .dndarray import DNDarray
 
@@ -59,8 +62,43 @@ __all__ = [
     "unique",
     "vsplit",
     "vstack",
+    "to_sparse",
 ]
 
+
+def to_sparse(array: DNDarray) -> DCSR_matrix:
+    """
+    Convert the distributed array to a sparse DCSR_matrix representation.
+
+    Parameters
+    ----------
+    array : DNDarray
+        The distributed array to be converted to a sparse DCSR_matrix.
+
+    Returns
+    -------
+    DCSR_matrix
+        A sparse DCSR_matrix representation of the input DNDarray.
+
+    Notes
+    -----
+    This method allows for the conversion of a DNDarray into a sparse DCSR_matrix representation,
+    which is useful for handling large and sparse datasets efficiently.
+
+    Examples
+    --------
+    >>> dense_array = ht.array([[1, 0, 0], [0, 0, 2], [0, 3, 0]])
+    >>> sparse_matrix = dense_array.to_sparse()
+
+    """
+    array.balance_()
+    csr_matrices = [sparse_csr_matrix(tensor, is_split=array.split) for tensor in array.larray]
+    result = DCSR_matrix.from_csr_matrices(csr_matrices)
+
+    return result
+
+DNDarray.to_sparse: Callable[[DNDarray], DCSR_matrix] = lambda self: to_sparse(self)
+DNDarray.to_sparse.__doc__ = to_sparse.__doc__
 
 def balance(array: DNDarray, copy=False) -> DNDarray:
     """
