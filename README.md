@@ -52,6 +52,13 @@ Here's a summary of supported functions and algorithms: (DRAFT)
 
 Check out the [Heat API Reference](https://heat.readthedocs.io/en/latest/autoapi/index.html) for a complete list.
 
+# FAQ
+
+  - Users
+  - Developers
+  - Students
+  - system administrators
+
 # Goals
 
 Heat is a flexible and seamless open-source software for high performance data
