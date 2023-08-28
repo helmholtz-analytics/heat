@@ -576,7 +576,7 @@ class TestIO(TestCase):
         with self.assertRaises(TypeError):
             ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction="a")
         with self.assertRaises(ValueError):
-            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction=0)
+            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction=0.0)
         with self.assertRaises(ValueError):
             ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction=0.5, split=None)
 
