@@ -253,7 +253,7 @@ def collect(arr: DNDarray, target_rank: Optional[int] = 0) -> DNDarray:
     Parameters
     ----------
     arr : DNDarray
-        The distributed tensor to be collected.
+        The DNDarray to be collected.
     target_rank : int, optional
         The rank to which the tensor will be collected.
 
