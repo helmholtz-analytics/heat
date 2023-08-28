@@ -568,7 +568,7 @@ class DNDarray:
 
     def collect_(self, target_rank: Optional[int] = 0) -> None:
         """
-        A method collecting a distributed tensor to one rank, chosen by the target_rnk variable, and zero by default.
+        A method collecting a distributed DNDarray to one MPI rank, chosen by the `target_rank` variable.
         It is a specific case of the redistribute_ method.
 
         Parameters
