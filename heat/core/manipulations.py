@@ -247,7 +247,7 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
 
 def collect(arr: DNDarray, target_rank: Optional[int] = 0) -> DNDarray:
     """
-    A method collecting a distributed tensor to one rank, chosen by the target_rnk variable, and zero by default.
+    A function collecting a distributed DNDarray to one rank, chosen by the target_rank variable.
     It is a specific case of the redistribute_ method.
 
     Parameters
