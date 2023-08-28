@@ -134,8 +134,9 @@ else:
             data = handle[dataset]
             gshape = data.shape
             if load_fraction is not None:
+                gshape = np.array(gshape)
                 gshape[split] = int(gshape[split] * load_fraction)
-            gshape = tuple(gshape)
+                gshape = tuple(gshape)
             dims = len(gshape)
             split = sanitize_axis(gshape, split)
             _, _, indices = comm.chunk(gshape, split)
