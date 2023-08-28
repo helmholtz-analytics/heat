@@ -7,6 +7,7 @@
 Heat is a distributed tensor framework for high performance data analytics.
 
 # Project Status
+
 [![CPU/CUDA/ROCm tests](https://codebase.helmholtz.cloud/helmholtz-analytics/ci/badges/heat/base/pipeline.svg)](https://codebase.helmholtz.cloud/helmholtz-analytics/ci/-/commits/heat/base)
 [![Documentation Status](https://readthedocs.org/projects/heat/badge/?version=latest)](https://heat.readthedocs.io/en/latest/?badge=latest)
 [![coverage](https://codecov.io/gh/helmholtz-analytics/heat/branch/main/graph/badge.svg)](https://codecov.io/gh/helmholtz-analytics/heat)
@@ -63,7 +64,7 @@ Check out the [Heat API Reference](https://heat.readthedocs.io/en/latest/autoapi
 
 Heat is a flexible and seamless open-source software for high performance data
 analytics and machine learning. It provides highly optimized algorithms and data
-structures for tensor computations using CPUs, GPUs and distributed cluster
+structures for tensor computations using CPUs, GPUs, and distributed cluster
 systems on top of MPI. The goal of Heat is to fill the gap between data
 analytics and machine learning libraries with a strong focus on single-node
 performance, and traditional high-performance computing (HPC). Heat's generic
@@ -77,7 +78,7 @@ computational and memory needs of your laptop and desktop.
 # Features
 
 * High-performance n-dimensional tensors
-* CPU, GPU and distributed computation using MPI
+* CPU, GPU, and distributed computation using MPI
 * Powerful data analytics and machine learning methods
 * Abstracted communication via split tensors
 * Python API
@@ -119,7 +120,7 @@ More information can be found [here](https://pytorch.org/get-started/locally/).
 TL;DR: [Quick Start](quick_start.md) (Read this to get a quick overview of Heat).
 
 Check out our Jupyter Notebook [**Tutorial**](https://github.com/helmholtz-analytics/heat/blob/main/scripts/)
-right here on Github or in the /scripts directory, to learn and understand about the basics and working of Heat.
+right here on GitHub or in the /scripts directory, to learn and understand about the basics and working of Heat.
 
 The complete documentation of the latest version is always deployed on
 [Read the Docs](https://heat.readthedocs.io/).

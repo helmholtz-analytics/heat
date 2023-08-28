@@ -23,7 +23,6 @@ $ docker build --build-args HEAT_VERSION=1.2.2 --PYTORCH_IMG=22.05-py3 -t heat:l
 
 We also offer prebuilt images in our [Package registry](https://github.com/helmholtz-analytics/heat/pkgs/container/heat) from which you can pull existing images:
 
-
 ```console
 $ docker pull ghcr.io/helmholtz-analytics/heat:1.2.0-dev_torch1.12_cuda11.7_py3.8
 ```
@@ -40,7 +39,7 @@ To use one of the existing images from our registry:
 
 	$ apptainer build heat.sif docker://ghcr.io/helmholtz-analytics/heat:1.2.0-dev_torch1.12_cuda11.7_py3.8
 
-Building the image can require root access in some systems. If that is the case, we recomend build the image on a local machine, and then upload it to the desired HPC system.
+Building the image can require root access in some systems. If that is the case, we recommend building the image on a local machine, and then upload it to the desired HPC system.
 
 If you see an error indicating that there is not enough space, use the --tmpdir flag of the build command. [Apptainer docs](https://apptainer.org/docs/user/latest/build_a_container.html)
 
