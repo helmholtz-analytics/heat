@@ -28,16 +28,14 @@ def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: Optional[DNDarray] = None) -
     """
     if not isinstance(A, DNDarray) or not isinstance(b, DNDarray) or not isinstance(x0, DNDarray):
         raise TypeError(
-            "A, b and x0 need to be of type ht.DNDarray, but were {}, {}, {}".format(
-                type(A), type(b), type(x0)
-            )
+            f"A, b and x0 need to be of type ht.DNDarray, but were {type(A)}, {type(b)}, {type(x0)}"
         )
 
-    if not A.ndim == 2:
+    if A.ndim != 2:
         raise RuntimeError("A needs to be a 2D matrix")
-    if not b.ndim == 1:
+    if b.ndim != 1:
         raise RuntimeError("b needs to be a 1D vector")
-    if not x0.ndim == 1:
+    if x0.ndim != 1:
         raise RuntimeError("c needs to be a 1D vector")
 
     r = b - ht.matmul(A, x0)
@@ -52,7 +50,7 @@ def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: Optional[DNDarray] = None) -
         r = r - alpha * Ap
         rsnew = ht.matmul(r, r)
         if ht.sqrt(rsnew).item() < 1e-10:
-            print("Residual reaches tolerance in it = {}".format(i))
+            print(f"Residual reaches tolerance in it = {i}")
             if out is not None:
                 out = x
                 return out
@@ -98,13 +96,13 @@ def lanczos(
         Output Matrix for the Tridiagonal matrix, Shape = (m, m), must be initialized to zero
     """
     if not isinstance(A, DNDarray):
-        raise TypeError("A needs to be of type ht.dndarray, but was {}".format(type(A)))
-    if not (A.ndim == 2):
+        raise TypeError(f"A needs to be of type ht.dndarray, but was {type(A)}")
+    if A.ndim != 2:
         raise RuntimeError("A needs to be a 2D matrix")
     if A.dtype is ht.int32 or A.dtype is ht.int64:
-        raise TypeError("A can be float or complex, got {}".format(A.dtype))
+        raise TypeError(f"A can be float or complex, got {A.dtype}")
     if not isinstance(m, (int, float)):
-        raise TypeError("m must be int, got {}".format(type(m)))
+        raise TypeError(f"m must be int, got {type(m)}")
 
     n, column = A.shape
     if n != column:
@@ -161,9 +159,8 @@ def lanczos(
                 + ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm) * 1j
             )
             v0 = vr / ht.norm(vr)
-        else:
-            if v0.split != V.split:
-                v0.resplit_(axis=V.split)
+        elif v0.split != V.split:
+            v0.resplit_(axis=V.split)
         # # 0th iteration
         # # vector v0 has Euclidean norm = 1
         w = ht.matmul(A, v0)
@@ -218,9 +215,8 @@ def lanczos(
         if v0 is None:
             vr = ht.random.rand(n, split=V.split, dtype=T_dtype, device=V.device, comm=V.comm)
             v0 = vr / ht.norm(vr)
-        else:
-            if v0.split != V.split:
-                v0.resplit_(axis=V.split)
+        elif v0.split != V.split:
+            v0.resplit_(axis=V.split)
         # # 0th iteration
         # # vector v0 has Euclidean norm = 1
         w = ht.matmul(A, v0)

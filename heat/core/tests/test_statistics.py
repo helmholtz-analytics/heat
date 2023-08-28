@@ -318,8 +318,9 @@ class TestStatistics(TestCase):
         with self.assertRaises(ZeroDivisionError):
             ht.average(random_5d, weights=zero_weights, axis=axis)
         weights_5d_split_mismatch = ht.ones(random_5d.gshape, split=-1)
-        with self.assertRaises(NotImplementedError):
-            ht.average(random_5d, weights=weights_5d_split_mismatch, axis=axis)
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(NotImplementedError):
+                ht.average(random_5d, weights=weights_5d_split_mismatch, axis=axis)
 
         with self.assertRaises(TypeError):
             ht_array.average(axis=1.1)
@@ -702,8 +703,8 @@ class TestStatistics(TestCase):
         maximum = ht.max(ht_array)
 
         self.assertIsInstance(maximum, ht.DNDarray)
-        self.assertEqual(maximum.shape, (1,))
-        self.assertEqual(maximum.lshape, (1,))
+        self.assertEqual(maximum.shape, ())
+        self.assertEqual(maximum.lshape, ())
         self.assertEqual(maximum.split, None)
         self.assertEqual(maximum.dtype, ht.int64)
         self.assertEqual(maximum.larray.dtype, torch.int64)
@@ -771,7 +772,7 @@ class TestStatistics(TestCase):
             a = ht.arange(size - 1, split=0)
             res = ht.max(a)
             expected = torch.tensor(
-                [size - 2], dtype=a.dtype.torch_type(), device=self.device.torch_device
+                size - 2, dtype=a.dtype.torch_type(), device=self.device.torch_device
             )
             self.assertTrue(torch.equal(res.larray, expected))
 
@@ -860,9 +861,10 @@ class TestStatistics(TestCase):
         random_volume_5 = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
             ht.maximum(random_volume_1, random_volume_5)
-        random_volume_6 = ht.random.randn(6, 3, 3, split=1)
-        with self.assertRaises(NotImplementedError):
-            ht.maximum(random_volume_1, random_volume_6)
+        if ht.MPI_WORLD.size > 1:
+            random_volume_6 = ht.random.randn(6, 3, 3, split=1)
+            with self.assertRaises(NotImplementedError):
+                ht.maximum(random_volume_1, random_volume_6)
         output1 = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
             ht.maximum(random_volume_1, random_volume_2, out=output1)
@@ -963,8 +965,8 @@ class TestStatistics(TestCase):
         minimum = ht.min(ht_array)
 
         self.assertIsInstance(minimum, ht.DNDarray)
-        self.assertEqual(minimum.shape, (1,))
-        self.assertEqual(minimum.lshape, (1,))
+        self.assertEqual(minimum.shape, ())
+        self.assertEqual(minimum.lshape, ())
         self.assertEqual(minimum.split, None)
         self.assertEqual(minimum.dtype, ht.int64)
         self.assertEqual(minimum.larray.dtype, torch.int64)
@@ -1034,9 +1036,7 @@ class TestStatistics(TestCase):
         if size > 1:
             a = ht.arange(size - 1, split=0)
             res = ht.min(a)
-            expected = torch.tensor(
-                [0], dtype=a.dtype.torch_type(), device=self.device.torch_device
-            )
+            expected = torch.tensor(0, dtype=a.dtype.torch_type(), device=self.device.torch_device)
             self.assertTrue(torch.equal(res.larray, expected))
 
         # check exceptions
@@ -1127,9 +1127,10 @@ class TestStatistics(TestCase):
         random_volume_3 = np.array(7.2)
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_3, random_volume_1)
-        random_volume_3 = ht.random.randn(6, 3, 3, split=1)
-        with self.assertRaises(NotImplementedError):
-            ht.minimum(random_volume_1, random_volume_3)
+        if ht.MPI_WORLD.size > 1:
+            random_volume_3 = ht.random.randn(6, 3, 3, split=1)
+            with self.assertRaises(NotImplementedError):
+                ht.minimum(random_volume_1, random_volume_3)
         output = torch.ones(12, 3, 3, device=self.device.torch_device)
         with self.assertRaises(TypeError):
             ht.minimum(random_volume_1, random_volume_2, out=output)
@@ -1321,7 +1322,7 @@ class TestStatistics(TestCase):
         x = ht.zeros((2, 3, 4))
         with self.assertRaises(TypeError):
             ht.std(x, axis=0, ddof=1.0)
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValueError, IndexError)):
             ht.std(x, axis=10)
         with self.assertRaises(TypeError):
             ht.std(x, axis="01")

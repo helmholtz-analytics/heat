@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     client = Client(scheduler_file=os.path.join(os.getcwd(), "scheduler.json"))
 
-    print("Loading data... {}[{}]".format(args.file, args.dataset), end="")
+    print(f"Loading data... {args.file}[{args.dataset}]", end="")
     with h5py.File(args.file, "r") as handle:
         chunk_size = handle[args.dataset].shape[0] // (MPI.COMM_WORLD.size - 1)
         data = da.from_array(handle[args.dataset], chunks=(chunk_size, -1)).persist()
@@ -27,10 +27,10 @@ if __name__ == "__main__":
 
     for function in [da.mean, da.std]:
         for axis in [None, 0, 1]:
-            print("{} axis={}".format(function, axis))
+            print(f"{function} axis={axis}")
             for trial in range(args.trials):
-                print("Trial {}...".format(trial), end="")
+                print(f"Trial {trial}...", end="")
                 start = time.perf_counter()
                 function(data, axis=axis).compute()
                 end = time.perf_counter()
-                print("\t{}s".format(end - start))
+                print(f"\t{end - start}s")

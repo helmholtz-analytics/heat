@@ -83,18 +83,15 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         """
         # sanitize input - to be moved to sanitation module, cf. #468
         if not isinstance(x, ht.DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
+            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
         if not isinstance(y, ht.DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(y)))
+            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(y)}")
         if y.ndim != 1:
-            raise ValueError("expected y to be a 1-D tensor, is {}-D".format(y.ndim))
-        if sample_weight is not None:
-            if not isinstance(sample_weight, ht.DNDarray):
-                raise ValueError(
-                    "sample_weight needs to be a ht.DNDarray, but was {}".format(
-                        type(sample_weight)
-                    )
-                )
+            raise ValueError(f"expected y to be a 1-D tensor, is {y.ndim}-D")
+        if sample_weight is not None and not isinstance(sample_weight, ht.DNDarray):
+            raise ValueError(
+                f"sample_weight needs to be a ht.DNDarray, but was {type(sample_weight)}"
+            )
         classes = ht.unique(y, sorted=True)
         if classes.split is not None:
             classes = ht.resplit(classes, axis=None)
@@ -120,8 +117,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 return True
             if not ht.equal(self.classes_, unique_labels):
                 raise ValueError(
-                    "`classes={}` is not the same as on last call "
-                    "to partial_fit, was: {}".format(classes, self.classes_)
+                    f"`classes={classes}` is not the same as on last call to partial_fit, was: {self.classes_}"
                 )
         # classes is None and self.classes_ has already previously been set:
         # nothing to do
@@ -264,10 +260,10 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # TODO: sanitize x and y shape: sanitation/validation module, cf. #468
         n_samples = x.shape[0]
         if x.ndim != 2:
-            raise ValueError("expected x to be a 2-D tensor, is {}-D".format(x.ndim))
+            raise ValueError(f"expected x to be a 2-D tensor, is {x.ndim}-D")
         if y.shape[0] != n_samples:
             raise ValueError(
-                "y.shape[0] must match number of samples {}, is {}".format(n_samples, y.shape[0])
+                f"y.shape[0] must match number of samples {n_samples}, is {y.shape[0]}"
             )
 
         # TODO: sanitize sample_weight: sanitation/validation module, cf. #468
@@ -276,9 +272,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
                 raise ValueError("Sample weights must be 1D tensor")
             if sample_weight.shape != (n_samples,):
                 raise ValueError(
-                    "sample_weight.shape == {}, expected {}!".format(
-                        sample_weight.shape, (n_samples,)
-                    )
+                    f"sample_weight.shape == {sample_weight.shape}, expected {(n_samples, )}!"
                 )
 
         # If the ratio of data variance between dimensions is too small, it
@@ -326,9 +320,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         else:
             if x.shape[1] != self.theta_.shape[1]:
                 raise ValueError(
-                    "Number of features {} does not match previous data {}.".format(
-                        x.shape[1], self.theta_.shape[1]
-                    )
+                    f"Number of features {x.shape[1]} does not match previous data {self.theta_.shape[1]}."
                 )
             # Put epsilon back in each time
             self.sigma_[:, :] -= self.epsilon_
@@ -340,8 +332,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
 
         if not ht.all(unique_y_in_classes):
             raise ValueError(
-                "The target label(s) {} in y do not exist in the "
-                "initial classes {}".format(unique_y[~unique_y_in_classes], classes)
+                f"The target label(s) {unique_y[~unique_y_in_classes]} in y do not exist in the initial classes {classes}"
             )
         # from now on: extract torch tensors for local operations
         # DNDarrays for distributed operations only
@@ -490,7 +481,7 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         # sanitize input
         # TODO: sanitation/validation module, cf. #468
         if not isinstance(x, ht.DNDarray):
-            raise ValueError("input needs to be a ht.DNDarray, but was {}".format(type(x)))
+            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
         jll = self.__joint_log_likelihood(x)
         return self.classes_[ht.argmax(jll, axis=1)]
 
