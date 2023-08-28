@@ -574,7 +574,7 @@ class DNDarray:
         Parameters
         ----------
         target_rank : int, optional
-            The rank to which the tensor will be collected.
+            The rank to which the tensor will be collected. Default: 0.
 
         Raises
         ------
