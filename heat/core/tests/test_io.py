@@ -533,11 +533,8 @@ class TestIO(TestCase):
         self.assertTrue((self.IRIS == iris.larray).all())
 
         # cropped load
-        iris_cropped = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_shape=16)
-        self.assertEqual(iris_cropped.shape[0], 16)
-
-        iris_cropped = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_shape=(16, 3))
-        self.assertEqual(iris_cropped.shape, (16, 3))
+        iris_cropped = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0, load_fraction=0.5)
+        self.assertEqual(iris_cropped.shape[0], iris.shape[0] // 2)
 
         # positive split axis
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0)
@@ -577,11 +574,11 @@ class TestIO(TestCase):
         with self.assertRaises(TypeError):
             ht.load_hdf5("iris.h5", dataset="data", split=1.0)
         with self.assertRaises(TypeError):
-            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_shape=1e-2)
+            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction="a")
         with self.assertRaises(ValueError):
-            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_shape=0)
+            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction=0)
         with self.assertRaises(ValueError):
-            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_shape=(5, 5, 5))
+            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction=0.5, split=None)
 
         # file or dataset does not exist
         with self.assertRaises(IOError):
