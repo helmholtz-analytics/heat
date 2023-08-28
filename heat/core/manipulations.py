@@ -255,7 +255,7 @@ def collect(arr: DNDarray, target_rank: Optional[int] = 0) -> DNDarray:
     arr : DNDarray
         The DNDarray to be collected.
     target_rank : int, optional
-        The rank to which the tensor will be collected.
+        The rank to which the DNDarray will be collected. Default: 0.
 
     Raises
     ------
