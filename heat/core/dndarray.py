@@ -609,9 +609,8 @@ class DNDarray:
             return
 
         target_map = self.lshape_map.clone()
-        for i in range(self.comm.size):
-            # branchless way of putting 0 in all entries except for the target rank
-            target_map[i, self.split] = self.gshape[self.split] * (i == target_rank)
+        target_map[:, self.split] = 0
+        target_map[target_rank, self.split] = self.gshape[self.split]
         self.redistribute_(target_map=target_map)
 
     def __complex__(self) -> DNDarray:
