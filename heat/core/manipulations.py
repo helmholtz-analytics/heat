@@ -247,8 +247,8 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
 
 def collect(arr: DNDarray, target_rank: Optional[int] = 0) -> DNDarray:
     """
-    A function collecting a distributed DNDarray to one rank, chosen by the target_rank variable.
-    It is a specific case of the redistribute_ method.
+    A function collecting a distributed DNDarray to one rank, chosen by the `target_rank` variable.
+    It is a specific case of the ``redistribute_`` method.
 
     Parameters
     ----------
@@ -266,7 +266,7 @@ def collect(arr: DNDarray, target_rank: Optional[int] = 0) -> DNDarray:
 
     Examples
     --------
-    >>> a = st = ht.ones((50, 81, 67), split=2)
+    >>> st = ht.ones((50, 81, 67), split=2)
     >>> print(st.lshape)
     [0/2] (50, 81, 23)
     [1/2] (50, 81, 22)

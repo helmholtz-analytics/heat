@@ -574,7 +574,7 @@ class DNDarray:
         Parameters
         ----------
         target_rank : int, optional
-            The rank to which the tensor will be collected. Default: 0.
+            The rank to which the DNDarray will be collected. Default: 0.
 
         Raises
         ------
@@ -585,7 +585,7 @@ class DNDarray:
 
         Examples
         --------
-        >>> a = st = ht.ones((50, 81, 67), split=2)
+        >>> st = ht.ones((50, 81, 67), split=2)
         >>> print(st.lshape)
         [0/2] (50, 81, 23)
         [1/2] (50, 81, 22)
