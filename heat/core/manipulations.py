@@ -61,7 +61,6 @@ __all__ = [
     "vstack",
 ]
 
-
 def balance(array: DNDarray, copy=False) -> DNDarray:
     """
     Out of place balance function. More information on the meaning of balance can be found in
@@ -340,7 +339,153 @@ def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
         return concatenate(arrays, axis=1)
 
 
+
+
 def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
+    # input sanitation
+    arrays = sanitation.sanitize_sequence(arrays)
+    for arr in arrays:
+        sanitation.sanitize_in(arr)
+
+    if not isinstance(axis, int):
+        raise TypeError(f"axis must be an integer, currently: {type(axis)}")
+    axis = stride_tricks.sanitize_axis(arrays[0].gshape, axis)
+
+    # a single array cannot be concatenated
+    if len(arrays) < 2:
+        raise ValueError("concatenate requires 2 arrays")
+
+    res = arrays[0]
+    best_dtype = arrays[0].dtype
+    output_split = arrays[0].split
+    for i,arr in enumerate(arrays[1:]):
+        # different dimensions may not be concatenated
+        if res.ndim != arr.ndim:
+            raise ValueError("DNDarrays must have the same number of dimensions")
+
+        # different communicators may not be concatenated
+        if res.comm != arr.comm:
+            raise RuntimeError("Communicators of passed arrays mismatch.")
+
+        # different global shapes may not be concatenated
+        if any(i != axis and res.gshape[i] != arr.gshape[i] for i in range(len(res.gshape))):
+            raise ValueError(
+                f"Arrays cannot be concatenated, shapes must be the same in every axis except the selected axis: "
+                f"{res.gshape}, {arr.gshape}" )
+
+        if res.split != arr.split and res.split is not None and arr.split is not None:
+            raise RuntimeError(f"DNDarrays given have differing split axes, arr0 {res.split} arr{i} {arr.split}")
+        #print(f"output split: {output_split}\n")
+        if output_split is None:
+            output_split = arr.split
+            #print(f"changed output split: {output_split}\n")
+
+
+        # identify common data type
+        best_dtype = types.promote_types(res.dtype, arr.dtype)
+        if res.dtype != best_dtype:
+            res = best_dtype(res, device=res.device)
+
+    #convert all arrays to best_dtype
+    conversion_func = lambda x : best_dtype(x, device=x.device)
+    arrays[1:] = list(map(conversion_func, arrays[1:]))
+
+    # print("arrays shapes after sanitation and checks are:\n", [arri.lshape for arri in arrays])
+    # print(f"arrays split situations are:\n", [arri.split for arri in arrays])
+    if all(not arr.is_distributed for arr in arrays):
+        # print("arrays are not distributed, doing torch cat")
+        # none of the arrays are distributed: use torch cat to concatenate the arrays sequence
+        return factories.array(
+            torch.cat([arri.larray for arri in arrays], dim=axis),
+            dtype=best_dtype,
+            is_split=None,
+            device=arrays[0].device,
+            comm=arrays[0].comm
+        )
+
+    elif axis != output_split: #1
+        # print(f"axis {axis} = ! split {arrays[0].split}, option 1")
+        return __concatenate_split_differ_axis(arrays=arrays, axis=axis, output_split=output_split)
+    else: #axis=split #2
+        # print(f"axis {axis} = split {arrays[0].split}, option 2")
+
+        return __concatenate_split_equals_axis(arrays=arrays, axis=axis, output_split=output_split)
+
+def __concatenate_split_differ_axis(arrays: Sequence[DNDarray, ...], axis: int = 0, output_split: int = 0) -> DNDarray:
+    balance_func = lambda x: balance(x, copy=True) if x.split is not None else balance(x.resplit(output_split), copy=True)
+    print("the arrays are of shapes:\n",
+          [(arrays[i].split, i, r.shape) for i, r in enumerate(arrays)])
+    balanced_arrays = list(map(balance_func, arrays))
+    print("the resulting balanced arrays are of shapes:\n", [(balanced_arrays[i].split,i, r.shape) for i,r in enumerate(balanced_arrays)])
+    res = torch.cat([arr.larray for arr in balanced_arrays], dim=axis)
+    print("the resulting cat is of shapes:\n", res.shape)
+    #create a DNDarray from result
+    return DNDarray(array=res,
+                    gshape=tuple(res.size()), #todo: calculate gshape
+                    dtype=arrays[0].dtype,
+                    split=output_split,
+                    device=arrays[0].device,
+                    comm=arrays[0].comm,
+                    balanced=True)
+
+
+def __concatenate_split_equals_axis(arrays: Sequence[DNDarray, ...], axis: int = 0, output_split: int = 0) -> DNDarray:
+    #calculate final global shape
+    res_arrays = []
+    res_gshape = list(arrays[0].gshape)
+    res_gshape[axis] = sum(arr.gshape[axis] for arr in arrays)
+
+    local_axis_slice = res_gshape[axis] // arrays[0].comm.size
+    remainder = res_gshape[axis] % arrays[0].comm.size
+
+    target_map = arrays[0].lshape_map
+    target_map[:, axis] = 0
+    arr = 0
+    arr_offset = 0
+    print(f"#########comm.size:{arrays[0].comm.size}")
+    #redistribute arrays for balanced final result
+    for device in range(arrays[0].comm.size):
+        #if arrays[0].comm.rank == device:
+        device_load = 0
+        device_capacity = local_axis_slice + 1 * (device < remainder)
+        #print(f"#########device No.{device}  ## cap:{device_capacity}")
+        while device_load < device_capacity:
+            target_map[device, axis] += min(arrays[arr].gshape[axis]-arr_offset, device_capacity-device_load)
+            device_load +=  target_map[device, axis]
+            arr_offset += target_map[device, axis]
+            #print(f"#########device No.{device}  ## arr {arr} offset={arr_offset}")
+
+            if arr_offset == arrays[arr].gshape[axis]:
+                print(f"device {device} next")
+                #redistribute
+                print(f"#########device No.{device}  ## arr {arr} map: {target_map}")
+                res_arrays.append(redistribute(arrays[arr].resplit_(output_split) if not arrays[arr].is_distributed() else arrays[arr],
+                                               lshape_map=arrays[arr].lshape_map,
+                                               target_map=target_map))
+                #proceed to next array
+                arr += 1
+                target_map[:, axis] = 0
+                arr_offset = 0
+
+    #local cat
+    print(f"###########device No.{arrays[0].comm.rank} arrays: {[arr.larray for arr in res_arrays]}")
+    l=[arr.larray for arr in res_arrays]
+    res = torch.cat(l, dim=axis)
+    print(f"###########device No.{arrays[0].comm.rank} arr shape: {[arr.shape for arr in l]}")
+    print(f"###########device No.{arrays[0].comm.rank} res: {res}")
+
+    # create a DNDarray from result
+    return DNDarray(array=res,
+                    gshape=tuple(res_gshape),
+                    dtype=arrays[0].dtype,
+                    split=output_split,
+                    device=arrays[0].device,
+                    comm=arrays[0].comm,
+                    balanced=True)
+
+
+
+def concatenate_old(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     """
     Join 2 or more `DNDarrays` along an existing axis.
 
