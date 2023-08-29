@@ -60,7 +60,7 @@ def parter(
         II = core.arange(n, dtype=dtype, split=0, device=device, comm=comm).expand_dims(0)
         JJ = core.arange(n, dtype=dtype, device=device, comm=comm).expand_dims(1)
     else:
-        raise ValueError("expected split value to be either {{None,0,1}}, but was {}".format(split))
+        raise ValueError(f"expected split value to be either {{None,0,1}}, but was {split}")
 
     return 1.0 / (II - JJ + 0.5)
 
