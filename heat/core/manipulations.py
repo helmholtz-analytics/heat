@@ -61,6 +61,7 @@ __all__ = [
     "vstack",
 ]
 
+
 def balance(array: DNDarray, copy=False) -> DNDarray:
     """
     Out of place balance function. More information on the meaning of balance can be found in

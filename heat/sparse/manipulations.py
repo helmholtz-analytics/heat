@@ -12,6 +12,7 @@ __all__ = [
     "to_sparse",
 ]
 
+
 def to_sparse(array: DNDarray) -> DCSR_matrix:
     """
     Convert the distributed array to a sparse DCSR_matrix representation.
@@ -42,8 +43,10 @@ def to_sparse(array: DNDarray) -> DCSR_matrix:
     print(result)
     return result
 
+
 DNDarray.to_sparse = to_sparse
 DNDarray.to_sparse.__doc__ = to_sparse.__doc__
+
 
 def todense(sparse_matrix: DCSR_matrix, order="C", out: DNDarray = None) -> DNDarray:
     """
