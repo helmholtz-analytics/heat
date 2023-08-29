@@ -597,7 +597,7 @@ def hypot(
     a:   DNDarray
          The first input array
     b:   DNDarray
-         the second input tensor
+         the second input array
     out: DNDarray, optional
         The output array. It must have a shape that the inputs broadcast to and matching split axis.
         If not provided, a freshly allocated array is returned.
@@ -664,7 +664,7 @@ def lcm(
     a:   DNDarray
          The first input array
     b:   DNDarray
-         the second input tensor
+         the second input array
     out: DNDarray, optional
         The output array. It must have a shape that the inputs broadcast to and matching split axis.
         If not provided, a freshly allocated array is returned.
