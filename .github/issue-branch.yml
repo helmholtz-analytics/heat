@@ -1,6 +1,6 @@
 mode: auto
 silent: false
-branchName: full
+branchName: '${issue.number}-${issue.title}'
 defaultBranch: 'main'
 
 branches:
@@ -11,3 +11,5 @@ branches:
     prefix: features/
   - label: documentation
     prefix: docs/
+  - label: workflows
+    prefix: workflows/
