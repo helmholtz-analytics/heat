@@ -471,6 +471,21 @@ class TestArithmetics(TestCase):
         with self.assertRaises(TypeError):
             ht.fmod("T", "s")
 
+    def test_gcd(self):
+        a = ht.array([5, 10, 15])
+        b = ht.array([3, 4, 5])
+        c = ht.array([3.0, 4.0, 5.0])
+        result = ht.array([1, 2, 5])
+
+        self.assertTrue(ht.equal(ht.gcd(a, b), result))
+        self.assertTrue(ht.equal(ht.gcd(a, a), a))
+        self.assertEquals(ht.gcd(a, b).dtype, ht.int64)
+
+        with self.assertRaises(RuntimeError):
+            ht.gcd(a, c)
+        with self.assertRaises(ValueError):
+            ht.gcd(a, ht.array([15, 20]))
+
     def test_hypot(self):
         a = a = ht.array([2.0])
         b = b = ht.array([1.0, 3.0, 5.0])

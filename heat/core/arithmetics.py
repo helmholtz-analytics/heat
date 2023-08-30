@@ -42,6 +42,7 @@ __all__ = [
     "floordiv",
     "floor_divide",
     "fmod",
+    "gcd",
     "hypot",
     "invert",
     "lcm",
@@ -234,7 +235,7 @@ def copysign(
     /,
     out: Optional[DNDarray] = None,
     *,
-    where: Optional[DNDarray] = True,
+    where: DNDarray = True,
 ) -> DNDarray:
     """
     Create a new floating-point tensor with the magnitude of 'a' and the sign of 'b', elementwise
@@ -473,7 +474,7 @@ def div(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
     out: Optional[DNDarray] = None,
-    where: Optional[DNDarray] = True,
+    where: DNDarray = True,
 ) -> DNDarray:
     """
     Element-wise true division of values of operand ``t1`` by values of operands ``t2`` (i.e ``t1/t2``).
@@ -586,8 +587,31 @@ floor_divide = floordiv
 """Alias for :py:func:`floordiv`"""
 
 
+def gcd(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where=True) -> DNDarray:
+    """
+    Returns the greatest common divisor of |a| and |b|
+
+    Parameters
+    ----------
+    a:   DNDarray
+         The first input array
+    b:   DNDarray
+         the second input array
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the divided value. Elsewhere, the `out` array will retain its original value. If
+        an uninitialized `out` array is created via the default `out=None`, locations within it where the
+        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
+        if required) must match that of the `out` array.
+    """
+    return _operations.__binary_op(torch.gcd, a, b, out, where)
+
+
 def hypot(
-    a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True
+    a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: DNDarray = True
 ) -> DNDarray:
     r"""
     Given the 'legs' of a right triangle, return its hypotenuse. Equivalent to :math:`\sqrt{a^2 + b^2}`, element-wise.
@@ -654,7 +678,7 @@ bitwise_not = invert
 
 
 def lcm(
-    a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: Optional[DNDarray] = True
+    a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: DNDarray = True
 ) -> DNDarray:
     """
     Returns the lowest common multiple of |a| and |b|
