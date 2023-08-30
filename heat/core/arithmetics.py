@@ -263,7 +263,13 @@ def copysign(
     >>> ht.copysign(ht.array([3., 2., -8., -2., 4.]), ht.array([1., -1., 1., -1., 1.]))
     DNDarray([ 3., -2.,  8., -2.,  4.], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.copysign, a, b, out, where)
+    try:
+        res = _operations.__binary_op(torch.copysign, a, b, out, where)
+    except RuntimeError as e:
+        # every other possibility is caught by __binary_op
+        raise TypeError(f"Not implemented for input type, got {type(a)}, {type(b)}") from e
+
+    return res
 
 
 def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray:
@@ -594,9 +600,9 @@ def gcd(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where=Tr
     Parameters
     ----------
     a:   DNDarray
-         The first input array
+         The first input array, must be of integer type
     b:   DNDarray
-         the second input array
+         the second input array, must be of integer type
     out: DNDarray, optional
         The output array. It must have a shape that the inputs broadcast to and matching split axis.
         If not provided, a freshly allocated array is returned.
@@ -607,7 +613,13 @@ def gcd(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where=Tr
         condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
         if required) must match that of the `out` array.
     """
-    return _operations.__binary_op(torch.gcd, a, b, out, where)
+    try:
+        res = _operations.__binary_op(torch.gcd, a, b, out, where)
+    except RuntimeError as e:
+        # every other possibility is caught by __binary_op
+        raise TypeError(f"Expected integer input, got {a.dtype}, {b.dtype}") from e
+
+    return res
 
 
 def hypot(
@@ -639,7 +651,13 @@ def hypot(
     >>> ht.hypot(a,b)
     DNDarray([2.2361, 3.6056, 3.6056], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.hypot, a, b, out, where)
+    try:
+        res = _operations.__binary_op(torch.hypot, a, b, out, where)
+    except RuntimeError as e:
+        # every other possibility is caught by __binary_op
+        raise TypeError(f"Not implemented for array dtype, got {a.dtype}, {b.dtype}") from e
+
+    return res
 
 
 def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
@@ -686,9 +704,9 @@ def lcm(
     Parameters
     ----------
     a:   DNDarray
-         The first input array
+         The first input array, must be of integer type
     b:   DNDarray
-         the second input array
+         the second input array, must be of integer type
     out: DNDarray, optional
         The output array. It must have a shape that the inputs broadcast to and matching split axis.
         If not provided, a freshly allocated array is returned.
@@ -706,7 +724,13 @@ def lcm(
     >>> ht.lcm(a,b)
     DNDarray([ 6, 12, 15], dtype=ht.int64, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.lcm, a, b, out, where)
+    try:
+        res = _operations.__binary_op(torch.lcm, a, b, out, where)
+    except RuntimeError as e:
+        # every other possibility is caught by __binary_op
+        raise TypeError(f"Expected integer input, got {a.dtype}, {b.dtype}") from e
+
+    return res
 
 
 def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
@@ -849,10 +873,6 @@ def nan_to_num(
     --------
     >>> x = ht.array([float('nan'), float('inf'), -float('inf')])
     >>> ht.nan_to_num(x)
-    nan = 0.0
-    posinf = None
-    neginf = None
-    result tensor([ 0.0000e+00,  3.4028e+38, -3.4028e+38])
     DNDarray([ 0.0000e+00,  3.4028e+38, -3.4028e+38], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__local_op(

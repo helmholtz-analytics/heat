@@ -201,12 +201,13 @@ class TestArithmetics(TestCase):
         self.assertAlmostEqual(ht.mean(ht.copysign(a, -1.0) + result).item(), 0.0)
         self.assertAlmostEqual(ht.mean(ht.copysign(a, a) - a).item(), 0.0)
         self.assertAlmostEqual(ht.mean(ht.copysign(b, b) - b).item(), 0.0)
-        self.assertEquals(ht.copysign(a, 1.0).dtype, ht.float32)
-        self.assertEquals(ht.copysign(b, 1.0).dtype, ht.float32)
+        self.assertEqual(ht.copysign(a, 1.0).dtype, ht.float32)
+        self.assertEqual(ht.copysign(b, 1.0).dtype, ht.float32)
         self.assertNotEqual(ht.copysign(a, 1.0).dtype, ht.int64)
 
         with self.assertRaises(TypeError):
             ht.copysign(a, "T")
+        with self.assertRaises(TypeError):
             ht.copysign(a, 1j)
 
     def test_cumprod(self):
@@ -479,27 +480,27 @@ class TestArithmetics(TestCase):
 
         self.assertTrue(ht.equal(ht.gcd(a, b), result))
         self.assertTrue(ht.equal(ht.gcd(a, a), a))
-        self.assertEquals(ht.gcd(a, b).dtype, ht.int64)
+        self.assertEqual(ht.gcd(a, b).dtype, ht.int64)
 
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(TypeError):
             ht.gcd(a, c)
         with self.assertRaises(ValueError):
             ht.gcd(a, ht.array([15, 20]))
 
     def test_hypot(self):
-        a = a = ht.array([2.0])
-        b = b = ht.array([1.0, 3.0, 5.0])
+        a = ht.array([2.0])
+        b = ht.array([1.0, 3.0, 5.0])
         gt = ht.array([5, 13, 29])
         result = (ht.hypot(a, b) ** 2).astype(ht.int64)
 
         self.assertTrue(ht.equal(gt, result))
-        self.assertEquals(result.dtype, ht.int64)
+        self.assertEqual(result.dtype, ht.int64)
 
         with self.assertRaises(TypeError):
             ht.hypot(a)
         with self.assertRaises(TypeError):
             ht.hypot("a", "b")
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(TypeError):
             ht.hypot(a.astype(ht.int32), b.astype(ht.int32))
 
     def test_invert(self):
@@ -527,9 +528,9 @@ class TestArithmetics(TestCase):
 
         self.assertTrue(ht.equal(ht.lcm(a, b), result))
         self.assertTrue(ht.equal(ht.lcm(a, a), a))
-        self.assertEquals(ht.lcm(a, b).dtype, ht.int64)
+        self.assertEqual(ht.lcm(a, b).dtype, ht.int64)
 
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(TypeError):
             ht.lcm(a, c)
         with self.assertRaises(ValueError):
             ht.lcm(a, ht.array([15, 20]))
