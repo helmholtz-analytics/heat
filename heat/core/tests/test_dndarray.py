@@ -1326,6 +1326,253 @@ class TestDNDarray(TestCase):
         res = ht.right_shift(ht.array([True]), 2)
         self.assertTrue(res == 0)
 
+    def test_setitem(self):
+        # following https://numpy.org/doc/stable/user/basics.indexing.html
+
+        # Single element indexing
+        # 1D, local
+        x = ht.zeros(10)
+        x[2] = 2
+        x[-2] = 8
+        self.assertTrue(x[2].item() == 2)
+        self.assertTrue(x[-2].item() == 8)
+        self.assertTrue(x[2].dtype == ht.float32)
+        # 1D, distributed
+        x = ht.zeros(10, split=0, dtype=ht.float64)
+        x[2] = 2
+        x[-2] = 8
+        self.assertTrue(x[2].item() == 2.0)
+        self.assertTrue(x[-2].item() == 8.0)
+        self.assertTrue(x[2].dtype == ht.float64)
+        self.assertTrue(x.split == 0)
+        # 2D, local
+        x = ht.zeros(10).reshape(2, 5)
+        x[0] = ht.arange(5)
+        self.assertTrue((x[0] == ht.arange(5)).all().item())
+        self.assertTrue(x[0].dtype == ht.float32)
+        # 2D, distributed
+        x_split0 = ht.zeros(10, split=0).reshape(2, 5)
+        x_split0[0] = ht.arange(5)
+        self.assertTrue((x_split0[0] == ht.arange(5, split=None)).all().item())
+        x_split1 = ht.zeros(10, split=0).reshape(2, 5, new_split=1)
+        x_split1[-2] = ht.arange(5)
+        self.assertTrue((x_split1[-2] == ht.arange(5, split=0)).all().item())
+        # 3D, distributed, split = 0
+        x_split0 = ht.zeros(27, split=0).reshape(3, 3, 3)
+        key = -2
+        x_split0[key] = ht.arange(3)
+        self.assertTrue((x_split0[key].larray == torch.arange(3)).all())
+        self.assertTrue(x_split0[key].dtype == ht.float32)
+        self.assertTrue(x_split0[key].split == 0)
+        # 3D, distributed split, != 0
+        x_split2 = ht.zeros(27, dtype=ht.int64, split=0).reshape(3, 3, 3, new_split=2)
+        key = ht.array(2)
+        x_split2[key] = [6, 7, 8]
+        indexed_split2 = x_split2[key]
+        self.assertTrue((indexed_split2.numpy()[0] == np.array([6, 7, 8])).all())
+        self.assertTrue(indexed_split2.dtype == ht.int64)
+        self.assertTrue(x_split2.split == 2)
+
+        # Slicing and striding
+        x = ht.arange(20, split=0)
+        x_sliced = x[1:11:3]
+        x[1:11:3] = ht.array([10, 40, 70, 100])
+        x_np = np.arange(20)
+        x_sliced_np = x_np[1:11:3]
+        x_np[1:11:3] = np.array([10, 40, 70, 100])
+        self.assert_array_equal(x_sliced, x_sliced_np)
+        self.assert_array_equal(x_sliced, np.array([10, 40, 70, 100]))
+        self.assertTrue(x.split == 0)
+
+        # # 1-element slice along split axis
+        # x = ht.arange(20).reshape(4, 5)
+        # x.resplit_(axis=1)
+        # x_sliced = x[:, 2:3]
+        # x_np = np.arange(20).reshape(4, 5)
+        # x_sliced_np = x_np[:, 2:3]
+        # self.assert_array_equal(x_sliced, x_sliced_np)
+        # self.assertTrue(x_sliced.split == 1)
+
+        # # slicing with negative step along split axis 0
+        # shape = (20, 4, 3)
+        # x_3d = ht.arange(20 * 4 * 3, split=0).reshape(shape)
+        # x_3d_sliced = x_3d[17:2:-2, :2, ht.array(1)]
+        # x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[17:2:-2, :2, 1]
+        # self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
+        # self.assertTrue(x_3d_sliced.split == 0)
+
+        # # slicing with negative step along split 1
+        # shape = (4, 20, 3)
+        # x_3d = ht.arange(20 * 4 * 3).reshape(shape)
+        # x_3d.resplit_(axis=1)
+        # key = (slice(None, 2), slice(17, 2, -2), 1)
+        # x_3d_sliced = x_3d[key]
+        # x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[:2, 17:2:-2, 1]
+        # self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
+        # self.assertTrue(x_3d_sliced.split == 1)
+
+        # # slicing with negative step along split 2 and loss of axis < split
+        # shape = (4, 3, 20)
+        # x_3d = ht.arange(20 * 4 * 3).reshape(shape)
+        # x_3d.resplit_(axis=2)
+        # key = (slice(None, 2), 1, slice(17, 10, -2))
+        # x_3d_sliced = x_3d[key]
+        # x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[:2, 1, 17:10:-2]
+        # self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
+        # self.assertTrue(x_3d_sliced.split == 1)
+
+        # # slicing with negative step along split 2 and loss of all axes but split
+        # shape = (4, 3, 20)
+        # x_3d = ht.arange(20 * 4 * 3).reshape(shape)
+        # x_3d.resplit_(axis=2)
+        # key = (0, 1, slice(17, 13, -1))
+        # x_3d_sliced = x_3d[key]
+        # x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[0, 1, 17:13:-1]
+        # self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
+        # self.assertTrue(x_3d_sliced.split == 0)
+
+        # # DIMENSIONAL INDEXING
+        # # ellipsis
+        # x_np = np.array([[[1], [2], [3]], [[4], [5], [6]]])
+        # x_np_ellipsis = x_np[..., 0]
+        # x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
+
+        # # local
+        # x_ellipsis = x[..., 0]
+        # x_slice = x[:, :, 0]
+        # self.assert_array_equal(x_ellipsis, x_np_ellipsis)
+        # self.assert_array_equal(x_slice, x_np_ellipsis)
+
+        # # distributed
+        # x.resplit_(axis=1)
+        # x_ellipsis = x[..., 0]
+        # x_slice = x[:, :, 0]
+        # self.assert_array_equal(x_ellipsis, x_np_ellipsis)
+        # self.assert_array_equal(x_slice, x_np_ellipsis)
+        # self.assertTrue(x_ellipsis.split == 1)
+
+        # # newaxis: local
+        # x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
+        # x_np_newaxis = x_np[:, np.newaxis, :2, :]
+        # x_newaxis = x[:, np.newaxis, :2, :]
+        # x_none = x[:, None, :2, :]
+        # self.assert_array_equal(x_newaxis, x_np_newaxis)
+        # self.assert_array_equal(x_none, x_np_newaxis)
+
+        # # newaxis: distributed
+        # x.resplit_(axis=1)
+        # x_newaxis = x[:, np.newaxis, :2, :]
+        # x_none = x[:, None, :2, :]
+        # self.assert_array_equal(x_newaxis, x_np_newaxis)
+        # self.assert_array_equal(x_none, x_np_newaxis)
+        # self.assertTrue(x_newaxis.split == 2)
+        # self.assertTrue(x_none.split == 2)
+
+        # x = ht.arange(5, split=0)
+        # x_np = np.arange(5)
+        # y = x[:, np.newaxis] + x[np.newaxis, :]
+        # y_np = x_np[:, np.newaxis] + x_np[np.newaxis, :]
+        # self.assert_array_equal(y, y_np)
+        # self.assertTrue(y.split == 0)
+
+        # # ADVANCED INDEXING
+        # # "x[(1, 2, 3),] is fundamentally different from x[(1, 2, 3)]"
+
+        # x_np = np.arange(60).reshape(5, 3, 4)
+        # indexed_x_np = x_np[(1, 2, 3)]
+        # adv_indexed_x_np = x_np[(1, 2, 3),]
+        # x = ht.array(x_np, split=0)
+        # indexed_x = x[(1, 2, 3)]
+        # self.assertTrue(indexed_x.item() == np.array(indexed_x_np))
+        # adv_indexed_x = x[(1, 2, 3),]
+        # self.assert_array_equal(adv_indexed_x, adv_indexed_x_np)
+
+        # # 1d
+        # x = ht.arange(10, 1, -1, split=0)
+        # x_np = np.arange(10, 1, -1)
+        # x_adv_ind = x[np.array([3, 3, 1, 8])]
+        # x_np_adv_ind = x_np[np.array([3, 3, 1, 8])]
+        # self.assert_array_equal(x_adv_ind, x_np_adv_ind)
+
+        # # 3d, split 0, non-unique, non-ordered key along split axis
+        # x = ht.arange(60, split=0).reshape(5, 3, 4)
+        # x_np = np.arange(60).reshape(5, 3, 4)
+        # k1 = np.array([0, 4, 1, 0])
+        # k2 = np.array([0, 2, 1, 0])
+        # k3 = np.array([1, 2, 3, 1])
+        # self.assert_array_equal(
+        #     x[ht.array(k1, split=0), ht.array(k2, split=0), ht.array(k3, split=0)], x_np[k1, k2, k3]
+        # )
+        # # advanced indexing on non-consecutive dimensions
+        # x = ht.arange(60, split=0).reshape(5, 3, 4, new_split=1)
+        # x_copy = x.copy()
+        # x_np = np.arange(60).reshape(5, 3, 4)
+        # k1 = np.array([0, 4, 1, 0])
+        # k2 = 0
+        # k3 = np.array([1, 2, 3, 1])
+        # key = (k1, k2, k3)
+        # self.assert_array_equal(x[key], x_np[key])
+        # # check that x is unchanged after internal manipulation
+        # self.assertTrue(x.shape == x_copy.shape)
+        # self.assertTrue(x.split == x_copy.split)
+        # self.assertTrue(x.lshape == x_copy.lshape)
+        # self.assertTrue((x == x_copy).all().item())
+
+        # # broadcasting shapes
+        # x.resplit_(axis=0)
+        # self.assert_array_equal(x[ht.array(k1, split=0), ht.array(1), 2], x_np[k1, 1, 2])
+        # # test exception: broadcasting mismatching shapes
+        # k2 = np.array([0, 2, 1])
+        # with self.assertRaises(IndexError):
+        #     x[k1, k2, k3]
+
+        # # more broadcasting
+        # x_np = np.arange(12).reshape(4, 3)
+        # rows = np.array([0, 3])
+        # cols = np.array([0, 2])
+        # x = ht.arange(12).reshape(4, 3)
+        # x.resplit_(1)
+        # x_np_indexed = x_np[rows[:, np.newaxis], cols]
+        # x_indexed = x[ht.array(rows)[:, np.newaxis], cols]
+        # self.assert_array_equal(x_indexed, x_np_indexed)
+        # self.assertTrue(x_indexed.split == 1)
+
+        # # combining advanced and basic indexing
+        # y_np = np.arange(35).reshape(5, 7)
+        # y_np_indexed = y_np[np.array([0, 2, 4]), 1:3]
+        # y = ht.array(y_np, split=1)
+        # y_indexed = y[ht.array([0, 2, 4]), 1:3]
+        # self.assert_array_equal(y_indexed, y_np_indexed)
+        # self.assertTrue(y_indexed.split == 1)
+
+        # x_np = np.arange(10 * 20 * 30).reshape(10, 20, 30)
+        # x = ht.array(x_np, split=1)
+        # ind_array = ht.random.randint(0, 20, (2, 3, 4), dtype=ht.int64)
+        # ind_array_np = ind_array.numpy()
+        # x_np_indexed = x_np[..., ind_array_np, :]
+        # x_indexed = x[..., ind_array, :]
+        # self.assert_array_equal(x_indexed, x_np_indexed)
+        # self.assertTrue(x_indexed.split == 3)
+
+        # # boolean mask, local
+        # arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
+        # np.random.seed(42)
+        # mask = np.random.randint(0, 2, arr.shape, dtype=bool)
+        # self.assertTrue((arr[mask].numpy() == arr.numpy()[mask]).all())
+
+        # # boolean mask, distributed
+        # arr_split0 = ht.array(arr, split=0)
+        # mask_split0 = ht.array(mask, split=0)
+        # self.assertTrue((arr_split0[mask_split0].numpy() == arr.numpy()[mask]).all())
+
+        # arr_split1 = ht.array(arr, split=1)
+        # mask_split1 = ht.array(mask, split=1)
+        # self.assert_array_equal(arr_split1[mask_split1], arr.numpy()[mask])
+
+        # arr_split2 = ht.array(arr, split=2)
+        # mask_split2 = ht.array(mask, split=2)
+        # self.assert_array_equal(arr_split2[mask_split2], arr.numpy()[mask])
+
     # def test_setitem_getitem(self):
     #     # tests for bug #825
     #     a = ht.ones((102, 102), split=0)
