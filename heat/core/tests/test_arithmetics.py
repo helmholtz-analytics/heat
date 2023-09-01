@@ -501,10 +501,10 @@ class TestArithmetics(TestCase):
 
     def test_left_shift(self):
         int_tensor = ht.array([[0, 1], [2, 3]])
-        int_result = ht.array([[0, 2], [4, 6]])
 
-        self.assertTrue(ht.equal(ht.left_shift(int_tensor, 1), int_result))
-        self.assertTrue(ht.equal(ht.left_shift(int_tensor.copy().resplit_(0), 1), int_result))
+        self.assertTrue(ht.equal(ht.left_shift(int_tensor, 1), int_tensor * 2))
+        self.assertTrue(ht.equal(ht.left_shift(int_tensor.copy().resplit_(0), 1), int_tensor * 2))
+        self.assertTrue(ht.equal(int_tensor << 2, int_tensor * 4))
 
         with self.assertRaises(TypeError):
             ht.left_shift(int_tensor, 2.4)
@@ -699,10 +699,10 @@ class TestArithmetics(TestCase):
 
     def test_right_shift(self):
         int_tensor = ht.array([[0, 1], [2, 3]])
-        int_result = ht.array([[0, 0], [1, 1]])
 
-        self.assertTrue(ht.equal(ht.right_shift(int_tensor, 1), int_result))
-        self.assertTrue(ht.equal(ht.right_shift(int_tensor.copy().resplit_(0), 1), int_result))
+        self.assertTrue(ht.equal(ht.right_shift(int_tensor, 1), int_tensor // 2))
+        self.assertTrue(ht.equal(ht.right_shift(int_tensor.copy().resplit_(0), 1), int_tensor // 2))
+        self.assertTrue(ht.equal(int_tensor >> 2, int_tensor // 4))
 
         with self.assertRaises(TypeError):
             ht.right_shift(int_tensor, 2.4)

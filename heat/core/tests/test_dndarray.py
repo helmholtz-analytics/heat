@@ -696,17 +696,6 @@ class TestDNDarray(TestCase):
 
         self.assertEqual(x_bool_d.lnbytes, x_bool_d.lnumel * 1)
 
-    def test_lshift(self):
-        int_tensor = ht.array([[0, 1], [2, 3]])
-        int_result = ht.array([[0, 4], [8, 12]])
-
-        self.assertTrue(ht.equal(int_tensor << 2, int_result))
-
-        with self.assertRaises(TypeError):
-            int_tensor << 2.4
-        res = ht.left_shift(ht.array([True]), 2)
-        self.assertTrue(res == 4)
-
     def test_nbytes(self):
         # undistributed case
 
@@ -1072,17 +1061,6 @@ class TestDNDarray(TestCase):
         t1_sub.resplit_(axis=None)
         self.assertTrue(ht.all(t1_sub == res))
         self.assertEqual(t1_sub.split, None)
-
-    def test_rshift(self):
-        int_tensor = ht.array([[0, 2], [4, 8]])
-        int_result = ht.array([[0, 0], [1, 2]])
-
-        self.assertTrue(ht.equal(int_tensor >> 2, int_result))
-
-        with self.assertRaises(TypeError):
-            int_tensor >> 2.4
-        res = ht.right_shift(ht.array([True]), 2)
-        self.assertTrue(res == 0)
 
     def test_setitem_getitem(self):
         # tests for bug #825

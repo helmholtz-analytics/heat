@@ -671,7 +671,7 @@ bitwise_not = invert
 """Alias for :py:func:`invert`"""
 
 
-def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+def left_shift(t1: DNDarray, t2: DNDarray) -> DNDarray:
     """
     Shift the bits of an integer to the left.
 
@@ -695,7 +695,7 @@ def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         elif dtypes[dt] == types.bool:
             arrs[dt] = types.int(arrs[dt])
 
-    return _operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
+    return _operations.__binary_op(torch.bitwise_left_shift, t1, t2)
 
 
 def _lshift(self, other):
@@ -707,8 +707,8 @@ def _lshift(self, other):
 
 DNDarray.__lshift__ = _lshift
 DNDarray.__lshift__.__doc__ = left_shift.__doc__
-DNDarray.__lshift__ = lambda self, other: _lshift(other, self)
-DNDarray.__lshift__.__doc__ = left_shift.__doc__
+DNDarray.__rlshift__ = lambda self, other: _lshift(other, self)
+DNDarray.__rlshift__.__doc__ = left_shift.__doc__
 
 
 def mod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
@@ -1010,7 +1010,7 @@ def right_shift(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
         elif dtypes[dt] == types.bool:
             arrs[dt] = types.int(arrs[dt])
 
-    return _operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
+    return _operations.__binary_op(torch.bitwise_right_shift, t1, t2)
 
 
 def _rshift(self, other):
