@@ -151,8 +151,8 @@ def _and(self, other):
 
 DNDarray.__and__ = _and
 DNDarray.__and__.__doc__ = bitwise_and.__doc__
-DNDarray.__and__ = lambda self, other: _and(other, self)
-DNDarray.__and__.__doc__ = bitwise_and.__doc__
+DNDarray.__rand__ = lambda self, other: _and(other, self)
+DNDarray.__rand__.__doc__ = bitwise_and.__doc__
 
 
 def bitwise_or(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
@@ -204,8 +204,8 @@ def _or(self, other):
 
 DNDarray.__or__ = _or
 DNDarray.__or__.__doc__ = bitwise_or.__doc__
-DNDarray.__or__ = lambda self, other: _or(other, self)
-DNDarray.__or__.__doc__ = bitwise_or.__doc__
+DNDarray.__ror__ = lambda self, other: _or(other, self)
+DNDarray.__ror__.__doc__ = bitwise_or.__doc__
 
 
 def bitwise_xor(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
@@ -252,8 +252,8 @@ def _xor(self, other):
 
 DNDarray.__xor__ = _xor
 DNDarray.__xor__.__doc__ = bitwise_xor.__doc__
-DNDarray.__xor__ = lambda self, other: _xor(other, self)
-DNDarray.__xor__.__doc__ = bitwise_xor.__doc__
+DNDarray.__rxor__ = lambda self, other: _xor(other, self)
+DNDarray.__rxor__.__doc__ = bitwise_xor.__doc__
 
 
 def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray:
@@ -663,7 +663,7 @@ def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
     return _operations.__local_op(torch.bitwise_not, a, out, no_cast=True)
 
 
-DNDarray.__invert__ = lambda self, out=None: invert(self, out)
+DNDarray.__invert__ = lambda self: invert(self)
 DNDarray.__invert__.__doc__ = invert.__doc__
 
 # alias for invert
