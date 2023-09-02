@@ -14,14 +14,14 @@ class TestLogical(TestCase):
         x = (ones_noaxis == 1).all()
 
         self.assertIsInstance(x, ht.DNDarray)
-        self.assertEqual(x.shape, (1,))
-        self.assertEqual(x.lshape, (1,))
+        self.assertEqual(x.shape, ())
+        self.assertEqual(x.lshape, ())
         self.assertEqual(x.dtype, ht.bool)
         self.assertEqual(x.larray.dtype, torch.bool)
         self.assertEqual(x.split, None)
         self.assertEqual(x.larray, 1)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.zeros(())
         ht.all(ones_noaxis, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 1)
 
@@ -30,14 +30,14 @@ class TestLogical(TestCase):
         floats_is_one = ones_noaxis_split.all()
 
         self.assertIsInstance(floats_is_one, ht.DNDarray)
-        self.assertEqual(floats_is_one.shape, (1,))
-        self.assertEqual(floats_is_one.lshape, (1,))
+        self.assertEqual(floats_is_one.shape, ())
+        self.assertEqual(floats_is_one.lshape, ())
         self.assertEqual(floats_is_one.dtype, ht.bool)
         self.assertEqual(floats_is_one.larray.dtype, torch.bool)
         self.assertEqual(floats_is_one.split, None)
         self.assertEqual(floats_is_one.larray, 1)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.zeros(())
         ht.all(ones_noaxis_split, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 1)
 
@@ -46,14 +46,14 @@ class TestLogical(TestCase):
         int_is_one = ones_noaxis_int.all()
 
         self.assertIsInstance(int_is_one, ht.DNDarray)
-        self.assertEqual(int_is_one.shape, (1,))
-        self.assertEqual(int_is_one.lshape, (1,))
+        self.assertEqual(int_is_one.shape, ())
+        self.assertEqual(int_is_one.lshape, ())
         self.assertEqual(int_is_one.dtype, ht.bool)
         self.assertEqual(int_is_one.larray.dtype, torch.bool)
         self.assertEqual(int_is_one.split, None)
         self.assertEqual(int_is_one.larray, 1)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.zeros(())
         ht.all(ones_noaxis_int, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 1)
 
@@ -62,14 +62,14 @@ class TestLogical(TestCase):
         split_int_is_one = ones_noaxis_split_int.all()
 
         self.assertIsInstance(split_int_is_one, ht.DNDarray)
-        self.assertEqual(split_int_is_one.shape, (1,))
-        self.assertEqual(split_int_is_one.lshape, (1,))
+        self.assertEqual(split_int_is_one.shape, ())
+        self.assertEqual(split_int_is_one.lshape, ())
         self.assertEqual(split_int_is_one.dtype, ht.bool)
         self.assertEqual(split_int_is_one.larray.dtype, torch.bool)
         self.assertEqual(split_int_is_one.split, None)
         self.assertEqual(split_int_is_one.larray, 1)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.zeros(())
         ht.all(ones_noaxis_split_int, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 1)
 
@@ -78,14 +78,14 @@ class TestLogical(TestCase):
         volume_is_one = ones_noaxis_volume.all()
 
         self.assertIsInstance(volume_is_one, ht.DNDarray)
-        self.assertEqual(volume_is_one.shape, (1,))
-        self.assertEqual(volume_is_one.lshape, (1,))
+        self.assertEqual(volume_is_one.shape, ())
+        self.assertEqual(volume_is_one.lshape, ())
         self.assertEqual(volume_is_one.dtype, ht.bool)
         self.assertEqual(volume_is_one.larray.dtype, torch.bool)
         self.assertEqual(volume_is_one.split, None)
         self.assertEqual(volume_is_one.larray, 1)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.zeros(())
         ht.all(ones_noaxis_volume, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 1)
 
@@ -94,14 +94,14 @@ class TestLogical(TestCase):
         sequence_is_one = sequence.all()
 
         self.assertIsInstance(sequence_is_one, ht.DNDarray)
-        self.assertEqual(sequence_is_one.shape, (1,))
-        self.assertEqual(sequence_is_one.lshape, (1,))
+        self.assertEqual(sequence_is_one.shape, ())
+        self.assertEqual(sequence_is_one.lshape, ())
         self.assertEqual(sequence_is_one.dtype, ht.bool)
         self.assertEqual(sequence_is_one.larray.dtype, torch.bool)
         self.assertEqual(sequence_is_one.split, None)
         self.assertEqual(sequence_is_one.larray, 0)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.zeros(())
         ht.all(sequence, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 0)
 
@@ -228,7 +228,7 @@ class TestLogical(TestCase):
         res = ht.zeros(1, dtype=ht.uint8)
         any_tensor = ht.any(x)
         self.assertIsInstance(any_tensor, ht.DNDarray)
-        self.assertEqual(any_tensor.shape, (1,))
+        self.assertEqual(any_tensor.shape, ())
         self.assertEqual(any_tensor.dtype, ht.bool)
         self.assertTrue(ht.equal(any_tensor, res))
 

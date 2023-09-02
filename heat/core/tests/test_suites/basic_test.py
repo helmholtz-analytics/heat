@@ -283,7 +283,7 @@ class TestCase(unittest.TestCase):
         dtype = types.canonical_heat_type(torch_tensor.dtype)
         np_res = numpy_func(np_array, **numpy_args)
         if not isinstance(np_res, np.ndarray):
-            np_res = np.array([np_res])
+            np_res = np.array(np_res)
 
         for i in range(len(tensor.shape)):
             ht_array = factories.array(

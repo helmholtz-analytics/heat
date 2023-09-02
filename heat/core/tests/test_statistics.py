@@ -704,8 +704,8 @@ class TestStatistics(TestCase):
         maximum = ht.max(ht_array)
 
         self.assertIsInstance(maximum, ht.DNDarray)
-        self.assertEqual(maximum.shape, (1,))
-        self.assertEqual(maximum.lshape, (1,))
+        self.assertEqual(maximum.shape, ())
+        self.assertEqual(maximum.lshape, ())
         self.assertEqual(maximum.split, None)
         self.assertEqual(maximum.dtype, ht.int64)
         self.assertEqual(maximum.larray.dtype, torch.int64)
@@ -773,7 +773,7 @@ class TestStatistics(TestCase):
             a = ht.arange(size - 1, split=0)
             res = ht.max(a)
             expected = torch.tensor(
-                [size - 2], dtype=a.dtype.torch_type(), device=self.device.torch_device
+                size - 2, dtype=a.dtype.torch_type(), device=self.device.torch_device
             )
             self.assertTrue(torch.equal(res.larray, expected))
 
@@ -966,8 +966,8 @@ class TestStatistics(TestCase):
         minimum = ht.min(ht_array)
 
         self.assertIsInstance(minimum, ht.DNDarray)
-        self.assertEqual(minimum.shape, (1,))
-        self.assertEqual(minimum.lshape, (1,))
+        self.assertEqual(minimum.shape, ())
+        self.assertEqual(minimum.lshape, ())
         self.assertEqual(minimum.split, None)
         self.assertEqual(minimum.dtype, ht.int64)
         self.assertEqual(minimum.larray.dtype, torch.int64)
@@ -1037,9 +1037,7 @@ class TestStatistics(TestCase):
         if size > 1:
             a = ht.arange(size - 1, split=0)
             res = ht.min(a)
-            expected = torch.tensor(
-                [0], dtype=a.dtype.torch_type(), device=self.device.torch_device
-            )
+            expected = torch.tensor(0, dtype=a.dtype.torch_type(), device=self.device.torch_device)
             self.assertTrue(torch.equal(res.larray, expected))
 
         # check exceptions

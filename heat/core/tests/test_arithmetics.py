@@ -569,14 +569,14 @@ class TestArithmetics(TestCase):
         no_axis_prod = shape_noaxis.prod()
 
         self.assertIsInstance(no_axis_prod, ht.DNDarray)
-        self.assertEqual(no_axis_prod.shape, (1,))
-        self.assertEqual(no_axis_prod.lshape, (1,))
+        self.assertEqual(no_axis_prod.shape, ())
+        self.assertEqual(no_axis_prod.lshape, ())
         self.assertEqual(no_axis_prod.dtype, ht.float32)
         self.assertEqual(no_axis_prod.larray.dtype, torch.float32)
         self.assertEqual(no_axis_prod.split, None)
         self.assertEqual(no_axis_prod.larray, 1)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.zeros(())
         ht.prod(shape_noaxis, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 1)
 
@@ -585,14 +585,14 @@ class TestArithmetics(TestCase):
         shape_noaxis_split_prod = shape_noaxis_split.prod()
 
         self.assertIsInstance(shape_noaxis_split_prod, ht.DNDarray)
-        self.assertEqual(shape_noaxis_split_prod.shape, (1,))
-        self.assertEqual(shape_noaxis_split_prod.lshape, (1,))
+        self.assertEqual(shape_noaxis_split_prod.shape, ())
+        self.assertEqual(shape_noaxis_split_prod.lshape, ())
         self.assertEqual(shape_noaxis_split_prod.dtype, ht.int64)
         self.assertEqual(shape_noaxis_split_prod.larray.dtype, torch.int64)
         self.assertEqual(shape_noaxis_split_prod.split, None)
         self.assertEqual(shape_noaxis_split_prod, 3628800)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.zeros(())
         ht.prod(shape_noaxis_split, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 3628800)
 
@@ -601,14 +601,14 @@ class TestArithmetics(TestCase):
         no_axis_prod = shape_noaxis.prod()
 
         self.assertIsInstance(no_axis_prod, ht.DNDarray)
-        self.assertEqual(no_axis_prod.shape, (1,))
-        self.assertEqual(no_axis_prod.lshape, (1,))
+        self.assertEqual(no_axis_prod.shape, ())
+        self.assertEqual(no_axis_prod.lshape, ())
         self.assertEqual(no_axis_prod.dtype, ht.float32)
         self.assertEqual(no_axis_prod.larray.dtype, torch.float32)
         self.assertEqual(no_axis_prod.split, None)
         self.assertEqual(no_axis_prod.larray, 134217728)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.zeros(())
         ht.prod(shape_noaxis, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 134217728)
 
@@ -710,14 +710,14 @@ class TestArithmetics(TestCase):
         no_axis_sum = shape_noaxis.sum()
 
         self.assertIsInstance(no_axis_sum, ht.DNDarray)
-        self.assertEqual(no_axis_sum.shape, (1,))
-        self.assertEqual(no_axis_sum.lshape, (1,))
+        self.assertEqual(no_axis_sum.shape, ())
+        self.assertEqual(no_axis_sum.lshape, ())
         self.assertEqual(no_axis_sum.dtype, ht.float32)
         self.assertEqual(no_axis_sum.larray.dtype, torch.float32)
         self.assertEqual(no_axis_sum.split, None)
         self.assertEqual(no_axis_sum.larray, array_len)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.zeros(())
         ht.sum(shape_noaxis, out=out_noaxis)
         self.assertTrue(out_noaxis.larray == shape_noaxis.larray.sum())
 
@@ -726,14 +726,14 @@ class TestArithmetics(TestCase):
         shape_noaxis_split_sum = shape_noaxis_split.sum()
 
         self.assertIsInstance(shape_noaxis_split_sum, ht.DNDarray)
-        self.assertEqual(shape_noaxis_split_sum.shape, (1,))
-        self.assertEqual(shape_noaxis_split_sum.lshape, (1,))
+        self.assertEqual(shape_noaxis_split_sum.shape, ())
+        self.assertEqual(shape_noaxis_split_sum.lshape, ())
         self.assertEqual(shape_noaxis_split_sum.dtype, ht.int64)
         self.assertEqual(shape_noaxis_split_sum.larray.dtype, torch.int64)
         self.assertEqual(shape_noaxis_split_sum.split, None)
         self.assertEqual(shape_noaxis_split_sum, 55)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.zeros(())
         ht.sum(shape_noaxis_split, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 55)
 
@@ -742,14 +742,14 @@ class TestArithmetics(TestCase):
         no_axis_sum = shape_noaxis.sum()
 
         self.assertIsInstance(no_axis_sum, ht.DNDarray)
-        self.assertEqual(no_axis_sum.shape, (1,))
-        self.assertEqual(no_axis_sum.lshape, (1,))
+        self.assertEqual(no_axis_sum.shape, ())
+        self.assertEqual(no_axis_sum.lshape, ())
         self.assertEqual(no_axis_sum.dtype, ht.float32)
         self.assertEqual(no_axis_sum.larray.dtype, torch.float32)
         self.assertEqual(no_axis_sum.split, None)
         self.assertEqual(no_axis_sum.larray, 27)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.zeros(())
         ht.sum(shape_noaxis, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 27)
 
