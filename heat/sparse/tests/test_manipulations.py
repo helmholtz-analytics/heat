@@ -34,7 +34,6 @@ class TestManipulations(TestCase):
         )
 
     def test_to_sparse(self):
-        # Create a dense DNDarray
         arr = [[0, 0, 1, 0, 2], [0, 0, 0, 0, 0], [0, 3, 0, 0, 0], [4, 0, 0, 5, 0], [0, 0, 0, 0, 6]]
 
         A = ht.array(arr, split=0)
