@@ -38,7 +38,11 @@ class TestManipulations(TestCase):
 
         A = ht.array(arr, split=0)
         B = A.to_sparse()
-        self.assertTrue(A.larray.to_sparse_csr() == B.larray)
+        
+        dense_A = A.larray.to_dense()
+        dense_B = B.larray.to_dense()
+
+        self.assertTrue(torch.equal(dense_A, dense_B))
 
     def test_todense(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
