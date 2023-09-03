@@ -38,7 +38,7 @@ class TestManipulations(TestCase):
 
         A = ht.array(arr, split=0)
         B = A.to_sparse()
-        
+
         dense_A = A.larray.to_dense()
         dense_B = B.larray.to_dense()
 
