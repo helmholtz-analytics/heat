@@ -40,7 +40,6 @@ def to_sparse(array: DNDarray) -> DCSR_matrix:
     """
     array.balance_()
     result = sparse_csr_matrix(array.larray, is_split=array.split)
-    print(result)
     return result
 
 
