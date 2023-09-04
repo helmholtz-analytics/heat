@@ -51,7 +51,7 @@ class TestGaussianNB(TestCase):
         y_pred_local = local_fit_no_classes.predict(X_test)
         y_pred_proba_local = local_fit.predict_proba(X_test)
         sklearn_class_prior = np.array([0.38666667, 0.26666667, 0.34666667])
-        sklearn_epsilon = np.array([3.6399040000000003e-09])
+        sklearn_epsilon = np.array(3.6399040000000003e-09)
         sklearn_theta = ht.array(
             [
                 [4.97586207, 3.35862069, 1.44827586, 0.23448276],
