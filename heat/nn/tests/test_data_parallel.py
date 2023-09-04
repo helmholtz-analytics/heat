@@ -76,7 +76,7 @@ class TestDataParallel(unittest.TestCase):
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=True
         )
-        if str(ht.get_device())[:3] == "gpu":
+        if str(ht.get_device()).startswith("gpu"):
             ht_model.to(ht.get_device().torch_device)
         lim = 1e-4
 
@@ -106,7 +106,7 @@ class TestDataParallel(unittest.TestCase):
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=False
         )
-        if str(ht.get_device())[:3] == "gpu":
+        if str(ht.get_device()).startswith("gpu"):
             ht_model.to(ht.get_device().torch_device)
 
         with self.assertRaises(TypeError):
@@ -137,7 +137,7 @@ class TestDataParallel(unittest.TestCase):
         ht_model = ht.nn.DataParallel(
             model, data.comm, dp_optimizer, blocking_parameter_updates=False
         )
-        if str(ht.get_device())[:3] == "gpu":
+        if str(ht.get_device()).startswith("gpu"):
             ht_model.to(ht.get_device().torch_device)
 
         for _ in range(2):
