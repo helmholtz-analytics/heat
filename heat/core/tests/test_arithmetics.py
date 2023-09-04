@@ -595,14 +595,14 @@ class TestArithmetics(TestCase):
         no_axis_nanprod = ht.nanprod(shape_noaxis)
 
         self.assertIsInstance(no_axis_nanprod, ht.DNDarray)
-        self.assertEqual(no_axis_nanprod.shape, (1,))
-        self.assertEqual(no_axis_nanprod.lshape, (1,))
+        self.assertEqual(no_axis_nanprod.shape, tuple())
+        self.assertEqual(no_axis_nanprod.lshape, tuple())
         self.assertEqual(no_axis_nanprod.dtype, ht.float32)
         self.assertEqual(no_axis_nanprod.larray.dtype, torch.float32)
         self.assertEqual(no_axis_nanprod.split, None)
         self.assertEqual(no_axis_nanprod.larray, 0)
 
-        out_noaxis = ht.ones((1,))
+        out_noaxis = ht.array(1, dtype=shape_noaxis.dtype)
         ht.nanprod(shape_noaxis, out=out_noaxis)
         self.assertTrue(out_noaxis.larray == shape_noaxis.larray.nan_to_num().prod())
 
@@ -612,15 +612,14 @@ class TestArithmetics(TestCase):
         shape_noaxis_split_nanprod = ht.nanprod(shape_noaxis_split)
 
         self.assertIsInstance(shape_noaxis_split_nanprod, ht.DNDarray)
-        self.assertEqual(shape_noaxis_split_nanprod.shape, (1,))
-        self.assertEqual(shape_noaxis_split_nanprod.lshape, (1,))
+        self.assertEqual(shape_noaxis_split_nanprod.shape, tuple())
+        self.assertEqual(shape_noaxis_split_nanprod.lshape, tuple())
         self.assertEqual(shape_noaxis_split_nanprod.dtype, ht.float32)
         self.assertEqual(shape_noaxis_split_nanprod.larray.dtype, torch.float32)
         self.assertEqual(shape_noaxis_split_nanprod.split, None)
-        print(shape_noaxis_split_nanprod.larray)
         self.assertEqual(shape_noaxis_split_nanprod, np.math.factorial(10))
 
-        out_noaxis = ht.ones((1,))
+        out_noaxis = ht.array(1, dtype=shape_noaxis_split.dtype)
         ht.nanprod(shape_noaxis_split, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, np.math.factorial(10))
 
@@ -633,14 +632,14 @@ class TestArithmetics(TestCase):
         no_axis_nansum = ht.nansum(shape_noaxis)
 
         self.assertIsInstance(no_axis_nansum, ht.DNDarray)
-        self.assertEqual(no_axis_nansum.shape, (1,))
-        self.assertEqual(no_axis_nansum.lshape, (1,))
+        self.assertEqual(no_axis_nansum.shape, tuple())
+        self.assertEqual(no_axis_nansum.lshape, tuple())
         self.assertEqual(no_axis_nansum.dtype, ht.float32)
         self.assertEqual(no_axis_nansum.larray.dtype, torch.float32)
         self.assertEqual(no_axis_nansum.split, None)
         self.assertEqual(no_axis_nansum.larray, array_len - 1)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.array(0, dtype=shape_noaxis.dtype)
         ht.nansum(shape_noaxis, out=out_noaxis)
         self.assertTrue(out_noaxis.larray == shape_noaxis.larray.nansum())
 
@@ -650,14 +649,14 @@ class TestArithmetics(TestCase):
         shape_noaxis_split_nansum = ht.nansum(shape_noaxis_split)
 
         self.assertIsInstance(shape_noaxis_split_nansum, ht.DNDarray)
-        self.assertEqual(shape_noaxis_split_nansum.shape, (1,))
-        self.assertEqual(shape_noaxis_split_nansum.lshape, (1,))
+        self.assertEqual(shape_noaxis_split_nansum.shape, tuple())
+        self.assertEqual(shape_noaxis_split_nansum.lshape, tuple())
         self.assertEqual(shape_noaxis_split_nansum.dtype, ht.float32)
         self.assertEqual(shape_noaxis_split_nansum.larray.dtype, torch.float32)
         self.assertEqual(shape_noaxis_split_nansum.split, None)
         self.assertEqual(shape_noaxis_split_nansum, 55)
 
-        out_noaxis = ht.zeros((1,))
+        out_noaxis = ht.array(0, dtype=shape_noaxis_split.dtype)
         ht.nansum(shape_noaxis_split, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 55)
 
