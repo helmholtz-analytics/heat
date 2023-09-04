@@ -5,41 +5,42 @@ import heat as ht
 from .test_suites.basic_test import TestCase
 
 
-# class TestRandom(TestCase):
-#     def test_normal(self):
-#         shape = (3, 4, 6)
-#         ht.random.seed(2)
-#         gnormal = ht.random.normal(shape=shape, split=2)
-#         ht.random.seed(2)
-#         snormal = ht.random.randn(*shape, split=2)
+class TestRandom(TestCase):
+    def test_normal(self):
+        shape = (3, 4, 6)
+        ht.random.seed(2)
+        gnormal = ht.random.normal(shape=shape, split=2)
+        ht.random.seed(2)
+        snormal = ht.random.randn(*shape, split=2)
 
-#         self.assertEqual(gnormal.dtype, snormal.dtype)
-#         self.assertEqual(gnormal.shape, snormal.shape)
-#         self.assertEqual(gnormal.device, snormal.device)
-#         self.assertTrue(ht.equal(gnormal, snormal))
+        self.assertEqual(gnormal.dtype, snormal.dtype)
+        self.assertEqual(gnormal.shape, snormal.shape)
+        self.assertEqual(gnormal.device, snormal.device)
+        self.assertTrue(ht.equal(gnormal, snormal))
 
-#         shape = (2, 2)
-#         mu = ht.array([[-1, -0.5], [0, 5]])
-#         sigma = ht.array([[0, 0.5], [1, 2.5]])
+        shape = (2, 2)
+        mu = ht.array([[-1, -0.5], [0, 5]])
+        sigma = ht.array([[0, 0.5], [1, 2.5]])
 
-#         ht.random.seed(22)
-#         gnormal = ht.random.normal(mu, sigma, shape)
-#         ht.random.seed(22)
-#         snormal = ht.random.randn(*shape)
+        ht.random.seed(22)
+        gnormal = ht.random.normal(mu, sigma, shape)
+        ht.random.seed(22)
+        snormal = ht.random.randn(*shape)
 
-#         compare = mu + sigma * snormal
+        compare = mu + sigma * snormal
 
-#         self.assertEqual(gnormal.dtype, compare.dtype)
-#         self.assertEqual(gnormal.shape, compare.shape)
-#         self.assertEqual(gnormal.device, compare.device)
-#         self.assertTrue(ht.equal(gnormal, compare))
+        self.assertEqual(gnormal.dtype, compare.dtype)
+        self.assertEqual(gnormal.shape, compare.shape)
+        self.assertEqual(gnormal.device, compare.device)
+        self.assertTrue(ht.equal(gnormal, compare))
 
-#         with self.assertRaises(TypeError):
-#             ht.random.normal([4, 5], 1, shape)
-#         with self.assertRaises(TypeError):
-#             ht.random.normal(0, "r", shape)
-#         with self.assertRaises(ValueError):
-#             ht.random.normal(0, -1, shape)
+        with self.assertRaises(TypeError):
+            ht.random.normal([4, 5], 1, shape)
+        with self.assertRaises(TypeError):
+            ht.random.normal(0, "r", shape)
+        with self.assertRaises(ValueError):
+            ht.random.normal(0, -1, shape)
+
 
 #     def test_permutation(self):
 #         # Reset RNG
