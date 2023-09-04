@@ -34,7 +34,7 @@ except ImportError:
     # HDF5 support is optional
     def supports_hdf5() -> bool:
         """
-        Returns ``True`` if HeAT supports reading from and writing to HDF5 files, ``False`` otherwise.
+        Returns ``True`` if Heat supports reading from and writing to HDF5 files, ``False`` otherwise.
         """
         return False
 
@@ -50,7 +50,7 @@ else:
 
     def supports_hdf5() -> bool:
         """
-        Returns ``True`` if HeAT supports reading from and writing to HDF5 files, ``False`` otherwise.
+        Returns ``True`` if Heat supports reading from and writing to HDF5 files, ``False`` otherwise.
         """
         return True
 
@@ -58,7 +58,7 @@ else:
         path: str,
         dataset: str,
         dtype: datatype = types.float32,
-        load_fraction: Optional[float] = None,
+        load_fraction: float = 1.0,
         split: Optional[int] = None,
         device: Optional[str] = None,
         comm: Optional[Communication] = None,
@@ -74,9 +74,10 @@ else:
             Name of the dataset to be read.
         dtype : datatype, optional
             Data type of the resulting array.
-        load_fraction : float (between 0. and 1.) or None, optional
-            if None (default), the whole dataset is loaded from the file specified in path
-            if float, the dataset is loaded partially, with the fraction of the dataset (along the split axis) specified by load_fraction
+        load_fraction : float (between 0. and 1.), default is 1.
+            if 1. (default), the whole dataset is loaded from the file specified in path
+            else, the dataset is loaded partially, with the fraction of the dataset (along the split axis) specified by load_fraction
+            If split is None, load_fraction is automatically set to 1., i.e. the whole dataset is loaded.
         split : int or None, optional
             The axis along which the data is distributed among the processing cores.
         device : str, optional
@@ -112,12 +113,14 @@ else:
             raise TypeError("dataset must be str, not {}".format(type(dataset)))
         elif split is not None and not isinstance(split, int):
             raise TypeError(f"split must be None or int, not {type(split)}")
-        if load_fraction is not None:
+        if split is None:
+            load_fraction = 1.0  # if no split is set, load the whole dataset
+        else:
             if isinstance(load_fraction, float):
                 if load_fraction <= 0.0 or load_fraction >= 1.0:
-                    raise ValueError("load_fraction must be strictly between 0. and 1.")
-                if split is None:
-                    raise ValueError("load_fraction can only be used if split is not None.")
+                    raise ValueError(
+                        f"load_fraction must be strictly between 0. and 1., but is {load_fraction}."
+                    )
             else:
                 raise TypeError(
                     f"load_fraction must be None or float, but is {type(load_fraction)}"
@@ -133,10 +136,9 @@ else:
         with h5py.File(path, "r") as handle:
             data = handle[dataset]
             gshape = data.shape
-            if load_fraction is not None:
-                gshape = np.array(gshape)
-                gshape[split] = int(gshape[split] * load_fraction)
-                gshape = tuple(gshape)
+            gshape = np.array(gshape)
+            gshape[split] = int(gshape[split] * load_fraction)
+            gshape = tuple(gshape)
             dims = len(gshape)
             split = sanitize_axis(gshape, split)
             _, _, indices = comm.chunk(gshape, split)
@@ -253,7 +255,7 @@ except ImportError:
     # netCDF4 support is optional
     def supports_netcdf() -> bool:
         """
-        Returns ``True`` if HeAT supports reading from and writing to netCDF4 files, ``False`` otherwise.
+        Returns ``True`` if Heat supports reading from and writing to netCDF4 files, ``False`` otherwise.
         """
         return False
 
@@ -277,7 +279,7 @@ else:
 
     def supports_netcdf() -> bool:
         """
-        Returns ``True`` if HeAT supports reading from and writing to netCDF4 files, ``False`` otherwise.
+        Returns ``True`` if Heat supports reading from and writing to netCDF4 files, ``False`` otherwise.
         """
         return True
 

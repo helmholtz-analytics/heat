@@ -12,7 +12,7 @@ self = TypeVar("self")
 
 class BaseEstimator:
     """
-    Abstract base class for all estimators, i.e. parametrized analysis algorithms, in HeAT. Can be used as mixin.
+    Abstract base class for all estimators, i.e. parametrized analysis algorithms, in Heat. Can be used as mixin.
     """
 
     @classmethod
@@ -95,7 +95,7 @@ class BaseEstimator:
 
 class ClassificationMixin:
     """
-    Mixin for all classifiers in HeAT.
+    Mixin for all classifiers in Heat.
     """
 
     def fit(self, x: DNDarray, y: DNDarray):
@@ -142,7 +142,7 @@ class ClassificationMixin:
 
 class TransformMixin:
     """
-    Mixin for all transformations in HeAT.
+    Mixin for all transformations in Heat.
     """
 
     def fit(self, x: DNDarray):
@@ -183,7 +183,7 @@ class TransformMixin:
 
 class ClusteringMixin:
     """
-    Clustering mixin for all clusterers in HeAT.
+    Clustering mixin for all clusterers in Heat.
     """
 
     def fit(self, x: DNDarray):
@@ -214,7 +214,7 @@ class ClusteringMixin:
 
 class RegressionMixin:
     """
-    Mixin for all regression estimators in HeAT.
+    Mixin for all regression estimators in Heat.
     """
 
     def fit(self, x: DNDarray, y: DNDarray):

@@ -11,15 +11,13 @@ atol_inv = 1e-5
 
 
 # generates a test data set with varying mean and variation per feature; variances of the two last features are zero, mean of the last feature is also zero, whereas mean of second last feature is nonzero.
-def _generate_test_data_set(no_data_points, no_of_features, split, dtype=ht.float32):
-    mu = ht.arange(0, no_of_features)
+def _generate_test_data_set(n_data_points, n_features, split, dtype=ht.float32):
+    mu = ht.arange(0, n_features)
     mu[-1] = 1e-12
-    sigma = ht.arange(no_of_features - 1, -1, -1)
+    sigma = ht.arange(n_features - 1, -1, -1)
     sigma[-1] = 1e-9
     sigma[-2] = 1e-9
-    return ht.random.normal(
-        mu, sigma, shape=(no_data_points, no_of_features), split=split, dtype=dtype
-    )
+    return ht.random.normal(mu, sigma, shape=(n_data_points, n_features), split=split, dtype=dtype)
 
 
 class TestStandardScaler(TestCase):
