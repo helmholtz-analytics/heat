@@ -104,7 +104,7 @@ def broadcast_shapes(*shapes: Tuple[int, ...]) -> Tuple[int, ...]:
     try:
         resulting_shape = torch.broadcast_shapes(*shapes)
     except AttributeError:  # torch < 1.8
-        it = itertools.zip_longest(*shapes[::-1], fillvalue=1)  # Use zip_longest with fillvalue=1
+        it = itertools.zip_longest(*shapes[::-1], fillvalue=1)
         resulting_shape = max(len(shape) for shape in shapes) * [None]
         for i, values in enumerate(it):
             # if any value is 0, or if there is a mix of 1s and non-1s
