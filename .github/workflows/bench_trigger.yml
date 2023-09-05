@@ -15,7 +15,14 @@ jobs:
         id: setup_pr
         if: contains(github.event.pull_request.labels.*.name, 'benchmark PR')
         run: |
-          curl -s -X POST --fail -F token=${{ secrets.BENCH_PIPE_TRIGGER }} -F "ref=main" -F "variables[PR]=${{ github.event.pull_request.number }}" -F "variables[BRANCH]=${{ github.base_ref }}" -F "variables[SHA]=$GITHUB_SHA" https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
+          curl -s -X POST \
+            --fail \
+            -F token=${{ secrets.BENCH_PIPE_TRIGGER }} \
+            -F "ref=main" \
+            -F "variables[SHA]=$GITHUB_SHA" \
+            -F "variables[BRANCH]=${{ github.base_ref }}" \
+            -F "variables[PR]=${{ github.event.pull_request.number }}" \
+            https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
       - name: Trigger benchmarks (Push main)
         id: setup_push
         if: ${{ github.event_name == 'push' }}
