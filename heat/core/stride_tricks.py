@@ -66,6 +66,7 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
 
     return tuple(resulting_shape)
 
+
 def broadcast_shapes(*shapes: Tuple[int, ...]) -> Tuple[int, ...]:
     """
     Infers, if possible, the broadcast output shape of multiple operands.
@@ -108,7 +109,9 @@ def broadcast_shapes(*shapes: Tuple[int, ...]) -> Tuple[int, ...]:
         resulting_shape = max(len(shape) for shape in shapes) * [None]
         for i, values in enumerate(it):
             # if any value is 0, or if there is a mix of 1s and non-1s
-            if any(val == 0 for val in values) or any(val != 1 and val != values[0] for val in values):
+            if any(val == 0 for val in values) or any(
+                val != 1 and val != values[0] for val in values
+            ):
                 raise ValueError(f"operands could not be broadcast, input shapes {shapes}")
             else:
                 resulting_shape[i] = max(values)
@@ -119,6 +122,7 @@ def broadcast_shapes(*shapes: Tuple[int, ...]) -> Tuple[int, ...]:
         raise ValueError(f"operands could not be broadcast, input shapes {shapes}")
 
     return tuple(resulting_shape)
+
 
 def sanitize_axis(
     shape: Tuple[int, ...], axis: Union[int, None, Tuple[int, ...]]

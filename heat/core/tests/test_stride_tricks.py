@@ -31,7 +31,7 @@ class TestStrideTricks(TestCase):
             ht.core.stride_tricks.broadcast_shapes((8, 1, 6, 1), (7, 1, 5)), (8, 7, 6, 5)
         )
         self.assertEqual(
-        ht.core.stride_tricks.broadcast_shapes((6, 7), (5, 6, 1), (7,), (5, 1, 7)), (5, 6, 7)
+            ht.core.stride_tricks.broadcast_shapes((6, 7), (5, 6, 1), (7,), (5, 1, 7)), (5, 6, 7)
         )
 
         # invalid value ranges
@@ -43,7 +43,6 @@ class TestStrideTricks(TestCase):
             ht.core.stride_tricks.broadcast_shapes((5, 2), (5, 2, 3))
         with self.assertRaises(ValueError):
             ht.core.stride_tricks.broadcast_shapes((2, 1), (8, 4, 3))
-
 
     def test_sanitize_axis(self):
         self.assertEqual(ht.core.stride_tricks.sanitize_axis((5, 4, 4), 1), 1)
