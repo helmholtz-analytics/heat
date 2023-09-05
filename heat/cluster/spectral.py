@@ -116,7 +116,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
 
         """
         L = self._laplacian.construct(x)
-        print(f"laplacian: {L}")
+        # print(f"laplacian: {L}")
         # 3. Eigenvalue and -vector calculation via Lanczos Algorithm
         v0 = ht.full(
             (L.shape[0],),
@@ -126,7 +126,7 @@ class Spectral(ht.ClusteringMixin, ht.BaseEstimator):
             device=L.device,
         )
         V, T = ht.lanczos(L, self.n_lanczos, v0)
-        print(f"T: {T}")
+        # print(f"T: {T}")
 
         # if int(torch.__version__.split(".")[1]) >= 9:
         try:
