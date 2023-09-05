@@ -1519,8 +1519,8 @@ class MPICommunication(Communication):
         send_counts, send_displs, recv_counts, recv_displs = None, None, None, None
 
         # unpack the send buffer
-        if isinstance(sendbuf, tuple):
-            sendbuf, send_counts, send_displs = sendbuf
+        # if isinstance(sendbuf, tuple):
+        #     sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
@@ -1531,8 +1531,8 @@ class MPICommunication(Communication):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
-        if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError(f"recvbuf of type {type(recvbuf)} does not support send_axis != 0")
+        if not isinstance(recvbuf, torch.Tensor) and recv_axis != 0:
+            raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
@@ -1769,12 +1769,12 @@ class MPICommunication(Communication):
             raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
 
         # unpack the receive buffer
-        if isinstance(recvbuf, tuple):
-            recvbuf, recv_counts, recv_displs = recvbuf
+        # if isinstance(recvbuf, tuple):
+        #     recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
-        if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError(f"recvbuf of type {type(recvbuf)} does not support send_axis != 0")
+        if not isinstance(recvbuf, torch.Tensor) and recv_axis != 0:
+            raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
