@@ -17,9 +17,10 @@ jobs:
       - name: "Download artifact"
         run: |
           curl --location \
-          --header "PRIVATE-TOKEN: ${{ secrets.GITLAB_TOKEN }}" \
+          --header "PRIVATE-TOKEN: ${{ secrets.GITLAB_CB_API_TOKEN }}" \
           --output benchmarks.json \
           "https://codebase.helmholtz.cloud/api/v4/projects/7930/jobs/${{ inputs.job_id }}/artifacts/heat/bench_data/benchmarks.json"
+          cat benchmarks.json
       - name: Save benchmark result and update gh-pages-chart
         if: ${{github.ref == 'refs/heads/main'}}
         uses: benchmark-action/github-action-benchmark@v1
