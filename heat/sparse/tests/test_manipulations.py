@@ -39,10 +39,24 @@ class TestManipulations(TestCase):
         A = ht.array(arr, split=0)
         B = A.to_sparse()
 
-        dense_A = A.larray.to_dense()
-        dense_B = B.larray.to_dense()
+        indptr_B = [0, 2, 2, 3, 5, 6]
+        indices_B = [2, 4, 1, 0, 3, 4]
+        data_B = [1, 2, 3, 4, 5, 6]
 
-        self.assertTrue(torch.equal(dense_A, dense_B))
+        self.assertIsInstance(B, ht.sparse.DCSR_matrix)
+        self.assertTrue(
+            (B.indptr == torch.tensor(indptr_B, device=self.device.torch_device)).all()
+        )
+        self.assertTrue(
+            (B.indices == torch.tensor(indices_B, device=self.device.torch_device)).all()
+        )
+        self.assertTrue(
+            (B.data == torch.tensor(data_B, device=self.device.torch_device)).all()
+        )
+        self.assertEqual(B.nnz, len(data_B))
+        self.assertEqual(B.split, 0)
+        self.assertEqual(B.shape, A.shape)
+        self.assertEqual(B.dtype, A.dtype)
 
     def test_todense(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
