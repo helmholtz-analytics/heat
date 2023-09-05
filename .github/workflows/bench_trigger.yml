@@ -25,5 +25,5 @@ jobs:
             -F "token=${{ secrets.BENCH_PIPE_TRIGGER }}" \
             -F "ref=main" \
             -F "variables[SHA]=$GITHUB_SHA" \
-            -F "variables[BRANCH]=${{ github.base_ref }}"
+            -F "variables[BRANCH]=${{ github.base_ref }}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
