@@ -31,6 +31,7 @@ jobs:
           # Alert configuration
           fail-on-alert: true # Don't fail on main branch
           comment-on-alert: true
+          summary-on-alert: true
           # Save benchmarks from the main branch
           save-data-file: true
           # Pages configuration
@@ -44,7 +45,7 @@ jobs:
           github-token: ${{secrets.GITHUB_TOKEN}}
           # Benchmark action input and output
           tool: 'customSmallerIsBetter'
-          output-file-path: perun_benchmarks.json
+          output-file-path: benchmarks.json
           # Alert configuration
           fail-on-alert: true
           comment-on-alert: true
