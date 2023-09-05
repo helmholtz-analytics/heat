@@ -44,15 +44,11 @@ class TestManipulations(TestCase):
         data_B = [1, 2, 3, 4, 5, 6]
 
         self.assertIsInstance(B, ht.sparse.DCSR_matrix)
-        self.assertTrue(
-            (B.indptr == torch.tensor(indptr_B, device=self.device.torch_device)).all()
-        )
+        self.assertTrue((B.indptr == torch.tensor(indptr_B, device=self.device.torch_device)).all())
         self.assertTrue(
             (B.indices == torch.tensor(indices_B, device=self.device.torch_device)).all()
         )
-        self.assertTrue(
-            (B.data == torch.tensor(data_B, device=self.device.torch_device)).all()
-        )
+        self.assertTrue((B.data == torch.tensor(data_B, device=self.device.torch_device)).all())
         self.assertEqual(B.nnz, len(data_B))
         self.assertEqual(B.split, 0)
         self.assertEqual(B.shape, A.shape)
