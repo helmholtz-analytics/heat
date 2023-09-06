@@ -6,6 +6,10 @@ on:
         description: "Gitlab job id"
         required: true
         type: string
+      author:
+        description: "Commit author"
+        required: true
+        type: string
 
 jobs:
   bench_report:
@@ -32,6 +36,7 @@ jobs:
           # Alert configuration
           fail-on-alert: true # Don't fail on main branch
           comment-on-alert: true
+          alert-comment-cc-users: ${{ inputs.author }}
           summary-always: true
           # Save benchmarks from the main branch
           save-data-file: true
@@ -50,6 +55,7 @@ jobs:
           # Alert configuration
           fail-on-alert: true
           comment-on-alert: true
+          alert-comment-cc-users: ${{ inputs.author }}
           summary-always: true
           # Ignore results from non main branches.
           save-data-file: false
