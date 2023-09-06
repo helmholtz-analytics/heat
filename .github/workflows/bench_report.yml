@@ -62,5 +62,4 @@ jobs:
           # Pages configuration
           auto-push: false
           gh-pages-branch: gh-pages
-          skip-fetch-gh-pages: true
           benchmark-data-dir-path: dev/bench
