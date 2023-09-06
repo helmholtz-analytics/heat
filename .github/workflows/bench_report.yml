@@ -56,5 +56,5 @@ jobs:
           conclusion: ${{ job.status }}
           details_url: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines
           output: |
-            {"title": "${{ github.ref }} Benchmarking results"}
+            {"title": "${{ github.ref }} Benchmarking results", "summary": "Heat benchmark results obtained from gitlab and perun"}
           output_text_description_file: report.txt
