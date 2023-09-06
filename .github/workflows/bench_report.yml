@@ -37,7 +37,7 @@ jobs:
           fail-on-alert: true # Don't fail on main branch
           comment-on-alert: true
           alert-comment-cc-users: ${{ format('@{0}', inputs.author) }}
-          summary-always: true
+          summary-always: false
           # Save benchmarks from the main branch
           save-data-file: true
           # Pages configuration
