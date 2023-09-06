@@ -48,15 +48,10 @@ jobs:
           auto-push: ${{ github.ref == 'refs/heads/main' }}
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
-      - uses: tibdex/github-app-token@v1
-        id: get_installation_token
-        with:
-          app_id: 170284
-          private_key: ${{ secrets.GITHUB_TOKEN }}
       - uses: LouisBrunner/checks-action@v1.3.1
         if: always()
         with:
-          token: ${{ steps.get_installation_token.outputs.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           name: Running Benchmarks
           conclusion: ${{ job.status }}
           details_url: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines
