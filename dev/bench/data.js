@@ -56,7 +56,7 @@ window.BENCHMARK_DATA = {
             "range": 0.0668589398264885
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.9952268600463867,
             "unit": "s",
             "range": 0.05162478983402252
@@ -128,7 +128,7 @@ window.BENCHMARK_DATA = {
             "range": 0.11195642501115799
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 1.1880028247833252,
             "unit": "s",
             "range": 0.11158335208892822
@@ -200,7 +200,7 @@ window.BENCHMARK_DATA = {
             "range": 0.06596166640520096
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.7841414213180542,
             "unit": "s",
             "range": 0.08697084337472916
@@ -272,7 +272,7 @@ window.BENCHMARK_DATA = {
             "range": 0.06730403751134872
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.7945326566696167,
             "unit": "s",
             "range": 0.05571514740586281
@@ -344,7 +344,7 @@ window.BENCHMARK_DATA = {
             "range": 0.06511379033327103
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.8347999453544617,
             "unit": "s",
             "range": 0.026931846514344215
@@ -416,7 +416,7 @@ window.BENCHMARK_DATA = {
             "range": 0.06195865571498871
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 1.0053038597106934,
             "unit": "s",
             "range": 0.05874303728342056
@@ -488,7 +488,7 @@ window.BENCHMARK_DATA = {
             "range": 0.05460250750184059
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.8126780390739441,
             "unit": "s",
             "range": 0.048105787485837936
@@ -560,7 +560,7 @@ window.BENCHMARK_DATA = {
             "range": 0.038919467478990555
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.8794156908988953,
             "unit": "s",
             "range": 0.08604833483695984
@@ -644,7 +644,7 @@ window.BENCHMARK_DATA = {
             "range": 0.040488023310899734
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.8364278674125671,
             "unit": "s",
             "range": 0.052982114255428314
@@ -728,7 +728,7 @@ window.BENCHMARK_DATA = {
             "range": 0.08409810066223145
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 1.3107084035873413,
             "unit": "s",
             "range": 0.08187070488929749
@@ -812,7 +812,7 @@ window.BENCHMARK_DATA = {
             "range": 0.04742327332496643
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.842497706413269,
             "unit": "s",
             "range": 0.057537686079740524
@@ -896,7 +896,7 @@ window.BENCHMARK_DATA = {
             "range": 0.056772567331790924
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.9194231033325195,
             "unit": "s",
             "range": 0.06780950725078583
@@ -980,7 +980,7 @@ window.BENCHMARK_DATA = {
             "range": 0.0695384070277214
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.7703195214271545,
             "unit": "s",
             "range": 0.04877445101737976
@@ -1064,7 +1064,7 @@ window.BENCHMARK_DATA = {
             "range": 0.03930717706680298
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.8921969532966614,
             "unit": "s",
             "range": 0.05291367322206497
@@ -1148,7 +1148,7 @@ window.BENCHMARK_DATA = {
             "range": 0.08347979933023453
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 1.2928130626678467,
             "unit": "s",
             "range": 0.09839753806591034
@@ -1232,7 +1232,7 @@ window.BENCHMARK_DATA = {
             "range": 0.056673262268304825
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.8971904516220093,
             "unit": "s",
             "range": 0.06855850666761398
@@ -1316,7 +1316,7 @@ window.BENCHMARK_DATA = {
             "range": 0.04834107309579849
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.9679139852523804,
             "unit": "s",
             "range": 0.04410133883357048
@@ -1400,7 +1400,7 @@ window.BENCHMARK_DATA = {
             "range": 0.04033607244491577
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.9164949655532837,
             "unit": "s",
             "range": 0.07127095013856888
@@ -1484,7 +1484,7 @@ window.BENCHMARK_DATA = {
             "range": 0.05254720523953438
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.9881324768066406,
             "unit": "s",
             "range": 0.04088718816637993
@@ -1568,7 +1568,7 @@ window.BENCHMARK_DATA = {
             "range": 0.04583846777677536
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 1.1569578647613525,
             "unit": "s",
             "range": 0.06399905681610107
@@ -1652,7 +1652,7 @@ window.BENCHMARK_DATA = {
             "range": 0.08655709028244019
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 1.3259118795394897,
             "unit": "s",
             "range": 0.08576948195695877
@@ -1736,7 +1736,7 @@ window.BENCHMARK_DATA = {
             "range": 0.07045251131057739
           },
           {
-            "name": "matmul_cpu_split_1_N4 - RUNTIME",
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
             "value": 0.8904763460159302,
             "unit": "s",
             "range": 0.05301974341273308
