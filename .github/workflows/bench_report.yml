@@ -18,14 +18,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: "Download artifact"
+      - name: "Collect Gitlab Benchmarks"
         run: |
           curl --location \
           --header "PRIVATE-TOKEN: ${{ secrets.GITLAB_CB_API_TOKEN }}" \
           --output benchmarks.json \
           "https://codebase.helmholtz.cloud/api/v4/projects/7930/jobs/${{ inputs.job_id }}/artifacts/heat/bench_data/benchmarks.json"
           cat benchmarks.json
-      - name: Save benchmark result and update gh-pages-chart
+          curl --location \
+          --header "PRIVATE-TOKEN: ${{ secrets.GITLAB_CB_API_TOKEN }}" \
+          --output report.txt \
+          "https://codebase.helmholtz.cloud/api/v4/projects/7930/jobs/${{ inputs.job_id }}/artifacts/heat/bench_data/report.txt"
+          cat report.txt
+      - name: Compare and Save Benchmark Results
         if: ${{github.ref == 'refs/heads/main'}}
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -37,29 +42,19 @@ jobs:
           fail-on-alert: true # Don't fail on main branch
           comment-on-alert: true
           alert-comment-cc-users: ${{ format('@{0}', inputs.author) }}
-          summary-always: false
           # Save benchmarks from the main branch
-          save-data-file: true
+          save-data-file: ${{ github.ref == 'refs/heads/main' }}
           # Pages configuration
-          auto-push: true
+          auto-push: ${{ github.ref == 'refs/heads/main' }}
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
-      - name: Compare benchmark result
-        if: ${{github.ref != 'refs/heads/main'}}
-        uses: benchmark-action/github-action-benchmark@v1
+      - uses: LouisBrunner/checks-action@v1.3.1
+        if: always()
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          # Benchmark action input and output
-          tool: 'customSmallerIsBetter'
-          output-file-path: benchmarks.json
-          # Alert configuration
-          fail-on-alert: true
-          comment-on-alert: true
-          alert-comment-cc-users: ${{ format('@{0}', inputs.author) }}
-          summary-always: false
-          # Ignore results from non main branches.
-          save-data-file: false
-          # Pages configuration
-          auto-push: false
-          gh-pages-branch: gh-pages
-          benchmark-data-dir-path: dev/bench
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: Running Benchmarks
+          conclusion: ${{ job.status }}
+          details_url: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines
+          output: |
+            {"title": "${{ github.ref }} Benchmarking results"}
+          output_text_description_file: report.txt

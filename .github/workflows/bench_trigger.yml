@@ -36,3 +36,10 @@ jobs:
             -F "variables[BRANCH]=${{ github.base_ref }}" \
             -F "variables[AUTHOR]=${{ github.event.pull_request.head.user.login }}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
+      - name: Create pending check
+        uses: LouisBrunner/checks-action@v1.6.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: Running Benchmarks
+          status: in_progress
+          details_url: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines
