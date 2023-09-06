@@ -54,9 +54,9 @@ jobs:
           output-file-path: benchmarks.json
           # Alert configuration
           fail-on-alert: true
-          comment-on-alert: false
+          comment-on-alert: true
           alert-comment-cc-users: ${{ format('@{0}', inputs.author) }}
-          summary-always: true
+          summary-always: false
           # Ignore results from non main branches.
           save-data-file: false
           # Pages configuration
