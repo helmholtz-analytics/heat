@@ -344,12 +344,13 @@ def scalar_to_1d(x: DNDarray) -> DNDarray:
         with `x.ndim = 0`
     """
     if x.ndim != 0:
+       if x.ndim == 1 and x.gnumel() == 1:
+          return x
         raise ValueError(
             "Input needs to be a scalar DNDarray,but was found to be {}d DNDarray".format(x.ndim)
         )
-    a = x.larray.unsqueeze(0)
     return DNDarray(
-        a,
+        x.larray.unsqueeze(0),
         gshape=(1,),
         dtype=x.dtype,
         split=None,
