@@ -104,16 +104,6 @@ def broadcast_shapes(*shapes: Tuple[int, ...]) -> Tuple[int, ...]:
     """
     try:
         resulting_shape = torch.broadcast_shapes(*shapes)
-    except AttributeError:  # torch < 1.8
-        it = itertools.zip_longest(*shapes[::-1], fillvalue=1)
-        resulting_shape = max(len(shape) for shape in shapes) * [None]
-        for i, values in enumerate(it):
-            # if any value is 0, or if there is a mix of 1s and non-1s
-            if any(val == 0 or (val != 1 and val != values[0]) for val in values):
-                raise ValueError(f"operands could not be broadcast, input shapes {shapes}")
-            else:
-                resulting_shape[i] = max(values)
-        return tuple(resulting_shape[::-1])
     except TypeError:
         raise TypeError(f"operands must be tuples of ints, not {shapes}")
     except RuntimeError:
