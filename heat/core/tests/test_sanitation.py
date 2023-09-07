@@ -55,7 +55,7 @@ class TestSanitation(TestCase):
         with self.assertRaises(ValueError):
             ht.scalar_to_1d(wrong_dim)
          ht_1d_scalar =  ht.array([8])
-         
+
         ht_1d = ht.scalar_to_1d(ht_scalar)
         self.assertTrue(ht_1d.ndim == 1)
         self.assertTrue(ht_1d.shape == (1,))
