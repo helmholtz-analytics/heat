@@ -516,13 +516,11 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
     x = sanitize_input_type(x, y)
     y = sanitize_input_type(y, x)
 
-    t1 = x
-    t2 = y
+    # Assign t1 and t2 with x and y, with t1 potentially representing the distributed operand (if x is distributed)
+    t1, t2 = x, y
 
-    # If either x or y is distributed, update t1 and t2 accordingly
-    if x.split is not None:
-        t1, t2 = x, y
-    elif y.split is not None:
+    #  If y is distributed, update t1 and t2 accordingly
+    if y.split is not None:
         t1, t2 = y, x
 
     return t1, t2
