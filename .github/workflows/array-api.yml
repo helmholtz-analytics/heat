@@ -169,4 +169,4 @@ jobs:
 
         EOF
 
-        pytest array-api-tests/array_api_tests -v -rxXfE --ci --disable-extension linalg
+        pytest array-api-tests/array_api_tests -v -rxXfE --ci --disable-extension linalg --skips-file skips.txt
