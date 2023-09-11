@@ -343,6 +343,18 @@ def scalar_to_1d(x: DNDarray) -> DNDarray:
     x : DNDarray
         with `x.ndim = 0`
     """
-    return factories.array(
-        x.larray.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm, device=x.device
+    if x.ndim != 0:
+        if x.ndim == 1 and x.gnumel == 1:
+            return x
+        raise ValueError(
+            "Input needs to be a scalar DNDarray,but was found to be {}d DNDarray".format(x.ndim)
+        )
+    return DNDarray(
+        x.larray.unsqueeze(0),
+        gshape=(1,),
+        dtype=x.dtype,
+        split=None,
+        comm=x.comm,
+        device=x.device,
+        balanced=True,
     )
