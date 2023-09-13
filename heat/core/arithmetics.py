@@ -13,6 +13,7 @@ from . import _operations
 from . import sanitation
 from . import stride_tricks
 from . import types
+from . import logical
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -31,6 +32,7 @@ __all__ = [
     "bitwise_not",
     "bitwise_or",
     "bitwise_xor",
+    "copysign",
     "cumprod",
     "cumproduct",
     "cumsum",
@@ -41,11 +43,17 @@ __all__ = [
     "floordiv",
     "floor_divide",
     "fmod",
+    "gcd",
+    "hypot",
     "invert",
+    "lcm",
     "left_shift",
     "mod",
     "mul",
     "multiply",
+    "nan_to_num",
+    "nanprod",
+    "nansum",
     "neg",
     "negative",
     "pos",
@@ -256,6 +264,49 @@ DNDarray.__rxor__ = lambda self, other: _xor(other, self)
 DNDarray.__rxor__.__doc__ = bitwise_xor.__doc__
 
 
+def copysign(
+    a: DNDarray,
+    b: Union[DNDarray, float, int],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: DNDarray = True,
+) -> DNDarray:
+    """
+    Create a new floating-point tensor with the magnitude of 'a' and the sign of 'b', elementwise
+
+    Parameters
+    ----------
+    a:     DNDarray
+           The input array
+    b:     DNDarray or Number
+           value(s) whose signbit(s) are applied to the magnitudes in 'a'
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the divided value. Elsewhere, the `out` array will retain its original value. If
+        an uninitialized `out` array is created via the default `out=None`, locations within it where the
+        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
+        if required) must match that of the `out` array.
+
+    Examples
+    --------
+    >>> ht.copysign(ht.array([3, 2, -8, -2, 4]), 1)
+    DNDarray([3, 2, 8, 2, 4], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.copysign(ht.array([3., 2., -8., -2., 4.]), ht.array([1., -1., 1., -1., 1.]))
+    DNDarray([ 3., -2.,  8., -2.,  4.], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    try:
+        res = _operations.__binary_op(torch.copysign, a, b, out, where)
+    except RuntimeError as e:
+        # every other possibility is caught by __binary_op
+        raise TypeError(f"Not implemented for input type, got {type(a)}, {type(b)}") from e
+
+    return res
+
+
 def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray:
     """
     Return the cumulative product of elements along a given axis.
@@ -464,7 +515,7 @@ def div(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
     out: Optional[DNDarray] = None,
-    where: Optional[DNDarray] = None,
+    where: DNDarray = True,
 ) -> DNDarray:
     """
     Element-wise true division of values of operand ``t1`` by values of operands ``t2`` (i.e ``t1/t2``).
@@ -636,6 +687,73 @@ floor_divide = floordiv
 """Alias for :py:func:`floordiv`"""
 
 
+def gcd(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where=True) -> DNDarray:
+    """
+    Returns the greatest common divisor of |a| and |b|
+
+    Parameters
+    ----------
+    a:   DNDarray
+         The first input array, must be of integer type
+    b:   DNDarray
+         the second input array, must be of integer type
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the divided value. Elsewhere, the `out` array will retain its original value. If
+        an uninitialized `out` array is created via the default `out=None`, locations within it where the
+        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
+        if required) must match that of the `out` array.
+    """
+    try:
+        res = _operations.__binary_op(torch.gcd, a, b, out, where)
+    except RuntimeError as e:
+        # every other possibility is caught by __binary_op
+        raise TypeError(f"Expected integer input, got {a.dtype}, {b.dtype}") from e
+
+    return res
+
+
+def hypot(
+    a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: DNDarray = True
+) -> DNDarray:
+    r"""
+    Given the 'legs' of a right triangle, return its hypotenuse. Equivalent to :math:`\sqrt{a^2 + b^2}`, element-wise.
+
+    Parameters
+    ----------
+    a:   DNDarray
+         The first input array
+    b:   DNDarray
+         the second input array
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the divided value. Elsewhere, the `out` array will retain its original value. If
+        an uninitialized `out` array is created via the default `out=None`, locations within it where the
+        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
+        if required) must match that of the `out` array.
+
+    Examples
+    --------
+    >>> a = a=ht.array([2.])
+    >>> b = b=ht.array([1.,3.,3.])
+    >>> ht.hypot(a,b)
+    DNDarray([2.2361, 3.6056, 3.6056], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    try:
+        res = _operations.__binary_op(torch.hypot, a, b, out, where)
+    except RuntimeError as e:
+        # every other possibility is caught by __binary_op
+        raise TypeError(f"Not implemented for array dtype, got {a.dtype}, {b.dtype}") from e
+
+    return res
+
+
 def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
     """
     Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray`. The input array must be of integral
@@ -671,7 +789,45 @@ bitwise_not = invert
 """Alias for :py:func:`invert`"""
 
 
-def left_shift(t1: DNDarray, t2: DNDarray) -> DNDarray:
+def lcm(
+    a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: DNDarray = True
+) -> DNDarray:
+    """
+    Returns the lowest common multiple of |a| and |b|
+
+    Parameters
+    ----------
+    a:   DNDarray
+         The first input array, must be of integer type
+    b:   DNDarray
+         the second input array, must be of integer type
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the divided value. Elsewhere, the `out` array will retain its original value. If
+        an uninitialized `out` array is created via the default `out=None`, locations within it where the
+        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
+        if required) must match that of the `out` array.
+
+    Examples
+    --------
+    >>> a = ht.array([6, 12, 15])
+    >>> b = ht.array([3, 4, 5])
+    >>> ht.lcm(a,b)
+    DNDarray([ 6, 12, 15], dtype=ht.int64, device=cpu:0, split=None)
+    """
+    try:
+        res = _operations.__binary_op(torch.lcm, a, b, out, where)
+    except RuntimeError as e:
+        # every other possibility is caught by __binary_op
+        raise TypeError(f"Expected integer input, got {a.dtype}, {b.dtype}") from e
+
+    return res
+
+
+def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Shift the bits of an integer to the left.
 
@@ -803,6 +959,131 @@ DNDarray.__rmul__.__doc__ = mul.__doc__
 # Alias in compliance with numpy API
 multiply = mul
 """Alias for :py:func:`mul`"""
+
+
+def nan_to_num(
+    a: DNDarray, nan: float = 0.0, posinf: float = None, neginf: float = None, out: DNDarray = None
+) -> DNDarray:
+    """
+    Replaces NaNs, positive infinity values, and negative infinity values in the input 'a' with the values specified by
+    nan, posinf, and neginf, respectively. By default, NaNs are replaced with zero, positive infinity is replaced with
+    the greatest finite value representable by input's dtype, and negative infinity is replaced with the least finite
+    value representable by input's dtype.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    nan : float, optional
+        Value to be used to replace NaNs. Default value is 0.0.
+    posinf : float, optional
+        Value to replace positive infinity values with. If None, positive infinity values are
+        replaced with the greatest finite value of the input's dtype. Default value is None.
+    neginf : float, optional
+        Value to replace negative infinity values with. If None, negative infinity values are
+        replaced with the greatest negative finite value of the input's dtype. Default value is None.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must have the same shape as the expected output, but
+        the datatype of the output values will be cast if necessary.
+
+    Examples
+    --------
+    >>> x = ht.array([float('nan'), float('inf'), -float('inf')])
+    >>> ht.nan_to_num(x)
+    DNDarray([ 0.0000e+00,  3.4028e+38, -3.4028e+38], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    return _operations.__local_op(
+        torch.nan_to_num, a, out=out, no_cast=True, nan=nan, posinf=posinf, neginf=neginf
+    )
+
+
+def nanprod(
+    a: DNDarray,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdims: bool = None,
+) -> DNDarray:
+    """
+    Return the product of array elements over a given axis treating Not a Numbers (NaNs) as one.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate the product of all the
+        elements in the input array. If axis is negative it counts from the last to the first axis.
+        If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a single
+        axis or all the axes as before.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must have the same shape as the expected output, but
+        the datatype of the output values will be cast if necessary.
+    keepdims : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
+        option, the result will broadcast correctly against the input array.
+
+    Examples
+    --------
+    >>> ht.nanprod(ht.array([4.,ht.nan]))
+    DNDarray([4.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.nanprod(ht.array([
+        [1.,ht.nan],
+        [3.,4.]]))
+    DNDarray([24.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.nanprod(ht.array([
+        [1.,ht.nan],
+        [ht.nan,4.]
+    ]), axis=1)
+    DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    b = nan_to_num(a, nan=1)
+
+    return _operations.__reduce_op(
+        b, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
+    )
+
+
+def nansum(
+    a: DNDarray,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdims: bool = None,
+) -> DNDarray:
+    """
+    Sum of array elements over a given axis treating Not a Numbers (NaNs) as zero. An array with the same shape
+    as ``self.__array`` except for the specified axis which becomes one, e.g.
+    ``a.shape=(1, 2, 3)`` => ``ht.ones((1, 2, 3)).sum(axis=1).shape=(1, 1, 3)``
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the elements of the input array.
+        If ``axis`` is negative it counts from the last to the first axis. If ``axis`` is a tuple of ints, a sum is performed
+        on all of the axes specified in the tuple instead of a single axis or all the axes as before.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must have the same shape as the expected output, but
+        the datatype of the output values will be cast if necessary.
+    keepdims : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
+        option, the result will broadcast correctly against the input array.
+
+    Examples
+    --------
+    >>> ht.sum(ht.ones(2))
+    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.sum(ht.ones((3,3)))
+    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.sum(ht.ones((3,3)).astype(ht.int))
+    DNDarray([9], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.sum(ht.ones((3,2,1)), axis=-3)
+    DNDarray([[3.],
+              [3.]], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    return _operations.__reduce_op(
+        a, torch.nansum, MPI.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
+    )
 
 
 def neg(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
@@ -957,6 +1238,54 @@ power = pow
 """Alias for :py:func:`pow`"""
 
 
+def prod(
+    a: DNDarray,
+    axis: Union[int, Tuple[int, ...]] = None,
+    out: DNDarray = None,
+    keepdims: bool = None,
+) -> DNDarray:
+    """
+    Return the product of array elements over a given axis in form of a DNDarray shaped as a but with the specified axis removed.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate the product of all the
+        elements in the input array. If axis is negative it counts from the last to the first axis.
+        If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a single
+        axis or all the axes as before.
+    out : DNDarray, optional
+        Alternative output array in which to place the result. It must have the same shape as the expected output, but
+        the datatype of the output values will be cast if necessary.
+    keepdims : bool, optional
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
+        option, the result will broadcast correctly against the input array.
+
+    Examples
+    --------
+    >>> ht.prod(ht.array([1.,2.]))
+    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.prod(ht.array([
+        [1.,2.],
+        [3.,4.]]))
+    DNDarray([24.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.prod(ht.array([
+        [1.,2.],
+        [3.,4.]
+    ]), axis=1)
+    DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    return _operations.__reduce_op(
+        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
+    )
+
+
+DNDarray.prod = lambda self, axis=None, out=None, keepdims=None: prod(self, axis, out, keepdims)
+DNDarray.prod.__doc__ = prod.__doc__
+
+
 def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. ``t1%t2``).
@@ -1024,54 +1353,6 @@ DNDarray.__rshift__ = _rshift
 DNDarray.__rshift__.__doc__ = right_shift.__doc__
 DNDarray.__rrshift__ = lambda self, other: _rshift(other, self)
 DNDarray.__rrshift__.__doc__ = right_shift.__doc__
-
-
-def prod(
-    a: DNDarray,
-    axis: Union[int, Tuple[int, ...]] = None,
-    out: DNDarray = None,
-    keepdims: bool = None,
-) -> DNDarray:
-    """
-    Return the product of array elements over a given axis in form of a DNDarray shaped as a but with the specified axis removed.
-
-    Parameters
-    ----------
-    a : DNDarray
-        Input array.
-    axis : None or int or Tuple[int,...], optional
-        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate the product of all the
-        elements in the input array. If axis is negative it counts from the last to the first axis.
-        If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a single
-        axis or all the axes as before.
-    out : DNDarray, optional
-        Alternative output array in which to place the result. It must have the same shape as the expected output, but
-        the datatype of the output values will be cast if necessary.
-    keepdims : bool, optional
-        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
-        option, the result will broadcast correctly against the input array.
-
-    Examples
-    --------
-    >>> ht.prod(ht.array([1.,2.]))
-    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.prod(ht.array([
-        [1.,2.],
-        [3.,4.]]))
-    DNDarray([24.], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.prod(ht.array([
-        [1.,2.],
-        [3.,4.]
-    ]), axis=1)
-    DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
-    """
-    return _operations.__reduce_op(
-        a, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
-    )
-
-
-DNDarray.prod = lambda self, axis=None, out=None, keepdims=None: prod(self, axis, out, keepdims)
-DNDarray.prod.__doc__ = prod.__doc__
 
 
 def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
