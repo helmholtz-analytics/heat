@@ -516,14 +516,20 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
     x = sanitize_input_type(x, y)
     y = sanitize_input_type(y, x)
 
-    # Assign t1 and t2 with x and y, with t1 potentially representing the distributed operand (if x is distributed)
-    t1, t2 = x, y
+    # if one of the tensors is distributed, unsplit/gather it
+    if x.split is not None and y.split is None:
+        t1 = manipulations.resplit(x, axis=None)
+        local_start = x.comm.chunk(t1.gshape, x.split)[0]
+        local_end = local_start + x.lshape[x.split]
+        y = y[local_start:local_end]
+        return t1, y
 
-    #  If y is distributed, update t1 and t2 accordingly
-    if y.split is not None:
-        t1, t2 = y, x
+    elif x.split != y.split:
+        t2 = manipulations.resplit(y, axis=x.split)
+        return x, t2
 
-    return t1, t2
+    else:
+        return x, y
 
 
 def signbit(x: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
