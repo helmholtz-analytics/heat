@@ -95,6 +95,8 @@ class TestArithmetics(TestCase):
             ht.add(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.add("T", "s")
+        with self.assertRaises(TypeError):
+            self.a_tensor + "s"
 
     def test_bitwise_and(self):
         an_int_tensor = ht.array([[1, 2], [3, 4]])
@@ -140,6 +142,8 @@ class TestArithmetics(TestCase):
             ht.bitwise_and("s", self.an_int_scalar)
         with self.assertRaises(TypeError):
             ht.bitwise_and(self.an_int_scalar, self.a_scalar)
+        with self.assertRaises(TypeError):
+            self.a_tensor & "s"
 
     def test_bitwise_or(self):
         an_int_tensor = ht.array([[1, 2], [3, 4]])
@@ -185,6 +189,8 @@ class TestArithmetics(TestCase):
             ht.bitwise_or("s", self.an_int_scalar)
         with self.assertRaises(TypeError):
             ht.bitwise_or(self.an_int_scalar, self.a_scalar)
+        with self.assertRaises(TypeError):
+            self.a_tensor | "s"
 
     def test_bitwise_xor(self):
         an_int_tensor = ht.array([[1, 2], [3, 4]])
@@ -230,6 +236,8 @@ class TestArithmetics(TestCase):
             ht.bitwise_xor("s", self.an_int_scalar)
         with self.assertRaises(TypeError):
             ht.bitwise_xor(self.an_int_scalar, self.a_scalar)
+        with self.assertRaises(TypeError):
+            self.a_tensor ^ "s"
 
     def test_copysign(self):
         a = ht.array([3, 2, -8, -2, 4])
@@ -484,6 +492,8 @@ class TestArithmetics(TestCase):
                     self.a_tensor,
                     where=ht.array([[True, False], [False, True]], split=1),
                 )
+        with self.assertRaises(TypeError):
+            self.a_tensor // "T"
 
     def test_divmod(self):
         # basic tests as floor_device and mod are tested separately
@@ -520,6 +530,8 @@ class TestArithmetics(TestCase):
             ht.divmod(ht.zeros((2, 2)), ht.zeros((2, 2)), out=(1, None))
         with self.assertRaises(TypeError):
             ht.divmod(ht.zeros((2, 2)), ht.zeros((2, 2)), ht.empty((2, 2)), out=(None, 1))
+        with self.assertRaises(TypeError):
+            divmod(ht.zeros((2, 2)), "T")
 
     def test_fmod(self):
         result = ht.array([[1.0, 0.0], [1.0, 0.0]])
@@ -631,6 +643,9 @@ class TestArithmetics(TestCase):
         res = ht.left_shift(ht.array([True]), 2)
         self.assertTrue(res == 4)
 
+        with self.assertRaises(TypeError):
+            int_tensor << "s"
+
     def test_mod(self):
         a_tensor = ht.array([[1, 4], [2, 2]])
         another_tensor = ht.array([[1, 2], [3, 4]])
@@ -645,6 +660,8 @@ class TestArithmetics(TestCase):
             ht.mod(a_tensor, "T")
         with self.assertRaises(TypeError):
             ht.mod("T", another_tensor)
+        with self.assertRaises(TypeError):
+            a_tensor % "s"
 
     def test_mul(self):
         result = ht.array([[2.0, 4.0], [6.0, 8.0]])
@@ -666,6 +683,8 @@ class TestArithmetics(TestCase):
             ht.mul(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.mul("T", "s")
+        with self.assertRaises(TypeError):
+            self.a_tensor * "T"
 
     def test_nan_to_num(self):
         arr = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf])
@@ -805,6 +824,8 @@ class TestArithmetics(TestCase):
             ht.pow("T", "s")
         with self.assertRaises(TypeError):
             pow(self.a_tensor, 2, 3)
+        with self.assertRaises(TypeError):
+            self.a_tensor ** "T"
 
     def test_prod(self):
         array_len = 11
@@ -930,6 +951,9 @@ class TestArithmetics(TestCase):
 
         res = ht.right_shift(ht.array([True]), 2)
         self.assertTrue(res == 0)
+
+        with self.assertRaises(TypeError):
+            int_tensor >> "s"
 
     def test_sub(self):
         result = ht.array([[-1.0, 0.0], [1.0, 2.0]])
