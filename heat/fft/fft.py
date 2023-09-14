@@ -23,6 +23,16 @@ __all__ = [
     "irfft",
     "irfft2",
     "irfftn",
+    # "hfft",
+    # "hfft2",
+    # "hfftn",
+    # "ihfft",
+    # "ihfft2",
+    # "ihfftn",
+    # "fftfreq",
+    # "rfftfreq",
+    # "fftshift",
+    # "ifftshift",
 ]
 
 
