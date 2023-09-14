@@ -693,7 +693,7 @@ def divmod(
                [2., 2.]], dtype=ht.float32, device=cpu:0, split=None))
     """
     # PyTorch has no divmod function
-    if out is not None:
+    if out != (None, None):
         if not isinstance(out, tuple):
             raise TypeError("out must be a tuple of two DNDarrays")
         if len(out) != 2:
@@ -1453,7 +1453,10 @@ def pow(
     return _operations.__binary_op(torch.pow, t1, t2, out, where)
 
 
-def _pow(self, other):
+def _pow(self, other, modulo=None):
+    if modulo is not None:
+        return NotImplemented
+
     try:
         return pow(self, other)
     except TypeError:
@@ -1462,7 +1465,7 @@ def _pow(self, other):
 
 DNDarray.__pow__ = _pow
 DNDarray.__pow__.__doc__ = pow.__doc__
-DNDarray.__rpow__ = lambda self, other: _pow(other, self)
+DNDarray.__rpow__ = lambda self, other, modulo=None: _pow(other, self, modulo)
 DNDarray.__rpow__.__doc__ = pow.__doc__
 
 
