@@ -484,6 +484,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                   [11., 12., 13.],
                   [12., 13., 14.]])
     """
+    sanitation.sanitize_in(a)
+    sanitation.sanitize_in(b)
+
     if a.gshape[-1] != b.gshape[0]:
         raise ValueError(
             f"If the last dimension of a ({a.gshape[-1]}) is not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"

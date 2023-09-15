@@ -493,7 +493,7 @@ class TestArithmetics(TestCase):
                     where=ht.array([[True, False], [False, True]], split=1),
                 )
         with self.assertRaises(TypeError):
-            self.a_tensor // "T"
+            self.a_tensor / "T"
 
     def test_divmod(self):
         # basic tests as floor_device and mod are tested separately
@@ -532,6 +532,34 @@ class TestArithmetics(TestCase):
             ht.divmod(ht.zeros((2, 2)), ht.zeros((2, 2)), ht.empty((2, 2)), out=(None, 1))
         with self.assertRaises(TypeError):
             divmod(ht.zeros((2, 2)), "T")
+        with self.assertRaises(ValueError):
+            ht.divmod(
+                ht.zeros((2, 2)),
+                ht.zeros((2, 2)),
+                out1=ht.empty(2),
+                out2=ht.empty(2),
+                out=(ht.empty(2), ht.empty(2)),
+            )
+
+    def test_floordiv(self):
+        result = ht.array([[0.0, 1.0], [1.0, 2.0]])
+        commutated_result = ht.array([[2.0, 1.0], [0.0, 0.0]])
+
+        self.assertTrue(ht.equal(ht.floordiv(self.a_scalar, self.a_scalar), ht.float32(1.0)))
+        self.assertTrue(ht.equal(ht.floordiv(self.a_tensor, self.a_scalar), result))
+        self.assertTrue(ht.equal(ht.floordiv(self.a_scalar, self.a_tensor), commutated_result))
+        self.assertTrue(ht.equal(ht.floordiv(self.a_tensor, self.another_tensor), result))
+        self.assertTrue(ht.equal(ht.floordiv(self.a_tensor, self.a_vector), result))
+        self.assertTrue(ht.equal(ht.floordiv(self.a_tensor, self.an_int_scalar), result))
+        self.assertTrue(
+            ht.equal(ht.floordiv(self.a_split_tensor, self.a_tensor), commutated_result)
+        )
+
+        self.assertTrue(ht.equal(self.a_tensor // self.a_scalar, result))
+        self.assertTrue(ht.equal(self.a_scalar // self.a_tensor, commutated_result))
+
+        with self.assertRaises(TypeError):
+            "T" // self.a_tensor
 
     def test_fmod(self):
         result = ht.array([[1.0, 0.0], [1.0, 0.0]])
