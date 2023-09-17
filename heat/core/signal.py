@@ -65,19 +65,19 @@ def convgenpad(a, signal, pad, boundary, fillvalue):
 
 def inputcheck(a, v):
     """
-    Check and preprocess input data for signal processing.
+    Check and preprocess input data.
 
     Parameters
     ----------
-    a : scalar, list, ndarray, DNDarray
+    a : scalar, array_like, DNDarray
         Input signal data.
-    v : scalar, list, ndarray, DNDarray
-        Input filter data.
+    v : scalar, array_like, DNDarray
+        Input filter mask.
 
     Returns
     -------
     tuple
-        A tuple containing the processed input signal 'a' and filter 'v'.
+        A tuple containing the processed input signal 'a' and filter mask 'v'.
 
     Raises
     ------
@@ -86,39 +86,28 @@ def inputcheck(a, v):
 
     Description
     -----------
-    This function takes two inputs, 'a' (signal data) and 'v' (filter data), and performs the following checks and
+    This function takes two inputs, 'a' (signal data) and 'v' (filter mask), and performs the following checks and
     preprocessing steps:
 
-    1. Check if 'a' and 'v' are scalars. If they are, convert them into 1D arrays.
+    1. Check if 'a' and 'v' are scalars. If they are, convert them into DNDarray arrays.
 
-    2. Check if 'a' and 'v' are instances of the 'DNDarray' class. If not, attempt to convert them into NumPy arrays.
-       If conversion is not possible, raise a TypeError with an informative message.
+    2. Check if 'a' and 'v' are instances of the 'DNDarray' class. If not, attempt to convert them into DNDarray arrays.
+       If conversion is not possible, raise a TypeError.
 
     3. Determine the promoted data type for 'a' and 'v' based on their existing data types. Convert 'a' and 'v' to this
        promoted data type to ensure consistent data types.
 
     4. Return a tuple containing the processed 'a' and 'v'.
-
-    This function is designed to ensure that 'a' and 'v' are in the expected format and data type for subsequent signal
-    processing operations.
-
-    Example
-    -------
-    >>> a, v = inputcheck(5, [1, 2, 3])
-    >>> print(a)
-    [5. 5. 5.]
-    >>> print(v)
-    [1. 2. 3.]
     """
-    # Check if 'a' is a scalar and convert to an array if necessary
+    # Check if 'a' is a scalar and convert to a DNDarray if necessary
     if np.isscalar(a):
         a = array([a])
 
-    # Check if 'v' is a scalar and convert to an array if necessary
+    # Check if 'v' is a scalar and convert to a DNDarray if necessary
     if np.isscalar(v):
         v = array([v])
 
-    # Check if 'a' is not an instance of DNDarray and try to convert it to a NumPy array
+    # Check if 'a' is not an instance of DNDarray and try to convert it to a DNDarray array
     if not isinstance(a, DNDarray):
         try:
             a = array(a)
