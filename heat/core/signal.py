@@ -308,10 +308,10 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
 
     Parameters
     ----------
-    a : (N,) ht.tensor
-        Two-dimensional signal HeAT tensor
-    v : (M,) ht.tensor
-        Two-dimensional filter weight HeAT tensor.
+    a : scalar, array_like, DNDarray
+        Two-dimensional signal
+    v : scalar, array_like, DNDarray
+        Two-dimensional filter mask.
     mode : {'full', 'valid', 'same'}, optional
         'full':
           By default, mode is 'full'. This returns the convolution at
