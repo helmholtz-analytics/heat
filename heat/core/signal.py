@@ -110,7 +110,6 @@ def inputcheck(a, v):
     >>> print(v)
     [1. 2. 3.]
     """
-
     # Check if 'a' is a scalar and convert to an array if necessary
     if np.isscalar(a):
         a = array([a])
