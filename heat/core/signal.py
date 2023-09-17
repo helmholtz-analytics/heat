@@ -86,20 +86,20 @@ def inputcheck(a, v):
 
     Description
     -----------
-    This function takes two inputs, 'a' (signal data) and 'v' (filter data), and performs the following checks and 
+    This function takes two inputs, 'a' (signal data) and 'v' (filter data), and performs the following checks and
     preprocessing steps:
-    
+
     1. Check if 'a' and 'v' are scalars. If they are, convert them into 1D arrays.
-    
-    2. Check if 'a' and 'v' are instances of the 'DNDarray' class. If not, attempt to convert them into NumPy arrays. 
+
+    2. Check if 'a' and 'v' are instances of the 'DNDarray' class. If not, attempt to convert them into NumPy arrays.
        If conversion is not possible, raise a TypeError with an informative message.
-    
-    3. Determine the promoted data type for 'a' and 'v' based on their existing data types. Convert 'a' and 'v' to this 
+
+    3. Determine the promoted data type for 'a' and 'v' based on their existing data types. Convert 'a' and 'v' to this
        promoted data type to ensure consistent data types.
 
     4. Return a tuple containing the processed 'a' and 'v'.
 
-    This function is designed to ensure that 'a' and 'v' are in the expected format and data type for subsequent signal 
+    This function is designed to ensure that 'a' and 'v' are in the expected format and data type for subsequent signal
     processing operations.
 
     Example
@@ -110,38 +110,36 @@ def inputcheck(a, v):
     >>> print(v)
     [1. 2. 3.]
     """
-    
+
     # Check if 'a' is a scalar and convert to an array if necessary
     if np.isscalar(a):
         a = array([a])
-    
+
     # Check if 'v' is a scalar and convert to an array if necessary
     if np.isscalar(v):
         v = array([v])
-    
+
     # Check if 'a' is not an instance of DNDarray and try to convert it to a NumPy array
     if not isinstance(a, DNDarray):
         try:
             a = array(a)
         except TypeError:
             raise TypeError(f"non-supported type for signal: {type(a)}")
-    
+
     # Check if 'v' is not an instance of DNDarray and try to convert it to a NumPy array
     if not isinstance(v, DNDarray):
         try:
             v = array(v)
         except TypeError:
             raise TypeError(f"non-supported type for filter: {type(v)}")
-    
+
     # Determine the promoted data type for 'a' and 'v' and convert them to this data type
     promoted_type = promote_types(a.dtype, v.dtype)
     a = a.astype(promoted_type)
     v = v.astype(promoted_type)
-    
+
     # Return the processed 'a' and 'v' as a tuple
     return a, v
-
-
 
 
 def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
