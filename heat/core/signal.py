@@ -398,14 +398,13 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     else:
         halo_size = int(v.lshape_map[0][1]) // 2
 
-    # fetch halos and store them in a.halo_next/a.halo_prev
-    # print("qqa: ", halo_size)
-
     if a.is_distributed():
+        # fetch halos and store them in a.halo_next/a.halo_prev
         a.get_halo(halo_size)
         # apply halos to local array
         signal = a.array_with_halos
     else:
+        # get local array in case of non-distributed a
         signal = a.larray
 
     # check if a local chunk is smaller than the filter size
