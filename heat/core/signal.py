@@ -63,6 +63,87 @@ def convgenpad(a, signal, pad, boundary, fillvalue):
     return signal
 
 
+def inputcheck(a, v):
+    """
+    Check and preprocess input data for signal processing.
+
+    Parameters
+    ----------
+    a : scalar, list, ndarray, DNDarray
+        Input signal data.
+    v : scalar, list, ndarray, DNDarray
+        Input filter data.
+
+    Returns
+    -------
+    tuple
+        A tuple containing the processed input signal 'a' and filter 'v'.
+
+    Raises
+    ------
+    TypeError
+        If 'a' or 'v' have unsupported data types.
+
+    Description
+    -----------
+    This function takes two inputs, 'a' (signal data) and 'v' (filter data), and performs the following checks and 
+    preprocessing steps:
+    
+    1. Check if 'a' and 'v' are scalars. If they are, convert them into 1D arrays.
+    
+    2. Check if 'a' and 'v' are instances of the 'DNDarray' class. If not, attempt to convert them into NumPy arrays. 
+       If conversion is not possible, raise a TypeError with an informative message.
+    
+    3. Determine the promoted data type for 'a' and 'v' based on their existing data types. Convert 'a' and 'v' to this 
+       promoted data type to ensure consistent data types.
+
+    4. Return a tuple containing the processed 'a' and 'v'.
+
+    This function is designed to ensure that 'a' and 'v' are in the expected format and data type for subsequent signal 
+    processing operations.
+
+    Example
+    -------
+    >>> a, v = inputcheck(5, [1, 2, 3])
+    >>> print(a)
+    [5. 5. 5.]
+    >>> print(v)
+    [1. 2. 3.]
+    """
+    
+    # Check if 'a' is a scalar and convert to an array if necessary
+    if np.isscalar(a):
+        a = array([a])
+    
+    # Check if 'v' is a scalar and convert to an array if necessary
+    if np.isscalar(v):
+        v = array([v])
+    
+    # Check if 'a' is not an instance of DNDarray and try to convert it to a NumPy array
+    if not isinstance(a, DNDarray):
+        try:
+            a = array(a)
+        except TypeError:
+            raise TypeError(f"non-supported type for signal: {type(a)}")
+    
+    # Check if 'v' is not an instance of DNDarray and try to convert it to a NumPy array
+    if not isinstance(v, DNDarray):
+        try:
+            v = array(v)
+        except TypeError:
+            raise TypeError(f"non-supported type for filter: {type(v)}")
+    
+    # Determine the promoted data type for 'a' and 'v' and convert them to this data type
+    promoted_type = promote_types(a.dtype, v.dtype)
+    a = a.astype(promoted_type)
+    v = v.astype(promoted_type)
+    
+    # Return the processed 'a' and 'v' as a tuple
+    return a, v
+
+
+
+
 def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     """
     Returns the discrete, linear convolution of two one-dimensional `DNDarray`s or scalars.
@@ -115,23 +196,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     [1/3] DNDarray([3., 3., 3., 3.])
     [2/3] DNDarray([3., 3., 3., 2.])
     """
-    if np.isscalar(a):
-        a = array([a])
-    if np.isscalar(v):
-        v = array([v])
-    if not isinstance(a, DNDarray):
-        try:
-            a = array(a)
-        except TypeError:
-            raise TypeError(f"non-supported type for signal: {type(a)}")
-    if not isinstance(v, DNDarray):
-        try:
-            v = array(v)
-        except TypeError:
-            raise TypeError(f"non-supported type for filter: {type(v)}")
-    promoted_type = promote_types(a.dtype, v.dtype)
-    a = a.astype(promoted_type)
-    v = v.astype(promoted_type)
+    a, v = inputcheck(a, v)
 
     if len(a.shape) != 1 or len(v.shape) != 1:
         raise ValueError("Only 1-dimensional input DNDarrays are allowed")
@@ -315,23 +380,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
               [2., 4., 6., 6., 6., 4., 2.],
               [1., 2., 3., 3., 3., 2., 1.]], dtype=ht.float32, device=cpu:0, split=1)
     """
-    if np.isscalar(a):
-        a = array([a])
-    if np.isscalar(v):
-        v = array([v])
-    if not isinstance(a, DNDarray):
-        try:
-            a = array(a)
-        except TypeError:
-            raise TypeError("non-supported type for signal: {}".format(type(a)))
-    if not isinstance(v, DNDarray):
-        try:
-            v = array(v)
-        except TypeError:
-            raise TypeError("non-supported type for filter: {}".format(type(v)))
-    promoted_type = promote_types(a.dtype, v.dtype)
-    a = a.astype(promoted_type)
-    v = v.astype(promoted_type)
+    a, v = inputcheck(a, v)
 
     if a.shape[0] < v.shape[0] and a.shape[1] < v.shape[1]:
         a, v = v, a
@@ -339,7 +388,7 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     if len(a.shape) != 2 or len(v.shape) != 2:
         raise ValueError("Only 2-dimensional input DNDarrays are allowed")
     if a.shape[0] < v.shape[0] or a.shape[1] < v.shape[1]:
-        raise ValueError("Filter size must not be greater than the  signal size")
+        raise ValueError("Filter size must not be larger in one dimension and smaller in the other")
     if mode == "same" and v.shape[0] % 2 == 0:
         raise ValueError("Mode 'same' cannot be used with even-sized kernel")
     if (a.split == 0 and v.split == 1) or (a.split == 1 and v.split == 0):
@@ -353,10 +402,13 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
 
     # fetch halos and store them in a.halo_next/a.halo_prev
     # print("qqa: ", halo_size)
-    a.get_halo(halo_size)
 
-    # apply halos to local array
-    signal = a.array_with_halos
+    if a.is_distributed():
+        a.get_halo(halo_size)
+        # apply halos to local array
+        signal = a.array_with_halos
+    else:
+        signal = a.larray
 
     # check if a local chunk is smaller than the filter size
     if a.is_distributed() and signal.size()[0] < v.lshape_map[0][0]:
