@@ -32,12 +32,12 @@ jobs:
             -F "variables[PR]=${{ github.event.pull_request.number }}" \
             -F "variables[AUTHOR]=${{ github.event.pull_request.assignee.login }}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
-      - run: |
-          gh api \
-            --method POST \
+      - name: Create status
+        run: |
+          gh api --method POST \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            /repos/$OWNER/$REPO/statuses/$GITHUB_SHA \
+            /repos/$REPO/statuses/$GITHUB_SHA \
             -f state='pending' \
             -f target_url='https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines' \
             -f description='Waiting for benchmark results.' \
