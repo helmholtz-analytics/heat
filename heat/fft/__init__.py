@@ -1,5 +1,5 @@
 """
-import the graph functions into the graph namespace
+import the fft functions into the fft namespace
 """
 
 from .fft import *
