@@ -73,7 +73,7 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
         result = fft_op(local_x, n=n, dim=axis, norm=norm)
         return DNDarray(
             result,
-            gshape=output_shape,
+            gshape=tuple(output_shape),
             dtype=heat_type_of(result),
             split=original_split,
             device=x.device,
@@ -152,7 +152,7 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
         result = fftn_op(local_x, s=s, dim=axes, norm=norm)
         return DNDarray(
             result,
-            gshape=output_shape,
+            gshape=tuple(output_shape),
             dtype=heat_type_of(result),
             split=original_split,
             device=x.device,
