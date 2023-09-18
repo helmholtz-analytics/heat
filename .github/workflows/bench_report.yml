@@ -29,7 +29,7 @@ jobs:
           --header "PRIVATE-TOKEN: ${{ secrets.GITLAB_CB_API_TOKEN }}" \
           --output report.txt \
           "https://codebase.helmholtz.cloud/api/v4/projects/7930/jobs/${{ inputs.job_id }}/artifacts/heat/bench_data/report.txt"
-          cat report.txt
+          cat report.txt >> $GITHUB_STEP_SUMMARY
       - name: Compare and Save Benchmark Results
         if: ${{github.ref == 'refs/heads/main'}}
         uses: benchmark-action/github-action-benchmark@v1
@@ -48,13 +48,17 @@ jobs:
           auto-push: ${{ github.ref == 'refs/heads/main' }}
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
-      - uses: LouisBrunner/checks-action@v1.3.1
-        if: always()
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          name: report_benchmarks
-          conclusion: ${{ job.status }}
-          details_url: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines
-          output: |
-            {"title": "${{ github.ref }} Benchmarking results", "summary": "Heat benchmark results obtained from gitlab and perun"}
-          output_text_description_file: report.txt
+      - run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/$OWNER/$REPO/statuses/$GITHUB_SHA \
+            -f state='${{ job.status }}' \
+            -f target_url='https://github.com/$OWNER/$REPO/actions/runs/${{ github.run_id }}' \
+            -f description='Benchmark results are here!' \
+            -f context='continuous-benchmarking/report'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.repository }}
