@@ -54,7 +54,7 @@ class TestManipulations(TestCase):
         self.assertEqual(B.shape, A.shape)
         self.assertEqual(B.dtype, A.dtype)
 
-    def test_todense(self):
+    def test_to_dense(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
         ref_dense_array = ht.array(

@@ -8,7 +8,7 @@ from ..core.dndarray import DNDarray
 from ..core.factories import empty
 
 __all__ = [
-    "todense",
+    "to_dense",
     "to_sparse",
 ]
 
@@ -49,7 +49,7 @@ DNDarray.to_sparse = to_sparse
 DNDarray.to_sparse.__doc__ = to_sparse.__doc__
 
 
-def todense(sparse_matrix: DCSR_matrix, order="C", out: DNDarray = None) -> DNDarray:
+def to_dense(sparse_matrix: DCSR_matrix, order="C", out: DNDarray = None) -> DNDarray:
     """
     Convert :class:`~heat.sparse.DCSR_matrix` to a dense :class:`~heat.core.DNDarray`.
     Output follows the same distribution among processes as the input
@@ -112,5 +112,5 @@ def todense(sparse_matrix: DCSR_matrix, order="C", out: DNDarray = None) -> DNDa
     return out
 
 
-DCSR_matrix.todense = lambda self, order="C", out=None: todense(self, order, out)
-DCSR_matrix.to_dense = lambda self, order="C", out=None: todense(self, order, out)
+DCSR_matrix.todense = lambda self, order="C", out=None: to_dense(self, order, out)
+DCSR_matrix.to_dense = lambda self, order="C", out=None: to_dense(self, order, out)
