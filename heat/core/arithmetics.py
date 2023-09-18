@@ -700,12 +700,12 @@ def divmod(
         if out1 is None:
             out1 = out[0]
         else:
-            raise ValueError("out[0] and out1 cannot be used at the same time")
+            raise TypeError("out[0] and out1 cannot be used at the same time")
     if out[1] is not None:
         if out2 is None:
             out2 = out[1]
         else:
-            raise ValueError("out[1] and out2 cannot be used at the same time")
+            raise TypeError("out[1] and out2 cannot be used at the same time")
 
     # PyTorch has no divmod function
     d = floordiv(t1, t2, out1, where=where)

@@ -536,26 +536,20 @@ class TestArithmetics(TestCase):
             ht.divmod(
                 ht.zeros((2, 2)),
                 ht.zeros((2, 2)),
-                ht.empty((2, 2), ht.empty((2, 2))),
+                ht.empty((2, 2)),
+                ht.empty((2, 2)),
                 out=(ht.empty((2, 2)), None),
             )
         with self.assertRaises(TypeError):
             ht.divmod(
                 ht.zeros((2, 2)),
                 ht.zeros((2, 2)),
-                ht.empty((2, 2), ht.empty((2, 2))),
+                ht.empty((2, 2)),
+                ht.empty((2, 2)),
                 out=(None, ht.empty((2, 2))),
             )
         with self.assertRaises(TypeError):
             divmod(ht.zeros((2, 2)), "T")
-        with self.assertRaises(ValueError):
-            ht.divmod(
-                ht.zeros((2, 2)),
-                ht.zeros((2, 2)),
-                ht.empty(2),
-                ht.empty(2),
-                out=(ht.empty(2), ht.empty(2)),
-            )
 
     def test_floordiv(self):
         result = ht.array([[0.0, 1.0], [1.0, 2.0]])
