@@ -8,16 +8,23 @@ on:
 
 jobs:
   trigger-benchmark:
-    name: Trigger Benchmark
+    name: Trigger Benchmarks
     runs-on: ubuntu-latest
     steps:
+      - name: Create pending check
+        uses: LouisBrunner/checks-action@v1.6.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: Trigger Benchmarks / Running Benchmarks
+          status: in_progress
+          details_url: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines
       - name: Checkout
         uses: actions/checkout@v4
       - name: Get short sha
         id: get_short_sha
         run: |
           calculatedSha=$(git rev-parse --short ${{ github.sha }})
-          echo "::set-output name=short_sha::$calculatedSha"
+          echo "short_sha=$calculatedSha" >> $GITHUB_OUTPUT
       - name: Trigger benchmarks (PR)
         id: setup_pr
         if: contains(github.event.pull_request.labels.*.name, 'benchmark PR')
@@ -46,9 +53,10 @@ jobs:
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
       - name: Create pending check
         uses: LouisBrunner/checks-action@v1.6.1
-        if: steps.setup_pr.outcome == 'success' || steps.setup_push.outcome == 'success'
+        if: steps.setup_pr.outcome == 'failure' || steps.setup_push.outcome == 'failure'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          name: Running Benchmarks
-          status: in_progress
+          name: Trigger Benchmarks / Running Benchmarks
+          status: completed
+          conclusion: failure
           details_url: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines
