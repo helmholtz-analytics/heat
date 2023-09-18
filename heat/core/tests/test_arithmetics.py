@@ -536,8 +536,8 @@ class TestArithmetics(TestCase):
             ht.divmod(
                 ht.zeros((2, 2)),
                 ht.zeros((2, 2)),
-                out1=ht.empty(2),
-                out2=ht.empty(2),
+                ht.empty(2),
+                ht.empty(2),
                 out=(ht.empty(2), ht.empty(2)),
             )
 
