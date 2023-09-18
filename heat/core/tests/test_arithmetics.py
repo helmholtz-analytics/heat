@@ -520,6 +520,12 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(dm[0], result[0]))
         self.assertTrue(ht.equal(dm[1], result[1]))
 
+        # out parameter
+        out = (ht.empty((2, 2), split=0), ht.empty((2, 2), split=0))
+        ht.divmod(self.a_split_tensor, self.a_scalar, out=out)
+        self.assertTrue(ht.equal(out[0], ht.array([[1.0, 1.0], [1.0, 1.0]])))
+        self.assertTrue(ht.equal(out[1], ht.array([[0.0, 0.0], [0.0, 0.0]])))
+
         with self.assertRaises(TypeError):
             divmod(self.another_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):

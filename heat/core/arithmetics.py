@@ -692,21 +692,22 @@ def divmod(
                [0., 0.]], dtype=ht.float32, device=cpu:0, split=None), DNDarray([[0., 0.],
                [2., 2.]], dtype=ht.float32, device=cpu:0, split=None))
     """
-    # PyTorch has no divmod function
-    if out != (None, None):
-        if not isinstance(out, tuple):
-            raise TypeError("out must be a tuple of two DNDarrays")
-        if len(out) != 2:
-            raise ValueError("out must be a tuple of two DNDarrays")
-        if out[0] is not None and not isinstance(out[0], DNDarray):
-            raise TypeError("out[0] must be a DNDarray")
-        if out[1] is not None and not isinstance(out[1], DNDarray):
-            raise TypeError("out[1] must be a DNDarray")
-        if out1 is not None or out2 is not None:
-            raise ValueError("out and out1/out2 cannot be used at the same time")
-        out1 = out[0]
-        out2 = out[1]
+    if not isinstance(out, tuple):
+        raise TypeError("out must be a tuple of two DNDarrays")
+    if len(out) != 2:
+        raise ValueError("out must be a tuple of two DNDarrays")
+    if out[0] is not None:
+        if out1 is None:
+            out1 = out[0]
+        else:
+            raise ValueError("out[0] and out1 cannot be used at the same time")
+    if out[1] is not None:
+        if out2 is None:
+            out2 = out[1]
+        else:
+            raise ValueError("out[1] and out2 cannot be used at the same time")
 
+    # PyTorch has no divmod function
     f = floordiv(t1, t2, out1, where=where)
     m = mod(t1, t2, out2, where=where)
 
