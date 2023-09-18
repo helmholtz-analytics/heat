@@ -52,7 +52,7 @@ jobs:
         if: always()
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          name: Trigger Benchmarks / Running Benchmarks
+          name: report_benchmarks
           conclusion: ${{ job.status }}
           details_url: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines
           output: |

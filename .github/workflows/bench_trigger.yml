@@ -11,11 +11,10 @@ jobs:
     name: Trigger Benchmarks
     runs-on: ubuntu-latest
     steps:
-      - name: Create pending check
-        uses: LouisBrunner/checks-action@v1.6.1
+      - uses: LouisBrunner/checks-action@v1.6.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          name: Trigger Benchmarks / Running Benchmarks
+          name: report_benchmarks
           status: in_progress
           details_url: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines
       - name: Checkout
@@ -56,7 +55,7 @@ jobs:
         if: steps.setup_pr.outcome == 'failure' || steps.setup_push.outcome == 'failure'
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          name: Trigger Benchmarks / Running Benchmarks
+          name: report_benchmarks
           status: completed
           conclusion: failure
           details_url: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines
