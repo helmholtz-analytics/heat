@@ -533,9 +533,19 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             ht.divmod(ht.zeros((2, 2)), ht.zeros((2, 2)), out=(1, 2, 3))
         with self.assertRaises(TypeError):
-            ht.divmod(ht.zeros((2, 2)), ht.zeros((2, 2)), out=(1, None))
+            ht.divmod(
+                ht.zeros((2, 2)),
+                ht.zeros((2, 2)),
+                ht.empty((2, 2), ht.empty((2, 2))),
+                out=(ht.empty((2, 2)), None),
+            )
         with self.assertRaises(TypeError):
-            ht.divmod(ht.zeros((2, 2)), ht.zeros((2, 2)), ht.empty((2, 2)), out=(None, 1))
+            ht.divmod(
+                ht.zeros((2, 2)),
+                ht.zeros((2, 2)),
+                ht.empty((2, 2), ht.empty((2, 2))),
+                out=(None, ht.empty((2, 2))),
+            )
         with self.assertRaises(TypeError):
             divmod(ht.zeros((2, 2)), "T")
         with self.assertRaises(ValueError):
@@ -1010,6 +1020,8 @@ class TestArithmetics(TestCase):
             ht.sub(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.sub("T", "s")
+        with self.assertRaises(TypeError):
+            self.a_tensor - "T"
 
     def test_sum(self):
         array_len = 11

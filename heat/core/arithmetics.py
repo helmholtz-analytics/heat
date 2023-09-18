@@ -708,10 +708,10 @@ def divmod(
             raise ValueError("out[1] and out2 cannot be used at the same time")
 
     # PyTorch has no divmod function
-    f = floordiv(t1, t2, out1, where=where)
+    d = floordiv(t1, t2, out1, where=where)
     m = mod(t1, t2, out2, where=where)
 
-    return (f, m)
+    return (d, m)
 
 
 def _divmod(self, other):
