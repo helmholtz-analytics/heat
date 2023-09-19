@@ -50,10 +50,12 @@ jobs:
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
       - name: Update commit status
+        if: always()
         run: |
+          if [[ "${{ steps.action_bench.outcome }}" == "success|failure" ]]; then stepState="${{ steps.action_bench.outcome }}"; else stepState=error; fi
           curl -L -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }} \
-            -d '{ "state":"${{ steps.action_bench.outcome }}", "target_url":"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description":"The results are here!", "context":"cb/report" }'
+            -d '{ "state":"${stepState}", "target_url":"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description":"The results are here!", "context":"cb/report" }'
