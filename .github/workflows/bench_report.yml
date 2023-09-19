@@ -55,10 +55,8 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             /repos/$REPO/statuses/$GITHUB_SHA \
             -f state='${{ job.status }}' \
-            -f target_url='https://github.com/$OWNER/$REPO/actions/runs/${{ github.run_id }}' \
+            -f target_url='https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}' \
             -f description='Benchmark results are here!' \
             -f context='continuous-benchmarking/report'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OWNER: ${{ github.repository_owner }}
-          REPO: ${{ github.repository }}
