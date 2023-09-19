@@ -33,7 +33,6 @@ jobs:
           cat report.txt >> $GITHUB_STEP_SUMMARY
       - name: Compare and Save Benchmark Results
         id: action_bench
-        if: ${{github.ref == 'refs/heads/main'}}
         uses: benchmark-action/github-action-benchmark@v1
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
