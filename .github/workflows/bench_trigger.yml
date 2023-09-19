@@ -13,35 +13,33 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Get short sha
-        id: get_short_sha
-        run: |
-          calculatedSha=$(git rev-parse --short ${{ github.sha }})
-          echo "short_sha=$calculatedSha" >> $GITHUB_OUTPUT
       - name: Trigger benchmarks (PR)
         id: setup_pr
         if: contains(github.event.pull_request.labels.*.name, 'benchmark PR')
         run: |
+          SHORT_SHA=$(git rev-parse --short ${{ github.event.pull_request.head.sha }})
           curl -s -X POST \
             --fail \
             -F token=${{ secrets.BENCH_PIPE_TRIGGER }} \
             -F "ref=main" \
-            -F "variables[SHA]=$GITHUB_SHA" \
-            -F "variables[SHORT_SHA]=${{ steps.get_short_sha.outputs.short_sha }}" \
+            -F "variables[SHA]=${{ github.event.pull_request.head.sha }}" \
+            -F "variables[SHORT_SHA]=${SHORT_SHA}" \
             -F "variables[BRANCH]=${{ github.head_ref }}" \
             -F "variables[PR]=${{ github.event.pull_request.number }}" \
             -F "variables[AUTHOR]=${{ github.event.pull_request.assignee.login }}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
+          echo sha
       - name: Trigger benchmarks (Push main)
         id: setup_push
         if: ${{ github.event_name == 'push' }}
         run: |
+          SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)
           curl -s -X POST \
             --fail \
             -F "token=${{ secrets.BENCH_PIPE_TRIGGER }}" \
             -F "ref=main" \
             -F "variables[SHA]=$GITHUB_SHA" \
-            -F "variables[SHORT_SHA]=${{ steps.get_short_sha.outputs.short_sha }}" \
+            -F "variables[SHORT_SHA]=${SHORT_SHA}" \
             -F "variables[AUTHOR]=${{ github.event.head_commit.committer.username }}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
       - name: Create status
@@ -50,8 +48,9 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            https://api.github.com/repos/$REPO/statuses/$GITHUB_SHA \
-            -d '{ "state":"pending", "target_url":"https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines", "description":"Waiting for benchmarks to execute.", "context":"cb/report" }'
+            https://api.github.com/repos/$REPO/statuses/$SHA \
+            -d '{ "state":"pending", "target_url":"https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines", "description":"Waiting for benchmarks to execute.", "context":"cb/report" }' \
+            -o /dev/null
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
