@@ -52,12 +52,11 @@ jobs:
           benchmark-data-dir-path: dev/bench
       - name: Update commit status
         run: |
-          json=$(jo state="${{ steps.action_bench.outcome }}" target_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" description="Benchmarks results are here!" context="cb/report")
           curl -L -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/$REPO/statuses/$GITHUB_SHA \
-            -d '{ "status":"${{ steps.action_bench.outcome }}", "target_url":"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description":"The results are here!", "context":"cb/report" }'
+            -d '{ "state":"${{ steps.action_bench.outcome }}", "target_url":"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}", "description":"The results are here!", "context":"cb/report" }'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
