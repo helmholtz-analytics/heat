@@ -32,6 +32,18 @@ jobs:
             -F "variables[PR]=${{ github.event.pull_request.number }}" \
             -F "variables[AUTHOR]=${{ github.event.pull_request.assignee.login }}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
+      - name: Trigger benchmarks (Push main)
+        id: setup_push
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          curl -s -X POST \
+            --fail \
+            -F "token=${{ secrets.BENCH_PIPE_TRIGGER }}" \
+            -F "ref=main" \
+            -F "variables[SHA]=$GITHUB_SHA" \
+            -F "variables[SHORT_SHA]=${{ steps.get_short_sha.outputs.short_sha }}" \
+            -F "variables[AUTHOR]=${{ github.event.head_commit.committer.username }}" \
+            https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
       - name: Create status
         run: |
           curl -L -X POST \
