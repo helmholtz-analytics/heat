@@ -7,7 +7,7 @@ The following tables show the NumPy functions supported by Heat.
 2. [NumPy Array Creation](#numpy-array-creation)
 3. [NumPy Array Manipulation](#numpy-array-manipulation)
 4. [NumPy Binary Operations](#numpy-binary-operations)
-5. [NumPy I/O Operations](#numpy-i/o-operations)
+5. [NumPy IO Operations](#numpy-io-operations)
 6. [NumPy LinAlg Operations](#numpy-linalg-operations)
 7. [NumPy Logic Functions](#numpy-logic-functions)
 8. [NumPy Sorting Operations](#numpy-sorting-operations)
@@ -227,8 +227,8 @@ The following tables show the NumPy functions supported by Heat.
 | packbits | ❌ |
 | unpackbits | ❌ |
 | binary_repr | ❌ |
-## NumPy I/O Operations
-| NumPy I/O Operations | Heat |
+## NumPy IO Operations
+| NumPy IO Operations | Heat |
 |---|---|
 | load | ✅ |
 | save | ✅ |
