@@ -14,6 +14,8 @@ The following tables show the NumPy functions supported by Heat.
 9. [NumPy Statistical Operations](#numpy-statistical-operations)
 
 ## NumPy  Mathematical Functions
+[Back to Table of Contents](#table-of-contents)
+
 | NumPy  Mathematical Functions | Heat |
 |---|---|
 | sin | ✅ |
@@ -118,6 +120,8 @@ The following tables show the NumPy functions supported by Heat.
 | real_if_close | ❌ |
 | interp | ❌ |
 ## NumPy Array Creation
+[Back to Table of Contents](#table-of-contents)
+
 | NumPy Array Creation | Heat |
 |---|---|
 | empty | ✅ |
@@ -159,6 +163,8 @@ The following tables show the NumPy functions supported by Heat.
 | mat | ❌ |
 | bmat | ❌ |
 ## NumPy Array Manipulation
+[Back to Table of Contents](#table-of-contents)
+
 | NumPy Array Manipulation | Heat |
 |---|---|
 | copyto | ❌ |
@@ -216,6 +222,8 @@ The following tables show the NumPy functions supported by Heat.
 | roll | ✅ |
 | rot90 | ✅ |
 ## NumPy Binary Operations
+[Back to Table of Contents](#table-of-contents)
+
 | NumPy Binary Operations | Heat |
 |---|---|
 | bitwise_and | ✅ |
@@ -228,6 +236,8 @@ The following tables show the NumPy functions supported by Heat.
 | unpackbits | ❌ |
 | binary_repr | ❌ |
 ## NumPy IO Operations
+[Back to Table of Contents](#table-of-contents)
+
 | NumPy IO Operations | Heat |
 |---|---|
 | load | ✅ |
@@ -257,6 +267,8 @@ The following tables show the NumPy functions supported by Heat.
 | DataSource | ❌ |
 | format | ❌ |
 ## NumPy LinAlg Operations
+[Back to Table of Contents](#table-of-contents)
+
 | NumPy LinAlg Operations | Heat |
 |---|---|
 | ldot | ❌ |
@@ -290,6 +302,8 @@ The following tables show the NumPy functions supported by Heat.
 | linalg.pinv | ❌ |
 | linalg.tensorinv | ❌ |
 ## NumPy Logic Functions
+[Back to Table of Contents](#table-of-contents)
+
 | NumPy Logic Functions | Heat |
 |---|---|
 | all | ✅ |
@@ -321,6 +335,8 @@ The following tables show the NumPy functions supported by Heat.
 | equal | ✅ |
 | not_equal | ✅ |
 ## NumPy Sorting Operations
+[Back to Table of Contents](#table-of-contents)
+
 | NumPy Sorting Operations | Heat |
 |---|---|
 | sort | ✅ |
@@ -342,6 +358,8 @@ The following tables show the NumPy functions supported by Heat.
 | extract | ❌ |
 | count_nonzero | ❌ |
 ## NumPy Statistical Operations
+[Back to Table of Contents](#table-of-contents)
+
 | NumPy Statistical Operations | Heat |
 |---|---|
 | ptp | ❌ |
