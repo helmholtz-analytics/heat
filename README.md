@@ -90,7 +90,7 @@ If you found a bug or miss a feature, then please file a new [issue](https://git
 
 # Requirements
 
-Heat requires Python 3.7 or newer.
+Heat requires Python 3.8 or newer.
 Heat is based on [PyTorch](https://pytorch.org/). Specifically, we are exploiting
 PyTorch's support for GPUs *and* MPI parallelism. For MPI support we utilize
 [mpi4py](https://mpi4py.readthedocs.io). Both packages can be installed via pip
