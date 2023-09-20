@@ -271,7 +271,7 @@ The following tables show the NumPy functions supported by Heat.
 
 | NumPy LinAlg Operations | Heat |
 |---|---|
-| ldot | ❌ |
+| dot | ✅ |
 | linalg.multi_dot | ❌ |
 | vdot | ✅ |
 | inner | ❌ |
