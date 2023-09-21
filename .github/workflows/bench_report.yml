@@ -29,7 +29,7 @@ jobs:
           --header "PRIVATE-TOKEN: ${{ secrets.GITLAB_CB_API_TOKEN }}" \
           --output report.txt \
           "https://codebase.helmholtz.cloud/api/v4/projects/7930/jobs/${{ inputs.job_id }}/artifacts/heat/bench_data/report.txt"
-          echo "Pipeline URL: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines/${{ inputs.job_id}}" >> $GITHUB_STEP_SUMMARY
+          echo "Pipeline URL: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/jobs/${{ inputs.job_id}}" >> $GITHUB_STEP_SUMMARY
           cat report.txt >> $GITHUB_STEP_SUMMARY
       - name: Compare and Save Benchmark Results
         id: action_bench
