@@ -1,7 +1,5 @@
 # flake8: noqa
 import heat as ht
-import itertools
-import torchvision.datasets as datasets
 from mpi4py import MPI
 from perun import monitor
 
