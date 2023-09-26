@@ -1,0 +1,60 @@
+name: Benchmarks report
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "Gitlab job id"
+        required: true
+        type: string
+      author:
+        description: "Commit author"
+        required: true
+        type: string
+
+jobs:
+  bench_report:
+    name: Benchmark report
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: "Collect Gitlab Benchmarks"
+        run: |
+          curl --location \
+          --header "PRIVATE-TOKEN: ${{ secrets.GITLAB_CB_API_TOKEN }}" \
+          --output benchmarks.json \
+          "https://codebase.helmholtz.cloud/api/v4/projects/7930/jobs/${{ inputs.job_id }}/artifacts/heat/bench_data/benchmarks.json"
+          cat benchmarks.json
+          curl --location \
+          --header "PRIVATE-TOKEN: ${{ secrets.GITLAB_CB_API_TOKEN }}" \
+          --output report.txt \
+          "https://codebase.helmholtz.cloud/api/v4/projects/7930/jobs/${{ inputs.job_id }}/artifacts/heat/bench_data/report.txt"
+          cat report.txt
+      - name: Compare and Save Benchmark Results
+        if: ${{github.ref == 'refs/heads/main'}}
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          # Benchmark action input and output
+          tool: "customSmallerIsBetter"
+          output-file-path: benchmarks.json
+          # Alert configuration
+          fail-on-alert: true # Don't fail on main branch
+          comment-on-alert: true
+          alert-comment-cc-users: ${{ format('@{0}', inputs.author) }}
+          # Save benchmarks from the main branch
+          save-data-file: ${{ github.ref == 'refs/heads/main' }}
+          # Pages configuration
+          auto-push: ${{ github.ref == 'refs/heads/main' }}
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+      - uses: LouisBrunner/checks-action@v1.3.1
+        if: always()
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: Running Benchmarks
+          conclusion: ${{ job.status }}
+          details_url: https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines
+          output: |
+            {"title": "${{ github.ref }} Benchmarking results", "summary": "Heat benchmark results obtained from gitlab and perun"}
+          output_text_description_file: report.txt

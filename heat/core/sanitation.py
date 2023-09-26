@@ -252,7 +252,7 @@ def sanitize_lshape(array: DNDarray, tensor: torch.Tensor):
 
 
 def sanitize_out(
-    out: Any,
+    out: DNDarray,
     output_shape: Tuple,
     output_split: int,
     output_device: str,
@@ -263,7 +263,7 @@ def sanitize_out(
 
     Parameters
     ----------
-    out : Any
+    out : DNDarray
           the `out` buffer where the result of some operation will be stored
 
     output_shape : Tuple
@@ -288,46 +288,19 @@ def sanitize_out(
     if not isinstance(out, DNDarray):
         raise TypeError(f"expected `out` to be None or a DNDarray, but was {type(out)}")
 
-    out_proxy = out.__torch_proxy__()
-    out_proxy.names = [
-        "split" if (out.split is not None and i == out.split) else f"_{i}"
-        for i in range(out_proxy.ndim)
-    ]
-    out_proxy = out_proxy.squeeze()
+    control_values = [output_shape, output_split, output_device]
+    out_values = [out.shape, out.split, out.device]
+    # bulk-check if the two lists differ
+    if control_values != out_values:
+        # if so, check each value individually
+        if output_shape != out.shape:
+            raise ValueError(f"Expecting output buffer of shape {output_shape}, got {out.shape}")
+        if output_split != out.split:
+            raise ValueError(f"Expecting output buffer of split {output_split}, got {out.split}")
+        if output_device != out.device:
+            raise ValueError(f"Expecting output buffer on device {output_device}, got {out.device}")
 
-    check_proxy = torch.ones(1).expand(output_shape)
-    check_proxy.names = [
-        "split" if (output_split is not None and i == output_split) else f"_{i}"
-        for i in range(check_proxy.ndim)
-    ]
-    check_proxy = check_proxy.squeeze()
-
-    if out_proxy.shape != check_proxy.shape:
-        raise ValueError(f"Expecting output buffer of shape {output_shape}, got {out.shape}")
-    count_split = int(out.split is not None) + int(output_split is not None)
-    if count_split == 1:
-        raise ValueError(
-            "Split axis of output buffer is inconsistent with split semantics for this operation."
-        )
-    elif count_split == 2:
-        if out.shape[out.split] > 1:  # split axis is not squeezed out
-            if out_proxy.names.index("split") != check_proxy.names.index("split"):
-                raise ValueError(
-                    "Split axis of output buffer is inconsistent with split semantics for this operation."
-                )
-        else:  # split axis is squeezed out
-            num_dim_before_split = len(
-                [name for name in out_proxy.names if int(name[1:]) < out.split]
-            )
-            check_num_dim_before_split = len(
-                [name for name in check_proxy.names if int(name[1:]) < output_split]
-            )
-            if num_dim_before_split != check_num_dim_before_split:
-                raise ValueError(
-                    "Split axis of output buffer is inconsistent with split semantics for this operation."
-                )
-    if out.device != output_device:
-        raise ValueError(f"Device mismatch: out is on {out.device}, should be on {output_device}")
+    # check that communicators match
     if output_comm is not None and out.comm != output_comm:
         try:
             raise NotImplementedError(
@@ -370,6 +343,18 @@ def scalar_to_1d(x: DNDarray) -> DNDarray:
     x : DNDarray
         with `x.ndim = 0`
     """
-    return factories.array(
-        x.larray.unsqueeze(0), dtype=x.dtype, split=x.split, comm=x.comm, device=x.device
+    if x.ndim != 0:
+        if x.ndim == 1 and x.gnumel == 1:
+            return x
+        raise ValueError(
+            "Input needs to be a scalar DNDarray,but was found to be {}d DNDarray".format(x.ndim)
+        )
+    return DNDarray(
+        x.larray.unsqueeze(0),
+        gshape=(1,),
+        dtype=x.dtype,
+        split=None,
+        comm=x.comm,
+        device=x.device,
+        balanced=True,
     )
