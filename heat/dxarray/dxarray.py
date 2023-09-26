@@ -392,7 +392,7 @@ class DXarray:
 
     def xarray(self):
         """
-        Convert given DXarray (possibly distributed over some processes) to a non-distributed xarray (:class:`xarray.DataArray`)
+        Convert given DXarray (possibly distributed over some processes) to a non-distributed xarray (:class:`xarray.DataArray`) on all processes.
         """
         non_dist_copy = self.resplit_(None)
         if non_dist_copy.coords is None:
