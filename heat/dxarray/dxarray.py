@@ -10,7 +10,7 @@ from typing import Union
 
 # imports of "dxarray_..."-dependencies at the end to avoid cyclic dependence
 
-__all__ = ["DXarray", "from_xarray"]
+__all__ = ["dim_name_to_idx", "dim_idx_to_name", "DXarray", "from_xarray"]
 
 # Auxiliary functions
 
@@ -103,28 +103,32 @@ class DXarray:
         self.__device = values.device
         self.__comm = values.comm
 
+        # if no names are provided, introduce generic names "dim_N", N = 0,1,...
+        if dims is None:
+            dims = ["dim_%d" % k for k in range(self.__values.ndim)]
+
+        self.__dims = dims
+
         # ... and determine those not directly given:
         # since we are in the DXarray class, split dimension is given by a string
         self.__split = dim_idx_to_name(dims, values.split)
 
         # determine dimensions with and without coordinates
         if coords is not None:
-            dims_with_coords = sum([list(it[0]) for it in coords.items()], [])
+            dims_with_coords = sum(
+                [list(it[0]) if isinstance(it[0], tuple) else [it[0]] for it in coords.items()], []
+            )
         else:
             dims_with_coords = []
         dims_without_coords = [dim for dim in dims if dim not in dims_with_coords]
 
-        self.__dims_with_cooords = dims_with_coords
+        self.__dims_with_coords = dims_with_coords
         self.__dims_without_coords = dims_without_coords
 
         # check if all appearing DNDarrays are balanced: as a result, the DXarray is balanced if and only if all DNDarrays are balanced
-        self.__balanced = dxarray_sanitation.check_if_balanced(self.__values, self.__coords)
-
-        # if no names are provided, introduce generic names "dim_N", N = 0,1,...
-        if dims is None:
-            self.__dims = ["dim_%d" % k for k in range(self.__values.ndim)]
-        else:
-            self.__dims = dims
+        self.__balanced = dxarray_sanitation.check_if_balanced(
+            self.__values, self.__coords, force_check=False
+        )
 
     """
     Attribute getters and setters for the DXarray class
@@ -187,18 +191,18 @@ class DXarray:
         return self.__attrs
 
     @property
-    def dims_with_coordinates(self) -> list:
+    def dims_with_coords(self) -> list:
         """
         Get list of dims with coordinates from DXarray
         """
-        return self.__dims_with_coordinates
+        return self.__dims_with_coords
 
     @property
-    def dims_without_coordinates(self) -> list:
+    def dims_without_coords(self) -> list:
         """
         Get list of dims without coordinates from DXarray
         """
-        return self.__dims_without_coordinates
+        return self.__dims_without_coords
 
     @property
     def balanced(self) -> bool:
@@ -350,7 +354,9 @@ class DXarray:
 
         """
         if self.__balanced is None or force_check:
-            self.__balanced = dxarray_sanitation.check_if_balanced(self.__values, self.__coords)
+            self.__balanced = dxarray_sanitation.check_if_balanced(
+                self.__values, self.__coords, force_check=True
+            )
         return self.__balanced
 
     def resplit_(self, dim: Union[str, None] = None):

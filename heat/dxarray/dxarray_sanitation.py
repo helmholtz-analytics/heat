@@ -22,6 +22,11 @@ def check_compatibility_values_dims_coords(
     if not (isinstance(coords, dict) or coords is None):
         raise TypeError("Input `coords` must be a dictionary or None, but is ", type(coords), ".")
 
+    # check if entries of dims are unique
+    if dims is not None:
+        if len(set(dims)) != len(dims):
+            raise ValueError("Entries of `dims` must be unique.")
+
     # check if names of dims are given (and whether their number fits the number of dims of the values array)
     if dims is not None:
         if len(dims) != values.ndim:
@@ -166,19 +171,28 @@ def check_attrs(attrs: Any):
         raise TypeError("`attrs` must be a dictionary or None, but is ", type(attrs), ".")
 
 
-def check_if_balanced(values: ht.DNDarray, coords: Union[dict, None]):
+def check_if_balanced(values: ht.DNDarray, coords: Union[dict, None], force_check: bool = False):
     """
     Checks if a DXarray with values and coords is balanced, i.e., equally distributed on each process
     A DXarray is balanced if and only if all underlying DNDarrays are balanced.
+    force_check allows to force a check on balancedness of the underlying DNDarrays.
     """
-    if values.balanced is None:
-        return None
-    else:
-        if coords is not None:
-            if None in [coord_item[1].balanced for coord_item in coords.items()]:
+    if not force_check:
+        if values.balanced is None or values.balanced is False or coords is None:
+            return values.balanced
+        else:
+            coords_balanced = [coord_item[1].balanced for coord_item in coords.items()]
+            if None in coords_balanced:
                 return None
             else:
-                balanced = values.balanced and all(
-                    [coord_item[1].balanced for coord_item in coords.items()]
-                )
+                balanced = values.balanced and all(coords_balanced)
                 return balanced
+    else:
+        values_balanced = values.is_balanced(force_check=True)
+        if values_balanced is False or coords is None:
+            return values_balanced
+        else:
+            coords_balanced = [
+                coord_item[1].is_balanced(force_check=True) for coord_item in coords.items()
+            ]
+            return values_balanced and all(coords_balanced)
