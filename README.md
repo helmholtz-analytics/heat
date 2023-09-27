@@ -14,14 +14,29 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![license: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![PyPI Version](https://img.shields.io/pypi/v/heat)](https://pypi.org/project/heat/)
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/heat/badges/version.svg)](https://anaconda.org/conda-forge/heat)
 [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F-green)](https://fair-software.eu)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7688/badge)](https://bestpractices.coreinfrastructure.org/projects/7688)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
 [![Benchmarks](https://img.shields.io/badge/Github--Pages-Benchmarks-2ea44f)](https://helmholtz-analytics.github.io/heat/dev/bench)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-Table of contents:
- COPILOT WILL FILL OUT AT THE END
+- Table of Contents
+  - [What is Heat for?](#what-is-heat-for)
+  - [Features](#features)
+  - [Installation](#installation)
+    - [Requirements](#requirements)
+    - [pip](#pip)
+    - [conda](#conda)
+  - [Getting Started](#getting-started)
+  - [FAQ](#faq)
+  - [Support Channels](#support-channels)
+  - [Contribution guidelines](#contribution-guidelines)
+    - [Resources for MPI programming](#resources-for-mpi-programming)
+  - [License](#license)
+  - [Citing Heat](#citing-heat)
+  - [Acknowledgements](#acknowledgements)
+
 
 # What is Heat for?
 
@@ -64,7 +79,7 @@ Check out our [features](#features) and the [Heat API Reference](https://heat.re
 - h5py
 - netCDF4
 
-### pip
+## pip
 Install the latest version with
 
 ```bash
@@ -73,7 +88,7 @@ pip install heat[hdf5,netcdf]
 where the part in brackets is a list of optional dependencies. You can omit
 it, if you do not need HDF5 or NetCDF support.
 
-### **conda**
+## **conda**
 
 The conda build includes all dependencies **including OpenMPI**.
 ```bash
