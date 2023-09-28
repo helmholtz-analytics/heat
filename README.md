@@ -21,7 +21,7 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![Benchmarks](https://img.shields.io/badge/Github--Pages-Benchmarks-2ea44f)](https://helmholtz-analytics.github.io/heat/dev/bench)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-- Table of Contents
+# Table of Contents
   - [What is Heat for?](#what-is-heat-for)
   - [Features](#features)
   - [Installation](#installation)
@@ -172,8 +172,9 @@ If you’re unsure where to start or how your skills fit in, reach out! You can 
 
 ### Parallel Computing and MPI:
 
-* @davidhenty's [course](https://www.archer2.ac.uk/training/courses/200514-mpi/)
+* David Henty's [course](https://www.archer2.ac.uk/training/courses/200514-mpi/)
 * Wes Kendall's [Tutorials](https://mpitutorial.com/tutorials/)
+* Rolf Rabenseifner's [MPI course material](https://www.hlrs.de/training/self-study-materials/mpi-course-material) (including C, Fortran **and** Python via `mpi4py`)
 
 ### mpi4py
 
