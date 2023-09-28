@@ -27,7 +27,6 @@ jobs:
       - name: Test
         run: |
           pip install .[dev]
-          pip install xarray
           pre-commit run --all-files
           python -m unittest
 
