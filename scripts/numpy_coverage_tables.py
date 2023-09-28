@@ -500,6 +500,40 @@ numpy_statistics_operations = [
 numpy_functions.append(numpy_statistics_operations)
 headers[str(len(headers))] = "NumPy Statistical Operations"
 
+# numpy random operations
+numpy_random_operations = [
+    # numpy.random.rand
+    # numpy.random.randn
+    # numpy.random.randint
+    # numpy.random.random_integers
+    # numpy.random.random_sample
+    # numpy.random.ranf
+    # numpy.random.sample
+    # numpy.random.choice
+    # numpy.random.bytes
+    # numpy.random.shuffle
+    # numpy.random.permutation
+    # numpy.random.seed
+    # numpy.random.get_state
+    # numpy.random.set_state
+    "random.rand",
+    "random.randn",
+    "random.randint",
+    "random.random_integers",
+    "random.random_sample",
+    "random.ranf",
+    "random.sample",
+    "random.choice",
+    "random.bytes",
+    "random.shuffle",
+    "random.permutation",
+    "random.seed",
+    "random.get_state",
+    "random.set_state",
+]
+numpy_functions.append(numpy_random_operations)
+headers[str(len(headers))] = "NumPy Random Operations"
+
 # initialize markdown file
 # open the file in write mode
 f = open("coverage_tables.md", "w")
@@ -524,7 +558,11 @@ for i, function_list in enumerate(numpy_functions):
 
     # Check if functions exist in the heat library and create table rows
     for func_name in function_list:
-        if hasattr(heat, func_name) or hasattr(heat.linalg, func_name):
+        if (
+            hasattr(heat, func_name)
+            or hasattr(heat.linalg, func_name.replace("linalg.", ""))
+            or hasattr(heat.random, func_name.replace("random.", ""))
+        ):
             support_status = "✅"  # Green checkmark for supported functions
         else:
             support_status = "❌"  # Red cross for unsupported functions
