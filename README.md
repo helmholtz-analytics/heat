@@ -48,6 +48,8 @@ With Heat you can:
 - exploit the entire, cumulative RAM of your many nodes for memory-intensive operations and algorithms;
 - run your NumPy/SciPy code on GPUs (CUDA, ROCm, coming up: Apple MPS).
 
+For an example that highlights the benefits of multi-node parallelism and hardware acceleration and the related code snippets see, e.g., our [blog post on trucated SVD of a 200GB data set](https://helmholtz-analytics.github.io/heat/2023/06/16/new-feature-hsvd.html).
+
 Check out our [coverage tables](coverage_tables.md) to see which NumPy, SciPy, scikit-learn functions are already supported.
 
  If you need a functionality that is not yet supported:
