@@ -52,6 +52,5 @@ jobs:
           pip install pytest
           pip install ${{ matrix.pytorch-version }} --extra-index-url https://download.pytorch.org/whl/cpu
           pip install ${{ matrix.install-options }}
-          pip install xarray
           mpirun -n 3 pytest heat/
           mpirun -n 4 pytest heat/
