@@ -79,6 +79,14 @@ Check out our [features](#features) and the [Heat API Reference](https://heat.re
 - h5py
 - netCDF4
 
+### GPU-support
+In order to do computations on your GPU(s), you will require a CUDA or ROCm installation matching your hardware and its drivers. Moreover,
+- your PyTorch installation must be compiled with CUDA/ROCm support.
+
+### HPC-systems
+On most HPC-systems you will not be able to install/compile MPI or CUDA/ROCm yourself. Instead, you will most likely need to load a pre-installed MPI and/or CUDA/ROCm module from the module system. Maybe, you will even find PyTorch, h5py, or mpi4py as (part of) such a module. Note that for optimal performance on GPU, you need to usa an MPI library that has been compiled with CUDA/ROCm support (e.g., so-called "CUDA-aware MPI").
+
+
 ## pip
 Install the latest version with
 
