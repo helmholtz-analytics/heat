@@ -21,6 +21,8 @@ directory. It is typically most convenient to `cd` over here and run the Docker 
 $ docker build --build-args HEAT_VERSION=X.Y.Z --PYTORCH_IMG=<nvcr-tag> -t heat .
 ```
 
+The heat image is based on the nvidia pytorch container. You can find exisiting tags in the [nvidia container catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch/tags).
+
 We also offer prebuilt images in our [Package registry](https://github.com/helmholtz-analytics/heat/pkgs/container/heat) from which you can pull existing images:
 
 ```console
