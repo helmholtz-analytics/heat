@@ -524,7 +524,7 @@ for i, function_list in enumerate(numpy_functions):
 
     # Check if functions exist in the heat library and create table rows
     for func_name in function_list:
-        if hasattr(heat, func_name):
+        if hasattr(heat, func_name) or hasattr(heat.linalg, func_name):
             support_status = "✅"  # Green checkmark for supported functions
         else:
             support_status = "❌"  # Red cross for unsupported functions
