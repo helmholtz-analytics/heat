@@ -38,7 +38,7 @@ Work in progress.
 Get the docker image from our package repository
 
 ```
-docker pull ghcr.io/helmholtz-analytics/heat:1.2.0-dev_torch1.12_cuda11.7_py3.8
+docker pull ghcr.io/helmholtz-analytics/heat:<version-tag>
 ```
 
 or build it from our Dockerfile
@@ -46,8 +46,10 @@ or build it from our Dockerfile
 ```
 git clone https://github.com/helmholtz-analytics/heat.git
 cd heat/docker
-docker build -t heat:latest .
+docker build --build-args HEAT_VERSION=X.Y.Z --PYTORCH_IMG=<nvcr-tag> -t heat:latest .
 ```
+
+`<nvcr-tag>` should be replaced with an existing version of the official Nvidia pytorch container image. Information and existing tags can be found on the [here](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch)
 
 See [our docker README](https://github.com/helmholtz-analytics/heat/tree/main/docker/README.md) for other details.
 
