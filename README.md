@@ -81,11 +81,12 @@ Check out our [features](#features) and the [Heat API Reference](https://heat.re
 - h5py
 - netCDF4
 
-### GPU-support
-In order to do computations on your GPU(s), you will require a CUDA or ROCm installation matching your hardware and its drivers. Moreover,
-- your PyTorch installation must be compiled with CUDA/ROCm support.
+### GPU support
+In order to do computations on your GPU(s):
+- your CUDA or ROCm installation must match your hardware and its drivers;
+- your [PyTorch installation](https://pytorch.org/get-started/locally/) must be compiled with CUDA/ROCm support.
 
-### HPC-systems
+### HPC systems
 On most HPC-systems you will not be able to install/compile MPI or CUDA/ROCm yourself. Instead, you will most likely need to load a pre-installed MPI and/or CUDA/ROCm module from the module system. Maybe, you will even find PyTorch, h5py, or mpi4py as (part of) such a module. Note that for optimal performance on GPU, you need to usa an MPI library that has been compiled with CUDA/ROCm support (e.g., so-called "CUDA-aware MPI").
 
 
@@ -133,12 +134,12 @@ Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
 
 
 # FAQ
-In progress...
+Work in progress...
 
-  - Users
+  <!-- - Users
   - Developers
   - Students
-  - system administrators
+  - system administrators -->
 
 <!-- # Goals
 
@@ -152,8 +153,7 @@ computational and memory needs of your laptop and desktop.
 
 # Support Channels
 
-We use [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions) as a forum for questions about Heat.
-If you found a bug or miss a feature, then please file a new [issue](https://github.com/helmholtz-analytics/heat/issues/new/choose).
+Go ahead and ask questions on [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions). If you found a bug or miss a feature, then please file a new [issue](https://github.com/helmholtz-analytics/heat/issues/new/choose). You can also get in touch with us on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo) (sign up with your GitHub credentials). Once you log in, you can introduce yourself on the `Town Square` channel.
 
 
 # Contribution guidelines
@@ -189,7 +189,9 @@ Heat is distributed under the MIT license, see our
 
 # Citing Heat
 
-If you find Heat helpful for your research, please mention it in your publications. You can cite:
+<!-- If you find Heat helpful for your research, please mention it in your publications. You can cite: -->
+
+Please do mention Heat in your publications if it helped your research. You can cite:
 
 * Götz, M., Debus, C., Coquelin, D., Krajsek, K., Comito, C., Knechtges, P., Hagemeier, B., Tarnawa, M., Hanselmann, S., Siggel, S., Basermann, A. & Streit, A. (2020). HeAT - a Distributed and GPU-accelerated Tensor Framework for Data Analytics. In 2020 IEEE International Conference on Big Data (Big Data) (pp. 276-287). IEEE, DOI: 10.1109/BigData50022.2020.9378050.
 
