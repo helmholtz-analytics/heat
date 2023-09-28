@@ -12,6 +12,7 @@ The following tables show the NumPy functions supported by Heat.
 7. [NumPy Logic Functions](#numpy-logic-functions)
 8. [NumPy Sorting Operations](#numpy-sorting-operations)
 9. [NumPy Statistical Operations](#numpy-statistical-operations)
+10. [NumPy Random Operations](#numpy-random-operations)
 
 ## NumPy  Mathematical Functions
 [Back to Table of Contents](#table-of-contents)
@@ -283,22 +284,22 @@ The following tables show the NumPy functions supported by Heat.
 | linalg.matrix_power | ❌ |
 | kron | ❌ |
 | linalg.cholesky | ❌ |
-| linalg.qr | ❌ |
+| linalg.qr | ✅ |
 | linalg.svd | ❌ |
 | linalg.eig | ❌ |
 | linalg.eigh | ❌ |
 | linalg.eigvals | ❌ |
 | linalg.eigvalsh | ❌ |
-| linalg.norm | ❌ |
+| linalg.norm | ✅ |
 | linalg.cond | ❌ |
-| linalg.det | ❌ |
+| linalg.det | ✅ |
 | linalg.matrix_rank | ❌ |
 | linalg.slogdet | ❌ |
 | trace | ✅ |
 | linalg.solve | ❌ |
 | linalg.tensorsolve | ❌ |
 | linalg.lstsq | ❌ |
-| linalg.inv | ❌ |
+| linalg.inv | ✅ |
 | linalg.pinv | ❌ |
 | linalg.tensorinv | ❌ |
 ## NumPy Logic Functions
@@ -385,3 +386,22 @@ The following tables show the NumPy functions supported by Heat.
 | bincount | ✅ |
 | histogram_bin_edges | ❌ |
 | digitize | ✅ |
+## NumPy Random Operations
+[Back to Table of Contents](#table-of-contents)
+
+| NumPy Random Operations | Heat |
+|---|---|
+| random.rand | ✅ |
+| random.randn | ✅ |
+| random.randint | ✅ |
+| random.random_integers | ❌ |
+| random.random_sample | ✅ |
+| random.ranf | ✅ |
+| random.sample | ✅ |
+| random.choice | ❌ |
+| random.bytes | ❌ |
+| random.shuffle | ❌ |
+| random.permutation | ✅ |
+| random.seed | ✅ |
+| random.get_state | ✅ |
+| random.set_state | ✅ |
