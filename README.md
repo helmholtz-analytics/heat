@@ -24,17 +24,17 @@ Heat is a distributed tensor framework for high performance data analytics.
 # Table of Contents
   - [What is Heat for?](#what-is-heat-for)
   - [Features](#features)
+  - [Getting Started](#getting-started)
   - [Installation](#installation)
     - [Requirements](#requirements)
     - [pip](#pip)
     - [conda](#conda)
-  - [Getting Started](#getting-started)
-  - [FAQ](#faq)
   - [Support Channels](#support-channels)
   - [Contribution guidelines](#contribution-guidelines)
-    - [Resources for MPI programming](#resources-for-mpi-programming)
+    - [Resources](#resources)
   - [License](#license)
   - [Citing Heat](#citing-heat)
+  - [FAQ](#faq)
   - [Acknowledgements](#acknowledgements)
 
 
@@ -53,7 +53,7 @@ For a example that highlights the benefits of multi-node parallelism, hardware a
 Check out our [coverage tables](coverage_tables.md) to see which NumPy, SciPy, scikit-learn functions are already supported.
 
  If you need a functionality that is not yet supported:
-  - [search existing issues](https://github.com/helmholtz-analytics/heat/issues) and make sure to comment if someone else already requested it;
+  - [search existing issues](https://github.com/helmholtz-analytics/heat/issues) and make sure to leave a comment if someone else already requested it;
   - [open a new issue](https://github.com/helmholtz-analytics/heat/issues/new/choose).
 
 
@@ -67,6 +67,42 @@ Check out our [features](#features) and the [Heat API Reference](https://heat.re
 * Seamless integration with the NumPy/SciPy ecosystem
 * Python array API (work in progress)
 
+
+# Getting Started
+
+Go to [Quick Start](quick_start.md) for a quick overview. For more details, see [Installation](#installation).
+
+**You can test your setup** by running the [`heat_test.py`](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_test.py) script:
+
+```shell
+mpirun -n 2 python heat_test.py
+```
+
+It should print something like this:
+
+```shell
+x is distributed:  True
+Global DNDarray x:  DNDarray([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=ht.int32, device=cpu:0, split=0)
+Global DNDarray x:
+Local torch tensor on rank  0 :  tensor([0, 1, 2, 3, 4], dtype=torch.int32)
+Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
+```
+
+Our Jupyter Notebook [**Tutorial**](https://github.com/helmholtz-analytics/heat/blob/main/scripts/) illustrates Heat's basics. More tutorials [here](https://heat.readthedocs.io/en/latest/tutorials.html).
+
+The complete documentation of the latest version is always deployed on
+[Read the Docs](https://heat.readthedocs.io/).
+
+
+<!-- # Goals
+
+Heat is a flexible and seamless open-source software for high performance data
+analytics and machine learning. It provides highly optimized algorithms and data structures for tensor computations using CPUs, GPUs, and distributed cluster systems on top of MPI. The goal of Heat is to fill the gap between single-node data analytics and machine learning libraries, and  high-performance computing (HPC). Heat's interface integrates seamlessly with the existing data science ecosystem and makes  writing scalable
+scientific and data science applications as effortless as using NumPy.
+
+Heat allows you to tackle your actual Big Data challenges that go beyond the
+computational and memory needs of your laptop and desktop.
+ -->
 # Installation
 
 ## Requirements
@@ -106,59 +142,14 @@ The conda build includes all dependencies **including OpenMPI**.
  conda install -c conda-forge heat
  ```
 
-# Getting Started
-
-Go to [Quick Start](quick_start.md) for a quick overview.
-
-Check out our Jupyter Notebook [**Tutorial**](https://github.com/helmholtz-analytics/heat/blob/main/scripts/)
-right here on GitHub or in the `./scripts` directory, to learn and understand Heat's basics.
-
-The complete documentation of the latest version is always deployed on
-[Read the Docs](https://heat.readthedocs.io/).
-
-### You can test your setup by running the [`heat_test.py`](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_test.py) script:
-
-```shell
-mpirun -n 2 python heat_test.py
-```
-
-### It should print something like this:
-
-```shell
-x is distributed:  True
-Global DNDarray x:  DNDarray([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype=ht.int32, device=cpu:0, split=0)
-Global DNDarray x:
-Local torch tensor on rank  0 :  tensor([0, 1, 2, 3, 4], dtype=torch.int32)
-Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
-```
-
-
-# FAQ
-Work in progress...
-
-  <!-- - Users
-  - Developers
-  - Students
-  - system administrators -->
-
-<!-- # Goals
-
-Heat is a flexible and seamless open-source software for high performance data
-analytics and machine learning. It provides highly optimized algorithms and data structures for tensor computations using CPUs, GPUs, and distributed cluster systems on top of MPI. The goal of Heat is to fill the gap between single-node data analytics and machine learning libraries, and  high-performance computing (HPC). Heat's interface integrates seamlessly with the existing data science ecosystem and makes  writing scalable
-scientific and data science applications as effortless as using NumPy.
-
-Heat allows you to tackle your actual Big Data challenges that go beyond the
-computational and memory needs of your laptop and desktop.
- -->
-
 # Support Channels
 
-Go ahead and ask questions on [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions). If you found a bug or miss a feature, then please file a new [issue](https://github.com/helmholtz-analytics/heat/issues/new/choose). You can also get in touch with us on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo) (sign up with your GitHub credentials). Once you log in, you can introduce yourself on the `Town Square` channel.
+Go ahead and ask questions on [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions). If you found a bug or are missing a feature, then please file a new [issue](https://github.com/helmholtz-analytics/heat/issues/new/choose). You can also get in touch with us on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo) (sign up with your GitHub credentials). Once you log in, you can introduce yourself on the `Town Square` channel.
 
 
 # Contribution guidelines
 
-**We welcome contributions from the community, if you want to contribute to Heat, be sure to review the [Contribution Guidelines](contributing.md) and [Resources for MPI programming](#resources-for-mpi-programming)  before getting started!**
+**We welcome contributions from the community, if you want to contribute to Heat, be sure to review the [Contribution Guidelines](contributing.md) and [Resources](#resources)  before getting started!**
 
 We use [GitHub issues](https://github.com/helmholtz-analytics/heat/issues) for tracking requests and bugs, please see [Discussions](https://github.com/helmholtz-analytics/heat/discussions) for general questions and discussion. You can also get in touch with us on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo) (sign up with your GitHub credentials). Once you log in, you can introduce yourself on the `Town Square` channel.
 
@@ -167,7 +158,7 @@ If you’re unsure where to start or how your skills fit in, reach out! You can 
 **If you are new to contributing to open source, [this guide](https://opensource.guide/how-to-contribute/) helps explain why, what, and how to get involved.**
 
 
-## Resources for MPI programming
+## Resources
 
 * [Heat Tutorials](https://heat.readthedocs.io/en/latest/tutorials.html)
 * [Heat API Reference](https://heat.readthedocs.io/en/latest/autoapi/index.html)
@@ -220,6 +211,13 @@ Please do mention Heat in your publications if it helped your research. You can 
     doi={10.1109/BigData50022.2020.9378050}
 }
 ```
+# FAQ
+Work in progress...
+
+  <!-- - Users
+  - Developers
+  - Students
+  - system administrators -->
 
 ## Acknowledgements
 
