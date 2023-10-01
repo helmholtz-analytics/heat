@@ -23,6 +23,7 @@ from . import types
 from . import _operations
 
 __all__ = [
+    "argsort",
     "balance",
     "broadcast_arrays",
     "broadcast_to",
@@ -61,6 +62,46 @@ __all__ = [
     "vsplit",
     "vstack",
 ]
+
+
+def argsort(a: DNDarray, axis: int = -1, descending: bool = False) -> DNDarray:
+    """
+    Returns the indices that would sort an array. This is the distributed equivalent of `np.argsort`.
+    The sorting is not stable which means that equal elements in the result may have a different ordering than in the
+    original array.
+    Sorting where `axis==a.split` needs a lot of communication between the processes of MPI.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array to be sorted.
+    axis : int, optional
+        The dimension to sort along.
+        Default is the last axis.
+    descending : bool, optional
+        If set to `True`, indices are sorted in descending order.
+
+    Raises
+    ------
+    ValueError
+        If `axis` is not consistent with the available dimensions.
+
+    Examples
+    --------
+    >>> x = ht.array([[4, 1], [2, 3]], split=0)
+    >>> x.shape
+    (1, 2)
+    (1, 2)
+    >>> y = ht.argsort(x, axis=0)
+    >>> y
+    (array([[1, 0],
+            [0, 1]]))
+    >>> ht.argsort(x, descending=True)
+    (array([[0, 1],
+            [1, 0]]))
+    """
+    _, indices = sort(a=a, axis=axis, descending=descending, out=None)
+    return indices
 
 
 def balance(array: DNDarray, copy=False) -> DNDarray:
