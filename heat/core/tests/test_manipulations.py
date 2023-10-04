@@ -111,7 +111,7 @@ class TestManipulations(TestCase):
         ht.random.seed(1)
         data = ht.random.randn(100, 1, split=0)
         indices = ht.argsort(data, axis=0)
-        result = data[indices]
+        result = data[indices.larray.tolist()]
         counts, _, _ = ht.get_comm().counts_displs_shape(data.gshape, axis=0)
         for i, c in enumerate(counts):
             for idx in range(c - 1):
