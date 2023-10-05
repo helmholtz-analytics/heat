@@ -113,6 +113,59 @@ class TestManipulations(TestCase):
         with self.assertRaises(ValueError):
             ht.column_stack((a, b, f))
 
+    def test_collect(self):
+        st = ht.zeros((50,), split=0)
+        prev_lshape = st.lshape
+        if st.comm.size >= 3:
+            stc = ht.collect(st)
+            if stc.comm.rank == 0:
+                self.assertEqual(stc.lshape, (50,))
+            else:
+                self.assertEqual(stc.lshape, (0,))
+            self.assertEqual(st.lshape, prev_lshape)
+
+            st = ht.zeros((50, 50), split=1)
+            prev_lshape = st.lshape
+            stc = ht.collect(st, 2)
+            if stc.comm.rank == 2:
+                self.assertEqual(stc.lshape, (50, 50))
+            else:
+                self.assertEqual(stc.lshape, (50, 0))
+            self.assertEqual(st.lshape, prev_lshape)
+
+            prev_lshape = stc.lshape
+            stc2 = ht.collect(stc, 1)
+            if stc2.comm.rank == 1:
+                self.assertEqual(stc2.lshape, (50, 50))
+            else:
+                self.assertEqual(stc2.lshape, (50, 0))
+            self.assertEqual(stc.lshape, prev_lshape)
+
+            st = ht.zeros((50, 81, 67), split=2)
+            prev_lshape = st.lshape
+            stc = ht.collect(st, 1)
+            if stc.comm.rank == 1:
+                self.assertEqual(stc.lshape, (50, 81, 67))
+            else:
+                self.assertEqual(stc.lshape, (50, 81, 0))
+            self.assertEqual(st.lshape, prev_lshape)
+
+            st = ht.zeros((5, 8, 31), split=None)  # nothing should happen
+            prev_lshape = st.lshape
+            stc = ht.collect(st)
+            self.assertEqual(stc.lshape, stc.gshape)
+            self.assertEqual(st.lshape, prev_lshape)
+
+        st = ht.zeros((50, 81, 67), split=0)
+        with self.assertRaises(TypeError):
+            stc = ht.collect(st, "st.comm.size + 1")
+        with self.assertRaises(TypeError):
+            stc = ht.collect(st, 1.0)
+        with self.assertRaises(TypeError):
+            stc = ht.collect(st, (1, 3))
+        with self.assertRaises(ValueError):
+            stc = ht.collect(st, st.comm.size + 1)
+
     def test_concatenate(self):
         # cases to test:
         # Matrices / Vectors
