@@ -2,17 +2,54 @@
 from __future__ import annotations
 
 from heat.sparse.dcsr_matrix import DCSR_matrix
-
+from heat.sparse.factories import sparse_csr_matrix
 from ..core.memory import sanitize_memory_layout
 from ..core.dndarray import DNDarray
 from ..core.factories import empty
 
 __all__ = [
-    "todense",
+    "to_dense",
+    "to_sparse",
 ]
 
 
-def todense(sparse_matrix: DCSR_matrix, order="C", out: DNDarray = None) -> DNDarray:
+def to_sparse(array: DNDarray) -> DCSR_matrix:
+    """
+    Convert the distributed array to a sparse DCSR_matrix representation.
+
+    Parameters
+    ----------
+    array : DNDarray
+        The distributed array to be converted to a sparse DCSR_matrix.
+
+    Returns
+    -------
+    DCSR_matrix
+        A sparse DCSR_matrix representation of the input DNDarray.
+
+    Notes
+    -----
+    This method allows for the conversion of a DNDarray into a sparse DCSR_matrix representation,
+    which is useful for handling large and sparse datasets efficiently.
+
+    Examples
+    --------
+    >>> dense_array = ht.array([[1, 0, 0], [0, 0, 2], [0, 3, 0]])
+    >>> sparse_matrix = dense_array.to_sparse()
+
+    """
+    array.balance_()
+    result = sparse_csr_matrix(
+        array.larray, dtype=array.dtype, device=array.device, comm=array.comm, is_split=array.split
+    )
+    return result
+
+
+DNDarray.to_sparse = to_sparse
+DNDarray.to_sparse.__doc__ = to_sparse.__doc__
+
+
+def to_dense(sparse_matrix: DCSR_matrix, order="C", out: DNDarray = None) -> DNDarray:
     """
     Convert :class:`~heat.sparse.DCSR_matrix` to a dense :class:`~heat.core.DNDarray`.
     Output follows the same distribution among processes as the input
@@ -75,5 +112,5 @@ def todense(sparse_matrix: DCSR_matrix, order="C", out: DNDarray = None) -> DNDa
     return out
 
 
-DCSR_matrix.todense = lambda self, order="C", out=None: todense(self, order, out)
-DCSR_matrix.to_dense = lambda self, order="C", out=None: todense(self, order, out)
+DCSR_matrix.todense = lambda self, order="C", out=None: to_dense(self, order, out)
+DCSR_matrix.to_dense = lambda self, order="C", out=None: to_dense(self, order, out)
