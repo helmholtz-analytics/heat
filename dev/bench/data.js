@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1695311486086,
+  "lastUpdate": 1696508304406,
   "repoUrl": "https://github.com/helmholtz-analytics/heat",
   "entries": {
     "Benchmark": [
@@ -3618,6 +3618,628 @@ window.BENCHMARK_DATA = {
             "value": 0.7162292927503586,
             "unit": "%",
             "range": 0.038397350907325746
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Claudia Comito",
+            "username": "ClaudiaComito",
+            "email": "39374113+ClaudiaComito@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "ece385a61714713bf1f51553019eac3ea64d85d8",
+          "message": "add SECURITY.md and vulnerability report template (#1221)",
+          "timestamp": "2023-09-26T16:00:40Z",
+          "url": "https://github.com/helmholtz-analytics/heat/commit/ece385a61714713bf1f51553019eac3ea64d85d8"
+        },
+        "date": 1696508303354,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "heat_benchmarks_N1_GPU - RUNTIME",
+            "value": 56.8642578125,
+            "unit": "s",
+            "range": 6.704440593719482
+          },
+          {
+            "name": "heat_benchmarks_N1_GPU - ENERGY",
+            "value": 5.109793289992188,
+            "unit": "kJ",
+            "range": 0.8197911708591947
+          },
+          {
+            "name": "matmul_split_0_N1_GPU - RUNTIME",
+            "value": 0.0026460334192961454,
+            "unit": "s",
+            "range": 0.006360592320561409
+          },
+          {
+            "name": "matmul_split_0_N1_GPU - POWER",
+            "value": 45.76083094424498,
+            "unit": "W",
+            "range": 6.692159139071216
+          },
+          {
+            "name": "matmul_split_0_N1_GPU - CPU_UTIL",
+            "value": 28.252526838246474,
+            "unit": "%",
+            "range": 2.8841794673902132
+          },
+          {
+            "name": "matmul_split_0_N1_GPU - GPU_UTIL",
+            "value": 12.270692992210389,
+            "unit": "%",
+            "range": 10.07175292360627
+          },
+          {
+            "name": "matmul_split_1_N1_GPU - RUNTIME",
+            "value": 0.0002795342297758907,
+            "unit": "s",
+            "range": 0.00010195645882049575
+          },
+          {
+            "name": "matmul_split_1_N1_GPU - POWER",
+            "value": 46.02612569096517,
+            "unit": "W",
+            "range": 6.1707290059658035
+          },
+          {
+            "name": "matmul_split_1_N1_GPU - CPU_UTIL",
+            "value": 28.36609011746439,
+            "unit": "%",
+            "range": 2.9381365154561205
+          },
+          {
+            "name": "matmul_split_1_N1_GPU - GPU_UTIL",
+            "value": 12.277820229530334,
+            "unit": "%",
+            "range": 10.056639841166337
+          },
+          {
+            "name": "qr_split_0_N1_GPU - RUNTIME",
+            "value": 0.3277803957462311,
+            "unit": "s",
+            "range": 0.08786257356405258
+          },
+          {
+            "name": "qr_split_0_N1_GPU - POWER",
+            "value": 48.081154516841345,
+            "unit": "W",
+            "range": 2.8994502672083966
+          },
+          {
+            "name": "qr_split_0_N1_GPU - CPU_UTIL",
+            "value": 29.004810855408806,
+            "unit": "%",
+            "range": 3.2999701399194663
+          },
+          {
+            "name": "qr_split_0_N1_GPU - GPU_UTIL",
+            "value": 12.342391467094421,
+            "unit": "%",
+            "range": 9.94245797585625
+          },
+          {
+            "name": "qr_split_1_N1_GPU - RUNTIME",
+            "value": 0.27536240220069885,
+            "unit": "s",
+            "range": 0.07182753831148148
+          },
+          {
+            "name": "qr_split_1_N1_GPU - POWER",
+            "value": 50.88762477741142,
+            "unit": "W",
+            "range": 6.601916312990035
+          },
+          {
+            "name": "qr_split_1_N1_GPU - CPU_UTIL",
+            "value": 30.068108957413482,
+            "unit": "%",
+            "range": 4.203294795483068
+          },
+          {
+            "name": "qr_split_1_N1_GPU - GPU_UTIL",
+            "value": 12.422252750396728,
+            "unit": "%",
+            "range": 9.788724743433503
+          },
+          {
+            "name": "lanczos_N1_GPU - RUNTIME",
+            "value": 0.6537602543830872,
+            "unit": "s",
+            "range": 0.1355219930410385
+          },
+          {
+            "name": "lanczos_N1_GPU - POWER",
+            "value": 51.982176734785,
+            "unit": "W",
+            "range": 7.112145258986832
+          },
+          {
+            "name": "lanczos_N1_GPU - CPU_UTIL",
+            "value": 31.499746119870203,
+            "unit": "%",
+            "range": 5.671968196170039
+          },
+          {
+            "name": "lanczos_N1_GPU - GPU_UTIL",
+            "value": 11.990169882774353,
+            "unit": "%",
+            "range": 8.471940646241647
+          },
+          {
+            "name": "hierachical_svd_rank_N1_GPU - RUNTIME",
+            "value": 0.10101678222417831,
+            "unit": "s",
+            "range": 0.04324260354042053
+          },
+          {
+            "name": "hierachical_svd_rank_N1_GPU - POWER",
+            "value": 52.21384349429161,
+            "unit": "W",
+            "range": 6.537984843017739
+          },
+          {
+            "name": "hierachical_svd_rank_N1_GPU - CPU_UTIL",
+            "value": 32.18058183944752,
+            "unit": "%",
+            "range": 6.280408965880001
+          },
+          {
+            "name": "hierachical_svd_rank_N1_GPU - GPU_UTIL",
+            "value": 10.954746127128601,
+            "unit": "%",
+            "range": 5.530181301548397
+          },
+          {
+            "name": "hierachical_svd_tol_N1_GPU - RUNTIME",
+            "value": 0.1673455536365509,
+            "unit": "s",
+            "range": 0.028592094779014587
+          },
+          {
+            "name": "hierachical_svd_tol_N1_GPU - POWER",
+            "value": 52.163969468532244,
+            "unit": "W",
+            "range": 6.14374860160727
+          },
+          {
+            "name": "hierachical_svd_tol_N1_GPU - CPU_UTIL",
+            "value": 32.316447032846526,
+            "unit": "%",
+            "range": 6.40367290980946
+          },
+          {
+            "name": "hierachical_svd_tol_N1_GPU - GPU_UTIL",
+            "value": 10.602184629440307,
+            "unit": "%",
+            "range": 4.580064871817882
+          },
+          {
+            "name": "kmeans_N1_GPU - RUNTIME",
+            "value": 9.477167129516602,
+            "unit": "s",
+            "range": 1.4648202657699585
+          },
+          {
+            "name": "kmeans_N1_GPU - POWER",
+            "value": 83.94590095497622,
+            "unit": "W",
+            "range": 6.221202055307311
+          },
+          {
+            "name": "kmeans_N1_GPU - CPU_UTIL",
+            "value": 33.25711607088372,
+            "unit": "%",
+            "range": 7.581134399749419
+          },
+          {
+            "name": "kmeans_N1_GPU - GPU_UTIL",
+            "value": 9.303547286987305,
+            "unit": "%",
+            "range": 2.244576603159259
+          },
+          {
+            "name": "kmedians_N1_GPU - RUNTIME",
+            "value": 21.409753799438477,
+            "unit": "s",
+            "range": 3.329479217529297
+          },
+          {
+            "name": "kmedians_N1_GPU - POWER",
+            "value": 88.36187534257554,
+            "unit": "W",
+            "range": 7.349619374359134
+          },
+          {
+            "name": "kmedians_N1_GPU - CPU_UTIL",
+            "value": 36.40648456487464,
+            "unit": "%",
+            "range": 11.662898101312177
+          },
+          {
+            "name": "kmedians_N1_GPU - GPU_UTIL",
+            "value": 11.21908483505249,
+            "unit": "%",
+            "range": 6.6391865710752676
+          },
+          {
+            "name": "kmedoids_N1_GPU - RUNTIME",
+            "value": 23.780385971069336,
+            "unit": "s",
+            "range": 3.225306749343872
+          },
+          {
+            "name": "kmedoids_N1_GPU - POWER",
+            "value": 88.54284005933417,
+            "unit": "W",
+            "range": 7.8482009926314085
+          },
+          {
+            "name": "kmedoids_N1_GPU - CPU_UTIL",
+            "value": 37.74755620104101,
+            "unit": "%",
+            "range": 13.061572741592482
+          },
+          {
+            "name": "kmedoids_N1_GPU - GPU_UTIL",
+            "value": 12.65042142868042,
+            "unit": "%",
+            "range": 9.801123579122358
+          },
+          {
+            "name": "reshape_N1_GPU - RUNTIME",
+            "value": 0.0004032134893350303,
+            "unit": "s",
+            "range": 0.00016764758038334548
+          },
+          {
+            "name": "reshape_N1_GPU - POWER",
+            "value": 59.414530268897764,
+            "unit": "W",
+            "range": 4.736757725542473
+          },
+          {
+            "name": "reshape_N1_GPU - CPU_UTIL",
+            "value": 36.77959055703517,
+            "unit": "%",
+            "range": 17.827760805752565
+          },
+          {
+            "name": "reshape_N1_GPU - GPU_UTIL",
+            "value": 13.28124713897705,
+            "unit": "%",
+            "range": 9.434378107457409
+          },
+          {
+            "name": "concatenate_N1_GPU - RUNTIME",
+            "value": 0.0014678954612463713,
+            "unit": "s",
+            "range": 0.0005946935852989554
+          },
+          {
+            "name": "concatenate_N1_GPU - POWER",
+            "value": 59.456183304314926,
+            "unit": "W",
+            "range": 4.765116018667447
+          },
+          {
+            "name": "concatenate_N1_GPU - CPU_UTIL",
+            "value": 36.77414831578696,
+            "unit": "%",
+            "range": 17.83089516480273
+          },
+          {
+            "name": "concatenate_N1_GPU - GPU_UTIL",
+            "value": 13.282094287872315,
+            "unit": "%",
+            "range": 9.433975938532377
+          },
+          {
+            "name": "heat_benchmarks_N4_CPU - RUNTIME",
+            "value": 18.08098030090332,
+            "unit": "s",
+            "range": 1.9536446332931519
+          },
+          {
+            "name": "heat_benchmarks_N4_CPU - ENERGY",
+            "value": 1.159698593904395,
+            "unit": "kJ",
+            "range": 0.2789200123377995
+          },
+          {
+            "name": "matmul_split_0_N4_CPU - RUNTIME",
+            "value": 0.6571148633956909,
+            "unit": "s",
+            "range": 0.1328810155391693
+          },
+          {
+            "name": "matmul_split_0_N4_CPU - POWER",
+            "value": 9.110737817733057,
+            "unit": "W",
+            "range": 5.506480869740455
+          },
+          {
+            "name": "matmul_split_0_N4_CPU - CPU_UTIL",
+            "value": 84.71423300355269,
+            "unit": "%",
+            "range": 13.426633677303094
+          },
+          {
+            "name": "matmul_split_0_N4_CPU - GPU_UTIL",
+            "value": 0.70343017578125,
+            "unit": "%",
+            "range": 0
+          },
+          {
+            "name": "matmul_split_1_N4_CPU - RUNTIME",
+            "value": 0.6150993704795837,
+            "unit": "s",
+            "range": 0.09445267915725708
+          },
+          {
+            "name": "matmul_split_1_N4_CPU - POWER",
+            "value": 7.251800516881,
+            "unit": "W",
+            "range": 0.17525692005690113
+          },
+          {
+            "name": "matmul_split_1_N4_CPU - CPU_UTIL",
+            "value": 77.11445903019731,
+            "unit": "%",
+            "range": 20.73206657779303
+          },
+          {
+            "name": "matmul_split_1_N4_CPU - GPU_UTIL",
+            "value": 0.70343017578125,
+            "unit": "%",
+            "range": 0
+          },
+          {
+            "name": "qr_split_0_N4_CPU - RUNTIME",
+            "value": 3.3225960731506348,
+            "unit": "s",
+            "range": 0.2991132438182831
+          },
+          {
+            "name": "qr_split_0_N4_CPU - POWER",
+            "value": 46.6116600170091,
+            "unit": "W",
+            "range": 8.839592309167683
+          },
+          {
+            "name": "qr_split_0_N4_CPU - CPU_UTIL",
+            "value": 76.50595149391674,
+            "unit": "%",
+            "range": 20.5503486322189
+          },
+          {
+            "name": "qr_split_0_N4_CPU - GPU_UTIL",
+            "value": 0.70343017578125,
+            "unit": "%",
+            "range": 0
+          },
+          {
+            "name": "qr_split_1_N4_CPU - RUNTIME",
+            "value": 3.2006702423095703,
+            "unit": "s",
+            "range": 0.3145384192466736
+          },
+          {
+            "name": "qr_split_1_N4_CPU - POWER",
+            "value": 40.96622185259399,
+            "unit": "W",
+            "range": 5.1186242653720795
+          },
+          {
+            "name": "qr_split_1_N4_CPU - CPU_UTIL",
+            "value": 75.19291134875493,
+            "unit": "%",
+            "range": 20.84369330178813
+          },
+          {
+            "name": "qr_split_1_N4_CPU - GPU_UTIL",
+            "value": 0.70343017578125,
+            "unit": "%",
+            "range": 0
+          },
+          {
+            "name": "lanczos_N4_CPU - RUNTIME",
+            "value": 1.3180084228515625,
+            "unit": "s",
+            "range": 0.31274110078811646
+          },
+          {
+            "name": "lanczos_N4_CPU - POWER",
+            "value": 26.86804421726236,
+            "unit": "W",
+            "range": 22.16593473392376
+          },
+          {
+            "name": "lanczos_N4_CPU - CPU_UTIL",
+            "value": 74.72568254612531,
+            "unit": "%",
+            "range": 21.925637411950397
+          },
+          {
+            "name": "lanczos_N4_CPU - GPU_UTIL",
+            "value": 0.70343017578125,
+            "unit": "%",
+            "range": 0
+          },
+          {
+            "name": "hierachical_svd_rank_N4_CPU - RUNTIME",
+            "value": 0.22320988774299622,
+            "unit": "s",
+            "range": 0.0387376993894577
+          },
+          {
+            "name": "hierachical_svd_rank_N4_CPU - POWER",
+            "value": 7.265007160218556,
+            "unit": "W",
+            "range": 0.15747833965033675
+          },
+          {
+            "name": "hierachical_svd_rank_N4_CPU - CPU_UTIL",
+            "value": 74.84948010220221,
+            "unit": "%",
+            "range": 22.00428703335526
+          },
+          {
+            "name": "hierachical_svd_rank_N4_CPU - GPU_UTIL",
+            "value": 0.70343017578125,
+            "unit": "%",
+            "range": 0
+          },
+          {
+            "name": "hierachical_svd_tol_N4_CPU - RUNTIME",
+            "value": 0.25486406683921814,
+            "unit": "s",
+            "range": 0.05069941282272339
+          },
+          {
+            "name": "hierachical_svd_tol_N4_CPU - POWER",
+            "value": 7.253409510008915,
+            "unit": "W",
+            "range": 0.17212932290106994
+          },
+          {
+            "name": "hierachical_svd_tol_N4_CPU - CPU_UTIL",
+            "value": 74.89251044054572,
+            "unit": "%",
+            "range": 22.019549860730415
+          },
+          {
+            "name": "hierachical_svd_tol_N4_CPU - GPU_UTIL",
+            "value": 0.70343017578125,
+            "unit": "%",
+            "range": 0
+          },
+          {
+            "name": "kmeans_N4_CPU - RUNTIME",
+            "value": 1.8114229440689087,
+            "unit": "s",
+            "range": 0.4608151912689209
+          },
+          {
+            "name": "kmeans_N4_CPU - POWER",
+            "value": 33.40270338485798,
+            "unit": "W",
+            "range": 15.931515168678617
+          },
+          {
+            "name": "kmeans_N4_CPU - CPU_UTIL",
+            "value": 74.36685519790915,
+            "unit": "%",
+            "range": 22.31541089284109
+          },
+          {
+            "name": "kmeans_N4_CPU - GPU_UTIL",
+            "value": 0.70343017578125,
+            "unit": "%",
+            "range": 0
+          },
+          {
+            "name": "kmedians_N4_CPU - RUNTIME",
+            "value": 1.870810866355896,
+            "unit": "s",
+            "range": 0.19969730079174042
+          },
+          {
+            "name": "kmedians_N4_CPU - POWER",
+            "value": 39.3697768956486,
+            "unit": "W",
+            "range": 7.143046764136199
+          },
+          {
+            "name": "kmedians_N4_CPU - CPU_UTIL",
+            "value": 72.6715017667345,
+            "unit": "%",
+            "range": 23.69569113413927
+          },
+          {
+            "name": "kmedians_N4_CPU - GPU_UTIL",
+            "value": 0.70343017578125,
+            "unit": "%",
+            "range": 0
+          },
+          {
+            "name": "kmedoids_N4_CPU - RUNTIME",
+            "value": 1.953009843826294,
+            "unit": "s",
+            "range": 0.25879570841789246
+          },
+          {
+            "name": "kmedoids_N4_CPU - POWER",
+            "value": 26.605253702138704,
+            "unit": "W",
+            "range": 14.619276859632588
+          },
+          {
+            "name": "kmedoids_N4_CPU - CPU_UTIL",
+            "value": 72.1656347577172,
+            "unit": "%",
+            "range": 23.619257020449474
+          },
+          {
+            "name": "kmedoids_N4_CPU - GPU_UTIL",
+            "value": 0.70343017578125,
+            "unit": "%",
+            "range": 0
+          },
+          {
+            "name": "reshape_N4_CPU - RUNTIME",
+            "value": 0.7416497468948364,
+            "unit": "s",
+            "range": 0.14900584518909454
+          },
+          {
+            "name": "reshape_N4_CPU - POWER",
+            "value": 7.269806457758621,
+            "unit": "W",
+            "range": 0.1002591585369334
+          },
+          {
+            "name": "reshape_N4_CPU - CPU_UTIL",
+            "value": 72.11577948169882,
+            "unit": "%",
+            "range": 23.403497702597658
+          },
+          {
+            "name": "reshape_N4_CPU - GPU_UTIL",
+            "value": 0.70343017578125,
+            "unit": "%",
+            "range": 0
+          },
+          {
+            "name": "concatenate_N4_CPU - RUNTIME",
+            "value": 0.8123544454574585,
+            "unit": "s",
+            "range": 0.09851332753896713
+          },
+          {
+            "name": "concatenate_N4_CPU - POWER",
+            "value": 19.55136037515764,
+            "unit": "W",
+            "range": 13.946380751791708
+          },
+          {
+            "name": "concatenate_N4_CPU - CPU_UTIL",
+            "value": 71.84932970451169,
+            "unit": "%",
+            "range": 22.41627985942541
+          },
+          {
+            "name": "concatenate_N4_CPU - GPU_UTIL",
+            "value": 0.70343017578125,
+            "unit": "%",
+            "range": 0
           }
         ]
       }
