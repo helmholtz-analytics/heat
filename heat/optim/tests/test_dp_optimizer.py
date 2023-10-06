@@ -129,8 +129,10 @@ class TestDASO(TestCase):
                 ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, local_skip_factor=-1)
             with self.assertRaises(ValueError):
                 ht.optim.DASO(local_optimizer=optimizer, total_epochs=1, skip_reduction_factor=-1)
-        if ht.MPI_WORLD.size != 8 or torch.cuda.device_count() == 0:
-            # only run these tests for 2 nodes, each of which has 4 GPUs
+
+        nnodes = int(os.getenv("SLURM_NNODES", "1"))
+        if nnodes < 2 or torch.cuda.device_count() == 0:
+            # skip full DASO test if less than 2 nodes or no GPUs are available
             return
 
         # Training settings
