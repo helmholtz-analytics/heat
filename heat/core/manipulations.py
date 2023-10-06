@@ -4073,8 +4073,8 @@ def topk(
                     gres.shape, gindices.shape, out[0].shape, out[1].shape
                 )
             )
-        out[0].larray.storage().copy_(final_array.larray.storage())
-        out[1].larray.storage().copy_(final_indices.larray.storage())
+        out[0].larray.untyped_storage().copy_(final_array.larray.untyped_storage())
+        out[1].larray.untyped_storage().copy_(final_indices.larray.untyped_storage())
 
         out[0]._DNDarray__dtype = a.dtype
         out[1]._DNDarray__dtype = types.int64

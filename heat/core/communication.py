@@ -809,7 +809,10 @@ class MPICommunication(Communication):
                 sendbuf.contiguous()
             )  # make a contiguous copy and reassign the storage, old will be collected
             sendbuf.set_(
-                dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride()
+                dummy.untyped_storage(),
+                dummy.storage_offset(),
+                size=dummy.shape,
+                stride=dummy.stride(),
             )
             sbuf = sendbuf if CUDA_AWARE_MPI else sendbuf.cpu()
             sendbuf = self.as_buffer(sbuf)
@@ -818,7 +821,10 @@ class MPICommunication(Communication):
             # nothing matches, the buffers have to be made contiguous
             dummy = recvbuf.contiguous()
             recvbuf.set_(
-                dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride()
+                dummy.untyped_storage(),
+                dummy.storage_offset(),
+                size=dummy.shape,
+                stride=dummy.stride(),
             )
             rbuf = recvbuf if CUDA_AWARE_MPI else recvbuf.cpu()
             if sendbuf is MPI.IN_PLACE:
@@ -1345,7 +1351,7 @@ class MPICommunication(Communication):
             mpi_recvbuf = self.alltoall_recvbuffer(rbuf)
 
             exit_code = self.handle.Alltoallw(mpi_sendbuf, mpi_recvbuf, **kwargs)
-            # original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), original_recvbuf.shape, original_recvbuf.stride())
+            # original_recvbuf.set_(recvbuf.untyped_storage(), recvbuf.storage_offset(), original_recvbuf.shape, original_recvbuf.stride())
             recv_axis_permutation = list(np.argsort(np.array(axis_permutation)))
 
         return exit_code, sbuf, rbuf, original_recvbuf, recv_axis_permutation
@@ -1575,7 +1581,7 @@ class MPICommunication(Communication):
         # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
         # if recv_axis != 0:
         #    recvbuf = recvbuf.permute(*recv_axis_permutation)
-        #    original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
+        #    original_recvbuf.set_(recvbuf.untyped_storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
 
         return exit_code, sbuf, rbuf, original_recvbuf, recv_axis_permutation
 

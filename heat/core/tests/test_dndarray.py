@@ -1649,7 +1649,9 @@ class TestDNDarray(TestCase):
         scalar_array = ht.array(1)
         scalar_proxy = scalar_array.__torch_proxy__()
         self.assertTrue(scalar_proxy.ndim == 0)
-        scalar_proxy_nbytes = scalar_proxy.storage().size() * scalar_proxy.storage().element_size()
+        scalar_proxy_nbytes = (
+            scalar_proxy.untyped_storage().size() * scalar_proxy.untyped_storage().element_size()
+        )
         self.assertTrue(scalar_proxy_nbytes == 1)
 
         dndarray = ht.zeros((4, 7, 6), split=1)
@@ -1657,7 +1659,8 @@ class TestDNDarray(TestCase):
         self.assertTrue(dndarray_proxy.ndim == dndarray.ndim)
         self.assertTrue(tuple(dndarray_proxy.shape) == dndarray.gshape)
         dndarray_proxy_nbytes = (
-            dndarray_proxy.storage().size() * dndarray_proxy.storage().element_size()
+            dndarray_proxy.untyped_storage().size()
+            * dndarray_proxy.untyped_storage().element_size()
         )
         self.assertTrue(dndarray_proxy_nbytes == 1)
 

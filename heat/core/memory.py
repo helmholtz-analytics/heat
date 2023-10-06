@@ -75,7 +75,7 @@ def sanitize_memory_layout(x: torch.Tensor, order: str = "C") -> torch.Tensor:
         y = torch.empty_like(x)
         permutation = x.permute(dims).contiguous()
         y = y.set_(
-            permutation.storage(),
+            permutation.untyped_storage(),
             x.storage_offset(),
             x.shape,
             tuple(reversed(permutation.stride())),

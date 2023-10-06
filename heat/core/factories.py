@@ -237,7 +237,7 @@ def array(
               [3, 4, 5]], dtype=ht.int64, device=cpu:0, split=None)
     >>> b.strides
     (24, 8)
-    >>> b.larray.storage()
+    >>> b.larray.untyped_storage()
      0
      1
      2
@@ -251,7 +251,7 @@ def array(
               [3, 4, 5]], dtype=ht.int64, device=cpu:0, split=None)
     >>> c.strides
     (8, 16)
-    >>> c.larray.storage()
+    >>> c.larray.untyped_storage()
      0
      3
      1
@@ -271,7 +271,7 @@ def array(
     >>> b.strides
     [0/2] (8, 16)
     [1/2] (8, 16)
-    >>> b.larray.storage()
+    >>> b.larray.untyped_storage()
     [0/2] 0
           3
           1
