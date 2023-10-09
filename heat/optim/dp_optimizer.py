@@ -20,8 +20,12 @@ __all__ = ["DataParallelOptimizer", "DASO"]
 
 def __sum_f16_cb(buffer_a, buffer_b, _):
     # MPI custom sum function to use torch.half
-    tens_a = torch.HalfTensor().set_(torch.UntypedStorage.from_buffer(buffer_a, "native"))
-    tens_b = torch.HalfTensor().set_(torch.UntypedStorage.from_buffer(buffer_b, "native"))
+    tens_a = torch.HalfTensor().set_(
+        torch.UntypedStorage.from_buffer(buffer_a, "native", dtype=torch.half)
+    )
+    tens_b = torch.HalfTensor().set_(
+        torch.UntypedStorage.from_buffer(buffer_b, "native", dtype=torch.half)
+    )
     tens_b += tens_a
     nelem = torch.prod(torch.tensor(tens_b.shape)).item()
     new_buff = MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=tens_b.element_size() * nelem)
@@ -30,8 +34,12 @@ def __sum_f16_cb(buffer_a, buffer_b, _):
 
 def __sum_bfloat_cb(buffer_a, buffer_b, _):
     # MPI custom sum function to use torch.bfloat16
-    tens_a = torch.BFloat16Tensor().set_(torch.UntypedStorage.from_buffer(buffer_a, "native"))
-    tens_b = torch.BFloat16Tensor().set_(torch.UntypedStorage.from_buffer(buffer_b, "native"))
+    tens_a = torch.BFloat16Tensor().set_(
+        torch.UntypedStorage.from_buffer(buffer_a, "native", dtype=torch.bfloat16)
+    )
+    tens_b = torch.BFloat16Tensor().set_(
+        torch.UntypedStorage.from_buffer(buffer_b, "native", dtype=torch.bfloat16)
+    )
     tens_b += tens_a
     nelem = int(tens_b.numel())
     new_buff = MPI.memory.fromaddress(tens_b.data_ptr(), nbytes=nelem * tens_b.element_size())
