@@ -28,7 +28,6 @@ jobs:
             -F "variables[PR]=${{ github.event.pull_request.number }}" \
             -F "variables[AUTHOR]=${{ github.event.pull_request.assignee.login }}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline
-          echo sha
       - name: Trigger benchmarks (Push main)
         id: setup_push
         if: ${{ github.event_name == 'push' }}
@@ -40,9 +39,11 @@ jobs:
             -F "ref=main" \
             -F "variables[SHA]=$GITHUB_SHA" \
             -F "variables[SHORT_SHA]=${SHORT_SHA}" \
+            -F "variables[BRANCH]=main" \
             -F "variables[AUTHOR]=${{ github.event.head_commit.committer.username }}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline
       - name: Create status
+        if: ${{ steps.setup_pr.outcome == 'success' || steps.setup_push.outcome == 'success'}}
         run: |
           curl -L -X POST \
             -H "Accept: application/vnd.github+json" \
