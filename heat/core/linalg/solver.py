@@ -5,10 +5,11 @@ import heat as ht
 from ..dndarray import DNDarray
 from ..sanitation import sanitize_out
 from typing import List, Dict, Any, TypeVar, Union, Tuple, Optional
+from .. import factories
 
 import torch
 
-__all__ = ["cg", "lanczos"]
+__all__ = ["cg", "lanczos", "solve_triangular"]
 
 
 def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
@@ -268,3 +269,93 @@ def lanczos(
         V.resplit_(axis=None)
 
     return V, T
+
+
+def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
+    """
+    My triangular solver, based on blockwise trisolves...
+    """
+    if not isinstance(A, DNDarray) or not isinstance(b, DNDarray):
+        raise RuntimeError("Arguments need to be a DNDarrays.")
+    if not A.ndim == 2:
+        raise RuntimeError("A needs to be a 2D matrix")
+    if not b.ndim <= 2:
+        raise RuntimeError("b needs to be a vector (1D) or a matrix (2D)")
+    if not A.shape[0] == A.shape[1]:
+        raise RuntimeError("A needs to be a square matrix.")
+    if not (b.split == 0 or b.split is None):
+        raise RuntimeError("split=1 is not allowed for the right hand side.")
+    if not b.shape[0] == A.shape[0]:
+        raise RuntimeError("Dimension mismath of A and b.")
+    if (
+        A.split is not None
+        and b.split is not None
+        and not all(A.lshape_map[:, A.split] == b.lshape_map[:, 0])
+    ):
+        raise RuntimeError("Local arrays of A and b have different sizes.")
+
+    if A.split is None:
+        x = torch.linalg.solve_triangular(A.larray, b.larray, upper=True)
+        return factories.array(x, dtype=b.dtype, device=b.device, comm=b.comm)
+
+    nprocs = A.comm.Get_size()
+    A_lshapes_cum = torch.hstack(
+        [torch.zeros(1, dtype=torch.int32), torch.cumsum(A.lshape_map[:, A.split], 0)]
+    )
+    btilde_loc = b.larray.clone()
+    x = factories.zeros_like(b, comm=b.comm)
+
+    if A.split == 1:
+        for i in range(nprocs - 1, -1, -1):
+            res = torch.zeros(
+                (A_lshapes_cum[i], b.shape[1]),
+                dtype=b.dtype.torch_type(),
+                device=b.device.torch_device,
+            )
+            if A.comm.rank == i:
+                x.larray = torch.linalg.solve_triangular(
+                    A.larray[A_lshapes_cum[i] : A_lshapes_cum[i + 1], :], btilde_loc, upper=True
+                )
+                res = A.larray[: A_lshapes_cum[i], :] @ x.larray
+            if i > 0:
+                req = A.comm.Ibcast(res, root=i)
+                req.Wait()
+            if A.comm.rank < i:
+                j = A.comm.rank
+                btilde_loc -= res[A_lshapes_cum[j] : A_lshapes_cum[j + 1], :]
+
+    # if A.split == 1:
+    #     for i in range(nprocs-1,-1,-1):
+    #         count = b.lshape[0]*b.lshape[1]
+    #         displ = (A_lshapes_cum*b.shape[1]).numpy()[:-1]
+    #         res_send = None
+    #         res_recv = torch.zeros(b.lshape[0]*b.lshape[1], dtype=b.dtype.torch_type(), device=b.device.torch_device)
+    #         if A.comm.rank == i:
+    #             x.larray = torch.linalg.solve_triangular(A.larray[A_lshapes_cum[i]:A_lshapes_cum[i+1],:],btilde_loc,upper=True)
+    #             res_send = (A.larray @ x.larray).flatten()
+    #         if i > 0:
+    #             A.comm.handle.Scatterv([res_send, count, displ, MPI.DOUBLE], res_recv, root=i)
+    #         if A.comm.rank < i:
+    #             j = A.comm.rank
+    #             btilde_loc -= res_recv.reshape(b.lshape)
+
+    else:
+        for i in range(nprocs - 1, -1, -1):
+            x_from_i = torch.zeros(
+                (x.lshape_map[i, 0], x.lshape_map[i, 1]),
+                dtype=b.dtype.torch_type(),
+                device=b.device.torch_device,
+            )
+            if A.comm.rank == i:
+                x.larray = torch.linalg.solve_triangular(
+                    A.larray[:, A_lshapes_cum[i] : A_lshapes_cum[i + 1]], btilde_loc, upper=True
+                )
+                x_from_i = x.larray
+            if i > 0:
+                req = A.comm.Ibcast(x_from_i, root=i)
+                req.Wait()
+            if A.comm.rank < i:
+                j = A.comm.rank
+                btilde_loc -= A.larray[:, A_lshapes_cum[i] : A_lshapes_cum[i + 1]] @ x_from_i
+
+    return x
