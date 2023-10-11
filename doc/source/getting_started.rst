@@ -1,7 +1,7 @@
 .. _Installation:
 
 Getting Started
-===============
+==============
 
 Heat is a Python package for accelerated and distributed tensor computations. Internally, it is based on `PyTorch <https://pytorch.org/>`_. Consequently, all operating systems that support Python and PyTorch also support a Heat installation. Currently, this list contains at least Linux, MacOS and Windows. However, most of our development is done under Linux and interoperability should therefore be optimal.
 
