@@ -7,7 +7,7 @@ minor: int = 3
 """Indicates feature extension."""
 micro: int = 0
 """Indicates revisions for bugfixes."""
-extension: str = None
+extension: str = "dev"
 """Indicates special builds, e.g. for specific hardware."""
 
 if not extension:
