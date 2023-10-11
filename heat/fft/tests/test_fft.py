@@ -62,7 +62,7 @@ class TestFFT(TestCase):
 
     def test_ifft(self):
         # 1D non-distributed
-        x = ht.random.randn(6)
+        x = ht.random.randn(6, dtype=ht.float64)
         x_fft = ht.fft.fft(x)
         y = ht.fft.ifft(x_fft)
         self.assertIsInstance(y, ht.DNDarray)
@@ -88,7 +88,22 @@ class TestFFT(TestCase):
         pass
 
     def test_fftn(self):
-        pass
+        # 1D non-distributed
+        x = ht.random.randn(6)
+        y = ht.fft.fftn(x)
+        np_y = np.fft.fftn(x.numpy())
+        self.assertIsInstance(y, ht.DNDarray)
+        self.assertEqual(y.shape, x.shape)
+        self.assert_array_equal(y, np_y)
+
+        # 1D distributed
+        x = ht.random.randn(6, split=0)
+        y = ht.fft.fftn(x)
+        np_y = np.fft.fftn(x.numpy())
+        self.assertIsInstance(y, ht.DNDarray)
+        self.assertEqual(y.shape, x.shape)
+        self.assertTrue(y.split == 0)
+        self.assert_array_equal(y, np_y)
 
     def test_ifftn(self):
         pass

@@ -117,6 +117,7 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
         local_x = x.larray
     except AttributeError:
         raise TypeError("x must be a DNDarray, is {}".format(type(x)))
+
     original_split = x.split
 
     # sanitize kwargs
@@ -126,6 +127,7 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     if repeated_axes:
         raise NotImplementedError("Multiple transforms over the same axis not implemented yet.")
     s = kwargs.get("s", None)
+    s = sanitize_axis(x.gshape, s)
     norm = kwargs.get("norm", None)
 
     # non-distributed DNDarray
@@ -142,6 +144,7 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
         for i, axis in enumerate(axes):
             output_shape[axis] = s[i]
     else:
+        axes = tuple(range(x.ndim))
         s = tuple(output_shape[axis] for axis in axes)
     output_shape = tuple(output_shape)
 
@@ -169,6 +172,14 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
             transpose_axes[0],
         )
         x = x.transpose(transpose_axes)
+
+    # original split is 0 and fft is along axis 0
+    if x.ndim == 1:
+        _ = x.resplit(axis=None)
+        result = __fftn_op(_, fftn_op, **kwargs)
+        del _
+        result.resplit_(axis=0)
+        return result
 
     # redistribute x from axis 0 to 1
     _ = x.resplit(axis=1)
