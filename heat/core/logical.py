@@ -519,8 +519,8 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
 
     # if one of the tensors is distributed, unsplit/gather it
     if x.split is not None and y.split is None:
-        local_start = sum(x.lshape_map[:x.split])
-        print(sum(x.lshape_map[:x.split]),x.lshape_map)
+        local_start = sum(x.lshape_map[: x.split])
+        print(sum(x.lshape_map[: x.split]), x.lshape_map)
         local_end = local_start + x.lshape[x.split]
         y = y[local_start:local_end]
         return x, y
