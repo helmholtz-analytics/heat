@@ -665,8 +665,10 @@ def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Docstring still needs to be written.
     """
+
     def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.add_(b)
+
     return _operations.__binary_op(wrap_add_, t1, t2)
 
 
