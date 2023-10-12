@@ -323,7 +323,7 @@ def array(
                     else devices.get_device().torch_device,
                 )
             except RuntimeError:
-                raise TypeError("invalid data of type {}".format(type(obj)))
+                raise TypeError(f"invalid data of type {type(obj)}")
     else:
         if copy is False and not np.isscalar(obj) and not isinstance(obj, (Tuple, List)):
             # Python array-API compliance, cf. https://data-apis.org/array-api/2022.12/API_specification/generated/array_api.asarray.html
@@ -346,7 +346,7 @@ def array(
                 else devices.get_device().torch_device,
             )
         except RuntimeError:
-            raise TypeError("invalid data of type {}".format(type(obj)))
+            raise TypeError(f"invalid data of type {type(obj)}")
 
     # infer dtype from obj if not explicitly given
     if dtype is None:
