@@ -137,6 +137,7 @@ def allclose(
     >>> ht.allclose(x, y, atol=1e-04)
     True
     """
+    print("here")
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
@@ -518,11 +519,11 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
 
     # if one of the tensors is distributed, unsplit/gather it
     if x.split is not None and y.split is None:
-        t1 = manipulations.resplit(x, axis=None)
-        local_start = x.comm.chunk(t1.gshape, x.split)[0]
+        local_start = sum(x.lshape_map[:x.split])
+        print(sum(x.lshape_map[:x.split]),x.lshape_map)
         local_end = local_start + x.lshape[x.split]
         y = y[local_start:local_end]
-        return t1, y
+        return x, y
 
     elif x.split != y.split:
         t2 = manipulations.resplit(y, axis=x.split)
