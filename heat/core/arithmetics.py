@@ -665,7 +665,7 @@ def iadd(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Docstring still needs to be written.
     """
-    return _operations.__binary_op(torch.tensor.add_, t1, t2)
+    return _operations.__binary_op(torch.add_, t1, t2)
 
 
 DNDarray.__iadd__ = lambda self, other: iadd(self, other)
