@@ -44,6 +44,7 @@ __all__ = [
     "fmod",
     "gcd",
     "hypot",
+    "iadd",
     "invert",
     "lcm",
     "left_shift",
@@ -658,6 +659,17 @@ def hypot(
         raise TypeError(f"Not implemented for array dtype, got {a.dtype}, {b.dtype}") from e
 
     return res
+
+
+def iadd(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    Docstring still needs to be written.
+    """
+    return _operations.__binary_op(torch.tensor.add_, t1, t2)
+
+
+DNDarray.__iadd__ = lambda self, other: iadd(self, other)
+DNDarray.__iadd__.__doc__ = iadd.__doc__
 
 
 def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
