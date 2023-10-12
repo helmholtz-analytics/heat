@@ -663,7 +663,7 @@ def hypot(
 
 def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Docstring still needs to be written.
+    Docstring still needs to be written here.
     """
 
     def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
