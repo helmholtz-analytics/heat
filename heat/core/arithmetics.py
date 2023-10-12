@@ -661,11 +661,13 @@ def hypot(
     return res
 
 
-def iadd(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Docstring still needs to be written.
     """
-    return _operations.__binary_op(torch.add_, t1, t2)
+    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.add_(b)
+    return _operations.__binary_op(wrap_add_, t1, t2)
 
 
 DNDarray.__iadd__ = lambda self, other: iadd(self, other)
