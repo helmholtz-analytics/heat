@@ -105,6 +105,34 @@ class TestFFT(TestCase):
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
 
+        # n-D distributed
+        x = ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        # FFT along last 2 axes
+        y = ht.fft.fftn(x, s=(6, 6))
+        np_y = np.fft.fftn(x.numpy(), s=(6, 6))
+        self.assertIsInstance(y, ht.DNDarray)
+        self.assertEqual(y.shape, np_y.shape)
+        self.assertTrue(y.split == 0)
+        self.assert_array_equal(y, np_y)
+
+        # FFT along distributed axis
+        y = ht.fft.fftn(x, axes=(0, 1), s=(10, 8))
+        np_y = np.fft.fftn(x.numpy(), axes=(0, 1), s=(10, 8))
+        self.assertIsInstance(y, ht.DNDarray)
+        self.assertEqual(y.shape, np_y.shape)
+        self.assertTrue(y.split == 0)
+        self.assert_array_equal(y, np_y)
+
+        # exceptions
+        # wrong input type
+        x = torch.randn(6, 3, 3)
+        with self.assertRaises(TypeError):
+            ht.fft.fftn(x)
+        # s larger than dimensions
+        x = ht.random.randn(6, 3, 3, split=0)
+        with self.assertRaises(ValueError):
+            ht.fft.fftn(x, s=(10, 10, 10, 10))
+
     def test_ifftn(self):
         pass
 

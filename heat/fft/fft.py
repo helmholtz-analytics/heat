@@ -127,7 +127,10 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     if repeated_axes:
         raise NotImplementedError("Multiple transforms over the same axis not implemented yet.")
     s = kwargs.get("s", None)
-    s = sanitize_axis(x.gshape, s)
+    if s is not None and len(s) > x.ndim:
+        raise ValueError(
+            f"Input is {x.ndim}-dimensional, so s can be at most {x.ndim} elements long. Got {len(s)} elements instead."
+        )
     norm = kwargs.get("norm", None)
 
     # non-distributed DNDarray
