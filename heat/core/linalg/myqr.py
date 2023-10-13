@@ -23,7 +23,7 @@ from .. import statistics
 from mpi4py import MPI
 
 
-__all__ = ["myqr", "myrandn"]
+__all__ = ["myqr"]
 
 
 def myqr(
@@ -56,7 +56,7 @@ def myqr(
     if A.split == 1:
         if full_Q:
             if A.shape[1] < A.shape[0]:
-                fill_up_array = myrandn(
+                fill_up_array = randn(
                     (A.shape[0], A.shape[0] - A.shape[1]),
                     dtype=A.dtype,
                     split=A.split,
@@ -181,20 +181,3 @@ def myqr(
 #             A_columns -= Q_from_i @ R_loc
 
 #     return Q[:, :k].balance()
-
-
-def myrandn(
-    shape: Union[int, Sequence[int]],
-    dtype: Type[types.datatype] = types.float32,
-    split: Optional[int] = None,
-    device: Optional[Device] = None,
-    comm: Optional[Communication] = None,
-    order: str = "C",
-) -> DNDarray:
-    """
-    Workaround for a bug in heats randn
-    """
-    randint = torch.randint(0, 10000, (1,))
-    torch.manual_seed(MPI.COMM_WORLD.rank + randint)
-
-    return factories.__factory(shape, dtype, split, torch.randn, device, comm, order)
