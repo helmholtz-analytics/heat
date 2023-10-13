@@ -114,7 +114,7 @@ def parter(
         II = core.arange(n, dtype=dtype, split=0, device=device, comm=comm).expand_dims(0)
         JJ = core.arange(n, dtype=dtype, device=device, comm=comm).expand_dims(1)
     else:
-        raise ValueError("expected split value to be either {{None,0,1}}, but was {}".format(split))
+        raise ValueError(f"expected split value to be either {{None,0,1}}, but was {split}")
 
     return 1.0 / (II - JJ + 0.5)
 
@@ -156,15 +156,11 @@ def random_known_singularvalues(
     """
     if not isinstance(singular_values, DNDarray):
         raise RuntimeError(
-            "Argument singular_values needs to be a DNDarray but is {}.".format(
-                type(singular_values)
-            )
+            f"Argument singular_values needs to be a DNDarray but is {type(singular_values)}."
         )
-    if not singular_values.ndim == 1:
+    if singular_values.ndim != 1:
         raise RuntimeError(
-            "Argument singular_values needs to be a 1D array, but dimension is {}.".format(
-                singular_values.ndim
-            )
+            f"Argument singular_values needs to be a 1D array, but dimension is {singular_values.ndim}."
         )
     if singular_values.shape[0] > min(m, n):
         raise RuntimeError(

@@ -110,7 +110,7 @@ else:
         if not isinstance(path, str):
             raise TypeError(f"path must be str, not {type(path)}")
         elif not isinstance(dataset, str):
-            raise TypeError("dataset must be str, not {}".format(type(dataset)))
+            raise TypeError(f"dataset must be str, not {type(dataset)}")
         elif split is not None and not isinstance(split, int):
             raise TypeError(f"split must be None or int, not {type(split)}")
 
@@ -410,11 +410,11 @@ else:
         >>> ht.save_netcdf(x, 'data.nc', dataset='DATA')
         """
         if not isinstance(data, DNDarray):
-            raise TypeError("data must be heat tensor, not {}".format(type(data)))
+            raise TypeError(f"data must be heat tensor, not {type(data)}")
         if not isinstance(path, str):
-            raise TypeError("path must be str, not {}".format(type(path)))
+            raise TypeError(f"path must be str, not {type(path)}")
         if not isinstance(variable, str):
-            raise TypeError("variable must be str, not {}".format(type(path)))
+            raise TypeError(f"variable must be str, not {type(path)}")
         if dimension_names is None:
             dimension_names = [
                 __NETCDF_DIM_TEMPLATE.format(variable, dim) for dim, _ in enumerate(data.shape)
@@ -430,15 +430,11 @@ else:
                 )
             )
         elif not len(dimension_names) == len(data.shape):
-            raise ValueError(
-                "{0} names given for {1} dimensions".format(len(dimension_names), len(data.shape))
-            )
+            raise ValueError(f"{len(dimension_names)} names given for {len(data.shape)} dimensions")
 
         # we only support a subset of possible modes
         if mode not in __VALID_WRITE_MODES:
-            raise ValueError(
-                "mode was {}, not in possible modes {}".format(mode, __VALID_WRITE_MODES)
-            )
+            raise ValueError(f"mode was {mode}, not in possible modes {__VALID_WRITE_MODES}")
 
         failed = 0
         excep = None
@@ -468,9 +464,7 @@ else:
                 If resulting shapes do not match.
             """
             if np.prod(shape) != np.prod(expanded_shape):
-                raise ValueError(
-                    "Shapes %s and %s do not have the same size" % (shape, expanded_shape)
-                )
+                raise ValueError(f"Shapes {shape} and {expanded_shape} do not have the same size")
             if np.prod(shape) == 1:  # size 1 array
                 return split
             if len(shape) == len(expanded_shape):  # actually not expanded at all
@@ -484,7 +478,7 @@ else:
             ex_ind_nonempty, sq_ex = list(zip(*enumerated))  # transpose
             if not sq_shape == sq_ex:
                 raise ValueError(
-                    "Shapes %s and %s differ in non-empty dimensions" % (shape, expanded_shape)
+                    f"Shapes {shape} and {expanded_shape} differ in non-empty dimensions"
                 )
             if split in ind_nonempty:  # split along non-empty dimension
                 split_sq = ind_nonempty.index(split)  # split-axis in squeezed shape
@@ -664,7 +658,7 @@ else:
             raise excep
         elif failed:
             excep = data.comm.bcast(excep, root=failed - 1)
-            excep.args = "raised by process rank {}".format(failed - 1), *excep.args
+            excep.args = f"raised by process rank {failed - 1}", *excep.args
             raise excep from None  # raise the same error but without traceback
             # because that is on a different process
 
