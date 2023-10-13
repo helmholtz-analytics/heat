@@ -116,11 +116,12 @@ class TestFFT(TestCase):
         self.assert_array_equal(y, np_y)
 
         # FFT along distributed axis
+        x.resplit_(axis=1)
         y = ht.fft.fftn(x, axes=(0, 1), s=(10, 8))
         np_y = np.fft.fftn(x.numpy(), axes=(0, 1), s=(10, 8))
         self.assertIsInstance(y, ht.DNDarray)
         self.assertEqual(y.shape, np_y.shape)
-        self.assertTrue(y.split == 0)
+        self.assertTrue(y.split == 1)
         self.assert_array_equal(y, np_y)
 
         # exceptions
