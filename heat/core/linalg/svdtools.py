@@ -85,7 +85,7 @@ def hsvd_rank(
         [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
     if not isinstance(A, DNDarray):
-        raise TypeError("Argument needs to be a DNDarray but is {}.".format(type(A)))
+        raise TypeError(f"Argument needs to be a DNDarray but is {type(A)}.")
     if not A.ndim == 2:
         raise ValueError("A needs to be a 2D matrix")
     if not A.dtype == types.float32 and not A.dtype == types.float64:
@@ -197,7 +197,7 @@ def hsvd_rtol(
         [2] Himpe, Leibner, Rave. Hierarchical approximate proper orthogonal decomposition. SIAM J. Sci. Comput., 40 (5), 2018.
     """
     if not isinstance(A, DNDarray):
-        raise TypeError("Argument needs to be a DNDarray but is {}.".format(type(A)))
+        raise TypeError(f"Argument needs to be a DNDarray but is {type(A)}.")
     if not A.ndim == 2:
         raise ValueError("A needs to be a 2D matrix")
     if not A.dtype == types.float32 and not A.dtype == types.float64:
