@@ -137,7 +137,6 @@ def allclose(
     >>> ht.allclose(x, y, atol=1e-04)
     True
     """
-
     t1, t2 = __sanitize_close_input(x, y)
 
     # no sanitation for shapes of x and y needed, torch.allclose raises relevant errors
