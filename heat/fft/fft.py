@@ -14,21 +14,21 @@ __all__ = [
     "fft",
     "fft2",
     "fftn",
+    "hfft",
+    "hfft2",
+    "hfftn",
     "ifft",
     "ifft2",
     "ifftn",
-    "rfft",
-    "rfft2",
-    "rfftn",
-    "irfft",
-    "irfft2",
-    "irfftn",
-    # "hfft",
-    # "hfft2",
-    # "hfftn",
     # "ihfft",
     # "ihfft2",
     # "ihfftn",
+    "irfft",
+    "irfft2",
+    "irfftn",
+    "rfft",
+    "rfft2",
+    "rfftn",
     # "fftfreq",
     # "rfftfreq",
     # "fftshift",
@@ -298,6 +298,104 @@ def fftn(
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
     return __fftn_op(x, torch.fft.fftn, s=s, axes=axes, norm=norm)
+
+
+def hfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarray:
+    """
+    Compute the one-dimensional discrete Fourier Transform of a Hermitian symmetric signal.
+
+    This function computes the one-dimensional discrete Fourier Transform over the specified axis in an M-dimensional
+    array by means of the Fast Fourier Transform (FFT). By default, the last axis is transformed, while the remaining
+    axes are left unchanged. The input signal is assumed to be Hermitian-symmetric, i.e. `x[..., i] = x[..., -i].conj()`.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array
+    n : int, optional
+        Length of the transformed axis of the output.
+        If `n` is not None, the input array is either zero-padded or trimmed to length `n` before the transform.
+        Default: `2 * (x.shape[axis] - 1)`.
+    axis : int, optional
+        Axis over which to compute the FFT. If not given, the last axis is used, or the only axis if x has only one
+        dimension. Default: -1.
+    norm : str, optional
+        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+
+    Notes
+    -----
+    This function requires MPI communication if the input array is transformed along the distribution axis.
+    """
+    if n is None:
+        n = 2 * (x.shape[axis] - 1)
+    return __fft_op(x, torch.fft.hfft, n=n, axis=axis, norm=norm)
+
+
+def hfft2(
+    x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
+) -> DNDarray:
+    """
+    Compute the 2-dimensional discrete Fourier Transform of a Hermitian symmetric signal.
+
+    This function computes the 2-dimensional discrete Fourier Transform over the specified axes in an M-dimensional
+    array by means of the Fast Fourier Transform (FFT). By default, the last two axes are transformed, while the
+    remaining axes are left unchanged. The input signal is assumed to be Hermitian-symmetric, i.e. `x[..., i] = x[..., -i].conj()`.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array
+    s : Tuple[int, int], optional
+        Shape of the signal along the transformed axes. If `s` is specified, the input array is either zero-padded or trimmed to length `s` before the transform.
+        If `s` is not given, the last dimension defaults to even output: `s[-1] = 2 * (x.shape[-1] - 1)`.
+    axes : Tuple[int, int], optional
+        Axes over which to compute the FFT. If not given, the last two dimensions are transformed. Repeated indices in `axes` means that the transform over that axis is performed multiple times.
+    norm : str, optional
+        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+
+    Notes
+    -----
+    This function requires MPI communication if the input array is distributed and the split axis is transformed.
+    """
+    if s is None:
+        s = (x.shape[axes[0]], 2 * (x.shape[axes[1]] - 1))
+    return __fftn_op(x, torch.fft.hfft2, s=s, axes=axes, norm=norm)
+
+
+def hfftn(
+    x: DNDarray, s: Tuple[int, ...] = None, axes: Tuple[int, ...] = None, norm: str = None
+) -> DNDarray:
+    """
+    Compute the N-dimensional discrete Fourier Transform of a Hermitian symmetric signal.
+
+    This function computes the N-dimensional discrete Fourier Transform over any number of axes in an M-dimensional
+    array by means of the Fast Fourier Transform (FFT). By default, all axes are transformed.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array
+    s : Tuple[int, ...], optional
+        Shape of the signal along the transformed axes. If `s` is specified, the input array is either zero-padded or trimmed to length `s` before the transform.
+        If `s` is not given, the last dimension defaults to even output: `s[-1] = 2 * (x.shape[-1] - 1)`.
+    axes : Tuple[int, ...], optional
+        Axes over which to compute the FFT. If not given, all dimensions are transformed. Repeated indices in `axes` means that the transform over that axis is performed multiple times.
+    norm : str, optional
+        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+
+    Notes
+    -----
+    This function requires MPI communication if the input array is distributed and the split axis is transformed.
+    """
+    if s is None:
+        if axes is not None:
+            s = list(x.shape[axis] for axis in axes)
+        else:
+            s = list(x.shape)
+        s[-1] = 2 * (s[-1] - 1)
+        s = tuple(s)
+
+    return __fftn_op(x, torch.fft.hfftn, s=s, axes=axes, norm=norm)
 
 
 def ifft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarray:
