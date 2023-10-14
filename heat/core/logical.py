@@ -516,11 +516,12 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
     x = sanitize_input_type(x, y)
     y = sanitize_input_type(y, x)
 
-    # if one of the tensors is distributed, unsplit/gather it
-    if x.split is not None and y.split is None:
-        local_start = sum(x.lshape_map[: x.split])
+    # if one of the tensors is distributed and the other is not a scalar, unsplit/gather it
+    if x.split is not None and y.split is None and y.ndim > 0:
+        local_start = sum(x.lshape[: x.split])
         local_end = local_start + x.lshape[x.split]
         y = y[local_start:local_end]
+        x = x[local_start:local_end]
         return x, y
 
     elif x.split != y.split:
