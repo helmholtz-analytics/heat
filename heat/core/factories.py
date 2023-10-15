@@ -1272,29 +1272,11 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
                 raise ValueError("split != None are not supported.")
             splitted = idx
 
-    # pytorch does not support the indexing keyword: switch vectors
-    if indexing == "xy" and len(arrays) > 1:
-        arrays[0], arrays[1] = arrays[1], arrays[0]
-        if splitted == 0:
-            arrays[0] = arrays[0].resplit(0)
-            arrays[1] = arrays[1].resplit(None)
-        elif splitted == 1:
-            arrays[0] = arrays[0].resplit(None)
-            arrays[1] = arrays[1].resplit(0)
-
-    grids = torch.meshgrid(*(array.larray for array in arrays))
-
-    # pytorch does not support indexing keyword: switch back
-    if indexing == "xy" and len(arrays) > 1:
-        grids = list(grids)
-        grids[0], grids[1] = grids[1], grids[0]
-
-    shape = tuple(array.size for array in arrays)
-
+    grids = torch.meshgrid(*(array.larray for array in arrays), indexing=indexing)
     return [
         DNDarray(
             array=grid,
-            gshape=shape,
+            gshape=grid.shape,
             dtype=types.heat_type_of(grid),
             split=splitted,
             device=devices.sanitize_device(grid.device.type),
