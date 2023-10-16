@@ -48,7 +48,10 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
 
     # sanitize kwargs
     axis = kwargs.get("axis", None)
-    axis = sanitize_axis(x.gshape, axis)
+    try:
+        axis = sanitize_axis(x.gshape, axis)
+    except ValueError as e:
+        raise IndexError(e)
     n = kwargs.get("n", None)
     norm = kwargs.get("norm", None)
 
@@ -122,7 +125,10 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
 
     # sanitize kwargs
     axes = kwargs.get("axes", None)
-    axes = sanitize_axis(x.gshape, axes)
+    try:
+        axes = sanitize_axis(x.gshape, axes)
+    except ValueError as e:
+        raise IndexError(e)
     repeated_axes = axes is not None and len(axes) != len(set(axes))
     if repeated_axes:
         raise NotImplementedError("Multiple transforms over the same axis not implemented yet.")
