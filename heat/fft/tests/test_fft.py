@@ -17,20 +17,22 @@ class TestFFT(TestCase):
 
         # 1D distributed
         x = ht.random.randn(6, split=0)
-        y = ht.fft.fft(x)
-        np_y = np.fft.fft(x.numpy())
+        n = 8
+        y = ht.fft.fft(x, n=n)
+        np_y = np.fft.fft(x.numpy(), n=n)
         self.assertIsInstance(y, ht.DNDarray)
-        self.assertEqual(y.shape, x.shape)
+        self.assertEqual(y.shape, np_y.shape)
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
 
         # n-D distributed
         x = ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
         # FFT along last axis
-        y = ht.fft.fft(x)
-        np_y = np.fft.fft(x.numpy())
+        n = 5
+        y = ht.fft.fft(x, n=n)
+        np_y = np.fft.fft(x.numpy(), n=n)
         self.assertIsInstance(y, ht.DNDarray)
-        self.assertEqual(y.shape, x.shape)
+        self.assertEqual(y.shape, np_y.shape)
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
 
@@ -60,6 +62,30 @@ class TestFFT(TestCase):
         with self.assertRaises(TypeError):
             ht.fft.fft(x)
 
+    def test_fft2(self):
+        # 2D FFT along non-split axes
+        x = ht.random.randn(10, 6, 6, split=0)
+        y = ht.fft.fft2(x)
+        np_y = np.fft.fft2(x.numpy())
+        self.assertIsInstance(y, ht.DNDarray)
+        self.assertEqual(y.shape, np_y.shape)
+        self.assertTrue(y.split == 0)
+        self.assert_array_equal(y, np_y)
+
+        # 2D FFT along split axes
+        x = ht.random.randn(10, 6, 6, split=0)
+        axes = (0, 1)
+        y = ht.fft.fft2(x, axes=axes)
+        np_y = np.fft.fft2(x.numpy(), axes=axes)
+        self.assertEqual(y.shape, np_y.shape)
+        self.assertTrue(y.split == 0)
+        self.assert_array_equal(y, np_y)
+
+        # exceptions
+        x = ht.arange(10, split=0)
+        with self.assertRaises(IndexError):
+            ht.fft.fft2(x)
+
     def test_ifft(self):
         # 1D non-distributed
         x = ht.random.randn(6, dtype=ht.float64)
@@ -73,9 +99,6 @@ class TestFFT(TestCase):
         pass
 
     def test_irfft(self):
-        pass
-
-    def test_fft2(self):
         pass
 
     def test_ifft2(self):
