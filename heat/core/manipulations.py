@@ -341,6 +341,74 @@ def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
 
 
 def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
+    """
+    Join 2 or more `DNDarrays` along an existing axis.
+
+    Parameters
+    ----------
+    arrays: Sequence[DNDarray, ...]
+        The arrays must have the same shape, except in the dimension corresponding to axis.
+    axis: int, optional
+        The axis along which the arrays will be joined (default is 0).
+
+    Raises
+    ------
+    RuntimeError
+        If the concatenated :class:`~heat.core.dndarray.DNDarray` meta information, e.g. `split` or `comm`, does not match.
+    TypeError
+        If the passed parameters are not of correct type.
+    ValueError
+        If the number of passed arrays is less than two or their shapes do not match.
+
+    Examples
+    --------
+    >>> x = ht.zeros((3, 5), split=None)
+    [0/1] tensor([[0., 0., 0., 0., 0.],
+    [0/1]         [0., 0., 0., 0., 0.],
+    [0/1]         [0., 0., 0., 0., 0.]])
+    [1/1] tensor([[0., 0., 0., 0., 0.],
+    [1/1]         [0., 0., 0., 0., 0.],
+    [1/1]         [0., 0., 0., 0., 0.]])
+    >>> y = ht.ones((3, 6), split=0)
+    [0/1] tensor([[1., 1., 1., 1., 1., 1.],
+    [0/1]         [1., 1., 1., 1., 1., 1.]])
+    [1/1] tensor([[1., 1., 1., 1., 1., 1.]])
+    >>> ht.concatenate((x, y), axis=1)
+    [0/1] tensor([[0., 0., 0., 0., 0., 1., 1., 1., 1., 1., 1.],
+    [0/1]         [0., 0., 0., 0., 0., 1., 1., 1., 1., 1., 1.]])
+    [1/1] tensor([[0., 0., 0., 0., 0., 1., 1., 1., 1., 1., 1.]])
+    >>> x = ht.zeros((4, 5), split=1)
+    [0/1] tensor([[0., 0., 0.],
+    [0/1]         [0., 0., 0.],
+    [0/1]         [0., 0., 0.],
+    [0/1]         [0., 0., 0.]])
+    [1/1] tensor([[0., 0.],
+    [1/1]         [0., 0.],
+    [1/1]         [0., 0.],
+    [1/1]         [0., 0.]])
+    >>> y = ht.ones((3, 5), split=1)
+    [0/1] tensor([[1., 1., 1.],
+    [0/1]         [1., 1., 1.],
+    [0/1]         [1., 1., 1.]])
+    [1/1] tensor([[1., 1.],
+    [1/1]         [1., 1.],
+    [1/1]         [1., 1.]])
+    >>> ht.concatenate((x, y), axis=0)
+    [0/1] tensor([[0., 0., 0.],
+    [0/1]         [0., 0., 0.],
+    [0/1]         [0., 0., 0.],
+    [0/1]         [0., 0., 0.],
+    [0/1]         [1., 1., 1.],
+    [0/1]         [1., 1., 1.],
+    [0/1]         [1., 1., 1.]])
+    [1/1] tensor([[0., 0.],
+    [1/1]         [0., 0.],
+    [1/1]         [0., 0.],
+    [1/1]         [0., 0.],
+    [1/1]         [1., 1.],
+    [1/1]         [1., 1.],
+    [1/1]         [1., 1.]])
+    """
     # input sanitation
     arrays = sanitation.sanitize_sequence(arrays)
     for arr in arrays:
@@ -404,7 +472,9 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
             res = best_dtype(res, device=res.device)
 
     # convert all arrays to best_dtype
-    conversion_func = lambda x: best_dtype(x, device=x.device)
+    def conversion_func(x):
+        return best_dtype(x, device=x.device)
+
     arrays_copy = list(map(conversion_func, arrays_copy))
 
     res_gshape = list(arrays_copy[0].gshape)
