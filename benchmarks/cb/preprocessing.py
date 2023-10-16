@@ -41,7 +41,7 @@ def apply_inplace_normalizer(X):
     scaler.fit_transform(X)
 
 
-def run_linalg_benchmarks():
+def run_preprocessing_benchmarks():
     n_data_points = 20000
     n_features = 100
     X = ht.random.randn(n_data_points, n_features, split=0)
