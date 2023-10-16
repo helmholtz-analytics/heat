@@ -73,7 +73,7 @@ def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise addition of values from two operands, commutative.
     Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be added
-    as argument and returns a ``DNDarray`` containing the results of element-wise addition of ``t1`` and ``t2``.
+    as argument and returns a ``DNDarray`` containing the results of `
 
     Parameters
     ----------
@@ -663,7 +663,41 @@ def hypot(
 
 def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Docstring still needs to be written here.
+    Element-wise in-place addition of values from two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the element(s) 
+    of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements 
+    of ``t1`` are overwritten by the results of element-wise addition of ``t1`` and ``t2``.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the addition
+    t2: DNDarray or scalar
+        The second operand involved in the addition
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.iadd(T1, T2)
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.iadd(T2, s)
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
     """
 
     def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
