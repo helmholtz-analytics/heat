@@ -57,7 +57,8 @@ def myqr(
         if full_Q:
             if A.shape[1] < A.shape[0]:
                 fill_up_array = randn(
-                    (A.shape[0], A.shape[0] - A.shape[1]),
+                    A.shape[0],
+                    A.shape[0] - A.shape[1],
                     dtype=A.dtype,
                     split=A.split,
                     device=A.device,
