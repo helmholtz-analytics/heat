@@ -26,7 +26,7 @@ class TestArithmetics(TestCase):
     def test_add(self):
         # test basics
         result = ht.array([[3.0, 4.0], [5.0, 6.0]])
-        
+
         self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_scalar), ht.float32(4.0)))
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(ht.add(self.a_scalar, self.a_tensor), result))
@@ -508,32 +508,32 @@ class TestArithmetics(TestCase):
         result = ht.array([[3.0, 4.0], [5.0, 6.0]])
 
         # Check every possible combination of inputs whether the right solution
-        # is computed and saved in the right place and whether the second input 
+        # is computed and saved in the right place and whether the second input
         # stays unchanged. After every tested computation, we reset changed variables.
         self.assertTrue(ht.equal(ht.iadd(self.a_tensor, self.a_scalar), result))
         self.assertTrue(ht.equal(self.a_tensor, result))
         self.assertTrue(torch.equal(self.a_tensor.larray, result.larray))
         self.assertTrue(ht.equal(self.a_scalar, ht.float32(2.0)))
         self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])
-        
+
         self.assertTrue(ht.equal(ht.iadd(self.a_tensor, self.another_tensor), result))
         self.assertTrue(ht.equal(self.a_tensor, result))
         self.assertTrue(torch.equal(self.a_tensor.larray, result.larray))
         self.assertTrue(ht.equal(self.another_tensor, ht.array([[2.0, 2.0], [2.0, 2.0]])))
         self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])
-        
+
         self.assertTrue(ht.equal(ht.iadd(self.a_tensor, self.a_vector), result))
         self.assertTrue(ht.equal(self.a_tensor, result))
         self.assertTrue(torch.equal(self.a_tensor.larray, result.larray))
         self.assertTrue(ht.equal(self.a_vector, ht.float32([2, 2, 2])))
         self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])
-        
+
         self.assertTrue(ht.equal(ht.iadd(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(self.a_tensor, result))
         self.assertTrue(torch.equal(self.a_tensor.larray, result.larray))
         self.assertTrue(ht.equal(self.an_int_scalar, 2))
         self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])
-        
+
         self.assertTrue(ht.equal(ht.iadd(self.a_split_tensor, self.a_tensor), result))
         self.assertTrue(ht.equal(self.a_split_tensor, result))
         self.assertTrue(torch.equal(self.a_split_tensor.larray, result.larray))
@@ -554,12 +554,12 @@ class TestArithmetics(TestCase):
         # test with differently distributed DNDarrays
         a = ht.ones(10, split=0)
         b = ht.zeros(10, split=0)
-        a = a[:-1] 
+        a = a[:-1]
         a += b[1:]
         self.assertTrue((a == 1).all())
         self.assertTrue(a.lshape == b[1:].lshape)
 
-        a = ht.ones(10, split=0) # reset
+        a = ht.ones(10, split=0)  # reset
         a = a[1:]
         a += b[1:-1]  # test unbalanced
         self.assertTrue((a == 1).all())
@@ -572,8 +572,8 @@ class TestArithmetics(TestCase):
         a += b[1:]
         self.assertTrue((a == 1).all())
         self.assertEqual(a.lshape, b[1:].lshape)
-        
-        a = ht.ones(10, split=0) # reset
+
+        a = ht.ones(10, split=0)  # reset
         a = a[1:]
         a += b[:-1]
         self.assertTrue((a == 1).all())
@@ -588,16 +588,15 @@ class TestArithmetics(TestCase):
 
         with self.assertRaises(ValueError):
             ht.iadd(self.a_tensor, self.another_vector)
-        self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])   # reset
+        self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])  # reset
         with self.assertRaises(TypeError):
             ht.iadd(self.a_tensor, self.erroneous_type)
-        self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])   # reset
+        self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])  # reset
         with self.assertRaises(TypeError):
             ht.iadd(self.a_scalar, self.a_tensor)
-        self.a_scalar = 2.0                                  # reset
+        self.a_scalar = 2.0  # reset
         with self.assertRaises(TypeError):
             ht.iadd("T", "s")
-            
 
     def test_invert(self):
         int8_tensor = ht.array([[0, 1], [2, -2]], dtype=ht.int8)

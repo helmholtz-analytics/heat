@@ -664,8 +664,8 @@ def hypot(
 def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise in-place addition of values from two operands.
-    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the element(s) 
-    of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements 
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the element(s)
+    of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements
     of ``t1`` are overwritten by the results of element-wise addition of ``t1`` and ``t2``.
 
     Parameters
