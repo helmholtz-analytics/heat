@@ -2032,7 +2032,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     (2/2) tensor([[ 8., 10., 12., 14.]])
     """
     if not isinstance(a, DNDarray):
-        raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
+        raise TypeError(f"'a' must be a DNDarray, currently {type(a)}")
 
     # use numpys _ShapeLike but expand to handle torch and heat Tensors
     np_proxy = np.lib.stride_tricks.as_strided(np.ones(1), a.gshape, [0] * a.ndim, writeable=False)
@@ -4031,7 +4031,7 @@ def topk(
                 )
             )
         if out[1].dtype != types.int64:
-            raise RuntimeError("dtype of 'out[1]' is not ht.int64, found {}".format(out[1].dtype))
+            raise RuntimeError(f"dtype of 'out[1]' is not ht.int64, found {out[1].dtype}")
 
     dim = stride_tricks.sanitize_axis(a.gshape, dim)
 
@@ -4120,8 +4120,12 @@ def topk(
                     gres.shape, gindices.shape, out[0].shape, out[1].shape
                 )
             )
-        out[0].larray.storage().copy_(final_array.larray.storage())
-        out[1].larray.storage().copy_(final_indices.larray.storage())
+        try:
+            out[0].larray.untyped_storage().copy_(final_array.larray.untyped_storage())
+            out[1].larray.untyped_storage().copy_(final_indices.larray.untyped_storage())
+        except AttributeError:
+            out[0].larray.storage().copy_(final_array.larray.storage())
+            out[1].larray.storage().copy_(final_indices.larray.storage())
 
         out[0]._DNDarray__dtype = a.dtype
         out[1]._DNDarray__dtype = types.int64
