@@ -2335,6 +2335,19 @@ class TestCommunication(TestCase):
         self.assertFalse(output.larray.is_contiguous())
         self.assertTrue((output.larray == torch.ones(5, 2, device=self.device.torch_device)).all())
 
+        # check other data types (numpy)
+        if ht.MPI_WORLD.rank == 0:
+            data = np.array([ht.MPI_WORLD.rank] * 3)
+        else:
+            data = np.empty((1,))
+        output = np.array([[0] * 3])
+
+        # check that split axes !=0 for send and receive buffer are not allowed if not torch tensors
+        with self.assertRaises(TypeError):
+            ht.MPI_WORLD.Scatter(data, output, send_axis=1)
+        with self.assertRaises(TypeError):
+            ht.MPI_WORLD.Scatter(data, output, recv_axis=1)
+
     @unittest.skipIf(
         envar == "gpu" and platform.machine() == "arm64", "MPI not supported on Apple MPS"
     )

@@ -1,6 +1,6 @@
 ---
-name: Feature request
-about: Suggest missing features or functionalities
+name: "🌟Feature request"
+about: Suggest missing features or functionalities for Heat
 title: ''
 labels: 'enhancement'
 assignees: ''
