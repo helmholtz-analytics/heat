@@ -508,45 +508,43 @@ class TestArithmetics(TestCase):
         result = ht.array([[3.0, 4.0], [5.0, 6.0]])
         underlying_torch_tensor = self.a_tensor.larray
         underlying_split_torch_tensor = self.a_split_tensor.larray
-
+        
         # Check every possible combination of inputs whether the right solution
         # is computed and saved in the right place and whether the second input
         # stays unchanged. After every tested computation, we reset changed variables.
-        self.assertTrue(ht.equal(ht.iadd(self.a_tensor, self.a_scalar), result))  # test result
-        self.assertTrue(ht.equal(self.a_tensor, result))  # test in-place
-        self.assertTrue(torch.equal(self.a_tensor.larray, underlying_torch_tensor))  # test in-place
-        self.assertTrue(
-            ht.equal(self.a_scalar, ht.float32(2.0))
-        )  # test if other input is unchanged
-        self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])  # reset
-        underlying_torch_tensor = self.a_tensor.larray  # reset
+        self.assertTrue(ht.equal(ht.iadd(self.a_tensor, self.a_scalar), result)) # test result
+        self.assertTrue(ht.equal(self.a_tensor, result)) # test in-place
+        self.assertTrue(torch.equal(self.a_tensor.larray, underlying_torch_tensor)) # test in-place
+        self.assertTrue(ht.equal(self.a_scalar, ht.float32(2.0))) # test if other input is unchanged
+        self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray # reset
+        underlying_torch_tensor = self.a_tensor.larray # reset
 
         self.assertTrue(ht.equal(ht.iadd(self.a_tensor, self.another_tensor), result))
         self.assertTrue(ht.equal(self.a_tensor, result))
         self.assertTrue(torch.equal(self.a_tensor.larray, underlying_torch_tensor))
         self.assertTrue(ht.equal(self.another_tensor, ht.array([[2.0, 2.0], [2.0, 2.0]])))
-        self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])
+        self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray
         underlying_torch_tensor = self.a_tensor.larray
 
         self.assertTrue(ht.equal(ht.iadd(self.a_tensor, self.a_vector), result))
         self.assertTrue(ht.equal(self.a_tensor, result))
         self.assertTrue(torch.equal(self.a_tensor.larray, underlying_torch_tensor))
         self.assertTrue(ht.equal(self.a_vector, ht.float32([2, 2])))
-        self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])
+        self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray
         underlying_torch_tensor = self.a_tensor.larray
 
         self.assertTrue(ht.equal(ht.iadd(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(self.a_tensor, result))
         self.assertTrue(torch.equal(self.a_tensor.larray, underlying_torch_tensor))
         self.assertTrue(ht.equal(self.an_int_scalar, 2))
-        self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])
+        self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray
         underlying_torch_tensor = self.a_tensor.larray
 
         self.assertTrue(ht.equal(ht.iadd(self.a_split_tensor, self.a_tensor), result))
         self.assertTrue(ht.equal(self.a_split_tensor, result))
         self.assertTrue(torch.equal(self.a_split_tensor.larray, underlying_split_torch_tensor))
         self.assertTrue(ht.equal(self.a_tensor, ht.array([[1.0, 2.0], [3.0, 4.0]])))
-        self.a_split_tensor = ht.array([[2.0, 2.0], [2.0, 2.0]])
+        self.a_split_tensor.larray = ht.array([[2.0, 2.0], [2.0, 2.0]]).copy().resplit_(0).larray
         underlying_split_torch_tensor = self.a_split_tensor.larray
 
         # Single element split
@@ -601,10 +599,10 @@ class TestArithmetics(TestCase):
 
         with self.assertRaises(ValueError):
             ht.iadd(self.a_tensor, self.another_vector)
-        self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])  # reset
+        self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray  # reset
         with self.assertRaises(TypeError):
             ht.iadd(self.a_tensor, self.erroneous_type)
-        self.a_tensor = ht.array([[1.0, 2.0], [3.0, 4.0]])  # reset
+        self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray  # reset
         with self.assertRaises(RuntimeError):
             ht.iadd(self.a_scalar, self.a_tensor)
         self.a_scalar = 2.0  # reset
