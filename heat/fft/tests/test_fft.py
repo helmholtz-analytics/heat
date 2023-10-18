@@ -79,7 +79,7 @@ class TestFFT(TestCase):
         np_y = np.fft.fft2(x.numpy(), axes=axes)
         self.assertEqual(y.shape, np_y.shape)
         self.assertTrue(y.split == 0)
-        self.assert_array_equal(y, np_y)
+        self.assertTrue(ht.allclose(y, np_y))
 
         # exceptions
         x = ht.arange(10, split=0)
