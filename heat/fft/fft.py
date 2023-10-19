@@ -153,7 +153,8 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
         for i, axis in enumerate(axes):
             output_shape[axis] = s[i]
     else:
-        axes = tuple(range(x.ndim))
+        if axes is None:
+            axes = tuple(range(x.ndim))
         s = tuple(output_shape[axis] for axis in axes)
     output_shape = tuple(output_shape)
 
