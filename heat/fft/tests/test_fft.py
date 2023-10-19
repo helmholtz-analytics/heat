@@ -83,30 +83,6 @@ class TestFFT(TestCase):
         with self.assertRaises(IndexError):
             ht.fft.fft2(x)
 
-    def test_ifft(self):
-        # 1D non-distributed
-        x = ht.random.randn(6, dtype=ht.float64)
-        x_fft = ht.fft.fft(x)
-        y = ht.fft.ifft(x_fft)
-        self.assertIsInstance(y, ht.DNDarray)
-        self.assertEqual(y.shape, x.shape)
-        self.assert_array_equal(y, x.numpy())
-
-    def test_rfft(self):
-        pass
-
-    def test_irfft(self):
-        pass
-
-    def test_ifft2(self):
-        pass
-
-    def test_rfft2(self):
-        pass
-
-    def test_irfft2(self):
-        pass
-
     def test_fftn(self):
         # 1D non-distributed
         x = ht.random.randn(6)
@@ -153,6 +129,46 @@ class TestFFT(TestCase):
         x = ht.random.randn(6, 3, 3, split=0)
         with self.assertRaises(ValueError):
             ht.fft.fftn(x, s=(10, 10, 10, 10))
+
+    def test_hfft(self):
+        # follows example in torch.fft.hfft docs
+        x = ht.zeros((3, 5), split=0)
+        edges = [1, 3, 7]
+        for i, n in enumerate(edges):
+            x[i] = ht.linspace(0, n, 5)
+
+        inv_fft = ht.fft.ifft(x)
+        # inv_fft is hermitian symmetric along the rows
+        # we can reconstruct the original signal by transforming the first half of the rows only
+        reconstructed_x = ht.fft.hfft(inv_fft[:3], n=5)
+        self.assertTrue(ht.allclose(reconstructed_x, x))
+        n = 2 * (x.shape[-1] - 1)
+        reconstructed_x = ht.fft.hfft(inv_fft[:3])
+        self.assertEqual(reconstructed_x.shape, (3, n))
+
+    def test_ifft(self):
+        # 1D non-distributed
+        x = ht.random.randn(6, dtype=ht.float64)
+        x_fft = ht.fft.fft(x)
+        y = ht.fft.ifft(x_fft)
+        self.assertIsInstance(y, ht.DNDarray)
+        self.assertEqual(y.shape, x.shape)
+        self.assert_array_equal(y, x.numpy())
+
+    def test_rfft(self):
+        pass
+
+    def test_irfft(self):
+        pass
+
+    def test_ifft2(self):
+        pass
+
+    def test_rfft2(self):
+        pass
+
+    def test_irfft2(self):
+        pass
 
     def test_ifftn(self):
         pass
