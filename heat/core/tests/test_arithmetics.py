@@ -607,9 +607,9 @@ class TestArithmetics(TestCase):
         with self.assertRaises(TypeError):
             ht.iadd(self.a_tensor, self.erroneous_type)
         self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray  # reset
-#        with self.assertRaises(TypeError):
-#            ht.iadd(self.a_scalar, self.a_tensor)
-#        self.a_scalar = 2.0  # reset
+        #        with self.assertRaises(TypeError):
+        #            ht.iadd(self.a_scalar, self.a_tensor)
+        #        self.a_scalar = 2.0  # reset
         with self.assertRaises(TypeError):
             ht.iadd("T", "s")
 
@@ -733,9 +733,9 @@ class TestArithmetics(TestCase):
         with self.assertRaises(TypeError):
             ht.isub(self.a_tensor, self.erroneous_type)
         self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray  # reset
-#        with self.assertRaises(TypeError):
-#            ht.isub(self.a_scalar, self.a_tensor)
-#        self.a_scalar = 2.0  # reset
+        #        with self.assertRaises(TypeError):
+        #            ht.isub(self.a_scalar, self.a_tensor)
+        #        self.a_scalar = 2.0  # reset
         with self.assertRaises(TypeError):
             ht.isub("T", "s")
 
