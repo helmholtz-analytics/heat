@@ -66,7 +66,7 @@ class TestFFT(TestCase):
         # 2D FFT along non-split axes
         x = ht.random.randn(10, 6, 6, split=0)
         y = ht.fft.fft2(x)
-        np_y = np.fft.fft2(x.numpy())
+        np_y = np.fft.fft2(x.numpy()).astype(np.complex64)
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
 
@@ -74,7 +74,7 @@ class TestFFT(TestCase):
         x = ht.random.randn(10, 6, 6, split=0)
         axes = (0, 1)
         y = ht.fft.fft2(x, axes=axes)
-        np_y = np.fft.fft2(x.numpy(), axes=axes)
+        np_y = np.fft.fft2(x.numpy(), axes=axes).astype(np.complex64)
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
 
