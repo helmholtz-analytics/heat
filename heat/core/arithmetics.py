@@ -700,9 +700,8 @@ def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> s
     2.0
     """
-    if not isinstance(t1, DNDarray):
-        raise TypeError("Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar.")
-
+    # if not isinstance(t1, DNDarray):
+    #     raise TypeError("Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar.")
     def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.add_(b)
 
@@ -777,7 +776,7 @@ def isub(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[2., 2.],
               [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
-    >>> ht.iadd(T2, s)
+    >>> ht.isub(T2, s)
     DNDarray([[0., 0.],
               [0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2
@@ -786,9 +785,8 @@ def isub(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> s
     2.0
     """
-    if not isinstance(t1, DNDarray):
-        raise TypeError("Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar.")
-
+    # if not isinstance(t1, DNDarray):
+    #     raise TypeError("Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar.")
     def wrap_sub_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.sub_(b)
 
