@@ -505,20 +505,22 @@ class TestArithmetics(TestCase):
 
     def test_iadd(self):
         result = ht.array([[3.0, 4.0], [5.0, 6.0]])
-        
+
         # We identify the underlying PyTorch objects to check whether operations are really in-place
         underlying_torch_tensor = self.a_tensor.larray
         underlying_split_torch_tensor = self.a_split_tensor.larray
-        
-        # Check for every possible combination of inputs whether the right solution is computed and 
-        # saved in the right place and whether the second input stays unchanged. After every tested 
+
+        # Check for every possible combination of inputs whether the right solution is computed and
+        # saved in the right place and whether the second input stays unchanged. After every tested
         # computation, we reset changed variables.
-        self.assertTrue(ht.equal(ht.iadd(self.a_tensor, self.a_scalar), result)) # test result
-        self.assertTrue(ht.equal(self.a_tensor, result)) # test in-place
-        self.assertTrue(torch.equal(self.a_tensor.larray, underlying_torch_tensor)) # test in-place
-        self.assertTrue(ht.equal(self.a_scalar, ht.float32(2.0))) # test if other input is unchanged
-        self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray # reset
-        underlying_torch_tensor = self.a_tensor.larray # reset
+        self.assertTrue(ht.equal(ht.iadd(self.a_tensor, self.a_scalar), result))  # test result
+        self.assertTrue(ht.equal(self.a_tensor, result))  # test in-place
+        self.assertTrue(torch.equal(self.a_tensor.larray, underlying_torch_tensor))  # test in-place
+        self.assertTrue(
+            ht.equal(self.a_scalar, ht.float32(2.0))
+        )  # test if other input is unchanged
+        self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray  # reset
+        underlying_torch_tensor = self.a_tensor.larray  # reset
 
         self.assertTrue(ht.equal(ht.iadd(self.a_tensor, self.another_tensor), result))
         self.assertTrue(ht.equal(self.a_tensor, result))
@@ -631,49 +633,49 @@ class TestArithmetics(TestCase):
     def test_isub(self):
         result = ht.array([[-1.0, 0.0], [1.0, 2.0]])
         minus_result = ht.array([[1.0, 0.0], [-1.0, -2.0]])
-        
+
         # We identify the underlying PyTorch objects to check whether operations are really in-place
         underlying_torch_tensor = self.a_tensor.larray
         underlying_split_torch_tensor = self.a_split_tensor.larray
-        
-        # Check for every possible combination of inputs whether the right solution is computed and 
-        # saved in the right place and whether the second input stays unchanged. After every tested 
+
+        # Check for every possible combination of inputs whether the right solution is computed and
+        # saved in the right place and whether the second input stays unchanged. After every tested
         # computation, we reset changed variables.
-        self.assertTrue(ht.equal(ht.isub(self.a_tensor, self.a_scalar), result)) # test result
-        self.assertTrue(ht.equal(self.a_tensor, result)) # test in-place
-        self.assertTrue(torch.equal(self.a_tensor.larray,underlying_torch_tensor)) # test in-place
+        self.assertTrue(ht.equal(ht.isub(self.a_tensor, self.a_scalar), result))  # test result
+        self.assertTrue(ht.equal(self.a_tensor, result))  # test in-place
+        self.assertTrue(torch.equal(self.a_tensor.larray, underlying_torch_tensor))  # test in-place
         self.assertTrue(ht.equal(self.a_scalar, ht.float32(2.0)))  # test if other input has changed
-        self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray # reset
-        underlying_torch_tensor = self.a_tensor.larray # reset
-        
+        self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray  # reset
+        underlying_torch_tensor = self.a_tensor.larray  # reset
+
         self.assertTrue(ht.equal(ht.isub(self.a_tensor, self.another_tensor), result))
         self.assertTrue(ht.equal(self.a_tensor, result))
         self.assertTrue(torch.equal(self.a_tensor.larray, underlying_torch_tensor))
         self.assertTrue(ht.equal(self.another_tensor, ht.array([[2.0, 2.0], [2.0, 2.0]])))
         self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray
         underlying_torch_tensor = self.a_tensor.larray
-        
+
         self.assertTrue(ht.equal(ht.isub(self.a_tensor, self.a_vector), result))
         self.assertTrue(ht.equal(self.a_tensor, result))
         self.assertTrue(torch.equal(self.a_tensor.larray, underlying_torch_tensor))
         self.assertTrue(ht.equal(self.a_vector, ht.float32([2, 2])))
         self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray
         underlying_torch_tensor = self.a_tensor.larray
-        
+
         self.assertTrue(ht.equal(ht.isub(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(self.a_tensor, result))
         self.assertTrue(torch.equal(self.a_tensor.larray, underlying_torch_tensor))
         self.assertTrue(ht.equal(self.an_int_scalar, 2))
         self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray
         underlying_torch_tensor = self.a_tensor.larray
-        
+
         self.assertTrue(ht.equal(ht.isub(self.a_split_tensor, self.a_tensor), minus_result))
         self.assertTrue(ht.equal(self.a_split_tensor, minus_result))
         self.assertTrue(torch.equal(self.a_split_tensor.larray, underlying_split_torch_tensor))
         self.assertTrue(ht.equal(self.a_tensor, ht.array([[1.0, 2.0], [3.0, 4.0]])))
         self.a_split_tensor.larray = ht.array([[2.0, 2.0], [2.0, 2.0]]).copy().resplit_(0).larray
         underlying_split_torch_tensor = self.a_split_tensor.larray
-        
+
         # Single element split
         a = ht.array([1, 2], split=0)
         b = ht.array([1], split=0)
@@ -684,9 +686,9 @@ class TestArithmetics(TestCase):
                 self.assertEqual(a.larray.size()[0], 1)
             else:
                 self.assertEqual(a.larray.size()[0], 0)
-        
+
         # test with differently distributed DNDarrays
-        a = ht.ones(10, split=0)*2
+        a = ht.ones(10, split=0) * 2
         b = ht.ones(10, split=0)
         a = a[:-1]
         a_lshape = a.lshape
@@ -695,7 +697,7 @@ class TestArithmetics(TestCase):
         self.assertTrue(a.lshape == a_lshape)
 
         # test unbalanced
-        a = ht.ones(10, split=0)*2  # reset
+        a = ht.ones(10, split=0) * 2  # reset
         a = a[1:-1]
         a_lshape = a.lshape
         a -= b[1:-1]
@@ -703,27 +705,27 @@ class TestArithmetics(TestCase):
         self.assertTrue(a.lshape == a_lshape)
 
         # test one unsplit
-        a = ht.ones(10, split=None)*2
+        a = ht.ones(10, split=None) * 2
         b = ht.ones(10, split=0)
         a = a[:-1]
         a -= b[1:]
         self.assertTrue((a == 1).all())
         self.assertEqual(a.lshape, b[1:].lshape)
 
-        a = ht.ones(10, split=None)*2  # reset
+        a = ht.ones(10, split=None) * 2  # reset
         a = a[1:]
         a -= b[:-1]
         self.assertTrue((a == 1).all())
         self.assertEqual(a.lshape, b[:-1].lshape)
 
         # broadcast in split dimension
-        a = ht.ones((2, 10), split=0)*2
+        a = ht.ones((2, 10), split=0) * 2
         b = ht.ones((1, 10), split=0)
         a_lshape = a.lshape
         a -= b
         self.assertTrue((a == 1).all())
         self.assertTrue(a.lshape == a_lshape)
-        
+
         # test function with wrong inputs
         with self.assertRaises(ValueError):
             ht.isub(self.a_tensor, self.another_vector)
@@ -736,7 +738,7 @@ class TestArithmetics(TestCase):
         self.a_scalar = 2.0  # reset
         with self.assertRaises(TypeError):
             ht.isub("T", "s")
-        
+
     def test_lcm(self):
         a = ht.array([5, 10, 15])
         b = ht.array([3, 4, 5])

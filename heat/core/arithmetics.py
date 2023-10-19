@@ -748,11 +748,12 @@ DNDarray.__invert__.__doc__ = invert.__doc__
 bitwise_not = invert
 """Alias for :py:func:`invert`"""
 
+
 def isub(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise in-place substitution of values from two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise subtracts the element(s)
-    of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements of 
+    of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements of
     ``t1`` are overwritten by the results of element-wise subtraction of ``t2`` from ``t1``.
 
     Parameters
@@ -786,10 +787,10 @@ def isub(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> s
     2.0
     """
-    
+
     if not isinstance(t1, DNDarray):
         raise TypeError("Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar.")
-    
+
     def wrap_sub_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.sub_(b)
 
