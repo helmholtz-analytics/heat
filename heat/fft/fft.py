@@ -43,7 +43,7 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
     try:
         local_x = x.larray
     except AttributeError:
-        raise TypeError("x must be a DNDarray, is {}".format(type(x)))
+        raise TypeError(f"x must be a DNDarray, is {type(x)}")
     original_split = x.split
 
     # sanitize kwargs
@@ -52,6 +52,8 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
         axis = sanitize_axis(x.gshape, axis)
     except ValueError as e:
         raise IndexError(e)
+    if isinstance(axis, tuple) and len(axis) > 1:
+        raise TypeError(f"axis must be an integer, got {axis}")
     n = kwargs.get("n", None)
     norm = kwargs.get("norm", None)
 
