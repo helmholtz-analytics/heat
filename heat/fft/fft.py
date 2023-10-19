@@ -66,10 +66,7 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
     # calculate output shape
     output_shape = list(x.shape)
     if n is not None:
-        if axis is None:
-            output_shape[-1] = n
-        else:
-            output_shape[axis] = n
+        output_shape[axis] = n
 
     fft_along_split = original_split == axis
 
