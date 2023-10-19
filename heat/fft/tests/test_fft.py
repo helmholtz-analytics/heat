@@ -61,20 +61,27 @@ class TestFFT(TestCase):
         x = np.random.randn(6, 3, 3)
         with self.assertRaises(TypeError):
             ht.fft.fft(x)
+        # axis out of range
+        x = ht.random.randn(6, 3, 3)
+        with self.assertRaises(IndexError):
+            ht.fft.fft(x, axis=3)
+        # n-D axes
+        with self.assertRaises(TypeError):
+            ht.fft.fft(x, axis=(0, 1))
 
     def test_fft2(self):
         # 2D FFT along non-split axes
-        x = ht.random.randn(10, 6, 6, split=0)
+        x = ht.random.randn(10, 6, 6, split=0, dtype=ht.float64)
         y = ht.fft.fft2(x)
-        np_y = np.fft.fft2(x.numpy()).astype(np.complex64)
+        np_y = np.fft.fft2(x.numpy())
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
 
         # 2D FFT along split axes
-        x = ht.random.randn(10, 6, 6, split=0)
+        x = ht.random.randn(10, 6, 6, split=0, dtype=ht.float64)
         axes = (0, 1)
         y = ht.fft.fft2(x, axes=axes)
-        np_y = np.fft.fft2(x.numpy(), axes=axes).astype(np.complex64)
+        np_y = np.fft.fft2(x.numpy(), axes=axes)
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
 
