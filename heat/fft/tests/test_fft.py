@@ -67,8 +67,6 @@ class TestFFT(TestCase):
         x = ht.random.randn(10, 6, 6, split=0)
         y = ht.fft.fft2(x)
         np_y = np.fft.fft2(x.numpy())
-        self.assertIsInstance(y, ht.DNDarray)
-        self.assertEqual(y.shape, np_y.shape)
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
 
@@ -77,9 +75,8 @@ class TestFFT(TestCase):
         axes = (0, 1)
         y = ht.fft.fft2(x, axes=axes)
         np_y = np.fft.fft2(x.numpy(), axes=axes)
-        self.assertEqual(y.shape, np_y.shape)
         self.assertTrue(y.split == 0)
-        self.assertTrue(ht.allclose(y, ht.array(np_y, split=y.split)))
+        self.assert_array_equal(y, np_y)
 
         # exceptions
         x = ht.arange(10, split=0)
