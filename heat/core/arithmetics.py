@@ -46,6 +46,7 @@ __all__ = [
     "hypot",
     "iadd",
     "invert",
+    "isub",
     "lcm",
     "left_shift",
     "mod",
@@ -700,6 +701,9 @@ def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     2.0
     """
 
+    if not isinstance(t1, DNDarray):
+        raise TypeError("Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar.")
+
     def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.add_(b)
 
@@ -743,6 +747,57 @@ DNDarray.__invert__.__doc__ = invert.__doc__
 # alias for invert
 bitwise_not = invert
 """Alias for :py:func:`invert`"""
+
+def isub(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    Element-wise in-place substitution of values from two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise subtracts the element(s)
+    of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements of 
+    ``t1`` are overwritten by the results of element-wise subtraction of ``t2`` from ``t1``.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the subtraction
+    t2: DNDarray or scalar
+        The second operand involved in the subtraction
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.isub(T1, T2)
+    DNDarray([[-1., 0.],
+              [ 1., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[-1., 0.],
+              [ 1., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.iadd(T2, s)
+    DNDarray([[0., 0.],
+              [0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[0., 0.],
+              [0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
+    """
+    
+    if not isinstance(t1, DNDarray):
+        raise TypeError("Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar.")
+    
+    def wrap_sub_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.sub_(b)
+
+    return _operations.__binary_op(wrap_sub_, t1, t2)
+
+
+DNDarray.__isub__ = lambda self, other: isub(self, other)
+DNDarray.__isub__.__doc__ = isub.__doc__
 
 
 def lcm(
