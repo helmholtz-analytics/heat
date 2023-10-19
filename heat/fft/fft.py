@@ -215,6 +215,28 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     return array(result.larray, is_split=original_split, device=x.device, comm=x.comm)
 
 
+def __real_fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
+    try:
+        result = __fft_op(x, fft_op, **kwargs)
+    except RuntimeError as e:
+        if "real input tensor" in str(e):
+            raise TypeError(f"Input array must be real, is {x.dtype}.")
+        else:
+            raise e
+    return result
+
+
+def __real_fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
+    try:
+        result = __fftn_op(x, fftn_op, **kwargs)
+    except RuntimeError as e:
+        if "real input tensor" in str(e):
+            raise TypeError(f"Input array must be real, is {x.dtype}.")
+        else:
+            raise e
+    return result
+
+
 def fft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarray:
     """
     Compute the one-dimensional discrete Fourier Transform.
@@ -482,6 +504,28 @@ def ifftn(
     return __fftn_op(x, torch.fft.ifftn, s=s, axes=axes, norm=norm)
 
 
+def ihfftn(
+    x: DNDarray, s: Tuple[int, ...] = None, axes: Tuple[int, ...] = None, norm: str = None
+) -> DNDarray:
+    """
+    Compute the N-dimensional inverse discrete Fourier Transform of a real signal. The output is Hermitian-symmetric.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array, must be real
+    s : Tuple[int, ...], optional
+        Shape of the output along the transformed axes. (default is x.shape)
+    axes : Tuple[int, ...], optional
+        Axes over which to compute the inverse FFT. If not given, the last `len(s)` axes are used, or all axes if `s` is
+        also not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple
+        times. (default is None)
+    norm : str, optional
+        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+    """
+    return __real_fftn_op(x, torch.fft.ihfftn, s=s, axes=axes, norm=norm)
+
+
 def irfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarray:
     """
     Compute the one-dimensional inverse discrete Fourier Transform for real input.
@@ -583,7 +627,7 @@ def rfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarr
     If the input array is 1-D and distributed, this function copies the entire array on each MPI process! i.e. if the array is very large, you might run out of memory.
     Hint: if you are looping through a batch of 1-D arrays to transform them, consider stacking them into a 2-D DNDarray and transforming them all at once (see :func:`rfft2`).
     """
-    return __fft_op(x, torch.fft.rfft, n=n, axis=axis, norm=norm)
+    return __real_fft_op(x, torch.fft.rfft, n=n, axis=axis, norm=norm)
 
 
 def rfft2(
@@ -609,7 +653,7 @@ def rfft2(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
-    return __fftn_op(x, torch.fft.rfft2, s=s, axes=axes, norm=norm)
+    return __real_fftn_op(x, torch.fft.rfft2, s=s, axes=axes, norm=norm)
 
 
 def rfftn(
@@ -635,4 +679,4 @@ def rfftn(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
-    return __fftn_op(x, torch.fft.rfftn, s=s, axes=axes, norm=norm)
+    return __real_fftn_op(x, torch.fft.rfftn, s=s, axes=axes, norm=norm)
