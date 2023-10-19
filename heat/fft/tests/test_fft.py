@@ -6,7 +6,7 @@ from heat.core.tests.test_suites.basic_test import TestCase
 
 
 class TestFFT(TestCase):
-    def test_fft(self):
+    def test_fft_ifft(self):
         # 1D non-distributed
         x = ht.random.randn(6)
         y = ht.fft.fft(x)
@@ -14,6 +14,8 @@ class TestFFT(TestCase):
         self.assertIsInstance(y, ht.DNDarray)
         self.assertEqual(y.shape, x.shape)
         self.assert_array_equal(y, np_y)
+        backwards = ht.fft.ifft(y)
+        self.assertTrue(ht.allclose(backwards, x))
 
         # 1D distributed
         x = ht.random.randn(6, split=0)
@@ -69,13 +71,15 @@ class TestFFT(TestCase):
         with self.assertRaises(TypeError):
             ht.fft.fft(x, axis=(0, 1))
 
-    def test_fft2(self):
+    def test_fft2_ifft2(self):
         # 2D FFT along non-split axes
         x = ht.random.randn(10, 6, 6, split=0, dtype=ht.float64)
         y = ht.fft.fft2(x)
         np_y = np.fft.fft2(x.numpy())
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
+        backwards = ht.fft.ifft2(y)
+        self.assertTrue(ht.allclose(backwards, x))
 
         # 2D FFT along split axes
         x = ht.random.randn(10, 6, 6, split=0, dtype=ht.float64)
@@ -84,13 +88,15 @@ class TestFFT(TestCase):
         np_y = np.fft.fft2(x.numpy(), axes=axes)
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
+        backwards = ht.fft.ifft2(y, axes=axes)
+        self.assertTrue(ht.allclose(backwards, x))
 
         # exceptions
         x = ht.arange(10, split=0)
         with self.assertRaises(IndexError):
             ht.fft.fft2(x)
 
-    def test_fftn(self):
+    def test_fftn_ifftn(self):
         # 1D non-distributed
         x = ht.random.randn(6)
         y = ht.fft.fftn(x)
@@ -98,6 +104,8 @@ class TestFFT(TestCase):
         self.assertIsInstance(y, ht.DNDarray)
         self.assertEqual(y.shape, x.shape)
         self.assert_array_equal(y, np_y)
+        backwards = ht.fft.ifftn(y)
+        self.assertTrue(ht.allclose(backwards, x))
 
         # 1D distributed
         x = ht.random.randn(6, split=0)
@@ -137,9 +145,9 @@ class TestFFT(TestCase):
         with self.assertRaises(ValueError):
             ht.fft.fftn(x, s=(10, 10, 10, 10))
 
-    def test_hfft(self):
+    def test_hfft_ihfft(self):
         # follows example in torch.fft.hfft docs
-        x = ht.zeros((3, 5), split=0)
+        x = ht.zeros((3, 5), split=0, dtype=ht.float64)
         edges = [1, 3, 7]
         for i, n in enumerate(edges):
             x[i] = ht.linspace(0, n, 5)
