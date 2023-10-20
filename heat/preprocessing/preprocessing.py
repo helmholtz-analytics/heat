@@ -129,10 +129,10 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         _has_n_features(self.mean_, X)
         if self.copy:
             return (X - self.mean_) * self.scale_
-        # else in place:
-        X -= self.mean_
-        X *= self.scale_
-        return X
+        else: # in-place
+            X -= self.mean_
+            X *= self.scale_
+            return X
 
     def inverse_transform(self, Y: ht.DNDarray) -> ht.DNDarray:
         """
@@ -149,10 +149,10 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         _has_n_features(self.mean_, Y)
         if self.copy:
             return Y / self.scale_ + self.mean_
-        # else in-place:
-        Y /= self.scale_
-        Y += self.mean_
-        return Y
+        else: # in-place
+            Y /= self.scale_
+            Y += self.mean_
+            return Y
 
 
 class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
@@ -254,11 +254,11 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         if self.copy:
             Y = (X - self.data_min_) * self.scale_ + self.feature_range[0]
             return Y
-        # else in-place:
-        X -= self.data_min_
-        X *= self.scale_
-        X += self.feature_range[0]
-        return X
+        else: # in-place
+            X -= self.data_min_
+            X *= self.scale_
+            X += self.feature_range[0]
+            return X
 
     def inverse_transform(self, Y: ht.DNDarray) -> ht.DNDarray:
         """
@@ -274,11 +274,11 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         if self.copy:
             X = (Y - self.feature_range[0]) / self.scale_ + self.data_min_
             return X
-        # else in-place:
-        Y -= self.feature_range[0]
-        Y /= self.scale_
-        Y += self.data_min_
-        return Y
+        else: # in-place
+            Y -= self.feature_range[0]
+            Y /= self.scale_
+            Y += self.data_min_
+            return Y
 
 
 class Normalizer(ht.TransformMixin, ht.BaseEstimator):
@@ -349,10 +349,10 @@ class Normalizer(ht.TransformMixin, ht.BaseEstimator):
         if self.copy:
             Y = X / X_norms
             return Y
-        # else in-place:
-        X /= X_norms
-        del X_norms
-        return X
+        else: # in-place
+            X /= X_norms
+            del X_norms
+            return X
 
 
 class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
@@ -418,9 +418,9 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
         if self.copy:
             Y = X * self.scale_
             return Y
-        # else in-place:
-        X *= self.scale_
-        return X
+        else: # in-place
+            X *= self.scale_
+            return X
 
     def inverse_transform(self, Y: ht.DNDarray) -> ht.DNDarray:
         """
@@ -436,9 +436,9 @@ class MaxAbsScaler(ht.TransformMixin, ht.BaseEstimator):
         if self.copy:
             X = Y / self.scale_
             return X
-        # else in-place:
-        Y /= self.scale_
-        return Y
+        else: # in-place
+            Y /= self.scale_
+            return Y
 
 
 class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
@@ -565,12 +565,12 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
             if self.with_scaling:
                 Y *= self.scale_
             return Y
-        # else in-place:
-        if self.with_centering:
-            X -= self.center_
-        if self.with_scaling:
-            X *= self.scale_
-        return X
+        else: # in-place
+            if self.with_centering:
+                X -= self.center_
+            if self.with_scaling:
+                X *= self.scale_
+            return X
 
     def inverse_transform(self, Y: ht.DNDarray) -> ht.DNDarray:
         """
@@ -593,9 +593,9 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
             if self.with_centering:
                 X += self.center_
             return X
-        # else in-place:
-        if self.with_scaling:
-            Y /= self.scale_
-        if self.with_centering:
-            Y += self.center_
-        return Y
+        else: # in-place
+            if self.with_scaling:
+                Y /= self.scale_
+            if self.with_centering:
+                Y += self.center_
+            return Y
