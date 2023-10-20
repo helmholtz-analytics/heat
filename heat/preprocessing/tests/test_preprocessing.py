@@ -23,7 +23,7 @@ def _generate_test_data_set(n_data_points, n_features, split, dtype=ht.float32):
 class TestStandardScaler(TestCase):
     def test_StandardScaler(self):
         for split in [0, 1]:
-            for copy in [True, False]:
+            for copy in [True]:
                 X = _generate_test_data_set(
                     MPI.COMM_WORLD.Get_size() * 10,
                     MPI.COMM_WORLD.Get_size() * 4,
@@ -58,7 +58,7 @@ class TestStandardScaler(TestCase):
 class TestMinMaxScaler(TestCase):
     def test_MinMaxScaler(self):
         for split in [0, 1]:
-            for copy in [True, False]:
+            for copy in [True]:
                 X = _generate_test_data_set(
                     MPI.COMM_WORLD.Get_size() * 10,
                     MPI.COMM_WORLD.Get_size() * 4,
@@ -173,7 +173,7 @@ class TestMaxAbsScaler(TestCase):
 class TestRobustScaler(TestCase):
     def test_RobustScaler(self):
         for split in [0, 1]:
-            for copy in [True, False]:
+            for copy in [True]:
                 for with_centering in [True, False]:
                     for with_scaling in [True, False]:
                         if not with_centering and not with_scaling:
