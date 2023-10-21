@@ -1,7 +1,7 @@
 .. _Installation:
 
 Getting Started
-===============
+==============
 
 Heat is a Python package for accelerated and distributed tensor computations. Internally, it is based on `PyTorch <https://pytorch.org/>`_. Consequently, all operating systems that support Python and PyTorch also support a Heat installation. Currently, this list contains at least Linux, MacOS and Windows. However, most of our development is done under Linux and interoperability should therefore be optimal.
 
@@ -31,12 +31,12 @@ If you do not have a recent installation on you system, you may want to upgrade 
 
     sudo dnf update python3
 
-If you have new administrator privileges on your system, because you are working on a cluster for example, make sure to check its *user guide*, the module system (``module spider python``) or get in touch with the administrators.
+If you have no administrator privileges on your system, because you are working on a cluster for example, make sure to check its *user guide*, the module system (``module spider python``) or get in touch with the administrators.
 
 Optional Dependencies
 ^^^^^^^^^^^^^^^^^^^^^
 
-You can accelerate computations with Heat in different ways. For GPU acceleration ensure that you have a `CUDA <https://developer.nvidia.com/cuda-zone>`_ installation on your system. Distributed computations require an MPI stack on you computer. We recommend `MVAPICH <https://mvapich.cse.ohio-state.edu/>`_ or `OpenMPI <https://www.open-mpi.org/>`_. Finally, for parallel data I/O, Heat offers interface to `HDF5 <https://www.hdfgroup.org/solutions/hdf5/>`_ and `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_. You can obtain these packages using your operating system's package manager.
+You can accelerate computations with Heat in different ways. For GPU acceleration ensure that you have a `CUDA <https://developer.nvidia.com/cuda-zone>`_ installation on your system. Distributed computations require an MPI stack on your computer. We recommend `MVAPICH <https://mvapich.cse.ohio-state.edu/>`_ or `OpenMPI <https://www.open-mpi.org/>`_. Finally, for parallel data I/O, Heat offers interface to `HDF5 <https://www.hdfgroup.org/solutions/hdf5/>`_ and `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_. You can obtain these packages using your operating system's package manager.
 
 Installation
 ------------
