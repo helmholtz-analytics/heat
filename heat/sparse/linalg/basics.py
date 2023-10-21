@@ -3,6 +3,7 @@ from ..factories import sparse_csr_matrix
 from ...core import devices
 import torch
 
+
 def matmul(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
     if t1.shape[1] != t2.shape[0]:
         raise ValueError("Incompatible dimensions for matrix multiplication")
@@ -14,7 +15,9 @@ def matmul(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
             t.indptr,
             t.indices,
             t.data,
-            device=t.device.torch_device if t.device is not None else devices.get_device().torch_device,
+            device=t.device.torch_device
+            if t.device is not None
+            else devices.get_device().torch_device,
             size=t.shape,
         )
 
@@ -24,11 +27,8 @@ def matmul(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
     matmul_res = collected_t1 @ collected_t2
 
     return sparse_csr_matrix(
-        matmul_res,
-        dtype=t1.dtype,
-        device=t1.device,
-        comm=t1.comm,
-        split=out_split
+        matmul_res, dtype=t1.dtype, device=t1.device, comm=t1.comm, split=out_split
     )
+
 
 DCSR_matrix.matmul = lambda self, other: matmul(self, other)
