@@ -390,7 +390,9 @@ class GaussianNB(ht.ClassificationMixin, ht.BaseEstimator):
         joint_log_likelihood = ht.empty(jll_shape, dtype=x.dtype, split=x.split, device=x.device)
         for i in range(jll_size):
             jointi = ht.log(self.class_prior_[i])
-            n_ij = -0.5 * ht.sum(ht.log(2.0 * ht.pi * self.sigma_[i, :])) - 0.5 * ht.sum(((x - self.theta_[i, :]) ** 2) / (self.sigma_[i, :]), 1)
+            n_ij = -0.5 * ht.sum(ht.log(2.0 * ht.pi * self.sigma_[i, :])) - 0.5 * ht.sum(
+                ((x - self.theta_[i, :]) ** 2) / (self.sigma_[i, :]), 1
+            )
             joint_log_likelihood[:, i] = jointi + n_ij
         return joint_log_likelihood
 
