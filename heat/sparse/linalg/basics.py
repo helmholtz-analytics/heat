@@ -1,33 +1,34 @@
+"""
+Basic linear algebra operations on distributed ``DCSR_matrix``
+"""
+
 from ..dcsr_matrix import DCSR_matrix
 from ..factories import sparse_csr_matrix
 from ...core import devices
 import torch
 
 
-def matmul(t1: DCSR_matrix, t2: DCSR_matrix) -> DCSR_matrix:
-    if t1.shape[1] != t2.shape[0]:
+def matmul(A: DCSR_matrix, B: DCSR_matrix) -> DCSR_matrix:
+    """
+    Matrix multiplication of two DCSR matrices.
+    """
+    if A.shape[1] != B.shape[0]:
         raise ValueError("Incompatible dimensions for matrix multiplication")
 
-    out_split = 0 if t1.split == 0 or t2.split == 0 else None
+    out_split = 0 if A.split == 0 or B.split == 0 else None
 
-    def collect(t):
-        return torch.sparse_csr_tensor(
-            t.indptr,
-            t.indices,
-            t.data,
-            device=t.device.torch_device
-            if t.device is not None
-            else devices.get_device().torch_device,
-            size=t.shape,
-        )
+    collected_B = torch.sparse_csr_tensor(
+        B.indptr,
+        B.indices,
+        B.data,
+        device=B.device.torch_device if B.device is not None else devices.get_device().torch_device,
+        size=B.shape,
+    )
 
-    collected_t1 = collect(t1)
-    collected_t2 = collect(t2)
-
-    matmul_res = collected_t1 @ collected_t2
+    matmul_res = A.larray @ collected_B
 
     return sparse_csr_matrix(
-        matmul_res, dtype=t1.dtype, device=t1.device, comm=t1.comm, split=out_split
+        matmul_res, dtype=A.dtype, device=A.device, comm=A.comm, is_split=out_split
     )
 
 
