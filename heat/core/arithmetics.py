@@ -667,8 +667,8 @@ def hypot(
 def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise in-place addition of values of two operands.
-    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the 
-    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, 
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
     i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` and ``t2``.
 
     Parameters
@@ -725,9 +725,9 @@ DNDarray.__iadd__.__doc__ = iadd.__doc__
 def idiv(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise in-place true division of values of two operands.
-    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise divides its 
-    elements by the element(s) of the second operand (scalar or 
-    :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements of `t1` are overwritten by 
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise divides its
+    elements by the element(s) of the second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements of `t1` are overwritten by
     the results of element-wise division of `t1` and `t2`.
     Operation is not commutative.
 
@@ -785,9 +785,9 @@ DNDarray.__idiv__.__doc__ = idiv.__doc__
 def imul(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise in-place multiplication of values of two operands.
-    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise multiplies the 
-    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, 
-    i.e. the elements of `t1` are overwritten by the results of element-wise multiplication of `t1` 
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise multiplies the
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
+    i.e. the elements of `t1` are overwritten by the results of element-wise multiplication of `t1`
     and `t2`.
 
     Parameters
