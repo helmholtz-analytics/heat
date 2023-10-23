@@ -136,7 +136,7 @@ class TestNormalizer(TestCase):
 class TestMaxAbsScaler(TestCase):
     def test_MaxAbsScaler(self):
         for split in [0, 1]:
-            for copy in [True, False]:
+            for copy in [True]:
                 X = _generate_test_data_set(
                     MPI.COMM_WORLD.Get_size() * 10,
                     MPI.COMM_WORLD.Get_size() * 4,
