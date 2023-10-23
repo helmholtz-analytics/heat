@@ -45,10 +45,26 @@ __all__ = [
     "gcd",
     "hypot",
     "iadd",
+    "ibitwise_and",
+    "ibitwise_not",
+    "ibitwise_or",
+    "ibitwise_xor",
+    "icumprod",
+    "icumproduct",
     "idiv",
+    "idivide",
+    "ifloordiv",
+    "ifloor_divide",
     "imul",
+    "imultiply",
+    "ineg",
+    "inegative",
     "invert",
+    "ipow",
+    "ipower",
+    "iremainder",
     "isub",
+    "isubstract",
     "lcm",
     "left_shift",
     "mod",
@@ -75,8 +91,9 @@ __all__ = [
 def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise addition of values from two operands, commutative.
-    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be added
-    as argument and returns a ``DNDarray`` containing the results of element-wise addition of ``t1`` and ``t2``.
+    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose 
+    elements are to be added as argument and returns a ``DNDarray`` containing the results of 
+    element-wise addition of ``t1`` and ``t2``.
 
     Parameters
     ----------
@@ -89,7 +106,7 @@ def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     --------
     >>> import heat as ht
     >>> ht.add(1.0, 4.0)
-    DNDarray([5.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(5., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.add(T1, T2)
@@ -111,23 +128,23 @@ DNDarray.__radd__.__doc__ = add.__doc__
 
 def bitwise_and(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` element-wise.
-    Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape
-    (which becomes the shape of the output)
+    Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` 
+    element-wise. Only integer and boolean types are handled. If ``t1.shape!=t2.shape``, they must 
+    be broadcastable to a common shape (which becomes the shape of the output)
 
     Parameters
     ----------
     t1: DNDarray or scalar
-        Input tensor
+        The first operand involved in the operation
     t2: DNDarray or scalar
-        Input tensor
+        The second operand involved in the operation
 
     Examples
     --------
     >>> ht.bitwise_and(13, 17)
-    DNDarray([1], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(1, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(14, 13)
-    DNDarray([12], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(12, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([14,3]), 13)
     DNDarray([12,  1], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([11,7]), ht.array([4,25]))
@@ -152,23 +169,23 @@ DNDarray.__and__.__doc__ = bitwise_and.__doc__
 
 def bitwise_or(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise OR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` element-wise.
-    Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape
-    (which becomes the shape of the output)
+    Compute the bit-wise OR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` 
+    element-wise. Only integer and boolean types are handled. If ``t1.shape!=t2.shape``, they must 
+    be broadcastable to a common shape (which becomes the shape of the output)
 
     Parameters
     ----------
     t1: DNDarray or scalar
-        Input tensor
+        The first operand involved in the operation
     t2: DNDarray or scalar
-        Input tensor
+        The second operand involved in the operation
 
     Examples
     --------
     >>> ht.bitwise_or(13, 16)
-    DNDarray([29], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(29, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(32, 2)
-    DNDarray([34], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(34, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([33, 4]), 1)
     DNDarray([33,  5], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([33, 4]), ht.array([1, 2]))
@@ -196,16 +213,16 @@ DNDarray.__or__.__doc__ = bitwise_or.__doc__
 
 def bitwise_xor(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise XOR of two arrays element-wise ``t1`` and ``t2``.
-    Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be broadcastable to a common shape
-    (which becomes the shape of the output)
+    Compute the bit-wise XOR of two arrays ``t1`` and ``t2`` element-wise.
+    Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be 
+    broadcastable to a common shape (which becomes the shape of the output).
 
     Parameters
     ----------
     t1: DNDarray or scalar
-        Input tensor
+        The first operand involved in the operation
     t2: DNDarray or scalar
-        Input tensor
+        The second operand involved in the operation
 
     Examples
     --------
@@ -564,7 +581,8 @@ def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
 
 def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise floor division of value of operand ``t1`` by values of operands ``t2`` (i.e. ``t1//t2``), not commutative.
+    Element-wise floor division of value(s) of operand ``t1`` by value(s) of operand ``t2`` 
+    (i.e. ``t1//t2``), not commutative.
 
     Parameters
     ----------
@@ -669,7 +687,413 @@ def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` and ``t2``.
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    and ``t2``.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the addition
+    t2: DNDarray or scalar
+        The second operand involved in the addition
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.iadd(T1, T2)
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.iadd(T2, s)
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.add_(b)
+
+    return _operations.__binary_op(wrap_add_, t1, t2)
+
+
+DNDarray.__iadd__ = lambda self, other: iadd(self, other)
+DNDarray.__iadd__.__doc__ = iadd.__doc__
+
+
+def ibitwise_and(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` 
+    element-wise and in-place. Only integer and boolean types are handled. If 
+    ``t1.shape!=t2.shape``, they must be broadcastable to a common shape (which becomes the shape of
+    the output).
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the operation
+    t2: DNDarray or scalar
+        The second operand involved in the operation
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.array(13)
+    >>> T2 = ht.array(17)
+    >>> ht.ibitwise_and(T1, T2)
+    DNDarray(1, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T1
+    DNDarray(1, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T2
+    DNDarray(17, dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.ibitwise_and(T2, ht.array(22))
+    DNDarray(16, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T3 = ht.array([14,3])
+    >>> s = 29
+    >>> ht.ibitwise_and(T3, s)
+    DNDarray([12,  1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T3
+    DNDarray([12,  1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> s
+    29
+    >>> T4 = ht.array([2,5,255])
+    >>> T5 = ht.array([3,14,16])
+    >>> ht.ibitwise_and(T4, T5)
+    DNDarray([ 2,  4, 16], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T4
+    DNDarray([ 2,  4, 16], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T6 = ht.array([True, True])
+    >>> T7 = ht.array([False, True])
+    >>> ht.ibitwise_and(T6, T7)
+    DNDarray([False,  True], dtype=ht.bool, device=cpu:0, split=None)
+    >>> T6
+    DNDarray([False,  True], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
+
+    for dt in dtypes:
+        if heat_type_is_inexact(dt):
+            raise TypeError("Operation is not supported for float types.")
+    
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_bitwise_and_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.bitwise_and_(b)
+
+    return _operations.__binary_op(wrap_bitwise_and_, t1, t2)
+
+
+DNDarray.__iand__ = lambda self, other: ibitwise_and(self, other)
+DNDarray.__iand__.__doc__ = ibitwise_and.__doc__
+
+
+def ibitwise_or(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    Compute the bit-wise OR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` 
+    element-wise and in-place. Only integer and boolean types are handled. If 
+    ``t1.shape!=t2.shape``, they must be broadcastable to a common shape (which becomes the shape of
+    the output).
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the operation
+    t2: DNDarray or scalar
+        The second operand involved in the operation
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.array(13)
+    >>> T2 = ht.array(16)
+    >>> ht.ibitwise_or(T1, T2)
+    DNDarray(29, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T1
+    DNDarray(29, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T2
+    DNDarray(16, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T3 = ht.array([33, 4])
+    >>> s = 1
+    >>> ht.ibitwise_or(T3, s)
+    DNDarray([33,  5], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T3
+    DNDarray([33,  5], dtype=ht.int64, device=cpu:0, split=None)
+    >>> s
+    1
+    >>> T4 = ht.array([2,5,255])
+    >>> T5 = ht.array([4, 4, 4])
+    >>> ht.ibitwise_or(T4, T5)
+    DNDarray([  6,   5, 255], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T4
+    DNDarray([  6,   5, 255], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T6 = ht.array([True, True])
+    >>> T7 = ht.array([False, True])
+    >>> ht.ibitwise_or(T6, T7)
+    DNDarray([True, True], dtype=ht.bool, device=cpu:0, split=None)
+    >>> T6
+    DNDarray([True, True], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
+
+    for dt in dtypes:
+        if heat_type_is_inexact(dt):
+            raise TypeError("Operation is not supported for float types.")
+    
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_bitwise_or_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.bitwise_or_(b)
+
+    return _operations.__binary_op(wrap_bitwise_or_, t1, t2)
+
+
+DNDarray.__ior__ = lambda self, other: ibitwise_or(self, other)
+DNDarray.__ior__.__doc__ = ibitwise_or.__doc__
+
+
+def ibitwise_xor(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    Compute the bit-wise XOR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` 
+    element-wise and in-place. Only integer and boolean types are handled. If 
+    ``t1.shape!=t2.shape``, they must be broadcastable to a common shape (which becomes the shape of
+    the output).
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the operation
+    t2: DNDarray or scalar
+        The second operand involved in the operation
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.array(13)
+    >>> T2 = ht.array(17)
+    >>> ht.ibitwise_xor(T1, T2)
+    DNDarray(28, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T1
+    DNDarray(28, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T2
+    DNDarray(17, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T3 = ht.array([31, 3])
+    >>> s = 5
+    >>> ht.ibitwise_xor(T3, s)
+    DNDarray([26,  6], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T3
+    DNDarray([26,  6], dtype=ht.int64, device=cpu:0, split=None)
+    >>> s
+    5
+    >>> T4 = ht.array([31,3,255])
+    >>> T5 = ht.array([5, 6, 4])
+    >>> ht.ibitwise_xor(T4, T5)
+    DNDarray([  6,   5, 251], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T4
+    DNDarray([  6,   5, 251], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T6 = ht.array([True, True])
+    >>> T7 = ht.array([False, True])
+    >>> ht.ibitwise_xor(T6, T7)
+    DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
+    >>> T6
+    DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
+    """
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
+
+    for dt in dtypes:
+        if heat_type_is_inexact(dt):
+            raise TypeError("Operation is not supported for float types.")
+    
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_bitwise_xor_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.bitwise_xor_(b)
+
+    return _operations.__binary_op(wrap_bitwise_xor_, t1, t2)
+
+
+DNDarray.__ixor__ = lambda self, other: ibitwise_xor(self, other)
+DNDarray.__ixor__.__doc__ = ibitwise_xor.__doc__
+
+
+def icopysign(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    WORK IN PROGRESS
+    
+    Element-wise in-place addition of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    and ``t2``.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the addition
+    t2: DNDarray or scalar
+        The second operand involved in the addition
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.iadd(T1, T2)
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.iadd(T2, s)
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.add_(b)
+
+    return _operations.__binary_op(wrap_add_, t1, t2)
+
+
+DNDarray.__iadd__ = lambda self, other: iadd(self, other)
+DNDarray.__iadd__.__doc__ = iadd.__doc__
+
+
+def icumprod(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    WORK IN PROGRESS
+    
+    Element-wise in-place addition of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    and ``t2``.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the addition
+    t2: DNDarray or scalar
+        The second operand involved in the addition
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.iadd(T1, T2)
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.iadd(T2, s)
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.add_(b)
+
+    return _operations.__binary_op(wrap_add_, t1, t2)
+
+
+DNDarray.__iadd__ = lambda self, other: iadd(self, other)
+DNDarray.__iadd__.__doc__ = iadd.__doc__
+
+# Alias support
+icumproduct = icumprod
+"""Alias for :py:func:`icumprod`"""
+
+
+def icumsum(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    WORK IN PROGRESS
+    
+    Element-wise in-place addition of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    and ``t2``.
 
     Parameters
     ----------
@@ -781,6 +1205,316 @@ def idiv(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
 DNDarray.__idiv__ = lambda self, other: idiv(self, other)
 DNDarray.__idiv__.__doc__ = idiv.__doc__
 
+# Alias support
+idivide = idiv
+"""Alias for :py:func:`idiv`"""
+
+
+def ifloordiv(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    Element-wise in-place floor division of value(s) of operand ``t1`` by value(s) of operand ``t2``
+    (i.e. ``t1//t2``), not commutative.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand whose values are divided
+    t2: DNDarray or scalar
+        The second operand by whose values is divided
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
+    >>> s = 1
+    >>> ht.ifloordiv(T1, 1)
+    DNDarray([[1., 2.],
+              [1., 4.]], dtype=ht.float64, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[1., 2.],
+              [1., 4.]], dtype=ht.float64, device=cpu:0, split=None)
+    >>> s
+    1
+    >>> T2 = ht.float32([1.5, 2.5])
+    >>> ht.ifloordiv(T1, T2)
+    DNDarray([[0., 0.],
+              [0., 1.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[0., 0.],
+              [0., 1.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([1.5000, 2.5000], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_floordiv_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.floor_divide_(b)
+
+    return _operations.__binary_op(wrap_floordiv_, t1, t2)
+
+
+DNDarray.__ifloordiv__ = lambda self, other: ifloordiv(self, other)
+DNDarray.__ifloordiv__.__doc__ = ifloordiv.__doc__
+
+# Alias support
+ifloor_divide = ifloordiv
+"""Alias for :py:func:`ifloordiv`"""
+
+def igcd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    WORK IN PROGRESS
+    
+    Element-wise in-place addition of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    and ``t2``.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the addition
+    t2: DNDarray or scalar
+        The second operand involved in the addition
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.iadd(T1, T2)
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.iadd(T2, s)
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.add_(b)
+
+    return _operations.__binary_op(wrap_add_, t1, t2)
+
+
+DNDarray.__iadd__ = lambda self, other: iadd(self, other)
+DNDarray.__iadd__.__doc__ = iadd.__doc__
+
+
+def ihypot(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    WORK IN PROGRESS
+    
+    Element-wise in-place addition of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    and ``t2``.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the addition
+    t2: DNDarray or scalar
+        The second operand involved in the addition
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.iadd(T1, T2)
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.iadd(T2, s)
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.add_(b)
+
+    return _operations.__binary_op(wrap_add_, t1, t2)
+
+
+DNDarray.__iadd__ = lambda self, other: iadd(self, other)
+DNDarray.__iadd__.__doc__ = iadd.__doc__
+
+
+def iinvert(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    WORK IN PROGRESS
+    
+    Element-wise in-place addition of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    and ``t2``.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the addition
+    t2: DNDarray or scalar
+        The second operand involved in the addition
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.iadd(T1, T2)
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.iadd(T2, s)
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.add_(b)
+
+    return _operations.__binary_op(wrap_add_, t1, t2)
+
+
+DNDarray.__iadd__ = lambda self, other: iadd(self, other)
+DNDarray.__iadd__.__doc__ = iadd.__doc__
+
+# Alias support
+ibitwise_not = iinvert
+"""Alias for :py:func:`iinvert`"""
+
+
+def ilcm(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    WORK IN PROGRESS
+    
+    Element-wise in-place addition of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    and ``t2``.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the addition
+    t2: DNDarray or scalar
+        The second operand involved in the addition
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.iadd(T1, T2)
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.iadd(T2, s)
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.add_(b)
+
+    return _operations.__binary_op(wrap_add_, t1, t2)
+
+
+DNDarray.__iadd__ = lambda self, other: iadd(self, other)
+DNDarray.__iadd__.__doc__ = iadd.__doc__
+
 
 def imul(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
@@ -840,18 +1574,122 @@ def imul(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
 DNDarray.__imul__ = lambda self, other: imul(self, other)
 DNDarray.__imul__.__doc__ = imul.__doc__
 
+# Alias support
+imultiply = imul
+"""Alias for :py:func:`imul`"""
+
+
+def inan_to_num(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    WORK IN PROGRESS
+    
+    Element-wise in-place addition of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    and ``t2``.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the addition
+    t2: DNDarray or scalar
+        The second operand involved in the addition
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.iadd(T1, T2)
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.iadd(T2, s)
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.add_(b)
+
+    return _operations.__binary_op(wrap_add_, t1, t2)
+
+
+DNDarray.__iadd__ = lambda self, other: iadd(self, other)
+DNDarray.__iadd__.__doc__ = iadd.__doc__
+
+
+def ineg(t: DNDarray) -> DNDarray:
+    """
+    Element-wise in-place negation of `t`.
+
+    Parameter
+    ----------
+    t:  DNDarray
+        The input array
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.array([-1, 1])
+    >>> ht.ineg(T1)
+    DNDarray([ 1, -1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([ 1, -1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T2 = ht.array([[-1., 2.5], [4. , 0.]])
+    >>> ht.ineg(T2)
+    DNDarray([[ 1.0000, -2.5000],
+              [-4.0000, -0.0000]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[ 1.0000, -2.5000],
+              [-4.0000, -0.0000]], dtype=ht.float32, device=cpu:0, split=None)
+    """
+    sanitation.sanitize_in(t)
+
+    def wrap_neg_(a: torch.Tensor) -> torch.Tensor:
+        return a.neg_()
+
+    return _operations.__local_op(wrap_neg_, t, no_cast=True)
+
+
+# Alias support
+inegative = ineg
+"""Alias for :py:func:`ineg`"""
 
 def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
     """
-    Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray`. The input array must be of integral
-    or Boolean types. For boolean arrays, it computes the logical NOT. Bitwise_not is an alias for invert.
+    Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray`. The input 
+    array must be of integral or Boolean types. For boolean arrays, it computes the logical NOT. 
+    Bitwise_not is an alias for invert.
 
     Parameters
     ---------
     a: DNDarray
         The input array to invert. Must be of integral or Boolean types
     out : DNDarray, optional
-        Alternative output array in which to place the result. It must have the same shape as the expected output.
+        Alternative output array in which to place the result. It must have the same shape as the 
+        expected output.
 
     Examples
     --------
@@ -876,12 +1714,140 @@ bitwise_not = invert
 """Alias for :py:func:`invert`"""
 
 
+def ipow(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    WORK IN PROGRESS
+    
+    Element-wise in-place addition of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    and ``t2``.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the addition
+    t2: DNDarray or scalar
+        The second operand involved in the addition
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.iadd(T1, T2)
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[3., 4.],
+              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.iadd(T2, s)
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.add_(b)
+
+    return _operations.__binary_op(wrap_add_, t1, t2)
+
+
+DNDarray.__iadd__ = lambda self, other: iadd(self, other)
+DNDarray.__iadd__.__doc__ = iadd.__doc__
+
+# Alias support
+ipower = ipow
+"""Alias for :py:func:`ipow`"""
+
+
+def iremainder(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    In-place computation of element-wise division remainder of values of operand ``t1`` by values of
+    operand ``t2`` (i.e. ``t1%t2``).
+    Operation is not commutative. Result has the same sign as the devisor ``t2``.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand whose values are divided
+    t2: DNDarray or scalar
+        The second operand by whose values is divided
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.array(2)
+    >>> ht.iremainder(T1,T1)
+    DNDarray(0, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T1
+    DNDarray(0, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T2 = ht.int32([[1, 2], [3, 4]])
+    >>> T3 = ht.int32([[2, 2], [2, 2]])
+    >>> ht.iremainder(T2, T3)
+    DNDarray([[1, 0],
+              [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[1, 0],
+              [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> T3
+    DNDarray([[2, 2],
+              [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> s = 2
+    >>> ht.iremainder(T3, s)
+    DNDarray([[0, 0],
+              [0, 0]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> T3
+    DNDarray([[0, 0],
+              [0, 0]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> s
+    2
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_remainder_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.remainder_(b)
+
+    return _operations.__binary_op(wrap_remainder_, t1, t2)
+
+
+DNDarray.__iremainder__ = lambda self, other: iremainder(self, other)
+DNDarray.__iremainder__.__doc__ = iremainder.__doc__
+
+
 def isub(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise in-place substitution of values of two operands.
-    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise subtracts the element(s)
-    of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements of
-    ``t1`` are overwritten by the results of element-wise subtraction of ``t2`` from ``t1``.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise subtracts the 
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, 
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise subtraction of ``t2``
+    from ``t1``.
 
     Parameters
     ----------
@@ -933,6 +1899,9 @@ def isub(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
 DNDarray.__isub__ = lambda self, other: isub(self, other)
 DNDarray.__isub__.__doc__ = isub.__doc__
 
+# Alias support
+isubstract = isub
+"""Alias for :py:func:`isub`"""
 
 def lcm(
     a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: DNDarray = True
@@ -1005,7 +1974,8 @@ DNDarray.__lshift__.__doc__ = left_shift.__doc__
 
 def mod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. ``t1%t2``).
+    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. 
+    ``t1%t2``).
     Operation is not commutative. Result has the same sign as the devisor ``t2``.
     Currently ``t1`` and ``t2`` are just passed to remainder.
 
@@ -1147,12 +2117,12 @@ def nanprod(
     >>> ht.nanprod(ht.array([
         [1.,ht.nan],
         [3.,4.]]))
-    DNDarray([24.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(12., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.nanprod(ht.array([
         [1.,ht.nan],
         [ht.nan,4.]
     ]), axis=1)
-    DNDarray([ 2., 12.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray([ 1., 4.], dtype=ht.float32, device=cpu:0, split=None)
     """
     b = nan_to_num(a, nan=1)
 
@@ -1168,8 +2138,8 @@ def nansum(
     keepdims: bool = None,
 ) -> DNDarray:
     """
-    Sum of array elements over a given axis treating Not a Numbers (NaNs) as zero. An array with the same shape
-    as ``self.__array`` except for the specified axis which becomes one, e.g.
+    Sum of array elements over a given axis treating Not a Numbers (NaNs) as zero. An array with the
+    same shape as ``self.__array`` except for the specified axis which becomes one, e.g.
     ``a.shape=(1, 2, 3)`` => ``ht.ones((1, 2, 3)).sum(axis=1).shape=(1, 1, 3)``
 
     Parameters
@@ -1177,24 +2147,26 @@ def nansum(
     a : DNDarray
         Input array.
     axis : None or int or Tuple[int,...], optional
-        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the elements of the input array.
-        If ``axis`` is negative it counts from the last to the first axis. If ``axis`` is a tuple of ints, a sum is performed
-        on all of the axes specified in the tuple instead of a single axis or all the axes as before.
+        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the 
+        elements of the input array. If ``axis`` is negative it counts from the last to the first 
+        axis. If ``axis`` is a tuple of ints, a sum is performed on all of the axes specified in the
+        tuple instead of a single axis or all the axes as before.
     out : DNDarray, optional
-        Alternative output array in which to place the result. It must have the same shape as the expected output, but
-        the datatype of the output values will be cast if necessary.
+        Alternative output array in which to place the result. It must have the same shape as the 
+        expected output, but the datatype of the output values will be cast if necessary.
     keepdims : bool, optional
-        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
-        option, the result will broadcast correctly against the input array.
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions 
+        with size one. With this option, the result will broadcast correctly against the input 
+        array.
 
     Examples
     --------
     >>> ht.sum(ht.ones(2))
-    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(2., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)))
-    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)).astype(ht.int))
-    DNDarray([9], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(9, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,2,1)), axis=-3)
     DNDarray([[3.],
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -1206,7 +2178,7 @@ def nansum(
 
 def neg(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     """
-    Element-wise negative of `a`.
+    Element-wise negation of `a`.
 
     Parameters
     ----------
@@ -1356,32 +2328,34 @@ def prod(
     keepdims: bool = None,
 ) -> DNDarray:
     """
-    Return the product of array elements over a given axis in form of a DNDarray shaped as a but with the specified axis removed.
+    Return the product of array elements over a given axis in form of a DNDarray shaped as a but 
+    with the specified axis removed.
 
     Parameters
     ----------
     a : DNDarray
         Input array.
     axis : None or int or Tuple[int,...], optional
-        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate the product of all the
-        elements in the input array. If axis is negative it counts from the last to the first axis.
-        If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a single
-        axis or all the axes as before.
+        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate 
+        the product of all the elements in the input array. If axis is negative it counts from the 
+        last to the first axis. If axis is a tuple of ints, a product is performed on all of the 
+        axes specified in the tuple instead of a single axis or all the axes as before.
     out : DNDarray, optional
-        Alternative output array in which to place the result. It must have the same shape as the expected output, but
-        the datatype of the output values will be cast if necessary.
+        Alternative output array in which to place the result. It must have the same shape as the 
+        expected output, but the datatype of the output values will be cast if necessary.
     keepdims : bool, optional
-        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
-        option, the result will broadcast correctly against the input array.
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions 
+        with size one. With this option, the result will broadcast correctly against the input 
+        array.
 
     Examples
     --------
     >>> ht.prod(ht.array([1.,2.]))
-    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(2., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.prod(ht.array([
         [1.,2.],
         [3.,4.]]))
-    DNDarray([24.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(24., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.prod(ht.array([
         [1.,2.],
         [3.,4.]
@@ -1399,7 +2373,8 @@ DNDarray.prod.__doc__ = prod.__doc__
 
 def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. ``t1%t2``).
+    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. 
+    ``t1%t2``).
     Operation is not commutative. Result has the same sign as the devisor ``t2``.
 
     Parameters
@@ -1506,32 +2481,35 @@ def sum(
     keepdims: bool = None,
 ) -> DNDarray:
     """
-    Sum of array elements over a given axis. An array with the same shape as ``self.__array`` except for the specified
-    axis which becomes one, e.g. ``a.shape=(1, 2, 3)`` => ``ht.ones((1, 2, 3)).sum(axis=1).shape=(1, 1, 3)``
+    Sum of array elements over a given axis. An array with the same shape as ``self.__array`` except
+    for the specified axis which becomes one, e.g. 
+    ``a.shape=(1, 2, 3)`` => ``ht.ones((1, 2, 3)).sum(axis=1).shape=(1, 1, 3)``
 
     Parameters
     ----------
     a : DNDarray
         Input array.
     axis : None or int or Tuple[int,...], optional
-        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the elements of the input array.
-        If ``axis`` is negative it counts from the last to the first axis. If ``axis`` is a tuple of ints, a sum is performed
-        on all of the axes specified in the tuple instead of a single axis or all the axes as before.
+        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the 
+        elements of the input array. If ``axis`` is negative it counts from the last to the first 
+        axis. If ``axis`` is a tuple of ints, a sum is performed on all of the axes specified in the
+        tuple instead of a single axis or all the axes as before.
     out : DNDarray, optional
-        Alternative output array in which to place the result. It must have the same shape as the expected output, but
-        the datatype of the output values will be cast if necessary.
+        Alternative output array in which to place the result. It must have the same shape as the 
+        expected output, but the datatype of the output values will be cast if necessary.
     keepdims : bool, optional
-        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
-        option, the result will broadcast correctly against the input array.
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions 
+        with size one. With this option, the result will broadcast correctly against the input 
+        array.
 
     Examples
     --------
     >>> ht.sum(ht.ones(2))
-    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(2., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)))
-    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)).astype(ht.int))
-    DNDarray([9], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(9, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,2,1)), axis=-3)
     DNDarray([[3.],
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
