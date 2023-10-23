@@ -91,8 +91,8 @@ __all__ = [
 def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise addition of values from two operands, commutative.
-    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose 
-    elements are to be added as argument and returns a ``DNDarray`` containing the results of 
+    Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose
+    elements are to be added as argument and returns a ``DNDarray`` containing the results of
     element-wise addition of ``t1`` and ``t2``.
 
     Parameters
@@ -128,8 +128,8 @@ DNDarray.__radd__.__doc__ = add.__doc__
 
 def bitwise_and(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` 
-    element-wise. Only integer and boolean types are handled. If ``t1.shape!=t2.shape``, they must 
+    Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2``
+    element-wise. Only integer and boolean types are handled. If ``t1.shape!=t2.shape``, they must
     be broadcastable to a common shape (which becomes the shape of the output)
 
     Parameters
@@ -169,8 +169,8 @@ DNDarray.__and__.__doc__ = bitwise_and.__doc__
 
 def bitwise_or(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise OR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` 
-    element-wise. Only integer and boolean types are handled. If ``t1.shape!=t2.shape``, they must 
+    Compute the bit-wise OR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2``
+    element-wise. Only integer and boolean types are handled. If ``t1.shape!=t2.shape``, they must
     be broadcastable to a common shape (which becomes the shape of the output)
 
     Parameters
@@ -214,7 +214,7 @@ DNDarray.__or__.__doc__ = bitwise_or.__doc__
 def bitwise_xor(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Compute the bit-wise XOR of two arrays ``t1`` and ``t2`` element-wise.
-    Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be 
+    Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be
     broadcastable to a common shape (which becomes the shape of the output).
 
     Parameters
@@ -581,7 +581,7 @@ def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
 
 def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise floor division of value(s) of operand ``t1`` by value(s) of operand ``t2`` 
+    Element-wise floor division of value(s) of operand ``t1`` by value(s) of operand ``t2``
     (i.e. ``t1//t2``), not commutative.
 
     Parameters
@@ -687,7 +687,7 @@ def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
     and ``t2``.
 
     Parameters
@@ -743,8 +743,8 @@ DNDarray.__iadd__.__doc__ = iadd.__doc__
 
 def ibitwise_and(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` 
-    element-wise and in-place. Only integer and boolean types are handled. If 
+    Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2``
+    element-wise and in-place. Only integer and boolean types are handled. If
     ``t1.shape!=t2.shape``, they must be broadcastable to a common shape (which becomes the shape of
     the output).
 
@@ -794,7 +794,7 @@ def ibitwise_and(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     for dt in dtypes:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types.")
-    
+
     if not isinstance(t1, DNDarray):
         raise TypeError(
             "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
@@ -817,8 +817,8 @@ DNDarray.__iand__.__doc__ = ibitwise_and.__doc__
 
 def ibitwise_or(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise OR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` 
-    element-wise and in-place. Only integer and boolean types are handled. If 
+    Compute the bit-wise OR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2``
+    element-wise and in-place. Only integer and boolean types are handled. If
     ``t1.shape!=t2.shape``, they must be broadcastable to a common shape (which becomes the shape of
     the output).
 
@@ -866,7 +866,7 @@ def ibitwise_or(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     for dt in dtypes:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types.")
-    
+
     if not isinstance(t1, DNDarray):
         raise TypeError(
             "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
@@ -889,8 +889,8 @@ DNDarray.__ior__.__doc__ = ibitwise_or.__doc__
 
 def ibitwise_xor(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise XOR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2`` 
-    element-wise and in-place. Only integer and boolean types are handled. If 
+    Compute the bit-wise XOR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2``
+    element-wise and in-place. Only integer and boolean types are handled. If
     ``t1.shape!=t2.shape``, they must be broadcastable to a common shape (which becomes the shape of
     the output).
 
@@ -938,7 +938,7 @@ def ibitwise_xor(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     for dt in dtypes:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types.")
-    
+
     if not isinstance(t1, DNDarray):
         raise TypeError(
             "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
@@ -962,11 +962,11 @@ DNDarray.__ixor__.__doc__ = ibitwise_xor.__doc__
 def icopysign(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     WORK IN PROGRESS
-    
+
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
     and ``t2``.
 
     Parameters
@@ -1023,11 +1023,11 @@ DNDarray.__iadd__.__doc__ = iadd.__doc__
 def icumprod(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     WORK IN PROGRESS
-    
+
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
     and ``t2``.
 
     Parameters
@@ -1088,11 +1088,11 @@ icumproduct = icumprod
 def icumsum(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     WORK IN PROGRESS
-    
+
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
     and ``t2``.
 
     Parameters
@@ -1268,14 +1268,15 @@ DNDarray.__ifloordiv__.__doc__ = ifloordiv.__doc__
 ifloor_divide = ifloordiv
 """Alias for :py:func:`ifloordiv`"""
 
+
 def igcd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     WORK IN PROGRESS
-    
+
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
     and ``t2``.
 
     Parameters
@@ -1332,11 +1333,11 @@ DNDarray.__iadd__.__doc__ = iadd.__doc__
 def ihypot(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     WORK IN PROGRESS
-    
+
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
     and ``t2``.
 
     Parameters
@@ -1393,11 +1394,11 @@ DNDarray.__iadd__.__doc__ = iadd.__doc__
 def iinvert(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     WORK IN PROGRESS
-    
+
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
     and ``t2``.
 
     Parameters
@@ -1458,11 +1459,11 @@ ibitwise_not = iinvert
 def ilcm(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     WORK IN PROGRESS
-    
+
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
     and ``t2``.
 
     Parameters
@@ -1582,11 +1583,11 @@ imultiply = imul
 def inan_to_num(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     WORK IN PROGRESS
-    
+
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
     and ``t2``.
 
     Parameters
@@ -1677,10 +1678,11 @@ def ineg(t: DNDarray) -> DNDarray:
 inegative = ineg
 """Alias for :py:func:`ineg`"""
 
+
 def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
     """
-    Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray`. The input 
-    array must be of integral or Boolean types. For boolean arrays, it computes the logical NOT. 
+    Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray`. The input
+    array must be of integral or Boolean types. For boolean arrays, it computes the logical NOT.
     Bitwise_not is an alias for invert.
 
     Parameters
@@ -1688,7 +1690,7 @@ def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
     a: DNDarray
         The input array to invert. Must be of integral or Boolean types
     out : DNDarray, optional
-        Alternative output array in which to place the result. It must have the same shape as the 
+        Alternative output array in which to place the result. It must have the same shape as the
         expected output.
 
     Examples
@@ -1717,11 +1719,11 @@ bitwise_not = invert
 def ipow(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     WORK IN PROGRESS
-    
+
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` 
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
     and ``t2``.
 
     Parameters
@@ -1844,8 +1846,8 @@ DNDarray.__iremainder__.__doc__ = iremainder.__doc__
 def isub(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise in-place substitution of values of two operands.
-    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise subtracts the 
-    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, 
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise subtracts the
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
     i.e. the elements of ``t1`` are overwritten by the results of element-wise subtraction of ``t2``
     from ``t1``.
 
@@ -1902,6 +1904,7 @@ DNDarray.__isub__.__doc__ = isub.__doc__
 # Alias support
 isubstract = isub
 """Alias for :py:func:`isub`"""
+
 
 def lcm(
     a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: DNDarray = True
@@ -1974,7 +1977,7 @@ DNDarray.__lshift__.__doc__ = left_shift.__doc__
 
 def mod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. 
+    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e.
     ``t1%t2``).
     Operation is not commutative. Result has the same sign as the devisor ``t2``.
     Currently ``t1`` and ``t2`` are just passed to remainder.
@@ -2147,16 +2150,16 @@ def nansum(
     a : DNDarray
         Input array.
     axis : None or int or Tuple[int,...], optional
-        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the 
-        elements of the input array. If ``axis`` is negative it counts from the last to the first 
+        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the
+        elements of the input array. If ``axis`` is negative it counts from the last to the first
         axis. If ``axis`` is a tuple of ints, a sum is performed on all of the axes specified in the
         tuple instead of a single axis or all the axes as before.
     out : DNDarray, optional
-        Alternative output array in which to place the result. It must have the same shape as the 
+        Alternative output array in which to place the result. It must have the same shape as the
         expected output, but the datatype of the output values will be cast if necessary.
     keepdims : bool, optional
-        If this is set to ``True``, the axes which are reduced are left in the result as dimensions 
-        with size one. With this option, the result will broadcast correctly against the input 
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions
+        with size one. With this option, the result will broadcast correctly against the input
         array.
 
     Examples
@@ -2328,7 +2331,7 @@ def prod(
     keepdims: bool = None,
 ) -> DNDarray:
     """
-    Return the product of array elements over a given axis in form of a DNDarray shaped as a but 
+    Return the product of array elements over a given axis in form of a DNDarray shaped as a but
     with the specified axis removed.
 
     Parameters
@@ -2336,16 +2339,16 @@ def prod(
     a : DNDarray
         Input array.
     axis : None or int or Tuple[int,...], optional
-        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate 
-        the product of all the elements in the input array. If axis is negative it counts from the 
-        last to the first axis. If axis is a tuple of ints, a product is performed on all of the 
+        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate
+        the product of all the elements in the input array. If axis is negative it counts from the
+        last to the first axis. If axis is a tuple of ints, a product is performed on all of the
         axes specified in the tuple instead of a single axis or all the axes as before.
     out : DNDarray, optional
-        Alternative output array in which to place the result. It must have the same shape as the 
+        Alternative output array in which to place the result. It must have the same shape as the
         expected output, but the datatype of the output values will be cast if necessary.
     keepdims : bool, optional
-        If this is set to ``True``, the axes which are reduced are left in the result as dimensions 
-        with size one. With this option, the result will broadcast correctly against the input 
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions
+        with size one. With this option, the result will broadcast correctly against the input
         array.
 
     Examples
@@ -2373,7 +2376,7 @@ DNDarray.prod.__doc__ = prod.__doc__
 
 def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. 
+    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e.
     ``t1%t2``).
     Operation is not commutative. Result has the same sign as the devisor ``t2``.
 
@@ -2482,7 +2485,7 @@ def sum(
 ) -> DNDarray:
     """
     Sum of array elements over a given axis. An array with the same shape as ``self.__array`` except
-    for the specified axis which becomes one, e.g. 
+    for the specified axis which becomes one, e.g.
     ``a.shape=(1, 2, 3)`` => ``ht.ones((1, 2, 3)).sum(axis=1).shape=(1, 1, 3)``
 
     Parameters
@@ -2490,16 +2493,16 @@ def sum(
     a : DNDarray
         Input array.
     axis : None or int or Tuple[int,...], optional
-        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the 
-        elements of the input array. If ``axis`` is negative it counts from the last to the first 
+        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the
+        elements of the input array. If ``axis`` is negative it counts from the last to the first
         axis. If ``axis`` is a tuple of ints, a sum is performed on all of the axes specified in the
         tuple instead of a single axis or all the axes as before.
     out : DNDarray, optional
-        Alternative output array in which to place the result. It must have the same shape as the 
+        Alternative output array in which to place the result. It must have the same shape as the
         expected output, but the datatype of the output values will be cast if necessary.
     keepdims : bool, optional
-        If this is set to ``True``, the axes which are reduced are left in the result as dimensions 
-        with size one. With this option, the result will broadcast correctly against the input 
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions
+        with size one. With this option, the result will broadcast correctly against the input
         array.
 
     Examples
