@@ -45,6 +45,8 @@ __all__ = [
     "gcd",
     "hypot",
     "iadd",
+    "idiv",
+    "imul",
     "invert",
     "isub",
     "lcm",
@@ -507,7 +509,7 @@ def div(
     Example
     ---------
     >>> ht.div(2.0, 2.0)
-    DNDarray([1.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(1., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.div(T1, T2)
@@ -664,10 +666,10 @@ def hypot(
 
 def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise in-place addition of values from two operands.
-    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the element(s)
-    of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements
-    of ``t1`` are overwritten by the results of element-wise addition of ``t1`` and ``t2``.
+    Element-wise in-place addition of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the 
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, 
+    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1`` and ``t2``.
 
     Parameters
     ----------
@@ -704,9 +706,9 @@ def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         raise TypeError(
             "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
             + "But your inputs were from "
-            + type(t1)
+            + str(type(t1))
             + " and "
-            + type(t2)
+            + str(type(t2))
             + "."
         )
 
@@ -718,6 +720,125 @@ def iadd(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
 
 DNDarray.__iadd__ = lambda self, other: iadd(self, other)
 DNDarray.__iadd__.__doc__ = iadd.__doc__
+
+
+def idiv(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    Element-wise in-place true division of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise divides its 
+    elements by the element(s) of the second operand (scalar or 
+    :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements of `t1` are overwritten by 
+    the results of element-wise division of `t1` and `t2`.
+    Operation is not commutative.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand whose values are divided.
+    t2: DNDarray or scalar
+        The second operand by whose values is divided.
+
+    Example
+    ---------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.idiv(T1, T2)
+    DNDarray([[0.5000, 1.0000],
+              [1.5000, 2.0000]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[0.5000, 1.0000],
+              [1.5000, 2.0000]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.idiv(T2, s)
+    DNDarray([[1., 1.],
+              [1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[1., 1.],
+              [1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_div_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.div_(b)
+
+    return _operations.__binary_op(wrap_div_, t1, t2)
+
+
+DNDarray.__idiv__ = lambda self, other: idiv(self, other)
+DNDarray.__idiv__.__doc__ = idiv.__doc__
+
+
+def imul(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    Element-wise in-place multiplication of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise multiplies the 
+    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, 
+    i.e. the elements of `t1` are overwritten by the results of element-wise multiplication of `t1` 
+    and `t2`.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand involved in the multiplication.
+    t2: DNDarray or scalar
+        The second operand involved in the multiplication.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.imul(T1, T2)
+    DNDarray([[2., 4.],
+              [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[2., 4.],
+              [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[2., 2.],
+              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s = 2.0
+    >>> ht.imul(T2, s)
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[4., 4.],
+              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s
+    2.0
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_mul_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.mul_(b)
+
+    return _operations.__binary_op(wrap_mul_, t1, t2)
+
+
+DNDarray.__imul__ = lambda self, other: imul(self, other)
+DNDarray.__imul__.__doc__ = imul.__doc__
 
 
 def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
@@ -757,7 +878,7 @@ bitwise_not = invert
 
 def isub(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise in-place substitution of values from two operands.
+    Element-wise in-place substitution of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise subtracts the element(s)
     of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements of
     ``t1`` are overwritten by the results of element-wise subtraction of ``t2`` from ``t1``.
@@ -797,9 +918,9 @@ def isub(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         raise TypeError(
             "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
             + "But your inputs were from "
-            + type(t1)
+            + str(type(t1))
             + " and "
-            + type(t2)
+            + str(type(t2))
             + "."
         )
 
@@ -940,10 +1061,6 @@ def mul(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     >>> ht.mul(T1, s)
     DNDarray([[ 3.,  6.],
               [ 9., 12.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> T2 = ht.float32([[2, 2], [2, 2]])
-    >>> ht.mul(T1, T2)
-    DNDarray([[2., 4.],
-              [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.mul(T1, T2)
     DNDarray([[2., 4.],
