@@ -65,15 +65,16 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
     if not x.is_distributed() or not fft_along_split:
         torch_result = fft_op(local_x, n=n, dim=axis, norm=norm)
         output_shape[axis] = torch_result.shape[axis]
-        return DNDarray(
-            torch_result,
-            gshape=tuple(output_shape),
-            dtype=heat_type_of(torch_result),
-            split=original_split,
-            device=x.device,
-            comm=x.comm,
-            balanced=x.balanced,
-        )
+        # return DNDarray(
+        #     torch_result,
+        #     gshape=tuple(output_shape),
+        #     dtype=heat_type_of(torch_result),
+        #     split=original_split,
+        #     device=x.device,
+        #     comm=x.comm,
+        #     balanced=x.balanced,
+        # )
+        return array(torch_result, is_split=original_split, comm=x.comm)
 
     # FFT along split axis
     if original_split != 0:
@@ -143,15 +144,16 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
         torch_result = fftn_op(local_x, s=s, dim=axes, norm=norm)
         for axis in axes:
             output_shape[axis] = torch_result.shape[axis]
-        return DNDarray(
-            torch_result,
-            gshape=tuple(output_shape),
-            dtype=heat_type_of(torch_result),
-            split=original_split,
-            device=x.device,
-            comm=x.comm,
-            balanced=x.balanced,
-        )
+        # return DNDarray(
+        #     torch_result,
+        #     gshape=tuple(output_shape),
+        #     dtype=heat_type_of(torch_result),
+        #     split=original_split,
+        #     device=x.device,
+        #     comm=x.comm,
+        #     balanced=x.balanced,
+        # )
+        return array(torch_result, is_split=original_split, comm=x.comm)
 
     # FFT along split axis
     if original_split != 0:
