@@ -275,10 +275,10 @@ def copysign(
         The output array. It must have a shape that the inputs broadcast to and matching split axis.
         If not provided, a freshly allocated array is returned.
     where: DNDarray, optional
-        Condition to broadcast over the inputs. At locations where the condition is True, the `out` 
-        array will be set to the divided value. Elsewhere, the `out` array will retain its original 
-        value. If an uninitialized `out` array is created via the default `out=None`, locations 
-        within it where the condition is False will remain uninitialized. If distributed, the split 
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the divided value. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations
+        within it where the condition is False will remain uninitialized. If distributed, the split
         axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
@@ -638,7 +638,7 @@ def gcd(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where=Tr
         an uninitialized `out` array is created via the default `out=None`, locations within it where the
         condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
         if required) must match that of the `out` array.
-        
+
     Examples
     --------
     >>> import heat as ht
@@ -660,7 +660,7 @@ def hypot(
     a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: DNDarray = True
 ) -> DNDarray:
     """
-    Given the 'legs' of a right triangle, return its hypotenuse. Equivalent to 
+    Given the 'legs' of a right triangle, return its hypotenuse. Equivalent to
     :math:`\sqrt{a^2 + b^2}`, element-wise.
 
     Parameters
@@ -673,10 +673,10 @@ def hypot(
         The output array. It must have a shape that the inputs broadcast to and matching split axis.
         If not provided, a freshly allocated array is returned.
     where: DNDarray, optional
-        Condition to broadcast over the inputs. At locations where the condition is True, the `out` 
-        array will be set to the divided value. Elsewhere, the `out` array will retain its original 
-        value. If an uninitialized `out` array is created via the default `out=None`, locations 
-        within it where the condition is False will remain uninitialized. If distributed, the split 
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the divided value. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations
+        within it where the condition is False will remain uninitialized. If distributed, the split
         axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
@@ -974,10 +974,10 @@ DNDarray.__ixor__.__doc__ = ibitwise_xor.__doc__
 
 def icopysign(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    In-place version of the element-wise operation 'copysign'. 
-    The magnitudes of elements of 't1' are kept but the sign(s) are adopted from the element(s) of 
+    In-place version of the element-wise operation 'copysign'.
+    The magnitudes of elements of 't1' are kept but the sign(s) are adopted from the element(s) of
     't2'.
-    
+
     Parameters
     ----------
     t1:    DNDarray
@@ -1008,9 +1008,10 @@ def icopysign(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> T3
     DNDarray([-5.,  2.], dtype=ht.float32, device=cpu:0, split=None)
     """
+
     def wrap_copysign_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.copysign_(b)
-    
+
     try:
         res = _operations.__binary_op(wrap_copysign_, t1, t2)
     except RuntimeError as e:
@@ -1045,15 +1046,11 @@ def icumprod(t: DNDarray, axis: int) -> DNDarray:
               [8., 8., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     if not isinstance(t, DNDarray):
-        raise TypeError(
-            "Input must be a DNDarray. But your input was a "
-            + str(type(t))
-            + "."
-        )
+        raise TypeError("Input must be a DNDarray. But your input was a " + str(type(t)) + ".")
 
-    def wrap_cumprod_(a: torch.Tensor, b: int, out = None, dtype=None) -> torch.Tensor:
+    def wrap_cumprod_(a: torch.Tensor, b: int, out=None, dtype=None) -> torch.Tensor:
         return a.cumprod_(b)
-    
+
     def wrap_mul_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.mul_(b)
 
@@ -1090,15 +1087,11 @@ def icumsum(t: DNDarray, axis: int) -> DNDarray:
               [3., 3., 3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
     if not isinstance(t, DNDarray):
-        raise TypeError(
-            "Input must be a DNDarray. But your input was a "
-            + str(type(t))
-            + "."
-        )
+        raise TypeError("Input must be a DNDarray. But your input was a " + str(type(t)) + ".")
 
-    def wrap_cumsum_(a: torch.Tensor, b: int, out = None, dtype=None) -> torch.Tensor:
+    def wrap_cumsum_(a: torch.Tensor, b: int, out=None, dtype=None) -> torch.Tensor:
         return a.cumsum_(b)
-    
+
     def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.add_(b)
 
@@ -1251,9 +1244,10 @@ def igcd(t1: DNDarray, t2: DNDarray) -> DNDarray:
     >>> T2
     DNDarray([1, 2, 3], dtype=ht.int32, device=cpu:0, split=None)
     """
+
     def wrap_gcd_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.gcd_(b)
-    
+
     try:
         res = _operations.__binary_op(wrap_gcd_, t1, t2)
     except RuntimeError as e:
@@ -1287,6 +1281,7 @@ def ihypot(t1: DNDarray, t2: DNDarray) -> DNDarray:
     >>> T2
     DNDarray(2., dtype=ht.float32, device=cpu:0, split=None)
     """
+
     def wrap_hypot_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.hypot_(b)
 
