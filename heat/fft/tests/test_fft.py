@@ -8,7 +8,7 @@ from heat.core.tests.test_suites.basic_test import TestCase
 class TestFFT(TestCase):
     def test_fft_ifft(self):
         # 1D non-distributed
-        x = ht.random.randn(6)
+        x = ht.random.randn(6, dtype=ht.float64)
         y = ht.fft.fft(x)
         np_y = np.fft.fft(x.numpy())
         self.assertIsInstance(y, ht.DNDarray)
@@ -83,16 +83,15 @@ class TestFFT(TestCase):
         backwards = ht.fft.ifft2(y)
         self.assertTrue(ht.allclose(backwards, x))
 
-        if x.device == ht.cpu or x.comm.size < 4:
-            # 2D FFT along split axes
-            x = ht.random.randn(10, 6, 6, split=0, dtype=ht.float64)
-            axes = (0, 1)
-            y = ht.fft.fft2(x, axes=axes)
-            np_y = np.fft.fft2(x.numpy(), axes=axes)
-            self.assertTrue(y.split == 0)
-            self.assert_array_equal(y, np_y)
-            backwards = ht.fft.ifft2(y, axes=axes)
-            self.assertTrue(ht.allclose(backwards, x))
+        # 2D FFT along split axes
+        x = ht.random.randn(10, 6, 6, split=0, dtype=ht.float64)
+        axes = (0, 1)
+        y = ht.fft.fft2(x, axes=axes)
+        np_y = np.fft.fft2(x.numpy(), axes=axes)
+        self.assertTrue(y.split == 0)
+        self.assert_array_equal(y, np_y)
+        backwards = ht.fft.ifft2(y, axes=axes)
+        self.assertTrue(ht.allclose(backwards, x))
 
         # exceptions
         x = ht.arange(10, split=0)
@@ -190,8 +189,25 @@ class TestFFT(TestCase):
         with self.assertRaises(TypeError):
             ht.fft.rfft(x)
 
-    def test_rfftn(self):
-        pass
+    def test_rfftn_irfftn(self):
+        # n-D distributed
+        x = ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        # FFT along last 2 axes
+        y = ht.fft.rfftn(x, axes=(1, 2))
+        np_y = np.fft.rfftn(x.numpy(), axes=(1, 2))
+        self.assertIsInstance(y, ht.DNDarray)
+        self.assertEqual(y.shape, np_y.shape)
+        self.assertTrue(y.split == 0)
+        self.assert_array_equal(y, np_y)
 
-    def test_irfftn(self):
-        pass
+        # FFT along all axes
+        # TODO: comment this out after merging indexing PR
+        # y = ht.fft.rfftn(x)
+        # backwards = ht.fft.irfftn(y, s=x.shape)
+        # self.assertTrue(ht.allclose(backwards, x))
+
+        # exceptions
+        # complex input
+        x = x + 1j * ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        with self.assertRaises(TypeError):
+            ht.fft.rfftn(x)
