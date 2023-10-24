@@ -1036,7 +1036,9 @@ def left_shift(
     try:
         result = _operations.__binary_op(torch.bitwise_left_shift, t1, t2, out, where)
     except AttributeError:  # pragma: no cover
-        result = _operations.__binary_op(torch.Tensor.__lshift__, t1, t2)  # pytorch < 1.10
+        result = _operations.__binary_op(
+            torch.Tensor.__lshift__, t1, t2, out, where
+        )  # pytorch < 1.10
 
     return result
 
@@ -1617,7 +1619,9 @@ def right_shift(
     try:
         result = _operations.__binary_op(torch.bitwise_right_shift, t1, t2, out, where)
     except AttributeError:  # pragma: no cover
-        result = _operations.__binary_op(torch.Tensor.__rshift__, t1, t2)  # pytorch < 1.10
+        result = _operations.__binary_op(
+            torch.Tensor.__rshift__, t1, t2, out, where
+        )  # pytorch < 1.10
 
     return result
 
