@@ -52,31 +52,23 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
         axis = sanitize_axis(x.gshape, axis)
     except ValueError as e:
         raise IndexError(e)
-    if isinstance(axis, tuple) and len(axis) > 1:
+    if axis is None:
+        axis = x.ndim - 1
+    elif isinstance(axis, tuple) and len(axis) > 1:
         raise TypeError(f"axis must be an integer, got {axis}")
     n = kwargs.get("n", None)
     norm = kwargs.get("norm", None)
 
-    # non-distributed DNDarray
-    if not x.is_distributed():
-        result = fft_op(local_x, n=n, dim=axis, norm=norm)
-        return array(result, split=original_split, device=x.device, comm=x.comm)
-
-    # distributed DNDarray:
-    # calculate output shape
-    output_shape = list(x.shape)
-    if n is not None:
-        output_shape[axis] = n
-
     fft_along_split = original_split == axis
-
+    output_shape = list(x.shape)
     # FFT along non-split axis
-    if not fft_along_split:
-        result = fft_op(local_x, n=n, dim=axis, norm=norm)
+    if not x.is_distributed() or not fft_along_split:
+        torch_result = fft_op(local_x, n=n, dim=axis, norm=norm)
+        output_shape[axis] = torch_result.shape[axis]
         return DNDarray(
-            result,
+            torch_result,
             gshape=tuple(output_shape),
-            dtype=heat_type_of(result),
+            dtype=heat_type_of(torch_result),
             split=original_split,
             device=x.device,
             comm=x.comm,
@@ -99,16 +91,16 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
     else:
         _ = x.resplit(axis=None)
     # FFT along axis 0 (now non-split)
-    result = __fft_op(_, fft_op, n=n, axis=0, norm=norm)
+    ht_result = __fft_op(_, fft_op, n=n, axis=0, norm=norm)
     del _
     # redistribute partial result back to axis 0
-    result.resplit_(axis=0)
+    ht_result.resplit_(axis=0)
     if original_split != 0:
         # transpose x, partial_result back to original shape
         x = x.transpose(transpose_axes)
-        result = result.transpose(transpose_axes)
+        ht_result = ht_result.transpose(transpose_axes)
 
-    return result
+    return ht_result
 
 
 def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
@@ -138,34 +130,23 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
         )
     norm = kwargs.get("norm", None)
 
-    # non-distributed DNDarray
-    if not x.is_distributed():
-        result = fftn_op(local_x, s=s, dim=axes, norm=norm)
-        return array(result, split=original_split, device=x.device, comm=x.comm)
-
-    # distributed DNDarray:
-    # calculate output shape
-    output_shape = list(x.shape)
-    if s is not None:
-        if axes is None:
+    if axes is None:
+        if s is not None:
             axes = tuple(range(x.ndim)[-len(s) :])
-        for i, axis in enumerate(axes):
-            output_shape[axis] = s[i]
-    else:
-        if axes is None:
+        else:
             axes = tuple(range(x.ndim))
-        s = tuple(output_shape[axis] for axis in axes)
-    output_shape = tuple(output_shape)
 
     fft_along_split = original_split in axes
-
+    output_shape = list(x.shape)
     # FFT along non-split axes only
-    if not fft_along_split:
-        result = fftn_op(local_x, s=s, dim=axes, norm=norm)
+    if not x.is_distributed() or not fft_along_split:
+        torch_result = fftn_op(local_x, s=s, dim=axes, norm=norm)
+        for axis in axes:
+            output_shape[axis] = torch_result.shape[axis]
         return DNDarray(
-            result,
+            torch_result,
             gshape=tuple(output_shape),
-            dtype=heat_type_of(result),
+            dtype=heat_type_of(torch_result),
             split=original_split,
             device=x.device,
             comm=x.comm,
@@ -185,56 +166,73 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     # original split is 0 and fft is along axis 0
     if x.ndim == 1:
         _ = x.resplit(axis=None)
-        result = __fftn_op(_, fftn_op, **kwargs)
+        ht_result = __fftn_op(_, fftn_op, **kwargs).resplit_(axis=0)
         del _
-        result.resplit_(axis=0)
-        return result
+        return ht_result
+
+    # transform decomposition: split axis first, then the rest
+    # if fft operation requires real input, switch to generic operation:
+    real_to_generic_fftn_ops = {
+        torch.fft.rfftn: torch.fft.fftn,
+        torch.fft.rfft2: torch.fft.fft2,
+        torch.fft.ihfftn: torch.fft.ifftn,
+        torch.fft.ihfft2: torch.fft.ifft2,
+    }
+    real_op = fftn_op in real_to_generic_fftn_ops
+    if real_op:
+        fftn_op = real_to_generic_fftn_ops[fftn_op]
+        nyquist_axis = axes[-1]
+        if s is not None:
+            nyquist_freq = s[-1] // 2 + 1
+        else:
+            nyquist_freq = x.shape[-1] // 2 + 1
 
     # redistribute x from axis 0 to 1
     _ = x.resplit(axis=1)
     # FFT along axis 0 (now non-split)
     split_index = axes.index(original_split)
-    partial_result = __fftn_op(_, fftn_op, s=(s[split_index],), axes=(0,), norm=norm)
+    if s is not None:
+        partial_s = (s[split_index],)
+    else:
+        partial_s = None
+    partial_ht_result = __fftn_op(_, fftn_op, s=partial_s, axes=(0,), norm=norm)
+    output_shape[original_split] = partial_ht_result.shape[0]
     del _
     # redistribute partial result from axis 1 to 0
-    partial_result.resplit_(axis=0)
+    partial_ht_result.resplit_(axis=0)
     if original_split != 0:
-        # transpose x, partial_result back to original shape
+        # transpose x, partial_ht_result back to original shape
         x = x.transpose(transpose_axes)
-        partial_result = partial_result.transpose(transpose_axes)
+        partial_ht_result = partial_ht_result.transpose(transpose_axes)
 
     # now apply FFT along leftover (non-split) axes
     axes = list(axes)
     axes.remove(original_split)
     axes = tuple(axes)
-    s = list(s)
-    s = s[:split_index] + s[split_index + 1 :]
-    s = tuple(s)
-    result = __fftn_op(partial_result, fftn_op, s=s, axes=axes, norm=norm)
-    del partial_result
-    return array(result.larray, is_split=original_split, device=x.device, comm=x.comm)
+    if s is not None:
+        s = list(s)
+        s = s[:split_index] + s[split_index + 1 :]
+        s = tuple(s)
+    ht_result = __fftn_op(partial_ht_result, fftn_op, s=s, axes=axes, norm=norm)
+    del partial_ht_result
+    if real_op:
+        # discard elements beyond Nyquist frequency on last transformed axis
+        nyquist_slice = [slice(None)] * ht_result.ndim
+        nyquist_slice[nyquist_axis] = slice(0, nyquist_freq)
+        ht_result = ht_result[(nyquist_slice)].balance_()
+    return ht_result
 
 
 def __real_fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
-    try:
-        result = __fft_op(x, fft_op, **kwargs)
-    except RuntimeError as e:
-        if "real input tensor" in str(e):
-            raise TypeError(f"Input array must be real, is {x.dtype}.")
-        else:
-            raise e
-    return result
+    if x.larray.is_complex():
+        raise TypeError(f"Input array must be real, is {x.dtype}.")
+    return __fft_op(x, fft_op, **kwargs)
 
 
 def __real_fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
-    try:
-        result = __fftn_op(x, fftn_op, **kwargs)
-    except RuntimeError as e:
-        if "real input tensor" in str(e):
-            raise TypeError(f"Input array must be real, is {x.dtype}.")
-        else:
-            raise e
-    return result
+    if x.larray.is_complex():
+        raise TypeError(f"Input array must be real, is {x.dtype}.")
+    return __fftn_op(x, fftn_op, **kwargs)
 
 
 def fft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarray:
@@ -354,8 +352,6 @@ def hfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarr
     -----
     This function requires MPI communication if the input array is transformed along the distribution axis.
     """
-    if n is None:
-        n = 2 * (x.shape[axis] - 1)
     return __fft_op(x, torch.fft.hfft, n=n, axis=axis, norm=norm)
 
 
@@ -385,8 +381,6 @@ def hfft2(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
-    if s is None:
-        s = (x.shape[axes[0]], 2 * (x.shape[axes[1]] - 1))
     return __fftn_op(x, torch.fft.hfft2, s=s, axes=axes, norm=norm)
 
 
@@ -415,14 +409,6 @@ def hfftn(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
-    if s is None:
-        if axes is not None:
-            s = list(x.shape[axis] for axis in axes)
-        else:
-            s = list(x.shape)
-        s[-1] = 2 * (s[-1] - 1)
-        s = tuple(s)
-
     return __fftn_op(x, torch.fft.hfftn, s=s, axes=axes, norm=norm)
 
 
@@ -611,7 +597,7 @@ def rfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarr
     Parameters
     ----------
     x : DNDarray
-        Input array, must be float.
+        Input array, must be real.
     n : int, optional
         Length of the transformed axis of the output. If not given, the length is taken to be the length of the input
         along the axis specified by `axis`. If `n` is smaller than the length of the input, the input is cropped. If `n` is
@@ -639,7 +625,7 @@ def rfft2(
     Parameters
     ----------
     x : DNDarray
-        Input array, must be float.
+        Input array, must be real.
     s : Tuple[int, int], optional
         Shape of the output along the transformed axes. (default is x.shape)
     axes : Tuple[int, int], optional
@@ -665,7 +651,7 @@ def rfftn(
     Parameters
     ----------
     x : DNDarray
-        Input array, must be float.
+        Input array, must be real.
     s : Tuple[int, ...], optional
         Shape of the output along the transformed axes. (default is x.shape)
     axes : Tuple[int, ...], optional
