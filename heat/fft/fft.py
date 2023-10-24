@@ -59,12 +59,38 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
     n = kwargs.get("n", None)
     norm = kwargs.get("norm", None)
 
-    fft_along_split = original_split == axis
     output_shape = list(x.shape)
+    # TODO: define Nyquist freq for real input transforms
+    # if fft operation requires real input, switch to generic operation:
+    real_to_generic_fft_ops = {
+        torch.fft.rfft: torch.fft.fft,
+        torch.fft.ihfft: torch.fft.ifft,
+    }
+    real_op = fft_op in real_to_generic_fft_ops
+    if real_op:
+        fft_op = real_to_generic_fft_ops[fft_op]
+        if n is not None:
+            nyquist_freq = n // 2 + 1
+        else:
+            nyquist_freq = x.shape[axis] // 2 + 1
+        output_shape[axis] = nyquist_freq
+    else:
+        if n is not None:
+            output_shape[axis] = n
+
+    fft_along_split = original_split == axis
     # FFT along non-split axis
     if not x.is_distributed() or not fft_along_split:
-        torch_result = fft_op(local_x, n=n, dim=axis, norm=norm)
-        output_shape[axis] = torch_result.shape[axis]
+        if local_x.numel() == 0:
+            # empty tensor, return empty tensor with consistent shape
+            local_shape = output_shape.copy()
+            local_shape[original_split] = 0
+            print("DEBUGGING: LOCAL SHAPE IS ", local_shape)
+            torch_result = torch.empty(
+                tuple(local_shape), dtype=local_x.dtype, device=local_x.device
+            )
+        else:
+            torch_result = fft_op(local_x, n=n, dim=axis, norm=norm)
         # return DNDarray(
         #     torch_result,
         #     gshape=tuple(output_shape),
@@ -74,7 +100,8 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
         #     comm=x.comm,
         #     balanced=x.balanced,
         # )
-        return array(torch_result, is_split=original_split, comm=x.comm)
+        print("DEBUGGING: TORCH RESULT IS ", torch_result.shape)
+        return array(torch_result, is_split=original_split, device=x.device, comm=x.comm)
 
     # FFT along split axis
     if original_split != 0:
@@ -86,11 +113,14 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
         )
         x = x.transpose(transpose_axes)
 
+    # transform decomposition: split axis first, then the rest
+
     # redistribute x
     if x.ndim > 1:
         _ = x.resplit(axis=1)
     else:
         _ = x.resplit(axis=None)
+
     # FFT along axis 0 (now non-split)
     ht_result = __fft_op(_, fft_op, n=n, axis=0, norm=norm)
     del _
@@ -100,6 +130,12 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
         # transpose x, partial_result back to original shape
         x = x.transpose(transpose_axes)
         ht_result = ht_result.transpose(transpose_axes)
+
+    if real_op:
+        # discard elements beyond Nyquist frequency on last transformed axis
+        nyquist_slice = [slice(None)] * ht_result.ndim
+        nyquist_slice[axis] = slice(0, nyquist_freq)
+        ht_result = ht_result[(nyquist_slice)].balance_()
 
     return ht_result
 
@@ -141,9 +177,17 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     output_shape = list(x.shape)
     # FFT along non-split axes only
     if not x.is_distributed() or not fft_along_split:
-        torch_result = fftn_op(local_x, s=s, dim=axes, norm=norm)
-        for axis in axes:
-            output_shape[axis] = torch_result.shape[axis]
+        if local_x.numel() == 0:
+            # empty tensor, return empty tensor with consistent shape
+            local_shape = output_shape.copy()
+            local_shape[original_split] = 0
+            torch_result = torch.empty(
+                tuple(local_shape), dtype=local_x.dtype, device=local_x.device
+            )
+        else:
+            torch_result = fftn_op(local_x, s=s, dim=axes, norm=norm)
+        # for axis in axes:
+        #     output_shape[axis] = torch_result.shape[axis]
         # return DNDarray(
         #     torch_result,
         #     gshape=tuple(output_shape),
@@ -153,7 +197,7 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
         #     comm=x.comm,
         #     balanced=x.balanced,
         # )
-        return array(torch_result, is_split=original_split, comm=x.comm)
+        return array(torch_result, is_split=original_split, device=x.device, comm=x.comm)
 
     # FFT along split axis
     if original_split != 0:
