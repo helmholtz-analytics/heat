@@ -149,21 +149,23 @@ class TestFFT(TestCase):
         with self.assertRaises(ValueError):
             ht.fft.fftn(x, s=(10, 10, 10, 10))
 
-    # def test_hfft_ihfft(self):
-    #     # follows example in torch.fft.hfft docs
-    #     x = ht.zeros((3, 5), split=0, dtype=ht.float64)
-    #     edges = [1, 3, 7]
-    #     for i, n in enumerate(edges):
-    #         x[i] = ht.linspace(0, n, 5)
+    def test_hfft_ihfft(self):
+        # follows example in torch.fft.hfft docs
+        x = ht.zeros((3, 5), split=0, dtype=ht.float64)
+        edges = [1, 3, 7]
+        for i, n in enumerate(edges):
+            x[i] = ht.linspace(0, n, 5)
 
-    #     inv_fft = ht.fft.ifft(x)
-    #     # inv_fft is hermitian symmetric along the rows
-    #     # we can reconstruct the original signal by transforming the first half of the rows only
-    #     reconstructed_x = ht.fft.hfft(inv_fft[:3], n=5)
-    #     self.assertTrue(ht.allclose(reconstructed_x, x))
-    #     n = 2 * (x.shape[-1] - 1)
-    #     reconstructed_x = ht.fft.hfft(inv_fft[:3])
-    #     self.assertEqual(reconstructed_x.shape, (3, n))
+        print(f"DEBUGGING: ON RANK {x.comm.rank}, lshape is {x.lshape}, gshape is {x.gshape}")
+        inv_fft = ht.fft.ifft(x)
+
+        # inv_fft is hermitian symmetric along the rows
+        # we can reconstruct the original signal by transforming the first half of the rows only
+        reconstructed_x = ht.fft.hfft(inv_fft[:3], n=5)
+        self.assertTrue(ht.allclose(reconstructed_x, x))
+        n = 2 * (x.shape[-1] - 1)
+        reconstructed_x = ht.fft.hfft(inv_fft[:3])
+        self.assertEqual(reconstructed_x.shape, (3, n))
 
     # def test_hfftn_ihfftn(self):
     #     # follows example in torch.fft.hfftn docs
