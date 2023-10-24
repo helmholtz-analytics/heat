@@ -518,10 +518,11 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
 
     # if one of the tensors is distributed and the other is not a scalar, unsplit/gather it
     if x.split is not None and y.split is None and y.ndim > 0:
-        local_start = sum(x.lshape[: x.split])
-        local_end = local_start + x.lshape[x.split]
-        y = y[local_start:local_end]
-        x = x[local_start:local_end]
+        counts, displs = x.counts_displs()
+        local_start = displs[x.comm.rank]
+        local_end = local_start + counts[x.comm.rank]
+        x = factories.array(x.larray[local_start:local_end], split=x.split)
+        y = factories.array(y.larray[local_start:local_end])
         return x, y
 
     elif x.split != y.split:
