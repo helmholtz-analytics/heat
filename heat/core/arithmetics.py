@@ -381,8 +381,8 @@ def diff(
     """
     Calculate the n-th discrete difference along the given axis.
     The first difference is given by ``out[i]=a[i+1]-a[i]`` along the given axis, higher differences
-    are calculated by using diff recursively. The shape of the output is the same as ``a`` except 
-    along axis where the dimension is smaller by ``n``. The datatype of the output is the same as 
+    are calculated by using diff recursively. The shape of the output is the same as ``a`` except
+    along axis where the dimension is smaller by ``n``. The datatype of the output is the same as
     the datatype of the difference between any two elements of ``a``. The split does not change. The
     output array is balanced.
 
@@ -1242,7 +1242,7 @@ def ifmod(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
 
     Examples
     --------
-    >>> import heat as ht  
+    >>> import heat as ht
     >>> T1 = ht.array(2)
     >>> ht.ifmod(T1,T1)
     DNDarray(0, dtype=ht.int64, device=cpu:0, split=None)
@@ -1360,9 +1360,9 @@ def ihypot(t1: DNDarray, t2: DNDarray) -> DNDarray:
 
 def iinvert(t: DNDarray) -> DNDarray:
     """
-    Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray` in-place. The 
-    input array must be of integral or Boolean types. For boolean arrays, it computes the logical 
-    NOT. 
+    Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray` in-place. The
+    input array must be of integral or Boolean types. For boolean arrays, it computes the logical
+    NOT.
     Bitwise_not is an alias for invert.
 
     Parameters
@@ -1437,6 +1437,7 @@ def ilcm(t1: DNDarray, t2: Union[DNDarray, int]) -> DNDarray:
     >>> s
     2
     """
+
     def wrap_lcm_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.lcm_(b)
 
@@ -1512,12 +1513,14 @@ imultiply = imul
 """Alias for :py:func:`imul`"""
 
 
-def inan_to_num(t: DNDarray, nan: float = 0.0, posinf: float = None, neginf: float = None) -> DNDarray:
+def inan_to_num(
+    t: DNDarray, nan: float = 0.0, posinf: float = None, neginf: float = None
+) -> DNDarray:
     """
-    Replaces NaNs, positive infinity values, and negative infinity values in the input 't' with the 
-    values specified by nan, posinf, and neginf, respectively. By default, NaNs are replaced with 
-    zero, positive infinity is replaced with the greatest finite value representable by input's 
-    dtype, and negative infinity is replaced with the least finite value representable by input's 
+    Replaces NaNs, positive infinity values, and negative infinity values in the input 't' with the
+    values specified by nan, posinf, and neginf, respectively. By default, NaNs are replaced with
+    zero, positive infinity is replaced with the greatest finite value representable by input's
+    dtype, and negative infinity is replaced with the least finite value representable by input's
     dtype.
 
     Parameters
@@ -1531,7 +1534,7 @@ def inan_to_num(t: DNDarray, nan: float = 0.0, posinf: float = None, neginf: flo
             replaced with the greatest finite value of the input's dtype. Default value is None.
     neginf: float, optional
             Value to replace negative infinity values with. If None, negative infinity values are
-            replaced with the greatest negative finite value of the input's dtype. Default value is 
+            replaced with the greatest negative finite value of the input's dtype. Default value is
             None.
 
     Examples
@@ -1545,15 +1548,15 @@ def inan_to_num(t: DNDarray, nan: float = 0.0, posinf: float = None, neginf: flo
     """
     if not isinstance(t, DNDarray):
         raise TypeError(
-            "The input array must be a DNDarray. But your inputs were from "
-            + str(type(t))
-            + "."
+            "The input array must be a DNDarray. But your inputs were from " + str(type(t)) + "."
         )
 
     def wrap_nan_to_num_(a: torch.Tensor, nan=nan, posinf=posinf, neginf=neginf) -> torch.Tensor:
         return a.nan_to_num_(nan=nan, posinf=posinf, neginf=neginf)
 
-    return _operations.__local_op(wrap_nan_to_num_, t, no_cast=True, nan=nan, posinf=posinf, neginf=neginf)
+    return _operations.__local_op(
+        wrap_nan_to_num_, t, no_cast=True, nan=nan, posinf=posinf, neginf=neginf
+    )
 
 
 def ineg(t: DNDarray) -> DNDarray:
@@ -1633,7 +1636,7 @@ bitwise_not = invert
 
 def ipow(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    In-place version of the element-wise exponential function of values of operand ``t1`` to the 
+    In-place version of the element-wise exponential function of values of operand ``t1`` to the
     power of values of operand ``t2`` (i.e ``t1**t2``).
     Operation is not commutative.
 
@@ -1662,7 +1665,7 @@ def ipow(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
               [ 9., 16.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2
     DNDarray([[ 1.,  8.],
-              [ 9., 16.]], dtype=ht.float32, device=cpu:0, split=None)    
+              [ 9., 16.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T3
     DNDarray([[3., 3.],
               [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -1845,10 +1848,10 @@ def lcm(
         The output array. It must have a shape that the inputs broadcast to and matching split axis.
         If not provided, a freshly allocated array is returned.
     where: DNDarray, optional
-        Condition to broadcast over the inputs. At locations where the condition is True, the `out` 
-        array will be set to the divided value. Elsewhere, the `out` array will retain its original 
-        value. If an uninitialized `out` array is created via the default `out=None`, locations 
-        within it where the condition is False will remain uninitialized. If distributed, the split 
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the divided value. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations
+        within it where the condition is False will remain uninitialized. If distributed, the split
         axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
@@ -1984,10 +1987,10 @@ def nan_to_num(
     a: DNDarray, nan: float = 0.0, posinf: float = None, neginf: float = None, out: DNDarray = None
 ) -> DNDarray:
     """
-    Replaces NaNs, positive infinity values, and negative infinity values in the input 'a' with the 
-    values specified by nan, posinf, and neginf, respectively. By default, NaNs are replaced with 
-    zero, positive infinity is replaced with the greatest finite value representable by input's 
-    dtype, and negative infinity is replaced with the least finite value representable by input's 
+    Replaces NaNs, positive infinity values, and negative infinity values in the input 'a' with the
+    values specified by nan, posinf, and neginf, respectively. By default, NaNs are replaced with
+    zero, positive infinity is replaced with the greatest finite value representable by input's
+    dtype, and negative infinity is replaced with the least finite value representable by input's
     dtype.
 
     Parameters
@@ -2001,10 +2004,10 @@ def nan_to_num(
         replaced with the greatest finite value of the input's dtype. Default value is None.
     neginf : float, optional
         Value to replace negative infinity values with. If None, negative infinity values are
-        replaced with the greatest negative finite value of the input's dtype. Default value is 
+        replaced with the greatest negative finite value of the input's dtype. Default value is
         None.
     out : DNDarray, optional
-        Alternative output array in which to place the result. It must have the same shape as the 
+        Alternative output array in which to place the result. It must have the same shape as the
         expected output, but the datatype of the output values will be cast if necessary.
 
     Examples
@@ -2185,7 +2188,7 @@ positive = pos
 
 def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise exponential function of values of operand ``t1`` to the power of values of operand 
+    Element-wise exponential function of values of operand ``t1`` to the power of values of operand
     ``t2`` (i.e ``t1**t2``).
     Operation is not commutative.
 
