@@ -20,8 +20,8 @@ __all__ = [
     "ifft",
     "ifft2",
     "ifftn",
-    # "ihfft",
-    # "ihfft2",
+    "ihfft",
+    "ihfft2",
     "ihfftn",
     "irfft",
     "irfft2",
@@ -546,6 +546,56 @@ def ifftn(
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
     return __fftn_op(x, torch.fft.ifftn, s=s, axes=axes, norm=norm)
+
+
+def ihfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarray:
+    """
+    Compute the one-dimensional inverse discrete Fourier Transform of a real signal. The output is Hermitian-symmetric.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array, must be real
+    n : int, optional
+        Length of the transformed axis of the output. If not given, the length is taken to be the length of the input
+        along the axis specified by `axis`. If `n` is smaller than the length of the input, the input is cropped. If `n` is
+        larger, the input is padded with zeros. Default: None.
+    axis : int, optional
+        Axis over which to compute the inverse FFT. If not given, the last axis is used, or the only axis if x has only one dimension. Default: -1.
+    norm : str, optional
+        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+
+    Notes
+    -----
+    This function requires MPI communication if the input array is transformed along the distribution axis.
+    """
+    return __real_fft_op(x, torch.fft.ihfft, n=n, axis=axis, norm=norm)
+
+
+def ihfft2(
+    x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
+) -> DNDarray:
+    """
+    Compute the 2-dimensional inverse discrete Fourier Transform of a real signal. The output is Hermitian-symmetric.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array, must be real
+    s : Tuple[int, int], optional
+        Shape of the output along the transformed axes. (default is x.shape)
+    axes : Tuple[int, int], optional
+        Axes over which to compute the inverse FFT. If not given, the last `len(s)` axes are used, or all axes if `s` is
+        also not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple
+        times. (default is (-2, -1))
+    norm : str, optional
+        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+
+    Notes
+    -----
+    This function requires MPI communication if the input array is distributed and the split axis is transformed.
+    """
+    return __real_fftn_op(x, torch.fft.ihfft2, s=s, axes=axes, norm=norm)
 
 
 def ihfftn(
