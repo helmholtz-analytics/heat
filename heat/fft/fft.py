@@ -38,7 +38,7 @@ __all__ = [
 
 def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
     """
-    Helper function for fft
+    Helper function for 1-dimensional FFT.
     """
     try:
         local_x = x.larray
@@ -47,36 +47,32 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
     original_split = x.split
 
     # sanitize kwargs
-    axis = kwargs.get("axis", None)
+    axis = kwargs.get("axis")
     try:
         axis = sanitize_axis(x.gshape, axis)
     except ValueError as e:
         raise IndexError(e)
-    if axis is None:
-        axis = x.ndim - 1
-    elif isinstance(axis, tuple) and len(axis) > 1:
+    if isinstance(axis, tuple) and len(axis) > 1:
         raise TypeError(f"axis must be an integer, got {axis}")
     n = kwargs.get("n", None)
+    if n is None:
+        n = x.shape[axis]
     norm = kwargs.get("norm", None)
 
+    # calculate output shape:
+    # if operation requires real input, output size of last transformed dimension is the Nyquist frequency
     output_shape = list(x.shape)
-    # TODO: define Nyquist freq for real input transforms
-    # if fft operation requires real input, switch to generic operation:
     real_to_generic_fft_ops = {
         torch.fft.rfft: torch.fft.fft,
         torch.fft.ihfft: torch.fft.ifft,
     }
     real_op = fft_op in real_to_generic_fft_ops
     if real_op:
-        fft_op = real_to_generic_fft_ops[fft_op]
-        if n is not None:
-            nyquist_freq = n // 2 + 1
-        else:
-            nyquist_freq = x.shape[axis] // 2 + 1
+        nyquist_freq = n // 2 + 1
         output_shape[axis] = nyquist_freq
     else:
-        if n is not None:
-            output_shape[axis] = n
+        output_shape[axis] = n
+    print("DEBUGGING: n, output_shape = ", n, output_shape)
 
     fft_along_split = original_split == axis
     # FFT along non-split axis
@@ -121,6 +117,9 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
     else:
         _ = x.resplit(axis=None)
 
+    # if operation requires real input, switch to generic transform
+    if real_op:
+        fft_op = real_to_generic_fft_ops[fft_op]
     # FFT along axis 0 (now non-split)
     ht_result = __fft_op(_, fft_op, n=n, axis=0, norm=norm)
     del _
@@ -152,29 +151,46 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     original_split = x.split
 
     # sanitize kwargs
-    axes = kwargs.get("axes", None)
-    try:
-        axes = sanitize_axis(x.gshape, axes)
-    except ValueError as e:
-        raise IndexError(e)
-    repeated_axes = axes is not None and len(axes) != len(set(axes))
-    if repeated_axes:
-        raise NotImplementedError("Multiple transforms over the same axis not implemented yet.")
     s = kwargs.get("s", None)
     if s is not None and len(s) > x.ndim:
         raise ValueError(
             f"Input is {x.ndim}-dimensional, so s can be at most {x.ndim} elements long. Got {len(s)} elements instead."
         )
-    norm = kwargs.get("norm", None)
-
+    axes = kwargs.get("axes", None)
     if axes is None:
         if s is not None:
             axes = tuple(range(x.ndim)[-len(s) :])
         else:
             axes = tuple(range(x.ndim))
+    else:
+        try:
+            axes = sanitize_axis(x.gshape, axes)
+        except ValueError as e:
+            raise IndexError(e)
+    if s is None:
+        s = tuple(x.shape[axis] for axis in axes)
+    repeated_axes = axes is not None and len(axes) != len(set(axes))
+    if repeated_axes:
+        raise NotImplementedError("Multiple transforms over the same axis not implemented yet.")
+    norm = kwargs.get("norm", None)
+
+    # calculate output shape:
+    # if operation requires real input, output size of last transformed dimension is the Nyquist frequency
+    output_shape = list(x.shape)
+    for i, axis in enumerate(axes):
+        output_shape[axis] = s[i]
+    real_to_generic_fftn_ops = {
+        torch.fft.rfftn: torch.fft.fftn,
+        torch.fft.rfft2: torch.fft.fft2,
+        torch.fft.ihfftn: torch.fft.ifftn,
+        torch.fft.ihfft2: torch.fft.ifft2,
+    }
+    real_op = fftn_op in real_to_generic_fftn_ops
+    if real_op:
+        nyquist_freq = s[-1] // 2 + 1
+        output_shape[axes[-1]] = nyquist_freq
 
     fft_along_split = original_split in axes
-    output_shape = list(x.shape)
     # FFT along non-split axes only
     if not x.is_distributed() or not fft_along_split:
         if local_x.numel() == 0:
@@ -218,20 +234,8 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
 
     # transform decomposition: split axis first, then the rest
     # if fft operation requires real input, switch to generic operation:
-    real_to_generic_fftn_ops = {
-        torch.fft.rfftn: torch.fft.fftn,
-        torch.fft.rfft2: torch.fft.fft2,
-        torch.fft.ihfftn: torch.fft.ifftn,
-        torch.fft.ihfft2: torch.fft.ifft2,
-    }
-    real_op = fftn_op in real_to_generic_fftn_ops
     if real_op:
         fftn_op = real_to_generic_fftn_ops[fftn_op]
-        nyquist_axis = axes[-1]
-        if s is not None:
-            nyquist_freq = s[-1] // 2 + 1
-        else:
-            nyquist_freq = x.shape[-1] // 2 + 1
 
     # redistribute x from axis 0 to 1
     _ = x.resplit(axis=1)
@@ -264,7 +268,7 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     if real_op:
         # discard elements beyond Nyquist frequency on last transformed axis
         nyquist_slice = [slice(None)] * ht_result.ndim
-        nyquist_slice[nyquist_axis] = slice(0, nyquist_freq)
+        nyquist_slice[axes[-1]] = slice(0, nyquist_freq)
         ht_result = ht_result[(nyquist_slice)].balance_()
     return ht_result
 
