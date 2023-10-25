@@ -57,10 +57,15 @@ __all__ = [
     "idivide",
     "ifloordiv",
     "ifloor_divide",
+    "ifmod",
     "igcd",
     "ihypot",
+    "iinvert",
+    "ilcm",
+    "imod",
     "imul",
     "imultiply",
+    "inan_to_num",
     "ineg",
     "inegative",
     "invert",
@@ -375,10 +380,11 @@ def diff(
 ) -> DNDarray:
     """
     Calculate the n-th discrete difference along the given axis.
-    The first difference is given by ``out[i]=a[i+1]-a[i]`` along the given axis, higher differences are calculated
-    by using diff recursively. The shape of the output is the same as ``a`` except along axis where the dimension is smaller
-    by ``n``. The datatype of the output is the same as the datatype of the difference between any two elements of ``a``.
-    The split does not change. The output array is balanced.
+    The first difference is given by ``out[i]=a[i+1]-a[i]`` along the given axis, higher differences
+    are calculated by using diff recursively. The shape of the output is the same as ``a`` except 
+    along axis where the dimension is smaller by ``n``. The datatype of the output is the same as 
+    the datatype of the difference between any two elements of ``a``. The split does not change. The
+    output array is balanced.
 
     Parameters
     -------
@@ -1221,6 +1227,64 @@ ifloor_divide = ifloordiv
 """Alias for :py:func:`ifloordiv`"""
 
 
+def ifmod(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    In-place computation of element-wise division remainder of values of operand ``t1`` by values of
+    operand ``t2`` (i.e. C Library function fmod). Result has the sign as the dividend ``t1``.
+    Operation is not commutative.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        The first operand whose values are divided
+    t2: DNDarray or scalar
+        The second operand by whose values is divided (may be floats)
+
+    Examples
+    --------
+    >>> import heat as ht  
+    >>> T1 = ht.array(2)
+    >>> ht.ifmod(T1,T1)
+    DNDarray(0, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T1
+    DNDarray(0, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T2 = ht.int32([[1, 2], [3, 4]])
+    >>> T3 = ht.int32([[2, 2], [2, 2]])
+    >>> ht.ifmod(T2, T3)
+    DNDarray([[1, 0],
+              [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[1, 0],
+              [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> T3
+    DNDarray([[2, 2],
+              [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> s = -3
+    >>> ht.ifmod(T3, s)
+    DNDarray([[2, 2],
+              [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> T3
+    DNDarray([[2, 2],
+              [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> s
+    -3
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    def wrap_fmod_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.fmod_(b)
+
+    return _operations.__binary_op(wrap_fmod_, t1, t2)
+
+
 def igcd(t1: DNDarray, t2: DNDarray) -> DNDarray:
     """
     Returns the greatest common divisor of |t1| and |t2| element-wise and in-place.
@@ -1294,130 +1358,95 @@ def ihypot(t1: DNDarray, t2: DNDarray) -> DNDarray:
     return res
 
 
-def iinvert(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+def iinvert(t: DNDarray) -> DNDarray:
     """
-    WORK IN PROGRESS
-
-    Element-wise in-place addition of values of two operands.
-    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
-    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
-    and ``t2``.
+    Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray` in-place. The 
+    input array must be of integral or Boolean types. For boolean arrays, it computes the logical 
+    NOT. 
+    Bitwise_not is an alias for invert.
 
     Parameters
     ----------
-    t1: DNDarray
-        The first operand involved in the addition
-    t2: DNDarray or scalar
-        The second operand involved in the addition
+    t:  DNDarray
+        The input array to invert. Must be of integral or Boolean types
 
     Examples
     --------
     >>> import heat as ht
-    >>> T1 = ht.float32([[1, 2], [3, 4]])
-    >>> T2 = ht.float32([[2, 2], [2, 2]])
-    >>> ht.iadd(T1, T2)
-    DNDarray([[3., 4.],
-              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1 = ht.array(13, dtype=ht.uint8)
+    >>> ht.iinvert(T1)
+    DNDarray(242, dtype=ht.uint8, device=cpu:0, split=None)
     >>> T1
-    DNDarray([[3., 4.],
-              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(242, dtype=ht.uint8, device=cpu:0, split=None)
+    >>> T2 = ht.array([-1, -2, 3], dtype=ht.int8)
+    >>> ht.iinvert(T2)
+    DNDarray([ 0,  1, -4], dtype=ht.int8, device=cpu:0, split=None)
     >>> T2
-    DNDarray([[2., 2.],
-              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> s = 2.0
-    >>> ht.iadd(T2, s)
-    DNDarray([[4., 4.],
-              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> T2
-    DNDarray([[4., 4.],
-              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> s
-    2.0
+    DNDarray([ 0,  1, -4], dtype=ht.int8, device=cpu:0, split=None)
+    >>> T3 = ht.array([[True, True], [False, True]])
+    >>> ht.iinvert(T3)
+    DNDarray([[False, False],
+              [ True, False]], dtype=ht.bool, device=cpu:0, split=None)
+    >>> T3
+    DNDarray([[False, False],
+              [ True, False]], dtype=ht.bool, device=cpu:0, split=None)
     """
-    if not isinstance(t1, DNDarray):
-        raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
-        )
+    dt = heat_type_of(t)
 
-    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-        return a.add_(b)
+    if heat_type_is_inexact(dt):
+        raise TypeError("Operation is not supported for float types")
 
-    return _operations.__binary_op(wrap_add_, t1, t2)
+    def wrap_bitwise_not_(a: torch.Tensor) -> torch.Tensor:
+        return a.bitwise_not_()
 
+    return _operations.__local_op(wrap_bitwise_not_, t, no_cast=True)
 
-DNDarray.__iadd__ = lambda self, other: iadd(self, other)
-DNDarray.__iadd__.__doc__ = iadd.__doc__
 
 # Alias support
 ibitwise_not = iinvert
 """Alias for :py:func:`iinvert`"""
 
 
-def ilcm(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+def ilcm(t1: DNDarray, t2: Union[DNDarray, int]) -> DNDarray:
     """
-    WORK IN PROGRESS
-
-    Element-wise in-place addition of values of two operands.
-    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
-    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
-    and ``t2``.
+    Returns the lowest common multiple of |t1| and |t2| element-wise and in-place.
 
     Parameters
     ----------
-    t1: DNDarray
-        The first operand involved in the addition
-    t2: DNDarray or scalar
-        The second operand involved in the addition
+    t1:  DNDarray
+         The first input array, must be of integer type
+    t2:  DNDarray or scalar
+         the second input array, must be of integer type
 
     Examples
     --------
     >>> import heat as ht
-    >>> T1 = ht.float32([[1, 2], [3, 4]])
-    >>> T2 = ht.float32([[2, 2], [2, 2]])
-    >>> ht.iadd(T1, T2)
-    DNDarray([[3., 4.],
-              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1 = ht.array([6, 12, 15])
+    >>> T2 = ht.array([3, 4, 5])
+    >>> ht.ilcm(T1, T2)
+    DNDarray([ 6, 12, 15], dtype=ht.int64, device=cpu:0, split=None)
     >>> T1
-    DNDarray([[3., 4.],
-              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray([ 6, 12, 15], dtype=ht.int64, device=cpu:0, split=None)
     >>> T2
-    DNDarray([[2., 2.],
-              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> s = 2.0
-    >>> ht.iadd(T2, s)
-    DNDarray([[4., 4.],
-              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray([3, 4, 5], dtype=ht.int64, device=cpu:0, split=None)
+    >>> s = 2
+    >>> ht.ilcm(T2, s)
+    DNDarray([ 6,  4, 10], dtype=ht.int64, device=cpu:0, split=None)
     >>> T2
-    DNDarray([[4., 4.],
-              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray([ 6,  4, 10], dtype=ht.int64, device=cpu:0, split=None)
     >>> s
-    2.0
+    2
     """
-    if not isinstance(t1, DNDarray):
-        raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
-        )
+    def wrap_lcm_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.lcm_(b)
 
-    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-        return a.add_(b)
+    try:
+        res = _operations.__binary_op(wrap_lcm_, t1, t2)
+    except RuntimeError as e:
+        # every other possibility is caught by __binary_op
+        raise TypeError(f"Expected integer input, got {t1.dtype}, {t2.dtype}") from e
 
-    return _operations.__binary_op(wrap_add_, t1, t2)
-
-
-DNDarray.__iadd__ = lambda self, other: iadd(self, other)
-DNDarray.__iadd__.__doc__ = iadd.__doc__
+    return res
 
 
 def imul(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
@@ -1483,65 +1512,48 @@ imultiply = imul
 """Alias for :py:func:`imul`"""
 
 
-def inan_to_num(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+def inan_to_num(t: DNDarray, nan: float = 0.0, posinf: float = None, neginf: float = None) -> DNDarray:
     """
-    WORK IN PROGRESS
-
-    Element-wise in-place addition of values of two operands.
-    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
-    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
-    and ``t2``.
+    Replaces NaNs, positive infinity values, and negative infinity values in the input 't' with the 
+    values specified by nan, posinf, and neginf, respectively. By default, NaNs are replaced with 
+    zero, positive infinity is replaced with the greatest finite value representable by input's 
+    dtype, and negative infinity is replaced with the least finite value representable by input's 
+    dtype.
 
     Parameters
     ----------
-    t1: DNDarray
-        The first operand involved in the addition
-    t2: DNDarray or scalar
-        The second operand involved in the addition
+    t:      DNDarray
+            Input array.
+    nan:    float, optional
+            Value to be used to replace NaNs. Default value is 0.0.
+    posinf: float, optional
+            Value to replace positive infinity values with. If None, positive infinity values are
+            replaced with the greatest finite value of the input's dtype. Default value is None.
+    neginf: float, optional
+            Value to replace negative infinity values with. If None, negative infinity values are
+            replaced with the greatest negative finite value of the input's dtype. Default value is 
+            None.
 
     Examples
     --------
     >>> import heat as ht
-    >>> T1 = ht.float32([[1, 2], [3, 4]])
-    >>> T2 = ht.float32([[2, 2], [2, 2]])
-    >>> ht.iadd(T1, T2)
-    DNDarray([[3., 4.],
-              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> T1
-    DNDarray([[3., 4.],
-              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> T2
-    DNDarray([[2., 2.],
-              [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> s = 2.0
-    >>> ht.iadd(T2, s)
-    DNDarray([[4., 4.],
-              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> T2
-    DNDarray([[4., 4.],
-              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> s
-    2.0
+    >>> T = ht.array([float('nan'), float('inf'), -float('inf')])
+    >>> ht.inan_to_num(T)
+    DNDarray([ 0.0000e+00,  3.4028e+38, -3.4028e+38], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T
+    DNDarray([ 0.0000e+00,  3.4028e+38, -3.4028e+38], dtype=ht.float32, device=cpu:0, split=None)
     """
-    if not isinstance(t1, DNDarray):
+    if not isinstance(t, DNDarray):
         raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
+            "The input array must be a DNDarray. But your inputs were from "
+            + str(type(t))
             + "."
         )
 
-    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-        return a.add_(b)
+    def wrap_nan_to_num_(a: torch.Tensor, nan=nan, posinf=posinf, neginf=neginf) -> torch.Tensor:
+        return a.nan_to_num_(nan=nan, posinf=posinf, neginf=neginf)
 
-    return _operations.__binary_op(wrap_add_, t1, t2)
-
-
-DNDarray.__iadd__ = lambda self, other: iadd(self, other)
-DNDarray.__iadd__.__doc__ = iadd.__doc__
+    return _operations.__local_op(wrap_nan_to_num_, t, no_cast=True, nan=nan, posinf=posinf, neginf=neginf)
 
 
 def ineg(t: DNDarray) -> DNDarray:
@@ -1621,44 +1633,48 @@ bitwise_not = invert
 
 def ipow(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    WORK IN PROGRESS
-
-    Element-wise in-place addition of values of two operands.
-    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
-    element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
-    and ``t2``.
+    In-place version of the element-wise exponential function of values of operand ``t1`` to the 
+    power of values of operand ``t2`` (i.e ``t1**t2``).
+    Operation is not commutative.
 
     Parameters
     ----------
     t1: DNDarray
-        The first operand involved in the addition
+        The first operand whose values represent the base
     t2: DNDarray or scalar
-        The second operand involved in the addition
+        The second operand whose values represent the exponent
 
     Examples
     --------
     >>> import heat as ht
-    >>> T1 = ht.float32([[1, 2], [3, 4]])
-    >>> T2 = ht.float32([[2, 2], [2, 2]])
-    >>> ht.iadd(T1, T2)
-    DNDarray([[3., 4.],
-              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1 = ht.array(3.0)
+    >>> s1 = 2
+    >>> ht.ipow (T1, s1)
+    DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1
-    DNDarray([[3., 4.],
-              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
+    >>> s1
+    2
+    >>> T2 = ht.float32([[1, 2], [3, 4]])
+    >>> T3 = ht.float32([[3, 3], [2, 2]])
+    >>> ht.ipow(T2, T3)
+    DNDarray([[ 1.,  8.],
+              [ 9., 16.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2
-    DNDarray([[2., 2.],
+    DNDarray([[ 1.,  8.],
+              [ 9., 16.]], dtype=ht.float32, device=cpu:0, split=None)    
+    >>> T3
+    DNDarray([[3., 3.],
               [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> s = 2.0
-    >>> ht.iadd(T2, s)
-    DNDarray([[4., 4.],
-              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> T2
-    DNDarray([[4., 4.],
-              [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> s
-    2.0
+    >>> s2 = -1.0
+    >>> ht.ipow(T3, s2)
+    DNDarray([[0.3333, 0.3333],
+              [0.5000, 0.5000]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T3
+    DNDarray([[0.3333, 0.3333],
+              [0.5000, 0.5000]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> s2
+    -1
     """
     if not isinstance(t1, DNDarray):
         raise TypeError(
@@ -1670,14 +1686,14 @@ def ipow(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
             + "."
         )
 
-    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-        return a.add_(b)
+    def wrap_pow_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.pow_(b)
 
-    return _operations.__binary_op(wrap_add_, t1, t2)
+    return _operations.__binary_op(wrap_pow_, t1, t2)
 
 
-DNDarray.__iadd__ = lambda self, other: iadd(self, other)
-DNDarray.__iadd__.__doc__ = iadd.__doc__
+DNDarray.__ipow__ = lambda self, other: ipow(self, other)
+DNDarray.__ipow__.__doc__ = ipow.__doc__
 
 # Alias support
 ipower = ipow
@@ -1687,8 +1703,8 @@ ipower = ipow
 def iremainder(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     In-place computation of element-wise division remainder of values of operand ``t1`` by values of
-    operand ``t2`` (i.e. ``t1%t2``).
-    Operation is not commutative. Result has the same sign as the devisor ``t2``.
+    operand ``t2`` (i.e. ``t1%t2``). Result has the same sign as the divisor ``t2``.
+    Operation is not commutative.
 
     Parameters
     ----------
@@ -1716,15 +1732,15 @@ def iremainder(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> T3
     DNDarray([[2, 2],
               [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
-    >>> s = 2
+    >>> s = -3
     >>> ht.iremainder(T3, s)
-    DNDarray([[0, 0],
-              [0, 0]], dtype=ht.int32, device=cpu:0, split=None)
+    DNDarray([[-1, -1],
+              [-1, -1]], dtype=ht.int32, device=cpu:0, split=None)
     >>> T3
-    DNDarray([[0, 0],
-              [0, 0]], dtype=ht.int32, device=cpu:0, split=None)
+    DNDarray([[-1, -1],
+              [-1, -1]], dtype=ht.int32, device=cpu:0, split=None)
     >>> s
-    2
+    -3
     """
     if not isinstance(t1, DNDarray):
         raise TypeError(
@@ -1742,8 +1758,12 @@ def iremainder(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_remainder_, t1, t2)
 
 
-DNDarray.__iremainder__ = lambda self, other: iremainder(self, other)
-DNDarray.__iremainder__.__doc__ = iremainder.__doc__
+# Alias support
+imod = iremainder
+"""Alias for :py:func:`iremainder`"""
+
+DNDarray.__imod__ = lambda self, other: imod(self, other)
+DNDarray.__imod__.__doc__ = imod.__doc__
 
 
 def isub(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
@@ -1813,23 +1833,23 @@ def lcm(
     a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: DNDarray = True
 ) -> DNDarray:
     """
-    Returns the lowest common multiple of |a| and |b|
+    Returns the lowest common multiple of |a| and |b| element-wise.
 
     Parameters
     ----------
-    a:   DNDarray
-         The first input array, must be of integer type
-    b:   DNDarray
-         the second input array, must be of integer type
+    a:   DNDarray or scalar
+         The first input (array), must be of integer type
+    b:   DNDarray or scalar
+         the second input (array), must be of integer type
     out: DNDarray, optional
         The output array. It must have a shape that the inputs broadcast to and matching split axis.
         If not provided, a freshly allocated array is returned.
     where: DNDarray, optional
-        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
-        will be set to the divided value. Elsewhere, the `out` array will retain its original value. If
-        an uninitialized `out` array is created via the default `out=None`, locations within it where the
-        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
-        if required) must match that of the `out` array.
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` 
+        array will be set to the divided value. Elsewhere, the `out` array will retain its original 
+        value. If an uninitialized `out` array is created via the default `out=None`, locations 
+        within it where the condition is False will remain uninitialized. If distributed, the split 
+        axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
     --------
@@ -1837,6 +1857,11 @@ def lcm(
     >>> b = ht.array([3, 4, 5])
     >>> ht.lcm(a,b)
     DNDarray([ 6, 12, 15], dtype=ht.int64, device=cpu:0, split=None)
+    >>> s = 2
+    >>> ht.lcm(s,a)
+    DNDarray([ 6, 12, 30], dtype=ht.int64, device=cpu:0, split=None)
+    >>> ht.lcm(b,s)
+    DNDarray([ 6,  4, 10], dtype=ht.int64, device=cpu:0, split=None)
     """
     try:
         res = _operations.__binary_op(torch.lcm, a, b, out, where)
@@ -1881,8 +1906,8 @@ DNDarray.__lshift__.__doc__ = left_shift.__doc__
 def mod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e.
-    ``t1%t2``).
-    Operation is not commutative. Result has the same sign as the devisor ``t2``.
+    ``t1%t2``). Result has the same sign as the divisor ``t2``.
+    Operation is not commutative.
     Currently ``t1`` and ``t2`` are just passed to remainder.
 
     Parameters
@@ -1959,10 +1984,11 @@ def nan_to_num(
     a: DNDarray, nan: float = 0.0, posinf: float = None, neginf: float = None, out: DNDarray = None
 ) -> DNDarray:
     """
-    Replaces NaNs, positive infinity values, and negative infinity values in the input 'a' with the values specified by
-    nan, posinf, and neginf, respectively. By default, NaNs are replaced with zero, positive infinity is replaced with
-    the greatest finite value representable by input's dtype, and negative infinity is replaced with the least finite
-    value representable by input's dtype.
+    Replaces NaNs, positive infinity values, and negative infinity values in the input 'a' with the 
+    values specified by nan, posinf, and neginf, respectively. By default, NaNs are replaced with 
+    zero, positive infinity is replaced with the greatest finite value representable by input's 
+    dtype, and negative infinity is replaced with the least finite value representable by input's 
+    dtype.
 
     Parameters
     ----------
@@ -1975,10 +2001,11 @@ def nan_to_num(
         replaced with the greatest finite value of the input's dtype. Default value is None.
     neginf : float, optional
         Value to replace negative infinity values with. If None, negative infinity values are
-        replaced with the greatest negative finite value of the input's dtype. Default value is None.
+        replaced with the greatest negative finite value of the input's dtype. Default value is 
+        None.
     out : DNDarray, optional
-        Alternative output array in which to place the result. It must have the same shape as the expected output, but
-        the datatype of the output values will be cast if necessary.
+        Alternative output array in which to place the result. It must have the same shape as the 
+        expected output, but the datatype of the output values will be cast if necessary.
 
     Examples
     --------
@@ -2158,7 +2185,8 @@ positive = pos
 
 def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise exponential function of values of operand ``t1`` to the power of values of operand ``t2`` (i.e ``t1**t2``).
+    Element-wise exponential function of values of operand ``t1`` to the power of values of operand 
+    ``t2`` (i.e ``t1**t2``).
     Operation is not commutative.
 
     Parameters
@@ -2166,7 +2194,7 @@ def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     t1: DNDarray or scalar
         The first operand whose values represent the base
     t2: DNDarray or scalar
-        The second operand by whose values represent the exponent
+        The second operand whose values represent the exponent
 
     Examples
     --------
@@ -2280,8 +2308,8 @@ DNDarray.prod.__doc__ = prod.__doc__
 def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e.
-    ``t1%t2``).
-    Operation is not commutative. Result has the same sign as the devisor ``t2``.
+    ``t1%t2``). Result has the same sign as the divisor ``t2``.
+    Operation is not commutative.
 
     Parameters
     ----------
