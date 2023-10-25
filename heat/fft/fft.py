@@ -241,10 +241,7 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     _ = x.resplit(axis=1)
     # FFT along axis 0 (now non-split)
     split_index = axes.index(original_split)
-    if s is not None:
-        partial_s = (s[split_index],)
-    else:
-        partial_s = None
+    partial_s = (s[split_index],)
     partial_ht_result = __fftn_op(_, fftn_op, s=partial_s, axes=(0,), norm=norm)
     output_shape[original_split] = partial_ht_result.shape[0]
     del _

@@ -75,7 +75,7 @@ class TestFFT(TestCase):
 
     def test_fft2_ifft2(self):
         # 2D FFT along non-split axes
-        x = ht.random.randn(10, 6, 6, split=0, dtype=ht.float64)
+        x = ht.random.randn(3, 6, 6, split=0, dtype=ht.float64)
         y = ht.fft.fft2(x)
         np_y = np.fft.fft2(x.numpy())
         self.assertTrue(y.split == 0)
@@ -167,12 +167,20 @@ class TestFFT(TestCase):
         reconstructed_x = ht.fft.hfft(inv_fft[:3])
         self.assertEqual(reconstructed_x.shape, (3, n))
 
+    def test_hfft2_ihfft2(self):
+        x = ht.random.randn(10, 6, 6, dtype=ht.float64)
+        inv_fft = ht.fft.ifft2(x)
+        reconstructed_x = ht.fft.hfft2(inv_fft, s=x.shape[-2:])
+        self.assertTrue(ht.allclose(reconstructed_x, x))
+
     def test_hfftn_ihfftn(self):
         # follows example in torch.fft.hfftn docs
         x = ht.random.randn(10, 6, 6, dtype=ht.float64)
         inv_fft = ht.fft.ifftn(x)
         reconstructed_x = ht.fft.hfftn(inv_fft, s=x.shape)
         self.assertTrue(ht.allclose(reconstructed_x, x))
+        reconstructed_x_no_s = ht.fft.hfftn(inv_fft)
+        self.assertEqual(reconstructed_x_no_s.shape[-1], 2 * (inv_fft.shape[-1] - 1))
 
     def test_rfft_irfft(self):
         # n-D distributed
@@ -184,6 +192,8 @@ class TestFFT(TestCase):
         self.assert_array_equal(y, np_y)
         backwards = ht.fft.irfft(y, n=x.shape[-1])
         self.assertTrue(ht.allclose(backwards, x))
+        backwards_no_n = ht.fft.irfft(y)
+        self.assertEqual(backwards_no_n.shape[-1], 2 * (y.shape[-1] - 1))
 
         # exceptions
         # complex input
