@@ -167,19 +167,19 @@ class TestFFT(TestCase):
         reconstructed_x = ht.fft.hfft(inv_fft[:3])
         self.assertEqual(reconstructed_x.shape, (3, n))
 
-    # def test_hfftn_ihfftn(self):
-    #     # follows example in torch.fft.hfftn docs
-    #     x = ht.random.randn(10, 6, 6, dtype=ht.float64)
-    #     inv_fft = ht.fft.ifftn(x)
-    #     reconstructed_x = ht.fft.hfftn(inv_fft, s=x.shape)
-    #     self.assertTrue(ht.allclose(reconstructed_x, x))
+    def test_hfftn_ihfftn(self):
+        # follows example in torch.fft.hfftn docs
+        x = ht.random.randn(10, 6, 6, dtype=ht.float64)
+        inv_fft = ht.fft.ifftn(x)
+        reconstructed_x = ht.fft.hfftn(inv_fft, s=x.shape)
+        self.assertTrue(ht.allclose(reconstructed_x, x))
 
     def test_rfft_irfft(self):
         # n-D distributed
         x = ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
         # FFT along last axis
-        y = ht.fft.fft(x)
-        np_y = np.fft.fft(x.numpy())
+        y = ht.fft.rfft(x)
+        np_y = np.fft.rfft(x.numpy())
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
         backwards = ht.fft.irfft(y, n=x.shape[-1])
