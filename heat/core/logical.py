@@ -255,6 +255,7 @@ def isclose(
     if t1.comm.is_distributed() and t1.split is not None:
         output_gshape = stride_tricks.broadcast_shape(t1.gshape, t2.gshape)
         res = torch.empty(output_gshape, device=t1.device.torch_device).bool()
+        print("_local_isclose-->", _local_isclose, "res->", res, "output_gshape->", output_gshape)
         t1.comm.Allgather(_local_isclose, res)
         result = DNDarray(
             res,
@@ -521,8 +522,8 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
         counts, displs = x.counts_displs()
         local_start = displs[x.comm.rank]
         local_end = local_start + counts[x.comm.rank]
-        x = factories.array(x.larray[local_start:local_end], split=x.split)
-        y = factories.array(y.larray[local_start:local_end])
+        x = x[local_start:local_end]
+        y = y[local_start:local_end]
         return x, y
 
     elif x.split != y.split:
