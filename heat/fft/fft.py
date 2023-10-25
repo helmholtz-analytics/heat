@@ -398,6 +398,8 @@ def hfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarr
     -----
     This function requires MPI communication if the input array is transformed along the distribution axis.
     """
+    if n is None:
+        n = 2 * (x.shape[axis] - 1)
     return __fft_op(x, torch.fft.hfft, n=n, axis=axis, norm=norm)
 
 
@@ -427,6 +429,8 @@ def hfft2(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
+    if s is None:
+        s = (x.shape[axes[0]], 2 * (x.shape[axes[1]] - 1))
     return __fftn_op(x, torch.fft.hfft2, s=s, axes=axes, norm=norm)
 
 
@@ -455,6 +459,13 @@ def hfftn(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
+    if s is None:
+        if axes is None:
+            s = list(x.shape[i] for i in range(x.ndim))
+        else:
+            s = list(x.shape[i] for i in axes)
+        s[-1] = 2 * (s[-1] - 1)
+        s = tuple(s)
     return __fftn_op(x, torch.fft.hfftn, s=s, axes=axes, norm=norm)
 
 
@@ -581,6 +592,8 @@ def irfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDar
     If the input array is 1-D and distributed, this function copies the entire array on each MPI process! i.e. if the array is very large, you might run out of memory.
     Hint: if you are looping through a batch of 1-D arrays to transform them, consider stacking them into a 2-D DNDarray and transforming them all at once (see :func:`irfft2`).
     """
+    if n is None:
+        n = 2 * (x.shape[axis] - 1)
     return __fft_op(x, torch.fft.irfft, n=n, axis=axis, norm=norm)
 
 
@@ -607,6 +620,8 @@ def irfft2(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
+    if s is None:
+        s = (x.shape[axes[0]], 2 * (x.shape[axes[1]] - 1))
     return __fftn_op(x, torch.fft.irfft2, s=s, axes=axes, norm=norm)
 
 
@@ -633,6 +648,13 @@ def irfftn(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
+    if s is None:
+        if axes is None:
+            s = list(x.shape[i] for i in range(x.ndim))
+        else:
+            s = list(x.shape[i] for i in axes)
+        s[-1] = 2 * (s[-1] - 1)
+        s = tuple(s)
     return __fftn_op(x, torch.fft.irfftn, s=s, axes=axes, norm=norm)
 
 
