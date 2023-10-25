@@ -211,7 +211,8 @@ class TestFFT(TestCase):
         self.assertEqual(y.shape, np_y.shape)
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
-
+        backwards = ht.fft.irfftn(y, s=x.shape[-2:])
+        self.assertTrue(ht.allclose(backwards, x))
         # FFT along all axes
         # TODO: comment this out after merging indexing PR
         # y = ht.fft.rfftn(x)
@@ -223,3 +224,17 @@ class TestFFT(TestCase):
         x = x + 1j * ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
         with self.assertRaises(TypeError):
             ht.fft.rfftn(x)
+
+    def test_rfft2_irfft2(self):
+        # n-D distributed
+        x = ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        # FFT along last 2 axes
+        y = ht.fft.rfft2(x, axes=(1, 2))
+        np_y = np.fft.rfft2(x.numpy(), axes=(1, 2))
+        self.assertIsInstance(y, ht.DNDarray)
+        self.assertEqual(y.shape, np_y.shape)
+        self.assertTrue(y.split == 0)
+        self.assert_array_equal(y, np_y)
+
+        backwards = ht.fft.irfft2(y, s=x.shape[-2:])
+        self.assertTrue(ht.allclose(backwards, x))

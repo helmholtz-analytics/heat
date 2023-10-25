@@ -22,7 +22,7 @@ __all__ = [
     "ifftn",
     # "ihfft",
     # "ihfft2",
-    # "ihfftn",
+    "ihfftn",
     "irfft",
     "irfft2",
     "irfftn",
