@@ -562,7 +562,7 @@ divide = div
 
 def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. 
+    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e.
     C Library function fmod).
     Result has the sign as the dividend ``t1``. Operation is not commutative.
 
