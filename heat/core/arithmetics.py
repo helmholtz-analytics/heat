@@ -562,7 +562,8 @@ divide = div
 
 def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. C Library function fmod).
+    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e. 
+    C Library function fmod).
     Result has the sign as the dividend ``t1``. Operation is not commutative.
 
     Parameters
@@ -667,7 +668,7 @@ def hypot(
 ) -> DNDarray:
     """
     Given the 'legs' of a right triangle, return its hypotenuse. Equivalent to
-    :math:`\sqrt{a^2 + b^2}`, element-wise.
+    :math:`sqrt(a^2 + b^2)`, element-wise.
 
     Parameters
     ----------
@@ -1324,7 +1325,7 @@ def igcd(t1: DNDarray, t2: DNDarray) -> DNDarray:
 def ihypot(t1: DNDarray, t2: DNDarray) -> DNDarray:
     """
     Given the 'legs' of a right triangle, return its hypotenuse in-place of the first input.
-    Equivalent to :math:`\sqrt{a^2 + b^2}`, element-wise.
+    Equivalent to :math:`sqrt(a^2 + b^2)`, element-wise.
 
     Parameters
     ----------
