@@ -985,10 +985,10 @@ def icopysign(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     The magnitudes of elements of 't1' are kept but the sign(s) are adopted from the element(s) of
     't2'.
     At the moment, the operation only works for DNDarrays whose elements are floats. This is due to
-    the fact that it relies on the PyTorch function 'copysign_', which does not work if the entries 
+    the fact that it relies on the PyTorch function 'copysign_', which does not work if the entries
     of 't1' are integers. The case when 't1' contains floats and 't2' contains integers works in
     PyTorch but has not been properly implemented in HeAt yet.
-    
+
 
     Parameters
     ----------
@@ -1025,7 +1025,7 @@ def icopysign(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     for dt in dtypes:
         if heat_type_is_exact(dt):
             raise TypeError("Operation is not supported for integers.")
-    
+
     def wrap_copysign_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.copysign_(b)
 
