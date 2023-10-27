@@ -984,6 +984,11 @@ def icopysign(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     In-place version of the element-wise operation 'copysign'.
     The magnitudes of elements of 't1' are kept but the sign(s) are adopted from the element(s) of
     't2'.
+    At the moment, the operation only works for DNDarrays whose elements are floats. This is due to
+    the fact that it relies on the PyTorch function 'copysign_', which does not work if the entries 
+    of 't1' are integers. The case when 't1' contains floats and 't2' contains integers works in
+    PyTorch but has not been properly implemented in HeAt yet.
+    
 
     Parameters
     ----------
@@ -1015,17 +1020,20 @@ def icopysign(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> T3
     DNDarray([-5.,  2.], dtype=ht.float32, device=cpu:0, split=None)
     """
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
 
+    for dt in dtypes:
+        if heat_type_is_exact(dt):
+            raise TypeError("Operation is not supported for integers.")
+    
     def wrap_copysign_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.copysign_(b)
 
     try:
-        res = _operations.__binary_op(wrap_copysign_, t1, t2)
+        return _operations.__binary_op(wrap_copysign_, t1, t2)
     except RuntimeError as e:
         # every other possibility is caught by __binary_op
         raise TypeError(f"Not implemented for input type, got {type(t1)}, {type(t2)}") from e
-
-    return res
 
 
 def icumprod(t: DNDarray, axis: int) -> DNDarray:
@@ -1058,7 +1066,7 @@ def icumprod(t: DNDarray, axis: int) -> DNDarray:
     def wrap_cumprod_(a: torch.Tensor, b: int, out=None, dtype=None) -> torch.Tensor:
         return a.cumprod_(b)
 
-    def wrap_mul_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    def wrap_mul_(a: torch.Tensor, b: torch.Tensor, out=None) -> torch.Tensor:
         return a.mul_(b)
 
     return _operations.__cum_op(t, wrap_cumprod_, MPI.PROD, wrap_mul_, 1, axis, dtype=None)
@@ -1099,7 +1107,7 @@ def icumsum(t: DNDarray, axis: int) -> DNDarray:
     def wrap_cumsum_(a: torch.Tensor, b: int, out=None, dtype=None) -> torch.Tensor:
         return a.cumsum_(b)
 
-    def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+    def wrap_add_(a: torch.Tensor, b: torch.Tensor, out=None) -> torch.Tensor:
         return a.add_(b)
 
     return _operations.__cum_op(t, wrap_cumsum_, MPI.SUM, wrap_add_, 0, axis, dtype=None)
@@ -1314,12 +1322,10 @@ def igcd(t1: DNDarray, t2: DNDarray) -> DNDarray:
         return a.gcd_(b)
 
     try:
-        res = _operations.__binary_op(wrap_gcd_, t1, t2)
+        return _operations.__binary_op(wrap_gcd_, t1, t2)
     except RuntimeError as e:
         # every other possibility is caught by __binary_op
         raise TypeError(f"Expected integer input, got {t1.dtype}, {t2.dtype}") from e
-
-    return res
 
 
 def ihypot(t1: DNDarray, t2: DNDarray) -> DNDarray:
@@ -1351,12 +1357,10 @@ def ihypot(t1: DNDarray, t2: DNDarray) -> DNDarray:
         return a.hypot_(b)
 
     try:
-        res = _operations.__binary_op(wrap_hypot_, t1, t2)
+        return _operations.__binary_op(wrap_hypot_, t1, t2)
     except RuntimeError as e:
         # every other possibility is caught by __binary_op
         raise TypeError(f"Not implemented for array dtype, got {t1.dtype}, {t2.dtype}") from e
-
-    return res
 
 
 def iinvert(t: DNDarray) -> DNDarray:
@@ -1443,12 +1447,10 @@ def ilcm(t1: DNDarray, t2: Union[DNDarray, int]) -> DNDarray:
         return a.lcm_(b)
 
     try:
-        res = _operations.__binary_op(wrap_lcm_, t1, t2)
+        return _operations.__binary_op(wrap_lcm_, t1, t2)
     except RuntimeError as e:
         # every other possibility is caught by __binary_op
         raise TypeError(f"Expected integer input, got {t1.dtype}, {t2.dtype}") from e
-
-    return res
 
 
 def imul(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
