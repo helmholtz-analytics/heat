@@ -12,7 +12,7 @@ self = TypeVar("self")
 
 class BaseEstimator:
     """
-    Abstract base class for all estimators, i.e. parametrized analysis algorithms, in HeAT. Can be used as mixin.
+    Abstract base class for all estimators, i.e. parametrized analysis algorithms, in Heat. Can be used as mixin.
     """
 
     @classmethod
@@ -63,7 +63,7 @@ class BaseEstimator:
         indent : int, default: 1
             Indicates the indentation for the top-level output.
         """
-        return "{}({})".format(self.__class__.__name__, json.dumps(self.get_params(), indent=4))
+        return f"{self.__class__.__name__}({json.dumps(self.get_params(), indent=4)})"
 
     def set_params(self, **params: Dict[str, object]) -> self:
         """
@@ -95,7 +95,7 @@ class BaseEstimator:
 
 class ClassificationMixin:
     """
-    Mixin for all classifiers in HeAT.
+    Mixin for all classifiers in Heat.
     """
 
     def fit(self, x: DNDarray, y: DNDarray):
@@ -140,9 +140,50 @@ class ClassificationMixin:
         raise NotImplementedError()
 
 
+class TransformMixin:
+    """
+    Mixin for all transformations in Heat.
+    """
+
+    def fit(self, x: DNDarray):
+        """
+        Fits the transformation model.
+
+        Parameters
+        ----------
+        x : DNDarray
+            Training instances to train on. Shape = (n_samples, n_features)
+        """
+        raise NotImplementedError()
+
+    def fit_transform(self, x: DNDarray) -> DNDarray:
+        """
+        Fits model and returns transformed data for each input sample
+        Convenience method; equivalent to calling :func:`fit` followed by :func:`transform`.
+
+        Parameters
+        ----------
+        x : DNDarray
+            Input data to be transformed. Shape = (n_samples, n_features)
+        """
+        self.fit(x)
+        return self.transform(x)
+
+    def transform(self, x: DNDarray) -> DNDarray:
+        """
+        Transforms the input data.
+
+         Parameters
+         ----------
+         x : DNDarray
+             Values to transform. Shape = (n_samples, n_features)
+        """
+        raise NotImplementedError()
+
+
 class ClusteringMixin:
     """
-    Clustering mixin for all clusterers in HeAT.
+    Clustering mixin for all clusterers in Heat.
     """
 
     def fit(self, x: DNDarray):
@@ -173,7 +214,7 @@ class ClusteringMixin:
 
 class RegressionMixin:
     """
-    Mixin for all regression estimators in HeAT.
+    Mixin for all regression estimators in Heat.
     """
 
     def fit(self, x: DNDarray, y: DNDarray):
@@ -226,6 +267,18 @@ def is_classifier(estimator: object) -> bool:
         Estimator object to test.
     """
     return isinstance(estimator, ClassificationMixin)
+
+
+def is_transformer(estimator: object) -> bool:
+    """
+    Return ``True`` if the given estimator is a transformer, ``False`` otherwise.
+
+    Parameters
+    ----------
+    estimator : object
+        Estimator object to test.
+    """
+    return isinstance(estimator, TransformMixin)
 
 
 def is_estimator(estimator: object) -> bool:
