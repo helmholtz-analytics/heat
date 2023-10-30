@@ -1107,10 +1107,10 @@ class TestArithmetics(TestCase):
         underlying_split_torch_tensor = self.a_split_tensor.larray
 
         # Single element split
-        a = ht.array([2, 4], split=0)
-        b = ht.array([2], split=0)
+        a = ht.array([2.0, 4.0], split=0)
+        b = ht.array([2.0], split=0)
         a /= b
-        self.assertTrue(ht.equal(a, ht.array([1, 2])))
+        self.assertTrue(ht.equal(a, ht.array([1.0, 2.0])))
         if a.comm.size > 1:
             if a.comm.rank < 2:
                 self.assertEqual(a.larray.size()[0], 1)
