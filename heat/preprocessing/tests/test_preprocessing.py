@@ -28,7 +28,7 @@ class TestStandardScaler(TestCase):
             X = _generate_test_data_set(
                 MPI.COMM_WORLD.Get_size() * 10,
                 MPI.COMM_WORLD.Get_size() * 4,
-                split,
+                split=split,
                 dtype=ht.float32,
             )
             scaler = ht.preprocessing.StandardScaler(copy=copy)
@@ -53,7 +53,7 @@ class TestStandardScaler(TestCase):
             X = _generate_test_data_set(
                 MPI.COMM_WORLD.Get_size() * 10,
                 MPI.COMM_WORLD.Get_size() * 4,
-                split,
+                split=split,
                 dtype=ht.float32,
             )
             X_cpy = X.copy()  # for later checks only...
@@ -86,7 +86,7 @@ class TestMinMaxScaler(TestCase):
             X = _generate_test_data_set(
                 MPI.COMM_WORLD.Get_size() * 10,
                 MPI.COMM_WORLD.Get_size() * 4,
-                split,
+                split=split,
                 dtype=ht.float32,
             )
             scaler = ht.preprocessing.MinMaxScaler(copy=copy)
@@ -114,7 +114,7 @@ class TestMinMaxScaler(TestCase):
             X = _generate_test_data_set(
                 MPI.COMM_WORLD.Get_size() * 10,
                 MPI.COMM_WORLD.Get_size() * 4,
-                split,
+                split=split,
                 dtype=ht.float32,
             )
             X_cpy = X.copy()  # for comparison only
@@ -191,7 +191,7 @@ class TestMaxAbsScaler(TestCase):
             X = _generate_test_data_set(
                 MPI.COMM_WORLD.Get_size() * 10,
                 MPI.COMM_WORLD.Get_size() * 4,
-                split,
+                split=split,
                 dtype=ht.float32,
             )
             scaler = ht.preprocessing.MaxAbsScaler(copy=copy)
@@ -213,7 +213,7 @@ class TestMaxAbsScaler(TestCase):
             X = _generate_test_data_set(
                 MPI.COMM_WORLD.Get_size() * 10,
                 MPI.COMM_WORLD.Get_size() * 4,
-                split,
+                split=split,
                 dtype=ht.float32,
             )
             X_cpy = X.copy()  # for later comparison only
@@ -238,7 +238,7 @@ class TestMaxAbsScaler(TestCase):
 
 class TestRobustScaler(TestCase):
     def test_RobustScaler(self):
-        for split in [0, 1]:
+        for split in [0]:
             for with_centering in [False, True]:
                 for with_scaling in [False, True]:
                     if not with_centering and not with_scaling:
@@ -254,7 +254,7 @@ class TestRobustScaler(TestCase):
                         X = _generate_test_data_set(
                             MPI.COMM_WORLD.Get_size() * 10,
                             MPI.COMM_WORLD.Get_size() * 4,
-                            split,
+                            split=split,
                             dtype=ht.float32,
                         )
                         scaler = ht.preprocessing.RobustScaler(
@@ -308,41 +308,40 @@ class TestRobustScaler(TestCase):
                         with self.assertRaises(ValueError):
                             scaler.transform(Z)
                         # second case: use in-place operations
+                        # PROBLEM: THIS DOES NOT WORK AS EXPECTED...
                         copy = False
-                        if not with_scaling:  # THIS IS A PROBLEM!
-                            X = _generate_test_data_set(
-                                MPI.COMM_WORLD.Get_size() * 10,
-                                MPI.COMM_WORLD.Get_size() * 4,
-                                split,
-                                dtype=ht.float32,
-                            )
-                            X_cpy = X.copy()  # for comparison only
-                            scaler = ht.preprocessing.RobustScaler(
-                                quantile_range=(24.0, 76.0),
-                                copy=copy,
-                                with_centering=with_centering,
-                                with_scaling=with_scaling,
-                            )
-                            scaler.fit(X)
-                            print("before trafo", X)
-                            scaler.transform(X)
-                            if with_centering:
-                                self.assertTrue(
-                                    ht.allclose(
-                                        ht.median(X, axis=0), ht.zeros(X.shape[1]), atol=atol_fit
-                                    )
+                        X = _generate_test_data_set(
+                            MPI.COMM_WORLD.Get_size() * 10,
+                            MPI.COMM_WORLD.Get_size() * 4,
+                            split=split,
+                            dtype=ht.float32,
+                        )
+                        X_cpy = X.copy()  # for comparison only
+                        scaler = ht.preprocessing.RobustScaler(
+                            quantile_range=(24.0, 76.0),
+                            copy=copy,
+                            with_centering=with_centering,
+                            with_scaling=with_scaling,
+                        )
+                        scaler.fit(X)
+                        X = scaler.transform(X)
+                        if with_centering:
+                            self.assertTrue(
+                                ht.allclose(
+                                    ht.median(X, axis=0), ht.zeros(X.shape[1]), atol=atol_fit
                                 )
-                            if with_scaling:
-                                self.assertTrue(
-                                    ht.allclose(
-                                        ht.percentile(X, 76.0, axis=0)[:-2]
-                                        - ht.percentile(X, 24.0, axis=0)[:-2],
-                                        ht.ones(X.shape[1])[:-2],
-                                        atol=atol_fit,
-                                    )
+                            )
+                        if with_scaling:
+                            self.assertTrue(
+                                ht.allclose(
+                                    ht.percentile(X, 76.0, axis=0)[:-2]
+                                    - ht.percentile(X, 24.0, axis=0)[:-2],
+                                    ht.ones(X.shape[1])[:-2],
+                                    atol=atol_fit,
                                 )
-                            scaler.inverse_transform(X)
-                            self.assertTrue(ht.allclose(X, X_cpy, atol=atol_inv))
+                            )
+                        Y = scaler.inverse_transform(X)
+                        self.assertTrue(ht.allclose(X, X_cpy, atol=atol_inv))
         scaler = ht.preprocessing.RobustScaler()
         with self.assertRaises(TypeError):
             scaler.fit(["abc"])

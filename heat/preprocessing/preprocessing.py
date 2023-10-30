@@ -570,7 +570,7 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
             X -= self.center_
         if self.with_scaling:
             X *= self.scale_
-        return self
+        return X
 
     def inverse_transform(self, Y: ht.DNDarray) -> Union[Self, ht.DNDarray]:
         """
@@ -598,4 +598,4 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
             Y /= self.scale_
         if self.with_centering:
             Y += self.center_
-        return self
+        return Y
