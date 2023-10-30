@@ -23,29 +23,57 @@ def _generate_test_data_set(n_data_points, n_features, split, dtype=ht.float32):
 class TestStandardScaler(TestCase):
     def test_StandardScaler(self):
         for split in [0, 1]:
-            for copy in [True]:
-                X = _generate_test_data_set(
-                    MPI.COMM_WORLD.Get_size() * 10,
-                    MPI.COMM_WORLD.Get_size() * 4,
-                    split,
-                    dtype=ht.float32,
-                )
-                scaler = ht.preprocessing.StandardScaler(copy=copy)
-                scaler.fit(X)
-                Y = scaler.transform(X)
-                self.assertTrue(ht.allclose(Y.mean(axis=0), ht.zeros(Y.shape[1]), atol=atol_fit))
-                # last two features have variance 0 and are not scaled therefore
-                self.assertTrue(
-                    ht.allclose(Y.var(axis=0)[:-2], ht.ones(Y.shape[1])[:-2], atol=atol_fit)
-                )
-                self.assertTrue(ht.allclose(Y.var(axis=0)[-2:], ht.zeros(2), atol=atol_fit))
-                Y = scaler.inverse_transform(Y)
-                self.assertTrue(ht.allclose(Y, X, atol=atol_inv))
-                Z = ht.zeros(
-                    (MPI.COMM_WORLD.Get_size() * 10, MPI.COMM_WORLD.Get_size() * 2), split=split
-                )
-                with self.assertRaises(ValueError):
-                    scaler.transform(Z)
+            # first option: with copy = True
+            copy = True
+            X = _generate_test_data_set(
+                MPI.COMM_WORLD.Get_size() * 10,
+                MPI.COMM_WORLD.Get_size() * 4,
+                split,
+                dtype=ht.float32,
+            )
+            scaler = ht.preprocessing.StandardScaler(copy=copy)
+            scaler.fit(X)
+            Y = scaler.transform(X)
+            self.assertTrue(ht.allclose(Y.mean(axis=0), ht.zeros(Y.shape[1]), atol=atol_fit))
+            # last two features have variance 0 and are not scaled therefore
+            self.assertTrue(
+                ht.allclose(Y.var(axis=0)[:-2], ht.ones(Y.shape[1])[:-2], atol=atol_fit)
+            )
+            self.assertTrue(ht.allclose(Y.var(axis=0)[-2:], ht.zeros(2), atol=atol_fit))
+            Y = scaler.inverse_transform(Y)
+            self.assertTrue(ht.allclose(Y, X, atol=atol_inv))
+            Z = ht.zeros(
+                (MPI.COMM_WORLD.Get_size() * 10, MPI.COMM_WORLD.Get_size() * 2), split=split
+            )
+            with self.assertRaises(ValueError):
+                scaler.transform(Z)
+
+            # second option: copy = False
+            copy = False
+            X = _generate_test_data_set(
+                MPI.COMM_WORLD.Get_size() * 10,
+                MPI.COMM_WORLD.Get_size() * 4,
+                split,
+                dtype=ht.float32,
+            )
+            X_cpy = X.copy()  # for later checks only...
+            scaler = ht.preprocessing.StandardScaler(copy=copy)
+            scaler.fit(X)
+            xla = X.larray
+            print(xla)
+            scaler.transform(X)
+            print(xla)
+            self.assertTrue(ht.allclose(X.mean(axis=0), ht.zeros(X.shape[1]), atol=atol_fit))
+            # last two features have variance 0 and are not scaled therefore
+            self.assertTrue(
+                ht.allclose(X.var(axis=0)[:-2], ht.ones(X.shape[1])[:-2], atol=atol_fit)
+            )
+            self.assertTrue(ht.allclose(X.var(axis=0)[-2:], ht.zeros(2), atol=atol_fit))
+            print(xla)
+            scaler.inverse_transform(X)
+            print(xla)
+            self.assertTrue(ht.allclose(X, X_cpy, atol=atol_inv))
+
         scaler = ht.preprocessing.StandardScaler()
         with self.assertRaises(TypeError):
             scaler.fit(["abc"])

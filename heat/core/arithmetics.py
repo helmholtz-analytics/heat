@@ -1169,8 +1169,8 @@ def idiv(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_div_, t1, t2)
 
 
-DNDarray.__idiv__ = lambda self, other: idiv(self, other)
-DNDarray.__idiv__.__doc__ = idiv.__doc__
+DNDarray.__itruediv__ = lambda self, other: idiv(self, other)
+DNDarray.__itruediv__.__doc__ = idiv.__doc__
 
 # Alias support
 idivide = idiv
