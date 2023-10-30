@@ -677,7 +677,7 @@ class TestArithmetics(TestCase):
         a = ht.full((2, 4), 2, dtype=ht.int32)  # reset
 
         # Alias
-        ht.cumprod_uct(a, 1)
+        ht.cumproduct_(a, 1)
         self.assertTrue(ht.equal(a, result))
 
         a = ht.full((4, 2), 2, dtype=ht.int64, split=0)
@@ -866,6 +866,11 @@ class TestArithmetics(TestCase):
         append_wrong_shape = ht.ones(ht_array.gshape)
         with self.assertRaises(ValueError):
             ht.diff(ht_array, axis=0, append=append_wrong_shape)
+
+    def test_diff_(self):
+        ht_array = ht.random.rand(20, 20, 20, split=None)
+        with self.assertRaises(NotImplementedError):
+            ht.diff_(ht_array, n=2)
 
     def test_div(self):
         result = ht.array([[0.5, 1.0], [1.5, 2.0]])
@@ -1833,6 +1838,12 @@ class TestArithmetics(TestCase):
         ht.nanprod(shape_noaxis_split, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, np.math.factorial(10))
 
+    def test_nanprod_(self):
+        shape_noaxis = ht.zeros(array_len)
+        shape_noaxis[0] = ht.nan
+        with self.assertRaises(NotImplementedError):
+            ht.nanprod_(shape_noaxis)
+
     def test_nansum(self):
         array_len = 11
 
@@ -1869,6 +1880,12 @@ class TestArithmetics(TestCase):
         out_noaxis = ht.array(0, dtype=shape_noaxis_split.dtype)
         ht.nansum(shape_noaxis_split, out=out_noaxis)
         self.assertEqual(out_noaxis.larray, 55)
+
+    def test_nansum_(self):
+        shape_noaxis = ht.ones(array_len)
+        shape_noaxis[0] = ht.nan
+        with self.assertRaises(NotImplementedError):
+            ht.nansum_(shape_noaxis)
 
     def test_neg(self):
         self.assertTrue(ht.equal(ht.neg(ht.array([-1, 1])), ht.array([1, -1])))
@@ -1907,7 +1924,7 @@ class TestArithmetics(TestCase):
         self.assertTrue(torch.equal(int_vector.larray, underlying_int_torch_tensor))
 
         a = ht.array([1 + 1j, 2 - 2j, 3, 4j, 5], split=0)
-        ht.neg_ative(a)
+        ht.negative_(a)
         self.assertTrue(ht.equal(a, ht.array([-1 - 1j, -2 + 2j, -3, -4j, -5], split=0)))
 
         # test function with wrong inputs
@@ -1934,6 +1951,13 @@ class TestArithmetics(TestCase):
 
         with self.assertRaises(TypeError):
             ht.pos(1)
+
+    def test_pos_(self):
+        a = ht.array([-1, 1])
+        with self.assertRaises(NotImplementedError):
+            ht.pos_(a)
+        with self.assertRaises(NotImplementedError):
+            ht.positive_(a)
 
     def test_pow(self):
         result = ht.array([[1.0, 4.0], [9.0, 16.0]])
@@ -2122,6 +2146,12 @@ class TestArithmetics(TestCase):
             ht.ones((4, 4)).prod(axis=0, out=out_noaxis)
         with self.assertRaises(TypeError):
             ht.ones(array_len).prod(axis="bad_axis_type")
+
+    def test_prod_(self):
+        array_len = 11
+        shape_noaxis = ht.ones(array_len)
+        with self.assertRaises(NotImplementedError):
+            shape_noaxis.prod_()
 
     def test_right_shift(self):
         int_tensor = ht.array([[0, 1], [2, 3]])
@@ -2381,6 +2411,12 @@ class TestArithmetics(TestCase):
             ht.ones((4, 4)).sum(axis=0, out=out_noaxis)
         with self.assertRaises(TypeError):
             ht.ones(array_len).sum(axis="bad_axis_type")
+
+    def test_sum_(self):
+        array_len = 11
+        shape_noaxis = ht.ones(array_len)
+        with self.assertRaises(NotImplementedError):
+            shape_noaxis.sum_()
 
     def test_right_hand_side_operations(self):
         """

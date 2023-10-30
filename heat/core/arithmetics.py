@@ -46,6 +46,7 @@ __all__ = [
     "cumsum",
     "cumsum_",
     "diff",
+    "diff_"
     "div",
     "div_",
     "divide",
@@ -74,26 +75,32 @@ __all__ = [
     "nan_to_num",
     "nan_to_num_",
     "nanprod",
+    "nanprod_",
     "nansum",
+    "nansum_",
     "neg",
     "neg_",
     "negative",
     "negative_",
     "pos",
+    "pos_"
     "positive",
+    "positive_",
     "pow",
     "pow_",
     "power",
     "power_",
     "prod",
+    "prod_",
     "remainder",
     "remainder_",
     "right_shift",
     "sub",
     "sub_",
     "subtract",
-    "substract_",
+    "subtract_",
     "sum",
+    "sum_",
 ]
 
 
@@ -916,6 +923,31 @@ def diff(
     ret = ret[tuple(axis_slice_end)]  # slice off the last element on the array (nonsense data)
     ret.balance_()  # balance the array before returning
     return ret
+
+
+def diff_(a: DNDarray, n: int = 1, axis: int = -1)-> DNDarray:
+    """
+    In-place version of `diff`. Not implemented as this is not an element-wise operation and there 
+    is no in-place version of `diff` in PyTorch.
+    
+    Calculate the n-th discrete difference along the given axis.
+    The first difference is given by ``out[i]=a[i+1]-a[i]`` along the given axis, higher differences
+    are calculated by using diff_ recursively. The shape of the output is the same as ``a`` except
+    along axis where the dimension is smaller by ``n``. The datatype of the output is the same as
+    the datatype of the difference between any two elements of ``a``. The split does not change. The
+    output array is balanced.
+
+    Parameters
+    -------
+    a : DNDarray
+        Input array
+    n : int, optional
+        The number of times values are differenced. If zero, the input is returned as-is.
+        ``n=2`` is equivalent to ``diff_(diff_(a))``
+    axis : int, optional
+        The axis along which the difference is taken, default is the last axis.
+    """
+    raise NotImplementedError("Not implemented as this is not an element-wise operation and there is no in-place version of `diff` in PyTorch.")
 
 
 def div(
@@ -1802,16 +1834,17 @@ def nanprod(
     a : DNDarray
         Input array.
     axis : None or int or Tuple[int,...], optional
-        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate the product of all the
-        elements in the input array. If axis is negative it counts from the last to the first axis.
-        If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple instead of a single
-        axis or all the axes as before.
+        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate 
+        the product of all the elements in the input array. If axis is negative it counts from the 
+        last to the first axis.
+        If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple
+        instead of a single axis or all the axes as before.
     out : DNDarray, optional
-        Alternative output array in which to place the result. It must have the same shape as the expected output, but
-        the datatype of the output values will be cast if necessary.
+        Alternative output array in which to place the result. It must have the same shape as the 
+        expected output, but the datatype of the output values will be cast if necessary.
     keepdims : bool, optional
-        If this is set to ``True``, the axes which are reduced are left in the result as dimensions with size one. With this
-        option, the result will broadcast correctly against the input array.
+        If this is set to ``True``, the axes which are reduced are left in the result as dimensions 
+        with size one. With this option, the result will broadcast correctly against the input array.
 
     Examples
     --------
@@ -1832,6 +1865,27 @@ def nanprod(
     return _operations.__reduce_op(
         b, torch.prod, MPI.PROD, axis=axis, out=out, neutral=1, keepdims=keepdims
     )
+
+
+def nanprod_(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None)-> DNDarray:
+    """
+    In-place version of `nanprod`. Not implemented as this is not an element-wise operation and 
+    there is no in-place version of `nanprod` in PyTorch.
+    
+    Return the product of array elements over a given axis treating Not a Numbers (NaNs) as one.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate 
+        the product of all the elements in the input array. If axis is negative it counts from the 
+        last to the first axis.
+        If axis is a tuple of ints, a product is performed on all of the axes specified in the tuple
+        instead of a single axis or all the axes as before.
+    """
+    raise NotImplementedError("Not implemented as this is not an element-wise operation and there is no in-place version of `nanprod` in PyTorch.")
 
 
 def nansum(
@@ -1877,6 +1931,28 @@ def nansum(
     return _operations.__reduce_op(
         a, torch.nansum, MPI.SUM, axis=axis, out=out, neutral=0, keepdims=keepdims
     )
+
+
+def nansum_(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None)-> DNDarray:
+    """
+    In-place version of `nansum`. Not implemented as this is not an element-wise operation and 
+    there is no in-place version of `nansum` in PyTorch.
+    
+    Sum of array elements over a given axis treating Not a Numbers (NaNs) as zero. An array with the
+    same shape as ``self.__array`` except for the specified axis which becomes one, e.g.
+    ``a.shape=(1, 2, 3)`` => ``ht.ones((1, 2, 3)).sum(axis=1).shape=(1, 1, 3)``
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the
+        elements of the input array. If ``axis`` is negative it counts from the last to the first
+        axis. If ``axis`` is a tuple of ints, a sum is performed on all of the axes specified in the
+        tuple instead of a single axis or all the axes as before.
+    """
+    raise NotImplementedError("Not implemented as this is not an element-wise operation and there is no in-place version of `nansum` in PyTorch.")
 
 
 def neg(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
@@ -1989,6 +2065,27 @@ DNDarray.__pos__.__doc__ = pos.__doc__
 # Alias in compliance with numpy API
 positive = pos
 """Alias for :py:func:`pos`"""
+
+
+def pos_(a: DNDarray, n: int = 1, axis: int = -1)-> DNDarray:
+    """
+    In-place version of `pos`. Not implemented as there is no in-place version of `pos` in PyTorch.
+    
+    Element-wise positive of `a`.
+
+    Parameters
+    ----------
+    a:   DNDarray
+         The input array.
+    out: DNDarray, optional
+         The output array. It must have a shape that the inputs broadcast to.
+    """
+    raise NotImplementedError("Not implemented as there is no in-place version of `pos` in PyTorch.")
+
+
+# Alias
+positive_ = pos_
+"""Alias for :py:func:`pos_`"""
 
 
 def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
@@ -2180,6 +2277,27 @@ def prod(
 
 DNDarray.prod = lambda self, axis=None, out=None, keepdims=None: prod(self, axis, out, keepdims)
 DNDarray.prod.__doc__ = prod.__doc__
+
+
+def prod_(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None)-> DNDarray:
+    """
+    In-place version of `rod`. Not implemented as this is not an element-wise operation and there is
+    no in-place version of `prod` in PyTorch.
+    
+    Return the product of array elements over a given axis in form of a DNDarray shaped as a but
+    with the specified axis removed.
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis or axes along which a product is performed. The default, ``axis=None``, will calculate
+        the product of all the elements in the input array. If axis is negative it counts from the
+        last to the first axis. If axis is a tuple of ints, a product is performed on all of the
+        axes specified in the tuple instead of a single axis or all the axes as before.
+    """
+    raise NotImplementedError("Not implemented as this is not an element-wise operation and there is no in-place version of `prod` in PyTorch.")
 
 
 def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
@@ -2410,7 +2528,7 @@ DNDarray.__isub__ = lambda self, other: sub_(self, other)
 DNDarray.__isub__.__doc__ = sub_.__doc__
 
 # Alias support
-substract_ = sub_
+subtract_ = sub_
 """Alias for :py:func:`sub_`"""
 
 
@@ -2461,3 +2579,25 @@ def sum(
 
 
 DNDarray.sum = lambda self, axis=None, out=None, keepdims=None: sum(self, axis, out, keepdims)
+
+
+def sum_(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None)-> DNDarray:
+    """
+    In-place version of `sum`. Not implemented as this is not an element-wise operation and there is
+    no in-place version of `sum` in PyTorch.
+    
+    Sum of array elements over a given axis. An array with the same shape as ``self.__array`` except
+    for the specified axis which becomes one, e.g.
+    ``a.shape=(1, 2, 3)`` => ``ht.ones((1, 2, 3)).sum(axis=1).shape=(1, 1, 3)``
+
+    Parameters
+    ----------
+    a : DNDarray
+        Input array.
+    axis : None or int or Tuple[int,...], optional
+        Axis along which a sum is performed. The default, ``axis=None``, will sum all of the
+        elements of the input array. If ``axis`` is negative it counts from the last to the first
+        axis. If ``axis`` is a tuple of ints, a sum is performed on all of the axes specified in the
+        tuple instead of a single axis or all the axes as before.
+    """
+    raise NotImplementedError("Not implemented as this is not an element-wise operation and there is no in-place version of `sum` in PyTorch.")
