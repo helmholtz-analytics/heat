@@ -2073,7 +2073,7 @@ positive = pos
 """Alias for :py:func:`pos`"""
 
 
-def pos_(a: DNDarray, n: int = 1, axis: int = -1) -> DNDarray:
+def pos_(a: DNDarray) -> DNDarray:
     """
     In-place version of `pos`. Not implemented as there is no in-place version of `pos` in PyTorch.
 
@@ -2083,8 +2083,6 @@ def pos_(a: DNDarray, n: int = 1, axis: int = -1) -> DNDarray:
     ----------
     a:   DNDarray
          The input array.
-    out: DNDarray, optional
-         The output array. It must have a shape that the inputs broadcast to.
     """
     raise NotImplementedError(
         "Not implemented as there is no in-place version of `pos` in PyTorch."
