@@ -1839,7 +1839,7 @@ class TestArithmetics(TestCase):
         self.assertEqual(out_noaxis.larray, np.math.factorial(10))
 
     def test_nanprod_(self):
-        shape_noaxis = ht.zeros(array_len)
+        shape_noaxis = ht.zeros(11)
         shape_noaxis[0] = ht.nan
         with self.assertRaises(NotImplementedError):
             ht.nanprod_(shape_noaxis)
@@ -1882,7 +1882,7 @@ class TestArithmetics(TestCase):
         self.assertEqual(out_noaxis.larray, 55)
 
     def test_nansum_(self):
-        shape_noaxis = ht.ones(array_len)
+        shape_noaxis = ht.ones(11)
         shape_noaxis[0] = ht.nan
         with self.assertRaises(NotImplementedError):
             ht.nansum_(shape_noaxis)
@@ -2151,7 +2151,7 @@ class TestArithmetics(TestCase):
         array_len = 11
         shape_noaxis = ht.ones(array_len)
         with self.assertRaises(NotImplementedError):
-            shape_noaxis.prod_()
+            ht.prod_(shape_noaxis)
 
     def test_right_shift(self):
         int_tensor = ht.array([[0, 1], [2, 3]])
@@ -2416,7 +2416,7 @@ class TestArithmetics(TestCase):
         array_len = 11
         shape_noaxis = ht.ones(array_len)
         with self.assertRaises(NotImplementedError):
-            shape_noaxis.sum_()
+            ht.sum_(shape_noaxis)
 
     def test_right_hand_side_operations(self):
         """
