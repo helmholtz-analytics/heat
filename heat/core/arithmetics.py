@@ -102,7 +102,7 @@ def add(
     --------
     >>> import heat as ht
     >>> ht.add(1.0, 4.0)
-    DNDarray([5.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(5., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.add(T1, T2)
@@ -161,9 +161,9 @@ def bitwise_and(
     Examples
     --------
     >>> ht.bitwise_and(13, 17)
-    DNDarray([1], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(1, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(14, 13)
-    DNDarray([12], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(12, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([14,3]), 13)
     DNDarray([12,  1], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_and(ht.array([11,7]), ht.array([4,25]))
@@ -227,9 +227,9 @@ def bitwise_or(
     Examples
     --------
     >>> ht.bitwise_or(13, 16)
-    DNDarray([29], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(29, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(32, 2)
-    DNDarray([34], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(34, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([33, 4]), 1)
     DNDarray([33,  5], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_or(ht.array([33, 4]), ht.array([1, 2]))
@@ -296,9 +296,9 @@ def bitwise_xor(
     Examples
     --------
     >>> ht.bitwise_xor(13, 17)
-    DNDarray([28], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(28, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(31, 5)
-    DNDarray([26], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(26, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(ht.array([31,3]), 5)
     DNDarray([26,  6], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(ht.array([31,3]), ht.array([5,6]))
@@ -606,7 +606,7 @@ def div(
     Example
     ---------
     >>> ht.div(2.0, 2.0)
-    DNDarray([1.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(1., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.div(T1, T2)
@@ -679,7 +679,7 @@ def divmod(
     Examples
     --------
     >>> ht.divmod(2.0, 2.0)
-    (DNDarray([1.], dtype=ht.float32, device=cpu:0, split=None), DNDarray([0.], dtype=ht.float32, device=cpu:0, split=None))
+    (DNDarray(1., dtype=ht.float32, device=cpu:0, split=None), DNDarray(0., dtype=ht.float32, device=cpu:0, split=None))
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.divmod(T1, T2)
@@ -759,7 +759,7 @@ def fmod(
     Examples
     --------
     >>> ht.fmod(2.0, 2.0)
-    DNDarray([0.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(0., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.fmod(T1, T2)
@@ -1088,7 +1088,7 @@ def mod(
     Examples
     --------
     >>> ht.mod(2, 2)
-    DNDarray([0], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(0, dtype=ht.int64, device=cpu:0, split=None)
     >>> T1 = ht.int32([[1, 2], [3, 4]])
     >>> T2 = ht.int32([[2, 2], [2, 2]])
     >>> ht.mod(T1, T2)
@@ -1147,7 +1147,7 @@ def mul(
     Examples
     --------
     >>> ht.mul(2.0, 4.0)
-    DNDarray([8.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(8., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> s = 3.0
     >>> ht.mul(T1, s)
@@ -1250,11 +1250,11 @@ def nanprod(
     Examples
     --------
     >>> ht.nanprod(ht.array([4.,ht.nan]))
-    DNDarray([4.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(4., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.nanprod(ht.array([
         [1.,ht.nan],
         [3.,4.]]))
-    DNDarray([24.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(24., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.nanprod(ht.array([
         [1.,ht.nan],
         [ht.nan,4.]
@@ -1297,11 +1297,11 @@ def nansum(
     Examples
     --------
     >>> ht.sum(ht.ones(2))
-    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(2., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)))
-    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)).astype(ht.int))
-    DNDarray([9], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(9, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,2,1)), axis=-3)
     DNDarray([[3.],
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -1416,7 +1416,7 @@ def pow(
     Examples
     --------
     >>> ht.pow (3.0, 2.0)
-    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[3, 3], [2, 2]])
     >>> ht.pow(T1, T2)
@@ -1510,11 +1510,11 @@ def prod(
     Examples
     --------
     >>> ht.prod(ht.array([1.,2.]))
-    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(2., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.prod(ht.array([
         [1.,2.],
         [3.,4.]]))
-    DNDarray([24.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(24., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.prod(ht.array([
         [1.,2.],
         [3.,4.]
@@ -1561,7 +1561,7 @@ def remainder(
     Examples
     --------
     >>> ht.remainder(2, 2)
-    DNDarray([0], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(0, dtype=ht.int64, device=cpu:0, split=None)
     >>> T1 = ht.int32([[1, 2], [3, 4]])
     >>> T2 = ht.int32([[2, 2], [2, 2]])
     >>> ht.remainder(T1, T2)
@@ -1670,7 +1670,7 @@ def sub(
     Examples
     --------
     >>> ht.sub(4.0, 1.0)
-    DNDarray([3.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(3., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.sub(T1, T2)
@@ -1732,11 +1732,11 @@ def sum(
     Examples
     --------
     >>> ht.sum(ht.ones(2))
-    DNDarray([2.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(2., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)))
-    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,3)).astype(ht.int))
-    DNDarray([9], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(9, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.sum(ht.ones((3,2,1)), axis=-3)
     DNDarray([[3.],
               [3.]], dtype=ht.float32, device=cpu:0, split=None)
