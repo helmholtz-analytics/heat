@@ -1529,9 +1529,29 @@ class TestArithmetics(TestCase):
         self.assertTrue(res == 4)
 
     def test_left_shift_(self):
-        """
-        Needs to be written.
-        """
+        result = ht.array([[0, 1], [1, 2]])
+        
+        # Check for every possible combination of inputs whether the right solution is computed and
+        # saved in the right place and whether the second input stays unchanged. After every tested
+        # computation, we reset changed variables.
+        self.assertTrue(ht.equal(ht.add_(self.a_tensor, self.a_scalar), result))  # test result
+        self.assertTrue(ht.equal(self.a_tensor, result))  # test in-place
+        self.assertTrue(torch.equal(self.a_tensor.larray, underlying_torch_tensor))  # test in-place
+        self.assertTrue(
+            ht.equal(self.a_scalar, ht.float32(2.0))
+        )  # test if other input is unchanged
+        self.a_tensor.larray = ht.array([[1.0, 2.0], [3.0, 4.0]]).larray  # reset
+        underlying_torch_tensor = self.a_tensor.larray  # reset
+        ############################################################################################
+
+        self.assertTrue(ht.equal(ht.left_shift(self.an_int_tensor, 1), int_result))
+        self.assertTrue(ht.equal(ht.left_shift(int_tensor.copy().resplit_(0), 1), int_result))
+
+        with self.assertRaises(TypeError):
+            ht.left_shift(int_tensor, 2.4)
+        res = ht.left_shift(ht.array([True]), 2)
+        self.assertTrue(res == 4)
+        ############################################################################################
 
     def test_mod(self):
         a_tensor = ht.array([[1, 4], [2, 2]])
@@ -1545,7 +1565,7 @@ class TestArithmetics(TestCase):
 
     def test_mod_(self):
         """
-        As mod_ only calls remainder_ we don't need another test for remainder_.
+        As mod_ only calls `remainder_` we don't need another test for `remainder_`.
         """
 
         another_int_tensor = ht.array([[1, 4], [2, 2]])
