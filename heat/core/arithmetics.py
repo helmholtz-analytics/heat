@@ -1634,12 +1634,11 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         )
 
     dtypes = (heat_type_of(t1), heat_type_of(t2))
-    arrs = [t1, t2]
     for dt in range(2):
         if heat_type_is_inexact(dtypes[dt]):
             raise TypeError("Operation is not supported for float types")
         elif dtypes[dt] == types.bool:
-            arrs[dt] = types.int(arrs[dt])
+            raise TypeError("Operation is not supported for boolean types")
 
     def wrap_bitwise_left_shift_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.bitwise_left_shift_(b)
@@ -2522,12 +2521,11 @@ def right_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         )
 
     dtypes = (heat_type_of(t1), heat_type_of(t2))
-    arrs = [t1, t2]
     for dt in range(2):
         if heat_type_is_inexact(dtypes[dt]):
             raise TypeError("Operation is not supported for float types")
         elif dtypes[dt] == types.bool:
-            arrs[dt] = types.int(arrs[dt])
+            raise TypeError("Operation is not supported for boolean types")
 
     def wrap_bitwise_right_shift_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.bitwise_right_shift_(b)
