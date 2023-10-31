@@ -1631,7 +1631,7 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
             + str(type(t2))
             + "."
         )
-    
+
     dtypes = (heat_type_of(t1), heat_type_of(t2))
     arrs = [t1, t2]
     for dt in range(2):
