@@ -96,6 +96,7 @@ __all__ = [
     "remainder",
     "remainder_",
     "right_shift",
+    "right_shift_",
     "sub",
     "sub_",
     "subtract",
@@ -2485,6 +2486,57 @@ def right_shift(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
 
 DNDarray.__rshift__ = lambda self, other: right_shift(self, other)
 DNDarray.__rshift__.__doc__ = right_shift.__doc__
+
+
+def right_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    Shift the bits of an integer in-place to the right.
+
+    Parameters
+    ----------
+    t1: DNDarray
+        Input array
+    t2: DNDarray or float
+        Integer number of zero bits to remove
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> T = ht.array([1,2,3])
+    >>> s = 1
+    >>> ht.right_shift_(T, s)
+    DNDarray([0, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T
+    DNDarray([0, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
+    >>> s
+    1
+    """
+    if not isinstance(t1, DNDarray):
+        raise TypeError(
+            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
+            + "But your inputs were from "
+            + str(type(t1))
+            + " and "
+            + str(type(t2))
+            + "."
+        )
+
+    dtypes = (heat_type_of(t1), heat_type_of(t2))
+    arrs = [t1, t2]
+    for dt in range(2):
+        if heat_type_is_inexact(dtypes[dt]):
+            raise TypeError("Operation is not supported for float types")
+        elif dtypes[dt] == types.bool:
+            arrs[dt] = types.int(arrs[dt])
+
+    def wrap_bitwise_right_shift_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+        return a.bitwise_right_shift_(b)
+
+    return _operations.__binary_op(wrap_bitwise_right_shift_, t1, t2)
+
+
+DNDarray.__irshift__ = lambda self, other: right_shift_(self, other)
+DNDarray.__irshift__.__doc__ = right_shift_.__doc__
 
 
 def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:

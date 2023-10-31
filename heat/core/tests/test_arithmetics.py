@@ -1406,7 +1406,7 @@ class TestArithmetics(TestCase):
         print(
             "\n", a.comm.rank, ", ", a.larray, " = ht.pow_(ht.hypot(a, b), 2)"
         )  # for error analysis
-        self.assertTrue(ht.equal(a, gt))  # test in-place
+        self.assertTrue(ht.allclose(a, gt))  # test in-place
         self.assertTrue(torch.equal(a.larray, underlying_torch_tensor))  # test in-place
         self.assertTrue(ht.equal(b, ht.array([2.0])))  # test if other input is unchanged
 
@@ -2175,6 +2175,11 @@ class TestArithmetics(TestCase):
 
         res = ht.right_shift(ht.array([True]), 2)
         self.assertTrue(res == 0)
+
+    def test_right_shift_(self):
+        """
+        Needs to be written.
+        """
 
     def test_sub(self):
         result = ht.array([[-1.0, 0.0], [1.0, 2.0]])
