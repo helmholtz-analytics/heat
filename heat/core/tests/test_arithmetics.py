@@ -1397,10 +1397,12 @@ class TestArithmetics(TestCase):
 
         # We identify the underlying PyTorch object to check whether operations are really in-place
         underlying_torch_tensor = a.larray
-
+        print("\n",a.comm.rank,", ",a.larray," = a")
         ht.hypot_(a, b)
-
+        print("\n",a.comm.rank,", ",a.larray," = ht.hypot_(a, b)")
+        print("\n",gt.comm.rank,", ",gt.larray," = gt")
         self.assertTrue(ht.equal(ht.pow_(a, 2), gt))  # test result
+        print("\n",a.comm.rank,", ",a.larray," = ht.pow_(ht.hypot(a, b), 2)")
         self.assertTrue(ht.equal(a, gt))  # test in-place
         self.assertTrue(torch.equal(a.larray, underlying_torch_tensor))  # test in-place
         self.assertTrue(ht.equal(b, ht.array([2.0])))  # test if other input is unchanged
