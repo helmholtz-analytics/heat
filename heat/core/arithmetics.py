@@ -143,7 +143,7 @@ DNDarray.__radd__.__doc__ = add.__doc__
 
 
 def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
-    """    
+    """
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
@@ -180,7 +180,7 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
               [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s
     2.0
-    """    
+    """
     if not isinstance(t1, DNDarray):
         raise TypeError(
             "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
