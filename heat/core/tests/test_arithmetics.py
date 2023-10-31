@@ -1530,7 +1530,7 @@ class TestArithmetics(TestCase):
 
     def test_left_shift_(self):
         result = ht.array([[0, 1], [1, 2]])
-        
+
         # Check for every possible combination of inputs whether the right solution is computed and
         # saved in the right place and whether the second input stays unchanged. After every tested
         # computation, we reset changed variables.
