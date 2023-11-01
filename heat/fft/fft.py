@@ -5,21 +5,25 @@ import torch
 from ..core.communication import MPI
 from ..core.dndarray import DNDarray
 from ..core.stride_tricks import sanitize_axis
-from ..core.types import promote_types, heat_type_of
-from ..core.factories import array, zeros
+from ..core.types import heat_type_is_exact, promote_types, heat_type_of, canonical_heat_type
+from ..core.factories import array, arange
+from ..core.devices import Device
 
 from typing import Type, Union, Tuple, Any, Iterable, Optional
 
 __all__ = [
     "fft",
     "fft2",
+    "fftfreq",
     "fftn",
+    "fftshift",
     "hfft",
     "hfft2",
     "hfftn",
     "ifft",
     "ifft2",
     "ifftn",
+    "ifftshift",
     "ihfft",
     "ihfft2",
     "ihfftn",
@@ -28,11 +32,8 @@ __all__ = [
     "irfftn",
     "rfft",
     "rfft2",
+    "rfftfreq",
     "rfftn",
-    # "fftfreq",
-    # "rfftfreq",
-    # "fftshift",
-    # "ifftshift",
 ]
 
 
@@ -149,36 +150,8 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
         raise TypeError("x must be a DNDarray, is {}".format(type(x)))
 
     original_split = x.split
-
-    # sanitize kwargs
-    s = kwargs.get("s", None)
-    if s is not None and len(s) > x.ndim:
-        raise ValueError(
-            f"Input is {x.ndim}-dimensional, so s can be at most {x.ndim} elements long. Got {len(s)} elements instead."
-        )
-    axes = kwargs.get("axes", None)
-    if axes is None:
-        if s is not None:
-            axes = tuple(range(x.ndim)[-len(s) :])
-        else:
-            axes = tuple(range(x.ndim))
-    else:
-        try:
-            axes = sanitize_axis(x.gshape, axes)
-        except ValueError as e:
-            raise IndexError(e)
-    if s is None:
-        s = tuple(x.shape[axis] for axis in axes)
-    repeated_axes = axes is not None and len(axes) != len(set(axes))
-    if repeated_axes:
-        raise NotImplementedError("Multiple transforms over the same axis not implemented yet.")
-    norm = kwargs.get("norm", None)
-
-    # calculate output shape:
-    # if operation requires real input, output size of last transformed dimension is the Nyquist frequency
     output_shape = list(x.shape)
-    for i, axis in enumerate(axes):
-        output_shape[axis] = s[i]
+    shift_op = fftn_op in [torch.fft.fftshift, torch.fft.ifftshift]
     real_to_generic_fftn_ops = {
         torch.fft.rfftn: torch.fft.fftn,
         torch.fft.rfft2: torch.fft.fft2,
@@ -186,6 +159,49 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
         torch.fft.ihfft2: torch.fft.ifft2,
     }
     real_op = fftn_op in real_to_generic_fftn_ops
+
+    # sanitize kwargs
+    if shift_op:
+        # only keyword argument `axes` is supported
+        axes = kwargs.get("axes", None)
+        if axes is None:
+            axes = tuple(range(x.ndim))
+        else:
+            try:
+                axes = sanitize_axis(x.gshape, axes)
+            except ValueError as e:
+                raise IndexError(e)
+        torch_kwargs = {"dim": axes}
+    else:
+        s = kwargs.get("s", None)
+        if s is not None and len(s) > x.ndim:
+            raise ValueError(
+                f"Input is {x.ndim}-dimensional, so s can be at most {x.ndim} elements long. Got {len(s)} elements instead."
+            )
+        axes = kwargs.get("axes", None)
+        if axes is None:
+            if s is not None:
+                axes = tuple(range(x.ndim)[-len(s) :])
+            else:
+                axes = tuple(range(x.ndim))
+        else:
+            try:
+                axes = sanitize_axis(x.gshape, axes)
+            except ValueError as e:
+                raise IndexError(e)
+        if s is None:
+            s = tuple(x.shape[axis] for axis in axes)
+        norm = kwargs.get("norm", None)
+        for i, axis in enumerate(axes):
+            output_shape[axis] = s[i]
+        torch_kwargs = {"s": s, "dim": axes, "norm": norm}
+
+    repeated_axes = axes is not None and len(axes) != len(set(axes))
+    if repeated_axes:
+        raise NotImplementedError("Multiple transforms over the same axis not implemented yet.")
+
+    # calculate output shape:
+    # if operation requires real input, output size of last transformed dimension is the Nyquist frequency
     if real_op:
         nyquist_freq = s[-1] // 2 + 1
         output_shape[axes[-1]] = nyquist_freq
@@ -201,7 +217,7 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
                 tuple(local_shape), dtype=local_x.dtype, device=local_x.device
             )
         else:
-            torch_result = fftn_op(local_x, s=s, dim=axes, norm=norm)
+            torch_result = fftn_op(local_x, **torch_kwargs)
         # for axis in axes:
         #     output_shape[axis] = torch_result.shape[axis]
         # return DNDarray(
@@ -256,11 +272,14 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     axes = list(axes)
     axes.remove(original_split)
     axes = tuple(axes)
-    if s is not None:
-        s = list(s)
-        s = s[:split_index] + s[split_index + 1 :]
-        s = tuple(s)
-    ht_result = __fftn_op(partial_ht_result, fftn_op, s=s, axes=axes, norm=norm)
+    if shift_op:
+        ht_result = __fftn_op(partial_ht_result, fftn_op, axes=axes)
+    else:
+        if s is not None:
+            s = list(s)
+            s = s[:split_index] + s[split_index + 1 :]
+            s = tuple(s)
+        ht_result = __fftn_op(partial_ht_result, fftn_op, s=s, axes=axes, norm=norm)
     del partial_ht_result
     if real_op:
         # discard elements beyond Nyquist frequency on last transformed axis
@@ -268,6 +287,61 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
         nyquist_slice[axes[-1]] = slice(0, nyquist_freq)
         ht_result = ht_result[(nyquist_slice)].balance_()
     return ht_result
+
+
+def __fftfreq_op(fftfreq_op: callable, **kwargs) -> DNDarray:
+    """
+    Helper function for fftfreq
+    """
+    n = kwargs.get("n", None)
+    d = kwargs.get("d", None)
+    dtype = kwargs.get("dtype", None)
+    split = kwargs.get("split", None)
+    device = kwargs.get("device", None)
+
+    if not isinstance(n, int):
+        raise TypeError(f"n must be an integer, is {type(n)}")
+    if not isinstance(d, (int, float)):
+        raise TypeError(f"d must be a number, is {type(d)}")
+    if dtype is not None:
+        if heat_type_is_exact(dtype):
+            raise TypeError(f"dtype must be a float or complex type, is {dtype}")
+        # extract torch dtype from heat dtype
+        try:
+            torch_dtype = dtype.torch_type()
+        except AttributeError:
+            raise TypeError(f"dtype must be a heat dtype, is {type(dtype)}")
+    else:
+        torch_dtype = None
+
+    # early out for non-distributed fftfreq
+    if split is None:
+        return array(fftfreq_op(n, d=d, dtype=torch_dtype), device=device, split=None)
+
+    # distributed fftfreq
+    if split != 0:
+        raise IndexError(f"`fftfreq` returns a 1-D array, `split` must be 0 or None, is {split}")
+
+    # calculate parameters of the global frequency spectrum
+    channel_width = array(1.0 / (n * d), dtype=dtype, device=device, split=None)
+    n_is_even = n % 2 == 0
+    if n_is_even:
+        middle_channel = n // 2
+    else:
+        middle_channel = n // 2 + 1
+
+    # allocate global fftfreq array
+    # if real operation, return only positive frequencies
+    if fftfreq_op == torch.fft.rfftfreq:
+        freqs = arange(middle_channel, dtype=dtype, device=device, split=split)
+    else:
+        freqs = arange(n, dtype=dtype, device=device, split=split)
+        # second half of fftfreq returns negative frequencies in inverse order
+        freqs[middle_channel:] -= n
+
+    # calculate global frequencies
+    freqs *= channel_width
+    return freqs
 
 
 def __real_fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
@@ -343,6 +417,50 @@ def fft2(
     return __fftn_op(x, torch.fft.fft2, s=s, axes=axes, norm=norm)
 
 
+def fftfreq(
+    n: int,
+    d: Union[int, float] = 1.0,
+    dtype: Optional[Type] = None,
+    split: Optional[int] = None,
+    device: Optional[Union[str, Device]] = None,
+) -> DNDarray:
+    """
+    Return the Discrete Fourier Transform sample frequencies.
+
+    The returned float tensor contains the frequency bin centers in cycles per unit of the sample spacing (with zero
+    at the start). For instance, if the sample spacing is in seconds, then the frequency unit is cycles/second.
+
+    Parameters
+    ----------
+    n : int
+        Window length.
+    d : Union[int, float], optional
+        Sample spacing (inverse of the sampling rate). Defaults to 1.
+    dtype : Type, optional
+        The desired data type of the output. Defaults to `float32`.
+    split : int, optional
+        The axis along which to split the result. If not given, the result is not split.
+    device : str or Device, optional
+        The device on which to place the output. If not given, the output is placed on the current device.
+
+    Returns
+    -------
+    out : DNDarray
+        Array of length `n` containing the sample frequencies.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> ht.fft.fftfreq(5, 0.1)
+    DNDarray([-2., -1.,  0.,  1.,  2.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.fft.fftfreq(5, 0.1, dtype=ht.float64)
+    DNDarray([-2., -1.,  0.,  1.,  2.], dtype=ht.float64, device=cpu:0, split=None)
+    >>> ht.fft.fftfreq(5, 0.1, split=0)
+    DNDarray([-2., -1.,  0.,  1.,  2.], dtype=ht.float32, device=cpu:0, split=0)
+    """
+    return __fftfreq_op(torch.fft.fftfreq, n=n, d=d, dtype=dtype, split=split, device=device)
+
+
 def fftn(
     x: DNDarray, s: Tuple[int, ...] = None, axes: Tuple[int, ...] = None, norm: str = None
 ) -> DNDarray:
@@ -371,6 +489,27 @@ def fftn(
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
     return __fftn_op(x, torch.fft.fftn, s=s, axes=axes, norm=norm)
+
+
+def fftshift(x: DNDarray, axes: Optional[Union[int, Iterable[int]]] = None) -> DNDarray:
+    """
+    Shift the zero-frequency component to the center of the spectrum.
+
+    This function swaps half-spaces for all axes listed (defaults to all). Note that ``y[0]`` is the Nyquist component
+    only if ``len(x)`` is even.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array
+    axes : int or Iterable[int], optional
+        Axes over which to shift. Default is None, which shifts all axes.
+
+    Notes
+    -----
+    This function requires MPI communication if the input array is distributed and the split axis is shifted.
+    """
+    return __fftn_op(x, torch.fft.fftshift, axes=axes)
 
 
 def hfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarray:
@@ -546,6 +685,25 @@ def ifftn(
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
     return __fftn_op(x, torch.fft.ifftn, s=s, axes=axes, norm=norm)
+
+
+def ifftshift(x: DNDarray, axes: Optional[Union[int, Iterable[int]]] = None) -> DNDarray:
+    """
+    TODO: reelaborate docs
+    The inverse of fftshift. Although identical for even-length x, the functions differ by one sample for odd-length x.
+
+    Parameters
+    ----------
+    x : DNDarray
+        Input array
+    axes : int or Iterable[int], optional
+        Axes over which to shift. Default is None, which shifts all axes.
+
+    Notes
+    -----
+    This function requires MPI communication if the input array is distributed and the split axis is shifted.
+    """
+    return __fftn_op(x, torch.fft.ifftshift, axes=axes)
 
 
 def ihfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarray:
@@ -759,6 +917,50 @@ def rfft2(
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
     return __real_fftn_op(x, torch.fft.rfft2, s=s, axes=axes, norm=norm)
+
+
+def rfftfreq(
+    n: int,
+    d: Union[int, float] = 1.0,
+    dtype: Optional[Type] = None,
+    split: Optional[int] = None,
+    device: Optional[Union[str, Device]] = None,
+) -> DNDarray:
+    """
+    Return the Discrete Fourier Transform sample frequencies.
+
+    The returned float tensor contains the frequency bin centers in cycles per unit of the sample spacing (with zero
+    at the start). For instance, if the sample spacing is in seconds, then the frequency unit is cycles/second.
+
+    Parameters
+    ----------
+    n : int
+        Window length.
+    d : Union[int, float], optional
+        Sample spacing (inverse of the sampling rate). Defaults to 1.
+    dtype : Type, optional
+        The desired data type of the output. Defaults to `float32`.
+    split : int, optional
+        The axis along which to split the result. If not given, the result is not split.
+    device : str or Device, optional
+        The device on which to place the output. If not given, the output is placed on the current device.
+
+    Returns
+    -------
+    out : DNDarray
+        Array of length `n` containing the sample frequencies.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> ht.fft.rfftfreq(5, 0.1)
+    DNDarray([0., 1., 2.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> ht.fft.rfftfreq(5, 0.1, dtype=ht.float64)
+    DNDarray([0., 1., 2.], dtype=ht.float64, device=cpu:0, split=None)
+    >>> ht.fft.rfftfreq(5, 0.1, split=0)
+    DNDarray([0., 1., 2.], dtype=ht.float32, device=cpu:0, split=0)
+    """
+    return __fftfreq_op(torch.fft.rfftfreq, n=n, d=d, dtype=dtype, split=split, device=device)
 
 
 def rfftn(

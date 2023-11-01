@@ -149,6 +149,45 @@ class TestFFT(TestCase):
         with self.assertRaises(ValueError):
             ht.fft.fftn(x, s=(10, 10, 10, 10))
 
+    def test_fftfreq_rfftfreq(self):
+        # non-distributed
+        n = 10
+        d = 0.1
+        y = ht.fft.fftfreq(n, d=d)
+        np_y = np.fft.fftfreq(n, d=d)
+        self.assertEqual(y.shape, np_y.shape)
+        self.assert_array_equal(y, np_y)
+
+        # distributed
+        y = ht.fft.fftfreq(n, d=d, split=0)
+        self.assertEqual(y.shape, np_y.shape)
+        self.assert_array_equal(y, np_y)
+
+        # real
+        n = 107
+        d = 0.22365
+        y = ht.fft.rfftfreq(n, d=d)
+        np_y = np.fft.rfftfreq(n, d=d)
+        self.assertEqual(y.shape, np_y.shape)
+        self.assert_array_equal(y, np_y)
+
+        # exceptions
+        # wrong input type
+        n = 10
+        d = 0.1
+        with self.assertRaises(TypeError):
+            ht.fft.fftfreq(n, d=d, dtype=ht.int32)
+
+    def test_fftshift_ifftshift(self):
+        # non-distributed
+        x = ht.fft.fftfreq(10)
+        y = ht.fft.fftshift(x)
+        np_y = np.fft.fftshift(x.numpy())
+        self.assertEqual(y.shape, np_y.shape)
+        self.assert_array_equal(y, np_y)
+        backwards = ht.fft.ifftshift(y)
+        self.assertTrue(ht.allclose(backwards, x))
+
     def test_hfft_ihfft(self):
         x = ht.zeros((3, 5), split=0, dtype=ht.float64)
         edges = [1, 3, 7]
