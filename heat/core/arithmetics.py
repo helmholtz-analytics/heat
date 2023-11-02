@@ -1650,43 +1650,6 @@ DNDarray.__ilshift__ = lambda self, other: left_shift_(self, other)
 DNDarray.__ilshift__.__doc__ = left_shift_.__doc__
 
 
-def mod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
-    """
-    Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e.
-    ``t1%t2``). Result has the same sign as the divisor ``t2``.
-    Operation is not commutative.
-    Currently ``t1`` and ``t2`` are just passed to remainder.
-
-    Parameters
-    ----------
-    t1: DNDarray or scalar
-        The first operand whose values are divided
-    t2: DNDarray or scalar
-        The second operand by whose values is divided
-
-    Examples
-    --------
-    >>> ht.mod(2, 2)
-    DNDarray([0], dtype=ht.int64, device=cpu:0, split=None)
-    >>> T1 = ht.int32([[1, 2], [3, 4]])
-    >>> T2 = ht.int32([[2, 2], [2, 2]])
-    >>> ht.mod(T1, T2)
-    DNDarray([[1, 0],
-              [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
-    >>> s = 2
-    >>> ht.mod(s, T1)
-    DNDarray([[0, 0],
-              [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
-    """
-    return remainder(t1, t2)
-
-
-DNDarray.__mod__ = lambda self, other: mod(self, other)
-DNDarray.__mod__.__doc__ = mod.__doc__
-DNDarray.__rmod__ = lambda self, other: mod(other, self)
-DNDarray.__rmod__.__doc__ = mod.__doc__
-
-
 def mul(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise multiplication (NOT matrix multiplication) of values from two operands, commutative.
@@ -2388,6 +2351,16 @@ def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarra
             [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
     """
     return _operations.__binary_op(torch.remainder, t1, t2)
+
+
+# Alias support
+mod = remainder
+"""Alias for :py:func:`remainder`"""
+
+DNDarray.__mod__ = lambda self, other: mod(self, other)
+DNDarray.__mod__.__doc__ = mod.__doc__
+DNDarray.__rmod__ = lambda self, other: mod(other, self)
+DNDarray.__rmod__.__doc__ = mod.__doc__
 
 
 def remainder_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
