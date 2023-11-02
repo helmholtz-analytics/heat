@@ -35,6 +35,9 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.add(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.add(self.a_split_tensor, self.a_tensor), result))
 
+        self.assertTrue(ht.equal(self.a_tensor + self.a_scalar, result))
+        self.assertTrue(ht.equal(self.a_scalar + self.a_tensor, result))
+
         # Single element split
         a = ht.array([1], split=0)
         b = ht.array([1, 2], split=0)
@@ -77,12 +80,23 @@ class TestArithmetics(TestCase):
         self.assertTrue((c == 1).all())
         self.assertTrue(c.lshape == b.lshape)
 
+        # out parameter, where parameter
+        a = ht.ones((2, 2), split=0)
+        b = out = ht.ones((2, 2), split=0)
+        where = ht.array([[True, False], [False, True]], split=0)
+        ht.add(a, b, out=out, where=where)
+        self.assertTrue(ht.equal(out, ht.array([[2, 1], [1, 2]])))
+        self.assertEqual(out.split, 0)
+        self.assertIs(out, b)
+
         with self.assertRaises(ValueError):
             ht.add(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.add(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.add("T", "s")
+        with self.assertRaises(TypeError):
+            self.a_tensor + "s"
 
     def test_bitwise_and(self):
         an_int_tensor = ht.array([[1, 2], [3, 4]])
@@ -103,6 +117,15 @@ class TestArithmetics(TestCase):
             ht.equal(ht.bitwise_and(an_int_tensor.copy().resplit_(0), an_int_vector), int_result)
         )
 
+        self.assertTrue(ht.equal(an_int_tensor & self.an_int_scalar, int_result))
+        self.assertTrue(ht.equal(self.an_int_scalar & an_int_tensor, int_result))
+
+        # out parameter, where parameter
+        out = ht.zeros_like(an_int_tensor)
+        where = ht.array([[True, False], [False, True]])
+        ht.bitwise_and(an_int_tensor, self.an_int_scalar, out=out, where=where)
+        self.assertTrue(ht.equal(out, ht.array([[0, 0], [0, 0]])))
+
         with self.assertRaises(TypeError):
             ht.bitwise_and(self.a_tensor, self.another_tensor)
         with self.assertRaises(ValueError):
@@ -119,6 +142,8 @@ class TestArithmetics(TestCase):
             ht.bitwise_and("s", self.an_int_scalar)
         with self.assertRaises(TypeError):
             ht.bitwise_and(self.an_int_scalar, self.a_scalar)
+        with self.assertRaises(TypeError):
+            self.a_tensor & "s"
 
     def test_bitwise_or(self):
         an_int_tensor = ht.array([[1, 2], [3, 4]])
@@ -139,6 +164,15 @@ class TestArithmetics(TestCase):
             ht.equal(ht.bitwise_or(an_int_tensor.copy().resplit_(0), an_int_vector), int_result)
         )
 
+        self.assertTrue(ht.equal(an_int_tensor | self.an_int_scalar, int_result))
+        self.assertTrue(ht.equal(self.an_int_scalar | an_int_tensor, int_result))
+
+        # out parameter, where parameter
+        out = ht.zeros_like(an_int_tensor)
+        where = ht.array([[True, False], [False, True]])
+        ht.bitwise_or(an_int_tensor, self.an_int_scalar, out=out, where=where)
+        self.assertTrue(ht.equal(out, ht.array([[3, 0], [0, 6]])))
+
         with self.assertRaises(TypeError):
             ht.bitwise_or(self.a_tensor, self.another_tensor)
         with self.assertRaises(ValueError):
@@ -155,6 +189,8 @@ class TestArithmetics(TestCase):
             ht.bitwise_or("s", self.an_int_scalar)
         with self.assertRaises(TypeError):
             ht.bitwise_or(self.an_int_scalar, self.a_scalar)
+        with self.assertRaises(TypeError):
+            self.a_tensor | "s"
 
     def test_bitwise_xor(self):
         an_int_tensor = ht.array([[1, 2], [3, 4]])
@@ -175,6 +211,15 @@ class TestArithmetics(TestCase):
             ht.equal(ht.bitwise_xor(an_int_tensor.copy().resplit_(0), an_int_vector), int_result)
         )
 
+        self.assertTrue(ht.equal(an_int_tensor ^ self.an_int_scalar, int_result))
+        self.assertTrue(ht.equal(self.an_int_scalar ^ an_int_tensor, int_result))
+
+        # out parameter, where parameter
+        out = ht.zeros_like(an_int_tensor)
+        where = ht.array([[True, False], [False, True]])
+        ht.bitwise_xor(an_int_tensor, self.an_int_scalar, out=out, where=where)
+        self.assertTrue(ht.equal(out, ht.array([[3, 0], [0, 6]])))
+
         with self.assertRaises(TypeError):
             ht.bitwise_xor(self.a_tensor, self.another_tensor)
         with self.assertRaises(ValueError):
@@ -191,6 +236,8 @@ class TestArithmetics(TestCase):
             ht.bitwise_xor("s", self.an_int_scalar)
         with self.assertRaises(TypeError):
             ht.bitwise_xor(self.an_int_scalar, self.a_scalar)
+        with self.assertRaises(TypeError):
+            self.a_tensor ^ "s"
 
     def test_copysign(self):
         a = ht.array([3, 2, -8, -2, 4])
@@ -384,6 +431,9 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.div(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.div(self.a_split_tensor, self.a_tensor), commutated_result))
 
+        self.assertTrue(ht.equal(self.a_tensor / self.a_scalar, result))
+        self.assertTrue(ht.equal(self.a_scalar / self.a_tensor, commutated_result))
+
         a = out = ht.empty((2, 2))
         ht.div(self.a_tensor, self.a_scalar, out=out)
         self.assertTrue(ht.equal(out, result))
@@ -442,6 +492,84 @@ class TestArithmetics(TestCase):
                     self.a_tensor,
                     where=ht.array([[True, False], [False, True]], split=1),
                 )
+        with self.assertRaises(TypeError):
+            self.a_tensor / "T"
+
+    def test_divmod(self):
+        # basic tests as floor_device and mod are tested separately
+        result = (
+            ht.array(
+                [
+                    [
+                        0.0,
+                        1.0,
+                    ],
+                    [1.0, 2.0],
+                ]
+            ),
+            ht.array([[1.0, 0.0], [1.0, 0.0]]),
+        )
+        dm = ht.divmod(self.a_tensor, self.a_scalar)
+
+        self.assertIsInstance(dm, tuple)
+        self.assertTrue(ht.equal(ht.divmod(self.a_tensor, self.a_scalar)[0], result[0]))
+        self.assertTrue(ht.equal(ht.divmod(self.a_tensor, self.a_scalar)[1], result[1]))
+
+        result = (ht.array([1.0, 1.0]), ht.array([0.0, 0.0]))
+        dm = divmod(self.a_scalar, self.a_vector)
+        self.assertTrue(ht.equal(dm[0], result[0]))
+        self.assertTrue(ht.equal(dm[1], result[1]))
+
+        # out parameter
+        out = (ht.empty((2, 2), split=0), ht.empty((2, 2), split=0))
+        ht.divmod(self.a_split_tensor, self.a_scalar, out=out)
+        self.assertTrue(ht.equal(out[0], ht.array([[1.0, 1.0], [1.0, 1.0]])))
+        self.assertTrue(ht.equal(out[1], ht.array([[0.0, 0.0], [0.0, 0.0]])))
+
+        with self.assertRaises(TypeError):
+            divmod(self.another_tensor, self.erroneous_type)
+        with self.assertRaises(TypeError):
+            ht.divmod(ht.zeros((2, 2)), ht.zeros((2, 2)), out=1)
+        with self.assertRaises(ValueError):
+            ht.divmod(ht.zeros((2, 2)), ht.zeros((2, 2)), out=(1, 2, 3))
+        with self.assertRaises(TypeError):
+            ht.divmod(
+                ht.zeros((2, 2)),
+                ht.zeros((2, 2)),
+                ht.empty((2, 2)),
+                ht.empty((2, 2)),
+                out=(ht.empty((2, 2)), None),
+            )
+        with self.assertRaises(TypeError):
+            ht.divmod(
+                ht.zeros((2, 2)),
+                ht.zeros((2, 2)),
+                ht.empty((2, 2)),
+                ht.empty((2, 2)),
+                out=(None, ht.empty((2, 2))),
+            )
+        with self.assertRaises(TypeError):
+            divmod(ht.zeros((2, 2)), "T")
+
+    def test_floordiv(self):
+        result = ht.array([[0.0, 1.0], [1.0, 2.0]])
+        commutated_result = ht.array([[2.0, 1.0], [0.0, 0.0]])
+
+        self.assertTrue(ht.equal(ht.floordiv(self.a_scalar, self.a_scalar), ht.float32(1.0)))
+        self.assertTrue(ht.equal(ht.floordiv(self.a_tensor, self.a_scalar), result))
+        self.assertTrue(ht.equal(ht.floordiv(self.a_scalar, self.a_tensor), commutated_result))
+        self.assertTrue(ht.equal(ht.floordiv(self.a_tensor, self.another_tensor), result))
+        self.assertTrue(ht.equal(ht.floordiv(self.a_tensor, self.a_vector), result))
+        self.assertTrue(ht.equal(ht.floordiv(self.a_tensor, self.an_int_scalar), result))
+        self.assertTrue(
+            ht.equal(ht.floordiv(self.a_split_tensor, self.a_tensor), commutated_result)
+        )
+
+        self.assertTrue(ht.equal(self.a_tensor // self.a_scalar, result))
+        self.assertTrue(ht.equal(self.a_scalar // self.a_tensor, commutated_result))
+
+        with self.assertRaises(TypeError):
+            "T" // self.a_tensor
 
     def test_fmod(self):
         result = ht.array([[1.0, 0.0], [1.0, 0.0]])
@@ -515,7 +643,7 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.invert(int8_tensor), int8_result))
         self.assertTrue(ht.equal(ht.invert(int8_tensor.copy().resplit_(0)), int8_result))
         self.assertTrue(ht.equal(ht.invert(uint8_tensor), uint8_result))
-        self.assertTrue(ht.equal(ht.invert(bool_tensor), bool_result))
+        self.assertTrue(ht.equal(~bool_tensor, bool_result))
 
         with self.assertRaises(TypeError):
             ht.invert(float_tensor)
@@ -537,15 +665,24 @@ class TestArithmetics(TestCase):
 
     def test_left_shift(self):
         int_tensor = ht.array([[0, 1], [2, 3]])
-        int_result = ht.array([[0, 2], [4, 6]])
 
-        self.assertTrue(ht.equal(ht.left_shift(int_tensor, 1), int_result))
-        self.assertTrue(ht.equal(ht.left_shift(int_tensor.copy().resplit_(0), 1), int_result))
+        self.assertTrue(ht.equal(ht.left_shift(int_tensor, 1), int_tensor * 2))
+        self.assertTrue(ht.equal(ht.left_shift(int_tensor.copy().resplit_(0), 1), int_tensor * 2))
+        self.assertTrue(ht.equal(int_tensor << 2, int_tensor * 4))
+        self.assertTrue(
+            ht.equal(1 << ht.ones(3, dtype=ht.int32), ht.array([2, 2, 2], dtype=ht.int32))
+        )
+
+        ht.left_shift(int_tensor, 1, out=int_tensor, where=int_tensor > 1)
+        self.assertTrue(ht.equal(int_tensor, ht.array([[0, 1], [4, 6]])))
 
         with self.assertRaises(TypeError):
             ht.left_shift(int_tensor, 2.4)
         res = ht.left_shift(ht.array([True]), 2)
         self.assertTrue(res == 4)
+
+        with self.assertRaises(TypeError):
+            int_tensor << "s"
 
     def test_mod(self):
         a_tensor = ht.array([[1, 4], [2, 2]])
@@ -554,8 +691,15 @@ class TestArithmetics(TestCase):
         another_result = ht.array([[1, 0], [0, 0]])
 
         self.assertTrue(ht.equal(ht.mod(a_tensor, another_tensor), a_result))
-        self.assertTrue(ht.equal(ht.mod(a_tensor, self.an_int_scalar), another_result))
-        self.assertTrue(ht.equal(ht.mod(self.an_int_scalar, another_tensor), a_result))
+        self.assertTrue(ht.equal(a_tensor % self.an_int_scalar, another_result))
+        self.assertTrue(ht.equal(self.an_int_scalar % another_tensor, a_result))
+
+        with self.assertRaises(TypeError):
+            ht.mod(a_tensor, "T")
+        with self.assertRaises(TypeError):
+            ht.mod("T", another_tensor)
+        with self.assertRaises(TypeError):
+            a_tensor % "s"
 
     def test_mul(self):
         result = ht.array([[2.0, 4.0], [6.0, 8.0]])
@@ -568,12 +712,17 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.mul(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.mul(self.a_split_tensor, self.a_tensor), result))
 
+        self.assertTrue(ht.equal(self.a_tensor * self.a_scalar, result))
+        self.assertTrue(ht.equal(self.a_scalar * self.a_tensor, result))
+
         with self.assertRaises(ValueError):
             ht.mul(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.mul(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.mul("T", "s")
+        with self.assertRaises(TypeError):
+            self.a_tensor * "T"
 
     def test_nan_to_num(self):
         arr = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf])
@@ -697,6 +846,9 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.pow(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.pow(self.a_split_tensor, self.a_tensor), commutated_result))
 
+        self.assertTrue(ht.equal(self.a_tensor**self.a_scalar, result))
+        self.assertTrue(ht.equal(self.a_scalar**self.a_tensor, commutated_result))
+
         # test scalar base and exponent
         self.assertTrue(ht.equal(ht.pow(2, 3), ht.array(8)))
         self.assertTrue(ht.equal(ht.pow(2, 3.5), ht.array(11.313708498984761)))
@@ -708,6 +860,10 @@ class TestArithmetics(TestCase):
             ht.pow(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.pow("T", "s")
+        with self.assertRaises(TypeError):
+            pow(self.a_tensor, 2, 3)
+        with self.assertRaises(TypeError):
+            self.a_tensor ** "T"
 
     def test_prod(self):
         array_len = 11
@@ -820,16 +976,22 @@ class TestArithmetics(TestCase):
 
     def test_right_shift(self):
         int_tensor = ht.array([[0, 1], [2, 3]])
-        int_result = ht.array([[0, 0], [1, 1]])
 
-        self.assertTrue(ht.equal(ht.right_shift(int_tensor, 1), int_result))
-        self.assertTrue(ht.equal(ht.right_shift(int_tensor.copy().resplit_(0), 1), int_result))
+        self.assertTrue(ht.equal(ht.right_shift(int_tensor, 1), int_tensor // 2))
+        self.assertTrue(ht.equal(ht.right_shift(int_tensor.copy().resplit_(0), 1), int_tensor // 2))
+        self.assertTrue(ht.equal(int_tensor >> 2, int_tensor // 4))
+        self.assertTrue(
+            ht.equal(1 >> ht.ones(3, dtype=ht.int32), ht.array([0, 0, 0], dtype=ht.int32))
+        )
 
         with self.assertRaises(TypeError):
             ht.right_shift(int_tensor, 2.4)
 
         res = ht.right_shift(ht.array([True]), 2)
         self.assertTrue(res == 0)
+
+        with self.assertRaises(TypeError):
+            int_tensor >> "s"
 
     def test_sub(self):
         result = ht.array([[-1.0, 0.0], [1.0, 2.0]])
@@ -843,12 +1005,17 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.sub(self.a_tensor, self.an_int_scalar), result))
         self.assertTrue(ht.equal(ht.sub(self.a_split_tensor, self.a_tensor), minus_result))
 
+        self.assertTrue(ht.equal(self.a_tensor - self.a_scalar, result))
+        self.assertTrue(ht.equal(self.a_scalar - self.a_tensor, minus_result))
+
         with self.assertRaises(ValueError):
             ht.sub(self.a_tensor, self.another_vector)
         with self.assertRaises(TypeError):
             ht.sub(self.a_tensor, self.erroneous_type)
         with self.assertRaises(TypeError):
             ht.sub("T", "s")
+        with self.assertRaises(TypeError):
+            self.a_tensor - "T"
 
     def test_sum(self):
         array_len = 11
