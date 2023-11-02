@@ -51,6 +51,8 @@ __all__ = [
     "div_",
     "divide",
     "divide_",
+    "divmod",
+    "divmod_",
     "floordiv",
     "floordiv_",
     "floor_divide",
@@ -106,7 +108,14 @@ __all__ = [
 ]
 
 
-def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def add(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
     Element-wise addition of values from two operands, commutative.
     Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose
@@ -119,6 +128,15 @@ def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
         The first operand involved in the addition
     t2: DNDarray or scalar
         The second operand involved in the addition
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the added value. Elsewhere, the `out` array will retain its original value. If
+        an uninitialized `out` array is created via the default `out=None`, locations within it where the
+        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
+        if required) must match that of the `out` array.
 
     Examples
     --------
@@ -135,12 +153,19 @@ def add(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[3., 4.],
               [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.add, t1, t2)
+    return _operations.__binary_op(torch.add, t1, t2, out, where)
 
 
-DNDarray.__add__ = lambda self, other: add(self, other)
+def _add(self, other):
+    try:
+        return add(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__add__ = _add
 DNDarray.__add__.__doc__ = add.__doc__
-DNDarray.__radd__ = lambda self, other: add(self, other)
+DNDarray.__radd__ = lambda self, other: _add(other, self)
 DNDarray.__radd__.__doc__ = add.__doc__
 
 
@@ -203,7 +228,14 @@ DNDarray.__iadd__ = lambda self, other: add_(self, other)
 DNDarray.__iadd__.__doc__ = add_.__doc__
 
 
-def bitwise_and(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def bitwise_and(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
     Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2``
     element-wise. Only integer and boolean types are handled. If ``t1.shape!=t2.shape``, they must
@@ -215,6 +247,15 @@ def bitwise_and(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
         The first operand involved in the operation
     t2: DNDarray or scalar
         The second operand involved in the operation
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the added value. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations
+        within it where the condition is False will remain uninitialized. If distributed, the split
+        axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
     --------
@@ -237,11 +278,20 @@ def bitwise_and(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return _operations.__binary_op(torch.bitwise_and, t1, t2)
+    return _operations.__binary_op(torch.bitwise_and, t1, t2, out, where)
 
 
-DNDarray.__and__ = lambda self, other: bitwise_and(self, other)
+def _and(self, other):
+    try:
+        return bitwise_and(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__and__ = _and
 DNDarray.__and__.__doc__ = bitwise_and.__doc__
+DNDarray.__rand__ = lambda self, other: _and(other, self)
+DNDarray.__rand__.__doc__ = bitwise_and.__doc__
 
 
 def bitwise_and_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
@@ -318,7 +368,14 @@ DNDarray.__iand__ = lambda self, other: bitwise_and_(self, other)
 DNDarray.__iand__.__doc__ = bitwise_and_.__doc__
 
 
-def bitwise_or(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def bitwise_or(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
     Compute the bit-wise OR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2``
     element-wise. Only integer and boolean types are handled. If ``t1.shape!=t2.shape``, they must
@@ -330,6 +387,15 @@ def bitwise_or(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarr
         The first operand involved in the operation
     t2: DNDarray or scalar
         The second operand involved in the operation
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the added value. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations
+        within it where the condition is False will remain uninitialized. If distributed, the split
+        axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
     --------
@@ -355,11 +421,20 @@ def bitwise_or(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarr
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return _operations.__binary_op(torch.bitwise_or, t1, t2)
+    return _operations.__binary_op(torch.bitwise_or, t1, t2, out, where)
 
 
-DNDarray.__or__ = lambda self, other: bitwise_or(self, other)
+def _or(self, other):
+    try:
+        return bitwise_or(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__or__ = _or
 DNDarray.__or__.__doc__ = bitwise_or.__doc__
+DNDarray.__ror__ = lambda self, other: _or(other, self)
+DNDarray.__ror__.__doc__ = bitwise_or.__doc__
 
 
 def bitwise_or_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
@@ -434,7 +509,14 @@ DNDarray.__ior__ = lambda self, other: bitwise_or_(self, other)
 DNDarray.__ior__.__doc__ = bitwise_or_.__doc__
 
 
-def bitwise_xor(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def bitwise_xor(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
     Compute the bit-wise XOR of two arrays ``t1`` and ``t2`` element-wise.
     Only integer and boolean types are handled. If ``x1.shape!=x2.shape``, they must be
@@ -446,13 +528,22 @@ def bitwise_xor(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
         The first operand involved in the operation
     t2: DNDarray or scalar
         The second operand involved in the operation
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the added value. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations
+        within it where the condition is False will remain uninitialized. If distributed, the split
+        axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
     --------
     >>> ht.bitwise_xor(13, 17)
-    DNDarray([28], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(28, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(31, 5)
-    DNDarray([26], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(26, dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(ht.array([31,3]), 5)
     DNDarray([26,  6], dtype=ht.int64, device=cpu:0, split=None)
     >>> ht.bitwise_xor(ht.array([31,3]), ht.array([5,6]))
@@ -466,11 +557,20 @@ def bitwise_xor(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types")
 
-    return _operations.__binary_op(torch.bitwise_xor, t1, t2)
+    return _operations.__binary_op(torch.bitwise_xor, t1, t2, out, where)
 
 
-DNDarray.__xor__ = lambda self, other: bitwise_xor(self, other)
+def _xor(self, other):
+    try:
+        return bitwise_xor(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__xor__ = _xor
 DNDarray.__xor__.__doc__ = bitwise_xor.__doc__
+DNDarray.__rxor__ = lambda self, other: _xor(other, self)
+DNDarray.__rxor__.__doc__ = bitwise_xor.__doc__
 
 
 def bitwise_xor_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
@@ -551,17 +651,17 @@ def copysign(
     /,
     out: Optional[DNDarray] = None,
     *,
-    where: DNDarray = True,
+    where: Union[bool, DNDarray] = True,
 ) -> DNDarray:
     """
     Create a new floating-point tensor with the magnitude of 'a' and the sign of 'b', element-wise
 
     Parameters
     ----------
-    a:     DNDarray
-           The input array
-    b:     DNDarray or Number
-           value(s) whose signbit(s) are applied to the magnitudes in 'a'
+    a:  DNDarray
+        The input array
+    b:  DNDarray or Number
+        value(s) whose signbit(s) are applied to the magnitudes in 'a'
     out: DNDarray, optional
         The output array. It must have a shape that the inputs broadcast to and matching split axis.
         If not provided, a freshly allocated array is returned.
@@ -957,8 +1057,10 @@ def diff_(a: DNDarray, n: int = 1, axis: int = -1) -> DNDarray:
 def div(
     t1: Union[DNDarray, float],
     t2: Union[DNDarray, float],
+    /,
     out: Optional[DNDarray] = None,
-    where: DNDarray = True,
+    *,
+    where: Union[bool, DNDarray] = True,
 ) -> DNDarray:
     """
     Element-wise true division of values of operand ``t1`` by values of operands ``t2`` (i.e ``t1/t2``).
@@ -997,9 +1099,16 @@ def div(
     return _operations.__binary_op(torch.true_divide, t1, t2, out, where)
 
 
-DNDarray.__truediv__ = lambda self, other: div(self, other)
+def _truediv(self, other):
+    try:
+        return div(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__truediv__ = _truediv
 DNDarray.__truediv__.__doc__ = div.__doc__
-DNDarray.__rtruediv__ = lambda self, other: div(other, self)
+DNDarray.__rtruediv__ = lambda self, other: _truediv(other, self)
 DNDarray.__rtruediv__.__doc__ = div.__doc__
 
 # Alias in compliance with numpy API
@@ -1071,7 +1180,131 @@ divide_ = div_
 """Alias for :py:func:`div_`"""
 
 
-def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def divmod(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    out1: DNDarray = None,
+    out2: DNDarray = None,
+    /,
+    out: Tuple[DNDarray, DNDarray] = (None, None),
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> Tuple[DNDarray, DNDarray]:
+    """
+    Element-wise division remainder and quotient from an integer division of values of operand
+    ``t1`` by values of operand ``t2`` (i.e. C Library function divmod). Result has the sign as the
+    dividend ``t1``. Operation is not commutative.
+
+    Parameters
+    ----------
+    t1: DNDarray or scalar
+        The first operand whose values are divided (may be floats)
+    t2: DNDarray or scalar
+        The second operand by whose values is divided (may be floats)
+    out1: DNDarray, optional
+        The output array for the quotient. It must have a shape that the inputs broadcast to and
+        matching split axis.
+        If not provided, a freshly allocated array is returned. If provided, it must be of the same
+        shape as the expected output. Only one of out1 and out can be provided.
+    out2: DNDarray, optional
+        The output array for the remainder. It must have a shape that the inputs broadcast to and
+        matching split axis.
+        If not provided, a freshly allocated array is returned. If provided, it must be of the same
+        shape as the expected output. Only one of out2 and out can be provided.
+    out: tuple of two DNDarrays, optional
+        Tuple of two output arrays (quotient, remainder), respectively. Both must have a shape that
+        the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned. If provided, they must be of the
+        same shape as the expected output. out1 and out2 cannot be used at the same time.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out1`
+        array will be set to the quotient value and the `out2` array will be set to the remainder
+        value. Elsewhere, the `out1` and `out2` arrays will retain their original value. If an
+        uninitialized `out1` and `out2` array is created via the default `out1=None` and
+        `out2=None`, locations within them where the condition is False will remain uninitialized.
+        If distributed, the split axis (after broadcasting if required) must match that of the
+        `out1` and `out2` arrays.
+
+    Examples
+    --------
+    >>> ht.divmod(2.0, 2.0)
+    (DNDarray(1., dtype=ht.float32, device=cpu:0, split=None), DNDarray(0., dtype=ht.float32, device=cpu:0, split=None))
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[2, 2], [2, 2]])
+    >>> ht.divmod(T1, T2)
+    (DNDarray([[0., 1.],
+               [1., 2.]], dtype=ht.float32, device=cpu:0, split=None), DNDarray([[1., 0.],
+               [1., 0.]], dtype=ht.float32, device=cpu:0, split=None))
+    >>> s = 2.0
+    >>> ht.divmod(s, T1)
+    (DNDarray([[2., 1.],
+               [0., 0.]], dtype=ht.float32, device=cpu:0, split=None), DNDarray([[0., 0.],
+               [2., 2.]], dtype=ht.float32, device=cpu:0, split=None))
+    """
+    if not isinstance(out, tuple):
+        raise TypeError("out must be a tuple of two DNDarrays")
+    if len(out) != 2:
+        raise ValueError("out must be a tuple of two DNDarrays")
+    if out[0] is not None:
+        if out1 is None:
+            out1 = out[0]
+        else:
+            raise TypeError("out[0] and out1 cannot be used at the same time")
+    if out[1] is not None:
+        if out2 is None:
+            out2 = out[1]
+        else:
+            raise TypeError("out[1] and out2 cannot be used at the same time")
+
+    # PyTorch has no divmod function
+    d = floordiv(t1, t2, out1, where=where)
+    m = mod(t1, t2, out2, where=where)
+
+    return (d, m)
+
+
+def _divmod(self, other):
+    try:
+        return divmod(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__divmod__ = _divmod
+DNDarray.__divmod__.__doc__ = divmod.__doc__
+DNDarray.__rdivmod__ = lambda self, other: _divmod(other, self)
+DNDarray.__rdivmod__.__doc__ = divmod.__doc__
+
+
+def divmod_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+    """
+    In-place version of `divmod`. Not implemented as this is not an element-wise operation and there
+    is no in-place version of `diff` in PyTorch.
+
+    Element-wise division remainder and quotient from an integer division of values of operand
+    ``t1`` by values of operand ``t2`` (i.e. C Library function divmod). Result has the sign as the
+    dividend ``t1``. Operation is not commutative.
+
+    Parameters
+    -------
+    t1: DNDarray
+        The first operand whose values are divided
+    t2: DNDarray or scalar
+        The second operand by whose values is divided (may be floats)
+    """
+    raise NotImplementedError(
+        "Not implemented as this is not an element-wise operation and there is no in-place version of `divmod` in PyTorch."
+    )
+
+
+def floordiv(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
     Element-wise floor division of value(s) of operand ``t1`` by value(s) of operand ``t2``
     (i.e. ``t1//t2``), not commutative.
@@ -1082,6 +1315,15 @@ def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray
         The first operand whose values are divided
     t2: DNDarray or scalar
         The second operand by whose values is divided
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the divided value. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations
+        within it where the condition is False will remain uninitialized. If distributed, the split
+        axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
     --------
@@ -1094,12 +1336,21 @@ def floordiv(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray
     DNDarray([[1., 0.],
               [1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.div, t1, t2, fn_kwargs={"rounding_mode": "floor"})
+    return _operations.__binary_op(
+        torch.div, t1, t2, out, where, fn_kwargs={"rounding_mode": "floor"}
+    )
 
 
-DNDarray.__floordiv__ = lambda self, other: floordiv(self, other)
+def _floordiv(self, other):
+    try:
+        return floordiv(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__floordiv__ = _floordiv
 DNDarray.__floordiv__.__doc__ = floordiv.__doc__
-DNDarray.__rfloordiv__ = lambda self, other: floordiv(other, self)
+DNDarray.__rfloordiv__ = lambda self, other: _floordiv(other, self)
 DNDarray.__rfloordiv__.__doc__ = floordiv.__doc__
 
 # Alias in compliance with numpy API
@@ -1166,7 +1417,14 @@ floor_divide_ = floordiv_
 """Alias for :py:func:`floordiv_`"""
 
 
-def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def fmod(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
     Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e.
     C Library function fmod).
@@ -1178,11 +1436,21 @@ def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
         The first operand whose values are divided (may be floats)
     t2: DNDarray or scalar
         The second operand by whose values is divided (may be floats)
+    out: DNDarray, optional
+        The output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned. If provided, it must be of the same
+        shape as the expected output.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the divided value. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations
+        within it where the condition is False will remain uninitialized. If distributed, the split
+        axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
     --------
     >>> ht.fmod(2.0, 2.0)
-    DNDarray([0.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(0., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.fmod(T1, T2)
@@ -1193,7 +1461,7 @@ def fmod(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[0., 0.],
           [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.fmod, t1, t2)
+    return _operations.__binary_op(torch.fmod, t1, t2, out, where)
 
 
 def fmod_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
@@ -1254,7 +1522,14 @@ def fmod_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_fmod_, t1, t2)
 
 
-def gcd(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where=True) -> DNDarray:
+def gcd(
+    a: DNDarray,
+    b: DNDarray,
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
     Returns the greatest common divisor of |a| and |b| element-wise.
 
@@ -1268,11 +1543,11 @@ def gcd(a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where=Tr
         The output array. It must have a shape that the inputs broadcast to and matching split axis.
         If not provided, a freshly allocated array is returned.
     where: DNDarray, optional
-        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
-        will be set to the divided value. Elsewhere, the `out` array will retain its original value. If
-        an uninitialized `out` array is created via the default `out=None`, locations within it where the
-        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
-        if required) must match that of the `out` array.
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the divided value. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations
+        within it where the condition is False will remain uninitialized. If distributed, the split
+        axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
     --------
@@ -1326,7 +1601,12 @@ def gcd_(t1: DNDarray, t2: DNDarray) -> DNDarray:
 
 
 def hypot(
-    a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: DNDarray = True
+    a: DNDarray,
+    b: DNDarray,
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
 ) -> DNDarray:
     """
     Given the 'legs' of a right triangle, return its hypotenuse. Equivalent to
@@ -1399,7 +1679,7 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
         raise TypeError(f"Not implemented for array dtype, got {t1.dtype}, {t2.dtype}") from e
 
 
-def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
+def invert(a: DNDarray, /, out: Optional[DNDarray] = None) -> DNDarray:
     """
     Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray`. The input
     array must be of integral or Boolean types. For boolean arrays, it computes the logical NOT.
@@ -1411,7 +1691,9 @@ def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
         The input array to invert. Must be of integral or Boolean types
     out : DNDarray, optional
         Alternative output array in which to place the result. It must have the same shape as the
-        expected output.
+        expected output. The dtype of the output will be the one of the input array, unless it is
+        logical, in which case it will be casted to int8. If not provided or None, a freshly-
+        allocated array is returned.
 
     Examples
     --------
@@ -1428,7 +1710,7 @@ def invert(a: DNDarray, out: DNDarray = None) -> DNDarray:
     return _operations.__local_op(torch.bitwise_not, a, out, no_cast=True)
 
 
-DNDarray.__invert__ = lambda self, out=None: invert(self, out)
+DNDarray.__invert__ = lambda self: invert(self)
 DNDarray.__invert__.__doc__ = invert.__doc__
 
 # alias for invert
@@ -1486,7 +1768,12 @@ bitwise_not_ = invert_
 
 
 def lcm(
-    a: DNDarray, b: DNDarray, /, out: Optional[DNDarray] = None, *, where: DNDarray = True
+    a: DNDarray,
+    b: DNDarray,
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
 ) -> DNDarray:
     """
     Returns the lowest common multiple of |a| and |b| element-wise.
@@ -1569,7 +1856,14 @@ def lcm_(t1: DNDarray, t2: Union[DNDarray, int]) -> DNDarray:
         raise TypeError(f"Expected integer input, got {t1.dtype}, {t2.dtype}") from e
 
 
-def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
+def left_shift(
+    t1: DNDarray,
+    t2: Union[DNDarray, float],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
     Shift the bits of an integer to the left.
 
@@ -1579,6 +1873,16 @@ def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         Input array
     t2: DNDarray or float
         Integer number of zero bits to add
+    out: DNDarray, optional
+        Output array for the result. Must have the same shape as the expected output. The dtype of
+        the output will be the one of the input array, unless it is logical, in which case it will
+        be casted to int8. If not provided or None, a freshly-allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the shifted value. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations
+        within it where the condition is False will remain uninitialized. If distributed, the split
+        axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
     --------
@@ -1593,11 +1897,27 @@ def left_shift(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         elif dtypes[dt] == types.bool:
             arrs[dt] = types.int(arrs[dt])
 
-    return _operations.__binary_op(torch.Tensor.__lshift__, t1, t2)
+    try:
+        result = _operations.__binary_op(torch.bitwise_left_shift, t1, t2, out, where)
+    except AttributeError:  # pragma: no cover
+        result = _operations.__binary_op(
+            torch.Tensor.__lshift__, t1, t2, out, where
+        )  # pytorch < 1.10
+
+    return result
 
 
-DNDarray.__lshift__ = lambda self, other: left_shift(self, other)
+def _lshift(self, other):
+    try:
+        return left_shift(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__lshift__ = _lshift
 DNDarray.__lshift__.__doc__ = left_shift.__doc__
+DNDarray.__rlshift__ = lambda self, other: _lshift(other, self)
+DNDarray.__rlshift__.__doc__ = left_shift.__doc__
 
 
 def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
@@ -1650,7 +1970,14 @@ DNDarray.__ilshift__ = lambda self, other: left_shift_(self, other)
 DNDarray.__ilshift__.__doc__ = left_shift_.__doc__
 
 
-def mul(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def mul(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
     Element-wise multiplication (NOT matrix multiplication) of values from two operands, commutative.
     Takes the first and second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) whose elements are to be
@@ -1662,11 +1989,20 @@ def mul(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
         The first operand involved in the multiplication
     t2: DNDarray or scalar
         The second operand involved in the multiplication
+    out: DNDarray, optional
+        Output array. It must have a shape that the inputs broadcast to and matching split axis. If not provided or
+        None, a freshly-allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out` array
+        will be set to the multiplied value. Elsewhere, the `out` array will retain its original value. If
+        an uninitialized `out` array is created via the default `out=None`, locations within it where the
+        condition is False will remain uninitialized. If distributed, the split axis (after broadcasting
+        if required) must match that of the `out` array.
 
     Examples
     --------
     >>> ht.mul(2.0, 4.0)
-    DNDarray([8.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(8., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> s = 3.0
     >>> ht.mul(T1, s)
@@ -1677,12 +2013,19 @@ def mul(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[2., 4.],
               [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.mul, t1, t2)
+    return _operations.__binary_op(torch.mul, t1, t2, out, where)
 
 
-DNDarray.__mul__ = lambda self, other: mul(self, other)
+def _mul(self, other):
+    try:
+        return mul(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__mul__ = _mul
 DNDarray.__mul__.__doc__ = mul.__doc__
-DNDarray.__rmul__ = lambda self, other: mul(self, other)
+DNDarray.__rmul__ = lambda self, other: _mul(other, self)
 DNDarray.__rmul__.__doc__ = mul.__doc__
 
 # Alias in compliance with numpy API
@@ -1754,7 +2097,11 @@ multiply_ = mul_
 
 
 def nan_to_num(
-    a: DNDarray, nan: float = 0.0, posinf: float = None, neginf: float = None, out: DNDarray = None
+    a: DNDarray,
+    nan: float = 0.0,
+    posinf: float = None,
+    neginf: float = None,
+    out: Optional[DNDarray] = None,
 ) -> DNDarray:
     """
     Replaces NaNs, positive infinity values, and negative infinity values in the input 'a' with the
@@ -1866,7 +2213,7 @@ def nanprod(
     Examples
     --------
     >>> ht.nanprod(ht.array([4.,ht.nan]))
-    DNDarray([4.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(4., dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.nanprod(ht.array([
         [1.,ht.nan],
         [3.,4.]]))
@@ -2109,7 +2456,14 @@ positive_ = pos_
 """Alias for :py:func:`pos_`"""
 
 
-def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def pow(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
     Element-wise exponential function of values of operand ``t1`` to the power of values of operand
     ``t2`` (i.e ``t1**t2``).
@@ -2121,11 +2475,20 @@ def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
         The first operand whose values represent the base
     t2: DNDarray or scalar
         The second operand whose values represent the exponent
+    out: DNDarray, optional
+        Output array. It must have a shape that the inputs broadcast to and matching split axis. If
+        not provided or None, a freshly-allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the exponentiated value. Elsewhere, the `out` array will retain its
+        original value. If an uninitialized `out` array is created via the default `out=None`,
+        locations within it where the condition is False will remain uninitialized. If distributed,
+        the split axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
     --------
     >>> ht.pow (3.0, 2.0)
-    DNDarray([9.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[3, 3], [2, 2]])
     >>> ht.pow(T1, T2)
@@ -2167,12 +2530,22 @@ def pow(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
         except AttributeError:
             # t2 is no DNDarray
             pass
-    return _operations.__binary_op(torch.pow, t1, t2)
+    return _operations.__binary_op(torch.pow, t1, t2, out, where)
 
 
-DNDarray.__pow__ = lambda self, other: pow(self, other)
+def _pow(self, other, modulo=None):
+    if modulo is not None:
+        return NotImplemented
+
+    try:
+        return pow(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__pow__ = _pow
 DNDarray.__pow__.__doc__ = pow.__doc__
-DNDarray.__rpow__ = lambda self, other: pow(other, self)
+DNDarray.__rpow__ = lambda self, other, modulo=None: _pow(other, self, modulo)
 DNDarray.__rpow__.__doc__ = pow.__doc__
 
 
@@ -2323,7 +2696,14 @@ def prod_(a: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     )
 
 
-def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def remainder(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
     Element-wise division remainder of values of operand ``t1`` by values of operand ``t2`` (i.e.
     ``t1%t2``). Result has the same sign as the divisor ``t2``.
@@ -2335,11 +2715,20 @@ def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarra
         The first operand whose values are divided
     t2: DNDarray or scalar
         The second operand by whose values is divided
+    out: DNDarray, optional
+        Output array. It must have a shape that the inputs broadcast to and matching split axis.
+        If not provided, a freshly allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the divided value. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations
+        within it where the condition is False will remain uninitialized. If distributed, the split
+        axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
     --------
     >>> ht.remainder(2, 2)
-    DNDarray([0], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray(0, dtype=ht.int64, device=cpu:0, split=None)
     >>> T1 = ht.int32([[1, 2], [3, 4]])
     >>> T2 = ht.int32([[2, 2], [2, 2]])
     >>> ht.remainder(T1, T2)
@@ -2350,16 +2739,24 @@ def remainder(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarra
     DNDarray([[0, 0],
             [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.remainder, t1, t2)
+    return _operations.__binary_op(torch.remainder, t1, t2, out, where)
 
 
 # Alias support
 mod = remainder
 """Alias for :py:func:`remainder`"""
 
-DNDarray.__mod__ = lambda self, other: mod(self, other)
+
+def _mod(self, other):
+    try:
+        return mod(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__mod__ = _mod
 DNDarray.__mod__.__doc__ = mod.__doc__
-DNDarray.__rmod__ = lambda self, other: mod(other, self)
+DNDarray.__rmod__ = lambda self, other: _mod(other, self)
 DNDarray.__rmod__.__doc__ = mod.__doc__
 
 
@@ -2429,7 +2826,14 @@ DNDarray.__imod__ = lambda self, other: mod_(self, other)
 DNDarray.__imod__.__doc__ = mod_.__doc__
 
 
-def right_shift(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def right_shift(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
     Shift the bits of an integer to the right.
 
@@ -2439,6 +2843,16 @@ def right_shift(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
         Input array
     t2: DNDarray or scalar
         Integer number of bits to remove
+    out: DNDarray, optional
+        Output array for the result. Must have the same shape as the expected output. The dtype of
+        the output will be the one of the input array, unless it is logical, in which case it will
+        be casted to int8. If not provided or None, a freshly-allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the shifted value. Elsewhere, the `out` array will retain its original
+        value. If an uninitialized `out` array is created via the default `out=None`, locations
+        within it where the condition is False will remain uninitialized. If distributed, the split
+        axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
     --------
@@ -2453,11 +2867,27 @@ def right_shift(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDar
         elif dtypes[dt] == types.bool:
             arrs[dt] = types.int(arrs[dt])
 
-    return _operations.__binary_op(torch.Tensor.__rshift__, t1, t2)
+    try:
+        result = _operations.__binary_op(torch.bitwise_right_shift, t1, t2, out, where)
+    except AttributeError:  # pragma: no cover
+        result = _operations.__binary_op(
+            torch.Tensor.__rshift__, t1, t2, out, where
+        )  # pytorch < 1.10
+
+    return result
 
 
-DNDarray.__rshift__ = lambda self, other: right_shift(self, other)
+def _rshift(self, other):
+    try:
+        return right_shift(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__rshift__ = _rshift
 DNDarray.__rshift__.__doc__ = right_shift.__doc__
+DNDarray.__rrshift__ = lambda self, other: _rshift(other, self)
+DNDarray.__rrshift__.__doc__ = right_shift.__doc__
 
 
 def right_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
@@ -2510,9 +2940,17 @@ DNDarray.__irshift__ = lambda self, other: right_shift_(self, other)
 DNDarray.__irshift__.__doc__ = right_shift_.__doc__
 
 
-def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
+def sub(
+    t1: Union[DNDarray, float],
+    t2: Union[DNDarray, float],
+    /,
+    out: Optional[DNDarray] = None,
+    *,
+    where: Union[bool, DNDarray] = True,
+) -> DNDarray:
     """
-    Element-wise subtraction of values of operand ``t2`` from values of operands ``t1`` (i.e ``t1-t2``)
+    Element-wise subtraction of values of operand ``t2`` from values of operands ``t1`` (i.e
+    ``t1-t2``).
     Operation is not commutative.
 
     Parameters
@@ -2521,11 +2959,20 @@ def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
         The first operand from which values are subtracted
     t2: DNDarray or scalar
         The second operand whose values are subtracted
+    out: DNDarray, optional
+        Output array. It must have a shape that the inputs broadcast to and matching split axis. If
+        not provided or None, a freshly-allocated array is returned.
+    where: DNDarray, optional
+        Condition to broadcast over the inputs. At locations where the condition is True, the `out`
+        array will be set to the subtracted value. Elsewhere, the `out` array will retain its
+        original value. If an uninitialized `out` array is created via the default `out=None`,
+        locations within it where the condition is False will remain uninitialized. If distributed,
+        the split axis (after broadcasting if required) must match that of the `out` array.
 
     Examples
     --------
     >>> ht.sub(4.0, 1.0)
-    DNDarray([3.], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray(3., dtype=ht.float32, device=cpu:0, split=None)
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
     >>> ht.sub(T1, T2)
@@ -2536,12 +2983,19 @@ def sub(t1: Union[DNDarray, float], t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[ 1.,  0.],
               [-1., -2.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    return _operations.__binary_op(torch.sub, t1, t2)
+    return _operations.__binary_op(torch.sub, t1, t2, out, where)
 
 
-DNDarray.__sub__ = lambda self, other: sub(self, other)
+def _sub(self, other):
+    try:
+        return sub(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__sub__ = _sub
 DNDarray.__sub__.__doc__ = sub.__doc__
-DNDarray.__rsub__ = lambda self, other: sub(other, self)
+DNDarray.__rsub__ = lambda self, other: _sub(other, self)
 DNDarray.__rsub__.__doc__ = sub.__doc__
 
 
