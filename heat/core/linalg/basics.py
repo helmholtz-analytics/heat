@@ -484,7 +484,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                   [11., 12., 13.],
                   [12., 13., 14.]])
     """
-    if a.gshape[-1] != b.gshape[0]:
+    if a.gshape[-1] != b.gshape[-2]:
         raise ValueError(
             f"If the last dimension of a ({a.gshape[-1]}) is not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
         )
@@ -509,6 +509,27 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     # early out for single-process setup, torch matmul
     if a.comm.size == 1:
         ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device)
+        if gpu_int_flag:
+            ret = og_type(ret, device=a.device)
+        return ret
+
+    if a.ndim > 2 or b.ndim > 2:  # batch multipliction
+        # check for valid shapes of a and b
+        # for now assume that a and b are matrices, i.e. have 2 data dimensions
+        # this means that a vector is a (n x 1)-matrix
+        # furthermore, they must be split along the same batch axis and the
+        # batch dimensions must have the same shape
+
+        batch_dim = max(a.ndim, b.ndim) - 2
+        if a.ndim < batch_dim or b.ndim < batch_dim:
+            raise ValueError("Number of batch dimensions must be the same!")
+        if a.gshape[:batch_dim] != b.gshape[:batch_dim]:
+            raise ValueError("Batch dimension must have the same shape!")
+        if a.split >= batch_dim or b.split >= batch_dim or a.split != b.split:
+            raise ValueError("Split must be along the same axis which has to be a batch axis!")
+        ret = factories.array(
+            torch.matmul(a.larray, b.larray), is_split=a.split, device=a.device, comm=a.comm
+        )
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
