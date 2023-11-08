@@ -484,6 +484,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                   [11., 12., 13.],
                   [12., 13., 14.]])
     """
+    sanitation.sanitize_in(a)
+    sanitation.sanitize_in(b)
+
     if a.gshape[-1] != b.gshape[-2]:
         raise ValueError(
             f"If the last dimension of a ({a.gshape[-1]}) is not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
@@ -1115,7 +1118,17 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         return c
 
 
-DNDarray.__matmul__ = lambda self, other: matmul(self, other)
+def _matmul(self, other):
+    try:
+        return matmul(self, other)
+    except TypeError:
+        return NotImplemented
+
+
+DNDarray.__matmul__ = _matmul
+DNDarray.__matmul__.__doc__ = matmul.__doc__
+DNDarray.__rmatmul__ = lambda self, other: _matmul(other, self)
+DNDarray.__rmatmul__.__doc__ = matmul.__doc__
 
 
 def matrix_norm(
