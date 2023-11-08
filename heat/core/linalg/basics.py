@@ -487,9 +487,12 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     sanitation.sanitize_in(a)
     sanitation.sanitize_in(b)
 
-    if a.gshape[-1] != b.gshape[-2]:
+    batch_dim = max(a.ndim, b.ndim) - 2
+    batched = batch_dim > 2
+
+    if batched and a.gshape[-1] != b.gshape[-2] or a.gshape[-1] != b.gshape[0]:
         raise ValueError(
-            f"If the last dimension of a ({a.gshape[-1]}) is not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
+            f"If the last dimension of a ({a.gshape[-1]}) not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
         )
 
     # determine if a larger type is needed for c
@@ -516,14 +519,13 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             ret = og_type(ret, device=a.device)
         return ret
 
-    if a.ndim > 2 or b.ndim > 2:  # batch multipliction
+    if batched:  # batch multipliction
         # check for valid shapes of a and b
         # for now assume that a and b are matrices, i.e. have 2 data dimensions
         # this means that a vector is a (n x 1)-matrix
         # furthermore, they must be split along the same batch axis and the
         # batch dimensions must have the same shape
 
-        batch_dim = max(a.ndim, b.ndim) - 2
         if a.ndim < batch_dim or b.ndim < batch_dim:
             raise ValueError("Number of batch dimensions must be the same!")
         if a.gshape[:batch_dim] != b.gshape[:batch_dim]:
