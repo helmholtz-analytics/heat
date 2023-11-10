@@ -224,8 +224,7 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_add_, t1, t2)
 
 
-DNDarray.__iadd__ = lambda self, other: add_(self, other)
-DNDarray.__iadd__.__doc__ = add_.__doc__
+DNDarray.__iadd__ = add_
 
 
 def bitwise_and(
@@ -364,8 +363,7 @@ def bitwise_and_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_bitwise_and_, t1, t2)
 
 
-DNDarray.__iand__ = lambda self, other: bitwise_and_(self, other)
-DNDarray.__iand__.__doc__ = bitwise_and_.__doc__
+DNDarray.__iand__ = bitwise_and_
 
 
 def bitwise_or(
@@ -505,8 +503,7 @@ def bitwise_or_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_bitwise_or_, t1, t2)
 
 
-DNDarray.__ior__ = lambda self, other: bitwise_or_(self, other)
-DNDarray.__ior__.__doc__ = bitwise_or_.__doc__
+DNDarray.__ior__ = bitwise_or_
 
 
 def bitwise_xor(
@@ -641,8 +638,7 @@ def bitwise_xor_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_bitwise_xor_, t1, t2)
 
 
-DNDarray.__ixor__ = lambda self, other: bitwise_xor_(self, other)
-DNDarray.__ixor__.__doc__ = bitwise_xor_.__doc__
+DNDarray.__ixor__ = bitwise_xor_
 
 
 def copysign(
@@ -1172,8 +1168,7 @@ def div_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_div_, t1, t2)
 
 
-DNDarray.__itruediv__ = lambda self, other: div_(self, other)
-DNDarray.__itruediv__.__doc__ = div_.__doc__
+DNDarray.__itruediv__ = div_
 
 # Alias support
 divide_ = div_
@@ -1409,8 +1404,7 @@ def floordiv_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_floordiv_, t1, t2)
 
 
-DNDarray.__ifloordiv__ = lambda self, other: floordiv_(self, other)
-DNDarray.__ifloordiv__.__doc__ = floordiv_.__doc__
+DNDarray.__ifloordiv__ = floordiv_
 
 # Alias support
 floor_divide_ = floordiv_
@@ -1966,8 +1960,7 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_bitwise_left_shift_, t1, t2)
 
 
-DNDarray.__ilshift__ = lambda self, other: left_shift_(self, other)
-DNDarray.__ilshift__.__doc__ = left_shift_.__doc__
+DNDarray.__ilshift__ = left_shift_
 
 
 def mul(
@@ -2088,8 +2081,7 @@ def mul_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_mul_, t1, t2)
 
 
-DNDarray.__imul__ = lambda self, other: mul_(self, other)
-DNDarray.__imul__.__doc__ = mul_.__doc__
+DNDarray.__imul__ = mul_
 
 # Alias support
 multiply_ = mul_
@@ -2615,8 +2607,7 @@ def pow_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_pow_, t1, t2)
 
 
-DNDarray.__ipow__ = lambda self, other: pow_(self, other)
-DNDarray.__ipow__.__doc__ = pow_.__doc__
+DNDarray.__ipow__ = pow_
 
 # Alias support
 power_ = pow_
@@ -2822,8 +2813,7 @@ def remainder_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
 mod_ = remainder_
 """Alias for :py:func:`remainder_`"""
 
-DNDarray.__imod__ = lambda self, other: mod_(self, other)
-DNDarray.__imod__.__doc__ = mod_.__doc__
+DNDarray.__imod__ = mod_
 
 
 def right_shift(
@@ -2936,8 +2926,7 @@ def right_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_bitwise_right_shift_, t1, t2)
 
 
-DNDarray.__irshift__ = lambda self, other: right_shift_(self, other)
-DNDarray.__irshift__.__doc__ = right_shift_.__doc__
+DNDarray.__irshift__ = right_shift_
 
 
 def sub(
@@ -3061,8 +3050,7 @@ def sub_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     return _operations.__binary_op(wrap_sub_, t1, t2)
 
 
-DNDarray.__isub__ = lambda self, other: sub_(self, other)
-DNDarray.__isub__.__doc__ = sub_.__doc__
+DNDarray.__isub__ = sub_
 
 # Alias support
 subtract_ = sub_
