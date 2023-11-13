@@ -38,27 +38,25 @@ class TestFFT(TestCase):
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
 
-        # on GPU, test only on less than 4 processes
-        if x.device == ht.cpu or x.comm.size < 4:
-            # FFT along distributed axis, n not None
-            n = 8
-            y = ht.fft.fft(x, axis=0, n=n)
-            np_y = np.fft.fft(x.numpy(), axis=0, n=n)
-            self.assertIsInstance(y, ht.DNDarray)
-            self.assertEqual(y.shape, np_y.shape)
-            self.assertTrue(y.split == 0)
-            self.assert_array_equal(y, np_y)
+        # FFT along distributed axis, n not None
+        n = 8
+        y = ht.fft.fft(x, axis=0, n=n)
+        np_y = np.fft.fft(x.numpy(), axis=0, n=n)
+        self.assertIsInstance(y, ht.DNDarray)
+        self.assertEqual(y.shape, np_y.shape)
+        self.assertTrue(y.split == 0)
+        self.assert_array_equal(y, np_y)
 
-            # complex input
-            x = x + 1j * ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
-            # FFT along last axis (distributed)
-            x.resplit_(axis=2)
-            y = ht.fft.fft(x, n=n)
-            np_y = np.fft.fft(x.numpy(), n=n)
-            self.assertIsInstance(y, ht.DNDarray)
-            self.assertEqual(y.shape, np_y.shape)
-            self.assertTrue(y.split == 2)
-            self.assert_array_equal(y, np_y)
+        # complex input
+        x = x + 1j * ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        # FFT along last axis (distributed)
+        x.resplit_(axis=2)
+        y = ht.fft.fft(x, n=n)
+        np_y = np.fft.fft(x.numpy(), n=n)
+        self.assertIsInstance(y, ht.DNDarray)
+        self.assertEqual(y.shape, np_y.shape)
+        self.assertTrue(y.split == 2)
+        self.assert_array_equal(y, np_y)
 
         # exceptions
         # wrong input type
@@ -128,16 +126,14 @@ class TestFFT(TestCase):
         self.assertTrue(y.split == 0)
         self.assert_array_equal(y, np_y)
 
-        # on GPU, test only on less than 4 processes
-        if x.device == ht.cpu or x.comm.size < 4:
-            # FFT along distributed axis
-            x.resplit_(axis=1)
-            y = ht.fft.fftn(x, axes=(0, 1), s=(10, 8))
-            np_y = np.fft.fftn(x.numpy(), axes=(0, 1), s=(10, 8))
-            self.assertIsInstance(y, ht.DNDarray)
-            self.assertEqual(y.shape, np_y.shape)
-            self.assertTrue(y.split == 1)
-            self.assert_array_equal(y, np_y)
+        # FFT along distributed axis
+        x.resplit_(axis=1)
+        y = ht.fft.fftn(x, axes=(0, 1), s=(10, 8))
+        np_y = np.fft.fftn(x.numpy(), axes=(0, 1), s=(10, 8))
+        self.assertIsInstance(y, ht.DNDarray)
+        self.assertEqual(y.shape, np_y.shape)
+        self.assertTrue(y.split == 1)
+        self.assert_array_equal(y, np_y)
 
         # exceptions
         # wrong input type
