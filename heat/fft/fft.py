@@ -73,7 +73,6 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
         output_shape[axis] = nyquist_freq
     else:
         output_shape[axis] = n
-    print("DEBUGGING: n, output_shape = ", n, output_shape)
 
     fft_along_split = original_split == axis
     # FFT along non-split axis
@@ -82,7 +81,6 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
             # empty tensor, return empty tensor with consistent shape
             local_shape = output_shape.copy()
             local_shape[original_split] = 0
-            print("DEBUGGING: LOCAL SHAPE IS ", local_shape)
             torch_result = torch.empty(
                 tuple(local_shape), dtype=local_x.dtype, device=local_x.device
             )
@@ -97,7 +95,6 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
         #     comm=x.comm,
         #     balanced=x.balanced,
         # )
-        print("DEBUGGING: TORCH RESULT IS ", torch_result.shape)
         return array(torch_result, is_split=original_split, device=x.device, comm=x.comm)
 
     # FFT along split axis
@@ -152,6 +149,7 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     original_split = x.split
     output_shape = list(x.shape)
     shift_op = fftn_op in [torch.fft.fftshift, torch.fft.ifftshift]
+    inverse_real_op = fftn_op in [torch.fft.irfftn, torch.fft.irfft2]
     real_to_generic_fftn_ops = {
         torch.fft.rfftn: torch.fft.fftn,
         torch.fft.rfft2: torch.fft.fft2,
@@ -210,11 +208,17 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     # FFT along non-split axes only
     if not x.is_distributed() or not fft_along_split:
         if local_x.numel() == 0:
-            # empty tensor, return empty tensor with consistent shape
+            # empty tensor, return empty tensor with consistent shape and dtype
             local_shape = output_shape.copy()
             local_shape[original_split] = 0
+            if inverse_real_op:
+                output_dtype = local_x.real.dtype
+            else:
+                # local_x is empty, memory footprint not an issue
+                _ = local_x * 1j
+                output_dtype = _.dtype
             torch_result = torch.empty(
-                tuple(local_shape), dtype=local_x.dtype, device=local_x.device
+                tuple(local_shape), dtype=output_dtype, device=local_x.device
             )
         else:
             torch_result = fftn_op(local_x, **torch_kwargs)
