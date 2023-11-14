@@ -1,4 +1,5 @@
 #!/bin/bash
+# Example SLURM/ENROOT script. It will mount the container using enroot, and then run the test script to test the compatibility of the image with the source version of heat.
 
 # Clear environment, else mpi4py will fail to install.
 ml purge
