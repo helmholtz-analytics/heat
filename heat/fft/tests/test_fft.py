@@ -173,6 +173,19 @@ class TestFFT(TestCase):
         d = 0.1
         with self.assertRaises(TypeError):
             ht.fft.fftfreq(n, d=d, dtype=ht.int32)
+        # unsupported n
+        n = 10.7
+        with self.assertRaises(ValueError):
+            ht.fft.fftfreq(n, d=d)
+        # unsupported d
+        # torch does not support complex d
+        n = 10
+        d = 0.1 + 1j
+        with self.assertRaises(NotImplementedError):
+            ht.fft.fftfreq(n, d=d)
+        d = ht.array(0.1)
+        with self.assertRaises(TypeError):
+            ht.fft.fftfreq(n, d=d)
 
     def test_fftshift_ifftshift(self):
         # non-distributed
@@ -183,6 +196,20 @@ class TestFFT(TestCase):
         self.assert_array_equal(y, np_y)
         backwards = ht.fft.ifftshift(y)
         self.assertTrue(ht.allclose(backwards, x))
+
+        # distributed
+        # (following fftshift example from torch.fft)
+        x = ht.fft.fftfreq(5, d=1 / 5, split=0) + 0.1 * ht.fft.fftfreq(5, d=1 / 5, split=0).reshape(
+            5, 1
+        )
+        y = ht.fft.fftshift(x, axes=(0, 1))
+        np_y = np.fft.fftshift(x.numpy(), axes=(0, 1))
+        self.assert_array_equal(y, np_y)
+
+        # exceptions
+        # wrong axis
+        with self.assertRaises(IndexError):
+            ht.fft.fftshift(x, axes=(0, 2))
 
     def test_hfft_ihfft(self):
         x = ht.zeros((3, 5), split=0, dtype=ht.float64)
@@ -214,7 +241,7 @@ class TestFFT(TestCase):
 
     def test_rfft_irfft(self):
         # n-D distributed
-        x = ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        x = ht.random.randn(10, 8, 3, dtype=ht.float64, split=0)
         # FFT along last axis
         y = ht.fft.rfft(x)
         np_y = np.fft.rfft(x.numpy())
@@ -227,7 +254,7 @@ class TestFFT(TestCase):
 
         # exceptions
         # complex input
-        x = x + 1j * ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        x = x + 1j * ht.random.randn(10, 8, 3, dtype=ht.float64, split=0)
         with self.assertRaises(TypeError):
             ht.fft.rfft(x)
 

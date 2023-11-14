@@ -261,8 +261,11 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     _ = x.resplit(axis=1)
     # FFT along axis 0 (now non-split)
     split_index = axes.index(original_split)
-    partial_s = (s[split_index],)
-    partial_ht_result = __fftn_op(_, fftn_op, s=partial_s, axes=(0,), norm=norm)
+    if shift_op:
+        partial_ht_result = __fftn_op(_, fftn_op, axes=(0,))
+    else:
+        partial_s = (s[split_index],)
+        partial_ht_result = __fftn_op(_, fftn_op, s=partial_s, axes=(0,), norm=norm)
     output_shape[original_split] = partial_ht_result.shape[0]
     del _
     # redistribute partial result from axis 1 to 0
@@ -304,9 +307,12 @@ def __fftfreq_op(fftfreq_op: callable, **kwargs) -> DNDarray:
     device = kwargs.get("device", None)
 
     if not isinstance(n, int):
-        raise TypeError(f"n must be an integer, is {type(n)}")
+        raise ValueError(f"n must be an integer, is {type(n)}")
     if not isinstance(d, (int, float)):
-        raise TypeError(f"d must be a number, is {type(d)}")
+        if isinstance(d, complex):
+            # numpy supports complex d, torch doesn't
+            raise NotImplementedError("Support for complex d not implemented yet.")
+        raise TypeError(f"d must be a scalar, is {type(d)}")
     if dtype is not None:
         if heat_type_is_exact(dtype):
             raise TypeError(f"dtype must be a float or complex type, is {dtype}")
