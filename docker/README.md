@@ -16,13 +16,13 @@ branches can be specified using `--build-arg HEAT_BRANCH=<branch-name>`.
 The [Dockerfile](./Dockerfile.release or ./Dockerfile.source) guiding the build of the Docker image is located in this directory. It is typically most convenient to `cd` to the `docker` directory and run the  build command as:
 
 ```console
-$ docker build -t heat:latest -f Dockerfile.release .
+$ docker build -t heat:latest -f Dockerfile.source .
 ```
 
 Or optionally, using a particular version and pytorch base image:
 
 ```console
-$ docker build --build-arg HEAT_VERSION=X.Y.Z --build-arg PYTORCH_IMG=<nvcr-tag> -t heat:X.Y.Z .
+$ docker build --build-arg HEAT_VERSION=X.Y.Z --build-arg PYTORCH_IMG=<nvcr-tag> -t heat:X.Y.Z -f Dockerfile.release .
 ```
 
 The heat image is based on the nvidia pytorch container. You can find exisiting tags in the [nvidia container catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch/tags).
