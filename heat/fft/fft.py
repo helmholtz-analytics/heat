@@ -288,13 +288,14 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
 
 def __fftfreq_op(fftfreq_op: callable, **kwargs) -> DNDarray:
     """
-    Helper function for fftfreq
+    Helper function for ``fftfreq`` and ``rfftfreq`` operations.
     """
     n = kwargs.get("n", None)
     d = kwargs.get("d", None)
     dtype = kwargs.get("dtype", None)
     split = kwargs.get("split", None)
     device = kwargs.get("device", None)
+    comm = kwargs.get("comm", None)
 
     if not isinstance(n, int):
         raise ValueError(f"n must be an integer, is {type(n)}")
@@ -316,7 +317,7 @@ def __fftfreq_op(fftfreq_op: callable, **kwargs) -> DNDarray:
 
     # early out for non-distributed fftfreq
     if split is None:
-        return array(fftfreq_op(n, d=d, dtype=torch_dtype), device=device, split=None)
+        return array(fftfreq_op(n, d=d, dtype=torch_dtype), device=device, split=None, comm=comm)
 
     # distributed fftfreq
     if split != 0:
@@ -333,9 +334,9 @@ def __fftfreq_op(fftfreq_op: callable, **kwargs) -> DNDarray:
     # allocate global fftfreq array
     # if real operation, return only positive frequencies
     if fftfreq_op == torch.fft.rfftfreq:
-        freqs = arange(middle_channel, dtype=dtype, device=device, split=split)
+        freqs = arange(middle_channel, dtype=dtype, device=device, split=split, comm=comm)
     else:
-        freqs = arange(n, dtype=dtype, device=device, split=split)
+        freqs = arange(n, dtype=dtype, device=device, split=split, comm=comm)
         # second half of fftfreq returns negative frequencies in inverse order
         freqs[middle_channel:] -= n
 
@@ -364,16 +365,14 @@ def __real_fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
 
 def fft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarray:
     """
-    Compute the one-dimensional discrete Fourier Transform.
-
-    This function computes the one-dimensional discrete Fourier Transform over the specified axis in an M-dimensional
+    Compute the one-dimensional discrete Fourier Transform over the specified axis in an M-dimensional
     array by means of the Fast Fourier Transform (FFT). By default, the last axis is transformed, while the remaining
     axes are left unchanged.
 
     Parameters
     ----------
     x : DNDarray
-        Input array, can be complex. WARNING: If x is 1-D and distributed, the entire array is copied on each MPI process.
+        Input array, can be complex. WARNING: If x is 1-D and distributed, the entire array is copied on each MPI process. See Notes.
     n : int, optional
         Length of the transformed axis of the output. If not given, the length is assumed to be the length of the input
         along the axis specified by `axis`. If `n` is smaller than the length of the input, the input is truncated. If `n` is
@@ -382,13 +381,23 @@ def fft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarra
         Axis over which to compute the FFT. If not given, the last axis is used, or the only axis if `x` has only one
         dimension. Default: -1.
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`ifft` : inverse 1-dimensional FFT
+    :func:`fft2` : 2-dimensional FFT
+    :func:`fftn` : N-dimensional FFT
+    :func:`rfft` : 1-dimensional FFT of a real signal
+    :func:`hfft` : 1-dimensional FFT of a Hermitian symmetric sequence
+    :func:`fftfreq` : frequency bins for given FFT parameters
+    :func:`rfftfreq` : frequency bins for real FFT
 
     Notes
     -----
     This function requires MPI communication if the input array is transformed along the distribution axis.
     If the input array is 1-D and distributed, this function copies the entire array on each MPI process! i.e. if the array is very large, you might run out of memory.
-    Hint: if you are looping through a batch of 1-D arrays to transform them, consider stacking them into a 2-D DNDarray and transforming them all at once (see :func:`fft2`).
+    Hint: if you are looping through a batch of 1-D arrays to transform them, consider stacking them into a 2-D DNDarray and transforming them in one go (see :func:`fft2`).
     """
     return __fft_op(x, torch.fft.fft, n=n, axis=axis, norm=norm)
 
@@ -397,9 +406,7 @@ def fft2(
     x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
 ) -> DNDarray:
     """
-    Compute the 2-dimensional discrete Fourier Transform.
-
-    This function computes the 2-dimensional discrete Fourier Transform over the specified axes in an M-dimensional
+    Compute the 2-dimensional discrete Fourier Transform over the specified axes in an M-dimensional
     array by means of the Fast Fourier Transform (FFT). By default, the last two axes are transformed, while the
     remaining axes are left unchanged.
 
@@ -414,7 +421,15 @@ def fft2(
         not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple times.
         (default is (-2, -1))
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`ifft2` : inverse 2-dimensional FFT
+    :func:`fft` : 1-dimensional FFT
+    :func:`fftn` : N-dimensional FFT
+    :func:`rfft2` : 2-dimensional FFT of a real signal
+    :func:`hfft2` : 2-dimensional FFT of a Hermitian symmetric sequence
 
     Notes
     -----
@@ -429,11 +444,12 @@ def fftfreq(
     dtype: Optional[Type] = None,
     split: Optional[int] = None,
     device: Optional[Union[str, Device]] = None,
+    comm: Optional[MPI.Comm] = None,
 ) -> DNDarray:
     """
-    Return the Discrete Fourier Transform sample frequencies.
+    Return the Discrete Fourier Transform sample frequencies for a signal of size ``n``.
 
-    The returned float tensor contains the frequency bin centers in cycles per unit of the sample spacing (with zero
+    The returned ``DNDarray`` contains the frequency bin centers in cycles per unit of the sample spacing (with zero
     at the start). For instance, if the sample spacing is in seconds, then the frequency unit is cycles/second.
 
     Parameters
@@ -443,28 +459,26 @@ def fftfreq(
     d : Union[int, float], optional
         Sample spacing (inverse of the sampling rate). Defaults to 1.
     dtype : Type, optional
-        The desired data type of the output. Defaults to `float32`.
+        The desired data type of the output. Defaults to `ht.float32`.
     split : int, optional
-        The axis along which to split the result. If not given, the result is not split.
+        The axis along which to split the result. Can be None or 0, as the output is 1-dimensional. Defaults to None, i.e. non-distributed output.
     device : str or Device, optional
         The device on which to place the output. If not given, the output is placed on the current device.
+    comm : MPI.Comm, optional
+        The MPI communicator to use for distributing the output. If not given, the default communicator is used.
 
     Returns
     -------
     out : DNDarray
-        Array of length `n` containing the sample frequencies.
+        Array of length ``n`` containing the sample frequencies. If ``split`` is 0, the array is evenly distributed among the available MPI processes.
 
-    Examples
+    See Also
     --------
-    >>> import heat as ht
-    >>> ht.fft.fftfreq(5, 0.1)
-    DNDarray([-2., -1.,  0.,  1.,  2.], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.fft.fftfreq(5, 0.1, dtype=ht.float64)
-    DNDarray([-2., -1.,  0.,  1.,  2.], dtype=ht.float64, device=cpu:0, split=None)
-    >>> ht.fft.fftfreq(5, 0.1, split=0)
-    DNDarray([-2., -1.,  0.,  1.,  2.], dtype=ht.float32, device=cpu:0, split=0)
+    :func:`rfftfreq` : frequency bins for :func:`rfft`
     """
-    return __fftfreq_op(torch.fft.fftfreq, n=n, d=d, dtype=dtype, split=split, device=device)
+    return __fftfreq_op(
+        torch.fft.fftfreq, n=n, d=d, dtype=dtype, split=split, device=device, comm=comm
+    )
 
 
 def fftn(
@@ -930,6 +944,7 @@ def rfftfreq(
     dtype: Optional[Type] = None,
     split: Optional[int] = None,
     device: Optional[Union[str, Device]] = None,
+    comm: Optional[MPI.Comm] = None,
 ) -> DNDarray:
     """
     Return the Discrete Fourier Transform sample frequencies.
@@ -949,6 +964,8 @@ def rfftfreq(
         The axis along which to split the result. If not given, the result is not split.
     device : str or Device, optional
         The device on which to place the output. If not given, the output is placed on the current device.
+    comm : MPI.Comm, optional
+        The MPI communicator to use for distributing the output. If not given, the default communicator is used.
 
     Returns
     -------
@@ -965,7 +982,9 @@ def rfftfreq(
     >>> ht.fft.rfftfreq(5, 0.1, split=0)
     DNDarray([0., 1., 2.], dtype=ht.float32, device=cpu:0, split=0)
     """
-    return __fftfreq_op(torch.fft.rfftfreq, n=n, d=d, dtype=dtype, split=split, device=device)
+    return __fftfreq_op(
+        torch.fft.rfftfreq, n=n, d=d, dtype=dtype, split=split, device=device, comm=comm
+    )
 
 
 def rfftn(
