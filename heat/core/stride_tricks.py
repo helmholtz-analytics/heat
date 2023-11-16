@@ -151,7 +151,7 @@ def sanitize_axis(
 
     """
     # scalars are handled like unsplit matrices
-    original_axis = axis.copy() if isinstance(axis, list) else axis
+    original_axis = axis
     ndim = len(shape)
 
     if ndim == 0:
