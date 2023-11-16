@@ -86,16 +86,15 @@ def __fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
             )
         else:
             torch_result = fft_op(local_x, n=n, dim=axis, norm=norm)
-        # return DNDarray(
-        #     torch_result,
-        #     gshape=tuple(output_shape),
-        #     dtype=heat_type_of(torch_result),
-        #     split=original_split,
-        #     device=x.device,
-        #     comm=x.comm,
-        #     balanced=x.balanced,
-        # )
-        return array(torch_result, is_split=original_split, device=x.device, comm=x.comm)
+        return DNDarray(
+            torch_result,
+            gshape=tuple(output_shape),
+            dtype=heat_type_of(torch_result),
+            split=original_split,
+            device=x.device,
+            comm=x.comm,
+            balanced=x.balanced,
+        )
 
     # FFT along split axis
     if original_split != 0:
@@ -222,18 +221,15 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
             )
         else:
             torch_result = fftn_op(local_x, **torch_kwargs)
-        # for axis in axes:
-        #     output_shape[axis] = torch_result.shape[axis]
-        # return DNDarray(
-        #     torch_result,
-        #     gshape=tuple(output_shape),
-        #     dtype=heat_type_of(torch_result),
-        #     split=original_split,
-        #     device=x.device,
-        #     comm=x.comm,
-        #     balanced=x.balanced,
-        # )
-        return array(torch_result, is_split=original_split, device=x.device, comm=x.comm)
+        return DNDarray(
+            torch_result,
+            gshape=tuple(output_shape),
+            dtype=heat_type_of(torch_result),
+            split=original_split,
+            device=x.device,
+            comm=x.comm,
+            balanced=x.balanced,
+        )
 
     # FFT along split axis
     if original_split != 0:
@@ -253,10 +249,6 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
         return ht_result
 
     # transform decomposition: split axis first, then the rest
-    # if fft operation requires real input, switch to generic operation:
-    if real_op:
-        fftn_op = real_to_generic_fftn_ops[fftn_op]
-
     # redistribute x from axis 0 to 1
     _ = x.resplit(axis=1)
     # FFT along axis 0 (now non-split)
@@ -286,13 +278,11 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
             s = list(s)
             s = s[:split_index] + s[split_index + 1 :]
             s = tuple(s)
+        # if fft operation requires real input, switch to generic operation for the second pass
+        if real_op:
+            fftn_op = real_to_generic_fftn_ops[fftn_op]
         ht_result = __fftn_op(partial_ht_result, fftn_op, s=s, axes=axes, norm=norm)
     del partial_ht_result
-    if real_op:
-        # discard elements beyond Nyquist frequency on last transformed axis
-        nyquist_slice = [slice(None)] * ht_result.ndim
-        nyquist_slice[axes[-1]] = slice(0, nyquist_freq)
-        ht_result = ht_result[(nyquist_slice)].balance_()
     return ht_result
 
 
@@ -355,12 +345,18 @@ def __fftfreq_op(fftfreq_op: callable, **kwargs) -> DNDarray:
 
 
 def __real_fft_op(x: DNDarray, fft_op: callable, **kwargs) -> DNDarray:
+    """
+    Helper function for real 1-D FFTs.
+    """
     if x.larray.is_complex():
         raise TypeError(f"Input array must be real, is {x.dtype}.")
     return __fft_op(x, fft_op, **kwargs)
 
 
 def __real_fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
+    """
+    Helper function for real N-D FFTs.
+    """
     if x.larray.is_complex():
         raise TypeError(f"Input array must be real, is {x.dtype}.")
     return __fftn_op(x, fftn_op, **kwargs)
@@ -379,11 +375,11 @@ def fft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarra
     x : DNDarray
         Input array, can be complex. WARNING: If x is 1-D and distributed, the entire array is copied on each MPI process.
     n : int, optional
-        Length of the transformed axis of the output. If not given, the length is taken to be the length of the input
-        along the axis specified by axis. If `n` is smaller than the length of the input, the input is cropped. If `n` is
+        Length of the transformed axis of the output. If not given, the length is assumed to be the length of the input
+        along the axis specified by `axis`. If `n` is smaller than the length of the input, the input is truncated. If `n` is
         larger, the input is padded with zeros. Default: None.
     axis : int, optional
-        Axis over which to compute the FFT. If not given, the last axis is used, or the only axis if x has only one
+        Axis over which to compute the FFT. If not given, the last axis is used, or the only axis if `x` has only one
         dimension. Default: -1.
     norm : str, optional
         Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
@@ -478,8 +474,7 @@ def fftn(
     Compute the N-dimensional discrete Fourier Transform.
 
     This function computes the N-dimensional discrete Fourier Transform over any number of axes in an M-dimensional
-    array by means of the Fast Fourier Transform (FFT). By default, all axes are transformed, with the real transform
-    performed over the last axis, while the remaining transforms are complex.
+    array by means of the Fast Fourier Transform (FFT).
 
     Parameters
     ----------
@@ -977,7 +972,8 @@ def rfftn(
     x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, ...] = None, norm: str = None
 ) -> DNDarray:
     """
-    Compute the N-dimensional discrete Fourier Transform for real input.
+    Compute the N-dimensional discrete Fourier Transform for real input. By default, all axes are transformed, with the real transform
+    performed over the last axis, while the remaining transforms are complex.
 
     Parameters
     ----------
