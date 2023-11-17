@@ -5,11 +5,11 @@ import torch
 from ..core.communication import MPI
 from ..core.dndarray import DNDarray
 from ..core.stride_tricks import sanitize_axis
-from ..core.types import heat_type_is_exact, promote_types, heat_type_of, canonical_heat_type
+from ..core.types import heat_type_is_exact, heat_type_of
 from ..core.factories import array, arange
 from ..core.devices import Device
 
-from typing import Type, Union, Tuple, Any, Iterable, Optional
+from typing import Type, Union, Tuple, Iterable, Optional
 
 __all__ = [
     "fft",
@@ -418,7 +418,7 @@ def fft2(
         Shape of the output along the transformed axes. (default is x.shape)
     axes : Tuple[int, int], optional
         Axes over which to compute the FFT. If not given, the last `len(s)` axes are used, or all axes if `s` is also
-        not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple times.
+        not specified. Repeated transforms over an axis, i.e. repeated indices in ``axes``, are not supported yet.
         (default is (-2, -1))
     norm : str, optional
         Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
@@ -467,11 +467,6 @@ def fftfreq(
     comm : MPI.Comm, optional
         The MPI communicator to use for distributing the output. If not given, the default communicator is used.
 
-    Returns
-    -------
-    out : DNDarray
-        Array of length ``n`` containing the sample frequencies. If ``split`` is 0, the array is evenly distributed among the available MPI processes.
-
     See Also
     --------
     :func:`rfftfreq` : frequency bins for :func:`rfft`
@@ -498,10 +493,18 @@ def fftn(
         Shape of the output along the transformed axes. (default is x.shape)
     axes : Tuple[int, ...], optional
         Axes over which to compute the FFT. If not given, the last `len(s)` axes are used, or all axes if `s` is also
-        not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple times.
+        not specified. Repeated transforms over an axis, i.e. repeated indices in ``axes``, are not supported yet.
         (default is None)
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`ifftn` : inverse N-dimensional FFT
+    :func:`fft` : 1-dimensional FFT
+    :func:`fft2` : 2-dimensional FFT
+    :func:`rfftn` : N-dimensional FFT of a real signal
+    :func:`hfftn` : N-dimensional FFT of a Hermitian symmetric sequence
 
     Notes
     -----
@@ -523,6 +526,10 @@ def fftshift(x: DNDarray, axes: Optional[Union[int, Iterable[int]]] = None) -> D
         Input array
     axes : int or Iterable[int], optional
         Axes over which to shift. Default is None, which shifts all axes.
+
+    See Also
+    --------
+    :func:`ifftshift` : The inverse of `fftshift`.
 
     Notes
     -----
@@ -551,7 +558,15 @@ def hfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarr
         Axis over which to compute the FFT. If not given, the last axis is used, or the only axis if x has only one
         dimension. Default: -1.
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`ihfft` : inverse 1-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`hfft2` : 2-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`hfftn` : N-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`fft` : 1-dimensional FFT
+    :func:`rfft` : 1-dimensional FFT of a real signal
 
     Notes
     -----
@@ -580,9 +595,17 @@ def hfft2(
         Shape of the signal along the transformed axes. If `s` is specified, the input array is either zero-padded or trimmed to length `s` before the transform.
         If `s` is not given, the last dimension defaults to even output: `s[-1] = 2 * (x.shape[-1] - 1)`.
     axes : Tuple[int, int], optional
-        Axes over which to compute the FFT. If not given, the last two dimensions are transformed. Repeated indices in `axes` means that the transform over that axis is performed multiple times.
+        Axes over which to compute the FFT. If not given, the last two dimensions are transformed. Repeated transforms over an axis, i.e. repeated indices in ``axes``, are not supported yet. Default: (-2, -1).
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`ihfft2` : inverse 2-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`hfft` : 1-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`hfftn` : N-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`fft2` : 2-dimensional FFT
+    :func:`rfft2` : 2-dimensional FFT of a real signal
 
     Notes
     -----
@@ -610,9 +633,17 @@ def hfftn(
         Shape of the signal along the transformed axes. If `s` is specified, the input array is either zero-padded or trimmed to length `s` before the transform.
         If `s` is not given, the last dimension defaults to even output: `s[-1] = 2 * (x.shape[-1] - 1)`.
     axes : Tuple[int, ...], optional
-        Axes over which to compute the FFT. If not given, all dimensions are transformed. Repeated indices in `axes` means that the transform over that axis is performed multiple times.
+        Axes over which to compute the FFT. If not given, all dimensions are transformed. Repeated transforms over an axis, i.e. repeated indices in ``axes``, are not supported yet. Default: None.
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`ihfftn` : inverse N-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`hfft` : 1-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`hfft2` : 2-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`fftn` : N-dimensional FFT
+    :func:`rfftn` : N-dimensional FFT of a real signal
 
     Notes
     -----
@@ -643,7 +674,15 @@ def ifft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarr
     axis : int, optional
         Axis over which to compute the inverse FFT. If not given, the last axis is used, or the only axis if x has only one dimension. Default: -1.
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`fft` : forward 1-dimensional FFT
+    :func:`ifft2` : inverse 2-dimensional FFT
+    :func:`ifftn` : inverse N-dimensional FFT
+    :func:`irfft` : inverse 1-dimensional FFT of a real sequence
+    :func:`ihfft` : inverse 1-dimensional FFT of a Hermitian symmetric sequence
 
     Notes
     -----
@@ -668,10 +707,17 @@ def ifft2(
         Shape of the output along the transformed axes. (default is x.shape)
     axes : Tuple[int, int], optional
         Axes over which to compute the inverse FFT. If not given, the last `len(s)` axes are used, or all axes if `s` is
-        also not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple
-        times. (default is (-2, -1))
+        also not specified. Repeated transforms over an axis, i.e. repeated indices in ``axes``, are not supported yet. Default: (-2, -1).
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`fft2` : forward 2-dimensional FFT
+    :func:`ifft` : inverse 1-dimensional FFT
+    :func:`ifftn` : inverse N-dimensional FFT
+    :func:`irfft2` : inverse 2-dimensional FFT of a real sequence
+    :func:`ihfft2` : inverse 2-dimensional FFT of a Hermitian symmetric sequence
 
     Notes
     -----
@@ -694,10 +740,17 @@ def ifftn(
         Shape of the output along the transformed axes. (default is x.shape)
     axes : Tuple[int, ...], optional
         Axes over which to compute the inverse FFT. If not given, the last `len(s)` axes are used, or all axes if `s` is
-        also not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple
-        times. (default is None)
+        also not specified. Repeated transforms over an axis, i.e. repeated indices in ``axes``, are not supported yet. Default: None.
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`fftn` : forward N-dimensional FFT
+    :func:`ifft` : inverse 1-dimensional FFT
+    :func:`ifft2` : inverse 2-dimensional FFT
+    :func:`irfftn` : inverse N-dimensional FFT of a real sequence
+    :func:`ihfftn` : inverse N-dimensional FFT of a Hermitian symmetric sequence
 
     Notes
     -----
@@ -708,8 +761,7 @@ def ifftn(
 
 def ifftshift(x: DNDarray, axes: Optional[Union[int, Iterable[int]]] = None) -> DNDarray:
     """
-    TODO: reelaborate docs
-    The inverse of fftshift. Although identical for even-length x, the functions differ by one sample for odd-length x.
+    The inverse of fftshift.
 
     Parameters
     ----------
@@ -717,6 +769,10 @@ def ifftshift(x: DNDarray, axes: Optional[Union[int, Iterable[int]]] = None) -> 
         Input array
     axes : int or Iterable[int], optional
         Axes over which to shift. Default is None, which shifts all axes.
+
+    See Also
+    --------
+    :func:`fftshift` : Shift the zero-frequency component to the center of the spectrum.
 
     Notes
     -----
@@ -740,7 +796,15 @@ def ihfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDar
     axis : int, optional
         Axis over which to compute the inverse FFT. If not given, the last axis is used, or the only axis if x has only one dimension. Default: -1.
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`hfft` : 1-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`ihfft2` : inverse 2-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`ihfftn` : inverse N-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`rfft` : 1-dimensional FFT of a real signal
+    :func:`irfft` : inverse 1-dimensional FFT of a real sequence
 
     Notes
     -----
@@ -753,7 +817,7 @@ def ihfft2(
     x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
 ) -> DNDarray:
     """
-    Compute the 2-dimensional inverse discrete Fourier Transform of a real signal. The output is Hermitian-symmetric.
+    Compute the inverse of a 2-dimensional discrete Fourier Transform of a Hermitian-symmetric signal. The output is Hermitian-symmetric.
 
     Parameters
     ----------
@@ -763,10 +827,17 @@ def ihfft2(
         Shape of the output along the transformed axes. (default is x.shape)
     axes : Tuple[int, int], optional
         Axes over which to compute the inverse FFT. If not given, the last `len(s)` axes are used, or all axes if `s` is
-        also not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple
-        times. (default is (-2, -1))
+        also not specified. Repeated transforms over an axis, i.e. repeated indices in ``axes``, are not supported yet. Default is (-2, -1).
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`hfft2` : 2-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`ihfft` : inverse 1-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`ihfftn` : inverse N-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`rfft2` : 2-dimensional FFT of a real signal
+    :func:`irfft2` : inverse 2-dimensional FFT of a real sequence
 
     Notes
     -----
@@ -779,7 +850,7 @@ def ihfftn(
     x: DNDarray, s: Tuple[int, ...] = None, axes: Tuple[int, ...] = None, norm: str = None
 ) -> DNDarray:
     """
-    Compute the N-dimensional inverse discrete Fourier Transform of a real signal. The output is Hermitian-symmetric.
+    Compute the inverse of a N-dimensional discrete Fourier Transform of Hermitian-symmetric signal. The output is Hermitian-symmetric.
 
     Parameters
     ----------
@@ -789,17 +860,28 @@ def ihfftn(
         Shape of the output along the transformed axes. (default is x.shape)
     axes : Tuple[int, ...], optional
         Axes over which to compute the inverse FFT. If not given, the last `len(s)` axes are used, or all axes if `s` is
-        also not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple
-        times. (default is None)
+        also not specified. Repeated transforms over an axis, i.e. repeated indices in ``axes``, are not supported yet. Default: None.
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`hfftn` : N-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`ihfft` : inverse 1-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`ihfft2` : inverse 2-dimensional FFT of a Hermitian-symmetric sequence
+    :func:`rfftn` : N-dimensional FFT of a real signal
+    :func:`irfftn` : inverse N-dimensional FFT of a real sequence
+
+    Notes
+    -----
+    This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
     return __real_fftn_op(x, torch.fft.ihfftn, s=s, axes=axes, norm=norm)
 
 
 def irfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarray:
     """
-    Compute the one-dimensional inverse discrete Fourier Transform for real input.
+    Compute the inverse of a one-dimensional discrete Fourier Transform of real signal. The output is real.
 
     Parameters
     ----------
@@ -812,7 +894,15 @@ def irfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDar
     axis : int, optional
         Axis over which to compute the inverse FFT. If not given, the last axis is used, or the only axis if x has only one dimension. Default: -1.
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`irfft2` : inverse 2-dimensional FFT
+    :func:`irfftn` : inverse N-dimensional FFT
+    :func:`rfft` : 1-dimensional FFT of a real signal
+    :func:`hfft` : 1-dimensional FFT of a Hermitian symmetric sequence
+    :func:`fft` : 1-dimensional FFT
 
     Notes
     -----
@@ -829,20 +919,27 @@ def irfft2(
     x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
 ) -> DNDarray:
     """
-    Compute the 2-dimensional inverse discrete Fourier Transform for real input.
+    Compute the inverse of a 2-dimensional discrete real Fourier Transform. The output is real.
 
     Parameters
     ----------
     x : DNDarray
         Input array, can be complex
     s : Tuple[int, int], optional
-        Shape of the output along the transformed axes. (default is x.shape)
+        Shape of the output along the transformed axes.
     axes : Tuple[int, int], optional
         Axes over which to compute the inverse FFT. If not given, the last `len(s)` axes are used, or all axes if `s` is
-        also not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple
-        times. (default is (-2, -1))
+        also not specified. Repeated transforms over an axis, i.e. repeated indices in ``axes``, are not supported yet. Default is (-2, -1))
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
+
+    See Also
+    --------
+    :func:`irfft` : inverse 1-dimensional FFT
+    :func:`irfftn` : inverse N-dimensional FFT
+    :func:`rfft2` : 2-dimensional FFT of a real signal
+    :func:`hfft2` : 2-dimensional FFT of a Hermitian symmetric sequence
+    :func:`fft2` : 2-dimensional FFT
 
     Notes
     -----
@@ -857,20 +954,21 @@ def irfftn(
     x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, ...] = None, norm: str = None
 ) -> DNDarray:
     """
-    Compute the N-dimensional inverse discrete Fourier Transform for real input.
+    Compute the inverse of an N-dimensional discrete Fourier Transform of real signal.
+    The output is real.
 
     Parameters
     ----------
     x : DNDarray
-        Input array, can be complex
+        Input array, assumed to be Hermitian-symmetric along the transformed axes, with the last transformed axis only containing the positive half of the frequencies.
     s : Tuple[int, ...], optional
-        Shape of the output along the transformed axes. (default is x.shape)
+        Shape of the output along the transformed axes. If ``s`` is not specified, the last transposed axis is reconstructued in full, i.e. `s[-1] = 2 * (x.shape[axes[-1]] - 1)`.
     axes : Tuple[int, ...], optional
         Axes over which to compute the inverse FFT. If not given, the last `len(s)` axes are used, or all axes if `s` is
-        also not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple
-        times. (default is None)
+        also not specified. Repeated transforms over an axis, i.e. repeated indices in ``axes``, are not supported yet.
+        (default is None)
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
 
     Notes
     -----
@@ -888,7 +986,7 @@ def irfftn(
 
 def rfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarray:
     """
-    Compute the one-dimensional discrete Fourier Transform for real input.
+    Compute the one-dimensional discrete Fourier Transform of real input. The output is Hermitian-symmetric.
 
     Parameters
     ----------
@@ -901,7 +999,7 @@ def rfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarr
     axis : int, optional
         Axis over which to compute the FFT. If not given, the last axis is used, or the only axis if x has only one dimension. Default: -1.
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
 
     Notes
     -----
@@ -916,7 +1014,7 @@ def rfft2(
     x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
 ) -> DNDarray:
     """
-    Compute the 2-dimensional discrete Fourier Transform for real input.
+    Compute the 2-dimensional discrete Fourier Transform of real input. The output is Hermitian-symmetric.
 
     Parameters
     ----------
@@ -926,10 +1024,9 @@ def rfft2(
         Shape of the output along the transformed axes. (default is x.shape)
     axes : Tuple[int, int], optional
         Axes over which to compute the FFT. If not given, the last `len(s)` axes are used, or all axes if `s` is
-        also not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple
-        times. (default is (-2, -1))
+        also not specified. Repeated transforms over an axis, i.e. repeated indices in ``axes``, are not supported yet. (default is (-2, -1))
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
 
     Notes
     -----
@@ -949,7 +1046,7 @@ def rfftfreq(
     """
     Return the Discrete Fourier Transform sample frequencies.
 
-    The returned float tensor contains the frequency bin centers in cycles per unit of the sample spacing (with zero
+    The returned float DNDarray contains the frequency bin centers in cycles per unit of the sample spacing (with zero
     at the start). For instance, if the sample spacing is in seconds, then the frequency unit is cycles/second.
 
     Parameters
@@ -966,21 +1063,6 @@ def rfftfreq(
         The device on which to place the output. If not given, the output is placed on the current device.
     comm : MPI.Comm, optional
         The MPI communicator to use for distributing the output. If not given, the default communicator is used.
-
-    Returns
-    -------
-    out : DNDarray
-        Array of length `n` containing the sample frequencies.
-
-    Examples
-    --------
-    >>> import heat as ht
-    >>> ht.fft.rfftfreq(5, 0.1)
-    DNDarray([0., 1., 2.], dtype=ht.float32, device=cpu:0, split=None)
-    >>> ht.fft.rfftfreq(5, 0.1, dtype=ht.float64)
-    DNDarray([0., 1., 2.], dtype=ht.float64, device=cpu:0, split=None)
-    >>> ht.fft.rfftfreq(5, 0.1, split=0)
-    DNDarray([0., 1., 2.], dtype=ht.float32, device=cpu:0, split=0)
     """
     return __fftfreq_op(
         torch.fft.rfftfreq, n=n, d=d, dtype=dtype, split=split, device=device, comm=comm
@@ -991,21 +1073,20 @@ def rfftn(
     x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, ...] = None, norm: str = None
 ) -> DNDarray:
     """
-    Compute the N-dimensional discrete Fourier Transform for real input. By default, all axes are transformed, with the real transform
-    performed over the last axis, while the remaining transforms are complex.
+    Compute the N-dimensional discrete Fourier Transform of real input. By default, all axes are transformed, with the real transform
+    performed over the last axis, while the remaining transforms are complex. The output is Hermitian-symmetric, with the last transformed axis having length `s[-1] // 2 + 1` (the positive part of the spectrum).
 
     Parameters
     ----------
     x : DNDarray
         Input array, must be real.
     s : Tuple[int, ...], optional
-        Shape of the output along the transformed axes. (default is x.shape)
+        Shape of the output along the transformed axes.
     axes : Tuple[int, ...], optional
         Axes over which to compute the FFT. If not given, the last `len(s)` axes are used, or all axes if `s` is
-        also not specified. Repeated indices in `axes` means that the transform over that axis is performed multiple
-        times. (default is None)
+        also not specified. Repeated transforms over an axis, i.e. repeated indices in ``axes``, are not supported yet. (default is None)
     norm : str, optional
-        Normalization mode: 'forward', 'backward', or 'ortho' (see `numpy.fft` for details). Default is "backward".
+        Normalization mode: 'forward', 'backward', or 'ortho'. Indicates in what direction the forward/backward pair of transforms is normalized. Default is "backward".
 
     Notes
     -----
