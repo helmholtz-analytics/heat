@@ -458,14 +458,13 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
         size = v.comm.size
         split_axis = v.split
         for r in range(size):
-            print("t_v.device", t_v.device)
             rec_v = v.comm.bcast(t_v, root=r)
-            print("rec_v.device", rec_v.device)
-            t_v1 = rec_v.reshape(1, 1, rec_v.shape[0], rec_v.shape[1])
-
+            if a.comm.rank != r:
+                t_v1 = rec_v.reshape(1, 1, rec_v.shape[0], rec_v.shape[1])
+            else:
+                t_v1 = t_v.reshape(1, 1, t_v.shape[0], t_v.shape[1])
             # apply torch convolution operator
             local_signal_filtered = fc.conv2d(signal, t_v1)
-
             # unpack 3D result into 1D
             local_signal_filtered = local_signal_filtered[0, 0, :]
 
