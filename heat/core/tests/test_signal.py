@@ -170,11 +170,11 @@ class TestSignal(TestCase):
             modes = ["full", "same", "valid"]
             for i, mode in enumerate(modes):
                 # odd kernel size
-                # print(
-                #     "DEBUGGING: dis_signal.dtype, kernel_odd.dtype",
-                #     dis_signal.dtype,
-                #     kernel_odd.dtype,
-                # )
+                print(
+                    "DEBUGGING: dis_signal.dtype, kernel_odd.dtype",
+                    dis_signal.dtype,
+                    kernel_odd.dtype,
+                )
                 conv = ht.convolve2d(dis_signal, kernel_odd, mode=mode)
                 gathered = manipulations.resplit(conv, axis=None)
                 self.assertTrue(
