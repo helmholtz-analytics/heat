@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from typing import Any, Callable, Union, Tuple, List, Optional
 
-from .communication import MPI
+from ..communication_backends.communication import MPI
 from . import arithmetics
 from . import exponential
 from . import factories

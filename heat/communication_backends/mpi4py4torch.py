@@ -10,7 +10,7 @@ import torch
 from mpi4py import MPI
 
 from typing import Any, Callable, Optional, List, Tuple, Union
-from heat.core.communication import Communication
+from heat.communication_backends.communication import Communication
 
 CUDA_AWARE_MPI = False
 # check whether OpenMPI support CUDA-aware MPI

@@ -13,7 +13,7 @@ from . import devices
 from . import factories
 from . import types
 
-from .communication import Communication, MPI, MPI_WORLD, sanitize_comm
+from ..communication_backends.communication import Communication, MPI, MPI_WORLD, sanitize_comm
 from .dndarray import DNDarray
 from .manipulations import hsplit, vsplit
 from .statistics import max as smax, min as smin

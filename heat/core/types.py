@@ -9,7 +9,7 @@ import collections
 import numpy as np
 import torch
 
-from . import communication
+from ..communication_backends import communication
 from . import devices
 from . import factories
 from . import _operations

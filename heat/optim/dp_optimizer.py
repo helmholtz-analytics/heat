@@ -9,9 +9,9 @@ import torch.distributed
 from torch.nn.parallel import DistributedDataParallel as tDDP
 from typing import Union, List, Tuple, Dict
 
-from ..core.communication import MPICommunication
-from ..core.communication import MPI
-from ..core.communication import MPI_WORLD
+from ..communication_backends.communication import MPICommunication
+from ..communication_backends.communication import MPI
+from ..communication_backends.communication import MPI_WORLD
 from .utils import DetectMetricPlateau
 
 

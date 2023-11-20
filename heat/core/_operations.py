@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import warnings
 
-from .communication import MPI, MPI_WORLD
+from ..communication_backends.communication import MPI, MPI_WORLD
 from . import factories
 from . import stride_tricks
 from . import sanitation

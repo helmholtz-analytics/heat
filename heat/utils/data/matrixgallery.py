@@ -4,7 +4,7 @@ Generate matrices for specific tests and functions
 
 from heat import core
 from ...core.dndarray import DNDarray
-from ...core.communication import Communication
+from ...communication_backends.communication import Communication
 from ...core.devices import Device
 from ...core.types import datatype, heat_type_is_complexfloating, heat_type_is_exact
 from ...core.random import randn, rand

@@ -10,7 +10,7 @@ from typing import List, Callable, Union, Optional, Tuple
 
 from torch._C import Value
 
-from ..communication import MPI
+from ...communication_backends.communication import MPI
 from .. import arithmetics
 from .. import complex_math
 from .. import constants

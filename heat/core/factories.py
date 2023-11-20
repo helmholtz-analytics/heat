@@ -6,7 +6,7 @@ import warnings
 
 from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, List
 
-from .communication import MPI, sanitize_comm, Communication
+from ..communication_backends.communication import MPI, sanitize_comm, Communication
 from .devices import Device
 from .dndarray import DNDarray
 from .memory import sanitize_memory_layout

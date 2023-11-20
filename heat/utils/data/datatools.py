@@ -7,7 +7,7 @@ from torch.utils import data as torch_data
 from typing import Callable, List, Iterator, Union, Optional, Sized
 
 from ...core.dndarray import DNDarray
-from ...core.communication import MPI_WORLD
+from ...communication_backends.communication import MPI_WORLD
 from . import partial_dataset
 
 __all__ = ["DataLoader", "Dataset", "dataset_shuffle", "dataset_ishuffle"]

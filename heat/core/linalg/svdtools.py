@@ -6,7 +6,7 @@ import collections
 import torch
 from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple, Optional
 
-from ..communication import MPICommunication
+from ...communication_backends.communication import MPICommunication
 from ..dndarray import DNDarray
 from .. import factories
 from .. import types

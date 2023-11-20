@@ -4,10 +4,10 @@ Module implementing the communication layer of HeAT
 from __future__ import annotations
 import torch
 from typing import Optional, Tuple
-from .stride_tricks import sanitize_axis
+from ..core.stride_tricks import sanitize_axis
 
 from mpi4py import MPI
-from ..communication_backends.mpi4py4torch import MPICommunication
+from .mpi4py4torch import MPICommunication
 
 
 class Communication:
@@ -168,7 +168,3 @@ def use_comm(comm: Communication = None):
     """
     global __default_comm
     __default_comm = sanitize_comm(comm)
-
-
-# import at the end of file to break circular dependencies
-from .dndarray import DNDarray

@@ -11,8 +11,8 @@ import time
 from torch.utils import data as torch_data
 from typing import Callable, List, Iterator, Union
 
-from ...core.communication import MPICommunication
-from ...core.communication import MPI_WORLD
+from ...communication_backends.communication import MPICommunication
+from ...communication_backends.communication import MPI_WORLD
 
 __all__ = ["PartialH5Dataset", "PartialH5DataLoaderIter"]
 
