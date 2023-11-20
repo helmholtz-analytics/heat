@@ -121,11 +121,17 @@ class TestSignal(TestCase):
         self.assertTrue(ht.equal(ht.array([5]), conv))
 
     def test_convolve2d(self):
-        dis_signal = ht.arange(256, split=0).reshape((16, 16)).astype(ht.int)
-        signal = ht.arange(256).reshape((16, 16)).astype(ht.int)
+        # CUDA does not support int 2D convolution
+        # if tests are on GPU, set dtype to float
+        if ht.device == "gpu":
+            dtype = ht.float32
+        else:
+            dtype = ht.int
+        dis_signal = ht.arange(256, split=0).reshape((16, 16)).astype(dtype)
+        signal = ht.arange(256).reshape((16, 16)).astype(dtype)
 
-        kernel_odd = ht.arange(9).reshape((3, 3)).astype(ht.int)
-        kernel_even = ht.arange(16).reshape((4, 4)).astype(ht.int)
+        kernel_odd = ht.arange(9).reshape((3, 3)).astype(dtype)
+        kernel_even = ht.arange(16).reshape((4, 4)).astype(dtype)
 
         np_sig = np.arange(256).reshape((16, 16))
         np_k_odd = np.arange(9).reshape((3, 3))
@@ -134,8 +140,8 @@ class TestSignal(TestCase):
         full_odd = ht.array(sig.convolve2d(np_sig, np_k_odd))
         full_even = ht.array(sig.convolve2d(np_sig, np_k_even))
 
-        dis_kernel_odd = ht.arange(9, split=0).reshape((3, 3)).astype(ht.int)
-        dis_kernel_even = ht.arange(16, split=0).reshape((4, 4)).astype(ht.int)
+        dis_kernel_odd = ht.arange(9, split=0).reshape((3, 3)).astype(dtype)
+        dis_kernel_even = ht.arange(16, split=0).reshape((4, 4)).astype(dtype)
 
         with self.assertRaises(TypeError):
             signal_wrong_type = [[0, 1, 2, "tre", 4]] * 5
@@ -162,6 +168,11 @@ class TestSignal(TestCase):
             modes = ["full", "same", "valid"]
             for i, mode in enumerate(modes):
                 # odd kernel size
+                print(
+                    "DEBUGGING: dis_signal.dtype, kernel_odd.dtype",
+                    dis_signal.dtype,
+                    kernel_odd.dtype,
+                )
                 conv = ht.convolve2d(dis_signal, kernel_odd, mode=mode)
                 gathered = manipulations.resplit(conv, axis=None)
                 self.assertTrue(
@@ -181,17 +192,17 @@ class TestSignal(TestCase):
                 )
 
                 # different data types
-                conv = ht.convolve2d(dis_signal.astype(ht.float), kernel_odd)
+                conv = ht.convolve2d(dis_signal.astype(ht.float64), kernel_odd)
                 gathered = manipulations.resplit(conv, axis=None)
-                self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
+                self.assertTrue(ht.equal(full_odd.astype(ht.float64), gathered))
 
-                conv = ht.convolve2d(dis_signal.astype(ht.float), dis_kernel_odd)
+                conv = ht.convolve2d(dis_signal.astype(ht.float64), dis_kernel_odd)
                 gathered = manipulations.resplit(conv, axis=None)
-                self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
+                self.assertTrue(ht.equal(full_odd.astype(ht.float64), gathered))
 
-                conv = ht.convolve2d(signal.astype(ht.float), dis_kernel_odd)
+                conv = ht.convolve2d(signal.astype(ht.float64), dis_kernel_odd)
                 gathered = manipulations.resplit(conv, axis=None)
-                self.assertTrue(ht.equal(full_odd.astype(ht.float), gathered))
+                self.assertTrue(ht.equal(full_odd.astype(ht.float64), gathered))
 
                 # even kernel size
                 # skip mode 'same' for even kernels
@@ -214,20 +225,20 @@ class TestSignal(TestCase):
                 np_b = np.random.randint(1000, size=(39, 17))
                 sc_conv = sig.convolve2d(np_a, np_b, mode=mode)
 
-                a = ht.array(np_a, split=0, dtype=ht.int32)
-                b = ht.array(np_b, split=0, dtype=ht.int32)
+                a = ht.array(np_a, split=0, dtype=dtype)
+                b = ht.array(np_b, split=0, dtype=dtype)
                 conv = ht.convolve2d(a, b, mode=mode)
                 self.assert_array_equal(conv, sc_conv)
 
-                a = ht.array(np_a, split=1, dtype=ht.int32)
-                b = ht.array(np_b, split=1, dtype=ht.int32)
+                a = ht.array(np_a, split=1, dtype=dtype)
+                b = ht.array(np_b, split=1, dtype=dtype)
                 conv = ht.convolve2d(a, b, mode=mode)
                 self.assert_array_equal(conv, sc_conv)
 
         # test edge cases
         # non-distributed signal, size-1 kernel
-        signal = ht.arange(0, 16).reshape(4, 4).astype(ht.int)
-        alt_signal = ht.arange(16).reshape(4, 4).astype(ht.int)
+        signal = ht.arange(0, 16).reshape(4, 4).astype(dtype)
+        alt_signal = ht.arange(16).reshape(4, 4).astype(dtype)
         # please review and then remove: here we require (for whathever reason): ht.float32 instead of ht.int
         kernel = ht.ones(1).reshape((1, 1)).astype(ht.float32)
         conv = ht.convolve2d(alt_signal, kernel)
