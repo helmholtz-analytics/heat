@@ -123,6 +123,7 @@ class TestSignal(TestCase):
 
     def test_convolve2d(self):
         test_device = os.getenv("HEAT_TEST_DEVICE", "cpu")
+        print("DEBUGGING: test_device", test_device, test_device == "gpu")
         if test_device == "gpu":
             # CUDA does not support int 2D convolution
             # if tests are on GPU, set dtype to float
