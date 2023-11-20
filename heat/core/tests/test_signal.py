@@ -5,6 +5,7 @@ import heat as ht
 from heat import manipulations
 import scipy.signal as sig
 from .test_suites.basic_test import TestCase
+import os
 
 
 class TestSignal(TestCase):
@@ -121,9 +122,10 @@ class TestSignal(TestCase):
         self.assertTrue(ht.equal(ht.array([5]), conv))
 
     def test_convolve2d(self):
-        # CUDA does not support int 2D convolution
-        # if tests are on GPU, set dtype to float
-        if ht.device == "gpu":
+        test_device = os.getenv("HEAT_TEST_DEVICE", "cpu")
+        if test_device == "gpu":
+            # CUDA does not support int 2D convolution
+            # if tests are on GPU, set dtype to float
             dtype = ht.float32
         else:
             dtype = ht.int
@@ -168,11 +170,11 @@ class TestSignal(TestCase):
             modes = ["full", "same", "valid"]
             for i, mode in enumerate(modes):
                 # odd kernel size
-                print(
-                    "DEBUGGING: dis_signal.dtype, kernel_odd.dtype",
-                    dis_signal.dtype,
-                    kernel_odd.dtype,
-                )
+                # print(
+                #     "DEBUGGING: dis_signal.dtype, kernel_odd.dtype",
+                #     dis_signal.dtype,
+                #     kernel_odd.dtype,
+                # )
                 conv = ht.convolve2d(dis_signal, kernel_odd, mode=mode)
                 gathered = manipulations.resplit(conv, axis=None)
                 self.assertTrue(
