@@ -451,14 +451,16 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
     else:
         weight = v.larray
 
-    t_v = weight  # stores temporary weight
+    t_v = weight.clone()  # stores temporary weight
     weight = weight.reshape(1, 1, weight.shape[0], weight.shape[1])
 
     if v.is_distributed():
         size = v.comm.size
         split_axis = v.split
         for r in range(size):
+            print("t_v.device", t_v.device)
             rec_v = v.comm.bcast(t_v, root=r)
+            print("rec_v.device", rec_v.device)
             t_v1 = rec_v.reshape(1, 1, rec_v.shape[0], rec_v.shape[1])
 
             # apply torch convolution operator
