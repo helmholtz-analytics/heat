@@ -456,16 +456,17 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
 
     if v.is_distributed():
         size = v.comm.size
+        rank = v.comm.rank
         split_axis = v.split
         for r in range(size):
             rec_v = v.comm.bcast(t_v, root=r)
-            if signal.comm.rank != r:
+            if rank != r:
                 t_v1 = rec_v.reshape(1, 1, rec_v.shape[0], rec_v.shape[1])
             else:
                 t_v1 = t_v.reshape(1, 1, t_v.shape[0], t_v.shape[1])
             # apply torch convolution operator
             print("DEVICES: signal, t_v1", signal.device, t_v1.device)
-            print("RANKS: signal, t_v1", signal.comm.rank, t_v1.comm.rank)
+            print("RANK = ", rank)
             local_signal_filtered = fc.conv2d(signal, t_v1)
             # unpack 3D result into 1D
             local_signal_filtered = local_signal_filtered[0, 0, :]
