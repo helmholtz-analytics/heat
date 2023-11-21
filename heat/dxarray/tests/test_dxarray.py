@@ -18,7 +18,7 @@ class TestHelpers(TestCase):
             idxs = ht.dxarray.dim_name_to_idx(dims, names)
             # check for correct types (str, tuple or list)
             self.assertTrue(
-                type(idxs) == type(names) or (isinstance(names, str) and isinstance(idxs, int))
+                type(idxs) is type(names) or (isinstance(names, str) and isinstance(idxs, int))
             )
             # check if dim_name_to_idx and dim_idx_to_name are inverse to each other
             names_back = ht.dxarray.dim_idx_to_name(dims, idxs)
