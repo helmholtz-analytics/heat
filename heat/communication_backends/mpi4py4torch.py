@@ -11,7 +11,6 @@ from mpi4py import MPI
 
 from typing import Any, Callable, Optional, List, Tuple, Union
 from heat.communication_backends.communication import Communication
-from ..core.dndarray import DNDarray
 
 
 CUDA_AWARE_MPI = False
@@ -35,9 +34,9 @@ class MPIRequest:
     ----------
     handle: MPI.Communicator
         Handle for the mpi4py Communicator
-    sendbuf: DNDarray or torch.Tensor or Any
+    sendbuf: torch.Tensor or Any
         The buffer for the data to be send
-    recvbuf: DNDarray or torch.Tensor or Any
+    recvbuf: torch.Tensor or Any
         The buffer to the receive data
     tensor: torch.Tensor
         Internal Data
@@ -48,8 +47,8 @@ class MPIRequest:
     def __init__(
         self,
         handle,
-        sendbuf: Union[DNDarray, torch.Tensor, Any] = None,
-        recvbuf: Union[DNDarray, torch.Tensor, Any] = None,
+        sendbuf: Union[torch.Tensor, Any] = None,
+        recvbuf: Union[torch.Tensor, Any] = None,
         tensor: torch.Tensor = None,
         permutation: Tuple[int, ...] = None,
     ):
@@ -126,19 +125,18 @@ class MPICommunication(Communication):
     @classmethod
     def mpi_type_and_elements_of(
         cls,
-        obj: Union[DNDarray, torch.Tensor],
+        obj: torch.Tensor,
         counts: Tuple[int],
         displs: Tuple[int],
         is_contiguous: Optional[bool],
     ) -> Tuple[MPI.Datatype, Tuple[int, ...]]:
         """
-        Determines the MPI data type and number of respective elements for the given tensor (:class:`~heat.core.dndarray.DNDarray`
-        or ``torch.Tensor). In case the tensor is contiguous in memory, a native MPI data type can be used.
+        Determines the MPI data type and number of respective elements for the given ``torch.Tensor. In case the tensor is contiguous in memory, a native MPI data type can be used.
         Otherwise, a derived data type is automatically constructed using the storage information of the passed object.
 
         Parameters
         ----------
-        obj : DNDarray or torch.Tensor
+        obj : torch.Tensor
             The object for which to construct the MPI data type and number of elements
         counts : Tuple[ints,...], optional
             Optional counts arguments for variable MPI-calls (e.g. Alltoallv)
@@ -357,7 +355,7 @@ class MPICommunication(Communication):
 
     def Irecv(
         self,
-        buf: Union[DNDarray, torch.Tensor, Any],
+        buf: Union[torch.Tensor, Any],
         source: int = MPI.ANY_SOURCE,
         tag: int = MPI.ANY_TAG,
     ) -> MPIRequest:
@@ -366,15 +364,13 @@ class MPICommunication(Communication):
 
         Parameters
         ------------
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address where to place the received message
         source: int, optional
             Rank of source process, that send the message
         tag: int, optional
             A Tag to identify the message
         """
-        if isinstance(buf, DNDarray):
-            buf = buf.larray
         if not isinstance(buf, torch.Tensor):
             return MPIRequest(self.handle.Irecv(buf, source, tag))
 
@@ -385,7 +381,7 @@ class MPICommunication(Communication):
 
     def Recv(
         self,
-        buf: Union[DNDarray, torch.Tensor, Any],
+        buf: Union[torch.Tensor, Any],
         source: int = MPI.ANY_SOURCE,
         tag: int = MPI.ANY_TAG,
         status: MPI.Status = None,
@@ -395,7 +391,7 @@ class MPICommunication(Communication):
 
         Parameters
         ------------
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address where to place the received message
         source: int, optional
             Rank of the source process, that send the message
@@ -404,8 +400,6 @@ class MPICommunication(Communication):
         status: MPI.Status, optional
             Details on the communication
         """
-        if isinstance(buf, DNDarray):
-            buf = buf.larray
         if not isinstance(buf, torch.Tensor):
             return self.handle.Recv(buf, source, tag, status)
 
@@ -419,8 +413,8 @@ class MPICommunication(Communication):
     Recv.__doc__ = MPI.Comm.Recv.__doc__
 
     def __send_like(
-        self, func: Callable, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int
-    ) -> Tuple[Optional[Union[DNDarray, torch.Tensor]]]:
+        self, func: Callable, buf: Union[torch.Tensor, Any], dest: int, tag: int
+    ) -> Tuple[Optional[Union[torch.Tensor]]]:
         """
         Generic function for sending a message to process with rank "dest"
 
@@ -428,15 +422,13 @@ class MPICommunication(Communication):
         ------------
         func: Callable
             The respective MPI sending function
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
         tag: int, optional
             A Tag to identify the message
         """
-        if isinstance(buf, DNDarray):
-            buf = buf.larray
         if not isinstance(buf, torch.Tensor):
             return func(buf, dest, tag), None
 
@@ -444,13 +436,13 @@ class MPICommunication(Communication):
         sbuf = buf if CUDA_AWARE_MPI else buf.cpu()
         return func(self.as_buffer(sbuf), dest, tag), sbuf
 
-    def Bsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
+    def Bsend(self, buf: Union[torch.Tensor, Any], dest: int, tag: int = 0):
         """
         Blocking buffered send
 
         Parameters
         ------------
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
             Index of the destination process, that receives the message
@@ -461,15 +453,13 @@ class MPICommunication(Communication):
 
     Bsend.__doc__ = MPI.Comm.Bsend.__doc__
 
-    def Ibsend(
-        self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0
-    ) -> MPIRequest:
+    def Ibsend(self, buf: Union[torch.Tensor, Any], dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking buffered send
 
         Parameters
         ------------
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -480,15 +470,13 @@ class MPICommunication(Communication):
 
     Ibsend.__doc__ = MPI.Comm.Ibsend.__doc__
 
-    def Irsend(
-        self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0
-    ) -> MPIRequest:
+    def Irsend(self, buf: Union[torch.Tensor, Any], dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking ready send
 
         Parameters
         ------------
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -499,13 +487,13 @@ class MPICommunication(Communication):
 
     Irsend.__doc__ = MPI.Comm.Irsend.__doc__
 
-    def Isend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0) -> MPIRequest:
+    def Isend(self, buf: Union[torch.Tensor, Any], dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking send
 
         Parameters
         ------------
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -516,15 +504,13 @@ class MPICommunication(Communication):
 
     Isend.__doc__ = MPI.Comm.Isend.__doc__
 
-    def Issend(
-        self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0
-    ) -> MPIRequest:
+    def Issend(self, buf: Union[torch.Tensor, Any], dest: int, tag: int = 0) -> MPIRequest:
         """
         Nonblocking synchronous send
 
         Parameters
         ------------
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -535,13 +521,13 @@ class MPICommunication(Communication):
 
     Issend.__doc__ = MPI.Comm.Issend.__doc__
 
-    def Rsend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
+    def Rsend(self, buf: Union[torch.Tensor, Any], dest: int, tag: int = 0):
         """
         Blocking ready send
 
         Parameters
         ------------
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -552,13 +538,13 @@ class MPICommunication(Communication):
 
     Rsend.__doc__ = MPI.Comm.Rsend.__doc__
 
-    def Ssend(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
+    def Ssend(self, buf: Union[torch.Tensor, Any], dest: int, tag: int = 0):
         """
         Blocking synchronous send
 
         Parameters
         ------------
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -569,13 +555,13 @@ class MPICommunication(Communication):
 
     Ssend.__doc__ = MPI.Comm.Ssend.__doc__
 
-    def Send(self, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int = 0):
+    def Send(self, buf: Union[torch.Tensor, Any], dest: int, tag: int = 0):
         """
         Blocking send
 
         Parameters
         ------------
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address of the message to be send
         dest: int, optional
             Rank of the destination process, that receives the message
@@ -587,8 +573,8 @@ class MPICommunication(Communication):
     Send.__doc__ = MPI.Comm.Send.__doc__
 
     def __broadcast_like(
-        self, func: Callable, buf: Union[DNDarray, torch.Tensor, Any], root: int
-    ) -> Tuple[Optional[DNDarray, torch.Tensor]]:
+        self, func: Callable, buf: Union[torch.Tensor, Any], root: int
+    ) -> Tuple[Optional[torch.Tensor]]:
         """
         Generic function for broadcasting a message from the process with rank "root" to all other processes of the
         communicator
@@ -597,14 +583,11 @@ class MPICommunication(Communication):
         ------------
         func: Callable
             The respective MPI broadcast function
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address of the message to be broadcasted
         root: int
             Rank of the root process, that broadcasts the message
         """
-        # unpack the buffer if it is a HeAT tensor
-        if isinstance(buf, DNDarray):
-            buf = buf.larray
         # convert torch tensors to MPI memory buffers
         if not isinstance(buf, torch.Tensor):
             return func(buf, root), None, None, None
@@ -613,13 +596,13 @@ class MPICommunication(Communication):
 
         return func(self.as_buffer(srbuf), root), srbuf, srbuf, buf
 
-    def Bcast(self, buf: Union[DNDarray, torch.Tensor, Any], root: int = 0) -> None:
+    def Bcast(self, buf: Union[torch.Tensor, Any], root: int = 0) -> None:
         """
         Blocking Broadcast
 
         Parameters
         ------------
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address of the message to be broadcasted
         root: int
             Rank of the root process, that broadcasts the message
@@ -631,13 +614,13 @@ class MPICommunication(Communication):
 
     Bcast.__doc__ = MPI.Comm.Bcast.__doc__
 
-    def Ibcast(self, buf: Union[DNDarray, torch.Tensor, Any], root: int = 0) -> MPIRequest:
+    def Ibcast(self, buf: Union[torch.Tensor, Any], root: int = 0) -> MPIRequest:
         """
         Nonblocking Broadcast
 
         Parameters
         ------------
-        buf: Union[DNDarray, torch.Tensor, Any]
+        buf: Union[torch.Tensor, Any]
             Buffer address of the message to be broadcasted
         root: int
             Rank of the root process, that broadcasts the message
@@ -649,11 +632,11 @@ class MPICommunication(Communication):
     def __reduce_like(
         self,
         func: Callable,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         *args,
         **kwargs,
-    ) -> Tuple[Optional[DNDarray, torch.Tensor]]:
+    ) -> Tuple[Optional[torch.Tensor]]:
         """
         Generic function for reduction operations.
 
@@ -661,20 +644,14 @@ class MPICommunication(Communication):
         ------------
         func: Callable
             The respective MPI reduction operation
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result of the reduction
         """
         sbuf = None
         rbuf = None
         buf = None
-        # unpack the send buffer if it is a HeAT tensor
-        if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf.larray
-        # unpack the receive buffer if it is a HeAT tensor
-        if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf.larray
 
         # harmonize the input and output buffers
         # MPI requires send and receive buffers to be of same type and length. If the torch tensors are either not both
@@ -732,8 +709,8 @@ class MPICommunication(Communication):
 
     def Allreduce(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
     ):
         """
@@ -741,9 +718,9 @@ class MPICommunication(Communication):
 
         Parameters
         ---------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -757,8 +734,8 @@ class MPICommunication(Communication):
 
     def Exscan(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
     ):
         """
@@ -782,8 +759,8 @@ class MPICommunication(Communication):
 
     def Iallreduce(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
     ) -> MPIRequest:
         """
@@ -804,8 +781,8 @@ class MPICommunication(Communication):
 
     def Iexscan(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
     ) -> MPIRequest:
         """
@@ -813,9 +790,9 @@ class MPICommunication(Communication):
 
         Parameters
         ------------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -826,8 +803,8 @@ class MPICommunication(Communication):
 
     def Iscan(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
     ) -> MPIRequest:
         """
@@ -835,9 +812,9 @@ class MPICommunication(Communication):
 
         Parameters
         ------------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -848,8 +825,8 @@ class MPICommunication(Communication):
 
     def Ireduce(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
         root: int = 0,
     ) -> MPIRequest:
@@ -858,9 +835,9 @@ class MPICommunication(Communication):
 
         Parameters
         ---------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -873,8 +850,8 @@ class MPICommunication(Communication):
 
     def Reduce(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
         root: int = 0,
     ):
@@ -883,9 +860,9 @@ class MPICommunication(Communication):
 
         Parameters
         ---------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -901,8 +878,8 @@ class MPICommunication(Communication):
 
     def Scan(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         op: MPI.Op = MPI.SUM,
     ):
         """
@@ -910,9 +887,9 @@ class MPICommunication(Communication):
 
         Parameters
         ------------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result of the reduction
         op: MPI.Op
             The operation to perform upon reduction
@@ -927,8 +904,8 @@ class MPICommunication(Communication):
     def __allgather_like(
         self,
         func: Callable,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         axis: int,
         **kwargs,
     ):
@@ -939,9 +916,9 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             Type of MPI Allgather function (i.e. allgather, allgatherv, iallgather)
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -953,8 +930,6 @@ class MPICommunication(Communication):
         # unpack the send buffer
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
-        if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and axis != 0:
             raise TypeError(
                 f"sendbuf of type {type(sendbuf)} does not support concatenation axis != 0"
@@ -962,8 +937,6 @@ class MPICommunication(Communication):
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
-        if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and axis != 0:
             raise TypeError(
                 f"recvbuf of type {type(recvbuf)} does not support concatenation axis != 0"
@@ -1009,8 +982,8 @@ class MPICommunication(Communication):
 
     def Allgather(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         recv_axis: int = 0,
     ):
         """
@@ -1018,9 +991,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         recv_axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1038,8 +1011,8 @@ class MPICommunication(Communication):
 
     def Allgatherv(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         recv_axis: int = 0,
     ):
         """
@@ -1047,9 +1020,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         recv_axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1067,8 +1040,8 @@ class MPICommunication(Communication):
 
     def Iallgather(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         recv_axis: int = 0,
     ) -> MPIRequest:
         """
@@ -1076,9 +1049,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         recv_axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1091,8 +1064,8 @@ class MPICommunication(Communication):
 
     def Iallgatherv(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         recv_axis: int = 0,
     ):
         """
@@ -1100,9 +1073,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         recv_axis: int
             Concatenation axis: The axis along which ``sendbuf`` is packed and along which ``recvbuf`` puts together individual chunks
@@ -1116,8 +1089,8 @@ class MPICommunication(Communication):
     def __alltoall_like(
         self,
         func: Callable,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         send_axis: int,
         recv_axis: int,
         **kwargs,
@@ -1129,9 +1102,9 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             Specific alltoall function
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1155,16 +1128,12 @@ class MPICommunication(Communication):
         # unpack the send buffer
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
-        if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
 
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
-        if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support send_axis != 0")
 
@@ -1253,8 +1222,8 @@ class MPICommunication(Communication):
 
     def Alltoall(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         send_axis: int = 0,
         recv_axis: int = None,
     ):
@@ -1264,9 +1233,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1289,8 +1258,8 @@ class MPICommunication(Communication):
 
     def Alltoallv(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         send_axis: int = 0,
         recv_axis: int = None,
     ):
@@ -1300,9 +1269,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1325,8 +1294,8 @@ class MPICommunication(Communication):
 
     def Ialltoall(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         send_axis: int = 0,
         recv_axis: int = None,
     ) -> MPIRequest:
@@ -1335,9 +1304,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1355,8 +1324,8 @@ class MPICommunication(Communication):
 
     def Ialltoallv(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         send_axis: int = 0,
         recv_axis: int = None,
     ) -> MPIRequest:
@@ -1366,9 +1335,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         send_axis: int
             Future split axis, along which data blocks will be created that will be send to individual ranks
@@ -1387,8 +1356,8 @@ class MPICommunication(Communication):
     def __gather_like(
         self,
         func: Callable,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         send_axis: int,
         recv_axis: int,
         send_factor: int = 1,
@@ -1402,9 +1371,9 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             Type of MPI Scatter/Gather function
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         send_axis: int
             The axis along which ``sendbuf`` is packed
@@ -1427,16 +1396,12 @@ class MPICommunication(Communication):
         # unpack the send buffer
         # if isinstance(sendbuf, tuple):
         #     sendbuf, send_counts, send_displs = sendbuf
-        if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
 
         # unpack the receive buffer
         if isinstance(recvbuf, tuple):
             recvbuf, recv_counts, recv_displs = recvbuf
-        if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and recv_axis != 0:
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
 
@@ -1482,8 +1447,8 @@ class MPICommunication(Communication):
 
     def Gather(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -1493,9 +1458,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         root: int
             Rank of receiving process
@@ -1517,8 +1482,8 @@ class MPICommunication(Communication):
 
     def Gatherv(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -1528,9 +1493,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         root: int
             Rank of receiving process
@@ -1552,8 +1517,8 @@ class MPICommunication(Communication):
 
     def Igather(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -1563,9 +1528,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         root: int
             Rank of receiving process
@@ -1590,8 +1555,8 @@ class MPICommunication(Communication):
 
     def Igatherv(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -1601,9 +1566,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         root: int
             Rank of receiving process
@@ -1629,8 +1594,8 @@ class MPICommunication(Communication):
     def __scatter_like(
         self,
         func: Callable,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         send_axis: int,
         recv_axis: int,
         send_factor: int = 1,
@@ -1644,9 +1609,9 @@ class MPICommunication(Communication):
         ----------
         func: Callable
             Type of MPI Scatter/Gather function
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         send_axis: int
             The axis along which ``sendbuf`` is packed
@@ -1669,16 +1634,12 @@ class MPICommunication(Communication):
         # unpack the send buffer
         if isinstance(sendbuf, tuple):
             sendbuf, send_counts, send_displs = sendbuf
-        if isinstance(sendbuf, DNDarray):
-            sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
             raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
 
         # unpack the receive buffer
         # if isinstance(recvbuf, tuple):
         #     recvbuf, recv_counts, recv_displs = recvbuf
-        if isinstance(recvbuf, DNDarray):
-            recvbuf = recvbuf.larray
         if not isinstance(recvbuf, torch.Tensor) and recv_axis != 0:
             raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
 
@@ -1724,8 +1685,8 @@ class MPICommunication(Communication):
 
     def Iscatter(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -1735,9 +1696,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         root: int
             Rank of sending process
@@ -1762,8 +1723,8 @@ class MPICommunication(Communication):
 
     def Iscatterv(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -1773,9 +1734,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         root: int
             Rank of sending process
@@ -1800,8 +1761,8 @@ class MPICommunication(Communication):
 
     def Scatter(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
-        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
+        recvbuf: Union[torch.Tensor, Any],
         root: int = 0,
         axis: int = 0,
         recv_axis: int = None,
@@ -1811,9 +1772,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         root: int
             Rank of sending process
@@ -1835,7 +1796,7 @@ class MPICommunication(Communication):
 
     def Scatterv(
         self,
-        sendbuf: Union[DNDarray, torch.Tensor, Any],
+        sendbuf: Union[torch.Tensor, Any],
         recvbuf: int,
         root: int = 0,
         axis: int = 0,
@@ -1846,9 +1807,9 @@ class MPICommunication(Communication):
 
         Parameters
         ----------
-        sendbuf: Union[DNDarray, torch.Tensor, Any]
+        sendbuf: Union[torch.Tensor, Any]
             Buffer address of the send message
-        recvbuf: Union[DNDarray, torch.Tensor, Any]
+        recvbuf: Union[torch.Tensor, Any]
             Buffer address where to store the result
         root: int
             Rank of sending process
