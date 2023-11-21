@@ -856,8 +856,8 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret_batched.split, 0)
 
             if torch.cuda.is_available():
-                a = ht.array(a, device="gpu")
-                b = ht.array(b, device="gpu")
+                a = ht.array(a, device="gpu", split=0)
+                b = ht.array(b, device="gpu", split=0)
                 ret_batched = ht.matmul(a, b)
 
                 self.assertTrue(ht.equal(ret_batched, s1))

@@ -544,7 +544,6 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             torch.matmul(a.larray, b.larray), is_split=a.split, device=a.device, comm=a.comm
         )
         if gpu_int_flag:
-            print("kek")
             ret = og_type(ret, device=a.device)
         return ret
 
