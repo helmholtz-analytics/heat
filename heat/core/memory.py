@@ -74,12 +74,20 @@ def sanitize_memory_layout(x: torch.Tensor, order: str = "C") -> torch.Tensor:
         dims = tuple(reversed(dims))
         y = torch.empty_like(x)
         permutation = x.permute(dims).contiguous()
-        y = y.set_(
-            permutation.storage(),
-            x.storage_offset(),
-            x.shape,
-            tuple(reversed(permutation.stride())),
-        )
+        try:
+            y = y.set_(
+                permutation.untyped_storage(),
+                x.storage_offset(),
+                x.shape,
+                tuple(reversed(permutation.stride())),
+            )
+        except AttributeError:
+            y = y.set_(
+                permutation.storage(),
+                x.storage_offset(),
+                x.shape,
+                tuple(reversed(permutation.stride())),
+            )
         del permutation, dims, column_major, row_major, x
         return y
     else:
