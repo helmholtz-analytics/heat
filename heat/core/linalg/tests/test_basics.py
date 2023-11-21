@@ -812,6 +812,23 @@ class TestLinalgBasics(TestCase):
             with self.assertRaises(TypeError):
                 "T" @ ht.zeros((3, 3, 3))
 
+            # batched, dimension errors
+            # different number of batch dimensions
+            with self.assertRaises(ValueError):
+                a = ht.zeros((3, 3, 3))
+                b = ht.zeros((3, 3))
+                ht.matmul(a, b)
+            # different batch dimension shape
+            with self.assertRaises(ValueError):
+                a = ht.zeros((3, 3, 3), split=0)
+                b = ht.zeros((4, 3, 3), split=0)
+                ht.matmul(a, b)
+            # not implemented split
+            with self.assertRaises(NotImplementedError):
+                a = ht.zeros((3, 3, 3), split=None)
+                b = ht.zeros((3, 3, 3))
+                ht.matmul(a, b)
+
             # batched, split batch
             n = 10  # number of batches
             k = 1000  # data dimension size
@@ -837,6 +854,13 @@ class TestLinalgBasics(TestCase):
             )
             self.assertEqual(ret_batched.dtype, ht.int64)
             self.assertEqual(ret_batched.split, 0)
+
+            if torch.cuda.is_available():
+                a = ht.array(a, device="gpu")
+                b = ht.array(b, device="gpu")
+                ret_batched = ht.matmul(a, b)
+
+                self.assertTrue(ht.equal(ret_batched, s1))
 
     def test_matrix_norm(self):
         a = ht.arange(9, dtype=ht.float) - 4
