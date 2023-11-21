@@ -267,7 +267,7 @@ class TestLogical(TestCase):
         self.assertEqual(keepdims_any.split, None)
 
     def test_isclose(self):
-        size = ht.communication.MPI_WORLD.size
+        size = ht.communication_backends.MPI_WORLD.size
         a = ht.float32([[2, 2], [2, 2]])
         b = ht.float32([[2.00005, 2.00005], [2.00005, 2.00005]])
         c = ht.zeros((4 * size, 6), split=0)

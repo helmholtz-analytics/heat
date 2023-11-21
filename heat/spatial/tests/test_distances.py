@@ -12,7 +12,7 @@ from heat.core.tests.test_suites.basic_test import TestCase
 
 class TestDistances(TestCase):
     def test_cdist(self):
-        n = ht.communication.MPI_WORLD.size
+        n = ht.communication_backends.MPI_WORLD.size
         X = ht.ones((n * 2, 4), dtype=ht.float32, split=None)
         Y = ht.zeros((n * 2, 4), dtype=ht.float32, split=None)
         res_XX_cdist = ht.zeros((n * 2, n * 2), dtype=ht.float32, split=None)
@@ -204,7 +204,7 @@ class TestDistances(TestCase):
         with self.assertRaises(NotImplementedError):
             ht.spatial.cdist(X, Z, quadratic_expansion=False)
 
-        n = ht.communication.MPI_WORLD.size
+        n = ht.communication_backends.MPI_WORLD.size
         A = ht.ones((n * 2, 6), dtype=ht.float32, split=None)
         for i in range(n):
             A[2 * i, :] = A[2 * i, :] * (2 * i)
@@ -221,7 +221,7 @@ class TestDistances(TestCase):
         result = ht.array(res, dtype=ht.float32, split=0)
         self.assertTrue(ht.allclose(d, result, atol=1e-5))
 
-        n = ht.communication.MPI_WORLD.size
+        n = ht.communication_backends.MPI_WORLD.size
         A = ht.ones((n * 2, 6), dtype=ht.float32, split=None)
         for i in range(n):
             A[2 * i, :] = A[2 * i, :] * (2 * i)

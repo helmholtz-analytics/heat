@@ -1,5 +1,5 @@
 """
-Add the communication_backends functions to the ht.communication namespace
+Add the communication_backends functions to the ht.communication_backends namespace
 """
 
 from .communication import *

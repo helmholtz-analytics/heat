@@ -5,7 +5,6 @@ from __future__ import annotations
 import torch
 from typing import Optional, Tuple
 from ..core.stride_tricks import sanitize_axis
-from ..core.dndarray import DNDarray
 
 
 class Communication:

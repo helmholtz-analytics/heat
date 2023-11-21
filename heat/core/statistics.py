@@ -1637,7 +1637,7 @@ def percentile(
                     comm=x.comm,
                     balanced=True,
                 )
-            x.comm.Bcast(local_p, root=r)
+            x.comm.Bcast(local_p.larray, root=r)
             percentile[perc_slice] = local_p
     else:
         if x.comm.is_distributed() and split is not None:

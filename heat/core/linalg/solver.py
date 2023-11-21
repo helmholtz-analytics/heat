@@ -183,8 +183,12 @@ def lanczos(
                     vi_loc = V._DNDarray__array[:, j]
                     a = torch.dot(vr.larray, torch.conj(vi_loc))
                     b = torch.dot(vi_loc, torch.conj(vi_loc))
-                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
-                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
+                    A.comm.Allreduce(
+                        ht.communication_backends.MPI.IN_PLACE, a, ht.communication_backends.MPI.SUM
+                    )
+                    A.comm.Allreduce(
+                        ht.communication_backends.MPI.IN_PLACE, b, ht.communication_backends.MPI.SUM
+                    )
                     vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
                 # normalize v_r to Euclidean norm 1 and set as ith vector v
                 vi = vr / ht.norm(vr)
@@ -196,8 +200,12 @@ def lanczos(
                     vi_loc = V.larray[:, j]
                     a = torch.dot(vr._DNDarray__array, torch.conj(vi_loc))
                     b = torch.dot(vi_loc, torch.conj(vi_loc))
-                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
-                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
+                    A.comm.Allreduce(
+                        ht.communication_backends.MPI.IN_PLACE, a, ht.communication_backends.MPI.SUM
+                    )
+                    A.comm.Allreduce(
+                        ht.communication_backends.MPI.IN_PLACE, b, ht.communication_backends.MPI.SUM
+                    )
                     vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
 
                 vi = vr / ht.norm(vr)
@@ -235,8 +243,12 @@ def lanczos(
                     vi_loc = V._DNDarray__array[:, j]
                     a = torch.dot(vr.larray, vi_loc)
                     b = torch.dot(vi_loc, vi_loc)
-                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
-                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
+                    A.comm.Allreduce(
+                        ht.communication_backends.MPI.IN_PLACE, a, ht.communication_backends.MPI.SUM
+                    )
+                    A.comm.Allreduce(
+                        ht.communication_backends.MPI.IN_PLACE, b, ht.communication_backends.MPI.SUM
+                    )
                     vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
                 # normalize v_r to Euclidean norm 1 and set as ith vector v
                 vi = vr / ht.norm(vr)
@@ -248,8 +260,12 @@ def lanczos(
                     vi_loc = V.larray[:, j]
                     a = torch.dot(vr._DNDarray__array, vi_loc)
                     b = torch.dot(vi_loc, vi_loc)
-                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, a, ht.communication.MPI.SUM)
-                    A.comm.Allreduce(ht.communication.MPI.IN_PLACE, b, ht.communication.MPI.SUM)
+                    A.comm.Allreduce(
+                        ht.communication_backends.MPI.IN_PLACE, a, ht.communication_backends.MPI.SUM
+                    )
+                    A.comm.Allreduce(
+                        ht.communication_backends.MPI.IN_PLACE, b, ht.communication_backends.MPI.SUM
+                    )
                     vr._DNDarray__array = vr._DNDarray__array - a / b * vi_loc
 
                 vi = vr / ht.norm(vr)

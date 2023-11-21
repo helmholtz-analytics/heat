@@ -120,7 +120,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                     if x.comm.rank == proc:
                         idx = sample - displ[proc]
                         xi = ht.array(x.lloc[idx, :], device=x.device, comm=x.comm)
-                    xi.comm.Bcast(xi, root=proc)
+                    xi.comm.Bcast(xi.larray, root=proc)
                     centroids[i, :] = xi
 
             else:
@@ -155,7 +155,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 if x.comm.rank == proc:
                     idx = sample - displ[proc]
                     x0 = ht.array(x.lloc[idx, :], device=x.device, comm=x.comm)
-                x0.comm.Bcast(x0, root=proc)
+                x0.comm.Bcast(x0.larray, root=proc)
                 centroids[0, :] = x0
                 for i in range(1, self.n_clusters):
                     distances = ht.spatial.distance.cdist(x, centroids, quadratic_expansion=True)
@@ -179,7 +179,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                     if x.comm.rank == proc:
                         idx = sample - displ[proc]
                         xi = ht.array(x.lloc[idx, :], device=x.device, comm=x.comm)
-                    xi.comm.Bcast(xi, root=proc)
+                    xi.comm.Bcast(xi.larray, root=proc)
                     centroids[i, :] = xi
 
             else:

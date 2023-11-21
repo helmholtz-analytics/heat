@@ -108,7 +108,7 @@ class KMedoids(_KCluster):
                 if x.comm.rank == proc:
                     lidx = idx - displ[proc]
                     closest_point = ht.array(x.lloc[lidx, :], device=x.device, comm=x.comm)
-                closest_point.comm.Bcast(closest_point, root=proc)
+                closest_point.comm.Bcast(closest_point.larray, root=proc)
                 new_cluster_centers[i, :] = closest_point
 
         return new_cluster_centers

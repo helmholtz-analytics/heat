@@ -63,12 +63,12 @@ class TestArithmetics(TestCase):
             device=self.device.torch_device,
         )
 
-        self.world_size = ht.communication.MPI_WORLD.size
-        self.rank = ht.communication.MPI_WORLD.rank
+        self.world_size = ht.communication_backends.MPI_WORLD.size
+        self.rank = ht.communication_backends.MPI_WORLD.rank
 
         self.scalar = np.array(random.randint(1, 100))
         if self.world_size > 0:
-            ht.communication.MPI_WORLD.Bcast(self.scalar, root=0)
+            ht.communication_backends.MPI_WORLD.Bcast(self.scalar, root=0)
         self.scalar = self.scalar.item()
 
     def test_add(self):

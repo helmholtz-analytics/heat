@@ -169,7 +169,7 @@ class TestRounding(TestCase):
             ht.floor(object())
 
     def test_modf(self):
-        size = ht.communication.MPI_WORLD.size
+        size = ht.communication_backends.MPI_WORLD.size
         start, end = -5.0, 5.0
         step = (end - start) / (2 * size)
         npArray = np.arange(start, end, step, dtype=np.float32)
@@ -248,7 +248,7 @@ class TestRounding(TestCase):
         self.assert_array_equal(float64_modf_distrbd[1], comparison[1])
 
     def test_round(self):
-        size = ht.communication.MPI_WORLD.size
+        size = ht.communication_backends.MPI_WORLD.size
         start, end = -5.7, 5.1
         step = (end - start) / (2 * size)
         comparison = torch.arange(start, end, step, dtype=torch.float32).round()

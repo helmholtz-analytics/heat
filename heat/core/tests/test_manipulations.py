@@ -473,8 +473,8 @@ class TestManipulations(TestCase):
         with self.assertRaises(ValueError):
             ht.concatenate((x, ht.zeros((2, 2))), axis=0)
         with self.assertRaises(RuntimeError):
-            a = ht.zeros((10,), comm=ht.communication.MPI_WORLD)
-            b = ht.zeros((10,), comm=ht.communication.MPI_SELF)
+            a = ht.zeros((10,), comm=ht.communication_backends.MPI_WORLD)
+            b = ht.zeros((10,), comm=ht.communication_backends.MPI_SELF)
             ht.concatenate([a, b])
         with self.assertRaises(ValueError):
             ht.concatenate((ht.zeros((12, 12)), ht.zeros((2, 2))), axis=0)

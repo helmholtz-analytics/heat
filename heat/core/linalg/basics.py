@@ -530,7 +530,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
         c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device, comm=a.comm)
         c.larray[slice_0.start : slice_0.stop, :] += hold
-        c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+        c.comm.Allreduce(MPI.IN_PLACE, c.larray, MPI.SUM)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
         return c
@@ -707,7 +707,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     c_idx = c.comm.chunk(c.shape, c.split)[2]
     c_index_map[c.comm.rank, 0, :] = (c_idx[0].start, c_idx[0].stop)
     c_index_map[c.comm.rank, 1, :] = (c_idx[1].start, c_idx[1].stop)
-    c_wait = c.comm.Iallreduce(MPI.IN_PLACE, c_index_map, MPI.SUM)
+    c_wait = c.comm.Iallreduce(MPI.IN_PLACE, c_index_map.larray, MPI.SUM)
 
     if a.split == 0:
         a_block_map = torch.zeros(
