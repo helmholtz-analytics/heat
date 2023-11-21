@@ -531,7 +531,9 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         if a.gshape[:batch_dim] != b.gshape[:batch_dim]:
             raise ValueError("Batch dimension must have the same shape!")
         if a.split >= batch_dim or b.split >= batch_dim or a.split != b.split:
-            raise ValueError("Split must be along the same axis which has to be a batch axis!")
+            raise NotImplementedError(
+                "Split must be along the same axis which has to be a batch axis!"
+            )
         ret = factories.array(
             torch.matmul(a.larray, b.larray), is_split=a.split, device=a.device, comm=a.comm
         )
