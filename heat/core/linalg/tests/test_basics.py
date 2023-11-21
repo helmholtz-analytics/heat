@@ -855,9 +855,11 @@ class TestLinalgBasics(TestCase):
             self.assertEqual(ret_batched.dtype, ht.int64)
             self.assertEqual(ret_batched.split, 0)
 
+            # on gpu
             if torch.cuda.is_available():
                 a = ht.array(a, device="gpu", split=0)
                 b = ht.array(b, device="gpu", split=0)
+                s1 = ht.array(s1, device="gpu", split=0)
                 ret_batched = ht.matmul(a, b)
 
                 self.assertTrue(ht.equal(ret_batched, s1))
