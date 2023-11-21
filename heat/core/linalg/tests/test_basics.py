@@ -812,6 +812,32 @@ class TestLinalgBasics(TestCase):
             with self.assertRaises(TypeError):
                 "T" @ ht.zeros((3, 3, 3))
 
+            # batched, split batch
+            n = 10  # number of batches
+            k = 1000  # data dimension size
+            s1 = ht.arange(n, dtype=ht.int64).reshape((n, 1, 1))
+            zeros = ht.zeros((n, 1, k - 1), dtype=ht.int64)
+            a = ht.concatenate((s1, zeros), 2)
+            a.resplit_(0)
+            z1 = ht.ones((n, 1, 1), dtype=ht.int64)
+            zeros = ht.zeros((n, k - 1, 1), dtype=ht.int64)
+            b = ht.concatenate((z1, zeros), 1)
+            b.resplit_(0)
+            ret_batched = ht.matmul(a, b)
+
+            self.assertTrue(ht.equal(ret_batched, s1))
+            self.assertIsInstance(ret_batched, ht.DNDarray)
+            self.assertEqual(
+                ret_batched.shape,
+                (
+                    n,
+                    1,
+                    1,
+                ),
+            )
+            self.assertEqual(ret_batched.dtype, ht.int64)
+            self.assertEqual(ret_batched.split, 0)
+
     def test_matrix_norm(self):
         a = ht.arange(9, dtype=ht.float) - 4
         b = a.reshape((3, 3))
