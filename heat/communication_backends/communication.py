@@ -5,9 +5,7 @@ from __future__ import annotations
 import torch
 from typing import Optional, Tuple
 from ..core.stride_tricks import sanitize_axis
-
-from mpi4py import MPI
-from .mpi4py4torch import MPICommunication
+from ..core.dndarray import DNDarray
 
 
 class Communication:
@@ -116,6 +114,8 @@ class Communication:
 
 
 # creating a duplicate COMM
+from .mpi4py4torch import MPICommunication
+from mpi4py import MPI
 
 comm = MPI.COMM_WORLD
 dup_comm = comm.Dup()

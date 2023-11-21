@@ -11,6 +11,8 @@ from mpi4py import MPI
 
 from typing import Any, Callable, Optional, List, Tuple, Union
 from heat.communication_backends.communication import Communication
+from ..core.dndarray import DNDarray
+
 
 CUDA_AWARE_MPI = False
 # check whether OpenMPI support CUDA-aware MPI
@@ -1885,4 +1887,3 @@ class MPICommunication(Communication):
 
 
 # import at the end of file to break circular dependencies
-from ..core.dndarray import DNDarray
