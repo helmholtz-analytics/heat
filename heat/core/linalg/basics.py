@@ -490,7 +490,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     batch_dim = max(a.ndim, b.ndim) - 2
     batched = batch_dim > 0
 
-    if batched and a.gshape[-1] != b.gshape[-2] or a.gshape[-1] != b.gshape[0]:
+    if a.gshape[-1] != b.gshape[batch_dim]:
         raise ValueError(
             f"If the last dimension of a ({a.gshape[-1]}) not the same size as the second-to-last dimension of b. ({b.gshape[-2]})"
         )
