@@ -51,7 +51,6 @@ __all__ = [
     "divide",
     "divide_",
     "divmod",
-    "divmod_",
     "floordiv",
     "floordiv_",
     "floor_divide",
@@ -83,9 +82,7 @@ __all__ = [
     "negative",
     "negative_",
     "pos",
-    "pos_",
     "positive",
-    "positive_",
     "pow",
     "pow_",
     "power",
@@ -166,6 +163,8 @@ DNDarray.__radd__.__doc__ = add.__doc__
 
 def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
+    WILL BE REVISED LATER
+
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
@@ -212,19 +211,27 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
             + str(type(t2))
             + "."
         )
-    """
+
     if isinstance(t2, DNDarray):
-        if t1.split != t2.split:
-            t2.resplit_(t1.split)
-    """
+        if (t1.split != t2.split) and (t2.split is not None):
+            raise ValueError(
+                "To do this operation in-place either the input DNDarrays must have the same split "
+                + "axes or the second input must have split axis None. But your inputs have the "
+                + "split axes "
+                + str(t1.split)
+                + " and "
+                + str(t2.split)
+                + "."
+            )
 
     def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.add_(b)
 
-    return _operations.__binary_op(wrap_add_, t1, t2)
+    return _operations.__binary_op(wrap_add_, t1, t2, out=t1)
 
 
 DNDarray.__iadd__ = add_
+DNDarray.add_ = add_
 
 
 def bitwise_and(
@@ -1241,16 +1248,6 @@ DNDarray.__divmod__ = _divmod
 DNDarray.__divmod__.__doc__ = divmod.__doc__
 DNDarray.__rdivmod__ = lambda self, other: _divmod(other, self)
 DNDarray.__rdivmod__.__doc__ = divmod.__doc__
-
-
-def divmod_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
-    """
-    In-place version of `divmod`. Not implemented as there are no in-place versions of `divmod` in
-    PyTorch or NumPy.
-    """
-    raise NotImplementedError(
-        "Not implemented as there are no in-place versions of `divmod` in PyTorch or NumPy."
-    )
 
 
 def floordiv(
@@ -2339,21 +2336,6 @@ DNDarray.__pos__.__doc__ = pos.__doc__
 # Alias in compliance with numpy API
 positive = pos
 """Alias for :py:func:`pos`"""
-
-
-def pos_(a: DNDarray) -> DNDarray:
-    """
-    In-place version of `pos`. Not implemented as there are no in-place versions of `pos` in PyTorch
-    or Numpy.
-    """
-    raise NotImplementedError(
-        "Not implemented as there are no in-place versions of `pos` in PyTorch or Numpy."
-    )
-
-
-# Alias
-positive_ = pos_
-"""Alias for :py:func:`pos_`"""
 
 
 def pow(
