@@ -2,16 +2,12 @@ ARG PYTORCH_IMG=23.05-py3
 ARG HEAT_BRANCH=main
 
 FROM nvcr.io/nvidia/pytorch:${PYTORCH_IMG} AS base
-COPY ./docker/tzdata.seed /tmp/tzdata.seed
+COPY ./tzdata.seed /tmp/tzdata.seed
 RUN debconf-set-selections /tmp/tzdata.seed
 RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y build-essential openssh-client python3-dev git && apt clean && rm -rf /var/lib/apt/lists/*
 
 FROM base AS source-install
 ARG HEAT_BRANCH
+RUN pip install --upgrade pip
 RUN git clone -b ${HEAT_BRANCH} https://github.com/helmholtz-analytics/heat.git
-RUN cd heat
-RUN pip install mpi4py --no-binary :all:
-RUN pip install .[hdf5,netcdf]
-RUN pip cache purge
-RUN cd ..
-RUN rm -rf heat
+RUN pip install mpi4py --no-binary :all: && pushd heat && pip install .[hdf5,netcdf] && popd && rm -rf heat
