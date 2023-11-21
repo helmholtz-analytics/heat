@@ -526,11 +526,17 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         # furthermore, they must be split along the same batch axis and the
         # batch dimensions must have the same shape
 
-        if a.ndim < batch_dim or b.ndim < batch_dim:
+        if a.ndim != b.ndim:
             raise ValueError("Number of batch dimensions must be the same!")
         if a.gshape[:batch_dim] != b.gshape[:batch_dim]:
             raise ValueError("Batch dimension must have the same shape!")
-        if a.split >= batch_dim or b.split >= batch_dim or a.split != b.split:
+        if (
+            a.split is None
+            or b.split is None
+            or a.split >= batch_dim
+            or b.split >= batch_dim
+            or a.split != b.split
+        ):
             raise NotImplementedError(
                 "Split must be along the same axis which has to be a batch axis!"
             )
@@ -538,6 +544,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             torch.matmul(a.larray, b.larray), is_split=a.split, device=a.device, comm=a.comm
         )
         if gpu_int_flag:
+            print("kek")
             ret = og_type(ret, device=a.device)
         return ret
 
