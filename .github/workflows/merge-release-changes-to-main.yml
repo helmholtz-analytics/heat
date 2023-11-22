@@ -7,7 +7,7 @@ env:
     starting_branch: ${{ github.ref }}
     working_branch: workflows/merge-release-changes-to-main
     # set base branch to main
-    base_branch: origin/main
+    base_branch: main
 permissions:
     contents: write
     issues: write
@@ -27,8 +27,9 @@ jobs:
                 ref: '${{ env.starting_branch }}'
             - name: Create working branch
               run: |
+                git fetch origin ${{ env.base_branch }}
                 git checkout -b ${{ env.working_branch }} ${{ env.starting_branch }}
-                git pull ${{ env.base_branch }} heat/core/version.py
+                git checkout ${{ env.base_branch }} heat/core/version.py
                 git push --set-upstream origin ${{ env.working_branch }}
             - name: Create a pull request
               uses: peter-evans/create-pull-request@v5
