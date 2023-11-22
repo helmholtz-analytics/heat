@@ -5,8 +5,6 @@ on:
     branches:
       - 'support/new-pytorch-release-branch'
       - 'support/new-pytorch-main-branch'
-    paths:
-      - '.github/pytorch-release-versions/*'
 env:
   working_branch: ${{ github.ref }}
 permissions:
