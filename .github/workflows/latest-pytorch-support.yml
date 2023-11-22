@@ -1,7 +1,7 @@
 name: Support latest PyTorch
 
 on:
-  create
+  workflow_call
 env:
   working_branch: ${{ github.ref }}
 permissions:
