@@ -672,7 +672,7 @@ def histc(
             out = factories.empty(
                 hist.size(), dtype=types.canonical_heat_type(hist.dtype), device=input.device
             )
-        input.comm.Allreduce(hist, out, op=MPI.SUM)
+        input.comm.Allreduce(hist, out.larray, op=MPI.SUM)
 
     return out
 
@@ -966,8 +966,8 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
         n_tot = factories.zeros(x.comm.size, device=x.device)
         n_tot[x.comm.rank] = float(x.lshape[x.split])
         mu_tot[x.comm.rank, :] = mu
-        x.comm.Allreduce(MPI.IN_PLACE, n_tot, MPI.SUM)
-        x.comm.Allreduce(MPI.IN_PLACE, mu_tot, MPI.SUM)
+        x.comm.Allreduce(MPI.IN_PLACE, n_tot.larray, MPI.SUM)
+        x.comm.Allreduce(MPI.IN_PLACE, mu_tot.larray, MPI.SUM)
 
         for i in range(1, x.comm.size):
             mu_tot[0, :], n_tot[0] = __merge_moments(
@@ -999,7 +999,7 @@ def mean(x: DNDarray, axis: Optional[Union[int, Tuple[int, ...]]] = None) -> DND
             mu_tot = factories.zeros((x.comm.size, 2), device=x.device)
             mu_proc = factories.zeros((x.comm.size, 2), device=x.device)
             mu_proc[x.comm.rank] = mu_in, float(n)
-            x.comm.Allreduce(mu_proc, mu_tot, MPI.SUM)
+            x.comm.Allreduce(mu_proc.larray, mu_tot.larray, MPI.SUM)
 
             for i in range(1, x.comm.size):
                 mu_tot[0, 0], mu_tot[0, 1] = __merge_moments(
@@ -1943,7 +1943,7 @@ def var(
         var_tot[x.comm.rank, 0, :] = var
         var_tot[x.comm.rank, 1, :] = mu
         var_tot[x.comm.rank, 2, :] = float(x.lshape[x.split])
-        x.comm.Allreduce(MPI.IN_PLACE, var_tot, MPI.SUM)
+        x.comm.Allreduce(MPI.IN_PLACE, var_tot.larray, MPI.SUM)
 
         for i in range(1, x.comm.size):
             var_tot[0, 0, :], var_tot[0, 1, :], var_tot[0, 2, :] = __merge_moments(
@@ -1974,7 +1974,7 @@ def var(
             var_tot = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
             var_proc = factories.zeros((x.comm.size, 3), dtype=x.dtype, device=x.device)
             var_proc[x.comm.rank] = var_in, mu_in, float(n)
-            x.comm.Allreduce(var_proc, var_tot, MPI.SUM)
+            x.comm.Allreduce(var_proc.larray, var_tot.larray, MPI.SUM)
 
             for i in range(1, x.comm.size):
                 var_tot[0, 0], var_tot[0, 1], var_tot[0, 2] = __merge_moments(
