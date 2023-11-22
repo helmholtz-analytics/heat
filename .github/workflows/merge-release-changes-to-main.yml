@@ -7,7 +7,7 @@ env:
     starting_branch: ${{ github.ref }}
     working_branch: workflows/merge-release-changes-to-main
     # set base branch to main
-    base_branch: refs/heads/main
+    base_branch: main
 permissions:
     contents: write
     issues: write
@@ -26,15 +26,20 @@ jobs:
                 ref: '${{ env.starting_branch }}'
             - name: Create working branch
               run: |
-                git checkout -b ${{ env.working_branch }} ${{ env.starting_branch }}
-                git checkout ${{ env.base_branch }} -- heat/core/version.py
-                git push --set-upstream origin ${{ env.working_branch }}
+                git fetch origin main
+                git checkout -b ${{ env.working_branch }}
+                git checkout main -- heat/core/version.py
+            - name: Commit and push working branch
+              run: |
+                git add heat/core/version.py
+                git commit -m "Update version.py"
+                git push origin ${{ env.working_branch }}
             - name: Create a pull request
               uses: peter-evans/create-pull-request@v5
               with:
                 delete-branch: true
                 token: ${{ secrets.GITHUB_TOKEN }}
-                commit-message: 'Merge  branch changes to main'
+                commit-message: 'Merge  release branch changes to main'
                 title: 'Merge ${{ env.starting_branch }} changes to ${{ env.base_branch }}'
                 body: 'This PR merges changes from release branch to main branch'
                 branch: '${{ env.working_branch }}'
