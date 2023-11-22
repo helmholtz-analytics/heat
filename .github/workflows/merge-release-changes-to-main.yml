@@ -19,21 +19,22 @@ jobs:
           # make sure that new branch is created from starting_branch
             - name: Delete working branch if it already exists
               run: git push --delete origin ${{ env.working_branch }} || true
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
               with:
                 token: ${{ secrets.GITHUB_TOKEN }}
                 ref: '${{ env.starting_branch }}'
             - name: Create working branch
               run: |
                 git checkout -b ${{ env.working_branch }} ${{ env.starting_branch }}
+                git pull ${{ env.base_branch }} heat/core/version.py
                 git push --set-upstream origin ${{ env.working_branch }}
-            # - name: Create a pull request
-            #   uses: peter-evans/create-pull-request@v4
-            #   with:
-            #     delete-branch: true
-            #     token: ${{ secrets.GITHUB_TOKEN }}
-            #     commit-message: 'Merge release changes to main'
-            #     title: 'Merge ${{ env.starting_branch }} changes to ${{ env.base_branch }}'
-            #     body: 'This PR merges changes from release branch to main branch'
-            #     branch: '${{ env.working_branch }}'
-            #     base: '${{ env.base_branch }}'
+            - name: Create a pull request
+              uses: peter-evans/create-pull-request@v4
+              with:
+                delete-branch: true
+                token: ${{ secrets.GITHUB_TOKEN }}
+                commit-message: 'Merge release changes to main'
+                title: 'Merge ${{ env.starting_branch }} changes to ${{ env.base_branch }}'
+                body: 'This PR merges changes from release branch to main branch'
+                branch: '${{ env.working_branch }}'
+                base: '${{ env.base_branch }}'
