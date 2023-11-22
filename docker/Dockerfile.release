@@ -1,0 +1,18 @@
+ARG HEAT_VERSION=latest
+ARG PYTORCH_IMG=23.05-py3
+
+FROM nvcr.io/nvidia/pytorch:${PYTORCH_IMG} AS base
+COPY ./tzdata.seed /tmp/tzdata.seed
+RUN debconf-set-selections /tmp/tzdata.seed
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y build-essential openssh-client python3-dev git && apt clean && rm -rf /var/lib/apt/lists/*
+
+FROM base AS release-install
+ARG HEAT_VERSION
+RUN pip install --upgrade pip
+RUN pip install mpi4py --no-binary :all:
+RUN echo ${HEAT_VERSION}
+RUN if [[ ${HEAT_VERSION} =~ ^([1-9]\d*|0)(\.(([1-9]\d*)|0)){2}$ ]]; then \
+        pip install heat[hdf5,netcdf]==${HEAT_VERSION}; \
+    else \
+        pip install heat[hdf5,netcdf]; \
+    fi

@@ -5,17 +5,17 @@ on:
             heat_version:
                 description: 'Heat version'
                 required: true
-                default: '1.2.2'
+                default: 'latest'
                 type: string
             pytorch_img:
                 description: 'Base PyTorch Img'
                 required: true
-                default: '23.03-py3'
+                default: '23.05-py3'
                 type: string
             name:
                 description: 'Output Image name'
                 required: true
-                default: 'heat:1.2.2_torch1.13_cu12.1'
+                default: 'heat:1.3.0_torch2.0.0_cu12.1'
                 type: string
 jobs:
     build-and-push-img:
@@ -43,7 +43,7 @@ jobs:
               name: Build
               uses: docker/build-push-action@v4
               with:
-                context: docker/
+                file: docker/Dockerfile.release
                 build-args: |
                     HEAT_VERSION=${{ inputs.heat_version }}
                     PYTORCH_IMG=${{ inputs.pytorch_img}}
@@ -59,7 +59,7 @@ jobs:
               name: Build and push
               uses: docker/build-push-action@v4
               with:
-                context: docker/
+                file: docker/Dockerfile.release
                 build-args: |
                     HEAT_VERSION=${{ inputs.heat_version }}
                     PYTORCH_IMG=${{ inputs.pytorch_img}}
