@@ -23,7 +23,6 @@ jobs:
               run: git push --delete origin ${{ env.working_branch }} || true
             - uses: actions/checkout@v4
               with:
-                token: ${{ secrets.GITHUB_TOKEN }}
                 ref: '${{ env.starting_branch }}'
             - name: Create working branch
               run: |
