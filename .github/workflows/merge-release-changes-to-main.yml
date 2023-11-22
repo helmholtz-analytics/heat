@@ -6,7 +6,8 @@ on:
 env:
     starting_branch: ${{ github.ref }}
     working_branch: workflows/merge-release-changes-to-main
-    base_branch: refs/heads/main
+    # set base branch to main
+    base_branch: origin/main
 permissions:
     contents: write
     issues: write
