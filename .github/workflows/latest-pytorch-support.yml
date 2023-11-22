@@ -1,7 +1,7 @@
 name: Support latest PyTorch
 
 on:
-  push:
+  create:
     branches:
       - 'support/new-pytorch-release-branch'
       - 'support/new-pytorch-main-branch'
