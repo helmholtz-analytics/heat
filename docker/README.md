@@ -2,30 +2,35 @@
 
 There is some flexibility to building the Docker images of Heat.
 
-Firstly, one can build from the released version taken from PyPI. This will either be
-the latest release or the version set through the `--build-arg=HEAT_VERSION=1.2.0`
+Firstly, one can build from the released version taken from PyPI using `Dockerfile.release`. This will either be
+the latest release or the version set through the `--build-arg HEAT_VERSION=X.Y.Z`
 argument.
 
-Secondly one can build a docker image from the GitHub sources, selected through
-`--build-arg=INSTALL_TYPE=source`. The default branch to be built is main, other
-branches can be specified using `--build-arg=HEAT_BRANCH=branchname`.
+Secondly one can build a docker image from the GitHub sources, by building using `Dockerfile.source`. The default branch to be built is main, other
+branches can be specified using `--build-arg HEAT_BRANCH=<branch-name>`.
 
 ## General build
 
 ### Docker
 
-The [Dockerfile](./Dockerfile) guiding the build of the Docker image is located in this
-directory. It is typically most convenient to `cd` over here and run the Docker build as:
+The [Dockerfile](./Dockerfile.release or ./Dockerfile.source) guiding the build of the Docker image is located in this directory. It is typically most convenient to `cd` to the `docker` directory and run the  build command as:
 
 ```console
-$ docker build --build-args HEAT_VERSION=1.2.2 --PYTORCH_IMG=22.05-py3 -t heat:local .
+$ docker build -t heat:latest -f Dockerfile.source .
 ```
+
+Or optionally, using a particular version and pytorch base image:
+
+```console
+$ docker build --build-arg HEAT_VERSION=X.Y.Z --build-arg PYTORCH_IMG=<nvcr-tag> -t heat:X.Y.Z -f Dockerfile.release .
+```
+
+The heat image is based on the nvidia pytorch container. You can find exisiting tags in the [nvidia container catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch/tags).
 
 We also offer prebuilt images in our [Package registry](https://github.com/helmholtz-analytics/heat/pkgs/container/heat) from which you can pull existing images:
 
-
 ```console
-$ docker pull ghcr.io/helmholtz-analytics/heat:1.2.0-dev_torch1.12_cuda11.7_py3.8
+$ docker pull ghcr.io/helmholtz-analytics/heat:<version-tag>
 ```
 
 ### Building for HPC
@@ -38,24 +43,24 @@ image also for HPC systems, such as the ones available at [Jülich Supercomputin
 
 To use one of the existing images from our registry:
 
-	$ apptainer build heat.sif docker://ghcr.io/helmholtz-analytics/heat:1.2.0-dev_torch1.12_cuda11.7_py3.8
+	$ apptainer build heat.sif docker://ghcr.io/helmholtz-analytics/heat:<version-tag>
 
-Building the image can require root access in some systems. If that is the case, we recomend build the image on a local machine, and then upload it to the desired HPC system.
+Building the image can require root access in some systems. If that is the case, we recommend building the image on a local machine, and then upload it to the desired HPC system.
 
 If you see an error indicating that there is not enough space, use the --tmpdir flag of the build command. [Apptainer docs](https://apptainer.org/docs/user/latest/build_a_container.html)
 
-#### SIB (Singularity Image Builder)
+#### SIB (Singularity Image Builder) for Apptainer images
 
 A simple `Dockerfile` (in addition to the one above) to be used with SIB could look like
 this:
 
-	FROM ghcr.io/helmholtz-analytics/heat:1.2.0_torch1.12_cuda11.7_py3.8
+	FROM ghcr.io/helmholtz-analytics/heat:<version-tag>
 
 The invocation to build the image would be:
 
-	$ sib upload ./Dockerfile heat_1.2.0_torch1.12_cuda11.7_py3.8
-	$ sib build --recipe-name heat_1.2.0_torch1.12_cuda11.7_py3.8
-	$ sib download --recipe-name heat_1.2.0_torch1.12_cuda11.7_py3.8
+	$ sib upload ./Dockerfile heat
+	$ sib build --recipe-name heat
+	$ sib download --recipe-name heat
 
 However, SIB is capable of using just about any available Docker image from any
 registry, such that a specific Singularity image can be built by simply referencing the
@@ -63,7 +68,7 @@ available image. SIB is thus used as a conversion tool.
 
 ## Running on HPC
 
-	$ singularity run --nv heat_1.2.0_torch.11_cuda11.5_py3.9.sif /bin/bash
+	$ apptainer run --nv heat /bin/bash
 	$ python
 	Python 3.8.13 (default, Mar 28 2022, 11:38:47)
 	[GCC 7.5.0] :: Anaconda, Inc. on linux
@@ -71,12 +76,12 @@ available image. SIB is thus used as a conversion tool.
 	>>> import heat as ht
 	...
 
-The `--nv` argument to `singularity`enables NVidia GPU support, which is desired for
+The `--nv` argument to `apptainer` enables NVidia GPU support, which is desired for
 Heat.
 
 ### Multi-node example
 
-The following file can be used as an example to use the singularity file together with SLURM, which allows heat to work in a multi-node environment.
+The following file can be used as an example to use the apptainer file together with SLURM, which allows heat to work in a multi-node environment.
 
 ```bash
 #!/bin/bash
@@ -86,5 +91,9 @@ The following file can be used as an example to use the singularity file togethe
 
 ...
 
-srun --mpi="pmi2" singularity exec --nv heat_1.2.0_torch.11_cuda11.5_py3.9.sif bash -c "cd ~/code/heat/examples/lasso; python demo.py"
+srun --mpi="pmi2" apptainer exec --nv heat_1.2.0_torch.11_cuda11.5_py3.9.sif bash -c "cd ~/code/heat/examples/lasso; python demo.py"
 ```
+
+## Scripts
+
+The scripts folder has a small collection of helper scripts to automate certain tasks, primarly meant for heat developers. Explanations are given at the top of the script.

@@ -149,7 +149,7 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
 
             # Looping through each coordinate
             for j in range(n):
-                X_j = ht.array(x.larray[:, j : j + 1], is_split=0)
+                X_j = ht.array(x.larray[:, j : j + 1], is_split=0, device=x.device, comm=x.comm)
 
                 y_est = x @ theta
                 theta_j = theta.larray[j].item()
