@@ -26,7 +26,7 @@ jobs:
                 ref: '${{ env.starting_branch }}'
             - name: Create working branch
               run: |
-                git fetch origin main
+                git fetch origin main:main
                 git checkout -b ${{ env.working_branch }}
                 git checkout main -- heat/core/version.py
             - name: Commit and push working branch
