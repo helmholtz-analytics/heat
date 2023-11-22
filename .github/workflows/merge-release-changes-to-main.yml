@@ -1,7 +1,8 @@
 on:
-    push:
-      branches:
-        - 'workflows/gh-action-merge-release-changes-into-main'
+  push:
+    branches:
+      - 'workflows/gh-action-merge-release-changes-into-main'
+      # replace with release/1.3.x after testing
 env:
     starting_branch: ${{ github.ref }}
     working_branch: workflows/merge-release-changes-to-main
@@ -29,11 +30,11 @@ jobs:
                 git pull ${{ env.base_branch }} heat/core/version.py
                 git push --set-upstream origin ${{ env.working_branch }}
             - name: Create a pull request
-              uses: peter-evans/create-pull-request@v4
+              uses: peter-evans/create-pull-request@v5
               with:
                 delete-branch: true
                 token: ${{ secrets.GITHUB_TOKEN }}
-                commit-message: 'Merge release changes to main'
+                commit-message: 'Merge  branch changes to main'
                 title: 'Merge ${{ env.starting_branch }} changes to ${{ env.base_branch }}'
                 body: 'This PR merges changes from release branch to main branch'
                 branch: '${{ env.working_branch }}'
