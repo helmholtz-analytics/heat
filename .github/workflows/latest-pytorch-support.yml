@@ -1,10 +1,7 @@
 name: Support latest PyTorch
 
 on:
-  create:
-    branches:
-      - 'support/new-pytorch-release-branch'
-      - 'support/new-pytorch-main-branch'
+  create
 env:
   working_branch: ${{ github.ref }}
 permissions:
