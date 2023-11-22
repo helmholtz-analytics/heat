@@ -31,6 +31,8 @@ jobs:
                 git checkout main -- heat/core/version.py
             - name: Commit and push working branch
               run: |
+                git config --global user.name 'ClaudiaComito'
+                git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
                 git add heat/core/version.py
                 git commit -m "Update version.py"
                 git push origin ${{ env.working_branch }}
