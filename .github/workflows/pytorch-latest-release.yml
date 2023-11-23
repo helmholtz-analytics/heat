@@ -11,9 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.repository }} == 'hemlholtz-analytics/heat'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GHACTIONS }}
           ref: '${{ env.base_branch }}'
       - name: Fetch PyTorch release version
         run: |

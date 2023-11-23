@@ -938,6 +938,15 @@ class TestArithmetics(TestCase):
         ht_diff = ht.diff(ht_array, n=0)
         self.assertTrue(ht.equal(ht_diff, ht_array))
 
+        # edge cases
+        ht_arr = ht.ones((2, 1, 2), split=0)
+        ht_diff = ht.diff(ht_arr, axis=1)
+        self.assertEqual(ht_diff.gshape, (2, 0, 2))
+
+        ht_arr = ht.ones((2, 1, 2), split=1)
+        ht_diff = ht.diff(ht_arr, axis=1)
+        self.assertEqual(ht_diff.gshape, (2, 0, 2))
+
         # raises
         with self.assertRaises(ValueError):
             ht.diff(ht_array, n=-2)
