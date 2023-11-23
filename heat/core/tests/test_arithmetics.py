@@ -220,6 +220,16 @@ class TestArithmetics(TestCase):
         self.assertTrue(a.lshape == a_lshape)
         self.assertIs(a, a_double)
 
+        # differently split inputs but broadcastable underlying torch.Tensors, s.t. we can process
+        # the inputs in-place without resplitting
+        a = a_double = ht.ones(12).reshape((4, 3), new_split=1)
+        b = ht.ones(3, split=0)
+        a_lshape = a.lshape
+        a += b
+        self.assertTrue((a == 2).all())
+        self.assertTrue(a.lshape == a_lshape)
+        self.assertIs(a, a_double)
+
         # test function with wrong inputs
         with self.assertRaises(ValueError):
             a_tensor.add_(another_vector)
@@ -240,15 +250,25 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             a += b
 
-        # test function with differently split inputs
+        # test function with differently split inputs that are not processible in-place without
+        # resplitting
         a = ht.ones(10, split=None)
         b = ht.ones(10, split=0)
         with self.assertRaises(ValueError):
             a += b
+
         a = ht.ones(9).reshape((3, 3), new_split=0)
         b = ht.ones(9).reshape((3, 3), new_split=1)
-        with self.assertRaises(ValueError):
+        if a.comm.Get_size() == 1:
+            a_double = a
+            a_lshape = a.lshape
             a += b
+            self.assertTrue((a == 2).all())
+            self.assertTrue(a.lshape == a_lshape)
+            self.assertIs(a, a_double)
+        else:
+            with self.assertRaises(ValueError):
+                a += b
 
     def test_bitwise_and(self):
         int_result = ht.array([[0, 2], [2, 0]])

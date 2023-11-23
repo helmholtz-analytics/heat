@@ -204,11 +204,22 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     if isinstance(t2, DNDarray):
         if (t1.split != t2.split) and (t2.split is not None):
-            raise ValueError(
-                "To do this operation in-place either the input DNDarrays must have "
-                + "the same split axes or the second input must have split axis None. But your "
-                + f"inputs have the split axes {t1.split} and {t2.split}."
-            )
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
 
     def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.add_(b)
