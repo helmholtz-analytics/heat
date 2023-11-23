@@ -1,9 +1,14 @@
 name: Support latest PyTorch
 
 on:
-  workflow_call
-env:
-  working_branch: ${{ github.ref }}
+  workflow_call:
+    inputs:
+      working_branch:
+        required: true
+        type: string
+      base_branch:
+        required: true
+        type: string
 permissions:
   contents: write
   issues: write
@@ -27,7 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          ref: '${{ env.working_branch }}'
+          ref: '${{ inputs.working_branch }}'
       - name: Set env variables
         run: |
           echo "previous_pytorch=$(grep 'torch>=' setup.py | awk -F '<' '{print $2}' | tr -d '",')" >> $GITHUB_ENV
@@ -39,22 +44,22 @@ jobs:
       - name: Update setup.py
         run: |
           sed -i '/torch>=/ s/'"${{ env.previous_pytorch }}"'/'"${{ env.setup_pytorch }}"'/g' setup.py
-      - name: Define base branch
-        run: |
-          if [[ ${{ github.ref }} =~ .*main.* ]]; then
-            echo "base_branch=main" >> $GITHUB_ENV
-          elif [[ ${{ github.ref }} =~ .*release.* ]]; then
-            echo "base_branch=release/1.2.x" >> $GITHUB_ENV
-          fi
+#      - name: Define base branch
+#        run: |
+#          if [[ ${{ github.ref }} =~ .*main.* ]]; then
+#            echo "base_branch=main" >> $GITHUB_ENV
+#          elif [[ ${{ github.ref }} =~ .*release.* ]]; then
+#            echo "base_branch=release/1.2.x" >> $GITHUB_ENV
+#          fi
 #      - name: Create PR from branch
 #        uses: peter-evans/create-pull-request@v5
 #        with:
-#            base: ${{ env.base_branch }}
-#            branch: ${{ env.working_branch }}
+#            base: ${{ inputs.base_branch }}
+#            branch: ${{ inputs.working_branch }}
 #            delete-branch: true
 #            token: ${{ secrets.GITHUB_TOKEN }}
 #            commit-message: Support latest PyTorch release
-#            title: Support PyTorch ${{ env.new_pytorch }} on branch ${{ env.base_branch }}
+#            title: Support PyTorch ${{ env.new_pytorch }} on branch ${{ inputs.base_branch }}
 #            body: |
 #              Run tests on latest PyTorch release
 #              Issue/s resolved: #${{ steps.create-issue.outputs.number }}
@@ -62,6 +67,6 @@ jobs:
 #              [1]: https://github.com/peter-evans/create-pull-request
 #            reviewers: ClaudiaComito, mtar, JuanPedroGHM
       - name: create pull request
-        run: gh pr create -B ${{ env.base_branch }} -H ${{ env.working_branch }} --title 'Support PyTorch ${{ env.new_pytorch }} on branch ${{ env.base_branch }}' --body 'Run tests on latest PyTorch release\nIssue/s resolved '
+        run: gh pr create -B ${{ inputs.base_branch }} -H ${{ inputs.working_branch }} --title 'Support PyTorch ${{ env.new_pytorch }} on branch ${{ env.base_branch }}' --body 'Run tests on latest PyTorch release\nIssue/s resolved '
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
