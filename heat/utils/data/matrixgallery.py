@@ -58,8 +58,9 @@ def hermitian(
     """
     if heat_type_is_complexfloating(dtype):
         real_dtype = core.float32 if dtype is core.complex64 else core.float64
-        matrix = randn(n, n, dtype=real_dtype, split=split, device=device, comm=comm)
-        matrix += 1j * randn(n, n, dtype=real_dtype, split=split, device=device, comm=comm)
+        matrix = randn(n, n, dtype=real_dtype, split=split, device=device, comm=comm) + 1j * randn(
+            n, n, dtype=real_dtype, split=split, device=device, comm=comm
+        )
     elif not heat_type_is_exact(dtype):
         matrix = randn(n, n, dtype=dtype, split=split, device=device, comm=comm)
     else:
