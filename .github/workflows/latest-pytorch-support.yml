@@ -12,7 +12,7 @@ jobs:
   latest-torch-support:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: JasonEtco/create-an-issue@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -24,7 +24,7 @@ jobs:
           update_existing: true
           search_existing: open
       - name: Check out new branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: '${{ env.working_branch }}'
@@ -47,7 +47,7 @@ jobs:
             echo "base_branch=release/1.2.x" >> $GITHUB_ENV
           fi
       - name: Create PR from branch
-        uses: peter-evans/create-pull-request@v4
+        uses: peter-evans/create-pull-request@v5
         with:
             base: ${{ env.base_branch }}
             branch: ${{ env.working_branch }}
