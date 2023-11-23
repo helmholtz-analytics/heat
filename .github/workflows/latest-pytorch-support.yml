@@ -67,6 +67,6 @@ jobs:
 #              [1]: https://github.com/peter-evans/create-pull-request
 #            reviewers: ClaudiaComito, mtar, JuanPedroGHM
       - name: create pull request
-        run: gh pr create -B ${{ inputs.base_branch }} -H ${{ inputs.working_branch }} --title 'Support PyTorch ${{ env.new_pytorch }} on branch ${{ env.base_branch }}' --body 'Run tests on latest PyTorch release\nIssue/s resolved '
+        run: gh pr create -B ${{ inputs.base_branch }} -H ${{ inputs.working_branch }} --title 'Support PyTorch ${{ env.new_pytorch }} on branch ${{ inputs.base_branch }}' --body 'Run tests on latest PyTorch release\nIssue/s resolved '
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
