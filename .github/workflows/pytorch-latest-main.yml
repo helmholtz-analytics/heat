@@ -34,3 +34,6 @@ jobs:
           git push --set-upstream origin ${{ env.working_branch }}
   call-workflow:
     uses: ./.github/workflows/latest-pytorch-support.yml
+    with:
+      working_branch: ${{ env.working_branch }}
+      base_branch: ${{ env.base_branch }}
