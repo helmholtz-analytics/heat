@@ -34,8 +34,8 @@ jobs:
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
           git commit -am "New PyTorch release ${{ env.new }}"
           git push --set-upstream origin ${{ env.working_branch }}
-  call-workflow:
-    uses: ./.github/workflows/latest-pytorch-support.yml
-    with:
-      working_branch: $working_branch
-      base_branch: $base_branch
+      - name: call-workflow
+        uses: ./.github/workflows/latest-pytorch-support.yml
+        with:
+          working_branch: $working_branch
+          base_branch: $base_branch
