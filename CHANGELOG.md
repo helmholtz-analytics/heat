@@ -1,4 +1,4 @@
-#v1.3.1
+# v1.3.1 - Bug fixes, Docker documentation update
 
 ## Bug fixes
 - #1259 Bug-fix for `ht.regression.Lasso()` on GPU (by @mrfh92)
@@ -18,6 +18,76 @@
 - #1264 Fix Pytorch release tracking workflows (by @mtar)
 - #1234 Update sphinx package requirements (by @mtar)
 - #1187 Create configuration file for Read the Docs (by @mtar)
+
+# v1.3.0 - Scalable SVD, GSoC`22 contributions, Docker image, PyTorch 2  support, AMD GPUs acceleration
+
+This release includes many important updates (see below). We particularly would like to thank our enthusiastic [GSoC2022](https://summerofcode.withgoogle.com/programs/2022) / tentative GSoC2023 contributors @Mystic-Slice @neosunhan @Sai-Suraj-27 @shahpratham @AsRaNi1 @Ishaan-Chandak 🙏🏼 Thank you so much!
+
+## Highlights
+- #1155 Support PyTorch 2.0.1 (by @ClaudiaComito)
+- #1152 Support AMD GPUs  (by @mtar)
+- #1126 [Distributed hierarchical SVD](https://helmholtz-analytics.github.io/heat/2023/06/16/new-feature-hsvd.html)  (by @mrfh92)
+- #1028 Introducing the `sparse` module: Distributed Compressed Sparse Row Matrix (by @Mystic-Slice)
+- Performance improvements:
+   -  #1125 distributed `heat.reshape()` speed-up (by @ClaudiaComito)
+   -  #1141 `heat.pow()` speed-up when exponent is `int`  (by @ClaudiaComito @coquelin77 )
+   -  #1119 `heat.array()` default to `copy=None` (e.g., only if necessary) (by @ClaudiaComito @neosunhan )
+- #970 [Dockerfile and accompanying documentation](https://github.com/helmholtz-analytics/heat/tree/release/1.3.x/docker) (by @bhagemeier)
+
+## Changelog
+
+### Array-API compliance / Interoperability
+
+- #1154 Introduce `DNDarray.__array__()` method  for interoperability with `numpy`, `xarray` (by @ClaudiaComito)
+- #1147 Adopt [NEP29](https://numpy.org/neps/nep-0029-deprecation_policy.html), drop support for PyTorch 1.7, Python 3.6 (by @mtar)
+- #1119 `ht.array()` default to `copy=None` (e.g., only if necessary) (by @ClaudiaComito)
+- #1020 Implement `broadcast_arrays`, `broadcast_to` (by @neosunhan)
+- #1008 API: Rename `keepdim` kwarg to `keepdims`  (by @neosunhan)
+- #788 Interface for [DPPY](https://github.com/IntelPython/DPPY-Spec) interoperability (by @coquelin77 @fschlimb )
+
+###  New Features
+- #1126 [Distributed hierarchical SVD](https://helmholtz-analytics.github.io/heat/2023/06/16/new-feature-hsvd.html)  (by @mrfh92)
+- #1020 Implement `broadcast_arrays`, `broadcast_to` (by @neosunhan)
+- #983 Signal processing: fully distributed 1D convolution (by @shahpratham)
+- #1063 add __eq__ to Device (by @mtar)
+
+###  Bug Fixes
+
+- #1141 `heat.pow()` speed-up when exponent is `int`  (by @ClaudiaComito)
+- #1136 Fixed PyTorch version check in `sparse` module (by @Mystic-Slice)
+- #1098 Validates number of dimensions in input to `ht.sparse.sparse_csr_matrix` (by @Ishaan-Chandak)
+- #1095  Convolve with distributed kernel on multiple GPUs (by @shahpratham)
+- #1094 Fix division precision error in `random` module (by @Mystic-Slice)
+- #1075 Fixed initialization of DNDarrays communicator in some routines (by @AsRaNi1)
+- #1066 Verify input object type and layout + Supporting tests (by @Mystic-Slice)
+- #1037 Distributed weighted `average()` along tuple of axes: shape of `weights` to match shape of input (by @Mystic-Slice)
+
+###  Benchmarking
+
+- #1137 Continous Benchmarking of runtime (by @JuanPedroGHM)
+
+###  Documentation
+
+- #1150 Refactoring for efficiency and readability (by @Sai-Suraj-27)
+- #1130 Reintroduce Quick Start (by @ClaudiaComito)
+- #1079 A better README file (by @Sai-Suraj-27)
+
+
+### Linear Algebra
+
+- #1126, #1160  [Distributed hierarchical SVD](https://helmholtz-analytics.github.io/heat/2023/06/16/new-feature-hsvd.html)  (by @mrfh92 @ClaudiaComito )
+
+# v1.2.2 - Bug fixes, support OpenMPI>=4.1.2, support PyTorch 1.13.1
+
+## Changes
+
+## Communication
+
+- #1058 Fix edge-case contiguity mismatch for Allgatherv (by @ClaudiaComito)
+
+## Contributors
+
+@ClaudiaComito, @JuanPedroGHM
 
 # v1.2.1
 
