@@ -35,5 +35,5 @@ jobs:
   call-workflow:
     uses: ./.github/workflows/latest-pytorch-support.yml
     with:
-      working_branch: ${{ env.working_branch }}
-      base_branch: ${{ env.base_branch }}
+      working_branch: $working_branch
+      base_branch: $base_branch
