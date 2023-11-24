@@ -37,7 +37,6 @@ class TestMatrixgallery(TestCase):
                 20, dtype=ht.complex128, split=0, positive_definite=posdef
             )
             A_err = ht.norm(A - A.T.conj().resplit_(A.split)) / ht.norm(A)
-            print(A.dtype)
             self.assertTrue(A.dtype == ht.complex128)
             self.assertTrue(A_err <= 1e-12)
 

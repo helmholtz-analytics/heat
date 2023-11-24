@@ -47,7 +47,6 @@ __all__ = [
     "cumsum_",
     "diff",
     "div",
-    "divmod",
     "div_",
     "divide",
     "divide_",

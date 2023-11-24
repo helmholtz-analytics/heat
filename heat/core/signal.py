@@ -181,7 +181,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
             # note, this is a binary operation between unevenly distributed dndarrays and will require communication, check out _operations.__binary_op()
             try:
                 signal_filtered += global_signal_filtered[start_idx : start_idx + gshape]
-            except ValueError:
+            except (ValueError, TypeError):
                 signal_filtered = (
                     signal_filtered + global_signal_filtered[start_idx : start_idx + gshape]
                 )
