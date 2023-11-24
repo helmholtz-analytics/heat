@@ -239,7 +239,7 @@ def array(
               [3, 4, 5]], dtype=ht.int64, device=cpu:0, split=None)
     >>> b.strides
     (24, 8)
-    >>> b.larray.storage()
+    >>> b.larray.untyped_storage()
      0
      1
      2
@@ -253,7 +253,7 @@ def array(
               [3, 4, 5]], dtype=ht.int64, device=cpu:0, split=None)
     >>> c.strides
     (8, 16)
-    >>> c.larray.storage()
+    >>> c.larray.untyped_storage()
      0
      3
      1
@@ -273,7 +273,7 @@ def array(
     >>> b.strides
     [0/2] (8, 16)
     [1/2] (8, 16)
-    >>> b.larray.storage()
+    >>> b.larray.untyped_storage()
     [0/2] 0
           3
           1
@@ -329,7 +329,7 @@ def array(
                     else devices.get_device().torch_device,
                 )
             except RuntimeError:
-                raise TypeError("invalid data of type {}".format(type(obj)))
+                raise TypeError(f"invalid data of type {type(obj)}")
     else:
         if copy is False and not np.isscalar(obj) and not isinstance(obj, (Tuple, List)):
             # Python array-API compliance, cf. https://data-apis.org/array-api/2022.12/API_specification/generated/array_api.asarray.html
@@ -353,7 +353,7 @@ def array(
                 else devices.get_device().torch_device,
             )
         except RuntimeError:
-            raise TypeError("invalid data of type {}".format(type(obj)))
+            raise TypeError(f"invalid data of type {type(obj)}")
 
     # infer dtype from obj if not explicitly given
     if dtype is None:

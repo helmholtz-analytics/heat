@@ -3,26 +3,54 @@ on:
   push:
     branches:
       - main
-  pull_request_target:
-    types: [opened, synchronize, reopened, labeled]
+  pull_request:
+    types: [synchronize]
 
 jobs:
   trigger-benchmark:
-    name: Trigger Benchmark
+    name: Trigger Benchmarks
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Trigger benchmarks (PR)
         id: setup_pr
         if: contains(github.event.pull_request.labels.*.name, 'benchmark PR')
         run: |
-          curl -s -X POST --fail -F token=${{ secrets.BENCH_PIPE_TRIGGER }} -F "ref=main" -F "variables[PR]=${{ github.event.pull_request.number }}" https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
+          SHORT_SHA=$(git rev-parse --short ${{ github.event.pull_request.head.sha }})
+          curl -s -X POST \
+            --fail \
+            -F token=${{ secrets.BENCH_PIPE_TRIGGER }} \
+            -F "ref=main" \
+            -F "variables[SHA]=${{ github.event.pull_request.head.sha }}" \
+            -F "variables[SHORT_SHA]=${SHORT_SHA}" \
+            -F "variables[BRANCH]=${{ github.head_ref }}" \
+            -F "variables[PR]=${{ github.event.pull_request.number }}" \
+            -F "variables[AUTHOR]=${{ github.event.pull_request.assignee.login }}" \
+            https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline
       - name: Trigger benchmarks (Push main)
         id: setup_push
         if: ${{ github.event_name == 'push' }}
         run: |
+          SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)
           curl -s -X POST \
             --fail \
             -F "token=${{ secrets.BENCH_PIPE_TRIGGER }}" \
             -F "ref=main" \
             -F "variables[SHA]=$GITHUB_SHA" \
-            https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline -o /dev/null
+            -F "variables[SHORT_SHA]=${SHORT_SHA}" \
+            -F "variables[BRANCH]=main" \
+            -F "variables[AUTHOR]=${{ github.event.head_commit.committer.username }}" \
+            https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline
+      - name: Create status
+        if: ${{ steps.setup_pr.outcome == 'success' || steps.setup_push.outcome == 'success'}}
+        run: |
+          curl -L -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/$REPO/statuses/$SHA \
+            -d '{ "state":"pending", "target_url":"https://codebase.helmholtz.cloud/helmholtz-analytics/cb/-/pipelines", "description":"Waiting for benchmarks to execute.", "context":"cb/report" }'
+        env:
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.head.sha }}
