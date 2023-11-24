@@ -24,7 +24,7 @@ def __binary_op(
     t1: Union[DNDarray, int, float],
     t2: Union[DNDarray, int, float],
     out: Optional[DNDarray] = None,
-    where: Optional[DNDarray] = True,
+    where: Union[bool, DNDarray] = True,
     fn_kwargs: Optional[Dict] = {},
 ) -> DNDarray:
     """
