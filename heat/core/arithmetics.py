@@ -538,7 +538,8 @@ def diff(
 
         # build the slice for the first element on the specified axis
         arb_slice = [slice(None)] * len(a.shape)
-        arb_slice[axis] = 0
+        if ret.lshape[axis] > 0:
+            arb_slice[axis] = 0
         # send the first element of the array to rank - 1
         if rank > 0:
             snd = ret.comm.Isend(ret.lloc[arb_slice].clone(), dest=rank - 1, tag=rank)
@@ -554,7 +555,8 @@ def diff(
         if rank < size - 1:
             cr_slice = [slice(None)] * len(a.shape)
             # slice of 1 element in the selected axis for the shape creation
-            cr_slice[axis] = 1
+            if ret.lshape[axis] > 1:
+                cr_slice[axis] = 1
             recv_data = torch.ones(
                 ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type(), device=a.device.torch_device
             )
