@@ -37,7 +37,7 @@ jobs:
               run: |
                 git config --global user.name 'ClaudiaComito'
                 git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
-                git push origin ${{ env.working_branch }}
+                git push -u origin ${{ env.working_branch }}
             - name: Create a pull request
               uses: peter-evans/create-pull-request@v5
               with:
