@@ -23,6 +23,7 @@ from .types import (
     heat_type_is_exact,
     heat_type_of,
     datatype,
+    can_cast,
 )
 
 
@@ -163,13 +164,11 @@ DNDarray.__radd__.__doc__ = add.__doc__
 
 def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    WILL BE REVISED LATER
-
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise addition of ``t1``
-    and ``t2``.
+    i.e. the elements of `t1` are overwritten by the results of element-wise addition of `t1` and
+    `t2`. Can be called as a DNDarray method or with the symbol `+=`.
 
     Parameters
     ----------
@@ -178,14 +177,22 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand involved in the addition
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
-    >>> ht.add_(T1, T2)
-    DNDarray([[3., 4.],
-              [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1 += T2
     >>> T1
     DNDarray([[3., 4.],
               [5., 6.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -193,7 +200,7 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[2., 2.],
               [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
-    >>> ht.add_(T2, s)
+    >>> T2.add_(s)
     DNDarray([[4., 4.],
               [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2
@@ -220,6 +227,12 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
                     + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
                     + f"{t2.larray.shape})."
                 )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
+        raise TypeError(
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
+        )
 
     def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.add_(b)
