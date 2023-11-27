@@ -31,15 +31,8 @@ class TestSolver(TestCase):
             ht.linalg.cg(A, b, A)
 
     def test_lanczos(self):
-        # single precision tolerance
-        if (
-            int(torch.__version__.split(".")[0]) == 1
-            and int(torch.__version__.split(".")[1]) >= 13
-            or int(torch.__version__.split(".")[0]) > 1
-        ):
-            tolerance = 1e-3
-        else:
-            tolerance = 1e-4
+        # single precision tolerance for torch.inv() is pretty bad
+        tolerance = 1e-3
 
         is_mps = (
             ht.get_device().device_type.startswith("gpu")

@@ -822,6 +822,8 @@ class TestLinalgBasics(TestCase):
                 a = ht.zeros((3, 3, 3), split=2)
                 b = a.copy()
                 a @ b
+            with self.assertRaises(TypeError):
+                "T" @ ht.zeros((3, 3, 3))
 
     def test_matrix_norm(self):
         a = ht.arange(9, dtype=ht.float) - 4
