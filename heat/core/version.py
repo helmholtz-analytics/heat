@@ -3,7 +3,7 @@
 
 major: int = 1
 """Indicates Heat's main version."""
-minor: int = 3
+minor: int = 4
 """Indicates feature extension."""
 micro: int = 0
 """Indicates revisions for bugfixes."""
