@@ -2,10 +2,12 @@ name: Get latest PyTorch version release branch
 on:
   workflow_dispatch:
 env:
-  working_branch: support/new-pytorch-release-branch
-  base_branch: release/1.2.x
+  working_branch: support/new-pytorch-${{ github.ref_name }}
+  base_branch: ${{ github.ref_name }}
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 jobs:
   get-version:
     runs-on: ubuntu-latest
@@ -32,3 +34,9 @@ jobs:
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
           git commit -am "New PyTorch release ${{ env.new }}"
           git push --set-upstream origin ${{ env.working_branch }}
+  call-workflow:
+    needs: get-version
+    uses: ./.github/workflows/latest-pytorch-support.yml
+    with:
+      working_branch: support/new-pytorch-${{ github.ref_name }}
+      base_branch: ${{ github.ref_name }}
