@@ -530,22 +530,25 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             raise ValueError("Number of batch dimensions must be the same!")
         if a.gshape[:batch_dim] != b.gshape[:batch_dim]:
             raise ValueError("Batch dimension must have the same shape!")
-        if (
-            a.split is None
-            or b.split is None
-            or a.split >= batch_dim
-            or b.split >= batch_dim
-            or a.split != b.split
-        ):
-            raise NotImplementedError(
-                "Split must be along the same axis which has to be a batch axis!"
+
+        # la dimension not split -> torch
+        if a.split is None and b.split is None or a.split < batch_dim and b.split < batch_dim:
+            if a.split != b.split:
+                raise NotImplementedError("Split axes are different batch axes!")
+
+            ret = factories.array(
+                torch.matmul(a.larray, b.larray), is_split=a.split, device=a.device, comm=a.comm
             )
-        ret = factories.array(
-            torch.matmul(a.larray, b.larray), is_split=a.split, device=a.device, comm=a.comm
-        )
-        if gpu_int_flag:
-            ret = og_type(ret, device=a.device)
-        return ret
+            if gpu_int_flag:
+                ret = og_type(ret, device=a.device)
+            return ret
+
+        if a.split is None or b.split is None:
+            raise NotImplementedError
+
+        # split la dims 00
+        if a.split == len(a.gshape) - 2 and b.split == len(b.gshape) - 2:
+            raise NotImplementedError
 
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
