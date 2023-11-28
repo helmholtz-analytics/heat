@@ -4,6 +4,7 @@ on:
   pull_request:
     paths-ignore:
       - 'doc/**'
+      - '.github/**'
 
 jobs:
   build:
