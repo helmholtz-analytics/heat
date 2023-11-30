@@ -130,8 +130,6 @@ class KMedians(_KCluster):
             self._inertia = ((self._cluster_centers - new_cluster_centers) ** 2).sum()
             self._cluster_centers = new_cluster_centers.copy()
             if self.tol is not None and self._inertia <= self.tol:
-                if x.comm.rank == 0:
-                    print(f"K-Medians has converged after {epoch} iterations.")
                 break
 
         self._labels = matching_centroids
