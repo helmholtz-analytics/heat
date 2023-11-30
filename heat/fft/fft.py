@@ -5,7 +5,7 @@ import torch
 from ..core.communication import MPI
 from ..core.dndarray import DNDarray
 from ..core.stride_tricks import sanitize_axis
-from ..core.types import heat_type_is_exact, heat_type_of
+from ..core.types import heat_type_is_exact, heat_type_of, canonical_heat_type, float32
 from ..core.factories import array, arange
 from ..core.devices import Device
 
@@ -324,7 +324,6 @@ def __fftfreq_op(fftfreq_op: callable, **kwargs) -> DNDarray:
         raise IndexError(f"`fftfreq` returns a 1-D array, `split` must be 0 or None, is {split}")
 
     # calculate parameters of the global frequency spectrum
-    channel_width = array(1.0 / (n * d), dtype=dtype, device=device, split=None)
     n_is_even = n % 2 == 0
     if n_is_even:
         middle_channel = n // 2
@@ -333,15 +332,21 @@ def __fftfreq_op(fftfreq_op: callable, **kwargs) -> DNDarray:
 
     # allocate global fftfreq array
     # if real operation, return only positive frequencies
+    freq_dtype = (
+        canonical_heat_type(torch.promote_types(torch_dtype, torch.float32))
+        if torch_dtype is not None
+        else float32
+    )
     if fftfreq_op == torch.fft.rfftfreq:
-        freqs = arange(middle_channel, dtype=dtype, device=device, split=split, comm=comm)
+        freqs = arange(middle_channel, dtype=freq_dtype, device=device, split=split, comm=comm)
     else:
-        freqs = arange(n, dtype=dtype, device=device, split=split, comm=comm)
+        freqs = arange(n, dtype=freq_dtype, device=device, split=split, comm=comm)
         # second half of fftfreq returns negative frequencies in inverse order
         freqs[middle_channel:] -= n
 
     # calculate global frequencies
-    freqs *= channel_width
+    channel_width = n * d
+    freqs /= channel_width
     return freqs
 
 
