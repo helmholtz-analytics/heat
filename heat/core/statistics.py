@@ -1506,18 +1506,16 @@ def percentile(
     t_x = x.larray
 
     # sanitize q
+    t_perc_dtype = torch.promote_types(t_x.dtype, torch.float32)
     if isinstance(q, (list, tuple)):
-        t_perc_dtype = torch.promote_types(type(q[0]), torch.float32)
         t_q = torch.tensor(q, dtype=t_perc_dtype, device=t_x.device)
     elif np.isscalar(q):
-        t_perc_dtype = torch.promote_types(type(q), torch.float32)
         t_q = torch.tensor([q], dtype=t_perc_dtype, device=t_x.device)
     elif isinstance(q, DNDarray):
         if x.comm.is_distributed() and q.split is not None:
             # q needs to be local
             q.resplit_(axis=None)
         t_q = q.larray
-        t_perc_dtype = torch.promote_types(t_q.dtype, torch.float32)
     else:
         raise TypeError(f"DNDarray, list or tuple supported, but q was {type(q)}")
 

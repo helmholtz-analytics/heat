@@ -308,7 +308,6 @@ class TestRobustScaler(TestCase):
                         with self.assertRaises(ValueError):
                             scaler.transform(Z)
                         # second case: use in-place operations
-                        # PROBLEM: THIS DOES NOT WORK AS EXPECTED...
                         copy = False
                         X = _generate_test_data_set(
                             MPI.COMM_WORLD.Get_size() * 10,
@@ -324,7 +323,7 @@ class TestRobustScaler(TestCase):
                             with_scaling=with_scaling,
                         )
                         scaler.fit(X)
-                        X = scaler.transform(X)
+                        scaler.transform(X)
                         if with_centering:
                             self.assertTrue(
                                 ht.allclose(
@@ -340,7 +339,7 @@ class TestRobustScaler(TestCase):
                                     atol=atol_fit,
                                 )
                             )
-                        Y = scaler.inverse_transform(X)
+                        scaler.inverse_transform(X)
                         self.assertTrue(ht.allclose(X, X_cpy, atol=atol_inv))
         scaler = ht.preprocessing.RobustScaler()
         with self.assertRaises(TypeError):

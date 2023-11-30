@@ -1183,7 +1183,7 @@ class TestStatistics(TestCase):
         axis = 2
         p_np = np.percentile(x_np, q, axis=axis, interpolation="lower", keepdims=True)
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdims=True)
-        out = ht.empty(p_np.shape, dtype=ht.float64, split=None, device=x_ht.device)
+        out = ht.empty(p_np.shape, dtype=ht.float32, split=None, device=x_ht.device)
         ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdims=True)
         self.assertEqual(p_ht.numpy()[5].all(), p_np[5].all())
         self.assertEqual(out.numpy()[2].all(), p_np[2].all())
@@ -1222,13 +1222,13 @@ class TestStatistics(TestCase):
         t_out = torch.empty((len(q),), dtype=torch.float64)
         with self.assertRaises(TypeError):
             ht.percentile(x_ht, q, out=t_out)
-        out_wrong_dtype = ht.empty((len(q),), dtype=ht.float32)
+        out_wrong_dtype = ht.empty((len(q),), dtype=ht.float64)
         with self.assertRaises(TypeError):
             ht.percentile(x_ht, q, out=out_wrong_dtype)
-        out_wrong_shape = ht.empty((len(q) + 1,), dtype=ht.float64)
+        out_wrong_shape = ht.empty((len(q) + 1,), dtype=ht.float32)
         with self.assertRaises(ValueError):
             ht.percentile(x_ht, q, out=out_wrong_shape)
-        out_wrong_split = ht.empty((len(q),), dtype=ht.float64, split=0)
+        out_wrong_split = ht.empty((len(q),), dtype=ht.float32, split=0)
         with self.assertRaises(ValueError):
             ht.percentile(x_ht, q, out=out_wrong_split)
 
