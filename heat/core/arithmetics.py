@@ -30,7 +30,6 @@ from .types import (
 __all__ = [
     "add",
     "bitwise_and",
-    "bitwise_and_",
     "bitwise_not",
     "bitwise_or",
     "bitwise_or_",
@@ -55,7 +54,6 @@ __all__ = [
     "hypot",
     "hypot_",
     "invert",
-    "invert_",
     "lcm",
     "lcm_",
     "left_shift",
@@ -68,7 +66,6 @@ __all__ = [
     "nanprod",
     "nansum",
     "neg",
-    "neg_",
     "negative",
     "pos",
     "positive",
@@ -237,7 +234,7 @@ def bitwise_and(
     where: Union[bool, DNDarray] = True,
 ) -> DNDarray:
     """
-    Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2``
+    Compute the bitwise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2``
     element-wise. Only integer and boolean types are handled. If ``t1.shape!=t2.shape``, they must
     be broadcastable to a common shape (which becomes the shape of the output)
 
@@ -296,10 +293,13 @@ DNDarray.__rand__.__doc__ = bitwise_and.__doc__
 
 def bitwise_and_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise AND of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2``
-    element-wise and in-place. Only integer and boolean types are handled. If
-    ``t1.shape!=t2.shape``, they must be broadcastable to a common shape (which becomes the shape of
-    the output).
+    Bitwise AND of two operands computed element-wise and in-place.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise computes the
+    bitwise AND with element(s) of the second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the element(s) of `t1` are overwritten by
+    the results of element-wise bitwise AND of `t1` and `t2`.
+    Can be called as a DNDarray method or with the symbol `&=`. Only integer and boolean types are
+    handled.
 
     Parameters
     ----------
@@ -308,38 +308,47 @@ def bitwise_and_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand involved in the operation
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.array(13)
     >>> T2 = ht.array(17)
-    >>> ht.bitwise_and_(T1, T2)
-    DNDarray(1, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T1 &= T2
     >>> T1
     DNDarray(1, dtype=ht.int64, device=cpu:0, split=None)
     >>> T2
     DNDarray(17, dtype=ht.int64, device=cpu:0, split=None)
-    >>> ht.bitwise_and_(T2, ht.array(22))
+    >>> T3 = ht.array(22)
+    >>> T2.bitwise_and_(T3)
     DNDarray(16, dtype=ht.int64, device=cpu:0, split=None)
-    >>> T3 = ht.array([14,3])
+    >>> T2
+    DNDarray(16, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T4 = ht.array([14,3])
     >>> s = 29
-    >>> ht.bitwise_and_(T3, s)
-    DNDarray([12,  1], dtype=ht.int64, device=cpu:0, split=None)
-    >>> T3
+    >>> T4 &= s
+    >>> T4
     DNDarray([12,  1], dtype=ht.int64, device=cpu:0, split=None)
     >>> s
     29
-    >>> T4 = ht.array([2,5,255])
-    >>> T5 = ht.array([3,14,16])
-    >>> ht.bitwise_and_(T4, T5)
+    >>> T5 = ht.array([2,5,255])
+    >>> T6 = ht.array([3,14,16])
+    >>> T5 &= T6
+    >>> T5
     DNDarray([ 2,  4, 16], dtype=ht.int64, device=cpu:0, split=None)
-    >>> T4
-    DNDarray([ 2,  4, 16], dtype=ht.int64, device=cpu:0, split=None)
-    >>> T6 = ht.array([True, True])
-    >>> T7 = ht.array([False, True])
-    >>> ht.bitwise_and_(T6, T7)
-    DNDarray([False,  True], dtype=ht.bool, device=cpu:0, split=None)
-    >>> T6
+    >>> T7 = ht.array([True, True])
+    >>> T8 = ht.array([False, True])
+    >>> T7 &= T8
+    >>> T7
     DNDarray([False,  True], dtype=ht.bool, device=cpu:0, split=None)
     """
     dtypes = (heat_type_of(t1), heat_type_of(t2))
@@ -1165,7 +1174,7 @@ def div_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     element(s) by the element(s) of the second operand (scalar or
     :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the element(s) of `t1` are overwritten by
     the results of element-wise division of `t1` and `t2`.
-    Can be called as a DNDarray method or with the symbol `/=`.
+    Can be called as a DNDarray method or with the symbol `/=`. `divide_` is an alias for `div_`.
 
     Parameters
     ----------
@@ -1415,7 +1424,8 @@ def floordiv_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     :class:`~heat.core.dndarray.DNDarray`) in-place, then rounds down the result to the next
     integer, i.e. the element(s) of `t1` are overwritten by the results of element-wise floor
     division of `t1` and `t2`.
-    Can be called as a DNDarray method or with the symbol `//=`.
+    Can be called as a DNDarray method or with the symbol `//=`. `floor_divide_` is an alias for
+    `floordiv_`.
 
     Parameters
     ----------
@@ -1885,9 +1895,9 @@ bitwise_not = invert
 def invert_(t: DNDarray) -> DNDarray:
     """
     Computes the bitwise NOT of the given input :class:`~heat.core.dndarray.DNDarray` in-place. The
-    input array must be of integral or Boolean types. For boolean arrays, it computes the logical
-    NOT.
-    Bitwise_not is an alias for invert.
+    elements of the input array must be of integer or Boolean types. For boolean arrays, it computes
+    the logical NOT.
+    Can only be called as a DNDarray method. `bitwise_not_` is an alias for `invert_`.
 
     Parameters
     ----------
@@ -1898,17 +1908,17 @@ def invert_(t: DNDarray) -> DNDarray:
     --------
     >>> import heat as ht
     >>> T1 = ht.array(13, dtype=ht.uint8)
-    >>> ht.invert_(T1)
+    >>> T1.invert_()
     DNDarray(242, dtype=ht.uint8, device=cpu:0, split=None)
     >>> T1
     DNDarray(242, dtype=ht.uint8, device=cpu:0, split=None)
     >>> T2 = ht.array([-1, -2, 3], dtype=ht.int8)
-    >>> ht.invert_(T2)
+    >>> T2.invert_()
     DNDarray([ 0,  1, -4], dtype=ht.int8, device=cpu:0, split=None)
     >>> T2
     DNDarray([ 0,  1, -4], dtype=ht.int8, device=cpu:0, split=None)
     >>> T3 = ht.array([[True, True], [False, True]])
-    >>> ht.invert_(T3)
+    >>> T3.invert_()
     DNDarray([[False, False],
               [ True, False]], dtype=ht.bool, device=cpu:0, split=None)
     >>> T3
@@ -2244,7 +2254,7 @@ def mul_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
     i.e. the element(s) of `t1` are overwritten by the results of element-wise multiplication of
     `t1` and `t2`.
-    Can be called as a DNDarray method or with the symbol `*=`.
+    Can be called as a DNDarray method or with the symbol `*=`. `multiply_` is an alias for `mul_`.
 
     Parameters
     ----------
@@ -2548,6 +2558,7 @@ negative = neg
 def neg_(t: DNDarray) -> DNDarray:
     """
     Element-wise in-place negation of `t`.
+    Can only be called as a DNDarray method. `negative_` is an alias for `neg_`.
 
     Parameter
     ----------
@@ -2558,12 +2569,12 @@ def neg_(t: DNDarray) -> DNDarray:
     --------
     >>> import heat as ht
     >>> T1 = ht.array([-1, 1])
-    >>> ht.neg_(T1)
+    >>> T1.neg_()
     DNDarray([ 1, -1], dtype=ht.int64, device=cpu:0, split=None)
     >>> T1
     DNDarray([ 1, -1], dtype=ht.int64, device=cpu:0, split=None)
     >>> T2 = ht.array([[-1., 2.5], [4. , 0.]])
-    >>> ht.neg_(T2)
+    >>> T2.neg_()
     DNDarray([[ 1.0000, -2.5000],
               [-4.0000, -0.0000]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2
@@ -2729,7 +2740,7 @@ def pow_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     to the power of the corresponding element(s) of the second operand (scalar or
     :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the element(s) of `t1` are overwritten by
     the results of element-wise exponentiation of `t1` and `t2`.
-    Can be called as a DNDarray method or with the symbol `**=`.
+    Can be called as a DNDarray method or with the symbol `**=`. `power_` is an alias for `pow_`.
 
     Parameters
     ----------
@@ -2936,7 +2947,7 @@ def remainder_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     modulo regarding the element(s) of the second operand (scalar or
     :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the element(s) of `t1` are overwritten by
     the results of element-wise `t1` modulo `t2`.
-    Can be called as a DNDarray method or with the symbol `%=`.
+    Can be called as a DNDarray method or with the symbol `%=`. `mod_` is an alias for `remainder_`.
 
     Parameters
     ----------
@@ -3220,7 +3231,7 @@ def sub_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
     i.e. the element(s) of `t1` are overwritten by the results of element-wise subtraction of `t2`
     from `t1`.
-    Can be called as a DNDarray method or with the symbol `-=`.
+    Can be called as a DNDarray method or with the symbol `-=`. `subtract_` is an alias for `sub_`.
 
     Parameters
     ----------
