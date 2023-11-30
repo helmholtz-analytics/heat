@@ -32,7 +32,6 @@ __all__ = [
     "bitwise_and",
     "bitwise_and_",
     "bitwise_not",
-    "bitwise_not_",
     "bitwise_or",
     "bitwise_or_",
     "bitwise_xor",
@@ -42,21 +41,15 @@ __all__ = [
     "cumprod",
     "cumprod_",
     "cumproduct",
-    "cumproduct_",
     "cumsum",
     "cumsum_",
     "diff",
     "div",
-    "div_",
     "divide",
-    "divide_",
     "divmod",
     "floordiv",
-    "floordiv_",
     "floor_divide",
-    "floor_divide_",
     "fmod",
-    "fmod_",
     "gcd",
     "gcd_",
     "hypot",
@@ -68,11 +61,8 @@ __all__ = [
     "left_shift",
     "left_shift_",
     "mod",
-    "mod_",
     "mul",
-    "mul_",
     "multiply",
-    "multiply_",
     "nan_to_num",
     "nan_to_num_",
     "nanprod",
@@ -80,22 +70,16 @@ __all__ = [
     "neg",
     "neg_",
     "negative",
-    "negative_",
     "pos",
     "positive",
     "pow",
-    "pow_",
     "power",
-    "power_",
     "prod",
     "remainder",
-    "remainder_",
     "right_shift",
     "right_shift_",
     "sub",
-    "sub_",
     "subtract",
-    "subtract_",
     "sum",
 ]
 
@@ -166,8 +150,9 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     Element-wise in-place addition of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise adds the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of `t1` are overwritten by the results of element-wise addition of `t1` and
-    `t2`. Can be called as a DNDarray method or with the symbol `+=`.
+    i.e. the element(s) of `t1` are overwritten by the results of element-wise addition of `t1` and
+    `t2`.
+    Can be called as a DNDarray method or with the symbol `+=`.
 
     Parameters
     ----------
@@ -363,23 +348,39 @@ def bitwise_and_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types.")
 
-    if not isinstance(t1, DNDarray):
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
         raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
         )
 
     def wrap_bitwise_and_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.bitwise_and_(b)
 
-    return _operations.__binary_op(wrap_bitwise_and_, t1, t2)
+    return _operations.__binary_op(wrap_bitwise_and_, t1, t2, out=t1)
 
 
 DNDarray.__iand__ = bitwise_and_
+DNDarray.bitwise_and_ = bitwise_and_
 
 
 def bitwise_or(
@@ -503,23 +504,39 @@ def bitwise_or_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types.")
 
-    if not isinstance(t1, DNDarray):
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
         raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
         )
 
     def wrap_bitwise_or_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.bitwise_or_(b)
 
-    return _operations.__binary_op(wrap_bitwise_or_, t1, t2)
+    return _operations.__binary_op(wrap_bitwise_or_, t1, t2, out=t1)
 
 
 DNDarray.__ior__ = bitwise_or_
+DNDarray.bitwise_or_ = bitwise_or_
 
 
 def bitwise_xor(
@@ -638,23 +655,39 @@ def bitwise_xor_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types.")
 
-    if not isinstance(t1, DNDarray):
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
         raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
         )
 
     def wrap_bitwise_xor_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.bitwise_xor_(b)
 
-    return _operations.__binary_op(wrap_bitwise_xor_, t1, t2)
+    return _operations.__binary_op(wrap_bitwise_xor_, t1, t2, out=t1)
 
 
 DNDarray.__ixor__ = bitwise_xor_
+DNDarray.bitwise_xor_ = bitwise_xor_
 
 
 def copysign(
@@ -703,8 +736,8 @@ def copysign(
 def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     In-place version of the element-wise operation 'copysign'.
-    The magnitudes of elements of 't1' are kept but the sign(s) are adopted from the element(s) of
-    't2'.
+    The magnitudes of the element(s) of 't1' are kept but the sign(s) are adopted from the
+    element(s) of 't2'.
     At the moment, the operation only works for DNDarrays whose elements are floats. This is due to
     the fact that it relies on the PyTorch function 'copysign_', which does not work if the entries
     of 't1' are integers. The case when 't1' contains floats and 't2' contains integers works in
@@ -746,14 +779,36 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         if heat_type_is_exact(dt):
             raise TypeError("Operation is not supported for integers.")
 
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
     def wrap_copysign_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.copysign_(b)
 
     try:
-        return _operations.__binary_op(wrap_copysign_, t1, t2)
+        return _operations.__binary_op(wrap_copysign_, t1, t2, out=t1)
     except RuntimeError as e:
         # every other possibility is caught by __binary_op
         raise TypeError(f"Not implemented for input type, got {type(t1)}, {type(t2)}") from e
+
+
+DNDarray.copysign_ = copysign_
 
 
 def cumprod(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray:
@@ -826,12 +881,10 @@ def cumprod_(t: DNDarray, axis: int) -> DNDarray:
     def wrap_mul_(a: torch.Tensor, b: torch.Tensor, out=None) -> torch.Tensor:
         return a.mul_(b)
 
-    return _operations.__cum_op(t, wrap_cumprod_, MPI.PROD, wrap_mul_, 1, axis, dtype=None)
+    return _operations.__cum_op(t, wrap_cumprod_, MPI.PROD, wrap_mul_, 1, axis, dtype=None, out=t)
 
 
-# Alias support
-cumproduct_ = cumprod_
-"""Alias for :py:func:`cumprod_`"""
+DNDarray.cumprod_ = DNDarray.cumproduct_ = cumprod_
 
 
 def cumsum(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray:
@@ -899,7 +952,10 @@ def cumsum_(t: DNDarray, axis: int) -> DNDarray:
     def wrap_add_(a: torch.Tensor, b: torch.Tensor, out=None) -> torch.Tensor:
         return a.add_(b)
 
-    return _operations.__cum_op(t, wrap_cumsum_, MPI.SUM, wrap_add_, 0, axis, dtype=None)
+    return _operations.__cum_op(t, wrap_cumsum_, MPI.SUM, wrap_add_, 0, axis, dtype=None, out=t)
+
+
+DNDarray.cumsum_ = cumsum_
 
 
 def diff(
@@ -1106,10 +1162,10 @@ def div_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Element-wise in-place true division of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise divides its
-    elements by the element(s) of the second operand (scalar or
-    :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the elements of `t1` are overwritten by
+    element(s) by the element(s) of the second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the element(s) of `t1` are overwritten by
     the results of element-wise division of `t1` and `t2`.
-    Operation is not commutative.
+    Can be called as a DNDarray method or with the symbol `/=`.
 
     Parameters
     ----------
@@ -1118,14 +1174,22 @@ def div_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand by whose values is divided.
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Example
     ---------
     >>> import heat as ht
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
-    >>> ht.div_(T1, T2)
-    DNDarray([[0.5000, 1.0000],
-              [1.5000, 2.0000]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1 /= T2
     >>> T1
     DNDarray([[0.5000, 1.0000],
               [1.5000, 2.0000]], dtype=ht.float32, device=cpu:0, split=None)
@@ -1133,7 +1197,7 @@ def div_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[2., 2.],
               [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
-    >>> ht.div_(T2, s)
+    >>> T2.div_(s)
     DNDarray([[1., 1.],
               [1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2
@@ -1141,28 +1205,49 @@ def div_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
               [1., 1.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s
     2.0
+    >>> v = ht.int32([-1, 2])
+    >>> T2.divide_(v)
+    DNDarray([[-1.0000,  0.5000],
+              [-1.0000,  0.5000]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[-1.0000,  0.5000],
+              [-1.0000,  0.5000]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> v
+    DNDarray([-1,  2], dtype=ht.int32, device=cpu:0, split=None)
     """
-    if not isinstance(t1, DNDarray):
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
         raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
         )
 
     def wrap_div_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.div_(b)
 
-    return _operations.__binary_op(wrap_div_, t1, t2)
+    return _operations.__binary_op(wrap_div_, t1, t2, out=t1)
 
 
 DNDarray.__itruediv__ = div_
-
-# Alias support
-divide_ = div_
-"""Alias for :py:func:`div_`"""
+DNDarray.div_ = DNDarray.divide_ = div_
 
 
 def divmod(
@@ -1324,8 +1409,13 @@ floor_divide = floordiv
 
 def floordiv_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Element-wise in-place floor division of value(s) of operand ``t1`` by value(s) of operand ``t2``
-    (i.e. ``t1//t2``), not commutative.
+    Element-wise in-place floor division of values of two operands.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise divides its
+    element(s) by the element(s) of the second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) in-place, then rounds down the result to the next
+    integer, i.e. the element(s) of `t1` are overwritten by the results of element-wise floor
+    division of `t1` and `t2`.
+    Can be called as a DNDarray method or with the symbol `//=`.
 
     Parameters
     ----------
@@ -1334,50 +1424,80 @@ def floordiv_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand by whose values is divided
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.float32([[1.7, 2.0], [1.9, 4.2]])
     >>> s = 1
-    >>> ht.floordiv_(T1, 1)
-    DNDarray([[1., 2.],
-              [1., 4.]], dtype=ht.float64, device=cpu:0, split=None)
+    >>> T1 //= s
     >>> T1
     DNDarray([[1., 2.],
               [1., 4.]], dtype=ht.float64, device=cpu:0, split=None)
     >>> s
     1
-    >>> T2 = ht.float32([1.5, 2.5])
-    >>> ht.floordiv_(T1, T2)
+    >>> T2 = ht.float32([[1.5, 2.5], [1.0, 1.3]])
+    >>> T1.floordiv_(T2)
     DNDarray([[0., 0.],
-              [0., 1.]], dtype=ht.float32, device=cpu:0, split=None)
+              [1., 3.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1
     DNDarray([[0., 0.],
-              [0., 1.]], dtype=ht.float32, device=cpu:0, split=None)
+              [1., 3.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2
-    DNDarray([1.5000, 2.5000], dtype=ht.float32, device=cpu:0, split=None)
+    DNDarray([[1.5000, 2.5000],
+              [1.0000, 1.3000]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> v = ht.int32([-1, 2])
+    >>> T1.floor_divide_(v)
+    DNDarray([[-0.,  0.],
+              [-1.,  1.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1
+    DNDarray([[-0.,  0.],
+              [-1.,  1.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> v
+    DNDarray([-1,  2], dtype=ht.int32, device=cpu:0, split=None)
     """
-    if not isinstance(t1, DNDarray):
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
         raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
         )
 
     def wrap_floordiv_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.floor_divide_(b)
 
-    return _operations.__binary_op(wrap_floordiv_, t1, t2)
+    return _operations.__binary_op(wrap_floordiv_, t1, t2, out=t1)
 
 
 DNDarray.__ifloordiv__ = floordiv_
-
-# Alias support
-floor_divide_ = floordiv_
-"""Alias for :py:func:`floordiv_`"""
+DNDarray.floordiv_ = DNDarray.floor_divide_ = floordiv_
 
 
 def fmod(
@@ -1429,9 +1549,9 @@ def fmod(
 
 def fmod_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    In-place computation of element-wise division remainder of values of operand ``t1`` by values of
-    operand ``t2`` (i.e. C Library function fmod). Result has the sign as the dividend ``t1``.
-    Operation is not commutative.
+    In-place computation of element-wise division remainder of values of operand `t1` by values of
+    operand `t2` (i.e. C Library function fmod). The result has the same sign as the dividend `t1`.
+    Can only be called as a DNDarray method.
 
     Parameters
     ----------
@@ -1440,27 +1560,36 @@ def fmod_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand by whose values is divided (may be floats)
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.array(2)
-    >>> ht.fmod_(T1,T1)
-    DNDarray(0, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T1.fmod_(T1)
     >>> T1
     DNDarray(0, dtype=ht.int64, device=cpu:0, split=None)
-    >>> T2 = ht.int32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[1, 2], [3, 4]])
     >>> T3 = ht.int32([[2, 2], [2, 2]])
-    >>> ht.fmod_(T2, T3)
-    DNDarray([[1, 0],
-              [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> T2.fmod_(T3)
+    DNDarray([[1., 0.],
+              [1., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2
-    DNDarray([[1, 0],
-              [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
+    DNDarray([[1., 0.],
+              [1., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T3
     DNDarray([[2, 2],
               [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
     >>> s = -3
-    >>> ht.fmod_(T3, s)
+    >>> T3.fmod_(s)
     DNDarray([[2, 2],
               [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
     >>> T3
@@ -1469,20 +1598,38 @@ def fmod_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> s
     -3
     """
-    if not isinstance(t1, DNDarray):
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
         raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
         )
 
     def wrap_fmod_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.fmod_(b)
 
-    return _operations.__binary_op(wrap_fmod_, t1, t2)
+    return _operations.__binary_op(wrap_fmod_, t1, t2, out=t1)
+
+
+DNDarray.fmod_ = fmod_
 
 
 def gcd(
@@ -1552,15 +1699,42 @@ def gcd_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     >>> T2
     DNDarray([1, 2, 3], dtype=ht.int32, device=cpu:0, split=None)
     """
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
+        raise TypeError(
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
+        )
 
     def wrap_gcd_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.gcd_(b)
 
     try:
-        return _operations.__binary_op(wrap_gcd_, t1, t2)
+        return _operations.__binary_op(wrap_gcd_, t1, t2, out=t1)
     except RuntimeError as e:
         # every other possibility is caught by __binary_op
         raise TypeError(f"Expected integer input, got {t1.dtype}, {t2.dtype}") from e
+
+
+DNDarray.gcd_ = gcd_
 
 
 def hypot(
@@ -1631,15 +1805,42 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     >>> T2
     DNDarray(2., dtype=ht.float32, device=cpu:0, split=None)
     """
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
+        raise TypeError(
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
+        )
 
     def wrap_hypot_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.hypot_(b)
 
     try:
-        return _operations.__binary_op(wrap_hypot_, t1, t2)
+        return _operations.__binary_op(wrap_hypot_, t1, t2, out=t1)
     except RuntimeError as e:
         # every other possibility is caught by __binary_op
         raise TypeError(f"Not implemented for array dtype, got {t1.dtype}, {t2.dtype}") from e
+
+
+DNDarray.hypot_ = hypot_
 
 
 def invert(a: DNDarray, /, out: Optional[DNDarray] = None) -> DNDarray:
@@ -1719,15 +1920,13 @@ def invert_(t: DNDarray) -> DNDarray:
     if heat_type_is_inexact(dt):
         raise TypeError("Operation is not supported for float types")
 
-    def wrap_bitwise_not_(a: torch.Tensor) -> torch.Tensor:
+    def wrap_bitwise_not_(a: torch.Tensor, out=None) -> torch.Tensor:
         return a.bitwise_not_()
 
-    return _operations.__local_op(wrap_bitwise_not_, t, no_cast=True)
+    return _operations.__local_op(wrap_bitwise_not_, t, no_cast=True, out=t)
 
 
-# Alias support
-bitwise_not_ = invert_
-"""Alias for :py:func:`invert_`"""
+DNDarray.invert_ = DNDarray.bitwise_not_ = invert_
 
 
 def lcm(
@@ -1808,15 +2007,42 @@ def lcm_(t1: DNDarray, t2: Union[DNDarray, int]) -> DNDarray:
     >>> s
     2
     """
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
+        raise TypeError(
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
+        )
 
     def wrap_lcm_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.lcm_(b)
 
     try:
-        return _operations.__binary_op(wrap_lcm_, t1, t2)
+        return _operations.__binary_op(wrap_lcm_, t1, t2, out=t1)
     except RuntimeError as e:
         # every other possibility is caught by __binary_op
         raise TypeError(f"Expected integer input, got {t1.dtype}, {t2.dtype}") from e
+
+
+DNDarray.lcm_ = lcm_
 
 
 def left_shift(
@@ -1906,16 +2132,6 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> s
     1
     """
-    if not isinstance(t1, DNDarray):
-        raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
-        )
-
     dtypes = (heat_type_of(t1), heat_type_of(t2))
     for dt in range(2):
         if heat_type_is_inexact(dtypes[dt]):
@@ -1923,13 +2139,39 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         elif dtypes[dt] == types.bool:
             raise TypeError("Operation is not supported for boolean types")
 
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
+        raise TypeError(
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
+        )
+
     def wrap_bitwise_left_shift_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.bitwise_left_shift_(b)
 
-    return _operations.__binary_op(wrap_bitwise_left_shift_, t1, t2)
+    return _operations.__binary_op(wrap_bitwise_left_shift_, t1, t2, out=t1)
 
 
 DNDarray.__ilshift__ = left_shift_
+DNDarray.left_shift_ = left_shift_
 
 
 def mul(
@@ -2000,8 +2242,9 @@ def mul_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     Element-wise in-place multiplication of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise multiplies the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of `t1` are overwritten by the results of element-wise multiplication of `t1`
-    and `t2`.
+    i.e. the element(s) of `t1` are overwritten by the results of element-wise multiplication of
+    `t1` and `t2`.
+    Can be called as a DNDarray method or with the symbol `*=`.
 
     Parameters
     ----------
@@ -2010,14 +2253,22 @@ def mul_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand involved in the multiplication.
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
-    >>> ht.mul_(T1, T2)
-    DNDarray([[2., 4.],
-              [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1 *= T2
     >>> T1
     DNDarray([[2., 4.],
               [6., 8.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -2025,7 +2276,7 @@ def mul_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     DNDarray([[2., 2.],
               [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s = 2.0
-    >>> ht.mul_(T2, s)
+    >>> T2.mul_(s)
     DNDarray([[4., 4.],
               [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2
@@ -2033,28 +2284,49 @@ def mul_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
               [4., 4.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s
     2.0
+    >>> v = ht.int32([-1, 2])
+    >>> T2.multiply_(v)
+    DNDarray([[-4.,  8.],
+              [-4.,  8.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[-4.,  8.],
+              [-4.,  8.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> v
+    DNDarray([-1,  2], dtype=ht.int32, device=cpu:0, split=None)
     """
-    if not isinstance(t1, DNDarray):
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
         raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
         )
 
     def wrap_mul_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.mul_(b)
 
-    return _operations.__binary_op(wrap_mul_, t1, t2)
+    return _operations.__binary_op(wrap_mul_, t1, t2, out=t1)
 
 
 DNDarray.__imul__ = mul_
-
-# Alias support
-multiply_ = mul_
-"""Alias for :py:func:`mul_`"""
+DNDarray.mul_ = DNDarray.multiply_ = mul_
 
 
 def nan_to_num(
@@ -2137,12 +2409,17 @@ def nan_to_num_(
             "The input array must be a DNDarray. But your inputs were from " + str(type(t)) + "."
         )
 
-    def wrap_nan_to_num_(a: torch.Tensor, nan=nan, posinf=posinf, neginf=neginf) -> torch.Tensor:
+    def wrap_nan_to_num_(
+        a: torch.Tensor, nan=nan, posinf=posinf, neginf=neginf, out=None
+    ) -> torch.Tensor:
         return a.nan_to_num_(nan=nan, posinf=posinf, neginf=neginf)
 
     return _operations.__local_op(
-        wrap_nan_to_num_, t, no_cast=True, nan=nan, posinf=posinf, neginf=neginf
+        wrap_nan_to_num_, t, out=t, no_cast=True, nan=nan, posinf=posinf, neginf=neginf
     )
+
+
+DNDarray.nan_to_num_ = nan_to_num_
 
 
 def nanprod(
@@ -2295,15 +2572,13 @@ def neg_(t: DNDarray) -> DNDarray:
     """
     sanitation.sanitize_in(t)
 
-    def wrap_neg_(a: torch.Tensor) -> torch.Tensor:
+    def wrap_neg_(a: torch.Tensor, out=None) -> torch.Tensor:
         return a.neg_()
 
-    return _operations.__local_op(wrap_neg_, t, no_cast=True)
+    return _operations.__local_op(wrap_neg_, t, out=t, no_cast=True)
 
 
-# Alias support
-negative_ = neg_
-"""Alias for :py:func:`neg_`"""
+DNDarray.neg_ = DNDarray.negative_ = neg_
 
 
 def pos(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
@@ -2358,7 +2633,7 @@ def pow(
     where: Union[bool, DNDarray] = True,
 ) -> DNDarray:
     """
-    Element-wise exponential function of values of operand ``t1`` to the power of values of operand
+    Element-wise power function of values of operand ``t1`` to the power of values of operand
     ``t2`` (i.e ``t1**t2``).
     Operation is not commutative.
 
@@ -2449,9 +2724,12 @@ power = pow
 
 def pow_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    In-place version of the element-wise exponential function of values of operand ``t1`` to the
-    power of values of operand ``t2`` (i.e ``t1**t2``).
-    Operation is not commutative.
+    Element-wise in-place exponentation.
+    Takes the element(s) of the first operand (:class:`~heat.core.dndarray.DNDarray`) element-wise
+    to the power of the corresponding element(s) of the second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the element(s) of `t1` are overwritten by
+    the results of element-wise exponentiation of `t1` and `t2`.
+    Can be called as a DNDarray method or with the symbol `**=`.
 
     Parameters
     ----------
@@ -2460,59 +2738,80 @@ def pow_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand whose values represent the exponent
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
-    >>> T1 = ht.array(3.0)
-    >>> s1 = 2
-    >>> ht.pow_ (T1, s1)
-    DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1 = ht.float32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[3, 3], [2, 2]])
+    >>> T1 **= T2
     >>> T1
-    DNDarray(9., dtype=ht.float32, device=cpu:0, split=None)
-    >>> s1
-    2
-    >>> T2 = ht.float32([[1, 2], [3, 4]])
-    >>> T3 = ht.float32([[3, 3], [2, 2]])
-    >>> ht.pow_(T2, T3)
     DNDarray([[ 1.,  8.],
               [ 9., 16.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2
-    DNDarray([[ 1.,  8.],
-              [ 9., 16.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> T3
     DNDarray([[3., 3.],
               [2., 2.]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> s2 = -1.0
-    >>> ht.pow_(T3, s2)
+    >>> s = -1.0
+    >>> T2.pow_(s)
     DNDarray([[0.3333, 0.3333],
               [0.5000, 0.5000]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> T3
+    >>> T2
     DNDarray([[0.3333, 0.3333],
               [0.5000, 0.5000]], dtype=ht.float32, device=cpu:0, split=None)
-    >>> s2
-    -1
+    >>> s
+    -1.0
+    >>> v = ht.int32([-3, 2])
+    >>> T2.power_(v)
+    DNDarray([[27.0000,  0.1111],
+              [ 8.0000,  0.2500]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[27.0000,  0.1111],
+              [ 8.0000,  0.2500]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> v
+    DNDarray([-3,  2], dtype=ht.int32, device=cpu:0, split=None)
     """
-    if not isinstance(t1, DNDarray):
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
         raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
         )
 
     def wrap_pow_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.pow_(b)
 
-    return _operations.__binary_op(wrap_pow_, t1, t2)
+    return _operations.__binary_op(wrap_pow_, t1, t2, out=t1)
 
 
 DNDarray.__ipow__ = pow_
-
-# Alias support
-power_ = pow_
-"""Alias for :py:func:`pow_`"""
+DNDarray.pow_ = DNDarray.power_ = pow_
 
 
 def prod(
@@ -2631,9 +2930,13 @@ DNDarray.__rmod__.__doc__ = mod.__doc__
 
 def remainder_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    In-place computation of element-wise division remainder of values of operand ``t1`` by values of
-    operand ``t2`` (i.e. ``t1%t2``). Result has the same sign as the divisor ``t2``.
-    Operation is not commutative.
+    Element-wise in-place division remainder of values of two operands. The result has the same sign
+    as the divisor.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise computes the
+    modulo regarding the element(s) of the second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the element(s) of `t1` are overwritten by
+    the results of element-wise `t1` modulo `t2`.
+    Can be called as a DNDarray method or with the symbol `%=`.
 
     Parameters
     ----------
@@ -2642,27 +2945,36 @@ def remainder_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand by whose values is divided
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.array(2)
-    >>> ht.remainder_(T1,T1)
-    DNDarray(0, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T1 %= T1
     >>> T1
     DNDarray(0, dtype=ht.int64, device=cpu:0, split=None)
-    >>> T2 = ht.int32([[1, 2], [3, 4]])
+    >>> T2 = ht.float32([[1, 2], [3, 4]])
     >>> T3 = ht.int32([[2, 2], [2, 2]])
-    >>> ht.remainder_(T2, T3)
-    DNDarray([[1, 0],
-              [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
+    >>> T2.mod_(T3)
+    DNDarray([[1., 0.],
+              [1., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2
-    DNDarray([[1, 0],
-              [1, 0]], dtype=ht.int32, device=cpu:0, split=None)
+    DNDarray([[1., 0.],
+              [1., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T3
     DNDarray([[2, 2],
               [2, 2]], dtype=ht.int32, device=cpu:0, split=None)
     >>> s = -3
-    >>> ht.remainder_(T3, s)
+    >>> T3.remainder_(s)
     DNDarray([[-1, -1],
               [-1, -1]], dtype=ht.int32, device=cpu:0, split=None)
     >>> T3
@@ -2671,27 +2983,39 @@ def remainder_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> s
     -3
     """
-    if not isinstance(t1, DNDarray):
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
         raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
         )
 
     def wrap_remainder_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.remainder_(b)
 
-    return _operations.__binary_op(wrap_remainder_, t1, t2)
+    return _operations.__binary_op(wrap_remainder_, t1, t2, out=t1)
 
 
-# Alias support
-mod_ = remainder_
-"""Alias for :py:func:`remainder_`"""
-
-DNDarray.__imod__ = mod_
+DNDarray.__imod__ = remainder_
+DNDarray.mod_ = DNDarray.remainder_ = remainder_
 
 
 def right_shift(
@@ -2781,16 +3105,6 @@ def right_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> s
     1
     """
-    if not isinstance(t1, DNDarray):
-        raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
-        )
-
     dtypes = (heat_type_of(t1), heat_type_of(t2))
     for dt in range(2):
         if heat_type_is_inexact(dtypes[dt]):
@@ -2798,13 +3112,39 @@ def right_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         elif dtypes[dt] == types.bool:
             raise TypeError("Operation is not supported for boolean types")
 
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
+        raise TypeError(
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
+        )
+
     def wrap_bitwise_right_shift_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.bitwise_right_shift_(b)
 
-    return _operations.__binary_op(wrap_bitwise_right_shift_, t1, t2)
+    return _operations.__binary_op(wrap_bitwise_right_shift_, t1, t2, out=t1)
 
 
 DNDarray.__irshift__ = right_shift_
+DNDarray.right_shift_ = right_shift_
 
 
 def sub(
@@ -2878,8 +3218,9 @@ def sub_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     Element-wise in-place substitution of values of two operands.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise subtracts the
     element(s) of the second operand (scalar or :class:`~heat.core.dndarray.DNDarray`) in-place,
-    i.e. the elements of ``t1`` are overwritten by the results of element-wise subtraction of ``t2``
-    from ``t1``.
+    i.e. the element(s) of `t1` are overwritten by the results of element-wise subtraction of `t2`
+    from `t1`.
+    Can be called as a DNDarray method or with the symbol `-=`.
 
     Parameters
     ----------
@@ -2888,14 +3229,22 @@ def sub_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand involved in the subtraction
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.float32([[1, 2], [3, 4]])
     >>> T2 = ht.float32([[2, 2], [2, 2]])
-    >>> ht.sub_(T1, T2)
-    DNDarray([[-1., 0.],
-              [ 1., 2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T1 -= T2
     >>> T1
     DNDarray([[-1., 0.],
               [ 1., 2.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -2911,28 +3260,49 @@ def sub_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
               [0., 0.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> s
     2.0
+    >>> v = ht.int32([-3, 2])
+    >>> T2.subtract_(v)
+    DNDarray([[ 3., -2.],
+              [ 3., -2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([[ 3., -2.],
+              [ 3., -2.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> v
+    DNDarray([-3,  2], dtype=ht.int32, device=cpu:0, split=None)
     """
-    if not isinstance(t1, DNDarray):
+    if isinstance(t2, DNDarray):
+        if (t1.split != t2.split) and (t2.split is not None):
+            try:
+                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
+            except RuntimeError:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+            if resulting_shape != t1.larray.shape:
+                raise ValueError(
+                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
+                    + "processed in-place without resplitting, because the underlying tensors have "
+                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
+                    + f"{t2.larray.shape})."
+                )
+
+    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
         raise TypeError(
-            "Input 1 must be a DNDarray and input 2 either a DNDarray or a scalar. "
-            + "But your inputs were from "
-            + str(type(t1))
-            + " and "
-            + str(type(t2))
-            + "."
+            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
+            + "operations."
         )
 
     def wrap_sub_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.sub_(b)
 
-    return _operations.__binary_op(wrap_sub_, t1, t2)
+    return _operations.__binary_op(wrap_sub_, t1, t2, out=t1)
 
 
 DNDarray.__isub__ = sub_
-
-# Alias support
-subtract_ = sub_
-"""Alias for :py:func:`sub_`"""
+DNDarray.sub_ = DNDarray.subtract_ = sub_
 
 
 def sum(

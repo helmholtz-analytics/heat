@@ -368,7 +368,7 @@ def __local_op(
     multiples = [(int(a / b) if b > 0 else 0) for a, b in zip(broadcast_shape, padded_shape)]
     needs_repetition = builtins.any(multiple > 1 for multiple in multiples)
 
-    # do an inplace operation into a provided buffer
+    # do an in-place operation into a provided buffer
     casted = x.larray.type(torch_type)
     operation(casted.repeat(multiples) if needs_repetition else casted, out=out.larray, **kwargs)
 
