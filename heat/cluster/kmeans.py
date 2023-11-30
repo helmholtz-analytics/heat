@@ -132,6 +132,8 @@ class KMeans(_KCluster):
             self._inertia = ((self._cluster_centers - new_cluster_centers) ** 2).sum()
             self._cluster_centers = new_cluster_centers.copy()
             if self.tol is not None and self._inertia <= self.tol:
+                if x.comm.rank == 0:
+                    print("K-means has converged after {} iterations".format(epoch))
                 break
 
         self._labels = matching_centroids
