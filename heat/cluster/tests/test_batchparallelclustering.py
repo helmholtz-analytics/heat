@@ -68,6 +68,7 @@ class TestBatchParallelKCluster(TestCase):
                         self.assertEqual(parallelclusterer.cluster_centers_.split, None)
                         self.assertEqual(parallelclusterer.cluster_centers_.shape, (n_clusters, 3))
                         self.assertEqual(parallelclusterer.cluster_centers_.dtype, dtype)
+                        self.assertIsInstance(parallelclusterer.n_iter_, tuple)
                         labels = parallelclusterer.predict(data)
                         self.assertIsInstance(labels, ht.DNDarray)
                         self.assertEqual(labels.split, 0)
@@ -76,7 +77,7 @@ class TestBatchParallelKCluster(TestCase):
                         self.assertEqual(labels.max(), n_clusters - 1)
                         self.assertEqual(labels.min(), 0)
 
-    def catch_all_errors(self):
+    def test_if_errors_thrown(self):
         for ParallelClusterer in [ht.cluster.BatchParallelKMeans, ht.cluster.BatchParallelKMedians]:
             # wrong split dimension for fit
             parallelclusterer = ParallelClusterer()
