@@ -35,21 +35,18 @@ def _initialize_plus_plus(X, n_clusters, p, random_state=None):
 def _kmex(X, p, n_clusters, init, max_iter, tol, random_state=None):
     """
     Auxiliary function: single-process k-means and k-medians in pytorch
-    p is the norm used for computing distances: p=2 implies k-means, p=1 implies k-medians
+    p is the norm used for computing distances: p=2 implies k-means, p=1 implies k-medians.
+    p should be 1 (k-medians) or 2 (k-means). For other choice of p, we proceed as for p=2 and hope for the best.
     (note: kmex stands for kmeans and kmedians)
     """
     if random_state is not None:
         torch.manual_seed(random_state)
-    if not (p == 1 or p == 2):
-        raise Warning(
-            "p should be 1 (k-medians) or 2 (k-means). For other choice of p, we proceed as for p=2 and hope for the best."
-        )
     if isinstance(init, torch.Tensor):
         if init.shape != (n_clusters, X.shape[1]):
             raise ValueError("if a torch tensor, init must have shape (n_clusters, n_features).")
         centers = init
     elif init == "++":
-        centers = _initialize_plus_plus(X, n_clusters, p)
+        centers = _initialize_plus_plus(X, n_clusters, p, random_state)
     elif init == "random":
         idxs = torch.randint(0, X.shape[0], (n_clusters,))
         centers = X[idxs]
@@ -296,10 +293,11 @@ class BatchParallelKMeans(_BatchParallelKCluster):
             if init == "k-means++":
                 _init = "++"
             elif init == "random":
-                _init = "random"
+                raise NotImplementedError(
+                    "random initialization for batch parallel k-means is currently not supported due to instable behaviour of the algorithm. Use init='k-means++' instead."
+                )
             else:
                 raise ValueError(f"init must be 'k-means++' or 'random', but was {init}")
-
         super().__init__(
             p=2,
             n_clusters=n_clusters,
@@ -358,7 +356,6 @@ class BatchParallelKMedians(_BatchParallelKCluster):
                 )
             else:
                 raise ValueError(f"init must be 'k-medians++' or 'random', but was {init}")
-
         super().__init__(
             p=1,
             n_clusters=n_clusters,
