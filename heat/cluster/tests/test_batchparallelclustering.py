@@ -47,21 +47,35 @@ for ParallelClusterer in [ht.cluster.BatchParallelKMeans, ht.cluster.BatchParall
                 )
                 for n_clusters in [4, 5]:
                     for init in [ppinitkw, "random"]:
-                        parallelclusterer = ParallelClusterer(
-                            n_clusters=n_clusters, init=init, random_state=seed
-                        )
-                        parallelclusterer.fit(data)
-                        self.assertIsInstance(parallelclusterer.cluster_centers_, ht.DNDarray)
-                        self.assertEqual(parallelclusterer.cluster_centers_.split, None)
-                        self.assertEqual(parallelclusterer.cluster_centers_.shape, (n_clusters, 3))
-                        self.assertEqual(parallelclusterer.cluster_centers_.dtype, dtype)
-                        labels = parallelclusterer.predict(data)
-                        self.assertIsInstance(labels, ht.DNDarray)
-                        self.assertEqual(labels.split, 0)
-                        self.assertEqual(labels.shape, (n, 1))
-                        self.assertEqual(labels.dtype, ht.int32)
-                        self.assertEqual(labels.max(), n_clusters - 1)
-                        self.assertEqual(labels.min(), 0)
+                        # K-Medians has problems with random initialization
+                        if (
+                            ParallelClusterer is ht.cluster.BatchParallelKMedians
+                            and init == "random"
+                        ):
+                            with self.assertRaises(NotImplementedError):
+                                parallelclusterer = ParallelClusterer(
+                                    n_clusters=n_clusters, init=init, random_state=seed
+                                )
+                        # K-Means can handle random initialization and ++-intialization, K-Medians only ++
+                        else:
+                            parallelclusterer = ParallelClusterer(
+                                n_clusters=n_clusters, init=init, random_state=seed
+                            )
+                            parallelclusterer.fit(data)
+                            self.assertIsInstance(parallelclusterer.cluster_centers_, ht.DNDarray)
+                            self.assertEqual(parallelclusterer.cluster_centers_.split, None)
+                            self.assertEqual(
+                                parallelclusterer.cluster_centers_.shape, (n_clusters, 3)
+                            )
+                            self.assertEqual(parallelclusterer.cluster_centers_.dtype, dtype)
+                            labels = parallelclusterer.predict(data)
+                            print(data.split)
+                            self.assertIsInstance(labels, ht.DNDarray)
+                            self.assertEqual(labels.split, 0)
+                            self.assertEqual(labels.shape, (data.shape[0], 1))
+                            self.assertEqual(labels.dtype, ht.int32)
+                            self.assertEqual(labels.max(), n_clusters - 1)
+                            self.assertEqual(labels.min(), 0)
 
         def catch_all_errors(self):
             # wrong split dimension for fit

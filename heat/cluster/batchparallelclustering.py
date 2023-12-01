@@ -234,16 +234,19 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 f"input needs to have {self._cluster_centers.shape[1]} features, but has {x.shape[1]}"
             )
 
-        labels = _parallel_batched_kmex_predict(x.larray, self._cluster_centers.larray, self._p)
-        return ht.DNDarray(
-            labels,
-            (x.shape[0], 1),
+        local_labels = _parallel_batched_kmex_predict(
+            x.larray, self._cluster_centers.larray, self._p
+        )
+        labels = DNDarray(
+            local_labels,
+            gshape=(x.shape[0], 1),
             dtype=ht.int32,
             device=x.device,
             comm=x.comm,
             split=x.split,
             balanced=x.balanced,
         )
+        return labels
 
 
 """
@@ -350,7 +353,9 @@ class BatchParallelKMedians(_BatchParallelKCluster):
             if init == "k-medians++":
                 _init = "++"
             elif init == "random":
-                _init = "random"
+                raise NotImplementedError(
+                    "random initialization for batch parallel k-medians is currently not supported due to instable behaviour of the algorithm. Use init='k-medians++' instead."
+                )
             else:
                 raise ValueError(f"init must be 'k-medians++' or 'random', but was {init}")
 
