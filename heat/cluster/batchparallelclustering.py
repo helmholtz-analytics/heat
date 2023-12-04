@@ -124,6 +124,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
         self._p = p
         self._cluster_centers = None
         self._n_iter = None
+        self._functional_value = None
 
     @property
     def cluster_centers_(self) -> DNDarray:
@@ -140,6 +141,13 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
         and n_iter_global is the number of iterations of the global k-means/k-medians;
         """
         return self._n_iter
+
+    @property
+    def functional_value_(self) -> float:
+        """
+        Returns the value of the K-Clustering functional. Returns None if fit and predict have not been called yet.
+        """
+        return self._functional_value
 
     def fit(self, x: DNDarray):
         """
@@ -244,6 +252,15 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
             split=x.split,
             balanced=x.balanced,
         )
+        if self._p == 2:
+            local_kmex_functional_value = torch.norm(
+                x.larray - self._cluster_centers.larray[local_labels, :], p="fro"
+            )
+        else:
+            local_kmex_functional_value = torch.norm(
+                x.larray - self._cluster_centers.larray[local_labels, :], p=self._p, dim=1
+            ).sum()
+        self._functional_value = x.comm.allreduce(local_kmex_functional_value).item()
         return labels
 
 

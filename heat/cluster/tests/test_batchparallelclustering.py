@@ -95,6 +95,8 @@ class TestBatchParallelKCluster(TestCase):
                         self.assertEqual(parallelclusterer.cluster_centers_.dtype, dtype)
                         self.assertIsInstance(parallelclusterer.n_iter_, tuple)
                         labels = parallelclusterer.predict(data)
+                        functional_value = parallelclusterer.functional_value_
+                        self.assertIsInstance(functional_value, float)
                         self.assertIsInstance(labels, ht.DNDarray)
                         self.assertEqual(labels.split, 0)
                         self.assertEqual(labels.shape, (data.shape[0], 1))
