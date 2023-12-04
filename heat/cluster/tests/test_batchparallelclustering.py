@@ -28,6 +28,9 @@ class TestAuxiliaryFunctions(TestCase):
             _kmex(X, 2, 2, wrong_init, max_iter, tol)
         # test initialization "random"
         _kmex(X, 2, 2, init, max_iter, tol)
+        # test initialization with prescribed centers
+        init = torch.rand(2, 3)
+        _kmex(X, 2, 2, init, max_iter, tol)
 
     def test_BatchParallelKClustering(self):
         with self.assertRaises(TypeError):
