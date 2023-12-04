@@ -7,8 +7,33 @@ from heat.utils.data.spherical import create_spherical_dataset
 from mpi4py import MPI
 
 from ...core.tests.test_suites.basic_test import TestCase
+from ..batchparallelclustering import _kmex, _BatchParallelKCluster
 
 # test BatchParallelKCluster base class and auxiliary functions
+
+
+class TestAuxiliaryFunctions(TestCase):
+    def test_kmex(self):
+        X = torch.rand(10, 3)
+        max_iter = 10
+        tol = 1e-2
+        init = "random"
+        # test wrong shape of init in _kmex
+        wrong_init = torch.rand(3, 3)
+        with self.assertRaises(ValueError):
+            _kmex(X, 2, 2, wrong_init, max_iter, tol)
+        # test wrong dtype of init in _kmex
+        wrong_init = "abc"
+        with self.assertRaises(ValueError):
+            _kmex(X, 2, 2, wrong_init, max_iter, tol)
+        # test initialization "random"
+        _kmex(X, 2, 2, init, max_iter, tol)
+
+    def test_BatchParallelKClustering(self):
+        with self.assertRaises(TypeError):
+            _BatchParallelKCluster(2, 10, "++", 100, 1e-2, random_state=3.14)
+        with self.assertWarns(UserWarning):
+            _BatchParallelKCluster(3, 10, "++", 100, 1e-2, random_state=None)
 
 
 # test BatchParallelKMeans and BatchParallelKMedians
@@ -79,19 +104,34 @@ class TestBatchParallelKCluster(TestCase):
 
     def test_if_errors_thrown(self):
         for ParallelClusterer in [ht.cluster.BatchParallelKMeans, ht.cluster.BatchParallelKMedians]:
-            # wrong split dimension for fit
             parallelclusterer = ParallelClusterer()
+            # wrong dtype for fit
+            with self.assertRaises(TypeError):
+                parallelclusterer.fit("abc")
+            # wrong dimension for fit
+            X = ht.random.randn(4, 2, 2, split=0)
+            with self.assertRaises(ValueError):
+                parallelclusterer.fit(X)
+            # wrong split dimension for fit
             X = ht.random.randn(4, ht.MPI_WORLD.size * 10, split=1)
             with self.assertRaises(ValueError):
                 parallelclusterer.fit(X)
+            # now comes predict:
             # predict is called before fit
             X = ht.random.randn(ht.MPI_WORLD.size * 10, 2, split=0)
             with self.assertRaises(RuntimeError):
                 parallelclusterer.predict(X)
-            # wrong split dimension for predict
             parallelclusterer = ParallelClusterer()
             X = ht.random.randn(ht.MPI_WORLD.size * 10, 2, split=0)
             parallelclusterer.fit_predict(X)
+            # wrong dtype for predict
+            with self.assertRaises(TypeError):
+                parallelclusterer.predict("abc")
+            # wrong dimension for predict
+            X = ht.random.randn(4, 2, 2, split=0)
+            with self.assertRaises(ValueError):
+                parallelclusterer.predict(X)
+            # wrong split dimension for predict
             X = ht.random.randn(4, ht.MPI_WORLD.size * 10, split=1)
             with self.assertRaises(ValueError):
                 parallelclusterer.predict(X)

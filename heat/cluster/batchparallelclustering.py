@@ -6,6 +6,7 @@ import heat as ht
 import torch
 from heat.cluster._kcluster import _KCluster
 from heat.core.dndarray import DNDarray
+import warnings  # noqa: F401
 
 from typing import Union, Tuple, TypeVar
 
@@ -104,8 +105,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
             raise TypeError(f"tol must be float, but was {type(tol)}")
         if tol <= 0:
             raise ValueError(f"tol must be positive, but was {tol}")
-        if not isinstance(init, str):
-            raise TypeError(f"init must be str, but was {type(init)}")
+
         if not isinstance(random_state, int) and random_state is not None:
             raise TypeError(f"random_state must be int or None, but was {type(random_state)}")
 
@@ -117,8 +117,9 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         # in-place properties
         if not (p == 1 or p == 2):
-            raise Warning(
-                "p should be 1 (k-Medians) or 2 (k-Means). For other choice of p, we proceed as for p=2 and hope for the best."
+            warnings.warn(
+                "p should be 1 (k-Medians) or 2 (k-Means). For other choice of p, we proceed as for p=2 and hope for the best.",
+                UserWarning,
             )
         self._p = p
         self._cluster_centers = None
@@ -151,7 +152,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         """
         if not isinstance(x, DNDarray):
-            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
+            raise TypeError(f"input needs to be a ht.DNDarray, but was {type(x)}")
         if not x.ndim == 2:
             raise ValueError(f"input needs to be 2D, but was {x.ndim}D")
         if x.split != 0:
@@ -217,7 +218,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
         """
         # input sanitation
         if not isinstance(x, DNDarray):
-            raise ValueError(f"input needs to be a ht.DNDarray, but was {type(x)}")
+            raise TypeError(f"input needs to be a ht.DNDarray, but was {type(x)}")
         if not x.ndim == 2:
             raise ValueError(f"input needs to be 2D, but was {x.ndim}D")
         if x.split != 0:
