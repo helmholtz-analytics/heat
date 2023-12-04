@@ -8,6 +8,7 @@ from heat.cluster._kcluster import _KCluster
 from heat.core.dndarray import DNDarray
 import warnings  # noqa: F401
 
+
 from typing import Union, Tuple, TypeVar
 
 self = TypeVar("self")
@@ -253,14 +254,15 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
             balanced=x.balanced,
         )
         if self._p == 2:
-            local_kmex_functional_value = torch.norm(
+            self._functional_value = torch.norm(
                 x.larray - self._cluster_centers.larray[local_labels, :], p="fro"
             )
         else:
-            local_kmex_functional_value = torch.norm(
+            self._functional_value = torch.norm(
                 x.larray - self._cluster_centers.larray[local_labels, :], p=self._p, dim=1
             ).sum()
-        self._functional_value = x.comm.allreduce(local_kmex_functional_value).item()
+        x.comm.Allreduce(ht.communication.MPI.IN_PLACE, self._functional_value)
+        self._functional_value = self._functional_value.item()
         return labels
 
 
