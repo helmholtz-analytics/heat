@@ -530,7 +530,6 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
             self.iqr_ = ht.percentile(X, self.quantile_range[1], axis=0) - ht.percentile(
                 X, self.quantile_range[0], axis=0
             )
-            print(self.iqr_.dtype)
 
             # if length of iqr is close to zero, do not scale this feature
             self.scale_ = self.iqr_

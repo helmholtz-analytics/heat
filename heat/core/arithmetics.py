@@ -24,6 +24,7 @@ from .types import (
     heat_type_of,
     datatype,
     can_cast,
+    _complexfloating,
 )
 
 
@@ -32,16 +33,11 @@ __all__ = [
     "bitwise_and",
     "bitwise_not",
     "bitwise_or",
-    "bitwise_or_",
     "bitwise_xor",
-    "bitwise_xor_",
     "copysign",
-    "copysign_",
     "cumprod",
-    "cumprod_",
     "cumproduct",
     "cumsum",
-    "cumsum_",
     "diff",
     "div",
     "divide",
@@ -50,12 +46,9 @@ __all__ = [
     "floor_divide",
     "fmod",
     "gcd",
-    "gcd_",
     "hypot",
-    "hypot_",
     "invert",
     "lcm",
-    "lcm_",
     "left_shift",
     "left_shift_",
     "mod",
@@ -295,7 +288,7 @@ def bitwise_and_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
     Bitwise AND of two operands computed element-wise and in-place.
     Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise computes the
-    bitwise AND with element(s) of the second operand (scalar or
+    bitwise AND with the corresponding element(s) of the second operand (scalar or
     :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the element(s) of `t1` are overwritten by
     the results of element-wise bitwise AND of `t1` and `t2`.
     Can be called as a DNDarray method or with the symbol `&=`. Only integer and boolean types are
@@ -463,10 +456,13 @@ DNDarray.__ror__.__doc__ = bitwise_or.__doc__
 
 def bitwise_or_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise OR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2``
-    element-wise and in-place. Only integer and boolean types are handled. If
-    ``t1.shape!=t2.shape``, they must be broadcastable to a common shape (which becomes the shape of
-    the output).
+    Bitwise OR of two operands computed element-wise and in-place.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise computes the
+    bitwise OR with the corresponding element(s) of the second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the element(s) of `t1` are overwritten by
+    the results of element-wise bitwise OR of `t1` and `t2`.
+    Can be called as a DNDarray method or with the symbol `|=`. Only integer and boolean types are
+    handled.
 
     Parameters
     ----------
@@ -475,20 +471,29 @@ def bitwise_or_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand involved in the operation
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.array(13)
     >>> T2 = ht.array(16)
-    >>> ht.bitwise_or_(T1, T2)
-    DNDarray(29, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T1 |= T2
     >>> T1
     DNDarray(29, dtype=ht.int64, device=cpu:0, split=None)
     >>> T2
     DNDarray(16, dtype=ht.int64, device=cpu:0, split=None)
     >>> T3 = ht.array([33, 4])
     >>> s = 1
-    >>> ht.bitwise_or_(T3, s)
+    >>> T3.bitwise_or_(s)
     DNDarray([33,  5], dtype=ht.int64, device=cpu:0, split=None)
     >>> T3
     DNDarray([33,  5], dtype=ht.int64, device=cpu:0, split=None)
@@ -496,14 +501,12 @@ def bitwise_or_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     1
     >>> T4 = ht.array([2,5,255])
     >>> T5 = ht.array([4, 4, 4])
-    >>> ht.bitwise_or_(T4, T5)
-    DNDarray([  6,   5, 255], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T4 |= T5
     >>> T4
     DNDarray([  6,   5, 255], dtype=ht.int64, device=cpu:0, split=None)
     >>> T6 = ht.array([True, True])
     >>> T7 = ht.array([False, True])
-    >>> ht.bitwise_or_(T6, T7)
-    DNDarray([True, True], dtype=ht.bool, device=cpu:0, split=None)
+    >>> T6 |= T7
     >>> T6
     DNDarray([True, True], dtype=ht.bool, device=cpu:0, split=None)
     """
@@ -614,10 +617,13 @@ DNDarray.__rxor__.__doc__ = bitwise_xor.__doc__
 
 def bitwise_xor_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Compute the bit-wise XOR of two :class:`~heat.core.dndarray.DNDarray` ``t1`` and ``t2``
-    element-wise and in-place. Only integer and boolean types are handled. If
-    ``t1.shape!=t2.shape``, they must be broadcastable to a common shape (which becomes the shape of
-    the output).
+    Bitwise XOR of two operands computed element-wise and in-place.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise computes the
+    bitwise XOR with the corresponding element(s) of the second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the element(s) of `t1` are overwritten by
+    the results of element-wise bitwise XOR of `t1` and `t2`.
+    Can be called as a DNDarray method or with the symbol `^=`. Only integer and boolean types are
+    handled.
 
     Parameters
     ----------
@@ -626,20 +632,29 @@ def bitwise_xor_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or scalar
         The second operand involved in the operation
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.array(13)
     >>> T2 = ht.array(17)
-    >>> ht.bitwise_xor_(T1, T2)
-    DNDarray(28, dtype=ht.int64, device=cpu:0, split=None)
+    >>> T1 ^= T2
     >>> T1
     DNDarray(28, dtype=ht.int64, device=cpu:0, split=None)
     >>> T2
     DNDarray(17, dtype=ht.int64, device=cpu:0, split=None)
     >>> T3 = ht.array([31, 3])
     >>> s = 5
-    >>> ht.bitwise_xor_(T3, s)
+    >>> T3.bitwise_xor_(s)
     DNDarray([26,  6], dtype=ht.int64, device=cpu:0, split=None)
     >>> T3
     DNDarray([26,  6], dtype=ht.int64, device=cpu:0, split=None)
@@ -647,14 +662,12 @@ def bitwise_xor_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     5
     >>> T4 = ht.array([31,3,255])
     >>> T5 = ht.array([5, 6, 4])
-    >>> ht.bitwise_xor_(T4, T5)
-    DNDarray([  6,   5, 251], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T4 ^= T5
     >>> T4
-    DNDarray([  6,   5, 251], dtype=ht.int64, device=cpu:0, split=None)
+    DNDarray([ 26,   5, 251], dtype=ht.int64, device=cpu:0, split=None)
     >>> T6 = ht.array([True, True])
     >>> T7 = ht.array([False, True])
-    >>> ht.bitwise_xor_(T6, T7)
-    DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
+    >>> T6 ^= T7
     >>> T6
     DNDarray([ True, False], dtype=ht.bool, device=cpu:0, split=None)
     """
@@ -747,10 +760,7 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     In-place version of the element-wise operation 'copysign'.
     The magnitudes of the element(s) of 't1' are kept but the sign(s) are adopted from the
     element(s) of 't2'.
-    At the moment, the operation only works for DNDarrays whose elements are floats. This is due to
-    the fact that it relies on the PyTorch function 'copysign_', which does not work if the entries
-    of 't1' are integers. The case when 't1' contains floats and 't2' contains integers works in
-    PyTorch but has not been properly implemented in HeAt yet.
+    Can only be called as a DNDarray method.
 
     Parameters
     ----------
@@ -760,20 +770,31 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2:    DNDarray or scalar
            value(s) whose signbit(s) are applied to the magnitudes in 't1'
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        At the moment, the operation only works for DNDarrays whose elements are floats and are not
+        complex. This is due to the fact that it relies on the PyTorch function 'copysign_', which
+        does not work if the entries of 't1' are integers. The case when 't1' contains floats and
+        't2' contains integers works in PyTorch but has not been implemented properly in HeAt yet.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.array([3., 2., -8., -2., 4.])
-    >>> s = 2
-    >>> ht.copysign_(T1, s)
+    >>> s = 2.0
+    >>> T1.copysign_(s)
     DNDarray([3., 2., 8., 2., 4.], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1
     DNDarray([3., 2., 8., 2., 4.], dtype=ht.float32, device=cpu:0, split=None)
     >>> s
-    2
+    2.0
     >>> T2 = ht.array([[1., -1.],[1., -1.]])
     >>> T3 = ht.array([-5., 2.])
-    >>> ht.copysign_(T2, T3)
+    >>> T2.copysign_(T3)
     DNDarray([[-1.,  1.],
               [-1.,  1.]], dtype=ht.float32, device=cpu:0, split=None)
     >>> T2
@@ -782,11 +803,14 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> T3
     DNDarray([-5.,  2.], dtype=ht.float32, device=cpu:0, split=None)
     """
-    dtypes = (heat_type_of(t1), heat_type_of(t2))
+    dtypes = dtype1, dtype2 = (heat_type_of(t1), heat_type_of(t2))
 
     for dt in dtypes:
-        if heat_type_is_exact(dt):
-            raise TypeError("Operation is not supported for integers.")
+        if heat_type_is_exact(dt) or dt in _complexfloating:
+            raise TypeError(
+                "Operation is only supported for inputs whose elements are floats and are not "
+                + f"complex. But your inputs have the datatypes {dtype1} and {dtype2}."
+            )
 
     if isinstance(t2, DNDarray):
         if (t1.split != t2.split) and (t2.split is not None):
@@ -810,11 +834,7 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     def wrap_copysign_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.copysign_(b)
 
-    try:
-        return _operations.__binary_op(wrap_copysign_, t1, t2, out=t1)
-    except RuntimeError as e:
-        # every other possibility is caught by __binary_op
-        raise TypeError(f"Not implemented for input type, got {type(t1)}, {type(t2)}") from e
+    return _operations.__binary_op(wrap_copysign_, t1, t2, out=t1)
 
 
 DNDarray.copysign_ = copysign_
@@ -860,6 +880,7 @@ cumproduct = cumprod
 def cumprod_(t: DNDarray, axis: int) -> DNDarray:
     """
     Return the cumulative product of elements along a given axis in-place.
+    Can only be called as a DNDarray method.
 
     Parameters
     ----------
@@ -872,7 +893,7 @@ def cumprod_(t: DNDarray, axis: int) -> DNDarray:
     --------
     >>> import heat as ht
     >>> T = ht.full((3,3), 2)
-    >>> ht.cumprod_(T, 0)
+    >>> T.cumprod_(0)
     DNDarray([[2., 2., 2.],
               [4., 4., 4.],
               [8., 8., 8.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -880,9 +901,15 @@ def cumprod_(t: DNDarray, axis: int) -> DNDarray:
     DNDarray([[2., 2., 2.],
               [4., 4., 4.],
               [8., 8., 8.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T.cumproduct_(1)
+    DNDarray([[  2.,   4.,   8.],
+              [  4.,  16.,  64.],
+              [  8.,  64., 512.]], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T
+    DNDarray([[  2.,   4.,   8.],
+              [  4.,  16.,  64.],
+              [  8.,  64., 512.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    if not isinstance(t, DNDarray):
-        raise TypeError("Input must be a DNDarray. But your input was a " + str(type(t)) + ".")
 
     def wrap_cumprod_(a: torch.Tensor, b: int, out=None, dtype=None) -> torch.Tensor:
         return a.cumprod_(b)
@@ -931,6 +958,7 @@ def cumsum(a: DNDarray, axis: int, dtype: datatype = None, out=None) -> DNDarray
 def cumsum_(t: DNDarray, axis: int) -> DNDarray:
     """
     Return the cumulative sum of the elements along a given axis in-place.
+    Can only be called as a DNDarray method.
 
     Parameters
     ----------
@@ -943,7 +971,7 @@ def cumsum_(t: DNDarray, axis: int) -> DNDarray:
     --------
     >>> import heat as ht
     >>> T = ht.ones((3,3))
-    >>> ht.cumsum_(T, 0)
+    >>> T.cumsum_(0)
     DNDarray([[1., 1., 1.],
               [2., 2., 2.],
               [3., 3., 3.]], dtype=ht.float32, device=cpu:0, split=None)
@@ -952,8 +980,6 @@ def cumsum_(t: DNDarray, axis: int) -> DNDarray:
               [2., 2., 2.],
               [3., 3., 3.]], dtype=ht.float32, device=cpu:0, split=None)
     """
-    if not isinstance(t, DNDarray):
-        raise TypeError("Input must be a DNDarray. But your input was a " + str(type(t)) + ".")
 
     def wrap_cumsum_(a: torch.Tensor, b: int, out=None, dtype=None) -> torch.Tensor:
         return a.cumsum_(b)
@@ -1689,6 +1715,11 @@ def gcd(
 def gcd_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     """
     Returns the greatest common divisor of |t1| and |t2| element-wise and in-place.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise computes the
+    greatest common divisor with the corresponding element(s) of the second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the element(s) of `t1` are overwritten by
+    the results of element-wise gcd of `t1` and `t2`.
+    Can only be called as a DNDarray method.
 
     Parameters
     ----------
@@ -1697,17 +1728,34 @@ def gcd_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     t2: DNDarray
          The second input array, must be of integer type
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.int(ht.ones(3)) * 9
     >>> T2 = ht.arange(3) + 1
-    >>> ht.gcd_(T1, T2)
+    >>> T1.gcd_(T2)
     DNDarray([1, 1, 3], dtype=ht.int32, device=cpu:0, split=None)
     >>> T1
     DNDarray([1, 1, 3], dtype=ht.int32, device=cpu:0, split=None)
     >>> T2
     DNDarray([1, 2, 3], dtype=ht.int32, device=cpu:0, split=None)
+    >>> s = 2
+    >>> T2.gcd_(2)
+    DNDarray([1, 2, 1], dtype=ht.int32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([1, 2, 1], dtype=ht.int32, device=cpu:0, split=None)
+    >>> s
+    2
     """
     if isinstance(t2, DNDarray):
         if (t1.split != t2.split) and (t2.split is not None):
@@ -1795,6 +1843,7 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     """
     Given the 'legs' of a right triangle, return its hypotenuse in-place of the first input.
     Equivalent to :math:`sqrt(a^2 + b^2)`, element-wise.
+    Can only be called as a DNDarray method.
 
     Parameters
     ----------
@@ -1803,12 +1852,22 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     t2:  DNDarray
          the second input array
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.array([1.,3.,3.])
     >>> T2 = ht.array(2.)
-    >>> ht.hypot_(T1, T2)
+    >>> T1.hypot_(T2)
     DNDarray([2.2361, 3.6056, 3.6056], dtype=ht.float32, device=cpu:0, split=None)
     >>> T1
     DNDarray([2.2361, 3.6056, 3.6056], dtype=ht.float32, device=cpu:0, split=None)
@@ -1990,6 +2049,11 @@ def lcm(
 def lcm_(t1: DNDarray, t2: Union[DNDarray, int]) -> DNDarray:
     """
     Returns the lowest common multiple of |t1| and |t2| element-wise and in-place.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise computes the
+    lowest common multiple with the corresponding element(s) of the second operand (scalar or
+    :class:`~heat.core.dndarray.DNDarray`) in-place, i.e. the element(s) of `t1` are overwritten by
+    the results of element-wise gcd of the absolute values of `t1` and `t2`.
+    Can only be called as a DNDarray method.
 
     Parameters
     ----------
@@ -1998,19 +2062,29 @@ def lcm_(t1: DNDarray, t2: Union[DNDarray, int]) -> DNDarray:
     t2:  DNDarray or scalar
          the second input array, must be of integer type
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T1 = ht.array([6, 12, 15])
     >>> T2 = ht.array([3, 4, 5])
-    >>> ht.lcm_(T1, T2)
+    >>> T1.lcm_(T2)
     DNDarray([ 6, 12, 15], dtype=ht.int64, device=cpu:0, split=None)
     >>> T1
     DNDarray([ 6, 12, 15], dtype=ht.int64, device=cpu:0, split=None)
     >>> T2
     DNDarray([3, 4, 5], dtype=ht.int64, device=cpu:0, split=None)
     >>> s = 2
-    >>> ht.lcm_(T2, s)
+    >>> T2.lcm_(s)
     DNDarray([ 6,  4, 10], dtype=ht.int64, device=cpu:0, split=None)
     >>> T2
     DNDarray([ 6,  4, 10], dtype=ht.int64, device=cpu:0, split=None)
