@@ -129,16 +129,11 @@ class TestCase(unittest.TestCase):
             f"Local shapes do not match. Got {heat_array.lshape} expected {expected_array[slices].shape}",
         )
         # compare local tensors to corresponding slice of expected_array
-        is_allclose = np.allclose(heat_array.larray.cpu(), expected_array[slices])
-        ht_is_allclose = ht.array(
-            [is_allclose], dtype=ht.bool, is_split=0, device=heat_array.device
+        is_allclose = torch.tensor(
+            np.allclose(heat_array.larray.cpu(), expected_array[slices]), dtype=torch.int32
         )
-        # compare local tensors to corresponding slice of expected_array
-        is_allclose = np.allclose(heat_array.larray.cpu(), expected_array[slices])
-        ht_is_allclose = ht.array(
-            [is_allclose], dtype=ht.bool, is_split=0, device=heat_array.device
-        )
-        self.assertTrue(ht.all(ht_is_allclose).item())
+        heat_array.comm.Allreduce(MPI.IN_PLACE, is_allclose, MPI.SUM)
+        self.assertTrue(is_allclose == heat_array.comm.size)
 
     def assert_func_equal(
         self,
