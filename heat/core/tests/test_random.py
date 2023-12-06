@@ -84,7 +84,7 @@ class TestRandom(TestCase):
 
         with self.assertRaises(TypeError):
             ht.random.permutation("abc")
-    """
+    
     def test_rand(self):
         # int64 tests
 
@@ -235,7 +235,7 @@ class TestRandom(TestCase):
         ht.random.randn(6667, 3523, dtype=ht.float64, split=None)
         ht.random.randn(6667, 3523, dtype=ht.float64, split=0)
         ht.random.randn(6667, 3523, dtype=ht.float64, split=1)
-    """
+    
     """
     def test_randint(self):
         # Checked that the random values are in the correct range
