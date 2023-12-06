@@ -2382,6 +2382,9 @@ class TestArithmetics(TestCase):
         with self.assertRaises(TypeError):
             a_tensor.gcd_(an_int_tensor)
         a_tensor = self.a_tensor.copy()  # reset
+        with self.assertRaises(TypeError):
+            a_tensor.gcd_(a_tensor)
+        a_tensor = self.a_tensor.copy()  # reset
         with self.assertRaises(ValueError):
             an_int_tensor.gcd_(another_int_vector)
         an_int_tensor = self.an_int_tensor.copy()  # reset
@@ -2805,6 +2808,9 @@ class TestArithmetics(TestCase):
         an_int_tensor = self.an_int_tensor.copy()  # reset
         with self.assertRaises(TypeError):
             a_tensor.lcm_(an_int_tensor)
+        a_tensor = self.a_tensor.copy()  # reset
+        with self.assertRaises(TypeError):
+            a_tensor.lcm_(a_tensor)
         a_tensor = self.a_tensor.copy()  # reset
         with self.assertRaises(ValueError):
             an_int_tensor.lcm_(another_int_vector)
