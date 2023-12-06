@@ -2714,8 +2714,6 @@ def pos(a: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
     sanitation.sanitize_in(a)
 
     def torch_pos(torch_tensor, out=None):
-        if not torch.is_tensor(torch_tensor):
-            raise TypeError(f"Input is not a torch tensor but {type(torch_tensor)}")
         return out.copy_(torch_tensor)
 
     if out is not None:
