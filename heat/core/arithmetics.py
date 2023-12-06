@@ -50,7 +50,6 @@ __all__ = [
     "invert",
     "lcm",
     "left_shift",
-    "left_shift_",
     "mod",
     "mul",
     "multiply",
@@ -2195,7 +2194,13 @@ DNDarray.__rlshift__.__doc__ = left_shift.__doc__
 
 def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Shift the bits of an integer in-place to the left.
+    In-place version of `left_shift`.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise shifts the bits
+    of each element in-place that many positions to the left as the element(s) of the second operand
+    (scalar or :class:`~heat.core.dndarray.DNDarray`) indicate, i.e. the element(s) of `t1` are
+    overwritten by the results of element-wise bitwise left shift of `t1` for `t2` positions.
+    Can be called as a DNDarray method or with the symbol `<<=`. Only works for inputs with integer
+    elements.
 
     Parameters
     ----------
@@ -2204,24 +2209,36 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or float
         Integer number of zero bits to add
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
     >>> T = ht.array([1,2,3])
     >>> s = 1
-    >>> ht.left_shift_(T, s)
+    >>> T.left_shift_(s)
     DNDarray([2, 4, 6], dtype=ht.int64, device=cpu:0, split=None)
     >>> T
     DNDarray([2, 4, 6], dtype=ht.int64, device=cpu:0, split=None)
     >>> s
     1
     """
-    dtypes = (heat_type_of(t1), heat_type_of(t2))
-    for dt in range(2):
-        if heat_type_is_inexact(dtypes[dt]):
-            raise TypeError("Operation is not supported for float types")
-        elif dtypes[dt] == types.bool:
-            raise TypeError("Operation is not supported for boolean types")
+    dtypes = dtype1, dtype2 = (heat_type_of(t1), heat_type_of(t2))
+
+    for dt in dtypes:
+        if not heat_type_is_exact(dt):
+            raise TypeError(
+                "Operation is only supported for inputs whose elements are integers, "
+                + f"but your inputs have the datatypes {dtype1} and {dtype2}."
+            )
 
     if isinstance(t2, DNDarray):
         if (t1.split != t2.split) and (t2.split is not None):
