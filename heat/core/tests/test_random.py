@@ -163,6 +163,7 @@ class TestRandom(TestCase):
         b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, comm=ht.MPI_WORLD, dtype=ht.float64)
         c = np.concatenate((a.flatten(), b.numpy().flatten()))
         _, counts = np.unique(c, return_counts=True)
+        print(counts)
         self.assertTrue((counts == 1).all())
 
         # Values should be spread evenly across the range [0, 1)
