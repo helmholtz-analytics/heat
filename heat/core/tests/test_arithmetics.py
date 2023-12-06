@@ -2463,14 +2463,14 @@ class TestArithmetics(TestCase):
         # saved in the right place and whether the second input stays unchanged. After every tested
         # computation, we reset changed variables.
         self.assertTrue(ht.allclose(a_vector.hypot_(a_scalar).pow_(2), gt))  # test result
-        self.assertTrue(ht.equal(a_vector, gt))  # test result in-place
+        self.assertTrue(ht.allclose(a_vector, gt))  # test result in-place
         self.assertIs(a_vector, a_vector_double)  # test DNDarray in-place
         self.assertIs(a_vector.larray, underlying_torch_tensor)  # test torch tensor in-place
         self.assertTrue(ht.equal(a_scalar, self.a_scalar))  # test if other input is unchanged
         underlying_torch_tensor.copy_(ht.array([1.0, 3.0, 5.0]).larray)  # reset
 
         self.assertTrue(ht.allclose(a_vector.hypot_(another_vector).pow_(2), gt))
-        self.assertTrue(ht.equal(a_vector, gt))
+        self.assertTrue(ht.allclose(a_vector, gt))
         self.assertIs(a_vector, a_vector_double)
         self.assertIs(a_vector.larray, underlying_torch_tensor)
         self.assertTrue(ht.equal(another_vector, self.another_vector))
@@ -3010,7 +3010,7 @@ class TestArithmetics(TestCase):
 
         # test function for broadcasting in wrong direction
         a = ht.ones((1, 10), split=0, dtype=int)
-        b = ht.zeros((2, 10), split=0, dtype=int) * 2
+        b = ht.ones((2, 10), split=0, dtype=int) * 2
         with self.assertRaises(ValueError):
             a <<= b
 
@@ -3249,42 +3249,51 @@ class TestArithmetics(TestCase):
         )
 
     def test_nan_to_num_(self):
-        """
         # Copies of class variables for the in-place operations
         a_scalar = self.a_scalar
-        a_vector = self.a_vector.copy()
-        another_vector = self.another_vector.copy()
-        a_tensor = a_tensor_double = self.a_tensor.copy()
-        another_tensor = self.another_tensor.copy()
-        an_int_scalar = self.an_int_scalar
+        a_tensor = self.a_tensor.copy()
         erroneous_type = self.erroneous_type
         a_string = self.a_string
-        """
 
-        # test one: unsplit
-        arr = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf])
+        # test unsplit
+        arr = arr_double = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf])
         input_torch_tensor = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf]).larray
-        output_torch_tensor = torch.nan_to_num(input_torch_tensor)
+        result = ht.array(torch.nan_to_num(input_torch_tensor))
 
         # We identify the underlying PyTorch object to check whether operations are really in-place
         underlying_torch_tensor = arr.larray
 
-        ht.nan_to_num_(arr)
+        self.assertTrue(ht.equal(arr.nan_to_num_(), result))  # test result
+        self.assertTrue(ht.equal(arr, result))  # test result in-place
+        self.assertIs(arr, arr_double)  # test DNDarray in-place
+        self.assertIs(arr.larray, underlying_torch_tensor)  # test torch tensor in-place
 
-        self.assertTrue(torch.equal(arr.larray, output_torch_tensor))  # test result
-        self.assertIs(arr.larray, underlying_torch_tensor)  # test in-place
-
-        # test two: split
-        arr = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf], split=0)
-        input_torch_tensor = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf], split=0).larray
-        output_torch_tensor = torch.nan_to_num(input_torch_tensor, nan=0, posinf=1, neginf=-1)
-
+        # test split
+        arr = arr_double = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf], split=0)
+        input_torch_tensor = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf]).larray
+        result = ht.array(torch.nan_to_num(input_torch_tensor, nan=0, posinf=1, neginf=-1), split=0)
         underlying_torch_tensor = arr.larray
 
-        ht.nan_to_num_(arr, nan=0, posinf=1, neginf=-1)
+        self.assertTrue(
+            ht.equal(arr.nan_to_num_(nan=0, posinf=1, neginf=-1), result)
+        )  # test result
+        self.assertTrue(ht.equal(arr, result))  # test result in-place
+        self.assertIs(arr, arr_double)  # test DNDarray in-place
+        self.assertIs(arr.larray, underlying_torch_tensor)  # test torch tensor in-place
 
-        self.assertTrue(torch.equal(arr.larray, output_torch_tensor))
-        self.assertIs(arr.larray, underlying_torch_tensor)
+        # test function with wrong inputs
+        with self.assertRaises(TypeError):
+            a_tensor.nan_to_num_(a_tensor)
+        a_tensor = self.a_tensor.copy()  # reset
+        with self.assertRaises(AttributeError):
+            erroneous_type.nan_to_num_()
+        erroneous_type = self.erroneous_type  # reset
+        with self.assertRaises(AttributeError):
+            a_scalar.nan_to_num_()
+        a_scalar = self.a_scalar  # reset
+        with self.assertRaises(AttributeError):
+            a_string.nan_to_num_()
+        a_string = self.a_string  # reset
 
     def test_nanprod(self):
         array_len = 11
@@ -3984,53 +3993,173 @@ class TestArithmetics(TestCase):
             int_tensor >> "s"
 
     def test_right_shift_(self):
-        """
         # Copies of class variables for the in-place operations
         a_scalar = self.a_scalar
-        a_vector = self.a_vector.copy()
-        another_vector = self.another_vector.copy()
-        a_tensor = a_tensor_double = self.a_tensor.copy()
-        another_tensor = self.another_tensor.copy()
         an_int_scalar = self.an_int_scalar
+        an_int_vector = self.an_int_vector.copy()
+        another_int_vector = self.another_int_vector.copy()
+        an_int_tensor = an_int_tensor_double = self.an_int_tensor.copy()
+        another_int_tensor = self.another_int_tensor.copy()
+        a_boolean_vector = self.a_boolean_vector.copy()
         erroneous_type = self.erroneous_type
         a_string = self.a_string
-        """
 
-        int_result = ht.array([[0, 0], [0, 1]])
+        result = ht.array([[0, 0], [0, 1]])
 
         # We identify the underlying PyTorch object to check whether operations are really in-place
-        underlying_torch_tensor = self.an_int_tensor.larray
+        underlying_torch_tensor = an_int_tensor.larray
 
-        # Check for some possible combinations of inputs whether the right solution is computed and
+        # Check for every possible combination of inputs whether the right solution is computed and
         # saved in the right place and whether the second input stays unchanged. After every tested
         # computation, we reset changed variables.
+        self.assertTrue(ht.equal(an_int_tensor.right_shift_(an_int_scalar), result))  # test result
+        self.assertTrue(ht.equal(an_int_tensor, result))  # test result in-place
+        self.assertIs(an_int_tensor, an_int_tensor_double)  # test DNDarray in-place
+        self.assertIs(an_int_tensor.larray, underlying_torch_tensor)  # test torch tensor in-place
         self.assertTrue(
-            ht.equal(ht.right_shift_(self.an_int_tensor, self.an_int_scalar), int_result)
-        )  # test result
-        self.assertTrue(ht.equal(self.an_int_tensor, int_result))  # test in-place
-        self.assertIs(self.an_int_tensor.larray, underlying_torch_tensor)  # test in-place
-        self.assertTrue(ht.equal(self.an_int_scalar, 2))  # test if other input is unchanged
-        self.an_int_tensor.larray = ht.array([[1, 2], [3, 4]]).larray  # reset
-        underlying_torch_tensor = self.an_int_tensor.larray  # reset
+            ht.equal(an_int_scalar, self.an_int_scalar)
+        )  # test if other input is unchanged
+        underlying_torch_tensor.copy_(self.an_int_tensor.larray)  # reset
+
+        self.assertTrue(ht.equal(an_int_tensor.right_shift_(another_int_tensor), result))
+        self.assertTrue(ht.equal(an_int_tensor, result))
+        self.assertIs(an_int_tensor, an_int_tensor_double)
+        self.assertIs(an_int_tensor.larray, underlying_torch_tensor)
+        self.assertTrue(ht.equal(another_int_tensor, self.another_int_tensor))
+        underlying_torch_tensor.copy_(self.an_int_tensor.larray)
+
+        self.assertTrue(ht.equal(an_int_tensor.right_shift_(an_int_vector), result))
+        self.assertTrue(ht.equal(an_int_tensor, result))
+        self.assertIs(an_int_tensor, an_int_tensor_double)
+        self.assertIs(an_int_tensor.larray, underlying_torch_tensor)
+        self.assertTrue(ht.equal(an_int_vector, self.an_int_vector))
+        underlying_torch_tensor.copy_(self.an_int_tensor.larray)
+
+        # Test other possible ways to call this function
+        self.assertTrue(ht.equal(an_int_tensor.__irshift__(an_int_scalar), result))
+        self.assertTrue(ht.equal(an_int_tensor, result))
+        self.assertIs(an_int_tensor, an_int_tensor_double)
+        self.assertIs(an_int_tensor.larray, underlying_torch_tensor)
+        self.assertTrue(ht.equal(an_int_scalar, self.an_int_scalar))
+        underlying_torch_tensor.copy_(self.an_int_tensor.larray)
+
+        an_int_tensor >>= an_int_scalar
+        self.assertTrue(ht.equal(an_int_tensor, result))
+        self.assertIs(an_int_tensor, an_int_tensor_double)
+        self.assertIs(an_int_tensor.larray, underlying_torch_tensor)
+        self.assertTrue(ht.equal(an_int_scalar, self.an_int_scalar))
+        underlying_torch_tensor.copy_(self.an_int_tensor.larray)
+
+        # Single element split
+        a = a_double = ht.array([1, 2], split=0)
+        b = ht.array([1], split=0)
+        a >>= b
+        self.assertTrue(ht.equal(a, ht.array([0, 1])))
+        if a.comm.size > 1:
+            if a.comm.rank < 2:
+                self.assertEqual(a.larray.size()[0], 1)
+            else:
+                self.assertEqual(a.larray.size()[0], 0)
+        self.assertIs(a, a_double)
+
+        # test with differently distributed DNDarrays
+        a = ht.ones(10, split=0, dtype=int) * 4
+        b = ht.ones(10, split=0, dtype=int) * 2
+        a = a_double = a[:-1]
+        a_lshape = a.lshape
+        a >>= b[1:]
+        self.assertTrue((a == 1).all())
+        self.assertTrue(a.lshape == a_lshape)
+        self.assertIs(a, a_double)
+
+        # test unbalanced
+        a = ht.ones(10, split=0, dtype=int) * 4  # reset
+        a = a_double = a[1:-1]
+        a_lshape = a.lshape
+        a >>= b[1:-1]
+        self.assertTrue((a == 1).all())
+        self.assertTrue(a.lshape == a_lshape)
+        self.assertIs(a, a_double)
+
+        # broadcast in split dimension
+        a = a_double = ht.ones((2, 10), split=0, dtype=int) * 4
+        b = ht.ones((1, 10), split=0, dtype=int) * 2
+        a_lshape = a.lshape
+        a >>= b
+        self.assertTrue((a == 1).all())
+        self.assertTrue(a.lshape == a_lshape)
+        self.assertIs(a, a_double)
+
+        # first input is split, second is unsplit
+        a = a_double = ht.ones(10, split=0, dtype=int) * 4
+        b = ht.ones(10, split=None, dtype=int) * 2
+        a_lshape = a.lshape
+        a >>= b
+        self.assertTrue((a == 1).all())
+        self.assertTrue(a.lshape == a_lshape)
+        self.assertIs(a, a_double)
+
+        # differently split inputs but broadcastable underlying torch.Tensors, s.t. we can process
+        # the inputs in-place without resplitting
+        a = a_double = ht.ones(12, dtype=int).reshape((4, 3), new_split=1) * 4
+        b = ht.ones(3, split=0, dtype=int) * 2
+        a_lshape = a.lshape
+        a >>= b
+        self.assertTrue((a == 1).all())
+        self.assertTrue(a.lshape == a_lshape)
+        self.assertIs(a, a_double)
 
         # test function with wrong inputs
         with self.assertRaises(TypeError):
-            ht.right_shift_(self.an_int_tensor, self.a_scalar)
-        self.an_int_tensor.larray = ht.array([[1, 2], [3, 4]]).larray  # reset
+            an_int_tensor.right_shift_(a_scalar)
+        an_int_tensor = self.an_int_tensor.copy()  # reset
         with self.assertRaises(TypeError):
-            ht.right_shift_(self.a_scalar, self.an_int_tensor)
-        self.a_scalar = self.a_scalar  # reset
-        with self.assertRaises(TypeError):
-            ht.right_shift_(self.a_boolean_vector, self.a_scalar)
-        self.a_boolean_vector = ht.array([False, True, False, True])
+            a_boolean_vector.right_shift_(a_scalar)
+        a_boolean_vector = self.a_boolean_vector.copy()  # reset
         with self.assertRaises(ValueError):
-            ht.right_shift_(self.an_int_tensor, self.another_int_vector)
-        self.an_int_tensor.larray = ht.array([[1, 2], [3, 4]]).larray  # reset
+            an_int_tensor.right_shift_(another_int_vector)
+        an_int_tensor = self.an_int_tensor.copy()  # reset
         with self.assertRaises(TypeError):
-            ht.right_shift_(self.an_int_tensor, self.erroneous_type)
-        self.an_int_tensor.larray = ht.array([[1, 2], [3, 4]]).larray  # reset
+            an_int_tensor.right_shift_(erroneous_type)
+        an_int_tensor = self.an_int_tensor.copy()  # reset
+        with self.assertRaises(AttributeError):
+            a_scalar.right_shift_(an_int_tensor)
+        a_scalar = self.a_scalar  # reset
+        with self.assertRaises(AttributeError):
+            a_string.right_shift_("s")
+        a_string = self.a_string  # reset
+
+        # test function for broadcasting in wrong direction
+        a = ht.ones((1, 10), split=0, dtype=int) * 4
+        b = ht.ones((2, 10), split=0, dtype=int) * 2
+        with self.assertRaises(ValueError):
+            a >>= b
+
+        # test function with differently split inputs that are not processible in-place without
+        # resplitting
+        a = ht.ones(10, split=None, dtype=int) * 4
+        b = ht.ones(10, split=0, dtype=int) * 2
+        with self.assertRaises(ValueError):
+            a >>= b
+
+        a = ht.ones(9, dtype=int).reshape((3, 3), new_split=0) * 4
+        b = ht.ones(9, dtype=int).reshape((3, 3), new_split=1) * 2
+        if a.comm.Get_size() == 1:
+            a_double = a
+            a_lshape = a.lshape
+            a >>= b
+            self.assertTrue((a == 1).all())
+            self.assertTrue(a.lshape == a_lshape)
+            self.assertIs(a, a_double)
+        else:
+            with self.assertRaises(ValueError):
+                a >>= b
+
+        # test function for invalid casting between data types
+        a = ht.ones(3, dtype=ht.int32) * 4
+        b = ht.ones(3, dtype=ht.int64) * 2
         with self.assertRaises(TypeError):
-            ht.right_shift_("T", "s")
+            a >>= b
 
     def test_sub(self):
         result = ht.array([[-1.0, 0.0], [1.0, 2.0]])

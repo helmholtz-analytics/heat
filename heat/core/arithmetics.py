@@ -54,7 +54,6 @@ __all__ = [
     "mul",
     "multiply",
     "nan_to_num",
-    "nan_to_num_",
     "nanprod",
     "nansum",
     "neg",
@@ -66,7 +65,6 @@ __all__ = [
     "prod",
     "remainder",
     "right_shift",
-    "right_shift_",
     "sub",
     "subtract",
     "sum",
@@ -778,7 +776,7 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         At the moment, the operation only works for DNDarrays whose elements are floats and are not
         complex. This is due to the fact that it relies on the PyTorch function 'copysign_', which
         does not work if the entries of 't1' are integers. The case when 't1' contains floats and
-        't2' contains integers works in PyTorch but has not been implemented properly in HeAt yet.
+        't2' contains integers works in PyTorch but has not been implemented properly in Heat yet.
 
     Examples
     --------
@@ -2222,22 +2220,28 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     Examples
     --------
     >>> import heat as ht
-    >>> T = ht.array([1,2,3])
+    >>> T1 = ht.array([1,2,3])
     >>> s = 1
-    >>> T.left_shift_(s)
+    >>> T1.left_shift_(s)
     DNDarray([2, 4, 6], dtype=ht.int64, device=cpu:0, split=None)
-    >>> T
+    >>> T1
     DNDarray([2, 4, 6], dtype=ht.int64, device=cpu:0, split=None)
     >>> s
     1
+    >>> T2 = ht.array([-1, 1, 0])
+    >>> T1 <<= T2
+    >>> T1
+    DNDarray([0, 8, 6], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([-1,  1,  0], dtype=ht.int64, device=cpu:0, split=None)
     """
     dtypes = dtype1, dtype2 = (heat_type_of(t1), heat_type_of(t2))
 
     for dt in dtypes:
         if not heat_type_is_exact(dt):
             raise TypeError(
-                "Operation is only supported for inputs whose elements are integers, "
-                + f"but your inputs have the datatypes {dtype1} and {dtype2}."
+                "Operation is only supported for inputs whose elements are integers, but your "
+                + f"inputs have the datatypes {dtype1} and {dtype2}."
             )
 
     if isinstance(t2, DNDarray):
@@ -2476,11 +2480,12 @@ def nan_to_num_(
     t: DNDarray, nan: float = 0.0, posinf: float = None, neginf: float = None
 ) -> DNDarray:
     """
-    Replaces NaNs, positive infinity values, and negative infinity values in the input 't' with the
-    values specified by nan, posinf, and neginf, respectively. By default, NaNs are replaced with
-    zero, positive infinity is replaced with the greatest finite value representable by input's
-    dtype, and negative infinity is replaced with the least finite value representable by input's
-    dtype.
+    Replaces NaNs, positive infinity values, and negative infinity values in the input 't' in-place
+    with the values specified by nan, posinf, and neginf, respectively. By default, NaNs are
+    replaced with zero, positive infinity is replaced with the greatest finite value representable
+    by input's dtype, and negative infinity is replaced with the least finite value representable by
+    input's dtype.
+    Can only be called as a DNDarray method.
 
     Parameters
     ----------
@@ -2499,16 +2504,17 @@ def nan_to_num_(
     Examples
     --------
     >>> import heat as ht
-    >>> T = ht.array([float('nan'), float('inf'), -float('inf')])
-    >>> ht.nan_to_num_(T)
+    >>> T1 = ht.array([float('nan'), float('inf'), -float('inf')])
+    >>> T1.nan_to_num_()
     DNDarray([ 0.0000e+00,  3.4028e+38, -3.4028e+38], dtype=ht.float32, device=cpu:0, split=None)
-    >>> T
+    >>> T1
     DNDarray([ 0.0000e+00,  3.4028e+38, -3.4028e+38], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2 = ht.array([1, 2, 3, ht.nan, ht.inf, -ht.inf])
+    >>> T2.nan_to_num_(nan=0, posinf=1, neginf=-1)
+    DNDarray([ 1.,  2.,  3.,  0.,  1., -1.], dtype=ht.float32, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([ 1.,  2.,  3.,  0.,  1., -1.], dtype=ht.float32, device=cpu:0, split=None)
     """
-    if not isinstance(t, DNDarray):
-        raise TypeError(
-            "The input array must be a DNDarray. But your inputs were from " + str(type(t)) + "."
-        )
 
     def wrap_nan_to_num_(
         a: torch.Tensor, nan=nan, posinf=posinf, neginf=neginf, out=None
@@ -3186,7 +3192,13 @@ DNDarray.__rrshift__.__doc__ = right_shift.__doc__
 
 def right_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     """
-    Shift the bits of an integer in-place to the right.
+    In-place version of `right_shift`.
+    Takes the first operand (:class:`~heat.core.dndarray.DNDarray`) and element-wise shifts the bits
+    of each element in-place that many positions to the right as the element(s) of the second
+    operand (scalar or :class:`~heat.core.dndarray.DNDarray`) indicate, i.e. the element(s) of `t1`
+    are overwritten by the results of element-wise bitwise right shift of `t1` for `t2` positions.
+    Can be called as a DNDarray method or with the symbol `>>=`. Only works for inputs with integer
+    elements.
 
     Parameters
     ----------
@@ -3195,24 +3207,42 @@ def right_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     t2: DNDarray or float
         Integer number of zero bits to remove
 
+    Raises
+    ------
+    ValueError
+        If both inputs are DNDarrays that do not have the same split axis and the shapes of their
+        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+    TypeError
+        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        corresponding out-of-place operation may work, for the in-place version the requirements
+        are stricter, because the data type of `t1` does not change.
+
     Examples
     --------
     >>> import heat as ht
-    >>> T = ht.array([1,2,3])
+    >>> T1 = ht.array([1,2,32])
     >>> s = 1
-    >>> ht.right_shift_(T, s)
-    DNDarray([0, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
-    >>> T
+    >>> T1.right_shift_(s)
+    DNDarray([ 0,  1, 16], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T1
     DNDarray([0, 1, 1], dtype=ht.int64, device=cpu:0, split=None)
     >>> s
     1
+    >>> T2 = ht.array([2, -3, 2])
+    >>> T1 >>= T2
+    >>> T1
+    DNDarray([0, 0, 4], dtype=ht.int64, device=cpu:0, split=None)
+    >>> T2
+    DNDarray([ 2, -3,  2], dtype=ht.int64, device=cpu:0, split=None)
     """
-    dtypes = (heat_type_of(t1), heat_type_of(t2))
-    for dt in range(2):
-        if heat_type_is_inexact(dtypes[dt]):
-            raise TypeError("Operation is not supported for float types")
-        elif dtypes[dt] == types.bool:
-            raise TypeError("Operation is not supported for boolean types")
+    dtypes = dtype1, dtype2 = (heat_type_of(t1), heat_type_of(t2))
+
+    for dt in dtypes:
+        if not heat_type_is_exact(dt):
+            raise TypeError(
+                "Operation is only supported for inputs whose elements are integers, but your "
+                + f"inputs have the datatypes {dtype1} and {dtype2}."
+            )
 
     if isinstance(t2, DNDarray):
         if (t1.split != t2.split) and (t2.split is not None):
