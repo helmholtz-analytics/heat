@@ -45,30 +45,30 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
     Note how the convolution operator flips the second array
     before "sliding" the two across one another:
 
-    >>> a = ht.ones(10)
+    >>> a = ht.ones(5)
     >>> v = ht.arange(3).astype(ht.float)
     >>> ht.convolve(a, v, mode='full')
-    DNDarray([0., 1., 3., 3., 3., 3., 2.])
+    DNDarray([0., 1., 3., 3., 3., 3., 2.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.convolve(a, v, mode='same')
-    DNDarray([1., 3., 3., 3., 3.])
+    DNDarray([1., 3., 3., 3., 3.], dtype=ht.float32, device=cpu:0, split=None)
     >>> ht.convolve(a, v, mode='valid')
-    DNDarray([3., 3., 3.])
+    DNDarray([3., 3., 3.], dtype=ht.float32, device=cpu:0, split=None)
     >>> a = ht.ones(10, split = 0)
     >>> v = ht.arange(3, split = 0).astype(ht.float)
     >>> ht.convolve(a, v, mode='valid')
-    DNDarray([3., 3., 3., 3., 3., 3., 3., 3.])
+    DNDarray([3., 3., 3., 3., 3., 3., 3., 3.], dtype=ht.float32, device=cpu:0, split=0)
 
-    [0/3] DNDarray([3., 3., 3.])
-    [1/3] DNDarray([3., 3., 3.])
-    [2/3] DNDarray([3., 3.])
+    [0/3] tensor([3., 3., 3.])
+    [1/3] tensor([3., 3., 3.])
+    [2/3] tensor([3., 3.])
     >>> a = ht.ones(10, split = 0)
     >>> v = ht.arange(3, split = 0)
     >>> ht.convolve(a, v)
     DNDarray([0., 1., 3., 3., 3., 3., 3., 3., 3., 3., 3., 2.], dtype=ht.float32, device=cpu:0, split=0)
 
-    [0/3] DNDarray([0., 1., 3., 3.])
-    [1/3] DNDarray([3., 3., 3., 3.])
-    [2/3] DNDarray([3., 3., 3., 2.])
+    [0/3] tensor([0., 1., 3., 3.])
+    [1/3] tensor([3., 3., 3., 3.])
+    [2/3] tensor([3., 3., 3., 2.])
     """
     if np.isscalar(a):
         a = array([a])
