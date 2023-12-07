@@ -16,7 +16,7 @@ jobs:
 #          - 3.8
           - 3.9
 #          - '3.10'
-        mpi: [ 'mpich' ]
+        mpi: [ 'openmpi' ]
         install-options: [ '.', '.[hdf5,netcdf]' ]
         pytorch-version:
 #          - 'torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1 numpy==1.20.0'
