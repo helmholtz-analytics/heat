@@ -2344,48 +2344,83 @@ class DNDarray:
 
         def __set(
             arr: DNDarray,
+            key: Union[int, Tuple[int, ...], List[int, ...]],
             value: Union[DNDarray, torch.Tensor, np.ndarray, float, int, list, tuple],
         ):
             """
             Setter for not advanced indexing, i.e. when arr[key] is an in-place view of arr.
             """
-            value_split = value.split if isinstance(value, DNDarray) else None
+            # # need information on indexed array, use proxy to limit memory usage
+            # subarray = arr.__torch_proxy__()[key]
+            # subarray_shape, subarray_ndim = tuple(subarray.shape), subarray.ndim
+            # while value.ndim < subarray_ndim:  # broadcasting
+            #     value = value.expand_dims(0)
+            #     try:
+            #         value_shape = tuple(torch.broadcast_shapes(value_shape, subarray_shape))
+            #     except RuntimeError:
+            #         raise ValueError(
+            #             f"could not broadcast input array from shape {value.shape} into shape {arr.shape}"
+            #         )
+            # # TODO: take this out of this function
+            # sanitation.sanitize_out(subarray, value_shape, value.split, value.device, value.comm)
+            #            arr.larray[None] = value.larray
+            arr.__array__().__setitem__(key, value.__array__())
+            return
+
+        # make sure `value` is a DNDarray
+        if not isinstance(value, DNDarray):
             try:
                 value = factories.array(
-                    value, dtype=arr.dtype, split=value_split, device=arr.device, comm=arr.comm
+                    value, dtype=self.dtype, split=None, device=self.device, comm=self.comm
                 )
             except TypeError:
                 raise TypeError(f"Cannot assign object of type {type(value)} to DNDarray.")
-            value_shape = value.shape
-            while value.ndim < arr.ndim:  # broadcasting
-                print("DEBUGGING: value.ndim, value.shape = ", value.ndim, value.shape)
-                value = value.expand_dims(0)
-                print("DEBUGGING: value.shape = ", value.shape)
-                try:
-                    value_shape = tuple(torch.broadcast_shapes(value.shape, arr.shape))
-                except RuntimeError:
-                    raise ValueError(
-                        f"could not broadcast input array from shape {value.shape} into shape {arr.shape}"
-                    )
-            sanitation.sanitize_out(arr, value_shape, value.split, value.device, value.comm)
-            value = sanitation.sanitize_distribution(value, target=arr)
-            arr.larray[None] = value.larray
-            return
+
+        # use low-memory torch_proxy in sanitation
+        indexed_proxy = self.__torch_proxy__()[key]
+        # `value` might be broadcasted
+        value_shape = value.shape
+        while value.ndim < indexed_proxy.ndim:  # broadcasting
+            value = value.expand_dims(0)
+            try:
+                value_shape = tuple(torch.broadcast_shapes(value.shape, indexed_proxy.shape))
+            except RuntimeError:
+                raise ValueError(
+                    f"could not broadcast input array from shape {value_shape} into shape {tuple(indexed_proxy.shape)}"
+                )
 
         if key is None or key == ... or key == slice(None):
-            return __set(self, value)
-
-        # torch_device = self.larray.device
+            # make sure `self` and `value` distribution are aligned
+            value = sanitation.sanitize_distribution(value, target=self)
+            return __set(self, key, value)
 
         # single-element key
         scalar = np.isscalar(key) or getattr(key, "ndim", 1) == 0
         if scalar:
-            key, root = self.__process_scalar_key(key, indexed_axis=0, return_local_indices=False)
+            key, root = self.__process_scalar_key(key, indexed_axis=0, return_local_indices=True)
+            # `root` will be None when the indexed axis is not the split axis, or when the
+            # indexed axis is the split axis but the indexed element is not local
             if root is not None:
                 if self.comm.rank == root:
-                    __set(self[key], value)
+                    # verify that `self[key]` and `value` distribution are aligned
+                    # do not index `self` with `key` directly here, as this would MPI-broadcast to all ranks
+                    if indexed_proxy.names.count("split") != 0:
+                        # indexed_split = indexed_proxy.names.index("split")
+                        # lshape_map of indexed subarray is the same as the lshape_map of the original array after losing the first dimension
+                        indexed_lshape_map = self.lshape_map[:, 1:]
+                        if value.lshape_map != indexed_lshape_map:
+                            try:
+                                value.redistribute_(target_map=indexed_lshape_map)
+                            except ValueError:
+                                raise ValueError(
+                                    f"cannot assign value to indexed DNDarray because distribution schemes do not match: {value.lshape_map} vs. {indexed_lshape_map}"
+                                )
+                    __set(self, key, value)
             else:
-                __set(self[key], value)
+                # `root` is None, i.e. the indexed element is local on each process
+                # verify that `self[key]` and `value` distribution are aligned
+                value = sanitation.sanitize_distribution(value, target=self[key])
+                __set(self, key, value)
             return
 
         # multi-element key, incl. slicing and striding, ordered and non-ordered advanced indexing
@@ -2797,11 +2832,16 @@ class DNDarray:
 
     def __torch_proxy__(self) -> torch.Tensor:
         """
-        Return a 1-element `torch.Tensor` strided as the global `self` shape.
-        Used internally for sanitation purposes.
+        Return a 1-element `torch.Tensor` strided as the global `self` shape, and with named split axis.
+        Used internally to lower memory footprint of sanitation.
         """
-        return torch.ones((1,), dtype=torch.int8, device=self.larray.device).as_strided(
-            self.gshape, [0] * self.ndim
+        names = [None] * self.ndim
+        if self.split is not None:
+            names[self.split] = "split"
+        return (
+            torch.ones((1,), dtype=torch.int8, device=self.larray.device)
+            .as_strided(self.gshape, [0] * self.ndim)
+            .refine_names(*names)
         )
 
     @staticmethod

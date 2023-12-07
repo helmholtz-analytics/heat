@@ -1385,7 +1385,7 @@ class TestDNDarray(TestCase):
         x_split0[key] = ht.arange(3)
         self.assertTrue((x_split0[key].larray == torch.arange(3)).all())
         self.assertTrue(x_split0[key].dtype == ht.float32)
-        self.assertTrue(x_split0[key].split == 0)
+        self.assertTrue(x_split0.split == 0)
         # 3D, distributed split, != 0
         x_split2 = ht.zeros(27, dtype=ht.int64, split=0).reshape(3, 3, 3, new_split=2)
         key = ht.array(2)
