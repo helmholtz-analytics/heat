@@ -50,7 +50,7 @@ jobs:
           architecture: x64
       - name: Test
         run: |
-          which mpirun
+          mpirun --version
 #          pip install pytest
 #          pip install ${{ matrix.pytorch-version }} --extra-index-url https://download.pytorch.org/whl/cpu
 #          pip install ${{ matrix.install-options }}
