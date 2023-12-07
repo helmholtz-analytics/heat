@@ -83,7 +83,7 @@ extension: str = "dev" # <-- set to None
 
   - Make sure the CHANGELOG.md got updated, if not, call @JuanPedroGHM.
 
-10. Now we want to update `main` to the latest version, and we want the version on `main` to be `1.3.0-dev`.
+10. Now we want to update `main` to include the latest release,  we want to modify the version on main so that `minor` is increased by 1, and  `extension` is "dev".  In this example we want the version on `main` to be:`1.4.0-dev`.
 
     ```bash
     git checkout main
@@ -103,7 +103,7 @@ extension: str = "dev" # <-- set to None
 
 (e.g. 1.3.0 --> 1.3.1)
 
-1. Check that all intended branches have been merged to `main`. Branch off from main and create a new release branch:
+1. Check that all intended branches have been merged to the release branch you want to upgrade, in this example `release/1.3.x`. Branch off from `release/1.3.x` and create a new branch:
 
 ```bash
 git checkout release/1.3.x
@@ -182,8 +182,9 @@ extension: str = None
   - Make sure the CHANGELOG.md got updated in the release branch, in this case `release/1.3.x`, if not, call @JuanPedroGHM.
 
 11. Now we want to update `main` to the latest version, and we want the version on `main` to be `1.4.0-dev`.
-  - Create a new branch from `release/1.3.x`, for example `workflow/merge-latest-release-into-main`.
-  - Create a PR from `workflow/merge-latest-release-into-main`
-  - Make sure the version number is corrent in main.
-  - Make sure the CHANGELOG.md is the same in both branches.
+  - Create a new branch from `release/1.3.x`, for example `merge-latest-release-into-main`
+  - Merge `main` into `merge-latest-release-into-main`, resolve conflicts and push.
+  - Create a PR from `merge-latest-release-into-main`, base branch must be `main`
+  - Make sure the version number in `merge-latest-release-into-main` is correct (i.e., it matches that in `main`).
+  - Make sure the CHANGELOG.md in `merge-latest-release-into-main` matches that in the latest release branch, in this example`release/1.3.x`.
   - Get a reviewers approval, wait for the CI checks to pass, and merge.
