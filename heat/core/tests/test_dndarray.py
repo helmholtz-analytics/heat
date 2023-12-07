@@ -2226,6 +2226,7 @@ class TestDNDarray(TestCase):
                 dndarray_proxy.storage().size() * dndarray_proxy.storage().element_size()
             )
         self.assertTrue(dndarray_proxy_nbytes == 1)
+        self.assertTrue(dndarray_proxy.names.index("split") == 1)
 
     def test_xor(self):
         int16_tensor = ht.array([[1, 1], [2, 2]], dtype=ht.int16)
