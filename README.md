@@ -144,7 +144,7 @@ The conda build includes all dependencies **including OpenMPI**.
 
 ## **spack**
 
-You can also install Heat using [spack](https://spack.io/) (version `TBD` or newer) as follows: 
+You can also install Heat using [spack](https://spack.io/) (version `TBD` or newer) as follows:
 
 ```bash
 spack install py-heat
