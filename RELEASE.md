@@ -141,6 +141,7 @@ extension: str = None
   - The release notes draft is automated. Click on Edit Draft
   - Select the new tag: `v1.3.1`
   - Edit release notes as needed (see older releases)
+  - Save the changes to the release notes WITHOUT PUBLISHING!!
 
 6. Build wheel in your local `heat/` directory, make sure you are on branch `release/1.3.x`.
 
