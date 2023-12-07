@@ -6,7 +6,8 @@ import heat as ht
 import torch
 from heat.cluster._kcluster import _KCluster
 from heat.core.dndarray import DNDarray
-import warnings  # noqa: F401
+from warnings import warn
+from math import log
 
 
 from typing import Union, Tuple, TypeVar
@@ -93,6 +94,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
         max_iter: int,
         tol: float,
         random_state: Union[int, None],
+        n_procs_to_merge: Union[int, None],
     ):  # noqa: D107
         if not isinstance(n_clusters, int):
             raise TypeError(f"n_clusters must be int, but was {type(n_clusters)}")
@@ -109,16 +111,23 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         if not isinstance(random_state, int) and random_state is not None:
             raise TypeError(f"random_state must be int or None, but was {type(random_state)}")
+        if not isinstance(n_procs_to_merge, int) and n_procs_to_merge is not None:
+            raise TypeError(f"procs_to_merge must be int or None, but was {type(n_procs_to_merge)}")
+        if n_procs_to_merge is not None and n_procs_to_merge <= 1:
+            raise ValueError(
+                f"If an integer, procs_to_merge must be > 1, but was {n_procs_to_merge}."
+            )
 
         self.n_clusters = n_clusters
         self._init = init
         self.max_iter = max_iter
         self.tol = tol
         self.random_state = random_state
+        self.n_procs_to_merge = n_procs_to_merge
 
         # in-place properties
         if not (p == 1 or p == 2):
-            warnings.warn(
+            warn(
                 "p should be 1 (k-Medians) or 2 (k-Means). For other choice of p, we proceed as for p=2 and hope for the best.",
                 UserWarning,
             )
@@ -181,28 +190,61 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
             local_random_state,
         )
 
-        # collect set of all local centroids
-        gathered_centers_local = torch.zeros(
-            (x.comm.size, self.n_clusters, x.shape[1]), device=x.larray.device, dtype=x.larray.dtype
-        )
-        x.comm.Allgather(centers_local, gathered_centers_local)
+        # hierarchical approach to obtail "global" cluster centers from the "local" centers
+        procs_to_merge = self.n_procs_to_merge if self.n_procs_to_merge is not None else x.comm.size
+        current_procs = [i for i in range(x.comm.size)]
+        current_comm = x.comm
+        local_comm = current_comm.Split(current_comm.rank // procs_to_merge, x.comm.rank)
 
-        # "merge" local clusterings using k-clustering of the set of local centroids
-        global_random_state = (
-            None if self.random_state is None else self.random_state + x.comm.size + 1
-        )
-        centers, n_iters_global = _kmex(
-            gathered_centers_local.view(-1, x.shape[1]),
-            self._p,
-            self.n_clusters,
-            init=self._init,
-            max_iter=self.max_iter,
-            tol=self.tol,
-            random_state=global_random_state,
-        )
+        level = 1
+        while len(current_procs) > 1:
+            if x.comm.rank in current_procs and local_comm.size > 1:
+                # create array to collect centers from all processes of the process group of at most n_procs_to_merge processes
+                if local_comm.rank == 0:
+                    gathered_centers_local = torch.zeros(
+                        (local_comm.size, self.n_clusters, x.shape[1]),
+                        device=x.larray.device,
+                        dtype=x.larray.dtype,
+                    )
+                else:
+                    gathered_centers_local = torch.empty(
+                        0, device=x.larray.device, dtype=x.larray.dtype
+                    )
+                # gather centers from all processes of the process group of at most n_procs_to_merge processes
+                local_comm.Gather(centers_local, gathered_centers_local, root=0, axis=0)
+                # k-clustering on the gathered centers
+                if local_comm.rank == 0:
+                    gathered_centers_local = gathered_centers_local.reshape(-1, x.shape[1])
+                    centers_local, n_iters_local_new = _kmex(
+                        gathered_centers_local,
+                        self._p,
+                        self.n_clusters,
+                        self._init,
+                        self.max_iter,
+                        self.tol,
+                        local_random_state,
+                    )
+                    del gathered_centers_local
+                    n_iters_local += n_iters_local_new
+
+            # update: determine processes to be active at next "merging" level, create new communicator and split it into groups for gathering
+            current_procs = [
+                current_procs[i] for i in range(len(current_procs)) if i % procs_to_merge == 0
+            ]
+            if len(current_procs) > 1:
+                new_group = x.comm.group.Incl(current_procs)
+                current_comm = x.comm.Create_group(new_group)
+                if x.comm.rank in current_procs:
+                    local_comm = ht.communication.MPICommunication(
+                        current_comm.Split(current_comm.rank // procs_to_merge, x.comm.rank)
+                    )
+            level += 1
+
+        # broadcast the final centers to all processes
+        x.comm.Bcast(centers_local, root=0)
 
         self._cluster_centers = DNDarray(
-            centers,
+            centers_local,
             (self.n_clusters, x.shape[1]),
             dtype=x.dtype,
             device=x.device,
@@ -210,7 +252,7 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
             split=None,
             balanced=True,
         )
-        self._n_iter = (n_iters_local, n_iters_global)
+        self._n_iter = n_iters_local
         return self
 
     def predict(self, x: DNDarray):
@@ -277,6 +319,7 @@ class BatchParallelKMeans(_BatchParallelKCluster):
     This requires data to be given as DNDarray of shape (n_samples, n_features) with split=0 (i.e. split along the sample axis).
     The idea of the method is to perform the classical K-Means on each batch of data (i.e. on each process-local chunk of data) individually and in parallel.
     After that, all centroids from the local K-Means are gathered and another instance of K-means is performed on them in order to determine the final centroids.
+    To improve scalability of this approach also on a range number of processes, this procedure can be applied in a hierarchical manor using the parameter n_procs_to_merge.
 
     Attributes
     ----------
@@ -292,6 +335,8 @@ class BatchParallelKMeans(_BatchParallelKCluster):
         Relative tolerance with regards to inertia to declare convergence, both for local and global k-means.
     random_state : int
         Determines random number generation for centroid initialization.
+    n_procs_to_merge : int
+        Number of processes to merge after each iteration of the local k-means. If None, all processes are merged after each iteration.
 
 
     References
@@ -306,6 +351,7 @@ class BatchParallelKMeans(_BatchParallelKCluster):
         max_iter: int = 300,
         tol: float = 1e-4,
         random_state: int = None,
+        n_procs_to_merge: int = None,
     ):  # noqa: D107
         if not isinstance(init, str):
             raise TypeError(f"init must be str, but was {type(init)}")
@@ -325,6 +371,7 @@ class BatchParallelKMeans(_BatchParallelKCluster):
             max_iter=max_iter,
             tol=tol,
             random_state=random_state,
+            n_procs_to_merge=n_procs_to_merge,
         )
         self.init = init
 
@@ -335,6 +382,7 @@ class BatchParallelKMedians(_BatchParallelKCluster):
     This requires data to be given as DNDarray of shape (n_samples, n_features) with split=0 (i.e. split along the sample axis).
     The idea of the method is to perform the classical K-Medians on each batch of data (i.e. on each process-local chunk of data) individually and in parallel.
     After that, all centroids from the local K-Medians are gathered and another instance of K-Medians is performed on them in order to determine the final centroids.
+    To improve scalability of this approach also on a range number of processes, this procedure can be applied in a hierarchical manor using the parameter n_procs_to_merge.
 
     Attributes
     ----------
@@ -350,6 +398,8 @@ class BatchParallelKMedians(_BatchParallelKCluster):
         Relative tolerance with regards to inertia to declare convergence, both for local and global k-Medians.
     random_state : int
         Determines random number generation for centroid initialization.
+    n_procs_to_merge : int
+        Number of processes to merge after each iteration of the local k-Medians. If None, all processes are merged after each iteration.
 
 
     References
@@ -364,6 +414,7 @@ class BatchParallelKMedians(_BatchParallelKCluster):
         max_iter: int = 300,
         tol: float = 1e-4,
         random_state: int = None,
+        n_procs_to_merge: int = None,
     ):  # noqa: D107
         if not isinstance(init, str):
             raise TypeError(f"init must be str, but was {type(init)}")
@@ -383,5 +434,6 @@ class BatchParallelKMedians(_BatchParallelKCluster):
             max_iter=max_iter,
             tol=tol,
             random_state=random_state,
+            n_procs_to_merge=n_procs_to_merge,
         )
         self.init = init
