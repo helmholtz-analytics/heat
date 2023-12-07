@@ -142,6 +142,15 @@ The conda build includes all dependencies **including OpenMPI**.
  conda install -c conda-forge heat
  ```
 
+## **spack**
+
+You can also install Heat using [spack](https://spack.io/) (version `TBD` or newer) as follows: 
+
+```bash
+spack install py-heat
+```
+
+
 # Support Channels
 
 Go ahead and ask questions on [GitHub Discussions](https://github.com/helmholtz-analytics/heat/discussions). If you found a bug or are missing a feature, then please file a new [issue](https://github.com/helmholtz-analytics/heat/issues/new/choose). You can also get in touch with us on [Mattermost](https://mattermost.hzdr.de/signup_user_complete/?id=3sixwk9okpbzpjyfrhen5jpqfo) (sign up with your GitHub credentials). Once you log in, you can introduce yourself on the `Town Square` channel.
