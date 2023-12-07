@@ -163,7 +163,6 @@ class TestRandom(TestCase):
         b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, comm=ht.MPI_WORLD, dtype=ht.float64)
         c = np.concatenate((a.flatten(), b.numpy().flatten()))
         _, counts = np.unique(c, return_counts=True)
-        print(counts)
         self.assertTrue((counts == 1).all())
 
         # Values should be spread evenly across the range [0, 1)
@@ -235,8 +234,7 @@ class TestRandom(TestCase):
         ht.random.randn(6667, 3523, dtype=ht.float64, split=None)
         ht.random.randn(6667, 3523, dtype=ht.float64, split=0)
         ht.random.randn(6667, 3523, dtype=ht.float64, split=1)
-    
-    """
+
     def test_randint(self):
         # Checked that the random values are in the correct range
         a = ht.random.randint(low=0, high=10, size=(10, 10), dtype=ht.int64)
@@ -345,8 +343,7 @@ class TestRandom(TestCase):
         ht.random.seed(234)
         b = ht.random.random_integer(10, 50)
         self.assertTrue(ht.equal(a, b))
-    """
-    """
+
     def test_randn(self):
         # Test that the random values have the correct distribution
         ht.random.seed(54321)
@@ -411,7 +408,7 @@ class TestRandom(TestCase):
         c = ht.random.randn(30, 30, 30, dtype=ht.float32, split=2).numpy()
         self.assertFalse(np.allclose(a, c))
         self.assertFalse(np.allclose(b, c))
-    """
+
     def test_randperm(self):
         if self.device.torch_device == "cpu":
             state = torch.random.get_rng_state()
