@@ -119,3 +119,21 @@ class TestSignal(TestCase):
 
         conv = ht.convolve(1, 5)
         self.assertTrue(ht.equal(ht.array([5]), conv))
+
+
+class TestFFTConvolve(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # super(TestSignal, cls).setUpClass()
+        cls.axes = ["", None, 0, [0], -1, [-1]]
+
+    def test_real(self):
+        a = ht.array([1, 2, 3])
+        expected = ht.array([1, 4, 10, 12, 9.0])
+
+        for axis in self.axes:
+            if axis == "":
+                out = ht.fftconvolve(a, a)
+            else:
+                out = ht.fftconvolve(a, a, axes=axis)
+            self.assertTrue(ht.allclose(out, expected))
