@@ -24,6 +24,7 @@ jobs:
           - 'torch==1.11.0+cpu torchvision==0.12.0+cpu torchaudio==0.11.0'
           - 'torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1'
           - 'torch==1.13.1+cpu torchvision==0.14.1+cpu torchaudio==0.13.1'
+          - 'torch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2'
           - 'torch torchvision torchaudio'
         exclude:
           - py-version: '3.10'
