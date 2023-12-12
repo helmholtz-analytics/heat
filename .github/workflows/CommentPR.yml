@@ -15,6 +15,11 @@ jobs:
     outputs:
       PR_NR: ${{ steps.step1.outputs.test }}
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - name: 'Download artifact'
         uses: actions/github-script@v6
         with:
@@ -59,6 +64,11 @@ jobs:
     needs: upload
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@v3
 
       - name: 'Trigger Workflow'
