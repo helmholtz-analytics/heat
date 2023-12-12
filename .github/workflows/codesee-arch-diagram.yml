@@ -18,10 +18,10 @@ jobs:
     name: Analyze the repo with CodeSee
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@v2
+        uses: step-security/harden-runner@eb238b55efaa70779f274895e782ed17c84f2895 # v2.6.1
         with:
           egress-policy: audit
 
-      - uses: Codesee-io/codesee-action@v2
+      - uses: Codesee-io/codesee-action@4f66933f195ad209dab16bcdd12cbacfff7f8707 # v2
         with:
           codesee-token: ${{ secrets.CODESEE_ARCH_DIAG_API_TOKEN }}
