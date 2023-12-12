@@ -17,6 +17,9 @@ on:
                 required: true
                 default: 'heat:1.3.0_torch2.0.0_cu12.1'
                 type: string
+permissions:
+  contents: read
+
 jobs:
     build-and-push-img:
         runs-on: ubuntu-latest
