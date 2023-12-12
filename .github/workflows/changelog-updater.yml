@@ -4,8 +4,13 @@ on:
   release:
     types: [released]
 
+permissions:
+  contents: read
+
 jobs:
   update:
+    permissions:
+      contents: write  # for stefanzweifel/git-auto-commit-action to push code in repo
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
