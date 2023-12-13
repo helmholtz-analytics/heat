@@ -2448,23 +2448,6 @@ class DNDarray:
             backwards_transpose_axes,
         ) = self.__process_key(key, return_local_indices=True, op="set")
 
-        # sanitize value
-        value_split = value.split if isinstance(value, DNDarray) else None
-        try:
-            value = factories.array(
-                value, dtype=self.dtype, split=value_split, device=self.device, comm=self.comm
-            )
-        except TypeError:
-            raise TypeError(f"Cannot assign object of type {type(value)} to DNDarray.")
-        value_shape = value.shape
-        while value.ndim < len(output_shape):  # broadcasting
-            value = value.expand_dims(0)
-            try:
-                value_shape = tuple(torch.broadcast_shapes(value_shape, output_shape))
-            except RuntimeError:
-                raise ValueError(
-                    f"could not broadcast input array from shape {value.shape} into shape {output_shape}"
-                )
         # TODO: sanitize distribution without allocating getitem array
 
         if split_key_is_ordered == 1:
@@ -2475,6 +2458,10 @@ class DNDarray:
                 if self.comm.rank == root:
                     self.larray[key] = value.larray
             else:
+                # indexed elements are process-local
+                # self[key] is a view and does not trigger communication
+                # verify that `self[key]` and `value` distribution are aligned
+                value = sanitation.sanitize_distribution(value, target=self[key])
                 self.larray[key] = value.larray
             self = self.transpose(backwards_transpose_axes)
             return
