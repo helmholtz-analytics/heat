@@ -7,7 +7,7 @@
   "iterations": 30,
 
   "benchmarks": {
-    "dask-auto-cpu": {
+    "dask_auto_cpu": {
       "template": "dask",
       "nodes": [2, 3, 5, 9, 15],
       "tasks": [1, 1, 1, 1, 1],
@@ -17,7 +17,7 @@
       }
     },
 
-    "dask-chunks-cpu": {
+    "dask_chunks_cpu": {
       "template": "dask",
       "nodes": [2, 3, 5, 9, 15],
       "tasks": [1, 1, 1, 1, 1],
@@ -27,7 +27,7 @@
       }
     },
 
-    "heat-cpu": {
+    "heat_cpu": {
       "nodes": [1, 2, 4, 8, 15],
       "tasks": [1, 1, 1, 1, 1],
       "size": {
@@ -36,7 +36,7 @@
       }
     },
 
-    "heat-gpu": {
+    "heat_gpu": {
       "nodes": [1, 1, 1, 2, 4, 8, 15],
       "tasks": [1, 2, 4, 4, 4, 4, 4],
       "size": {
@@ -45,7 +45,7 @@
       }
     },
 
-    "numpy-cpu": {
+    "numpy_cpu": {
       "nodes": [1],
       "tasks": [1],
       "size": {
@@ -54,7 +54,7 @@
       }
     },
 
-    "torch-cpu": {
+    "torch_cpu": {
       "nodes": [1],
       "tasks": [1],
       "size": {
@@ -63,7 +63,7 @@
       }
     },
 
-    "torch-gpu": {
+    "torch_gpu": {
       "nodes": [1],
       "tasks": [1],
       "size": {
