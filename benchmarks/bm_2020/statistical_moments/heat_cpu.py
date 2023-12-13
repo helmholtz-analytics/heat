@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# pylint: skip-file
+
 
 import argparse
 import heat as ht
