@@ -256,7 +256,6 @@ def isclose(
     if t1.comm.is_distributed() and t1.split is not None:
         output_gshape = stride_tricks.broadcast_shape(t1.gshape, t2.gshape)
         res = torch.empty(output_gshape, device=t1.device.torch_device).bool()
-        print("_local_isclose-->", _local_isclose, "res->", res, "output_gshape->", output_gshape)
         t1.comm.Allgather(_local_isclose, res)
         result = DNDarray(
             res,
