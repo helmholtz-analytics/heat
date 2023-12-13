@@ -2343,12 +2343,16 @@ class DNDarray:
         """
 
         def __broadcast_value(
-            arr: DNDarray, key: Union[int, Tuple[int, ...], List[int, ...]], value: DNDarray
+            arr: DNDarray, key: Union[int, Tuple[int, ...], slice], value: DNDarray
         ):
             """
             Broadcasts the given DNDarray `value` to the shape of the indexed array `arr[key]`.
             """
             # need information on indexed array, use proxy to avoid MPI communication and limit memory usage
+            if not isinstance(key, (int, tuple, slice)):
+                raise TypeError(
+                    f"only integers, slices (`:`), and tuples are valid indices (got {type(key)})"
+                )
             indexed_proxy = arr.__torch_proxy__()[key]
             value_shape = value.shape
             while value.ndim < indexed_proxy.ndim:  # broadcasting
@@ -2437,6 +2441,15 @@ class DNDarray:
             return
 
         # multi-element key, incl. slicing and striding, ordered and non-ordered advanced indexing
+        # store original key for later use
+        try:
+            original_key = key.copy()
+        except AttributeError:
+            try:
+                original_key = key.clone()
+            except AttributeError:
+                original_key = key
+
         (
             self,
             key,
@@ -2461,7 +2474,7 @@ class DNDarray:
                 # indexed elements are process-local
                 # self[key] is a view and does not trigger communication
                 # verify that `self[key]` and `value` distribution are aligned
-                value = sanitation.sanitize_distribution(value, target=self[key])
+                value = sanitation.sanitize_distribution(value, target=self[original_key])
                 self.larray[key] = value.larray
             self = self.transpose(backwards_transpose_axes)
             return
@@ -2832,7 +2845,7 @@ class DNDarray:
 
     def __torch_proxy__(self) -> torch.Tensor:
         """
-        Return a 1-element `torch.Tensor` strided as the global `self` shape, and with named split axis.
+        Return a 1-element `torch.Tensor` strided as the global `self` shape. The split axis of the initial DNDarray is stored in the `names` attribute of the returned tensor.
         Used internally to lower memory footprint of sanitation.
         """
         names = [None] * self.ndim
