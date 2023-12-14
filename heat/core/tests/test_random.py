@@ -163,8 +163,11 @@ class TestRandom(TestCase):
         b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, comm=ht.MPI_WORLD, dtype=ht.float64)
         c = np.concatenate((a.flatten(), b.numpy().flatten()))
         _, counts = np.unique(c, return_counts=True)
+        print("DEBUGGING: DTYPES: ", a.dtype, b.dtype, c.dtype)
+        print("DEBUGGING: a, b, c max value: ", a.max(), b.max(), c.max())
+        print("DEBUGGING: counts>1: ", counts > 1)
         print("DEBUGGING: counts[counts > 1]: ", counts[counts > 1])
-        print("DEBUGGING: c when counts > 1: ", c[counts > 1])
+        print("DEBUGGING: c when counts > 1: ", _[counts > 1])
         self.assertTrue((counts == 1).all())
 
         # Values should be spread evenly across the range [0, 1)
