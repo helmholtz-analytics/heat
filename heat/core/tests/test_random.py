@@ -172,7 +172,7 @@ class TestRandom(TestCase):
         print("DEBUGGING: b when counts > 1: ", _[counts > 1])
         # Assert that no value appears more than once
         self.assertTrue((counts == 1).all())
-        c = np.concatenate((a.flatten(), b.numpy().flatten()))
+        c = np.concatenate((a.flatten(), np_b.flatten()))
         _, counts = np.unique(c, return_counts=True)
         print("DEBUGGING: DTYPES: ", a.dtype, b.dtype, c.dtype)
         print("DEBUGGING: a, b, c max value: ", a.max(), b.max(), c.max())
