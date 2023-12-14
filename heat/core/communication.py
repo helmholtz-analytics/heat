@@ -1051,8 +1051,13 @@ class MPICommunication(Communication):
 
         # unpack the send buffer
         if isinstance(sendbuf, tuple):
+            print("DEBUGGING: SENDBUF IS TUPLE")
             sendbuf, send_counts, send_displs = sendbuf
+            print(
+                "DEBUGGING: SENDBUF IS TUPLE", type(sendbuf), type(send_counts), type(send_displs)
+            )
         if isinstance(sendbuf, DNDarray):
+            print("DEBUGGING: SENDBUF IS DNDarray")
             sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and axis != 0:
             raise TypeError(
@@ -1073,6 +1078,7 @@ class MPICommunication(Communication):
         sbuf_is_contiguous, rbuf_is_contiguous = None, None
         # permute the send_axis order so that the split send_axis is the first to be transmitted
         if axis != 0:
+            print("DEBUGGING: PERMUTING, axis = ", axis)
             send_axis_permutation = list(range(sendbuf.ndimension()))
             send_axis_permutation[0], send_axis_permutation[axis] = axis, 0
             sendbuf = sendbuf.permute(*send_axis_permutation)
