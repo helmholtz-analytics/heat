@@ -160,7 +160,7 @@ class TestRandom(TestCase):
         self.assertTrue((counts == 1).all())
 
         # Two large arrays that were created after each other don't share any values
-        b = ht.random.rand(14, 7, 3, 12, 18, 42, split=4, dtype=ht.float64)
+        b = ht.random.rand(14, 7, 3, 12, 18, 42, split=0, dtype=ht.float64)
         _, t_counts = torch.unique(b.larray, return_counts=True)
         # Assert that no value appears more than once locally
         print("DEBUGGING: t_counts>1: ", t_counts[t_counts > 1])
@@ -172,7 +172,7 @@ class TestRandom(TestCase):
         print("DEBUGGING: np_b.shape: ", np_b.shape)
         _, counts = np.unique(np_b, return_counts=True)
         print("DEBUGGING: counts>1: ", counts > 1)
-        print("DEBUGGING: counts[counts > 1]: ", counts[counts > 1])
+        # print("DEBUGGING: counts[counts > 1]: ", counts[counts > 1])
         print("DEBUGGING: b when counts > 1: ", _[counts > 1])
         # Assert that no value appears more than once
         self.assertTrue((counts == 1).all())
