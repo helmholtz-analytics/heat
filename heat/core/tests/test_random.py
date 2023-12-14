@@ -165,9 +165,11 @@ class TestRandom(TestCase):
         # Assert that no value appears more than once locally
         print("DEBUGGING: t_counts>1: ", t_counts[t_counts > 1])
         self.assertTrue((t_counts == 1).all())
-        print("DEBUGGING: b indexed before Gather: ", b[0, 0, 0, 0, :, 0].larray)
+        # print("DEBUGGING: b indexed before Gather: ", b[0, 0, 0, 0, :, 0].larray)
+        print("DEBUGGING: b.shape: ", b.shape)
         np_b = b.numpy()
-        print("DEBUGGING: b indexed after Gather: ", np_b[0, 0, 0, 0, :, 0])
+        # print("DEBUGGING: b indexed after Gather: ", np_b[0, 0, 0, 0, :, 0])
+        print("DEBUGGING: np_b.shape: ", np_b.shape)
         _, counts = np.unique(np_b, return_counts=True)
         print("DEBUGGING: counts>1: ", counts > 1)
         print("DEBUGGING: counts[counts > 1]: ", counts[counts > 1])
