@@ -298,7 +298,7 @@ class MPICommunication(Communication):
         strides[0] = obj.stride()[-1]
         strides = strides[::-1]
         offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
-
+        print("DEBUGGING: shape, strides, offsets", shape, strides, offsets)
         # chain the types based on the
         for i in range(len(shape) - 1, -1, -1):
             mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
