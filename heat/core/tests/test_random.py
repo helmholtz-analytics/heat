@@ -161,6 +161,13 @@ class TestRandom(TestCase):
 
         # Two large arrays that were created after each other don't share any values
         b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, dtype=ht.float64)
+        b = b.numpy()
+        _, counts = np.unique(b, return_counts=True)
+        print("DEBUGGING: counts>1: ", counts > 1)
+        print("DEBUGGING: counts[counts > 1]: ", counts[counts > 1])
+        print("DEBUGGING: b when counts > 1: ", _[counts > 1])
+        # Assert that no value appears more than once
+        self.assertTrue((counts == 1).all())
         c = np.concatenate((a.flatten(), b.numpy().flatten()))
         _, counts = np.unique(c, return_counts=True)
         print("DEBUGGING: DTYPES: ", a.dtype, b.dtype, c.dtype)
