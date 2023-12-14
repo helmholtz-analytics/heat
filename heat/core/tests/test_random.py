@@ -160,7 +160,7 @@ class TestRandom(TestCase):
         self.assertTrue((counts == 1).all())
 
         # Two large arrays that were created after each other don't share any values
-        b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, comm=ht.MPI_WORLD, dtype=ht.float64)
+        b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, dtype=ht.float64)
         c = np.concatenate((a.flatten(), b.numpy().flatten()))
         _, counts = np.unique(c, return_counts=True)
         print("DEBUGGING: DTYPES: ", a.dtype, b.dtype, c.dtype)
