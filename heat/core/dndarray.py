@@ -1351,15 +1351,11 @@ class DNDarray:
         """
         device = arr.larray.device
         try:
-            # is key an ndarray or DNDarray?
-            key = key.copy().item()
+            # is key an ndarray or DNDarray or torch.Tensor?
+            key = key.item()
         except AttributeError:
-            try:
-                # is key a torch tensor?
-                key = key.clone().item()
-            except AttributeError:
-                # key is already an integer, do nothing
-                pass
+            # key is already an integer, do nothing
+            pass
         if not arr.is_distributed():
             root = None
             return key, root
@@ -1380,7 +1376,8 @@ class DNDarray:
                     dim=0,
                 )
                 _, sorted_indices = displs.unique(sorted=True, return_inverse=True)
-                root = sorted_indices[-1] - 1
+                root = sorted_indices[-1].item() - 1
+                displs = displs.tolist()
             # correct key for rank-specific displacement
             if return_local_indices:
                 if arr.comm.rank == root:
@@ -2343,19 +2340,30 @@ class DNDarray:
         """
 
         def __broadcast_value(
-            arr: DNDarray, key: Union[int, Tuple[int, ...], slice], value: DNDarray
+            arr: DNDarray,
+            key: Union[int, Tuple[int, ...], slice],
+            value: DNDarray,
+            **kwargs,
         ):
             """
             Broadcasts the given DNDarray `value` to the shape of the indexed array `arr[key]`.
             """
-            # need information on indexed array, use proxy to avoid MPI communication and limit memory usage
-            if not isinstance(key, (int, tuple, slice)):
-                raise TypeError(
-                    f"only integers, slices (`:`), and tuples are valid indices (got {type(key)})"
-                )
-            indexed_proxy = arr.__torch_proxy__()[key]
+            # need information on indexed array
+            output_shape = kwargs.get("output_shape", None)
+            if output_shape is not None:
+                indexed_dims = len(output_shape)
+            else:
+                if isinstance(key, (int, tuple)):
+                    # direct indexing, output_shape has not been calculated
+                    # use proxy to avoid MPI communication and limit memory usage
+                    indexed_proxy = arr.__torch_proxy__()[key]
+                    indexed_dims = indexed_proxy.ndim
+                else:
+                    raise RuntimeError(
+                        "Not enough information to broadcast value to indexed array, please provide `output_shape`"
+                    )
             value_shape = value.shape
-            while value.ndim < indexed_proxy.ndim:  # broadcasting
+            while value.ndim < indexed_dims:  # broadcasting
                 value = value.expand_dims(0)
                 try:
                     value_shape = tuple(torch.broadcast_shapes(value.shape, indexed_proxy.shape))
@@ -2422,8 +2430,7 @@ class DNDarray:
                     # do not index `self` with `key` directly here, as this would MPI-broadcast to all ranks
                     indexed_proxy = self.__torch_proxy__()[key]
                     if indexed_proxy.names.count("split") != 0:
-                        # indexed_split = indexed_proxy.names.index("split")
-                        # lshape_map of indexed subarray is the same as the lshape_map of the original array after losing the first dimension
+                        # distribution map of indexed subarray is the same as the lshape_map of the original array after losing the first dimension
                         indexed_lshape_map = self.lshape_map[:, 1:]
                         if value.lshape_map != indexed_lshape_map:
                             try:
@@ -2461,10 +2468,10 @@ class DNDarray:
             backwards_transpose_axes,
         ) = self.__process_key(key, return_local_indices=True, op="set")
 
-        # TODO: sanitize distribution without allocating getitem array
+        # match dimensions
+        value = __broadcast_value(self, key, value, output_shape=output_shape)
 
         if split_key_is_ordered == 1:
-            # data are not distributed or split dimension is not affected by indexing
             # key all local
             if root is not None:
                 # single-element assignment along split axis, only one active process
