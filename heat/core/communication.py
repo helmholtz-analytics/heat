@@ -1098,7 +1098,9 @@ class MPICommunication(Communication):
         if sendbuf is MPI.IN_PLACE or not isinstance(sendbuf, torch.Tensor):
             mpi_sendbuf = sbuf
         else:
+            print("DEBUGGING: PREPARING SEND BUFFER")
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs, sbuf_is_contiguous)
+            print("DEBUGGING: SEND BUFFER", type(mpi_sendbuf))
             if send_counts is not None:
                 mpi_sendbuf[1] = mpi_sendbuf[1][0][self.rank]
 
