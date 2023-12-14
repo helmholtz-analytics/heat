@@ -290,7 +290,7 @@ class MPICommunication(Communication):
                     (tuple(factor * ele for ele in displs)),
                 ),
             )
-
+        print("DEBUGGING: non-contiguous memory")
         # non-contiguous memory, e.g. after a transpose, has to be packed in derived MPI types
         elements = obj.shape[0]
         shape = obj.shape[1:]
@@ -1107,7 +1107,9 @@ class MPICommunication(Communication):
         if recvbuf is MPI.IN_PLACE or not isinstance(recvbuf, torch.Tensor):
             mpi_recvbuf = rbuf
         else:
+            print("DEBUGGING: PREPARING RECV BUFFER")
             mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs, rbuf_is_contiguous)
+            print("DEBUGGING: RECV BUFFER", type(mpi_recvbuf))
             if recv_counts is None:
                 mpi_recvbuf[1] //= self.size
         # perform the scatter operation
