@@ -138,10 +138,12 @@ def arange(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step
-    data = torch.arange(start, stop, step, device=device.torch_device)
-
     htype = types.canonical_heat_type(dtype)
-    data = data.type(htype.torch_type())
+    if types.issubdtype(htype, types.floating):
+        data = torch.arange(start, stop, step, dtype=htype.torch_type(), device=device.torch_device)
+    else:
+        data = torch.arange(start, stop, step, device=device.torch_device)
+        data = data.type(htype.torch_type())
 
     return DNDarray(data, gshape, htype, split, device, comm, balanced)
 
@@ -301,8 +303,11 @@ def array(
         obj = obj.larray
 
     # sanitize the data type
-    if dtype is not None:
+    if dtype is None:
+        torch_dtype = None
+    else:
         dtype = types.canonical_heat_type(dtype)
+        torch_dtype = dtype.torch_type()
 
     # sanitize device
     if device is not None:
@@ -318,6 +323,7 @@ def array(
             try:
                 obj = torch.tensor(
                     obj,
+                    dtype=torch_dtype,
                     device=device.torch_device
                     if device is not None
                     else devices.get_device().torch_device,
@@ -341,6 +347,7 @@ def array(
         try:
             obj = torch.as_tensor(
                 obj,
+                dtype=torch_dtype,
                 device=device.torch_device
                 if device is not None
                 else devices.get_device().torch_device,
@@ -352,7 +359,6 @@ def array(
     if dtype is None:
         dtype = types.canonical_heat_type(obj.dtype)
     else:
-        torch_dtype = dtype.torch_type()
         if obj.dtype != torch_dtype:
             obj = obj.type(torch_dtype)
 
@@ -1145,9 +1151,18 @@ def linspace(
     # compose the local tensor
     start += offset * step
     stop = start + lshape[0] * step - step
-    data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
-    if dtype is not None:
-        data = data.type(types.canonical_heat_type(dtype).torch_type())
+    if dtype is not None and types.issubdtype(dtype, types.floating):
+        data = torch.linspace(
+            start,
+            stop,
+            lshape[0],
+            dtype=types.canonical_heat_type(dtype).torch_type(),
+            device=device.torch_device,
+        )
+    else:
+        data = torch.linspace(start, stop, lshape[0], device=device.torch_device)
+        if dtype is not None:
+            data = data.type(types.canonical_heat_type(dtype).torch_type())
 
     # construct the resulting global tensor
     ht_tensor = DNDarray(
