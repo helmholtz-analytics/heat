@@ -50,6 +50,7 @@ class TestQR(TestCase):
         m, n = 20, 40
         st = torch.randn(m, n, device=self.device.torch_device, dtype=torch.float)
         a_comp = ht.array(st, split=0)
+        is_mps = st.is_mps
         for t in range(1, 3):
             for sp in range(2):
                 a = ht.array(st, split=sp, dtype=torch.float)
@@ -67,19 +68,22 @@ class TestQR(TestCase):
                 self.assertTrue(ht.allclose((a_comp1 - (qr1.Q @ qr1.R)), 0, rtol=1e-5, atol=1e-5))
                 self.assertTrue(ht.allclose(qr1.Q.T @ qr1.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
                 self.assertTrue(ht.allclose(ht.eye(m), qr1.Q @ qr1.Q.T, rtol=1e-5, atol=1e-5))
+        dtype = torch.float32 if is_mps else torch.float64
+        ht_dtype = ht.types.canonical_heat_type(dtype)
+        # float64 not supported on MPS
         m, n = 40, 20
-        st2 = torch.randn(m, n, dtype=torch.double, device=self.device.torch_device)
-        a_comp2 = ht.array(st2, split=0, dtype=ht.double)
+        st2 = torch.randn(m, n, dtype=dtype, device=self.device.torch_device)
+        a_comp2 = ht.array(st2, split=0, dtype=ht_dtype)
         for t in range(1, 3):
             for sp in range(2):
                 a2 = ht.array(st2, split=sp)
                 qr2 = a2.qr(tiles_per_proc=t)
                 self.assertTrue(ht.allclose(a_comp2, qr2.Q @ qr2.R, rtol=1e-5, atol=1e-5))
                 self.assertTrue(
-                    ht.allclose(qr2.Q.T @ qr2.Q, ht.eye(m, dtype=ht.double), rtol=1e-5, atol=1e-5)
+                    ht.allclose(qr2.Q.T @ qr2.Q, ht.eye(m, dtype=ht_dtype), rtol=1e-5, atol=1e-5)
                 )
                 self.assertTrue(
-                    ht.allclose(ht.eye(m, dtype=ht.double), qr2.Q @ qr2.Q.T, rtol=1e-5, atol=1e-5)
+                    ht.allclose(ht.eye(m, dtype=ht_dtype), qr2.Q @ qr2.Q.T, rtol=1e-5, atol=1e-5)
                 )
 
         # test if calc R alone works

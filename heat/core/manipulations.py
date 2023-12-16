@@ -491,7 +491,12 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
         raise RuntimeError("Communicators of passed arrays mismatch.")
 
     # identify common data type
+    is_mps = arr0.larray.is_mps or arr1.larray.is_mps
     out_dtype = types.promote_types(arr0.dtype, arr1.dtype)
+    if is_mps and out_dtype == types.float64:
+        warnings.warn("MPS does not support float64, using float32 instead")
+        out_dtype = types.float32
+
     if arr0.dtype != out_dtype:
         arr0 = out_dtype(arr0, device=arr0.device)
     if arr1.dtype != out_dtype:
@@ -4073,10 +4078,15 @@ def topk(
         metadata = torch.tensor(
             [k, dim, largest, sorted, local_shape_len, *local_shape], device=indices.device
         )
-        send_buffer = torch.cat(
-            (metadata.double(), result.double().flatten(), indices.flatten().double())
-        )
-
+        try:
+            send_buffer = torch.cat(
+                (metadata.double(), result.double().flatten(), indices.flatten().double())
+            )
+        except TypeError:
+            # MPS does not support double precision
+            send_buffer = torch.cat(
+                (metadata.float(), result.float().flatten(), indices.flatten().float())
+            )
         return send_buffer
 
     gres = _operations.__reduce_op(
