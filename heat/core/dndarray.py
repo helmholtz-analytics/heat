@@ -2358,19 +2358,53 @@ class DNDarray:
                     # use proxy to avoid MPI communication and limit memory usage
                     indexed_proxy = arr.__torch_proxy__()[key]
                     indexed_dims = indexed_proxy.ndim
+                    output_shape = tuple(indexed_proxy.shape)
                 else:
                     raise RuntimeError(
                         "Not enough information to broadcast value to indexed array, please provide `output_shape`"
                     )
             value_shape = value.shape
-            while value.ndim < indexed_dims:  # broadcasting
-                value = value.expand_dims(0)
-                try:
-                    value_shape = tuple(torch.broadcast_shapes(value.shape, indexed_proxy.shape))
-                except RuntimeError:
-                    raise ValueError(
-                        f"could not broadcast input array from shape {value_shape} into shape {tuple(indexed_proxy.shape)}"
-                    )
+            print("DEBUGGING: OUTPUT SHAPE, value shape = ", output_shape, value_shape)
+
+            if value_shape != output_shape:
+                # assess whether the shapes are compatible, starting from the trailing dimension
+                for i in range(1, min(len(value_shape), len(output_shape))):
+                    if i == 1:
+                        if value_shape[-i] != output_shape[-i]:
+                            # shapes are not compatible, raise error
+                            raise ValueError(
+                                f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                            )
+                    else:
+                        if (
+                            value_shape[-i] != output_shape[-i]
+                            and not value_shape[-i] == 1
+                            or output_shape[-i] == 1
+                        ):
+                            # shapes are not compatible, raise error
+                            raise ValueError(
+                                f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                            )
+                while value.ndim < indexed_dims:
+                    print("DEBUGGING: value ndim = ", value.ndim)
+                    # broadcasting
+                    # expand missing dimensions to align split axis
+                    print("DEBUGGING: value shape before expanding = ", value.shape)
+                    value = value.expand_dims(0)
+                    print("DEBUGGING: value shape after expanding = ", value.shape)
+                    try:
+                        value_shape = tuple(torch.broadcast_shapes(value.shape, output_shape))
+                    except RuntimeError:
+                        raise ValueError(
+                            f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                        )
+                    return value
+                # # value has more dimensions than indexed array
+                # print("DEBUGGING: not broadcastable = ", value.ndim, output_shape)
+                # raise ValueError(
+                #     f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                # )
+            # value and output shape are the same
             return value
 
         def __set(

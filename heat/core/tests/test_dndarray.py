@@ -1397,23 +1397,20 @@ class TestDNDarray(TestCase):
 
         # Slicing and striding
         x = ht.arange(20, split=0)
-        x_sliced = x[1:11:3]
         x[1:11:3] = ht.array([10, 40, 70, 100])
         x_np = np.arange(20)
-        x_sliced_np = x_np[1:11:3]
         x_np[1:11:3] = np.array([10, 40, 70, 100])
-        self.assert_array_equal(x_sliced, x_sliced_np)
-        self.assert_array_equal(x_sliced, np.array([10, 40, 70, 100]))
+        self.assert_array_equal(x, x_np)
         self.assertTrue(x.split == 0)
 
-        # # 1-element slice along split axis
-        # x = ht.arange(20).reshape(4, 5)
-        # x.resplit_(axis=1)
-        # x_sliced = x[:, 2:3]
-        # x_np = np.arange(20).reshape(4, 5)
-        # x_sliced_np = x_np[:, 2:3]
-        # self.assert_array_equal(x_sliced, x_sliced_np)
-        # self.assertTrue(x_sliced.split == 1)
+        # 1-element slice along split axis
+        x = ht.arange(20).reshape(4, 5)
+        x.resplit_(axis=1)
+        x[:, 2:3] = ht.array([10, 40, 70, 100])
+        x_np = np.arange(20).reshape(4, 5)
+        x_np[:, 2:3] = np.array([10, 40, 70, 100])
+        self.assert_array_equal(x, x_np)
+        self.assertTrue(x.split == 1)
 
         # # slicing with negative step along split axis 0
         # shape = (20, 4, 3)
