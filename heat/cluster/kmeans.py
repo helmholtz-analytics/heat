@@ -69,6 +69,7 @@ class KMeans(_KCluster):
             tol=tol,
             random_state=random_state,
         )
+        self._p = 2
 
     def _update_centroids(self, x: DNDarray, matching_centroids: DNDarray):
         """

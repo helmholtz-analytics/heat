@@ -63,10 +63,14 @@ def _kmex(X, p, n_clusters, init, max_iter, tol, random_state=None):
         # update centers
         centers_old = centers.clone()
         for i in range(n_clusters):
-            if p == 1:
-                centers[i] = torch.median(X[labels == i], dim=0)[0]
+            if (labels == i).any():
+                if p == 1:
+                    centers[i] = torch.median(X[labels == i], dim=0)[0]
+                else:
+                    centers[i] = torch.mean(X[labels == i], dim=0)
             else:
-                centers[i] = torch.mean(X[labels == i], dim=0)
+                # if a cluster is empty, we leave its center unchanged
+                pass
         # check if tolerance is reached
         if torch.allclose(centers, centers_old, atol=tol):
             break
@@ -296,12 +300,15 @@ class _BatchParallelKCluster(ht.ClusteringMixin, ht.BaseEstimator):
             balanced=x.balanced,
         )
         if self._p == 2:
-            self._functional_value = torch.norm(
-                x.larray - self._cluster_centers.larray[local_labels, :], p="fro"
+            self._functional_value = (
+                torch.norm(
+                    x.larray - self._cluster_centers.larray[local_labels, :].squeeze(), p="fro"
+                )
+                ** 2
             )
         else:
             self._functional_value = torch.norm(
-                x.larray - self._cluster_centers.larray[local_labels, :], p=self._p, dim=1
+                x.larray - self._cluster_centers.larray[local_labels, :].squeeze(), p=self._p, dim=1
             ).sum()
         x.comm.Allreduce(ht.communication.MPI.IN_PLACE, self._functional_value)
         self._functional_value = self._functional_value.item()
