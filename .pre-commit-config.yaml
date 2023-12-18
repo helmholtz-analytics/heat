@@ -1,24 +1,30 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
-    -   id: trailing-whitespace
-    -   id: end-of-file-fixer
-    -   id: check-yaml
-    -   id: check-added-large-files
-    -   id: check-toml
--   repo: https://github.com/psf/black-pre-commit-mirror
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-toml
+  - repo: https://github.com/psf/black-pre-commit-mirror
     rev: 23.10.1
     hooks:
-    -   id: black
--   repo: https://github.com/PyCQA/flake8
+      - id: black
+  - repo: https://github.com/PyCQA/flake8
     rev: 6.1.0
     hooks:
       - id: flake8
--   repo: https://github.com/pycqa/pydocstyle
-    rev: 6.3.0  # pick a git hash / tag to point to
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: 6.3.0 # pick a git hash / tag to point to
     hooks:
-    -   id: pydocstyle
-        exclude: 'tests|benchmarks|examples|scripts|setup.py'  #|heat/utils/data/mnist.py|heat/utils/data/_utils.py  ?
+      - id: pydocstyle
+        exclude: "tests|benchmarks|examples|scripts|setup.py" #|heat/utils/data/mnist.py|heat/utils/data/_utils.py  ?
+  - repo: "https://github.com/citation-file-format/cffconvert"
+    rev: "054bda51dbe278b3e86f27c890e3f3ac877d616c"
+    hooks:
+      - id: "validate-cff"
+        args:
+          - "--verbose"
