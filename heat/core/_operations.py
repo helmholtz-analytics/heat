@@ -84,6 +84,32 @@ def __binary_op(
         )
     promoted_type = types.result_type(t1, t2).torch_type()
 
+    # Type check for in-place operators
+    in_place_arithmetics = {
+        "wrap_add_",
+        "wrap_bitwise_and_",
+        "wrap_bitwise_or_",
+        "wrap_bitwise_xor_",
+        "wrap_div_",
+        "wrap_floordiv_",
+        "wrap_fmod_",
+        "wrap_gcd_",
+        "wrap_hypot_",
+        "wrap_lcm_",
+        "wrap_bitwise_left_shift_",
+        "wrap_mul_",
+        "wrap_pow_",
+        "wrap_remainder_",
+        "wrap_bitwise_right_shift_",
+        "wrap_sub_",
+    }
+    if operation.__name__ in in_place_arithmetics:
+        if not types.can_cast(types.heat_type_of(t2), types.heat_type_of(t1)):
+            raise TypeError(
+                f"Can not cast from {types.heat_type_of(t2)} to {types.heat_type_of(t1)} for "
+                + "in-place operations."
+            )
+
     # Make inputs Dndarrays
     if np.isscalar(t1) and np.isscalar(t2):
         try:

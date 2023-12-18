@@ -180,30 +180,6 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> s
     2.0
     """
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
 
     def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.add_(b)

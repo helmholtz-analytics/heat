@@ -268,7 +268,7 @@ class TestArithmetics(TestCase):
             self.assertTrue(a.lshape == a_lshape)
             self.assertIs(a, a_double)
         else:
-            with self.assertRaises(ValueError):
+            with self.assertRaises(NotImplementedError):
                 a += b
 
         # test function for invalid casting between data types
