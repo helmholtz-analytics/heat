@@ -1,3 +1,24 @@
+# v1.3.1 - Bug fixes, Docker documentation update
+
+## Bug fixes
+- #1259 Bug-fix for `ht.regression.Lasso()` on GPU (by @mrfh92)
+- #1201 Fix `ht.diff` for 1-element-axis edge case (by @mtar)
+
+## Changes
+
+### Interoperability
+
+- #1257 Docker release 1.3.x update (by @JuanPedroGHM)
+
+### Maintenance
+
+- #1274 Update version before release  (by @ClaudiaComito)
+- #1267 Unit tests: Increase tolerance for `ht.allclose` on `ht.inv` operations for all torch versions (by @ClaudiaComito)
+- #1266 Sync `pre-commit` configuration with `main` branch (by @ClaudiaComito)
+- #1264 Fix Pytorch release tracking workflows (by @mtar)
+- #1234 Update sphinx package requirements (by @mtar)
+- #1187 Create configuration file for Read the Docs (by @mtar)
+
 # v1.3.0 - Scalable SVD, GSoC`22 contributions, Docker image, PyTorch 2  support, AMD GPUs acceleration
 
 This release includes many important updates (see below). We particularly would like to thank our enthusiastic [GSoC2022](https://summerofcode.withgoogle.com/programs/2022) / tentative GSoC2023 contributors @Mystic-Slice @neosunhan @Sai-Suraj-27 @shahpratham @AsRaNi1 @Ishaan-Chandak 🙏🏼 Thank you so much!
