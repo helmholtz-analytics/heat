@@ -9,14 +9,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: helmholtz-analytics/heat
           ref: ${{ github.event.release.target_commitish }}
       - name: Update Changelog
+        env:
+          NAME: ${{ github.event.release.name }}
+          BODY: ${{ github.event.release.body }}
         run: |
-          echo ${{ format('\# {0} - {1}', env.GITHUB_REF, github.event.release.name) }} > cl_title.md
-          echo ${{ github.event.release.body }} > cl_new_body.md
+          echo ${{ format('\# {0} - {1}', env.GITHUB_REF, "$NAME") }} > cl_title.md
+          echo "$BODY" > cl_new_body.md
           echo "" > newline.txt
           cat cl_title.md newline.txt cl_new_body.md newline.txt CHANGELOG.md > tmp
           mv tmp CHANGELOG.md
