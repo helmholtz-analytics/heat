@@ -82,6 +82,7 @@ extension: str = "dev" # <-- set to None
 9. Go back to the Release Notes draft and publish them. The new release is out!
 
   - Make sure the CHANGELOG.md got updated, if not, call @JuanPedroGHM.
+  - Check Zenodo to make sure a DOI was created for the release.
 
 10. Now we want to update `main` to include the latest release,  we want to modify the version on main so that `minor` is increased by 1, and  `extension` is "dev".  In this example we want the version on `main` to be:`1.4.0-dev`.
 
@@ -181,6 +182,7 @@ extension: str = None
 
 10. Go back to the Release Notes draft and publish them. The new release is out!
   - Make sure the CHANGELOG.md got updated in the release branch, in this case `release/1.3.x`, if not, call @JuanPedroGHM.
+  - Check Zenodo to make sure a DOI was created for the release.
 
 11. Now we want to update `main` to the latest version, and we want the version on `main` to be `1.4.0-dev`.
   - Create a new branch from `release/1.3.x`, for example `merge-latest-release-into-main`
