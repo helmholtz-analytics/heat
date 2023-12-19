@@ -152,9 +152,9 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -184,7 +184,14 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     def wrap_add_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.add_(b)
 
-    return _operations.__binary_op(wrap_add_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_add_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.__iadd__ = add_
@@ -278,9 +285,9 @@ def bitwise_and_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -323,35 +330,17 @@ def bitwise_and_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types.")
 
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
-
     def wrap_bitwise_and_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.bitwise_and_(b)
 
-    return _operations.__binary_op(wrap_bitwise_and_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_bitwise_and_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.__iand__ = bitwise_and_
@@ -448,9 +437,9 @@ def bitwise_or_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -489,35 +478,17 @@ def bitwise_or_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types.")
 
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
-
     def wrap_bitwise_or_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.bitwise_or_(b)
 
-    return _operations.__binary_op(wrap_bitwise_or_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_bitwise_or_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.__ior__ = bitwise_or_
@@ -609,9 +580,9 @@ def bitwise_xor_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -650,35 +621,17 @@ def bitwise_xor_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         if heat_type_is_inexact(dt):
             raise TypeError("Operation is not supported for float types.")
 
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
-
     def wrap_bitwise_xor_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.bitwise_xor_(b)
 
-    return _operations.__binary_op(wrap_bitwise_xor_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_bitwise_xor_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.__ixor__ = bitwise_xor_
@@ -721,9 +674,9 @@ def copysign(
     """
     try:
         res = _operations.__binary_op(torch.copysign, a, b, out, where)
-    except RuntimeError as e:
+    except RuntimeError:
         # every other possibility is caught by __binary_op
-        raise TypeError(f"Not implemented for input type, got {type(a)}, {type(b)}") from e
+        raise TypeError(f"Not implemented for input type, got {type(a)}, {type(b)}")
 
     return res
 
@@ -747,7 +700,7 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
         At the moment, the operation only works for DNDarrays whose elements are floats and are not
         complex. This is due to the fact that it relies on the PyTorch function 'copysign_', which
@@ -785,29 +738,17 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
                 + f"complex. But your inputs have the datatypes {dtype1} and {dtype2}."
             )
 
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
     def wrap_copysign_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.copysign_(b)
 
-    return _operations.__binary_op(wrap_copysign_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_copysign_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.copysign_ = copysign_
@@ -1186,9 +1127,9 @@ def div_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -1223,35 +1164,18 @@ def div_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> v
     DNDarray([-1,  2], dtype=ht.int32, device=cpu:0, split=None)
     """
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
 
     def wrap_div_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.div_(b)
 
-    return _operations.__binary_op(wrap_div_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_div_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.__itruediv__ = div_
@@ -1437,9 +1361,9 @@ def floordiv_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -1474,35 +1398,18 @@ def floordiv_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> v
     DNDarray([-1,  2], dtype=ht.int32, device=cpu:0, split=None)
     """
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
 
     def wrap_floordiv_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.floor_divide_(b)
 
-    return _operations.__binary_op(wrap_floordiv_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_floordiv_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.__ifloordiv__ = floordiv_
@@ -1573,9 +1480,9 @@ def fmod_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -1607,35 +1514,18 @@ def fmod_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> s
     -3
     """
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
 
     def wrap_fmod_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.fmod_(b)
 
-    return _operations.__binary_op(wrap_fmod_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_fmod_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.fmod_ = fmod_
@@ -1678,9 +1568,9 @@ def gcd(
     """
     try:
         res = _operations.__binary_op(torch.gcd, a, b, out, where)
-    except RuntimeError as e:
+    except RuntimeError:
         # every other possibility is caught by __binary_op
-        raise TypeError(f"Expected integer input, got {a.dtype}, {b.dtype}") from e
+        raise TypeError(f"Expected integer input, got {a.dtype}, {b.dtype}")
 
     return res
 
@@ -1705,9 +1595,9 @@ def gcd_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -1730,39 +1620,20 @@ def gcd_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     >>> s
     2
     """
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
 
     def wrap_gcd_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.gcd_(b)
 
     try:
         return _operations.__binary_op(wrap_gcd_, t1, t2, out=t1)
-    except RuntimeError as e:
-        # every other possibility is caught by __binary_op
-        raise TypeError(f"Expected integer input, got {t1.dtype}, {t2.dtype}") from e
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
+    except RuntimeError:
+        raise TypeError(f"Expected integer input, got {t1.dtype}, {t2.dtype}")
 
 
 DNDarray.gcd_ = gcd_
@@ -1805,9 +1676,9 @@ def hypot(
     """
     try:
         res = _operations.__binary_op(torch.hypot, a, b, out, where)
-    except RuntimeError as e:
+    except RuntimeError:
         # every other possibility is caught by __binary_op
-        raise TypeError(f"Not implemented for array dtype, got {a.dtype}, {b.dtype}") from e
+        raise TypeError(f"Not implemented for array dtype, got {a.dtype}, {b.dtype}")
 
     return res
 
@@ -1829,9 +1700,9 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -1847,39 +1718,20 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
     >>> T2
     DNDarray(2., dtype=ht.float32, device=cpu:0, split=None)
     """
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
 
     def wrap_hypot_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.hypot_(b)
 
     try:
         return _operations.__binary_op(wrap_hypot_, t1, t2, out=t1)
-    except RuntimeError as e:
-        # every other possibility is caught by __binary_op
-        raise TypeError(f"Not implemented for array dtype, got {t1.dtype}, {t2.dtype}") from e
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
+    except RuntimeError:
+        raise TypeError(f"Not implemented for array dtype, got {t1.dtype}, {t2.dtype}")
 
 
 DNDarray.hypot_ = hypot_
@@ -2012,9 +1864,9 @@ def lcm(
     """
     try:
         res = _operations.__binary_op(torch.lcm, a, b, out, where)
-    except RuntimeError as e:
+    except RuntimeError:
         # every other possibility is caught by __binary_op
-        raise TypeError(f"Expected integer input, got {a.dtype}, {b.dtype}") from e
+        raise TypeError(f"Expected integer input, got {a.dtype}, {b.dtype}")
 
     return res
 
@@ -2039,9 +1891,9 @@ def lcm_(t1: DNDarray, t2: Union[DNDarray, int]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -2064,39 +1916,20 @@ def lcm_(t1: DNDarray, t2: Union[DNDarray, int]) -> DNDarray:
     >>> s
     2
     """
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
 
     def wrap_lcm_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.lcm_(b)
 
     try:
         return _operations.__binary_op(wrap_lcm_, t1, t2, out=t1)
-    except RuntimeError as e:
-        # every other possibility is caught by __binary_op
-        raise TypeError(f"Expected integer input, got {t1.dtype}, {t2.dtype}") from e
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
+    except RuntimeError:
+        raise TypeError(f"Expected integer input, got {t1.dtype}, {t2.dtype}")
 
 
 DNDarray.lcm_ = lcm_
@@ -2187,9 +2020,9 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -2220,35 +2053,17 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
                 + f"inputs have the datatypes {dtype1} and {dtype2}."
             )
 
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
-
     def wrap_bitwise_left_shift_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.bitwise_left_shift_(b)
 
-    return _operations.__binary_op(wrap_bitwise_left_shift_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_bitwise_left_shift_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.__ilshift__ = left_shift_
@@ -2338,9 +2153,9 @@ def mul_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -2375,35 +2190,18 @@ def mul_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> v
     DNDarray([-1,  2], dtype=ht.int32, device=cpu:0, split=None)
     """
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
 
     def wrap_mul_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.mul_(b)
 
-    return _operations.__binary_op(wrap_mul_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_mul_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.__imul__ = mul_
@@ -2824,9 +2622,9 @@ def pow_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -2861,35 +2659,18 @@ def pow_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> v
     DNDarray([-3,  2], dtype=ht.int32, device=cpu:0, split=None)
     """
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
 
     def wrap_pow_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.pow_(b)
 
-    return _operations.__binary_op(wrap_pow_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_pow_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.__ipow__ = pow_
@@ -3031,9 +2812,9 @@ def remainder_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -3065,35 +2846,18 @@ def remainder_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> s
     -3
     """
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
 
     def wrap_remainder_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.remainder_(b)
 
-    return _operations.__binary_op(wrap_remainder_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_remainder_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.__imod__ = remainder_
@@ -3185,9 +2949,9 @@ def right_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -3218,35 +2982,17 @@ def right_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
                 + f"inputs have the datatypes {dtype1} and {dtype2}."
             )
 
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
-
     def wrap_bitwise_right_shift_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.bitwise_right_shift_(b)
 
-    return _operations.__binary_op(wrap_bitwise_right_shift_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_bitwise_right_shift_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.__irshift__ = right_shift_
@@ -3339,9 +3085,9 @@ def sub_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     ------
     ValueError
         If both inputs are DNDarrays that do not have the same split axis and the shapes of their
-        underlying torch.tensors differ, s.t. we can not process them directly without resplitting.
+        underlying torch.tensors differ, s.t. we cannot process them directly without resplitting.
     TypeError
-        If the data type of `t2` can not be cast to the data type of `t1`. Although the
+        If the data type of `t2` cannot be cast to the data type of `t1`. Although the
         corresponding out-of-place operation may work, for the in-place version the requirements
         are stricter, because the data type of `t1` does not change.
 
@@ -3376,35 +3122,18 @@ def sub_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
     >>> v
     DNDarray([-3,  2], dtype=ht.int32, device=cpu:0, split=None)
     """
-    if isinstance(t2, DNDarray):
-        if (t1.split != t2.split) and (t2.split is not None):
-            try:
-                resulting_shape = torch.broadcast_shapes(t1.larray.shape, t2.larray.shape)
-            except RuntimeError:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-            if resulting_shape != t1.larray.shape:
-                raise ValueError(
-                    f"The differently split inputs (splits {t1.split} and {t2.split} can not be "
-                    + "processed in-place without resplitting, because the underlying tensors have "
-                    + f"shapes which are not broadcastable (shapes {t1.larray.shape} and "
-                    + f"{t2.larray.shape})."
-                )
-
-    if not can_cast(heat_type_of(t2), heat_type_of(t1)):
-        raise TypeError(
-            f"Can not cast from {heat_type_of(t2)} to {heat_type_of(t1)} for in-place "
-            + "operations."
-        )
 
     def wrap_sub_(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         return a.sub_(b)
 
-    return _operations.__binary_op(wrap_sub_, t1, t2, out=t1)
+    try:
+        return _operations.__binary_op(wrap_sub_, t1, t2, out=t1)
+    except NotImplementedError:
+        raise ValueError(
+            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
+            + "in-place without resplitting, because the underlying tensors have shapes which are "
+            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+        )
 
 
 DNDarray.__isub__ = sub_

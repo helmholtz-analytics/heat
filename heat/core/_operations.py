@@ -106,7 +106,7 @@ def __binary_op(
     if operation.__name__ in in_place_arithmetics:
         if not types.can_cast(types.heat_type_of(t2), types.heat_type_of(t1)):
             raise TypeError(
-                f"Can not cast from {types.heat_type_of(t2)} to {types.heat_type_of(t1)} for "
+                f"Cannot cast from {types.heat_type_of(t2)} to {types.heat_type_of(t1)} for "
                 + "in-place operations."
             )
 
