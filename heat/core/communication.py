@@ -290,7 +290,6 @@ class MPICommunication(Communication):
                     (tuple(factor * ele for ele in displs)),
                 ),
             )
-        print("DEBUGGING: non-contiguous memory")
         # non-contiguous memory, e.g. after a transpose, has to be packed in derived MPI types
         elements = obj.shape[0]
         shape = obj.shape[1:]
@@ -298,7 +297,6 @@ class MPICommunication(Communication):
         strides[0] = obj.stride()[-1]
         strides = strides[::-1]
         offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
-        print("DEBUGGING: shape, strides, offsets", shape, strides, offsets)
         # chain the types based on the
         for i in range(len(shape) - 1, -1, -1):
             mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
@@ -1051,13 +1049,8 @@ class MPICommunication(Communication):
 
         # unpack the send buffer
         if isinstance(sendbuf, tuple):
-            print("DEBUGGING: SENDBUF IS TUPLE")
             sendbuf, send_counts, send_displs = sendbuf
-            print(
-                "DEBUGGING: SENDBUF IS TUPLE", type(sendbuf), type(send_counts), type(send_displs)
-            )
         if isinstance(sendbuf, DNDarray):
-            print("DEBUGGING: SENDBUF IS DNDarray")
             sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and axis != 0:
             raise TypeError(
@@ -1078,7 +1071,6 @@ class MPICommunication(Communication):
         sbuf_is_contiguous, rbuf_is_contiguous = None, None
         # permute the send_axis order so that the split send_axis is the first to be transmitted
         if axis != 0:
-            print("DEBUGGING: PERMUTING, axis = ", axis)
             send_axis_permutation = list(range(sendbuf.ndimension()))
             send_axis_permutation[0], send_axis_permutation[axis] = axis, 0
             sendbuf = sendbuf.permute(*send_axis_permutation)
@@ -1098,18 +1090,14 @@ class MPICommunication(Communication):
         if sendbuf is MPI.IN_PLACE or not isinstance(sendbuf, torch.Tensor):
             mpi_sendbuf = sbuf
         else:
-            print("DEBUGGING: PREPARING SEND BUFFER")
             mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs, sbuf_is_contiguous)
-            print("DEBUGGING: SEND BUFFER", type(mpi_sendbuf))
             if send_counts is not None:
                 mpi_sendbuf[1] = mpi_sendbuf[1][0][self.rank]
 
         if recvbuf is MPI.IN_PLACE or not isinstance(recvbuf, torch.Tensor):
             mpi_recvbuf = rbuf
         else:
-            print("DEBUGGING: PREPARING RECV BUFFER")
             mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs, rbuf_is_contiguous)
-            print("DEBUGGING: RECV BUFFER", type(mpi_recvbuf))
             if recv_counts is None:
                 mpi_recvbuf[1] //= self.size
         # perform the scatter operation
