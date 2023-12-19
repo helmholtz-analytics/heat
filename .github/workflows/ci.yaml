@@ -13,19 +13,19 @@ jobs:
       fail-fast: false
       matrix:
         py-version:
-#          - 3.8
+          - 3.8
           - 3.9
-#          - '3.10'
+          - '3.10'
         mpi: [ 'openmpi' ]
         install-options: [ '.', '.[hdf5,netcdf]' ]
         pytorch-version:
-#          - 'torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1 numpy==1.20.0'
-#          - 'torch==1.9.1+cpu torchvision==0.10.1+cpu torchaudio==0.9.1'
-#          - 'torch==1.10.1+cpu torchvision==0.11.2+cpu torchaudio==0.10.1'
-#          - 'torch==1.11.0+cpu torchvision==0.12.0+cpu torchaudio==0.11.0'
-#          - 'torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1'
-          - 'torch==1.13.1+cpu torchvision==0.14.1+cpu torchaudio==0.13.1'
-#          - 'torch torchvision torchaudio'
+         - 'torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1 numpy==1.20.0'
+         - 'torch==1.9.1+cpu torchvision==0.10.1+cpu torchaudio==0.9.1'
+         - 'torch==1.10.1+cpu torchvision==0.11.2+cpu torchaudio==0.10.1'
+         - 'torch==1.11.0+cpu torchvision==0.12.0+cpu torchaudio==0.11.0'
+         - 'torch==1.12.1+cpu torchvision==0.13.1+cpu torchaudio==0.12.1'
+         - 'torch==1.13.1+cpu torchvision==0.14.1+cpu torchaudio==0.13.1'
+         - 'torch torchvision torchaudio'
         exclude:
           - py-version: '3.10'
             pytorch-version: 'torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1 numpy==1.20.0'
@@ -40,7 +40,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup MPI
-        uses: mpi4py/setup-mpi@v1
+        uses: mpi4py/setup-mpi@v1.2.0
         with:
           mpi: ${{ matrix.mpi }}
       - name: Use Python ${{ matrix.py-version }}
@@ -53,6 +53,5 @@ jobs:
           pip install pytest
           pip install ${{ matrix.pytorch-version }} --extra-index-url https://download.pytorch.org/whl/cpu
           pip install ${{ matrix.install-options }}
-          mpirun -n 2 python -m unittest -vf heat.core.tests.test_random.TestRandom.test_rand
-#          mpirun -n 3 pytest heat/
-#          mpirun -n 4 pytest heat/
+          mpirun -n 3 pytest heat/
+          mpirun -n 4 pytest heat/
