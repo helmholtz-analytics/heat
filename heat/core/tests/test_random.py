@@ -161,29 +161,15 @@ class TestRandom(TestCase):
 
         # Two large arrays that were created after each other don't share any values
         b = ht.random.rand(14, 7, 3, 12, 18, 42, split=5, dtype=ht.float64)
-        # b = ht.random.rand(7, 4, 3, 12, 2, 42, split=5, dtype=ht.float64)
         _, t_counts = torch.unique(b.larray, return_counts=True)
         # Assert that no value appears more than once locally
-        print("DEBUGGING: t_counts>1: ", t_counts[t_counts > 1])
         self.assertTrue((t_counts == 1).all())
-        # print("DEBUGGING: b indexed before Gather: ", b[0, 0, 0, 0, :, 0].larray)
-        print("DEBUGGING: b.shape: ", b.shape)
         np_b = b.numpy()
-        # print("DEBUGGING: b indexed after Gather: ", np_b[0, 0, 0, 0, :, 0])
-        print("DEBUGGING: np_b.shape: ", np_b.shape)
         _, counts = np.unique(np_b, return_counts=True)
-        print("DEBUGGING: counts>1: ", counts > 1)
-        # print("DEBUGGING: counts[counts > 1]: ", counts[counts > 1])
-        print("DEBUGGING: b when counts > 1: ", _[counts > 1])
         # Assert that no value appears more than once
         self.assertTrue((counts == 1).all())
         c = np.concatenate((a.flatten(), np_b.flatten()))
         _, counts = np.unique(c, return_counts=True)
-        print("DEBUGGING: DTYPES: ", a.dtype, b.dtype, c.dtype)
-        print("DEBUGGING: a, b, c max value: ", a.max(), b.max(), c.max())
-        print("DEBUGGING: counts>1: ", counts > 1)
-        print("DEBUGGING: counts[counts > 1]: ", counts[counts > 1])
-        print("DEBUGGING: c when counts > 1: ", _[counts > 1])
         self.assertTrue((counts == 1).all())
 
         # Values should be spread evenly across the range [0, 1)
