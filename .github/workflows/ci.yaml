@@ -1,13 +1,12 @@
 name: ci
 
 on:
-  push
-#  pull_request_review:
-#    types: [submitted]
+  pull_request_review:
+    types: [submitted]
 
 jobs:
   approved:
-#    if: github.event.review.state == 'approved'
+    if: github.event.review.state == 'approved'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
