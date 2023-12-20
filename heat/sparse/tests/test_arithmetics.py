@@ -729,6 +729,7 @@ class TestArithmetics(TestCase):
         with self.assertRaises(ValueError):
             heat_sparse_csr_C = ht.sparse.add(heat_sparse_csr_2x2, heat_sparse_csr_A)
 
+    @unittest.skipUnless(ht.get_device().device_type == "cpu", "only testable on CPU")
     def test_mul(self):
         heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A)
         heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_B)
