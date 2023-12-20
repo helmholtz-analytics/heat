@@ -3,9 +3,6 @@ name: ci
 on:
   pull_request_review:
     types: [submitted]
-    paths-ignore:
-      - 'doc/**'
-      - '.github/**'
 
 jobs:
   approved:
