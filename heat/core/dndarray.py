@@ -2520,10 +2520,21 @@ class DNDarray:
 
             # flip value, match value distribution to keys
             value = manipulations.flip(value, axis=output_split)
-            split_key = factories.array(
-                key[output_split], is_split=0, device=self.device, comm=self.comm
-            )
-            if value.is_distributed():
+            if self.is_distributed():
+                split_key = factories.array(
+                    key[output_split], is_split=0, device=self.device, comm=self.comm
+                )
+                if not value.is_distributed():
+                    # work with a distributed copy of `value`
+                    value = factories.array(
+                        value,
+                        dtype=self.dtype,
+                        split=output_split,
+                        device=self.device,
+                        comm=self.comm,
+                        copy=True,
+                    )
+                # match `value` distribution to `self[key]` distribution
                 target_map = value.lshape_map
                 target_map[:, output_split] = split_key.lshape_map[:, 0]
                 print(
@@ -2531,12 +2542,15 @@ class DNDarray:
                 )
                 value.redistribute_(target_map=target_map)
 
-            process_is_inactive = sum(
-                list(isinstance(k, torch.Tensor) and k.numel() == 0 for k in key)
-            )
-            if not process_is_inactive:
-                # only assign values if key does not contain empty slices
-                self.larray[key] = value.larray
+                process_is_inactive = sum(
+                    list(isinstance(k, torch.Tensor) and k.numel() == 0 for k in key)
+                )
+                if not process_is_inactive:
+                    # only assign values if key does not contain empty slices
+                    __set(self, key, value)
+            else:
+                # no communication necessary
+                __set(self, key, value)
             self = self.transpose(backwards_transpose_axes)
             return
 
