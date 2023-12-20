@@ -290,6 +290,7 @@ class MPICommunication(Communication):
                     (tuple(factor * ele for ele in displs)),
                 ),
             )
+        
         # non-contiguous memory, e.g. after a transpose, has to be packed in derived MPI types
         elements = obj.shape[0]
         shape = obj.shape[1:]
@@ -297,6 +298,7 @@ class MPICommunication(Communication):
         strides[0] = obj.stride()[-1]
         strides = strides[::-1]
         offsets = [obj.element_size() * stride for stride in obj.stride()[:-1]]
+        
         # chain the types based on the
         for i in range(len(shape) - 1, -1, -1):
             mpi_type = mpi_type.Create_vector(shape[i], 1, strides[i]).Create_resized(0, offsets[i])
