@@ -1406,11 +1406,13 @@ class TestDNDarray(TestCase):
         # 1-element slice along split axis
         x = ht.arange(20).reshape(4, 5)
         x.resplit_(axis=1)
-        x[:, 2:3] = ht.array([10, 40, 70, 100])
+        x[:, 2:3] = ht.array([10, 40, 70, 100]).reshape(4, 1)
         x_np = np.arange(20).reshape(4, 5)
-        x_np[:, 2:3] = np.array([10, 40, 70, 100])
+        x_np[:, 2:3] = np.array([10, 40, 70, 100]).reshape(4, 1)
         self.assert_array_equal(x, x_np)
         self.assertTrue(x.split == 1)
+        with self.assertRaises(ValueError):
+            x[:, 2:3] = ht.array([10, 40, 70, 100])
 
         # # slicing with negative step along split axis 0
         # shape = (20, 4, 3)

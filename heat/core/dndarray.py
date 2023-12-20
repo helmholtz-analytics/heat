@@ -2346,7 +2346,7 @@ class DNDarray:
             **kwargs,
         ):
             """
-            Broadcasts the given DNDarray `value` to the shape of the indexed array `arr[key]`.
+            Broadcasts the assignment DNDarray `value` to the shape of the indexed array `arr[key]` if necessary.
             """
             # need information on indexed array
             output_shape = kwargs.get("output_shape", None)
@@ -2364,8 +2364,7 @@ class DNDarray:
                         "Not enough information to broadcast value to indexed array, please provide `output_shape`"
                     )
             value_shape = value.shape
-            print("DEBUGGING: OUTPUT SHAPE, value shape = ", output_shape, value_shape)
-
+            # check if value needs to be broadcasted
             if value_shape != output_shape:
                 # assess whether the shapes are compatible, starting from the trailing dimension
                 for i in range(1, min(len(value_shape), len(output_shape))):
@@ -2379,19 +2378,16 @@ class DNDarray:
                         if (
                             value_shape[-i] != output_shape[-i]
                             and not value_shape[-i] == 1
-                            or output_shape[-i] == 1
+                            or not output_shape[-i] == 1
                         ):
                             # shapes are not compatible, raise error
                             raise ValueError(
-                                f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                                f"could not broadcast input from shape {value_shape} into shape {output_shape}"
                             )
                 while value.ndim < indexed_dims:
-                    print("DEBUGGING: value ndim = ", value.ndim)
                     # broadcasting
                     # expand missing dimensions to align split axis
-                    print("DEBUGGING: value shape before expanding = ", value.shape)
                     value = value.expand_dims(0)
-                    print("DEBUGGING: value shape after expanding = ", value.shape)
                     try:
                         value_shape = tuple(torch.broadcast_shapes(value.shape, output_shape))
                     except RuntimeError:
@@ -2399,12 +2395,11 @@ class DNDarray:
                             f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
                         )
                     return value
-                # # value has more dimensions than indexed array
-                # print("DEBUGGING: not broadcastable = ", value.ndim, output_shape)
-                # raise ValueError(
-                #     f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
-                # )
-            # value and output shape are the same
+                # value has more dimensions than indexed array
+                if value.ndim > indexed_dims:
+                    raise ValueError(
+                        f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                    )
             return value
 
         def __set(
