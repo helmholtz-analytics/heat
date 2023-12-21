@@ -2,9 +2,34 @@
 # Visit https://bit.ly/cffinit to generate yours today!
 
 cff-version: 1.2.0
-title: Heat
+title: HeAT
 message: 'If you use this software, please cite it as below.'
 type: software
+authors:
+  - family-names: Götz
+    given-names: Markus
+  - family-names: Debus
+    given-names: Charlotte
+  - family-names: Coquelin
+    given-names: Daniel
+  - family-names: Krajsek
+    given-names: Kai
+  - family-names: Comito
+    given-names: Claudia
+  - family-names: Knechtges
+    given-names: Philipp
+  - family-names: Hagemeier
+    given-names: Björn
+  - family-names: Tarnawa
+    given-names: Michael
+  - family-names: Hanselmann
+    given-names: Simon
+  - family-names: Siggel
+    given-names: Martin
+  - family-names: Basermann
+    given-names: Achim
+  - family-names: Streit
+    given-names: Achim
 repository-code: 'https://github.com/helmholtz-analytics/heat'
 url: 'https://helmholtz-analytics.github.io/heat/'
 repository: 'https://heat.readthedocs.io/en/stable/'
