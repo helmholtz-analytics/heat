@@ -1,21 +1,20 @@
 name: Get latest PyTorch version release branch
 on:
   workflow_dispatch:
-  schedule:
-    - cron:  '0 3 * * 1,4'
 env:
-  working_branch: workflows/new-pytorch-release-branch
-  base_branch: release/1.2.x
+  working_branch: support/new-pytorch-${{ github.ref_name }}
+  base_branch: ${{ github.ref_name }}
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 jobs:
   get-version:
     runs-on: ubuntu-latest
-    if: github.repository == 'hemlholtz-analytics/heat'
+    if: ${{ github.repository }} == 'hemlholtz-analytics/heat'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GHACTIONS }}
           ref: '${{ env.base_branch }}'
       - name: Fetch PyTorch release version
         run: |
@@ -33,5 +32,11 @@ jobs:
           echo "new=$(<.github/pytorch-release-versions/pytorch-latest.txt)" >> $GITHUB_ENV
           git config --global user.name 'ClaudiaComito'
           git config --global user.email 'c.comito@fz-juelich.de@users.noreply.github.com'
-          git commit -am "[skip ci] New PyTorch release ${{ env.new }}"
+          git commit -am "New PyTorch release ${{ env.new }}"
           git push --set-upstream origin ${{ env.working_branch }}
+  call-workflow:
+    needs: get-version
+    uses: ./.github/workflows/latest-pytorch-support.yml
+    with:
+      working_branch: support/new-pytorch-${{ github.ref_name }}
+      base_branch: ${{ github.ref_name }}

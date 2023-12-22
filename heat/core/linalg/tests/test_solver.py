@@ -65,11 +65,8 @@ class TestSolver(TestCase):
         lanczos_B = V_out @ T_out @ V_inv
         self.assertTrue(ht.allclose(lanczos_B, B))
 
-        # single precision tolerance
-        if int(torch.__version__.split(".")[1]) == 13:
-            tolerance = 1e-3
-        else:
-            tolerance = 1e-4
+        # single precision tolerance for torch.inv() is pretty bad
+        tolerance = 1e-3
 
         # float32, pre_defined v0, split mismatch
         A = ht.random.randn(n, n, dtype=ht.float32, split=0)

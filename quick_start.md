@@ -30,11 +30,25 @@ pip install heat[hdf5,netcdf]
 ```
 [Test](#test) your installation.
 
-### HPC
-Work in progress...
-
 ### Docker
-Work in progress ([PR 970](https://github.com/helmholtz-analytics/heat/pull/970))
+
+Get the docker image from our package repository
+
+```
+docker pull ghcr.io/helmholtz-analytics/heat:<version-tag>
+```
+
+or build it from our Dockerfile
+
+```
+git clone https://github.com/helmholtz-analytics/heat.git
+cd heat/docker
+docker build --build-arg HEAT_VERSION=X.Y.Z --build-arg PYTORCH_IMG=<nvcr-tag> -t heat:X.Y.Z .
+```
+
+`<nvcr-tag>` should be replaced with an existing version of the official Nvidia pytorch container image. Information and existing tags can be found on the [here](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch)
+
+See [our docker README](https://github.com/helmholtz-analytics/heat/tree/main/docker/README.md) for other details.
 
 ### Test
 In your terminal, test your setup with the [`heat_test.py`](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_test.py) script:
