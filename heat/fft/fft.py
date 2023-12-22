@@ -164,9 +164,9 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
             torch.fft.rfftn: torch.fft.fftn,
             torch.fft.rfft2: torch.fft.fft2,
         }
-        if fftn_op == torch.fft.ihfftn or fftn_op == torch.fft.ihfft2:
+        if "ihfft2" in str(fftn_op) or "ihfftn" in str(fftn_op):
             raise NotImplementedError(
-                "Inverse Hermitian FFTs not implemented for torch < 1.11.0. Please upgrade torch."
+                "n-dim inverse Hermitian FFTs not implemented for torch < 1.11.0. Please upgrade torch."
             )
     real_op = fftn_op in real_to_generic_fftn_ops
 
