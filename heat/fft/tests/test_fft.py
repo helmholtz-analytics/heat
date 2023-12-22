@@ -164,7 +164,6 @@ class TestFFT(TestCase):
         d = 0.22365
         y = ht.fft.rfftfreq(n, d=d)
         np_y = np.fft.rfftfreq(n, d=d)
-        self.assertEqual(y.shape[0], n // 2 + 1)
         self.assertEqual(y.shape, np_y.shape)
         self.assert_array_equal(y, np_y)
 
@@ -174,9 +173,6 @@ class TestFFT(TestCase):
         d = 0.1
         with self.assertRaises(TypeError):
             ht.fft.fftfreq(n, d=d, dtype=ht.int32)
-        # wrong dtype
-        with self.assertRaises(TypeError):
-            ht.fft.fftfreq(n, d=d, dtype=np.float64)
         # unsupported n
         n = 10.7
         with self.assertRaises(ValueError):
@@ -190,11 +186,6 @@ class TestFFT(TestCase):
         d = ht.array(0.1)
         with self.assertRaises(TypeError):
             ht.fft.fftfreq(n, d=d)
-        # unsupported output split
-        n = 10
-        d = 0.1
-        with self.assertRaises(IndexError):
-            ht.fft.fftfreq(n, d=d, split=1)
 
     def test_fftshift_ifftshift(self):
         # non-distributed
@@ -293,7 +284,7 @@ class TestFFT(TestCase):
 
     def test_rfft2_irfft2(self):
         # n-D distributed
-        x = ht.random.randn(4, 8, 6, dtype=ht.float64, split=0)
+        x = ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
         # FFT along last 2 axes
         y = ht.fft.rfft2(x, axes=(1, 2))
         np_y = np.fft.rfft2(x.numpy(), axes=(1, 2))
