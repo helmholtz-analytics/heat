@@ -149,12 +149,25 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     output_shape = list(x.shape)
     shift_op = fftn_op in [torch.fft.fftshift, torch.fft.ifftshift]
     inverse_real_op = fftn_op in [torch.fft.irfftn, torch.fft.irfft2]
-    real_to_generic_fftn_ops = {
-        torch.fft.rfftn: torch.fft.fftn,
-        torch.fft.rfft2: torch.fft.fft2,
-        torch.fft.ihfftn: torch.fft.ifftn,
-        torch.fft.ihfft2: torch.fft.ifft2,
-    }
+
+    torch_has_ihfftn = hasattr(torch.fft, "ihfftn")
+
+    if torch_has_ihfftn:
+        real_to_generic_fftn_ops = {
+            torch.fft.rfftn: torch.fft.fftn,
+            torch.fft.rfft2: torch.fft.fft2,
+            torch.fft.ihfftn: torch.fft.ifftn,
+            torch.fft.ihfft2: torch.fft.ifft2,
+        }
+    else:
+        real_to_generic_fftn_ops = {
+            torch.fft.rfftn: torch.fft.fftn,
+            torch.fft.rfft2: torch.fft.fft2,
+        }
+        if fftn_op == torch.fft.ihfftn or fftn_op == torch.fft.ihfft2:
+            raise NotImplementedError(
+                "Inverse Hermitian FFTs not implemented for torch < 1.11.0. Please upgrade torch."
+            )
     real_op = fftn_op in real_to_generic_fftn_ops
 
     # sanitize kwargs

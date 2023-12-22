@@ -228,21 +228,27 @@ class TestFFT(TestCase):
         reconstructed_x = ht.fft.hfft(inv_fft, n=n)
         self.assertEqual(reconstructed_x.shape[-1], n)
 
-    @unittest.skipIf(not torch_ihfftn, "no torch.fft.ihfftn in torch < 1.11")
     def test_hfft2_ihfft2(self):
         x = ht.random.randn(10, 6, 6, dtype=ht.float64)
-        inv_fft = ht.fft.ihfft2(x)
-        reconstructed_x = ht.fft.hfft2(inv_fft, s=x.shape[-2:])
-        self.assertTrue(ht.allclose(reconstructed_x, x))
+        if torch_ihfftn:
+            inv_fft = ht.fft.ihfft2(x)
+            reconstructed_x = ht.fft.hfft2(inv_fft, s=x.shape[-2:])
+            self.assertTrue(ht.allclose(reconstructed_x, x))
+        else:
+            with self.assertRaises(NotImplementedError):
+                ht.fft.ihfft2(x)
 
-    @unittest.skipIf(not torch_ihfftn, "no torch.fft.ihfftn in torch < 1.11")
     def test_hfftn_ihfftn(self):
         x = ht.random.randn(10, 6, 6, dtype=ht.float64)
-        inv_fft = ht.fft.ifftn(x)
-        reconstructed_x = ht.fft.hfftn(inv_fft, s=x.shape)
-        self.assertTrue(ht.allclose(reconstructed_x, x))
-        reconstructed_x_no_s = ht.fft.hfftn(inv_fft)
-        self.assertEqual(reconstructed_x_no_s.shape[-1], 2 * (inv_fft.shape[-1] - 1))
+        if torch_ihfftn:
+            inv_fft = ht.fft.ihfftn(x)
+            reconstructed_x = ht.fft.hfftn(inv_fft, s=x.shape)
+            self.assertTrue(ht.allclose(reconstructed_x, x))
+            reconstructed_x_no_s = ht.fft.hfftn(inv_fft)
+            self.assertEqual(reconstructed_x_no_s.shape[-1], 2 * (inv_fft.shape[-1] - 1))
+        else:
+            with self.assertRaises(NotImplementedError):
+                ht.fft.ihfftn(x)
 
     def test_rfft_irfft(self):
         # n-D distributed
