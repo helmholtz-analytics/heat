@@ -518,7 +518,7 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
     y = sanitize_input_type(y, x)
 
     # if one of the DNDarrays is distributed and the other is not
-    if x.split is not None and y.split is None and y.ndim > 0:
+    if x.is_distributed() and not y.is_distributed() and y.ndim > 0:
         t2 = factories.array(y.larray, device=x.device, split=x.split)
         x, t2 = sanitation.sanitize_distribution(x, t2, target=x)
         return x, t2
