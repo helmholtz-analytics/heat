@@ -228,14 +228,14 @@ class TestFFT(TestCase):
         reconstructed_x = ht.fft.hfft(inv_fft, n=n)
         self.assertEqual(reconstructed_x.shape[-1], n)
 
-    @unittest.skipIf(torch_no_ihfftn)
+    @unittest.skipIf(torch_no_ihfftn, "no torch.fft.ihfftn in torch < 1.11")
     def test_hfft2_ihfft2(self):
         x = ht.random.randn(10, 6, 6, dtype=ht.float64)
         inv_fft = ht.fft.ihfft2(x)
         reconstructed_x = ht.fft.hfft2(inv_fft, s=x.shape[-2:])
         self.assertTrue(ht.allclose(reconstructed_x, x))
 
-    @unittest.skipIf(torch_no_ihfftn)
+    @unittest.skipIf(torch_no_ihfftn, "no torch.fft.ihfftn in torch < 1.11")
     def test_hfftn_ihfftn(self):
         x = ht.random.randn(10, 6, 6, dtype=ht.float64)
         inv_fft = ht.fft.ifftn(x)
