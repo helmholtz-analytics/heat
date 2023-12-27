@@ -909,24 +909,138 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
             return c
 
-    if a.split is None and b.split is None:  # matmul from torch
-        if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
-            # if either of A or B is a vector
-            ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device, comm=a.comm)
+        # split la dims 11
+        elif a.split == ndim - 1 and b.split == ndim - 1:
+            # for this case, a is sent to b
+            #   this is because 'b' has complete columns and the rows of 'a' are split
+            # locations of the remainders in b
+            b_rem_locs1 = torch.nonzero(rem_map[:, 1, 1] == 1, as_tuple=False)
+            a_rem_locs1 = torch.nonzero(rem_map[:, 0, 1] == 1, as_tuple=False)
+            b_node_rem_s1 = b.larray[..., kB : (kB + 1) * a_rem_locs1.numel() : kB + 1, :nB]
+            # b_node_rem_s1 -> remainders for a in the
+
+            a_rem = torch.empty(
+                (*batch_shape, a.lshape[-2], a_rem_locs1.numel()),
+                dtype=b.dtype.torch_type(),
+                device=tdev,
+            )
+            # this if/elif/else loop is for the handling of
+            if comm.rank in b_rem_locs1:
+                # if b is split in dim1 and the rank has a remainder in this direction
+                r = b.larray[..., -1].unsqueeze(-1)
+                r_loc = index_map[comm.rank, 1, 1, 1] - index_map[comm.rank, 1, 1, 0] - 1
+            else:
+                r = None
+                r_loc = None
+            req = {}
+            a_lp_data = {}
+            for pr in range(comm.size):
+                # ibcast data on node first
+                if a.comm.rank == pr:
+                    a_lp_data[pr] = a.larray.clone()
+                else:
+                    a_lp_data[pr] = torch.zeros(
+                        (*batch_shape, lshape_map[pr, 0, -2].item(), lshape_map[pr, 0, -1].item()),
+                        dtype=a.dtype.torch_type(),
+                        device=tdev,
+                    )
+                # sending a to all nodes for b to operate with
+                req[pr] = comm.Ibcast(a_lp_data[pr], root=pr)
+                # receive the data from the last loop and do the calculation with that
+                if pr != 0:
+                    # after receiving the last loop's bcast
+                    req[pr - 1].Wait()
+                    __mm_c_block_setter(
+                        a_proc=pr - 1,
+                        b_proc=comm.rank,
+                        a_data=a_lp_data[pr - 1],
+                        b_data=b.larray,
+                        b_block_map=b_block_map,
+                        a_block_map=a_block_map,
+                        a_split=1,
+                        b_split=1,
+                        mB=mB,
+                        kB=kB,
+                        nB=nB,
+                        c=c.larray,
+                    )
+                    # check if there is a remainder on b in the previous node
+                    # this loop is intended to get the remainders of b since it is the one being passed
+                    if pr - 1 in a_rem_locs1:
+                        # takes care of the remainders in b as well as dim0 of a
+                        a_rem[..., pr - 1] = a_lp_data[pr - 1][..., -1]
+                    # this loop is to take care of the remainders in dim1 of B
+                    if b_rem_locs1.nelement() != 0 and r_loc is not None:
+                        st = index_map[pr - 1, 0, 1, 0].item()
+                        sp = index_map[pr - 1, 0, 1, 1].item()
+
+                        c.larray[..., r_loc.item()] += (
+                            a_lp_data[pr - 1] @ r[..., st:sp, :]
+                        ).squeeze(-1)
+
+                    del a_lp_data[pr - 1]
+
+                # need to wait if its the last loop, also need to collect the remainders
+                if pr == b.comm.size - 1:
+                    req[pr].Wait()
+                    __mm_c_block_setter(
+                        a_proc=pr,
+                        b_proc=a.comm.rank,
+                        a_data=a_lp_data[pr],
+                        b_data=b.larray,
+                        b_block_map=b_block_map,
+                        a_block_map=a_block_map,
+                        a_split=1,
+                        b_split=1,
+                        mB=mB,
+                        kB=kB,
+                        nB=nB,
+                        c=c.larray,
+                    )
+                    # check if there is a remainder on b on the last node (there shouldnt be)
+                    if pr in a_rem_locs1:
+                        # this is to save the data from B required by the remainders from dim1 of A
+                        a_rem[..., pr] = a_lp_data[pr][..., -1]
+                    # this loop is to take care of the remainders in the 0th dimension of A
+                    if b_rem_locs1.nelement() != 0 and r_loc is not None:
+                        st = index_map[pr, 0, 1, 0].item()
+                        sp = index_map[pr, 0, 1, 1].item()
+                        c.larray[..., r_loc.item()] += (a_lp_data[pr] @ r[..., st:sp, :]).squeeze(
+                            -1
+                        )
+                    # set the final blocks on the last loop, then adjust for the the remainders which were collected in b_rem
+                    if a_rem_locs1.numel():
+                        c.larray[..., : b_node_rem_s1.shape[-1]] += a_rem @ b_node_rem_s1
+                    del a_lp_data[pr]
+
             if gpu_int_flag:
-                ret = og_type(ret, device=a.device)
-            return ret
+                c = og_type(c, device=a.device)
 
-        a.resplit_(0)
-        slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
-        hold = a.larray @ b.larray
+            return c
 
-        c = factories.zeros((a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device, comm=a.comm)
-        c.larray[slice_0.start : slice_0.stop, :] += hold
-        c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
-        if gpu_int_flag:
-            c = og_type(c, device=a.device)
-        return c
+        if a.split is None and b.split is None:  # matmul from torch
+            if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
+                # if either of A or B is a vector
+                ret = factories.array(
+                    torch.matmul(a.larray, b.larray), device=a.device, comm=a.comm
+                )
+                if gpu_int_flag:
+                    ret = og_type(ret, device=a.device)
+                return ret
+
+            a.resplit_(0)
+            slice_0 = a.comm.chunk(a.shape, a.split)[2][0]
+            hold = a.larray @ b.larray
+
+            c = factories.zeros(
+                (a.gshape[-2], b.gshape[1]), dtype=c_type, device=a.device, comm=a.comm
+            )
+            c.larray[slice_0.start : slice_0.stop, :] += hold
+            c.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
+            if gpu_int_flag:
+                c = og_type(c, device=a.device)
+
+            return c
 
     # if they are vectors they need to be expanded to be the proper dimensions
     vector_flag = False  # flag to run squeeze at the end of the function
