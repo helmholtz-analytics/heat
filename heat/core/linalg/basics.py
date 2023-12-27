@@ -865,6 +865,50 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 c = og_type(c, device=a.device)
             return c
 
+        # split la dims 01
+        elif a.split == ndim - 2 and b.split == ndim - 1:
+            # for this case there are no remainders which need to be taken care of
+            req = {}
+            b_lp_data = {}
+            for pr in range(comm.size):
+                # ibcast data on node first
+                if comm.rank == pr:
+                    b_lp_data[pr] = b.larray.clone()
+                else:
+                    b_lp_data[pr] = torch.empty(
+                        (*batch_shape, lshape_map[pr, 1, -2].item(), lshape_map[pr, 1, -1].item()),
+                        dtype=b.dtype.torch_type(),
+                        device=tdev,
+                    )
+                # sending a to all nodes for b to operate with
+                req[pr] = comm.Ibcast(b_lp_data[pr], root=pr)
+
+                # receive the data from the last loop and do the calculation with that
+                if pr != 0:
+                    req[pr - 1].Wait()
+                    # after receiving the last loop's bcast
+                    st0 = index_map[pr - 1, 0, 0, 0].item()
+                    sp0 = index_map[pr - 1, 0, 0, 1].item() + 1
+                    st1 = index_map[pr - 1, 1, 1, 0].item()
+                    sp1 = index_map[pr - 1, 1, 1, 1].item()
+
+                    c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr - 1]
+
+                    del b_lp_data[pr - 1]
+                if pr == comm.size - 1:
+                    req[pr].Wait()
+                    st0 = index_map[pr, 0, 0, 0].item()
+                    sp0 = index_map[pr, 0, 0, 1].item() + 1
+                    st1 = index_map[pr, 1, 1, 0].item()
+                    sp1 = index_map[pr, 1, 1, 1].item()
+                    c.larray[..., : sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr]
+                    del b_lp_data[pr]
+
+            if gpu_int_flag:
+                c = og_type(c, device=dev)
+
+            return c
+
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
             # if either of A or B is a vector
