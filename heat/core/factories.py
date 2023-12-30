@@ -1264,7 +1264,7 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
         return []
 
     arrays = sanitize_sequence(arrays)
-    
+
     if indexing == "xy" and len(arrays) > 1:
         for idx, array in enumerate(arrays):
             sanitize_in(array)
