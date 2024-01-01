@@ -1265,14 +1265,14 @@ def meshgrid(*arrays: Sequence[DNDarray], indexing: str = "xy") -> List[DNDarray
 
     arrays = sanitize_sequence(arrays)
 
-    if indexing == "xy" and len(arrays) > 1:
-        for idx, array in enumerate(arrays):
-            sanitize_in(array)
-            if array.split is not None:
-                if splitted is not None:
-                    raise ValueError("split != None are not supported.")
-                splitted = idx
-                array.resplit_(None)
+    for idx, array in enumerate(arrays):
+        sanitize_in(array)
+        if array.split is not None:
+            if splitted is not None:
+                raise ValueError("split != None are not supported.")
+            splitted = idx
+        if indexing == "xy" and len(arrays) > 1:
+            array.resplit_(None)
 
     grids = torch.meshgrid(*(array.larray for array in arrays), indexing=indexing)
 
