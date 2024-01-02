@@ -357,7 +357,7 @@ class TestStatistics(TestCase):
         res = ht.bincount(a, weights=w)
         self.assertEqual(res.size, 4)
         self.assertEqual(res.dtype, ht.float64)
-        self.assertTrue(ht.equal(res, ht.arange((4,), dtype=ht.float64)))
+        self.assertTrue(ht.equal(res, ht.arange(4, dtype=ht.float64)))
 
         with self.assertRaises(ValueError):
             ht.bincount(ht.array([0, 1, 2, 3], split=0), weights=ht.array([1, 2, 3, 4]))
