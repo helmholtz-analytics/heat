@@ -238,9 +238,15 @@ def _torch_data(dndarray, summarize) -> DNDarray:
 
             # non-split dimension, can slice locally
             if i != dndarray.split:
-                start_tensor = torch.index_select(data, i, torch.arange(edgeitems + 1))
+                start_tensor = torch.index_select(
+                    data, i, torch.arange(edgeitems + 1, device=data.device)
+                )
                 end_tensor = torch.index_select(
-                    data, i, torch.arange(dndarray.lshape[i] - edgeitems, dndarray.lshape[i])
+                    data,
+                    i,
+                    torch.arange(
+                        dndarray.lshape[i] - edgeitems, dndarray.lshape[i], device=data.device
+                    ),
                 )
                 data = torch.cat([start_tensor, end_tensor], dim=i)
             # split-dimension , need to respect the global offset
@@ -249,18 +255,32 @@ def _torch_data(dndarray, summarize) -> DNDarray:
 
                 if offset < edgeitems + 1:
                     end = min(dndarray.lshape[i], edgeitems + 1 - offset)
-                    data = torch.index_select(data, i, torch.arange(end))
+                    data = torch.index_select(data, i, torch.arange(end, device=data.device))
                 elif dndarray.gshape[i] - edgeitems < offset - dndarray.lshape[i]:
                     global_start = dndarray.gshape[i] - edgeitems
                     data = torch.index_select(
-                        data, i, torch.arange(max(0, global_start - offset), dndarray.lshape[i])
+                        data,
+                        i,
+                        torch.arange(
+                            max(0, global_start - offset),
+                            dndarray.lshape[i],
+                            device=data.device,
+                        ),
                     )
         # exchange data
-        received = dndarray.comm.gather(data)
+        exchange_sizes = dndarray.comm.gather(torch.tensor(data.shape), root=0)
         if dndarray.comm.rank == 0:
-            # concatenate data along the split axis
-            data = torch.cat(received, dim=dndarray.split)
-
+            counts = tuple([s[dndarray.split] for s in exchange_sizes])
+            displs = (0,) + tuple(torch.cumsum(torch.tensor(counts), dim=0)[:-1])
+            recv_size = exchange_sizes[0].clone()
+            recv_size[dndarray.split] = sum(counts)
+            recv_buf = torch.empty(tuple(recv_size), dtype=data.dtype, device=data.device)
+            recv_buf = (recv_buf, counts, displs)
+        else:
+            recv_buf = torch.empty(0)
+        dndarray.comm.Gatherv(data, recv_buf, axis=dndarray.split, recv_axis=dndarray.split)
+        if dndarray.comm.rank == 0:
+            data = recv_buf[0]
     return data
 
 

@@ -26,6 +26,7 @@ __all__ = [
     "balance",
     "broadcast_arrays",
     "broadcast_to",
+    "collect",
     "column_stack",
     "concatenate",
     "diag",
@@ -242,6 +243,52 @@ def broadcast_to(x: DNDarray, shape: Tuple[int, ...]) -> DNDarray:
         del x
 
     return broadcasted
+
+
+def collect(arr: DNDarray, target_rank: Optional[int] = 0) -> DNDarray:
+    """
+    A function collecting a distributed DNDarray to one rank, chosen by the `target_rank` variable.
+    It is a specific case of the ``redistribute_`` method.
+
+    Parameters
+    ----------
+    arr : DNDarray
+        The DNDarray to be collected.
+    target_rank : int, optional
+        The rank to which the DNDarray will be collected. Default: 0.
+
+    Raises
+    ------
+    TypeError
+        If the target rank is not an integer.
+    ValueError
+        If the target rank is out of bounds.
+
+    Examples
+    --------
+    >>> st = ht.ones((50, 81, 67), split=2)
+    >>> print(st.lshape)
+    [0/2] (50, 81, 23)
+    [1/2] (50, 81, 22)
+    [2/2] (50, 81, 22)
+    >>> collected_st = collect(st)
+    >>> print(collected_st)
+    [0/2] (50, 81, 67)
+    [1/2] (50, 81, 0)
+    [2/2] (50, 81, 0)
+    >>> collected_st = collect(collected_st, 1)
+    >>> print(st.lshape)
+    [0/2] (50, 81, 0)
+    [1/2] (50, 81, 67)
+    [2/2] (50, 81, 0)
+    """
+    arr2 = arr.copy()
+    arr2.collect_(target_rank=target_rank)
+    return arr2
+
+
+DNDarray.collect = lambda arr, target_rank=0: redistribute(arr, target_rank)
+DNDarray.collect.__doc__ = collect.__doc__
 
 
 def column_stack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
@@ -1985,7 +2032,7 @@ def reshape(a: DNDarray, *shape: Union[int, Tuple[int, ...]], **kwargs) -> DNDar
     (2/2) tensor([[ 8., 10., 12., 14.]])
     """
     if not isinstance(a, DNDarray):
-        raise TypeError("'a' must be a DNDarray, currently {}".format(type(a)))
+        raise TypeError(f"'a' must be a DNDarray, currently {type(a)}")
 
     # use numpys _ShapeLike but expand to handle torch and heat Tensors
     np_proxy = np.lib.stride_tricks.as_strided(np.ones(1), a.gshape, [0] * a.ndim, writeable=False)
@@ -3984,7 +4031,7 @@ def topk(
                 )
             )
         if out[1].dtype != types.int64:
-            raise RuntimeError("dtype of 'out[1]' is not ht.int64, found {}".format(out[1].dtype))
+            raise RuntimeError(f"dtype of 'out[1]' is not ht.int64, found {out[1].dtype}")
 
     dim = stride_tricks.sanitize_axis(a.gshape, dim)
 
@@ -4073,8 +4120,12 @@ def topk(
                     gres.shape, gindices.shape, out[0].shape, out[1].shape
                 )
             )
-        out[0].larray.storage().copy_(final_array.larray.storage())
-        out[1].larray.storage().copy_(final_indices.larray.storage())
+        try:
+            out[0].larray.untyped_storage().copy_(final_array.larray.untyped_storage())
+            out[1].larray.untyped_storage().copy_(final_indices.larray.untyped_storage())
+        except AttributeError:
+            out[0].larray.storage().copy_(final_array.larray.storage())
+            out[1].larray.storage().copy_(final_indices.larray.storage())
 
         out[0]._DNDarray__dtype = a.dtype
         out[1]._DNDarray__dtype = types.int64
