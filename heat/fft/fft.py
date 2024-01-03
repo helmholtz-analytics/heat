@@ -159,7 +159,7 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
             torch.fft.ihfftn: torch.fft.ifftn,
             torch.fft.ihfft2: torch.fft.ifft2,
         }
-    else:
+    else: # pragma: no cover
         real_to_generic_fftn_ops = {
             torch.fft.rfftn: torch.fft.fftn,
             torch.fft.rfft2: torch.fft.fft2,
@@ -854,7 +854,7 @@ def ihfft2(
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
     torch_has_ihfftn = hasattr(torch.fft, "ihfftn")
-    if not torch_has_ihfftn:
+    if not torch_has_ihfftn: # pragma: no cover
         raise NotImplementedError(
             f"n-dim inverse Hermitian FFTs not implemented for torch < 1.11.0. Your environment runs torch {torch.__version__}. Please upgrade torch."
         )
@@ -892,7 +892,7 @@ def ihfftn(
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
     torch_has_ihfftn = hasattr(torch.fft, "ihfftn")
-    if not torch_has_ihfftn:
+    if not torch_has_ihfftn: # pragma: no cover
         raise NotImplementedError(
             f"n-dim inverse Hermitian FFTs not implemented for torch < 1.11.0. Your environment runs torch {torch.__version__}. Please upgrade torch."
         )
