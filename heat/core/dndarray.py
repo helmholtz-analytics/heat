@@ -1483,7 +1483,7 @@ class DNDarray:
                 )
                 return indexed_arr
         else:
-            # multi-element key
+            # process multi-element key
             (
                 self,
                 key,
@@ -1494,6 +1494,21 @@ class DNDarray:
                 root,
                 backwards_transpose_axes,
             ) = self.__process_key(key, return_local_indices=True)
+
+        if not self.is_distributed():
+            # key is torch-proof, index underlying torch tensor
+            indexed_arr = self.larray[key]
+            # transpose array back if needed
+            self = self.transpose(backwards_transpose_axes)
+            return DNDarray(
+                indexed_arr,
+                gshape=output_shape,
+                dtype=self.dtype,
+                split=output_split,
+                device=self.device,
+                comm=self.comm,
+                balanced=out_is_balanced,
+            )
 
         if split_key_is_ordered == 1:
             if root is not None:
