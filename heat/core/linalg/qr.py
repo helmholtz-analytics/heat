@@ -91,7 +91,7 @@ def qr(
 
     QR = collections.namedtuple("QR", "Q, R")
 
-    if a.split is None:
+    if not a.is_distributed():
         try:
             q, r = torch.linalg.qr(a.larray, mode="complete")
         except AttributeError:
