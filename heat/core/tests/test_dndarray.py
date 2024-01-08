@@ -1424,15 +1424,16 @@ class TestDNDarray(TestCase):
         self.assertTrue(ht.allclose(x_3d_sliced, value.astype(x_3d.dtype)))
         self.assertTrue(x_3d_sliced.dtype == x_3d.dtype)
 
-        # # slicing with negative step along split 1
-        # shape = (4, 20, 3)
-        # x_3d = ht.arange(20 * 4 * 3).reshape(shape)
-        # x_3d.resplit_(axis=1)
-        # key = (slice(None, 2), slice(17, 2, -2), 1)
-        # x_3d_sliced = x_3d[key]
-        # x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[:2, 17:2:-2, 1]
-        # self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
-        # self.assertTrue(x_3d_sliced.split == 1)
+        # slicing with negative step along split 1
+        shape = (4, 20, 3)
+        x_3d = ht.arange(20 * 4 * 3, dtype=ht.float32).reshape(shape)
+        x_3d.resplit_(axis=1)
+        key = (slice(None, 2), slice(17, 2, -2), 1)
+        value = ht.random.randn(2, 8)
+        x_3d[key] = value
+        x_3d_sliced = x_3d[key]
+        self.assertTrue(ht.allclose(x_3d_sliced, value.astype(x_3d.dtype)))
+        self.assertTrue(x_3d_sliced.dtype == x_3d.dtype)
 
         # # slicing with negative step along split 2 and loss of axis < split
         # shape = (4, 3, 20)
