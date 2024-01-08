@@ -2533,11 +2533,12 @@ class DNDarray:
         if split_key_is_ordered == -1:
             # key is in descending order, i.e. slice with negative step
 
-            # flip value, match value distribution to keys
+            # flip value, match value distribution to key's
+            # NB: `value.ndim` might be smaller than `self.ndim`, `value.split` nominally different from `self.split`
             value = manipulations.flip(value, axis=output_split)
             if self.is_distributed():
                 split_key = factories.array(
-                    key[output_split], is_split=0, device=self.device, comm=self.comm
+                    key[self.split], is_split=0, device=self.device, comm=self.comm
                 )
                 if not value.is_distributed():
                     # work with a distributed copy of `value`
@@ -2561,6 +2562,7 @@ class DNDarray:
                     list(isinstance(k, torch.Tensor) and k.numel() == 0 for k in key)
                 )
                 if not process_is_inactive:
+                    print("DEBUGGING: value.larray = ", value.larray, value.lshape_map)
                     # only assign values if key does not contain empty slices
                     __set(self, key, value)
             else:
