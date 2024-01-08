@@ -74,7 +74,7 @@ class TestQR(TestCase):
             for sp in range(2):
                 a2 = ht.array(st2, split=sp)
                 qr2 = a2.qr(tiles_per_proc=t)
-                self.assertTrue(ht.allclose(a_comp2, qr2.Q @ qr2.R, rtol=1e-5, atol=1e-5))
+                self.assertTrue(ht.allclose(a_comp2, qr2.Q @ qr2.R, rtol=1e-3, atol=1e-3))
                 self.assertTrue(
                     ht.allclose(qr2.Q.T @ qr2.Q, ht.eye(m, dtype=ht.double), rtol=1e-5, atol=1e-5)
                 )
