@@ -867,6 +867,8 @@ class TestLinalgBasics(TestCase):
             m = 100
 
             torch.manual_seed(42)
+
+            # integer
             at = torch.randint(0, 100, (n, m, k))
             bt = torch.randint(0, 100, (n, k, m))
             ct = at @ bt
@@ -882,6 +884,26 @@ class TestLinalgBasics(TestCase):
                 ret_batched = ht.matmul(a, b)
 
                 self.assertTrue(ht.equal(ret_batched, c))
+
+            # float
+            at = torch.randn((n, m, k))
+            bt = torch.randn((n, k, m))
+            ct = at @ bt
+
+            a = ht.factories.asarray(at, copy=True)
+            b = ht.factories.asarray(bt, copy=True)
+            c = ht.factories.asarray(ct, copy=True)
+
+            for s0, s1 in [(0, 0), (0, 1), (1, 1)]:
+                a.resplit_(-2 + s0)
+                b.resplit_(-2 + s1)
+
+                ret_batched = ht.matmul(a, b)
+                # print(f"{s0}{s1}: {ht.max(ht.abs(ret_batched - c)).item()}")
+                max_diff = ht.max(ht.abs(ret_batched - c)).item()
+
+                # self.assertTrue(ht.allclose(ret_batched, c, 1e-2))
+                self.assertTrue(max_diff < 1e-4)
 
     def test_matrix_norm(self):
         a = ht.arange(9, dtype=ht.float) - 4
