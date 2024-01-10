@@ -9,15 +9,21 @@ dataset_path = "/projects/HPDAGrundlagensoftware-Heat/Testdata/JPL_SBDB/sbdb_ast
 load_fraction = 0.1
 device = "cpu"
 
-# load jpl asteroids dataset and scale the data 
-data = ht.load(dataset_path, load_fraction=load_fraction, dataset='data', split=0, dtype=ht.float32, device=device)
+# load jpl asteroids dataset and scale the data
+data = ht.load(
+    dataset_path,
+    load_fraction=load_fraction,
+    dataset="data",
+    split=0,
+    dtype=ht.float32,
+    device=device,
+)
 preproc = ht.preprocessing.StandardScaler(copy=False)
 data = preproc.fit_transform(data)
 
 n_procs = ht.MPI_WORLD.size
 
 for n_clusters in range(2, n_cluster_max + 1):
-
     times_kmpp = []
     times_kmbp = []
     values_kmpp = []
@@ -45,7 +51,7 @@ for n_clusters in range(2, n_cluster_max + 1):
         del clusterer_kmbp
 
     if ht.MPI_WORLD.rank == 0:
-        np.savetxt('times_kmbp_%d_%d.txt' % (n_clusters, n_procs), np.asarray(times_kmbp))
-        np.savetxt('values_kmbp_%d_%d.txt' % (n_clusters, n_procs), np.asarray(values_kmbp))
-        np.savetxt('times_kmpp_%d_%d.txt' % (n_clusters, n_procs), np.asarray(times_kmpp))
-        np.savetxt('values_kmpp_%d_%d.txt' % (n_clusters, n_procs), np.asarray(values_kmpp))
+        np.savetxt("times_kmbp_%d_%d.txt" % (n_clusters, n_procs), np.asarray(times_kmbp))
+        np.savetxt("values_kmbp_%d_%d.txt" % (n_clusters, n_procs), np.asarray(values_kmbp))
+        np.savetxt("times_kmpp_%d_%d.txt" % (n_clusters, n_procs), np.asarray(times_kmpp))
+        np.savetxt("values_kmpp_%d_%d.txt" % (n_clusters, n_procs), np.asarray(values_kmpp))

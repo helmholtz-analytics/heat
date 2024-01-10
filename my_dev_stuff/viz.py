@@ -1,51 +1,57 @@
-import heat as ht 
+import heat as ht
 import matplotlib.pyplot as plt
 import torch
-import time 
+import time
 
-# load jpl asteroids dataset 
-data = ht.load("/projects/HPDAGrundlagensoftware-Heat/Testdata/JPL_SBDB/sbdb_asteroids.h5", load_fraction=0.01, dataset='data', split=0, dtype=ht.float32)
+# load jpl asteroids dataset
+data = ht.load(
+    "/projects/HPDAGrundlagensoftware-Heat/Testdata/JPL_SBDB/sbdb_asteroids.h5",
+    load_fraction=0.01,
+    dataset="data",
+    split=0,
+    dtype=ht.float32,
+)
 preproc = ht.preprocessing.StandardScaler(copy=False)
 data = preproc.fit_transform(data)
 
-# clustering 
-#clusterer = ht.cluster.BatchParallelKMeans(n_clusters=10,init="k-means++")
+# clustering
+# clusterer = ht.cluster.BatchParallelKMeans(n_clusters=10,init="k-means++")
 t0 = time.perf_counter()
-clusterer = ht.cluster.KMeans(n_clusters=10,init="random")
-labels=clusterer.fit_predict(data)
+clusterer = ht.cluster.KMeans(n_clusters=10, init="random")
+labels = clusterer.fit_predict(data)
 t1 = time.perf_counter()
 
 if data.comm.rank == 0:
-    print("Time for Kmeans (random init): ", t1-t0)
+    print("Time for Kmeans (random init): ", t1 - t0)
     print("Functional (random init): ", clusterer.functional_value_)
 
 t0 = time.perf_counter()
-clusterer = ht.cluster.KMeans(n_clusters=10,init="kmeans++")
-labels=clusterer.fit_predict(data)
+clusterer = ht.cluster.KMeans(n_clusters=10, init="kmeans++")
+labels = clusterer.fit_predict(data)
 t1 = time.perf_counter()
 
 if data.comm.rank == 0:
-    print("Time for Kmeans (++ init): ", t1-t0)
+    print("Time for Kmeans (++ init): ", t1 - t0)
     print("Functional (++ init): ", clusterer.functional_value_)
 
 t0 = time.perf_counter()
-clusterer = ht.cluster.KMeans(n_clusters=10,init="batchparallel")
-labels=clusterer.fit_predict(data)
+clusterer = ht.cluster.KMeans(n_clusters=10, init="batchparallel")
+labels = clusterer.fit_predict(data)
 t1 = time.perf_counter()
 
 if data.comm.rank == 0:
-    print("Time for Kmeans (batchparallel init): ", t1-t0)
+    print("Time for Kmeans (batchparallel init): ", t1 - t0)
     print("Functional (batchparallel init): ", clusterer.functional_value_)
 
 
-# clustering 
+# clustering
 t0 = time.perf_counter()
-clusterer = ht.cluster.BatchParallelKMeans(n_clusters=10,init="k-means++")
-labels=clusterer.fit_predict(data)
+clusterer = ht.cluster.BatchParallelKMeans(n_clusters=10, init="k-means++")
+labels = clusterer.fit_predict(data)
 t1 = time.perf_counter()
 
 if data.comm.rank == 0:
-    print("Time for BatchParallelKmeans: ", t1-t0)
+    print("Time for BatchParallelKmeans: ", t1 - t0)
     print("Functional BatchParallelKmeans: ", clusterer.functional_value_)
 
 # # hSVD
