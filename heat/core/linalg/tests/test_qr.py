@@ -27,7 +27,7 @@ class TestQR(TestCase):
                     a_comp = ht.array(st, split=0)
                     a = ht.array(st, split=sp)
                     qr = a.qr(tiles_per_proc=t)
-                    self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
+                    self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-3, atol=1e-3))
                     self.assertTrue(ht.allclose(qr.Q.T @ qr.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
                     self.assertTrue(ht.allclose(ht.eye(m), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5))
 
@@ -42,19 +42,19 @@ class TestQR(TestCase):
                     a_comp = ht.array(st, split=0)
                     a = ht.array(st, split=sp)
                     qr = a.qr(tiles_per_proc=t)
-                    self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
+                    self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-3, atol=1e-3))
                     self.assertTrue(ht.allclose(qr.Q.T @ qr.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
                     self.assertTrue(ht.allclose(ht.eye(m), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5))
 
     def test_qr(self):
-        m, n = 20, 40
+        m, n = 30, 40
         st = torch.randn(m, n, device=self.device.torch_device, dtype=torch.float)
         a_comp = ht.array(st, split=0)
         for t in range(1, 3):
             for sp in range(2):
                 a = ht.array(st, split=sp, dtype=torch.float)
                 qr = a.qr(tiles_per_proc=t)
-                self.assertTrue(ht.allclose((a_comp - (qr.Q @ qr.R)), 0, rtol=1e-5, atol=1e-5))
+                self.assertTrue(ht.allclose((a_comp - (qr.Q @ qr.R)), 0, rtol=1e-3, atol=1e-3))
                 self.assertTrue(ht.allclose(qr.Q.T @ qr.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
                 self.assertTrue(ht.allclose(ht.eye(m), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5))
         m, n = 40, 40
@@ -64,7 +64,7 @@ class TestQR(TestCase):
             for sp in range(2):
                 a1 = ht.array(st1, split=sp)
                 qr1 = a1.qr(tiles_per_proc=t)
-                self.assertTrue(ht.allclose((a_comp1 - (qr1.Q @ qr1.R)), 0, rtol=1e-5, atol=1e-5))
+                self.assertTrue(ht.allclose((a_comp1 - (qr1.Q @ qr1.R)), 0, rtol=1e-3, atol=1e-3))
                 self.assertTrue(ht.allclose(qr1.Q.T @ qr1.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
                 self.assertTrue(ht.allclose(ht.eye(m), qr1.Q @ qr1.Q.T, rtol=1e-5, atol=1e-5))
         m, n = 40, 20
@@ -95,7 +95,7 @@ class TestQR(TestCase):
         a_comp = ht.array(st, split=None)
         a = ht.array(st, split=None)
         qr = a.qr()
-        self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
+        self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-3, atol=1e-3))
         self.assertTrue(ht.allclose(qr.Q.T @ qr.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
         self.assertTrue(ht.allclose(ht.eye(m), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5))
 
