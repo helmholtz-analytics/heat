@@ -215,51 +215,76 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
         ).astype(a.dtype.torch_type())
 
 
-def fftconvolve(a: DNDarray, v: DNDarray, mode: str = "full", axes=None) -> DNDarray:
+"""
+The following implementation is heavily inspired by the one of `fftconvolve` in SciPy
+(https://github.com/scipy/scipy/blob/fa9f13e6906e7d00510d593f7f982db30e4e4f14/scipy/signal/_signaltools.py).
+"""
+
+
+def fftconvolve(t1: DNDarray, t2: DNDarray, mode: str = "full", axes=None) -> DNDarray:
     """
     Convolve two N-dimensional arrays using FFT.
 
-    Convolve `a` and `v` using the fast Fourier transform method, with     the output size
-    determined by the `mode` argument.
+    Convolve `t1` and `t2` using the fast Fourier transform method, with the output size determined
+    by the `mode` argument.
 
     This is generally much faster than `convolve` for large arrays (n > ~500), but can be slower
     when only a few output values are needed, and can only output float arrays (int or object array
     inputs will be cast to float).
 
+    Parameters
+    ----------
+    t1 :    DNDarray or scalar
+            First input.
+    t2 :    DNDarray or scalar
+            Second input. Should have the same number of dimensions as `t1`.
+    mode : str {'full', 'valid', 'same'}, optional
+        A string indicating the size of the output:
+        ``full``
+           The output is the full discrete linear convolution of the inputs. (Default)
+        ``valid``
+           The output consists only of those elements that do not rely on the zero-padding. In
+           'valid' mode, either `t1` or `t2` must be at least as large as the other in every
+           dimension.
+        ``same``
+           The output is the same size as `t1`, centered with respect to the 'full' output.
+    axes : int or array_like of ints or None, optional
+        Axes over which to compute the convolution. The default is over all axes.
+
     Returns
     -------
     out : array
-        An N-dimensional array containing a subset of the discrete linear convolution of `a` with
-        `v`.
+        An N-dimensional array containing a subset of the discrete linear convolution of `t1` with
+        `t2`.
     """
-    if not isinstance(a, DNDarray):
-        a = ht.array(a)
-    if not isinstance(v, DNDarray):
-        v = ht.array(v)
+    if not isinstance(t1, DNDarray):
+        t1 = ht.array(t1)
+    if not isinstance(t2, DNDarray):
+        t2 = ht.array(t2)
 
-    if a.ndim == v.ndim == 0:  # scalar inputs
-        return a * v
-    elif a.ndim != v.ndim:
+    if t1.ndim == t2.ndim == 0:  # scalar inputs
+        return t1 * t2
+    elif t1.ndim != t2.ndim:
         raise ValueError(
-            f"The inputs should have the same dimensionality. But your inputs have dim {a.ndim} and"
-            + f" {v.ndim}."
+            f"The inputs should have the same dimensionality. But your inputs have dim {t1.ndim} "
+            + f"and {t2.ndim}."
         )
-    elif a.size == 0 or v.size == 0:  # empty arrays
+    elif t1.size == 0 or t2.size == 0:  # empty arrays
         return ht.array([])
 
-    a, v, axes = _init_freq_conv_axes(a, v, mode, axes)
+    t1, t2, axes = _init_freq_conv_axes(t1, t2, mode, axes)
 
-    s1 = a.shape
-    s2 = v.shape
+    s1 = t1.shape
+    s2 = t2.shape
 
-    shape = [max((s1[i], s2[i])) if i not in axes else s1[i] + s2[i] - 1 for i in range(a.ndim)]
+    shape = [max((s1[i], s2[i])) if i not in axes else s1[i] + s2[i] - 1 for i in range(t1.ndim)]
 
-    ret = _freq_domain_conv(a, v, axes, shape, calc_fast_len=True)
+    ret = _freq_domain_conv(t1, t2, axes, shape, calc_fast_len=True)
 
     return _apply_conv_mode(ret, s1, s2, mode, axes)
 
 
-def _init_freq_conv_axes(in1, in2, mode, axes):
+def _init_freq_conv_axes(t1, t2, mode, axes):
     """
     Handle the axes argument for frequency-domain convolution.
 
@@ -268,18 +293,18 @@ def _init_freq_conv_axes(in1, in2, mode, axes):
 
     Returns
     -------
-    in1 : array
+    t1 : array
         The first input, possibly swapped with the second input.
-    in2 : array
+    t2 : array
         The second input, possibly swapped with the first input.
     axes : Tuple of ints
         Axes over which to compute the FFTs.
     """
-    s1 = in1.shape
-    s2 = in2.shape
+    s1 = t1.shape
+    s2 = t2.shape
     noaxes = axes is None
 
-    axes = _init_nd_axes(in1, axes=axes)
+    axes = _init_nd_axes(t1, axes=axes)
 
     if not noaxes and not len(axes):
         raise ValueError("when provided, axes cannot be empty")
@@ -287,17 +312,15 @@ def _init_freq_conv_axes(in1, in2, mode, axes):
     # Axes of length 1 can rely on broadcasting rules for multipy, no fft needed.
     axes = tuple([a for a in axes if s1[a] != 1 and s2[a] != 1])
 
-    if not all(
-        s1[a] == s2[a] or s1[a] == 1 or s2[a] == 1 for a in range(in1.ndim) if a not in axes
-    ):
-        raise ValueError("incompatible shapes for in1 and in2: {} and {}".format(s1, s2))
+    if not all(s1[a] == s2[a] or s1[a] == 1 or s2[a] == 1 for a in range(t1.ndim) if a not in axes):
+        raise ValueError("incompatible shapes for t1 and t2: {} and {}".format(s1, s2))
 
     # Check that input sizes are compatible with 'valid' mode.
     if _inputs_swap_needed(mode, s1, s2, axes=axes):
         # Convolution is commutative; order doesn't have any effect on output.
-        in1, in2 = in2, in1
+        t1, t2 = t2, t1
 
-    return in1, in2, axes
+    return t1, t2, axes
 
 
 def _init_nd_axes(x, axes):
@@ -376,8 +399,8 @@ def _inputs_swap_needed(mode, shape1, shape2, axes=None):
     if axes is None:
         axes = range(len(shape1))
 
-    ok1 = all(shape1[i] >= shape2[i] for i in axes)
-    ok2 = all(shape2[i] >= shape1[i] for i in axes)
+    ok1 = all(shape1[a] >= shape2[a] for a in axes)
+    ok2 = all(shape2[a] >= shape1[a] for a in axes)
 
     if not (ok1 or ok2):
         raise ValueError(
@@ -387,7 +410,7 @@ def _inputs_swap_needed(mode, shape1, shape2, axes=None):
     return not ok1
 
 
-def _freq_domain_conv(in1, in2, axes, shape, calc_fast_len=False):
+def _freq_domain_conv(t1, t2, axes, shape, calc_fast_len=False):
     """
     Convolve two arrays in the frequency domain.
 
@@ -399,12 +422,12 @@ def _freq_domain_conv(in1, in2, axes, shape, calc_fast_len=False):
     Returns
     -------
     out : array
-        An N-dimensional array containing the discrete linear convolution of `in1` with `in2`.
+        An N-dimensional array containing the discrete linear convolution of `t1` with `t2`.
     """
     if not len(axes):
-        return in1 * in2
+        return t1 * t2
 
-    dtype1, dtype2 = (heat_type_of(in1), heat_type_of(in2))
+    dtype1, dtype2 = (heat_type_of(t1), heat_type_of(t2))
     complex_result = dtype1 in _complexfloating or dtype2 in _complexfloating
 
     """
@@ -414,17 +437,15 @@ def _freq_domain_conv(in1, in2, axes, shape, calc_fast_len=False):
             sp_fft.next_fast_len(shape[a], not complex_result) for a in axes]
     else:
     """
-    fshape = shape
-
     if not complex_result:
         fft, ifft = ht.fft.rfftn, ht.fft.irfftn
     else:
         fft, ifft = ht.fft.fftn, ht.fft.ifftn
 
-    sp1 = fft(in1, fshape, axes=axes)
-    sp2 = fft(in2, fshape, axes=axes)
+    sp1 = fft(t1, shape, axes=axes)
+    sp2 = fft(t2, shape, axes=axes)
 
-    ret = ifft(sp1 * sp2, fshape, axes=axes)
+    ret = ifft(sp1 * sp2, shape, axes=axes)
 
     """
     if calc_fast_len:
