@@ -2412,9 +2412,14 @@ class DNDarray:
                     return value
                 # value has more dimensions than indexed array
                 if value.ndim > indexed_dims:
-                    raise ValueError(
-                        f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                    # check if all dimensions except the indexed ones are singletons
+                    all_singletons = value.shape[: value.ndim - indexed_dims] == (1,) * (
+                        value.ndim - indexed_dims
                     )
+                    if not all_singletons:
+                        raise ValueError(
+                            f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                        )
             return value
 
         def __set(
@@ -2439,7 +2444,7 @@ class DNDarray:
             # # TODO: take this out of this function
             # sanitation.sanitize_out(subarray, value_shape, value.split, value.device, value.comm)
             #            arr.larray[None] = value.larray
-            arr.__array__().__setitem__(key, value.__array__())
+            arr.larray[key] = value.larray
             return
 
         # make sure `value` is a DNDarray
@@ -2562,7 +2567,6 @@ class DNDarray:
                     list(isinstance(k, torch.Tensor) and k.numel() == 0 for k in key)
                 )
                 if not process_is_inactive:
-                    print("DEBUGGING: value.larray = ", value.larray, value.lshape_map)
                     # only assign values if key does not contain empty slices
                     __set(self, key, value)
             else:
