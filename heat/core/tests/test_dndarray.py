@@ -1446,15 +1446,24 @@ class TestDNDarray(TestCase):
         self.assertTrue(ht.allclose(x_3d_sliced, value.astype(x_3d.dtype)))
         self.assertTrue(x_3d_sliced.dtype == x_3d.dtype)
 
-        # # slicing with negative step along split 2 and loss of all axes but split
-        # shape = (4, 3, 20)
-        # x_3d = ht.arange(20 * 4 * 3).reshape(shape)
-        # x_3d.resplit_(axis=2)
-        # key = (0, 1, slice(17, 13, -1))
-        # x_3d_sliced = x_3d[key]
-        # x_3d_sliced_np = np.arange(20 * 4 * 3).reshape(shape)[0, 1, 17:13:-1]
-        # self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
-        # self.assertTrue(x_3d_sliced.split == 0)
+        # slicing with negative step along split 2 and loss of all axes but split
+        shape = (4, 3, 20)
+        x_3d = ht.arange(20 * 4 * 3).reshape(shape)
+        x_3d.resplit_(axis=2)
+        key = (0, 1, slice(17, 13, -1))
+        value = ht.random.randint(
+            200,
+            220,
+            (
+                1,
+                4,
+            ),
+            split=1,
+        )
+        x_3d[key] = value
+        x_3d_sliced = x_3d[key]
+        self.assertTrue(ht.allclose(x_3d_sliced, value.astype(x_3d.dtype)))
+        self.assertTrue(x_3d_sliced.dtype == x_3d.dtype)
 
         # # DIMENSIONAL INDEXING
         # # ellipsis
