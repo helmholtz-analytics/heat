@@ -1452,8 +1452,8 @@ class TestDNDarray(TestCase):
         x_3d.resplit_(axis=2)
         key = (0, 1, slice(17, 13, -1))
         value = ht.random.randint(
-            200,
-            220,
+            0,
+            5,
             (
                 1,
                 4,
@@ -1462,7 +1462,7 @@ class TestDNDarray(TestCase):
         )
         x_3d[key] = value
         x_3d_sliced = x_3d[key]
-        self.assertTrue(ht.allclose(x_3d_sliced, value.astype(x_3d.dtype)))
+        self.assertTrue(ht.allclose(x_3d_sliced, value.squeeze(0).astype(x_3d.dtype)))
         self.assertTrue(x_3d_sliced.dtype == x_3d.dtype)
 
         # # DIMENSIONAL INDEXING

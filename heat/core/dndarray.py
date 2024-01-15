@@ -2420,6 +2420,8 @@ class DNDarray:
                         raise ValueError(
                             f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
                         )
+                    # squeeze out singleton dimensions
+                    value = value.squeeze(tuple(range(value.ndim - indexed_dims)))
             return value
 
         def __set(
@@ -2540,6 +2542,7 @@ class DNDarray:
 
             # flip value, match value distribution to key's
             # NB: `value.ndim` might be smaller than `self.ndim`, `value.split` nominally different from `self.split`
+            print("DEBUGGING: output_split = ", output_split)
             value = manipulations.flip(value, axis=output_split)
             if self.is_distributed():
                 split_key = factories.array(
