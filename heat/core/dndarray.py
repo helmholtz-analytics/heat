@@ -1497,6 +1497,7 @@ class DNDarray:
 
         if not self.is_distributed():
             # key is torch-proof, index underlying torch tensor
+            print("DEBUGGING: key = ", key)
             indexed_arr = self.larray[key]
             # transpose array back if needed
             self = self.transpose(backwards_transpose_axes)
@@ -2381,8 +2382,9 @@ class DNDarray:
             value_shape = value.shape
             # check if value needs to be broadcasted
             if value_shape != output_shape:
+                print("DEBUGGING: value_shape, output_shape = ", value_shape, output_shape)
                 # assess whether the shapes are compatible, starting from the trailing dimension
-                for i in range(1, min(len(value_shape), len(output_shape))):
+                for i in range(1, min(len(value_shape), len(output_shape)) + 1):
                     if i == 1:
                         if value_shape[-i] != output_shape[-i]:
                             # shapes are not compatible, raise error
@@ -2446,7 +2448,9 @@ class DNDarray:
             # # TODO: take this out of this function
             # sanitation.sanitize_out(subarray, value_shape, value.split, value.device, value.comm)
             #            arr.larray[None] = value.larray
-            arr.larray[key] = value.larray
+
+            # make sure value is same datatype as arr
+            arr.larray[key] = value.larray.type(arr.dtype.torch_type())
             return
 
         # make sure `value` is a DNDarray
@@ -2538,42 +2542,36 @@ class DNDarray:
             return
 
         if split_key_is_ordered == -1:
-            # key is in descending order, i.e. slice with negative step
-
-            # flip value, match value distribution to key's
-            # NB: `value.ndim` might be smaller than `self.ndim`, `value.split` nominally different from `self.split`
-            print("DEBUGGING: output_split = ", output_split)
-            value = manipulations.flip(value, axis=output_split)
+            # key along split axis is in descending order, i.e. slice with negative step
             if self.is_distributed():
+                # flip value, match value distribution to key's
+                # NB: `value.ndim` might be smaller than `self.ndim`, hence  `value.split` nominally different from `self.split`
+                flipped_value = manipulations.flip(value, axis=output_split)
                 split_key = factories.array(
                     key[self.split], is_split=0, device=self.device, comm=self.comm
                 )
-                if not value.is_distributed():
-                    # work with a distributed copy of `value`
-                    value = factories.array(
-                        value,
-                        dtype=self.dtype,
+                if not flipped_value.is_distributed():
+                    # work with distributed `flipped_value`
+                    flipped_value = factories.array(
+                        flipped_value.larray,
+                        dtype=flipped_value.dtype,
                         split=output_split,
                         device=self.device,
                         comm=self.comm,
-                        copy=True,
                     )
                 # match `value` distribution to `self[key]` distribution
-                target_map = value.lshape_map
+                target_map = flipped_value.lshape_map
                 target_map[:, output_split] = split_key.lshape_map[:, 0]
-                print(
-                    "DEBUGGING: TEST target_map, value.lshape_map = ", target_map, value.lshape_map
-                )
-                value.redistribute_(target_map=target_map)
+                flipped_value.redistribute_(target_map=target_map)
 
                 process_is_inactive = sum(
                     list(isinstance(k, torch.Tensor) and k.numel() == 0 for k in key)
                 )
                 if not process_is_inactive:
                     # only assign values if key does not contain empty slices
-                    __set(self, key, value)
+                    __set(self, key, flipped_value)
             else:
-                # no communication necessary
+                # 1 process, no communication needed
                 __set(self, key, value)
             self = self.transpose(backwards_transpose_axes)
             return

@@ -1465,17 +1465,19 @@ class TestDNDarray(TestCase):
         self.assertTrue(ht.allclose(x_3d_sliced, value.squeeze(0).astype(x_3d.dtype)))
         self.assertTrue(x_3d_sliced.dtype == x_3d.dtype)
 
-        # # DIMENSIONAL INDEXING
-        # # ellipsis
+        # DIMENSIONAL INDEXING
+        # ellipsis
         # x_np = np.array([[[1], [2], [3]], [[4], [5], [6]]])
         # x_np_ellipsis = x_np[..., 0]
         # x = ht.array([[[1], [2], [3]], [[4], [5], [6]]])
 
-        # # local
-        # x_ellipsis = x[..., 0]
-        # x_slice = x[:, :, 0]
-        # self.assert_array_equal(x_ellipsis, x_np_ellipsis)
-        # self.assert_array_equal(x_slice, x_np_ellipsis)
+        # local
+        # value = x.squeeze()+7
+        # x[..., 0] = value
+        # self.assertTrue(ht.all(x[..., 0] == value))
+        # value -= 7
+        # x[:, :, 0] = value
+        # self.assertTrue(ht.all(x[:, :, 0] == value))
 
         # # distributed
         # x.resplit_(axis=1)
