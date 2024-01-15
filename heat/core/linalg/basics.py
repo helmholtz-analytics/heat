@@ -511,7 +511,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     # early out for single-process setup, torch matmul
     if a.comm.size == 1:
-        ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device)
+        ret = DNDarray(torch.matmul(a.larray, b.larray), device=a.device)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -519,7 +519,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
             # if either of A or B is a vector
-            ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device, comm=a.comm)
+            ret = DNDarray(torch.matmul(a.larray, b.larray), device=a.device, comm=a.comm)
             if gpu_int_flag:
                 ret = og_type(ret, device=a.device)
             return ret
@@ -543,7 +543,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         b.resplit_(0)
         res = a.larray @ b.larray
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
-        ret = factories.array(res, split=None, device=a.device, comm=a.comm)
+        ret = DNDarray(res, split=None, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -583,9 +583,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c += a.larray @ b.larray[a_idx[1].start : a_idx[1].start + a.lshape[-1], :]
         a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         c = c if not vector_flag else c.squeeze()
-        ret = factories.array(
-            c, split=a.split if b.gshape[1] > 1 else 0, device=a.device, comm=a.comm
-        )
+        ret = DNDarray(c, split=a.split if b.gshape[1] > 1 else 0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -596,9 +594,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c += a.larray[:, b_idx[0].start : b_idx[0].start + b.lshape[0]] @ b.larray
         b.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         c = c if not vector_flag else c.squeeze()
-        ret = factories.array(
-            c, split=b.split if a.gshape[-2] > 1 else 0, device=a.device, comm=a.comm
-        )
+        ret = DNDarray(c, split=b.split if a.gshape[-2] > 1 else 0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -613,7 +609,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c = c if not vector_flag else c.squeeze()
         split = a.split if b.gshape[1] > 1 else 0
         split = split if not vector_flag else 0
-        ret = factories.array(c, split=split, device=a.device, comm=a.comm)
+        ret = DNDarray(c, split=split, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -624,7 +620,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c = c if not vector_flag else c.squeeze()
         split = b.split if a.gshape[1] > 1 else 0
         split = split if not vector_flag else 0
-        ret = factories.array(c, is_split=split, device=a.device, comm=a.comm)
+        ret = DNDarray(c, is_split=split, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -922,7 +918,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             if c_loc.nelement() == 1:
                 c_loc = torch.tensor(c_loc, device=tdev)
 
-            c = factories.array(c_loc, is_split=0, device=a.device, comm=a.comm)
+            c = DNDarray(c_loc, is_split=0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
         return c
@@ -1024,7 +1020,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                     c.larray[:, : b_node_rem_s1.shape[1]] += a_rem @ b_node_rem_s1
                 del a_lp_data[pr]
         if vector_flag:
-            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device, comm=a.comm)
+            c = DNDarray(c.larray.squeeze(), is_split=0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
         return c
@@ -1067,7 +1063,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
                 c.larray[: sp0 - st0, st1:sp1] += a.larray @ b_lp_data[pr]
                 del b_lp_data[pr]
         if vector_flag:
-            c = factories.array(c.larray.squeeze(), is_split=0, device=a.device, comm=a.comm)
+            c = DNDarray(c.larray.squeeze(), is_split=0, device=a.device, comm=a.comm)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
 
@@ -1091,7 +1087,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         if vector_flag:
             split = 0
             res = res.squeeze()
-        c = factories.array(res, split=split, device=a.device, comm=a.comm)
+        c = DNDarray(res, split=split, device=a.device, comm=a.comm)
         if gpu_int_flag:
             c = og_type(c, device=a.device)
         return c
@@ -1726,7 +1722,7 @@ def trace(
         )
     # cast input `a` to DNDarray
     elif not isinstance(a, DNDarray):
-        a = factories.array(a)
+        a = DNDarray(a)
 
     # assure correct dimensionality of input
     if len(a.lshape) < 2:
@@ -1801,14 +1797,10 @@ def trace(
             # Calculate resulting/concerned sub-array `a_sub`
             if offset > 0:
                 offset = min(offset, a_sub.lshape[1])
-                a_sub = factories.array(
-                    a_sub.larray[:, offset:], device=a_sub.device, comm=a_sub.comm
-                )
+                a_sub = DNDarray(a_sub.larray[:, offset:], device=a_sub.device, comm=a_sub.comm)
             elif offset < 0:
                 offset = min(-offset, a_sub.lshape[0])
-                a_sub = factories.array(
-                    a_sub.larray[offset:, :], device=a_sub.device, comm=a_sub.comm
-                )
+                a_sub = DNDarray(a_sub.larray[offset:, :], device=a_sub.device, comm=a_sub.comm)
 
             # calculate trace /partial sum on that sub-array
             if 0 not in a_sub.lshape:
@@ -1892,7 +1884,7 @@ def trace(
             last_axis = sum_along_diagonals_t.ndim - 1
             split_axis = result_array.split if result_array.split <= last_axis else last_axis
 
-        sum_along_diagonals = factories.array(
+        sum_along_diagonals = DNDarray(
             sum_along_diagonals_t,
             dtype=dtype,
             split=split_axis,
@@ -1914,7 +1906,7 @@ def trace(
             gather_axis = sum_along_diagonals_t.ndim - 1
 
         # Stack all partial results back together along the correct axis
-        sum_along_diagonals = factories.array(
+        sum_along_diagonals = DNDarray(
             sum_along_diagonals_t, dtype=dtype, is_split=gather_axis, comm=a.comm, device=a.device
         )
     # input not distributed
@@ -1926,7 +1918,7 @@ def trace(
             gather_axis = a.split
 
         # convert torch result back to DNDarray
-        sum_along_diagonals = factories.array(
+        sum_along_diagonals = DNDarray(
             sum_along_diagonals_t, dtype=dtype, split=gather_axis, comm=a.comm, device=a.device
         )
 

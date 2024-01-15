@@ -445,9 +445,9 @@ def hsvd(
     A.comm.Bcast(U_loc, root=0)
     # separate U_loc and err_squared_loc again
     err_squared_loc = U_loc[-1, 0]
-    U = factories.array(U_loc[:-1], device=A.device, split=None, comm=A.comm)
+    U = DNDarray(U_loc[:-1], device=A.device, split=None, comm=A.comm)
     rel_error_estimate = (
-        factories.array(err_squared_loc**0.5, device=A.device, split=None, comm=A.comm) / Anorm
+        DNDarray(err_squared_loc**0.5, device=A.device, split=None, comm=A.comm) / Anorm
     )
 
     # Postprocessing:
