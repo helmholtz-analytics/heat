@@ -1177,6 +1177,7 @@ class DNDarray:
         T1 = ht.random.randn((10,8))
         T1.numpy()
         """
+        print("I have started .numpy() but did not do more...") 
         dist = self.copy().resplit_(axis=None)
         return dist.larray.cpu().numpy()
 
@@ -1449,6 +1450,7 @@ class DNDarray:
         self.__partitions_dict__ = None
 
         if axis is None:
+            print("in .resplit_ im right before allocating buffers...")
             gathered = torch.empty(
                 self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
             )
