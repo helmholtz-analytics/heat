@@ -2392,10 +2392,8 @@ class DNDarray:
                                 f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
                             )
                     else:
-                        if (
-                            value_shape[-i] != output_shape[-i]
-                            and not value_shape[-i] == 1
-                            or not output_shape[-i] == 1
+                        if value_shape[-i] != output_shape[-i] and (
+                            not value_shape[-i] == 1 or not output_shape[-i] == 1
                         ):
                             # shapes are not compatible, raise error
                             raise ValueError(
@@ -2450,7 +2448,10 @@ class DNDarray:
             #            arr.larray[None] = value.larray
 
             # make sure value is same datatype as arr
-            arr.larray[key] = value.larray.type(arr.dtype.torch_type())
+            process_is_inactive = arr.larray[key].numel() == 0
+            if not process_is_inactive:
+                # only assign values if key does not contain empty slices
+                arr.larray[key] = value.larray.type(arr.dtype.torch_type())
             return
 
         # make sure `value` is a DNDarray
@@ -2503,14 +2504,14 @@ class DNDarray:
             return
 
         # multi-element key, incl. slicing and striding, ordered and non-ordered advanced indexing
-        # store original key for later use
-        try:
-            original_key = key.copy()
-        except AttributeError:
-            try:
-                original_key = key.clone()
-            except AttributeError:
-                original_key = key
+        # # store original key for later use
+        # try:
+        #     original_key = key.copy()
+        # except AttributeError:
+        #     try:
+        #         original_key = key.clone()
+        #     except AttributeError:
+        #         original_key = key
 
         (
             self,
@@ -2531,13 +2532,37 @@ class DNDarray:
             if root is not None:
                 # single-element assignment along split axis, only one active process
                 if self.comm.rank == root:
-                    self.larray[key] = value.larray
+                    self.larray[key] = value.larray.type(self.dtype.torch_type())
             else:
                 # indexed elements are process-local
                 # self[key] is a view and does not trigger communication
                 # verify that `self[key]` and `value` distribution are aligned
-                value = sanitation.sanitize_distribution(value, target=self[original_key])
-                self.larray[key] = value.larray
+                if self.is_distributed() and not value.is_distributed():
+                    # work with distributed `value`
+                    value = factories.array(
+                        value.larray,
+                        dtype=value.dtype,
+                        split=output_split,
+                        device=self.device,
+                        comm=self.comm,
+                    )
+                target_shape = torch.tensor(
+                    tuple(self.larray[key].shape), device=self.device.torch_device
+                )
+                target_map = torch.zeros(
+                    (self.comm.size, len(target_shape)),
+                    dtype=torch.int64,
+                    device=self.device.torch_device,
+                )
+                # gather all shapes into target_map
+                self.comm.Allgather(target_shape, target_map)
+                value.redistribute_(target_map=target_map)
+                process_is_inactive = sum(
+                    list(isinstance(k, torch.Tensor) and k.numel() == 0 for k in key)
+                )
+                if not process_is_inactive:
+                    # only assign values if key does not contain empty slices
+                    __set(self, key, value)
             self = self.transpose(backwards_transpose_axes)
             return
 
