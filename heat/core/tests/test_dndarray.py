@@ -1519,17 +1519,19 @@ class TestDNDarray(TestCase):
         x[..., 0, :] = value
         self.assertTrue(ht.all(x[..., 0, :] == value).item())
 
-        # # ADVANCED INDEXING
-        # # "x[(1, 2, 3),] is fundamentally different from x[(1, 2, 3)]"
+        # ADVANCED INDEXING
+        # "x[(1, 2, 3),] is fundamentally different from x[(1, 2, 3)]"
 
-        # x_np = np.arange(60).reshape(5, 3, 4)
-        # indexed_x_np = x_np[(1, 2, 3)]
-        # adv_indexed_x_np = x_np[(1, 2, 3),]
-        # x = ht.array(x_np, split=0)
-        # indexed_x = x[(1, 2, 3)]
-        # self.assertTrue(indexed_x.item() == np.array(indexed_x_np))
-        # adv_indexed_x = x[(1, 2, 3),]
-        # self.assert_array_equal(adv_indexed_x, adv_indexed_x_np)
+        x = ht.arange(60, split=0).reshape(5, 3, 4)
+        value = 99.0
+        x[(1, 2, 3)] = value
+        indexed_x = x[(1, 2, 3)]
+        self.assertTrue((indexed_x == value).item())
+        self.assertTrue(indexed_x.dtype == x.dtype)
+        x[(1, 2, 3),] = value
+        adv_indexed_x = x[(1, 2, 3),]
+        self.assertTrue(ht.all(adv_indexed_x == value).item())
+        self.assertTrue(adv_indexed_x.dtype == x.dtype)
 
         # # 1d
         # x = ht.arange(10, 1, -1, split=0)

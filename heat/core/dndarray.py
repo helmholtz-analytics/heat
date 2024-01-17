@@ -2364,6 +2364,14 @@ class DNDarray:
             """
             Broadcasts the assignment DNDarray `value` to the shape of the indexed array `arr[key]` if necessary.
             """
+            is_scalar = (
+                np.isscalar(value)
+                or getattr(value, "ndim", 1) == 0
+                or (value.shape == (1,) and value.split is None)
+            )
+            if is_scalar:
+                # no need to broadcast
+                return value, is_scalar
             # need information on indexed array
             output_shape = kwargs.get("output_shape", None)
             if output_shape is not None:
@@ -2382,7 +2390,6 @@ class DNDarray:
             value_shape = value.shape
             # check if value needs to be broadcasted
             if value_shape != output_shape:
-                print("DEBUGGING: value_shape, output_shape = ", value_shape, output_shape)
                 # assess whether the shapes are compatible, starting from the trailing dimension
                 for i in range(1, min(len(value_shape), len(output_shape)) + 1):
                     if i == 1:
@@ -2399,17 +2406,6 @@ class DNDarray:
                             raise ValueError(
                                 f"could not broadcast input from shape {value_shape} into shape {output_shape}"
                             )
-                while value.ndim < indexed_dims:
-                    # broadcasting
-                    # expand missing dimensions to align split axis
-                    value = value.expand_dims(0)
-                    try:
-                        value_shape = tuple(torch.broadcast_shapes(value.shape, output_shape))
-                    except RuntimeError:
-                        raise ValueError(
-                            f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
-                        )
-                    return value
                 # value has more dimensions than indexed array
                 if value.ndim > indexed_dims:
                     # check if all dimensions except the indexed ones are singletons
@@ -2422,7 +2418,18 @@ class DNDarray:
                         )
                     # squeeze out singleton dimensions
                     value = value.squeeze(tuple(range(value.ndim - indexed_dims)))
-            return value
+                else:
+                    while value.ndim < indexed_dims:
+                        # broadcasting
+                        # expand missing dimensions to align split axis
+                        value = value.expand_dims(0)
+                        try:
+                            value_shape = tuple(torch.broadcast_shapes(value.shape, output_shape))
+                        except RuntimeError:
+                            raise ValueError(
+                                f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
+                            )
+            return value, is_scalar
 
         def __set(
             arr: DNDarray,
@@ -2467,7 +2474,7 @@ class DNDarray:
         if not isinstance(key, DNDarray):
             if key is None or key is ... or key is slice(None):
                 # match dimensions
-                value = __broadcast_value(self, key, value)
+                value, _ = __broadcast_value(self, key, value)
                 # make sure `self` and `value` distribution are aligned
                 value = sanitation.sanitize_distribution(value, target=self)
                 return __set(self, key, value)
@@ -2477,7 +2484,7 @@ class DNDarray:
         if scalar:
             key, root = self.__process_scalar_key(key, indexed_axis=0, return_local_indices=True)
             # match dimensions
-            value = __broadcast_value(self, key, value)
+            value, _ = __broadcast_value(self, key, value)
             # `root` will be None when the indexed axis is not the split axis, or when the
             # indexed axis is the split axis but the indexed element is not local
             if root is not None:
@@ -2525,7 +2532,7 @@ class DNDarray:
         ) = self.__process_key(key, return_local_indices=True, op="set")
 
         # match dimensions
-        value = __broadcast_value(self, key, value, output_shape=output_shape)
+        value, value_is_scalar = __broadcast_value(self, key, value, output_shape=output_shape)
 
         if split_key_is_ordered == 1:
             # key all local
@@ -2535,9 +2542,7 @@ class DNDarray:
                     self.larray[key] = value.larray.type(self.dtype.torch_type())
             else:
                 # indexed elements are process-local
-                # self[key] is a view and does not trigger communication
-                # verify that `self[key]` and `value` distribution are aligned
-                if self.is_distributed() and not value.is_distributed():
+                if self.is_distributed() and not value_is_scalar and not value.is_distributed():
                     # work with distributed `value`
                     value = factories.array(
                         value.larray,
@@ -2546,17 +2551,17 @@ class DNDarray:
                         device=self.device,
                         comm=self.comm,
                     )
-                target_shape = torch.tensor(
-                    tuple(self.larray[key].shape), device=self.device.torch_device
-                )
-                target_map = torch.zeros(
-                    (self.comm.size, len(target_shape)),
-                    dtype=torch.int64,
-                    device=self.device.torch_device,
-                )
-                # gather all shapes into target_map
-                self.comm.Allgather(target_shape, target_map)
-                value.redistribute_(target_map=target_map)
+                    # verify that `self[key]` and `value` distribution are aligned
+                    target_shape = torch.tensor(
+                        tuple(self.larray[key].shape), device=self.device.torch_device
+                    )
+                    target_map = torch.zeros(
+                        (self.comm.size, len(target_shape)),
+                        dtype=torch.int64,
+                        device=self.device.torch_device,
+                    )
+                    self.comm.Allgather(target_shape, target_map)
+                    value.redistribute_(target_map=target_map)
                 process_is_inactive = sum(
                     list(isinstance(k, torch.Tensor) and k.numel() == 0 for k in key)
                 )
