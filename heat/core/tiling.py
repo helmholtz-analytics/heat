@@ -387,14 +387,20 @@ class SquareDiagTiles:
 
         # if there is only one element of the diagonal on the next process
         d = 1 if tiles_per_proc <= 2 else tiles_per_proc - 1
+        print("DEBUGGING: rank, arr.gshape[arr.split - 1] - d = ", arr.comm.rank, arr.gshape[arr.split - 1] - d)
         redist = torch.where(
             torch.cumsum(lshape_map[..., arr.split], dim=0) >= arr.gshape[arr.split - 1] - d
         )[0]
+        print("DEBUGGING: redist = ", redist)
         if redist.numel() > 0 and arr.gshape[0] > arr.gshape[1] and redist[0] != arr.comm.size - 1:
+            print("DEBUGGING: redistributing arr")
             target_map = lshape_map.clone()
-            target_map[redist[0]] += d
-            target_map[redist[0] + 1] -= d
+            target_map[redist[0], arr.split] += d
+            target_map[redist[0] + 1, arr.split] -= d
+            print("DEBUGGING: lshape_map = ", lshape_map)
+            print("DEBUGGING: target_map = ", target_map)
             arr.redistribute_(lshape_map=lshape_map, target_map=target_map)
+            print("DEBUGGING: AFTER REDISTR arr.lshape_map  = ", arr.lshape_map)
 
         row_per_proc_list = [tiles_per_proc] * arr.comm.size
 
@@ -413,6 +419,7 @@ class SquareDiagTiles:
                 col_inds,
                 tile_columns,
             ) = self.__adjust_lshape_sp0_1tile(arr, col_inds, lshape_map, tiles_per_proc)
+            print("DEBUGGING: last_diag_pr, col_per_proc_list, col_inds, tile_columns = ", last_diag_pr, col_per_proc_list, col_inds, tile_columns)
             # re-test for empty processes and remove empty rows
             empties = torch.where(lshape_map[..., 0] == 0)[0]
             if empties.numel() > 0:
@@ -587,7 +594,7 @@ class SquareDiagTiles:
                 h = cnti - lshape_mapi[..., 0][pri]
                 lshape_mapi[..., 0][pri] += h
                 lshape_mapi[..., 0][pri + 1] -= h
-
+        print("DEBUGGING: IN ADJUST_LSHAPE: lshape_map = ", lshape_map)
         for cnt in col_inds[:-1]:  # only need to loop until the second to last one
             for pr in range(arr.comm.size - 1):
                 adjust_lshape(lshape_map, pr, cnt)
@@ -596,6 +603,7 @@ class SquareDiagTiles:
             for n in negs:
                 lshape_map[n - 1, 0] += lshape_map[n, 0]
                 lshape_map[n, 0] = 0
+        print("DEBUGGING: IN ADJUST_LSHAPE: target_map = ", lshape_map)
         arr.redistribute_(target_map=lshape_map)
 
         last_diag_pr, col_per_proc_list, col_inds, tile_columns = SquareDiagTiles.__create_cols(

@@ -105,6 +105,7 @@ def qr(
     r = a if overwrite_a else a.copy()
     # r.create_square_diag_tiles(tiles_per_proc=tiles_per_proc)
     r_tiles = SquareDiagTiles(arr=r, tiles_per_proc=tiles_per_proc)
+    print("DEBUGGING: tile_map = ", r_tiles.tile_map)
     tile_columns = r_tiles.tile_columns
     tile_rows = r_tiles.tile_rows
     if calc_q:
