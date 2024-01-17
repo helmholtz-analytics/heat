@@ -902,19 +902,7 @@ def __split1_qr_loop(
         except AttributeError:
             q1, r1 = r_tiles[dcol, dcol].qr(some=False)
 
-        """ BCAST """
-        print(
-            "rank: ",
-            rank,
-            "q1: ",
-            q1.clone().dtype,
-            q1.clone().shape,
-            q1.clone().device,
-            "diag process: ",
-            diag_process,
-        )
-        r_tiles.arr.comm.Bcast(q1.clone(), root=diag_process)
-        print("rank ", rank, "went through Bcast")
+        r_tiles.arr.comm.Bcast(q1.clone(memory_format=torch.contiguous_format), root=diag_process)
         r_tiles[dcol, dcol] = r1
         # apply q1 to the trailing matrix (other processes)
 
@@ -933,10 +921,7 @@ def __split1_qr_loop(
         )
         loc_col = 0
 
-        """ BCAST """
-        print("rank: ", rank, "q1: ", q1.dtype, q1.shape, q1.device, "diag process: ", diag_process)
         r_tiles.arr.comm.Bcast(q1, root=diag_process)
-        print("rank ", rank, "went through Bcast")
         hold = r_tiles.local_get(key=(dcol, slice(0, None)))
         r_tiles.local_set(key=(dcol, slice(0, None)), value=torch.matmul(q1.T, hold))
     else:
@@ -947,10 +932,7 @@ def __split1_qr_loop(
             (sz[0], sz[0]), dtype=r_tiles.arr.dtype.torch_type(), device=r_torch_device
         )
 
-        """ BCAST """
-        print("rank: ", rank, "q1: ", q1.dtype, q1.shape, q1.device, "diag process: ", diag_process)
         r_tiles.arr.comm.Bcast(q1, root=diag_process)
-        print("rank ", rank, "went through Bcast")
 
     # ================================ Q Calculation - single tile =============================
     if calc_q:
