@@ -10,6 +10,8 @@ from ..types import datatype
 from ..tiling import SquareDiagTiles
 from ..dndarray import DNDarray
 from .. import factories
+from mpi4py import MPI
+from time import sleep
 
 __all__ = ["qr"]
 
@@ -167,6 +169,8 @@ def qr(
         # loop over the tile columns
         lp_cols = tile_columns if a.gshape[0] > a.gshape[1] else tile_rows
         for dcol in range(lp_cols):  # dcol is the diagonal column
+            sleep(1)
+            print("__split1_qr_loop number ", dcol, " on rank ", r.comm.rank)
             __split1_qr_loop(dcol=dcol, r_tiles=r_tiles, q0_tiles=q_tiles, calc_q=calc_q)
 
     r.balance_()
@@ -898,7 +902,19 @@ def __split1_qr_loop(
         except AttributeError:
             q1, r1 = r_tiles[dcol, dcol].qr(some=False)
 
+        """ BCAST """
+        print(
+            "rank: ",
+            rank,
+            "q1: ",
+            q1.clone().dtype,
+            q1.clone().shape,
+            q1.clone().device,
+            "diag process: ",
+            diag_process,
+        )
         r_tiles.arr.comm.Bcast(q1.clone(), root=diag_process)
+        print("rank ", rank, "went through Bcast")
         r_tiles[dcol, dcol] = r1
         # apply q1 to the trailing matrix (other processes)
 
@@ -916,7 +932,11 @@ def __split1_qr_loop(
             (sz[0], sz[0]), dtype=r_tiles.arr.dtype.torch_type(), device=r_torch_device
         )
         loc_col = 0
+
+        """ BCAST """
+        print("rank: ", rank, "q1: ", q1.dtype, q1.shape, q1.device, "diag process: ", diag_process)
         r_tiles.arr.comm.Bcast(q1, root=diag_process)
+        print("rank ", rank, "went through Bcast")
         hold = r_tiles.local_get(key=(dcol, slice(0, None)))
         r_tiles.local_set(key=(dcol, slice(0, None)), value=torch.matmul(q1.T, hold))
     else:
@@ -926,7 +946,11 @@ def __split1_qr_loop(
         q1 = torch.zeros(
             (sz[0], sz[0]), dtype=r_tiles.arr.dtype.torch_type(), device=r_torch_device
         )
+
+        """ BCAST """
+        print("rank: ", rank, "q1: ", q1.dtype, q1.shape, q1.device, "diag process: ", diag_process)
         r_tiles.arr.comm.Bcast(q1, root=diag_process)
+        print("rank ", rank, "went through Bcast")
 
     # ================================ Q Calculation - single tile =============================
     if calc_q:
