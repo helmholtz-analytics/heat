@@ -898,7 +898,7 @@ def __split1_qr_loop(
         except AttributeError:
             q1, r1 = r_tiles[dcol, dcol].qr(some=False)
 
-        r_tiles.arr.comm.Bcast(q1.clone(), root=diag_process)
+        r_tiles.arr.comm.Bcast(q1.clone(memory_format=torch.contiguous_format), root=diag_process)
         r_tiles[dcol, dcol] = r1
         # apply q1 to the trailing matrix (other processes)
 
