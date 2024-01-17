@@ -335,7 +335,7 @@ class BatchParallelKMeans(_BatchParallelKCluster):
     init : str
         Method for initialization for local and global k-means:
         - ‘k-means++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
-        - ‘random’: choose k observations (rows) at random from data for the initial centroids.
+        - ‘random’: choose k observations (rows) at random from data for the initial centroids. (Not implemented yet)
     max_iter : int
         Maximum number of iterations of the local/global k-means algorithms.
     tol : float
@@ -398,7 +398,7 @@ class BatchParallelKMedians(_BatchParallelKCluster):
     init : str
         Method for initialization for local and global k-medians:
         - ‘k-medians++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
-        - ‘random’: choose k observations (rows) at random from data for the initial centroids.
+        - ‘random’: choose k observations (rows) at random from data for the initial centroids. (Not implemented yet)
     max_iter : int
         Maximum number of iterations of the local/global k-Medians algorithms.
     tol : float

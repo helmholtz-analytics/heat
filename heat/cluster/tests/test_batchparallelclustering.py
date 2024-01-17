@@ -82,9 +82,9 @@ class TestBatchParallelKCluster(TestCase):
     def test_spherical_clusters(self):
         for ParallelClusterer in [ht.cluster.BatchParallelKMeans, ht.cluster.BatchParallelKMedians]:
             if ParallelClusterer is ht.cluster.BatchParallelKMeans:
-                ppinitkw = "k-means++"
+                ppinitkws = ["k-means++"]
             elif ParallelClusterer is ht.cluster.BatchParallelKMedians:
-                ppinitkw = "k-medians++"
+                ppinitkws = ["k-medians++"]
             for seed in [1, None]:
                 n = 20 * ht.MPI_WORLD.size
                 for dtype in [ht.float32, ht.float64]:
@@ -97,29 +97,32 @@ class TestBatchParallelKCluster(TestCase):
                     )
                     for n_clusters in [4, 5]:
                         for n_procs_to_merge in [2, 3, None]:
-                            parallelclusterer = ParallelClusterer(
-                                n_clusters=n_clusters,
-                                init=ppinitkw,
-                                random_state=seed,
-                                n_procs_to_merge=n_procs_to_merge,
-                            )
-                            parallelclusterer.fit(data)
-                            self.assertIsInstance(parallelclusterer.cluster_centers_, ht.DNDarray)
-                            self.assertEqual(parallelclusterer.cluster_centers_.split, None)
-                            self.assertEqual(
-                                parallelclusterer.cluster_centers_.shape, (n_clusters, 3)
-                            )
-                            self.assertEqual(parallelclusterer.cluster_centers_.dtype, dtype)
-                            self.assertIsInstance(parallelclusterer.n_iter_, int)
-                            labels = parallelclusterer.predict(data)
-                            functional_value = parallelclusterer.functional_value_
-                            self.assertIsInstance(functional_value, float)
-                            self.assertIsInstance(labels, ht.DNDarray)
-                            self.assertEqual(labels.split, 0)
-                            self.assertEqual(labels.shape, (data.shape[0], 1))
-                            self.assertEqual(labels.dtype, ht.int32)
-                            self.assertEqual(labels.max(), n_clusters - 1)
-                            self.assertEqual(labels.min(), 0)
+                            for ppinitkw in ppinitkws:
+                                parallelclusterer = ParallelClusterer(
+                                    n_clusters=n_clusters,
+                                    init=ppinitkws[0],
+                                    random_state=seed,
+                                    n_procs_to_merge=n_procs_to_merge,
+                                )
+                                parallelclusterer.fit(data)
+                                self.assertIsInstance(
+                                    parallelclusterer.cluster_centers_, ht.DNDarray
+                                )
+                                self.assertEqual(parallelclusterer.cluster_centers_.split, None)
+                                self.assertEqual(
+                                    parallelclusterer.cluster_centers_.shape, (n_clusters, 3)
+                                )
+                                self.assertEqual(parallelclusterer.cluster_centers_.dtype, dtype)
+                                self.assertIsInstance(parallelclusterer.n_iter_, int)
+                                labels = parallelclusterer.predict(data)
+                                functional_value = parallelclusterer.functional_value_
+                                self.assertIsInstance(functional_value, float)
+                                self.assertIsInstance(labels, ht.DNDarray)
+                                self.assertEqual(labels.split, 0)
+                                self.assertEqual(labels.shape, (data.shape[0], 1))
+                                self.assertEqual(labels.dtype, ht.int32)
+                                self.assertEqual(labels.max(), n_clusters - 1)
+                                self.assertEqual(labels.min(), 0)
 
     def test_if_errors_thrown(self):
         for ParallelClusterer in [ht.cluster.BatchParallelKMeans, ht.cluster.BatchParallelKMedians]:
