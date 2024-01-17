@@ -1600,21 +1600,28 @@ class TestDNDarray(TestCase):
         # self.assert_array_equal(x_indexed, x_np_indexed)
         # self.assertTrue(x_indexed.split == 3)
 
-        # # boolean mask, local
-        # arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
-        # np.random.seed(42)
-        # mask = np.random.randint(0, 2, arr.shape, dtype=bool)
-        # self.assertTrue((arr[mask].numpy() == arr.numpy()[mask]).all())
+        # boolean mask, local
+        arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
+        np.random.seed(42)
+        mask = np.random.randint(0, 2, arr.shape, dtype=bool)
+        value = 99.0
+        arr[mask] = value
+        self.assertTrue((arr[mask] == value).all().item())
+        self.assertTrue(arr[mask].dtype == arr.dtype)
+        value = ht.ones_like(arr)
+        arr[mask] = value[mask]
+        self.assertTrue((arr[mask] == value[mask]).all().item())
 
-        # # boolean mask, distributed
-        # arr_split0 = ht.array(arr, split=0)
-        # mask_split0 = ht.array(mask, split=0)
-        # self.assertTrue((arr_split0[mask_split0].numpy() == arr.numpy()[mask]).all())
-
+        # boolean mask, distributed
+        arr_split0 = ht.array(arr, split=0)
+        mask_split0 = ht.array(mask, split=0)
+        arr_split0[mask_split0] = value[mask]
+        self.assertTrue((arr_split0[mask_split0] == value[mask]).all().item())
         # arr_split1 = ht.array(arr, split=1)
         # mask_split1 = ht.array(mask, split=1)
-        # self.assert_array_equal(arr_split1[mask_split1], arr.numpy()[mask])
-
+        # print("DEBUGGING: arr_split1[mask_split1].shape, value[mask].shape = ", arr_split1[mask_split1].shape, value[mask].shape)
+        # arr_split1[mask_split1] = value[mask]
+        # self.assertTrue((arr_split1[mask_split1] == value[mask]).all().item())
         # arr_split2 = ht.array(arr, split=2)
         # mask_split2 = ht.array(mask, split=2)
         # self.assert_array_equal(arr_split2[mask_split2], arr.numpy()[mask])

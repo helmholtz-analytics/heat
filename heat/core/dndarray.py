@@ -2374,6 +2374,7 @@ class DNDarray:
                 return value, is_scalar
             # need information on indexed array
             output_shape = kwargs.get("output_shape", None)
+            print("DEBUGGING: output_shape = ", output_shape)
             if output_shape is not None:
                 indexed_dims = len(output_shape)
             else:
@@ -2390,6 +2391,7 @@ class DNDarray:
             value_shape = value.shape
             # check if value needs to be broadcasted
             if value_shape != output_shape:
+                print("DEBUGGING: value_shape, output_shape = ", value_shape, output_shape)
                 # assess whether the shapes are compatible, starting from the trailing dimension
                 for i in range(1, min(len(value_shape), len(output_shape)) + 1):
                     if i == 1:
@@ -2532,6 +2534,11 @@ class DNDarray:
         ) = self.__process_key(key, return_local_indices=True, op="set")
 
         # match dimensions
+        print(
+            "DEBUGGING: BEFORE BROADCAST: OUTPUT_SHAPE, SPLIT_KEY_IS_ORDERED = ",
+            output_shape,
+            split_key_is_ordered,
+        )
         value, value_is_scalar = __broadcast_value(self, key, value, output_shape=output_shape)
 
         if split_key_is_ordered == 1:
