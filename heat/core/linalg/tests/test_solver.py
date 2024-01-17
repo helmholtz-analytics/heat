@@ -135,3 +135,41 @@ class TestSolver(TestCase):
         with self.assertRaises(NotImplementedError):
             A = ht.random.randn(10, 10, split=1)
             V, T = ht.lanczos(A, m=3)
+
+    def test_solve_triangular(self):
+        k = 100  # data dimension size
+        torch.manual_seed(42)
+
+        # random triangular matrix inversion
+        at = torch.rand((k, k))
+        # at += torch.eye(k)
+        at += 1e2 * torch.ones_like(at)  # make gaussian elimination more stable
+        at = torch.triu(at)
+
+        ct = torch.linalg.solve_triangular(at, torch.eye(k), upper=True)
+
+        a = ht.factories.asarray(at, copy=True)
+        c = ht.factories.asarray(ct, copy=True)
+        b = ht.eye(k)
+
+        for s0, s1 in (None, None), (0, 0), (1, 0):
+            a.resplit_(s0)
+            b.resplit_(s1)
+
+            res = ht.linalg.solve_triangular(a, b)
+            self.assertTrue(ht.allclose(res, c))
+
+        # triangular ones inversion
+        # for this test case, the results should be exact
+        at = torch.triu(torch.ones_like(at))
+        ct = torch.linalg.solve_triangular(at, torch.eye(k), upper=True)
+
+        a = ht.factories.asarray(at, copy=True)
+        c = ht.factories.asarray(ct, copy=True)
+
+        for s0, s1 in (None, None), (0, 0), (1, 0):
+            a.resplit_(s0)
+            b.resplit_(s1)
+
+            res = ht.linalg.solve_triangular(a, b)
+            self.assertTrue(ht.equal(res, c))
