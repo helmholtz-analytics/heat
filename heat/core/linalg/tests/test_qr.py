@@ -48,6 +48,7 @@ class TestQR(TestCase):
 
     def test_qr(self):
         m, n = 20, 40
+        # m, n = 44, 54
         st = torch.randn(m, n, device=self.device.torch_device, dtype=torch.float)
         a_comp = ht.array(st, split=0)
         for t in range(1, 3):
