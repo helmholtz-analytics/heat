@@ -296,6 +296,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
 
     comm = A.comm
     dev = A.device
+    tdev = dev.torch_device
 
     if A.split is None:
         x = torch.linalg.solve_triangular(A.larray, b.larray, upper=True)
@@ -319,11 +320,10 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
                 res = torch.zeros(
                     (A_lshapes_cum[i], b.shape[1]),
                     dtype=b.dtype.torch_type(),
-                    device=b.device.torch_device,
+                    device=tdev,
                 )
 
-            req = comm.Ibcast(res, root=i)  # why not Bcast?
-            req.Wait()
+            comm.Bcast(res, root=i)
 
             if comm.rank < i:
                 j = comm.rank
@@ -350,22 +350,28 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
     #             btilde_loc -= res_recv.reshape(b.lshape)
 
     else:
-        for i in range(nprocs - 1, -1, -1):
-            x_from_i = torch.zeros(
-                (x.lshape_map[i, 0], x.lshape_map[i, 1]),
-                dtype=b.dtype.torch_type(),
-                device=b.device.torch_device,
-            )
-            if A.comm.rank == i:
+        for i in range(nprocs - 1, 0, -1):
+            idims = tuple(x.lshape_map[i])  # broadcasting from node i would be faster
+            if comm.rank == i:
                 x.larray = torch.linalg.solve_triangular(
                     A.larray[:, A_lshapes_cum[i] : A_lshapes_cum[i + 1]], btilde_loc, upper=True
                 )
                 x_from_i = x.larray
-            if i > 0:
-                req = A.comm.Ibcast(x_from_i, root=i)
-                req.Wait()
-            if A.comm.rank < i:
-                j = A.comm.rank
+            else:
+                x_from_i = torch.zeros(
+                    idims,
+                    dtype=b.dtype.torch_type(),
+                    device=tdev,
+                )
+
+            comm.Bcast(x_from_i, root=i)
+
+            if comm.rank < i:
                 btilde_loc -= A.larray[:, A_lshapes_cum[i] : A_lshapes_cum[i + 1]] @ x_from_i
+
+        if comm.rank == 0:
+            x.larray = torch.linalg.solve_triangular(
+                A.larray[:, : A_lshapes_cum[1]], btilde_loc, upper=True
+            )
 
     return x
