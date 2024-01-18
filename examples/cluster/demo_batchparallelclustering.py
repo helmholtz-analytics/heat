@@ -97,7 +97,8 @@ X = ht.load_hdf5(filepath, dataset=data_name, split=0, device=device)
 # normalize the data if required
 if preprocessing_flag:
     scaler = ht.preprocessing.StandardScaler(copy=False)
-    scaler.fit_transform(X)
+    X = scaler.fit_transform(X)
+
 
 # prepare arrays for measured times and functional values
 times = np.zeros(n_samples)
