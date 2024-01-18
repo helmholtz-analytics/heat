@@ -121,5 +121,6 @@ np.savetxt(
     f"{results_path}times_skl{method}_{n_clusters}_{batch_size}_{init}_{n_samples}_1_cpu.txt", times
 )
 np.savetxt(
-    f"{results_path}values_skl{method}_{n_clusters}_{batch_size}_{init}_{n_samples}_1_cpu.txt", values
+    f"{results_path}values_skl{method}_{n_clusters}_{batch_size}_{init}_{n_samples}_1_cpu.txt",
+    values,
 )
