@@ -976,19 +976,20 @@ class DNDarray:
                         comm=arr.comm,
                         balanced=False,
                     )
-                    # vectorized sorting along axis 0
                     key.balance_()
+                    # set output parameters
+                    output_shape = (key.gshape[0],)
+                    new_split = 0
+                    split_key_is_ordered = 0
+                    out_is_balanced = True
+                    # vectorized sorting of key along axis 0
                     key = manipulations.unique(key, axis=0, return_inverse=False)
-                    # return tuple key
+                    # return tuple key of torch tensors
                     key = list(key.larray.split(1, dim=1))
                     for i, k in enumerate(key):
                         key[i] = k.squeeze(1)
                     key = tuple(key)
 
-                    output_shape = (key[0].shape[0],)
-                    new_split = 0
-                    split_key_is_ordered = 0
-                    out_is_balanced = True
                 return (
                     arr,
                     key,
@@ -2374,7 +2375,6 @@ class DNDarray:
                 return value, is_scalar
             # need information on indexed array
             output_shape = kwargs.get("output_shape", None)
-            print("DEBUGGING: output_shape = ", output_shape)
             if output_shape is not None:
                 indexed_dims = len(output_shape)
             else:
@@ -2391,7 +2391,6 @@ class DNDarray:
             value_shape = value.shape
             # check if value needs to be broadcasted
             if value_shape != output_shape:
-                print("DEBUGGING: value_shape, output_shape = ", value_shape, output_shape)
                 # assess whether the shapes are compatible, starting from the trailing dimension
                 for i in range(1, min(len(value_shape), len(output_shape)) + 1):
                     if i == 1:
@@ -2456,21 +2455,18 @@ class DNDarray:
             # sanitation.sanitize_out(subarray, value_shape, value.split, value.device, value.comm)
             #            arr.larray[None] = value.larray
 
-            # make sure value is same datatype as arr
+            # only assign values if key does not contain empty slices
             process_is_inactive = arr.larray[key].numel() == 0
             if not process_is_inactive:
-                # only assign values if key does not contain empty slices
+                # make sure value is same datatype as arr
                 arr.larray[key] = value.larray.type(arr.dtype.torch_type())
             return
 
         # make sure `value` is a DNDarray
-        if not isinstance(value, DNDarray):
-            try:
-                value = factories.array(
-                    value, dtype=self.dtype, split=None, device=self.device, comm=self.comm
-                )
-            except TypeError:
-                raise TypeError(f"Cannot assign object of type {type(value)} to DNDarray.")
+        try:
+            value = factories.array(value)
+        except TypeError:
+            raise TypeError(f"Cannot assign object of type {type(value)} to DNDarray.")
 
         # workaround for Heat issue #1292. TODO: remove when issue is fixed
         if not isinstance(key, DNDarray):
@@ -2513,15 +2509,6 @@ class DNDarray:
             return
 
         # multi-element key, incl. slicing and striding, ordered and non-ordered advanced indexing
-        # # store original key for later use
-        # try:
-        #     original_key = key.copy()
-        # except AttributeError:
-        #     try:
-        #         original_key = key.clone()
-        #     except AttributeError:
-        #         original_key = key
-
         (
             self,
             key,
@@ -2541,6 +2528,14 @@ class DNDarray:
         )
         value, value_is_scalar = __broadcast_value(self, key, value, output_shape=output_shape)
 
+        # early out for non-distributed case
+        if not self.is_distributed() and not value.is_distributed():
+            # no communication needed
+            __set(self, key, value)
+            self = self.transpose(backwards_transpose_axes)
+            return
+
+        # distributed case
         if split_key_is_ordered == 1:
             # key all local
             if root is not None:
@@ -2580,38 +2575,39 @@ class DNDarray:
 
         if split_key_is_ordered == -1:
             # key along split axis is in descending order, i.e. slice with negative step
-            if self.is_distributed():
-                # flip value, match value distribution to key's
-                # NB: `value.ndim` might be smaller than `self.ndim`, hence  `value.split` nominally different from `self.split`
-                flipped_value = manipulations.flip(value, axis=output_split)
-                split_key = factories.array(
-                    key[self.split], is_split=0, device=self.device, comm=self.comm
-                )
-                if not flipped_value.is_distributed():
-                    # work with distributed `flipped_value`
-                    flipped_value = factories.array(
-                        flipped_value.larray,
-                        dtype=flipped_value.dtype,
-                        split=output_split,
-                        device=self.device,
-                        comm=self.comm,
-                    )
-                # match `value` distribution to `self[key]` distribution
-                target_map = flipped_value.lshape_map
-                target_map[:, output_split] = split_key.lshape_map[:, 0]
-                flipped_value.redistribute_(target_map=target_map)
+            # N.B. PyTorch doesn't support negative-step slices. Key has been processed into torch tensor.
 
-                process_is_inactive = sum(
-                    list(isinstance(k, torch.Tensor) and k.numel() == 0 for k in key)
+            # flip value, match value distribution to key's
+            # NB: `value.ndim` can be smaller than `self.ndim`, hence  `value.split` nominally different from `self.split`
+            flipped_value = manipulations.flip(value, axis=output_split)
+            split_key = factories.array(
+                key[self.split], is_split=0, device=self.device, comm=self.comm
+            )
+            if not flipped_value.is_distributed():
+                # work with distributed `flipped_value`
+                flipped_value = factories.array(
+                    flipped_value.larray,
+                    dtype=flipped_value.dtype,
+                    split=output_split,
+                    device=self.device,
+                    comm=self.comm,
                 )
-                if not process_is_inactive:
-                    # only assign values if key does not contain empty slices
-                    __set(self, key, flipped_value)
-            else:
-                # 1 process, no communication needed
-                __set(self, key, value)
+            # match `value` distribution to `self[key]` distribution
+            target_map = flipped_value.lshape_map
+            target_map[:, output_split] = split_key.lshape_map[:, 0]
+            flipped_value.redistribute_(target_map=target_map)
+
+            process_is_inactive = sum(
+                list(isinstance(k, torch.Tensor) and k.numel() == 0 for k in key)
+            )
+            if not process_is_inactive:
+                # only assign values if key does not contain empty slices
+                __set(self, key, flipped_value)
             self = self.transpose(backwards_transpose_axes)
             return
+
+        # split_key_is_ordered == 0 -> key along split axis is unordered, communication needed
+        # key along the split axis is 1-D torch tensor, indices are global
 
         # non-ordered key along split axis
         # indices are global
