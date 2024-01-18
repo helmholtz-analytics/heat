@@ -92,7 +92,7 @@ with h5py.File(filepath, "r") as f:
     data_name = list(f.keys())[0]
 
 # load the data
-X = ht.load_hdf5(filepath, dataset=data_name, split=0, device=device, load_fraction=0.01)
+X = ht.load_hdf5(filepath, dataset=data_name, split=0, device=device)
 
 # normalize the data if required
 if preprocessing_flag:
