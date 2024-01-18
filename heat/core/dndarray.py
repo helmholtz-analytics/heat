@@ -1442,7 +1442,7 @@ class DNDarray:
         """
         # key can be: int, tuple, list, slice, DNDarray, torch tensor, numpy array, or sequence thereof
         # Trivial cases
-        print("DEBUGGING: RAW KEY = ", key, type(key))
+        #        print("DEBUGGING: RAW KEY = ", key, type(key))
 
         if key is None:
             return self.expand_dims(0)
@@ -1498,7 +1498,7 @@ class DNDarray:
 
         if not self.is_distributed():
             # key is torch-proof, index underlying torch tensor
-            print("DEBUGGING: key = ", key)
+            # print("DEBUGGING: key = ", key)
             indexed_arr = self.larray[key]
             # transpose array back if needed
             self = self.transpose(backwards_transpose_axes)
@@ -1564,7 +1564,7 @@ class DNDarray:
             key_shapes = []
             for k in key:
                 key_shapes.append(getattr(k, "shape", None))
-            print("KEY SHAPES = ", key_shapes)
+            # print("KEY SHAPES = ", key_shapes)
             return_1d = key_shapes.count(key_shapes[original_split]) == self.ndim
             # check for broadcasted indexing: key along split axis is not 1D
             broadcasted_indexing = (
@@ -1680,13 +1680,13 @@ class DNDarray:
                 indexed_arr, is_split=output_split, device=self.device, copy=False
             )
 
-        print("RECV_COUNTS = ", recv_counts)
+        # print("RECV_COUNTS = ", recv_counts)
         # share recv_counts among all processes
         comm_matrix = torch.empty(
             (self.comm.size, self.comm.size), dtype=recv_counts.dtype, device=recv_counts.device
         )
         self.comm.Allgather(recv_counts, comm_matrix)
-        print("DEBUGGING: comm_matrix = ", comm_matrix, comm_matrix.shape)
+        # print("DEBUGGING: comm_matrix = ", comm_matrix, comm_matrix.shape)
 
         outgoing_request_key_counts = comm_matrix[self.comm.rank]
         outgoing_request_key_displs = torch.cat(
@@ -1738,7 +1738,7 @@ class DNDarray:
                 incoming_request_key_displs.tolist(),
             ),
         )
-        print("DEBUGGING:incoming_request_key = ", incoming_request_key)
+        # print("DEBUGGING:incoming_request_key = ", incoming_request_key)
         if return_1d:
             incoming_request_key = list(incoming_request_key[:, d] for d in range(self.ndim))
             incoming_request_key[original_split] -= displs[self.comm.rank]
@@ -1750,8 +1750,8 @@ class DNDarray:
                 + key[original_split + 1 :]
             )
 
-        print("AFTER: incoming_request_key = ", incoming_request_key)
-        print("original_split = ", original_split)
+        # print("AFTER: incoming_request_key = ", incoming_request_key)
+        # print("original_split = ", original_split)
         # calculate shape of local recv buffer
         output_lshape = list(output_shape)
         if getattr(key, "ndim", 0) == 1:
@@ -1792,9 +1792,9 @@ class DNDarray:
                 if not all_keys_scalar:
                     send_buf = send_buf.unsqueeze_(dim=output_split)
 
-        print("OUTPUT_SHAPE = ", output_shape)
-        print("OUTPUT_SPLIT = ", output_split)
-        print("SEND_BUF SHAPE = ", send_buf.shape)
+        # print("OUTPUT_SHAPE = ", output_shape)
+        # print("OUTPUT_SPLIT = ", output_split)
+        # print("SEND_BUF SHAPE = ", send_buf.shape)
 
         # output_lshape = list(output_shape)
         # if getattr(key, "ndim", 0) == 1:
@@ -1815,10 +1815,10 @@ class DNDarray:
         recv_displs = outgoing_request_key_displs.tolist()
         send_counts = incoming_request_key_counts.tolist()
         send_displs = incoming_request_key_displs.tolist()
-        print("DEBUGGING: send_buf recv_buf shape= ", send_buf.shape, recv_buf.shape)
-        print("DEBUGGING: send_counts recv_counts = ", send_counts, recv_counts)
-        print("DEBUGGING: send_displs recv_displs = ", send_displs, recv_displs)
-        print("DEBUGGING: output_split = ", output_split)
+        # print("DEBUGGING: send_buf recv_buf shape= ", send_buf.shape, recv_buf.shape)
+        # print("DEBUGGING: send_counts recv_counts = ", send_counts, recv_counts)
+        # print("DEBUGGING: send_displs recv_displs = ", send_displs, recv_displs)
+        # print("DEBUGGING: output_split = ", output_split)
         self.comm.Alltoallv(
             (send_buf, send_counts, send_displs),
             (recv_buf, recv_counts, recv_displs),
@@ -1851,8 +1851,8 @@ class DNDarray:
             )
 
         map = [slice(None)] * recv_buf.ndim
-        print("DEBUGGING: outgoing_request_key = ", outgoing_request_key)
-        print("DEBUGGING: key[original_split] = ", key[original_split])
+        # print("DEBUGGING: outgoing_request_key = ", outgoing_request_key)
+        # print("DEBUGGING: key[original_split] = ", key[original_split])
         if broadcasted_indexing:
             map[original_split] = outgoing_request_key.argsort(stable=True)[
                 key[original_split].argsort(stable=True).argsort(stable=True)
@@ -2607,12 +2607,39 @@ class DNDarray:
             return
 
         # split_key_is_ordered == 0 -> key along split axis is unordered, communication needed
-        # key along the split axis is 1-D torch tensor, indices are global
+        # key along the split axis is 1-D torch tensor, but indices are GLOBAL
+        counts, displs = self.counts_displs()
+        # rank, size = self.comm.rank, self.comm.size
+        rank = self.comm.rank
+        # define key as mask_like if each element of key is a torch.Tensor and all elements of key are of the same shape
+        key_is_mask_like = (
+            all(isinstance(k, torch.Tensor) for k in key) and len(set(k.shape for k in key)) == 1
+        )
 
-        # non-ordered key along split axis
-        # indices are global
-
-        # process-local indices
+        if not value.is_distributed():
+            if key_is_mask_like:
+                split_key = key[self.split]
+                # find elements of `split_key` that are local to this process
+                local_indices = torch.nonzero(
+                    (split_key >= displs[rank]) & (split_key < displs[rank] + counts[rank])
+                ).flatten()
+                # keep local indexing key only and correct for displacements along the split axis
+                key = list(key)
+                key = tuple(
+                    [
+                        key[i][local_indices] - displs[rank]
+                        if i == self.split
+                        else key[i][local_indices]
+                        for i in range(len(key))
+                    ]
+                )
+                # set local elements of `self` to corresponding elements of `value`
+                #
+                self.larray[key] = value.larray[local_indices].type(self.dtype.torch_type())
+                self = self.transpose(backwards_transpose_axes)
+                return
+            # key not mask_like
+        # both `self` and `value` are distributed
 
         # if advanced_indexing:
         #     raise Exception("Advanced indexing is not supported yet")

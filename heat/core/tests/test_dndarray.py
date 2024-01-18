@@ -1619,11 +1619,6 @@ class TestDNDarray(TestCase):
         self.assertTrue((arr_split0[mask_split0] == value[mask]).all().item())
         arr_split1 = ht.array(arr, split=1)
         mask_split1 = ht.array(mask, split=1)
-        print(
-            "DEBUGGING: arr_split1[mask_split1].shape, value[mask].shape = ",
-            arr_split1[mask_split1].shape,
-            value[mask].shape,
-        )
         arr_split1[mask_split1] = value[mask]
         self.assertTrue((arr_split1[mask_split1] == value[mask]).all().item())
         # arr_split2 = ht.array(arr, split=2)
