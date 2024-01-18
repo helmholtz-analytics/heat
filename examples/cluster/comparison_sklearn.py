@@ -83,7 +83,7 @@ else:
 # load the data
 with h5py.File(filepath, "r") as f:
     data_name = list(f.keys())[0]
-    X = f[data_name][:, :1000]
+    X = f[data_name][:, :]
 
 # normalize the data if required
 if preprocessing_flag:
