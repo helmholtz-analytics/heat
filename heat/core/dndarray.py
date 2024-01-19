@@ -1842,15 +1842,6 @@ class DNDarray:
             return factories.array(indexed_arr, is_split=output_split, copy=False)
 
         outgoing_request_key = outgoing_request_key.squeeze_(1)
-        # incoming elements likely already stacked in ascending or descending order
-        # TODO: is this check really worth it? blanket argsort solution below might be ok
-        if (key[original_split] == outgoing_request_key).all():
-            return factories.array(recv_buf, is_split=output_split, copy=False)
-        if (key[original_split] == outgoing_request_key.flip(dims=(0,))).all():
-            return factories.array(
-                recv_buf.flip(dims=(output_split,)), is_split=output_split, copy=False
-            )
-
         map = [slice(None)] * recv_buf.ndim
         # print("DEBUGGING: outgoing_request_key = ", outgoing_request_key)
         # print("DEBUGGING: key[original_split] = ", key[original_split])
