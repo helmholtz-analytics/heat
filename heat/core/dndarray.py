@@ -893,8 +893,9 @@ class DNDarray:
                 raise IndexError("Invalid indices: expected a list of integers, got {}".format(key))
         if isinstance(key, (DNDarray, torch.Tensor, np.ndarray)):
             if key.dtype in (bool, uint8, torch.bool, torch.uint8, np.bool_, np.uint8):
-                # boolean indexing: shape must match arr.shape
-                if not tuple(key.shape) == arr.shape:
+                # boolean indexing: shape must be consistent with arr.shape
+                key_ndim = key.ndim
+                if not tuple(key.shape) == arr.shape[:key_ndim]:
                     raise IndexError(
                         "Boolean index of shape {} does not match indexed array of shape {}".format(
                             tuple(key.shape), arr.shape
@@ -920,7 +921,7 @@ class DNDarray:
                         key = key.nonzero()
                         # convert to torch tensor
                         key = tuple(torch.tensor(k, device=arr.larray.device) for k in key)
-                    output_shape = tuple(key[0].shape)
+                    output_shape = tuple(key[0].shape) + arr.shape[key_ndim:]
                     new_split = None if arr.split is None else 0
                     out_is_balanced = True
                     split_key_is_ordered = 1
