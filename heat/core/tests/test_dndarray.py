@@ -1621,9 +1621,10 @@ class TestDNDarray(TestCase):
         mask_split1 = ht.array(mask, split=1)
         arr_split1[mask_split1] = value[mask]
         self.assertTrue((arr_split1[mask_split1] == value[mask]).all().item())
-        # arr_split2 = ht.array(arr, split=2)
-        # mask_split2 = ht.array(mask, split=2)
-        # self.assert_array_equal(arr_split2[mask_split2], arr.numpy()[mask])
+        arr_split2 = ht.array(arr, split=2)
+        mask_split2 = ht.array(mask, split=2)
+        arr_split2[mask_split2] = value[mask]
+        self.assertTrue((arr_split2[mask_split2] == value[mask]).all().item())
 
     # def test_setitem_getitem(self):
     #     # tests for bug #825
