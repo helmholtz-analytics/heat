@@ -16,7 +16,7 @@ __all__ = ["qr"]
 
 def qr(
     a: DNDarray,
-    tiles_per_proc: Union[int, torch.Tensor] = 1,
+    tiles_per_proc: Union[int, torch.Tensor] = 2,
     calc_q: bool = True,
     overwrite_a: bool = False,
 ) -> Tuple[DNDarray, DNDarray]:
