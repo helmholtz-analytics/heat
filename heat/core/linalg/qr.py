@@ -97,8 +97,12 @@ def qr(
         except AttributeError:
             q, r = a.larray.qr(some=False)
 
-        q = DNDarray(q, device=a.device, comm=a.comm)
-        r = DNDarray(r, device=a.device, comm=a.comm)
+        q = DNDarray(
+            q, gshape=a.lshape, dtype=a.dtype, split=0, device=a.device, comm=a.comm, balanced=False
+        )
+        r = DNDarray(
+            r, gshape=a.lshape, dtype=a.dtype, split=0, device=a.device, comm=a.comm, balanced=True
+        )
         ret = QR(q if calc_q else None, r)
         return ret
     # =============================== Prep work ====================================================
