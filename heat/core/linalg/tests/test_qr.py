@@ -14,7 +14,6 @@ else:
     extended_tests = False
 
 
-
 @unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
 class TestQR(TestCase):
     @unittest.skipIf(not extended_tests, "extended tests")
@@ -82,6 +81,7 @@ class TestQR(TestCase):
                 self.assertTrue(
                     ht.allclose(ht.eye(m, dtype=ht.double), qr2.Q @ qr2.Q.T, rtol=1e-5, atol=1e-5)
                 )
+
 
 #         # test if calc R alone works
 #         a2_0 = ht.array(st2, split=0)
