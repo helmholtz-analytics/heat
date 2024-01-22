@@ -1533,13 +1533,13 @@ class TestDNDarray(TestCase):
         self.assertTrue(ht.all(adv_indexed_x == value).item())
         self.assertTrue(adv_indexed_x.dtype == x.dtype)
 
-        # # 1d
-        # x = ht.arange(10, 1, -1, split=0)
-        # x_np = np.arange(10, 1, -1)
-        # x_adv_ind = x[np.array([3, 3, 1, 8])]
-        # x_np_adv_ind = x_np[np.array([3, 3, 1, 8])]
-        # self.assert_array_equal(x_adv_ind, x_np_adv_ind)
-
+        # 1d
+        x = ht.arange(10, 1, -1, split=0)
+        value = ht.arange(4)
+        x[ht.array([3, 2, 1, 8])] = value
+        x_adv_ind = x[np.array([3, 2, 1, 8])]
+        self.assertTrue(ht.all(x_adv_ind == value).item())
+        self.assertTrue(x_adv_ind.dtype == x.dtype)
         # # 3d, split 0, non-unique, non-ordered key along split axis
         # x = ht.arange(60, split=0).reshape(5, 3, 4)
         # x_np = np.arange(60).reshape(5, 3, 4)
@@ -1612,7 +1612,7 @@ class TestDNDarray(TestCase):
         arr[mask] = value[mask]
         self.assertTrue((arr[mask] == value[mask]).all().item())
 
-        # boolean mask, distributed
+        # boolean mask, distributed, non-distributed `value`
         arr_split0 = ht.array(arr, split=0)
         mask_split0 = ht.array(mask, split=0)
         arr_split0[mask_split0] = value[mask]
@@ -1625,6 +1625,8 @@ class TestDNDarray(TestCase):
         mask_split2 = ht.array(mask, split=2)
         arr_split2[mask_split2] = value[mask]
         self.assertTrue((arr_split2[mask_split2] == value[mask]).all().item())
+
+        # TODO boolean mask, distributed, distributed `value`
 
     # def test_setitem_getitem(self):
     #     # tests for bug #825
