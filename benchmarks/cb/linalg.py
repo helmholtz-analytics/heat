@@ -19,10 +19,12 @@ def qr_split_0(a):
     for t in range(2, 3):
         qr = a.qr(tiles_per_proc=t)
 
+
 @monitor()
 def qr_split_1(a):
     for t in range(1, 3):
         qr = a.qr(tiles_per_proc=t)
+
 
 @monitor()
 def hierachical_svd_rank(data, r):
