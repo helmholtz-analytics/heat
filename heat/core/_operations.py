@@ -24,7 +24,7 @@ def __binary_op(
     t1: Union[DNDarray, int, float],
     t2: Union[DNDarray, int, float],
     out: Optional[DNDarray] = None,
-    where: Optional[DNDarray] = None,
+    where: Union[bool, DNDarray] = True,
     fn_kwargs: Optional[Dict] = {},
 ) -> DNDarray:
     """
@@ -104,7 +104,7 @@ def __binary_op(
 
     # Make inputs have the same dimensionality
     output_shape = stride_tricks.broadcast_shape(t1.shape, t2.shape)
-    if where is not None:
+    if where is not True:
         output_shape = stride_tricks.broadcast_shape(where.shape, output_shape)
         while len(where.shape) < len(output_shape):
             where = where.expand_dims(axis=0)
@@ -173,7 +173,7 @@ def __binary_op(
 
     result = operation(t1.larray.to(promoted_type), t2.larray.to(promoted_type), **fn_kwargs)
 
-    if out is None and where is None:
+    if out is None and where is True:
         return DNDarray(
             result,
             output_shape,
@@ -184,7 +184,7 @@ def __binary_op(
             balanced=output_balanced,
         )
 
-    if where is not None:
+    if where is not True:
         if out is None:
             out = factories.empty(
                 output_shape,
@@ -359,7 +359,6 @@ def __local_op(
             x.comm,
             x.balanced,
         )
-
     # output buffer writing requires a bit more work
     # we need to determine whether the operands are broadcastable and the multiple of the broadcasting
     # reason: manually repetition for each dimension as PyTorch does not conform to numpy's broadcast semantic
@@ -437,8 +436,12 @@ def __reduce_op(
 
     # apply the partial reduction operation to the local tensor
     if axis is None:
-        partial = partial_op(partial).reshape(-1)
-        output_shape = (1,)
+        partial = partial_op(partial)
+        if partial.ndim > 0:
+            partial = partial.reshape(-1)
+            output_shape = (1,)
+        else:
+            output_shape = ()
         balanced = True
     else:
         output_shape = x.gshape
