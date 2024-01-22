@@ -157,3 +157,60 @@ def qr(
                 return Q[:, :k].balance(), R
         else:
             return Q[:, :k].balance()
+
+
+# -----------------------------------------------------------------------------
+# old version with serial sends instead of broadcast...
+
+# def myqr_old(A: DNDarray) -> DNDarray:
+
+#     if not isinstance(A, DNDarray):
+#         raise RuntimeError("Argument needs to be a DNDarray but is {}.".format(type(A)))
+#     if not A.ndim == 2:
+#         raise RuntimeError("A needs to be a 2D matrix")
+#     if not A.split == 1 and A.split is not None:
+#         raise RuntimeError(
+#             "Split dimension of input array must be 1 or None, but is {}.".format(A.split)
+#         )
+
+#     if A.split is None:
+#         Q, R = torch.linalg.qr(A.larray, mode="reduced")
+#         Q = factories.array(Q, dtype=A.dtype, split=None, device=A.device, comm=A.comm)
+#         return Q
+
+#     lshapes = A.lshape_map[:, 1]
+#     lshapes_cum = torch.cumsum(lshapes, 0)
+#     nprocs = A.comm.size
+
+#     if A.shape[0] >= A.shape[1]:
+#         last_row_reached = nprocs
+#         k = A.shape[1]
+#     else:
+#         last_row_reached = min(torch.argwhere(lshapes_cum >= A.shape[0]))[0]
+#         k = A.shape[0]
+
+#     Q = factories.zeros(A.shape, dtype=A.dtype, split=1, device=A.device, comm=A.comm)
+#     A_columns = A.larray
+
+#     for i in range(last_row_reached + 1):
+
+#         if i < nprocs - 1:
+#             k_loc_i = min(A.shape[0], A.lshape_map[i, 1])
+
+#         if A.comm.rank == i:
+#             Q.larray, _ = torch.linalg.qr(A_columns, mode="reduced")
+
+#             snd_reqs = [0] * (nprocs - i - 1)
+#             for j in range(i + 1, nprocs):
+#                 snd_reqs[j - i - 1] = A.comm.Isend(Q.larray, j, tag=i * j)
+#             [req.Wait() for req in snd_reqs]
+
+#         elif A.comm.rank > i:
+#             Q_from_i = torch.zeros(
+#                 (A.shape[0], k_loc_i), dtype=A.larray.dtype, device=A.device.torch_device
+#             )
+#             A.comm.Recv(Q_from_i, i, tag=A.comm.rank * i)
+#             R_loc = Q_from_i.T @ A_columns
+#             A_columns -= Q_from_i @ R_loc
+
+#     return Q[:, :k].balance()
