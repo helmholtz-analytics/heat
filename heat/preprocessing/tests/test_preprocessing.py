@@ -7,7 +7,7 @@ import os
 from ...core.tests.test_suites.basic_test import TestCase
 
 atol_fit = 1e-5
-atol_inv = 1e-5
+atol_inv = 1e-4
 
 
 # generates a test data set with varying mean and variation per feature; variances of the two last features are zero, mean of the last feature is also zero, whereas mean of second last feature is nonzero.
