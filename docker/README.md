@@ -2,23 +2,27 @@
 
 There is some flexibility to building the Docker images of Heat.
 
-Firstly, one can build from the released version taken from PyPI. This will either be
-the latest release or the version set through the `--build-arg=HEAT_VERSION=X.Y.Z`
+Firstly, one can build from the released version taken from PyPI using `Dockerfile.release`. This will either be
+the latest release or the version set through the `--build-arg HEAT_VERSION=X.Y.Z`
 argument.
 
-Secondly one can build a docker image from the GitHub sources, selected through
-`--build-arg=INSTALL_TYPE=source`. The default branch to be built is main, other
-branches can be specified using `--build-arg=HEAT_BRANCH=<branch-name>`.
+Secondly one can build a docker image from the GitHub sources, by building using `Dockerfile.source`. The default branch to be built is main, other
+branches can be specified using `--build-arg HEAT_BRANCH=<branch-name>`.
 
 ## General build
 
 ### Docker
 
-The [Dockerfile](./Dockerfile) guiding the build of the Docker image is located in this
-directory. It is typically most convenient to `cd` over here and run the Docker build as:
+The [Dockerfile](./Dockerfile.release or ./Dockerfile.source) guiding the build of the Docker image is located in this directory. It is typically most convenient to `cd` to the `docker` directory and run the  build command as:
 
 ```console
-$ docker build --build-args HEAT_VERSION=X.Y.Z --PYTORCH_IMG=<nvcr-tag> -t heat .
+$ docker build -t heat:latest -f Dockerfile.source .
+```
+
+Or optionally, using a particular version and pytorch base image:
+
+```console
+$ docker build --build-arg HEAT_VERSION=X.Y.Z --build-arg PYTORCH_IMG=<nvcr-tag> -t heat:X.Y.Z -f Dockerfile.release .
 ```
 
 The heat image is based on the nvidia pytorch container. You can find exisiting tags in the [nvidia container catalog](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch/tags).
@@ -89,3 +93,7 @@ The following file can be used as an example to use the apptainer file together 
 
 srun --mpi="pmi2" apptainer exec --nv heat_1.2.0_torch.11_cuda11.5_py3.9.sif bash -c "cd ~/code/heat/examples/lasso; python demo.py"
 ```
+
+## Scripts
+
+The scripts folder has a small collection of helper scripts to automate certain tasks, primarly meant for heat developers. Explanations are given at the top of the script.
