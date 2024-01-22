@@ -92,7 +92,7 @@ def qr(
 
     if a.split == 0 and tiles_per_proc == 1:
         raise Warning(
-            "Using tiles_per_proc=1 with split=0 can result in an error. We highly recommend to use tiles_per_proc != 1."
+            "Using tiles_per_proc=1 with split=0 can result in an error. We highly recommend to use tiles_per_proc > 1."
         )
 
     QR = collections.namedtuple("QR", "Q, R")
