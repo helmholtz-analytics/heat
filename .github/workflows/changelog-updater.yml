@@ -9,19 +9,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
-          ref: main
-
+          repository: helmholtz-analytics/heat
+          ref: ${{ github.event.release.target_commitish }}
       - name: Update Changelog
-        uses: stefanzweifel/changelog-updater-action@v1
-        with:
-          release-notes: ${{ github.event.release.body }}
-          latest-version: ${{ github.event.release.name }}
-
+        env:
+          NAME: ${{ github.event.release.name }}
+          BODY: ${{ github.event.release.body }}
+        run: |
+          echo ${{ format('\# {0} - {1}', env.GITHUB_REF, "$NAME") }} > cl_title.md
+          echo "$BODY" > cl_new_body.md
+          echo "" > newline.txt
+          cat cl_title.md newline.txt cl_new_body.md newline.txt CHANGELOG.md > tmp
+          mv tmp CHANGELOG.md
+          rm cl_title.md
+          rm cl_new_body.md
+          rm newline.txt
+          cat CHANGELOG.md
       - name: Commit updated CHANGELOG
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          branch: release/1.2.x
+          branch: ${{ github.event.release.target_commitish }}
           commit_message: Update CHANGELOG
           file_pattern: CHANGELOG.md
