@@ -89,12 +89,31 @@ def qr(
             Q, R = torch.linalg.qr(A.larray, mode="reduced")
         else:
             Q, R = torch.linalg.qr(A.larray, mode="complete")
-        Q = factories.array(Q, dtype=A.dtype, split=A.split, device=A.device, comm=A.comm)
+
         if calc_r:
-            R = factories.array(R, dtype=A.dtype, split=A.split, device=A.device, comm=A.comm)
-            return QR(Q, R)
+            R = DNDarray(
+                R,
+                gshape=R.shape,
+                dtype=A.dtype,
+                split=A.split,
+                device=A.device,
+                comm=A.comm,
+                balanced=True,
+            )
         else:
-            return QR(Q, None)
+            R = None
+        if calc_q:
+            Q = DNDarray(
+                Q,
+                gshape=Q.shape,
+                dtype=A.dtype,
+                split=A.split,
+                device=A.device,
+                comm=A.comm,
+                balanced=True,
+            )
+        else:
+            Q = None
 
     if A.split == 1:
         if full_q:
@@ -121,14 +140,23 @@ def qr(
             last_row_reached = min(torch.argwhere(lshapes_cum >= A.shape[0]))[0]
             k = A.shape[0]
 
-        Q = factories.zeros(A.shape, dtype=A.dtype, split=1, device=A.device, comm=A.comm)
+        if calc_q:
+            Q = factories.zeros(A.shape, dtype=A.dtype, split=1, device=A.device, comm=A.comm)
+        else:
+            Q = None
+
         if calc_r:
             R = factories.zeros(
                 (k, A.shape[1]), dtype=A.dtype, split=1, device=A.device, comm=A.comm
             )
             R_shapes = torch.hstack(
-                [torch.zeros(1, dtype=torch.int32), torch.cumsum(R.lshape_map[:, 1], 0)]
+                [
+                    torch.zeros(1, dtype=torch.int32, device=A.device.torch_device),
+                    torch.cumsum(R.lshape_map[:, 1], 0),
+                ]
             )
+        else:
+            R = None
         A_columns = A.larray.clone()
 
         for i in range(last_row_reached + 1):
@@ -139,9 +167,11 @@ def qr(
                 )
 
             if A.comm.rank == i:
-                Q.larray, R_loc = torch.linalg.qr(A_columns, mode="reduced")
+                Q_curr, R_loc = torch.linalg.qr(A_columns, mode="reduced")
                 if i < nprocs - 1:
-                    Q_buf = Q.larray
+                    Q_buf = Q_curr
+                if calc_q:
+                    Q.larray = Q_curr
                 if calc_r:
                     r_size = R.larray[R_shapes[i] : R_shapes[i + 1], :].shape[0]
                     R.larray[R_shapes[i] : R_shapes[i + 1], :] = R_loc[:r_size, :]
@@ -157,13 +187,10 @@ def qr(
                     r_size = R.larray[R_shapes[i] : R_shapes[i + 1], :].shape[0]
                     R.larray[R_shapes[i] : R_shapes[i + 1], :] = R_loc[:r_size, :]
 
-        if calc_r:
-            if crop_r_at != 0:
-                return QR(Q[:, :k].balance(), R[:, :crop_r_at].balance())
-            else:
-                return QR(Q[:, :k].balance(), R)
-        else:
-            return QR(Q[:, :k].balance(), None)
+        if calc_r and crop_r_at != 0:
+            R = R[:, :crop_r_at].balance_()
+
+    return QR(Q, R)
 
 
 # -----------------------------------------------------------------------------
