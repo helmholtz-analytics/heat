@@ -511,9 +511,10 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     # early out for single-process setup, torch matmul
     if a.comm.size == 1:
+        larr = torch.matmul(a.larray, b.larray)
         ret = DNDarray(
-            torch.matmul(a.larray, b.larray),
-            gshape=torch.matmul(a.larray, b.larray).shape,
+            larr,
+            gshape=larr.shape,
             dtype=a.dtype,
             split=a.split,
             device=a.device,
@@ -526,11 +527,12 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
             # if either of A or B is a vector
+            larr = torch.matmul(a.larray, b.larray)
             ret = DNDarray(
-                torch.matmul(a.larray, b.larray),
-                gshape=torch.matmul(a.larray, b.larray).shape,
-                dtype=a.larray.dtype,
-                split=0,
+                larr,
+                gshape=larr.shape,
+                dtype=a.dtype,
+                split=a.split,
                 device=a.device,
                 comm=a.comm,
                 balanced=True,
