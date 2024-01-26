@@ -28,7 +28,7 @@ def qr(
 
     Parameters
     ----------
-    A : DNDarray
+    A : DNDarray of shape (..., M, N)
         Array which will be decomposed
     calc_r : bool, optional
         Whether or not to calculate R.
@@ -42,15 +42,17 @@ def qr(
         If ``True``, function overwrites ``a`` with R
         If ``False``, a new array will be created for R
     full_q : bool, optional
-        If ``True``, function returns the full (i.e. square) Q matrix; note that this option may result in heaviy memory overhead.
-        If ``False`` (default), function returns the reduced Q matrix.
+        If ``True``, function returns the full (i.e. square) Q matrix of shape (..., M, M); note that this option may result in heaviy memory overhead.
+        If ``False`` (default), function returns the reduced Q matrix of shape (..., M, min(M,N)).
     crop_r_at : int, optional
         for internal use only, do not set this parameter
 
     Notes
     -----
-    This function is built on top of PyTorch's QR function. ``torch.linalg.qr()`` using LAPACK (CPU) and MAGMA (CUDA) on
-    the backend; due to limited availability of QR in ROCm, this function is currently not available on AMD GPUs.
+    To achieve the same functionality as ``numpy.linalg.qr()``, set ``calc_q=True``, ``calc_r=True``, ``full_q=False`` for ``mode="reduced"``,
+    ``calc_q=True``, ``calc_r=True``, ``full_q=True`` for ``mode="complete"`` and ``calc_q=True``, ``calc_r=True``, ``full_q=False`` for ``mode="r`"`.
+    Heats QR function is built on top of PyTorchs QR function, ``torch.linalg.qr()``, using LAPACK (CPU) and MAGMA (CUDA) on
+    the backend; due to limited support of PyTorchs QR for ROCm, also Heats QR is currently not available on AMD GPUs.
     Basic information about QR factorization/decomposition can be found at
     https://en.wikipedia.org/wiki/QR_factorization.
     """
@@ -60,6 +62,8 @@ def qr(
         raise TypeError(f"calc_q must be a bool, currently {type(calc_q)}")
     if not isinstance(calc_r, bool):
         raise TypeError(f"calc_r must be a bool, currently {type(calc_r)}")
+    if not calc_r and not calc_q:
+        raise ValueError("At least one of calc_r and calc_q must be True")
     if not isinstance(overwrite_a, bool):
         raise TypeError(f"overwrite_a must be a bool, currently {type(overwrite_a)}")
     if not isinstance(full_q, bool):
@@ -74,6 +78,10 @@ def qr(
     if A.split == 0 and A.is_distributed():
         raise NotImplementedError(
             "QR decomposition is currently not implemented for split dimension 0. An implementation of TS-QR is going to close this gap soon."
+        )
+    if overwrite_a:
+        raise NotImplementedError(
+            "QR decomposition with the option overwrite_a=True is currently not implemented."
         )
 
     if not A.is_distributed():
@@ -152,11 +160,11 @@ def qr(
 
         if calc_r:
             if crop_r_at != 0:
-                return Q[:, :k].balance(), R[:, :crop_r_at].balance()
+                return QR(Q[:, :k].balance(), R[:, :crop_r_at].balance())
             else:
-                return Q[:, :k].balance(), R
+                return QR(Q[:, :k].balance(), R)
         else:
-            return Q[:, :k].balance()
+            return QR(Q[:, :k].balance(), None)
 
 
 # -----------------------------------------------------------------------------
