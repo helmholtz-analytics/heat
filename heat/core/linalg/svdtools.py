@@ -448,23 +448,14 @@ def hsvd(
     U = DNDarray(
         U_loc[:-1],
         gshape=U_loc[:-1].shape,
-        dtype=A.dtype,
+        dtype=U_loc.dtype,
         device=A.device,
         split=None,
         comm=A.comm,
         balanced=True,
     )
     rel_error_estimate = (
-        DNDarray(
-            err_squared_loc**0.5,
-            gshape=err_squared_loc.shape,
-            dtype=err_squared_loc.dtype,
-            device=A.device,
-            split=None,
-            comm=A.comm,
-            balanced=True,
-        )
-        / Anorm
+        factories.array(err_squared_loc**0.5, device=A.device, split=None, comm=A.comm) / Anorm
     )
 
     # Postprocessing:
