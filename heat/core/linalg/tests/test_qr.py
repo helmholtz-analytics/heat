@@ -23,9 +23,10 @@ class TestQR(TestCase):
                                 mat = ht.random.randn(*shape, dtype=dtype, split=split)
                                 qr = ht.linalg.qr(mat, calc_r=calc_r, calc_q=calc_q, full_q=full_q)
 
-                                # test if mat = Q*R
-                                # if calc_q and calc_r:
-                                #     self.assertTrue(ht.allclose(qr.Q @ qr.R, mat, atol=dtypetol, rtol=dtypetol))
+                                if calc_q and calc_r:
+                                    self.assertTrue(
+                                        ht.allclose(qr.Q @ qr.R, mat, atol=dtypetol, rtol=dtypetol)
+                                    )
 
                                 if calc_q:
                                     self.assertIsInstance(qr.Q, ht.DNDarray)
@@ -43,9 +44,8 @@ class TestQR(TestCase):
                                         self.assertEqual(qr.Q.shape, (shape[0], min(shape)))
                                     else:
                                         self.assertEqual(qr.Q.shape, (shape[0], shape[0]))
-                                # else:
-                                #     print(qr.Q)
-                                #     self.assertIsNone(qr.Q)
+                                else:
+                                    self.assertIsNone(qr.Q)
 
                                 if calc_r:
                                     self.assertIsInstance(qr.R, ht.DNDarray)

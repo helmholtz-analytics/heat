@@ -114,6 +114,7 @@ def qr(
             )
         else:
             Q = None
+        return QR(Q, R)
 
     if A.split == 1:
         if full_q:
@@ -127,7 +128,9 @@ def qr(
                     comm=A.comm,
                 )
                 A_tilde = hstack([A, fill_up_array]).balance()
-                return qr(A_tilde, calc_r=calc_r, full_q=full_q, crop_r_at=A.shape[1])
+                return qr(
+                    A_tilde, calc_r=calc_r, calc_q=calc_q, full_q=full_q, crop_r_at=A.shape[1]
+                )
 
         lshapes = A.lshape_map[:, 1]
         lshapes_cum = torch.cumsum(lshapes, 0)
@@ -142,8 +145,6 @@ def qr(
 
         if calc_q:
             Q = factories.zeros(A.shape, dtype=A.dtype, split=1, device=A.device, comm=A.comm)
-        else:
-            Q = None
 
         if calc_r:
             R = factories.zeros(
@@ -155,8 +156,7 @@ def qr(
                     torch.cumsum(R.lshape_map[:, 1], 0),
                 ]
             )
-        else:
-            R = None
+
         A_columns = A.larray.clone()
 
         for i in range(last_row_reached + 1):
@@ -187,10 +187,17 @@ def qr(
                     r_size = R.larray[R_shapes[i] : R_shapes[i + 1], :].shape[0]
                     R.larray[R_shapes[i] : R_shapes[i + 1], :] = R_loc[:r_size, :]
 
-        if calc_r and crop_r_at != 0:
-            R = R[:, :crop_r_at].balance_()
+        if calc_r:
+            if crop_r_at != 0:
+                R = R[:, :crop_r_at].balance()
+        else:
+            R = None
+        if calc_q:
+            Q = Q[:, :k].balance()
+        else:
+            Q = None
 
-    return QR(Q, R)
+        return QR(Q, R)
 
 
 # -----------------------------------------------------------------------------
