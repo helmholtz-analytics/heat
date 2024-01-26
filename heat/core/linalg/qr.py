@@ -88,7 +88,7 @@ def qr(
         if not full_q:
             Q, R = torch.linalg.qr(A.larray, mode="reduced")
         else:
-            Q, R = torch.linalg.qr(A.larray)
+            Q, R = torch.linalg.qr(A.larray, mode="complete")
         Q = factories.array(Q, dtype=A.dtype, split=A.split, device=A.device, comm=A.comm)
         if calc_r:
             R = factories.array(R, dtype=A.dtype, split=A.split, device=A.device, comm=A.comm)
@@ -108,7 +108,6 @@ def qr(
                     comm=A.comm,
                 )
                 A_tilde = hstack([A, fill_up_array]).balance()
-                # A_tilde = hstack([A, factories.ones((A.shape[0], A.shape[0]-A.shape[1]), dtype=A.dtype, split=A.split,device=A.device, comm=A.comm)]).balance()
                 return qr(A_tilde, calc_r=calc_r, full_q=full_q, crop_r_at=A.shape[1])
 
         lshapes = A.lshape_map[:, 1]
