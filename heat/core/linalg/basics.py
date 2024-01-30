@@ -519,6 +519,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
             split=a.split,
             device=a.device,
             balanced=True,
+            comm=a.comm,
         )
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
