@@ -445,9 +445,10 @@ def hsvd(
     A.comm.Bcast(U_loc, root=0)
     # separate U_loc and err_squared_loc again
     err_squared_loc = U_loc[-1, 0]
+    U_shape = U_loc[:-1].shape
     U = DNDarray(
         U_loc[:-1],
-        gshape=U_loc[:-1].shape,
+        gshape=U_shape,
         dtype=A.dtype,
         device=A.device,
         split=None,
@@ -458,7 +459,7 @@ def hsvd(
         DNDarray(
             err_squared_loc**0.5,
             gshape=err_squared_loc.shape,
-            dtype=err_squared_loc.dtype,
+            dtype=A.dtype,
             device=A.device,
             split=None,
             comm=A.comm,

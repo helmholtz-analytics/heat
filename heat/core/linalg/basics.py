@@ -511,16 +511,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
 
     # early out for single-process setup, torch matmul
     if a.comm.size == 1:
-        larr = torch.matmul(a.larray, b.larray)
-        ret = DNDarray(
-            larr,
-            gshape=larr.shape,
-            dtype=a.dtype,
-            split=a.split,
-            device=a.device,
-            balanced=True,
-            comm=a.comm,
-        )
+        ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -528,16 +519,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
     if a.split is None and b.split is None:  # matmul from torch
         if len(a.gshape) < 2 or len(b.gshape) < 2 or not allow_resplit:
             # if either of A or B is a vector
-            larr = torch.matmul(a.larray, b.larray)
-            ret = DNDarray(
-                larr,
-                gshape=larr.shape,
-                dtype=a.dtype,
-                split=a.split,
-                device=a.device,
-                comm=a.comm,
-                balanced=True,
-            )
+            ret = factories.array(torch.matmul(a.larray, b.larray), device=a.device, comm=a.comm)
             if gpu_int_flag:
                 ret = og_type(ret, device=a.device)
             return ret
@@ -561,15 +543,7 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         b.resplit_(0)
         res = a.larray @ b.larray
         a.comm.Allreduce(MPI.IN_PLACE, res, MPI.SUM)
-        ret = DNDarray(
-            res,
-            gshape=res.shape,
-            dtype=res.dtype,
-            split=None,
-            device=a.device,
-            comm=a.comm,
-            balanced=True,
-        )
+        ret = factories.array(res, split=None, device=a.device, comm=a.comm)
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
         return ret
@@ -609,14 +583,8 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         c += a.larray @ b.larray[a_idx[1].start : a_idx[1].start + a.lshape[-1], :]
         a.comm.Allreduce(MPI.IN_PLACE, c, MPI.SUM)
         c = c if not vector_flag else c.squeeze()
-        ret = DNDarray(
-            c,
-            gshape=a.shape,
-            dtype=a.dtype,
-            split=a.split if b.gshape[1] > 1 else 0,
-            device=a.device,
-            comm=a.comm,
-            balanced=True,
+        ret = factories.array(
+            c, split=a.split if b.gshape[1] > 1 else 0, device=a.device, comm=a.comm
         )
         if gpu_int_flag:
             ret = og_type(ret, device=a.device)
