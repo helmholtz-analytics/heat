@@ -75,6 +75,7 @@ def qr(
         )
 
     if not A.is_distributed():
+        # handle the case of a single process or split=None: just PyTorch QR
         if not full_q:
             Q, R = torch.linalg.qr(A.larray, mode="reduced")
         else:
@@ -107,8 +108,12 @@ def qr(
         return QR(Q, R)
 
     if A.split == 1:
+        # handle the case that A is split along the columns
+        # here, we apply a block-wise version of (stabilized) Gram-Schmidt orthogonalization
+        # instead of orthogonalizing each column of A individually, we orthogonalize blocks of columns (i.e. the local arrays) at once
         if full_q:
             if A.shape[1] < A.shape[0]:
+                # if no of columns is smaller than no of rows, we need to fill up A with random numbers if we want to calculate the full (square) Q
                 fill_up_array = randn(
                     A.shape[0],
                     A.shape[0] - A.shape[1],
@@ -150,6 +155,8 @@ def qr(
         A_columns = A.larray.clone()
 
         for i in range(last_row_reached + 1):
+            # this loop goes through all the column-blocks (i.e. local arrays) of the matrix
+            # this corresponds to the loop over all columns in classical Gram-Schmidt
             if i < nprocs - 1:
                 k_loc_i = min(A.shape[0], A.lshape_map[i, 1])
                 Q_buf = torch.zeros(
@@ -157,6 +164,7 @@ def qr(
                 )
 
             if A.comm.rank == i:
+                # orthogonalize the current block of columns by utilizing PyTorch QR
                 Q_curr, R_loc = torch.linalg.qr(A_columns, mode="reduced")
                 if i < nprocs - 1:
                     Q_buf = Q_curr
@@ -167,10 +175,12 @@ def qr(
                     R.larray[R_shapes[i] : R_shapes[i + 1], :] = R_loc[:r_size, :]
 
             if i < nprocs - 1:
+                # broadcast the orthogonalized block of columns to all other processes
                 req = A.comm.Ibcast(Q_buf, root=i)
                 req.Wait()
 
             if A.comm.rank > i:
+                # subtract the contribution of the current block of columns from the remaining columns
                 R_loc = Q_buf.T @ A_columns
                 A_columns -= Q_buf @ R_loc
                 if calc_r:
@@ -188,6 +198,10 @@ def qr(
             Q = None
 
         return QR(Q, R)
+
+    if A.split == 0:
+        # implementation of TS-QR
+        return None
 
 
 # -----------------------------------------------------------------------------
