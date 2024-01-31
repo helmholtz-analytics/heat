@@ -26,10 +26,10 @@ authors:
   - family-names: Krajsek
     given-names: Kai
   - family-names: Rüttgers
-     given-names: Alexander    
+     given-names: Alexander
   - family-names: Tarnawa
     given-names: Michael
-# release contributors - add as needed    
+# release contributors - add as needed
 repository-code: 'https://github.com/helmholtz-analytics/heat'
 url: 'https://helmholtz-analytics.github.io/heat/'
 repository: 'https://heat.readthedocs.io/en/stable/'
