@@ -2,16 +2,16 @@ name: Receive PR
 
 on:
   pull_request:
-    paths-ignore:
-      - 'doc/**'
+    paths:
+      - 'heat/**'
 
 jobs:
   build:
-    if: ${{ !startsWith(github.head_ref, 'support/') }}
+    if: ${{ !startsWith(github.head_ref, 'support/') && (github.event.pull_request.draft == false) }}
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Use Python
         uses: actions/setup-python@v4
