@@ -17,7 +17,6 @@ def qr(
     A: DNDarray,
     calc_r: bool = True,
     calc_q: bool = True,
-    overwrite_a: bool = False,
     full_q: bool = False,
     crop_r_at: int = None,
 ) -> Tuple[DNDarray, DNDarray]:
@@ -38,9 +37,6 @@ def qr(
         Whether or not to calculate Q.
         If ``True``, function returns ``(Q, R)``.
         If ``False``, function returns ``(None, R)``.
-    overwrite_a : bool, optional
-        If ``True``, function overwrites ``a`` with R
-        If ``False``, a new array will be created for R
     full_q : bool, optional
         If ``True``, function returns the full (i.e. square) Q matrix of shape (..., M, M); note that this option may result in heaviy memory overhead.
         If ``False`` (default), function returns the reduced Q matrix of shape (..., M, min(M,N)).
@@ -64,8 +60,6 @@ def qr(
         raise TypeError(f"calc_r must be a bool, currently {type(calc_r)}")
     if not calc_r and not calc_q:
         raise ValueError("At least one of calc_r and calc_q must be True")
-    if not isinstance(overwrite_a, bool):
-        raise TypeError(f"overwrite_a must be a bool, currently {type(overwrite_a)}")
     if not isinstance(full_q, bool):
         raise TypeError(f"full_q must be a bool, currently {type(full_q)}")
     if crop_r_at is not None and not isinstance(crop_r_at, int):
@@ -78,10 +72,6 @@ def qr(
     if A.split == 0 and A.is_distributed():
         raise NotImplementedError(
             "QR decomposition is currently not implemented for split dimension 0. An implementation of TS-QR is going to close this gap soon."
-        )
-    if overwrite_a:
-        raise NotImplementedError(
-            "QR decomposition with the option overwrite_a=True is currently not implemented."
         )
 
     if not A.is_distributed():
