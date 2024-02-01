@@ -188,9 +188,9 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_add_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"The differently split inputs (splits {t1.split} and {t2.split} cannot be processed "
-            + "in-place without resplitting, because the underlying tensors have shapes which are "
-            + f"not broadcastable (shapes {t1.larray.shape} and {t2.larray.shape})."
+            f"In-place operation not allowed: operands are distributed along different axes.
+            Operand 1 with shape {t1.shape} is split along axis {t1.split}.
+            Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
