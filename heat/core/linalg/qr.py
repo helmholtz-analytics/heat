@@ -7,9 +7,8 @@ from typing import Tuple
 from warnings import warn
 
 from ..dndarray import DNDarray
-from ..manipulations import hstack
-from ..random import randn
 from .. import factories
+from .. import communication
 
 __all__ = ["qr"]
 
@@ -17,7 +16,7 @@ __all__ = ["qr"]
 def qr(
     A: DNDarray,
     mode: str = "reduced",
-    procs_per_merge: int = 2,
+    procs_to_merge: int = 2,
 ) -> Tuple[DNDarray, DNDarray]:
     r"""
     Calculates the QR decomposition of a 2D ``DNDarray``.
@@ -31,17 +30,16 @@ def qr(
     mode : str, optional
         default "reduced" returns Q and R with dimensions (..., M, min(M,N)) and (..., min(M,N), N), respectively.
         "r" returns only R, with dimensions (..., min(M,N), N).
-    procs_per_merge : int, optional
+    procs_to_merge : int, optional
         determines the number of processes to be merged at one step during TS-QR (split = 0 only). Default is 2.
-        Higher choices may result in higher memory consumption.
+        Higher choices may result in higher memory consumption. 0 corresponds to merging all processes at once.
 
     Notes
     -----
     Other than ``numpy.linalg.qr()`` we only support ``mode="reduced"`` or ``mode="r"`` for the moment, since "complete" may result in heavy memory usage.
     Heats QR function is built on top of PyTorchs QR function, ``torch.linalg.qr()``, using LAPACK (CPU) and MAGMA (CUDA) on
     the backend; due to limited support of PyTorchs QR for ROCm, also Heats QR is currently not available on AMD GPUs.
-    Basic information about QR factorization/decomposition can be found at
-    https://en.wikipedia.org/wiki/QR_factorization.
+    Basic information about QR factorization/decomposition can be found at, e.g., https://en.wikipedia.org/wiki/QR_factorization.
     """
     if not isinstance(A, DNDarray):
         raise TypeError(f"'A' must be a DNDarray, but is {type(A)}")
@@ -49,20 +47,19 @@ def qr(
         raise TypeError(f"'mode' must be a str, but is {type(mode)}")
     if mode not in ["reduced", "r"]:
         raise ValueError(f"'mode' must be 'reduced' (default) or 'r', but is {mode}")
-    if not isinstance(procs_per_merge, int):
-        raise TypeError(f"procs_per_merge must be an int, but is currently {type(procs_per_merge)}")
-    if procs_per_merge <= 1:
-        raise ValueError(f"procs_per_merge must be at least 2, but is currently {procs_per_merge}")
+    if not isinstance(procs_to_merge, int):
+        raise TypeError(f"procs_to_merge must be an int, but is currently {type(procs_to_merge)}")
+    if procs_to_merge < 0 or procs_to_merge == 1:
+        raise ValueError(
+            f"procs_to_merge must be 0 (for merging all processes at once) or at least 2, but is currently {procs_to_merge}"
+        )
+    if procs_to_merge == 0:
+        procs_to_merge = A.comm.size
 
     if A.ndim != 2:
         raise ValueError(f"Array 'A' must be 2 dimensional, buts has {A.ndim} dimensions")
 
     QR = collections.namedtuple("QR", "Q, R")
-
-    if A.split == 0 and A.is_distributed():
-        raise NotImplementedError(
-            "QR decomposition is currently not implemented for split dimension 0. An implementation of TS-QR is going to close this gap soon."
-        )
 
     if not A.is_distributed():
         # handle the case of a single process or split=None: just PyTorch QR
@@ -160,11 +157,117 @@ def qr(
     if A.split == 0:
         # implementation of TS-QR
         if A.lshape_map[:, 0].max().item() > A.shape[1]:
-            warn(
-                "A is split along the rows and the local chunks of data are rectangular with more rows than columns. \n Applying TS-QR in this situation may cause memory issues. \n We recomment to split A along the columns instead."
+            ValueError(
+                "A is split along the rows and the local chunks of data are rectangular with more rows than columns. \n Applying TS-QR in this situation is not reasonable w.r.t. runtime and memory consumption. \n We recomment to split A along the columns instead."
             )
 
-        return None
+        current_procs = [i for i in range(A.comm.size)]
+        current_comm = A.comm
+        local_comm = current_comm.Split(current_comm.rank // procs_to_merge, A.comm.rank)
+        Q_loc, R_loc = torch.linalg.qr(A.larray, mode=mode)
+        if mode == "reduced":
+            leave_comm = current_comm.Split(current_comm.rank, A.comm.rank)
+
+        level = 1
+        while len(current_procs) > 1:
+            if A.comm.rank in current_procs and local_comm.size > 1:
+                # create array to collect the R_loc's from all processes of the process group of at most n_procs_to_merge processes
+                shapes_R_loc = local_comm.gather(R_loc.shape[0], root=0)
+                if local_comm.rank == 0:
+                    gathered_R_loc = torch.zeros(
+                        (sum(shapes_R_loc), R_loc.shape[1]),
+                        device=R_loc.device,
+                        dtype=R_loc.dtype,
+                    )
+                    counts = list(shapes_R_loc)
+                    displs = torch.cumsum(
+                        torch.tensor([0] + shapes_R_loc, dtype=torch.int32), 0
+                    ).tolist()[:-1]
+                else:
+                    gathered_R_loc = torch.empty(0, device=R_loc.device, dtype=R_loc.dtype)
+                    counts = None
+                    displs = None
+
+                # gather the R_loc's from all processes of the process group of at most n_procs_to_merge processes
+                local_comm.Gatherv(R_loc, (gathered_R_loc, counts, displs), root=0, axis=0)
+                # perform QR decomposition on the concatenated, gathered R_loc's to obtain new R_loc
+                if local_comm.rank == 0:
+                    previous_shape = R_loc.shape
+                    Q_buf, R_loc = torch.linalg.qr(gathered_R_loc, mode=mode)
+                else:
+                    Q_buf = torch.empty(0, device=R_loc.device, dtype=R_loc.dtype)
+                if mode == "reduced":
+                    scattered_Q_buf = torch.empty(
+                        R_loc.shape if local_comm.rank != 0 else previous_shape,
+                        device=R_loc.device,
+                        dtype=R_loc.dtype,
+                    )
+                    # scatter the Q_buf to all processes of the process group
+                    local_comm.Scatterv((Q_buf, counts, displs), scattered_Q_buf, root=0, axis=0)
+                del gathered_R_loc, Q_buf
+
+            # for each process in the current processes, broadcast the scattered_Q_buf of this process
+            # to all leaves (i.e. all original processes that merge to the current process)
+            if mode == "reduced" and leave_comm.size > 1:
+                try:
+                    scattered_Q_buf_shape = scattered_Q_buf.shape
+                except UnboundLocalError:
+                    scattered_Q_buf_shape = None
+                scattered_Q_buf_shape = leave_comm.bcast(scattered_Q_buf_shape, root=0)
+                if leave_comm.rank != 0:
+                    scattered_Q_buf = torch.empty(
+                        scattered_Q_buf_shape, device=Q_loc.device, dtype=Q_loc.dtype
+                    )
+                leave_comm.Bcast(scattered_Q_buf, root=0)
+                # update the local Q_loc by multiplying it with the scattered_Q_buf
+            try:
+                Q_loc = Q_loc @ scattered_Q_buf
+            except UnboundLocalError:
+                pass
+
+            # update: determine processes to be active at next "merging" level, create new communicator and split it into groups for gathering
+            current_procs = [
+                current_procs[i] for i in range(len(current_procs)) if i % procs_to_merge == 0
+            ]
+            if len(current_procs) > 1:
+                new_group = A.comm.group.Incl(current_procs)
+                current_comm = A.comm.Create_group(new_group)
+                if A.comm.rank in current_procs:
+                    local_comm = communication.MPICommunication(
+                        current_comm.Split(current_comm.rank // procs_to_merge, A.comm.rank)
+                    )
+                if mode == "reduced":
+                    leave_comm = A.comm.Split(
+                        A.comm.rank // procs_to_merge ** (level + 1), A.comm.rank
+                    )
+            level += 1
+        # broadcast the final R_loc to all processes
+        R_gshape = (A.shape[1], A.shape[1])
+        if A.comm.rank != 0:
+            R_loc = torch.empty(R_gshape, dtype=R_loc.dtype, device=R_loc.device)
+        A.comm.Bcast(R_loc, root=0)
+        R = DNDarray(
+            R_loc,
+            gshape=R_gshape,
+            dtype=A.dtype,
+            split=None,
+            device=A.device,
+            comm=A.comm,
+            balanced=True,
+        )
+        if mode == "r":
+            Q = None
+        else:
+            Q = DNDarray(
+                Q_loc,
+                gshape=A.shape,
+                dtype=A.dtype,
+                split=0,
+                device=A.device,
+                comm=A.comm,
+                balanced=True,
+            )
+        return QR(Q, R)
 
 
 # -----------------------------------------------------------------------------
