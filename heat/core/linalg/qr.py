@@ -4,6 +4,7 @@ QR decomposition of (distributed) 2-D ``DNDarray``s.
 import collections
 import torch
 from typing import Tuple
+from warnings import warn
 
 from ..dndarray import DNDarray
 from ..manipulations import hstack
@@ -19,6 +20,7 @@ def qr(
     calc_q: bool = True,
     full_q: bool = False,
     crop_r_at: int = None,
+    procs_per_merge: int = 2,
 ) -> Tuple[DNDarray, DNDarray]:
     r"""
     Calculates the QR decomposition of a 2D ``DNDarray``.
@@ -42,6 +44,9 @@ def qr(
         If ``False`` (default), function returns the reduced Q matrix of shape (..., M, min(M,N)).
     crop_r_at : int, optional
         for internal use only, do not set this parameter
+    procs_per_merge : int, optional
+        determines the number of processes to be merged at one step during TS-QR (split = 0 only). Default is 2.
+        Higher choices may result in higher memory consumption.
 
     Notes
     -----
@@ -64,6 +69,11 @@ def qr(
         raise TypeError(f"full_q must be a bool, currently {type(full_q)}")
     if crop_r_at is not None and not isinstance(crop_r_at, int):
         raise TypeError(f"crop_r_at must be a bool, currently {type(crop_r_at)}")
+    if not isinstance(procs_per_merge, int):
+        raise TypeError(f"procs_per_merge must be an int, but is currently {type(procs_per_merge)}")
+    if procs_per_merge <= 1:
+        raise ValueError(f"procs_per_merge must be at least 2, but is currently {procs_per_merge}")
+
     if A.ndim != 2:
         raise ValueError(f"Array 'A' must be 2 dimensional, buts has {A.ndim} dimensions")
 
@@ -201,6 +211,11 @@ def qr(
 
     if A.split == 0:
         # implementation of TS-QR
+        if A.lshape_map[:, 0].max().item() > A.shape[1]:
+            warn(
+                "A is split along the rows and the local chunks of data are rectangular with more rows than columns. Applying TS-QR in this situation may cause memory issues. We recomment to split A along the columns instead."
+            )
+
         return None
 
 
