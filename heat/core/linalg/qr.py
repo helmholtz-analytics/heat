@@ -4,6 +4,7 @@ QR decomposition of (distributed) 2-D ``DNDarray``s.
 import collections
 import torch
 from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple
+from warnings import warn
 
 from ..communication import MPICommunication
 from ..types import datatype
@@ -91,7 +92,7 @@ def qr(
         raise ValueError("Array 'a' must be 2 dimensional")
 
     if a.split == 0 and tiles_per_proc == 1:
-        raise Warning(
+        warn(
             "Using tiles_per_proc=1 with split=0 can result in an error. We highly recommend to use tiles_per_proc > 1."
         )
 
