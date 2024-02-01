@@ -188,9 +188,7 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_add_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes.
-            Operand 1 with shape {t1.shape} is split along axis {t1.split}.
-            Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
