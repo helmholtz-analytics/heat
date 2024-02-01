@@ -18,8 +18,6 @@ def qr(
     A: DNDarray,
     calc_r: bool = True,
     calc_q: bool = True,
-    full_q: bool = False,
-    crop_r_at: int = None,
     procs_per_merge: int = 2,
 ) -> Tuple[DNDarray, DNDarray]:
     r"""
@@ -39,19 +37,14 @@ def qr(
         Whether or not to calculate Q.
         If ``True``, function returns ``(Q, R)``.
         If ``False``, function returns ``(None, R)``.
-    full_q : bool, optional
-        If ``True``, function returns the full (i.e. square) Q matrix of shape (..., M, M); note that this option may result in heaviy memory overhead.
-        If ``False`` (default), function returns the reduced Q matrix of shape (..., M, min(M,N)).
-    crop_r_at : int, optional
-        for internal use only, do not set this parameter
     procs_per_merge : int, optional
         determines the number of processes to be merged at one step during TS-QR (split = 0 only). Default is 2.
         Higher choices may result in higher memory consumption.
 
     Notes
     -----
-    To achieve the same functionality as ``numpy.linalg.qr()``, set ``calc_q=True``, ``calc_r=True``, ``full_q=False`` for ``mode="reduced"``,
-    ``calc_q=True``, ``calc_r=True``, ``full_q=True`` for ``mode="complete"`` and ``calc_q=True``, ``calc_r=True``, ``full_q=False`` for ``mode="r`"`.
+    Other than ``numpy.linalg.qr()`` we only support ``mode="reduced"`` for the moment. This means that the returned Q is
+    will be of shape (..., M, min(M,N)) and R will be of shape (..., min(M,N), N).
     Heats QR function is built on top of PyTorchs QR function, ``torch.linalg.qr()``, using LAPACK (CPU) and MAGMA (CUDA) on
     the backend; due to limited support of PyTorchs QR for ROCm, also Heats QR is currently not available on AMD GPUs.
     Basic information about QR factorization/decomposition can be found at
@@ -65,10 +58,6 @@ def qr(
         raise TypeError(f"calc_r must be a bool, currently {type(calc_r)}")
     if not calc_r and not calc_q:
         raise ValueError("At least one of calc_r and calc_q must be True")
-    if not isinstance(full_q, bool):
-        raise TypeError(f"full_q must be a bool, currently {type(full_q)}")
-    if crop_r_at is not None and not isinstance(crop_r_at, int):
-        raise TypeError(f"crop_r_at must be a bool, currently {type(crop_r_at)}")
     if not isinstance(procs_per_merge, int):
         raise TypeError(f"procs_per_merge must be an int, but is currently {type(procs_per_merge)}")
     if procs_per_merge <= 1:
@@ -86,11 +75,10 @@ def qr(
 
     if not A.is_distributed():
         # handle the case of a single process or split=None: just PyTorch QR
-        if not full_q:
-            Q, R = torch.linalg.qr(A.larray, mode="reduced")
+        if not calc_q:
+            R = torch.linalg.qr(A.larray, mode="r")[1]
         else:
-            Q, R = torch.linalg.qr(A.larray, mode="complete")
-
+            Q, R = torch.linalg.qr(A.larray, mode="reduced")
         if calc_r:
             R = DNDarray(
                 R,
@@ -121,21 +109,6 @@ def qr(
         # handle the case that A is split along the columns
         # here, we apply a block-wise version of (stabilized) Gram-Schmidt orthogonalization
         # instead of orthogonalizing each column of A individually, we orthogonalize blocks of columns (i.e. the local arrays) at once
-        if full_q:
-            if A.shape[1] < A.shape[0]:
-                # if no of columns is smaller than no of rows, we need to fill up A with random numbers if we want to calculate the full (square) Q
-                fill_up_array = randn(
-                    A.shape[0],
-                    A.shape[0] - A.shape[1],
-                    dtype=A.dtype,
-                    split=A.split,
-                    device=A.device,
-                    comm=A.comm,
-                )
-                A_tilde = hstack([A, fill_up_array]).balance()
-                return qr(
-                    A_tilde, calc_r=calc_r, calc_q=calc_q, full_q=full_q, crop_r_at=A.shape[1]
-                )
 
         lshapes = A.lshape_map[:, 1]
         lshapes_cum = torch.cumsum(lshapes, 0)
@@ -197,10 +170,7 @@ def qr(
                     r_size = R.larray[R_shapes[i] : R_shapes[i + 1], :].shape[0]
                     R.larray[R_shapes[i] : R_shapes[i + 1], :] = R_loc[:r_size, :]
 
-        if calc_r:
-            if crop_r_at != 0:
-                R = R[:, :crop_r_at].balance()
-        else:
+        if not calc_r:
             R = None
         if calc_q:
             Q = Q[:, :k].balance()
