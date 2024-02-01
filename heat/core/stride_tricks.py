@@ -67,6 +67,51 @@ def broadcast_shape(shape_a: Tuple[int, ...], shape_b: Tuple[int, ...]) -> Tuple
     return tuple(resulting_shape)
 
 
+def broadcast_shapes(*shapes: Tuple[int, ...]) -> Tuple[int, ...]:
+    """
+    Infers, if possible, the broadcast output shape of multiple operands.
+
+    Parameters
+    ----------
+    *shapes : Tuple[int,...]
+        Shapes of operands.
+
+    Returns
+    -------
+    Tuple[int, ...]
+        The broadcast output shape.
+
+    Raises
+    -------
+    ValueError
+        If the shapes cannot be broadcast.
+
+    Examples
+    --------
+    >>> import heat as ht
+    >>> ht.broadcast_shapes((5,4),(4,))
+    (5, 4)
+    >>> ht.broadcast_shapes((1,100,1),(10,1,5))
+    (10, 100, 5)
+    >>> ht.broadcast_shapes((8,1,6,1),(7,1,5,))
+    (8,7,6,5))
+    >>> ht.broadcast_shapes((2,1),(8,4,3))
+    Traceback (most recent call last):
+      File "<stdin>", line 1, in <module>
+      File "heat/core/stride_tricks.py", line 100, in broadcast_shapes
+        "operands could not be broadcast, input shapes {}".format(shapes))
+    ValueError: operands could not be broadcast, input shapes ((2, 1), (8, 4, 3))
+    """
+    try:
+        resulting_shape = torch.broadcast_shapes(*shapes)
+    except TypeError:
+        raise TypeError(f"operands must be tuples of ints, not {shapes}")
+    except RuntimeError:
+        raise ValueError(f"operands could not be broadcast, input shapes {shapes}")
+
+    return tuple(resulting_shape)
+
+
 def sanitize_axis(
     shape: Tuple[int, ...], axis: Union[int, None, Tuple[int, ...]]
 ) -> Union[int, None, Tuple[int, ...]]:
@@ -106,7 +151,10 @@ def sanitize_axis(
 
     """
     # scalars are handled like unsplit matrices
-    if len(shape) == 0:
+    original_axis = axis
+    ndim = len(shape)
+
+    if ndim == 0:
         axis = None
 
     if axis is not None and not isinstance(axis, int) and not isinstance(axis, tuple):
@@ -115,7 +163,9 @@ def sanitize_axis(
         axis = tuple(dim + len(shape) if dim < 0 else dim for dim in axis)
         for dim in axis:
             if dim < 0 or dim >= len(shape):
-                raise ValueError(f"axis {axis} is out of bounds for shape {shape}")
+                raise ValueError(
+                    f"axis {original_axis} is out of bounds for {ndim}-dimensional array"
+                )
         return axis
 
     if axis is None or 0 <= axis < len(shape):
@@ -124,7 +174,7 @@ def sanitize_axis(
         axis += len(shape)
 
     if axis < 0 or axis >= len(shape):
-        raise ValueError(f"axis {axis} is out of bounds for shape {shape}")
+        raise ValueError(f"axis {original_axis} is out of bounds for {ndim}-dimensional array")
 
     return axis
 

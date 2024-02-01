@@ -4,6 +4,7 @@ QR decomposition of (distributed) 2-D ``DNDarray``s.
 import collections
 import torch
 from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple
+from warnings import warn
 
 from ..communication import MPICommunication
 from ..types import datatype
@@ -31,7 +32,7 @@ def qr(
         Array which will be decomposed
     tiles_per_proc : int or torch.Tensor, optional
         Number of tiles per process to operate on
-        We highly recommend to use tiles_per_proc != 1, as the choice 1 might result in an error in certain situations (in particular for split=0).
+        We highly recommend to use tiles_per_proc > 1, as the choice 1 might result in an error in certain situations (in particular for split=0).
     calc_q : bool, optional
         Whether or not to calculate Q.
         If ``True``, function returns ``(Q, R)``.
@@ -91,8 +92,8 @@ def qr(
         raise ValueError("Array 'a' must be 2 dimensional")
 
     if a.split == 0 and tiles_per_proc == 1:
-        raise Warning(
-            "Using tiles_per_proc=1 with split=0 can result in an error. We highly recommend to use tiles_per_proc != 1."
+        warn(
+            "Using tiles_per_proc=1 with split=0 can result in an error. We highly recommend to use tiles_per_proc > 1."
         )
 
     QR = collections.namedtuple("QR", "Q, R")

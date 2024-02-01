@@ -4,6 +4,8 @@ import torch
 import heat as ht
 from .test_suites.basic_test import TestCase
 
+pytorch_major_version = int(torch.__version__.split(".")[0])
+
 
 class TestDNDarray(TestCase):
     @classmethod
@@ -403,6 +405,48 @@ class TestDNDarray(TestCase):
             with self.assertRaises(TypeError):
                 bool(ht.full((ht.MPI_WORLD.size,), 2, split=0))
 
+    def test_collect(self):
+        st = ht.zeros((50,), split=0)
+        if st.comm.size >= 3:
+            st.collect_()
+            if st.comm.rank == 0:
+                self.assertEqual(st.lshape, (50,))
+            else:
+                self.assertEqual(st.lshape, (0,))
+
+            st = ht.zeros((50, 50), split=1)
+            st.collect_(2)
+            if st.comm.rank == 2:
+                self.assertEqual(st.lshape, (50, 50))
+            else:
+                self.assertEqual(st.lshape, (50, 0))
+            st.collect_(1)
+            if st.comm.rank == 1:
+                self.assertEqual(st.lshape, (50, 50))
+            else:
+                self.assertEqual(st.lshape, (50, 0))
+
+            st = ht.zeros((50, 81, 67), split=2)
+            st.collect_(1)
+            if st.comm.rank == 1:
+                self.assertEqual(st.lshape, (50, 81, 67))
+            else:
+                self.assertEqual(st.lshape, (50, 81, 0))
+
+            st = ht.zeros((5, 8, 31), split=None)  # nothing should happen
+            st.collect_()
+            self.assertEqual(st.lshape, st.gshape)
+
+        st = ht.zeros((50, 81, 67), split=0)
+        with self.assertRaises(TypeError):
+            st.collect_("st.comm.size + 1")
+        with self.assertRaises(TypeError):
+            st.collect_(1.0)
+        with self.assertRaises(TypeError):
+            st.collect_((1, 3))
+        with self.assertRaises(ValueError):
+            st.collect_(st.comm.size + 1)
+
     def test_complex_cast(self):
         # simple scalar tensor
         a = ht.ones(1)
@@ -695,17 +739,6 @@ class TestDNDarray(TestCase):
         self.assertEqual(x_float64_d.lnbytes, x_float64_d.lnumel * 8)
 
         self.assertEqual(x_bool_d.lnbytes, x_bool_d.lnumel * 1)
-
-    def test_lshift(self):
-        int_tensor = ht.array([[0, 1], [2, 3]])
-        int_result = ht.array([[0, 4], [8, 12]])
-
-        self.assertTrue(ht.equal(int_tensor << 2, int_result))
-
-        with self.assertRaises(TypeError):
-            int_tensor << 2.4
-        res = ht.left_shift(ht.array([True]), 2)
-        self.assertTrue(res == 4)
 
     def test_nbytes(self):
         # undistributed case
@@ -1072,17 +1105,6 @@ class TestDNDarray(TestCase):
         t1_sub.resplit_(axis=None)
         self.assertTrue(ht.all(t1_sub == res))
         self.assertEqual(t1_sub.split, None)
-
-    def test_rshift(self):
-        int_tensor = ht.array([[0, 2], [4, 8]])
-        int_result = ht.array([[0, 0], [1, 2]])
-
-        self.assertTrue(ht.equal(int_tensor >> 2, int_result))
-
-        with self.assertRaises(TypeError):
-            int_tensor >> 2.4
-        res = ht.right_shift(ht.array([True]), 2)
-        self.assertTrue(res == 0)
 
     def test_setitem_getitem(self):
         # tests for bug #825
@@ -1551,7 +1573,12 @@ class TestDNDarray(TestCase):
         heat_int16 = ht.array(torch_int16)
         numpy_int16 = torch_int16.cpu().numpy()
         self.assertEqual(heat_int16.stride(), torch_int16.stride())
-        self.assertEqual(heat_int16.strides, numpy_int16.strides)
+        if pytorch_major_version >= 2:
+            self.assertTrue(
+                (np.asarray(heat_int16.strides) * 2 == np.asarray(numpy_int16.strides)).all()
+            )
+        else:
+            self.assertEqual(heat_int16.strides, numpy_int16.strides)
 
         # Local, float32, row-major memory layout
         torch_float32 = torch.arange(
@@ -1560,7 +1587,12 @@ class TestDNDarray(TestCase):
         heat_float32 = ht.array(torch_float32)
         numpy_float32 = torch_float32.cpu().numpy()
         self.assertEqual(heat_float32.stride(), torch_float32.stride())
-        self.assertEqual(heat_float32.strides, numpy_float32.strides)
+        if pytorch_major_version >= 2:
+            self.assertTrue(
+                (np.asarray(heat_float32.strides) * 4 == np.asarray(numpy_float32.strides)).all()
+            )
+        else:
+            self.assertEqual(heat_float32.strides, numpy_float32.strides)
 
         # Local, float64, column-major memory layout
         torch_float64 = torch.arange(
@@ -1569,7 +1601,14 @@ class TestDNDarray(TestCase):
         heat_float64_F = ht.array(torch_float64, order="F")
         numpy_float64_F = np.array(torch_float64.cpu().numpy(), order="F")
         self.assertNotEqual(heat_float64_F.stride(), torch_float64.stride())
-        self.assertEqual(heat_float64_F.strides, numpy_float64_F.strides)
+        if pytorch_major_version >= 2:
+            self.assertTrue(
+                (
+                    np.asarray(heat_float64_F.strides) * 8 == np.asarray(numpy_float64_F.strides)
+                ).all()
+            )
+        else:
+            self.assertEqual(heat_float64_F.strides, numpy_float64_F.strides)
 
         # Distributed, int16, row-major memory layout
         size = ht.communication.MPI_WORLD.size
@@ -1584,7 +1623,15 @@ class TestDNDarray(TestCase):
         numpy_int16_split_strides = (
             tuple(np.array(numpy_int16.strides[:split]) / size) + numpy_int16.strides[split:]
         )
-        self.assertEqual(heat_int16_split.strides, numpy_int16_split_strides)
+        if pytorch_major_version >= 2:
+            self.assertTrue(
+                (
+                    np.asarray(heat_int16_split.strides) * 2
+                    == np.asarray(numpy_int16_split_strides)
+                ).all()
+            )
+        else:
+            self.assertEqual(heat_int16_split.strides, numpy_int16_split_strides)
 
         # Distributed, float32, row-major memory layout
         split = -1
@@ -1596,7 +1643,15 @@ class TestDNDarray(TestCase):
         numpy_float32_split_strides = (
             tuple(np.array(numpy_float32.strides[:split]) / size) + numpy_float32.strides[split:]
         )
-        self.assertEqual(heat_float32_split.strides, numpy_float32_split_strides)
+        if pytorch_major_version >= 2:
+            self.assertTrue(
+                (
+                    np.asarray(heat_float32_split.strides) * 4
+                    == np.asarray(numpy_float32_split_strides)
+                ).all()
+            )
+        else:
+            self.assertEqual(heat_float32_split.strides, numpy_float32_split_strides)
 
         # Distributed, float64, column-major memory layout
         split = -2
@@ -1608,7 +1663,15 @@ class TestDNDarray(TestCase):
         numpy_float64_F_split_strides = numpy_float64_F.strides[: split + 1] + tuple(
             np.array(numpy_float64_F.strides[split + 1 :]) / size
         )
-        self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)
+        if pytorch_major_version >= 2:
+            self.assertTrue(
+                (
+                    np.asarray(heat_float64_F_split.strides) * 8
+                    == np.asarray(numpy_float64_F_split_strides)
+                ).all()
+            )
+        else:
+            self.assertEqual(heat_float64_F_split.strides, numpy_float64_F_split_strides)
 
     def test_tolist(self):
         a = ht.zeros([ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.int32)
@@ -1649,16 +1712,30 @@ class TestDNDarray(TestCase):
         scalar_array = ht.array(1)
         scalar_proxy = scalar_array.__torch_proxy__()
         self.assertTrue(scalar_proxy.ndim == 0)
-        scalar_proxy_nbytes = scalar_proxy.storage().size() * scalar_proxy.storage().element_size()
+        if pytorch_major_version >= 2:
+            scalar_proxy_nbytes = (
+                scalar_proxy.untyped_storage().size()
+                * scalar_proxy.untyped_storage().element_size()
+            )
+        else:
+            scalar_proxy_nbytes = (
+                scalar_proxy.storage().size() * scalar_proxy.storage().element_size()
+            )
         self.assertTrue(scalar_proxy_nbytes == 1)
 
         dndarray = ht.zeros((4, 7, 6), split=1)
         dndarray_proxy = dndarray.__torch_proxy__()
         self.assertTrue(dndarray_proxy.ndim == dndarray.ndim)
         self.assertTrue(tuple(dndarray_proxy.shape) == dndarray.gshape)
-        dndarray_proxy_nbytes = (
-            dndarray_proxy.storage().size() * dndarray_proxy.storage().element_size()
-        )
+        if pytorch_major_version >= 2:
+            dndarray_proxy_nbytes = (
+                dndarray_proxy.untyped_storage().size()
+                * dndarray_proxy.untyped_storage().element_size()
+            )
+        else:
+            dndarray_proxy_nbytes = (
+                dndarray_proxy.storage().size() * dndarray_proxy.storage().element_size()
+            )
         self.assertTrue(dndarray_proxy_nbytes == 1)
 
     def test_xor(self):

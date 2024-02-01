@@ -6,10 +6,18 @@ on:
       - 'main'
       - 'release/**'
 
+permissions:
+  contents: read
+
 jobs:
   starter:
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@eb238b55efaa70779f274895e782ed17c84f2895 # v2.6.1
+        with:
+          egress-policy: audit
+
       - name: 'start test'
         run: |
          curl -s -X POST \

@@ -4,22 +4,29 @@ on:
   release:
     types: [released]
 
+permissions:
+  contents: read
+
 jobs:
   update:
+    permissions:
+      contents: write  # for stefanzweifel/git-auto-commit-action to push code in repo
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@eb238b55efaa70779f274895e782ed17c84f2895 # v2.6.1
+        with:
+          egress-policy: audit
+
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
         with:
           repository: helmholtz-analytics/heat
           ref: ${{ github.event.release.target_commitish }}
       - name: Update Changelog
-        env:
-          NAME: ${{ github.event.release.name }}
-          BODY: ${{ github.event.release.body }}
         run: |
-          echo ${{ format('\# {0} - {1}', env.GITHUB_REF, "$NAME") }} > cl_title.md
-          echo "$BODY" > cl_new_body.md
+          echo ${{ format('\# {0} - {1}', env.GITHUB_REF, github.event.release.name) }} > cl_title.md
+          echo ${{ github.event.release.body }} > cl_new_body.md
           echo "" > newline.txt
           cat cl_title.md newline.txt cl_new_body.md newline.txt CHANGELOG.md > tmp
           mv tmp CHANGELOG.md
@@ -28,7 +35,7 @@ jobs:
           rm newline.txt
           cat CHANGELOG.md
       - name: Commit updated CHANGELOG
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@3ea6ae190baf489ba007f7c92608f33ce20ef04a # v4.16.0
         with:
           branch: ${{ github.event.release.target_commitish }}
           commit_message: Update CHANGELOG
