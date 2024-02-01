@@ -183,7 +183,7 @@ def qr(
         # implementation of TS-QR
         if A.lshape_map[:, 0].max().item() > A.shape[1]:
             warn(
-                "A is split along the rows and the local chunks of data are rectangular with more rows than columns. Applying TS-QR in this situation may cause memory issues. We recomment to split A along the columns instead."
+                "A is split along the rows and the local chunks of data are rectangular with more rows than columns. \n Applying TS-QR in this situation may cause memory issues. \n We recomment to split A along the columns instead."
             )
 
         return None
