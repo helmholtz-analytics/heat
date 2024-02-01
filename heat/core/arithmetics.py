@@ -188,7 +188,7 @@ def add_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_add_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -335,7 +335,7 @@ def bitwise_and_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_bitwise_and_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -481,7 +481,7 @@ def bitwise_or_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_bitwise_or_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -622,7 +622,7 @@ def bitwise_xor_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_bitwise_xor_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -737,7 +737,7 @@ def copysign_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_copysign_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -1162,7 +1162,7 @@ def div_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_div_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -1394,7 +1394,7 @@ def floordiv_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_floordiv_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -1508,7 +1508,7 @@ def fmod_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_fmod_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -1612,7 +1612,7 @@ def gcd_(t1: DNDarray, t2: DNDarray) -> DNDarray:
         return _operations.__binary_op(wrap_gcd_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
     except RuntimeError:
         raise TypeError(f"Expected integer input, got {t1.dtype}, {t2.dtype}")
@@ -1708,7 +1708,7 @@ def hypot_(t1: DNDarray, t2: DNDarray) -> DNDarray:
         return _operations.__binary_op(wrap_hypot_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
     except RuntimeError:
         raise TypeError(f"Not implemented for array dtype, got {t1.dtype}, {t2.dtype}")
@@ -1904,7 +1904,7 @@ def lcm_(t1: DNDarray, t2: Union[DNDarray, int]) -> DNDarray:
         return _operations.__binary_op(wrap_lcm_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
     except RuntimeError:
         raise TypeError(f"Expected integer input, got {t1.dtype}, {t2.dtype}")
@@ -2038,7 +2038,7 @@ def left_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_bitwise_left_shift_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -2174,7 +2174,7 @@ def mul_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_mul_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -2641,7 +2641,7 @@ def pow_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_pow_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -2826,7 +2826,7 @@ def remainder_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_remainder_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -2959,7 +2959,7 @@ def right_shift_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_bitwise_right_shift_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
@@ -3098,7 +3098,7 @@ def sub_(t1: DNDarray, t2: Union[DNDarray, float]) -> DNDarray:
         return _operations.__binary_op(wrap_sub_, t1, t2, out=t1)
     except NotImplementedError:
         raise ValueError(
-            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split alon axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
+            f"In-place operation not allowed: operands are distributed along different axes. \n Operand 1 with shape {t1.shape} is split along axis {t1.split}. \n Operand 2 with shape {t2.shape} is split along axis {t2.split}."
         )
 
 
