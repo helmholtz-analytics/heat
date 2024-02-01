@@ -9,7 +9,7 @@ import warnings
 
 from ..core import devices
 from ..core import types
-from ..core.communication import MPI, sanitize_comm, Communication
+from ..communication_backends.communication import MPI, sanitize_comm, Communication
 from ..core.devices import Device
 from ..core.types import datatype
 

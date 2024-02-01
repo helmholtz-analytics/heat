@@ -6,7 +6,7 @@ import torch
 from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple
 from warnings import warn
 
-from ..communication import MPICommunication
+from ...communication_backends.communication import MPICommunication
 from ..types import datatype
 from ..tiling import SquareDiagTiles
 from ..dndarray import DNDarray

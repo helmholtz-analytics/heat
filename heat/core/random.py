@@ -6,14 +6,14 @@ import torch
 
 from typing import List, Optional, Tuple, Type, Union
 
-from . import communication
+from ..communication_backends import communication
 from . import devices
 from . import factories
 from . import logical
 from . import stride_tricks
 from . import types
 
-from .communication import Communication
+from ..communication_backends.communication import Communication
 from .devices import Device
 from .dndarray import DNDarray
 from .types import datatype

@@ -8,7 +8,7 @@ import numpy as np
 
 from typing import Union
 
-from .communication import MPI
+from ..communication_backends.communication import MPI
 from .dndarray import DNDarray
 from . import _operations
 from . import dndarray

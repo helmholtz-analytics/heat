@@ -9,7 +9,7 @@ import warnings
 
 from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
 
-from .communication import MPI
+from ..communication_backends.communication import MPI
 from .dndarray import DNDarray
 
 from . import arithmetics

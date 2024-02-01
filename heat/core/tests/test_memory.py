@@ -37,7 +37,7 @@ class TestMemory(TestCase):
         a_torch_5d_sum = a_torch_5d.sum(-2)
         self.assert_array_equal(a_heat_5d_F_sum, a_torch_5d_sum)
         # distributed, split, 2D
-        size = ht.communication.MPI_WORLD.size
+        size = ht.communication_backends.MPI_WORLD.size
         a_torch_2d = torch.arange(4 * size * 3 * size, device=self.device.torch_device).reshape(
             4 * size, 3 * size
         )

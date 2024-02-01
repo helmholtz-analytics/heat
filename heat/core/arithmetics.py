@@ -15,7 +15,7 @@ from . import stride_tricks
 from . import types
 from . import logical
 
-from .communication import MPI
+from ..communication_backends.communication import MPI
 from .dndarray import DNDarray
 from .types import (
     canonical_heat_type,

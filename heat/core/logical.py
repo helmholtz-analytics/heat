@@ -14,7 +14,7 @@ from . import _operations
 from . import stride_tricks
 from . import types
 
-from .communication import MPI
+from ..communication_backends.communication import MPI
 from .dndarray import DNDarray
 
 __all__ = [

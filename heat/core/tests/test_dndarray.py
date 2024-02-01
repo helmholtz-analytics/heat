@@ -1611,7 +1611,7 @@ class TestDNDarray(TestCase):
             self.assertEqual(heat_float64_F.strides, numpy_float64_F.strides)
 
         # Distributed, int16, row-major memory layout
-        size = ht.communication.MPI_WORLD.size
+        size = ht.communication_backends.MPI_WORLD.size
         split = 2
         torch_int16 = torch.arange(
             6 * 5 * 3 * size * 4 * 5 * 7, dtype=torch.int16, device=self.device.torch_device

@@ -35,8 +35,8 @@ class TestDCSR_matrix(TestCase):
             self.ref_indptr, self.ref_indices, self.ref_data, device=self.device.torch_device
         )
 
-        self.world_size = ht.communication.MPI_WORLD.size
-        self.rank = ht.communication.MPI_WORLD.rank
+        self.world_size = ht.communication_backends.MPI_WORLD.size
+        self.rank = ht.communication_backends.MPI_WORLD.rank
 
     def test_larray(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)

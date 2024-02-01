@@ -3,7 +3,7 @@
 import builtins
 import copy
 import torch
-from .communication import MPI_WORLD
+from ..communication_backends.communication import MPI_WORLD
 
 from .dndarray import DNDarray
 

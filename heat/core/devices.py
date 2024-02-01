@@ -8,7 +8,7 @@ import torch
 
 from typing import Any, Optional, Union
 
-from . import communication
+from ..communication_backends import communication
 
 
 __all__ = ["Device", "cpu", "get_device", "sanitize_device", "use_device"]

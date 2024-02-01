@@ -5,7 +5,7 @@ import numpy as np
 from heat.sparse.dcsr_matrix import DCSR_matrix
 
 from . import factories
-from ..core.communication import MPI
+from ..communication_backends.communication import MPI
 from ..core.dndarray import DNDarray
 from ..core import types
 

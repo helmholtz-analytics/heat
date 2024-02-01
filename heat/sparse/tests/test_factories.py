@@ -51,8 +51,8 @@ class TestFactories(TestCase):
             )
         )
 
-        self.world_size = ht.communication.MPI_WORLD.size
-        self.rank = ht.communication.MPI_WORLD.rank
+        self.world_size = ht.communication_backends.MPI_WORLD.size
+        self.rank = ht.communication_backends.MPI_WORLD.rank
 
     def test_sparse_csr_matrix(self):
         """

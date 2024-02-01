@@ -8,8 +8,8 @@ from heat.core.tests.test_suites.basic_test import TestCase
 
 class TestLaplacian(TestCase):
     def test_laplacian(self):
-        size = ht.communication.MPI_WORLD.size
-        rank = ht.communication.MPI_WORLD.rank
+        size = ht.communication_backends.MPI_WORLD.size
+        rank = ht.communication_backends.MPI_WORLD.rank
         X = ht.ones((size * 2, 4), split=0)
         X.larray[0, :] *= rank
         X.larray[1, :] *= rank + 0.5

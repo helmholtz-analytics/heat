@@ -10,9 +10,9 @@ from collections import OrderedDict
 from typing import Any, Callable, Dict, List, Union, Tuple
 
 from .. import optim
-from ..core.communication import MPI
-from ..core.communication import MPI_WORLD
-from ..core.communication import MPICommunication
+from ..communication_backends.communication import MPI
+from ..communication_backends.communication import MPI_WORLD
+from ..communication_backends.communication import MPICommunication
 
 
 __all__ = ["DataParallel", "DataParallelMultiGPU"]

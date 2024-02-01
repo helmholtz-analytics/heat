@@ -201,7 +201,7 @@ class TestFactories(TestCase):
         )
 
         # distributed array, partial data (is_split)
-        if ht.communication.MPI_WORLD.rank == 0:
+        if ht.communication_backends.MPI_WORLD.rank == 0:
             split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0], [0.0, 0.0, 0.0]]
         else:
             split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]
@@ -209,7 +209,7 @@ class TestFactories(TestCase):
 
         self.assertIsInstance(e, ht.DNDarray)
         self.assertEqual(e.dtype, ht.float32)
-        if ht.communication.MPI_WORLD.rank == 0:
+        if ht.communication_backends.MPI_WORLD.rank == 0:
             self.assertEqual(e.lshape, (3, 3, 1))
         else:
             self.assertEqual(e.lshape, (2, 3, 1))
@@ -221,8 +221,8 @@ class TestFactories(TestCase):
                 self.assertGreaterEqual(ele, e.lshape[index])
 
         # exception distributed shapes do not fit
-        if ht.communication.MPI_WORLD.size > 1:
-            if ht.communication.MPI_WORLD.rank == 0:
+        if ht.communication_backends.MPI_WORLD.size > 1:
+            if ht.communication_backends.MPI_WORLD.rank == 0:
                 split_data = [4.0, 5.0, 6.0]
             else:
                 split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]
@@ -232,8 +232,8 @@ class TestFactories(TestCase):
                 ht.array(split_data, is_split=0)
 
         # exception distributed shapes do not fit
-        if ht.communication.MPI_WORLD.size > 1:
-            if ht.communication.MPI_WORLD.rank == 0:
+        if ht.communication_backends.MPI_WORLD.size > 1:
+            if ht.communication_backends.MPI_WORLD.rank == 0:
                 split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0], [0.0, 0.0, 0.0]]
             else:
                 split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]
@@ -250,7 +250,7 @@ class TestFactories(TestCase):
 
         self.assertIsInstance(e, ht.DNDarray)
         self.assertEqual(e.dtype, ht.float32)
-        if ht.communication.MPI_WORLD.rank == 0:
+        if ht.communication_backends.MPI_WORLD.rank == 0:
             self.assertEqual(e.lshape, (1, 3, 3))
         else:
             self.assertEqual(e.lshape, (1, 2, 3))
@@ -262,8 +262,8 @@ class TestFactories(TestCase):
                 self.assertGreaterEqual(ele, e.lshape[index])
 
         # exception distributed shapes do not fit
-        if ht.communication.MPI_WORLD.size > 1:
-            if ht.communication.MPI_WORLD.rank == 0:
+        if ht.communication_backends.MPI_WORLD.size > 1:
+            if ht.communication_backends.MPI_WORLD.rank == 0:
                 split_data = [4.0, 5.0, 6.0]
             else:
                 split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]
@@ -273,8 +273,8 @@ class TestFactories(TestCase):
                 ht.array(split_data, is_split=0)
 
         # exception distributed shapes do not fit
-        if ht.communication.MPI_WORLD.size > 1:
-            if ht.communication.MPI_WORLD.rank == 0:
+        if ht.communication_backends.MPI_WORLD.size > 1:
+            if ht.communication_backends.MPI_WORLD.rank == 0:
                 split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0], [0.0, 0.0, 0.0]]
             else:
                 split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0]]

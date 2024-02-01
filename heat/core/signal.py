@@ -3,7 +3,7 @@
 import torch
 import numpy as np
 
-from .communication import MPI
+from ..communication_backends.communication import MPI
 from .dndarray import DNDarray
 from .types import promote_types
 from .manipulations import pad, flip

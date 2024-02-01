@@ -9,7 +9,7 @@ from ...tests.test_suites.basic_test import TestCase
 
 class TestSolver(TestCase):
     def test_cg(self):
-        size = ht.communication.MPI_WORLD.size * 3
+        size = ht.communication_backends.MPI_WORLD.size * 3
         b = ht.arange(1, size + 1, dtype=ht.float32, split=0)
         A = ht.manipulations.diag(b)
         x0 = ht.random.rand(size, dtype=b.dtype, split=b.split)
