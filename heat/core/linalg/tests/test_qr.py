@@ -47,8 +47,8 @@ class TestQR(TestCase):
 
     def test_qr_split0(self):
         split = 0
-        for procs_to_merge in [0]:
-            for mode in ["r"]:  # ,"reduced"]:
+        for procs_to_merge in [0, 2, 3]:
+            for mode in ["r", "reduced"]:
                 for shape in [
                     (40 * ht.MPI_WORLD.size, 40),
                     # (2 * ht.MPI_WORLD.size + 1, 2 * ht.MPI_WORLD.size + 1),

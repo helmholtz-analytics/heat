@@ -166,6 +166,7 @@ def qr(
         current_comm = A.comm
         local_comm = current_comm.Split(current_comm.rank // procs_to_merge, A.comm.rank)
         Q_loc, R_loc = torch.linalg.qr(A.larray, mode=mode)
+        R_loc = R_loc.contiguous()  # required for all the communication ops lateron
         if mode == "reduced":
             leave_comm = current_comm.Split(current_comm.rank, A.comm.rank)
 
@@ -188,16 +189,18 @@ def qr(
                     gathered_R_loc = torch.empty(0, device=R_loc.device, dtype=R_loc.dtype)
                     counts = None
                     displs = None
-                print(A.comm.rank, R_loc.shape, gathered_R_loc.shape, counts, displs)
                 # gather the R_loc's from all processes of the process group of at most n_procs_to_merge processes
                 local_comm.Gatherv(R_loc, (gathered_R_loc, counts, displs), root=0, axis=0)
                 # perform QR decomposition on the concatenated, gathered R_loc's to obtain new R_loc
                 if local_comm.rank == 0:
                     previous_shape = R_loc.shape
                     Q_buf, R_loc = torch.linalg.qr(gathered_R_loc, mode=mode)
+                    R_loc = R_loc.contiguous()
                 else:
                     Q_buf = torch.empty(0, device=R_loc.device, dtype=R_loc.dtype)
                 if mode == "reduced":
+                    if local_comm.rank == 0:
+                        Q_buf = Q_buf.contiguous()
                     scattered_Q_buf = torch.empty(
                         R_loc.shape if local_comm.rank != 0 else previous_shape,
                         device=R_loc.device,
@@ -244,6 +247,8 @@ def qr(
         R_gshape = (A.shape[1], A.shape[1])
         if A.comm.rank != 0:
             R_loc = torch.empty(R_gshape, dtype=R_loc.dtype, device=R_loc.device)
+        else:
+            R_loc = R_loc.contiguous()
         A.comm.Bcast(R_loc, root=0)
         R = DNDarray(
             R_loc,
