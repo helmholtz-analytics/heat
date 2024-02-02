@@ -1,28 +1,19 @@
-name: Start CI Run
+name: Start CI Support Run
 
 on:
   push:
     branches:
-      - 'main'
-      - 'release/**'
-
-permissions:
-  contents: read
+      - 'support/**'
 
 jobs:
   starter:
     runs-on: ubuntu-latest
     steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@eb238b55efaa70779f274895e782ed17c84f2895 # v2.6.1
-        with:
-          egress-policy: audit
-
       - name: 'start test'
         run: |
          curl -s -X POST \
            --fail \
            -F token=${{ secrets.CB_PIPELINE }} \
-           -F "ref=heat/base" \
+           -F "ref=heat/support" \
            -F "variables[SHA]=$GITHUB_SHA" \
            https://codebase.helmholtz.cloud/api/v4/projects/7605/trigger/pipeline -o /dev/null
