@@ -212,6 +212,7 @@ def qr(
 
             # for each process in the current processes, broadcast the scattered_Q_buf of this process
             # to all leaves (i.e. all original processes that merge to the current process)
+            print(f"{A.comm.rank} has leave comm {leave_comm.size} in level {level}")
             if mode == "reduced" and leave_comm.size > 1:
                 try:
                     scattered_Q_buf_shape = scattered_Q_buf.shape
@@ -226,6 +227,7 @@ def qr(
                 # update the local Q_loc by multiplying it with the scattered_Q_buf
             try:
                 Q_loc = Q_loc @ scattered_Q_buf
+                print(f"{A.comm.rank} has updated his q in level {level}")
             except UnboundLocalError:
                 pass
 
@@ -247,8 +249,6 @@ def qr(
         R_gshape = (A.shape[1], A.shape[1])
         if A.comm.rank != 0:
             R_loc = torch.empty(R_gshape, dtype=R_loc.dtype, device=R_loc.device)
-        else:
-            R_loc = R_loc.contiguous()
         A.comm.Bcast(R_loc, root=0)
         R = DNDarray(
             R_loc,
