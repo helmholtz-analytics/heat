@@ -4,7 +4,7 @@ QR decomposition of (distributed) 2-D ``DNDarray``s.
 import collections
 import torch
 from typing import Tuple
-from warnings import warn
+from time import sleep
 
 from ..dndarray import DNDarray
 from .. import factories
@@ -155,9 +155,10 @@ def qr(
         return QR(Q, R)
 
     if A.split == 0:
-        # implementation of TS-QR
-        if A.lshape_map[:, 0].max().item() > A.shape[1]:
-            ValueError(
+        # implementation of TS-QR for split = 0
+        # check that data distribution is reasonable for TS-QR (i.e. tall-skinny matrix with also tall-skinny local chunks of data)
+        if A.lshape_map[:, 0].max().item() < A.shape[1]:
+            raise ValueError(
                 "A is split along the rows and the local chunks of data are rectangular with more rows than columns. \n Applying TS-QR in this situation is not reasonable w.r.t. runtime and memory consumption. \n We recomment to split A along the columns instead."
             )
 
@@ -187,7 +188,7 @@ def qr(
                     gathered_R_loc = torch.empty(0, device=R_loc.device, dtype=R_loc.dtype)
                     counts = None
                     displs = None
-
+                print(A.comm.rank, R_loc.shape, gathered_R_loc.shape, counts, displs)
                 # gather the R_loc's from all processes of the process group of at most n_procs_to_merge processes
                 local_comm.Gatherv(R_loc, (gathered_R_loc, counts, displs), root=0, axis=0)
                 # perform QR decomposition on the concatenated, gathered R_loc's to obtain new R_loc
@@ -237,9 +238,7 @@ def qr(
                         current_comm.Split(current_comm.rank // procs_to_merge, A.comm.rank)
                     )
                 if mode == "reduced":
-                    leave_comm = A.comm.Split(
-                        A.comm.rank // procs_to_merge ** (level + 1), A.comm.rank
-                    )
+                    leave_comm = A.comm.Split(A.comm.rank // procs_to_merge**level, A.comm.rank)
             level += 1
         # broadcast the final R_loc to all processes
         R_gshape = (A.shape[1], A.shape[1])

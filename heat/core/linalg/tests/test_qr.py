@@ -12,9 +12,9 @@ class TestQR(TestCase):
     #     for split in [1, None]:
     #         for mode in ["reduced", "r"]:
     #             for shape in [
-    #                 (2 * ht.MPI_WORLD.size, 4 * ht.MPI_WORLD.size),
-    #                 (2 * ht.MPI_WORLD.size, 2 * ht.MPI_WORLD.size),
-    #                 (4 * ht.MPI_WORLD.size, 2 * ht.MPI_WORLD.size),
+    #                 (20 * ht.MPI_WORLD.size, 40 * ht.MPI_WORLD.size),
+    #                 (20 * ht.MPI_WORLD.size, 20 * ht.MPI_WORLD.size),
+    #                 (40 * ht.MPI_WORLD.size, 20 * ht.MPI_WORLD.size),
     #             ]:
     #                 for dtype in [ht.float32, ht.float64]:
     #                     dtypetol = 1e-3 if dtype == ht.float32 else 1e-6
@@ -47,11 +47,11 @@ class TestQR(TestCase):
 
     def test_qr_split0(self):
         split = 0
-        for procs_to_merge in [2, 3]:
-            for mode in ["reduced"]:
+        for procs_to_merge in [0]:
+            for mode in ["r"]:  # ,"reduced"]:
                 for shape in [
-                    (2 * ht.MPI_WORLD.size + 3, ht.MPI_WORLD.size),
-                    # (2 * ht.MPI_WORLD.size + 1, 4 * ht.MPI_WORLD.size),
+                    (40 * ht.MPI_WORLD.size, 40),
+                    # (2 * ht.MPI_WORLD.size + 1, 2 * ht.MPI_WORLD.size + 1),
                 ]:
                     for dtype in [ht.float32]:
                         dtypetol = 1e-3 if dtype == ht.float32 else 1e-6
@@ -59,28 +59,43 @@ class TestQR(TestCase):
 
                         qr = ht.linalg.qr(mat, mode=mode, procs_to_merge=procs_to_merge)
 
-                        print(qr, dtypetol)
+                        if mode == "reduced":
+                            self.assertTrue(
+                                ht.allclose(qr.Q @ qr.R, mat, atol=dtypetol, rtol=dtypetol)
+                            )
+                            self.assertIsInstance(qr.Q, ht.DNDarray)
 
-                        # if mode == "reduced":
-                        #     # self.assertTrue(
-                        #     #     ht.allclose(qr.Q @ qr.R, mat, atol=dtypetol, rtol=dtypetol)
-                        #     # )
-                        #     # self.assertIsInstance(qr.Q, ht.DNDarray)
+                            # test if Q is orthogonal
+                            self.assertTrue(
+                                ht.allclose(
+                                    qr.Q.T @ qr.Q,
+                                    ht.eye(qr.Q.shape[1], dtype=dtype),
+                                    atol=dtypetol,
+                                    rtol=dtypetol,
+                                )
+                            )
+                            # test correct shape of Q
+                            self.assertEqual(qr.Q.shape, (shape[0], min(shape)))
+                        else:
+                            self.assertIsNone(qr.Q)
 
-                        #     # test if Q is orthogonal
-                        #     self.assertTrue(
-                        #         ht.allclose(
-                        #             qr.Q.T @ qr.Q,
-                        #             ht.eye(qr.Q.shape[1], dtype=dtype),
-                        #             atol=dtypetol,
-                        #             rtol=dtypetol,
-                        #         )
-                        #     )
-                        #     # test correct shape of Q
-                        #     self.assertEqual(qr.Q.shape, (shape[0], min(shape)))
-                        # else:
-                        #     self.assertIsNone(qr.Q)
+                        # test correct type and shape of R
+                        self.assertIsInstance(qr.R, ht.DNDarray)
+                        self.assertEqual(qr.R.shape, (min(shape), shape[1]))
 
-                        # # test correct type and shape of R
-                        # self.assertIsInstance(qr.R, ht.DNDarray)
-                        # self.assertEqual(qr.R.shape, (min(shape), shape[1]))
+                        # compare with torch qr, due to different signs we can only compare absolute values
+                        mat_t = mat.resplit_(None).larray
+                        q_t, r_t = torch.linalg.qr(mat_t, mode=mode)
+                        r_ht = qr.R.resplit_(None).larray
+                        self.assertTrue(
+                            torch.allclose(
+                                torch.abs(r_t), torch.abs(r_ht), atol=dtypetol, rtol=dtypetol
+                            )
+                        )
+                        if mode == "reduced":
+                            q_ht = qr.Q.resplit_(None).larray
+                            self.assertTrue(
+                                torch.allclose(
+                                    torch.abs(q_t), torch.abs(q_ht), atol=dtypetol, rtol=dtypetol
+                                )
+                            )
