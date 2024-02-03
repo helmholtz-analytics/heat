@@ -3,6 +3,7 @@
 import torch
 import numpy as np
 from scipy.sparse import csr_matrix as scipy_csr_matrix
+from scipy.sparse import csc_matrix as scipy_csc_matrix
 
 from typing import Optional, Type, Iterable
 import warnings
@@ -93,6 +94,29 @@ def sparse_csr_matrix(
     >>> ht.sparse.sparse_csr_matrix([[0, 0, 1], [1, 0, 2], [0, 0, 3]])
     (indptr: tensor([0, 1, 3, 4]), indices: tensor([2, 0, 2, 2]), data: tensor([1, 1, 2, 3]), dtype=ht.int64, device=cpu:0, split=None)
     """
+    return sparse_matrix(obj, dtype, split, is_split, device, comm, orientation="row")
+
+
+def sparse_csc_matrix(
+    obj: Iterable,
+    dtype: Optional[Type[datatype]] = None,
+    split: Optional[int] = None,
+    is_split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+):
+    return sparse_matrix(obj, dtype, split, is_split, device, comm, orientation="col")
+
+
+def sparse_matrix(
+    obj: Iterable,
+    dtype: Optional[Type[datatype]] = None,
+    split: Optional[int] = None,
+    is_split: Optional[int] = None,
+    device: Optional[Device] = None,
+    comm: Optional[Communication] = None,
+    orientation: str = "row",  # "row" | "col"
+):
     # version check
     if int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 10:
         raise RuntimeError(f"ht.sparse requires torch >= 1.10. Found version {torch.__version__}.")
@@ -105,9 +129,14 @@ def sparse_csr_matrix(
     if device is not None:
         device = devices.sanitize_device(device)
 
+    if orientation not in ["row", "col"]:
+        raise ValueError(f"Invalid orientation: '{orientation}'")
+
+    torch_class = torch.sparse_csr_tensor if orientation == "row" else torch.sparse_csc_tensor
     # Convert input into torch.Tensor (layout ==> torch.sparse_csr)
-    if isinstance(obj, scipy_csr_matrix):
-        obj = torch.sparse_csr_tensor(
+    # TODO: Check if conversion works across types
+    if isinstance(obj, (scipy_csr_matrix, scipy_csc_matrix)):
+        obj = torch_class(
             obj.indptr,
             obj.indices,
             obj.data,
@@ -129,7 +158,8 @@ def sparse_csr_matrix(
     if obj.ndim != 2:
         raise ValueError(f"The number of dimensions must be 2, found {str(obj.ndim)}")
 
-    if obj.layout != torch.sparse_csr:
+    torch_layout = torch.sparse_csr if orientation == "row" else torch.sparse_csc
+    if obj.layout != torch_layout:
         obj = obj.to_sparse_csr()
 
     # infer dtype from obj if not explicitly given
@@ -156,19 +186,23 @@ def sparse_csr_matrix(
     lshape = gshape
     gnnz = obj.values().shape[0]
 
-    if split == 0:
+    compressed_indices = obj.crow_indices() if orientation == "row" else obj.ccol_indices()
+    element_indices = obj.col_indices() if orientation == "row" else obj.row_indices()
+
+    if (split == 0 and orientation == "row") or (split == 1 and orientation == "col"):
         start, end = comm.chunk(gshape, split, sparse=True)
 
         # Find the starting and ending indices for
-        # col_indices and values tensors for this process
-        indices_start = obj.crow_indices()[start]
-        indices_end = obj.crow_indices()[end]
+        # element_indices and values tensors for this process
+        indices_start = compressed_indices[start]
+        indices_end = compressed_indices[end]
 
         # Slice the data belonging to this process
         data = obj.values()[indices_start:indices_end]
         # start:(end + 1) because indptr is of size (n + 1) for array with n rows
-        indptr = obj.crow_indices()[start : end + 1]
-        indices = obj.col_indices()[indices_start:indices_end]
+        indptr = compressed_indices[start : end + 1]
+
+        indices = element_indices[indices_start:indices_end]
 
         indptr = indptr - indptr[0]
 
@@ -177,9 +211,11 @@ def sparse_csr_matrix(
         lshape = tuple(lshape)
 
     elif split is not None:
-        raise ValueError(f"Split axis {split} not supported for class DCSR_matrix")
+        # TODO: fix this
+        class_name = "DCSR_matrix" if orientation == "row" else "DCSC_matrix"
+        raise ValueError(f"Split axis {split} not supported for class {class_name}")
 
-    elif is_split == 0:
+    elif (is_split == 0 and orientation == "row") or (is_split == 1 and orientation == "col"):
         # Check whether the distributed data matches in
         # all dimensions other than axis 0
         neighbour_shape = np.array(gshape)
@@ -212,8 +248,8 @@ def sparse_csr_matrix(
             )
 
         data = obj.values()
-        indptr = obj.crow_indices()
-        indices = obj.col_indices()
+        indptr = compressed_indices
+        indices = element_indices
 
         # Calculate gshape
         gshape_split = torch.tensor(gshape[is_split])
@@ -231,14 +267,16 @@ def sparse_csr_matrix(
         split = is_split
 
     elif is_split is not None:
-        raise ValueError(f"Split axis {split} not supported for class DCSR_matrix")
+        # TODO: fix this
+        class_name = "DCSR_matrix" if orientation == "row" else "DCSC_matrix"
+        raise ValueError(f"Split axis {split} not supported for class {class_name}")
 
     else:  # split is None and is_split is None
         data = obj.values()
-        indptr = obj.crow_indices()
-        indices = obj.col_indices()
+        indptr = compressed_indices
+        indices = element_indices
 
-    sparse_array = torch.sparse_csr_tensor(
+    sparse_array = torch_class(
         indptr.to(torch.int64),
         indices.to(torch.int64),
         data,
