@@ -11,6 +11,7 @@ from time import sleep
 from ..dndarray import DNDarray
 from .. import factories
 from .. import communication
+from ..types import float32, float64
 
 __all__ = ["qr"]
 
@@ -28,7 +29,7 @@ def qr(
     Parameters
     ----------
     A : DNDarray of shape (..., M, N)
-        Array which will be decomposed. So far only 2D arrays are supported.
+        Array which will be decomposed. So far only 2D arrays with datatype float32 or float64 are supported
         For split=0, the matrix must be tall skinny, i.e. the local chunks of data must have at least as many rows as columns.
     mode : str, optional
         default "reduced" returns Q and R with dimensions (..., M, min(M,N)) and (..., min(M,N), N), respectively.
@@ -39,6 +40,7 @@ def qr(
 
     Notes
     -----
+    For split=1, Q and R have split=1 as well. For split=0, Q has split=0 and R has split=None.
     Other than ``numpy.linalg.qr()`` we only support ``mode="reduced"`` or ``mode="r"`` for the moment, since "complete" may result in heavy memory usage.
     Heats QR function is built on top of PyTorchs QR function, ``torch.linalg.qr()``, using LAPACK (CPU) and MAGMA (CUDA) on
     the backend; due to limited support of PyTorchs QR for ROCm, also Heats QR is currently not available on AMD GPUs.
@@ -60,7 +62,11 @@ def qr(
         procs_to_merge = A.comm.size
 
     if A.ndim != 2:
-        raise ValueError(f"Array 'A' must be 2 dimensional, buts has {A.ndim} dimensions")
+        raise ValueError(
+            f"Array 'A' must be 2 dimensional, buts has {A.ndim} dimensions. \n Please open an issue on GitHub if you require QR for batches of matrices similar to PyTorch."
+        )
+    if A.dtype not in [float32, float64]:
+        raise TypeError(f"Array 'A' must have a datatype of float32 or float64, but has {A.dtype}")
 
     QR = collections.namedtuple("QR", "Q, R")
 
@@ -162,7 +168,7 @@ def qr(
         # check that data distribution is reasonable for TS-QR (i.e. tall-skinny matrix with also tall-skinny local chunks of data)
         if A.lshape_map[:, 0].max().item() < A.shape[1]:
             raise ValueError(
-                "A is split along the rows and the local chunks of data are rectangular with more rows than columns. \n Applying TS-QR in this situation is not reasonable w.r.t. runtime and memory consumption. \n We recomment to split A along the columns instead."
+                "A is split along the rows and the local chunks of data are rectangular with more rows than columns. \n Applying TS-QR in this situation is not reasonable w.r.t. runtime and memory consumption. \n We recomment to split A along the columns instead. \n In case this is not an option for you, please open an issue on GitHub."
             )
 
         current_procs = [i for i in range(A.comm.size)]

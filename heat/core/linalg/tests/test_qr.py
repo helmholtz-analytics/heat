@@ -6,7 +6,6 @@ import numpy as np
 from ...tests.test_suites.basic_test import TestCase
 
 
-# @unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
 class TestQR(TestCase):
     def test_qr_split1orNone(self):
         for split in [1, None]:
@@ -66,7 +65,7 @@ class TestQR(TestCase):
     def test_qr_split0(self):
         split = 0
         for procs_to_merge in [0, 2, 3]:
-            for mode in ["reduced"]:
+            for mode in ["reduced", "r"]:
                 # split = 0 can be handeled only for tall skinny matrices s.t. the local chunks are at least square too
                 for shape in [(40 * ht.MPI_WORLD.size + 1, 40), (40 * ht.MPI_WORLD.size, 20)]:
                     for dtype in [ht.float32, ht.float64]:
@@ -115,3 +114,30 @@ class TestQR(TestCase):
                                     torch.abs(q_t), torch.abs(q_ht), atol=dtypetol, rtol=dtypetol
                                 )
                             )
+
+    def test_wronginputs(self):
+        # test wrong input type
+        with self.assertRaises(TypeError):
+            ht.linalg.qr([1, 2, 3])
+        # wrong data type for mode
+        with self.assertRaises(TypeError):
+            ht.linalg.qr(ht.zeros((10, 10)), mode=1)
+        # test wrong mode
+        with self.assertRaises(ValueError):
+            ht.linalg.qr(ht.zeros((10, 10)), mode="full")
+        # wrong dtype for procs_to_merge
+        with self.assertRaises(TypeError):
+            ht.linalg.qr(ht.zeros((10, 10)), procs_to_merge="abc")
+        # test wrong procs_to_merge
+        with self.assertRaises(ValueError):
+            ht.linalg.qr(ht.zeros((10, 10)), procs_to_merge=1)
+        # test wrong shape
+        with self.assertRaises(ValueError):
+            ht.linalg.qr(ht.zeros((10, 10, 10)))
+        # test wrong dtype
+        with self.assertRaises(TypeError):
+            ht.linalg.qr(ht.zeros((10, 10), dtype=ht.int32))
+        # test wrong shape for split=0
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(ValueError):
+                ht.linalg.qr(ht.zeros((10, 10), split=0))
