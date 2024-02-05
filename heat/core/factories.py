@@ -318,9 +318,11 @@ def array(
             try:
                 obj = torch.tensor(
                     obj,
-                    device=device.torch_device
-                    if device is not None
-                    else devices.get_device().torch_device,
+                    device=(
+                        device.torch_device
+                        if device is not None
+                        else devices.get_device().torch_device
+                    ),
                 )
             except RuntimeError:
                 raise TypeError(f"invalid data of type {type(obj)}")
@@ -341,9 +343,9 @@ def array(
         try:
             obj = torch.as_tensor(
                 obj,
-                device=device.torch_device
-                if device is not None
-                else devices.get_device().torch_device,
+                device=(
+                    device.torch_device if device is not None else devices.get_device().torch_device
+                ),
             )
         except RuntimeError:
             raise TypeError(f"invalid data of type {type(obj)}")
