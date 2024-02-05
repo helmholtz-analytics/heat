@@ -1,4 +1,5 @@
 """Provides HeAT's core data structure, the DNDarray, a distributed n-dimensional array"""
+
 from __future__ import annotations
 
 import math
