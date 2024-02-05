@@ -1,6 +1,7 @@
 """
 Distributed Gaussian Naive-Bayes classifier.
 """
+
 from __future__ import annotations
 
 from typing import Tuple, Union, Optional

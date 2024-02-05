@@ -357,7 +357,7 @@ class TestStatistics(TestCase):
         res = ht.bincount(a, weights=w)
         self.assertEqual(res.size, 4)
         self.assertEqual(res.dtype, ht.float64)
-        self.assertTrue(ht.equal(res, ht.arange((4,), dtype=ht.float64)))
+        self.assertTrue(ht.equal(res, ht.arange(4, dtype=ht.float64)))
 
         with self.assertRaises(ValueError):
             ht.bincount(ht.array([0, 1, 2, 3], split=0), weights=ht.array([1, 2, 3, 4]))
@@ -703,8 +703,8 @@ class TestStatistics(TestCase):
         maximum = ht.max(ht_array)
 
         self.assertIsInstance(maximum, ht.DNDarray)
-        self.assertEqual(maximum.shape, (1,))
-        self.assertEqual(maximum.lshape, (1,))
+        self.assertEqual(maximum.shape, ())
+        self.assertEqual(maximum.lshape, ())
         self.assertEqual(maximum.split, None)
         self.assertEqual(maximum.dtype, ht.int64)
         self.assertEqual(maximum.larray.dtype, torch.int64)
@@ -772,7 +772,7 @@ class TestStatistics(TestCase):
             a = ht.arange(size - 1, split=0)
             res = ht.max(a)
             expected = torch.tensor(
-                [size - 2], dtype=a.dtype.torch_type(), device=self.device.torch_device
+                size - 2, dtype=a.dtype.torch_type(), device=self.device.torch_device
             )
             self.assertTrue(torch.equal(res.larray, expected))
 
@@ -965,8 +965,8 @@ class TestStatistics(TestCase):
         minimum = ht.min(ht_array)
 
         self.assertIsInstance(minimum, ht.DNDarray)
-        self.assertEqual(minimum.shape, (1,))
-        self.assertEqual(minimum.lshape, (1,))
+        self.assertEqual(minimum.shape, ())
+        self.assertEqual(minimum.lshape, ())
         self.assertEqual(minimum.split, None)
         self.assertEqual(minimum.dtype, ht.int64)
         self.assertEqual(minimum.larray.dtype, torch.int64)
@@ -1036,9 +1036,7 @@ class TestStatistics(TestCase):
         if size > 1:
             a = ht.arange(size - 1, split=0)
             res = ht.min(a)
-            expected = torch.tensor(
-                [0], dtype=a.dtype.torch_type(), device=self.device.torch_device
-            )
+            expected = torch.tensor(0, dtype=a.dtype.torch_type(), device=self.device.torch_device)
             self.assertTrue(torch.equal(res.larray, expected))
 
         # check exceptions
@@ -1183,7 +1181,10 @@ class TestStatistics(TestCase):
         # test list q and writing to output buffer
         q = [0.1, 2.3, 15.9, 50.0, 84.1, 97.7, 99.9]
         axis = 2
-        p_np = np.percentile(x_np, q, axis=axis, interpolation="lower", keepdims=True)
+        try:
+            p_np = np.percentile(x_np, q, axis=axis, method="lower", keepdims=True)
+        except TypeError:
+            p_np = np.percentile(x_np, q, axis=axis, interpolation="lower", keepdims=True)
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="lower", keepdims=True)
         out = ht.empty(p_np.shape, dtype=ht.float64, split=None, device=x_ht.device)
         ht.percentile(x_ht, q, axis=axis, out=out, interpolation="lower", keepdims=True)
@@ -1191,17 +1192,26 @@ class TestStatistics(TestCase):
         self.assertEqual(out.numpy()[2].all(), p_np[2].all())
         self.assertTrue(p_ht.shape == p_np.shape)
         axis = None
-        p_np = np.percentile(x_np, q, axis=axis, interpolation="higher")
+        try:
+            p_np = np.percentile(x_np, q, axis=axis, method="higher")
+        except TypeError:
+            p_np = np.percentile(x_np, q, axis=axis, interpolation="higher")
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="higher")
         self.assertEqual(p_ht.numpy()[6], p_np[6])
         self.assertTrue(p_ht.shape == p_np.shape)
-        p_np = np.percentile(x_np, q, axis=axis, interpolation="nearest")
+        try:
+            p_np = np.percentile(x_np, q, axis=axis, method="nearest")
+        except TypeError:
+            p_np = np.percentile(x_np, q, axis=axis, interpolation="nearest")
         p_ht = ht.percentile(x_ht, q, axis=axis, interpolation="nearest")
         self.assertEqual(p_ht.numpy()[2], p_np[2])
 
         # test split q
         q_ht = ht.array(q, split=0, comm=x_ht.comm)
-        p_np = np.percentile(x_np, q, axis=axis, interpolation="midpoint")
+        try:
+            p_np = np.percentile(x_np, q, axis=axis, method="midpoint")
+        except TypeError:
+            p_np = np.percentile(x_np, q, axis=axis, interpolation="midpoint")
         p_ht = ht.percentile(x_ht, q_ht, axis=axis, interpolation="midpoint")
         self.assertEqual(p_ht.numpy()[4], p_np[4])
 

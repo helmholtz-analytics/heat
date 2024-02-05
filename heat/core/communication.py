@@ -1,16 +1,16 @@
 """
 Module implementing the communication layer of HeAT
 """
+
 from __future__ import annotations
 
 import numpy as np
 import os
 import subprocess
 import torch
-
 from mpi4py import MPI
-from typing import Any, Callable, Optional, List, Tuple, Union
 
+from typing import Any, Callable, Optional, List, Tuple, Union
 from .stride_tricks import sanitize_axis
 
 CUDA_AWARE_MPI = False
@@ -63,14 +63,10 @@ class MPIRequest:
         Waits for an MPI request to complete
         """
         self.handle.Wait(status)
-        if (
-            self.tensor is not None
-            and isinstance(self.tensor, torch.Tensor)
-            and self.tensor.is_cuda
-            and not CUDA_AWARE_MPI
-        ):
+        if self.tensor is not None and isinstance(self.tensor, torch.Tensor):
             if self.permutation is not None:
                 self.recvbuf = self.recvbuf.permute(self.permutation)
+        if self.tensor is not None and self.tensor.is_cuda and not CUDA_AWARE_MPI:
             self.tensor.copy_(self.recvbuf)
 
     def __getattr__(self, name: str) -> Callable:
@@ -808,18 +804,43 @@ class MPICommunication(Communication):
             dummy = (
                 sendbuf.contiguous()
             )  # make a contiguous copy and reassign the storage, old will be collected
-            sendbuf.set_(
-                dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride()
-            )
+            # In PyTorch Version >= 2.0.0 we can use untyped_storage() instead of storage
+            # to keep backward compatibility with earlier PyTorch versions (where no untyped_storage() exists) we use a try/except
+            # (this applies to all places of Heat where untyped_storage() is used without further comment)
+            try:
+                sendbuf.set_(
+                    dummy.untyped_storage(),
+                    dummy.storage_offset(),
+                    size=dummy.shape,
+                    stride=dummy.stride(),
+                )
+            except AttributeError:
+                sendbuf.set_(
+                    dummy.storage(),
+                    dummy.storage_offset(),
+                    size=dummy.shape,
+                    stride=dummy.stride(),
+                )
             sbuf = sendbuf if CUDA_AWARE_MPI else sendbuf.cpu()
             sendbuf = self.as_buffer(sbuf)
         if isinstance(recvbuf, torch.Tensor):
             buf = recvbuf
             # nothing matches, the buffers have to be made contiguous
             dummy = recvbuf.contiguous()
-            recvbuf.set_(
-                dummy.storage(), dummy.storage_offset(), size=dummy.shape, stride=dummy.stride()
-            )
+            try:
+                recvbuf.set_(
+                    dummy.untyped_storage(),
+                    dummy.storage_offset(),
+                    size=dummy.shape,
+                    stride=dummy.stride(),
+                )
+            except AttributeError:
+                recvbuf.set_(
+                    dummy.storage(),
+                    dummy.storage_offset(),
+                    size=dummy.shape,
+                    stride=dummy.stride(),
+                )
             rbuf = recvbuf if CUDA_AWARE_MPI else recvbuf.cpu()
             if sendbuf is MPI.IN_PLACE:
                 recvbuf = self.as_buffer(rbuf)
@@ -1127,9 +1148,9 @@ class MPICommunication(Communication):
         ret, sbuf, rbuf, buf, permutation = self.__allgather_like(
             self.handle.Allgather, sendbuf, recvbuf, recv_axis
         )
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
-            if permutation is not None:
-                rbuf = rbuf.permute(permutation)
+        if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
+            rbuf = rbuf.permute(permutation)
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1156,9 +1177,9 @@ class MPICommunication(Communication):
         ret, sbuf, rbuf, buf, permutation = self.__allgather_like(
             self.handle.Allgatherv, sendbuf, recvbuf, recv_axis
         )
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
-            if permutation is not None:
-                rbuf = rbuf.permute(permutation)
+        if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
+            rbuf = rbuf.permute(permutation)
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1345,7 +1366,7 @@ class MPICommunication(Communication):
             mpi_recvbuf = self.alltoall_recvbuffer(rbuf)
 
             exit_code = self.handle.Alltoallw(mpi_sendbuf, mpi_recvbuf, **kwargs)
-            # original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), original_recvbuf.shape, original_recvbuf.stride())
+            # original_recvbuf.set_(recvbuf.untyped_storage(), recvbuf.storage_offset(), original_recvbuf.shape, original_recvbuf.stride())
             recv_axis_permutation = list(np.argsort(np.array(axis_permutation)))
 
         return exit_code, sbuf, rbuf, original_recvbuf, recv_axis_permutation
@@ -1378,9 +1399,9 @@ class MPICommunication(Communication):
         ret, sbuf, rbuf, buf, permutation = self.__alltoall_like(
             self.handle.Alltoall, sendbuf, recvbuf, send_axis, recv_axis
         )
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
-            if permutation is not None:
-                rbuf = rbuf.permute(permutation)
+        if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
+            rbuf = rbuf.permute(permutation)
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1414,9 +1435,9 @@ class MPICommunication(Communication):
         ret, sbuf, rbuf, buf, permutation = self.__alltoall_like(
             self.handle.Alltoallv, sendbuf, recvbuf, send_axis, recv_axis
         )
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
-            if permutation is not None:
-                rbuf = rbuf.permute(permutation)
+        if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
+            rbuf = rbuf.permute(permutation)
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1483,7 +1504,7 @@ class MPICommunication(Communication):
 
     Ialltoallv.__doc__ = MPI.Comm.Ialltoallv.__doc__
 
-    def __scatter_like(
+    def __gather_like(
         self,
         func: Callable,
         sendbuf: Union[DNDarray, torch.Tensor, Any],
@@ -1495,7 +1516,7 @@ class MPICommunication(Communication):
         **kwargs,
     ):
         """
-        Generic function for scatter and gather operations.
+        Generic function for gather operations.
 
         Parameters
         ----------
@@ -1524,8 +1545,8 @@ class MPICommunication(Communication):
         send_counts, send_displs, recv_counts, recv_displs = None, None, None, None
 
         # unpack the send buffer
-        if isinstance(sendbuf, tuple):
-            sendbuf, send_counts, send_displs = sendbuf
+        # if isinstance(sendbuf, tuple):
+        #     sendbuf, send_counts, send_displs = sendbuf
         if isinstance(sendbuf, DNDarray):
             sendbuf = sendbuf.larray
         if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
@@ -1536,21 +1557,21 @@ class MPICommunication(Communication):
             recvbuf, recv_counts, recv_displs = recvbuf
         if isinstance(recvbuf, DNDarray):
             recvbuf = recvbuf.larray
-        if not isinstance(recvbuf, torch.Tensor) and send_axis != 0:
-            raise TypeError(f"recvbuf of type {type(recvbuf)} does not support send_axis != 0")
+        if not isinstance(recvbuf, torch.Tensor) and recv_axis != 0:
+            raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
 
         # keep a reference to the original buffer object
         original_recvbuf = recvbuf
 
         # permute the send_axis order so that the split send_axis is the first to be transmitted
-        send_axis_permutation = list(range(recvbuf.ndimension()))
+        send_axis_permutation = list(range(sendbuf.ndimension()))
         send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
-        if self.rank == kwargs.get("root", -1) or send_counts is not None:
-            sendbuf = sendbuf.permute(*send_axis_permutation)
+        sendbuf = sendbuf.permute(*send_axis_permutation)
 
-        recv_axis_permutation = list(range(recvbuf.ndimension()))
-        recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
-        recvbuf = recvbuf.permute(*recv_axis_permutation)
+        if self.rank == kwargs.get("root"):
+            recv_axis_permutation = list(range(recvbuf.ndimension()))
+            recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
+            recvbuf = recvbuf.permute(*recv_axis_permutation)
 
         # prepare buffer objects
         sbuf = sendbuf if CUDA_AWARE_MPI or not isinstance(sendbuf, torch.Tensor) else sendbuf.cpu()
@@ -1575,7 +1596,7 @@ class MPICommunication(Communication):
         # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
         # if recv_axis != 0:
         #    recvbuf = recvbuf.permute(*recv_axis_permutation)
-        #    original_recvbuf.set_(recvbuf.storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
+        #    original_recvbuf.set_(recvbuf.untyped_storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
 
         return exit_code, sbuf, rbuf, original_recvbuf, recv_axis_permutation
 
@@ -1603,12 +1624,12 @@ class MPICommunication(Communication):
         recv_axis: int
             The axis along which ``recvbuf`` is packed
         """
-        ret, sbuf, rbuf, buf, permutation = self.__scatter_like(
+        ret, sbuf, rbuf, buf, permutation = self.__gather_like(
             self.handle.Gather, sendbuf, recvbuf, axis, recv_axis, root=root, recv_factor=self.size
         )
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
-            if permutation is not None:
-                rbuf = rbuf.permute(permutation)
+        if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
+            rbuf = rbuf.permute(permutation)
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1638,12 +1659,12 @@ class MPICommunication(Communication):
         recv_axis: int
             The axis along which ``recvbuf`` is packed
         """
-        ret, sbuf, rbuf, buf, permutation = self.__scatter_like(
+        ret, sbuf, rbuf, buf, permutation = self.__gather_like(
             self.handle.Gatherv, sendbuf, recvbuf, axis, recv_axis, root=root
         )
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
-            if permutation is not None:
-                rbuf = rbuf.permute(permutation)
+        if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
+            rbuf = rbuf.permute(permutation)
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1674,7 +1695,7 @@ class MPICommunication(Communication):
             The axis along which ``recvbuf`` is packed
         """
         return MPIRequest(
-            *self.__scatter_like(
+            *self.__gather_like(
                 self.handle.Igather,
                 sendbuf,
                 recvbuf,
@@ -1712,7 +1733,7 @@ class MPICommunication(Communication):
             The axis along which ``recvbuf`` is packed
         """
         return MPIRequest(
-            *self.__scatter_like(
+            *self.__gather_like(
                 self.handle.Igatherv,
                 sendbuf,
                 recvbuf,
@@ -1724,6 +1745,102 @@ class MPICommunication(Communication):
         )
 
     Igatherv.__doc__ = MPI.Comm.Igatherv.__doc__
+
+    def __scatter_like(
+        self,
+        func: Callable,
+        sendbuf: Union[DNDarray, torch.Tensor, Any],
+        recvbuf: Union[DNDarray, torch.Tensor, Any],
+        send_axis: int,
+        recv_axis: int,
+        send_factor: int = 1,
+        recv_factor: int = 1,
+        **kwargs,
+    ):
+        """
+        Generic function for scatter operations.
+
+        Parameters
+        ----------
+        func: Callable
+            Type of MPI Scatter/Gather function
+        sendbuf: Union[DNDarray, torch.Tensor, Any]
+            Buffer address of the send message
+        recvbuf: Union[DNDarray, torch.Tensor, Any]
+            Buffer address where to store the result
+        send_axis: int
+            The axis along which ``sendbuf`` is packed
+        recv_axis: int
+            The axis along which ``recvbuf`` is packed
+        send_factor: int
+            Number of elements to be scattered (vor non-v-calls)
+        recv_factor: int
+            Number of elements to be gathered (vor non-v-calls)
+        """
+        sbuf, rbuf, recv_axis_permutation = None, None, None
+
+        # align the output buffer in the same way as the input buffer by default
+        if recv_axis is None:
+            recv_axis = send_axis
+
+        # dummy allocation for *v calls
+        send_counts, send_displs, recv_counts, recv_displs = None, None, None, None
+
+        # unpack the send buffer
+        if isinstance(sendbuf, tuple):
+            sendbuf, send_counts, send_displs = sendbuf
+        if isinstance(sendbuf, DNDarray):
+            sendbuf = sendbuf.larray
+        if not isinstance(sendbuf, torch.Tensor) and send_axis != 0:
+            raise TypeError(f"sendbuf of type {type(sendbuf)} does not support send_axis != 0")
+
+        # unpack the receive buffer
+        # if isinstance(recvbuf, tuple):
+        #     recvbuf, recv_counts, recv_displs = recvbuf
+        if isinstance(recvbuf, DNDarray):
+            recvbuf = recvbuf.larray
+        if not isinstance(recvbuf, torch.Tensor) and recv_axis != 0:
+            raise TypeError(f"recvbuf of type {type(recvbuf)} does not support recv_axis != 0")
+
+        # keep a reference to the original buffer object
+        original_recvbuf = recvbuf
+
+        # permute the send_axis order so that the split send_axis is the first to be transmitted
+        if self.rank == kwargs.get("root"):
+            send_axis_permutation = list(range(sendbuf.ndimension()))
+            send_axis_permutation[0], send_axis_permutation[send_axis] = send_axis, 0
+            sendbuf = sendbuf.permute(*send_axis_permutation)
+
+        recv_axis_permutation = list(range(recvbuf.ndimension()))
+        recv_axis_permutation[0], recv_axis_permutation[recv_axis] = recv_axis, 0
+        recvbuf = recvbuf.permute(*recv_axis_permutation)
+
+        # prepare buffer objects
+        sbuf = sendbuf if CUDA_AWARE_MPI or not isinstance(sendbuf, torch.Tensor) else sendbuf.cpu()
+        rbuf = recvbuf if CUDA_AWARE_MPI or not isinstance(recvbuf, torch.Tensor) else recvbuf.cpu()
+
+        if sendbuf is not MPI.IN_PLACE:
+            mpi_sendbuf = self.as_buffer(sbuf, send_counts, send_displs)
+            if send_counts is None:
+                mpi_sendbuf[1] //= send_factor
+        else:
+            mpi_sendbuf = sbuf
+        if recvbuf is not MPI.IN_PLACE:
+            mpi_recvbuf = self.as_buffer(rbuf, recv_counts, recv_displs)
+            if recv_counts is None:
+                mpi_recvbuf[1] //= recv_factor
+        else:
+            mpi_recvbuf = rbuf
+
+        # perform the scatter operation
+        exit_code = func(mpi_sendbuf, mpi_recvbuf, **kwargs)
+
+        # undo the recvbuf permutation and assign the temporary buffer to the original recvbuf
+        # if recv_axis != 0:
+        #    recvbuf = recvbuf.permute(*recv_axis_permutation)
+        #    original_recvbuf.set_(recvbuf.untyped_storage(), recvbuf.storage_offset(), recvbuf.shape, recvbuf.stride())
+
+        return exit_code, sbuf, rbuf, original_recvbuf, recv_axis_permutation
 
     def Iscatter(
         self,
@@ -1828,9 +1945,9 @@ class MPICommunication(Communication):
         ret, sbuf, rbuf, buf, permutation = self.__scatter_like(
             self.handle.Scatter, sendbuf, recvbuf, axis, recv_axis, root=root, send_factor=self.size
         )
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
-            if permutation is not None:
-                rbuf = rbuf.permute(permutation)
+        if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
+            rbuf = rbuf.permute(permutation)
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
@@ -1869,9 +1986,9 @@ class MPICommunication(Communication):
             root=root,
             send_factor=self.size,
         )
-        if buf is not None and isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
-            if permutation is not None:
-                rbuf = rbuf.permute(permutation)
+        if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
+            rbuf = rbuf.permute(permutation)
+        if isinstance(buf, torch.Tensor) and buf.is_cuda and not CUDA_AWARE_MPI:
             buf.copy_(rbuf)
         return ret
 
