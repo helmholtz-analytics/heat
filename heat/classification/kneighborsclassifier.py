@@ -1,4 +1,5 @@
 """Implements the k-nearest neighbors (kNN) classifier"""
+
 from typing import Callable
 
 import heat as ht
