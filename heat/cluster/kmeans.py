@@ -1,6 +1,7 @@
 """
 Module Implementing the Kmeans Algorithm
 """
+
 from typing import Optional, Union, TypeVar
 
 import heat as ht
