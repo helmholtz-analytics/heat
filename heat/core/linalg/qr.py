@@ -28,7 +28,8 @@ def qr(
     Parameters
     ----------
     A : DNDarray of shape (..., M, N)
-        Array which will be decomposed
+        Array which will be decomposed. So far only 2D arrays are supported.
+        For split=0, the matrix must be tall skinny, i.e. the local chunks of data must have at least as many rows as columns.
     mode : str, optional
         default "reduced" returns Q and R with dimensions (..., M, min(M,N)) and (..., min(M,N), N), respectively.
         "r" returns only R, with dimensions (..., min(M,N), N).
@@ -214,22 +215,23 @@ def qr(
 
             # for each process in the current processes, broadcast the scattered_Q_buf of this process
             # to all leaves (i.e. all original processes that merge to the current process)
-            print(f"{A.comm.rank} has leave comm {leave_comm.size} in level {level}")
             if mode == "reduced" and leave_comm.size > 1:
                 try:
                     scattered_Q_buf_shape = scattered_Q_buf.shape
                 except UnboundLocalError:
                     scattered_Q_buf_shape = None
                 scattered_Q_buf_shape = leave_comm.bcast(scattered_Q_buf_shape, root=0)
-                if leave_comm.rank != 0:
-                    scattered_Q_buf = torch.empty(
-                        scattered_Q_buf_shape, device=Q_loc.device, dtype=Q_loc.dtype
-                    )
-                leave_comm.Bcast(scattered_Q_buf, root=0)
+                if scattered_Q_buf_shape is not None:
+                    # this is needed to ensure that only those Q_loc get updates that are actually part of the current process group
+                    if leave_comm.rank != 0:
+                        scattered_Q_buf = torch.empty(
+                            scattered_Q_buf_shape, device=Q_loc.device, dtype=Q_loc.dtype
+                        )
+                    leave_comm.Bcast(scattered_Q_buf, root=0)
                 # update the local Q_loc by multiplying it with the scattered_Q_buf
             try:
                 Q_loc = Q_loc @ scattered_Q_buf
-                print(f"{A.comm.rank} has updated his q in level {level}")
+                del scattered_Q_buf
             except UnboundLocalError:
                 pass
 

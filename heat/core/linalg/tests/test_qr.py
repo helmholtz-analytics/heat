@@ -6,16 +6,16 @@ import numpy as np
 from ...tests.test_suites.basic_test import TestCase
 
 
-@unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
+# @unittest.skipIf(torch.cuda.is_available() and torch.version.hip, "not supported for HIP")
 class TestQR(TestCase):
     def test_qr_split1orNone(self):
         for split in [1, None]:
             for mode in ["reduced", "r"]:
                 # note that split = 1 can be handeled for arbitrary shapes
                 for shape in [
-                    (20 * ht.MPI_WORLD.size, 40 * ht.MPI_WORLD.size),
+                    (20 * ht.MPI_WORLD.size + 1, 40 * ht.MPI_WORLD.size),
                     (20 * ht.MPI_WORLD.size, 20 * ht.MPI_WORLD.size),
-                    (40 * ht.MPI_WORLD.size, 20 * ht.MPI_WORLD.size),
+                    (40 * ht.MPI_WORLD.size - 1, 20 * ht.MPI_WORLD.size),
                 ]:
                     for dtype in [ht.float32, ht.float64]:
                         dtypetol = 1e-3 if dtype == ht.float32 else 1e-6
@@ -65,10 +65,10 @@ class TestQR(TestCase):
 
     def test_qr_split0(self):
         split = 0
-        for procs_to_merge in [2]:
+        for procs_to_merge in [0, 2, 3]:
             for mode in ["reduced"]:
                 # split = 0 can be handeled only for tall skinny matrices s.t. the local chunks are at least square too
-                for shape in [(40 * ht.MPI_WORLD.size, 40), (40 * ht.MPI_WORLD.size, 20)]:
+                for shape in [(40 * ht.MPI_WORLD.size + 1, 40), (40 * ht.MPI_WORLD.size, 20)]:
                     for dtype in [ht.float32, ht.float64]:
                         dtypetol = 1e-3 if dtype == ht.float32 else 1e-6
                         mat = ht.random.randn(*shape, dtype=dtype, split=split)
