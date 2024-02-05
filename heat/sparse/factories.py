@@ -14,10 +14,11 @@ from ..core.communication import MPI, sanitize_comm, Communication
 from ..core.devices import Device
 from ..core.types import datatype
 
-from .dcsr_matrix import DCSR_matrix
+from .dcsr_matrix import DCSC_matrix, DCSR_matrix
 
 __all__ = [
     "sparse_csr_matrix",
+    "sparse_csc_matrix",
 ]
 
 
@@ -105,6 +106,9 @@ def sparse_csc_matrix(
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
 ):
+    """
+    Create a :class:`~heat.sparse.DCSC_matrix`.
+    """
     return sparse_matrix(obj, dtype, split, is_split, device, comm, orientation="col")
 
 
@@ -269,7 +273,7 @@ def sparse_matrix(
     elif is_split is not None:
         # TODO: fix this
         class_name = "DCSR_matrix" if orientation == "row" else "DCSC_matrix"
-        raise ValueError(f"Split axis {split} not supported for class {class_name}")
+        raise ValueError(f"Split axis {is_split} not supported for class {class_name}")
 
     else:  # split is None and is_split is None
         data = obj.values()
@@ -285,7 +289,9 @@ def sparse_matrix(
         device=device.torch_device,
     )
 
-    return DCSR_matrix(
+    cls_name = DCSR_matrix if orientation == "row" else DCSC_matrix
+
+    return cls_name(
         array=sparse_array,
         gnnz=gnnz,
         gshape=gshape,

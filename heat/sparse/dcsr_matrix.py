@@ -10,15 +10,16 @@ from ..core.dndarray import DNDarray
 from ..core.factories import array
 from ..core.types import datatype, canonical_heat_type
 
-__all__ = ["DCSR_matrix"]
+__all__ = ["DCSR_matrix", "DCSC_matrix"]
 
 Communication = TypeVar("Communication")
 
+# TODO: Change Documentation and Type annotations
 
-class DCSR_matrix:
+
+class DCSX_matrix:
     """
-    Distributed Compressed Sparse Row Matrix. It is composed of
-    PyTorch sparse_csr_tensors local to each process.
+    Distributed Compressed Sparse Matrix. Base class for DCSR_matrix and DCSC_matrix.
 
     Parameters
     ----------
@@ -52,14 +53,14 @@ class DCSR_matrix:
         comm: Communication,
         balanced: bool,
     ):
-        self.__array = array
-        self.__gnnz = gnnz
-        self.__gshape = gshape
-        self.__dtype = dtype
-        self.__split = split
-        self.__device = device
-        self.__comm = comm
-        self.__balanced = balanced
+        self._array = array
+        self._gnnz = gnnz
+        self._gshape = gshape
+        self._dtype = dtype
+        self._split = split
+        self._device = device
+        self._comm = comm
+        self._balanced = balanced
 
     def global_indptr(self) -> DNDarray:
         """
@@ -91,7 +92,8 @@ class DCSR_matrix:
             dtype=self.lindptr.dtype,
             device=self.device,
             comm=self.comm,
-            is_split=self.split,
+            is_split=0 if self.split else None,  # TODO: Check if this is correct
+            # is_split for the indptr is either 0 or None because it is always 1 dimensional
         )
 
     @property
@@ -99,28 +101,28 @@ class DCSR_matrix:
         """
         Boolean value indicating if the DCSR_matrix is balanced between the MPI processes
         """
-        return self.__balanced
+        return self._balanced
 
     @property
     def comm(self) -> Communication:
         """
         The :class:`~heat.core.communication.Communication` of the ``DCSR_matrix``
         """
-        return self.__comm
+        return self._comm
 
     @property
     def device(self) -> Device:
         """
         The :class:`~heat.core.devices.Device` of the ``DCSR_matrix``
         """
-        return self.__device
+        return self._device
 
     @property
     def larray(self) -> torch.Tensor:
         """
         Local data of the ``DCSR_matrix``
         """
-        return self.__array
+        return self._array
 
     @property
     def data(self) -> torch.Tensor:
@@ -149,7 +151,7 @@ class DCSR_matrix:
         """
         Local data of the ``DCSR_matrix``
         """
-        return self.__array.values()
+        return self._array.values()
 
     @property
     def indptr(self) -> torch.Tensor:
@@ -173,7 +175,8 @@ class DCSR_matrix:
         """
         Local indptr of the ``DCSR_matrix``
         """
-        return self.__array.crow_indices()
+        # return self.__array.crow_indices()
+        raise NotImplementedError("Local indptr is not implemented for DCSX_matrix")
 
     @property
     def indices(self) -> torch.Tensor:
@@ -202,21 +205,22 @@ class DCSR_matrix:
         """
         Local indices of the ``DCSR_matrix``
         """
-        return self.__array.col_indices()
+        # return self.__array.col_indices()
+        raise NotImplementedError("Local indices is not implemented for DCSX_matrix")
 
     @property
     def ndim(self) -> int:
         """
         Number of dimensions of the ``DCSR_matrix``
         """
-        return len(self.__gshape)
+        return len(self._gshape)
 
     @property
     def nnz(self) -> int:
         """
         Total number of non-zero elements of the ``DCSR_matrix``
         """
-        return self.__gnnz
+        return self._gnnz
 
     @property
     def gnnz(self) -> int:
@@ -230,14 +234,14 @@ class DCSR_matrix:
         """
         Number of non-zero elements on the local process of the ``DCSR_matrix``
         """
-        return self.__array._nnz()
+        return self._array._nnz()
 
     @property
     def shape(self) -> Tuple[int, ...]:
         """
         Global shape of the ``DCSR_matrix``
         """
-        return self.__gshape
+        return self._gshape
 
     @property
     def gshape(self) -> Tuple[int, ...]:
@@ -251,21 +255,21 @@ class DCSR_matrix:
         """
         Local shape of the ``DCSR_matrix``
         """
-        return tuple(self.__array.size())
+        return tuple(self._array.size())
 
     @property
     def dtype(self):
         """
         The :class:`~heat.core.types.datatype` of the ``DCSR_matrix``
         """
-        return self.__dtype
+        return self._dtype
 
     @property
     def split(self) -> int:
         """
         Returns the axis on which the ``DCSR_matrix`` is split
         """
-        return self.__split
+        return self._split
 
     def is_distributed(self) -> bool:
         """
@@ -304,9 +308,9 @@ class DCSR_matrix:
             in-place and this matrix is returned
         """
         dtype = canonical_heat_type(dtype)
-        casted_matrix = self.__array.type(dtype.torch_type())
+        casted_matrix = self._array.type(dtype.torch_type())
         if copy:
-            return DCSR_matrix(
+            return self.__class__(
                 casted_matrix,
                 self.gnnz,
                 self.gshape,
@@ -317,8 +321,8 @@ class DCSR_matrix:
                 self.balanced,
             )
 
-        self.__array = casted_matrix
-        self.__dtype = dtype
+        self._array = casted_matrix
+        self._dtype = dtype
 
         return self
 
@@ -337,3 +341,45 @@ class DCSR_matrix:
         if self.comm.rank != 0:
             return ""
         return print_string
+
+
+class DCSR_matrix(DCSX_matrix):
+    """
+    Distributed Compressed Sparse Row Matrix. It is composed of
+    PyTorch sparse_csr_tensors local to each process.
+    """
+
+    @property
+    def lindptr(self) -> torch.Tensor:
+        """
+        Local indptr of the ``DCSR_matrix``
+        """
+        return self._array.crow_indices()
+
+    @property
+    def lindices(self) -> torch.Tensor:
+        """
+        Local indices of the ``DCSR_matrix``
+        """
+        return self._array.col_indices()
+
+
+class DCSC_matrix(DCSX_matrix):
+    """
+    Distributed Compressed Sparse Column Matrix. It is composed of
+    PyTorch sparse_csc_tensors local to each process.
+    """
+
+    @property
+    def lindptr(self) -> torch.Tensor:
+        """
+        Local indptr of the ``DCSR_matrix``
+        """
+        return self._array.ccol_indices()
+
+    @property
+    def lindices(self) -> torch.Tensor:
+        """
+        Local indices of the ``DCSR_matrix``
+        """
+        return self._array.row_indices()
