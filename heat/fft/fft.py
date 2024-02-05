@@ -149,12 +149,22 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     output_shape = list(x.shape)
     shift_op = fftn_op in [torch.fft.fftshift, torch.fft.ifftshift]
     inverse_real_op = fftn_op in [torch.fft.irfftn, torch.fft.irfft2]
-    real_to_generic_fftn_ops = {
-        torch.fft.rfftn: torch.fft.fftn,
-        torch.fft.rfft2: torch.fft.fft2,
-        torch.fft.ihfftn: torch.fft.ifftn,
-        torch.fft.ihfft2: torch.fft.ifft2,
-    }
+
+    torch_has_ihfftn = hasattr(torch.fft, "ihfftn")
+
+    if torch_has_ihfftn:
+        real_to_generic_fftn_ops = {
+            torch.fft.rfftn: torch.fft.fftn,
+            torch.fft.rfft2: torch.fft.fft2,
+            torch.fft.ihfftn: torch.fft.ifftn,
+            torch.fft.ihfft2: torch.fft.ifft2,
+        }
+    else:  # pragma: no cover
+        real_to_generic_fftn_ops = {
+            torch.fft.rfftn: torch.fft.fftn,
+            torch.fft.rfft2: torch.fft.fft2,
+        }
+
     real_op = fftn_op in real_to_generic_fftn_ops
 
     # sanitize kwargs
@@ -817,7 +827,7 @@ def ihfft2(
     x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
 ) -> DNDarray:
     """
-    Compute the inverse of a 2-dimensional discrete Fourier Transform of a Hermitian-symmetric signal. The output is Hermitian-symmetric.
+    Compute the inverse of a 2-dimensional discrete Fourier Transform of a Hermitian-symmetric signal. The output is Hermitian-symmetric. Requires torch >= 1.11.0.
 
     Parameters
     ----------
@@ -843,6 +853,11 @@ def ihfft2(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
+    torch_has_ihfftn = hasattr(torch.fft, "ihfftn")
+    if not torch_has_ihfftn:  # pragma: no cover
+        raise NotImplementedError(
+            f"n-dim inverse Hermitian FFTs not implemented for torch < 1.11.0. Your environment runs torch {torch.__version__}. Please upgrade torch."
+        )
     return __real_fftn_op(x, torch.fft.ihfft2, s=s, axes=axes, norm=norm)
 
 
@@ -850,7 +865,7 @@ def ihfftn(
     x: DNDarray, s: Tuple[int, ...] = None, axes: Tuple[int, ...] = None, norm: str = None
 ) -> DNDarray:
     """
-    Compute the inverse of a N-dimensional discrete Fourier Transform of Hermitian-symmetric signal. The output is Hermitian-symmetric.
+    Compute the inverse of a N-dimensional discrete Fourier Transform of Hermitian-symmetric signal. The output is Hermitian-symmetric. Requires torch >= 1.11.0.
 
     Parameters
     ----------
@@ -876,6 +891,11 @@ def ihfftn(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
+    torch_has_ihfftn = hasattr(torch.fft, "ihfftn")
+    if not torch_has_ihfftn:  # pragma: no cover
+        raise NotImplementedError(
+            f"n-dim inverse Hermitian FFTs not implemented for torch < 1.11.0. Your environment runs torch {torch.__version__}. Please upgrade torch."
+        )
     return __real_fftn_op(x, torch.fft.ihfftn, s=s, axes=axes, norm=norm)
 
 
