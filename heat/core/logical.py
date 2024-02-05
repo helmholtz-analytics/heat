@@ -162,10 +162,10 @@ def allclose(
     return bool(_local_allclose.item())
 
 
-DNDarray.allclose: Callable[
-    [DNDarray, DNDarray, float, float, bool], bool
-] = lambda self, other, rtol=1e-05, atol=1e-08, equal_nan=False: allclose(
-    self, other, rtol, atol, equal_nan
+DNDarray.allclose: Callable[[DNDarray, DNDarray, float, float, bool], bool] = (
+    lambda self, other, rtol=1e-05, atol=1e-08, equal_nan=False: allclose(
+        self, other, rtol, atol, equal_nan
+    )
 )
 DNDarray.allclose.__doc__ = all.__doc__
 
@@ -220,9 +220,9 @@ def any(
     )
 
 
-DNDarray.any: Callable[
-    [DNDarray, Optional[int], Optional[DNDarray], bool], DNDarray
-] = lambda self, axis=None, out=None, keepdims=False: any(self, axis, out, keepdims)
+DNDarray.any: Callable[[DNDarray, Optional[int], Optional[DNDarray], bool], DNDarray] = (
+    lambda self, axis=None, out=None, keepdims=False: any(self, axis, out, keepdims)
+)
 DNDarray.any.__doc__ = any.__doc__
 
 
@@ -377,10 +377,10 @@ def isposinf(x: DNDarray, out: Optional[DNDarray] = None):
     return _operations.__local_op(torch.isposinf, x, out, no_cast=True)
 
 
-DNDarray.isclose: Callable[
-    [DNDarray, DNDarray, float, float, bool], DNDarray
-] = lambda self, other, rtol=1e-05, atol=1e-08, equal_nan=False: isclose(
-    self, other, rtol, atol, equal_nan
+DNDarray.isclose: Callable[[DNDarray, DNDarray, float, float, bool], DNDarray] = (
+    lambda self, other, rtol=1e-05, atol=1e-08, equal_nan=False: isclose(
+        self, other, rtol, atol, equal_nan
+    )
 )
 DNDarray.isclose.__doc__ = isclose.__doc__
 

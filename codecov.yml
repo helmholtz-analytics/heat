@@ -15,8 +15,7 @@ coverage:
         threshold: 3%
         flags:
           - unit
-        paths:
-          - "heat"
+
     patch:
       default:
         # basic
@@ -24,5 +23,9 @@ coverage:
         threshold: 3%
         flags:
           - "unit"
-        paths:
-          - "heat"
+
+flags:
+  unit:
+    carryforward: true
+    paths:
+      - "heat"

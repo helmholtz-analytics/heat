@@ -1,11 +1,10 @@
 """This module contains Heat's version information."""
 
-
 major: int = 1
 """Indicates Heat's main version."""
 minor: int = 4
 """Indicates feature extension."""
-micro: int = 0
+micro: int = 1
 """Indicates revisions for bugfixes."""
 extension: str = "dev"
 """Indicates special builds, e.g. for specific hardware."""

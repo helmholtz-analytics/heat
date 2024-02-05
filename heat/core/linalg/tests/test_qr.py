@@ -22,7 +22,7 @@ class TestQR(TestCase):
         sp = 0
         for m in range(50, st_whole.shape[0] + 1, 1):
             for n in range(50, st_whole.shape[1] + 1, 1):
-                for t in range(1, 3):
+                for t in range(2, 3):
                     st = st_whole[:m, :n].clone()
                     a_comp = ht.array(st, split=0)
                     a = ht.array(st, split=sp)
@@ -37,7 +37,7 @@ class TestQR(TestCase):
         sp = 1
         for m in range(50, st_whole.shape[0] + 1, 1):
             for n in range(50, st_whole.shape[1] + 1, 1):
-                for t in range(1, 3):
+                for t in range(2, 3):
                     st = st_whole[:m, :n].clone()
                     a_comp = ht.array(st, split=0)
                     a = ht.array(st, split=sp)
@@ -50,7 +50,7 @@ class TestQR(TestCase):
         m, n = 20, 40
         st = torch.randn(m, n, device=self.device.torch_device, dtype=torch.float)
         a_comp = ht.array(st, split=0)
-        for t in range(1, 3):
+        for t in range(2, 3):
             for sp in range(2):
                 a = ht.array(st, split=sp, dtype=torch.float)
                 qr = a.qr(tiles_per_proc=t)
@@ -60,7 +60,7 @@ class TestQR(TestCase):
         m, n = 40, 40
         st1 = torch.randn(m, n, device=self.device.torch_device)
         a_comp1 = ht.array(st1, split=0)
-        for t in range(1, 3):
+        for t in range(2, 3):
             for sp in range(2):
                 a1 = ht.array(st1, split=sp)
                 qr1 = a1.qr(tiles_per_proc=t)
@@ -70,7 +70,7 @@ class TestQR(TestCase):
         m, n = 40, 20
         st2 = torch.randn(m, n, dtype=torch.double, device=self.device.torch_device)
         a_comp2 = ht.array(st2, split=0, dtype=ht.double)
-        for t in range(1, 3):
+        for t in range(2, 3):
             for sp in range(2):
                 a2 = ht.array(st2, split=sp)
                 qr2 = a2.qr(tiles_per_proc=t)
@@ -112,3 +112,7 @@ class TestQR(TestCase):
             ht.qr(a_comp, tiles_per_proc=torch.tensor([1, 2, 3]))
         with self.assertRaises(ValueError):
             ht.qr(ht.zeros((3, 4, 5)))
+
+        a_comp.resplit_(0)
+        with self.assertWarns(Warning):
+            ht.qr(a_comp, tiles_per_proc=1)
