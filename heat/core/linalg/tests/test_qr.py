@@ -112,3 +112,7 @@ class TestQR(TestCase):
             ht.qr(a_comp, tiles_per_proc=torch.tensor([1, 2, 3]))
         with self.assertRaises(ValueError):
             ht.qr(ht.zeros((3, 4, 5)))
+
+        a_comp.resplit_(0)
+        with self.assertWarns(Warning):
+            ht.qr(a_comp, tiles_per_proc=1)
