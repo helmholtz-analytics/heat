@@ -119,9 +119,9 @@ def sparse_csr_matrix(
         try:
             obj = torch.tensor(
                 obj,
-                device=device.torch_device
-                if device is not None
-                else devices.get_device().torch_device,
+                device=(
+                    device.torch_device if device is not None else devices.get_device().torch_device
+                ),
             )
         except RuntimeError:
             raise TypeError(f"Invalid data of type {type(obj)}")

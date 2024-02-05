@@ -2,7 +2,6 @@
 Tiling functions/classes. With these classes, you can classes you can address blocks of data in a DNDarray
 """
 
-
 from __future__ import annotations
 import itertools
 import torch

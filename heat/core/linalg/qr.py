@@ -1,10 +1,12 @@
 """
 QR decomposition of (distributed) 2-D ``DNDarray``s.
 """
+
 import collections
 import torch
 from typing import Tuple
 from time import sleep
+
 
 from ..dndarray import DNDarray
 from .. import factories

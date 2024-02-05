@@ -115,3 +115,4 @@ class TestQR(TestCase):
                                     torch.abs(q_t), torch.abs(q_ht), atol=dtypetol, rtol=dtypetol
                                 )
                             )
+
