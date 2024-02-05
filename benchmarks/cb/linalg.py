@@ -51,12 +51,12 @@ def run_linalg_benchmarks():
     matmul_split_1(a, b)
     del a, b
 
-    n = int((4000000 // MPI.COMM_WORLD.size) ** 0.5) 
-    m = MPI.COMM_WORLD.size * n 
+    n = int((4000000 // MPI.COMM_WORLD.size) ** 0.5)
+    m = MPI.COMM_WORLD.size * n
     a_1 = ht.random.random((m, n), split=0)
     qr_split_0(a_0)
     del a_0
-    
+
     n = 2000
     a_1 = ht.random.random((n, n), split=1)
     qr_split_1(a_1)
