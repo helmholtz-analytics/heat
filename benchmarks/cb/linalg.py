@@ -53,7 +53,7 @@ def run_linalg_benchmarks():
 
     n = int((4000000 // MPI.COMM_WORLD.size) ** 0.5)
     m = MPI.COMM_WORLD.size * n
-    a_1 = ht.random.random((m, n), split=0)
+    a_0 = ht.random.random((m, n), split=0)
     qr_split_0(a_0)
     del a_0
 
