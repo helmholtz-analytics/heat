@@ -8,6 +8,7 @@ from typing import List, Dict, Any, TypeVar, Union, Tuple, Optional
 from .. import factories
 
 import torch
+from mpi4py import MPI
 
 __all__ = ["cg", "lanczos", "solve_triangular"]
 
@@ -311,47 +312,33 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
 
     if A.split == 1:
         for i in range(nprocs - 1, 0, -1):
+            count = (b.lshape_map[:, 0] * b.lshape_map[:, 1]).numpy()
+            displ = (A_lshapes_cum * b.shape[1]).numpy()[:-1]
+            count[i:] = 0  # nothing to send, as there are only zero rows
+            displ[i:] = 0
+
+            res_send = None
+            res_recv = torch.zeros(count[comm.rank], dtype=torch.double, device=tdev)
+
             if comm.rank == i:
                 x.larray = torch.linalg.solve_triangular(
                     A.larray[A_lshapes_cum[i] : A_lshapes_cum[i + 1], :], btilde_loc, upper=True
                 )
-                res = A.larray[: A_lshapes_cum[i], :] @ x.larray
-            else:
-                res = torch.zeros(
-                    (A_lshapes_cum[i], b.shape[1]),
-                    dtype=b.dtype.torch_type(),
-                    device=tdev,
-                )
+                res_send = (A.larray @ x.larray).flatten().to(torch.double)
 
-            comm.Bcast(res, root=i)
+            comm.handle.Scatterv([res_send, count, displ, MPI.DOUBLE], res_recv, root=i)
 
             if comm.rank < i:
-                j = comm.rank
-                btilde_loc -= res[A_lshapes_cum[j] : A_lshapes_cum[j + 1], :]
+                btilde_loc -= res_recv.reshape(b.lshape)
 
         if comm.rank == 0:
             x.larray = torch.linalg.solve_triangular(
                 A.larray[: A_lshapes_cum[1], :], btilde_loc, upper=True
             )
 
-    # if A.split == 1:
-    #     for i in range(nprocs-1,-1,-1):
-    #         count = b.lshape[0]*b.lshape[1]
-    #         displ = (A_lshapes_cum*b.shape[1]).numpy()[:-1]
-    #         res_send = None
-    #         res_recv = torch.zeros(b.lshape[0]*b.lshape[1], dtype=b.dtype.torch_type(), device=b.device.torch_device)
-    #         if A.comm.rank == i:
-    #             x.larray = torch.linalg.solve_triangular(A.larray[A_lshapes_cum[i]:A_lshapes_cum[i+1],:],btilde_loc,upper=True)
-    #             res_send = (A.larray @ x.larray).flatten()
-    #         if i > 0:
-    #             A.comm.handle.Scatterv([res_send, count, displ, MPI.DOUBLE], res_recv, root=i)
-    #         if A.comm.rank < i:
-    #             j = A.comm.rank
-    #             btilde_loc -= res_recv.reshape(b.lshape)
-
     else:
         for i in range(nprocs - 1, 0, -1):
-            idims = tuple(x.lshape_map[i])  # broadcasting from node i would be faster
+            idims = tuple(x.lshape_map[i])
             if comm.rank == i:
                 x.larray = torch.linalg.solve_triangular(
                     A.larray[:, A_lshapes_cum[i] : A_lshapes_cum[i + 1]], btilde_loc, upper=True
