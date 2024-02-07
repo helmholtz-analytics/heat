@@ -2630,7 +2630,54 @@ class DNDarray:
                 self = self.transpose(backwards_transpose_axes)
                 return
 
-        # both `self` and `value` are distributed
+            # both `self` and `value` are distributed
+            # distribution of `key` and `value` must be aligned
+            if key_is_mask_like:
+                # redistribute `value` to match distribution of `key` in one pass
+                split_key = key[self.split]
+                global_split_key = factories.array(
+                    split_key, is_split=0, device=self.device, comm=self.comm, copy=False
+                )
+                target_map = value.lshape_map
+                target_map[:, value.split] = global_split_key.lshape_map[:, 0]
+                value.redistribute_(target_map=target_map)
+            else:
+                # redistribute split-axis `key` to match distribution of `value` in one pass
+                if key_is_single_tensor:
+                    # key is a single torch.Tensor
+                    split_key = key
+                elif not key_is_mask_like:
+                    split_key = key[self.split]
+                global_split_key = factories.array(
+                    split_key, is_split=0, device=self.device, comm=self.comm, copy=False
+                )
+                target_map = global_split_key.lshape_map
+                target_map[:, 0] = value.lshape_map[:, value.split]
+                global_split_key.redistribute_(target_map=target_map)
+                split_key = global_split_key.larray
+
+            # key and value are now aligned
+            # create communication map, stack `value`elements according to destination rank
+            value_counts, value_displs = value.counts_displs()
+            recv_counts = torch.zeros(
+                self.comm.size, dtype=torch.int64, device=self.device.torch_device
+            )
+            recv_displs = torch.zeros_like(recv_counts)
+            send_buf = torch.zeros_like(value.larray)
+            for recv_process in range(self.comm.size):
+                # find elements of `split_key` that are local to `recv_process`
+                local_indices = torch.nonzero(
+                    (split_key >= displs[recv_process])
+                    & (split_key < displs[recv_process] + counts[recv_process])
+                ).flatten()
+                recv_counts[recv_process] = local_indices.numel()
+                recv_displs[recv_process] = (
+                    recv_counts[:recv_process].sum().item() if recv_process > 0 else 0
+                )
+                send_buf[
+                    recv_displs[recv_process] : recv_displs[recv_process]
+                    + recv_counts[recv_process]
+                ] = value.larray[local_indices]
 
         # if advanced_indexing:
         #     raise Exception("Advanced indexing is not supported yet")
