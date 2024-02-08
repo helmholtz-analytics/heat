@@ -2657,27 +2657,89 @@ class DNDarray:
                 split_key = global_split_key.larray
 
             # key and value are now aligned
-            # create communication map, stack `value`elements according to destination rank
-            value_counts, value_displs = value.counts_displs()
-            recv_counts = torch.zeros(
+
+            # prepare for `value` Alltoallv:
+            # work along axis 0, transpose if necessary
+            transpose_axes = list(range(value.ndim))
+            transpose_axes[0], transpose_axes[value.split] = (
+                transpose_axes[value.split],
+                transpose_axes[0],
+            )
+            value = value.transpose(transpose_axes)
+            send_counts = torch.zeros(
                 self.comm.size, dtype=torch.int64, device=self.device.torch_device
             )
-            recv_displs = torch.zeros_like(recv_counts)
-            send_buf = torch.zeros_like(value.larray)
-            for recv_process in range(self.comm.size):
-                # find elements of `split_key` that are local to `recv_process`
-                local_indices = torch.nonzero(
-                    (split_key >= displs[recv_process])
-                    & (split_key < displs[recv_process] + counts[recv_process])
+            send_displs = torch.zeros_like(send_counts)
+            # allocate send buffer: add 1 column to store sent indices
+            send_buf_shape = list(value.lshape)
+            send_buf_shape[-1] += 1
+            send_buf = torch.zeros(
+                send_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
+            )
+            for proc in range(self.comm.size):
+                # calculate what local elements of `value` belong on process `proc`
+                send_indices = torch.nonzero(
+                    (split_key >= displs[proc]) & (split_key < displs[proc] + counts[proc])
                 ).flatten()
-                recv_counts[recv_process] = local_indices.numel()
-                recv_displs[recv_process] = (
-                    recv_counts[:recv_process].sum().item() if recv_process > 0 else 0
-                )
+                # calculate outgoing counts and displacements for each process
+                send_counts[proc] = send_indices.numel()
+                send_displs[proc] = send_counts[:proc].sum()
+                # compose send buffer: stack local elements of `value` according to destination process
                 send_buf[
-                    recv_displs[recv_process] : recv_displs[recv_process]
-                    + recv_counts[recv_process]
-                ] = value.larray[local_indices]
+                    send_displs[proc] : send_displs[proc] + send_counts[proc], :-1
+                ] = value.larray[send_indices]
+                # store outgoing indices in the last column of send_buf
+                while send_indices.ndim < send_buf.ndim:
+                    # broadcast send_indices to correct shape
+                    send_indices = send_indices.unsqueeze(-1)
+                send_buf[
+                    send_displs[proc] : send_displs[proc] + send_counts[proc], -1
+                ] = send_indices
+
+            # compose communication matrix: share `send_counts` information with all processes
+            comm_matrix = torch.zeros(
+                (self.comm.size, self.comm.size),
+                dtype=torch.int64,
+                device=self.device.torch_device,
+            )
+            self.comm.Allgather(send_counts, comm_matrix)
+            # comm_matrix columns contain recv_counts for each process
+            recv_counts = comm_matrix[:, self.comm.rank].squeeze(0)
+            recv_displs = torch.zeros_like(recv_counts)
+            recv_displs[1:] = recv_counts.cumsum(0)[:-1]
+            # allocate receive buffer, with 1 extra column for incoming indices
+            recv_shape = value.lshape_map[self.comm.rank]
+            recv_shape[value.split] = recv_counts.sum()
+            recv_shape[-1] += 1
+            recv_shape = tuple(recv_shape.tolist())
+            recv_buf = torch.zeros(
+                recv_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
+            )
+            # perform Alltoallv along the 0 axis
+            self.comm.Alltoallv(
+                (send_buf, send_counts, send_displs), (recv_buf, recv_counts, recv_displs)
+            )
+            del send_buf, comm_matrix
+            # store incoming indices in int 1-D tensor and correct for rank offset
+            recv_indices = recv_buf[..., -1].type(torch.int64) - displs[rank]
+            # remove last column from recv_buf
+            recv_buf = recv_buf[..., :-1]
+            # transpose back value and recv_buf if necessary, wrap recv_buf in DNDarray
+            value = value.transpose(transpose_axes)
+            recv_buf = DNDarray(
+                recv_buf.permute(*transpose_axes),
+                gshape=value.gshape,
+                split=value.split,
+                device=value.device,
+                comm=value.comm,
+                balanced=value.balanced,
+            )
+            # replace split-axis key with incoming local indices
+            key = list(key)
+            key[self.split] = recv_indices
+            key = tuple(key)
+            # set local elements of `self` to corresponding elements of `value`
+            __set(self, key, recv_buf)
 
         # if advanced_indexing:
         #     raise Exception("Advanced indexing is not supported yet")
