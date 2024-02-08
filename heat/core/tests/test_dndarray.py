@@ -1540,15 +1540,18 @@ class TestDNDarray(TestCase):
         x_adv_ind = x[np.array([3, 2, 1, 8])]
         self.assertTrue(ht.all(x_adv_ind == value).item())
         self.assertTrue(x_adv_ind.dtype == x.dtype)
-        # # 3d, split 0, non-unique, non-ordered key along split axis
-        # x = ht.arange(60, split=0).reshape(5, 3, 4)
-        # x_np = np.arange(60).reshape(5, 3, 4)
-        # k1 = np.array([0, 4, 1, 0])
-        # k2 = np.array([0, 2, 1, 0])
-        # k3 = np.array([1, 2, 3, 1])
-        # self.assert_array_equal(
-        #     x[ht.array(k1, split=0), ht.array(k2, split=0), ht.array(k3, split=0)], x_np[k1, k2, k3]
-        # )
+
+        # TODO: n-d value
+
+        # 3d, split 0, non-unique, non-ordered key along split axis, key mask-like
+        x = ht.arange(60, split=0).reshape(5, 3, 4)
+        k1 = np.array([0, 4, 1, 0])
+        k2 = np.array([0, 2, 1, 0])
+        k3 = np.array([1, 2, 3, 1])
+        value = ht.array([99, 98, 97, 96], split=0)
+        x[k1, k2, k3] = value
+        print(x.comm.rank, x.larray)
+        #        self.assertTrue((x[k1, k2, k3] == value).all().item())
         # # advanced indexing on non-consecutive dimensions
         # x = ht.arange(60, split=0).reshape(5, 3, 4, new_split=1)
         # x_copy = x.copy()
