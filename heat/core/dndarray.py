@@ -2606,9 +2606,11 @@ class DNDarray:
                     # correct for displacements along the split axis
                     key = tuple(
                         [
-                            key[i][local_indices] - displs[rank]
-                            if i == self.split
-                            else key[i][local_indices]
+                            (
+                                key[i][local_indices] - displs[rank]
+                                if i == self.split
+                                else key[i][local_indices]
+                            )
                             for i in range(len(key))
                         ]
                     )
