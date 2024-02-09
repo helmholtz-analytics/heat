@@ -3,14 +3,14 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: daily
+      interval: "weekly"
 
   - package-ecosystem: pip
     directory: /doc
     schedule:
-      interval: daily
+      interval: "weekly"
 
   - package-ecosystem: docker
     directory: /heat/core/tests
     schedule:
-      interval: daily
+      interval: "weekly"
