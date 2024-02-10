@@ -200,6 +200,26 @@ class TestFactories(TestCase):
             ).all()
         )
 
+        # distributed array, chunk local data (split), copy False, torch devices
+        array_2d = torch.tensor(
+            [[1.0, 2.0, 3.0], [1.0, 2.0, 3.0], [1.0, 2.0, 3.0]],
+            dtype=torch.double,
+            device=self.device.torch_device,
+        )
+        dndarray_2d = ht.array(array_2d, split=0, copy=False, dtype=ht.double)
+        self.assertIsInstance(dndarray_2d, ht.DNDarray)
+        self.assertEqual(dndarray_2d.dtype, ht.float64)
+        self.assertEqual(dndarray_2d.gshape, (3, 3))
+        self.assertEqual(len(dndarray_2d.lshape), 2)
+        self.assertLessEqual(dndarray_2d.lshape[0], 3)
+        self.assertEqual(dndarray_2d.lshape[1], 3)
+        self.assertEqual(dndarray_2d.split, 0)
+        self.assertTrue(
+            (
+                dndarray_2d.larray == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
+            ).all()
+        )
+
         # distributed array, partial data (is_split)
         if ht.communication.MPI_WORLD.rank == 0:
             split_data = [[4.0, 5.0, 6.0], [1.0, 2.0, 3.0], [0.0, 0.0, 0.0]]
