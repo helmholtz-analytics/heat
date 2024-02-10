@@ -308,6 +308,10 @@ def array(
     if device is not None:
         device = devices.sanitize_device(device)
 
+    # infer device from obj if not explicitly given
+    if device is None and hasattr(obj, "device"):
+        device = devices.sanitize_device(obj.device.type)
+
     # initialize the array
     if bool(copy):
         if isinstance(obj, torch.Tensor):
@@ -333,8 +337,8 @@ def array(
                 (dtype is None or dtype == types.canonical_heat_type(obj.dtype))
                 and (
                     device is None
-                    or device.torch_device
-                    == str(getattr(obj, "device", devices.get_device().torch_device))
+                    or device.torch_device.split(":")[0]
+                    == str(getattr(obj, "device", devices.get_device().torch_device)).split(":")[0]
                 )
             ):
                 raise ValueError(
