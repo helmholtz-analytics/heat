@@ -1290,7 +1290,7 @@ class DNDarray:
                         )
                 # all key elements are now DNDarrays of the same shape, same split axis
             # 2. key along arr.split is DNDarray
-            if arr.split in advanced_indexing_dims:
+            if arr.is_distributed() and arr.split in advanced_indexing_dims:
                 if split_key_is_ordered == 1:
                     # extract torch tensors, keep process-local indices only
                     k = key[arr.split].larray
@@ -2821,12 +2821,21 @@ class DNDarray:
             if key_is_mask_like:
                 # extract incoming indices from recv_buf
                 recv_indices = recv_buf[..., -len(key) :]
+                # correct split-axis indices for rank offset
+                recv_indices[:, 0] -= displs[rank]
+                key = recv_indices.split(1, dim=1)
+                key = [key[i].squeeze_(1) for i in range(len(key))]
+                # remove indices from recv_buf
                 recv_buf = recv_buf[..., : -len(key)]
-
-            # store incoming indices in int 1-D tensor and correct for rank offset
-            recv_indices = recv_buf[..., -1].type(torch.int64) - displs[rank]
-            # remove last column from recv_buf
-            recv_buf = recv_buf[..., :-1]
+            else:
+                # store incoming indices in int 1-D tensor and correct for rank offset
+                recv_indices = recv_buf[..., -1].type(torch.int64) - displs[rank]
+                # remove last column from recv_buf
+                recv_buf = recv_buf[..., :-1]
+                # replace split-axis key with incoming local indices
+                key = list(key)
+                key[self.split] = recv_indices
+                key = tuple(key)
             # transpose back value and recv_buf if necessary, wrap recv_buf in DNDarray
             value = value.transpose(transpose_axes)
             if value.ndim < 2:
@@ -2842,10 +2851,6 @@ class DNDarray:
                 comm=value.comm,
                 balanced=value.balanced,
             )
-            # replace split-axis key with incoming local indices
-            key = list(key)
-            key[self.split] = recv_indices
-            key = tuple(key)
             # set local elements of `self` to corresponding elements of `value`
             __set(self, key, recv_buf)
 
