@@ -1550,8 +1550,7 @@ class TestDNDarray(TestCase):
         k3 = np.array([1, 2, 3, 1])
         value = ht.array([99, 98, 97, 96], split=0)
         x[k1, k2, k3] = value
-        print(x.comm.rank, x.larray)
-        #        self.assertTrue((x[k1, k2, k3] == value).all().item())
+        self.assertTrue((x[k1, k2, k3] == ht.array([96, 98, 97, 96], split=0)).all().item())
         # # advanced indexing on non-consecutive dimensions
         # x = ht.arange(60, split=0).reshape(5, 3, 4, new_split=1)
         # x_copy = x.copy()
