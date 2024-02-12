@@ -2774,9 +2774,9 @@ class DNDarray:
                 send_displs[proc] = send_counts[:proc].sum()
                 # compose send buffer: stack local elements of `value` according to destination process
                 if send_indices.numel() > 0:
-                    send_buf[
-                        send_displs[proc] : send_displs[proc] + send_counts[proc], :-1
-                    ] = value.larray[send_indices]
+                    send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], :-1] = (
+                        value.larray[send_indices]
+                    )
                     # store outgoing GLOBAL indices in the last column of send_buf
                     # TODO: if key_is_mask_like: apply send_indices to all dimensions of key
                     if key_is_mask_like:
@@ -2789,9 +2789,9 @@ class DNDarray:
                             send_indices = split_key[send_indices]
                             # broadcast send_indices to correct shape
                             send_indices = send_indices.unsqueeze(-1)
-                        send_buf[
-                            send_displs[proc] : send_displs[proc] + send_counts[proc], -1
-                        ] = send_indices
+                        send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], -1] = (
+                            send_indices
+                        )
 
             # compose communication matrix: share `send_counts` information with all processes
             comm_matrix = torch.zeros(
