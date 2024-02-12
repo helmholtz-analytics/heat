@@ -937,8 +937,12 @@ class DNDarray:
                     )
 
                 # arr is distributed
-                if not isinstance(key, DNDarray) or not key.is_distributed():
-                    key = factories.array(key, split=arr.split, device=arr.device)
+                if not isinstance(key, DNDarray) or (
+                    isinstance(key, DNDarray) and not key.is_distributed()
+                ):
+                    key = factories.array(
+                        key, split=arr.split, device=arr.device, comm=arr.comm, copy=None
+                    )
                 else:
                     if key.split != arr.split:
                         raise IndexError(
@@ -1164,36 +1168,24 @@ class DNDarray:
             elif isinstance(k, Iterable) or isinstance(k, DNDarray):
                 advanced_indexing = True
                 advanced_indexing_dims.append(i)
-                if isinstance(k, DNDarray):
-                    advanced_indexing_shapes.append(k.gshape)
-                    if arr_is_distributed and i == arr.split:
-                        # we have no info on order of indices
+                # work with DNDarrays to assess distribution
+                # torch tensors will be extracted in the advanced indexing section below
+                k = factories.array(k, device=arr.device, comm=arr.comm, copy=None)
+                advanced_indexing_shapes.append(k.gshape)
+                if arr_is_distributed and i == arr.split:
+                    if (
+                        not k.is_distributed()
+                        and k.ndim == 1
+                        and (k.larray == torch.sort(k.larray, stable=True)[0]).all()
+                    ):
+                        split_key_is_ordered = 1
+                        out_is_balanced = None
+                    else:
                         split_key_is_ordered = 0
                         # redistribute key along last axis to match split axis of indexed array
                         k = k.resplit(-1)
                         out_is_balanced = True
-                    key[i] = k.larray
-                elif not isinstance(k, torch.Tensor):
-                    key[i] = torch.tensor(k, dtype=torch.int64, device=arr.larray.device)
-                    advanced_indexing_shapes.append(tuple(key[i].shape))
-                    # IMPORTANT: here we assume that torch or ndarray key is THE SAME SET OF GLOBAL INDICES on every rank
-                    if arr_is_distributed and i == arr.split:
-                        # make no assumption on data locality wrt key
-                        out_is_balanced = None
-                        # assess if indices are in ascending order
-                        if (
-                            key[i].ndim == 1
-                            and (key[i] == torch.sort(key[i], stable=True)[0]).all()
-                        ):
-                            split_key_is_ordered = 1
-                            # extract local key
-                            cond1 = key[i] >= displs[arr.comm.rank]
-                            cond2 = key[i] < displs[arr.comm.rank] + counts[arr.comm.rank]
-                            key[i] = key[i][cond1 & cond2]
-                            if return_local_indices:
-                                key[i] -= displs[arr.comm.rank]
-                        else:
-                            split_key_is_ordered = 0
+                key[i] = k
 
             elif isinstance(k, slice) and k != slice(None):
                 start, stop, step = k.start, k.stop, k.step
@@ -1266,9 +1258,66 @@ class DNDarray:
                     output_shape[i] = 0
 
         if advanced_indexing:
+            # adv indexing key elements are DNDarrays: extract torch tensors
+            # options: 1. key is mask-like (covers boolean mask as well), 2. key along arr.split is DNDarray, 3. everything else
+            # 1. define key as mask_like if each element of key is a DNDarray, and all elements of key are of the same shape, and the advanced-indexing dimensions are consecutive
+            key_is_mask_like = (
+                all(isinstance(k, DNDarray) for k in key)
+                and len(set(k.shape for k in key)) == 1
+                and torch.tensor(advanced_indexing_dims).diff().eq(1).all()
+            )
+            if key_is_mask_like:
+                key = list(key)
+                key_splits = [k.split for k in key]
+                non_split_dims = list(advanced_indexing_dims).copy()
+                non_split_dims.remove(arr.split)
+                if not key_splits.count(key_splits[arr.split]) == len(key_splits):
+                    if (
+                        key_splits[arr.split] is not None
+                        and key_splits.count(None) == len(key_splits) - 1
+                    ):
+                        for i in non_split_dims:
+                            key[i] = factories.array(
+                                key[i],
+                                split=key_splits[arr.split],
+                                device=arr.device,
+                                comm=arr.comm,
+                                copy=None,
+                            )
+                    else:
+                        raise IndexError(
+                            f"Indexing arrays must be distributed along the same dimension, got splits {key_splits}."
+                        )
+                # all key elements are now DNDarrays of the same shape, same split axis
+            # 2. key along arr.split is DNDarray
+            if arr.split in advanced_indexing_dims:
+                if split_key_is_ordered == 1:
+                    # extract torch tensors, keep process-local indices only
+                    k = key[arr.split].larray
+                    cond1 = k >= displs[arr.comm.rank]
+                    cond2 = k < displs[arr.comm.rank] + counts[arr.comm.rank]
+                    k = k[cond1 & cond2]
+                    if return_local_indices:
+                        k -= displs[arr.comm.rank]
+                    key[arr.split] = k
+                    if key_is_mask_like:
+                        # select the same elements along non-split dimensions
+                        for i in non_split_dims:
+                            key[i] = key[i].larray[cond1 & cond2]
+                elif split_key_is_ordered == 0:
+                    # extract torch tensors, any other communication + mask-like case are handled in __getitem__ or __setitem__
+                    for i in advanced_indexing_dims:
+                        key[i] = key[i].larray
+                # split_key_is_ordered == -1 not treated here as it is slicing, not advanced indexing
+            else:
+                # advanced indexing does not affect split axis, return torch tensors
+                for i in advanced_indexing_dims:
+                    key[i] = key[i].larray
             print("ADV IND KEY = ", key)
             print("DEBUGGING: advanced_indexing_shapes = ", advanced_indexing_shapes)
-            # shapes of indexing arrays must be broadcastable
+            # all adv indexing keys are now torch tensors
+
+            # shapes of adv indexing arrays must be broadcastable
             try:
                 broadcasted_shape = torch.broadcast_shapes(*advanced_indexing_shapes)
             except RuntimeError:
@@ -2641,7 +2690,10 @@ class DNDarray:
                     split_key, is_split=0, device=self.device, comm=self.comm, copy=False
                 )
                 target_map = value.lshape_map
+                print("DEBUGGING: target_map = ", target_map)
+                print("DEBUGGING: global_split_key.lshape_map = ", global_split_key.lshape_map)
                 target_map[:, value.split] = global_split_key.lshape_map[:, 0]
+                print("DEBUGGING: target_map AFTER = ", target_map)
                 value.redistribute_(target_map=target_map)
             else:
                 # redistribute split-axis `key` to match distribution of `value` in one pass
@@ -2674,29 +2726,49 @@ class DNDarray:
             send_displs = torch.zeros_like(send_counts)
             # allocate send buffer: add 1 column to store sent indices
             send_buf_shape = list(value.lshape)
-            send_buf_shape[-1] += 1
+            if value.ndim < 2:
+                send_buf_shape.append(1)
+            if key_is_mask_like:
+                send_buf_shape[-1] += len(key)
+            else:
+                send_buf_shape[-1] += 1
+            print("DEBUGGING: send_buf_shape = ", send_buf_shape)
             send_buf = torch.zeros(
                 send_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
             )
+            print("DEBUGGING: BEFORE LOOP: counts, displs = ", counts, displs)
+            print("debugging: key_is_mask_like = ", key_is_mask_like)
             for proc in range(self.comm.size):
                 # calculate what local elements of `value` belong on process `proc`
                 send_indices = torch.nonzero(
                     (split_key >= displs[proc]) & (split_key < displs[proc] + counts[proc])
                 ).flatten()
+                print(
+                    "DEBUGGING: proc, send_indices = ", proc, send_indices, split_key[send_indices]
+                )
                 # calculate outgoing counts and displacements for each process
                 send_counts[proc] = send_indices.numel()
                 send_displs[proc] = send_counts[:proc].sum()
                 # compose send buffer: stack local elements of `value` according to destination process
-                send_buf[
-                    send_displs[proc] : send_displs[proc] + send_counts[proc], :-1
-                ] = value.larray[send_indices]
-                # store outgoing indices in the last column of send_buf
-                while send_indices.ndim < send_buf.ndim:
-                    # broadcast send_indices to correct shape
-                    send_indices = send_indices.unsqueeze(-1)
-                send_buf[
-                    send_displs[proc] : send_displs[proc] + send_counts[proc], -1
-                ] = send_indices
+                if send_indices.numel() > 0:
+                    send_buf[
+                        send_displs[proc] : send_displs[proc] + send_counts[proc], :-1
+                    ] = value.larray[send_indices]
+                    # store outgoing GLOBAL indices in the last column of send_buf
+                    # TODO: if key_is_mask_like: apply send_indices to all dimensions of key
+                    if key_is_mask_like:
+                        for i in range(-len(key), 0):
+                            send_buf[
+                                send_displs[proc] : send_displs[proc] + send_counts[proc], i
+                            ] = key[i + len(key)][send_indices]
+                    else:
+                        while send_indices.ndim < send_buf.ndim:
+                            send_indices = split_key[send_indices]
+                            # broadcast send_indices to correct shape
+                            send_indices = send_indices.unsqueeze(-1)
+                        send_buf[
+                            send_displs[proc] : send_displs[proc] + send_counts[proc], -1
+                        ] = send_indices
 
             # compose communication matrix: share `send_counts` information with all processes
             comm_matrix = torch.zeros(
@@ -2705,32 +2777,66 @@ class DNDarray:
                 device=self.device.torch_device,
             )
             self.comm.Allgather(send_counts, comm_matrix)
+            print("DEBUGGING:, RANK, SEND_BUF = ", self.comm.rank, send_buf)
             # comm_matrix columns contain recv_counts for each process
             recv_counts = comm_matrix[:, self.comm.rank].squeeze(0)
             recv_displs = torch.zeros_like(recv_counts)
             recv_displs[1:] = recv_counts.cumsum(0)[:-1]
             # allocate receive buffer, with 1 extra column for incoming indices
-            recv_shape = value.lshape_map[self.comm.rank]
-            recv_shape[value.split] = recv_counts.sum()
-            recv_shape[-1] += 1
-            recv_shape = tuple(recv_shape.tolist())
+            recv_buf_shape = value.lshape_map[self.comm.rank]
+            recv_buf_shape[value.split] = recv_counts.sum()
+            recv_buf_shape = recv_buf_shape.tolist()
+            if value.ndim < 2:
+                recv_buf_shape.append(1)
+            if key_is_mask_like:
+                recv_buf_shape[-1] += len(key)
+            else:
+                recv_buf_shape[-1] += 1
+            recv_buf_shape = tuple(recv_buf_shape)
+            print("DEBUGGING: recv_buf_shape = ", recv_buf_shape)
             recv_buf = torch.zeros(
-                recv_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
+                recv_buf_shape, dtype=value.dtype.torch_type(), device=self.device.torch_device
             )
             # perform Alltoallv along the 0 axis
+            send_counts, send_displs, recv_counts, recv_displs = (
+                send_counts.tolist(),
+                send_displs.tolist(),
+                recv_counts.tolist(),
+                recv_displs.tolist(),
+            )
+            print("DEBUGGING: send_buf.shape, recv_buf.shape = ", send_buf.shape, recv_buf.shape)
+            print(
+                "DEBUGGING: send_counts, send_displs, recv_counts, recv_displs = ",
+                send_counts,
+                send_displs,
+                recv_counts,
+                recv_displs,
+            )
             self.comm.Alltoallv(
                 (send_buf, send_counts, send_displs), (recv_buf, recv_counts, recv_displs)
             )
             del send_buf, comm_matrix
+            key = list(key)
+            print("DEBUGGING: recv_buf = ", recv_buf)
+            if key_is_mask_like:
+                # extract incoming indices from recv_buf
+                recv_indices = recv_buf[..., -len(key) :]
+                recv_buf = recv_buf[..., : -len(key)]
+
             # store incoming indices in int 1-D tensor and correct for rank offset
             recv_indices = recv_buf[..., -1].type(torch.int64) - displs[rank]
             # remove last column from recv_buf
             recv_buf = recv_buf[..., :-1]
             # transpose back value and recv_buf if necessary, wrap recv_buf in DNDarray
             value = value.transpose(transpose_axes)
+            if value.ndim < 2:
+                recv_buf.squeeze_(1)
+            print("DEBUGGING: transpose_axes = ", transpose_axes)
+            print("DEBUGGING: value.shape, recv_buf.shape = ", value.shape, recv_buf.shape)
             recv_buf = DNDarray(
                 recv_buf.permute(*transpose_axes),
                 gshape=value.gshape,
+                dtype=value.dtype,
                 split=value.split,
                 device=value.device,
                 comm=value.comm,
