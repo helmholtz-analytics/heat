@@ -60,9 +60,9 @@ def abs(
     return absolute_values
 
 
-DNDarray.abs: Callable[
-    [DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray
-] = lambda self, out=None, dtype=None: abs(self, out, dtype)
+DNDarray.abs: Callable[[DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray] = (
+    lambda self, out=None, dtype=None: abs(self, out, dtype)
+)
 DNDarray.abs.__doc__ = abs.__doc__
 
 
@@ -87,9 +87,9 @@ def absolute(
     return abs(x, out, dtype)
 
 
-DNDarray.absolute: Callable[
-    [DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray
-] = lambda self, out=None, dtype=None: absolute(self, out, dtype)
+DNDarray.absolute: Callable[[DNDarray, Optional[DNDarray], Optional[datatype]], DNDarray] = (
+    lambda self, out=None, dtype=None: absolute(self, out, dtype)
+)
 DNDarray.absolute.__doc__ = absolute.__doc__
 
 
@@ -330,9 +330,9 @@ def round(
     return rounded_values
 
 
-DNDarray.round: Callable[
-    [DNDarray, int, Optional[DNDarray], Optional[datatype]], DNDarray
-] = lambda self, decimals=0, out=None, dtype=None: round(self, decimals, out, dtype)
+DNDarray.round: Callable[[DNDarray, int, Optional[DNDarray], Optional[datatype]], DNDarray] = (
+    lambda self, decimals=0, out=None, dtype=None: round(self, decimals, out, dtype)
+)
 DNDarray.round.__doc__ = round.__doc__
 
 

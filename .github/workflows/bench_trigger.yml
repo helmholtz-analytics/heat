@@ -21,6 +21,8 @@ jobs:
       - name: Trigger benchmarks (PR)
         id: setup_pr
         if: contains(github.event.pull_request.labels.*.name, 'benchmark PR')
+        env:
+          BRANCH: ${{ github.head_ref }}
         run: |
           SHORT_SHA=$(git rev-parse --short ${{ github.event.pull_request.head.sha }})
           curl -s -X POST \
@@ -29,7 +31,7 @@ jobs:
             -F "ref=main" \
             -F "variables[SHA]=${{ github.event.pull_request.head.sha }}" \
             -F "variables[SHORT_SHA]=${SHORT_SHA}" \
-            -F "variables[BRANCH]=${{ github.head_ref }}" \
+            -F "variables[BRANCH]=$BRANCH" \
             -F "variables[PR]=${{ github.event.pull_request.number }}" \
             -F "variables[AUTHOR]=${{ github.event.pull_request.assignee.login }}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline
