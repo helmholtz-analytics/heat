@@ -1175,17 +1175,17 @@ class DNDarray:
                 and len(set(k.shape for k in key)) == 1
                 and torch.tensor(advanced_indexing_dims).diff().eq(1).all()
             )
+            print("KEY_IS_MASK_LIKE = ", key_is_mask_like)
+            # if split axis is affected by advanced indexing, keep track of non-split dimensions for later
+            if arr.is_distributed() and arr.split in advanced_indexing_dims:
+                non_split_dims = list(advanced_indexing_dims).copy()
+                if arr.split is not None:
+                    non_split_dims.remove(arr.split)
+            # 1. key is mask-like
             if key_is_mask_like:
                 key = list(key)
                 key_splits = [k.split for k in key]
-                non_split_dims = list(advanced_indexing_dims).copy()
-                print(
-                    "DEBUGGING: advanced_indexing_dims, arr.split = ",
-                    advanced_indexing_dims,
-                    arr.split,
-                )
                 if arr.split is not None:
-                    non_split_dims.remove(arr.split)
                     if not key_splits.count(key_splits[arr.split]) == len(key_splits):
                         if (
                             key_splits[arr.split] is not None
@@ -1210,7 +1210,7 @@ class DNDarray:
                                 f"Indexing arrays must be distributed along the same dimension, got splits {key_splits}."
                             )
                 # all key elements are now DNDarrays of the same shape, same split axis
-            # 2. key along arr.split is DNDarray
+            # 2. advanced indexing along split axis
             if arr.is_distributed() and arr.split in advanced_indexing_dims:
                 if split_key_is_ordered == 1:
                     # extract torch tensors, keep process-local indices only
@@ -1221,10 +1221,12 @@ class DNDarray:
                     if return_local_indices:
                         k -= displs[arr.comm.rank]
                     key[arr.split] = k
-                    if key_is_mask_like:
-                        # select the same elements along non-split dimensions
-                        for i in non_split_dims:
+                    for i in non_split_dims:
+                        if key_is_mask_like:
+                            # select the same elements along non-split dimensions
                             key[i] = key[i].larray[cond1 & cond2]
+                        else:
+                            key[i] = key[i].larray
                 elif split_key_is_ordered == 0:
                     # extract torch tensors, any other communication + mask-like case are handled in __getitem__ or __setitem__
                     for i in advanced_indexing_dims:
@@ -1539,6 +1541,7 @@ class DNDarray:
                 return indexed_arr
 
             # root is None, i.e. indexing does not affect split axis, apply as is
+            print("DEBUGGING: key = ", key)
             indexed_arr = self.larray[key]
             # transpose array back if needed
             self = self.transpose(backwards_transpose_axes)
