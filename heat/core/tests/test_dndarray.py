@@ -1551,6 +1551,7 @@ class TestDNDarray(TestCase):
         value = ht.array([99, 98, 97, 96], split=0)
         x[k1, k2, k3] = value
         self.assertTrue((x[k1, k2, k3] == ht.array([96, 98, 97, 96], split=0)).all().item())
+
         # # advanced indexing on non-consecutive dimensions
         # x = ht.arange(60, split=0).reshape(5, 3, 4, new_split=1)
         # x_copy = x.copy()
@@ -1618,7 +1619,9 @@ class TestDNDarray(TestCase):
         arr_split0 = ht.array(arr, split=0)
         mask_split0 = ht.array(mask, split=0)
         arr_split0[mask_split0] = value[mask]
-        self.assertTrue((arr_split0[mask_split0] == value[mask]).all().item())
+        indexed_arr = arr_split0[mask_split0]
+        indexed_arr.balance_()
+        self.assertTrue((indexed_arr == value[mask]).all().item())
         arr_split1 = ht.array(arr, split=1)
         mask_split1 = ht.array(mask, split=1)
         arr_split1[mask_split1] = value[mask]
