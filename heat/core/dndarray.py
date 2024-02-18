@@ -910,112 +910,7 @@ class DNDarray:
                 except TypeError:
                     # key is np.ndarray or DNDarray
                     key = key.nonzero()
-                # key is a tuple of arrays/tensors, will be treated as advanced indexing
-
-                # try:
-                #     # key is DNDarray or ndarray
-                #     key = key.copy()
-                # except AttributeError:
-                #     # key is torch tensor
-                #     key = key.clone()
-                # if not arr_is_distributed:
-                #     try:
-                #         # key is DNDarray, extract torch tensor
-                #         key = key.larray
-                #     except AttributeError:
-                #         pass
-                #     try:
-                #         # key is torch tensor
-                #         key = key.nonzero(as_tuple=True)
-                #     except TypeError:
-                #         # key is np.ndarray
-                #         key = key.nonzero()
-                #         # convert to torch tensor
-                #         key = tuple(torch.tensor(k, device=arr.larray.device) for k in key)
-                #     output_shape = tuple(key[0].shape) + arr.shape[key_ndim:]
-                #     new_split = None if arr.split is None else 0
-                #     out_is_balanced = True
-                #     split_key_is_ordered = 1
-                #     return (
-                #         arr,
-                #         key,
-                #         output_shape,
-                #         new_split,
-                #         split_key_is_ordered,
-                #         out_is_balanced,
-                #         root,
-                #         backwards_transpose_axes,
-                #     )
-
-                # # arr is distributed
-                # if not isinstance(key, DNDarray) or (
-                #     isinstance(key, DNDarray) and not key.is_distributed()
-                # ):
-                #     key = factories.array(
-                #         key, split=arr.split, device=arr.device, comm=arr.comm, copy=None
-                #     )
-                # else:
-                #     if key.split != arr.split:
-                #         raise IndexError(
-                #             "Boolean index does not match distribution scheme of indexed array. index.split is {}, array.split is {}".format(
-                #                 key.split, arr.split
-                #             )
-                #         )
-                # if arr.split == 0:
-                #     # ensure arr and key are aligned
-                #     key.redistribute_(target_map=arr.lshape_map)
-                #     # transform key to sequence of indexing (1-D) arrays
-                #     key = list(key.nonzero())
-                #     output_shape = key[0].shape
-                #     new_split = 0
-                #     split_key_is_ordered = 1
-                #     out_is_balanced = False
-                #     for i, k in enumerate(key):
-                #         key[i] = k.larray
-                #     if return_local_indices:
-                #         key[arr.split] -= displs[arr.comm.rank]
-                #     key = tuple(key)
-                # else:
-                #     key = key.larray.nonzero(as_tuple=False)
-                #     # construct global key array
-                #     nz_size = torch.tensor(key.shape[0], device=key.device, dtype=key.dtype)
-                #     arr.comm.Allreduce(MPI.IN_PLACE, nz_size, MPI.SUM)
-                #     key_gshape = (nz_size.item(), arr.ndim)
-                #     key[:, arr.split] += displs[arr.comm.rank]
-                #     key_split = 0
-                #     key = DNDarray(
-                #         key,
-                #         gshape=key_gshape,
-                #         dtype=canonical_heat_type(key.dtype),
-                #         split=key_split,
-                #         device=arr.device,
-                #         comm=arr.comm,
-                #         balanced=False,
-                #     )
-                #     key.balance_()
-                #     # set output parameters
-                #     output_shape = (key.gshape[0],)
-                #     new_split = 0
-                #     split_key_is_ordered = 0
-                #     out_is_balanced = True
-                #     # vectorized sorting of key along axis 0
-                #     key = manipulations.unique(key, axis=0, return_inverse=False)
-                #     # return tuple key of torch tensors
-                #     key = list(key.larray.split(1, dim=1))
-                #     for i, k in enumerate(key):
-                #         key[i] = k.squeeze(1)
-                #     key = tuple(key)
-
-                # return (
-                #     arr,
-                #     key,
-                #     output_shape,
-                #     new_split,
-                #     split_key_is_ordered,
-                #     out_is_balanced,
-                #     root,
-                #     backwards_transpose_axes,
-                # )
+                key_is_mask_like = True
             else:
                 # advanced indexing on first dimension: first dim will expand to shape of key
                 output_shape = tuple(list(key.shape) + output_shape[1:])
@@ -1273,8 +1168,8 @@ class DNDarray:
 
         if advanced_indexing:
             # adv indexing key elements are DNDarrays: extract torch tensors
-            # options: 1. key is mask-like (covers boolean mask as well), 2. key along arr.split is DNDarray, 3. everything else
-            # 1. define key as mask_like if each element of key is a DNDarray, and all elements of key are of the same shape, and the advanced-indexing dimensions are consecutive
+            # options: 1. key is mask-like (covers boolean mask as well), 2. adv indexing along split axis, 3. everything else
+            # 1. define key as mask-like if each element of key is a DNDarray, and all elements of key are of the same shape, and the advanced-indexing dimensions are consecutive
             key_is_mask_like = (
                 all(isinstance(k, DNDarray) for k in key)
                 and len(set(k.shape for k in key)) == 1
@@ -1363,11 +1258,32 @@ class DNDarray:
                     advanced_indexing_dims[0] : advanced_indexing_dims[0]
                     + len(advanced_indexing_dims)
                 ] = broadcasted_shape
-                split_bookkeeping = (
-                    split_bookkeeping[: advanced_indexing_dims[0]]
-                    + [None] * add_dims
-                    + split_bookkeeping[advanced_indexing_dims[0] :]
+                print(
+                    "DEBUGGING: broadcasted_shape, split_bookkeeping = ",
+                    broadcasted_shape,
+                    split_bookkeeping,
                 )
+                if key_is_mask_like:
+                    # advanced indexing dimensions will be collapsed into one dimension
+                    if (
+                        "split" in split_bookkeeping
+                        and split_bookkeeping.index("split") in advanced_indexing_dims
+                    ):
+                        split_bookkeeping[
+                            advanced_indexing_dims[0] : advanced_indexing_dims[0]
+                            + len(advanced_indexing_dims)
+                        ] = ["split"]
+                    else:
+                        split_bookkeeping[
+                            advanced_indexing_dims[0] : advanced_indexing_dims[0]
+                            + len(advanced_indexing_dims)
+                        ] = [None]
+                else:
+                    split_bookkeeping = (
+                        split_bookkeeping[: advanced_indexing_dims[0]]
+                        + [None] * add_dims
+                        + split_bookkeeping[advanced_indexing_dims[0] :]
+                    )
                 print("ADV IND output_shape = ", output_shape)
             else:
                 # advanced-indexing dimensions are not consecutive:
