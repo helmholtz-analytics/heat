@@ -1541,7 +1541,6 @@ class DNDarray:
                 return indexed_arr
 
             # root is None, i.e. indexing does not affect split axis, apply as is
-            print("DEBUGGING: key = ", key)
             indexed_arr = self.larray[key]
             # transpose array back if needed
             self = self.transpose(backwards_transpose_axes)
@@ -1555,44 +1554,43 @@ class DNDarray:
                 comm=self.comm,
             )
 
-        # key along split axis is unordered, communication needed
-        # key along the split axis is torch tensor, indices are GLOBAL
+        # key along split axis is not ordered, indices are GLOBAL
+        # prepare for communication of indices and data
         counts, displs = self.counts_displs()
         rank, size = self.comm.rank, self.comm.size
 
-        # determine what elements of the local array will be received from what process
         key_is_single_tensor = isinstance(key, torch.Tensor)
         if key_is_single_tensor:
             split_key = key
         else:
             split_key = key[self.split]
+        # split_key might be multi-dimensional, flatten it for communication
         if split_key.ndim > 1:
-            # original_split_key_shape = split_key.shape
+            original_split_key_shape = split_key.shape
+            communication_split = output_split - (split_key.ndim - 1)
             split_key = split_key.flatten()
+        else:
+            communication_split = output_split
+
+        # determine the number of elements to be received from each process
         recv_counts = torch.zeros((size, 1), dtype=torch.int64, device=self.larray.device)
         if key_is_mask_like:
             recv_indices = torch.zeros(
-                (len(split_key), len(key)), dtype=torch.int64, device=self.larray.device
+                (len(split_key), len(key)), dtype=split_key.dtype, device=self.larray.device
             )
         else:
             recv_indices = torch.zeros(
-                (split_key.shape), dtype=torch.int64, device=self.larray.device
+                (split_key.shape), dtype=split_key.dtype, device=self.larray.device
             )
-        print("DEBUGGING: SPLIY_KEY = ", split_key)
-        print("DEBUGGING: counts, displs = ", counts, displs)
         for p in range(size):
             cond1 = split_key >= displs[p]
             cond2 = split_key < displs[p] + counts[p]
             indices_from_p = torch.nonzero(cond1 & cond2, as_tuple=False)
             incoming_indices = split_key[indices_from_p].flatten()
             recv_counts[p, 0] = incoming_indices.numel()
-            print("DEBUGGING: P, RECV_COUNTS = ", p, incoming_indices.numel(), recv_counts)
             # store incoming indices in appropiate slice of recv_indices
-            # TODO: this is a bit of a convenience solution, but it doubles the memory footprint of split_key
             start = recv_counts[:p].sum().item()
             stop = start + recv_counts[p].item()
-            # print("DEBUGGING: incoming_indices = ", incoming_indices)
-            # print("DEBUGGING: start, stop = ", start, stop)
             if incoming_indices.numel() > 0:
                 if key_is_mask_like:
                     # apply selection to all dimensions
@@ -1601,7 +1599,6 @@ class DNDarray:
                     recv_indices[start:stop, self.split] -= displs[p]
                 else:
                     recv_indices[start:stop] = incoming_indices - displs[p]
-                print("DEBUGGING: AFTER: INC_INDICES = ", recv_indices[start:stop])
         # build communication matrix by sharing recv_counts with all processes
         # comm_matrix rows contain the send_counts for each process, columns contain the recv_counts
         comm_matrix = torch.zeros((size, size), dtype=torch.int64, device=self.larray.device)
@@ -1622,22 +1619,30 @@ class DNDarray:
 
         # allocate recv_buf for incoming data
         recv_buf_shape = list(output_shape)
-        recv_buf_shape[output_split] = recv_counts.sum().item()
+        if communication_split != output_split:
+            # split key was flattened, flatten corresponding dims in recv_buf accordingly
+            recv_buf_shape = (
+                recv_buf_shape[:communication_split]
+                + [recv_counts.sum().item()]
+                + recv_buf_shape[output_split + 1 :]
+            )
+        else:
+            recv_buf_shape[communication_split] = recv_counts.sum().item()
         recv_buf = torch.zeros(
             tuple(recv_buf_shape), dtype=self.larray.dtype, device=self.larray.device
         )
-        print("DEBUGGING: recv_counts, send_counts = ", recv_counts, send_counts)
-        print("DEBUGGING: comm_matrix = ", comm_matrix)
         if rank_is_active:
-            # non-blocking send indices to active_send_indices_to
+            # non-blocking send indices to `active_send_indices_to`
             send_requests = []
             for i in active_send_indices_to:
                 start = recv_counts[:i].sum().item()
                 stop = start + recv_counts[i].item()
                 outgoing_indices = recv_indices[start:stop]
                 send_requests.append(self.comm.Isend(outgoing_indices, dest=i))
+                del outgoing_indices
+            del recv_indices
             for i in active_recv_indices_from:
-                # receive indices from active_recv_indices_from
+                # receive indices from `active_recv_indices_from`
                 if key_is_mask_like:
                     incoming_indices = torch.zeros(
                         (send_counts[i].item(), len(key)),
@@ -1663,33 +1668,39 @@ class DNDarray:
                         send_key = list(key)
                         send_key[self.split] = incoming_indices
                         send_buf = self.larray[tuple(send_key)]
-                print(f"DEBUGGING: send_buf to {i} = {send_buf}")
                 # non-blocking send requested data to i
                 send_requests.append(self.comm.Isend(send_buf, dest=i))
-            print("DEBUGGING: active_send_indices_to = ", active_send_indices_to)
+                del send_buf
+            # allocate temporary recv_buf to receive data from all active processes
             tmp_recv_buf_shape = recv_buf_shape.copy()
-            tmp_recv_buf_shape[output_split] = recv_counts.max().item()
+            tmp_recv_buf_shape[communication_split] = recv_counts.max().item()
             tmp_recv_buf = torch.zeros(
                 tuple(tmp_recv_buf_shape), dtype=self.larray.dtype, device=self.larray.device
             )
             for i in active_send_indices_to:
-                # non-blocking receive data from i
-                print("debugging:, i = ", i)
-                print("DEBUGGING: split_key = ", split_key)
+                # receive data from i
                 tmp_recv_slice = [slice(None)] * tmp_recv_buf.ndim
-                tmp_recv_slice[output_split] = slice(0, recv_counts[i].item())
+                tmp_recv_slice[communication_split] = slice(0, recv_counts[i].item())
                 self.comm.Recv(tmp_recv_buf[tmp_recv_slice], source=i)
-                print(f"DEBUGGING: tmp_recv_buf from {i} = {tmp_recv_buf}")
                 # write received data to appropriate portion of recv_buf
                 cond1 = split_key >= displs[i]
                 cond2 = split_key < displs[i] + counts[i]
                 recv_buf_indices = torch.nonzero(cond1 & cond2, as_tuple=False).flatten()
                 recv_buf_key = [slice(None)] * recv_buf.ndim
-                recv_buf_key[output_split] = recv_buf_indices
+                recv_buf_key[communication_split] = recv_buf_indices
                 recv_buf[recv_buf_key] = tmp_recv_buf[tmp_recv_slice]
+            del tmp_recv_buf
             # wait for all non-blocking communication to finish
             for req in send_requests:
                 req.Wait()
+        if communication_split != output_split:
+            # split_key has been flattened, bring back recv_buf to intended shape
+            original_local_shape = (
+                output_shape[:communication_split]
+                + original_split_key_shape
+                + output_shape[output_split + 1 :]
+            )
+            recv_buf = recv_buf.reshape(original_local_shape)
 
         # construct indexed array from recv_buf
         indexed_arr = DNDarray(
@@ -1704,275 +1715,6 @@ class DNDarray:
         # transpose array back if needed
         self = self.transpose(backwards_transpose_axes)
         return indexed_arr
-
-        # # determine whether indexed array will be 1D or nD
-        # try:
-        #     return_1d = getattr(key, "ndim") == self.ndim
-        #     send_axis = 0
-        # except AttributeError:
-        #     # key is tuple of torch tensors
-        #     key_shapes = []
-        #     for k in key:
-        #         key_shapes.append(getattr(k, "shape", None))
-        #     return_1d = key_shapes.count(key_shapes[original_split]) == self.ndim
-        #     # check for broadcasted indexing: key along split axis is not 1D
-        #     broadcasted_indexing = (
-        #         key_shapes[original_split] is not None and len(key_shapes[original_split]) > 1
-        #     )
-        #     if broadcasted_indexing:
-        #         broadcast_shape = key_shapes[original_split]
-        #         key = list(key)
-        #         key[original_split] = key[original_split].flatten()
-        #         key = tuple(key)
-        #         send_axis = original_split
-        #     else:
-        #         send_axis = output_split
-
-        # # send and receive "request key" info on what data element to ship where
-        # recv_counts = torch.zeros((self.comm.size, 1), dtype=torch.int64, device=self.larray.device)
-
-        # # construct empty tensor that we'll append to later
-        # if return_1d:
-        #     request_key_shape = (0, self.ndim)
-        # else:
-        #     request_key_shape = (0, 1)
-
-        # outgoing_request_key = torch.empty(
-        #     tuple(request_key_shape), dtype=torch.int64, device=self.larray.device
-        # )
-        # outgoing_request_key_counts = torch.zeros(
-        #     (self.comm.size,), dtype=torch.int64, device=self.larray.device
-        # )
-
-        # # process-local: calculate which/how many elements will be received from what process
-        # if split_key_is_ordered == -1:
-        #     # key is sorted in descending order (i.e. slicing w/ negative step):
-        #     # shrink selection of active processes
-        #     if key[original_split].numel() > 0:
-        #         key_edges = torch.cat(
-        #             (key[original_split][-1].reshape(-1), key[original_split][0].reshape(-1)), dim=0
-        #         ).unique()
-        #         displs = torch.tensor(displs, device=self.larray.device)
-        #         _, inverse, counts = torch.cat((displs, key_edges), dim=0).unique(
-        #             sorted=True, return_inverse=True, return_counts=True
-        #         )
-        #         if key_edges.numel() == 2:
-        #             correction = counts[inverse[-2]] % 2
-        #             start_rank = inverse[-2] - correction
-        #             correction += counts[inverse[-1]] % 2
-        #             end_rank = inverse[-1] - correction + 1
-        #         elif key_edges.numel() == 1:
-        #             correction = counts[inverse[-1]] % 2
-        #             start_rank = inverse[-1] - correction
-        #             end_rank = start_rank + 1
-        #     else:
-        #         start_rank = 0
-        #         end_rank = 0
-        # else:
-        #     start_rank = 0
-        #     end_rank = self.comm.size
-        # all_local_indexing = torch.ones(
-        #     (self.comm.size,), dtype=torch.bool, device=self.larray.device
-        # )
-        # all_local_indexing[start_rank:end_rank] = False
-        # for i in range(start_rank, end_rank):
-        #     try:
-        #         cond1 = key >= displs[i]
-        #         if i != self.comm.size - 1:
-        #             cond2 = key < displs[i + 1]
-        #         else:
-        #             # cond2 is always true
-        #             cond2 = torch.ones((key.shape[0],), dtype=torch.bool, device=self.larray.device)
-        #     except TypeError:
-        #         cond1 = key[original_split] >= displs[i]
-        #         if i != self.comm.size - 1:
-        #             cond2 = key[original_split] < displs[i + 1]
-        #         else:
-        #             # cond2 is always true
-        #             cond2 = torch.ones(
-        #                 (key[original_split].shape[0],), dtype=torch.bool, device=self.larray.device
-        #             )
-        #     if return_1d:
-        #         # advanced indexing returning 1D array
-        #         if isinstance(key, torch.Tensor):
-        #             selection = key[cond1 & cond2]
-        #             recv_counts[i, :] = selection.shape[0]
-        #             if i == self.comm.rank:
-        #                 all_local_indexing[i] = selection.shape[0] == key.shape[0]
-        #             selection.unsqueeze_(dim=1)
-        #         else:
-        #             # key is tuple of torch tensors
-        #             selection = list(k[cond1 & cond2] for k in key)
-        #             recv_counts[i, :] = selection[0].shape[0]
-        #             if i == self.comm.rank:
-        #                 all_local_indexing[i] = selection[0].shape[0] == key[0].shape[0]
-        #             selection = torch.stack(selection, dim=1)
-        #     else:
-        #         selection = key[original_split][cond1 & cond2]
-        #         recv_counts[i, :] = selection.shape[0]
-        #         if i == self.comm.rank:
-        #             all_local_indexing[i] = selection.shape[0] == key[original_split].shape[0]
-        #         selection.unsqueeze_(dim=1)
-        #     outgoing_request_key = torch.cat((outgoing_request_key, selection), dim=0)
-        # all_local_indexing = factories.array(
-        #     all_local_indexing, is_split=0, device=self.device, copy=False
-        # )
-        # if all_local_indexing.all().item():
-        #     if broadcasted_indexing:
-        #         key[original_split] = key[original_split].reshape(broadcast_shape)
-        #     indexed_arr = self.larray[key]
-        #     # transpose array back if needed
-        #     self = self.transpose(backwards_transpose_axes)
-        #     return factories.array(
-        #         indexed_arr, is_split=output_split, device=self.device, copy=False
-        #     )
-
-        # # share recv_counts among all processes
-        # comm_matrix = torch.empty(
-        #     (self.comm.size, self.comm.size), dtype=recv_counts.dtype, device=recv_counts.device
-        # )
-        # self.comm.Allgather(recv_counts, comm_matrix)
-
-        # outgoing_request_key_counts = comm_matrix[self.comm.rank]
-        # outgoing_request_key_displs = torch.cat(
-        #     (
-        #         torch.zeros(
-        #             (1,),
-        #             dtype=outgoing_request_key_counts.dtype,
-        #             device=outgoing_request_key_counts.device,
-        #         ),
-        #         outgoing_request_key_counts,
-        #     ),
-        #     dim=0,
-        # ).cumsum(dim=0)[:-1]
-        # incoming_request_key_counts = comm_matrix[:, self.comm.rank]
-        # incoming_request_key_displs = torch.cat(
-        #     (
-        #         torch.zeros(
-        #             (1,),
-        #             dtype=outgoing_request_key_counts.dtype,
-        #             device=outgoing_request_key_counts.device,
-        #         ),
-        #         incoming_request_key_counts,
-        #     ),
-        #     dim=0,
-        # ).cumsum(dim=0)[:-1]
-
-        # if return_1d:
-        #     incoming_request_key = torch.empty(
-        #         (incoming_request_key_counts.sum(), self.ndim),
-        #         dtype=outgoing_request_key_counts.dtype,
-        #         device=outgoing_request_key_counts.device,
-        #     )
-        # else:
-        #     incoming_request_key = torch.empty(
-        #         (incoming_request_key_counts.sum(), 1),
-        #         dtype=outgoing_request_key_counts.dtype,
-        #         device=outgoing_request_key_counts.device,
-        #     )
-        # # send and receive request keys
-        # self.comm.Alltoallv(
-        #     (
-        #         outgoing_request_key,
-        #         outgoing_request_key_counts.tolist(),
-        #         outgoing_request_key_displs.tolist(),
-        #     ),
-        #     (
-        #         incoming_request_key,
-        #         incoming_request_key_counts.tolist(),
-        #         incoming_request_key_displs.tolist(),
-        #     ),
-        # )
-        # if return_1d:
-        #     incoming_request_key = list(incoming_request_key[:, d] for d in range(self.ndim))
-        #     incoming_request_key[original_split] -= displs[self.comm.rank]
-        # else:
-        #     incoming_request_key -= displs[self.comm.rank]
-        #     incoming_request_key = (
-        #         key[:original_split]
-        #         + (incoming_request_key.squeeze_(1),)
-        #         + key[original_split + 1 :]
-        #     )
-
-        # # calculate shape of local recv buffer
-        # output_lshape = list(output_shape)
-        # if getattr(key, "ndim", 0) == 1:
-        #     output_lshape[output_split] = key.shape[0]
-        # else:
-        #     if broadcasted_indexing:
-        #         output_lshape = (
-        #             output_lshape[:original_split]
-        #             + [torch.prod(torch.tensor(broadcast_shape, device=self.larray.device)).item()]
-        #             + output_lshape[output_split + 1 :]
-        #         )
-        #     else:
-        #         output_lshape[output_split] = key[original_split].shape[0]
-        # # allocate recv buffer
-        # recv_buf = torch.empty(
-        #     tuple(output_lshape), dtype=self.larray.dtype, device=self.larray.device
-        # )
-
-        # # index local data into send_buf.
-        # send_empty = sum(
-        #     list(isinstance(k, torch.Tensor) and k.numel() == 0 for k in incoming_request_key)
-        # )
-        # if send_empty:
-        #     # Edge case 1. empty slice along split axis: send_buf is 0-element tensor
-        #     empty_shape = list(output_shape)
-        #     empty_shape[output_split] = 0
-        #     send_buf = torch.empty(empty_shape, dtype=self.larray.dtype, device=self.larray.device)
-        # else:
-        #     send_buf = self.larray[incoming_request_key]
-        #     # Edge case 2. local single-element indexing results into local loss of split axis
-        #     if send_buf.ndim < len(output_lshape):
-        #         all_keys_scalar = sum(
-        #             list(
-        #                 np.isscalar(k) or k.numel() == 1 and getattr(k, "ndim", 2) < 2
-        #                 for k in incoming_request_key
-        #             )
-        #         ) == len(incoming_request_key)
-        #         if not all_keys_scalar:
-        #             send_buf = send_buf.unsqueeze_(dim=output_split)
-
-        # recv_counts = torch.squeeze(recv_counts, dim=1).tolist()
-        # recv_displs = outgoing_request_key_displs.tolist()
-        # send_counts = incoming_request_key_counts.tolist()
-        # send_displs = incoming_request_key_displs.tolist()
-        # self.comm.Alltoallv(
-        #     (send_buf, send_counts, send_displs),
-        #     (recv_buf, recv_counts, recv_displs),
-        #     send_axis=send_axis,
-        # )
-        # # transpose original array back if needed, all further indexing on recv_buf
-        # self = self.transpose(backwards_transpose_axes)
-
-        # # reorganize incoming counts according to original key order along split axis
-        # if return_1d:
-        #     if isinstance(key, tuple):
-        #         key = torch.stack(key, dim=1)
-        #     _, key_inverse = key.unique(dim=0, sorted=True, return_inverse=True)
-        #     _, ork_inverse = outgoing_request_key.unique(dim=0, sorted=True, return_inverse=True)
-        #     map = ork_inverse.argsort(stable=True)[
-        #         key_inverse.argsort(stable=True).argsort(stable=True)
-        #     ]
-        #     indexed_arr = recv_buf[map]
-        #     return factories.array(indexed_arr, is_split=output_split, copy=False)
-
-        # outgoing_request_key = outgoing_request_key.squeeze_(1)
-        # map = [slice(None)] * recv_buf.ndim
-        # # print("DEBUGGING: outgoing_request_key = ", outgoing_request_key)
-        # # print("DEBUGGING: key[original_split] = ", key[original_split])
-        # if broadcasted_indexing:
-        #     map[original_split] = outgoing_request_key.argsort(stable=True)[
-        #         key[original_split].argsort(stable=True).argsort(stable=True)
-        #     ]
-        #     map[original_split] = map[original_split].reshape(broadcast_shape)
-        # else:
-        #     map[output_split] = outgoing_request_key.argsort(stable=True)[
-        #         key[original_split].argsort(stable=True).argsort(stable=True)
-        #     ]
-        # indexed_arr = recv_buf[map]
-        # return factories.array(indexed_arr, is_split=output_split, copy=False)
 
     if torch.cuda.device_count() > 0:
 
