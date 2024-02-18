@@ -1552,20 +1552,20 @@ class TestDNDarray(TestCase):
         x[k1, k2, k3] = value
         self.assertTrue((x[k1, k2, k3] == ht.array([96, 98, 97, 96], split=0)).all().item())
 
-        # # advanced indexing on non-consecutive dimensions
-        # x = ht.arange(60, split=0).reshape(5, 3, 4, new_split=1)
-        # x_copy = x.copy()
-        # x_np = np.arange(60).reshape(5, 3, 4)
-        # k1 = np.array([0, 4, 1, 0])
-        # k2 = 0
-        # k3 = np.array([1, 2, 3, 1])
-        # key = (k1, k2, k3)
-        # self.assert_array_equal(x[key], x_np[key])
-        # # check that x is unchanged after internal manipulation
-        # self.assertTrue(x.shape == x_copy.shape)
-        # self.assertTrue(x.split == x_copy.split)
-        # self.assertTrue(x.lshape == x_copy.lshape)
-        # self.assertTrue((x == x_copy).all().item())
+        # advanced indexing on non-consecutive dimensions, split dimension will be lost
+        x = ht.arange(60, split=0).reshape(5, 3, 4, new_split=1)
+        x_copy = x.copy()
+        k1 = np.array([0, 4, 1, 2])
+        k2 = 0
+        k3 = np.array([1, 2, 3, 1])
+        key = (k1, k2, k3)
+        value = ht.array([99, 98, 97, 96])
+        x[key] = value
+        self.assertTrue((x[key] == ht.array([99, 98, 97, 96])).all().item())
+        # check that x is unchanged after internal manipulation
+        self.assertTrue(x.shape == x_copy.shape)
+        self.assertTrue(x.split == x_copy.split)
+        self.assertTrue(x.lshape == x_copy.lshape)
 
         # # broadcasting shapes
         # x.resplit_(axis=0)
