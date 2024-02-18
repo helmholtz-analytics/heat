@@ -62,7 +62,7 @@ def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
         # nonzero indices as tuple
         lcl_nonzero = torch.nonzero(input=local_x, as_tuple=True)
         # bookkeeping for final DNDarray construct
-        output_shape = (lcl_nonzero[0].shape,)
+        nonzero_size = lcl_nonzero[0].shape[0]
         output_split = None if x.split is None else 0
         output_balanced = True
     else:
@@ -98,10 +98,11 @@ def nonzero(x: DNDarray) -> Tuple[DNDarray, ...]:
             # return indices as tuple of columns
             lcl_nonzero = lcl_nonzero.split(1, dim=1)
             output_balanced = False
+        nonzero_size = nonzero_size.item()
 
     # return global_nonzero as tuple of DNDarrays
     global_nonzero = list(lcl_nonzero)
-    output_shape = (nonzero_size.item(),)
+    output_shape = (nonzero_size,)
     output_split = 0
     for i, nz_tensor in enumerate(global_nonzero):
         if nz_tensor.ndim > 1:
