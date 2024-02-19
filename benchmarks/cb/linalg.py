@@ -1,7 +1,5 @@
 # flake8: noqa
 import heat as ht
-import itertools
-import torchvision.datasets as datasets
 from mpi4py import MPI
 from perun import monitor
 
@@ -18,7 +16,7 @@ def matmul_split_1(a, b):
 
 @monitor()
 def qr_split_0(a):
-    for t in range(1, 3):
+    for t in range(2, 3):
         qr = a.qr(tiles_per_proc=t)
 
 

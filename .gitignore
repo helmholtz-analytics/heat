@@ -307,4 +307,4 @@ testing.py
 heat/datasets/MNISTDataset
 perun_results/
 bench_data/
-my_dev_stuff
+my_dev_stuff/

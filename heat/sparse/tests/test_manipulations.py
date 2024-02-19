@@ -33,7 +33,28 @@ class TestManipulations(TestCase):
             self.ref_indptr, self.ref_indices, self.ref_data, device=self.device.torch_device
         )
 
-    def test_todense(self):
+    def test_to_sparse(self):
+        arr = [[0, 0, 1, 0, 2], [0, 0, 0, 0, 0], [0, 3, 0, 0, 0], [4, 0, 0, 5, 0], [0, 0, 0, 0, 6]]
+
+        A = ht.array(arr, split=0)
+        B = A.to_sparse()
+
+        indptr_B = [0, 2, 2, 3, 5, 6]
+        indices_B = [2, 4, 1, 0, 3, 4]
+        data_B = [1, 2, 3, 4, 5, 6]
+
+        self.assertIsInstance(B, ht.sparse.DCSR_matrix)
+        self.assertTrue((B.indptr == torch.tensor(indptr_B, device=self.device.torch_device)).all())
+        self.assertTrue(
+            (B.indices == torch.tensor(indices_B, device=self.device.torch_device)).all()
+        )
+        self.assertTrue((B.data == torch.tensor(data_B, device=self.device.torch_device)).all())
+        self.assertEqual(B.nnz, len(data_B))
+        self.assertEqual(B.split, 0)
+        self.assertEqual(B.shape, A.shape)
+        self.assertEqual(B.dtype, A.dtype)
+
+    def test_to_dense(self):
         heat_sparse_csr = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr)
 
         ref_dense_array = ht.array(

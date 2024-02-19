@@ -6,16 +6,12 @@ No-frills instructions for [new users](#new-users-condaconda-pippip-hpchpc-docke
 
 ### `conda`
 
-A Heat conda build is [in progress](https://github.com/helmholtz-analytics/heat/issues/1050).
-The script [heat_env.yml](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_env.yml):
+The Heat conda build includes all dependencies including OpenMPI.
 
-- creates a virtual environment `heat_env`
-- installs all dependencies including OpenMPI using [conda](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html)
-- installs Heat via `pip`
-
-```
-conda env create -f heat_env.yml
+```shell
+conda create --name heat_env
 conda activate heat_env
+conda -c conda-forge heat
 ```
 
 [Test](#test) your installation.
@@ -34,12 +30,15 @@ pip install heat[hdf5,netcdf]
 
 [Test](#test) your installation.
 
+### HPC
+Work in progress.
+
 ### Docker
 
 Get the docker image from our package repository
 
 ```
-docker pull ghcr.io/helmholtz-analytics/heat:1.2.0-dev_torch1.12_cuda11.7_py3.8
+docker pull ghcr.io/helmholtz-analytics/heat:<version-tag>
 ```
 
 or build it from our Dockerfile
@@ -47,8 +46,10 @@ or build it from our Dockerfile
 ```
 git clone https://github.com/helmholtz-analytics/heat.git
 cd heat/docker
-docker build -t heat:latest .
+docker build --build-arg HEAT_VERSION=X.Y.Z --build-arg PYTORCH_IMG=<nvcr-tag> -t heat:X.Y.Z .
 ```
+
+`<nvcr-tag>` should be replaced with an existing version of the official Nvidia pytorch container image. Information and existing tags can be found on the [here](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch)
 
 See [our docker README](https://github.com/helmholtz-analytics/heat/tree/main/docker/README.md) for other details.
 
@@ -77,7 +78,7 @@ Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
 
 3. [Fork](https://docs.github.com/en/get-started/quickstart/contributing-to-projects) or, if you have write access, clone the [Heat repository](https://github.com/helmholtz-analytics/heat).
 
-4. Create a virtual environment `heat_dev` with all dependencies via [heat_dev.yml](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_dev.yml). Note that `heat_dev.yml` does not install Heat via `pip` (as opposed to [`heat_env.yml`](#conda) for users).
+4. Create a virtual environment `heat_dev` with all dependencies via [heat_dev.yml](https://github.com/helmholtz-analytics/heat/blob/main/scripts/heat_dev.yml). Note that `heat_dev.yml` does not install Heat.
 
     ```
     conda env create -f heat_dev.yml

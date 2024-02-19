@@ -76,7 +76,7 @@ def jobscripts_from(
         if key in SKIP:
             continue
 
-        parameters.append("--{}".format(key))
+        parameters.append(f"--{key}")
         parameters.append(str(value))
 
     for script, benchmark in configuration["benchmarks"].items():

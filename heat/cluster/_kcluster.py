@@ -132,7 +132,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         elif isinstance(self.init, DNDarray):
             if len(self.init.shape) != 2:
                 raise ValueError(
-                    "passed centroids need to be two-dimensional, but are {}".format(len(self.init))
+                    f"passed centroids need to be two-dimensional, but are {len(self.init)}"
                 )
             if self.init.shape[0] != self.n_clusters or self.init.shape[1] != x.shape[1]:
                 raise ValueError("passed centroids do not match cluster count or data shape")

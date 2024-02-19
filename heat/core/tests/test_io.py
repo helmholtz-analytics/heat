@@ -65,6 +65,7 @@ class TestIO(TestCase):
             self.assertEqual(iris.larray.dtype, torch.float32)
             # content
             self.assertTrue((self.IRIS == iris.larray).all())
+
         else:
             with self.assertRaises(RuntimeError):
                 _ = ht.load(self.HDF5_PATH, dataset=self.HDF5_DATASET)
@@ -531,6 +532,10 @@ class TestIO(TestCase):
         self.assertEqual(iris.larray.dtype, torch.float32)
         self.assertTrue((self.IRIS == iris.larray).all())
 
+        # cropped load
+        iris_cropped = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0, load_fraction=0.5)
+        self.assertEqual(iris_cropped.shape[0], iris.shape[0] // 2)
+
         # positive split axis
         iris = ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, split=0)
         self.assertIsInstance(iris, ht.DNDarray)
@@ -568,6 +573,10 @@ class TestIO(TestCase):
             ht.load_hdf5("iris.h5", 1)
         with self.assertRaises(TypeError):
             ht.load_hdf5("iris.h5", dataset="data", split=1.0)
+        with self.assertRaises(TypeError):
+            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction="a")
+        with self.assertRaises(ValueError):
+            ht.load_hdf5(self.HDF5_PATH, self.HDF5_DATASET, load_fraction=0.0, split=0)
 
         # file or dataset does not exist
         with self.assertRaises(IOError):

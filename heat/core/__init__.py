@@ -22,6 +22,7 @@ from .relational import *
 from .rounding import *
 from .sanitation import *
 from .statistics import *
+from .stride_tricks import *
 from .dndarray import *
 from .tiling import *
 from .trigonometrics import *

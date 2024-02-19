@@ -31,4 +31,4 @@ if __name__ == "__main__":
         start = time.perf_counter()
         dist = dmm.euclidean_distances(data, data).compute()
         end = time.perf_counter()
-        print("\t{}s".format(end - start))
+        print(f"\t{end - start}s")

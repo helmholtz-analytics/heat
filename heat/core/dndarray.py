@@ -1,4 +1,5 @@
 """Provides HeAT's core data structure, the DNDarray, a distributed n-dimensional array"""
+
 from __future__ import annotations
 
 import math
@@ -340,7 +341,10 @@ class DNDarray:
         Returns bytes to step in each dimension when traversing a ``DNDarray``. numpy-like usage: ``self.strides()``
         """
         steps = list(self.larray.stride())
-        itemsize = self.larray.storage().element_size()
+        try:
+            itemsize = self.larray.untyped_storage().element_size()
+        except AttributeError:
+            itemsize = self.larray.storage().element_size()
         strides = tuple(step * itemsize for step in steps)
         return strides
 
