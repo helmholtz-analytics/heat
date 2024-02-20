@@ -341,7 +341,7 @@ class TestFactories(TestCase):
         arr = np.array([1, 2, 3, 4])
         asarr = ht.asarray(arr)
 
-        self.assertTrue(np.alltrue(np.equal(asarr.numpy(), arr)))
+        self.assertTrue(np.all(np.equal(asarr.numpy(), arr)))
 
         asarr[0] = 0
         if asarr.device == ht.cpu:

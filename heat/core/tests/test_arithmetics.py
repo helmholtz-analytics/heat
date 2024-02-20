@@ -1,4 +1,5 @@
 import operator
+import math
 
 import heat as ht
 import numpy as np
@@ -775,11 +776,11 @@ class TestArithmetics(TestCase):
         self.assertEqual(shape_noaxis_split_nanprod.dtype, ht.float32)
         self.assertEqual(shape_noaxis_split_nanprod.larray.dtype, torch.float32)
         self.assertEqual(shape_noaxis_split_nanprod.split, None)
-        self.assertEqual(shape_noaxis_split_nanprod, np.math.factorial(10))
+        self.assertEqual(shape_noaxis_split_nanprod, math.factorial(10))
 
         out_noaxis = ht.array(1, dtype=shape_noaxis_split.dtype)
         ht.nanprod(shape_noaxis_split, out=out_noaxis)
-        self.assertEqual(out_noaxis.larray, np.math.factorial(10))
+        self.assertEqual(out_noaxis.larray, math.factorial(10))
 
     def test_nansum(self):
         array_len = 11

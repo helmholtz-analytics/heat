@@ -16,7 +16,7 @@ def matmul_split_1(a, b):
 
 @monitor()
 def qr_split_0(a):
-    for t in range(1, 3):
+    for t in range(2, 3):
         qr = a.qr(tiles_per_proc=t)
 
 
