@@ -1,6 +1,7 @@
 """
 QR decomposition of (distributed) 2-D ``DNDarray``s.
 """
+
 import collections
 import torch
 from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple
