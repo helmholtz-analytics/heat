@@ -2,7 +2,7 @@
 import torch
 import numpy as np
 
-from heat.sparse.dcsr_matrix import DCSR_matrix
+from heat.sparse.dcsx_matrix import DCSR_matrix
 
 from . import factories
 from ..core.communication import MPI

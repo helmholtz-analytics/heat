@@ -14,7 +14,7 @@ from ..core.communication import MPI, sanitize_comm, Communication
 from ..core.devices import Device
 from ..core.types import datatype
 
-from .dcsr_matrix import DCSC_matrix, DCSR_matrix
+from .dcsx_matrix import DCSC_matrix, DCSR_matrix
 
 __all__ = [
     "sparse_csr_matrix",

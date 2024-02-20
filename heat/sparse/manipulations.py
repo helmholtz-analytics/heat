@@ -1,7 +1,7 @@
 """Manipulation operations for (potentially distributed) `DCSR_matrix`."""
 from __future__ import annotations
 
-from heat.sparse.dcsr_matrix import DCSC_matrix, DCSR_matrix, __DCSX_matrix
+from heat.sparse.dcsx_matrix import DCSC_matrix, DCSR_matrix, __DCSX_matrix
 from heat.sparse.factories import sparse_csc_matrix, sparse_csr_matrix
 from ..core.memory import sanitize_memory_layout
 from ..core.dndarray import DNDarray
@@ -70,6 +70,10 @@ def to_sparse_csr(array: DNDarray) -> DCSR_matrix:
     return __to_sparse(array, orientation="row")
 
 
+DNDarray.to_sparse_csr = to_sparse_csr
+DNDarray.to_sparse_csr.__doc__ = to_sparse_csr.__doc__
+
+
 def to_sparse_csc(array: DNDarray) -> DCSC_matrix:
     """
     Convert the distributed array to a sparse DCSC_matrix representation.
@@ -93,8 +97,6 @@ def to_sparse_csc(array: DNDarray) -> DCSC_matrix:
     return __to_sparse(array, orientation="col")
 
 
-DNDarray.to_sparse_csr = to_sparse_csr
-DNDarray.to_sparse_csr.__doc__ = to_sparse_csr.__doc__
 DNDarray.to_sparse_csc = to_sparse_csc
 DNDarray.to_sparse_csc.__doc__ = to_sparse_csc.__doc__
 

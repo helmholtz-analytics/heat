@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import torch
 
-from .dcsr_matrix import DCSR_matrix
+from .dcsx_matrix import DCSR_matrix
 
 from . import _operations
 
