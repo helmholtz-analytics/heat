@@ -1133,13 +1133,6 @@ class DNDarray:
                         out_is_balanced = False
                         local_arr_end = displs[arr.comm.rank] + counts[arr.comm.rank]
                         if stop > displs[arr.comm.rank] and start < local_arr_end:
-                            print(
-                                "stop, start, displs[arr.comm.rank], displs[arr.comm.rank] + counts[arr.comm.rank] = ",
-                                stop,
-                                start,
-                                displs[arr.comm.rank],
-                                displs[arr.comm.rank] + counts[arr.comm.rank],
-                            )
                             index_in_cycle = (displs[arr.comm.rank] - start) % step
                             if start >= displs[arr.comm.rank]:
                                 # slice begins on current rank
