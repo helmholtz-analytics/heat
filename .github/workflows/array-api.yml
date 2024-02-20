@@ -46,7 +46,6 @@ jobs:
     - name: Run the test suite
       env:
         ARRAY_API_TESTS_MODULE: heat.array_api
-        ARRAY_API_TESTS_VERSION: "2021.12"
       run: |
         export PYTHONPATH="${{ github.workspace }}/heat"
         # Skip testing functions with known issues

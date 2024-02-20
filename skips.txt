@@ -1,4 +1,4 @@
-array_api_tests/test_fft.py
+array-api-tests/array_api_tests/test_fft.py
 
 # PR #938 Indexing overhaul
 array_api_tests/test_array_object.py::test_getitem
