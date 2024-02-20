@@ -1567,24 +1567,29 @@ class TestDNDarray(TestCase):
         self.assertTrue(x.split == x_copy.split)
         self.assertTrue(x.lshape == x_copy.lshape)
 
-        # # broadcasting shapes
-        # x.resplit_(axis=0)
-        # self.assert_array_equal(x[ht.array(k1, split=0), ht.array(1), 2], x_np[k1, 1, 2])
-        # # test exception: broadcasting mismatching shapes
-        # k2 = np.array([0, 2, 1])
-        # with self.assertRaises(IndexError):
-        #     x[k1, k2, k3]
+        # broadcasting shapes
+        x.resplit_(axis=0)
+        key = (ht.array(k1, split=0), ht.array(1), 2)
+        value = ht.array([99, 98, 97, 96], split=0)
+        x[key] = value
+        self.assertTrue((x[key] == value).all().item())
+        # test exception: broadcasting mismatching shapes
+        k2 = np.array([0, 2, 1])
+        with self.assertRaises(IndexError):
+            x[k1, k2, k3] = value
 
-        # # more broadcasting
-        # x_np = np.arange(12).reshape(4, 3)
-        # rows = np.array([0, 3])
-        # cols = np.array([0, 2])
-        # x = ht.arange(12).reshape(4, 3)
-        # x.resplit_(1)
-        # x_np_indexed = x_np[rows[:, np.newaxis], cols]
-        # x_indexed = x[ht.array(rows)[:, np.newaxis], cols]
-        # self.assert_array_equal(x_indexed, x_np_indexed)
-        # self.assertTrue(x_indexed.split == 1)
+        # more broadcasting
+        x = ht.arange(12).reshape(4, 3)
+        x.resplit_(1)
+        rows = np.array([0, 3])
+        cols = np.array([0, 2])
+        key = (ht.array(rows)[:, np.newaxis], cols)
+        value = ht.array([[99, 98], [97, 96]], split=1)
+        x[key] = value
+        self.assertTrue((x[key] == value).all().item())
+        with self.assertRaises(RuntimeError):
+            value = ht.array([[99, 98], [97, 96]], split=0)
+            x[key] = value
 
         # # combining advanced and basic indexing
         # y_np = np.arange(35).reshape(5, 7)
