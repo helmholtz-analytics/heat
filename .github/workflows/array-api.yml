@@ -50,4 +50,4 @@ jobs:
         export PYTHONPATH="${{ github.workspace }}/heat"
         # Skip testing functions with known issues
         cd ${{ github.workspace }}/array-api-tests
-        pytest -v -rxXfE --ci array_api_tests/ --skips-file ${{ github.workspace }}/heat/skips.txt --disable-extension linalg
+        pytest array_api_tests/ -v -rxXfE --ci --skips-file ${{ github.workspace }}/heat/skips.txt --disable-extension linalg
