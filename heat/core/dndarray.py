@@ -2343,15 +2343,21 @@ class DNDarray:
                     self.larray[key] = value.larray.type(self.dtype.torch_type())
             else:
                 # indexed elements are process-local
-                if self.is_distributed() and not value_is_scalar and not value.is_distributed():
-                    # work with distributed `value`
-                    value = factories.array(
-                        value.larray,
-                        dtype=value.dtype,
-                        split=output_split,
-                        device=self.device,
-                        comm=self.comm,
-                    )
+                if self.is_distributed() and not value_is_scalar:
+                    if not value.is_distributed():
+                        # work with distributed `value`
+                        value = factories.array(
+                            value.larray,
+                            dtype=value.dtype,
+                            split=output_split,
+                            device=self.device,
+                            comm=self.comm,
+                        )
+                    else:
+                        if value.split != output_split:
+                            raise RuntimeError(
+                                f"Cannot assign distributed `value` with split axis {value.split} to indexed DNDarray with split axis {output_split}."
+                            )
                     # verify that `self[key]` and `value` distribution are aligned
                     target_shape = torch.tensor(
                         tuple(self.larray[key].shape), device=self.device.torch_device
