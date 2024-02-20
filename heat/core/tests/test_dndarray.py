@@ -676,6 +676,13 @@ class TestDNDarray(TestCase):
         self.assert_array_equal(x_3d_sliced, x_3d_sliced_np)
         self.assertTrue(x_3d_sliced.split == 0)
 
+        # tests for bug 730:
+        a = ht.ones((10, 25, 30), split=1)
+        if a.comm.size > 1:
+            self.assertEqual(a[0].split, 0)
+            self.assertEqual(a[:, 0, :].split, None)
+            self.assertEqual(a[:, :, 0].split, 1)
+
         # DIMENSIONAL INDEXING
         # ellipsis
         x_np = np.array([[[1], [2], [3]], [[4], [5], [6]]])
@@ -1638,34 +1645,26 @@ class TestDNDarray(TestCase):
 
         # TODO boolean mask, distributed, distributed `value`
 
-    # def test_setitem_getitem(self):
-    #     # tests for bug #825
-    #     a = ht.ones((102, 102), split=0)
-    #     setting = ht.zeros((100, 100), split=0)
-    #     a[1:-1, 1:-1] = setting
-    #     self.assertTrue(ht.all(a[1:-1, 1:-1] == 0))
+        # tests for bug #825
+        a = ht.ones((102, 102), split=0)
+        setting = ht.zeros((100, 100), split=0)
+        a[1:-1, 1:-1] = setting
+        self.assertTrue(ht.all(a[1:-1, 1:-1] == 0).item())
 
-    #     a = ht.ones((102, 102), split=1)
-    #     setting = ht.zeros((30, 100), split=1)
-    #     a[-30:, 1:-1] = setting
-    #     self.assertTrue(ht.all(a[-30:, 1:-1] == 0))
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((30, 100), split=1)
+        a[-30:, 1:-1] = setting
+        self.assertTrue(ht.all(a[-30:, 1:-1] == 0).item())
 
-    #     a = ht.ones((102, 102), split=1)
-    #     setting = ht.zeros((100, 100), split=1)
-    #     a[1:-1, 1:-1] = setting
-    #     self.assertTrue(ht.all(a[1:-1, 1:-1] == 0))
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((100, 100), split=1)
+        a[1:-1, 1:-1] = setting
+        self.assertTrue(ht.all(a[1:-1, 1:-1] == 0).item())
 
-    #     a = ht.ones((102, 102), split=1)
-    #     setting = ht.zeros((100, 20), split=1)
-    #     a[1:-1, :20] = setting
-    #     self.assertTrue(ht.all(a[1:-1, :20] == 0))
-
-    #     # tests for bug 730:
-    #     a = ht.ones((10, 25, 30), split=1)
-    #     if a.comm.size > 1:
-    #         self.assertEqual(a[0].split, 0)
-    #         self.assertEqual(a[:, 0, :].split, None)
-    #         self.assertEqual(a[:, :, 0].split, 1)
+        a = ht.ones((102, 102), split=1)
+        setting = ht.zeros((100, 20), split=1)
+        a[1:-1, :20] = setting
+        self.assertTrue(ht.all(a[1:-1, :20] == 0).item())
 
     #     # set and get single value
     #     a = ht.zeros((13, 5), split=0)
