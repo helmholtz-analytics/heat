@@ -14,7 +14,7 @@ from ..core.communication import MPI, sanitize_comm, Communication
 from ..core.devices import Device
 from ..core.types import datatype
 
-from .dcsx_matrix import DCSC_matrix, DCSR_matrix
+from .dcsx_matrix import DCSC_matrix, DCSR_matrix, __DCSX_matrix
 
 __all__ = [
     "sparse_csr_matrix",
@@ -182,9 +182,9 @@ def __sparse_matrix(
     device: Optional[Device] = None,
     comm: Optional[Communication] = None,
     orientation: str = "row",
-) -> DCSR_matrix:
+) -> __DCSX_matrix:
     """
-    Create a :class:`~heat.sparse.DCSX_matrix`.
+    Create a :class:`~heat.sparse.__DCSX_matrix`.
     This is a common method for converting a distributed array to a sparse matrix representation.
 
     Raises

@@ -62,7 +62,7 @@ class __DCSX_matrix:
 
     def global_indptr(self) -> DNDarray:
         """
-        Global indptr of the ``DCSX_matrix`` as a ``DNDarray``
+        Global indptr of the ``__DCSX_matrix`` as a ``DNDarray``
         """
         if self.split is None:
             raise ValueError("This method works only for distributed matrices")
@@ -90,42 +90,43 @@ class __DCSX_matrix:
             dtype=self.lindptr.dtype,
             device=self.device,
             comm=self.comm,
-            is_split=0 if self.split else None,  # TODO: Check if this is correct
-            # is_split for the indptr is either 0 or None because it is always 1 dimensional
+            is_split=0
+            if self.split is not None
+            else None,  # is_split for the indptr is either 0 or None because it is always 1 dimensional
         )
 
     @property
     def balanced(self) -> bool:
         """
-        Boolean value indicating if the DCSX_matrix is balanced between the MPI processes
+        Boolean value indicating if the __DCSX_matrix is balanced between the MPI processes
         """
         return self._balanced
 
     @property
     def comm(self) -> Communication:
         """
-        The :class:`~heat.core.communication.Communication` of the ``DCSX_matrix``
+        The :class:`~heat.core.communication.Communication` of the ``__DCSX_matrix``
         """
         return self._comm
 
     @property
     def device(self) -> Device:
         """
-        The :class:`~heat.core.devices.Device` of the ``DCSX_matrix``
+        The :class:`~heat.core.devices.Device` of the ``__DCSX_matrix``
         """
         return self._device
 
     @property
     def larray(self) -> torch.Tensor:
         """
-        Local data of the ``DCSX_matrix``
+        Local data of the ``__DCSX_matrix``
         """
         return self._array
 
     @property
     def data(self) -> torch.Tensor:
         """
-        Global data of the ``DCSX_matrix``
+        Global data of the ``__DCSX_matrix``
         """
         if self.split is None:
             return self.ldata
@@ -140,21 +141,21 @@ class __DCSX_matrix:
     @property
     def gdata(self) -> torch.Tensor:
         """
-        Global data of the ``DCSX_matrix``
+        Global data of the ``__DCSX_matrix``
         """
         return self.data
 
     @property
     def ldata(self) -> torch.Tensor:
         """
-        Local data of the ``DCSX_matrix``
+        Local data of the ``__DCSX_matrix``
         """
         return self._array.values()
 
     @property
     def indptr(self) -> torch.Tensor:
         """
-        Global indptr of the ``DCSX_matrix``
+        Global indptr of the ``__DCSX_matrix``
         """
         if self.split is None:
             return self.lindptr
@@ -164,21 +165,21 @@ class __DCSX_matrix:
     @property
     def gindptr(self) -> torch.Tensor:
         """
-        Global indptr of the ``DCSX_matrix``
+        Global indptr of the ``__DCSX_matrix``
         """
         return self.indptr
 
     @property
     def lindptr(self) -> torch.Tensor:
         """
-        Local indptr of the ``DCSX_matrix``
+        Local indptr of the ``__DCSX_matrix``
         """
-        raise NotImplementedError("Local indptr is not implemented for DCSX_matrix")
+        raise NotImplementedError("Local indptr is not implemented for __DCSX_matrix")
 
     @property
     def indices(self) -> torch.Tensor:
         """
-        Global indices of the ``DCSX_matrix``
+        Global indices of the ``__DCSX_matrix``
         """
         if self.split is None:
             return self.lindices
@@ -193,89 +194,89 @@ class __DCSX_matrix:
     @property
     def gindices(self) -> torch.Tensor:
         """
-        Global indices of the ``DCSX_matrix``
+        Global indices of the ``__DCSX_matrix``
         """
         return self.indices
 
     @property
     def lindices(self) -> torch.Tensor:
         """
-        Local indices of the ``DCSX_matrix``
+        Local indices of the ``__DCSX_matrix``
         """
-        raise NotImplementedError("Local indices is not implemented for DCSX_matrix")
+        raise NotImplementedError("Local indices is not implemented for __DCSX_matrix")
 
     @property
     def ndim(self) -> int:
         """
-        Number of dimensions of the ``DCSX_matrix``
+        Number of dimensions of the ``__DCSX_matrix``
         """
         return len(self._gshape)
 
     @property
     def nnz(self) -> int:
         """
-        Total number of non-zero elements of the ``DCSX_matrix``
+        Total number of non-zero elements of the ``__DCSX_matrix``
         """
         return self._gnnz
 
     @property
     def gnnz(self) -> int:
         """
-        Total number of non-zero elements of the ``DCSX_matrix``
+        Total number of non-zero elements of the ``__DCSX_matrix``
         """
         return self.nnz
 
     @property
     def lnnz(self) -> int:
         """
-        Number of non-zero elements on the local process of the ``DCSX_matrix``
+        Number of non-zero elements on the local process of the ``__DCSX_matrix``
         """
         return self._array._nnz()
 
     @property
     def shape(self) -> Tuple[int, ...]:
         """
-        Global shape of the ``DCSX_matrix``
+        Global shape of the ``__DCSX_matrix``
         """
         return self._gshape
 
     @property
     def gshape(self) -> Tuple[int, ...]:
         """
-        Global shape of the ``DCSX_matrix``
+        Global shape of the ``__DCSX_matrix``
         """
         return self.shape
 
     @property
     def lshape(self) -> Tuple[int, ...]:
         """
-        Local shape of the ``DCSX_matrix``
+        Local shape of the ``__DCSX_matrix``
         """
         return tuple(self._array.size())
 
     @property
     def dtype(self):
         """
-        The :class:`~heat.core.types.datatype` of the ``DCSX_matrix``
+        The :class:`~heat.core.types.datatype` of the ``__DCSX_matrix``
         """
         return self._dtype
 
     @property
     def split(self) -> int:
         """
-        Returns the axis on which the ``DCSX_matrix`` is split
+        Returns the axis on which the ``__DCSX_matrix`` is split
         """
         return self._split
 
     def is_distributed(self) -> bool:
         """
-        Determines whether the data of this ``DCSX_matrix`` is distributed across multiple processes.
+        Determines whether the data of this ``__DCSX_matrix`` is distributed across multiple processes.
         """
         return self.split is not None and self.comm.is_distributed()
 
     def counts_displs_nnz(self) -> Tuple[Tuple[int], Tuple[int]]:
         """
-        Returns actual counts (number of non-zero items per process) and displacements (offsets) of the DCSX_matrix.
+        Returns actual counts (number of non-zero items per process) and displacements (offsets) of the __DCSX_matrix.
         Does not assume load balance.
         """
         if self.split is not None:
@@ -324,7 +325,7 @@ class __DCSX_matrix:
 
     def __repr__(self) -> str:
         """
-        Computes a printable representation of the passed DCSX_matrix.
+        Computes a printable representation of the passed __DCSX_matrix.
         """
         print_string = (
             f"(indptr: {self.indptr}, indices: {self.indices}, data: {self.data}, "
