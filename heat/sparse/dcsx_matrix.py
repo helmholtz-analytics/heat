@@ -91,9 +91,9 @@ class __DCSX_matrix:
             dtype=self.lindptr.dtype,
             device=self.device,
             comm=self.comm,
-            is_split=0
-            if self.split is not None
-            else None,  # is_split for the indptr is either 0 or None because it is always 1 dimensional
+            is_split=(
+                0 if self.split is not None else None
+            ),  # is_split for the indptr is either 0 or None because it is always 1 dimensional
         )
 
     @property
