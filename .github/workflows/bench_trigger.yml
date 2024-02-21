@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@eb238b55efaa70779f274895e782ed17c84f2895 # v2.6.1
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
         with:
           egress-policy: audit
 
@@ -21,6 +21,8 @@ jobs:
       - name: Trigger benchmarks (PR)
         id: setup_pr
         if: contains(github.event.pull_request.labels.*.name, 'benchmark PR')
+        env:
+          BRANCH: ${{ github.head_ref }}
         run: |
           SHORT_SHA=$(git rev-parse --short ${{ github.event.pull_request.head.sha }})
           curl -s -X POST \
@@ -29,7 +31,7 @@ jobs:
             -F "ref=main" \
             -F "variables[SHA]=${{ github.event.pull_request.head.sha }}" \
             -F "variables[SHORT_SHA]=${SHORT_SHA}" \
-            -F "variables[BRANCH]=${{ github.head_ref }}" \
+            -F "variables[BRANCH]=$BRANCH" \
             -F "variables[PR]=${{ github.event.pull_request.number }}" \
             -F "variables[AUTHOR]=${{ github.event.pull_request.assignee.login }}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline

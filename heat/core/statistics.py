@@ -1,6 +1,7 @@
 """
 Distributed statistical operations.
 """
+
 import numpy as np
 import torch
 from typing import Any, Callable, Union, Tuple, List, Optional
@@ -108,9 +109,9 @@ def argmax(
     )
 
 
-DNDarray.argmax: Callable[
-    [DNDarray, int, DNDarray, object], DNDarray
-] = lambda self, axis=None, out=None, **kwargs: argmax(self, axis, out, **kwargs)
+DNDarray.argmax: Callable[[DNDarray, int, DNDarray, object], DNDarray] = (
+    lambda self, axis=None, out=None, **kwargs: argmax(self, axis, out, **kwargs)
+)
 DNDarray.argmax.__doc__ = argmax.__doc__
 
 
@@ -180,9 +181,9 @@ def argmin(
     )
 
 
-DNDarray.argmin: Callable[
-    [DNDarray, int, DNDarray, object], DNDarray
-] = lambda self, axis=None, out=None, **kwargs: argmin(self, axis, out, **kwargs)
+DNDarray.argmin: Callable[[DNDarray, int, DNDarray, object], DNDarray] = (
+    lambda self, axis=None, out=None, **kwargs: argmin(self, axis, out, **kwargs)
+)
 DNDarray.argmin.__doc__ = argmin.__doc__
 
 
@@ -773,9 +774,9 @@ def kurtosis(
         return __moment_w_axis(__torch_kurtosis, x, axis, None, unbiased, Fischer)
 
 
-DNDarray.kurtosis: Callable[
-    [DNDarray, int, bool, bool], DNDarray
-] = lambda x, axis=None, unbiased=True, Fischer=True: kurtosis(x, axis, unbiased, Fischer)
+DNDarray.kurtosis: Callable[[DNDarray, int, bool, bool], DNDarray] = (
+    lambda x, axis=None, unbiased=True, Fischer=True: kurtosis(x, axis, unbiased, Fischer)
+)
 DNDarray.kurtosis.__doc__ = average.__doc__
 
 
@@ -832,9 +833,9 @@ def max(
     )
 
 
-DNDarray.max: Callable[
-    [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray
-] = lambda x, axis=None, out=None, keepdims=None: max(x, axis, out, keepdims)
+DNDarray.max: Callable[[DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray] = (
+    lambda x, axis=None, out=None, keepdims=None: max(x, axis, out, keepdims)
+)
 DNDarray.max.__doc__ = max.__doc__
 
 
@@ -1035,9 +1036,9 @@ def median(x: DNDarray, axis: Optional[int] = None, keepdims: bool = False) -> D
     return percentile(x, q=50, axis=axis, keepdims=keepdims)
 
 
-DNDarray.median: Callable[
-    [DNDarray, int, bool], DNDarray
-] = lambda x, axis=None, keepdims=False: median(x, axis, keepdims)
+DNDarray.median: Callable[[DNDarray, int, bool], DNDarray] = (
+    lambda x, axis=None, keepdims=False: median(x, axis, keepdims)
+)
 DNDarray.mean.__doc__ = mean.__doc__
 
 
@@ -1164,9 +1165,9 @@ def min(
     )
 
 
-DNDarray.min: Callable[
-    [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray
-] = lambda self, axis=None, out=None, keepdims=None: min(self, axis, out, keepdims)
+DNDarray.min: Callable[[DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], DNDarray] = (
+    lambda self, axis=None, out=None, keepdims=None: min(self, axis, out, keepdims)
+)
 DNDarray.min.__doc__ = min.__doc__
 
 
@@ -1709,9 +1710,9 @@ def skew(x: DNDarray, axis: int = None, unbiased: bool = True) -> DNDarray:
         return __moment_w_axis(__torch_skew, x, axis, None, unbiased)
 
 
-DNDarray.skew: Callable[
-    [DNDarray, int, bool], DNDarray
-] = lambda self, axis=None, unbiased=True: skew(self, axis, unbiased)
+DNDarray.skew: Callable[[DNDarray, int, bool], DNDarray] = (
+    lambda self, axis=None, unbiased=True: skew(self, axis, unbiased)
+)
 DNDarray.skew.__doc__ = skew.__doc__
 
 
@@ -1772,9 +1773,9 @@ def std(
     return exponential.sqrt(var(x, axis, ddof, **kwargs), out=None)
 
 
-DNDarray.std: Callable[
-    [DNDarray, Union[int, Tuple[int], List[int]], int, object], DNDarray
-] = lambda self, axis=None, ddof=0, **kwargs: std(self, axis, ddof, **kwargs)
+DNDarray.std: Callable[[DNDarray, Union[int, Tuple[int], List[int]], int, object], DNDarray] = (
+    lambda self, axis=None, ddof=0, **kwargs: std(self, axis, ddof, **kwargs)
+)
 DNDarray.std.__doc__ = std.__doc__
 
 
@@ -1988,7 +1989,7 @@ def var(
         return __moment_w_axis(torch.var, x, axis, reduce_vars_elementwise, unbiased)
 
 
-DNDarray.var: Callable[
-    [DNDarray, Union[int, Tuple[int], List[int]], int, object], DNDarray
-] = lambda self, axis=None, ddof=0, **kwargs: var(self, axis, ddof, **kwargs)
+DNDarray.var: Callable[[DNDarray, Union[int, Tuple[int], List[int]], int, object], DNDarray] = (
+    lambda self, axis=None, ddof=0, **kwargs: var(self, axis, ddof, **kwargs)
+)
 DNDarray.var.__doc__ = var.__doc__

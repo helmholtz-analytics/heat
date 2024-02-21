@@ -9,6 +9,7 @@ from typing import Callable, Optional, Tuple, Union
 
 from . import factories
 from . import manipulations
+from . import sanitation
 
 from . import _operations
 from . import stride_tricks
@@ -161,10 +162,10 @@ def allclose(
     return bool(_local_allclose.item())
 
 
-DNDarray.allclose: Callable[
-    [DNDarray, DNDarray, float, float, bool], bool
-] = lambda self, other, rtol=1e-05, atol=1e-08, equal_nan=False: allclose(
-    self, other, rtol, atol, equal_nan
+DNDarray.allclose: Callable[[DNDarray, DNDarray, float, float, bool], bool] = (
+    lambda self, other, rtol=1e-05, atol=1e-08, equal_nan=False: allclose(
+        self, other, rtol, atol, equal_nan
+    )
 )
 DNDarray.allclose.__doc__ = all.__doc__
 
@@ -219,9 +220,9 @@ def any(
     )
 
 
-DNDarray.any: Callable[
-    [DNDarray, Optional[int], Optional[DNDarray], bool], DNDarray
-] = lambda self, axis=None, out=None, keepdims=False: any(self, axis, out, keepdims)
+DNDarray.any: Callable[[DNDarray, Optional[int], Optional[DNDarray], bool], DNDarray] = (
+    lambda self, axis=None, out=None, keepdims=False: any(self, axis, out, keepdims)
+)
 DNDarray.any.__doc__ = any.__doc__
 
 
@@ -376,10 +377,10 @@ def isposinf(x: DNDarray, out: Optional[DNDarray] = None):
     return _operations.__local_op(torch.isposinf, x, out, no_cast=True)
 
 
-DNDarray.isclose: Callable[
-    [DNDarray, DNDarray, float, float, bool], DNDarray
-] = lambda self, other, rtol=1e-05, atol=1e-08, equal_nan=False: isclose(
-    self, other, rtol, atol, equal_nan
+DNDarray.isclose: Callable[[DNDarray, DNDarray, float, float, bool], DNDarray] = (
+    lambda self, other, rtol=1e-05, atol=1e-08, equal_nan=False: isclose(
+        self, other, rtol, atol, equal_nan
+    )
 )
 DNDarray.isclose.__doc__ = isclose.__doc__
 
@@ -516,9 +517,16 @@ def __sanitize_close_input(x: DNDarray, y: DNDarray) -> Tuple[DNDarray, DNDarray
     x = sanitize_input_type(x, y)
     y = sanitize_input_type(y, x)
 
-    # if one of the tensors is distributed, unsplit/gather it
-    if x.split is not None and y.split is None:
-        t1 = manipulations.resplit(x, axis=None)
+    # if one of the DNDarrays is distributed and the other is not
+    if x.is_distributed() and not y.is_distributed() and y.ndim > 0:
+        t2 = factories.array(y.larray, device=x.device, split=x.split)
+        x, t2 = sanitation.sanitize_distribution(x, t2, target=x)
+        return x, t2
+
+    # if y is distributed, x is not distributed, and x is not a scalar
+    elif y.is_distributed() and not x.is_distributed() and x.ndim > 0:
+        t1 = factories.array(x.larray, device=y.device, split=y.split)
+        t1, y = sanitation.sanitize_distribution(t1, y, target=y)
         return t1, y
 
     elif x.split != y.split:

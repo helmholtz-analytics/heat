@@ -1,4 +1,5 @@
 """Manipulation operations for (potentially distributed) `DCSR_matrix`."""
+
 from __future__ import annotations
 
 from heat.sparse.dcsx_matrix import DCSC_matrix, DCSR_matrix, __DCSX_matrix
