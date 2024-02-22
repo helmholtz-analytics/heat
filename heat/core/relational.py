@@ -1,6 +1,7 @@
 """
 Functions for relational oprations, i.e. equal/no equal...
 """
+
 from __future__ import annotations
 
 import torch

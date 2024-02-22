@@ -1,6 +1,5 @@
 """This module contains Heat's version information."""
 
-
 major: int = 1
 """Indicates Heat's main version."""
 minor: int = 4
