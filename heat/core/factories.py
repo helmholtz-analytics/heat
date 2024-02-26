@@ -9,7 +9,7 @@ from typing import Callable, Iterable, Optional, Sequence, Tuple, Type, Union, L
 from .communication import MPI, sanitize_comm, Communication
 from .devices import Device
 from .dndarray import DNDarray
-from .memory import sanitize_memory_layout
+from .memory import sanitize_memory_layout, copy as memory_copy
 from .sanitation import sanitize_in, sanitize_sequence
 from .stride_tricks import sanitize_axis, sanitize_shape
 from .types import datatype
@@ -287,19 +287,6 @@ def array(
           11
          [torch.LongStorage of size 6]
     """
-    # array already exists; no copy
-    if isinstance(obj, DNDarray):
-        if not copy:
-            if (
-                (dtype is None or dtype == obj.dtype)
-                and (split is None or split == obj.split)
-                and (is_split is None or is_split == obj.split)
-                and (device is None or device == obj.device)
-            ):
-                return obj
-        # extract the internal tensor
-        obj = obj.larray
-
     # sanitize the data type
     if dtype is not None:
         dtype = types.canonical_heat_type(dtype)
@@ -308,9 +295,36 @@ def array(
     if device is not None:
         device = devices.sanitize_device(device)
 
-    # infer device from obj if not explicitly given
-    if device is None and hasattr(obj, "device"):
-        device = devices.sanitize_device(obj.device.type)
+    if split is not None and is_split is not None:
+        raise ValueError("split and is_split are mutually exclusive parameters")
+
+    # array already exists; no copy
+    if isinstance(obj, DNDarray):
+        if (
+            (dtype is None or dtype == obj.dtype)
+            and (split is None or split == obj.split)
+            and (is_split is None or is_split == obj.split)
+            and (device is None or device == obj.device)
+        ):
+            if not copy:
+                return obj
+            else:
+                return memory_copy(obj)
+        elif split is not None and obj.split is not None and split != obj.split:
+            raise ValueError(
+                f"'split' argument does not match existing 'split' dimention ({split} != {obj.split}).\nIf you are trying to resplit and existing DNDarray, use the method `resplit` instead."
+            )
+        elif is_split is not None and obj.split is not None and is_split != obj.split:
+            raise ValueError(
+                f"'is_split' and the split axis of the object do not match ({is_split} != {obj.split}).\nIf you are trying to resplit and existing DNDarray, use the method `resplit` instead."
+            )
+        elif device is not None and device != obj.device and not copy:
+
+            raise ValueError(
+                "argument `copy` is set to False, but copy of input object is necessary as the array is being copied across devices.\nUse the method `use_device` to move the array to the desired device."
+            )
+        # extract the internal tensor
+        obj = obj.larray
 
     # initialize the array
     if bool(copy):
@@ -361,7 +375,7 @@ def array(
             obj = obj.type(torch_dtype)
 
     # infer device from obj if not explicitly given
-    if device is None:
+    if device is None and hasattr(obj, "device"):
         device = devices.sanitize_device(obj.device.type)
 
     if str(obj.device) != device.torch_device:
@@ -385,8 +399,6 @@ def array(
     # sanitize the split axes, ensure mutual exclusiveness
     split = sanitize_axis(obj.shape, split)
     is_split = sanitize_axis(obj.shape, is_split)
-    if split is not None and is_split is not None:
-        raise ValueError("split and is_split are mutually exclusive parameters")
 
     # sanitize comm object
     comm = sanitize_comm(comm)
