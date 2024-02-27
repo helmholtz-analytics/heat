@@ -322,17 +322,57 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
     dev = A.device
     tdev = dev.torch_device
 
+    nprocs = comm.Get_size()
+
     if A.split is None:  # A not split
-        x = torch.linalg.solve_triangular(A.larray, b.larray, upper=True)
-        return factories.array(x, dtype=b.dtype, device=dev, comm=comm)
+        if b.split is None:
+            x = torch.linalg.solve_triangular(A.larray, b.larray, upper=True)
+
+            return factories.array(x, dtype=b.dtype, device=dev, comm=comm)
+        else:  # A not split, b.split == -2
+            b_lshapes_cum = torch.hstack(
+                [torch.zeros(1, dtype=torch.int32), torch.cumsum(b.lshape_map[:, -2], 0)]
+            )
+
+            btilde_loc = b.larray.clone()
+            A_loc = A.larray[..., b_lshapes_cum[comm.rank] : b_lshapes_cum[comm.rank + 1]]
+
+            x = factories.zeros_like(b, comm=comm)
+
+            for i in range(nprocs - 1, 0, -1):
+                count = x.lshape_map[:, batch_dim].clone().numpy()
+                displ = b_lshapes_cum[:-1].clone().numpy()
+                count[i:] = 0  # nothing to send, as there are only zero rows
+                displ[i:] = 0
+
+                res_send = torch.empty(0)
+                res_recv = torch.zeros((*batch_shape, count[comm.rank], b.shape[-1]), device=tdev)
+
+                if comm.rank == i:
+                    x.larray = torch.linalg.solve_triangular(
+                        A_loc[..., b_lshapes_cum[i] : b_lshapes_cum[i + 1], :],
+                        btilde_loc,
+                        upper=True,
+                    )
+                    res_send = A_loc @ x.larray
+
+                comm.Scatterv((res_send, count, displ), res_recv, root=i, axis=batch_dim)
+
+                if comm.rank < i:
+                    btilde_loc -= res_recv
+
+            if comm.rank == 0:
+                x.larray = torch.linalg.solve_triangular(
+                    A_loc[..., : b_lshapes_cum[1], :], btilde_loc, upper=True
+                )
+
+            return x
 
     if A.split < batch_dim:  # batch split
         x = factories.zeros_like(b, comm=comm, split=A.split)
         x.larray = torch.linalg.solve_triangular(A.larray, b.larray, upper=True)
 
         return x
-
-    nprocs = comm.Get_size()
 
     if A.split >= batch_dim:  # both splits in la dims
         A_lshapes_cum = torch.hstack(
@@ -407,4 +447,4 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
                     A.larray[..., :, : A_lshapes_cum[1]], btilde_loc, upper=True
                 )
 
-    return x
+        return x
