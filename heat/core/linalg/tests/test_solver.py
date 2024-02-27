@@ -137,8 +137,10 @@ class TestSolver(TestCase):
             V, T = ht.lanczos(A, m=3)
 
     def test_solve_triangular(self):
-        k = 100  # data dimension size
         torch.manual_seed(42)
+        # non-batched tests
+
+        k = 100  # data dimension size
 
         # random triangular matrix inversion
         at = torch.rand((k, k))
@@ -152,7 +154,7 @@ class TestSolver(TestCase):
         c = ht.factories.asarray(ct, copy=True)
         b = ht.eye(k)
 
-        for s0, s1 in (None, None), (0, 0), (1, 0):
+        for s0, s1 in (None, None), (-2, -2), (-1, -2), (-2, None), (-1, None), (None, -2):
             a.resplit_(s0)
             b.resplit_(s1)
 
@@ -167,9 +169,46 @@ class TestSolver(TestCase):
         a = ht.factories.asarray(at, copy=True)
         c = ht.factories.asarray(ct, copy=True)
 
-        for s0, s1 in (None, None), (0, 0), (1, 0):
+        for s0, s1 in (None, None), (-2, -2), (-1, -2), (-2, None), (-1, None), (None, -2):
             a.resplit_(s0)
             b.resplit_(s1)
 
             res = ht.linalg.solve_triangular(a, b)
             self.assertTrue(ht.equal(res, c))
+
+        # batched tests
+
+        batch_shape = (10,)  # batch dimensions shape
+        # batch_shape = tuple() # no batch dimensions
+        m = 100  # data dimension size
+
+        at = torch.rand((*batch_shape, m, m))
+        # at += torch.eye(k)
+        at += 1e2 * torch.ones_like(at)  # make gaussian elimination more stable
+        at = torch.triu(at)
+        bt = torch.eye(m).expand((*batch_shape, -1, -1))
+
+        ct = torch.linalg.solve_triangular(at, bt, upper=True)
+
+        a = ht.factories.asarray(at, copy=True)
+        c = ht.factories.asarray(ct, copy=True)
+        b = ht.factories.asarray(bt, copy=True)
+
+        # split in linalg dimension or none
+        for s0, s1 in (None, None), (-2, -2), (-1, -2), (-2, None), (-1, None), (None, -2):
+            a.resplit_(s0)
+            b.resplit_(s1)
+
+            res = ht.linalg.solve_triangular(a, b)
+
+            self.assertTrue(ht.allclose(c, res))
+
+        # split in batch dimension
+        s = 0
+        a.resplit_(s)
+        b.resplit_(s)
+        c.resplit_(s)
+
+        res = ht.linalg.solve_triangular(a, b)
+
+        self.assertTrue(ht.allclose(c, res))
