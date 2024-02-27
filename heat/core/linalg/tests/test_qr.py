@@ -100,16 +100,20 @@ class TestQR(TestCase):
 #         self.assertTrue(ht.allclose(qr.Q.T @ qr.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
 #         self.assertTrue(ht.allclose(ht.eye(m), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5))
 
-#         # raises
-#         with self.assertRaises(TypeError):
-#             ht.qr(np.zeros((10, 10)))
-#         with self.assertRaises(TypeError):
-#             ht.qr(a_comp, tiles_per_proc="ls")
-#         with self.assertRaises(TypeError):
-#             ht.qr(a_comp, tiles_per_proc=1, calc_q=30)
-#         with self.assertRaises(TypeError):
-#             ht.qr(a_comp, tiles_per_proc=1, overwrite_a=30)
-#         with self.assertRaises(ValueError):
-#             ht.qr(a_comp, tiles_per_proc=torch.tensor([1, 2, 3]))
-#         with self.assertRaises(ValueError):
-#             ht.qr(ht.zeros((3, 4, 5)))
+        # raises
+        with self.assertRaises(TypeError):
+            ht.qr(np.zeros((10, 10)))
+        with self.assertRaises(TypeError):
+            ht.qr(a_comp, tiles_per_proc="ls")
+        with self.assertRaises(TypeError):
+            ht.qr(a_comp, tiles_per_proc=1, calc_q=30)
+        with self.assertRaises(TypeError):
+            ht.qr(a_comp, tiles_per_proc=1, overwrite_a=30)
+        with self.assertRaises(ValueError):
+            ht.qr(a_comp, tiles_per_proc=torch.tensor([1, 2, 3]))
+        with self.assertRaises(ValueError):
+            ht.qr(ht.zeros((3, 4, 5)))
+
+        a_comp.resplit_(0)
+        with self.assertWarns(Warning):
+            ht.qr(a_comp, tiles_per_proc=1)
