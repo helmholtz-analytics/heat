@@ -122,9 +122,14 @@ class TestQR(TestCase):
         # wrong data type for mode
         with self.assertRaises(TypeError):
             ht.linalg.qr(ht.zeros((10, 10)), mode=1)
-        # test wrong mode
+        # test wrong mode (such mode is not available for Torch)
         with self.assertRaises(ValueError):
             ht.linalg.qr(ht.zeros((10, 10)), mode="full")
+        # test mode that is available for Torch but not for Heat
+        with self.assertRaises(NotImplementedError):
+            ht.linalg.qr(ht.zeros((10, 10)), mode="complete")
+        with self.assertRaises(NotImplementedError):
+            ht.linalg.qr(ht.zeros((10, 10)), mode="raw")
         # wrong dtype for procs_to_merge
         with self.assertRaises(TypeError):
             ht.linalg.qr(ht.zeros((10, 10)), procs_to_merge="abc")
