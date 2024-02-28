@@ -196,7 +196,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
             self._cluster_centers = centroids
 
         elif self.init == "batchparallel":
-            if x.split is None or x.split == 0:
+            if x.split == 0:
                 if self._p == 2:
                     batch_parallel_clusterer = ht.cluster.BatchParallelKMeans(
                         n_clusters=self.n_clusters,
@@ -219,7 +219,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
                 self._cluster_centers = batch_parallel_clusterer.cluster_centers_
             else:
                 raise NotImplementedError(
-                    "Batch parallel initalization only implemented for split = 0 or None"
+                    f"Batch parallel initalization only implemented for split = 0, but split was {x.split}"
                 )
 
         else:
