@@ -340,8 +340,8 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
             x = factories.zeros_like(b, comm=comm)
 
             for i in range(nprocs - 1, 0, -1):
-                count = x.lshape_map[:, batch_dim].clone().numpy()
-                displ = b_lshapes_cum[:-1].clone().numpy()
+                count = x.lshape_map[:, batch_dim].to(torch.device("cpu")).clone().numpy()
+                displ = b_lshapes_cum[:-1].to(torch.device("cpu")).clone().numpy()
                 count[i:] = 0  # nothing to send, as there are only zero rows
                 displ[i:] = 0
 
@@ -369,7 +369,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
             return x
 
     if A.split < batch_dim:  # batch split
-        x = factories.zeros_like(b, comm=comm, split=A.split)
+        x = factories.zeros_like(b, device=dev, comm=comm, split=A.split)
         x.larray = torch.linalg.solve_triangular(A.larray, b.larray, upper=True)
 
         return x
@@ -392,8 +392,8 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
 
         if A.split == batch_dim + 1:
             for i in range(nprocs - 1, 0, -1):
-                count = x.lshape_map[:, batch_dim].clone().numpy()
-                displ = A_lshapes_cum[:-1].clone().numpy()
+                count = x.lshape_map[:, batch_dim].to(torch.device("cpu")).clone().numpy()
+                displ = A_lshapes_cum[:-1].to(torch.device("cpu")).clone().numpy()
                 count[i:] = 0  # nothing to send, as there are only zero rows
                 displ[i:] = 0
 
