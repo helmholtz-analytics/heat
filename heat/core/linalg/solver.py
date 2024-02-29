@@ -337,7 +337,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
             btilde_loc = b.larray.clone()
             A_loc = A.larray[..., b_lshapes_cum[comm.rank] : b_lshapes_cum[comm.rank + 1]]
 
-            x = factories.zeros_like(b, comm=comm)
+            x = factories.zeros_like(b, device=dev, comm=comm)
 
             for i in range(nprocs - 1, 0, -1):
                 count = x.lshape_map[:, batch_dim].to(torch.device("cpu")).clone().numpy()
@@ -387,7 +387,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
             btilde_loc = b.larray.clone()
 
         x = factories.zeros_like(
-            b, comm=comm, split=batch_dim
+            b, device=dev, comm=comm, split=batch_dim
         )  # split at la dim 0 in case b is not split
 
         if A.split == batch_dim + 1:
