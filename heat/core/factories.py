@@ -323,7 +323,7 @@ def array(
             raise ValueError(
                 "argument `copy` is set to False, but copy of input object is necessary as the array is being copied across devices.\nUse the method `DNDarray.cpu()` or  `DNDarray.gpu()` to move the array to the desired device."
             )
-            
+
         # extract the internal tensor
         obj = obj.larray
 
