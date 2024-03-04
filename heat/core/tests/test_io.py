@@ -2,6 +2,7 @@ import numpy as np
 import os
 import torch
 import tempfile
+import random
 
 import heat as ht
 from .test_suites.basic_test import TestCase
@@ -739,3 +740,20 @@ class TestIO(TestCase):
     #     os.rmdir(os.getcwd() + '/tmp/')
     # except OSError:
     #     pass
+
+    def test_load_npy(self):
+        # Abc
+        crea_array = np.random.randint(1024, size=(random.randint(1, 100), 5, 11))
+        np.save("data0", crea_array)
+
+        for i in range(1, 100):
+            x = np.random.randint(1024, size=(random.randint(1, 100), 5, 11))
+            crea_array = np.concatenate(x, 0)
+            np.save("data" + str(i), x)
+
+        array1 = ht.load_npy_from_path("/home/nguy_t4/home/heat/heat/core/tests")
+
+        if array1.numpy() == crea_array:
+            print("Everything correct")
+        else:
+            print("Loaded array and created array do not match")
