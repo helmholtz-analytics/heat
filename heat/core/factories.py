@@ -360,12 +360,15 @@ def array(
                     "argument `copy` is set to False, but copy of input object is necessary. \n Set copy=None to reuse the memory buffer whenever possible and allow for copies otherwise."
                 )
         try:
-            obj = torch.as_tensor(
-                obj,
-                device=(
-                    device.torch_device if device is not None else devices.get_device().torch_device
-                ),
-            )
+            if not isinstance(obj, torch.Tensor):
+                obj = torch.as_tensor(
+                    obj,
+                    device=(
+                        device.torch_device
+                        if device is not None
+                        else devices.get_device().torch_device
+                    ),
+                )
         except RuntimeError:
             raise TypeError(f"invalid data of type {type(obj)}")
 

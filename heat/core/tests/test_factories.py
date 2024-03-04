@@ -219,6 +219,9 @@ class TestFactories(TestCase):
                 dndarray_2d.larray == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
             ).all()
         )
+        # Check that the array is not a copy, (only really works when the array is not split)
+        if ht.communication.MPI_WORLD.size == 1:
+            self.assertIs(dndarray_2d.larray, array_2d)
 
         # The array should not change as all properties match
         dndarray_2d_new = ht.array(dndarray_2d, split=0, copy=False, dtype=ht.double)
@@ -234,6 +237,8 @@ class TestFactories(TestCase):
                 dndarray_2d.larray == torch.tensor([1.0, 2.0, 3.0], device=self.device.torch_device)
             ).all()
         )
+        # Reuse the same array
+        self.assertIs(dndarray_2d_new.larray, dndarray_2d.larray)
 
         # Should throw exeception because of resplit it causes a resplit
         with self.assertRaises(ValueError):
