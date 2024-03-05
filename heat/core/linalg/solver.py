@@ -331,7 +331,10 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
             return factories.array(x, dtype=b.dtype, device=dev, comm=comm)
         else:  # A not split, b.split == -2
             b_lshapes_cum = torch.hstack(
-                [torch.zeros(1, dtype=torch.int32), torch.cumsum(b.lshape_map[:, -2], 0)]
+                [
+                    torch.zeros(1, dtype=torch.int32, device=tdev),
+                    torch.cumsum(b.lshape_map[:, -2], 0),
+                ]
             )
 
             btilde_loc = b.larray.clone()
@@ -376,7 +379,10 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
 
     if A.split >= batch_dim:  # both splits in la dims
         A_lshapes_cum = torch.hstack(
-            [torch.zeros(1, dtype=torch.int32), torch.cumsum(A.lshape_map[:, A.split], 0)]
+            [
+                torch.zeros(1, dtype=torch.int32, device=tdev),
+                torch.cumsum(A.lshape_map[:, A.split], 0),
+            ]
         )
 
         if b.split is None:

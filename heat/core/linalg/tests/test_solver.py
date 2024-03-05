@@ -138,17 +138,18 @@ class TestSolver(TestCase):
 
     def test_solve_triangular(self):
         torch.manual_seed(42)
-        # non-batched tests
+        tdev = ht.get_device().torch_device
 
+        # non-batched tests
         k = 100  # data dimension size
 
         # random triangular matrix inversion
         at = torch.rand((k, k))
         # at += torch.eye(k)
         at += 1e2 * torch.ones_like(at)  # make gaussian elimination more stable
-        at = torch.triu(at)
+        at = torch.triu(at).to(tdev)
 
-        ct = torch.linalg.solve_triangular(at, torch.eye(k), upper=True)
+        ct = torch.linalg.solve_triangular(at, torch.eye(k, device=tdev), upper=True)
 
         a = ht.factories.asarray(at, copy=True)
         c = ht.factories.asarray(ct, copy=True)
@@ -163,8 +164,8 @@ class TestSolver(TestCase):
 
         # triangular ones inversion
         # for this test case, the results should be exact
-        at = torch.triu(torch.ones_like(at))
-        ct = torch.linalg.solve_triangular(at, torch.eye(k), upper=True)
+        at = torch.triu(torch.ones_like(at)).to(tdev)
+        ct = torch.linalg.solve_triangular(at, torch.eye(k, device=tdev), upper=True)
 
         a = ht.factories.asarray(at, copy=True)
         c = ht.factories.asarray(ct, copy=True)
@@ -177,7 +178,6 @@ class TestSolver(TestCase):
             self.assertTrue(ht.equal(res, c))
 
         # batched tests
-
         batch_shape = (10,)  # batch dimensions shape
         # batch_shape = tuple() # no batch dimensions
         m = 100  # data dimension size
@@ -185,8 +185,8 @@ class TestSolver(TestCase):
         at = torch.rand((*batch_shape, m, m))
         # at += torch.eye(k)
         at += 1e2 * torch.ones_like(at)  # make gaussian elimination more stable
-        at = torch.triu(at)
-        bt = torch.eye(m).expand((*batch_shape, -1, -1))
+        at = torch.triu(at).to(tdev)
+        bt = torch.eye(m).expand((*batch_shape, -1, -1)).to(tdev)
 
         ct = torch.linalg.solve_triangular(at, bt, upper=True)
 
