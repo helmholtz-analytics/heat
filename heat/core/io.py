@@ -1166,7 +1166,7 @@ def load_npy_from_path(
     n_files = len(file_list)
 
     if n_files == 0:
-        raise ValueError("")
+        raise ValueError("No NPY Files were found")
 
     rank = MPI_WORLD.rank
     if rank + 1 != process_number:
@@ -1182,7 +1182,7 @@ def load_npy_from_path(
     ]
     array_list = []
     for element in local_list:
-        array_list.append(np.load(element))
+        array_list.append(np.load(element, allow_pickle=True))
     larray = np.concatenate(array_list, split)
     larray = torch.from_numpy(larray)
 

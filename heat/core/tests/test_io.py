@@ -746,15 +746,14 @@ class TestIO(TestCase):
         crea_array = []
         for i in range(0, 100):
             x = np.random.randint(1024, size=(random.randint(1, 100), 5, 11))
-            np.save("data" + str(i), x)
+            np.save(os.path.join(os.getcwd(), "heat/datasets", "data") + str(i), x)
             crea_array.append(x)
 
-        load_array = ht.load_npy_from_path("/heat/core/tests")
+        load_array = ht.load_npy_from_path(os.path.join(os.getcwd(), "heat/datasets"), split=0)
         int_array = np.concatenate(crea_array)
 
-        self.assertEqual(crea_array, 100)
-        self.assertEqual(load_array.shape, int_array.shape)
+        self.assertEqual(load_array.gshape, int_array.shape)
         self.assertIsInstance(load_array, ht.DNDarray)
-        self.assertEqual(load_array.shape[1], int_array.shape[1])
-        self.assertEqual(load_array.shape[2], int_array.shape[2])
+        self.assertEqual(load_array.gshape[1], int_array.shape[1])
+        self.assertEqual(load_array.gshape[2], int_array.shape[2])
         self.assertEqual(load_array.dtype, ht.int32)
