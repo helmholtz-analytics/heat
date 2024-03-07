@@ -1182,7 +1182,7 @@ def load_npy_from_path(
     ]
     array_list = []
     for element in local_list:
-        array_list.append(np.load(element, allow_pickle=True))
+        array_list.append(np.load(path + "/" + element, allow_pickle=True))
     larray = np.concatenate(array_list, split)
     larray = torch.from_numpy(larray)
 

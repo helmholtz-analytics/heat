@@ -749,7 +749,8 @@ class TestIO(TestCase):
             np.save(os.path.join(os.getcwd(), "heat/datasets", "data") + str(i), x)
             crea_array.append(x)
 
-        load_array = ht.load_npy_from_path(os.path.join(os.getcwd(), "heat/datasets"), split=0)
+        print(os.path.join(os.getcwd(), "heat/datasets"))
+        load_array = ht.load_npy_from_path("heat/datasets", split=0)
         int_array = np.concatenate(crea_array)
 
         self.assertEqual(load_array.gshape, int_array.shape)
