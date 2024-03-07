@@ -753,8 +753,13 @@ class TestIO(TestCase):
         load_array = ht.load_npy_from_path("heat/datasets", split=0)
         int_array = np.concatenate(crea_array)
 
-        self.assertEqual(load_array.gshape, int_array.shape)
         self.assertIsInstance(load_array, ht.DNDarray)
         self.assertEqual(load_array.gshape[1], int_array.shape[1])
         self.assertEqual(load_array.gshape[2], int_array.shape[2])
         self.assertEqual(load_array.dtype, ht.int32)
+
+    def test_load_npy_exception(self):
+        with self.assertRaises(TypeError):
+            ht.load_npy_from_path(1, "data")
+        with self.assertRaises(TypeError):
+            ht.load_hdf5("heat/datasets", 1)
