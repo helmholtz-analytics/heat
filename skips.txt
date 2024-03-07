@@ -5,7 +5,7 @@ array_api_tests/test_array_object.py::test_getitem
 array_api_tests/test_array_object.py::test_setitem
 array_api_tests/test_array_object.py::test_getitem_masking
 array_api_tests/test_array_object.py::test_setitem_masking
-array_api_tests/test_linalg.py::test_matrix_matmul
+# array_api_tests/test_linalg.py::test_matrix_matmul
 array_api_tests/test_manipulation_functions.py::test_concat
 array_api_tests/test_manipulation_functions.py::test_stack
 array_api_tests/test_searching_functions.py::test_argmax
@@ -40,7 +40,7 @@ array_api_tests/test_statistical_functions.py::test_sum
 array_api_tests/test_type_promotion.py
 
 # PR #1000 any/all keepdim
-array_api_tests/test_linalg.py::test_matrix_transpose
+# array_api_tests/test_linalg.py::test_matrix_transpose
 array_api_tests/test_operators_and_elementwise_functions.py::test_abs
 array_api_tests/test_operators_and_elementwise_functions.py::test_bitwise_left_shift
 array_api_tests/test_operators_and_elementwise_functions.py::test_bitwise_right_shift
@@ -86,7 +86,7 @@ array_api_tests/test_signatures.py::test_func_signature[argsort]
 array_api_tests/test_sorting_functions.py::test_argsort
 
 # tensordot
-array_api_tests/test_linalg.py::test_tensordot
+# array_api_tests/test_linalg.py::test_tensordot
 
 # Special cases
 array_api_tests/test_operators_and_elementwise_functions.py::test_square
