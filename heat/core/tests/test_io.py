@@ -747,7 +747,7 @@ class TestIO(TestCase):
         for i in range(0, 100):
             x = np.random.randint(1024, size=(random.randint(1, 100), 5, 11))
             np.save("data" + str(i), x)
-            crea_array = crea_array.append(x)
+            crea_array.append(x)
 
         load_array = ht.load_npy_from_path("/heat/core/tests")
         int_array = np.concatenate(crea_array)
@@ -757,3 +757,4 @@ class TestIO(TestCase):
         self.assertIsInstance(load_array, ht.DNDarray)
         self.assertEqual(load_array.shape[1], int_array.shape[1])
         self.assertEqual(load_array.shape[2], int_array.shape[2])
+        self.assertEqual(load_array.dtype, ht.int32)
