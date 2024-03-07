@@ -1,4 +1,14 @@
-array_api_tests/test_fft.py
+# fft
+array_api_tests/test_fft.py::test_fft
+array_api_tests/test_fft.py::test_ifft
+array_api_tests/test_fft.py::test_fftn
+array_api_tests/test_fft.py::test_ifftn
+array_api_tests/test_fft.py::test_rfft
+array_api_tests/test_fft.py::test_irfft
+array_api_tests/test_fft.py::test_rfftn
+array_api_tests/test_fft.py::test_irfftn
+array_api_tests/test_fft.py::test_hfft
+array_api_tests/test_fft.py::test_ihfft
 
 # PR #938 Indexing overhaul
 array_api_tests/test_array_object.py::test_getitem
