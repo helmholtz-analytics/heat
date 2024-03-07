@@ -743,17 +743,17 @@ class TestIO(TestCase):
 
     def test_load_npy(self):
         # Abc
-        crea_array = np.random.randint(1024, size=(random.randint(1, 100), 5, 11))
-        np.save("data0", crea_array)
-
-        for i in range(1, 100):
+        crea_array = []
+        for i in range(0, 100):
             x = np.random.randint(1024, size=(random.randint(1, 100), 5, 11))
-            crea_array = np.concatenate(x, 0)
             np.save("data" + str(i), x)
+            crea_array = crea_array.append(x)
 
-        array1 = ht.load_npy_from_path("/home/nguy_t4/home/heat/heat/core/tests")
+        load_array = ht.load_npy_from_path("/heat/core/tests")
+        int_array = np.concatenate(crea_array)
 
-        if array1.numpy() == crea_array:
-            print("Everything correct")
-        else:
-            print("Loaded array and created array do not match")
+        self.assertEqual(crea_array, 100)
+        self.assertEqual(load_array.shape, int_array.shape)
+        self.assertIsInstance(load_array, ht.DNDarray)
+        self.assertEqual(load_array.shape[1], int_array.shape[1])
+        self.assertEqual(load_array.shape[2], int_array.shape[2])

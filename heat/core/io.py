@@ -1153,12 +1153,20 @@ def load_npy_from_path(
     """
     Abc
     """
+    if not isinstance(path, str):
+        raise TypeError(f"path must be str, not {type(path)}")
+    elif split is not None and not isinstance(split, int):
+        raise TypeError(f"split must be None or int, not {type(split)}")
+
     process_number = MPI_WORLD.size
     file_list = []
     for file in os.listdir(path):
         if fnmatch.fnmatch(file, "*.npy"):
             file_list.append(file)
     n_files = len(file_list)
+
+    if n_files == 0:
+        raise ValueError("")
 
     rank = MPI_WORLD.rank
     if rank + 1 != process_number:
