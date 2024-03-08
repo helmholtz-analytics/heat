@@ -1,6 +1,7 @@
 """
 Collection of solvers for systems of linear equations.
 """
+
 import heat as ht
 from ..dndarray import DNDarray
 from ..sanitation import sanitize_out

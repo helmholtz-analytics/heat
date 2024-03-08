@@ -5,7 +5,7 @@ import torch
 from ..core.communication import MPI
 from ..core.dndarray import DNDarray
 from ..core.stride_tricks import sanitize_axis
-from ..core.types import heat_type_is_exact, heat_type_of
+from ..core.types import heat_type_is_exact, heat_type_of, canonical_heat_type, float32
 from ..core.factories import array, arange
 from ..core.devices import Device
 
@@ -149,12 +149,22 @@ def __fftn_op(x: DNDarray, fftn_op: callable, **kwargs) -> DNDarray:
     output_shape = list(x.shape)
     shift_op = fftn_op in [torch.fft.fftshift, torch.fft.ifftshift]
     inverse_real_op = fftn_op in [torch.fft.irfftn, torch.fft.irfft2]
-    real_to_generic_fftn_ops = {
-        torch.fft.rfftn: torch.fft.fftn,
-        torch.fft.rfft2: torch.fft.fft2,
-        torch.fft.ihfftn: torch.fft.ifftn,
-        torch.fft.ihfft2: torch.fft.ifft2,
-    }
+
+    torch_has_ihfftn = hasattr(torch.fft, "ihfftn")
+
+    if torch_has_ihfftn:
+        real_to_generic_fftn_ops = {
+            torch.fft.rfftn: torch.fft.fftn,
+            torch.fft.rfft2: torch.fft.fft2,
+            torch.fft.ihfftn: torch.fft.ifftn,
+            torch.fft.ihfft2: torch.fft.ifft2,
+        }
+    else:  # pragma: no cover
+        real_to_generic_fftn_ops = {
+            torch.fft.rfftn: torch.fft.fftn,
+            torch.fft.rfft2: torch.fft.fft2,
+        }
+
     real_op = fftn_op in real_to_generic_fftn_ops
 
     # sanitize kwargs
@@ -324,7 +334,6 @@ def __fftfreq_op(fftfreq_op: callable, **kwargs) -> DNDarray:
         raise IndexError(f"`fftfreq` returns a 1-D array, `split` must be 0 or None, is {split}")
 
     # calculate parameters of the global frequency spectrum
-    channel_width = array(1.0 / (n * d), dtype=dtype, device=device, split=None)
     n_is_even = n % 2 == 0
     if n_is_even:
         middle_channel = n // 2
@@ -333,15 +342,21 @@ def __fftfreq_op(fftfreq_op: callable, **kwargs) -> DNDarray:
 
     # allocate global fftfreq array
     # if real operation, return only positive frequencies
+    freq_dtype = (
+        canonical_heat_type(torch.promote_types(torch_dtype, torch.float32))
+        if torch_dtype is not None
+        else float32
+    )
     if fftfreq_op == torch.fft.rfftfreq:
-        freqs = arange(middle_channel, dtype=dtype, device=device, split=split, comm=comm)
+        freqs = arange(middle_channel, dtype=freq_dtype, device=device, split=split, comm=comm)
     else:
-        freqs = arange(n, dtype=dtype, device=device, split=split, comm=comm)
+        freqs = arange(n, dtype=freq_dtype, device=device, split=split, comm=comm)
         # second half of fftfreq returns negative frequencies in inverse order
         freqs[middle_channel:] -= n
 
     # calculate global frequencies
-    freqs *= channel_width
+    channel_width = n * d
+    freqs /= channel_width
     return freqs
 
 
@@ -817,7 +832,7 @@ def ihfft2(
     x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
 ) -> DNDarray:
     """
-    Compute the inverse of a 2-dimensional discrete Fourier Transform of a Hermitian-symmetric signal. The output is Hermitian-symmetric.
+    Compute the inverse of a 2-dimensional discrete Fourier Transform of a Hermitian-symmetric signal. The output is Hermitian-symmetric. Requires torch >= 1.11.0.
 
     Parameters
     ----------
@@ -843,6 +858,11 @@ def ihfft2(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
+    torch_has_ihfftn = hasattr(torch.fft, "ihfftn")
+    if not torch_has_ihfftn:  # pragma: no cover
+        raise NotImplementedError(
+            f"n-dim inverse Hermitian FFTs not implemented for torch < 1.11.0. Your environment runs torch {torch.__version__}. Please upgrade torch."
+        )
     return __real_fftn_op(x, torch.fft.ihfft2, s=s, axes=axes, norm=norm)
 
 
@@ -850,7 +870,7 @@ def ihfftn(
     x: DNDarray, s: Tuple[int, ...] = None, axes: Tuple[int, ...] = None, norm: str = None
 ) -> DNDarray:
     """
-    Compute the inverse of a N-dimensional discrete Fourier Transform of Hermitian-symmetric signal. The output is Hermitian-symmetric.
+    Compute the inverse of a N-dimensional discrete Fourier Transform of Hermitian-symmetric signal. The output is Hermitian-symmetric. Requires torch >= 1.11.0.
 
     Parameters
     ----------
@@ -876,6 +896,11 @@ def ihfftn(
     -----
     This function requires MPI communication if the input array is distributed and the split axis is transformed.
     """
+    torch_has_ihfftn = hasattr(torch.fft, "ihfftn")
+    if not torch_has_ihfftn:  # pragma: no cover
+        raise NotImplementedError(
+            f"n-dim inverse Hermitian FFTs not implemented for torch < 1.11.0. Your environment runs torch {torch.__version__}. Please upgrade torch."
+        )
     return __real_fftn_op(x, torch.fft.ihfftn, s=s, axes=axes, norm=norm)
 
 

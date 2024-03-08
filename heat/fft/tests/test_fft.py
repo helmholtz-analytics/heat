@@ -1,8 +1,11 @@
 import numpy as np
 import torch
+import unittest
 
 import heat as ht
 from heat.core.tests.test_suites.basic_test import TestCase
+
+torch_ihfftn = hasattr(torch.fft, "ihfftn")
 
 
 class TestFFT(TestCase):
@@ -164,6 +167,7 @@ class TestFFT(TestCase):
         d = 0.22365
         y = ht.fft.rfftfreq(n, d=d)
         np_y = np.fft.rfftfreq(n, d=d)
+        self.assertEqual(y.shape[0], n // 2 + 1)
         self.assertEqual(y.shape, np_y.shape)
         self.assert_array_equal(y, np_y)
 
@@ -173,6 +177,9 @@ class TestFFT(TestCase):
         d = 0.1
         with self.assertRaises(TypeError):
             ht.fft.fftfreq(n, d=d, dtype=ht.int32)
+        # wrong dtype
+        with self.assertRaises(TypeError):
+            ht.fft.fftfreq(n, d=d, dtype=np.float64)
         # unsupported n
         n = 10.7
         with self.assertRaises(ValueError):
@@ -186,6 +193,11 @@ class TestFFT(TestCase):
         d = ht.array(0.1)
         with self.assertRaises(TypeError):
             ht.fft.fftfreq(n, d=d)
+        # unsupported output split
+        n = 10
+        d = 0.1
+        with self.assertRaises(IndexError):
+            ht.fft.fftfreq(n, d=d, split=1)
 
     def test_fftshift_ifftshift(self):
         # non-distributed
@@ -227,17 +239,25 @@ class TestFFT(TestCase):
 
     def test_hfft2_ihfft2(self):
         x = ht.random.randn(10, 6, 6, dtype=ht.float64)
-        inv_fft = ht.fft.ihfft2(x)
-        reconstructed_x = ht.fft.hfft2(inv_fft, s=x.shape[-2:])
-        self.assertTrue(ht.allclose(reconstructed_x, x))
+        if torch_ihfftn:
+            inv_fft = ht.fft.ihfft2(x)
+            reconstructed_x = ht.fft.hfft2(inv_fft, s=x.shape[-2:])
+            self.assertTrue(ht.allclose(reconstructed_x, x))
+        else:
+            with self.assertRaises(NotImplementedError):
+                ht.fft.ihfft2(x)
 
     def test_hfftn_ihfftn(self):
         x = ht.random.randn(10, 6, 6, dtype=ht.float64)
-        inv_fft = ht.fft.ifftn(x)
-        reconstructed_x = ht.fft.hfftn(inv_fft, s=x.shape)
-        self.assertTrue(ht.allclose(reconstructed_x, x))
-        reconstructed_x_no_s = ht.fft.hfftn(inv_fft)
-        self.assertEqual(reconstructed_x_no_s.shape[-1], 2 * (inv_fft.shape[-1] - 1))
+        if torch_ihfftn:
+            inv_fft = ht.fft.ihfftn(x)
+            reconstructed_x = ht.fft.hfftn(inv_fft, s=x.shape)
+            self.assertTrue(ht.allclose(reconstructed_x, x))
+            reconstructed_x_no_s = ht.fft.hfftn(inv_fft)
+            self.assertEqual(reconstructed_x_no_s.shape[-1], 2 * (inv_fft.shape[-1] - 1))
+        else:
+            with self.assertRaises(NotImplementedError):
+                ht.fft.ihfftn(x)
 
     def test_rfft_irfft(self):
         # n-D distributed
@@ -284,7 +304,7 @@ class TestFFT(TestCase):
 
     def test_rfft2_irfft2(self):
         # n-D distributed
-        x = ht.random.randn(10, 8, 6, dtype=ht.float64, split=0)
+        x = ht.random.randn(4, 8, 6, dtype=ht.float64, split=0)
         # FFT along last 2 axes
         y = ht.fft.rfft2(x, axes=(1, 2))
         np_y = np.fft.rfft2(x.numpy(), axes=(1, 2))
