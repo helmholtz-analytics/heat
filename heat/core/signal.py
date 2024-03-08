@@ -490,6 +490,13 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
 
             # accumulate relevant slice of filtered signal
             # note, this is a binary operation between unevenly distributed dndarrays and will require communication, check out _operations.__binary_op()
+            print(
+                "DEVICES: signal_filtered, global_signal_filtered, start_idx, gshape",
+                signal_filtered.device,
+                global_signal_filtered.device,
+                start_idx,
+                gshape,
+            )
             if split_axis == 0:
                 signal_filtered += global_signal_filtered[start_idx : start_idx + gshape[0]]
             else:
