@@ -275,12 +275,7 @@ def convolve(a: DNDarray, v: DNDarray, mode: str = "full") -> DNDarray:
 
             # accumulate relevant slice of filtered signal
             # note, this is a binary operation between unevenly distributed dndarrays and will require communication, check out _operations.__binary_op()
-            try:
-                signal_filtered += global_signal_filtered[start_idx : start_idx + gshape]
-            except (ValueError, TypeError):
-                signal_filtered = (
-                    signal_filtered + global_signal_filtered[start_idx : start_idx + gshape]
-                )
+            signal_filtered += global_signal_filtered[start_idx : start_idx + gshape]
             if r != size - 1:
                 start_idx += v.lshape_map[r + 1][0].item()
         return signal_filtered
@@ -495,6 +490,13 @@ def convolve2d(a, v, mode="full", boundary="fill", fillvalue=0):
 
             # accumulate relevant slice of filtered signal
             # note, this is a binary operation between unevenly distributed dndarrays and will require communication, check out _operations.__binary_op()
+            print(
+                "DEVICES: signal_filtered, global_signal_filtered, start_idx, gshape",
+                signal_filtered.device,
+                global_signal_filtered.device,
+                start_idx,
+                gshape,
+            )
             if split_axis == 0:
                 signal_filtered += global_signal_filtered[start_idx : start_idx + gshape[0]]
             else:
