@@ -757,7 +757,7 @@ class TestIO(TestCase):
         self.assertEqual(load_array.gshape[1], int_array.shape[1])
         self.assertEqual(load_array.gshape[2], int_array.shape[2])
         self.assertEqual(load_array.dtype, ht.int32)
-        self.assertEqual(load_array.numpy(), int_array)
+        self.assertTrue((load_array.numpy() == int_array).all())
 
     def test_load_npy_exception(self):
         with self.assertRaises(TypeError):
