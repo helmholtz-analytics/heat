@@ -745,7 +745,7 @@ class TestIO(TestCase):
         # Abc
         crea_array = []
         for i in range(0, 100):
-            x = np.random.randint(1024, size=(random.randint(1, 100), 5, 11))
+            x = np.random.randint(10, size=(random.randint(1, 100), 5, 11))
             np.save(os.path.join(os.getcwd(), "heat/datasets", "data") + str(i), x)
             crea_array.append(x)
 
@@ -757,9 +757,10 @@ class TestIO(TestCase):
         self.assertEqual(load_array.gshape[1], int_array.shape[1])
         self.assertEqual(load_array.gshape[2], int_array.shape[2])
         self.assertEqual(load_array.dtype, ht.int32)
+        self.assertEqual(load_array.numpy(), int_array)
 
     def test_load_npy_exception(self):
         with self.assertRaises(TypeError):
-            ht.load_npy_from_path(1, "data")
+            ht.load_npy_from_path(1, split=0)
         with self.assertRaises(TypeError):
-            ht.load_hdf5("heat/datasets", 1)
+            ht.load_npy_from_path("heat/datasets", split="ABC")
