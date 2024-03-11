@@ -1,0 +1,578 @@
+# fft
+array_api_tests/test_fft.py::test_fft
+array_api_tests/test_fft.py::test_ifft
+array_api_tests/test_fft.py::test_fftn
+array_api_tests/test_fft.py::test_ifftn
+array_api_tests/test_fft.py::test_rfft
+array_api_tests/test_fft.py::test_irfft
+array_api_tests/test_fft.py::test_rfftn
+array_api_tests/test_fft.py::test_irfftn
+array_api_tests/test_fft.py::test_hfft
+array_api_tests/test_fft.py::test_ihfft
+
+# PR #938 Indexing overhaul
+array_api_tests/test_array_object.py::test_getitem
+array_api_tests/test_array_object.py::test_setitem
+array_api_tests/test_array_object.py::test_getitem_masking
+array_api_tests/test_array_object.py::test_setitem_masking
+# array_api_tests/test_linalg.py::test_matrix_matmul
+array_api_tests/test_manipulation_functions.py::test_concat
+array_api_tests/test_manipulation_functions.py::test_stack
+array_api_tests/test_searching_functions.py::test_argmax
+array_api_tests/test_searching_functions.py::test_argmin
+array_api_tests/test_searching_functions.py::test_nonzero
+array_api_tests/test_searching_functions.py::test_where
+array_api_tests/test_special_cases.py::test_nan_propagation[max]
+array_api_tests/test_special_cases.py::test_nan_propagation[min]
+array_api_tests/test_special_cases.py::test_nan_propagation[prod]
+array_api_tests/test_special_cases.py::test_nan_propagation[sum]
+array_api_tests/test_special_cases.py::test_binary[add(isfinite(x1_i) and x1_i != 0 and x2_i == -x1_i) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(isfinite(x1_i) and x1_i != 0 and x2_i == -x1_i) -> +0]
+array_api_tests/test_statistical_functions.py::test_max
+array_api_tests/test_statistical_functions.py::test_mean
+array_api_tests/test_statistical_functions.py::test_min
+array_api_tests/test_statistical_functions.py::test_prod
+array_api_tests/test_statistical_functions.py::test_var
+array_api_tests/test_utility_functions.py::test_all
+array_api_tests/test_utility_functions.py::test_any
+
+# Pytorch dtypes https://github.com/pytorch/pytorch/issues/58734
+array_api_tests/test_array_object.py::test_scalar_casting[__int__(uint16)]
+array_api_tests/test_array_object.py::test_scalar_casting[__int__(uint32)]
+array_api_tests/test_array_object.py::test_scalar_casting[__int__(uint64)]
+array_api_tests/test_array_object.py::test_scalar_casting[__index__(uint16)]
+array_api_tests/test_array_object.py::test_scalar_casting[__index__(uint32)]
+array_api_tests/test_array_object.py::test_scalar_casting[__index__(uint64)]
+array_api_tests/test_data_type_functions.py::test_iinfo[uint16]
+array_api_tests/test_data_type_functions.py::test_iinfo[uint32]
+array_api_tests/test_data_type_functions.py::test_iinfo[uint64]
+array_api_tests/test_statistical_functions.py::test_sum
+array_api_tests/test_type_promotion.py
+
+# PR #1000 any/all keepdim
+# array_api_tests/test_linalg.py::test_matrix_transpose
+array_api_tests/test_operators_and_elementwise_functions.py::test_abs
+array_api_tests/test_operators_and_elementwise_functions.py::test_bitwise_left_shift
+array_api_tests/test_operators_and_elementwise_functions.py::test_bitwise_right_shift
+array_api_tests/test_operators_and_elementwise_functions.py::test_floor_divide
+array_api_tests/test_operators_and_elementwise_functions.py::test_positive
+array_api_tests/test_operators_and_elementwise_functions.py::test_pow
+array_api_tests/test_operators_and_elementwise_functions.py::test_remainder
+
+# PR #993 Precision loss
+array_api_tests/test_creation_functions.py::test_arange
+array_api_tests/test_creation_functions.py::test_linspace
+
+# PR #1018 __reduce_op bug
+array_api_tests/test_creation_functions.py::test_asarray_arrays
+array_api_tests/test_creation_functions.py::test_full
+array_api_tests/test_creation_functions.py::test_full_like
+array_api_tests/test_creation_functions.py::test_ones
+array_api_tests/test_creation_functions.py::test_ones_like
+array_api_tests/test_creation_functions.py::test_zeros
+array_api_tests/test_creation_functions.py::test_zeros_like
+array_api_tests/test_operators_and_elementwise_functions.py::test_negative
+array_api_tests/test_special_cases.py::test_empty_arrays[prod]
+array_api_tests/test_special_cases.py::test_nan_propagation[sum]
+
+# k not implemented
+array_api_tests/test_creation_functions.py::test_eye
+
+# PR #1020 broadcasting
+array_api_tests/test_data_type_functions.py::test_broadcast_arrays
+array_api_tests/test_data_type_functions.py::test_broadcast_to
+
+# PR #749 unique
+array_api_tests/test_set_functions.py::test_unique_all
+array_api_tests/test_set_functions.py::test_unique_counts
+array_api_tests/test_set_functions.py::test_unique_inverse
+array_api_tests/test_set_functions.py::test_unique_values
+array_api_tests/test_signatures.py::test_func_signature[unique_all]
+array_api_tests/test_signatures.py::test_func_signature[unique_counts]
+array_api_tests/test_sorting_functions.py::test_sort
+
+# PR #996 argsort
+array_api_tests/test_signatures.py::test_func_signature[argsort]
+array_api_tests/test_sorting_functions.py::test_argsort
+
+# tensordot
+# array_api_tests/test_linalg.py::test_tensordot
+
+# Special cases
+array_api_tests/test_operators_and_elementwise_functions.py::test_square
+array_api_tests/test_special_cases.py::test_binary[floor_divide(x1_i is +infinity and isfinite(x2_i) and x2_i > 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[floor_divide(x1_i is +infinity and isfinite(x2_i) and x2_i < 0) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[floor_divide(x1_i is -infinity and isfinite(x2_i) and x2_i > 0) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[floor_divide(x1_i is -infinity and isfinite(x2_i) and x2_i < 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[floor_divide(isfinite(x1_i) and x1_i > 0 and x2_i is -infinity) -> -0]
+array_api_tests/test_special_cases.py::test_binary[floor_divide(isfinite(x1_i) and x1_i < 0 and x2_i is +infinity) -> -0]
+array_api_tests/test_special_cases.py::test_binary[__floordiv__(x1_i is +infinity and isfinite(x2_i) and x2_i > 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__floordiv__(x1_i is +infinity and isfinite(x2_i) and x2_i < 0) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[__floordiv__(x1_i is -infinity and isfinite(x2_i) and x2_i > 0) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[__floordiv__(x1_i is -infinity and isfinite(x2_i) and x2_i < 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__floordiv__(isfinite(x1_i) and x1_i > 0 and x2_i is -infinity) -> -0]
+array_api_tests/test_special_cases.py::test_binary[__floordiv__(isfinite(x1_i) and x1_i < 0 and x2_i is +infinity) -> -0]
+array_api_tests/test_special_cases.py::test_binary[remainder(x1_i is -0 and x2_i > 0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[remainder(x1_i is +0 and x2_i < 0) -> -0]
+array_api_tests/test_special_cases.py::test_binary[__mod__(x1_i is -0 and x2_i > 0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__mod__(x1_i is +0 and x2_i < 0) -> -0]
+array_api_tests/test_special_cases.py::test_iop[__ifloordiv__(x1_i is +infinity and isfinite(x2_i) and x2_i > 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__ifloordiv__(x1_i is +infinity and isfinite(x2_i) and x2_i < 0) -> -infinity]
+array_api_tests/test_special_cases.py::test_iop[__ifloordiv__(x1_i is -infinity and isfinite(x2_i) and x2_i > 0) -> -infinity]
+array_api_tests/test_special_cases.py::test_iop[__ifloordiv__(x1_i is -infinity and isfinite(x2_i) and x2_i < 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__ifloordiv__(isfinite(x1_i) and x1_i > 0 and x2_i is -infinity) -> -0]
+array_api_tests/test_special_cases.py::test_iop[__ifloordiv__(isfinite(x1_i) and x1_i < 0 and x2_i is +infinity) -> -0]
+array_api_tests/test_special_cases.py::test_iop[__imod__(x1_i is -0 and x2_i > 0) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__imod__(x1_i is +0 and x2_i < 0) -> -0]
+# std special cases
+array_api_tests/test_statistical_functions.py::test_std
+array_api_tests/test_special_cases.py::test_empty_arrays[std]
+array_api_tests/test_special_cases.py::test_nan_propagation[std]
+
+# skip FAILED tests
+array_api_tests/test_array_object.py::test_scalar_casting[__float__(float64)]
+array_api_tests/test_creation_functions.py::test_asarray_scalars
+array_api_tests/test_creation_functions.py::test_empty
+array_api_tests/test_creation_functions.py::test_empty_like
+array_api_tests/test_creation_functions.py::test_meshgrid
+array_api_tests/test_data_type_functions.py::test_astype
+array_api_tests/test_data_type_functions.py::test_can_cast
+array_api_tests/test_data_type_functions.py::test_finfo[float32]
+array_api_tests/test_data_type_functions.py::test_finfo[float64]
+array_api_tests/test_data_type_functions.py::test_iinfo[uint8]
+array_api_tests/test_data_type_functions.py::test_iinfo[int8]
+array_api_tests/test_data_type_functions.py::test_iinfo[int16]
+array_api_tests/test_data_type_functions.py::test_iinfo[int32]
+array_api_tests/test_data_type_functions.py::test_iinfo[int64]
+array_api_tests/test_data_type_functions.py::test_isdtype
+array_api_tests/test_has_names.py::test_has_names[linalg-cholesky]
+array_api_tests/test_has_names.py::test_has_names[linalg-cross]
+array_api_tests/test_has_names.py::test_has_names[linalg-cholesky]
+array_api_tests/test_has_names.py::test_has_names[linalg-cross]
+array_api_tests/test_has_names.py::test_has_names[linalg-det]
+array_api_tests/test_has_names.py::test_has_names[linalg-diagonal]
+array_api_tests/test_has_names.py::test_has_names[linalg-eigh]
+array_api_tests/test_has_names.py::test_has_names[linalg-eigvalsh]
+array_api_tests/test_has_names.py::test_has_names[linalg-inv]
+array_api_tests/test_has_names.py::test_has_names[linalg-matrix_norm]
+array_api_tests/test_has_names.py::test_has_names[linalg-matrix_power]
+array_api_tests/test_has_names.py::test_has_names[linalg-matrix_rank]
+array_api_tests/test_has_names.py::test_has_names[linalg-outer]
+array_api_tests/test_has_names.py::test_has_names[linalg-pinv]
+array_api_tests/test_has_names.py::test_has_names[linalg-qr]
+array_api_tests/test_has_names.py::test_has_names[linalg-slogdet]
+array_api_tests/test_has_names.py::test_has_names[linalg-solve]
+array_api_tests/test_has_names.py::test_has_names[linalg-svd]
+array_api_tests/test_has_names.py::test_has_names[linalg-svdvals]
+array_api_tests/test_has_names.py::test_has_names[linalg-trace]
+array_api_tests/test_has_names.py::test_has_names[linalg-vector_norm]
+array_api_tests/test_has_names.py::test_has_names[data_type-isdtype]
+array_api_tests/test_has_names.py::test_has_names[indexing-take]
+array_api_tests/test_has_names.py::test_has_names[sorting-argsort]
+array_api_tests/test_has_names.py::test_has_names[set-unique_all]
+array_api_tests/test_has_names.py::test_has_names[set-unique_counts]
+array_api_tests/test_has_names.py::test_has_names[elementwise-conj]
+array_api_tests/test_has_names.py::test_has_names[elementwise-imag]
+array_api_tests/test_has_names.py::test_has_names[elementwise-real]
+array_api_tests/test_has_names.py::test_has_names[array_method-__complex__]
+array_api_tests/test_indexing_functions.py::test_take
+array_api_tests/test_linalg.py::test_matmul
+array_api_tests/test_linalg.py::test_matrix_transpose
+array_api_tests/test_linalg.py::test_tensordot
+array_api_tests/test_linalg.py::test_vecdot
+array_api_tests/test_manipulation_functions.py::test_expand_dims
+array_api_tests/test_manipulation_functions.py::test_squeeze
+array_api_tests/test_manipulation_functions.py::test_flip
+array_api_tests/test_manipulation_functions.py::test_permute_dims
+array_api_tests/test_manipulation_functions.py::test_roll
+array_api_tests/test_operators_and_elementwise_functions.py::test_acos
+array_api_tests/test_operators_and_elementwise_functions.py::test_acosh
+array_api_tests/test_operators_and_elementwise_functions.py::test_add[add(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_add[__add__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_add[__add__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_add[__iadd__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_asin
+array_api_tests/test_operators_and_elementwise_functions.py::test_asinh
+array_api_tests/test_operators_and_elementwise_functions.py::test_atan
+array_api_tests/test_operators_and_elementwise_functions.py::test_atan2
+array_api_tests/test_operators_and_elementwise_functions.py::test_atanh
+array_api_tests/test_operators_and_elementwise_functions.py::test_ceil
+array_api_tests/test_operators_and_elementwise_functions.py::test_conj
+array_api_tests/test_operators_and_elementwise_functions.py::test_cos
+array_api_tests/test_operators_and_elementwise_functions.py::test_cosh
+array_api_tests/test_operators_and_elementwise_functions.py::test_divide[divide(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_divide[__truediv__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_divide[__truediv__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_divide[__itruediv__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_divide[__itruediv__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_equal[equal(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_equal[__eq__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_equal[__eq__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_exp
+array_api_tests/test_operators_and_elementwise_functions.py::test_expm1
+array_api_tests/test_operators_and_elementwise_functions.py::test_floor
+array_api_tests/test_operators_and_elementwise_functions.py::test_greater[greater(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_greater[__gt__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[greater_equal(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[__ge__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[__ge__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_imag
+array_api_tests/test_operators_and_elementwise_functions.py::test_isfinite
+array_api_tests/test_operators_and_elementwise_functions.py::test_isinf
+array_api_tests/test_operators_and_elementwise_functions.py::test_isnan
+array_api_tests/test_operators_and_elementwise_functions.py::test_less[less(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_less[__lt__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_less[__lt__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_less_equal[less_equal(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_less_equal[__le__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_less_equal[__le__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_log
+array_api_tests/test_operators_and_elementwise_functions.py::test_log1p
+array_api_tests/test_operators_and_elementwise_functions.py::test_log2
+array_api_tests/test_operators_and_elementwise_functions.py::test_log10
+array_api_tests/test_operators_and_elementwise_functions.py::test_logaddexp
+array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[multiply(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[__mul__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[__mul__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[__imul__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_not_equal[not_equal(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_not_equal[__ne__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_not_equal[__ne__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_real
+array_api_tests/test_operators_and_elementwise_functions.py::test_round
+array_api_tests/test_operators_and_elementwise_functions.py::test_sign
+array_api_tests/test_operators_and_elementwise_functions.py::test_sin
+array_api_tests/test_operators_and_elementwise_functions.py::test_sinh
+array_api_tests/test_operators_and_elementwise_functions.py::test_sqrt
+array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[subtract(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[__sub__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[__sub__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[__isub__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_tan
+array_api_tests/test_operators_and_elementwise_functions.py::test_tanh
+array_api_tests/test_operators_and_elementwise_functions.py::test_trunc
+array_api_tests/test_signatures.py::test_func_signature[isdtype]
+array_api_tests/test_signatures.py::test_func_signature[take]
+array_api_tests/test_signatures.py::test_func_signature[conj]
+array_api_tests/test_signatures.py::test_func_signature[imag]
+array_api_tests/test_signatures.py::test_func_signature[real]
+array_api_tests/test_signatures.py::test_array_method_signature[__complex__]
+array_api_tests/test_special_cases.py::test_unary[abs(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[abs(x_i is -0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[abs(x_i is -infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[__abs__(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[__abs__(x_i is -0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[__abs__(x_i is -infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[acos(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[acos(x_i > 1) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[acos(x_i < -1) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[acos(x_i is 1) -> +0]
+array_api_tests/test_special_cases.py::test_unary[acosh(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[acosh(x_i < 1) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[acosh(x_i is 1) -> +0]
+array_api_tests/test_special_cases.py::test_unary[acosh(x_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[asin(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[asin(x_i > 1) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[asin(x_i < -1) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[asin(x_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[asin(x_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_unary[asinh(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[asinh(x_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[asinh(x_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_unary[asinh(x_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[asinh(x_i is -infinity) -> -infinity]
+array_api_tests/test_special_cases.py::test_unary[atan(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[atan(x_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[atan(x_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_unary[atan(x_i is +infinity) -> roughly +pi/2]
+array_api_tests/test_special_cases.py::test_unary[atan(x_i is -infinity) -> roughly -pi/2]
+array_api_tests/test_special_cases.py::test_unary[atanh(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[atanh(x_i < -1) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[atanh(x_i > 1) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[atanh(x_i is -1) -> -infinity]
+array_api_tests/test_special_cases.py::test_unary[atanh(x_i is +1) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[atanh(x_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[atanh(x_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_unary[ceil(x_i.is_integer()) -> x_i]
+array_api_tests/test_special_cases.py::test_unary[cos(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[cos(x_i is +0) -> 1]
+array_api_tests/test_special_cases.py::test_unary[cos(x_i is -0) -> 1]
+array_api_tests/test_special_cases.py::test_unary[cos(x_i is +infinity) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[cos(x_i is -infinity) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[cosh(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[cosh(x_i is +0) -> 1]
+array_api_tests/test_special_cases.py::test_unary[cosh(x_i is -0) -> 1]
+array_api_tests/test_special_cases.py::test_unary[cosh(x_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[cosh(x_i is -infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[exp(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[exp(x_i is +0) -> 1]
+array_api_tests/test_special_cases.py::test_unary[exp(x_i is -0) -> 1]
+array_api_tests/test_special_cases.py::test_unary[exp(x_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[exp(x_i is -infinity) -> +0]
+array_api_tests/test_special_cases.py::test_unary[expm1(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[expm1(x_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[expm1(x_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_unary[expm1(x_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[expm1(x_i is -infinity) -> -1]
+array_api_tests/test_special_cases.py::test_unary[floor(x_i.is_integer()) -> x_i]
+array_api_tests/test_special_cases.py::test_unary[isfinite((x_i is +infinity or x_i == -infinity)) -> False]
+array_api_tests/test_special_cases.py::test_unary[isfinite(x_i is NaN) -> False]
+array_api_tests/test_special_cases.py::test_unary[isfinite(isfinite(x_i)) -> True]
+array_api_tests/test_special_cases.py::test_unary[isinf((x_i is +infinity or x_i == -infinity)) -> True]
+array_api_tests/test_special_cases.py::test_unary[isnan(x_i is NaN) -> True]
+array_api_tests/test_special_cases.py::test_unary[log(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[log(x_i < 0) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[log((x_i is +0 or x_i == -0)) -> -infinity]
+array_api_tests/test_special_cases.py::test_unary[log(x_i is 1) -> +0]
+array_api_tests/test_special_cases.py::test_unary[log(x_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[log1p(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[log1p(x_i < -1) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[log1p(x_i is -1) -> -infinity]
+array_api_tests/test_special_cases.py::test_unary[log1p(x_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_unary[log1p(x_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[log1p(x_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[log2(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[log2(x_i < 0) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[log2((x_i is +0 or x_i == -0)) -> -infinity]
+array_api_tests/test_special_cases.py::test_unary[log2(x_i is 1) -> +0]
+array_api_tests/test_special_cases.py::test_unary[log2(x_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[log10(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[log10(x_i < 0) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[log10((x_i is +0 or x_i == -0)) -> -infinity]
+array_api_tests/test_special_cases.py::test_unary[log10(x_i is 1) -> +0]
+array_api_tests/test_special_cases.py::test_unary[log10(x_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[round(x_i.is_integer()) -> x_i]
+array_api_tests/test_special_cases.py::test_unary[round(x_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[round(x_i is -infinity) -> -infinity]
+array_api_tests/test_special_cases.py::test_unary[round(x_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[round(x_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_unary[round(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[round(modf(i)[0] == 0.5) -> Decimal(i).to_integral_exact(ROUND_HALF_EVEN)]
+array_api_tests/test_special_cases.py::test_unary[sign(x_i < 0) -> -1]
+array_api_tests/test_special_cases.py::test_unary[sign((x_i is -0 or x_i == +0)) -> 0]
+array_api_tests/test_special_cases.py::test_unary[sign(x_i > 0) -> +1]
+array_api_tests/test_special_cases.py::test_unary[sign(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[sin(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[sin(x_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[sin(x_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_unary[sin((x_i is +infinity or x_i == -infinity)) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[sinh(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[sinh(x_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[sinh(x_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_unary[sinh(x_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[sinh(x_i is -infinity) -> -infinity]
+array_api_tests/test_special_cases.py::test_unary[sqrt(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[sqrt(x_i < 0) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[sqrt(x_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[sqrt(x_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_unary[sqrt(x_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_unary[tan(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[tan(x_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[tan(x_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_unary[tan((x_i is +infinity or x_i == -infinity)) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[tanh(x_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_unary[tanh(x_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_unary[tanh(x_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_unary[tanh(x_i is +infinity) -> +1]
+array_api_tests/test_special_cases.py::test_unary[tanh(x_i is -infinity) -> -1]
+array_api_tests/test_special_cases.py::test_unary[trunc(x_i.is_integer()) -> x_i]
+array_api_tests/test_special_cases.py::test_binary[add(x1_i is NaN or x2_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[add(x1_i is +infinity and x2_i is -infinity) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[add(x1_i is -infinity and x2_i is +infinity) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[add(x1_i is +infinity and x2_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[add(x1_i is -infinity and x2_i is -infinity) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[add(x1_i is +infinity and isfinite(x2_i)) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[add(x1_i is -infinity and isfinite(x2_i)) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[add(isfinite(x1_i) and x2_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[add(isfinite(x1_i) and x2_i is -infinity) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[add(x1_i is -0 and x2_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_binary[add(x1_i is -0 and x2_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[add(x1_i is +0 and x2_i is -0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[add(x1_i is +0 and x2_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[add((x1_i is +0 or x1_i == -0) and isfinite(x2_i) and x2_i != 0) -> x2_i]
+array_api_tests/test_special_cases.py::test_binary[add(isfinite(x1_i) and x1_i != 0 and (x2_i is +0 or x2_i == -0)) -> x1_i]
+array_api_tests/test_special_cases.py::test_binary[__add__(x1_i is NaN or x2_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[__add__(x1_i is +infinity and x2_i is -infinity) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[__add__(x1_i is -infinity and x2_i is +infinity) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[__add__(x1_i is +infinity and x2_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__add__(x1_i is -infinity and x2_i is -infinity) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[__add__(x1_i is +infinity and isfinite(x2_i)) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__add__(x1_i is -infinity and isfinite(x2_i)) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[__add__(isfinite(x1_i) and x2_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__add__(isfinite(x1_i) and x2_i is -infinity) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[__add__(x1_i is -0 and x2_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_binary[__add__(x1_i is -0 and x2_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__add__(x1_i is +0 and x2_i is -0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__add__(x1_i is +0 and x2_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__add__((x1_i is +0 or x1_i == -0) and isfinite(x2_i) and x2_i != 0) -> x2_i]
+array_api_tests/test_special_cases.py::test_binary[__add__(isfinite(x1_i) and x1_i != 0 and (x2_i is +0 or x2_i == -0)) -> x1_i]
+array_api_tests/test_special_cases.py::test_binary[__add__(isfinite(x1_i) and x1_i != 0 and x2_i == -x1_i) -> +0]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i is NaN or x2_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[divide((x1_i is +infinity or x1_i == -infinity) and (x2_i is +infinity or x2_i == -infinity)) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[divide((x1_i is +0 or x1_i == -0) and (x2_i is +0 or x2_i == -0)) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i is +0 and x2_i > 0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i is -0 and x2_i > 0) -> -0]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i is +0 and x2_i < 0) -> -0]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i is -0 and x2_i < 0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i > 0 and x2_i is +0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i > 0 and x2_i is -0) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i < 0 and x2_i is +0) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i < 0 and x2_i is -0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i is +infinity and isfinite(x2_i) and x2_i > 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i is +infinity and isfinite(x2_i) and x2_i < 0) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i is -infinity and isfinite(x2_i) and x2_i > 0) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[divide(x1_i is -infinity and isfinite(x2_i) and x2_i < 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[divide(isfinite(x1_i) and x1_i > 0 and x2_i is +infinity) -> +0]
+array_api_tests/test_special_cases.py::test_binary[divide(isfinite(x1_i) and x1_i > 0 and x2_i is -infinity) -> -0]
+array_api_tests/test_special_cases.py::test_binary[divide(isfinite(x1_i) and x1_i < 0 and x2_i is +infinity) -> -0]
+array_api_tests/test_special_cases.py::test_binary[divide(isfinite(x1_i) and x1_i < 0 and x2_i is -infinity) -> +0]
+array_api_tests/test_special_cases.py::test_binary[divide(copysign(1, x1_i) == copysign(1, x2_i) and isfinite(x1_i) and x1_i != 0 and isfinite(x2_i) and x2_i != 0) -> positive sign]
+array_api_tests/test_special_cases.py::test_binary[divide(copysign(1, x1_i) != copysign(1, x2_i) and isfinite(x1_i) and x1_i != 0 and isfinite(x2_i) and x2_i != 0) -> negative sign]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i is NaN or x2_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[__truediv__((x1_i is +infinity or x1_i == -infinity) and (x2_i is +infinity or x2_i == -infinity)) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[__truediv__((x1_i is +0 or x1_i == -0) and (x2_i is +0 or x2_i == -0)) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i is +0 and x2_i > 0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i is -0 and x2_i > 0) -> -0]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i is +0 and x2_i < 0) -> -0]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i is -0 and x2_i < 0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i > 0 and x2_i is +0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i > 0 and x2_i is -0) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i < 0 and x2_i is +0) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i < 0 and x2_i is -0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i is +infinity and isfinite(x2_i) and x2_i > 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i is +infinity and isfinite(x2_i) and x2_i < 0) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i is -infinity and isfinite(x2_i) and x2_i > 0) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(x1_i is -infinity and isfinite(x2_i) and x2_i < 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(isfinite(x1_i) and x1_i > 0 and x2_i is +infinity) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(isfinite(x1_i) and x1_i > 0 and x2_i is -infinity) -> -0]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(isfinite(x1_i) and x1_i < 0 and x2_i is +infinity) -> -0]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(isfinite(x1_i) and x1_i < 0 and x2_i is -infinity) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(copysign(1, x1_i) == copysign(1, x2_i) and isfinite(x1_i) and x1_i != 0 and isfinite(x2_i) and x2_i != 0) -> positive sign]
+array_api_tests/test_special_cases.py::test_binary[__truediv__(copysign(1, x1_i) != copysign(1, x2_i) and isfinite(x1_i) and x1_i != 0 and isfinite(x2_i) and x2_i != 0) -> negative sign]
+array_api_tests/test_special_cases.py::test_binary[multiply(x1_i is NaN or x2_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[multiply((x1_i is +infinity or x1_i == -infinity) and (x2_i is +0 or x2_i == -0)) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[multiply((x1_i is +0 or x1_i == -0) and (x2_i is +infinity or x2_i == -infinity)) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[multiply(copysign(1, x1_i) == copysign(1, x2_i)) -> positive sign]
+array_api_tests/test_special_cases.py::test_binary[multiply(copysign(1, x1_i) != copysign(1, x2_i)) -> negative sign]
+array_api_tests/test_special_cases.py::test_binary[__mul__(x1_i is NaN or x2_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[__mul__((x1_i is +infinity or x1_i == -infinity) and (x2_i is +0 or x2_i == -0)) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[__mul__((x1_i is +0 or x1_i == -0) and (x2_i is +infinity or x2_i == -infinity)) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[__mul__(copysign(1, x1_i) == copysign(1, x2_i)) -> positive sign]
+array_api_tests/test_special_cases.py::test_binary[__mul__(copysign(1, x1_i) != copysign(1, x2_i)) -> negative sign]
+array_api_tests/test_special_cases.py::test_binary[pow(not x1_i == 1 and x2_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[pow(x2_i is +0) -> 1]
+array_api_tests/test_special_cases.py::test_binary[pow(x2_i is -0) -> 1]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is NaN and not x2_i == 0) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[pow(abs(x1_i) > 1 and x2_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[pow(abs(x1_i) > 1 and x2_i is -infinity) -> +0]
+array_api_tests/test_special_cases.py::test_binary[pow(abs(x1_i) is 1 and x2_i is +infinity) -> 1]
+array_api_tests/test_special_cases.py::test_binary[pow(abs(x1_i) is 1 and x2_i is -infinity) -> 1]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is 1 and not x2_i is NaN) -> 1]
+array_api_tests/test_special_cases.py::test_binary[pow(abs(x1_i) < 1 and x2_i is +infinity) -> +0]
+array_api_tests/test_special_cases.py::test_binary[pow(abs(x1_i) < 1 and x2_i is -infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is +infinity and x2_i > 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is +infinity and x2_i < 0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is -infinity and x2_i > 0 and x2_i.is_integer() and x2_i % 2 == 1) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is -infinity and x2_i > 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is -infinity and x2_i < 0 and x2_i.is_integer() and x2_i % 2 == 1) -> -0]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is -infinity and x2_i < 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +0]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is +0 and x2_i > 0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is +0 and x2_i < 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is -0 and x2_i > 0 and x2_i.is_integer() and x2_i % 2 == 1) -> -0]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is -0 and x2_i > 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +0]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is -0 and x2_i < 0 and x2_i.is_integer() and x2_i % 2 == 1) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i is -0 and x2_i < 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[pow(x1_i < 0 and isfinite(x1_i) and isfinite(x2_i) and not x2_i.is_integer()) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[__pow__(not x1_i == 1 and x2_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x2_i is +0) -> 1]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x2_i is -0) -> 1]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is NaN and not x2_i == 0) -> NaN]
+array_api_tests/test_special_cases.py::test_binary[__pow__(abs(x1_i) > 1 and x2_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__pow__(abs(x1_i) > 1 and x2_i is -infinity) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__pow__(abs(x1_i) is 1 and x2_i is +infinity) -> 1]
+array_api_tests/test_special_cases.py::test_binary[__pow__(abs(x1_i) is 1 and x2_i is -infinity) -> 1]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is 1 and not x2_i is NaN) -> 1]
+array_api_tests/test_special_cases.py::test_binary[__pow__(abs(x1_i) < 1 and x2_i is +infinity) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__pow__(abs(x1_i) < 1 and x2_i is -infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is +infinity and x2_i > 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is +infinity and x2_i < 0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is -infinity and x2_i > 0 and x2_i.is_integer() and x2_i % 2 == 1) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is -infinity and x2_i > 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is -infinity and x2_i < 0 and x2_i.is_integer() and x2_i % 2 == 1) -> -0]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is -infinity and x2_i < 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is +0 and x2_i > 0) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is +0 and x2_i < 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is -0 and x2_i > 0 and x2_i.is_integer() and x2_i % 2 == 1) -> -0]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is -0 and x2_i > 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +0]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is -0 and x2_i < 0 and x2_i.is_integer() and x2_i % 2 == 1) -> -infinity]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i is -0 and x2_i < 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +infinity]
+array_api_tests/test_special_cases.py::test_binary[__pow__(x1_i < 0 and isfinite(x1_i) and isfinite(x2_i) and not x2_i.is_integer()) -> NaN]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(x1_i is NaN or x2_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(x1_i is +infinity and x2_i is -infinity) -> NaN]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(x1_i is -infinity and x2_i is +infinity) -> NaN]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(x1_i is +infinity and x2_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(x1_i is -infinity and x2_i is -infinity) -> -infinity]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(x1_i is +infinity and isfinite(x2_i)) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(x1_i is -infinity and isfinite(x2_i)) -> -infinity]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(isfinite(x1_i) and x2_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(isfinite(x1_i) and x2_i is -infinity) -> -infinity]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(x1_i is -0 and x2_i is -0) -> -0]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(x1_i is -0 and x2_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(x1_i is +0 and x2_i is -0) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(x1_i is +0 and x2_i is +0) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__iadd__((x1_i is +0 or x1_i == -0) and isfinite(x2_i) and x2_i != 0) -> x2_i]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(isfinite(x1_i) and x1_i != 0 and (x2_i is +0 or x2_i == -0)) -> x1_i]
+array_api_tests/test_special_cases.py::test_iop[__iadd__(isfinite(x1_i) and x1_i != 0 and x2_i == -x1_i) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i is NaN or x2_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__((x1_i is +infinity or x1_i == -infinity) and (x2_i is +infinity or x2_i == -infinity)) -> NaN]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__((x1_i is +0 or x1_i == -0) and (x2_i is +0 or x2_i == -0)) -> NaN]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i is +0 and x2_i > 0) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i is -0 and x2_i > 0) -> -0]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i is +0 and x2_i < 0) -> -0]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i is -0 and x2_i < 0) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i > 0 and x2_i is +0) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i > 0 and x2_i is -0) -> -infinity]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i < 0 and x2_i is +0) -> -infinity]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i < 0 and x2_i is -0) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i is +infinity and isfinite(x2_i) and x2_i > 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i is +infinity and isfinite(x2_i) and x2_i < 0) -> -infinity]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i is -infinity and isfinite(x2_i) and x2_i > 0) -> -infinity]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(x1_i is -infinity and isfinite(x2_i) and x2_i < 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(isfinite(x1_i) and x1_i > 0 and x2_i is +infinity) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(isfinite(x1_i) and x1_i > 0 and x2_i is -infinity) -> -0]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(isfinite(x1_i) and x1_i < 0 and x2_i is +infinity) -> -0]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(isfinite(x1_i) and x1_i < 0 and x2_i is -infinity) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(copysign(1, x1_i) == copysign(1, x2_i) and isfinite(x1_i) and x1_i != 0 and isfinite(x2_i) and x2_i != 0) -> positive sign]
+array_api_tests/test_special_cases.py::test_iop[__itruediv__(copysign(1, x1_i) != copysign(1, x2_i) and isfinite(x1_i) and x1_i != 0 and isfinite(x2_i) and x2_i != 0) -> negative sign]
+array_api_tests/test_special_cases.py::test_iop[__imul__(x1_i is NaN or x2_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_iop[__imul__((x1_i is +infinity or x1_i == -infinity) and (x2_i is +0 or x2_i == -0)) -> NaN]
+array_api_tests/test_special_cases.py::test_iop[__imul__((x1_i is +0 or x1_i == -0) and (x2_i is +infinity or x2_i == -infinity)) -> NaN]
+array_api_tests/test_special_cases.py::test_iop[__imul__(copysign(1, x1_i) == copysign(1, x2_i)) -> positive sign]
+array_api_tests/test_special_cases.py::test_iop[__imul__(copysign(1, x1_i) != copysign(1, x2_i)) -> negative sign]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(not x1_i == 1 and x2_i is NaN) -> NaN]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x2_i is +0) -> 1]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x2_i is -0) -> 1]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is NaN and not x2_i == 0) -> NaN]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(abs(x1_i) > 1 and x2_i is +infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(abs(x1_i) > 1 and x2_i is -infinity) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(abs(x1_i) is 1 and x2_i is +infinity) -> 1]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(abs(x1_i) is 1 and x2_i is -infinity) -> 1]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is 1 and not x2_i is NaN) -> 1]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(abs(x1_i) < 1 and x2_i is +infinity) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(abs(x1_i) < 1 and x2_i is -infinity) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is +infinity and x2_i > 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is +infinity and x2_i < 0) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is -infinity and x2_i > 0 and x2_i.is_integer() and x2_i % 2 == 1) -> -infinity]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is -infinity and x2_i > 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is -infinity and x2_i < 0 and x2_i.is_integer() and x2_i % 2 == 1) -> -0]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is -infinity and x2_i < 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is +0 and x2_i > 0) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is +0 and x2_i < 0) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is -0 and x2_i > 0 and x2_i.is_integer() and x2_i % 2 == 1) -> -0]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is -0 and x2_i > 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +0]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is -0 and x2_i < 0 and x2_i.is_integer() and x2_i % 2 == 1) -> -infinity]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i is -0 and x2_i < 0 and not (x2_i.is_integer() and x2_i % 2 == 1)) -> +infinity]
+array_api_tests/test_special_cases.py::test_iop[__ipow__(x1_i < 0 and isfinite(x1_i) and isfinite(x2_i) and not x2_i.is_integer()) -> NaN]
+array_api_tests/test_special_cases.py::test_empty_arrays[sum]
+array_api_tests/test_special_cases.py::test_nan_propagation[mean]
+array_api_tests/test_special_cases.py::test_nan_propagation[var]

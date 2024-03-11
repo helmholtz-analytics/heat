@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.9, '3.10']
+        python-version: ['3.9', '3.10', '3.11']
         mpi: [ 'openmpi' ]
 
     steps:
@@ -40,16 +40,14 @@ jobs:
         repository: data-apis/array-api-tests
         path: array-api-tests
         submodules: 'true'
-#        ref: '2022.09.30'
     - name: Install dependencies
       run: |
         python -m pip install -r ${GITHUB_WORKSPACE}/array-api-tests/requirements.txt
     - name: Run the test suite
       env:
         ARRAY_API_TESTS_MODULE: heat.array_api
-        ARRAY_API_TESTS_VERSION: "2022.12"
       run: |
         export PYTHONPATH="${GITHUB_WORKSPACE}/heat"
         # Skip testing functions with known issues
         cd ${GITHUB_WORKSPACE}/array-api-tests
-        pytest array_api_tests/ -v -rxXfE --ci --skips-file ${GITHUB_WORKSPACE}/heat/skips.txt --disable-extension linalg fft
+        pytest array_api_tests/ -v -rxXfE --ci --skips-file ${GITHUB_WORKSPACE}/heat/array_api/test/skips.txt
