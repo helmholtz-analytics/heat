@@ -23,6 +23,7 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
 
         - ‘probability_based’ : selects initial cluster centers for the clustering in a smart way to speed up convergence (k-means++)
         - ‘random’: choose k observations (rows) at random from data for the initial centroids.
+        - 'batchparallel': use the batch parallel algorithm to initialize the centroids, only available for split=0 and KMeans or KMedians
         - ``DNDarray``: gives the initial centers, should be of Shape = (n_clusters, n_features)
     max_iter : int
         Maximum number of iterations for a single run.

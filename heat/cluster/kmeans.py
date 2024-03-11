@@ -24,6 +24,7 @@ class KMeans(_KCluster):
 
         - ‘k-means++’ : selects initial cluster centers for the clustering in a smart way to speed up convergence [2].
         - ‘random’: choose k observations (rows) at random from data for the initial centroids.
+        - 'batchparallel': initialize by using the batch parallel algorithm (see BatchParallelKMeans for more information).
         - DNDarray: it should be of shape (n_clusters, n_features) and gives the initial centers.
     max_iter : int
         Maximum number of iterations of the k-means algorithm for a single run.
