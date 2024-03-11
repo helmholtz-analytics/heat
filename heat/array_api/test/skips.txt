@@ -191,6 +191,7 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_add[add(x1, x2
 array_api_tests/test_operators_and_elementwise_functions.py::test_add[__add__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_add[__add__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_add[__iadd__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_add[__iadd__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_asin
 array_api_tests/test_operators_and_elementwise_functions.py::test_asinh
 array_api_tests/test_operators_and_elementwise_functions.py::test_atan
@@ -213,6 +214,7 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_expm1
 array_api_tests/test_operators_and_elementwise_functions.py::test_floor
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater[greater(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater[__gt__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_greater[__gt__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[greater_equal(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[__ge__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_greater_equal[__ge__(x, s)]
@@ -235,6 +237,7 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[multi
 array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[__mul__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[__mul__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[__imul__(x1, x2)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_multiply[__imul__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_not_equal[not_equal(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_not_equal[__ne__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_not_equal[__ne__(x, s)]
@@ -247,6 +250,7 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_sqrt
 array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[subtract(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[__sub__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[__sub__(x, s)]
+array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[__isub__(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_subtract[__isub__(x, s)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_tan
 array_api_tests/test_operators_and_elementwise_functions.py::test_tanh
