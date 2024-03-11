@@ -197,6 +197,7 @@ array_api_tests/test_operators_and_elementwise_functions.py::test_asinh
 array_api_tests/test_operators_and_elementwise_functions.py::test_atan
 array_api_tests/test_operators_and_elementwise_functions.py::test_atan2
 array_api_tests/test_operators_and_elementwise_functions.py::test_atanh
+array_api_tests/test_operators_and_elementwise_functions.py::test_bitwise_or[bitwise_or(x1, x2)]
 array_api_tests/test_operators_and_elementwise_functions.py::test_ceil
 array_api_tests/test_operators_and_elementwise_functions.py::test_conj
 array_api_tests/test_operators_and_elementwise_functions.py::test_cos
