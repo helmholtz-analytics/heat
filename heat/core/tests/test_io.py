@@ -743,24 +743,27 @@ class TestIO(TestCase):
 
     def test_load_npy(self):
         # Abc
-        crea_array = []
-        for i in range(0, 100):
-            x = np.random.randint(10, size=(random.randint(1, 100), 5, 11))
-            np.save(os.path.join(os.getcwd(), "heat/datasets", "data") + str(i), x)
-            crea_array.append(x)
+        if ht.MPI_WORLD.rank == 0:
+            crea_array = []
+            for i in range(0, 100):
+                x = np.random.randint(10, size=(random.randint(1, 100), 5, 11))
+                np.save(os.path.join(os.getcwd(), "heat/datasets", "data") + str(i), x)
+                crea_array.append(x)
+            int_array = np.concatenate(crea_array)
 
-        print(os.path.join(os.getcwd(), "heat/datasets"))
+        # print(os.path.join(os.getcwd(), "heat/datasets"))
         load_array = ht.load_npy_from_path("heat/datasets", split=0)
-        int_array = np.concatenate(crea_array)
+        load_array_npy = load_array.numpy
 
         self.assertIsInstance(load_array, ht.DNDarray)
-        self.assertEqual(load_array.gshape[1], int_array.shape[1])
-        self.assertEqual(load_array.gshape[2], int_array.shape[2])
         self.assertEqual(load_array.dtype, ht.int32)
-        self.assertTrue((load_array.numpy() == int_array).all())
+        if ht.MPI_WORLD.rank == 0:
+            self.assertTrue((load_array_npy == int_array).all())
+            self.assertEqual(load_array.gshape[1], int_array.shape[1])
+            self.assertEqual(load_array.gshape[2], int_array.shape[2])
 
     def test_load_npy_exception(self):
         with self.assertRaises(TypeError):
-            ht.load_npy_from_path(1, split=0)
+            ht.load_npy_from_path(path=1, split=0)
         with self.assertRaises(TypeError):
             ht.load_npy_from_path("heat/datasets", split="ABC")

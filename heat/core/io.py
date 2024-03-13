@@ -1167,7 +1167,7 @@ def load_npy_from_path(
 
     if n_files == 0:
         raise ValueError("No NPY Files were found")
-    elif n_files < process_number:
+    if n_files < process_number:
         raise RuntimeError("Number of processes can't exceed number of files")
 
     rank = MPI_WORLD.rank
