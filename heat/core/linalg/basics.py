@@ -538,20 +538,28 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         tdev = dev.torch_device
         batch_shape = a.gshape[:batch_dim]
 
+        if (
+            a.split is None or b.split is None and a.split != b.split
+        ):  # only one matrix has split None
+            raise NotImplementedError("Only one matrix has split None!")
+
+        if (
+            a.split is not None
+            and (a.split < batch_dim or b.split < batch_dim)
+            and a.split != b.split
+        ):  # not the same batch axis for split
+            raise NotImplementedError(
+                "If one matrix is split along a batch axis, both have to be split along that axis!"
+            )
+
         # la dimension not split -> torch
         if a.split is None and b.split is None or a.split < batch_dim and b.split < batch_dim:
-            if a.split != b.split:
-                raise NotImplementedError("Split axes are different batch axes!")
-
             ret = factories.array(
                 torch.matmul(a.larray, b.larray), is_split=a.split, device=a.device, comm=a.comm
             )
             if gpu_int_flag:
                 ret = og_type(ret, device=dev)
             return ret
-
-        if a.split is None or b.split is None:  # only one matrix has split None
-            raise NotImplementedError
 
         # block sizes dont need to be the same. they just need the same inner dimension (kB)
         kB = 0  # redundant?
