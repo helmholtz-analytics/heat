@@ -33,11 +33,11 @@ class TestManipulations(TestCase):
             self.ref_indptr, self.ref_indices, self.ref_data, device=self.device.torch_device
         )
 
-    def test_to_sparse(self):
+    def test_to_sparse_csr(self):
         arr = [[0, 0, 1, 0, 2], [0, 0, 0, 0, 0], [0, 3, 0, 0, 0], [4, 0, 0, 5, 0], [0, 0, 0, 0, 6]]
 
         A = ht.array(arr, split=0)
-        B = A.to_sparse()
+        B = A.to_sparse_csr()
 
         indptr_B = [0, 2, 2, 3, 5, 6]
         indices_B = [2, 4, 1, 0, 3, 4]
