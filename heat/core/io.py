@@ -1182,11 +1182,13 @@ def load_npy_from_path(
             rank * (n_files // process_number), rank * (n_files // process_number) + n_for_procs
         )
     ]
+    print(MPI_WORLD.rank, local_list)
     array_list = []
     for element in local_list:
         array_list.append(np.load(path + "/" + element))
     larray = np.concatenate(array_list, split)
     larray = torch.from_numpy(larray)
+    print(f"On process {MPI_WORLD.rank} lies {larray}")
 
     x = factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)
     return x

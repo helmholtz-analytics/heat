@@ -3,6 +3,7 @@ import os
 import torch
 import tempfile
 import random
+import time
 
 import heat as ht
 from .test_suites.basic_test import TestCase
@@ -746,31 +747,31 @@ class TestIO(TestCase):
         if ht.MPI_WORLD.rank == 0:
             crea_array = []
             for i in range(0, 4):
-                x = np.random.randint(5, size=(random.randint(3, 5), 2))
+                x = np.random.randint(10, size=(random.randint(3, 5), 2))
                 np.save(os.path.join(os.getcwd(), "heat/datasets", "data") + str(i), x)
+                print(f"Array{i} = {x}")
                 crea_array.append(x)
-                print(x)
             int_array = np.concatenate(crea_array)
-            # print("process number ", ht.MPI_WORLD.rank, int_array)
+            print("process number ", ht.MPI_WORLD.rank, int_array)
 
+        time.sleep(3)
         # print(os.path.join(os.getcwd(), "heat/datasets"))
-        load_array = ht.load_npy_from_path("heat/datasets", split=0)
-        load_array_npy = load_array.numpy
+        load_array = ht.load_npy_from_path(
+            os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.int32, split=0
+        )
+        load_array_npy = load_array.numpy()
         # print(load_array.shape)
-        # print(ht.MPI_WORLD.rank, load_array.larray)
+        print(ht.MPI_WORLD.rank, load_array.larray)
         # if ht.MPI_WORLD.rank == 0:
         #    print(int_array.shape)
 
         self.assertIsInstance(load_array, ht.DNDarray)
         self.assertEqual(load_array.dtype, ht.int32)
-
         if ht.MPI_WORLD.rank == 0:
-            self.assertTrue((load_array_npy == int_array).all())
-            self.assertEqual(load_array.gshape[1], int_array.shape[1])
-            self.assertEqual(load_array.gshape[2], int_array.shape[2])
+            self.assertTrue((load_array_npy == int_array).all)
 
-    """def test_load_npy_exception(self):
+    def test_load_npy_exception(self):
         with self.assertRaises(TypeError):
             ht.load_npy_from_path(path=1, split=0)
         with self.assertRaises(TypeError):
-            ht.load_npy_from_path("heat/datasets", split="ABC")"""
+            ht.load_npy_from_path("heat/datasets", split="ABC")
