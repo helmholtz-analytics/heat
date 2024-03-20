@@ -744,28 +744,20 @@ class TestIO(TestCase):
     #     pass
 
     def test_load_npy_int(self):
-        # Abc
+        # testing for int arrays
         if ht.MPI_WORLD.rank == 0:
             crea_array = []
             for i in range(0, 20):
                 x = np.random.randint(1000, size=(random.randint(0, 30), 6, 11))
                 np.save(os.path.join(os.getcwd(), "heat/datasets", "int_data") + str(i), x)
-                print(f"Array{i} = {x}")
                 crea_array.append(x)
             int_array = np.concatenate(crea_array)
-            print("process number ", ht.MPI_WORLD.rank, int_array)
         else:
             time.sleep(2)
-
-        # print(os.path.join(os.getcwd(), "heat/datasets"))
         load_array = ht.load_npy_from_path(
             os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.int32, split=0
         )
         load_array_npy = load_array.numpy()
-        # print(load_array.shape)
-        print(ht.MPI_WORLD.rank, load_array.larray)
-        # if ht.MPI_WORLD.rank == 0:
-        #    print(int_array.shape)
 
         self.assertIsInstance(load_array, ht.DNDarray)
         self.assertEqual(load_array.dtype, ht.int32)
@@ -776,15 +768,14 @@ class TestIO(TestCase):
                     os.remove(os.path.join(os.getcwd(), "heat/datasets", file))
 
     def test_load_npy_float(self):
+        # testing for float arrays and split dimension other than 0
         if ht.MPI_WORLD.rank == 0:
             crea_array = []
             for i in range(0, 20):
                 x = np.random.rand(2, random.randint(1, 10), 11)
                 np.save(os.path.join(os.getcwd(), "heat/datasets", "float_data") + str(i), x)
-                print(f"Array{i} = {x}")
                 crea_array.append(x)
             float_array = np.concatenate(crea_array, 1)
-            print("process number ", ht.MPI_WORLD.rank, float_array)
         else:
             time.sleep(2)
 
@@ -792,7 +783,6 @@ class TestIO(TestCase):
             os.path.join(os.getcwd(), "heat/datasets"), dtype=ht.float64, split=1
         )
         load_array_npy = load_array.numpy()
-        print(ht.MPI_WORLD.rank, load_array.larray)
         self.assertIsInstance(load_array, ht.DNDarray)
         self.assertEqual(load_array.dtype, ht.float64)
         if ht.MPI_WORLD.rank == 0:
@@ -806,3 +796,7 @@ class TestIO(TestCase):
             ht.load_npy_from_path(path=1, split=0)
         with self.assertRaises(TypeError):
             ht.load_npy_from_path("heat/datasets", split="ABC")
+        with self.assertRaises(ValueError):
+            ht.load_npy_from_path(path="heat", dtype=ht.int64, split=0)
+        with self.assertRaises(RuntimeError):
+            ht.load_npy_from_path("heat/datasets/npy_dummy", dtype=ht.int64, split=0)
