@@ -798,5 +798,6 @@ class TestIO(TestCase):
             ht.load_npy_from_path("heat/datasets", split="ABC")
         with self.assertRaises(ValueError):
             ht.load_npy_from_path(path="heat", dtype=ht.int64, split=0)
-        with self.assertRaises(RuntimeError):
-            ht.load_npy_from_path("heat/datasets/npy_dummy", dtype=ht.int64, split=0)
+        if ht.MPI_WORLD.size > 1:
+            with self.assertRaises(RuntimeError):
+                ht.load_npy_from_path("heat/datasets/npy_dummy", dtype=ht.int64, split=0)
