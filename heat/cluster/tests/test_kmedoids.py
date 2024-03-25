@@ -66,6 +66,11 @@ class TestKMeans(TestCase):
             kmedoid = ht.cluster.KMedoids(n_clusters=k, init="random_number")
             kmedoid.fit(iris_split)
 
+        iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+        with self.assertRaises(ValueError):
+            kmedoid = ht.cluster.KMedoids(n_clusters=k, init="batchparallel")
+            kmedoid.fit(iris_split)
+
     def test_spherical_clusters(self):
         seed = 1
         n = 20 * ht.MPI_WORLD.size
