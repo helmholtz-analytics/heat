@@ -1,0 +1,73 @@
+{
+  "file": "SUSY_{size}.h5",
+  "dataset": "data",
+
+  "trials": 10,
+
+  "benchmarks": {
+    "dask_auto_cpu": {
+      "template": "dask",
+      "nodes": [2, 3, 5, 9, 15],
+      "tasks": [1, 1, 1, 1, 1],
+      "size": {
+        "strong": "40k",
+        "weak": [25820, 36515, 51640, 73030, 100000]
+      }
+    },
+
+    "dask_chunks_cpu": {
+      "template": "dask",
+      "nodes": [2, 3, 5, 9, 15],
+      "tasks": [1, 1, 1, 1, 1],
+      "size": {
+        "strong": "40k",
+        "weak": [25820, 36515, 51640, 73030, 100000]
+      }
+    },
+
+    "heat_cpu": {
+      "nodes": [1, 2, 4, 8, 15],
+      "tasks": [1, 1, 1, 1, 1],
+      "size": {
+        "strong": "40k",
+        "weak": [25820, 36515, 51640, 73030, 100000]
+      }
+    },
+
+    "heat_gpu": {
+      "nodes": [1, 1, 1, 2, 4, 8, 15],
+      "tasks": [1, 2, 4, 4, 4, 4, 4],
+      "size": {
+        "strong": "40k",
+        "weak": [12910, 18258, 25820, 36515, 51640, 73030, 100000]
+      }
+    },
+
+    "numpy_cpu": {
+      "nodes": [1],
+      "tasks": [1],
+      "size": {
+        "strong": "40k",
+        "weak": [25820]
+      }
+    },
+
+    "torch_cpu": {
+      "nodes": [1],
+      "tasks": [1],
+      "size": {
+        "strong": "40k",
+        "weak": [25820]
+      }
+    },
+
+    "torch_gpu": {
+      "nodes": [1],
+      "tasks": [1],
+      "size": {
+        "strong": "40k",
+        "weak": [12910]
+      }
+    }
+  }
+}

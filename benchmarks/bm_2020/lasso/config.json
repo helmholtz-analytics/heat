@@ -1,0 +1,75 @@
+{
+  "file": "eurad-{size}.h5",
+  "dataset": "x",
+  "labels": "y",
+
+  "trials": 10,
+  "iterations": 1,
+
+  "benchmarks": {
+    "dask_auto_cpu": {
+      "template": "dask",
+      "nodes": [2, 3, 5, 9, 15],
+      "tasks": [1, 1, 1, 1, 1],
+      "size": {
+        "strong": 10000000,
+        "weak": [714285, 1428571, 2857142, 5714285, 9285714]
+      }
+    },
+
+    "dask_chunks_cpu": {
+      "template": "dask",
+      "nodes": [2, 3, 5, 9, 15],
+      "tasks": [1, 1, 1, 1, 1],
+      "size": {
+        "strong": 10000000,
+        "weak": [714285, 1428571, 2857142, 5714285, 9285714]
+      }
+    },
+
+    "heat_cpu": {
+      "nodes": [1, 2, 4, 8, 15],
+      "tasks": [1, 1, 1, 1, 1],
+      "size": {
+        "strong": 10000000,
+        "weak": [714285, 1428571, 2857142, 5714285, 10000000]
+      }
+    },
+
+    "heat_gpu": {
+      "nodes": [1, 1, 1, 2, 4, 8, 15],
+      "tasks": [1, 2, 4, 4, 4, 4, 4],
+      "size": {
+        "strong": 10000000,
+        "weak": [178571, 357142, 714285, 1428571, 2857142, 5714285, 10000000]
+      }
+    },
+
+    "numpy_cpu": {
+      "nodes": [1],
+      "tasks": [1],
+      "size": {
+        "strong": 10000000,
+        "weak": [714285]
+      }
+    },
+
+    "torch_cpu": {
+      "nodes": [1],
+      "tasks": [1],
+      "size": {
+        "strong": 10000000,
+        "weak": [714285]
+      }
+    },
+
+    "torch_gpu": {
+      "nodes": [1],
+      "tasks": [1],
+      "size": {
+        "strong": 10000000,
+        "weak": [714285]
+      }
+    }
+  }
+}
