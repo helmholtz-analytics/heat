@@ -178,37 +178,47 @@ class TestSolver(TestCase):
             self.assertTrue(ht.equal(res, c))
 
         # batched tests
-        batch_shape = (10,)  # batch dimensions shape
-        # batch_shape = tuple() # no batch dimensions
+        batch_shapes = [
+            (10,),
+            (
+                4,
+                4,
+                4,
+                20,
+            ),
+        ]
         m = 100  # data dimension size
 
-        at = torch.rand((*batch_shape, m, m))
-        # at += torch.eye(k)
-        at += 1e2 * torch.ones_like(at)  # make gaussian elimination more stable
-        at = torch.triu(at).to(tdev)
-        bt = torch.eye(m).expand((*batch_shape, -1, -1)).to(tdev)
+        for batch_shape in batch_shapes:
+            # batch_shape = tuple() # no batch dimensions
 
-        ct = torch.linalg.solve_triangular(at, bt, upper=True)
+            at = torch.rand((*batch_shape, m, m))
+            # at += torch.eye(k)
+            at += 1e2 * torch.ones_like(at)  # make gaussian elimination more stable
+            at = torch.triu(at).to(tdev)
+            bt = torch.eye(m).expand((*batch_shape, -1, -1)).to(tdev)
 
-        a = ht.factories.asarray(at, copy=True)
-        c = ht.factories.asarray(ct, copy=True)
-        b = ht.factories.asarray(bt, copy=True)
+            ct = torch.linalg.solve_triangular(at, bt, upper=True)
 
-        # split in linalg dimension or none
-        for s0, s1 in (None, None), (-2, -2), (-1, -2), (-2, None), (-1, None), (None, -2):
-            a.resplit_(s0)
-            b.resplit_(s1)
+            a = ht.factories.asarray(at, copy=True)
+            c = ht.factories.asarray(ct, copy=True)
+            b = ht.factories.asarray(bt, copy=True)
+
+            # split in linalg dimension or none
+            for s0, s1 in (None, None), (-2, -2), (-1, -2), (-2, None), (-1, None), (None, -2):
+                a.resplit_(s0)
+                b.resplit_(s1)
+
+                res = ht.linalg.solve_triangular(a, b)
+
+                self.assertTrue(ht.allclose(c, res))
+
+            # split in batch dimension
+            s = len(batch_shape) - 1
+            a.resplit_(s)
+            b.resplit_(s)
+            c.resplit_(s)
 
             res = ht.linalg.solve_triangular(a, b)
 
             self.assertTrue(ht.allclose(c, res))
-
-        # split in batch dimension
-        s = 0
-        a.resplit_(s)
-        b.resplit_(s)
-        c.resplit_(s)
-
-        res = ht.linalg.solve_triangular(a, b)
-
-        self.assertTrue(ht.allclose(c, res))
