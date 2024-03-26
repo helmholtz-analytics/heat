@@ -286,35 +286,36 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
     Vectors b have to be given as n x 1 matrices.
     """
     if not isinstance(A, DNDarray) or not isinstance(b, DNDarray):
-        raise RuntimeError("Arguments need to be a DNDarrays.")
+        raise TypeError(f"Arguments need to be of type DNDarray, got {type(A)}, {type(b)}.")
     if not A.ndim >= 2:
-        raise RuntimeError("A needs to be a 2D matrix.")
+        raise ValueError("A needs to be a (batched) matrix.")
     if not b.ndim == A.ndim:
-        raise RuntimeError("b needs to be a 2D matrix.")
+        raise ValueError("b needs to have the same number of (batch) dimensions as A.")
     if not A.shape[-2] == A.shape[-1]:
-        raise RuntimeError("A needs to be a square matrix.")
+        raise ValueError("A needs to be a (batched) square matrix.")
 
     batch_dim = A.ndim - 2
     batch_shape = A.shape[:batch_dim]
 
     if not A.shape[:batch_dim] == b.shape[:batch_dim]:
-        raise RuntimeError("Batch dimensions of A and b must be of the same shape.")
+        raise ValueError("Batch dimensions of A and b must be of the same shape.")
     if b.split == batch_dim + 1:
-        raise RuntimeError("split=1 is not allowed for the right hand side.")
+        raise ValueError("split=1 is not allowed for the right hand side.")
     if not b.shape[batch_dim] == A.shape[-1]:
-        raise RuntimeError("Dimension mismath of A and b.")
+        raise ValueError("Dimension mismatch of A and b.")
 
     if (
         A.split is not None and A.split < batch_dim or b.split is not None and b.split < batch_dim
     ):  # batch split
         if A.split != b.split:
-            raise RuntimeError(
-                "If a split dimension is a batch dimension, A and b must have the same split dimension."
+            raise ValueError(
+                "If a split dimension is a batch dimension, A and b must have the same split dimension. A possible solution would be a resplit of A or b to the same split dimension."
             )
     else:
         if (
             A.split is not None and b.split is not None
         ):  # both la dimensions split --> b.split = batch_dim
+            # TODO remove?
             if not all(A.lshape_map[:, A.split] == b.lshape_map[:, batch_dim]):
                 raise RuntimeError("Local arrays of A and b have different sizes.")
 
