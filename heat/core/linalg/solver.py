@@ -6,10 +6,11 @@ import heat as ht
 from ..dndarray import DNDarray
 from ..sanitation import sanitize_out
 from typing import List, Dict, Any, TypeVar, Union, Tuple, Optional
+from .. import factories
 
 import torch
 
-__all__ = ["cg", "lanczos"]
+__all__ = ["cg", "lanczos", "solve_triangular"]
 
 
 def cg(A: DNDarray, b: DNDarray, x0: DNDarray, out: Optional[DNDarray] = None) -> DNDarray:
@@ -269,3 +270,188 @@ def lanczos(
         V.resplit_(axis=None)
 
     return V, T
+
+
+def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
+    """
+    Solve upper triangular systems of linear equations.
+
+    Input:
+        A - an upper triangular (possibly batched) invertible square (n x n) matrix
+        b - (possibly batched) n x k matrix
+
+    Output:
+        The unique solution x of A * x = b.
+
+    Vectors b have to be given as n x 1 matrices.
+    """
+    if not isinstance(A, DNDarray) or not isinstance(b, DNDarray):
+        raise TypeError(f"Arguments need to be of type DNDarray, got {type(A)}, {type(b)}.")
+    if not A.ndim >= 2:
+        raise ValueError("A needs to be a (batched) matrix.")
+    if not b.ndim == A.ndim:
+        raise ValueError("b needs to have the same number of (batch) dimensions as A.")
+    if not A.shape[-2] == A.shape[-1]:
+        raise ValueError("A needs to be a (batched) square matrix.")
+
+    batch_dim = A.ndim - 2
+    batch_shape = A.shape[:batch_dim]
+
+    if not A.shape[:batch_dim] == b.shape[:batch_dim]:
+        raise ValueError("Batch dimensions of A and b must be of the same shape.")
+    if b.split == batch_dim + 1:
+        raise ValueError("split=1 is not allowed for the right hand side.")
+    if not b.shape[batch_dim] == A.shape[-1]:
+        raise ValueError("Dimension mismatch of A and b.")
+
+    if (
+        A.split is not None and A.split < batch_dim or b.split is not None and b.split < batch_dim
+    ):  # batch split
+        if A.split != b.split:
+            raise ValueError(
+                "If a split dimension is a batch dimension, A and b must have the same split dimension. A possible solution would be a resplit of A or b to the same split dimension."
+            )
+    else:
+        if (
+            A.split is not None and b.split is not None
+        ):  # both la dimensions split --> b.split = batch_dim
+            # TODO remove?
+            if not all(A.lshape_map[:, A.split] == b.lshape_map[:, batch_dim]):
+                raise RuntimeError("Local arrays of A and b have different sizes.")
+
+    comm = A.comm
+    dev = A.device
+    tdev = dev.torch_device
+
+    nprocs = comm.Get_size()
+
+    if A.split is None:  # A not split
+        if b.split is None:
+            x = torch.linalg.solve_triangular(A.larray, b.larray, upper=True)
+
+            return factories.array(x, dtype=b.dtype, device=dev, comm=comm)
+        else:  # A not split, b.split == -2
+            b_lshapes_cum = torch.hstack(
+                [
+                    torch.zeros(1, dtype=torch.int32, device=tdev),
+                    torch.cumsum(b.lshape_map[:, -2], 0),
+                ]
+            )
+
+            btilde_loc = b.larray.clone()
+            A_loc = A.larray[..., b_lshapes_cum[comm.rank] : b_lshapes_cum[comm.rank + 1]]
+
+            x = factories.zeros_like(b, device=dev, comm=comm)
+
+            for i in range(nprocs - 1, 0, -1):
+                count = x.lshape_map[:, batch_dim].to(torch.device("cpu")).clone().numpy()
+                displ = b_lshapes_cum[:-1].to(torch.device("cpu")).clone().numpy()
+                count[i:] = 0  # nothing to send, as there are only zero rows
+                displ[i:] = 0
+
+                res_send = torch.empty(0)
+                res_recv = torch.zeros((*batch_shape, count[comm.rank], b.shape[-1]), device=tdev)
+
+                if comm.rank == i:
+                    x.larray = torch.linalg.solve_triangular(
+                        A_loc[..., b_lshapes_cum[i] : b_lshapes_cum[i + 1], :],
+                        btilde_loc,
+                        upper=True,
+                    )
+                    res_send = A_loc @ x.larray
+
+                comm.Scatterv((res_send, count, displ), res_recv, root=i, axis=batch_dim)
+
+                if comm.rank < i:
+                    btilde_loc -= res_recv
+
+            if comm.rank == 0:
+                x.larray = torch.linalg.solve_triangular(
+                    A_loc[..., : b_lshapes_cum[1], :], btilde_loc, upper=True
+                )
+
+            return x
+
+    if A.split < batch_dim:  # batch split
+        x = factories.zeros_like(b, device=dev, comm=comm, split=A.split)
+        x.larray = torch.linalg.solve_triangular(A.larray, b.larray, upper=True)
+
+        return x
+
+    if A.split >= batch_dim:  # both splits in la dims
+        A_lshapes_cum = torch.hstack(
+            [
+                torch.zeros(1, dtype=torch.int32, device=tdev),
+                torch.cumsum(A.lshape_map[:, A.split], 0),
+            ]
+        )
+
+        if b.split is None:
+            btilde_loc = b.larray[
+                ..., A_lshapes_cum[comm.rank] : A_lshapes_cum[comm.rank + 1], :
+            ].clone()
+        else:  # b is split at la dim 0
+            btilde_loc = b.larray.clone()
+
+        x = factories.zeros_like(
+            b, device=dev, comm=comm, split=batch_dim
+        )  # split at la dim 0 in case b is not split
+
+        if A.split == batch_dim + 1:
+            for i in range(nprocs - 1, 0, -1):
+                count = x.lshape_map[:, batch_dim].to(torch.device("cpu")).clone().numpy()
+                displ = A_lshapes_cum[:-1].to(torch.device("cpu")).clone().numpy()
+                count[i:] = 0  # nothing to send, as there are only zero rows
+                displ[i:] = 0
+
+                res_send = torch.empty(0)
+                res_recv = torch.zeros((*batch_shape, count[comm.rank], b.shape[-1]), device=tdev)
+
+                if comm.rank == i:
+                    x.larray = torch.linalg.solve_triangular(
+                        A.larray[..., A_lshapes_cum[i] : A_lshapes_cum[i + 1], :],
+                        btilde_loc,
+                        upper=True,
+                    )
+                    res_send = A.larray @ x.larray
+
+                comm.Scatterv((res_send, count, displ), res_recv, root=i, axis=batch_dim)
+
+                if comm.rank < i:
+                    btilde_loc -= res_recv
+
+            if comm.rank == 0:
+                x.larray = torch.linalg.solve_triangular(
+                    A.larray[..., : A_lshapes_cum[1], :], btilde_loc, upper=True
+                )
+
+        else:  # split dim is la dim 0
+            for i in range(nprocs - 1, 0, -1):
+                idims = tuple(x.lshape_map[i])
+                if comm.rank == i:
+                    x.larray = torch.linalg.solve_triangular(
+                        A.larray[..., :, A_lshapes_cum[i] : A_lshapes_cum[i + 1]],
+                        btilde_loc,
+                        upper=True,
+                    )
+                    x_from_i = x.larray
+                else:
+                    x_from_i = torch.zeros(
+                        idims,
+                        dtype=b.dtype.torch_type(),
+                        device=tdev,
+                    )
+
+                comm.Bcast(x_from_i, root=i)
+
+                if comm.rank < i:
+                    btilde_loc -= (
+                        A.larray[..., :, A_lshapes_cum[i] : A_lshapes_cum[i + 1]] @ x_from_i
+                    )
+
+            if comm.rank == 0:
+                x.larray = torch.linalg.solve_triangular(
+                    A.larray[..., :, : A_lshapes_cum[1]], btilde_loc, upper=True
+                )
+
+        return x
