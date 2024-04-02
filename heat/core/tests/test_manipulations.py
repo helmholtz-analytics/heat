@@ -3751,3 +3751,19 @@ class TestManipulations(TestCase):
         b = ht.ones((12,), split=0)
         res = ht.vstack((a, b))
         self.assertEqual(res.shape, (2, 12))
+
+    def test_unfold(self):
+        # 2D sliding views
+        n = 20
+
+        x = torch.arange(0, n * n).reshape((n, n))
+        y = ht.array(x)
+        y.resplit_(0)
+
+        u = x.unfold(0, 3, 3)
+        u = u.unfold(1, 3, 3)
+        u = ht.array(u)
+        v = ht.unfold(y, 0, 3, 3)
+        v = ht.unfold(v, 1, 3, 3)
+
+        self.assertTrue(ht.equal(u, v))
