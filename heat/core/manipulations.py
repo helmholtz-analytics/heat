@@ -61,6 +61,7 @@ __all__ = [
     "unique",
     "vsplit",
     "vstack",
+    "unfold",
 ]
 
 
@@ -4178,3 +4179,73 @@ def mpi_topk(a, b, mpi_type):
 
 
 MPI_TOPK = MPI.Op.Create(mpi_topk, commute=True)
+
+
+def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
+    """
+    Returns a view of the original tensor which contains all slices of size size from self tensor in the dimension dimension.
+
+    Behaves like torch.Tensor.unfold for DNDarrays. [torch.Tensor.unfold](https://pytorch.org/docs/stable/generated/torch.Tensor.unfold.html)
+    """
+    if step < 1:
+        raise ValueError("step must be >= 1.")
+    if size < 1:
+        raise ValueError("size must be >= 1.")
+    if dimension < 0 or dimension >= a.ndim:
+        raise ValueError(f"{dimension} is not a valid dimension of the given DNDarray.")
+
+    comm = a.comm
+    dev = a.device
+    tdev = dev.torch_device
+
+    if a.split is None or comm.size == 1 or a.split != dimension:  # early out
+        ret = factories.array(
+            a.larray.unfold(dimension, size, step), is_split=a.split, device=dev, comm=comm
+        )
+
+        return ret
+    else:  # comm.size > 1 and split axis == unfold axis
+        # initialize the array
+        # a_shape = a.shape
+        # index range [0:sizedim-1-(size-1)] = [0:sizedim-size]
+        # --> size of axis: ceil((sizedim-size+1) / step) = floor(sizedim-size) / step)) + 1
+        # ret_shape = (*a_shape[:dimension], int((a_shape[dimension]-size)/step) + 1, a_shape[dimension+1:], size)
+
+        # ret = ht.zeros(ret_shape, device=dev, split=a.split)
+
+        # send the needed entries in the unfold dimension from node n to n+1 or n-1
+        a.get_halo(size - 1)
+        a_lshapes_cum = torch.hstack(
+            [
+                torch.zeros(1, dtype=torch.int32, device=tdev),
+                torch.cumsum(a.lshape_map[:, dimension], 0),
+            ]
+        )
+        # min local index in unfold dimension
+        min_index = ((a_lshapes_cum[comm.rank] - 1) // step + 1) * step - a_lshapes_cum[comm.rank]
+        unfold_loc = a.larray[
+            dimension * (slice(None, None, None),) + (slice(min_index, None, None), Ellipsis)
+        ].unfold(dimension, size, step)
+        ret_larray = unfold_loc
+        if comm.rank < comm.size - 1:  # possibly unfold with halo from next rank
+            max_index = a.lshape[dimension] - min_index - 1
+            max_index = max_index // step * step + min_index  # max local index in unfold dimension
+            rem = max_index + size - a.lshape[dimension]
+            if rem > 0:  # need data from halo
+                unfold_halo = torch.cat(
+                    (
+                        a.larray[
+                            dimension * (slice(None, None, None),)
+                            + (slice(max_index, None, None), Ellipsis)
+                        ],
+                        a.halo_next[
+                            dimension * (slice(None, None, None),)
+                            + (slice(None, rem, None), Ellipsis)
+                        ],
+                    ),
+                    dimension,
+                ).unfold(dimension, size, step)
+                ret_larray = torch.cat((unfold_loc, unfold_halo), dimension)
+        ret = factories.array(ret_larray, is_split=dimension, device=dev, comm=comm)
+
+        return ret
