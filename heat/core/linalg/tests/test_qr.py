@@ -82,22 +82,22 @@ class TestQR(TestCase):
                     ht.allclose(ht.eye(m, dtype=ht.double), qr2.Q @ qr2.Q.T, rtol=1e-5, atol=1e-5)
                 )
 
-        #         # test if calc R alone works
-        #         a2_0 = ht.array(st2, split=0)
-        #         a2_1 = ht.array(st2, split=1)
-        #         qr_0 = ht.qr(a2_0, calc_q=False, overwrite_a=True)
-        #         self.assertTrue(qr_0.Q is None)
-        #         qr_1 = ht.qr(a2_1, calc_q=False, overwrite_a=True)
-        #         self.assertTrue(qr_1.Q is None)
+        # test if calc R alone works
+        a2_0 = ht.array(st2, split=0)
+        a2_1 = ht.array(st2, split=1)
+        qr_0 = ht.qr(a2_0, calc_q=False, overwrite_a=True)
+        self.assertTrue(qr_0.Q is None)
+        qr_1 = ht.qr(a2_1, calc_q=False, overwrite_a=True)
+        self.assertTrue(qr_1.Q is None)
 
-        #         m, n = 40, 20
-        #         st = torch.randn(m, n, device=self.device.torch_device)
-        #         a_comp = ht.array(st, split=None)
-        #         a = ht.array(st, split=None)
-        #         qr = a.qr()
-        #         self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
-        #         self.assertTrue(ht.allclose(qr.Q.T @ qr.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
-        #         self.assertTrue(ht.allclose(ht.eye(m), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5))
+        m, n = 40, 20
+        st = torch.randn(m, n, device=self.device.torch_device)
+        a_comp = ht.array(st, split=None)
+        a = ht.array(st, split=None)
+        qr = a.qr()
+        self.assertTrue(ht.allclose(a_comp, qr.Q @ qr.R, rtol=1e-5, atol=1e-5))
+        self.assertTrue(ht.allclose(qr.Q.T @ qr.Q, ht.eye(m), rtol=1e-5, atol=1e-5))
+        self.assertTrue(ht.allclose(ht.eye(m), qr.Q @ qr.Q.T, rtol=1e-5, atol=1e-5))
 
         # raises
         with self.assertRaises(TypeError):
