@@ -16,6 +16,13 @@ def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
 
     Behaves like torch.Tensor.unfold for DNDarrays. [torch.Tensor.unfold](https://pytorch.org/docs/stable/generated/torch.Tensor.unfold.html)
     """
+    if step < 1:
+        raise ValueError("step must be >= 1.")
+    if size < 1:
+        raise ValueError("size must be >= 1.")
+    if dimension < 0 or dimension >= a.ndim:
+        raise ValueError(f"{dimension} is not a valid dimension of the given DNDarray.")
+
     comm = a.comm
     dev = a.device
     tdev = dev.torch_device
@@ -43,12 +50,8 @@ def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
                 torch.cumsum(a.lshape_map[:, dimension], 0),
             ]
         )
-        if comm.rank == 0:
-            print(a_lshapes_cum)
-        min_index = ((a_lshapes_cum[comm.rank] - 1) // step + 1) * step - a_lshapes_cum[
-            comm.rank
-        ]  # min local index in unfold dimension
-        print(f"min_index on rank {comm.rank}: {min_index}")
+        # min local index in unfold dimension
+        min_index = ((a_lshapes_cum[comm.rank] - 1) // step + 1) * step - a_lshapes_cum[comm.rank]
         unfold_loc = a.larray[
             dimension * (slice(None, None, None),) + (slice(min_index, None, None), Ellipsis)
         ].unfold(dimension, size, step)
@@ -78,7 +81,7 @@ def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
 
 
 # tests
-n = 100
+n = 20
 
 # x = torch.arange(0.0, n)
 # y = 2 * x.unsqueeze(1) + x.unsqueeze(0)
@@ -88,13 +91,17 @@ n = 100
 # print(y)
 # print(unfold(y, 0, 3, 1))
 
-x = torch.arange(0, n)
+x = torch.arange(0, n * n).reshape((n, n))
+# print(f"x: {x}")
 y = factories.array(x)
 y.resplit_(0)
 
-u = x.unfold(0, 5, 10)
+u = x.unfold(0, 3, 3)
+u = u.unfold(1, 3, 3)
 u = factories.array(u)
-v = unfold(y, 0, 5, 10)
+v = unfold(y, 0, 3, 3)
+v.resplit_(1)
+v = unfold(v, 1, 3, 3)
 
 comm = u.comm
 # print(v)
@@ -107,6 +114,6 @@ if comm.rank == 0:
     print(f"u.shape: {u_shape}")
     print(f"v.shape: {v_shape}")
     print(f"torch and heat unfold equal: {equal}")
-    print(f"u: {u}")
+    # print(f"u: {u}")
 
-print(f"v: {v}")
+# print(f"v: {v}")
