@@ -1167,7 +1167,7 @@ def load_npy_from_path(
 
     if n_files == 0:
         raise ValueError("No NPY Files were found")
-    if n_files < process_number:
+    if (n_files < process_number) and (process_number > 1):
         raise RuntimeError("Number of processes can't exceed number of files")
 
     rank = MPI_WORLD.rank
@@ -1184,9 +1184,9 @@ def load_npy_from_path(
     ]
     array_list = []
     for element in local_list:
-        array_list.append(np.load(path + "/" + element, allow_pickle=True))
+        array_list.append(np.load(path + "/" + element))
     larray = np.concatenate(array_list, split)
     larray = torch.from_numpy(larray)
 
-    x = factories.array(larray, dtype=dtype, device=device, split=split, comm=comm)
+    x = factories.array(larray, dtype=dtype, device=device, is_split=split, comm=comm)
     return x
