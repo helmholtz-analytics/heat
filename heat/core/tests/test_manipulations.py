@@ -3753,10 +3753,25 @@ class TestManipulations(TestCase):
         self.assertEqual(res.shape, (2, 12))
 
     def test_unfold(self):
-        # 2D sliding views
-        n = 20
+        # exceptions
+        x = ht.arange(100)
+        with self.assertRaises(ValueError):
+            ht.unfold(x, -1, 1, 1)
+        with self.assertRaises(ValueError):
+            ht.unfold(x, 0, 0, 1)
+        with self.assertRaises(ValueError):
+            ht.unfold(x, 0, 1, 0)
+        with self.assertRaises(ValueError):  # size too large for chunk_size
+            x.resplit_(0)
+            min_chunk_size = x.lshape_map[:, 0].min()
+            ht.unfold(x, 0, min_chunk_size + 2)
+        with self.assertRaises(RuntimeError):  # size too large
+            ht.unfold(x, 0, 101, 1)
 
-        x = torch.arange(0, n * n).reshape((n, n))
+        # 2D sliding views
+        n = 100
+
+        x = torch.arange(n * n).reshape((n, n))
         y = ht.array(x)
         y.resplit_(0)
 
@@ -3767,3 +3782,20 @@ class TestManipulations(TestCase):
         v = ht.unfold(v, 1, 3, 3)
 
         self.assertTrue(ht.equal(u, v))
+
+        # more dimensions, different split axes
+        n = 10
+        k = 5  # number of dimensions
+        shape = k * (n,)
+        size = n**k
+
+        x = torch.arange(size).reshape(shape)
+        y = ht.array(x)
+
+        for split in (None, *range(k)):
+            y.resplit_(split)
+            for dimension in range(k):
+                u = ht.array(x.unfold(dimension, 1, 1))
+                v = ht.unfold(y, dimension, 1, 1)
+
+                self.assertTrue(ht.equal(u, v))

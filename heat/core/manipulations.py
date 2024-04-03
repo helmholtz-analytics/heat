@@ -4193,6 +4193,10 @@ def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
         raise ValueError("size must be >= 1.")
     if dimension < 0 or dimension >= a.ndim:
         raise ValueError(f"{dimension} is not a valid dimension of the given DNDarray.")
+    if size > a.shape[dimension]:  # size too large
+        raise RuntimeError(
+            f"maximum size for DNDarray at dimension {dimension} is {a.shape[dimension]} but size is {size}."
+        )
 
     comm = a.comm
     dev = a.device
@@ -4214,6 +4218,8 @@ def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
         # ret = ht.zeros(ret_shape, device=dev, split=a.split)
 
         # send the needed entries in the unfold dimension from node n to n+1 or n-1
+        if (size - 1 > a.lshape_map[:, dimension]).any():
+            raise ValueError("Chunk-size needs to be at least size - 1.")
         a.get_halo(size - 1)
         a_lshapes_cum = torch.hstack(
             [
@@ -4223,11 +4229,19 @@ def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
         )
         # min local index in unfold dimension
         min_index = ((a_lshapes_cum[comm.rank] - 1) // step + 1) * step - a_lshapes_cum[comm.rank]
-        unfold_loc = a.larray[
-            dimension * (slice(None, None, None),) + (slice(min_index, None, None), Ellipsis)
-        ].unfold(dimension, size, step)
+        loc_unfold_shape = list(a.lshape)
+        loc_unfold_shape[dimension] -= min_index
+        if loc_unfold_shape[dimension] >= size:  # some unfold arrays are unfolds of the local array
+            unfold_loc = a.larray[
+                dimension * (slice(None, None, None),) + (slice(min_index, None, None), Ellipsis)
+            ].unfold(dimension, size, step)
+        else:
+            loc_unfold_shape[dimension] = 0
+            unfold_loc = torch.zeros((*loc_unfold_shape, size))
         ret_larray = unfold_loc
-        if comm.rank < comm.size - 1:  # possibly unfold with halo from next rank
+        if (
+            comm.rank < comm.size - 1 and min_index < a.lshape[dimension]
+        ):  # possibly unfold with halo from next rank
             max_index = a.lshape[dimension] - min_index - 1
             max_index = max_index // step * step + min_index  # max local index in unfold dimension
             rem = max_index + size - a.lshape[dimension]
