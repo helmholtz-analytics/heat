@@ -274,16 +274,22 @@ def lanczos(
 
 def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
     """
-    Solve upper triangular systems of linear equations.
+    This function provides a solver for (possibly batched) upper triangular systems of linear equations: it returns x in Ax = b, where A is a (possibly batched) upper triangular matrix and
+    b a (possibly batched) vector or matrix of suitable shape, both provided as input to the function.
+    The implementation builts on the corresponding solver in PyTorch and implements a block-wise version thereof.
 
-    Input:
-        A - an upper triangular (possibly batched) invertible square (n x n) matrix
-        b - (possibly batched) n x k matrix
+    Parameters
+    ----------
+    A : DNDarray
+        An upper triangular (possibly batched) invertible square (n x n) matrix, i.e. an DNDarray of shape (..., n, n).
+    b : DNDarray
+        a (possibly batched) n x k matrix, i.e. an DNDarray of shape (..., n, k), where the batch-dimensions denoted by ... need to coincide with those of A.
+        Vectors have to be provided as n x 1 matrices and the split dimension of b must the second last dimension if not None.
 
-    Output:
-        The unique solution x of A * x = b.
-
-    Vectors b have to be given as n x 1 matrices.
+    Note
+    ---------
+    Since such a check might be computationally expensive, we do not check whether A is indeed upper triangular.
+    If you require such a check, please open an issue on our GitHub page and request this feature.
     """
     if not isinstance(A, DNDarray) or not isinstance(b, DNDarray):
         raise TypeError(f"Arguments need to be of type DNDarray, got {type(A)}, {type(b)}.")
