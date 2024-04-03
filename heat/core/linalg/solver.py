@@ -317,7 +317,9 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
         ):  # both la dimensions split --> b.split = batch_dim
             # TODO remove?
             if not all(A.lshape_map[:, A.split] == b.lshape_map[:, batch_dim]):
-                raise RuntimeError("Local arrays of A and b have different sizes.")
+                raise RuntimeError(
+                    "The process-local arrays of A and b have different sizes along the splitted axis. This is most likely due to one of the DNDarrays being in unbalanced state. \n Consider using `A.is_balanced(force_check=True)` and `b.is_balanced(force_check=True)` to check if A and b are balanced; \n then call `A.balance_()` and/or `b.balance_()` in order to achieve equal local shapes along the split axis before applying `solve_triangular`."
+                )
 
     comm = A.comm
     dev = A.device
