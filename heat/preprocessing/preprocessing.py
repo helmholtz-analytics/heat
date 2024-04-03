@@ -470,6 +470,10 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
     unit_variance : not yet supported.
         raises ``NotImplementedError``
 
+    use_sketch_of_size : optional, float
+        If not None, the sketch size (between 0 and 1) to use for the computation of the median and the IQR.
+        If None (default), the full data set will be used.
+
     Attributes
     ----------
     center_ : DNDarray of shape (n_features,)
@@ -490,11 +494,13 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
         quantile_range: Tuple[float, float] = (25.0, 75.0),
         copy: bool = True,
         unit_variance: bool = False,
+        use_sketch_of_size: Optional[float] = None,
     ):
         self.with_centering = with_centering
         self.with_scaling = with_scaling
         self.quantile_range = quantile_range
         self.copy = copy
+        self.use_sketch_of_size = use_sketch_of_size
         if not with_centering and not with_scaling:
             raise ValueError(
                 "Both centering and scaling are disabled, thus RobustScaler could do nothing. At least one of with_scaling or with_centering must be True."
@@ -525,10 +531,12 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
         """
         _is_2D_float_DNDarray(X)
         if self.with_centering:
-            self.center_ = ht.median(X, axis=0)
+            self.center_ = ht.median(X, axis=0, use_sketch_of_size=self.use_sketch_of_size)
         if self.with_scaling:
-            self.iqr_ = ht.percentile(X, self.quantile_range[1], axis=0) - ht.percentile(
-                X, self.quantile_range[0], axis=0
+            self.iqr_ = ht.percentile(
+                X, self.quantile_range[1], axis=0, use_sketch_of_size=self.use_sketch_of_size
+            ) - ht.percentile(
+                X, self.quantile_range[0], axis=0, use_sketch_of_size=self.use_sketch_of_size
             )
 
             # if length of iqr is close to zero, do not scale this feature
