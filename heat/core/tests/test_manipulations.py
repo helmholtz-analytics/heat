@@ -3761,7 +3761,7 @@ class TestManipulations(TestCase):
             ht.unfold(x, 0, 0, 1)
         with self.assertRaises(ValueError):
             ht.unfold(x, 0, 1, 0)
-        with self.assertRaises(ValueError):  # size too large for chunk_size
+        with self.assertRaises(RuntimeError):  # size too large for chunk_size
             x.resplit_(0)
             min_chunk_size = x.lshape_map[:, 0].min()
             ht.unfold(x, 0, min_chunk_size + 2)
