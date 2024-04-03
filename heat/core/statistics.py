@@ -1018,7 +1018,12 @@ DNDarray.mean: Callable[[DNDarray, Union[int, List, Tuple]], DNDarray] = lambda 
 DNDarray.mean.__doc__ = mean.__doc__
 
 
-def median(x: DNDarray, axis: Optional[int] = None, keepdims: bool = False) -> DNDarray:
+def median(
+    x: DNDarray,
+    axis: Optional[int] = None,
+    keepdims: bool = False,
+    use_sketch_of_size: Optional[float] = None,
+) -> DNDarray:
     """
     Compute the median of the data along the specified axis.
     Returns the median of the ``DNDarray`` elements.
@@ -1034,12 +1039,17 @@ def median(x: DNDarray, axis: Optional[int] = None, keepdims: bool = False) -> D
     keepdims : bool, optional
         If True, the axes which are reduced are left in the result as dimensions with size one.
         With this option, the result can broadcast correctly against the original array ``a``.
+
+    use_sketch_of_size : float, optional
+        The fraction of the data to use for estimating the median. If None, the entire data is used.
     """
-    return percentile(x, q=50, axis=axis, keepdims=keepdims)
+    return percentile(x, q=50, axis=axis, keepdims=keepdims, use_sketch_of_size=use_sketch_of_size)
 
 
 DNDarray.median: Callable[[DNDarray, int, bool], DNDarray] = (
-    lambda x, axis=None, keepdims=False: median(x, axis, keepdims)
+    lambda x, axis=None, keepdims=False, use_sketch_of_size=None: median(
+        x, axis, keepdims, use_sketch_of_size
+    )
 )
 DNDarray.mean.__doc__ = mean.__doc__
 
