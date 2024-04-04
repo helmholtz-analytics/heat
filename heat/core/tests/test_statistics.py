@@ -1245,6 +1245,7 @@ class TestStatistics(TestCase):
             ht.percentile(x_ht, q, out=out_wrong_split)
 
     def test_percentile_sketched(self):
+        # check if it works
         for split in [None, 0, 1]:
             X = ht.random.rand(10 * ht.MPI_WORLD.size, 2 * ht.MPI_WORLD.size, split=split)
             axis = 0
@@ -1256,6 +1257,14 @@ class TestStatistics(TestCase):
             else:
                 p = ht.percentile(X, q, axis=axis, use_sketch_of_size=use_sketch_of_size)
                 self.assertTrue(p.shape == (2 * ht.MPI_WORLD.size,))
+        # check if it raises correct errors
+        X = ht.random.rand(10 * ht.MPI_WORLD.size, 2 * ht.MPI_WORLD.size, split=0)
+        axis = 0
+        q = 50
+        with self.assertRaises(ValueError):
+            ht.percentile(X, q, axis=axis, use_sketch_of_size=1.1)
+        with self.assertRaises(ValueError):
+            ht.percentile(X, q, axis=axis, use_sketch_of_size=10)
 
     def test_skew(self):
         x = ht.zeros((2, 3, 4))

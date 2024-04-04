@@ -1523,25 +1523,27 @@ def percentile(
         sketch_size : int or float
             The size of the sketch. If an integer, it is interpreted as the number of samples to take. If a float, it is interpreted as the fraction of samples to take.
         """
-        if not isinstance(a, DNDarray):
-            raise ValueError(f"a must be a DNDarray, but is {type(a)}.")
-        if not isinstance(axis, int) or axis < 0 or axis >= a.ndim:
-            raise ValueError(f"axis must be an integer between 0 and a.ndim-1, but is {axis}.")
-        if isinstance(sketch_size, int) and sketch_size <= 0 or sketch_size > a.shape[axis]:
-            raise ValueError(
-                f"if an integer, sketch_size must be positive and less than or equal to a.shape[axis], but is {sketch_size}."
-            )
-        elif isinstance(sketch_size, float):
-            if sketch_size <= 0 or sketch_size >= 1:
-                raise ValueError(
-                    f"if a float, sketch_size must be strictly between 0 and 1, but is {sketch_size}."
-                )
-            else:
-                sketch_size = int(sketch_size * a.shape[axis])
-        else:
-            raise ValueError(
-                f"sketch_size must be an integer or a float, but is {type(sketch_size)}."
-            )
+        # ----------------- please do not delete this code block -----------------
+        # ------ may be used as a function in manipulation.py in the future ------
+        # if not isinstance(a, DNDarray):
+        #     raise ValueError(f"a must be a DNDarray, but is {type(a)}.")
+        # if not isinstance(axis, int) or axis < 0 or axis >= a.ndim:
+        #     raise ValueError(f"axis must be an integer between 0 and a.ndim-1, but is {axis}.")
+        # if isinstance(sketch_size, int) and sketch_size <= 0 or sketch_size > a.shape[axis]:
+        #     raise ValueError(
+        #         f"if an integer, sketch_size must be positive and less than or equal to a.shape[axis], but is {sketch_size}."
+        #     )
+        if isinstance(sketch_size, float):
+            # if sketch_size <= 0 or sketch_size >= 1:
+            #     raise ValueError(
+            #         f"if a float, sketch_size must be strictly between 0 and 1, but is {sketch_size}."
+            #     )
+            # else:
+            sketch_size = int(sketch_size * a.shape[axis])
+        # if not isinstance(sketch_size, int) and not isinstance(sketch_size, float):
+        #     raise ValueError(
+        #         f"sketch_size must be an integer or a float, but is {type(sketch_size)}."
+        #     )
 
         # create a random sample of indices
         indices = randint(0, a.shape[axis], sketch_size, device=a.device)
