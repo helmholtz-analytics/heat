@@ -89,7 +89,7 @@ Local torch tensor on rank  0 :  tensor([0, 1, 2, 3, 4], dtype=torch.int32)
 Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
 ```
 
-Our Jupyter Notebook [**Tutorial**](https://github.com/helmholtz-analytics/heat/blob/main/scripts/) illustrates Heat's basics. More tutorials [here](https://heat.readthedocs.io/en/latest/tutorials.html).
+Check out our Jupyter Notebook [**Tutorials**](https://github.com/helmholtz-analytics/heat/blob/main/tutorials/), choose `local` to try things out on your machine, or `hpc` if you have access to an HPC system.
 
 The complete documentation of the latest version is always deployed on
 [Read the Docs](https://heat.readthedocs.io/).
