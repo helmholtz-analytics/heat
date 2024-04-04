@@ -12,7 +12,7 @@ on:
   schedule:
     - cron: '37 10 * * 5'
   push:
-    branches: [ "main" ]
+    branches: [ "main", "bugs/1414-_Bug_Scorecard_analysis_failure" ]
 
 # Declare default permissions as read only.
 permissions: read-all
