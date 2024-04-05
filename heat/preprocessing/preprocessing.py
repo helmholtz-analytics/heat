@@ -448,6 +448,10 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
     the quantile range (defaults to IQR: Interquartile Range); this routine is similar
     to ``sklearn.preprocessing.RobustScaler``.
 
+    Per default, the "true" median and IQR of the entire data set is computed; however, the argument 
+    `use_sketch_of_size` allows to switch to a faster but inaccurate version that computes 
+    median and IQR only on behalf of a random subset of the data set ("sketch"). 
+
     The underyling data set to be scaled must be stored as a 2D-`DNDarray` of shape (n_datapoints, n_features).
     Each feature is centered and scaled independently.
 
