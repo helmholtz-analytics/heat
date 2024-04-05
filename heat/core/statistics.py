@@ -1027,9 +1027,9 @@ def median(
     """
     Compute the median of the data along the specified axis.
     Returns the median of the ``DNDarray`` elements.
-    Per default, the "true" median of the entire data set is computed; however, the argument 
-    `use_sketch_of_size` allows to switch to a faster but inaccurate version that computes 
-    the median only on behalf of a random subset of the data set ("sketch"). 
+    Per default, the "true" median of the entire data set is computed; however, the argument
+    `use_sketch_of_size` allows to switch to a faster but inaccurate version that computes
+    the median only on behalf of a random subset of the data set ("sketch").
 
     Parameters
     ----------
@@ -1433,8 +1433,8 @@ def percentile(
     r"""
     Compute the q-th percentile of the data along the specified axis.
     Returns the q-th percentile(s) of the tensor elements.
-    Per default, the "true" percentile(s) of the entire data set are computed; however, the argument 
-    `use_sketch_of_size` allows to switch to a faster but inaccurate version that computes 
+    Per default, the "true" percentile(s) of the entire data set are computed; however, the argument
+    `use_sketch_of_size` allows to switch to a faster but inaccurate version that computes
     the percentile only on behalf of a random subset of the data set ("sketch").
 
     Parameters
