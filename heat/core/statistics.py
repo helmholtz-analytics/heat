@@ -1041,7 +1041,8 @@ def median(
         With this option, the result can broadcast correctly against the original array ``a``.
 
     use_sketch_of_size : float, optional
-        The fraction of the data to use for estimating the median. If None, the entire data is used.
+        If None (default), the entire data is used and no sketching is performed.
+        If float, the fraction of the data to use for estimating the median; needs to be strictly between 0 and 1. 
     """
     return percentile(x, q=50, axis=axis, keepdims=keepdims, use_sketch_of_size=use_sketch_of_size)
 
@@ -1464,7 +1465,8 @@ def percentile(
         With this option, the result can broadcast correctly against the original array x.
 
     use_sketch_of_size : float, optional
-        The fraction of the data to use for estimating the percentiles. If None, the entire data is used.
+        If None (default), the entire data is used and no sketching is performed.
+        If float, the fraction of the data to use for estimating the percentile; needs to be strictly between 0 and 1. 
     """
 
     def _local_percentile(data: torch.Tensor, axis: int, indices: torch.Tensor) -> torch.Tensor:
@@ -1521,7 +1523,7 @@ def percentile(
         axis : int
             The axis along which to create the sketch.
         sketch_size : int or float
-            The size of the sketch. If an integer, it is interpreted as the number of samples to take. If a float, it is interpreted as the fraction of samples to take.
+            The size of the sketch. If an integer, it is interpreted as the number of samples to take and therefore must not exceed the size of the axis along which the sketch is taken. If a float, it is interpreted as the fraction of samples to take and must be strictly between 0 and 1.
         """
         # ----------------- please do not delete this code block -----------------
         # ------ may be used as a function in manipulation.py in the future ------
