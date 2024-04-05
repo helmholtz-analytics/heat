@@ -472,7 +472,7 @@ class RobustScaler(ht.TransformMixin, ht.BaseEstimator):
 
     use_sketch_of_size : optional, float
         If None (default), no sketching is performed and the full data set will be used.
-        If float, determines the fraction of the data set to be used for the computation of median and IQR; must be strictly between 0 and 1.         
+        If float, determines the fraction of the data set to be used for the computation of median and IQR; must be strictly between 0 and 1.
 
     Attributes
     ----------
