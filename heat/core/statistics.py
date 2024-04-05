@@ -1042,7 +1042,7 @@ def median(
 
     use_sketch_of_size : float, optional
         If None (default), the entire data is used and no sketching is performed.
-        If float, the fraction of the data to use for estimating the median; needs to be strictly between 0 and 1. 
+        If float, the fraction of the data to use for estimating the median; needs to be strictly between 0 and 1.
     """
     return percentile(x, q=50, axis=axis, keepdims=keepdims, use_sketch_of_size=use_sketch_of_size)
 
@@ -1466,7 +1466,7 @@ def percentile(
 
     use_sketch_of_size : float, optional
         If None (default), the entire data is used and no sketching is performed.
-        If float, the fraction of the data to use for estimating the percentile; needs to be strictly between 0 and 1. 
+        If float, the fraction of the data to use for estimating the percentile; needs to be strictly between 0 and 1.
     """
 
     def _local_percentile(data: torch.Tensor, axis: int, indices: torch.Tensor) -> torch.Tensor:
