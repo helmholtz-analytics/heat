@@ -40,8 +40,8 @@ class TestSolver(TestCase):
         self.assertTrue(V.dtype is B.dtype)
         self.assertTrue(T.dtype is B.dtype)
         # V must be unitary
-        V_inv = ht.linalg.inv(V)
-        self.assertTrue(ht.allclose(V_inv, V.T))
+        V_inv = ht.conj(V).T
+        self.assertTrue(ht.allclose(V_inv @ V, ht.eye(V.shape[0]))
         # V T V.T must be = B, V transposed = V inverse
         lanczos_B = V @ T @ V_inv
         self.assertTrue(ht.allclose(lanczos_B, B))
@@ -59,8 +59,8 @@ class TestSolver(TestCase):
         # Lanczos decomposition with iterations m = n
         ht.lanczos(B, m=m, V_out=V_out, T_out=T_out)
         # V must be unitary
-        V_inv = ht.linalg.inv(V_out)
-        self.assertTrue(ht.allclose(V_inv, ht.conj(V_out).T))
+        V_inv = ht.conj(V_out).T
+        self.assertTrue(ht.allclose(V_inv @ V_out, ht.eye(V_out.shape[0]))
         # V T V* must be = B, V conjugate transpose = V inverse
         lanczos_B = V_out @ T_out @ V_inv
         self.assertTrue(ht.allclose(lanczos_B, B))
@@ -78,8 +78,8 @@ class TestSolver(TestCase):
         self.assertTrue(V.dtype is B.dtype)
         self.assertTrue(T.dtype is B.dtype)
         # V must be unitary
-        V_inv = ht.linalg.inv(V)
-        self.assertTrue(ht.allclose(V_inv, V.T, atol=tolerance))
+        V_inv = ht.conj(V).T
+        self.assertTrue(ht.allclose(V_inv @ V, ht.eye(V.shape[0]), atol=tolerance))
         # V T V.T must be = B, V transposed = V inverse
         lanczos_B = V @ T @ V_inv
         self.assertTrue(ht.allclose(lanczos_B, B, atol=tolerance))
@@ -110,8 +110,8 @@ class TestSolver(TestCase):
         self.assertTrue(V_out.dtype is B.dtype)
         self.assertTrue(T_out.dtype is B.real.dtype)
         # V must be unitary
-        V_inv = ht.linalg.inv(V_out)
-        self.assertTrue(ht.allclose(V_inv, V_out.T))
+        V_inv = ht.conj(V_out).T
+        self.assertTrue(ht.allclose(V_inv @ V_out, ht.eye(V_out.shape[0]))
         # without output buffers
         V, T = ht.lanczos(B, m=m)
         # V T V.T must be = B, V transposed = V inverse
