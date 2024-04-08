@@ -8,6 +8,7 @@ import random
 
 from heat.core.tests.test_suites.basic_test import TestCase
 
+blas_backend = blas_info = torch.__config__.show().split(\"BLAS_INFO=\")[-1].split(\",\")[0]
 
 @unittest.skipIf(
     int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 12,
@@ -71,7 +72,9 @@ class TestArithmetics(TestCase):
         if self.world_size > 0:
             ht.communication.MPI_WORLD.Bcast(self.scalar, root=0)
         self.scalar = self.scalar.item()
-
+        
+    @unittest.skipIf(blas_backend != "mkl", 
+                     f"addition of sparse tensors requires torch to be compiled with mkl, but BLAS backend is {blas_backend}.")
     def test_add(self):
         heat_sparse_csr_A = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_A)
         heat_sparse_csr_B = ht.sparse.sparse_csr_matrix(self.ref_torch_sparse_csr_B)
