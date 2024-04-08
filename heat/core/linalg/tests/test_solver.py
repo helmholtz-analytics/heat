@@ -60,7 +60,7 @@ class TestSolver(TestCase):
         ht.lanczos(B, m=m, V_out=V_out, T_out=T_out)
         # V must be unitary
         V_inv = ht.conj(V_out).T
-        print(ht.linalg.norm(V_inv @ V_out - ht.eye(V_out.shape[0]))
+        print(ht.linalg.norm(V_inv @ V_out - ht.eye(V_out.shape[0])))
         self.assertTrue(ht.allclose(V_inv @ V_out, ht.eye(V_out.shape[0])))
         # V T V* must be = B, V conjugate transpose = V inverse
         lanczos_B = V_out @ T_out @ V_inv
