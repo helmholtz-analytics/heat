@@ -3762,11 +3762,15 @@ class TestManipulations(TestCase):
             ht.unfold(x, 0, 0, 1)
         with self.assertRaises(ValueError):
             ht.unfold(x, 0, 1, 0)
-        with self.assertRaises(ValueError):  # size too large for chunk_size
-            x.resplit_(0)
-            min_chunk_size = x.lshape_map[:, 0].min()
-            ht.unfold(x, 0, min_chunk_size + 2)
-        with self.assertRaises(RuntimeError):  # size too large
+        x.resplit_(0)
+        min_chunk_size = x.lshape_map[:, 0].min()
+        if min_chunk_size + 2 > n:  # size too large
+            with self.assertRaises(ValueError):
+                ht.unfold(x, 0, min_chunk_size + 2)
+        else:  # size too large for chunk_size
+            with self.assertRaises(RuntimeError):
+                ht.unfold(x, 0, min_chunk_size + 2)
+        with self.assertRaises(ValueError):  # size too large
             ht.unfold(x, 0, n + 1, 1)
 
         # 2D sliding views

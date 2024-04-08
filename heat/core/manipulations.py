@@ -4193,8 +4193,8 @@ def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
         raise ValueError("size must be >= 1.")
     if dimension < 0 or dimension >= a.ndim:
         raise ValueError(f"{dimension} is not a valid dimension of the given DNDarray.")
-    if size > a.shape[dimension]:  # size too large
-        raise RuntimeError(
+    if size > a.shape[dimension]:  # size too large, runtime error or value error?
+        raise ValueError(
             f"maximum size for DNDarray at dimension {dimension} is {a.shape[dimension]} but size is {size}."
         )
 
@@ -4209,17 +4209,12 @@ def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
 
         return ret
     else:  # comm.size > 1 and split axis == unfold axis
-        # initialize the array
-        # a_shape = a.shape
         # index range [0:sizedim-1-(size-1)] = [0:sizedim-size]
         # --> size of axis: ceil((sizedim-size+1) / step) = floor(sizedim-size) / step)) + 1
         # ret_shape = (*a_shape[:dimension], int((a_shape[dimension]-size)/step) + 1, a_shape[dimension+1:], size)
 
-        # ret = ht.zeros(ret_shape, device=dev, split=a.split)
-
-        # send the needed entries in the unfold dimension from node n to n+1 or n-1
         if (size - 1 > a.lshape_map[:, dimension]).any():
-            raise ValueError("Chunk-size needs to be at least size - 1.")
+            raise RuntimeError("Chunk-size needs to be at least size - 1.")
         a.get_halo(size - 1)
         a_lshapes_cum = torch.hstack(
             [
