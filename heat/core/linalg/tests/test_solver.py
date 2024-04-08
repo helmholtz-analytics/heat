@@ -6,6 +6,8 @@ import numpy as np
 
 from ...tests.test_suites.basic_test import TestCase
 
+blas_backend = blas_info = torch.__config__.show().split("BLAS_INFO=")[-1].split(",")[0]
+
 
 class TestSolver(TestCase):
     def test_cg(self):
@@ -30,6 +32,10 @@ class TestSolver(TestCase):
         with self.assertRaises(RuntimeError):
             ht.linalg.cg(A, b, A)
 
+    @unittest.skipIf(
+        blas_backend != "mkl",
+        f"addition of sparse tensors requires torch to be compiled with mkl, but BLAS backend is {blas_backend}.",
+    )
     def test_lanczos(self):
         # define positive definite matrix (n,n), split = 0
         n = 100
