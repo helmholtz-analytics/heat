@@ -8,7 +8,7 @@ import random
 
 from heat.core.tests.test_suites.basic_test import TestCase
 
-blas_backend = blas_info = torch.__config__.show().split(\"BLAS_INFO=\")[-1].split(\",\")[0]
+blas_backend = blas_info = torch.__config__.show().split("BLAS_INFO=")[-1].split(",")[0]
 
 @unittest.skipIf(
     int(torch.__version__.split(".")[0]) <= 1 and int(torch.__version__.split(".")[1]) < 12,
