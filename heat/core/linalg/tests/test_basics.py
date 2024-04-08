@@ -7,6 +7,8 @@ import numpy as np
 
 from ...tests.test_suites.basic_test import TestCase
 
+blas_backend = blas_info = torch.__config__.show().split("BLAS_INFO=")[-1].split(",")[0]
+
 
 class TestLinalgBasics(TestCase):
     def test_cross(self):
@@ -224,6 +226,10 @@ class TestLinalgBasics(TestCase):
         with self.assertRaises(NotImplementedError):
             ht.dot(ht.array(data3d), ht.array(data1d))
 
+    @unittest.skipIf(
+        blas_backend != "mkl",
+        f"addition of sparse tensors requires torch to be compiled with mkl, but BLAS backend is {blas_backend}.",
+    )
     def test_inv(self):
         # single 2D array
         # pytorch
