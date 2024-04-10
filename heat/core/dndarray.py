@@ -2521,9 +2521,15 @@ class DNDarray:
                 send_displs[proc] = send_counts[:proc].sum()
                 # compose send buffer: stack local elements of `value` according to destination process
                 if send_indices.numel() > 0:
-                    send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], :-1] = (
-                        value.larray[send_indices]
-                    )
+                    if value.ndim < 2:
+                        # temporarily add a singleton dimension to value to accmodate column dimension for send_indices
+                        send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], :-1] = (
+                            value.larray[send_indices].unsqueeze(1)
+                        )
+                    else:
+                        send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], :-1] = (
+                            value.larray[send_indices]
+                        )
                     # store outgoing GLOBAL indices in the last column of send_buf
                     # TODO: if key_is_mask_like: apply send_indices to all dimensions of key
                     if key_is_mask_like:
