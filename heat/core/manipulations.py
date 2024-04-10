@@ -4183,9 +4183,24 @@ MPI_TOPK = MPI.Op.Create(mpi_topk, commute=True)
 
 def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
     """
-    Returns a view of the original tensor which contains all slices of size size from self tensor in the dimension dimension.
+    Returns a DNDarray which contains all slices of size size in the dimension dimension.
 
     Behaves like torch.Tensor.unfold for DNDarrays. [torch.Tensor.unfold](https://pytorch.org/docs/stable/generated/torch.Tensor.unfold.html)
+
+    Parameters
+    ----------
+    a : DNDarray
+        array to unfold
+    dimension : int
+        dimension in which unfolding happens
+    size : int
+        the size of each slice that is unfolded
+    step : int
+        the step between each slice
+
+    Note
+    ---------
+    You have to make sure that every node has at least chunk size size-1 if the split dimension of the array is the unfold dimension.
     """
     if step < 1:
         raise ValueError("step must be >= 1.")
