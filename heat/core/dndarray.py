@@ -2538,10 +2538,7 @@ class DNDarray:
                                 send_displs[proc] : send_displs[proc] + send_counts[proc], i
                             ] = key[i + len(key)][send_indices]
                     else:
-                        while send_indices.ndim < send_buf.ndim:
-                            send_indices = split_key[send_indices]
-                            # broadcast send_indices to correct shape
-                            send_indices = send_indices.unsqueeze(-1)
+                        send_indices = split_key[send_indices]
                         send_buf[send_displs[proc] : send_displs[proc] + send_counts[proc], -1] = (
                             send_indices
                         )
