@@ -2212,15 +2212,13 @@ class DNDarray:
                 # assess whether the shapes are compatible, starting from the trailing dimension
                 for i in range(1, min(len(value_shape), len(output_shape)) + 1):
                     if i == 1:
-                        if value_shape[-i] != output_shape[-i]:
+                        if value_shape[-i] != output_shape[-i] and not value_shape[-i] == 1:
                             # shapes are not compatible, raise error
                             raise ValueError(
                                 f"could not broadcast input array from shape {value_shape} into shape {output_shape}"
                             )
                     else:
-                        if value_shape[-i] != output_shape[-i] and (
-                            not value_shape[-i] == 1 or not output_shape[-i] == 1
-                        ):
+                        if value_shape[-i] != output_shape[-i] and (not value_shape[-i] == 1):
                             # shapes are not compatible, raise error
                             raise ValueError(
                                 f"could not broadcast input from shape {value_shape} into shape {output_shape}"
@@ -2424,6 +2422,19 @@ class DNDarray:
                     return
                 # key is a sequence of torch.Tensors
                 split_key = key[self.split]
+                split_key_dims = split_key.ndim
+                if split_key_dims > 1:
+                    # flatten `split_key`
+                    split_key = split_key.flatten()
+                    # flatten  split_key dimensions of `value`:
+                    new_shape = list(value.shape)
+                    new_shape = (
+                        new_shape[: output_split - (split_key_dims - 1)]
+                        + [-1]
+                        + new_shape[output_split + 1 :]
+                    )
+                    value = value.reshape(new_shape)
+                    output_split -= split_key_dims - 1
                 # find elements of `split_key` that are local to this process
                 local_indices = torch.nonzero(
                     (split_key >= displs[rank]) & (split_key < displs[rank] + counts[rank])
@@ -2446,7 +2457,7 @@ class DNDarray:
                         self.larray[key] = value.larray[local_indices].type(self.dtype.torch_type())
                 else:
                     # keep local indexing key and correct for displacements along split dimension
-                    key[self.split] = key[self.split][local_indices] - displs[rank]
+                    key[self.split] = split_key[local_indices] - displs[rank]
                     key = tuple(key)
                     value_key = tuple(
                         [
@@ -2476,7 +2487,7 @@ class DNDarray:
                 if key_is_single_tensor:
                     # key is a single torch.Tensor
                     split_key = key
-                elif not key_is_mask_like:
+                else:
                     split_key = key[self.split]
                 global_split_key = factories.array(
                     split_key, is_split=0, device=self.device, comm=self.comm, copy=False
