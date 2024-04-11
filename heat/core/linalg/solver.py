@@ -281,7 +281,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
     Parameters
     ----------
     A : DNDarray
-        An upper triangular (possibly batched) invertible square (n x n) matrix, i.e. an DNDarray of shape (..., n, n).
+        An upper triangular invertible square (n x n) matrix or a batch thereof,  i.e. a ``DNDarray`` of shape `(..., n, n)`.
     b : DNDarray
         a (possibly batched) n x k matrix, i.e. an DNDarray of shape (..., n, k), where the batch-dimensions denoted by ... need to coincide with those of A.
         Vectors have to be provided as n x 1 matrices and the split dimension of b must the second last dimension if not None.
