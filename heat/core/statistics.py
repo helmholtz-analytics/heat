@@ -1490,15 +1490,24 @@ def percentile(
     #     return percentile
 
     # SANITATION
-    # sanitize input
-    if not isinstance(x, DNDarray):
-        raise TypeError(f"expected x to be a DNDarray, but was {type(x)}")
-    if isinstance(axis, (list, tuple)):
-        raise NotImplementedError("ht.percentile(), tuple axis not implemented yet")
+    sanitation.sanitize_in(x)
+
+    axis = stride_tricks.sanitize_axis(x.shape, axis)
 
     if axis is None:
-        if x.ndim > 1:
-            x = x.flatten()
+        x = x.flatten()
+        axis = 0
+    elif len(axis) > 1:
+        # percentile along multiple axes
+        # transpose x so that the axes along which the percentiles are calculated are at the beginning
+        non_op_dims = list(range(x.ndim))
+        for ax in axis:
+            non_op_dims.remove(ax)
+            transpose_axes = axis + tuple(non_op_dims)
+            x = x.transpose(transpose_axes)
+        # flatten the data along the axes along which the percentiles are calculated
+        non_op_shape = tuple(x.shape[dim] for dim in non_op_dims)
+        x = x.reshape(-1, *non_op_shape)
         axis = 0
 
     gshape = x.gshape
@@ -1521,8 +1530,9 @@ def percentile(
     nperc = t_q.numel()
     perc_dtype = types.canonical_heat_type(t_perc_dtype)
 
-    # q must be 1-D
+    # keep track of the original shape of q
     if t_q.ndim > 1:
+        # q_original_shape = t_q.shape
         t_q = t_q.flatten()
 
     # shape of output DNDarray
