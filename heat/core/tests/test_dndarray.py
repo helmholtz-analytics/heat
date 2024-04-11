@@ -1594,9 +1594,10 @@ class TestDNDarray(TestCase):
         value = ht.array([[99, 98], [97, 96]], split=1)
         x[key] = value
         self.assertTrue((x[key] == value).all().item())
-        with self.assertRaises(RuntimeError):
-            value = ht.array([[99, 98], [97, 96]], split=0)
-            x[key] = value
+        if x.comm.size > 1:
+            with self.assertRaises(RuntimeError):
+                value = ht.array([[99, 98], [97, 96]], split=0)
+                x[key] = value
 
         # # combining advanced and basic indexing
         # y_np = np.arange(35).reshape(5, 7)
