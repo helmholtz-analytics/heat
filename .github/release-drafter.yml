@@ -11,9 +11,7 @@ categories:
     label: 'benchmarking'
   - title: '📜 Documentation'
     label: 'documentation :book:'
-  - title: '🧹 Maintenance'
-    label: 'chore'
-  - title: '🧪 Testing'
+  - title: ' Testing'
     label: 'testing'
   - title: 'Arithmetic'
     label: 'arithmetic'
@@ -92,11 +90,18 @@ categories:
     label: 'trigonometrics'
   - title: 'Types'
     label: 'types'
+exclude-labels:
+  - 'github-actions'
+  - 'dependencies'
+  - 'chore'
+  - 'workflows'
+autolabeler:
+  - label: 'chore'
+    title:
+    - '\[pre-commit.ci\] .*'
 
 change-template: '- #$NUMBER $TITLE (by @$AUTHOR)'
 category-template: '### $TITLE'
-exclude-labels:
-- 'workflow'
 template: |
   ## Changes
 
