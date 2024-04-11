@@ -1599,22 +1599,26 @@ class TestDNDarray(TestCase):
                 value = ht.array([[99, 98], [97, 96]], split=0)
                 x[key] = value
 
-        # # combining advanced and basic indexing
-        # y_np = np.arange(35).reshape(5, 7)
-        # y_np_indexed = y_np[np.array([0, 2, 4]), 1:3]
-        # y = ht.array(y_np, split=1)
-        # y_indexed = y[ht.array([0, 2, 4]), 1:3]
-        # self.assert_array_equal(y_indexed, y_np_indexed)
-        # self.assertTrue(y_indexed.split == 1)
+        # combining advanced and basic indexing
 
-        # x_np = np.arange(10 * 20 * 30).reshape(10, 20, 30)
-        # x = ht.array(x_np, split=1)
-        # ind_array = ht.random.randint(0, 20, (2, 3, 4), dtype=ht.int64)
-        # ind_array_np = ind_array.numpy()
-        # x_np_indexed = x_np[..., ind_array_np, :]
-        # x_indexed = x[..., ind_array, :]
-        # self.assert_array_equal(x_indexed, x_np_indexed)
-        # self.assertTrue(x_indexed.split == 3)
+        y = ht.arange(35).reshape(5, 7)
+        y.resplit_(1)
+        y_copy = y.copy()
+        # assign non-distributed value
+        value = ht.arange(6).reshape(3, 2)
+        y[ht.array([0, 2, 4]), 1:3] = value
+        self.assertTrue((y[ht.array([0, 2, 4]), 1:3] == value).all().item())
+        # assign distributed value
+        value.resplit_(1)
+        y_copy[ht.array([0, 2, 4]), 1:3] = value
+        self.assertTrue((y_copy[ht.array([0, 2, 4]), 1:3] == value).all().item())
+
+        x = ht.arange(10 * 20 * 30).reshape(10, 20, 30)
+        x.resplit_(1)
+        ind_array = ht.random.randint(0, 20, (2, 3, 4), dtype=ht.int64)
+        value = ht.ones((1, 2, 3, 4, 1))
+        x[..., ind_array, :] = value
+        self.assertTrue((x[..., ind_array, :] == value).all().item())
 
         # boolean mask, local
         arr = ht.arange(3 * 4 * 5).reshape(3, 4, 5)
