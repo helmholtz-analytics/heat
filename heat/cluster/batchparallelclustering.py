@@ -326,7 +326,7 @@ class BatchParallelKMeans(_BatchParallelKCluster):
     This requires data to be given as DNDarray of shape (n_samples, n_features) with split=0 (i.e. split along the sample axis).
     The idea of the method is to perform the classical K-Means on each batch of data (i.e. on each process-local chunk of data) individually and in parallel.
     After that, all centroids from the local K-Means are gathered and another instance of K-means is performed on them in order to determine the final centroids.
-    To improve scalability of this approach also on a range number of processes, this procedure can be applied in a hierarchical manor using the parameter n_procs_to_merge.
+    To improve scalability of this approach also on a large number of processes, this procedure can be applied in a hierarchical manner using the parameter `n_procs_to_merge`.
 
     Attributes
     ----------
