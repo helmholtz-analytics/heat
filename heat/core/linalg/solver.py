@@ -276,7 +276,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
     """
     This function provides a solver for (possibly batched) upper triangular systems of linear equations: it returns `x` in `Ax = b`, where `A` is a (possibly batched) upper triangular matrix and
     `b` a (possibly batched) vector or matrix of suitable shape, both provided as input to the function.
-    The implementation builts on the corresponding solver in PyTorch and implements a block-wise version thereof.
+    The implementation builts on the corresponding solver in PyTorch and implements an memory-distributed, MPI-parallel block-wise version thereof.
 
     Parameters
     ----------
@@ -284,7 +284,7 @@ def solve_triangular(A: DNDarray, b: DNDarray) -> DNDarray:
         An upper triangular invertible square (n x n) matrix or a batch thereof,  i.e. a ``DNDarray`` of shape `(..., n, n)`.
     b : DNDarray
         a (possibly batched) n x k matrix, i.e. an DNDarray of shape (..., n, k), where the batch-dimensions denoted by ... need to coincide with those of A.
-        Vectors have to be provided as n x 1 matrices and the split dimension of b must the second last dimension if not None.
+        (Batched) Vectors have to be provided as ... x n x 1 matrices and the split dimension of b must the second last dimension if not None.
 
     Note
     ---------
