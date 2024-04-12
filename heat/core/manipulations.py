@@ -962,14 +962,36 @@ def expand_dims(a: DNDarray, axis: int) -> DNDarray:
     # sanitize input
     sanitation.sanitize_in(a)
 
-    # sanitize axis, introduce arbitrary dummy dimension to model expansion
-    axis = stride_tricks.sanitize_axis(a.shape + (1,), axis)
+    # track split axis
+    split_bookkeeping = [None] * a.ndim
+    if a.split is not None:
+        split_bookkeeping[a.split] = "split"
+    output_shape = list(a.shape)
+
+    local_expansion = a.larray
+    if isinstance(axis, (tuple, list)):
+        # sanitize axis, introduce arbitrary dummy dimensions to model expansion
+        axis = stride_tricks.sanitize_axis(a.shape + (1,) * len(axis), axis)
+        for ax in axis:
+            split_bookkeeping.insert(ax, None)
+            output_shape.insert(ax, 1)
+            local_expansion = local_expansion.unsqueeze(dim=ax)
+
+    else:
+        # sanitize axis, introduce arbitrary dummy dimensions to model expansion
+        axis = stride_tricks.sanitize_axis(a.shape + (1,), axis)
+        split_bookkeeping.insert(axis, None)
+        output_shape.insert(axis, 1)
+        local_expansion = local_expansion.unsqueeze(dim=axis)
+
+    output_split = split_bookkeeping.index("split") if "split" in split_bookkeeping else None
+    output_shape = tuple(output_shape)
 
     return DNDarray(
-        a.larray.unsqueeze(dim=axis),
-        a.shape[:axis] + (1,) + a.shape[axis:],
+        local_expansion,
+        output_shape,
         a.dtype,
-        a.split if a.split is None or a.split < axis else a.split + 1,
+        output_split,
         a.device,
         a.comm,
         a.balanced,
