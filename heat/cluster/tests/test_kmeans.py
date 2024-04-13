@@ -40,6 +40,7 @@ class TestKMeans(TestCase):
             # check whether the results are correct
             self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
             self.assertEqual(kmeans.cluster_centers_.shape, (k, iris.shape[1]))
+
             # same test with init=kmeans++
             kmeans = ht.cluster.KMeans(n_clusters=k, init="kmeans++")
             kmeans.fit(iris)
@@ -47,6 +48,15 @@ class TestKMeans(TestCase):
             # check whether the results are correct
             self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
             self.assertEqual(kmeans.cluster_centers_.shape, (k, iris.shape[1]))
+
+        iris = ht.load("heat/datasets/iris.csv", sep=";", split=0)
+        # same test with init=batchparallel
+        kmeans = ht.cluster.KMeans(n_clusters=k, init="batchparallel")
+        kmeans.fit(iris)
+
+        # check whether the results are correct
+        self.assertIsInstance(kmeans.cluster_centers_, ht.DNDarray)
+        self.assertEqual(kmeans.cluster_centers_.shape, (k, iris.shape[1]))
 
     def test_exceptions(self):
         # get some test data
@@ -62,6 +72,9 @@ class TestKMeans(TestCase):
             kmeans.set_params(foo="bar")
         with self.assertRaises(ValueError):
             kmeans = ht.cluster.KMeans(n_clusters=k, init="random_number")
+            kmeans.fit(iris_split)
+        with self.assertRaises(NotImplementedError):
+            kmeans = ht.cluster.KMeans(n_clusters=k, init="batchparallel")
             kmeans.fit(iris_split)
 
     def test_spherical_clusters(self):
