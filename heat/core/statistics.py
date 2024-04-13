@@ -1450,6 +1450,8 @@ def percentile(
     """
     # sanitize input data
     sanitation.sanitize_in(x)
+    if x.dtype in types._complexfloating:
+        raise TypeError("Percentile is not supported for complex data types.")
 
     # sanitize q, keep track of size of percentile dim
     if not np.isscalar(q):
@@ -1484,7 +1486,6 @@ def percentile(
         for ax in axis:
             non_op_dims.remove(ax)
         transpose_axes = axis + tuple(non_op_dims)
-        print("DEBUGGING: transpose_axes", transpose_axes, x.shape, axis, non_op_dims)
         x = x.transpose(transpose_axes)
         # flatten the data along the axes along which the percentiles are calculated
         non_op_shape = tuple(x.shape[dim] for dim in non_op_dims)
@@ -1503,11 +1504,6 @@ def percentile(
 
     # output data type must be float
     output_dtype = types.float32 if x.larray.element_size() == 4 else types.float64
-
-    # # calculate output shape
-    # output_shape = list(x.shape)
-    # output_shape[axis] = list(perc_size)
-    # output_shape = tuple(output_shape)
 
     # compute indices
     length = x.shape[axis]
@@ -1539,16 +1535,18 @@ def percentile(
         del sorted_x
         # align ceils to floors if necessary
         ceils.redistribute_(target_map=floors.lshape_map)
+        fractional_indices = perc_indices - perc_indices.floor()
+        while fractional_indices.ndim < floors.ndim:
+            # expand fractional indices for later binary op
+            # fractional_indices is still a torch tensor here
+            fractional_indices.unsqueeze_(-1)
         if out is not None:
-            out.larray = floors.larray + (ceils.larray - floors.larray) * (
-                perc_indices - perc_indices.floor()
-            )
-            del floors, ceils
+            out.larray = floors.larray + (ceils.larray - floors.larray) * (fractional_indices)
+            del floors, ceils, fractional_indices
             return out
-        percentile = floors + (ceils - floors) * factories.array(
-            (perc_indices - perc_indices.floor()), device=x.device, comm=x.comm
-        )
-        del floors, ceils
+        fractional_indices = factories.array(fractional_indices, device=x.device, comm=x.comm)
+        percentile = floors + (ceils - floors) * fractional_indices
+        del floors, ceils, fractional_indices
     else:
         if out is not None:
             out.larray = sorted_x[perc_indices].larray
