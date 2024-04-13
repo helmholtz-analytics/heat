@@ -1,4 +1,5 @@
 """Provides parallel random number generators (pRNG)"""
+
 from __future__ import annotations
 
 import time

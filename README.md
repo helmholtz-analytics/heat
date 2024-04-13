@@ -16,6 +16,7 @@ Heat is a distributed tensor framework for high performance data analytics.
 [![Downloads](https://pepy.tech/badge/heat)](https://pepy.tech/project/heat)
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/heat/badges/version.svg)](https://anaconda.org/conda-forge/heat)
 [![fair-software.eu](https://img.shields.io/badge/fair--software.eu-%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F%20%20%E2%97%8F-green)](https://fair-software.eu)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/helmholtz-analytics/heat/badge)](https://securityscorecards.dev/viewer/?uri=github.com/helmholtz-analytics/heat)
 [![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/7688/badge)](https://bestpractices.coreinfrastructure.org/projects/7688)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.2531472.svg)](https://doi.org/10.5281/zenodo.2531472)
 [![Benchmarks](https://img.shields.io/badge/Github--Pages-Benchmarks-2ea44f)](https://helmholtz-analytics.github.io/heat/dev/bench)
@@ -88,7 +89,7 @@ Local torch tensor on rank  0 :  tensor([0, 1, 2, 3, 4], dtype=torch.int32)
 Local torch tensor on rank  1 :  tensor([5, 6, 7, 8, 9], dtype=torch.int32)
 ```
 
-Our Jupyter Notebook [**Tutorial**](https://github.com/helmholtz-analytics/heat/blob/main/scripts/) illustrates Heat's basics. More tutorials [here](https://heat.readthedocs.io/en/latest/tutorials.html).
+Check out our Jupyter Notebook [**Tutorials**](https://github.com/helmholtz-analytics/heat/blob/main/tutorials/), choose `local` to try things out on your machine, or `hpc` if you have access to an HPC system.
 
 The complete documentation of the latest version is always deployed on
 [Read the Docs](https://heat.readthedocs.io/).

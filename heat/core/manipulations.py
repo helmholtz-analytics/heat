@@ -1,6 +1,7 @@
 """
 Manipulation operations for (potentially distributed) `DNDarray`s.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -3015,9 +3016,9 @@ def squeeze(x: DNDarray, axis: Union[int, Tuple[int, ...]] = None) -> DNDarray:
     )
 
 
-DNDarray.squeeze: Callable[
-    [DNDarray, Union[int, Tuple[int, ...]]], DNDarray
-] = lambda self, axis=None: squeeze(self, axis)
+DNDarray.squeeze: Callable[[DNDarray, Union[int, Tuple[int, ...]]], DNDarray] = (
+    lambda self, axis=None: squeeze(self, axis)
+)
 DNDarray.squeeze.__doc__ = squeeze.__doc__
 
 
@@ -3409,10 +3410,10 @@ def unique(
     return return_value
 
 
-DNDarray.unique: Callable[
-    [DNDarray, bool, bool, int], Tuple[DNDarray, torch.tensor]
-] = lambda self, sorted=False, return_inverse=False, axis=None: unique(
-    self, sorted, return_inverse, axis
+DNDarray.unique: Callable[[DNDarray, bool, bool, int], Tuple[DNDarray, torch.tensor]] = (
+    lambda self, sorted=False, return_inverse=False, axis=None: unique(
+        self, sorted, return_inverse, axis
+    )
 )
 DNDarray.unique.__doc__ = unique.__doc__
 

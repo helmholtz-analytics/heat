@@ -1,6 +1,7 @@
 """
 Basic linear algebra operations on distributed ``DNDarray``
 """
+
 import itertools
 import numpy as np
 import torch

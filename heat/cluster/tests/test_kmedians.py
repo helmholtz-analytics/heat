@@ -50,6 +50,14 @@ class TestKMedians(TestCase):
         self.assertIsInstance(kmedian.cluster_centers_, ht.DNDarray)
         self.assertEqual(kmedian.cluster_centers_.shape, (k, iris.shape[1]))
 
+        # same test with init=kmedians++
+        kmedian = ht.cluster.KMedians(n_clusters=k, init="batchparallel")
+        kmedian.fit(iris)
+
+        # check whether the results are correct
+        self.assertIsInstance(kmedian.cluster_centers_, ht.DNDarray)
+        self.assertEqual(kmedian.cluster_centers_.shape, (k, iris.shape[1]))
+
     def test_exceptions(self):
         # get some test data
         iris_split = ht.load("heat/datasets/iris.csv", sep=";", split=1)
@@ -64,6 +72,9 @@ class TestKMedians(TestCase):
             kmedian.set_params(foo="bar")
         with self.assertRaises(ValueError):
             kmedian = ht.cluster.KMedians(n_clusters=k, init="random_number")
+            kmedian.fit(iris_split)
+        with self.assertRaises(NotImplementedError):
+            kmedian = ht.cluster.KMedians(n_clusters=k, init="batchparallel")
             kmedian.fit(iris_split)
 
     def test_spherical_clusters(self):

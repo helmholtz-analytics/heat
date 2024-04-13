@@ -1,0 +1,16 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: pip
+    directory: /doc
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: docker
+    directory: /heat/core/tests
+    schedule:
+      interval: "weekly"
