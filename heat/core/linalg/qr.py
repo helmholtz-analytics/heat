@@ -28,12 +28,12 @@ def qr(
 
     Parameters
     ----------
-    A : DNDarray of shape (..., M, N)
+    A : DNDarray of shape (M, N)
         Array which will be decomposed. So far only 2D arrays with datatype float32 or float64 are supported
         For split=0, the matrix must be tall skinny, i.e. the local chunks of data must have at least as many rows as columns.
     mode : str, optional
-        default "reduced" returns Q and R with dimensions (..., M, min(M,N)) and (..., min(M,N), N), respectively.
-        "r" returns only R, with dimensions (..., min(M,N), N).
+        default "reduced" returns Q and R with dimensions (M, min(M,N)) and (min(M,N), N), respectively.
+        "r" returns only R, with dimensions (min(M,N), N).
     procs_to_merge : int, optional
         determines the number of processes to be merged at one step during TS-QR (split = 0 only). Default is 2.
         Higher choices may result in higher memory consumption. 0 corresponds to merging all processes at once.

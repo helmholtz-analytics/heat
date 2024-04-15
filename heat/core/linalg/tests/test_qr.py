@@ -119,6 +119,9 @@ class TestQR(TestCase):
         # test wrong input type
         with self.assertRaises(TypeError):
             ht.linalg.qr([1, 2, 3])
+        # test too many input dimensions
+        with self.assertRaises(ValueError):
+            ht.linalg.qr(ht.zeros((10, 10, 10)))
         # wrong data type for mode
         with self.assertRaises(TypeError):
             ht.linalg.qr(ht.zeros((10, 10)), mode=1)
