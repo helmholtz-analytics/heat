@@ -4247,7 +4247,7 @@ def unfold(a: DNDarray, dimension: int, size: int, step: int = 1):
             ].unfold(dimension, size, step)
         else:
             loc_unfold_shape[dimension] = 0
-            unfold_loc = torch.zeros((*loc_unfold_shape, size))
+            unfold_loc = torch.zeros((*loc_unfold_shape, size), device=tdev)
         ret_larray = unfold_loc
         if (
             comm.rank < comm.size - 1 and min_index < a.lshape[dimension]
