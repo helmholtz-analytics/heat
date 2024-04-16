@@ -3772,7 +3772,7 @@ class TestManipulations(TestCase):
                 ht.unfold(x, 0, min_chunk_size + 2)
         with self.assertRaises(ValueError):  # size too large
             ht.unfold(x, 0, n + 1, 1)
-        ht.unfold(x, 0, min_chunk_size, min_chunk_size // 2)
+        ht.unfold(x, 0, min_chunk_size, min_chunk_size + 1)  # no fully local unfolds on some nodes
 
         # 2D sliding views
         n = 100
