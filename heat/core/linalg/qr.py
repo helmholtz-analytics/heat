@@ -5,8 +5,6 @@ QR decomposition of (distributed) 2-D ``DNDarray``s.
 import collections
 import torch
 from typing import Tuple
-from time import sleep
-
 
 from ..dndarray import DNDarray
 from .. import factories
@@ -37,7 +35,7 @@ def qr(
     procs_to_merge : int, optional
         This parameter is only relevant for split=0 and determines the number of processes to be merged at one step during the so-called TS-QR algorithm.
         The default is 2. Higher choices might be faster, but will probably result in higher memory consumption. 0 corresponds to merging all processes at once.
-        We only recommend to modify this parameter if you are familiar with the TS-QR algorithm (see ).
+        We only recommend to modify this parameter if you are familiar with the TS-QR algorithm (see the references below).
 
     Notes
     -----
