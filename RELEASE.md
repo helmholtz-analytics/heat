@@ -38,7 +38,9 @@ extension: str = "dev" # <-- set to None
 
 3. Commit and push new `version.py` in `release/1.3.x`
 
-4. Draft release notes:
+4. Update `CITATION.cff` if needed, i.e. add names of non-core contributors.
+
+5. Draft release notes:
 
   - Go to the GitHub repo's [Releases](https://github.com/helmholtz-analytics/heat/releases) page.
   - The release notes draft is automated. Click on Edit Draft
