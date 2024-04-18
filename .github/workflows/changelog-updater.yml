@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  update:
+  update-changelog:
     permissions:
       contents: write  # for stefanzweifel/git-auto-commit-action to push code in repo
     runs-on: ubuntu-latest
