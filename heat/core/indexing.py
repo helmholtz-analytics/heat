@@ -140,7 +140,8 @@ def where(
         for var in [x, y]:
             if isinstance(var, int):
                 var = float(var)
-        return cond.dtype(cond == 0) * y + cond * x
+        print(x.comm.rank, x.device, cond.device, y.device)
+        return cond.dtype(cond == 0, device=cond.device) * y + cond * x
     elif x is None and y is None:
         return nonzero(cond)
     else:
