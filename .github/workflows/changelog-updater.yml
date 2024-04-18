@@ -49,5 +49,7 @@ jobs:
             body: |
               This PR updates the changelog post release.
 
+              Changed files should include an updated CHANGELOG.md containing the release notes from the latest release.
+
             reviewers: ClaudiaComito, mtar, JuanPedroGHM
             labels: chore, github_actions
