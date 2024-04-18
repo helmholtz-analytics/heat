@@ -12,7 +12,7 @@
 - #1228 Introduce in-place-operators for `arithmetics.py` (by @LScheib)
 - #1218 Distributed Fast Fourier Transforms (by @ClaudiaComito)
 
-### Bug fixes 
+### Bug fixes
 
 - #1363 `ht.array` constructor respects implicit torch device when copy is set to false (by @JuanPedroGHM)
 - #1216 Avoid unnecessary gathering of distributed operand (by @samadpls)
