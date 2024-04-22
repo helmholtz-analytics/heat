@@ -112,7 +112,7 @@ computational and memory needs of your laptop and desktop.
 - python >= 3.8
 - MPI (OpenMPI, MPICH, Intel MPI, etc.)
 - mpi4py >= 3.0.0
-- pytorch >= 1.8.0
+- pytorch >= 1.11.0
 
 ### Parallel I/O
 - h5py
@@ -161,7 +161,7 @@ If you’re unsure where to start or how your skills fit in, reach out! You can 
 
 ## Resources
 
-* [Heat Tutorials](https://heat.readthedocs.io/en/latest/tutorials.html)
+* [Heat Tutorials](https://github.com/helmholtz-analytics/heat/tree/main/tutorials)
 * [Heat API Reference](https://heat.readthedocs.io/en/latest/autoapi/index.html)
 
 ### Parallel Computing and MPI:
