@@ -54,11 +54,6 @@ DCSR_matrix.__add__.__doc__ = add.__doc__
 DCSR_matrix.__radd__ = lambda self, other: add(self, other, orientation="row")
 DCSR_matrix.__radd__.__doc__ = add.__doc__
 
-DCSC_matrix.__add__ = lambda self, other: add(self, other, orientation="col")
-DCSC_matrix.__add__.__doc__ = add.__doc__
-DCSC_matrix.__radd__ = lambda self, other: add(self, other, orientation="col")
-DCSC_matrix.__radd__.__doc__ = add.__doc__
-
 
 def mul(t1: DCSR_matrix, t2: DCSR_matrix, orientation: str = "row") -> DCSR_matrix:
     """
@@ -99,8 +94,3 @@ DCSR_matrix.__mul__ = lambda self, other: mul(self, other, orientation="row")
 DCSR_matrix.__mul__.__doc__ = mul.__doc__
 DCSR_matrix.__rmul__ = lambda self, other: mul(self, other, orientation="row")
 DCSR_matrix.__rmul__.__doc__ = mul.__doc__
-
-DCSC_matrix.__mul__ = lambda self, other: mul(self, other, orientation="col")
-DCSC_matrix.__mul__.__doc__ = mul.__doc__
-DCSC_matrix.__rmul__ = lambda self, other: mul(self, other, orientation="col")
-DCSC_matrix.__rmul__.__doc__ = mul.__doc__
