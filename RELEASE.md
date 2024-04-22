@@ -4,9 +4,9 @@ These are basic instructions for internal use. Will be expanded as the need aris
 
 ### Major or minor version update
 
-(e.g. 1.2 --> 1.3, or 1.3 --> 2.0)
+(e.g. 1.4 --> 1.5, or 1.5 --> 2.0)
 
-In the following, we assume we are about to release Heat v1.3.0.
+In the following, we assume we are about to release Heat v1.5.0.
 
 **PRE-REQUISITES:**
 
@@ -18,7 +18,7 @@ In the following, we assume we are about to release Heat v1.3.0.
 ```bash
 git checkout main
 git pull
-git checkout -b release/1.3.x
+git checkout -b release/1.5.x
 ```
 
 2. Update `heat/core/version.py` like this:
@@ -28,7 +28,7 @@ git checkout -b release/1.3.x
 
 major: int = 1
 """Indicates Heat's main version."""
-minor: int = 2 # <-- update to 3
+minor: int = 4 # <-- update to 5
 """Indicates feature extension."""
 micro: int = 2 # <-- update to 0
 """Indicates revisions for bugfixes."""
@@ -36,19 +36,19 @@ extension: str = "dev" # <-- set to None
 """Indicates special builds, e.g. for specific hardware."""
 ```
 
-3. Commit and push new `version.py` in `release/1.3.x`
+3. Commit and push new `version.py` in `release/1.5.x`
 
-4. Update `CITATION.cff` if needed, i.e. add names of non-core contributors.
-
-5. Draft release notes:
+4. Draft release notes:
 
   - Go to the GitHub repo's [Releases](https://github.com/helmholtz-analytics/heat/releases) page.
   - The release notes draft is automated. Click on Edit Draft
-  - Select the new tag: v1.3.0. Modify Target branch: `release/1.3.x`
+  - Select the new tag: v1.3.0. Modify Target branch: `release/1.5.x`
   - Edit release notes as needed (see older releases)
   - Click on Save but do not publish yet
 
-5. Build wheel in your local `heat/` directory, make sure you are on branch `release/1.3.x`.
+5. Update `CITATION.cff` if needed, i.e. add names of non-core contributors (they are included in the Release notes draft you just created). Push to the release branch.
+
+6. Build wheel in your local `heat/` directory, make sure you are on branch `release/1.5.x`.
 
    ```bash
    rm -f dist/*
@@ -57,7 +57,7 @@ extension: str = "dev" # <-- set to None
 
    You might have to install the `build` package first (i.e. with `conda install build` or `pip install build`)
 
-6. Upload to Test PyPI and verify things look right. You need to install `twine` first.
+7. Upload to Test PyPI and verify things look right. You need to install `twine` first.
 
     ```bash
      twine upload -r testpypi dist/*
@@ -65,13 +65,18 @@ extension: str = "dev" # <-- set to None
 
     `twine` will prompt for your username and password.
 
-7. When everything works, upload to PyPI:
+8. When everything works, upload to PyPI:
 
    ```bash
    twine upload dist/*
    ```
 
-8. Update conda-forge recipe (Need to be listed as maintainer, either @ClaudiaComito, @mrfh92, @JuanPedroGHM)
+9. Go back to the Release Notes draft and publish them. The new release is out!
+
+  - Make sure the CHANGELOG.md got updated, if not, call @JuanPedroGHM.
+  - Check our [Zenodo page](https://zenodo.org/doi/10.5281/zenodo.2531472) to make sure a DOI was created for the release.
+
+10. Check status of our conda-forge recipe: (Need to be listed as maintainer, either @ClaudiaComito, @mrfh92, @JuanPedroGHM)
   - Go to https://github.com/conda-forge/heat-feedstock
   - A new PR should have been automatically created.
   - Changes can be pushed to the PR.
@@ -81,24 +86,18 @@ extension: str = "dev" # <-- set to None
   - Once the PR is done, wait for the CI checks to finish and merge.
   - Refer to the conda-forge docs if there are any issues: https://conda-forge.org/docs/maintainer/updating_pkgs.html#pushing-to-regro-cf-autotick-bot-branch
 
-9. Go back to the Release Notes draft and publish them. The new release is out!
-
-  - Make sure the CHANGELOG.md got updated, if not, call @JuanPedroGHM.
-  - Check Zenodo to make sure a DOI was created for the release.
-
-10. Now we want to update `main` to include the latest release,  we want to modify the version on main so that `minor` is increased by 1, and  `extension` is "dev".  In this example we want the version on `main` to be:`1.4.0-dev`.
+11. Now we want to update `main` to include the latest release,  we want to modify the version on main so that `minor` is increased by 1, and  `extension` is "dev".  In this example we want the version on `main` to be:`1.4.0-dev`.
 
     ```bash
     git checkout main
     git pull
     git checkout -b workflows/update-version-main
-    git merge release/1.3.x --no-ff --no-commit
+    git merge release/1.5.x --no-ff --no-commit
     ```
 
     Modify `version.py` so that `extension` is `"dev"`. Commit and push the changes.
 
 12. Create a PR with `main` as the base branch.
-
 
 13. Get approval and merge. You're done!
 
