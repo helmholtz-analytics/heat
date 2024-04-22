@@ -57,7 +57,7 @@ jobs:
             delete-branch: true
             token: ${{ secrets.GITHUB_TOKEN }}
             commit-message: Support latest PyTorch release
-            title: Support PyTorch ${{ env.new_pytorch }} on branch ${{ inputs.base_branch }}
+            title: Support PyTorch ${{ env.new_pytorch }}
             body: |
               Run tests on latest PyTorch release
               Issue/s resolved: #${{ steps.create-issue.outputs.number }}
