@@ -20,11 +20,13 @@ class TestManipulations(TestCase):
             [4, 0, 0, 5, 0]
             [0, 0, 0, 0, 6]]
         """
-        self.arr = [[0, 0, 1, 0, 2], 
-                    [0, 0, 0, 0, 0], 
-                    [0, 3, 0, 0, 0], 
-                    [4, 0, 0, 5, 0], 
-                    [0, 0, 0, 0, 6]]
+        self.arr = [
+            [0, 0, 1, 0, 2],
+            [0, 0, 0, 0, 0],
+            [0, 3, 0, 0, 0],
+            [4, 0, 0, 5, 0],
+            [0, 0, 0, 0, 6],
+        ]
 
     def test_to_sparse_csr(self):
         A = ht.array(self.arr, split=0)
