@@ -69,7 +69,7 @@ preferred-citation:
   collection-doi: 10.1109/BigData50022.2020.9378050
   conference:
     name: 2020 IEEE International Conference on Big Data (IEEE Big Data 2020)
-    date-start: "2020-12-10"
-    date-end: "2020-12-13"
+    date-start: 2020-12-10
+    date-end: 2020-12-13
   start: 276
   end: 287

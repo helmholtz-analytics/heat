@@ -6,6 +6,7 @@ import heat as ht
 from ..dndarray import DNDarray
 from ..sanitation import sanitize_out
 from typing import List, Dict, Any, TypeVar, Union, Tuple, Optional
+from .. import factories
 
 import torch
 
