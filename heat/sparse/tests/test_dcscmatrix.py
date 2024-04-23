@@ -128,7 +128,7 @@ class TestDCSC_matrix(TestCase):
         self.assertTrue((heat_sparse_csc.data == self.ref_data).all())
         self.assertTrue((heat_sparse_csc.data == heat_sparse_csc.gdata).all())
         self.assertTrue((heat_sparse_csc.data == heat_sparse_csc.ldata).all())
-    
+
         heat_sparse_csc = ht.sparse.sparse_csc_matrix(self.ref_torch_sparse_csc, split=1)
         if self.world_size == 2:
             data_dist = [[4, 3, 1], [5, 2, 6]]
@@ -226,7 +226,7 @@ class TestDCSC_matrix(TestCase):
             [0, 0, 0, 0, 6]]
         """
         heat_sparse_csc = ht.sparse.sparse_csc_matrix(self.ref_torch_sparse_csc, split=1)
-        if self.world_size == 2: 
+        if self.world_size == 2:
             indptr_dist = [[0, 1, 2, 3], [0, 1, 3]]
 
             self.assertTrue((heat_sparse_csc.indptr == self.ref_indptr).all())
