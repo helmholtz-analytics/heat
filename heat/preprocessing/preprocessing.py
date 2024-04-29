@@ -107,9 +107,7 @@ class StandardScaler(ht.TransformMixin, ht.BaseEstimator):
         tol = _tol_wrt_dtype(X)
         if self.scale_.min() < tol:
             self.scale_ = ht.where(
-                ht.abs(self.scale_) >= ht.array(tol, device=X.device),
-                self.scale_,
-                ht.ones_like(self.scale_, device=self.scale_.device),
+                ht.abs(self.scale_) >= tol, self.scale_, ht.ones_like(self.scale_)
             )
             print(
                 "At least one of the features is almost constant (w.r.t. machine precision) and will not be scaled for this reason."
