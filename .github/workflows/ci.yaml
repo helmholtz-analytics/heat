@@ -44,7 +44,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4.1.3
       - name: Setup MPI
-        uses: mpi4py/setup-mpi@v1.2.0
+        uses: mpi4py/setup-mpi@v1.2.2
         with:
           mpi: ${{ matrix.mpi }}
       - name: Use Python ${{ matrix.py-version }}
