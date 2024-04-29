@@ -1498,7 +1498,7 @@ def zeros_like(
     split: int or None, optional
         The axis along which the array is split and distributed; defaults to `a.split`.
     device : str or Device, optional
-        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to `a.device`.`
+        Specifies the :class:`~heat.core.devices.Device` the array shall be allocated on, defaults to `a.device`.
     comm: Communication, optional
         Handle to the nodes holding distributed parts or copies of this array.
     order: str, optional
