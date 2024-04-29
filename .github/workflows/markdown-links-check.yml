@@ -16,7 +16,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # master
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # master
       - uses: gaurav-nelson/github-action-markdown-link-check@5c5dfc0ac2e225883c0e5f03a85311ec2830d368 # v1
         # checks all markdown files from root but ignores subfolders
         # By Removing the max-depth variable we can modify it -> to check all the .md files in the entire repo.
