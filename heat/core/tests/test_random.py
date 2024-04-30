@@ -350,10 +350,9 @@ class TestRandom(TestCase):
         shape = (5, 10, 13, 23, 15, 20)
         a = ht.random.randn(*shape, split=0, dtype=ht.float64)
         self.assertEqual(a.dtype, ht.float64)
-        a = a.numpy()
-        mean = np.mean(a)
-        median = np.median(a)
-        std = np.std(a)
+        mean = ht.mean(a)
+        median = ht.median(a)
+        std = ht.std(a)
         self.assertTrue(-0.01 < mean < 0.01)
         self.assertTrue(-0.01 < median < 0.01)
         self.assertTrue(0.99 < std < 1.01)
@@ -367,12 +366,13 @@ class TestRandom(TestCase):
 
         # Creating the same array two times without resetting seed results in different elements
         c = ht.random.randn(elements, split=0, dtype=ht.float64)
-        c = c.numpy()
         self.assertEqual(c.shape, b.shape)
-        self.assertFalse(np.allclose(b, c))
+        self.assertFalse(ht.allclose(b, c))
 
         # All the created values should be different
-        d = np.concatenate((b, c))
+        d = ht.concatenate((b, c))
+        d.resplit_(None)
+        d = d.larray.numpy()
         _, counts = np.unique(d, return_counts=True)
         self.assertTrue((counts == 1).all())
 
@@ -382,9 +382,6 @@ class TestRandom(TestCase):
         ht.random.seed(12345)
         b = ht.random.randn(*shape, split=5, dtype=ht.float64)
         self.assertTrue(ht.equal(a, b))
-        a = a.numpy()
-        b = b.numpy()
-        self.assertTrue(np.allclose(a, b))
 
         # Tests with float32
         ht.random.seed(54321)
