@@ -362,9 +362,8 @@ class TestRandom(TestCase):
         ht.random.seed(54321)
         elements = np.prod(shape)
         b = ht.random.randn(elements, split=0, dtype=ht.float64)
-        b = b.numpy()
         a = a.flatten()
-        self.assertTrue(np.allclose(a, b))
+        self.assertTrue(ht.allclose(a, b))
 
         # Creating the same array two times without resetting seed results in different elements
         c = ht.random.randn(elements, split=0, dtype=ht.float64)
