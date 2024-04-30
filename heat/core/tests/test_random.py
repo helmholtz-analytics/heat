@@ -372,7 +372,7 @@ class TestRandom(TestCase):
         # All the created values should be different
         d = ht.concatenate((b, c))
         d.resplit_(None)
-        d = d.larray.numpy()
+        d = d.numpy()
         _, counts = np.unique(d, return_counts=True)
         self.assertTrue((counts == 1).all())
 
