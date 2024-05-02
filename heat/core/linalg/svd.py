@@ -6,7 +6,6 @@ from typing import Tuple
 from ..dndarray import DNDarray
 from .qr import qr
 from ..types import float32, float64
-from ..factories import array
 import torch
 
 __all__ = ["svd"]
@@ -20,12 +19,10 @@ def svd(
 ) -> Tuple[DNDarray, DNDarray, DNDarray]:
     """
     Computes the singular value decomposition of a matrix (the input array ``A``).
-    For an input DNDarray ``A`` of shape ``(M, N)``, the function returns DNDarrays ``U``, ``S``, and ``V`` such that ``A = U @ ht.diag(S) @ V.T``
-    with shapes ``(M, min(M,N))``, ``(min(M, N),)``, and ``(N, min(M,N))``, respectively, in the case that ``compute_uv=True``, or
+    For an input DNDarray ``A`` of shape ``(M, N)``, the function returns DNDarrays ``U``, ``S``, and ``V.T`` such that ``A = U @ ht.diag(S) @ V.T``
+    with shapes ``(M, min(M,N))``, ``(min(M, N),)``, and ``(min(M,N),N)``, respectively, in the case that ``compute_uv=True``, or
     only the vector containing the singular values ``S`` of shape ``(min(M, N),)`` in the case that ``compute_uv=False``. By definition of the singular value decomposition,
     the matrix ``U`` is orthogonal, the matrix ``V`` is orthogonal, and the entries of the vector ``S``are non-negative real numbers.
-
-    Please note this function returns the matrix ``V`` instead of its transpose ``V.T``; here, we follow the convention of ``torch.linalg.svd`` instead of ``numpy.linalg.svd``.
 
     We refer to, e.g., wikipedia (https://en.wikipedia.org/wiki/Singular_value_decomposition) or to Gene H. Golub and Charles F. Van Loan, Matrix Computations (3rd Ed., 1996),
     for more detailed information on the singular value decomposition.
@@ -49,8 +46,6 @@ def svd(
     ----------
     Unlike in NumPy, we currently do not support the option ``full_matrices=True``, since this can result in heavy memory consumption (in particular for tall skinny
     and short fat matrices) that should be avoided in the context Heat is designed for. If you nevertheless require this feature, please open an issue on GitHub.
-
-    Moreover, we do not follow the NumPy-convention to return V.T instead of V.
 
     The algorithm used for the computation of the singular value depens on the shape of the input array ``A``.
     For tall and skinny matrices (``M > N``), the algorithm is based on the tall-skinny QR decomposition; currently this is the only supported algorithm.
@@ -92,17 +87,49 @@ def svd(
             if compute_uv:
                 # compute full SVD: first full QR, then SVD of R
                 Q, R = qr(A, mode="reduced", procs_to_merge=qr_procs_to_merge)
-                Utilde_loc, S_loc, V_loc = torch.linalg.svd(R.larray, full_matrices=False)
-                Utilde = array(Utilde_loc, split=None)
-                S = array(S_loc, split=None)
-                V = array(V_loc, split=None)
-                U = Q @ Utilde
-                return U, S, V
+                Utilde_loc, S_loc, Vt_loc = torch.linalg.svd(R.larray, full_matrices=False)
+                Utilde = DNDarray(
+                    Utilde_loc,
+                    Utilde_loc.shape,
+                    dtype=A.dtype,
+                    split=None,
+                    device=A.device,
+                    comm=A.comm,
+                    balanced=A.balanced,
+                )
+                S = DNDarray(
+                    S_loc,
+                    S_loc.shape,
+                    dtype=A.dtype,
+                    split=None,
+                    device=A.device,
+                    comm=A.comm,
+                    balanced=A.balanced,
+                )
+                Vt = DNDarray(
+                    Vt_loc,
+                    Vt_loc.shape,
+                    dtype=A.dtype,
+                    split=None,
+                    device=A.device,
+                    comm=A.comm,
+                    balanced=A.balanced,
+                )
+                U = (Utilde.T @ Q.T).T
+                return U, S, Vt
             else:
                 # compute only singular values: first only R of QR, then singular values only of R
                 _, R = qr(A, mode="r", procs_to_merge=qr_procs_to_merge)
                 S_loc = torch.linalg.svdvals(R.larray)
-                S = array(S_loc, split=None)
+                S = DNDarray(
+                    S_loc,
+                    S_loc.shape,
+                    dtype=A.dtype,
+                    split=None,
+                    device=A.device,
+                    comm=A.comm,
+                    balanced=A.balanced,
+                )
                 return S
     if A.split == 1:
 
@@ -114,13 +141,13 @@ def svd(
             # this is the distributed, short fat case
             # apply the tall skinny SVD to the transpose of A
             if compute_uv:
-                Vt, S, Ut = svd(
+                V, S, Ut = svd(
                     A.T,
                     full_matrices=full_matrices,
                     compute_uv=True,
                     qr_procs_to_merge=qr_procs_to_merge,
                 )
-                return Ut.T, S, Vt.T
+                return Ut.T, S, V.T
             else:
                 S = svd(
                     A.T,
@@ -134,14 +161,49 @@ def svd(
         # this is the non-distributed case
         if compute_uv:
             U_loc, S_loc, V_loc = torch.linalg.svd(A.larray, full_matrices=full_matrices)
-            U = array(U_loc, split=None)
-            S = array(S_loc, split=None)
-            V = array(V_loc, split=None)
+            U = DNDarray(
+                U_loc,
+                U_loc.shape,
+                dtype=A.dtype,
+                split=None,
+                device=A.device,
+                comm=A.comm,
+                balanced=A.balanced,
+            )
+            S = DNDarray(
+                S_loc,
+                S_loc.shape,
+                dtype=A.dtype,
+                split=None,
+                device=A.device,
+                comm=A.comm,
+                balanced=A.balanced,
+            )
+            V = DNDarray(
+                V_loc,
+                V_loc.shape,
+                dtype=A.dtype,
+                split=None,
+                device=A.device,
+                comm=A.comm,
+                balanced=A.balanced,
+            )
             return U, S, V
         else:
             S_loc = torch.linalg.svdvals(A.larray)
-            S = array(S_loc, split=None)
+            S = DNDarray(
+                S_loc,
+                S_loc.shape,
+                dtype=A.dtype,
+                split=None,
+                device=A.device,
+                comm=A.comm,
+                balanced=A.balanced,
+            )
             return S
 
     """
     Todo: tests, correct problem with VH... """
+
+
+# from ..factories import array
