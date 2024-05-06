@@ -16,6 +16,6 @@ jobs:
           egress-policy: audit
 
       - name: Create Issue Branch
-        uses: robvanderleek/create-issue-branch@9bd78bad61ea3be75000d373bfacef0c347e597a # main
+        uses: robvanderleek/create-issue-branch@9bc9c35db9ac2d3301a84933d6f74dbf9a43452d # main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
