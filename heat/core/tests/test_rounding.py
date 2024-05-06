@@ -137,7 +137,12 @@ class TestRounding(TestCase):
         with self.assertRaises(ValueError):
             ht.arange(20).clip(None, None)
         with self.assertRaises(TypeError):
-            ht.clip(ht.arange(20), 5, 15, out=torch.arange(20, device=self.device.torch_device))
+            ht.clip(
+                ht.arange(20),
+                5,
+                15,
+                out=torch.arange(20, device=self.device.torch_device),
+            )
 
     def test_floor(self):
         start, end, step = -5.0, 5.0, 1.4

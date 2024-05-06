@@ -1,4 +1,3 @@
-import unittest
 import heat as ht
 from heat.utils.data.spherical import create_spherical_dataset
 
@@ -16,7 +15,8 @@ class TestKMeans(TestCase):
         params = kmedoid.get_params()
 
         self.assertEqual(
-            params, {"n_clusters": 8, "init": "random", "max_iter": 300, "random_state": None}
+            params,
+            {"n_clusters": 8, "init": "random", "max_iter": 300, "random_state": None},
         )
 
         params["n_clusters"] = 10
@@ -75,7 +75,11 @@ class TestKMeans(TestCase):
         seed = 1
         n = 20 * ht.MPI_WORLD.size
         data = create_spherical_dataset(
-            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
+            num_samples_cluster=n,
+            radius=1.0,
+            offset=4.0,
+            dtype=ht.float32,
+            random_state=seed,
         )
         kmedoid = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++")
         kmedoid.fit(data)
@@ -89,7 +93,11 @@ class TestKMeans(TestCase):
         # More Samples
         n = 100 * ht.MPI_WORLD.size
         data = create_spherical_dataset(
-            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
+            num_samples_cluster=n,
+            radius=1.0,
+            offset=4.0,
+            dtype=ht.float32,
+            random_state=seed,
         )
         kmedoid = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++")
         kmedoid.fit(data)
@@ -104,7 +112,11 @@ class TestKMeans(TestCase):
         # different datatype
         n = 20 * ht.MPI_WORLD.size
         data = create_spherical_dataset(
-            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float64, random_state=seed
+            num_samples_cluster=n,
+            radius=1.0,
+            offset=4.0,
+            dtype=ht.float64,
+            random_state=seed,
         )
         kmedoid = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++")
         kmedoid.fit(data)
@@ -113,14 +125,21 @@ class TestKMeans(TestCase):
         for i in range(kmedoid.cluster_centers_.shape[0]):
             self.assertTrue(
                 ht.any(
-                    ht.sum(ht.abs(kmedoid.cluster_centers_[i, :] - data.astype(ht.float32)), axis=1)
+                    ht.sum(
+                        ht.abs(kmedoid.cluster_centers_[i, :] - data.astype(ht.float32)),
+                        axis=1,
+                    )
                     == 0
                 )
             )
 
         # on Ints (different radius, offset and datatype
         data = create_spherical_dataset(
-            num_samples_cluster=n, radius=10.0, offset=40.0, dtype=ht.int32, random_state=seed
+            num_samples_cluster=n,
+            radius=10.0,
+            offset=40.0,
+            dtype=ht.int32,
+            random_state=seed,
         )
         kmedoid = ht.cluster.KMedoids(n_clusters=4, init="kmedoids++")
         kmedoid.fit(data)

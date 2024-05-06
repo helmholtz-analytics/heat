@@ -137,7 +137,13 @@ class datatype:
             raise ValueError(str(exception))
 
         return dndarray.DNDarray(
-            array, tuple(array.shape), cls, split=None, device=device, comm=comm, balanced=True
+            array,
+            tuple(array.shape),
+            cls,
+            split=None,
+            device=device,
+            comm=comm,
+            balanced=True,
         )
 
     @classmethod
@@ -565,7 +571,7 @@ def heat_type_is_complexfloating(ht_dtype: Type[datatype]) -> bool:
 
 
 def heat_type_of(
-    obj: Union[str, Type[datatype], Any, Iterable[str, Type[datatype], Any]]
+    obj: Union[str, Type[datatype], Any, Iterable[str, Type[datatype], Any]],
 ) -> Type[datatype]:
     """
     Returns the corresponding HeAT data type of given object, i.e. scalar, array or iterable. Attempts to determine the
@@ -868,7 +874,7 @@ def promote_types(
 
 
 def result_type(
-    *arrays_and_types: Tuple[Union[dndarray.DNDarray, Type[datatype], Any]]
+    *arrays_and_types: Tuple[Union[dndarray.DNDarray, Type[datatype], Any]],
 ) -> Type[datatype]:
     """
     Returns the data type that results from type promotions rules performed in an arithmetic operation.

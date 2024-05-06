@@ -231,7 +231,9 @@ class MinMaxScaler(ht.TransformMixin, ht.BaseEstimator):
         self.scale_ = self.data_range_ / (self.feature_range[1] - self.feature_range[0])
         if ht.abs(self.data_range_).min() < tol:
             self.scale_ = ht.where(
-                ht.abs(self.data_range_) >= tol, self.scale_, ht.ones_like(self.data_range_)
+                ht.abs(self.data_range_) >= tol,
+                self.scale_,
+                ht.ones_like(self.data_range_),
             )
             print(
                 "At least one of the features is almost constant (w.r.t. machine precision) and will not be scaled for this reason."

@@ -9,7 +9,6 @@ import torch
 import torch.nn as nn
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
-import torch.distributed as dist
 import torch.optim
 import torch.utils.data
 import torchvision.models as models
@@ -92,7 +91,11 @@ def parse():
         help="number of data loading workers (default: 4)",
     )
     parser.add_argument(
-        "--epochs", default=90, type=int, metavar="N", help="number of total epochs to run"
+        "--epochs",
+        default=90,
+        type=int,
+        metavar="N",
+        help="number of total epochs to run",
     )
     parser.add_argument(
         "--start-epoch",
@@ -173,11 +176,16 @@ def parse():
         help="evaluate model on validation set",
     )
     parser.add_argument(
-        "--pretrained", dest="pretrained", action="store_true", help="use pre-trained model"
+        "--pretrained",
+        dest="pretrained",
+        action="store_true",
+        help="use pre-trained model",
     )
     # dali args
     parser.add_argument(
-        "--dali_cpu", action="store_true", help="Runs CPU based version of DALI pipeline."
+        "--dali_cpu",
+        action="store_true",
+        help="Runs CPU based version of DALI pipeline.",
     )
     parser.add_argument(
         "--prof", default=-1, type=int, help="Only run 10 iterations for profiling."
@@ -186,7 +194,10 @@ def parse():
     parser.add_argument("--local-rank", default=0, type=int)
     parser.add_argument("--loss-scale", type=str, default=None)
     parser.add_argument(
-        "-t", "--test", action="store_true", help="Launch test mode with preset arguments"
+        "-t",
+        "--test",
+        action="store_true",
+        help="Launch test mode with preset arguments",
     )
     parser.add_argument(
         "--local-comms",
@@ -281,7 +292,9 @@ class HybridPipe(Pipeline):
         else:
             self.decode = dali.ops.ImageDecoder(device="cpu", output_type=dali.types.RGB)
             self.resize = ops.Resize(
-                device="cpu", resize_shorter=crop, interp_type=dali.types.INTERP_TRIANGULAR
+                device="cpu",
+                resize_shorter=crop,
+                interp_type=dali.types.INTERP_TRIANGULAR,
             )
         # should this be CPU or GPU? -> if prefetching then do it on CPU before sending
         self.normalize = ops.CropMirrorNormalize(
@@ -403,7 +416,10 @@ def main():
     args.lr = 0.0125  # (1. / args.world_size * (5 * (args.world_size - 1) / 6.)) * 0.0125 * args.world_size
     # args.lr = (1. / args.world_size * (5 * (args.world_size - 1) / 6.)) * 0.0125 * args.world_size
     optimizer = torch.optim.SGD(
-        model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
+        model.parameters(),
+        args.lr,
+        momentum=args.momentum,
+        weight_decay=args.weight_decay,
     )
 
     # create DP optimizer and model:
@@ -428,7 +444,8 @@ def main():
             if os.path.isfile(args.resume):
                 print0(f"=> loading checkpoint '{args.resume}'")
                 checkpoint = torch.load(
-                    args.resume, map_location=lambda storage, loc: storage.cuda(args.gpu)
+                    args.resume,
+                    map_location=lambda storage, loc: storage.cuda(args.gpu),
                 )
                 args.start_epoch = checkpoint["epoch"]
                 # best_prec1 = checkpoint["best_prec1"]
@@ -442,7 +459,8 @@ def main():
                     resfile = "imgnet-checkpoint-" + str(args.world_size) + ".pth.tar"
                     print0(f"=> loading checkpoint '{resfile}'")
                     checkpoint = torch.load(
-                        resfile, map_location=lambda storage, loc: storage.cuda(args.gpu)
+                        resfile,
+                        map_location=lambda storage, loc: storage.cuda(args.gpu),
                     )
                     args.start_epoch = checkpoint["epoch"]
                     # best_prec1 = checkpoint["best_prec1"]

@@ -2,8 +2,6 @@
 This module defines constants used in HeAT.
 """
 
-import torch
-
 __all__ = ["e", "Euler", "inf", "Inf", "Infty", "Infinity", "nan", "NaN", "pi"]
 
 # infinity

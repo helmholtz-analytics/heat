@@ -1,10 +1,6 @@
-import os
-import unittest
-import numpy as np
 import torch
 import heat as ht
 from heat.utils.data.spherical import create_spherical_dataset
-from mpi4py import MPI
 
 from ...core.tests.test_suites.basic_test import TestCase
 from ..batchparallelclustering import _kmex, _BatchParallelKCluster
@@ -48,13 +44,19 @@ class TestAuxiliaryFunctions(TestCase):
 # test BatchParallelKMeans and BatchParallelKMedians
 class TestBatchParallelKCluster(TestCase):
     def test_clusterer(self):
-        for ParallelClusterer in [ht.cluster.BatchParallelKMeans, ht.cluster.BatchParallelKMedians]:
+        for ParallelClusterer in [
+            ht.cluster.BatchParallelKMeans,
+            ht.cluster.BatchParallelKMedians,
+        ]:
             parallelclusterer = ParallelClusterer()
             self.assertTrue(ht.is_estimator(parallelclusterer))
             self.assertTrue(ht.is_clusterer(parallelclusterer))
 
     def test_get_and_set_params(self):
-        for ParallelClusterer in [ht.cluster.BatchParallelKMeans, ht.cluster.BatchParallelKMedians]:
+        for ParallelClusterer in [
+            ht.cluster.BatchParallelKMeans,
+            ht.cluster.BatchParallelKMedians,
+        ]:
             if ParallelClusterer is ht.cluster.BatchParallelKMeans:
                 ppinitkw = "k-means++"
             elif ParallelClusterer is ht.cluster.BatchParallelKMedians:
@@ -80,7 +82,10 @@ class TestBatchParallelKCluster(TestCase):
             self.assertEqual(10, parallelclusterer.n_clusters)
 
     def test_spherical_clusters(self):
-        for ParallelClusterer in [ht.cluster.BatchParallelKMeans, ht.cluster.BatchParallelKMedians]:
+        for ParallelClusterer in [
+            ht.cluster.BatchParallelKMeans,
+            ht.cluster.BatchParallelKMedians,
+        ]:
             if ParallelClusterer is ht.cluster.BatchParallelKMeans:
                 ppinitkws = ["k-means++"]
             elif ParallelClusterer is ht.cluster.BatchParallelKMedians:
@@ -110,7 +115,8 @@ class TestBatchParallelKCluster(TestCase):
                                 )
                                 self.assertEqual(parallelclusterer.cluster_centers_.split, None)
                                 self.assertEqual(
-                                    parallelclusterer.cluster_centers_.shape, (n_clusters, 3)
+                                    parallelclusterer.cluster_centers_.shape,
+                                    (n_clusters, 3),
                                 )
                                 self.assertEqual(parallelclusterer.cluster_centers_.dtype, dtype)
                                 self.assertIsInstance(parallelclusterer.n_iter_, int)
@@ -125,7 +131,10 @@ class TestBatchParallelKCluster(TestCase):
                                 self.assertEqual(labels.min(), 0)
 
     def test_if_errors_thrown(self):
-        for ParallelClusterer in [ht.cluster.BatchParallelKMeans, ht.cluster.BatchParallelKMedians]:
+        for ParallelClusterer in [
+            ht.cluster.BatchParallelKMeans,
+            ht.cluster.BatchParallelKMedians,
+        ]:
             parallelclusterer = ParallelClusterer()
             # wrong dtype for fit
             with self.assertRaises(TypeError):

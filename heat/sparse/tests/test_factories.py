@@ -40,7 +40,10 @@ class TestFactories(TestCase):
         )
 
         self.ref_torch_sparse_csr = torch.sparse_csr_tensor(
-            self.ref_indptr, self.ref_indices, self.ref_data, device=self.device.torch_device
+            self.ref_indptr,
+            self.ref_indices,
+            self.ref_data,
+            device=self.device.torch_device,
         )
 
         self.ref_scipy_sparse_csr = scipy.sparse.csr_matrix(

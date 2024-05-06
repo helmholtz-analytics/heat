@@ -13,7 +13,6 @@ from . import _operations
 from . import sanitation
 from . import stride_tricks
 from . import types
-from . import logical
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -23,7 +22,6 @@ from .types import (
     heat_type_is_exact,
     heat_type_of,
     datatype,
-    can_cast,
     _complexfloating,
 )
 
@@ -1016,7 +1014,9 @@ def diff(
             if ret.lshape[axis] > 1:
                 cr_slice[axis] = 1
             recv_data = torch.ones(
-                ret.lloc[cr_slice].shape, dtype=ret.dtype.torch_type(), device=a.device.torch_device
+                ret.lloc[cr_slice].shape,
+                dtype=ret.dtype.torch_type(),
+                device=a.device.torch_device,
             )
             rec = ret.comm.Irecv(recv_data, source=rank + 1, tag=rank + 1)
             axis_slice_end = [slice(None)] * len(a.shape)
@@ -2220,7 +2220,13 @@ def nan_to_num(
     DNDarray([ 0.0000e+00,  3.4028e+38, -3.4028e+38], dtype=ht.float32, device=cpu:0, split=None)
     """
     return _operations.__local_op(
-        torch.nan_to_num, a, out=out, no_cast=True, nan=nan, posinf=posinf, neginf=neginf
+        torch.nan_to_num,
+        a,
+        out=out,
+        no_cast=True,
+        nan=nan,
+        posinf=posinf,
+        neginf=neginf,
     )
 
 

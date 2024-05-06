@@ -48,7 +48,10 @@ class Lasso(ht.RegressionMixin, ht.BaseEstimator):
     """
 
     def __init__(
-        self, lam: Optional[float] = 0.1, max_iter: Optional[int] = 100, tol: Optional[float] = 1e-6
+        self,
+        lam: Optional[float] = 0.1,
+        max_iter: Optional[int] = 100,
+        tol: Optional[float] = 1e-6,
     ) -> None:
         """Initialize lasso parameters"""
         self.__lam = lam

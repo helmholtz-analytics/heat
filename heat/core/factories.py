@@ -319,7 +319,6 @@ def array(
                 f"'is_split' and the split axis of the object do not match ({is_split} != {obj.split}).\nIf you are trying to resplit an existing DNDarray in-place, use the method `DNDarray.resplit_()` instead."
             )
         elif device is not None and device != obj.device and copy is False:
-
             raise ValueError(
                 "argument `copy` is set to False, but copy of input object is necessary as the array is being copied across devices.\nUse the method `DNDarray.cpu()` or  `DNDarray.gpu()` to move the array to the desired device."
             )
@@ -698,7 +697,9 @@ def eye(
 
     # start by creating tensor filled with zeroes
     data = torch.zeros(
-        lshape, dtype=types.canonical_heat_type(dtype).torch_type(), device=device.torch_device
+        lshape,
+        dtype=types.canonical_heat_type(dtype).torch_type(),
+        device=device.torch_device,
     )
 
     # insert ones at the correct positions
@@ -712,7 +713,13 @@ def eye(
     data = sanitize_memory_layout(data, order=order)
 
     return DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
+        data,
+        gshape,
+        types.canonical_heat_type(data.dtype),
+        split,
+        device,
+        comm,
+        balanced,
     )
 
 
@@ -989,7 +996,13 @@ def __from_partition_dict_helper(parted: dict, comm: Communication):
     balanced = all(x[0][0] == x[1][0] for x in expected.values())
 
     ret = DNDarray(
-        data, gshape, htype, split, devices.sanitize_device(None), sanitize_comm(comm), balanced
+        data,
+        gshape,
+        htype,
+        split,
+        devices.sanitize_device(None),
+        sanitize_comm(comm),
+        balanced,
     )
     ret.__partitions_dict__ = parted
 
@@ -1178,7 +1191,13 @@ def linspace(
 
     # construct the resulting global tensor
     ht_tensor = DNDarray(
-        data, gshape, types.canonical_heat_type(data.dtype), split, device, comm, balanced
+        data,
+        gshape,
+        types.canonical_heat_type(data.dtype),
+        split,
+        device,
+        comm,
+        balanced,
     )
 
     if retstep:

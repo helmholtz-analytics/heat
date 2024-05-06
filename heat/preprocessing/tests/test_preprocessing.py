@@ -1,8 +1,5 @@
-import unittest
 import heat as ht
-import numpy as np
 from mpi4py import MPI
-import os
 
 from ...core.tests.test_suites.basic_test import TestCase
 
@@ -43,7 +40,8 @@ class TestStandardScaler(TestCase):
             Y = scaler.inverse_transform(Y)
             self.assertTrue(ht.allclose(Y, X, atol=atol_inv))
             Z = ht.zeros(
-                (MPI.COMM_WORLD.Get_size() * 10, MPI.COMM_WORLD.Get_size() * 2), split=split
+                (MPI.COMM_WORLD.Get_size() * 10, MPI.COMM_WORLD.Get_size() * 2),
+                split=split,
             )
             with self.assertRaises(ValueError):
                 scaler.transform(Z)
@@ -105,7 +103,8 @@ class TestMinMaxScaler(TestCase):
             with self.assertRaises(ValueError):
                 scaler = ht.preprocessing.MinMaxScaler(feature_range=(0.5, 0.5), copy=copy)
             Z = ht.zeros(
-                (MPI.COMM_WORLD.Get_size() * 10, MPI.COMM_WORLD.Get_size() * 2), split=split
+                (MPI.COMM_WORLD.Get_size() * 10, MPI.COMM_WORLD.Get_size() * 2),
+                split=split,
             )
             with self.assertRaises(ValueError):
                 scaler.transform(Z)
@@ -149,7 +148,9 @@ class TestNormalizer(TestCase):
                 ords = [2, 1, ht.inf]
                 for k in range(3):
                     X = ht.random.randn(
-                        MPI.COMM_WORLD.Get_size() * 10, MPI.COMM_WORLD.Get_size() * 4, split=split
+                        MPI.COMM_WORLD.Get_size() * 10,
+                        MPI.COMM_WORLD.Get_size() * 4,
+                        split=split,
                     )
                     X = ht.vstack([X, 1e-16 * ht.random.rand(10, MPI.COMM_WORLD.Get_size() * 4)])
                     scaler = ht.preprocessing.Normalizer(norm=norms[k], copy=copy)
@@ -198,13 +199,18 @@ class TestMaxAbsScaler(TestCase):
             scaler.fit(X)
             Y = scaler.transform(X)
             self.assertTrue(
-                ht.allclose(ht.max(ht.abs(Y), axis=0)[:-1], ht.ones(Y.shape[1])[:-1], atol=atol_fit)
+                ht.allclose(
+                    ht.max(ht.abs(Y), axis=0)[:-1],
+                    ht.ones(Y.shape[1])[:-1],
+                    atol=atol_fit,
+                )
             )
             self.assertTrue(ht.allclose(ht.max(ht.abs(Y), axis=0)[-1], ht.zeros(1), atol=atol_fit))
             Y = scaler.inverse_transform(Y)
             self.assertTrue(ht.allclose(Y, X, atol=atol_inv))
             Z = ht.zeros(
-                (MPI.COMM_WORLD.Get_size() * 10, MPI.COMM_WORLD.Get_size() * 2), split=split
+                (MPI.COMM_WORLD.Get_size() * 10, MPI.COMM_WORLD.Get_size() * 2),
+                split=split,
             )
             with self.assertRaises(ValueError):
                 scaler.transform(Z)
@@ -221,7 +227,11 @@ class TestMaxAbsScaler(TestCase):
             scaler.fit(X)
             scaler.transform(X)
             self.assertTrue(
-                ht.allclose(ht.max(ht.abs(X), axis=0)[:-1], ht.ones(X.shape[1])[:-1], atol=atol_fit)
+                ht.allclose(
+                    ht.max(ht.abs(X), axis=0)[:-1],
+                    ht.ones(X.shape[1])[:-1],
+                    atol=atol_fit,
+                )
             )
             self.assertTrue(ht.allclose(ht.max(ht.abs(X), axis=0)[-1], ht.zeros(1), atol=atol_fit))
             scaler.inverse_transform(X)
@@ -268,7 +278,9 @@ class TestRobustScaler(TestCase):
                         if with_centering:
                             self.assertTrue(
                                 ht.allclose(
-                                    ht.median(Y, axis=0), ht.zeros(Y.shape[1]), atol=atol_fit
+                                    ht.median(Y, axis=0),
+                                    ht.zeros(Y.shape[1]),
+                                    atol=atol_fit,
                                 )
                             )
                         if with_scaling:
@@ -302,7 +314,10 @@ class TestRobustScaler(TestCase):
                                 with_scaling=with_scaling,
                             )
                         Z = ht.zeros(
-                            (MPI.COMM_WORLD.Get_size() * 10, MPI.COMM_WORLD.Get_size() * 2),
+                            (
+                                MPI.COMM_WORLD.Get_size() * 10,
+                                MPI.COMM_WORLD.Get_size() * 2,
+                            ),
                             split=split,
                         )
                         with self.assertRaises(ValueError):
@@ -327,7 +342,9 @@ class TestRobustScaler(TestCase):
                         if with_centering:
                             self.assertTrue(
                                 ht.allclose(
-                                    ht.median(X, axis=0), ht.zeros(X.shape[1]), atol=atol_fit
+                                    ht.median(X, axis=0),
+                                    ht.zeros(X.shape[1]),
+                                    atol=atol_fit,
                                 )
                             )
                         if with_scaling:

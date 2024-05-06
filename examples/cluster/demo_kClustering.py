@@ -1,4 +1,3 @@
-import torch
 import heat as ht
 
 
@@ -51,7 +50,11 @@ def main():
     n = 20 * ht.MPI_WORLD.size
 
     data = create_spherical_dataset(
-        num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
+        num_samples_cluster=n,
+        radius=1.0,
+        offset=4.0,
+        dtype=ht.float32,
+        random_state=seed,
     )
     reference = ht.array([[-8, -8, -8], [-4, -4, -4], [4, 4, 4], [8, 8, 8]], dtype=ht.float32)
 
@@ -73,7 +76,11 @@ def main():
     # More Samples
     n = 100 * ht.MPI_WORLD.size
     data = create_spherical_dataset(
-        num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
+        num_samples_cluster=n,
+        radius=1.0,
+        offset=4.0,
+        dtype=ht.float32,
+        random_state=seed,
     )
     print(f"4 Spherical  with radius 1.0, each {n} samples (dtype = ht.float32) ")
     for name, c in clusterer.items():
@@ -87,7 +94,11 @@ def main():
     # On integers (different radius, offset and datatype)
     n = 20 * ht.MPI_WORLD.size
     data = create_spherical_dataset(
-        num_samples_cluster=n, radius=10.0, offset=40.0, dtype=ht.int32, random_state=seed
+        num_samples_cluster=n,
+        radius=10.0,
+        offset=40.0,
+        dtype=ht.int32,
+        random_state=seed,
     )
     reference = ht.array(
         [[-80, -80, -80], [-40, -40, -40], [40, 40, 40], [80, 80, 80]], dtype=ht.float32

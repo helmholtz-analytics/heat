@@ -18,7 +18,6 @@ from . import types
 from . import sanitation
 from . import stride_tricks
 from . import logical
-from . import constants
 
 __all__ = [
     "argmax",
@@ -45,7 +44,10 @@ __all__ = [
 
 
 def argmax(
-    x: DNDarray, axis: Optional[int] = None, out: Optional[DNDarray] = None, **kwargs: object
+    x: DNDarray,
+    axis: Optional[int] = None,
+    out: Optional[DNDarray] = None,
+    **kwargs: object,
 ) -> DNDarray:
     """
     Returns an array of the indices of the maximum values along an axis. It has the same shape as ``x.shape`` with the
@@ -105,7 +107,13 @@ def argmax(
     # perform the global reduction
     smallest_value = -sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_argmax, MPI_ARGMAX, axis=axis, out=out, neutral=smallest_value, **kwargs
+        x,
+        local_argmax,
+        MPI_ARGMAX,
+        axis=axis,
+        out=out,
+        neutral=smallest_value,
+        **kwargs,
     )
 
 
@@ -116,7 +124,10 @@ DNDarray.argmax.__doc__ = argmax.__doc__
 
 
 def argmin(
-    x: DNDarray, axis: Optional[int] = None, out: Optional[DNDarray] = None, **kwargs: object
+    x: DNDarray,
+    axis: Optional[int] = None,
+    out: Optional[DNDarray] = None,
+    **kwargs: object,
 ) -> DNDarray:
     """
     Returns an array of the indices of the minimum values along an axis. It has the same shape as ``x.shape`` with the
@@ -282,7 +293,9 @@ def average(
             wgt_slice = [slice(None) if dim == axis else 0 for dim in list(range(x.ndim))]
             wgt_split = None if weights.split is None else axis
             wgt = torch.empty(
-                wgt_lshape, dtype=weights.dtype.torch_type(), device=x.device.torch_device
+                wgt_lshape,
+                dtype=weights.dtype.torch_type(),
+                device=x.device.torch_device,
             )
             wgt[wgt_slice] = weights.larray
             wgt = factories.array(wgt, is_split=wgt_split, copy=False)
@@ -316,7 +329,8 @@ def average(
 
 
 DNDarray.average: Callable[
-    [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool], Union[DNDarray, Tuple[DNDarray, ...]]
+    [DNDarray, Union[int, Tuple[int, ...]], DNDarray, bool],
+    Union[DNDarray, Tuple[DNDarray, ...]],
 ] = lambda self, axis=None, weights=None, returned=False: average(self, axis, weights, returned)
 DNDarray.average.__doc__ = average.__doc__
 
@@ -371,7 +385,10 @@ def bincount(x: DNDarray, weights: Optional[DNDarray] = None, minlength: int = 0
         counts = torch.zeros(maxlength, dtype=dtype, device=counts.device)
     elif size < maxlength:
         counts = torch.cat(
-            (counts, torch.zeros(maxlength - size, dtype=counts.dtype, device=counts.device))
+            (
+                counts,
+                torch.zeros(maxlength - size, dtype=counts.dtype, device=counts.device),
+            )
         )
 
     # collect results
@@ -616,7 +633,11 @@ def digitize(x: DNDarray, bins: Union[DNDarray, torch.Tensor], right: bool = Fal
 
 
 def histc(
-    input: DNDarray, bins: int = 100, min: int = 0, max: int = 0, out: Optional[DNDarray] = None
+    input: DNDarray,
+    bins: int = 100,
+    min: int = 0,
+    max: int = 0,
+    out: Optional[DNDarray] = None,
 ) -> DNDarray:
     """
     Return the histogram of a DNDarray.
@@ -671,7 +692,9 @@ def histc(
     else:
         if out is None:
             out = factories.empty(
-                hist.size(), dtype=types.canonical_heat_type(hist.dtype), device=input.device
+                hist.size(),
+                dtype=types.canonical_heat_type(hist.dtype),
+                device=input.device,
             )
         input.comm.Allreduce(hist, out, op=MPI.SUM)
 
@@ -829,7 +852,13 @@ def max(
 
     smallest_value = -sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_max, MPI.MAX, axis=axis, out=out, neutral=smallest_value, keepdims=keepdims
+        x,
+        local_max,
+        MPI.MAX,
+        axis=axis,
+        out=out,
+        neutral=smallest_value,
+        keepdims=keepdims,
     )
 
 
@@ -1161,7 +1190,13 @@ def min(
 
     largest_value = sanitation.sanitize_infinity(x)
     return _operations.__reduce_op(
-        x, local_min, MPI.MIN, axis=axis, out=out, neutral=largest_value, keepdims=keepdims
+        x,
+        local_min,
+        MPI.MIN,
+        axis=axis,
+        out=out,
+        neutral=largest_value,
+        keepdims=keepdims,
     )
 
 
@@ -1473,7 +1508,8 @@ def percentile(
             weights_shape = data.ndim * (1,)
             weights_shape = weights_shape[:axis] + (indices.shape[0],) + weights_shape[axis + 1 :]
             weights = torch.sub(
-                indices.reshape(weights_shape), torch.floor(indices).reshape(weights_shape)
+                indices.reshape(weights_shape),
+                torch.floor(indices).reshape(weights_shape),
             )
 
             percentile = lows + weights * (torch.sub(highs, lows))
@@ -1715,7 +1751,10 @@ DNDarray.skew.__doc__ = skew.__doc__
 
 
 def std(
-    x: DNDarray, axis: Union[int, Tuple[int], List[int]] = None, ddof: int = 0, **kwargs: object
+    x: DNDarray,
+    axis: Union[int, Tuple[int], List[int]] = None,
+    ddof: int = 0,
+    **kwargs: object,
 ) -> DNDarray:
     """
     Calculates the standard deviation of a ``DNDarray`` with the bessel correction.
@@ -1811,7 +1850,10 @@ def __torch_skew(
 
 
 def __torch_kurtosis(
-    torch_tensor: torch.Tensor, dim: int = None, Fischer: bool = True, unbiased: bool = False
+    torch_tensor: torch.Tensor,
+    dim: int = None,
+    Fischer: bool = True,
+    unbiased: bool = False,
 ) -> torch.Tensor:
     """
     Calculate the sample kurtosis of a dataset
@@ -1848,7 +1890,10 @@ def __torch_kurtosis(
 
 
 def var(
-    x: DNDarray, axis: Union[int, Tuple[int], List[int]] = None, ddof: int = 0, **kwargs: object
+    x: DNDarray,
+    axis: Union[int, Tuple[int], List[int]] = None,
+    ddof: int = 0,
+    **kwargs: object,
 ) -> DNDarray:
     """
     Calculates and returns the variance of a ``DNDarray``. If an axis is given, the variance will be
@@ -1957,7 +2002,13 @@ def var(
         if not x.is_distributed():  # not distributed (full tensor on one node)
             ret = torch.var(x.larray.float(), unbiased=unbiased)
             return DNDarray(
-                ret, tuple(ret.shape), types.heat_type_of(ret), None, x.device, x.comm, True
+                ret,
+                tuple(ret.shape),
+                types.heat_type_of(ret),
+                None,
+                x.device,
+                x.comm,
+                True,
             )
 
         else:  # case for full matrix calculation (axis is None)

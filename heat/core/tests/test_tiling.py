@@ -34,7 +34,8 @@ class TestSplitTiles(TestCase):
             # definition of adjusting tests is he same logic as the code itself,
             #   therefore, fixed tests are issued for one process confic
             tile_dims = torch.tensor(
-                [[2.0, 2.0, 1.0], [2.0, 2.0, 2.0], [3.0, 2.0, 2.0]], device=self.device.torch_device
+                [[2.0, 2.0, 1.0], [2.0, 2.0, 2.0], [3.0, 2.0, 2.0]],
+                device=self.device.torch_device,
             )
             res = tiles.tile_dimensions
             self.assertTrue(torch.equal(tile_dims, res))

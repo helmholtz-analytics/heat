@@ -5,7 +5,7 @@ Module Implementing the Kmedians Algorithm
 import heat as ht
 from heat.cluster._kcluster import _KCluster
 from heat.core.dndarray import DNDarray
-from typing import Optional, Union, TypeVar
+from typing import Union
 
 
 class KMedians(_KCluster):

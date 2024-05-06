@@ -7,9 +7,7 @@ import numpy as np
 import torch
 import warnings
 
-from inspect import stack
 from mpi4py import MPI
-from pathlib import Path
 from typing import List, Union, Tuple, TypeVar, Optional
 
 warnings.simplefilter("always", ResourceWarning)
@@ -490,7 +488,13 @@ class DNDarray:
         casted_array = self.__array.type(dtype.torch_type())
         if copy:
             return DNDarray(
-                casted_array, self.shape, dtype, self.split, self.device, self.comm, self.balanced
+                casted_array,
+                self.shape,
+                dtype,
+                self.split,
+                self.device,
+                self.comm,
+                self.balanced,
             )
 
         self.__array = casted_array
@@ -659,7 +663,9 @@ class DNDarray:
             return self.__lshape_map.clone()
 
         lshape_map = torch.zeros(
-            (self.comm.size, self.ndim), dtype=torch.int64, device=self.device.torch_device
+            (self.comm.size, self.ndim),
+            dtype=torch.int64,
+            device=self.device.torch_device,
         )
         if not self.is_distributed:
             lshape_map[:] = torch.tensor(self.gshape, device=self.device.torch_device)
@@ -951,7 +957,13 @@ class DNDarray:
         if not self.is_distributed():
             arr = self.__array[key].reshape(gout_full)
             return DNDarray(
-                arr, tuple(gout_full), self.dtype, new_split, self.device, self.comm, self.balanced
+                arr,
+                tuple(gout_full),
+                self.dtype,
+                new_split,
+                self.device,
+                self.comm,
+                self.balanced,
             )
 
         # else: (DNDarray is distributed)
@@ -1033,7 +1045,13 @@ class DNDarray:
                 key_start = 0 if rank != actives[0] else key_start - chunk_starts[rank]
                 key_stop = counts[rank] if rank != actives[-1] else key_stop - chunk_starts[rank]
                 key_start, key_stop = self.__xitem_get_key_start_stop(
-                    rank, actives, key_start, key_stop, key_step, chunk_ends, og_key_start
+                    rank,
+                    actives,
+                    key_start,
+                    key_stop,
+                    key_step,
+                    chunk_ends,
+                    og_key_start,
                 )
                 key[self.split] = slice(key_start, key_stop, key_step)
                 lout[new_split] = (
@@ -1206,7 +1224,9 @@ class DNDarray:
         return manipulations.ravel(self)
 
     def redistribute_(
-        self, lshape_map: Optional[torch.Tensor] = None, target_map: Optional[torch.Tensor] = None
+        self,
+        lshape_map: Optional[torch.Tensor] = None,
+        target_map: Optional[torch.Tensor] = None,
     ):
         """
         Redistributes the data of the :class:`DNDarray` *along the split axis* to match the given target map.
@@ -1333,7 +1353,10 @@ class DNDarray:
                 # send amount is the data still needed by recv if that is available on the snd
                 if send_amt != 0:
                     self.__redistribute_shuffle(
-                        snd_pr=snd_pr, send_amt=send_amt, rcv_pr=rcv_pr, snd_dtype=snd_dtype
+                        snd_pr=snd_pr,
+                        send_amt=send_amt,
+                        rcv_pr=rcv_pr,
+                        snd_dtype=snd_dtype,
                     )
                 lshape_cumsum[snd_pr] -= send_amt
                 lshape_cumsum[rcv_pr] += send_amt
@@ -1343,7 +1366,10 @@ class DNDarray:
                 # if there is any data left on the process then send it to the next one
                 send_amt = lshape_map[rcv_pr, self.split] - target_map[rcv_pr, self.split]
                 self.__redistribute_shuffle(
-                    snd_pr=rcv_pr, send_amt=send_amt.item(), rcv_pr=rcv_pr + 1, snd_dtype=snd_dtype
+                    snd_pr=rcv_pr,
+                    send_amt=send_amt.item(),
+                    rcv_pr=rcv_pr + 1,
+                    snd_dtype=snd_dtype,
                 )
                 lshape_cumsum[rcv_pr] -= send_amt
                 lshape_cumsum[rcv_pr + 1] += send_amt
@@ -1451,7 +1477,9 @@ class DNDarray:
 
         if axis is None:
             gathered = torch.empty(
-                self.shape, dtype=self.dtype.torch_type(), device=self.device.torch_device
+                self.shape,
+                dtype=self.dtype.torch_type(),
+                device=self.device.torch_device,
             )
             counts, displs = self.counts_displs()
             self.comm.Allgatherv(self.__array, (gathered, counts, displs), recv_axis=self.split)
@@ -1495,7 +1523,9 @@ class DNDarray:
                 elif rank == rpr:
                     sz = tiles.get_tile_size(key)
                     buf = torch.zeros(
-                        sz, dtype=self.dtype.torch_type(), device=self.device.torch_device
+                        sz,
+                        dtype=self.dtype.torch_type(),
+                        device=self.device.torch_device,
                     )
                     w = self.comm.Irecv(buf=buf, source=spr, tag=spr)
                     rcv[key] = [w, buf]
@@ -1740,7 +1770,9 @@ class DNDarray:
                 local_keys = []
                 # below is used if the target needs to be reshaped
                 target_reshape_map = torch.zeros(
-                    (self.comm.size, self.ndim), dtype=torch.int64, device=self.device.torch_device
+                    (self.comm.size, self.ndim),
+                    dtype=torch.int64,
+                    device=self.device.torch_device,
                 )
                 for r in range(self.comm.size):
                     if r not in actives:
@@ -1750,7 +1782,13 @@ class DNDarray:
                         key_start_l = 0 if r != actives[0] else key_start - chunk_starts[r]
                         key_stop_l = ends[r] if r != actives[-1] else key_stop - chunk_starts[r]
                         key_start_l, key_stop_l = self.__xitem_get_key_start_stop(
-                            r, actives, key_start_l, key_stop_l, key_step, chunk_ends, og_key_start
+                            r,
+                            actives,
+                            key_start_l,
+                            key_stop_l,
+                            key_step,
+                            chunk_ends,
+                            og_key_start,
                         )
                         loc_key = key.copy()
                         loc_key[self.split] = slice(key_start_l, key_stop_l, key_step)
@@ -1924,14 +1962,11 @@ class DNDarray:
 # HeAT imports at the end to break cyclic dependencies
 from . import complex_math
 from . import devices
-from . import factories
 from . import indexing
 from . import linalg
 from . import manipulations
 from . import printing
-from . import rounding
 from . import sanitation
-from . import statistics
 from . import stride_tricks
 from . import tiling
 

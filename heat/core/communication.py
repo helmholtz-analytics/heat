@@ -539,7 +539,11 @@ class MPICommunication(Communication):
     Recv.__doc__ = MPI.Comm.Recv.__doc__
 
     def __send_like(
-        self, func: Callable, buf: Union[DNDarray, torch.Tensor, Any], dest: int, tag: int
+        self,
+        func: Callable,
+        buf: Union[DNDarray, torch.Tensor, Any],
+        dest: int,
+        tag: int,
     ) -> Tuple[Optional[Union[DNDarray, torch.Tensor]]]:
         """
         Generic function for sending a message to process with rank "dest"
@@ -1298,8 +1302,14 @@ class MPICommunication(Communication):
 
             # Minimal Fix; Could possibly be improved when reworking counts, displs algorithmics
             if self.size > 1:
-                send_axis_permutation[0], send_axis_permutation[send_axis] = (send_axis, 0)
-                recv_axis_permutation[0], recv_axis_permutation[recv_axis] = (recv_axis, 0)
+                send_axis_permutation[0], send_axis_permutation[send_axis] = (
+                    send_axis,
+                    0,
+                )
+                recv_axis_permutation[0], recv_axis_permutation[recv_axis] = (
+                    recv_axis,
+                    0,
+                )
 
             else:
                 recv_counts = send_counts
@@ -1625,7 +1635,13 @@ class MPICommunication(Communication):
             The axis along which ``recvbuf`` is packed
         """
         ret, sbuf, rbuf, buf, permutation = self.__gather_like(
-            self.handle.Gather, sendbuf, recvbuf, axis, recv_axis, root=root, recv_factor=self.size
+            self.handle.Gather,
+            sendbuf,
+            recvbuf,
+            axis,
+            recv_axis,
+            root=root,
+            recv_factor=self.size,
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)
@@ -1943,7 +1959,13 @@ class MPICommunication(Communication):
             The axis along which ``recvbuf`` is packed
         """
         ret, sbuf, rbuf, buf, permutation = self.__scatter_like(
-            self.handle.Scatter, sendbuf, recvbuf, axis, recv_axis, root=root, send_factor=self.size
+            self.handle.Scatter,
+            sendbuf,
+            recvbuf,
+            axis,
+            recv_axis,
+            root=root,
+            send_factor=self.size,
         )
         if buf is not None and isinstance(buf, torch.Tensor) and permutation is not None:
             rbuf = rbuf.permute(permutation)

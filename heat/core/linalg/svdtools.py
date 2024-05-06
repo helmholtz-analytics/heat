@@ -2,23 +2,17 @@
 distributed hierarchical SVD
 """
 
-import numpy as np
-import collections
 import torch
-from typing import Type, Callable, Dict, Any, TypeVar, Union, Tuple, Optional
+from typing import Union, Tuple, Optional
 
-from ..communication import MPICommunication
 from ..dndarray import DNDarray
 from .. import factories
 from .. import types
 from ..linalg import matmul, vector_norm
-from ..indexing import where
-from ..random import randn
 
-from ..manipulations import vstack, hstack, diag, balance
+from ..manipulations import diag
 
-from .. import statistics
-from math import log, ceil, floor, sqrt
+from math import floor, sqrt
 
 
 __all__ = ["hsvd_rank", "hsvd_rtol", "hsvd"]
@@ -37,7 +31,9 @@ def hsvd_rank(
     safetyshift: int = 5,
     silent: bool = True,
 ) -> Union[
-    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
+    Tuple[DNDarray, DNDarray, DNDarray, float],
+    Tuple[DNDarray, DNDarray, DNDarray],
+    DNDarray,
 ]:
     """
         Hierarchical SVD (hSVD) with prescribed truncation rank `maxrank`.
@@ -132,7 +128,9 @@ def hsvd_rtol(
     no_of_merges: Optional[int] = None,
     silent: bool = True,
 ) -> Union[
-    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
+    Tuple[DNDarray, DNDarray, DNDarray, float],
+    Tuple[DNDarray, DNDarray, DNDarray],
+    DNDarray,
 ]:
     """
         Hierchical SVD (hSVD) with prescribed upper bound on the relative reconstruction error.
@@ -268,7 +266,9 @@ def hsvd(
     silent: bool = True,
     warnings_off: bool = False,
 ) -> Union[
-    Tuple[DNDarray, DNDarray, DNDarray, float], Tuple[DNDarray, DNDarray, DNDarray], DNDarray
+    Tuple[DNDarray, DNDarray, DNDarray, float],
+    Tuple[DNDarray, DNDarray, DNDarray],
+    DNDarray,
 ]:
     """
     This function computes an approximate truncated SVD of A utilizing a distributed hiearchical algorithm; see the references.
@@ -397,7 +397,11 @@ def hsvd(
             ]
             for k in range(len(recv_from[A.comm.rank])):
                 # receive concatenated U_loc and err_squared_loc
-                A.comm.Recv(U_loc[k + 1], recv_from[A.comm.rank][k], tag=recv_from[A.comm.rank][k])
+                A.comm.Recv(
+                    U_loc[k + 1],
+                    recv_from[A.comm.rank][k],
+                    tag=recv_from[A.comm.rank][k],
+                )
                 # separate U_loc and err_squared_loc
                 err_squared_loc[k + 1] = U_loc[k + 1][-1, 0]
                 U_loc[k + 1] = U_loc[k + 1][:-1]

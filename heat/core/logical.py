@@ -107,7 +107,11 @@ DNDarray.all.__doc__ = all.__doc__
 
 
 def allclose(
-    x: DNDarray, y: DNDarray, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False
+    x: DNDarray,
+    y: DNDarray,
+    rtol: float = 1e-05,
+    atol: float = 1e-08,
+    equal_nan: bool = False,
 ) -> bool:
     """
     Test whether two tensors are element-wise equal within a tolerance. Returns ``True`` if ``|x-y|<=atol+rtol*|y|``
@@ -171,7 +175,10 @@ DNDarray.allclose.__doc__ = all.__doc__
 
 
 def any(
-    x, axis: Optional[int] = None, out: Optional[DNDarray] = None, keepdims: bool = False
+    x,
+    axis: Optional[int] = None,
+    out: Optional[DNDarray] = None,
+    keepdims: bool = False,
 ) -> DNDarray:
     """
     Returns a :class:`~heat.core.dndarray.DNDarray` containing the result of the test whether any array elements along a
@@ -227,7 +234,11 @@ DNDarray.any.__doc__ = any.__doc__
 
 
 def isclose(
-    x: DNDarray, y: DNDarray, rtol: float = 1e-05, atol: float = 1e-08, equal_nan: bool = False
+    x: DNDarray,
+    y: DNDarray,
+    rtol: float = 1e-05,
+    atol: float = 1e-08,
+    equal_nan: bool = False,
 ) -> DNDarray:
     """
     Returns a boolean :class:`~heat.core.dndarray.DNDarray`, with elements ``True`` where ``a`` and ``b`` are equal
@@ -402,7 +413,9 @@ def logical_and(x: DNDarray, y: DNDarray) -> DNDarray:
     DNDarray([False, False], dtype=ht.bool, device=cpu:0, split=None)
     """
     return _operations.__binary_op(
-        torch.logical_and, types.bool(x, device=x.device), types.bool(y, device=y.device)
+        torch.logical_and,
+        types.bool(x, device=x.device),
+        types.bool(y, device=y.device),
     )
 
 

@@ -169,11 +169,15 @@ class TestDNDarray(TestCase):
             ).reshape(data.comm.rank, 5)
             if data.comm.rank > 0:
                 prev_data = torch.arange(
-                    5 * (data.comm.rank - 1), dtype=torch.float64, device=data.larray.device
+                    5 * (data.comm.rank - 1),
+                    dtype=torch.float64,
+                    device=data.larray.device,
                 ).reshape(data.comm.rank - 1, 5)
             if data.comm.rank < data.comm.size - 1:
                 next_data = torch.arange(
-                    5 * (data.comm.rank + 1), dtype=torch.float64, device=data.larray.device
+                    5 * (data.comm.rank + 1),
+                    dtype=torch.float64,
+                    device=data.larray.device,
                 ).reshape(data.comm.rank + 1, 5)
             data = ht.array(t_data, is_split=0)
             data.get_halo(1)
@@ -204,11 +208,15 @@ class TestDNDarray(TestCase):
             ).reshape(5, -1)
             if data.comm.rank > 0:
                 prev_data = torch.arange(
-                    5 * (data.comm.rank - 1), dtype=torch.float64, device=data.larray.device
+                    5 * (data.comm.rank - 1),
+                    dtype=torch.float64,
+                    device=data.larray.device,
                 ).reshape(5, -1)
             if data.comm.rank < data.comm.size - 1:
                 next_data = torch.arange(
-                    5 * (data.comm.rank + 1), dtype=torch.float64, device=data.larray.device
+                    5 * (data.comm.rank + 1),
+                    dtype=torch.float64,
+                    device=data.larray.device,
                 ).reshape(5, -1)
             data = ht.array(t_data, is_split=1)
             data.get_halo(1)
@@ -1614,7 +1622,9 @@ class TestDNDarray(TestCase):
         size = ht.communication.MPI_WORLD.size
         split = 2
         torch_int16 = torch.arange(
-            6 * 5 * 3 * size * 4 * 5 * 7, dtype=torch.int16, device=self.device.torch_device
+            6 * 5 * 3 * size * 4 * 5 * 7,
+            dtype=torch.int16,
+            device=self.device.torch_device,
         ).reshape(6, 5, 3 * size, 4, 5, 7)
         heat_int16_split = ht.array(torch_int16, split=split)
         numpy_int16 = torch_int16.cpu().numpy()
@@ -1636,7 +1646,9 @@ class TestDNDarray(TestCase):
         # Distributed, float32, row-major memory layout
         split = -1
         torch_float32 = torch.arange(
-            6 * 5 * 3 * 4 * 5 * 7 * size, dtype=torch.float32, device=self.device.torch_device
+            6 * 5 * 3 * 4 * 5 * 7 * size,
+            dtype=torch.float32,
+            device=self.device.torch_device,
         ).reshape(6, 5, 3, 4, 5, 7 * size)
         heat_float32_split = ht.array(torch_float32, split=split)
         numpy_float32 = torch_float32.cpu().numpy()
@@ -1656,7 +1668,9 @@ class TestDNDarray(TestCase):
         # Distributed, float64, column-major memory layout
         split = -2
         torch_float64 = torch.arange(
-            6 * 5 * 3 * 4 * 5 * size * 7, dtype=torch.float64, device=self.device.torch_device
+            6 * 5 * 3 * 4 * 5 * size * 7,
+            dtype=torch.float64,
+            device=self.device.torch_device,
         ).reshape(6, 5, 3, 4, 5 * size, 7)
         heat_float64_F_split = ht.array(torch_float64, order="F", split=split)
         numpy_float64_F = np.array(torch_float64.cpu().numpy(), order="F")
@@ -1682,7 +1696,9 @@ class TestDNDarray(TestCase):
         self.assertListEqual(a.tolist(), res)
 
         a = ht.zeros(
-            [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.int32, split=0
+            [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size],
+            dtype=ht.int32,
+            split=0,
         )
         res = [
             [[0 for z in range(ht.MPI_WORLD.size)] for y in range(ht.MPI_WORLD.size)]
@@ -1691,7 +1707,9 @@ class TestDNDarray(TestCase):
         self.assertListEqual(a.tolist(), res)
 
         a = ht.zeros(
-            [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.float32, split=1
+            [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size],
+            dtype=ht.float32,
+            split=1,
         )
         res = [
             [[0.0 for z in range(ht.MPI_WORLD.size)] for y in [ht.MPI_WORLD.rank]]
@@ -1700,7 +1718,9 @@ class TestDNDarray(TestCase):
         self.assertListEqual(a.tolist(keepsplit=True), res)
 
         a = ht.zeros(
-            [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size], dtype=ht.bool, split=2
+            [ht.MPI_WORLD.size, ht.MPI_WORLD.size, ht.MPI_WORLD.size],
+            dtype=ht.bool,
+            split=2,
         )
         res = [
             [[False for z in [ht.MPI_WORLD.rank]] for y in range(ht.MPI_WORLD.size)]

@@ -55,7 +55,13 @@ def create_spherical_dataset(
 
 
 def create_clusters(
-    n_samples, n_features, n_clusters, cluster_mean, cluster_std, cluster_weight=None, device=None
+    n_samples,
+    n_features,
+    n_clusters,
+    cluster_mean,
+    cluster_std,
+    cluster_weight=None,
+    device=None,
 ):
     """
     Creates a DNDarray of shape (n_samples, n_features), split=0, and dtype=ht.float32, that is balanced (i.e. roughly same size of samples on each process).

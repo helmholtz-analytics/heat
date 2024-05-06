@@ -130,7 +130,8 @@ class TestCase(unittest.TestCase):
         )
         # compare local tensors to corresponding slice of expected_array
         is_allclose = torch.tensor(
-            np.allclose(heat_array.larray.cpu(), expected_array[slices]), dtype=torch.int32
+            np.allclose(heat_array.larray.cpu(), expected_array[slices]),
+            dtype=torch.int32,
         )
         heat_array.comm.Allreduce(MPI.IN_PLACE, is_allclose, MPI.SUM)
         self.assertTrue(is_allclose == heat_array.comm.size)

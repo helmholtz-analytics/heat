@@ -290,7 +290,8 @@ class TestArithmetics(TestCase):
         )
         self.assertTrue(
             ht.equal(
-                ht.bitwise_and(self.a_boolean_vector, self.another_boolean_vector), boolean_result
+                ht.bitwise_and(self.a_boolean_vector, self.another_boolean_vector),
+                boolean_result,
             )
         )
         self.assertTrue(
@@ -516,12 +517,14 @@ class TestArithmetics(TestCase):
         self.assertTrue(ht.equal(ht.bitwise_or(self.an_int_tensor, self.an_int_vector), int_result))
         self.assertTrue(
             ht.equal(
-                ht.bitwise_or(self.a_boolean_vector, self.another_boolean_vector), boolean_result
+                ht.bitwise_or(self.a_boolean_vector, self.another_boolean_vector),
+                boolean_result,
             )
         )
         self.assertTrue(
             ht.equal(
-                ht.bitwise_or(self.an_int_tensor.copy().resplit_(0), self.an_int_vector), int_result
+                ht.bitwise_or(self.an_int_tensor.copy().resplit_(0), self.an_int_vector),
+                int_result,
             )
         )
 
@@ -748,7 +751,8 @@ class TestArithmetics(TestCase):
         )
         self.assertTrue(
             ht.equal(
-                ht.bitwise_xor(self.a_boolean_vector, self.another_boolean_vector), boolean_result
+                ht.bitwise_xor(self.a_boolean_vector, self.another_boolean_vector),
+                boolean_result,
             )
         )
         self.assertTrue(

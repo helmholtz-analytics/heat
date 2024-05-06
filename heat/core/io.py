@@ -16,7 +16,6 @@ from . import types
 
 from .communication import Communication, MPI, MPI_WORLD, sanitize_comm
 from .dndarray import DNDarray
-from .manipulations import hsplit, vsplit
 from .statistics import max as smax, min as smin
 from .stride_tricks import sanitize_axis
 from .types import datatype
@@ -46,7 +45,8 @@ else:
     # warn the user about serial hdf5
     if not h5py.get_config().mpi and MPI_WORLD.rank == 0:
         warnings.warn(
-            "h5py does not support parallel I/O, falling back to slower serial I/O", ImportWarning
+            "h5py does not support parallel I/O, falling back to slower serial I/O",
+            ImportWarning,
         )
 
     def supports_hdf5() -> bool:
@@ -165,7 +165,11 @@ else:
             return DNDarray(data, gshape, dtype, split, device, comm, balanced)
 
     def save_hdf5(
-        data: DNDarray, path: str, dataset: str, mode: str = "w", **kwargs: Dict[str, object]
+        data: DNDarray,
+        path: str,
+        dataset: str,
+        mode: str = "w",
+        **kwargs: Dict[str, object],
     ):
         """
         Saves ``data`` to an HDF5 file. Attempts to utilize parallel I/O if possible.
@@ -1081,7 +1085,10 @@ def save_csv(
 
 
 def save(
-    data: DNDarray, path: str, *args: Optional[List[object]], **kwargs: Optional[Dict[str, object]]
+    data: DNDarray,
+    path: str,
+    *args: Optional[List[object]],
+    **kwargs: Optional[Dict[str, object]],
 ):
     """
     Attempts to save data from a :class:`~heat.core.dndarray.DNDarray` to disk. An auto-detection based on the file

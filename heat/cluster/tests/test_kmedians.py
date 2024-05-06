@@ -1,9 +1,4 @@
-import os
-import unittest
-
 import heat as ht
-import numpy as np
-import torch
 
 from heat.utils.data.spherical import create_spherical_dataset
 
@@ -22,7 +17,13 @@ class TestKMedians(TestCase):
 
         self.assertEqual(
             params,
-            {"n_clusters": 8, "init": "random", "max_iter": 300, "tol": 1e-4, "random_state": None},
+            {
+                "n_clusters": 8,
+                "init": "random",
+                "max_iter": 300,
+                "tol": 1e-4,
+                "random_state": None,
+            },
         )
 
         params["n_clusters"] = 10
@@ -81,7 +82,11 @@ class TestKMedians(TestCase):
         seed = 1
         n = 20 * ht.MPI_WORLD.size
         data = create_spherical_dataset(
-            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
+            num_samples_cluster=n,
+            radius=1.0,
+            offset=4.0,
+            dtype=ht.float32,
+            random_state=seed,
         )
         kmedians = ht.cluster.KMedians(n_clusters=4, init="kmedians++")
         kmedians.fit(data)
@@ -91,7 +96,11 @@ class TestKMedians(TestCase):
         # More Samples
         n = 100 * ht.MPI_WORLD.size
         data = create_spherical_dataset(
-            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
+            num_samples_cluster=n,
+            radius=1.0,
+            offset=4.0,
+            dtype=ht.float32,
+            random_state=seed,
         )
         kmedians = ht.cluster.KMedians(n_clusters=4, init="kmedians++")
         kmedians.fit(data)
@@ -101,7 +110,11 @@ class TestKMedians(TestCase):
         # different datatype
         n = 20 * ht.MPI_WORLD.size
         data = create_spherical_dataset(
-            num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float64, random_state=seed
+            num_samples_cluster=n,
+            radius=1.0,
+            offset=4.0,
+            dtype=ht.float64,
+            random_state=seed,
         )
         kmedians = ht.cluster.KMedians(n_clusters=4, init="kmedians++")
         kmedians.fit(data)
@@ -110,7 +123,11 @@ class TestKMedians(TestCase):
 
         # on Ints (different radius, offset and datatype
         data = create_spherical_dataset(
-            num_samples_cluster=n, radius=10.0, offset=40.0, dtype=ht.int32, random_state=seed
+            num_samples_cluster=n,
+            radius=10.0,
+            offset=40.0,
+            dtype=ht.int32,
+            random_state=seed,
         )
         kmedians = ht.cluster.KMedians(n_clusters=4, init="kmedians++")
         kmedians.fit(data)

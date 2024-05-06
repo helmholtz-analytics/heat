@@ -132,7 +132,9 @@ class DCSR_matrix:
             return self.ldata
 
         data_buffer = torch.zeros(
-            size=(self.gnnz,), dtype=self.dtype.torch_type(), device=self.device.torch_device
+            size=(self.gnnz,),
+            dtype=self.dtype.torch_type(),
+            device=self.device.torch_device,
         )
         counts, displs = self.counts_displs_nnz()
         self.comm.Allgatherv(self.ldata, (data_buffer, counts, displs))
@@ -185,7 +187,9 @@ class DCSR_matrix:
             return self.lindices
 
         indices_buffer = torch.zeros(
-            size=(self.gnnz,), dtype=self.lindices.dtype, device=self.device.torch_device
+            size=(self.gnnz,),
+            dtype=self.lindices.dtype,
+            device=self.device.torch_device,
         )
         counts, displs = self.counts_displs_nnz()
         self.comm.Allgatherv(self.lindices, (indices_buffer, counts, displs))

@@ -7,7 +7,13 @@ from .communication import MPI_WORLD
 
 from .dndarray import DNDarray
 
-__all__ = ["get_printoptions", "global_printing", "local_printing", "print0", "set_printoptions"]
+__all__ = [
+    "get_printoptions",
+    "global_printing",
+    "local_printing",
+    "print0",
+    "set_printoptions",
+]
 
 
 # set the default printing width to a 120
@@ -148,7 +154,12 @@ builtins.print0 = print0
 
 
 def set_printoptions(
-    precision=None, threshold=None, edgeitems=None, linewidth=None, profile=None, sci_mode=None
+    precision=None,
+    threshold=None,
+    edgeitems=None,
+    linewidth=None,
+    profile=None,
+    sci_mode=None,
 ):
     """
     Configures the printing options. List of items shamelessly taken from NumPy and PyTorch (thanks guys!).
@@ -245,7 +256,9 @@ def _torch_data(dndarray, summarize) -> DNDarray:
                     data,
                     i,
                     torch.arange(
-                        dndarray.lshape[i] - edgeitems, dndarray.lshape[i], device=data.device
+                        dndarray.lshape[i] - edgeitems,
+                        dndarray.lshape[i],
+                        device=data.device,
                     ),
                 )
                 data = torch.cat([start_tensor, end_tensor], dim=i)

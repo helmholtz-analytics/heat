@@ -1,6 +1,3 @@
-import os
-import unittest
-
 import heat as ht
 
 from heat.core.tests.test_suites.basic_test import TestCase
@@ -63,7 +60,8 @@ class TestLaplacian(TestCase):
 
         with self.assertRaises(ValueError):
             L = ht.graph.Laplacian(
-                lambda x: ht.spatial.cdist(x, quadratic_expansion=True), threshold_key="both"
+                lambda x: ht.spatial.cdist(x, quadratic_expansion=True),
+                threshold_key="both",
             )
         with self.assertRaises(NotImplementedError):
             L = ht.graph.Laplacian(
@@ -71,5 +69,6 @@ class TestLaplacian(TestCase):
             )
         with self.assertRaises(NotImplementedError):
             L = ht.graph.Laplacian(
-                lambda x: ht.spatial.cdist(x, quadratic_expansion=True), definition="norm_rw"
+                lambda x: ht.spatial.cdist(x, quadratic_expansion=True),
+                definition="norm_rw",
             )

@@ -1,7 +1,6 @@
 # !/usr/bin/env python
 
 import argparse
-import dask
 import dask.array as da
 import dask_ml.metrics as dmm
 import h5py

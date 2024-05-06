@@ -1,5 +1,3 @@
-import sys
-import os
 import random
 
 import heat as ht

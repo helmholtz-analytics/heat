@@ -9,7 +9,6 @@ import warnings
 
 from typing import List, Callable, Union, Optional, Tuple
 
-from torch._C import Value
 
 from ..communication import MPI
 from .. import arithmetics
@@ -46,7 +45,12 @@ __all__ = [
 
 
 def cross(
-    a: DNDarray, b: DNDarray, axisa: int = -1, axisb: int = -1, axisc: int = -1, axis: int = -1
+    a: DNDarray,
+    b: DNDarray,
+    axisa: int = -1,
+    axisb: int = -1,
+    axisc: int = -1,
+    axis: int = -1,
 ) -> DNDarray:
     """
     Returns the cross product. 2D vectors will we converted to 3D.
@@ -115,7 +119,8 @@ def cross(
         a_2d = True
         shape = tuple(1 if i == axisa else j for i, j in enumerate(a.shape))
         a = manipulations.concatenate(
-            [a, factories.zeros(shape, dtype=a.dtype, device=a.device, comm=a.comm)], axis=axisa
+            [a, factories.zeros(shape, dtype=a.dtype, device=a.device, comm=a.comm)],
+            axis=axisa,
         )
     if b.shape[axisb] == 2:
         b_2d = True
@@ -217,7 +222,10 @@ def det(a: DNDarray) -> DNDarray:
                 for j in range(i + 1, n):
                     if not np.isclose(acopy[k, j, i].item(), 0):
                         if a.split == a.ndim - 2:  # split=0 on square matrix
-                            acopy[k, i, :], acopy[k, j, :] = acopy[k, j, :], acopy[k, i, :].copy()
+                            acopy[k, i, :], acopy[k, j, :] = (
+                                acopy[k, j, :],
+                                acopy[k, i, :].copy(),
+                            )
                         else:  # split=1
                             acopy.larray[k, i, :], acopy.larray[k, j, :] = (
                                 acopy.larray[k, j, :],
@@ -375,8 +383,14 @@ def inv(a: DNDarray) -> DNDarray:
                 for j in range(i + 1, n):
                     if not np.isclose(acopy[k, j, i].item(), 0):
                         if a.split == a.ndim - 2:  # split=0 on square matrix
-                            ainv[k, i, :], ainv[k, j, :] = ainv[k, j, :], ainv[k, i, :].copy()
-                            acopy[k, i, :], acopy[k, j, :] = acopy[k, j, :], acopy[k, i, :].copy()
+                            ainv[k, i, :], ainv[k, j, :] = (
+                                ainv[k, j, :],
+                                ainv[k, i, :].copy(),
+                            )
+                            acopy[k, i, :], acopy[k, j, :] = (
+                                acopy[k, j, :],
+                                acopy[k, i, :].copy(),
+                            )
                         else:  # split=1
                             acopy.larray[k, i, :], acopy.larray[k, j, :] = (
                                 acopy.larray[k, j, :],
@@ -568,7 +582,11 @@ def matmul(a: DNDarray, b: DNDarray, allow_resplit: bool = False) -> DNDarray:
         split = a.split if a.split is not None else b.split
         split = split if not vector_flag else 0
         c = factories.zeros(
-            (a.gshape[-2], b.gshape[1]), split=split, dtype=c_type, device=a.device, comm=a.comm
+            (a.gshape[-2], b.gshape[1]),
+            split=split,
+            dtype=c_type,
+            device=a.device,
+            comm=a.comm,
         )
         c.larray += a.larray @ b.larray
 
@@ -1389,7 +1407,10 @@ DNDarray.norm.__doc__ = norm.__doc__
 
 
 def outer(
-    a: DNDarray, b: DNDarray, out: Optional[DNDarray] = None, split: Optional[int] = None
+    a: DNDarray,
+    b: DNDarray,
+    out: Optional[DNDarray] = None,
+    split: Optional[int] = None,
 ) -> DNDarray:
     """
     Compute the outer product of two 1-D DNDarrays: :math:`out(i, j) = a(i) \\times b(j)`.
@@ -1916,7 +1937,11 @@ def trace(
 
         # Stack all partial results back together along the correct axis
         sum_along_diagonals = factories.array(
-            sum_along_diagonals_t, dtype=dtype, is_split=gather_axis, comm=a.comm, device=a.device
+            sum_along_diagonals_t,
+            dtype=dtype,
+            is_split=gather_axis,
+            comm=a.comm,
+            device=a.device,
         )
     # input not distributed
     else:
@@ -1928,7 +1953,11 @@ def trace(
 
         # convert torch result back to DNDarray
         sum_along_diagonals = factories.array(
-            sum_along_diagonals_t, dtype=dtype, split=gather_axis, comm=a.comm, device=a.device
+            sum_along_diagonals_t,
+            dtype=dtype,
+            split=gather_axis,
+            comm=a.comm,
+            device=a.device,
         )
 
     if out is not None:
@@ -2276,7 +2305,10 @@ def vdot(x1: DNDarray, x2: DNDarray) -> DNDarray:
 
 
 def vecdot(
-    x1: DNDarray, x2: DNDarray, axis: Optional[int] = None, keepdims: Optional[bool] = None
+    x1: DNDarray,
+    x2: DNDarray,
+    axis: Optional[int] = None,
+    keepdims: Optional[bool] = None,
 ) -> DNDarray:
     """
     Computes the (vector) dot product of two DNDarrays.

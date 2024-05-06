@@ -16,7 +16,11 @@ class TestCommunication(TestCase):
         cls.sorted3Dtensor = ht.float32(
             [
                 [[0, 1, 2, 3, 4], [10, 11, 12, 13, 14], [20, 21, 22, 23, 24]],
-                [[100, 101, 102, 103, 104], [110, 111, 112, 113, 114], [120, 121, 122, 123, 124]],
+                [
+                    [100, 101, 102, 103, 104],
+                    [110, 111, 112, 113, 114],
+                    [120, 121, 122, 123, 124],
+                ],
             ]
         )
 
@@ -557,7 +561,9 @@ class TestCommunication(TestCase):
         self.assertFalse(data.larray.is_contiguous())
         self.assertTrue(output.larray.is_contiguous())
         comparison = torch.ones(
-            (2 * ht.MPI_WORLD.size, 10), dtype=torch.int64, device=self.device.torch_device
+            (2 * ht.MPI_WORLD.size, 10),
+            dtype=torch.int64,
+            device=self.device.torch_device,
         )
         self.assertTrue((output.larray == comparison).all())
 
@@ -574,7 +580,9 @@ class TestCommunication(TestCase):
         self.assertTrue(data.larray.is_contiguous())
         self.assertFalse(output.larray.is_contiguous())
         comparison = torch.ones(
-            (10, 2 * ht.MPI_WORLD.size), dtype=torch.int64, device=self.device.torch_device
+            (10, 2 * ht.MPI_WORLD.size),
+            dtype=torch.int64,
+            device=self.device.torch_device,
         )
         self.assertTrue((output.larray == comparison).all())
 
@@ -1265,7 +1273,9 @@ class TestCommunication(TestCase):
             self.assertFalse(data.larray.is_contiguous())
             self.assertTrue(output.larray.is_contiguous())
             comparison = torch.ones(
-                (2 * ht.MPI_WORLD.size, 10), dtype=torch.int64, device=self.device.torch_device
+                (2 * ht.MPI_WORLD.size, 10),
+                dtype=torch.int64,
+                device=self.device.torch_device,
             )
             self.assertTrue((output.larray == comparison).all())
 
@@ -1283,7 +1293,9 @@ class TestCommunication(TestCase):
             self.assertTrue(data.larray.is_contiguous())
             self.assertFalse(output.larray.is_contiguous())
             comparison = torch.ones(
-                (10, 2 * ht.MPI_WORLD.size), dtype=torch.int64, device=self.device.torch_device
+                (10, 2 * ht.MPI_WORLD.size),
+                dtype=torch.int64,
+                device=self.device.torch_device,
             )
             self.assertTrue((output.larray == comparison).all())
 
@@ -2418,17 +2430,23 @@ class TestCommunication(TestCase):
         gathered3 = torch.empty(self.sorted3Dtensor.shape, device=self.device.torch_device)
 
         test1.comm.Allgatherv(
-            test1, (gathered1, gathered1_counts, gathered1_displs), recv_axis=test1.split
+            test1,
+            (gathered1, gathered1_counts, gathered1_displs),
+            recv_axis=test1.split,
         )
         self.assertTrue(torch.equal(gathered1, result.larray))
 
         test2.comm.Allgatherv(
-            test2, (gathered2, gathered2_counts, gathered2_displs), recv_axis=test2.split
+            test2,
+            (gathered2, gathered2_counts, gathered2_displs),
+            recv_axis=test2.split,
         )
         self.assertTrue(torch.equal(gathered2, result.larray))
 
         test3.comm.Allgatherv(
-            test3, (gathered3, gathered3_counts, gathered3_displs), recv_axis=test3.split
+            test3,
+            (gathered3, gathered3_counts, gathered3_displs),
+            recv_axis=test3.split,
         )
         self.assertTrue(torch.equal(gathered3, result.larray))
 
@@ -2438,10 +2456,15 @@ class TestCommunication(TestCase):
         comparison1 = self.sorted3Dtensor.copy()
         comparison1.resplit_(axis=1)
         redistributed1 = torch.empty(
-            comparison1.lshape, dtype=test1.dtype.torch_type(), device=self.device.torch_device
+            comparison1.lshape,
+            dtype=test1.dtype.torch_type(),
+            device=self.device.torch_device,
         )
         test1.comm.Alltoallv(
-            test1.larray, redistributed1, send_axis=comparison1.split, recv_axis=test1.split
+            test1.larray,
+            redistributed1,
+            send_axis=comparison1.split,
+            recv_axis=test1.split,
         )
         self.assertTrue(torch.equal(redistributed1, comparison1.larray))
 
@@ -2454,7 +2477,9 @@ class TestCommunication(TestCase):
         )
         recv_counts, recv_displs, _ = test2.comm.counts_displs_shape(test2.shape, test2.split)
         redistributed2 = torch.empty(
-            comparison2.lshape, dtype=test2.dtype.torch_type(), device=self.device.torch_device
+            comparison2.lshape,
+            dtype=test2.dtype.torch_type(),
+            device=self.device.torch_device,
         )
         test2.comm.Alltoallv(
             (test2.larray, send_counts, send_displs),
@@ -2469,10 +2494,15 @@ class TestCommunication(TestCase):
         comparison3 = self.sorted3Dtensor.copy()
         comparison3.resplit_(axis=2)
         redistributed3 = torch.empty(
-            comparison3.lshape, dtype=test3.dtype.torch_type(), device=self.device.torch_device
+            comparison3.lshape,
+            dtype=test3.dtype.torch_type(),
+            device=self.device.torch_device,
         )
         test3.comm.Alltoallv(
-            test3.larray, redistributed3, send_axis=comparison3.split, recv_axis=test3.split
+            test3.larray,
+            redistributed3,
+            send_axis=comparison3.split,
+            recv_axis=test3.split,
         )
         self.assertTrue(torch.equal(redistributed3, comparison3.larray))
 
@@ -2481,10 +2511,15 @@ class TestCommunication(TestCase):
         comparison4 = self.sorted3Dtensor.copy()
         comparison4.resplit_(axis=0)
         redistributed4 = torch.empty(
-            comparison4.lshape, dtype=test4.dtype.torch_type(), device=self.device.torch_device
+            comparison4.lshape,
+            dtype=test4.dtype.torch_type(),
+            device=self.device.torch_device,
         )
         test4.comm.Alltoallv(
-            test4.larray, redistributed4, send_axis=comparison4.split, recv_axis=test4.split
+            test4.larray,
+            redistributed4,
+            send_axis=comparison4.split,
+            recv_axis=test4.split,
         )
         self.assertTrue(torch.equal(redistributed4, comparison4.larray))
 

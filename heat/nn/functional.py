@@ -2,7 +2,6 @@
 File containing the heat.nn.functional submodule
 """
 
-import sys
 import torch
 
 

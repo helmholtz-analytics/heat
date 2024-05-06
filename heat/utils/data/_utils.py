@@ -170,17 +170,20 @@ def merge_files_imagenet_tfrecord(folder_name, output_folder=None):
             # to decode: np.frombuffer(base64.binascii.a2b_base64(string_repr.encode('ascii')))
             img_meta[0].append(
                 tf.cast(
-                    parsed.features.feature["image/height"].int64_list.value[0], tf.float32
+                    parsed.features.feature["image/height"].int64_list.value[0],
+                    tf.float32,
                 ).numpy()
             )
             img_meta[1].append(
                 tf.cast(
-                    parsed.features.feature["image/width"].int64_list.value[0], tf.float32
+                    parsed.features.feature["image/width"].int64_list.value[0],
+                    tf.float32,
                 ).numpy()
             )
             img_meta[2].append(
                 tf.cast(
-                    parsed.features.feature["image/channels"].int64_list.value[0], tf.float32
+                    parsed.features.feature["image/channels"].int64_list.value[0],
+                    tf.float32,
                 ).numpy()
             )
             img_meta[3].append(parsed.features.feature["image/class/label"].int64_list.value[0] - 1)

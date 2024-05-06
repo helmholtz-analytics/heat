@@ -154,7 +154,10 @@ class TestDataParallel(unittest.TestCase):
                     self.assertTrue(torch.allclose(hld_list[0], hld_list[i], rtol=lim, atol=lim))
         with self.assertWarns(Warning):
             ht_model = ht.nn.DataParallel(
-                model, ht.MPI_WORLD, [dp_optimizer, dp_optimizer], blocking_parameter_updates=False
+                model,
+                ht.MPI_WORLD,
+                [dp_optimizer, dp_optimizer],
+                blocking_parameter_updates=False,
             )
         # NOTE: this will throw a warning: this is expected
         self.assertTrue(ht_model.blocking_parameter_updates)

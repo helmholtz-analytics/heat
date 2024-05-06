@@ -1,7 +1,5 @@
 import heat as ht
-import unittest
 import torch
-import numpy as np
 
 from ...tests.test_suites.basic_test import TestCase
 
@@ -51,14 +49,20 @@ class TestQR(TestCase):
                         r_ht = qr.R.resplit_(None).larray
                         self.assertTrue(
                             torch.allclose(
-                                torch.abs(r_t), torch.abs(r_ht), atol=dtypetol, rtol=dtypetol
+                                torch.abs(r_t),
+                                torch.abs(r_ht),
+                                atol=dtypetol,
+                                rtol=dtypetol,
                             )
                         )
                         if mode == "reduced":
                             q_ht = qr.Q.resplit_(None).larray
                             self.assertTrue(
                                 torch.allclose(
-                                    torch.abs(q_t), torch.abs(q_ht), atol=dtypetol, rtol=dtypetol
+                                    torch.abs(q_t),
+                                    torch.abs(q_ht),
+                                    atol=dtypetol,
+                                    rtol=dtypetol,
                                 )
                             )
 
@@ -67,7 +71,10 @@ class TestQR(TestCase):
         for procs_to_merge in [0, 2, 3]:
             for mode in ["reduced", "r"]:
                 # split = 0 can be handeled only for tall skinny matrices s.t. the local chunks are at least square too
-                for shape in [(40 * ht.MPI_WORLD.size + 1, 40), (40 * ht.MPI_WORLD.size, 20)]:
+                for shape in [
+                    (40 * ht.MPI_WORLD.size + 1, 40),
+                    (40 * ht.MPI_WORLD.size, 20),
+                ]:
                     for dtype in [ht.float32, ht.float64]:
                         dtypetol = 1e-3 if dtype == ht.float32 else 1e-6
                         mat = ht.random.randn(*shape, dtype=dtype, split=split)
@@ -104,14 +111,20 @@ class TestQR(TestCase):
                         r_ht = qr.R.resplit_(None).larray
                         self.assertTrue(
                             torch.allclose(
-                                torch.abs(r_t), torch.abs(r_ht), atol=dtypetol, rtol=dtypetol
+                                torch.abs(r_t),
+                                torch.abs(r_ht),
+                                atol=dtypetol,
+                                rtol=dtypetol,
                             )
                         )
                         if mode == "reduced":
                             q_ht = qr.Q.resplit_(None).larray
                             self.assertTrue(
                                 torch.allclose(
-                                    torch.abs(q_t), torch.abs(q_ht), atol=dtypetol, rtol=dtypetol
+                                    torch.abs(q_t),
+                                    torch.abs(q_ht),
+                                    atol=dtypetol,
+                                    rtol=dtypetol,
                                 )
                             )
 

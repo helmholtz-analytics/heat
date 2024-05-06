@@ -8,7 +8,7 @@ import numpy as np
 import torch
 import warnings
 
-from typing import Iterable, Type, List, Callable, Union, Tuple, Sequence, Optional
+from typing import Iterable, List, Callable, Union, Tuple, Sequence, Optional
 
 from .communication import MPI
 from .dndarray import DNDarray
@@ -502,7 +502,9 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
     # no splits, local concat
     if s0 is None and s1 is None:
         return factories.array(
-            torch.cat((arr0.larray, arr1.larray), dim=axis), device=arr0.device, comm=arr0.comm
+            torch.cat((arr0.larray, arr1.larray), dim=axis),
+            device=arr0.device,
+            comm=arr0.comm,
         )
 
     # non-matching splits when both arrays are split
@@ -591,7 +593,9 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                             shp = list(arr0.gshape)
                             shp[arr0.split] = snt
                             data = torch.zeros(
-                                shp, dtype=out_dtype.torch_type(), device=arr0.device.torch_device
+                                shp,
+                                dtype=out_dtype.torch_type(),
+                                device=arr0.device.torch_device,
                             )
 
                             arr0.comm.Recv(data, source=spr, tag=pr + arr0.comm.size + spr)
@@ -637,7 +641,9 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                             shp = list(arr1.gshape)
                             shp[axis] = snt
                             data = torch.zeros(
-                                shp, dtype=out_dtype.torch_type(), device=arr1.device.torch_device
+                                shp,
+                                dtype=out_dtype.torch_type(),
+                                device=arr1.device.torch_device,
                             )
                             arr1.comm.Recv(data, source=spr, tag=pr + arr1.comm.size + spr)
                             t_arr1 = torch.cat((data, t_arr1), dim=axis)
@@ -680,7 +686,9 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                 if arr1.comm.rank == arr1.comm.size - 1:
                     lcl_slice = [slice(None)] * arr1.ndim
                     lcl_slice[axis] = slice(
-                        t_arr1.shape[axis] - chunk_map[-1, axis].item(), t_arr1.shape[axis], 1
+                        t_arr1.shape[axis] - chunk_map[-1, axis].item(),
+                        t_arr1.shape[axis],
+                        1,
                     )
                     t_arr1 = t_arr1[lcl_slice].clone().squeeze()
                 ttl = chunk_map[-1, axis].item()
@@ -689,7 +697,9 @@ def concatenate(arrays: Sequence[DNDarray, ...], axis: int = 0) -> DNDarray:
                     if arr1.comm.rank == en:
                         lcl_slice = [slice(None)] * arr1.ndim
                         lcl_slice[axis] = slice(
-                            t_arr1.shape[axis] - (sz.item() + ttl), t_arr1.shape[axis] - ttl, 1
+                            t_arr1.shape[axis] - (sz.item() + ttl),
+                            t_arr1.shape[axis] - ttl,
+                            1,
                         )
                         t_arr1 = t_arr1[lcl_slice].clone().squeeze()
                     ttl += sz.item()
@@ -1008,14 +1018,22 @@ def flatten(a: DNDarray) -> DNDarray:
 
     if a.split is None:
         return factories.array(
-            torch.flatten(a.larray), dtype=a.dtype, is_split=None, device=a.device, comm=a.comm
+            torch.flatten(a.larray),
+            dtype=a.dtype,
+            is_split=None,
+            device=a.device,
+            comm=a.comm,
         )
 
     if a.split > 0:
         a = resplit(a, 0)
 
     a = factories.array(
-        torch.flatten(a.larray), dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+        torch.flatten(a.larray),
+        dtype=a.dtype,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm,
     )
     a.balance_()
 
@@ -1262,7 +1280,9 @@ def hstack(arrays: Sequence[DNDarray, ...]) -> DNDarray:
 
 
 def moveaxis(
-    x: DNDarray, source: Union[int, Sequence[int]], destination: Union[int, Sequence[int]]
+    x: DNDarray,
+    source: Union[int, Sequence[int]],
+    destination: Union[int, Sequence[int]],
 ) -> DNDarray:
     """
     Moves axes at the positions in `source` to new positions.
@@ -1547,7 +1567,9 @@ def pad(
         ]
         adapted_lshape = tuple(adapted_lshape_list)
         padded_torch_tensor = torch.empty(
-            adapted_lshape, dtype=array._DNDarray__array.dtype, device=array.device.torch_device
+            adapted_lshape,
+            dtype=array._DNDarray__array.dtype,
+            device=array.device.torch_device,
         )
     else:
         if array.split is None or array.split not in pad_dim or amount_of_processes == 1:
@@ -1985,7 +2007,11 @@ def repeat(a: Iterable, repeats: Iterable, axis: Optional[int] = None) -> DNDarr
         )
 
     repeated_array = factories.array(
-        repeated_array_torch, dtype=a.dtype, is_split=a.split, device=a.device, comm=a.comm
+        repeated_array_torch,
+        dtype=a.dtype,
+        is_split=a.split,
+        device=a.device,
+        comm=a.comm,
     )
     repeated_array.balance_()
 
@@ -2155,7 +2181,9 @@ DNDarray.reshape.__doc__ = reshape.__doc__
 
 
 def roll(
-    x: DNDarray, shift: Union[int, Tuple[int]], axis: Optional[Union[int, Tuple[int]]] = None
+    x: DNDarray,
+    shift: Union[int, Tuple[int]],
+    axis: Optional[Union[int, Tuple[int]]] = None,
 ) -> DNDarray:
     """
     Rolls array elements along a specified axis. Array elements that roll beyond the last position are re-introduced at the first position.
@@ -2426,7 +2454,12 @@ def shape(a: DNDarray) -> Tuple[int, ...]:
     return a.gshape
 
 
-def sort(a: DNDarray, axis: int = -1, descending: bool = False, out: Optional[DNDarray] = None):
+def sort(
+    a: DNDarray,
+    axis: int = -1,
+    descending: bool = False,
+    out: Optional[DNDarray] = None,
+):
     """
     Sorts the elements of `a` along the given dimension (by default in ascending order) by their value.
     The sorting is not stable which means that equal elements in the result may have a different ordering than in the
@@ -2840,11 +2873,15 @@ def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DND
 
             # reduce information to the (chunk) relevant
             indices_or_sections_t = indexing.where(
-                indices_or_sections <= slice_axis.start, slice_axis.start, indices_or_sections
+                indices_or_sections <= slice_axis.start,
+                slice_axis.start,
+                indices_or_sections,
             )
 
             indices_or_sections_t = indexing.where(
-                indices_or_sections_t >= slice_axis.stop, slice_axis.stop, indices_or_sections_t
+                indices_or_sections_t >= slice_axis.stop,
+                slice_axis.stop,
+                indices_or_sections_t,
             )
 
             # np to torch mapping
@@ -2883,7 +2920,9 @@ def split(x: DNDarray, indices_or_sections: Iterable, axis: int = 0) -> List[DND
 
             # 1. replace all values out of range with gshape[axis] to generate size 0
             indices_or_sections_t = indexing.where(
-                indices_or_sections <= x.gshape[axis], indices_or_sections, x.gshape[axis]
+                indices_or_sections <= x.gshape[axis],
+                indices_or_sections,
+                x.gshape[axis],
             )
 
             # 2. add first and last value to DNDarray
@@ -3393,7 +3432,12 @@ def unique(
 
     split = split if a.split < len(gres.shape) else None
     result = factories.array(
-        gres, dtype=a.dtype, device=a.device, comm=a.comm, split=split, is_split=is_split
+        gres,
+        dtype=a.dtype,
+        device=a.device,
+        comm=a.comm,
+        split=split,
+        is_split=is_split,
     )
     if split is not None:
         result.resplit_(a.split)
@@ -4072,7 +4116,8 @@ def topk(
         local_shape_len = len(shape)
 
         metadata = torch.tensor(
-            [k, dim, largest, sorted, local_shape_len, *local_shape], device=indices.device
+            [k, dim, largest, sorted, local_shape_len, *local_shape],
+            device=indices.device,
         )
         send_buffer = torch.cat(
             (metadata.double(), result.double().flatten(), indices.flatten().double())
@@ -4111,7 +4156,12 @@ def topk(
         gres, dtype=a.dtype, device=a.device, split=split, is_split=is_split
     )
     final_indices = factories.array(
-        gindices, dtype=types.int64, device=a.device, comm=a.comm, split=split, is_split=is_split
+        gindices,
+        dtype=types.int64,
+        device=a.device,
+        comm=a.comm,
+        split=split,
+        is_split=is_split,
     )
 
     if out is not None:

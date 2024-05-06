@@ -4,17 +4,13 @@ Collection of validation/sanitation routines.
 
 from __future__ import annotations
 
-import numpy as np
 import torch
-import warnings
 from typing import Any, Union, Sequence, List, Tuple
 
-from .communication import MPI, Communication
+from .communication import Communication
 from .dndarray import DNDarray
 
 from . import factories
-from . import stride_tricks
-from . import types
 
 
 __all__ = [
@@ -115,7 +111,11 @@ def sanitize_distribution(
             if target_balanced:
                 out.append(
                     factories.array(
-                        arg, split=target_split, copy=False, comm=arg.comm, device=arg.device
+                        arg,
+                        split=target_split,
+                        copy=False,
+                        comm=arg.comm,
+                        device=arg.device,
                     )
                 )
             else:
@@ -312,7 +312,7 @@ def sanitize_out(
 
 
 def sanitize_sequence(
-    seq: Union[Sequence[int, ...], Sequence[float, ...], DNDarray, torch.Tensor]
+    seq: Union[Sequence[int, ...], Sequence[float, ...], DNDarray, torch.Tensor],
 ) -> List:
     """
     Check if sequence is valid, return list.

@@ -157,7 +157,9 @@ def qr(
             if i < nprocs - 1:
                 k_loc_i = min(A.shape[0], A.lshape_map[i, 1])
                 Q_buf = torch.zeros(
-                    (A.shape[0], k_loc_i), dtype=A.larray.dtype, device=A.device.torch_device
+                    (A.shape[0], k_loc_i),
+                    dtype=A.larray.dtype,
+                    device=A.device.torch_device,
                 )
 
             if A.comm.rank == i:
@@ -257,7 +259,9 @@ def qr(
                     # this is needed to ensure that only those Q_loc get updates that are actually part of the current process group
                     if leave_comm.rank != 0:
                         scattered_Q_buf = torch.empty(
-                            scattered_Q_buf_shape, device=Q_loc.device, dtype=Q_loc.dtype
+                            scattered_Q_buf_shape,
+                            device=Q_loc.device,
+                            dtype=Q_loc.dtype,
                         )
                     leave_comm.Bcast(scattered_Q_buf, root=0)
                 # update the local Q_loc by multiplying it with the scattered_Q_buf

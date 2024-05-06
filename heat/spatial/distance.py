@@ -157,7 +157,10 @@ def cdist(X: DNDarray, Y: DNDarray = None, quadratic_expansion: bool = False) ->
 
 
 def rbf(
-    X: DNDarray, Y: DNDarray = None, sigma: float = 1.0, quadratic_expansion: bool = False
+    X: DNDarray,
+    Y: DNDarray = None,
+    sigma: float = 1.0,
+    quadratic_expansion: bool = False,
 ) -> DNDarray:
     """
     Calculate Gaussian distance between two DNDarrays:
@@ -254,7 +257,11 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
                 raise NotImplementedError(f"Datatype {X.dtype} currently not supported as input")
 
         d = factories.zeros(
-            (X.shape[0], X.shape[0]), dtype=X.dtype, split=X.split, device=X.device, comm=X.comm
+            (X.shape[0], X.shape[0]),
+            dtype=X.dtype,
+            split=X.split,
+            device=X.device,
+            comm=X.comm,
         )
 
         if X.split is None:
@@ -403,7 +410,11 @@ def _dist(X: DNDarray, Y: DNDarray = None, metric: Callable = _euclidian) -> DND
             raise NotImplementedError(f"Datatype {X.dtype} currently not supported as input")
 
         d = factories.zeros(
-            (X.shape[0], Y.shape[0]), dtype=promoted_type, split=split, device=X.device, comm=X.comm
+            (X.shape[0], Y.shape[0]),
+            dtype=promoted_type,
+            split=split,
+            device=X.device,
+            comm=X.comm,
         )
 
         if X.split is None:

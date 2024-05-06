@@ -3,7 +3,7 @@ Functions relating to indices of items within DNDarrays, i.e. `where()`
 """
 
 import torch
-from typing import List, Dict, Any, TypeVar, Union, Tuple, Sequence
+from typing import Union
 
 from .communication import MPI
 from .dndarray import DNDarray

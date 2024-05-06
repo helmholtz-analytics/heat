@@ -67,7 +67,12 @@ parser.add_argument(
     dest="weight_decay",
 )
 parser.add_argument(
-    "-p", "--print-freq", default=10, type=int, metavar="N", help="print frequency (default: 10)"
+    "-p",
+    "--print-freq",
+    default=10,
+    type=int,
+    metavar="N",
+    help="print frequency (default: 10)",
 )
 parser.add_argument(
     "--resume",
@@ -147,7 +152,11 @@ class ImagenetDataset(ht.utils.data.partial_dataset.PartialH5Dataset):
         )
 
     def __getitem__(self, index):
-        shape = (int(self.metadata[index][0].item()), int(self.metadata[index][1].item()), 3)
+        shape = (
+            int(self.metadata[index][0].item()),
+            int(self.metadata[index][1].item()),
+            3,
+        )
         str_repr = base64.binascii.a2b_base64(self.images[index])
         img = np.frombuffer(str_repr, dtype=np.uint8).reshape(shape)
         target = torch.as_tensor(
@@ -179,7 +188,10 @@ def main_worker(args):
         criterion = torch.nn.CrossEntropyLoss().cuda(device=torch.device("cuda:" + str(dev_id)))
 
     optimizer = torch.optim.SGD(
-        model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.weight_decay
+        model.parameters(),
+        args.lr,
+        momentum=args.momentum,
+        weight_decay=args.weight_decay,
     )
 
     # create DP optimizer and model:
@@ -260,7 +272,9 @@ def train(train_loader, model, criterion, dp_optimizer, epoch, args):
     top1 = AverageMeter("Acc@1", ":6.2f")
     top5 = AverageMeter("Acc@5", ":6.2f")
     progress = ProgressMeter(
-        len(train_loader), [batch_time, data_time, losses, top1, top5], prefix=f"Epoch: [{epoch}]"
+        len(train_loader),
+        [batch_time, data_time, losses, top1, top5],
+        prefix=f"Epoch: [{epoch}]",
     )
 
     # switch to train mode

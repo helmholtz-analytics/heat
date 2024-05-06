@@ -572,7 +572,10 @@ class SquareDiagTiles:
 
     @staticmethod
     def __adjust_lshape_sp0_1tile(
-        arr: DNDarray, col_inds: List[int, ...], lshape_map: torch.Tensor, tiles_per_proc: int
+        arr: DNDarray,
+        col_inds: List[int, ...],
+        lshape_map: torch.Tensor,
+        tiles_per_proc: int,
     ) -> None:
         """
         If the split is 0 and the number of tiles per proc is 1 then the local data may need to be
@@ -952,7 +955,9 @@ class SquareDiagTiles:
         return self.__getitem__(key)
 
     def local_set(
-        self, key: Union[int, slice, Tuple[int, slice, ...]], value: Union[int, float, torch.Tensor]
+        self,
+        key: Union[int, slice, Tuple[int, slice, ...]],
+        value: Union[int, float, torch.Tensor],
     ):
         """
         Setitem routing to set data to a local tile (using local indices)
@@ -1157,7 +1162,10 @@ class SquareDiagTiles:
                 base_dnd.comm.size - 1 - tiles_to_match.last_diagonal_process
             )
             target_0 = torch.cat(
-                (target_0, torch.tensor(end_tag0, device=target_0.device, dtype=target_0.dtype)),
+                (
+                    target_0,
+                    torch.tensor(end_tag0, device=target_0.device, dtype=target_0.dtype),
+                ),
                 dim=0,
             )
 
@@ -1203,7 +1211,9 @@ class SquareDiagTiles:
             tiles_to_match.__DNDarray.__lshape_map = None
 
     def __setitem__(
-        self, key: Union[int, slice, Tuple[int, slice, ...]], value: Union[int, float, torch.Tensor]
+        self,
+        key: Union[int, slice, Tuple[int, slice, ...]],
+        value: Union[int, float, torch.Tensor],
     ) -> None:
         """
         Item setter,

@@ -2,10 +2,8 @@
 File for the MNIST dataset definition in heat
 """
 
-import torch
-
 from torchvision import datasets
-from typing import Callable, Union
+from typing import Callable
 
 from ...core import factories
 from . import datatools

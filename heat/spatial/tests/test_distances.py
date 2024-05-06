@@ -1,10 +1,6 @@
-import unittest
-import os
-
 import torch
 
 import heat as ht
-import numpy as np
 import math
 
 from heat.core.tests.test_suites.basic_test import TestCase

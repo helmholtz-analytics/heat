@@ -663,7 +663,8 @@ class TestManipulations(TestCase):
         res = ht.diagonal(a, offset=10)
         self.assertTrue(
             torch.equal(
-                res.larray, torch.arange(10, 10 + size * 2, device=self.device.torch_device)
+                res.larray,
+                torch.arange(10, 10 + size * 2, device=self.device.torch_device),
             )
         )
         res = ht.diagonal(a, offset=-10)
@@ -684,7 +685,8 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray, torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device)
+                res.larray,
+                torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device),
             )
         )
 
@@ -701,7 +703,8 @@ class TestManipulations(TestCase):
         res.balance_()
         self.assertTrue(
             torch.equal(
-                res.larray, torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device)
+                res.larray,
+                torch.tensor([rank * 2, 1 + rank * 2], device=self.device.torch_device),
             )
         )
 
@@ -1029,7 +1032,10 @@ class TestManipulations(TestCase):
         self.assertEqual(flat.device, res.device)
 
         a = ht.array(
-            [[[1, 2], [3, 4]], [[5, 6], [7, 8]]], split=0, dtype=ht.int8, device=self.device
+            [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
+            split=0,
+            dtype=ht.int8,
+            device=self.device,
         )
         res = ht.array([1, 2, 3, 4, 5, 6, 7, 8], split=0, dtype=ht.int8, device=self.device)
         flat = ht.flatten(a)
@@ -1038,7 +1044,9 @@ class TestManipulations(TestCase):
         self.assertEqual(flat.device, res.device)
 
         a = ht.array(
-            [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1, device=self.device
+            [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
+            split=1,
+            device=self.device,
         )
         res = ht.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], split=0, device=self.device)
         flat = ht.flatten(a)
@@ -1087,22 +1095,44 @@ class TestManipulations(TestCase):
 
         # splitted
         c = ht.array(
-            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]], split=0
+            [
+                [[0, 1], [2, 3]],
+                [[4, 5], [6, 7]],
+                [[8, 9], [10, 11]],
+                [[12, 13], [14, 15]],
+            ],
+            split=0,
         )
         r_c = ht.array(
-            [[[2, 3], [0, 1]], [[6, 7], [4, 5]], [[10, 11], [8, 9]], [[14, 15], [12, 13]]], split=0
+            [
+                [[2, 3], [0, 1]],
+                [[6, 7], [4, 5]],
+                [[10, 11], [8, 9]],
+                [[14, 15], [12, 13]],
+            ],
+            split=0,
         )
         self.assertTrue(ht.equal(ht.fliplr(c), r_c))
 
         c = ht.array(
-            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
+            [
+                [[0, 1], [2, 3]],
+                [[4, 5], [6, 7]],
+                [[8, 9], [10, 11]],
+                [[12, 13], [14, 15]],
+            ],
             split=1,
             dtype=ht.float32,
         )
         self.assertTrue(ht.equal(ht.resplit(ht.fliplr(c), 0), r_c))
 
         c = ht.array(
-            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
+            [
+                [[0, 1], [2, 3]],
+                [[4, 5], [6, 7]],
+                [[8, 9], [10, 11]],
+                [[12, 13], [14, 15]],
+            ],
             split=2,
             dtype=ht.int8,
         )
@@ -1124,22 +1154,44 @@ class TestManipulations(TestCase):
 
         # splitted
         c = ht.array(
-            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]], split=0
+            [
+                [[0, 1], [2, 3]],
+                [[4, 5], [6, 7]],
+                [[8, 9], [10, 11]],
+                [[12, 13], [14, 15]],
+            ],
+            split=0,
         )
         r_c = ht.array(
-            [[[12, 13], [14, 15]], [[8, 9], [10, 11]], [[4, 5], [6, 7]], [[0, 1], [2, 3]]], split=0
+            [
+                [[12, 13], [14, 15]],
+                [[8, 9], [10, 11]],
+                [[4, 5], [6, 7]],
+                [[0, 1], [2, 3]],
+            ],
+            split=0,
         )
         self.assertTrue(ht.equal(ht.flipud(c), r_c))
 
         c = ht.array(
-            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
+            [
+                [[0, 1], [2, 3]],
+                [[4, 5], [6, 7]],
+                [[8, 9], [10, 11]],
+                [[12, 13], [14, 15]],
+            ],
             split=1,
             dtype=ht.float32,
         )
         self.assertTrue(ht.equal(ht.resplit(ht.flipud(c), 0), r_c))
 
         c = ht.array(
-            [[[0, 1], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]], [[12, 13], [14, 15]]],
+            [
+                [[0, 1], [2, 3]],
+                [[4, 5], [6, 7]],
+                [[8, 9], [10, 11]],
+                [[12, 13], [14, 15]],
+            ],
             split=2,
             dtype=ht.int8,
         )
@@ -1355,34 +1407,58 @@ class TestManipulations(TestCase):
 
         # shortcuts pad_width===================================
         pad_numpy = np.pad(
-            data_np, pad_width=((2, 1),), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+            data_np,
+            pad_width=((2, 1),),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=((2, 1),), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+            data_ht,
+            pad_width=((2, 1),),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
-            data_np, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+            data_np,
+            pad_width=(2, 1),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+            data_ht,
+            pad_width=(2, 1),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
-            data_np, pad_width=(2,), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+            data_np,
+            pad_width=(2,),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=(2,), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+            data_ht,
+            pad_width=(2,),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
-            data_np, pad_width=2, mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+            data_np,
+            pad_width=2,
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=2, mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+            data_ht,
+            pad_width=2,
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
@@ -1411,59 +1487,101 @@ class TestManipulations(TestCase):
         # shortcuts constant_values===================================
 
         pad_numpy = np.pad(
-            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=((0, 3),)
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=((0, 3),),
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=((0, 3),)
+            data_ht,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=((0, 3),),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
-            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(0, 3)
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=(0, 3),
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(0, 3)
+            data_ht,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=(0, 3),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
-            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(3,)
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=(3,),
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(3,)
+            data_ht,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=(3,),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
-            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=4
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=4,
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=4
+            data_ht,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=4,
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         # values datatype list/int/float===================================
         pad_numpy = np.pad(
-            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=2
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=2,
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=[(2, 1), (1, 0), (1, 2)], mode="constant", constant_values=2
+            data_ht,
+            pad_width=[(2, 1), (1, 0), (1, 2)],
+            mode="constant",
+            constant_values=2,
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
-            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=1.2
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=1.2,
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=[(2, 1), (1, 0), (1, 2)], mode="constant", constant_values=1.2
+            data_ht,
+            pad_width=[(2, 1), (1, 0), (1, 2)],
+            mode="constant",
+            constant_values=1.2,
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
-            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(2,)
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=(2,),
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=[(2, 1), (1, 0), (1, 2)], mode="constant", constant_values=(2,)
+            data_ht,
+            pad_width=[(2, 1), (1, 0), (1, 2)],
+            mode="constant",
+            constant_values=(2,),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
@@ -1504,7 +1622,10 @@ class TestManipulations(TestCase):
 
         # padding in split dimension
         pad_np_split = np.pad(
-            data_np, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+            data_np,
+            pad_width=(2, 1),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
         pad_ht_split = ht.pad(
             data_ht_split,
@@ -1547,34 +1668,58 @@ class TestManipulations(TestCase):
         # shortcuts constant_values===================================
 
         pad_numpy = np.pad(
-            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=((0, 3),)
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=((0, 3),),
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=((0, 3),)
+            data_ht,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=((0, 3),),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
-            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(0, 3)
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=(0, 3),
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(0, 3)
+            data_ht,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=(0, 3),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
-            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(3,)
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=(3,),
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=(3,)
+            data_ht,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=(3,),
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
         pad_numpy = np.pad(
-            data_np, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=4
+            data_np,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=4,
         )
         pad_ht = ht.pad(
-            data_ht, pad_width=((2, 1), (1, 0), (1, 2)), mode="constant", constant_values=4
+            data_ht,
+            pad_width=((2, 1), (1, 0), (1, 2)),
+            mode="constant",
+            constant_values=4,
         )
         self.assert_array_equal(pad_ht, pad_numpy)
 
@@ -1621,7 +1766,10 @@ class TestManipulations(TestCase):
 
         # padding in split dimension
         pad_np_split = np.pad(
-            data_np, pad_width=(2, 1), mode="constant", constant_values=((0, 3), (1, 4), (2, 5))
+            data_np,
+            pad_width=(2, 1),
+            mode="constant",
+            constant_values=((0, 3), (1, 4), (2, 5)),
         )
         pad_ht_split = ht.pad(
             data_ht_split,
@@ -1660,7 +1808,10 @@ class TestManipulations(TestCase):
         self.assertEqual(ravel[0], 9)
 
         a = ht.array(
-            [[[1, 2], [3, 4]], [[5, 6], [7, 8]]], split=0, dtype=ht.int8, device=self.device
+            [[[1, 2], [3, 4]], [[5, 6], [7, 8]]],
+            split=0,
+            dtype=ht.int8,
+            device=self.device,
         )
         res = ht.flatten(a)
         ravel = ht.ravel(a)
@@ -1676,7 +1827,9 @@ class TestManipulations(TestCase):
         self.assertEqual(ravel[0], 9)
 
         a = ht.array(
-            [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]], split=1, device=self.device
+            [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
+            split=1,
+            device=self.device,
         )
         res = ht.flatten(a)
         ravel = ht.ravel(a)
@@ -2277,7 +2430,10 @@ class TestManipulations(TestCase):
 
         a = ht.linspace(0, 14, 8, split=0, device=self.device)
         result = ht.array(
-            [[0, 2, 4, 6], [8, 10, 12, 14]], dtype=ht.float32, split=0, device=self.device
+            [[0, 2, 4, 6], [8, 10, 12, 14]],
+            dtype=ht.float32,
+            split=0,
+            device=self.device,
         )
         reshaped = ht.reshape(a, (2, 4))
 
@@ -2298,7 +2454,8 @@ class TestManipulations(TestCase):
 
         a = ht.arange(16, split=0, device=self.device)
         result = ht.array(
-            [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]], device=self.device
+            [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11], [12, 13, 14, 15]],
+            device=self.device,
         )
         reshaped = a.reshape((4, 4))
 
@@ -2309,7 +2466,9 @@ class TestManipulations(TestCase):
 
         a = reshaped
         result = ht.array(
-            [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]], split=0, device=self.device
+            [[0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]],
+            split=0,
+            device=self.device,
         )
         reshaped = a.reshape((2, 8))
 
@@ -2319,10 +2478,12 @@ class TestManipulations(TestCase):
         self.assertEqual(reshaped.device, result.device)
 
         a = ht.array(
-            torch.arange(3 * 4 * 5, device=self.device.torch_device).reshape((3, 4, 5)), split=1
+            torch.arange(3 * 4 * 5, device=self.device.torch_device).reshape((3, 4, 5)),
+            split=1,
         )
         result = ht.array(
-            torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape((4, 5, 3)), split=1
+            torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape((4, 5, 3)),
+            split=1,
         )
         reshaped = a.reshape((4, 5, 3))
 
@@ -2332,10 +2493,12 @@ class TestManipulations(TestCase):
         self.assertEqual(reshaped.device, result.device)
 
         a = ht.array(
-            torch.arange(6 * 4 * 8, device=self.device.torch_device).reshape([6, 4, 8]), split=2
+            torch.arange(6 * 4 * 8, device=self.device.torch_device).reshape([6, 4, 8]),
+            split=2,
         )
         result = ht.array(
-            torch.arange(4 * 12 * 4, device=self.device.torch_device).reshape([4, 12, 4]), split=2
+            torch.arange(4 * 12 * 4, device=self.device.torch_device).reshape([4, 12, 4]),
+            split=2,
         )
         reshaped = ht.reshape(a, [4, 12, 4])
         self.assertEqual(reshaped.size, result.size)
@@ -2344,10 +2507,12 @@ class TestManipulations(TestCase):
         self.assertEqual(reshaped.device, result.device)
 
         a = ht.array(
-            torch.arange(3 * 4 * 5, device=self.device.torch_device).reshape([3, 4, 5]), split=2
+            torch.arange(3 * 4 * 5, device=self.device.torch_device).reshape([3, 4, 5]),
+            split=2,
         )
         result = ht.array(
-            torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape([4, 5, 3]), split=1
+            torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape([4, 5, 3]),
+            split=1,
         )
         reshaped = ht.reshape(a, [4, 5, 3], new_split=1)
         self.assertEqual(reshaped.size, result.size)
@@ -2357,10 +2522,12 @@ class TestManipulations(TestCase):
         self.assertEqual(reshaped.device, result.device)
 
         a = ht.array(
-            torch.arange(3 * 4 * 5, device=self.device.torch_device).reshape([3, 4, 5]), split=1
+            torch.arange(3 * 4 * 5, device=self.device.torch_device).reshape([3, 4, 5]),
+            split=1,
         )
         result = ht.array(
-            torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape([4 * 5, 3]), split=0
+            torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape([4 * 5, 3]),
+            split=0,
         )
         reshaped = ht.reshape(a, [4 * 5, 3], new_split=0)
         self.assertEqual(reshaped.size, result.size)
@@ -2370,10 +2537,12 @@ class TestManipulations(TestCase):
         self.assertEqual(reshaped.device, result.device)
 
         a = ht.array(
-            torch.arange(3 * 4 * 5, device=self.device.torch_device).reshape([3, 4, 5]), split=0
+            torch.arange(3 * 4 * 5, device=self.device.torch_device).reshape([3, 4, 5]),
+            split=0,
         )
         result = ht.array(
-            torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape([4, 5 * 3]), split=1
+            torch.arange(4 * 5 * 3, device=self.device.torch_device).reshape([4, 5 * 3]),
+            split=1,
         )
         reshaped = ht.reshape(a, [4, 5 * 3], new_split=1)
         self.assertEqual(reshaped.size, result.size)
@@ -2813,11 +2982,15 @@ class TestManipulations(TestCase):
         )
         if torch.cuda.is_available() and data.device == ht.gpu and size < 4:
             indices_axis_zero = torch.tensor(
-                [[0, 2, 2], [3, 2, 0]], dtype=torch.int32, device=self.device.torch_device
+                [[0, 2, 2], [3, 2, 0]],
+                dtype=torch.int32,
+                device=self.device.torch_device,
             )
         else:
             indices_axis_zero = torch.tensor(
-                [[0, 2, 2], [3, 0, 0]], dtype=torch.int32, device=self.device.torch_device
+                [[0, 2, 2], [3, 0, 0]],
+                dtype=torch.int32,
+                device=self.device.torch_device,
             )
         result, result_indices = ht.sort(data, axis=0)
         first = result[0].larray

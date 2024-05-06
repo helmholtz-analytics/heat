@@ -152,7 +152,10 @@ if __name__ == "__main__":
     # set up the arguments parser
     parser = argparse.ArgumentParser(description="Benchmark jobscript generator")
     parser.add_argument(
-        "--threads", type=int, help="number of threads", default=multiprocessing.cpu_count() // 2
+        "--threads",
+        type=int,
+        help="number of threads",
+        default=multiprocessing.cpu_count() // 2,
     )
     parser.add_argument(
         "--path", type=str, help="path to the benchmark folders", default=file_directory
@@ -173,7 +176,11 @@ if __name__ == "__main__":
         "--submit", help="optional batch submission of the scripts", action="store_true"
     )
     parser.add_argument(
-        "--mail", type=str, help="mail address for job status messages", default=None, required=True
+        "--mail",
+        type=str,
+        help="mail address for job status messages",
+        default=None,
+        required=True,
     )
     args = parser.parse_args()
 

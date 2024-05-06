@@ -1,7 +1,5 @@
 import heat as ht
 
-import os
-import torch
 
 from heat.core.tests.test_suites.basic_test import TestCase
 
@@ -20,7 +18,24 @@ class TestUtils(TestCase):
             return
         # tests needed: need to test min and max modes
         # min tests
-        values = [1, 0.9, 0.8, 0.7, 0.8, 0.9, 1, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3]
+        values = [
+            1,
+            0.9,
+            0.8,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            1.1,
+            1.0,
+            0.9,
+            0.8,
+            0.7,
+            0.6,
+            0.5,
+            0.4,
+            0.3,
+        ]
         dmp = DetectMetricPlateau(mode="min", patience=2, threshold_mode="abs")
         for c, v in enumerate(values):
             t = dmp.test_if_improving(v)

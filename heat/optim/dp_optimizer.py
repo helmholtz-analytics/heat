@@ -7,7 +7,7 @@ import math
 import torch
 import torch.distributed
 from torch.nn.parallel import DistributedDataParallel as tDDP
-from typing import Union, List, Tuple, Dict
+from typing import Union, Tuple, Dict
 
 from ..core.communication import MPICommunication
 from ..core.communication import MPI
@@ -352,7 +352,9 @@ class DASO:
 
     @torch.no_grad()
     def epoch_loss_logic(
-        self, loss: Union[torch.Tensor, int, float], loss_globally_averaged: bool = False
+        self,
+        loss: Union[torch.Tensor, int, float],
+        loss_globally_averaged: bool = False,
     ) -> None:
         """
         Function controlling the number of batches between global synchronizations and the batches to wait before

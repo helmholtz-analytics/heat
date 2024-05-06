@@ -32,7 +32,10 @@ class TestDCSR_matrix(TestCase):
             [1, 2, 3, 4, 5, 6], dtype=torch.float, device=self.device.torch_device
         )
         self.ref_torch_sparse_csr = torch.sparse_csr_tensor(
-            self.ref_indptr, self.ref_indices, self.ref_data, device=self.device.torch_device
+            self.ref_indptr,
+            self.ref_indices,
+            self.ref_data,
+            device=self.device.torch_device,
         )
 
         self.world_size = ht.communication.MPI_WORLD.size

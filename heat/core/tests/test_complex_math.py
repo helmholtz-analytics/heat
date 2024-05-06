@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import heat as ht
 
@@ -26,7 +25,9 @@ class TestComplex(TestCase):
         self.assertTrue(torch.equal(absolute.larray, res))
 
         a = ht.array(
-            [[1.0, 1.0j], [1 + 1j, -2 + 2j], [3 - 3j, -4 - 4j]], split=1, dtype=ht.complex128
+            [[1.0, 1.0j], [1 + 1j, -2 + 2j], [3 - 3j, -4 - 4j]],
+            split=1,
+            dtype=ht.complex128,
         )
         absolute = ht.absolute(a)
         res = torch.abs(a.larray)
@@ -83,7 +84,9 @@ class TestComplex(TestCase):
         a = ht.array([1.0, 1.0j, 1 + 1j, -2 + 2j, 3 - 3j])
         conj = ht.conjugate(a)
         res = ht.array(
-            [1 - 0j, -1j, 1 - 1j, -2 - 2j, 3 + 3j], dtype=ht.complex64, device=self.device
+            [1 - 0j, -1j, 1 - 1j, -2 - 2j, 3 + 3j],
+            dtype=ht.complex64,
+            device=self.device,
         )
 
         self.assertIs(conj.device, self.device)
@@ -110,7 +113,9 @@ class TestComplex(TestCase):
         self.assertTrue(ht.equal(ht.imag(conj), ht.imag(res)))
 
         a = ht.array(
-            [[1.0, 1.0j], [1 + 1j, -2 + 2j], [3 - 3j, -4 - 4j]], dtype=ht.complex128, split=1
+            [[1.0, 1.0j], [1 + 1j, -2 + 2j], [3 - 3j, -4 - 4j]],
+            dtype=ht.complex128,
+            split=1,
         )
         conj = ht.conjugate(a)
         res = ht.array(

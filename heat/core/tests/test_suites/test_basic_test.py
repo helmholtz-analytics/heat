@@ -43,7 +43,11 @@ class TestBasicTest(TestCase):
         # np.random.randn eventually creates values < 0 which will result in math.nan.
         # Because math.nan != math.nan this would always produce an exception.
         self.assert_func_equal(
-            shape, heat_func=ht.log, numpy_func=np.log, data_types=[np.int32, np.int64], low=1
+            shape,
+            heat_func=ht.log,
+            numpy_func=np.log,
+            data_types=[np.int32, np.int64],
+            low=1,
         )
 
         with self.assertRaises(AssertionError):
@@ -54,7 +58,12 @@ class TestBasicTest(TestCase):
 
         with self.assertRaises(ValueError):
             self.assert_func_equal(
-                shape, heat_func=ht.exp, numpy_func=np.exp, low=-100, high=100, data_types=[object]
+                shape,
+                heat_func=ht.exp,
+                numpy_func=np.exp,
+                low=-100,
+                high=100,
+                data_types=[object],
             )
 
     def test_assert_func_equal_for_tensor(self):

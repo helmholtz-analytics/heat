@@ -230,11 +230,13 @@ class TestStatistics(TestCase):
 
         # check weighted average over all float elements of split 3d tensor, across split axis
         random_volume = ht.array(
-            torch.randn((3, 3, 3), dtype=torch.float64, device=self.device.torch_device), is_split=1
+            torch.randn((3, 3, 3), dtype=torch.float64, device=self.device.torch_device),
+            is_split=1,
         )
         size = random_volume.comm.size
         random_weights = ht.array(
-            torch.randn((3 * size,), dtype=torch.float64, device=self.device.torch_device), split=0
+            torch.randn((3 * size,), dtype=torch.float64, device=self.device.torch_device),
+            split=0,
         )
         avg_volume = ht.average(random_volume, weights=random_weights, axis=1)
         np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)
@@ -256,7 +258,8 @@ class TestStatistics(TestCase):
         # check weighted average over all float elements of split 3d tensor (3d weights)
 
         random_weights_3d = ht.array(
-            torch.randn((3, 3, 3), dtype=torch.float64, device=self.device.torch_device), is_split=1
+            torch.randn((3, 3, 3), dtype=torch.float64, device=self.device.torch_device),
+            is_split=1,
         )
         avg_volume = ht.average(random_volume, weights=random_weights_3d, axis=1)
         np_avg_volume = np.average(random_volume.numpy(), weights=random_weights.numpy(), axis=1)

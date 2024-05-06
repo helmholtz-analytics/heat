@@ -1,7 +1,4 @@
-from typing import Type
 import torch
-import os
-import unittest
 import heat as ht
 import numpy as np
 
@@ -254,7 +251,12 @@ class TestLinalgBasics(TestCase):
 
         # array Size=(2,2,2,2)
         ares = ht.array(
-            [[[2, -0.5], [-3, 1]], [[-3, 2], [2, -1]], [[-3, 2], [2, -1]], [[2, -0.5], [-3, 1]]],
+            [
+                [[2, -0.5], [-3, 1]],
+                [[-3, 2], [2, -1]],
+                [[-3, 2], [2, -1]],
+                [[2, -0.5], [-3, 1]],
+            ],
             dtype=ht.float,
         )
 

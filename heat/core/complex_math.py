@@ -8,7 +8,6 @@ from typing import Optional
 from . import _operations
 from . import constants
 from . import factories
-from . import trigonometrics
 from . import types
 from .dndarray import DNDarray
 

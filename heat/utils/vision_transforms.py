@@ -3,8 +3,6 @@ File with the available transforms for images
 """
 
 import torchvision.transforms
-import sys
-import unittest
 
 
 def __getattr__(name):

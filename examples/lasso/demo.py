@@ -1,7 +1,4 @@
 import numpy as np
-import torch
-import sys
-import os
 
 import heat as ht
 from matplotlib import pyplot as plt
@@ -49,7 +46,10 @@ theta_lasso = np.stack(theta_list).T[1:, :]
 
 # plot lasso paths
 plotfkt.plot_lasso_path(
-    lamda, theta_lasso, diabetes.feature_names, title="Lasso Paths - HeAT implementation"
+    lamda,
+    theta_lasso,
+    diabetes.feature_names,
+    title="Lasso Paths - HeAT implementation",
 )
 
 if X.is_distributed():

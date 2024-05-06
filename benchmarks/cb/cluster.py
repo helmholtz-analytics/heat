@@ -24,7 +24,11 @@ def run_cluster_benchmarks():
     n = 5000
     seed = 1
     data = ht.utils.data.spherical.create_spherical_dataset(
-        num_samples_cluster=n, radius=1.0, offset=4.0, dtype=ht.float32, random_state=seed
+        num_samples_cluster=n,
+        radius=1.0,
+        offset=4.0,
+        dtype=ht.float32,
+        random_state=seed,
     )
 
     kmeans(data)

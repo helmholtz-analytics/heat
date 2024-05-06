@@ -7,7 +7,6 @@ from heat.sparse.dcsr_matrix import DCSR_matrix
 
 from . import factories
 from ..core.communication import MPI
-from ..core.dndarray import DNDarray
 from ..core import types
 
 from typing import Callable, Optional, Dict
@@ -82,7 +81,10 @@ def __binary_op_csr(
             device=matrix.device.torch_device,
         )
         return factories.sparse_csr_matrix(
-            res_torch_sparse_csr, is_split=matrix.split, comm=matrix.comm, device=matrix.device
+            res_torch_sparse_csr,
+            is_split=matrix.split,
+            comm=matrix.comm,
+            device=matrix.device,
         )
 
     if t1.shape != t2.shape:

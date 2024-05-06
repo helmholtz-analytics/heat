@@ -14,7 +14,11 @@ class TestPartialDataset(unittest.TestCase):
         class TestDataset(ht.utils.data.partial_dataset.PartialH5Dataset):
             def __init__(self, file, comm, load, load_len, use_gpus=False):
                 super(TestDataset, self).__init__(
-                    file, comm=comm, initial_load=load, load_length=load_len, use_gpu=use_gpus
+                    file,
+                    comm=comm,
+                    initial_load=load,
+                    load_length=load_len,
+                    use_gpu=use_gpus,
                 )
 
             def __getitem__(self, item):

@@ -3,9 +3,8 @@
 import builtins
 import numpy as np
 import torch
-import warnings
 
-from .communication import MPI, MPI_WORLD
+from .communication import MPI
 from . import factories
 from . import stride_tricks
 from . import sanitation
@@ -396,7 +395,11 @@ def __local_op(
 
     # do an in-place operation into a provided buffer
     casted = x.larray.type(torch_type)
-    operation(casted.repeat(multiples) if needs_repetition else casted, out=out.larray, **kwargs)
+    operation(
+        casted.repeat(multiples) if needs_repetition else casted,
+        out=out.larray,
+        **kwargs,
+    )
 
     return out
 

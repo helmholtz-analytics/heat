@@ -332,7 +332,10 @@ class DataParallelMultiGPU(tnn.Module):
     """
 
     def __init__(
-        self, module: torch.nn.Module, optimizer: optim.DASO, comm: MPICommunication = MPI_WORLD
+        self,
+        module: torch.nn.Module,
+        optimizer: optim.DASO,
+        comm: MPICommunication = MPI_WORLD,
     ):  # noqa: D107
         super(DataParallelMultiGPU, self).__init__()
         rank = comm.rank
@@ -344,7 +347,8 @@ class DataParallelMultiGPU(tnn.Module):
             module = tnn.parallel.DistributedDataParallel(module, device_ids=[local_rank])
         else:
             warnings.warn(
-                "DataParallelMultiGPU should be used with multiple GPUs per node", UserWarning
+                "DataParallelMultiGPU should be used with multiple GPUs per node",
+                UserWarning,
             )
         self.module = module
         self.comm = comm

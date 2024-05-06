@@ -111,7 +111,11 @@ def main():
         help="number of epochs to train (default: 14)",
     )
     parser.add_argument(
-        "--lr", type=float, default=1.0, metavar="LR", help="learning rate (default: 1.0)"
+        "--lr",
+        type=float,
+        default=1.0,
+        metavar="LR",
+        help="learning rate (default: 1.0)",
     )
     parser.add_argument(
         "--gamma",
@@ -124,7 +128,10 @@ def main():
         "--no-cuda", action="store_true", default=False, help="disables CUDA training"
     )
     parser.add_argument(
-        "--dry-run", action="store_true", default=False, help="quickly check a single pass"
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="quickly check a single pass",
     )
     parser.add_argument("--seed", type=int, default=1, metavar="S", help="random seed (default: 1)")
     parser.add_argument(
@@ -135,7 +142,10 @@ def main():
         help="how many batches to wait before logging training status",
     )
     parser.add_argument(
-        "--save-model", action="store_true", default=False, help="For Saving the current Model"
+        "--save-model",
+        action="store_true",
+        default=False,
+        help="For Saving the current Model",
     )
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
@@ -145,11 +155,18 @@ def main():
     if use_cuda:
         kwargs |= {"num_workers": 0, "pin_memory": True}
     transform = ht.utils.vision_transforms.Compose(
-        [vision_transforms.ToTensor(), vision_transforms.Normalize((0.1307,), (0.3081,))]
+        [
+            vision_transforms.ToTensor(),
+            vision_transforms.Normalize((0.1307,), (0.3081,)),
+        ]
     )
     dataset1 = MNISTDataset("../../heat/datasets", train=True, transform=transform, ishuffle=False)
     dataset2 = MNISTDataset(
-        "../../heat/datasets", train=False, transform=transform, ishuffle=False, test_set=True
+        "../../heat/datasets",
+        train=False,
+        transform=transform,
+        ishuffle=False,
+        test_set=True,
     )
 
     train_loader = ht.utils.data.datatools.DataLoader(dataset=dataset1, **kwargs)
@@ -160,7 +177,10 @@ def main():
     dp_optim = ht.optim.DataParallelOptimizer(optimizer, blocking=blocking)
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     dp_model = ht.nn.DataParallel(
-        model, comm=dataset1.comm, optimizer=dp_optim, blocking_parameter_updates=blocking
+        model,
+        comm=dataset1.comm,
+        optimizer=dp_optim,
+        blocking_parameter_updates=blocking,
     )
 
     for epoch in range(1, args.epochs + 1):

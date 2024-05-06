@@ -3,7 +3,7 @@ Base-module for k-clustering algorithms
 """
 
 import heat as ht
-from typing import Optional, Union, Callable
+from typing import Union, Callable
 from heat.core.dndarray import DNDarray
 
 
@@ -152,7 +152,10 @@ class _KCluster(ht.ClusteringMixin, ht.BaseEstimator):
         elif self.init == "probability_based":
             if x.split is None or x.split == 0:
                 centroids = ht.zeros(
-                    (self.n_clusters, x.shape[1]), split=None, device=x.device, comm=x.comm
+                    (self.n_clusters, x.shape[1]),
+                    split=None,
+                    device=x.device,
+                    comm=x.comm,
                 )
                 sample = ht.random.randint(0, x.shape[0] - 1).item()
                 _, displ, _ = x.comm.counts_displs_shape(shape=x.shape, axis=0)

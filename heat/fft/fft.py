@@ -418,7 +418,10 @@ def fft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarra
 
 
 def fft2(
-    x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
+    x: DNDarray,
+    s: Tuple[int, int] = None,
+    axes: Tuple[int, int] = (-2, -1),
+    norm: str = None,
 ) -> DNDarray:
     """
     Compute the 2-dimensional discrete Fourier Transform over the specified axes in an M-dimensional
@@ -492,7 +495,10 @@ def fftfreq(
 
 
 def fftn(
-    x: DNDarray, s: Tuple[int, ...] = None, axes: Tuple[int, ...] = None, norm: str = None
+    x: DNDarray,
+    s: Tuple[int, ...] = None,
+    axes: Tuple[int, ...] = None,
+    norm: str = None,
 ) -> DNDarray:
     """
     Compute the N-dimensional discrete Fourier Transform.
@@ -593,7 +599,10 @@ def hfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarr
 
 
 def hfft2(
-    x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
+    x: DNDarray,
+    s: Tuple[int, int] = None,
+    axes: Tuple[int, int] = (-2, -1),
+    norm: str = None,
 ) -> DNDarray:
     """
     Compute the 2-dimensional discrete Fourier Transform of a Hermitian symmetric signal.
@@ -632,7 +641,10 @@ def hfft2(
 
 
 def hfftn(
-    x: DNDarray, s: Tuple[int, ...] = None, axes: Tuple[int, ...] = None, norm: str = None
+    x: DNDarray,
+    s: Tuple[int, ...] = None,
+    axes: Tuple[int, ...] = None,
+    norm: str = None,
 ) -> DNDarray:
     """
     Compute the N-dimensional discrete Fourier Transform of a Hermitian symmetric signal.
@@ -709,7 +721,10 @@ def ifft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarr
 
 
 def ifft2(
-    x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
+    x: DNDarray,
+    s: Tuple[int, int] = None,
+    axes: Tuple[int, int] = (-2, -1),
+    norm: str = None,
 ) -> DNDarray:
     """
     Compute the 2-dimensional inverse discrete Fourier Transform.
@@ -742,7 +757,10 @@ def ifft2(
 
 
 def ifftn(
-    x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, ...] = None, norm: str = None
+    x: DNDarray,
+    s: Tuple[int, int] = None,
+    axes: Tuple[int, ...] = None,
+    norm: str = None,
 ) -> DNDarray:
     """
     Compute the N-dimensional inverse discrete Fourier Transform.
@@ -829,7 +847,10 @@ def ihfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDar
 
 
 def ihfft2(
-    x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
+    x: DNDarray,
+    s: Tuple[int, int] = None,
+    axes: Tuple[int, int] = (-2, -1),
+    norm: str = None,
 ) -> DNDarray:
     """
     Compute the inverse of a 2-dimensional discrete Fourier Transform of a Hermitian-symmetric signal. The output is Hermitian-symmetric. Requires torch >= 1.11.0.
@@ -867,7 +888,10 @@ def ihfft2(
 
 
 def ihfftn(
-    x: DNDarray, s: Tuple[int, ...] = None, axes: Tuple[int, ...] = None, norm: str = None
+    x: DNDarray,
+    s: Tuple[int, ...] = None,
+    axes: Tuple[int, ...] = None,
+    norm: str = None,
 ) -> DNDarray:
     """
     Compute the inverse of a N-dimensional discrete Fourier Transform of Hermitian-symmetric signal. The output is Hermitian-symmetric. Requires torch >= 1.11.0.
@@ -941,7 +965,10 @@ def irfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDar
 
 
 def irfft2(
-    x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
+    x: DNDarray,
+    s: Tuple[int, int] = None,
+    axes: Tuple[int, int] = (-2, -1),
+    norm: str = None,
 ) -> DNDarray:
     """
     Compute the inverse of a 2-dimensional discrete real Fourier Transform. The output is real.
@@ -976,7 +1003,10 @@ def irfft2(
 
 
 def irfftn(
-    x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, ...] = None, norm: str = None
+    x: DNDarray,
+    s: Tuple[int, int] = None,
+    axes: Tuple[int, ...] = None,
+    norm: str = None,
 ) -> DNDarray:
     """
     Compute the inverse of an N-dimensional discrete Fourier Transform of real signal.
@@ -1036,7 +1066,10 @@ def rfft(x: DNDarray, n: int = None, axis: int = -1, norm: str = None) -> DNDarr
 
 
 def rfft2(
-    x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, int] = (-2, -1), norm: str = None
+    x: DNDarray,
+    s: Tuple[int, int] = None,
+    axes: Tuple[int, int] = (-2, -1),
+    norm: str = None,
 ) -> DNDarray:
     """
     Compute the 2-dimensional discrete Fourier Transform of real input. The output is Hermitian-symmetric.
@@ -1095,7 +1128,10 @@ def rfftfreq(
 
 
 def rfftn(
-    x: DNDarray, s: Tuple[int, int] = None, axes: Tuple[int, ...] = None, norm: str = None
+    x: DNDarray,
+    s: Tuple[int, int] = None,
+    axes: Tuple[int, ...] = None,
+    norm: str = None,
 ) -> DNDarray:
     """
     Compute the N-dimensional discrete Fourier Transform of real input. By default, all axes are transformed, with the real transform

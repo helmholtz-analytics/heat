@@ -1,6 +1,3 @@
-import os
-import unittest
-
 import heat as ht
 
 from ...core.tests.test_suites.basic_test import TestCase
@@ -40,7 +37,11 @@ class TestSpectral(TestCase):
         m = 10
         # fit the clusters
         spectral = ht.cluster.Spectral(
-            n_clusters=3, gamma=1.0, metric="rbf", laplacian="fully_connected", n_lanczos=m
+            n_clusters=3,
+            gamma=1.0,
+            metric="rbf",
+            laplacian="fully_connected",
+            n_lanczos=m,
         )
         spectral.fit(iris)
         self.assertIsInstance(spectral.labels_, ht.DNDarray)

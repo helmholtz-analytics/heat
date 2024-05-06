@@ -1,5 +1,4 @@
 import heat as ht
-import unittest
 import torch
 from heat.core.tests.test_suites.basic_test import TestCase
 

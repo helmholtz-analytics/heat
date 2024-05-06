@@ -1,8 +1,4 @@
-import torch
-import os
-import unittest
 import heat as ht
-import numpy as np
 from mpi4py import MPI
 
 from ...tests.test_suites.basic_test import TestCase
@@ -45,7 +41,12 @@ class TestHSVD(TestCase):
                         U_orth_err = (
                             ht.norm(
                                 U.T @ U
-                                - ht.eye(hsvd_rk, dtype=U.dtype, split=U.T.split, device=U.device)
+                                - ht.eye(
+                                    hsvd_rk,
+                                    dtype=U.dtype,
+                                    split=U.T.split,
+                                    device=U.device,
+                                )
                             )
                             / hsvd_rk**0.5
                         )
@@ -54,7 +55,12 @@ class TestHSVD(TestCase):
                         V_orth_err = (
                             ht.norm(
                                 V.T @ V
-                                - ht.eye(hsvd_rk, dtype=V.dtype, split=V.T.split, device=V.device)
+                                - ht.eye(
+                                    hsvd_rk,
+                                    dtype=V.dtype,
+                                    split=V.T.split,
+                                    device=V.device,
+                                )
                             )
                             / hsvd_rk**0.5
                         )
@@ -80,7 +86,12 @@ class TestHSVD(TestCase):
                         U_orth_err = (
                             ht.norm(
                                 U.T @ U
-                                - ht.eye(hsvd_rk, dtype=U.dtype, split=U.T.split, device=U.device)
+                                - ht.eye(
+                                    hsvd_rk,
+                                    dtype=U.dtype,
+                                    split=U.T.split,
+                                    device=U.device,
+                                )
                             )
                             / hsvd_rk**0.5
                         )
@@ -90,7 +101,12 @@ class TestHSVD(TestCase):
                         V_orth_err = (
                             ht.norm(
                                 V.T @ V
-                                - ht.eye(hsvd_rk, dtype=V.dtype, split=V.T.split, device=V.device)
+                                - ht.eye(
+                                    hsvd_rk,
+                                    dtype=V.dtype,
+                                    split=V.T.split,
+                                    device=V.device,
+                                )
                             )
                             / hsvd_rk**0.5
                         )

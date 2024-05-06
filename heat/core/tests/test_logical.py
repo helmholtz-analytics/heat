@@ -473,7 +473,8 @@ class TestLogical(TestCase):
         self.assertTrue(ht.equal(ht.logical_and(first_tensor, second_tensor), result_tensor))
         self.assertTrue(
             ht.equal(
-                ht.logical_and(int_tensor, int_tensor), ht.array([[True, False], [True, True]])
+                ht.logical_and(int_tensor, int_tensor),
+                ht.array([[True, False], [True, True]]),
             )
         )
         self.assertTrue(
@@ -514,7 +515,10 @@ class TestLogical(TestCase):
 
         self.assertTrue(ht.equal(ht.logical_or(first_tensor, second_tensor), result_tensor))
         self.assertTrue(
-            ht.equal(ht.logical_or(int_tensor, int_tensor), ht.array([[True, False], [True, True]]))
+            ht.equal(
+                ht.logical_or(int_tensor, int_tensor),
+                ht.array([[True, False], [True, True]]),
+            )
         )
         self.assertTrue(
             ht.equal(
