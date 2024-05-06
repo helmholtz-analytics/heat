@@ -18,11 +18,15 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Get branch names
+        id: branch-names
+        uses: tj-actions/branch-names@v8
       - name: 'start test'
         run: |
          curl -s -X POST \
            --fail \
            -F token=${{ secrets.CB_PIPELINE }} \
-           -F "ref=heat/base" \
+           -F "ref=heat/support" \
            -F "variables[SHA]=$GITHUB_SHA" \
+           -F "variables[GHBRANCH]=${{ steps.branch-names.outputs.current_branch }}" \
            https://codebase.helmholtz.cloud/api/v4/projects/7605/trigger/pipeline -o /dev/null
