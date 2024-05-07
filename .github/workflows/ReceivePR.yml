@@ -26,7 +26,7 @@ jobs:
           architecture: x64
 
       - name: Setup MPI
-        uses: mpi4py/setup-mpi@40c19a60792debf8ca403a3e6ee5f84c4e76555d # v1.2.1
+        uses: mpi4py/setup-mpi@520633b286fcd0f3dbc25ef6d84d78f6d6bb1ab6 # v1.2.3
         with:
           mpi: openmpi
 
