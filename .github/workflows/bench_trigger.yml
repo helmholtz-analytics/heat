@@ -30,7 +30,7 @@ jobs:
         run: |
           SHORT_SHA=$(git rev-parse --short ${{ github.event.pull_request.head.sha }})
           curl -s -X POST \
-            --fail \
+            --fail-with-body \
             -F "token=$PIPE_TRIGGER_TOKEN" \
             -F "ref=main" \
             -F "variables[SHA]=$SHA" \
@@ -49,7 +49,7 @@ jobs:
         run: |
           SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)
           curl -s -X POST \
-            --fail \
+            --fail-with-body \
             -F "token=$PIPE_TRIGGER_TOKEN" \
             -F "ref=main" \
             -F "variables[SHA]=$SHA" \
