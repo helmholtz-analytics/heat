@@ -37,7 +37,7 @@ jobs:
             -F "variables[SHORT_SHA]=${SHORT_SHA}" \
             -F "variables[BRANCH]=$BRANCH" \
             -F "variables[PR]=$PR_NUMBER" \
-            -F "variables[AUTHOR]=${AUTHOR:heat-team}" \
+            -F "variables[AUTHOR]=${AUTHOR:-heat_team}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline
       - name: Trigger benchmarks (Push main)
         id: setup_push
@@ -55,7 +55,7 @@ jobs:
             -F "variables[SHA]=$SHA" \
             -F "variables[SHORT_SHA]=${SHORT_SHA}" \
             -F "variables[BRANCH]=main" \
-            -F "variables[AUTHOR]=$AUTHOR" \
+            -F "variables[AUTHOR]=${AUTHOR:-heat_team}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline
       - name: Create status
         if: ${{ steps.setup_pr.outcome == 'success' || steps.setup_push.outcome == 'success'}}
