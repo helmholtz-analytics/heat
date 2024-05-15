@@ -26,7 +26,6 @@ jobs:
       - name: "Collect Gitlab Benchmarks"
         env:
           GITLAB_CB_API_TOKEN: ${{ secrets.GITLAB_CB_API_TOKEN }}
-
         run: |
           curl --location \
           --header "PRIVATE-TOKEN: $GITLAB_CB_API_TOKEN" \
