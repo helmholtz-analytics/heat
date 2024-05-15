@@ -37,7 +37,7 @@ jobs:
             -F "variables[SHORT_SHA]=${SHORT_SHA}" \
             -F "variables[BRANCH]=$BRANCH" \
             -F "variables[PR]=$PR_NUMBER" \
-            -F "variables[AUTHOR]=$AUTHOR" \
+            -F "variables[AUTHOR]=${AUTHOR:heat-team}" \
             https://codebase.helmholtz.cloud/api/v4/projects/7930/trigger/pipeline
       - name: Trigger benchmarks (Push main)
         id: setup_push
