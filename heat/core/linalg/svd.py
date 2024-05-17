@@ -204,6 +204,3 @@ def svd(
 
     """
     Todo: tests, correct problem with VH... """
-
-
-# from ..factories import array
